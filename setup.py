@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="sbs_example",
+    name="sbs_scatter",
     version="1.0.0",
     author="Doug Reichard",
     author_email="demo@email.com",
