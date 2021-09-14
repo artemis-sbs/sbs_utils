@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="demopackage",
+    name="sbs_example",
     version="1.0.0",
     author="Doug Reichard",
     author_email="demo@email.com",
