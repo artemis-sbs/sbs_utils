@@ -50,9 +50,14 @@ class SpaceObject:
 		self.add_id()
 		return sim.get_space_object(self.id)
 
-	def debug_mark_loc(sim, name: str, x: float, y: float, z: float, color: str):
+	def debug_mark_loc(sim,  x: float, y: float, z: float, name: str, color: str):
 		if SpaceObject.debug:
 			return sim.add_navpoint(x, y, z, name, color)
+		return None
+
+	def debug_remove_mark_loc(sim, name: str):
+		if SpaceObject.debug:
+			return sim.delete_navpoint_by_name(name)
 		return None
 
 	def log(s: str):
