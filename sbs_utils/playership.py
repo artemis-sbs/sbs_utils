@@ -1,6 +1,6 @@
 
-from consoledispatcher import ConsoleDispatcher
-from spaceobject import SpaceObject
+from .consoledispatcher import ConsoleDispatcher
+from .spaceobject import SpaceObject
 
 
 class PlayerShip(SpaceObject):
