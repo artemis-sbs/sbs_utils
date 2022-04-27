@@ -19,6 +19,8 @@ class CloseData:
 class SpaceObject:
     ids = {}
     debug = True
+    def __init__(self):
+        pass
 
     def add(id, obj):
         SpaceObject.ids[id] = obj

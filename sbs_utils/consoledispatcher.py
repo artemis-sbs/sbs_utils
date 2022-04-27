@@ -44,3 +44,18 @@ class ConsoleDispatcher:
 
     def dispatch_comms_message(sim, message_tag: str, player_id: int,  other_id):
         return ConsoleDispatcher.dispatch_message(sim, message_tag, player_id, 'comms_targetUID', other_id)
+
+
+class CommsMixin:
+    def enable_comms(self, face_desc=None):
+        self.face_desc = face_desc if face_desc is not None \
+            else f"ter #964b00 8 1;ter #968b00 3 0;ter #968b00 4 0;ter #968b00 5 2;ter #fff 3 5;ter #964b00 8 4;"
+
+        ConsoleDispatcher.add_select(self.id, 'comms_targetUID', self.comms_selected)
+        ConsoleDispatcher.add_message(self.id, 'comms_targetUID', self.comms_message)
+
+    def comms_selected(self, sim, player_id):
+        pass
+
+    def comms_message(self, sim, message, player_id):
+        pass
