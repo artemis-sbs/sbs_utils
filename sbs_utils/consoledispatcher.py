@@ -46,7 +46,7 @@ class ConsoleDispatcher:
         return ConsoleDispatcher.dispatch_message(sim, message_tag, player_id, 'comms_targetUID', other_id)
 
 
-class CommsMixin:
+class MCommunications:
     def enable_comms(self, face_desc=None):
         self.face_desc = face_desc if face_desc is not None \
             else f"ter #964b00 8 1;ter #968b00 3 0;ter #968b00 4 0;ter #968b00 5 2;ter #fff 3 5;ter #964b00 8 4;"
