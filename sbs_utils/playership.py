@@ -1,6 +1,6 @@
 
-from .spaceobject import SpaceObject
+from .spaceobject import MSpawnPlayer, SpaceObject
 
 
-class PlayerShip(SpaceObject):
+class PlayerShip(SpaceObject, MSpawnPlayer):
 	pass

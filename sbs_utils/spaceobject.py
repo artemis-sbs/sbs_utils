@@ -23,80 +23,57 @@ class CloseData:
         self.obj = other_obj
         self.distance = distance
 
-class MSpawn:
-    def spawn_common(self, sim, obj, x,y,z,name, side):
-        sim.reposition_space_object(obj, x, y, z)
-        blob = obj.data_set
-        if side is not None:
-            name = name if name is not None else f"{side} {self.id}"
-            blob.set("name_tag", name, 0)
-            obj.side = side
-        elif name is not None:
-            blob.set("name_tag", name, 0)
-        
-        return blob
-
-class MSpawnPlayer(MSpawn):
-    def make_new_player(self, sim, behave, data_id):
-        self.id = sim.make_new_player(behave, data_id)
-        self.add_id()
-        sbs.assign_player_ship(self.id)
-        return sim.get_space_object(self.id)
-
-    def spawn(self, sim, x, y, z, name, side, art_id):
-        # playerID will be a NUMBER, a unique value for every space object that you create.
-        ship = self.make_new_player(sim, "behav_playership", art_id)
-        blob = self.spawn_common(sim, ship, x,y,z,name, side)
-        return SpawnData(id, ship, blob)
-
-class MSpawnActive(MSpawn):
-    """
-    Mixin to add Spawn as an Active
-    """
-    def make_new_active(self, sim,  behave, data_id):
-        self.id = sim.make_new_active(behave, data_id)
-        self.add_id()
-        return self.get_space_object(sim)
-
-    def spawn(self, sim, x, y, z, name, side, art_id, behave_id):
-        ship = self.make_new_active(sim, behave_id, art_id)
-        blob = self.spawn_common(sim, ship, x,y,z,name, side)
-        return SpawnData(id, ship, blob)
-
-class MSpawnPassive(MSpawn):
-    """
-    Mixin to add Spawn as an Passive
-    """
-    def make_new_passive(self, sim, behave, data_id):
-        self.id = sim.make_new_passive(behave, data_id)
-        self.add_id()
-        return sim.get_space_object(self.id)
-
-    def spawn(self, sim, x, y, z, name, side, art_id, behave_id):
-        ship = self.make_new_passive(sim, behave_id, art_id)
-        blob = self.spawn_common(sim, ship, x,y,z,name, side)
-        return SpawnData(id, ship, blob)
-
 class SpaceObject:
-    ids = {}
+    ids = {'all':{}}
     debug = True
     def __init__(self):
         pass
 
     def add(id, obj):
-        SpaceObject.ids[id] = obj
+        SpaceObject.ids['all'][id] = obj
 
     def remove(id):
-        return SpaceObject.ids[id]
+        return SpaceObject.remove_role('all',id)
+
+    def add_role(role, id, obj):
+        if role not in SpaceObject.ids:
+            SpaceObject.ids[role]={}
+        SpaceObject.ids[role][id] = obj
+
+    def remove_role(role, id):
+        if role not in SpaceObject.remove:
+            SpaceObject.removing[role]={}
+        if SpaceObject.ids[role].get(id) is not None:
+            SpaceObject.removing[role].add(id) 
+        return SpaceObject.ids['all'][id]
+
+    def has_role(role, id):
+        if role not in SpaceObject.ids:
+            return False
+
+        if isinstance(role, str):
+            return SpaceObject.ids[role].get(id) is not None
+        try:
+            for r in role:
+                if SpaceObject.ids[r].get(id) is not None:
+                    return True
+        except:
+            return False
+        return False
+
+    def remove_every(id):
+        for role, _ in SpaceObject.ids:
+            SpaceObject.remove_role(role, id)
+
 
     def get(id):
-        o = SpaceObject.ids.get(id)
+        o = SpaceObject.ids['all'].get(id)
         if o is None:
             return None
         return o
 
     def get_as(id, cls):
-        o = SpaceObject.ids.get(id)
+        o = SpaceObject.ids['all'].get(id)
         if o is None:
             return None
         if o.__class__ != cls:
@@ -115,10 +92,17 @@ class SpaceObject:
     def get_space_object(self, sim):
         return sim.get_space_object(self.id)
 
-    def find_close_list(self, sim, classes, max_dist=None, filter_func=None)-> list[CloseData]:
+    def find_close_list(self, sim, roles=None, max_dist=None, filter_func=None)-> list[CloseData]:
         ret = []
         test = max_dist
-        items = SpaceObject.ids.items()
+        ids = SpaceObject.ids.get(roles)
+        if ids is None:
+            ids = SpaceObject.ids['all']
+        else:
+            # non need to check role later
+            roles = None
+
+        items = ids.items()
         if filter_func is not None:
             items = filter(filter_func, items)
 
@@ -127,7 +111,7 @@ class SpaceObject:
             if other_id == self.id:
                 continue
 
-            if classes is not None and not isinstance(other_obj, classes):
+            if roles is not None and not other_obj.has_role(roles):
                 continue
 
             if max_dist is None:
@@ -141,12 +125,21 @@ class SpaceObject:
 
         return ret
 
-    def find_closest(self, sim, classes, max_dist=None, filter_func=None):
+    def find_closest(self, sim, roles=None, max_dist=None, filter_func=None):
         close_id = None
         close_obj = None
         dist = max_dist
 
-        items = SpaceObject.ids.items()
+        ids = SpaceObject.ids.get(roles)
+        if ids is None:
+            ids = SpaceObject.ids['all']
+        else:
+            # non need to check role later
+            print(f"count {len(ids)}")
+            roles = None
+
+            
+        items = ids.items()
         if filter_func is not None:
             items = filter(filter_func, items)
 
@@ -154,8 +147,7 @@ class SpaceObject:
             # if this is self skip
             if other_id == self.id:
                 continue
-
-            if classes is not None and not isinstance(other_obj, classes):
+            if roles is not None and not other_obj.has_role(roles):
                 continue
 
             test = sbs.distance_id(self.id, other_id)
@@ -170,8 +162,8 @@ class SpaceObject:
 
         return CloseData(close_id, close_obj, dist)
 
-    def target_closest(self, sim, classes, max_dist=None, filter_func=None, shoot: bool = True):
-        close = self.find_closest(sim, classes, max_dist, filter_func)
+    def target_closest(self, sim, roles=None, max_dist=None, filter_func=None, shoot: bool = True):
+        close = self.find_closest(sim, roles, max_dist, filter_func)
         if close.id is not None:
             self.target(sim, close.id, shoot)
 
@@ -209,3 +201,58 @@ class SpaceObject:
     def log(s: str):
         if SpaceObject.debug:
             print(s)
+
+
+class MSpawn:
+    def spawn_common(self, sim, obj, x,y,z,name, side):
+        sim.reposition_space_object(obj, x, y, z)
+        self.add_id()
+        SpaceObject.add_role(self.__class__.__name__, self.id, self)
+        blob = obj.data_set
+        if side is not None:
+            name = name if name is not None else f"{side} {self.id}"
+            blob.set("name_tag", name, 0)
+            obj.side = side
+        elif name is not None:
+            blob.set("name_tag", name, 0)
+        
+        return blob
+
+class MSpawnPlayer(MSpawn):
+    def make_new_player(self, sim, behave, data_id):
+        self.id = sim.make_new_player(behave, data_id)
+        sbs.assign_player_ship(self.id)
+        return sim.get_space_object(self.id)
+
+    def spawn(self, sim, x, y, z, name, side, art_id):
+        # playerID will be a NUMBER, a unique value for every space object that you create.
+        ship = self.make_new_player(sim, "behav_playership", art_id)
+        blob = self.spawn_common(sim, ship, x,y,z,name, side)
+        return SpawnData(id, ship, blob)
+
+class MSpawnActive(MSpawn):
+    """
+    Mixin to add Spawn as an Active
+    """
+    def make_new_active(self, sim,  behave, data_id):
+        self.id = sim.make_new_active(behave, data_id)
+        return self.get_space_object(sim)
+
+    def spawn(self, sim, x, y, z, name, side, art_id, behave_id):
+        ship = self.make_new_active(sim, behave_id, art_id)
+        blob = self.spawn_common(sim, ship, x,y,z,name, side)
+        return SpawnData(id, ship, blob)
+
+class MSpawnPassive(MSpawn):
+    """
+    Mixin to add Spawn as an Passive
+    """
+    def make_new_passive(self, sim, behave, data_id):
+        self.id = sim.make_new_passive(behave, data_id)
+        return sim.get_space_object(self.id)
+
+    def spawn(self, sim, x, y, z, name, side, art_id, behave_id):
+        ship = self.make_new_passive(sim, behave_id, art_id)
+        blob = self.spawn_common(sim, ship, x,y,z,name, side)
+        return SpawnData(id, ship, blob)
+

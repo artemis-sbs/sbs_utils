@@ -1,6 +1,13 @@
-from lib.sbs_utils.damagedispatcher import DamageDispatcher
-from lib.sbs_utils.consoledispatcher import ConsoleDispatcher
-from lib.sbs_utils.tickdispatcher import TickDispatcher
+from .damagedispatcher import DamageDispatcher
+from .consoledispatcher import ConsoleDispatcher
+from .tickdispatcher import TickDispatcher
+
+
+def HandlePresentGUI(sim):
+    pass
+
+def HandlePresentGUIMessage(sim, message_tag, clientID):
+    pass
 
 def  HandleSimulationTick(sim):
     TickDispatcher.dispatch_tick(sim)
