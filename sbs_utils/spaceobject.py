@@ -224,14 +224,17 @@ class MSpawnPlayer(MSpawn):
         sbs.assign_player_ship(self.id)
         return sim.get_space_object(self.id)
 
-    def spawn(self, sim, x, y, z, name, side, art_id):
+    def _spawn(self, sim, x, y, z, name, side, art_id):
         # playerID will be a NUMBER, a unique value for every space object that you create.
         ship = self.make_new_player(sim, "behav_playership", art_id)
         blob = self.spawn_common(sim, ship, x,y,z,name, side)
         return SpawnData(id, ship, blob)
 
+    def spawn(self, sim, x, y, z, name, side, art_id):
+        return self._spawn(sim, x, y, z, name, side, art_id)
+
     def spawn_v(self, sim, v, name, side, art_id):
-        return self.spawn(sim, v.x, v.y, v.z, name, side, art_id)
+        return self._spawn(sim, v.x, v.y, v.z, name, side, art_id)
 
 class MSpawnActive(MSpawn):
     """
@@ -241,13 +244,16 @@ class MSpawnActive(MSpawn):
         self.id = sim.make_new_active(behave, data_id)
         return self.get_space_object(sim)
 
-    def spawn(self, sim, x, y, z, name, side, art_id, behave_id):
+    def _spawn(self, sim, x, y, z, name, side, art_id, behave_id):
         ship = self.make_new_active(sim, behave_id, art_id)
         blob = self.spawn_common(sim, ship, x,y,z,name, side)
         return SpawnData(id, ship, blob)
 
+    def spawn(self, sim, x, y, z, name, side, art_id, behave_id):
+        return self._spawn(sim, x, y, z, name, side, art_id, behave_id)
+
     def spawn_v(self, sim, v, name, side, art_id, behave_id):
-        return self.spawn(self, sim, v.x, v.y, v.z, name, side, art_id, behave_id)
+        return self._spawn(sim, v.x, v.y, v.z, name, side, art_id, behave_id)
 
 class MSpawnPassive(MSpawn):
     """
@@ -257,11 +263,14 @@ class MSpawnPassive(MSpawn):
         self.id = sim.make_new_passive(behave, data_id)
         return sim.get_space_object(self.id)
 
-    def spawn(self, sim, x, y, z, name, side, art_id, behave_id):
+    def _spawn(self, sim, x, y, z, name, side, art_id, behave_id):
         ship = self.make_new_passive(sim, behave_id, art_id)
         blob = self.spawn_common(sim, ship, x,y,z,name, side)
         return SpawnData(id, ship, blob)
 
+    def spawn(self, sim, x, y, z, name, side, art_id, behave_id):
+        return self._spawn(sim, x, y, z, name, side, art_id, behave_id)
+
     def spawn_v(self, sim, v, name, side, art_id, behave_id):
-        return self.spawn(sim, v.x, v.y, v.z, name, side, art_id, behave_id)
+        return self._spawn(sim, v.x, v.y, v.z, name, side, art_id, behave_id)
 
