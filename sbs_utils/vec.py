@@ -9,13 +9,23 @@ class Vec3:
     z: float
     
     def neg(self): 
-        return self.__NEG__()
+        return self.__neg__()
 
-    def __NEG__(self):
+    def __neg__(self):
       return Vec3(-self.x, -self.y, -self.z);
 
     def __add__(self, v):
         return self.add(v)
+
+    def __iadd__(self, v):
+        r = self.add(v)
+        return self._set(r)
+
+    def _set(self, v):
+        self.x = v.x
+        self.y = v.y
+        self.z = v.z
+        return self
 
     def add(self,v):
         if isinstance(v,Vec3):
@@ -31,6 +41,11 @@ class Vec3:
              return Vec3(self.x - v.x, self.y - v.y, self.z - v.z)
         else:
            return Vec3(self.x - v, self.y - v, self.z - v)
+
+    def __isub__(self, v):
+        r = self.__sub__(v)
+        return self._set(r)
+
   
     def multiply(self,v):
         return self.__mul__(v)
@@ -39,16 +54,24 @@ class Vec3:
         if isinstance(v,Vec3): 
             return Vec3(self.x * v.x, self.y * v.y, self.z * v.z)
         else:
-            return Vec3(self.x * v, self.y * v, self.z * v);
+            return Vec3(self.x * v, self.y * v, self.z * v)
+
+    def __imul__(self, v):
+        r = self.__mul__(v)
+        return self._set(r)
   
     def divide(self,v):
-        return self.__div__(v)
+        return self.__truediv__(v)
 
-    def __div__(self,v):
+    def __truediv__(self,v):
         if isinstance(v,Vec3):
             return Vec3(self.x / v.x, self.y / v.y, self.z / v.z)
         else:
-            return Vec3(self.x / v, self.y / v, self.z / v);
+            return Vec3(self.x / v, self.y / v, self.z / v)
+
+    def __itruediv__(self, v):
+        r = self.__truediv__(v)
+        return self._set(r)
   
     def equals(self,v):
         return self.__eq__(v)
@@ -58,6 +81,13 @@ class Vec3:
   
     def dot(self,v):
         return self.x * v.x + self.y * v.y + self.z * v.z
+
+    def __matmul__(self, v):
+        return self.dot(v)
+
+    # def __imatmul__(self, v):
+    #     r = self.dot(v)
+    #     return self._set(r)
   
     def cross(self,v):
         return Vec3(
@@ -75,7 +105,7 @@ class Vec3:
     def min(self):
         return math.min(math.min(self.x, self.y), self.z)
   
-    def max(self,):
+    def max(self):
         return math.max(math.max(self.x, self.y), self.z)
   
     def toAngles(self,v):

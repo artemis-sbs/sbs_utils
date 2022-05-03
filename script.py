@@ -24,7 +24,7 @@ class GuiMain:
                 sbs.send_gui_text(
                     0, "Mission: SBS_Utils unit test.^^This is a unit test for the SBS_Utils library", "text", 25, 30, 99, 90)
                 sbs.send_gui_button(0, "smoke test", "smoke", 80, 85, 99, 90)
-                sbs.send_gui_button(0, "Non sim tests", "unit", 80, 90, 99, 94)
+                sbs.send_gui_button(0, "Vec3 tests", "vec_unit", 80, 90, 99, 94)
                 sbs.send_gui_button(0, "Start Mission", "start", 80, 95, 99, 99)
 
     def on_message(self, sim, message_tag, clientID):
@@ -36,7 +36,7 @@ class GuiMain:
                 self.gui_state = "blank"
                 unittest.main(module='tests.test_example', exit=False)
             
-            case "unit":
+            case "vec_unit":
                 self.gui_state = "blank"
                 unittest.main(module='tests.test_vec', exit=False)
 

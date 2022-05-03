@@ -230,6 +230,9 @@ class MSpawnPlayer(MSpawn):
         blob = self.spawn_common(sim, ship, x,y,z,name, side)
         return SpawnData(id, ship, blob)
 
+    def spawn_v(self, sim, v, name, side, art_id):
+        return self.spawn(sim, v.x, v.y, v.z, name, side, art_id)
+
 class MSpawnActive(MSpawn):
     """
     Mixin to add Spawn as an Active
@@ -243,6 +246,9 @@ class MSpawnActive(MSpawn):
         blob = self.spawn_common(sim, ship, x,y,z,name, side)
         return SpawnData(id, ship, blob)
 
+    def spawn_v(self, sim, v, name, side, art_id, behave_id):
+        return self.spawn(self, sim, v.x, v.y, v.z, name, side, art_id, behave_id)
+
 class MSpawnPassive(MSpawn):
     """
     Mixin to add Spawn as an Passive
@@ -255,4 +261,7 @@ class MSpawnPassive(MSpawn):
         ship = self.make_new_passive(sim, behave_id, art_id)
         blob = self.spawn_common(sim, ship, x,y,z,name, side)
         return SpawnData(id, ship, blob)
+
+    def spawn_v(self, sim, v, name, side, art_id, behave_id):
+        return self.spawn(sim, v.x, v.y, v.z, name, side, art_id, behave_id)
 
