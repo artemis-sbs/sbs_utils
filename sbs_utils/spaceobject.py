@@ -29,11 +29,15 @@ class SpaceObject:
     def __init__(self):
         pass
 
+    def destroyed(self):
+        self.remove_id()
+        
+
     def add(id, obj):
         SpaceObject.ids['all'][id] = obj
 
     def remove(id):
-        return SpaceObject.remove_role('all',id)
+        return SpaceObject.remove_every(id)
 
     def add_role(role, id, obj):
         if role not in SpaceObject.ids:

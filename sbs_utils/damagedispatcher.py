@@ -1,5 +1,6 @@
 
 import typing
+from  .spaceobject import SpaceObject
 
 class DamageDispatcher:
     _dispatch_source = {}
@@ -22,6 +23,11 @@ class DamageDispatcher:
     def dispatch_damage(sim, damage_event):
         source = DamageDispatcher._dispatch_source.get(damage_event.source_id)
         target = DamageDispatcher._dispatch_target.get(damage_event.target_id)
+        if damage_event.damage_type == 'destroyed':
+            so:SpaceObject = SpaceObject.get(damage_event.source_id)
+            if so is not None:
+                so.destroyed()
+
         if source is not None:
             source(sim, damage_event)
         if target is not None:
