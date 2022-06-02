@@ -4,7 +4,7 @@ Artemis Cosmos runs the python script at a set interval (currently once a second
 This is done via the HandleSimulationTick method.
 
 The TickDispatcher is used to create tasks that are called when the HandleSimulationTick is called.
-The function should be called in TickDispatcher.dispatch_tick(), and ideally this is the only code that is needed.
+The function :py:meth:`~sbs_utils.tickdispatcher.TickDispatcher.dispatch_tick` should be called in HandleSimulationTick, and ideally this is the only code that is needed.
 
 
 .. code-block:: python

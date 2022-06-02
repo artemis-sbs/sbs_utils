@@ -87,7 +87,7 @@
 <p>Artemis Cosmos runs the python script at a set interval (currently once a second).
 This is done via the HandleSimulationTick method.</p>
 <p>The TickDispatcher is used to create tasks that are called when the HandleSimulationTick is called.
-The function should be called in TickDispatcher.dispatch_tick(), and ideally this is the only code that is needed.</p>
+The function <a class="reference internal" href="#sbs_utils.tickdispatcher.TickDispatcher.dispatch_tick" title="sbs_utils.tickdispatcher.TickDispatcher.dispatch_tick"><code class="xref py py-meth docutils literal notranslate"><span class="pre">dispatch_tick()</span></code></a> should be called in HandleSimulationTick, and ideally this is the only code that is needed.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span>  <span class="nf">HandleSimulationTick</span><span class="p">(</span><span class="n">sim</span><span class="p">):</span>
    <span class="n">TickDispatcher</span><span class="o">.</span><span class="n">dispatch_tick</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
 </pre></div>
