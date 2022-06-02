@@ -69,7 +69,7 @@ class Mission:
     def start(sim):
         TickDispatcher.do_once(sim, Mission.once, 5)
         TickDispatcher.do_interval(sim, Mission.many, 5, 4)
-        TickDispatcher.do_once(sim, Mission.test, 25)
+        TickDispatcher.do_once(sim, Mission.test, 30)
         
   
         

@@ -49,9 +49,23 @@ class TickDispatcher:
         """ Create and return a task that executes once
 
         Keyword Arguments:
-        sim - The Artemis Cosmos simulation
-        cb - the function to call when the delay is reached
-        delay - the number of seconds
+            sim - The Artemis Cosmos simulation
+            cb - the function to call when the delay is reached
+                callback should have arguments (sim, task)
+                for class methods (self, sim, task)
+                    sim - is the simulation for use as needed
+                    task - is the task that triggered the callback
+            delay - the number of seconds
+
+        The task is returned and can be used to attach data for future use.
+
+        example:
+            def some_use(sim):
+                t = TickDispatcher.do_once(sim, the_callback, 5)
+                t.data = some_data
+
+            def the_callback(sim, t):
+                print(t.some_data)
         """
         t = TickDispatcher(sim, cb, delay, 1)
         TickDispatcher._new_this_tick.add(t)
@@ -61,10 +75,26 @@ class TickDispatcher:
         """ Create and return a task that executes more than once
 
         Keyword Arguments:
-        sim - The Artemis Cosmos simulation
-        cb - the function to call when the delay is reached
-        delay - the number of seconds
-        count - the number of times to execute if None it executes continuously
+            sim - The Artemis Cosmos simulation
+            cb - the function to call when the delay is reached
+                callback should have arguments (sim, task)
+                for class methods (self, sim, task)
+                    sim - is the simulation for use as needed
+                    task - is the task that triggered the callback
+            delay - the number of seconds
+            count - the number of times to execute if None it executes continuously
+
+        The task is returned and can be used to attach data for future use.
+
+        example:
+            def some_use(sim):
+                t = TickDispatcher.do_interval(sim, the_callback, 5)
+                t.data = some_data
+
+            def the_callback(sim, t):
+                print(t.some_data)
+                if t.some_data.some_condition:
+                    t.stop()
         """
         t = TickDispatcher(sim, cb, delay, count)
         TickDispatcher._new_this_tick.add(t)

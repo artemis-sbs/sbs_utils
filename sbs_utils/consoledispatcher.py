@@ -7,6 +7,7 @@ class ConsoleDispatcher:
     _dispatch_messages = {}
     # tick dispatch
 
+    
     def add_select(player_id: int, console: str, cb: typing.Callable):
         # Callback should have arguments of other object's id, message
         ConsoleDispatcher._dispatch_select[(player_id, console)] = cb
