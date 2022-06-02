@@ -1,6 +1,7 @@
 from sbs_utils.handlerhooks import *
 import unittest
 import sbs
+from sbs_utils.tickdispatcher import TickDispatcher
 
 
 
@@ -49,9 +50,27 @@ class GuiMain:
 
 class Mission:
     main = GuiMain()
+    many_count = 0
+
+    def once(sim,t):
+        print("timer once")
+        Mission.once_ex = True
+
+    def many(sim,t):
+        Mission.many_count += 1
+        print(f"timer many {Mission.many_count}")
+
+    def test(sim,t):
+        if Mission.once_ex and Mission.many_count == 4:
+            print("timer test passed")
+        else:
+            print("timer test failed")
 
     def start(sim):
-        pass
+        TickDispatcher.do_once(sim, Mission.once, 5)
+        TickDispatcher.do_interval(sim, Mission.many, 5, 4)
+        TickDispatcher.do_once(sim, Mission.test, 25)
+        
   
         
 
