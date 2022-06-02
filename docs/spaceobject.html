@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Space Object &mdash; SBS Utils 1.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="The Player Ship" href="playership.html" />
+    <link rel="prev" title="The Scatter modules" href="scatter.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> SBS Utils
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="consoledispatcher.html">Console Dispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scatter.html">The Scatter modules</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Space Object</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.spaceobject">API: spaceobject module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="playership.html">The Player Ship</a></li>
+<li class="toctree-l1"><a class="reference internal" href="vec.html">The vector class</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SBS Utils</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Space Object</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/spaceobject.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="space-object">
+<h1>Space Object<a class="headerlink" href="#space-object" title="Permalink to this heading"></a></h1>
+<section id="module-sbs_utils.spaceobject">
+<span id="api-spaceobject-module"></span><h2>API: spaceobject module<a class="headerlink" href="#module-sbs_utils.spaceobject" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.CloseData">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.spaceobject.</span></span><span class="sig-name descname"><span class="pre">CloseData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">other_obj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.CloseData" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.CloseData.distance">
+<span class="sig-name descname"><span class="pre">distance</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#sbs_utils.spaceobject.CloseData.distance" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.CloseData.id">
+<span class="sig-name descname"><span class="pre">id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#sbs_utils.spaceobject.CloseData.id" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.CloseData.obj">
+<span class="sig-name descname"><span class="pre">obj</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><span class="pre">SpaceObject</span></a></em><a class="headerlink" href="#sbs_utils.spaceobject.CloseData.obj" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawn">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.spaceobject.</span></span><span class="sig-name descname"><span class="pre">MSpawn</span></span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawn" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawn.spawn_common">
+<span class="sig-name descname"><span class="pre">spawn_common</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">side</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawn.spawn_common" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnActive">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.spaceobject.</span></span><span class="sig-name descname"><span class="pre">MSpawnActive</span></span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnActive" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.MSpawn" title="sbs_utils.spaceobject.MSpawn"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawn</span></code></a></p>
+<p>Mixin to add Spawn as an Active</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnActive.make_new_active">
+<span class="sig-name descname"><span class="pre">make_new_active</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">behave</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnActive.make_new_active" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnActive.spawn">
+<span class="sig-name descname"><span class="pre">spawn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">side</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">art_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">behave_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnActive.spawn" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnActive.spawn_v">
+<span class="sig-name descname"><span class="pre">spawn_v</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">side</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">art_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">behave_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnActive.spawn_v" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnPassive">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.spaceobject.</span></span><span class="sig-name descname"><span class="pre">MSpawnPassive</span></span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnPassive" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.MSpawn" title="sbs_utils.spaceobject.MSpawn"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawn</span></code></a></p>
+<p>Mixin to add Spawn as an Passive</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnPassive.make_new_passive">
+<span class="sig-name descname"><span class="pre">make_new_passive</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">behave</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnPassive.make_new_passive" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnPassive.spawn">
+<span class="sig-name descname"><span class="pre">spawn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">side</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">art_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">behave_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnPassive.spawn" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnPassive.spawn_v">
+<span class="sig-name descname"><span class="pre">spawn_v</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">side</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">art_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">behave_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnPassive.spawn_v" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnPlayer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.spaceobject.</span></span><span class="sig-name descname"><span class="pre">MSpawnPlayer</span></span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnPlayer" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.MSpawn" title="sbs_utils.spaceobject.MSpawn"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawn</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnPlayer.make_new_player">
+<span class="sig-name descname"><span class="pre">make_new_player</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">behave</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnPlayer.make_new_player" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnPlayer.spawn">
+<span class="sig-name descname"><span class="pre">spawn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">side</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">art_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnPlayer.spawn" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnPlayer.spawn_v">
+<span class="sig-name descname"><span class="pre">spawn_v</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">side</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">art_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnPlayer.spawn_v" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.spaceobject.</span></span><span class="sig-name descname"><span class="pre">SpaceObject</span></span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.add">
+<span class="sig-name descname"><span class="pre">add</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.add" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.add_id">
+<span class="sig-name descname"><span class="pre">add_id</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.add_id" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.add_role">
+<span class="sig-name descname"><span class="pre">add_role</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obj</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.add_role" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.clear_target">
+<span class="sig-name descname"><span class="pre">clear_target</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.clear_target" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.debug">
+<span class="sig-name descname"><span class="pre">debug</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.debug" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.debug_mark_loc">
+<span class="sig-name descname"><span class="pre">debug_mark_loc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.debug_mark_loc" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.debug_remove_mark_loc">
+<span class="sig-name descname"><span class="pre">debug_remove_mark_loc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.debug_remove_mark_loc" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.destroyed">
+<span class="sig-name descname"><span class="pre">destroyed</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.destroyed" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.find_close_list">
+<span class="sig-name descname"><span class="pre">find_close_list</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#sbs_utils.spaceobject.CloseData" title="sbs_utils.spaceobject.CloseData"><span class="pre">sbs_utils.spaceobject.CloseData</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.find_close_list" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.find_closest">
+<span class="sig-name descname"><span class="pre">find_closest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.find_closest" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.get">
+<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.get" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.get_as">
+<span class="sig-name descname"><span class="pre">get_as</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.get_as" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.get_space_object">
+<span class="sig-name descname"><span class="pre">get_space_object</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.get_space_object" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.has_role">
+<span class="sig-name descname"><span class="pre">has_role</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.has_role" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.ids">
+<span class="sig-name descname"><span class="pre">ids</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'all':</span> <span class="pre">{}}</span></em><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.ids" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.log">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.log" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.py_class">
+<span class="sig-name descname"><span class="pre">py_class</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.py_class" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.remove">
+<span class="sig-name descname"><span class="pre">remove</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.remove" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.remove_every">
+<span class="sig-name descname"><span class="pre">remove_every</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.remove_every" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.remove_id">
+<span class="sig-name descname"><span class="pre">remove_id</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.remove_id" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.remove_role">
+<span class="sig-name descname"><span class="pre">remove_role</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.remove_role" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.target">
+<span class="sig-name descname"><span class="pre">target</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">other_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shoot</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.target" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.target_closest">
+<span class="sig-name descname"><span class="pre">target_closest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shoot</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.target_closest" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpawnData">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.spaceobject.</span></span><span class="sig-name descname"><span class="pre">SpawnData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blob</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpawnData" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.SpawnData.object" title="sbs_utils.spaceobject.SpawnData.object"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpawnData.blob">
+<span class="sig-name descname"><span class="pre">blob</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">any</span></em><a class="headerlink" href="#sbs_utils.spaceobject.SpawnData.blob" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpawnData.id">
+<span class="sig-name descname"><span class="pre">id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#sbs_utils.spaceobject.SpawnData.id" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpawnData.object">
+<span class="sig-name descname"><span class="pre">object</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">any</span></em><a class="headerlink" href="#sbs_utils.spaceobject.SpawnData.object" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="scatter.html" class="btn btn-neutral float-left" title="The Scatter modules" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="playership.html" class="btn btn-neutral float-right" title="The Player Ship" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Doug Reichard.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

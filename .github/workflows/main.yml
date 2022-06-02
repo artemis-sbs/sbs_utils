@@ -27,5 +27,8 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: Python Markdown Documentation
-        uses: jbheard/markdown-docs@v0.1
+        uses: mattnotmitt/doxygen-action@v1
+        with:
+            working-directory: 'sbs_utils/'
+            doxyfile-path: 'docs/Doxygen'
 

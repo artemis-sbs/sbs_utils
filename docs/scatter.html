@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Scatter modules &mdash; SBS Utils 1.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Space Object" href="spaceobject.html" />
+    <link rel="prev" title="The hook Handlers" href="hookhandlers.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> SBS Utils
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="consoledispatcher.html">Console Dispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">The Scatter modules</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.scatter">API: scatter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.scattervec">API: scattervec</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="spaceobject.html">Space Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="playership.html">The Player Ship</a></li>
+<li class="toctree-l1"><a class="reference internal" href="vec.html">The vector class</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SBS Utils</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>The Scatter modules</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/scatter.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="the-scatter-modules">
+<h1>The Scatter modules<a class="headerlink" href="#the-scatter-modules" title="Permalink to this heading"></a></h1>
+<p>The module has two modules:</p>
+<ul class="simple">
+<li><p>scatter</p></li>
+<li><p>scattervec</p></li>
+</ul>
+<p>They contain the same functionality. The only differ in that scattervec takes a single vec (vector) instead of three floats for x,y,z.</p>
+<section id="module-sbs_utils.scatter">
+<span id="api-scatter"></span><h2>API: scatter<a class="headerlink" href="#module-sbs_utils.scatter" title="Permalink to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.scatter.arc">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.scatter.</span></span><span class="sig-name descname"><span class="pre">arc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">count</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">90.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.scatter.arc" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the points along an circular arc</p>
+<dl class="simple">
+<dt>count: int</dt><dd><p>The number of points to generate</p>
+</dd>
+<dt>x,y,z: float,float,float</dt><dd><p>the center point/origin</p>
+</dd>
+</dl>
+<p>r:radius
+start: float=0, optional</p>
+<blockquote>
+<div><p>the angle to start at in degrees</p>
+</div></blockquote>
+<dl class="simple">
+<dt>end: float=360, optional</dt><dd><p>the angle to end at in degrees</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.scatter.box_fill">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.scatter.</span></span><span class="sig-name descname"><span class="pre">box_fill</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cw</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.scatter.box_fill" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the points within a box</p>
+<dl class="simple">
+<dt>cw: int</dt><dd><p>The number of points to generate for each line width (x)</p>
+</dd>
+<dt>ch: int</dt><dd><p>The number of points to generate for each line height (y)</p>
+</dd>
+<dt>cd: int</dt><dd><p>The number of points to generate for each line width (z)</p>
+</dd>
+<dt>x,y,z: float,float,float</dt><dd><p>the start point/origin</p>
+</dd>
+<dt>w: float</dt><dd><p>the width</p>
+</dd>
+<dt>h: float</dt><dd><p>the height</p>
+</dd>
+<dt>d: float</dt><dd><p>the depth</p>
+</dd>
+<dt>random: bool</dt><dd><p>when true pointw will be randomly placed
+when false points will be evenly placed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.scatter.line">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.scatter.</span></span><span class="sig-name descname"><span class="pre">line</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">count</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.scatter.line" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the points along a line</p>
+<dl class="simple">
+<dt>count: int</dt><dd><p>The number of points to generate</p>
+</dd>
+<dt>start_x,start_y,start_z: float,float,float</dt><dd><p>the start point/origin</p>
+</dd>
+<dt>end_x,end_y,end_z: float,float,float</dt><dd><p>the end point</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.scatter.rect_fill">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.scatter.</span></span><span class="sig-name descname"><span class="pre">rect_fill</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cw</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.scatter.rect_fill" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the points within a rect</p>
+<p>This assumes it to be on y</p>
+<dl class="simple">
+<dt>cw: int</dt><dd><p>The number of points to generate for each line width (x)</p>
+</dd>
+<dt>cd: int</dt><dd><p>The number of points to generate for each line depth (z)</p>
+</dd>
+<dt>x,y,z: float,float,float</dt><dd><p>the start point/origin</p>
+</dd>
+<dt>w: float</dt><dd><p>the width (x)</p>
+</dd>
+<dt>d: float</dt><dd><p>the depth (z)</p>
+</dd>
+<dt>random: bool</dt><dd><p>when true pointw will be randomly placed
+when false points will be evenly placed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.scatter.ring">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.scatter.</span></span><span class="sig-name descname"><span class="pre">ring</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ca</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outer_r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inner_r</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">90.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.scatter.ring" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the points on rings with each ring has same count
+Parameters
+———-
+ca: int</p>
+<blockquote>
+<div><p>The number of points to generate on each ring</p>
+</div></blockquote>
+<dl class="simple">
+<dt>cr: int</dt><dd><p>The number of rings</p>
+</dd>
+<dt>x,y,z: float,float,float</dt><dd><p>the start point/origin</p>
+</dd>
+<dt>outer_r: float</dt><dd><p>the radius</p>
+</dd>
+<dt>inner_r: float  = 0 optional</dt><dd><p>the radius inner</p>
+</dd>
+<dt>start: float (degrees)</dt><dd><p>start angle</p>
+</dd>
+<dt>end: float (degrees)</dt><dd><p>start angle</p>
+</dd>
+<dt>random: bool</dt><dd><p>when true pointw will be randomly placed
+when false points will be evenly placed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.scatter.ring_density">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.scatter.</span></span><span class="sig-name descname"><span class="pre">ring_density</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">counts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outer_r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inner_r</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">90.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.scatter.ring_density" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the points on rings with each ring specifying count in array</p>
+<dl class="simple">
+<dt>count: int</dt><dd><p>The number of points to generate</p>
+</dd>
+<dt>x,y,z: float,float,float</dt><dd><p>the start point/origin</p>
+</dd>
+<dt>outer_r: float</dt><dd><p>the radius</p>
+</dd>
+<dt>inner_r: float  = 0 optional</dt><dd><p>the radius inner</p>
+</dd>
+<dt>start: float (degrees)</dt><dd><p>start angle</p>
+</dd>
+<dt>end: float (degrees)</dt><dd><p>start angle</p>
+</dd>
+<dt>random: bool</dt><dd><p>when true pointw will be randomly placed
+when false points will be evenly placed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.scatter.sphere">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.scatter.</span></span><span class="sig-name descname"><span class="pre">sphere</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">count</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">top_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ring</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.scatter.sphere" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the points within a sphere or ring</p>
+<dl class="simple">
+<dt>count: int</dt><dd><p>The number of points to generate</p>
+</dd>
+<dt>x,y,z: float,float,float</dt><dd><p>the start point/origin</p>
+</dd>
+<dt>r: float</dt><dd><p>the radius if outer is spedified this is the inner</p>
+</dd>
+<dt>outer: float = 0 optional</dt><dd><p>the height</p>
+</dd>
+<dt>top_only: bool</dt><dd><p>generate only top hemispher</p>
+</dd>
+<dt>ring: bool</dt><dd><p>generate a flat ring</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-sbs_utils.scattervec">
+<span id="api-scattervec"></span><h2>API: scattervec<a class="headerlink" href="#module-sbs_utils.scattervec" title="Permalink to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.scattervec.arc">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.scattervec.</span></span><span class="sig-name descname"><span class="pre">arc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">count</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">90.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.scattervec.arc" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the points along an circular arc</p>
+<dl class="simple">
+<dt>count: int</dt><dd><p>The number of points to generate</p>
+</dd>
+<dt>v: Vec3</dt><dd><p>the center point/origin</p>
+</dd>
+</dl>
+<p>r:radius
+start: float=0, optional</p>
+<blockquote>
+<div><p>the angle to start at in degrees</p>
+</div></blockquote>
+<dl class="simple">
+<dt>end: float=360, optional</dt><dd><p>the angle to end at in degrees</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.scattervec.box_fill">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.scattervec.</span></span><span class="sig-name descname"><span class="pre">box_fill</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cw</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.scattervec.box_fill" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the points within a box</p>
+<dl class="simple">
+<dt>cw: int</dt><dd><p>The number of points to generate for each line width (x)</p>
+</dd>
+<dt>ch: int</dt><dd><p>The number of points to generate for each line height (y)</p>
+</dd>
+<dt>cd: int</dt><dd><p>The number of points to generate for each line width (z)</p>
+</dd>
+<dt>v: Vec3</dt><dd><p>the start point/origin</p>
+</dd>
+<dt>w: float</dt><dd><p>the width</p>
+</dd>
+<dt>h: float</dt><dd><p>the height</p>
+</dd>
+<dt>d: float</dt><dd><p>the depth</p>
+</dd>
+<dt>random: bool</dt><dd><p>when true pointw will be randomly placed
+when false points will be evenly placed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.scattervec.line">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.scattervec.</span></span><span class="sig-name descname"><span class="pre">line</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">count</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.scattervec.line" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the points along a line</p>
+<dl class="simple">
+<dt>count: int</dt><dd><p>The number of points to generate</p>
+</dd>
+<dt>start:Vec3</dt><dd><p>the start point/origin</p>
+</dd>
+<dt>end: Vec3</dt><dd><p>the end point</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.scattervec.rect_fill">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.scattervec.</span></span><span class="sig-name descname"><span class="pre">rect_fill</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cw</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.scattervec.rect_fill" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the points within a rect</p>
+<p>This assumes it to be on y</p>
+<dl class="simple">
+<dt>cw: int</dt><dd><p>The number of points to generate for each line width (x)</p>
+</dd>
+<dt>cd: int</dt><dd><p>The number of points to generate for each line depth (z)</p>
+</dd>
+<dt>v: Vec3</dt><dd><p>the start point/origin</p>
+</dd>
+<dt>w: float</dt><dd><p>the width (x)</p>
+</dd>
+<dt>d: float</dt><dd><p>the depth (z)</p>
+</dd>
+<dt>random: bool</dt><dd><p>when true pointw will be randomly placed
+when false points will be evenly placed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.scattervec.ring">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.scattervec.</span></span><span class="sig-name descname"><span class="pre">ring</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ca</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outer_r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inner_r</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">90.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.scattervec.ring" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the points on rings with each ring has same count
+Parameters
+———-
+ca: int</p>
+<blockquote>
+<div><p>The number of points to generate on each ring</p>
+</div></blockquote>
+<dl class="simple">
+<dt>cr: int</dt><dd><p>The number of rings</p>
+</dd>
+<dt>v: Vec3</dt><dd><p>the start point/origin</p>
+</dd>
+<dt>outer_r: float</dt><dd><p>the radius</p>
+</dd>
+<dt>inner_r: float  = 0 optional</dt><dd><p>the radius inner</p>
+</dd>
+<dt>start: float (degrees)</dt><dd><p>start angle</p>
+</dd>
+<dt>end: float (degrees)</dt><dd><p>start angle</p>
+</dd>
+<dt>random: bool</dt><dd><p>when true pointw will be randomly placed
+when false points will be evenly placed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.scattervec.ring_density">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.scattervec.</span></span><span class="sig-name descname"><span class="pre">ring_density</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">counts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outer_r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inner_r</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">90.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.scattervec.ring_density" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the points on rings with each ring specifying count in array</p>
+<dl class="simple">
+<dt>count: int</dt><dd><p>The number of points to generate</p>
+</dd>
+<dt>v: Vec3</dt><dd><p>the start point/origin</p>
+</dd>
+<dt>outer_r: float</dt><dd><p>the radius</p>
+</dd>
+<dt>inner_r: float  = 0 optional</dt><dd><p>the radius inner</p>
+</dd>
+<dt>start: float (degrees)</dt><dd><p>start angle</p>
+</dd>
+<dt>end: float (degrees)</dt><dd><p>start angle</p>
+</dd>
+<dt>random: bool</dt><dd><p>when true pointw will be randomly placed
+when false points will be evenly placed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.scattervec.sphere">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.scattervec.</span></span><span class="sig-name descname"><span class="pre">sphere</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">count</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">top_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ring</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.scattervec.sphere" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the points within a sphere or ring</p>
+<dl class="simple">
+<dt>count: int</dt><dd><p>The number of points to generate</p>
+</dd>
+<dt>v: Vec3</dt><dd><p>the start point/origin</p>
+</dd>
+<dt>r: float</dt><dd><p>the radius if outer is spedified this is the inner</p>
+</dd>
+<dt>outer: float = 0 optional</dt><dd><p>the height</p>
+</dd>
+<dt>top_only: bool</dt><dd><p>generate only top hemispher</p>
+</dd>
+<dt>ring: bool</dt><dd><p>generate a flat ring</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="hookhandlers.html" class="btn btn-neutral float-left" title="The hook Handlers" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="spaceobject.html" class="btn btn-neutral float-right" title="Space Object" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Doug Reichard.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
