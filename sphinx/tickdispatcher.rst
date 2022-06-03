@@ -26,13 +26,13 @@ To create a TickTask you can use one of two functions.
 
 :py:meth:`~sbs_utils.tickdispatcher.TickDispatcher.do_interval` will schedule to run multiple times or continuously.
 
-Both methods take the simulation used to track the start time, a callback function, a a delay time. do_interval additionally optionally takes the number of times it should run. The default is None, which is meant to indicate run continuously.
+Both methods take the simulation used to track the start time, a callback function, a delay time. do_interval additionally optionally takes the number of times it should run. The default is None, which is meant to indicate run continuously.
 
 The callback functions will receive the simulation and the task as arguments. Class methods used as a callback will receive 'self' as the first argument.
 
 Example: run a function once
 ---------------------------------
-The following fill run the function after 5 seconds.
+The following will run the function after 5 seconds.
 
 .. code-block:: python
 
@@ -45,7 +45,7 @@ The following fill run the function after 5 seconds.
       TickDispatcher.do_once(sim, call_me_later, 5)   
 
 
-The following fill run a class method on an object after 5 seconds.
+The following will run a class method on an object after 5 seconds.
 
 .. code-block:: python
 
@@ -60,7 +60,7 @@ The following fill run a class method on an object after 5 seconds.
       TickDispatcher.do_once(sim, player_one.call_me_later, 5)   
 
 
-The following fill run a class method on an object after 5 seconds.
+The following will run a class method on an object after 5 seconds.
 This one show using self.
 
 .. code-block:: python
@@ -76,7 +76,7 @@ This one show using self.
 
 Example: run a function multiple times
 --------------------------------------
-The following fill run the function every 5 seconds, 4 times
+The following will run the function every 5 seconds, 4 times
 
 .. code-block:: python
 
@@ -88,7 +88,7 @@ The following fill run the function every 5 seconds, 4 times
       # Some other place
       TickDispatcher.do_interval(sim, call_me_later, 5, 4)   
 
-The following fill run a class method on an object after 5 seconds four times.
+The following will run a class method on an object after 5 seconds four times.
 This one show using self.
 
 .. code-block:: python
@@ -104,7 +104,7 @@ This one show using self.
 
 Example: run continuously
 -------------------------
-The following fill run the function every tick. This can be done with classes as well, those examples will be similar to above.
+The following will run the function every tick. This can be done with classes as well, those examples will be similar to above.
 
 .. code-block:: python
 
@@ -118,7 +118,7 @@ The following fill run the function every tick. This can be done with classes as
 
 Example: Stopping a task
 -------------------------
-The following fill run as task and stop it when a condition is met.
+The following will run as task and stop it when a condition is met.
 
 .. code-block:: python
    
@@ -135,7 +135,7 @@ The following fill run as task and stop it when a condition is met.
 
 Example: passing data
 -------------------------
-The following fill run will pass data to the callback.
+The following will run will pass data to the callback.
 
 .. code-block:: python
 
@@ -151,7 +151,7 @@ The following fill run will pass data to the callback.
       # attach data to the task
       thetask.data = 42
 
-For completeness so using the object 'self' data
+For completeness: using the object 'self' data
 
 .. code-block:: python
    

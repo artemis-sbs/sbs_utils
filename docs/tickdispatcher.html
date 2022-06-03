@@ -101,11 +101,11 @@ The function <a class="reference internal" href="#sbs_utils.tickdispatcher.TickD
 </ul>
 <p><a class="reference internal" href="#sbs_utils.tickdispatcher.TickDispatcher.do_once" title="sbs_utils.tickdispatcher.TickDispatcher.do_once"><code class="xref py py-meth docutils literal notranslate"><span class="pre">do_once()</span></code></a> will schedule a task that is run only one time.</p>
 <p><a class="reference internal" href="#sbs_utils.tickdispatcher.TickDispatcher.do_interval" title="sbs_utils.tickdispatcher.TickDispatcher.do_interval"><code class="xref py py-meth docutils literal notranslate"><span class="pre">do_interval()</span></code></a> will schedule to run multiple times or continuously.</p>
-<p>Both methods take the simulation used to track the start time, a callback function, a a delay time. do_interval additionally optionally takes the number of times it should run. The default is None, which is meant to indicate run continuously.</p>
+<p>Both methods take the simulation used to track the start time, a callback function, a delay time. do_interval additionally optionally takes the number of times it should run. The default is None, which is meant to indicate run continuously.</p>
 <p>The callback functions will receive the simulation and the task as arguments. Class methods used as a callback will receive ‘self’ as the first argument.</p>
 <section id="example-run-a-function-once">
 <h2>Example: run a function once<a class="headerlink" href="#example-run-a-function-once" title="Permalink to this heading"></a></h2>
-<p>The following fill run the function after 5 seconds.</p>
+<p>The following will run the function after 5 seconds.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sbs_utils.tickdispatcher</span> <span class="kn">import</span> <span class="n">TickDispatcher</span>
 
 <span class="k">def</span> <span class="nf">call_me_later</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
@@ -115,7 +115,7 @@ The function <a class="reference internal" href="#sbs_utils.tickdispatcher.TickD
 <span class="n">TickDispatcher</span><span class="o">.</span><span class="n">do_once</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">call_me_later</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>The following fill run a class method on an object after 5 seconds.</p>
+<p>The following will run a class method on an object after 5 seconds.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sbs_utils.tickdispatcher</span> <span class="kn">import</span> <span class="n">TickDispatcher</span>
 
 <span class="k">class</span> <span class="nc">MyPlayer</span><span class="p">(</span><span class="n">PlayerShip</span><span class="p">):</span>
@@ -127,7 +127,7 @@ The function <a class="reference internal" href="#sbs_utils.tickdispatcher.TickD
 <span class="n">TickDispatcher</span><span class="o">.</span><span class="n">do_once</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">player_one</span><span class="o">.</span><span class="n">call_me_later</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>The following fill run a class method on an object after 5 seconds.
+<p>The following will run a class method on an object after 5 seconds.
 This one show using self.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sbs_utils.tickdispatcher</span> <span class="kn">import</span> <span class="n">TickDispatcher</span>
 
@@ -142,7 +142,7 @@ This one show using self.</p>
 </section>
 <section id="example-run-a-function-multiple-times">
 <h2>Example: run a function multiple times<a class="headerlink" href="#example-run-a-function-multiple-times" title="Permalink to this heading"></a></h2>
-<p>The following fill run the function every 5 seconds, 4 times</p>
+<p>The following will run the function every 5 seconds, 4 times</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sbs_utils.tickdispatcher</span> <span class="kn">import</span> <span class="n">TickDispatcher</span>
 
 <span class="k">def</span> <span class="nf">call_me_later</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
@@ -152,7 +152,7 @@ This one show using self.</p>
 <span class="n">TickDispatcher</span><span class="o">.</span><span class="n">do_interval</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">call_me_later</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>The following fill run a class method on an object after 5 seconds four times.
+<p>The following will run a class method on an object after 5 seconds four times.
 This one show using self.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sbs_utils.tickdispatcher</span> <span class="kn">import</span> <span class="n">TickDispatcher</span>
 
@@ -167,7 +167,7 @@ This one show using self.</p>
 </section>
 <section id="example-run-continuously">
 <h2>Example: run continuously<a class="headerlink" href="#example-run-continuously" title="Permalink to this heading"></a></h2>
-<p>The following fill run the function every tick. This can be done with classes as well, those examples will be similar to above.</p>
+<p>The following will run the function every tick. This can be done with classes as well, those examples will be similar to above.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sbs_utils.tickdispatcher</span> <span class="kn">import</span> <span class="n">TickDispatcher</span>
 
 <span class="k">def</span> <span class="nf">call_me_later</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
@@ -180,7 +180,7 @@ This one show using self.</p>
 </section>
 <section id="example-stopping-a-task">
 <h2>Example: Stopping a task<a class="headerlink" href="#example-stopping-a-task" title="Permalink to this heading"></a></h2>
-<p>The following fill run as task and stop it when a condition is met.</p>
+<p>The following will run as task and stop it when a condition is met.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sbs_utils.tickdispatcher</span> <span class="kn">import</span> <span class="n">TickDispatcher</span>
 
 <span class="k">class</span> <span class="nc">MyPlayer</span><span class="p">(</span><span class="n">PlayerShip</span><span class="p">):</span>
@@ -196,7 +196,7 @@ This one show using self.</p>
 </section>
 <section id="example-passing-data">
 <h2>Example: passing data<a class="headerlink" href="#example-passing-data" title="Permalink to this heading"></a></h2>
-<p>The following fill run will pass data to the callback.</p>
+<p>The following will run will pass data to the callback.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sbs_utils.tickdispatcher</span> <span class="kn">import</span> <span class="n">TickDispatcher</span>
 
 <span class="k">def</span> <span class="nf">call_me_later</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
@@ -210,7 +210,7 @@ This one show using self.</p>
 <span class="n">thetask</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="mi">42</span>
 </pre></div>
 </div>
-<p>For completeness so using the object ‘self’ data</p>
+<p>For completeness: using the object ‘self’ data</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sbs_utils.tickdispatcher</span> <span class="kn">import</span> <span class="n">TickDispatcher</span>
 
 <span class="k">class</span> <span class="nc">MyPlayer</span><span class="p">(</span><span class="n">PlayerShip</span><span class="p">):</span>
@@ -256,7 +256,7 @@ and if it is completed</p>
 <dd class="field-even"><p>The task is returned and can be used to attach data for future use.</p>
 </dd>
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p><a class="reference internal" href="#sbs_utils.tickdispatcher.TickTask" title="sbs_utils.tickdispatcher.TickTask">TickTask</a></p>
+<dd class="field-odd"><p>TickFTask</p>
 </dd>
 </dl>
 <dl>

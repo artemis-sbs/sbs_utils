@@ -4,7 +4,8 @@ class TickTask:
     """
 
     def __init__(self, sim, cb, delay, count):
-        """
+        """ new TickTask
+        
         :param sim: The Artemis Cosmos simulation
         :param cb: call back function
         :param delay: the time in seconds for the task to delay
@@ -92,7 +93,7 @@ class TickDispatcher:
         :param count: The number of times to run None mean infinite
         :type count: int or None
         :return: The task is returned and can be used to attach data for future use.
-        :rtype: TickTask
+        :rtype: TickFTask
 
         example:
             def some_use(sim):
