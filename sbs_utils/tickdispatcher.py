@@ -68,7 +68,7 @@ class TickDispatcher:
         :param delay: the time in seconds for the task to delay
         :type delay: int
         :return: The task is returned and can be used to attach data for future use.
-        :rtype: Task
+        :rtype: TickTask
 
         example:
             def some_use(sim):
@@ -92,7 +92,7 @@ class TickDispatcher:
         :param count: The number of times to run None mean infinite
         :type count: int or None
         :return: The task is returned and can be used to attach data for future use.
-        :rtype: Task
+        :rtype: TickTask
 
         example:
             def some_use(sim):
