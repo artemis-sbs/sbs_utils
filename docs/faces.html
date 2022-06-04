@@ -49,6 +49,9 @@
 <li class="toctree-l1"><a class="reference internal" href="vec.html">The vector class</a></li>
 <li class="toctree-l1"><a class="reference internal" href="scatter.html">The Scatter modules</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">The Faces module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#face-generation-functions">Face generation functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#character-faces">Character Faces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-faces-string-syntax">The faces string syntax</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.faces">API: faces module</a></li>
 </ul>
 </li>
@@ -87,31 +90,95 @@
              
   <section id="the-faces-module">
 <h1>The Faces module<a class="headerlink" href="#the-faces-module" title="Permalink to this heading"></a></h1>
+<p>The faces module is used for creating face images for comms screens.</p>
+<p>Faces are based off of a set of image textures with a grid of cell images.</p>
+<p>The set of images is defined in allFaceFiles.txt. This file defines a key name for the texture and an image in the data\graphics folder.
+Cells are 512x512 and the total images must be a valid DirectX12 pixel size.</p>
+<p>This set of images can be extended with new textures added to allFacesFiles.txt</p>
+<section id="face-generation-functions">
+<h2>Face generation functions<a class="headerlink" href="#face-generation-functions" title="Permalink to this heading"></a></h2>
+<p>The faces module has set set of functions to generate random faces for the base set of face image textures.</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#sbs_utils.faces.random_skaraan" title="sbs_utils.faces.random_skaraan"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_skaraan()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.faces.random_torgoth" title="sbs_utils.faces.random_torgoth"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_torgoth()</span></code></a></p></li>
+</ul>
+<p>Others are a work in progress</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">face_desc</span> <span class="o">=</span> <span class="n">random_skaraan</span><span class="p">()</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>There are also function to make it easier to create specific faces by passing indexes to define idds that represent cells containing know art images for things like hair, eyes, mouth etc.
+It may tak some experimentation to find the values for your character, but his is a simplified way to create repeatable characters.
+Other ways to create consistent faces is to use one of the predefined <a class="reference internal" href="#sbs_utils.faces.Characters" title="sbs_utils.faces.Characters"><code class="xref py py-class docutils literal notranslate"><span class="pre">Characters</span></code></a> or hand code a face string.</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#sbs_utils.faces.skaraan" title="sbs_utils.faces.skaraan"><code class="xref py py-meth docutils literal notranslate"><span class="pre">skaraan()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.faces.torgoth" title="sbs_utils.faces.torgoth"><code class="xref py py-meth docutils literal notranslate"><span class="pre">torgoth()</span></code></a></p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">face_desc</span> <span class="o">=</span> <span class="n">skaraan</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="character-faces">
+<h2>Character Faces<a class="headerlink" href="#character-faces" title="Permalink to this heading"></a></h2>
+<p>The class <a class="reference internal" href="#sbs_utils.faces.Characters" title="sbs_utils.faces.Characters"><code class="xref py py-class docutils literal notranslate"><span class="pre">Characters</span></code></a> has a list of predefined face strings.</p>
+<p>These are a good example for creating a face string by hand.</p>
+</section>
+<section id="the-faces-string-syntax">
+<h2>The faces string syntax<a class="headerlink" href="#the-faces-string-syntax" title="Permalink to this heading"></a></h2>
+<p>Face string is a set of layers that reference a cell in a texture separated by a semi-colon.
+The first layer is the lowest layer.</p>
+<p>&lt;texture-tag&gt; &lt;color-tint&gt; &lt;coll&gt; &lt;row&gt; [&lt;x-offset&gt;] [&lt;y-offset&gt;];</p>
+<ul class="simple">
+<li><p>&lt;texture-tag&gt; the texture tag specified in allFaceFiles.txt</p></li>
+<li><p>&lt;color-tint&gt; a Tint to add to the layer. e.g. changing skin tone</p></li>
+<li><p>&lt;coll&gt; the cell’s col</p></li>
+<li><p>&lt;row&gt; the cell’s row</p></li>
+<li><p>&lt;x-offset&gt; optional to offset the layer in x</p></li>
+<li><p>&lt;y-offset&gt; optional to offset the layer in y</p></li>
+</ul>
+</section>
 <section id="module-sbs_utils.faces">
 <span id="api-faces-module"></span><h2>API: faces module<a class="headerlink" href="#module-sbs_utils.faces" title="Permalink to this heading"></a></h2>
-<dl class="py data">
-<dt class="sig sig-object py" id="sbs_utils.faces.URSULA">
-<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">URSULA</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'ter</span> <span class="pre">#964b00</span> <span class="pre">8</span> <span class="pre">1;ter</span> <span class="pre">#968b00</span> <span class="pre">3</span> <span class="pre">0;ter</span> <span class="pre">#968b00</span> <span class="pre">4</span> <span class="pre">0;ter</span> <span class="pre">#968b00</span> <span class="pre">5</span> <span class="pre">2;ter</span> <span class="pre">#fff</span> <span class="pre">3</span> <span class="pre">5;ter</span> <span class="pre">#964b00</span> <span class="pre">8</span> <span class="pre">4;'</span></em><a class="headerlink" href="#sbs_utils.faces.URSULA" title="Permalink to this definition"></a></dt>
-<dd><p>ter Terran_Big-revised
-tor Torgoth_Set
-ska Skaraan_Set
-kra Krailen_Set
-zim Zimni_Set
-arv Arvonian</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.faces.Characters">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">Characters</span></span><a class="headerlink" href="#sbs_utils.faces.Characters" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A set of predefined faces</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.faces.Characters.URSULA">
+<span class="sig-name descname"><span class="pre">URSULA</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'ter</span> <span class="pre">#964b00</span> <span class="pre">8</span> <span class="pre">1;ter</span> <span class="pre">#968b00</span> <span class="pre">3</span> <span class="pre">0;ter</span> <span class="pre">#968b00</span> <span class="pre">4</span> <span class="pre">0;ter</span> <span class="pre">#968b00</span> <span class="pre">5</span> <span class="pre">2;ter</span> <span class="pre">#fff</span> <span class="pre">3</span> <span class="pre">5;ter</span> <span class="pre">#964b00</span> <span class="pre">8</span> <span class="pre">4;'</span></em><a class="headerlink" href="#sbs_utils.faces.Characters.URSULA" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="sbs_utils.faces.random_skaraan">
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_skaraan</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_skaraan" title="Permalink to this definition"></a></dt>
-<dd><p>Create a random skaraan face
-:return: A Face string
-:rtype: string</p>
+<dd><p>Create a random skaraan face</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A Face string</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>string</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="sbs_utils.faces.random_torgoth">
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_torgoth</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_torgoth" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Create a random torgoth face</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A Face string</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>string</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="sbs_utils.faces.skaraan">
@@ -139,7 +206,7 @@ arv Arvonian</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="sbs_utils.faces.torgoth">
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">torgoth</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eye_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mouth_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hair_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hat_i</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.torgoth" title="Permalink to this definition"></a></dt>
-<dd><p>Create a skaraan face</p>
+<dd><p>Create a torgoth face</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">

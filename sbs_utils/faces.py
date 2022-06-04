@@ -1,17 +1,13 @@
 from random import randrange
+from enum import IntEnum
 
+# ter Terran_Big-revised
+# tor Torgoth_Set
+# ska Skaraan_Set
+# kra Krailen_Set
+# zim Zimni_Set
+# arv Arvonian
 
-
-URSULA  = "ter #964b00 8 1;ter #968b00 3 0;ter #968b00 4 0;ter #968b00 5 2;ter #fff 3 5;ter #964b00 8 4;"
-
-"""
-ter Terran_Big-revised
-tor Torgoth_Set
-ska Skaraan_Set
-kra Krailen_Set
-zim Zimni_Set
-arv Arvonian
-"""
 
 skaraan_map = {
     "face": [(0,0)],
@@ -53,6 +49,7 @@ def skaraan(face_i, eye_i, mouth_i, horn_i, hat_i):
 
 def random_skaraan():
     """ Create a random skaraan face
+
     :return: A Face string
     :rtype: string
     """
@@ -79,7 +76,7 @@ torgoth_map = {
 
 
 def torgoth(face_i, eye_i, mouth_i, hair_i, extra_i, hat_i):
-    """ Create a skaraan face
+    """ Create a torgoth face
 
     :param face_i: The index of the face 0
     :type face_i: int
@@ -115,6 +112,11 @@ def torgoth(face_i, eye_i, mouth_i, hair_i, extra_i, hat_i):
     return ret
 
 def random_torgoth():
+    """ Create a random torgoth face
+    
+    :return: A Face string
+    :rtype: string
+    """
     face = randrange(0, len(torgoth_map["face"]))
     eye = randrange(0, len(torgoth_map["eyes"]))
     mouth = randrange(0, len(torgoth_map["mouth"]))
@@ -128,3 +130,11 @@ def random_torgoth():
     if randrange(0,10) > 7:
         hat = randrange(0, len(torgoth_map["hat"]))
     return torgoth(face, eye, mouth, hair, extra, hat)
+
+
+#class Characters(StrEnum): # Python 3.11 will have StrEnum
+class Characters:
+    """
+    A set of predefined faces
+    """
+    URSULA  = "ter #964b00 8 1;ter #968b00 3 0;ter #968b00 4 0;ter #968b00 5 2;ter #fff 3 5;ter #964b00 8 4;"
