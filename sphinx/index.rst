@@ -7,20 +7,34 @@ Welcome to SBS Utils's documentation!
 =====================================
 
 .. toctree::
-   :maxdepth: 1
-   :caption: Contents:
+   :maxdepth: 2
+
+   index_desc
+   index_contrib
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Entity Creation:
+   
+   spaceobject
+   playership
+
+   vec
+   scatter
+   faces
+
+   
+.. toctree::
+   :maxdepth: 2
+   :caption: Systems:
 
    consoledispatcher
    damagedispatcher
    tickdispatcher
    hookhandlers
    
-   scatter
 
-   spaceobject
-   playership
-
-   vec
 
 Indices and tables
 ==================

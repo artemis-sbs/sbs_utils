@@ -3,7 +3,7 @@ from random import uniform
 from .vec import Vec3
 
 def arc(count, x,y,z, r, start=0.0, end=90.0, random=False):
-    r"""Calculate the points along an circular arc
+    """Calculate the points along an circular arc
 
     Parameters
     ----------
@@ -15,8 +15,7 @@ def arc(count, x,y,z, r, start=0.0, end=90.0, random=False):
     start: float=0, optional
         the angle to start at in degrees
     end: float=360, optional
-        the angle to end at in degrees
-    """
+        the angle to end at in degrees"""
     #Make clockwise by negating
     a_start = -math.radians(start-90)
     a_end = -math.radians(end-90)
@@ -30,7 +29,7 @@ def arc(count, x,y,z, r, start=0.0, end=90.0, random=False):
 
 
 def line(count, start_x,start_y,start_z, end_x,end_y,end_z, random=False):
-    r"""Calculate the points along a line
+    """Calculate the points along a line
     
     Parameters
     ----------
@@ -39,8 +38,7 @@ def line(count, start_x,start_y,start_z, end_x,end_y,end_z, random=False):
     start_x,start_y,start_z: float,float,float
         the start point/origin
     end_x,end_y,end_z: float,float,float
-        the end point
-    """
+        the end point"""
 
     v1 =  Vec3(start_x, start_y, start_z)
     v2 =  Vec3(end_x, end_y, end_z)
@@ -58,7 +56,7 @@ def line(count, start_x,start_y,start_z, end_x,end_y,end_z, random=False):
 
 
 def rect_fill(cw, cd, x, y, z, w, d, random=False):
-    r"""Calculate the points within a rect
+    """Calculate the points within a rect
 
     This assumes it to be on y
     
@@ -81,7 +79,7 @@ def rect_fill(cw, cd, x, y, z, w, d, random=False):
     return box_fill(cw, 1, cd, x, y, z, w, 1, d, random)
    
 def box_fill(cw, ch, cd, x, y, z, w, h, d, random=False):
-    r"""Calculate the points within a box
+    """Calculate the points within a box
 
         
     Parameters
@@ -140,7 +138,7 @@ def box_fill(cw, ch, cd, x, y, z, w, h, d, random=False):
 
 
 def ring(ca, cr, x,y,z, outer_r, inner_r=0, start=0.0, end=90.0, random=False):
-    r"""Calculate the points on rings with each ring has same count
+    """Calculate the points on rings with each ring has same count
     Parameters
     ----------
     ca: int
@@ -176,7 +174,7 @@ def ring(ca, cr, x,y,z, outer_r, inner_r=0, start=0.0, end=90.0, random=False):
             yield Vec3(x+math.cos(angle)*dist, y, z+math.sin(angle)*dist)
 
 def ring_density(counts, x,y,z,  outer_r, inner_r=0, start=0.0, end=90.0, random=False):
-    r"""Calculate the points on rings with each ring specifying count in array
+    """Calculate the points on rings with each ring specifying count in array
         
     Parameters
     ----------

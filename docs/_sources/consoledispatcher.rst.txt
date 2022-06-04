@@ -68,7 +68,7 @@ For a PlayerShip the other ship id is sent.
 
 
 Example: Sending selection info
-------------------------------
+--------------------------------
 
 A non player ship should send its selection info in comms_selected. This will update the comms to show the name and face of the ship when selected.
 The self.face_desc can be used, or the face can be altered based on game conditions e.g. change to angry, changed to new face (change of command) etc.

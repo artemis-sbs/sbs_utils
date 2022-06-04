@@ -1,6 +1,10 @@
 The Scatter modules
 ====================
 
+Overview
+------------
+
+
 The module has two modules:
 
 - scatter 

@@ -1,7 +1,7 @@
 from . import scatter
 
 def arc(count, v, r, start=0.0, end=90.0, random=False):
-    r"""Calculate the points along an circular arc
+    """Calculate the points along an circular arc
 
     Parameters
     ----------
@@ -18,7 +18,7 @@ def arc(count, v, r, start=0.0, end=90.0, random=False):
     return scatter.arc(count, v.x,v.y,v.z, r, start, end, random)
 
 def line(count, start, end, random=False):
-    r"""Calculate the points along a line
+    """Calculate the points along a line
     
     Parameters
     ----------
@@ -33,7 +33,7 @@ def line(count, start, end, random=False):
 
 
 def rect_fill(cw, cd, v, w, d, random=False):
-    r"""Calculate the points within a rect
+    """Calculate the points within a rect
 
     This assumes it to be on y
     
@@ -56,7 +56,7 @@ def rect_fill(cw, cd, v, w, d, random=False):
     return scatter.rect_fill(cw, cd, v.x, v.y, v.z, w, d, random)
 
 def box_fill(cw, ch, cd, v, w, h, d, random=False):
-    r"""Calculate the points within a box
+    """Calculate the points within a box
     
     Parameters
     ----------
@@ -81,7 +81,7 @@ def box_fill(cw, ch, cd, v, w, h, d, random=False):
     return scatter.box_fill(cw, ch, cd, v.x, v.y, v.z, w, h, d, random)
 
 def ring(ca, cr, v, outer_r, inner_r=0, start=0.0, end=90.0, random=False):
-    r"""Calculate the points on rings with each ring has same count
+    """Calculate the points on rings with each ring has same count
     Parameters
     ----------
     ca: int
@@ -105,7 +105,7 @@ def ring(ca, cr, v, outer_r, inner_r=0, start=0.0, end=90.0, random=False):
     return scatter.ring(ca, cr, v.x,v.y,v.z, outer_r, inner_r, start, end, random)
 
 def ring_density(counts, v,  outer_r, inner_r=0, start=0.0, end=90.0, random=False):
-    r"""Calculate the points on rings with each ring specifying count in array
+    """Calculate the points on rings with each ring specifying count in array
         
     Parameters
     ----------
@@ -129,10 +129,9 @@ def ring_density(counts, v,  outer_r, inner_r=0, start=0.0, end=90.0, random=Fal
     return scatter.ring_density(counts, v.x,v.y,v.z,  outer_r, inner_r, start, end, random)
 
 def sphere(count, v, r, outer=0, top_only=False, ring=False):
-    r"""Calculate the points within a sphere or ring
+    """Calculate the points within a sphere or ring
         
     Parameters
-    ----------
     count: int
         The number of points to generate
     v: Vec3

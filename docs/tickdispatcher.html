@@ -38,11 +38,24 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="index_desc.html">Utilities for Artemis Cosmos</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index_contrib.html">Contribution</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="spaceobject.html">Space Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="playership.html">The Player Ship</a></li>
+<li class="toctree-l1"><a class="reference internal" href="vec.html">The vector class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scatter.html">The Scatter modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faces.html">The Faces module</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Systems:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="consoledispatcher.html">Console Dispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">TickDispatcher</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#usage">Usage</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#example-run-a-function-once">Example: run a function once</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#example-run-a-function-multiple-times">Example: run a function multiple times</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#example-run-continuously">Example: run continuously</a></li>
@@ -52,10 +65,6 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="scatter.html">The Scatter modules</a></li>
-<li class="toctree-l1"><a class="reference internal" href="spaceobject.html">Space Object</a></li>
-<li class="toctree-l1"><a class="reference internal" href="playership.html">The Player Ship</a></li>
-<li class="toctree-l1"><a class="reference internal" href="vec.html">The vector class</a></li>
 </ul>
 
         </div>
@@ -86,6 +95,8 @@
 <h1>TickDispatcher<a class="headerlink" href="#tickdispatcher" title="Permalink to this heading"></a></h1>
 <p>Artemis Cosmos runs the python script at a set interval (currently once a second).
 This is done via the HandleSimulationTick method.</p>
+<section id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Permalink to this heading"></a></h2>
 <p>The TickDispatcher is used to create tasks that are called when the HandleSimulationTick is called.
 The function <a class="reference internal" href="#sbs_utils.tickdispatcher.TickDispatcher.dispatch_tick" title="sbs_utils.tickdispatcher.TickDispatcher.dispatch_tick"><code class="xref py py-meth docutils literal notranslate"><span class="pre">dispatch_tick()</span></code></a> should be called in HandleSimulationTick, and ideally this is the only code that is needed.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span>  <span class="nf">HandleSimulationTick</span><span class="p">(</span><span class="n">sim</span><span class="p">):</span>
@@ -103,6 +114,7 @@ The function <a class="reference internal" href="#sbs_utils.tickdispatcher.TickD
 <p><a class="reference internal" href="#sbs_utils.tickdispatcher.TickDispatcher.do_interval" title="sbs_utils.tickdispatcher.TickDispatcher.do_interval"><code class="xref py py-meth docutils literal notranslate"><span class="pre">do_interval()</span></code></a> will schedule to run multiple times or continuously.</p>
 <p>Both methods take the simulation used to track the start time, a callback function, a delay time. do_interval additionally optionally takes the number of times it should run. The default is None, which is meant to indicate run continuously.</p>
 <p>The callback functions will receive the simulation and the task as arguments. Class methods used as a callback will receive ‘self’ as the first argument.</p>
+</section>
 <section id="example-run-a-function-once">
 <h2>Example: run a function once<a class="headerlink" href="#example-run-a-function-once" title="Permalink to this heading"></a></h2>
 <p>The following will run the function after 5 seconds.</p>

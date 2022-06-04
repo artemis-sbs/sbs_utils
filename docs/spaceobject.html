@@ -20,7 +20,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="The Player Ship" href="playership.html" />
-    <link rel="prev" title="The Scatter modules" href="scatter.html" /> 
+    <link rel="prev" title="Contribution" href="index_contrib.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -38,19 +38,27 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="index_desc.html">Utilities for Artemis Cosmos</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index_contrib.html">Contribution</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="consoledispatcher.html">Console Dispatcher</a></li>
-<li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
-<li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="scatter.html">The Scatter modules</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Space Object</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.spaceobject">API: spaceobject module</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="playership.html">The Player Ship</a></li>
 <li class="toctree-l1"><a class="reference internal" href="vec.html">The vector class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scatter.html">The Scatter modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faces.html">The Faces module</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Systems:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="consoledispatcher.html">Console Dispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
 </ul>
 
         </div>
@@ -202,6 +210,11 @@
 <span class="sig-name descname"><span class="pre">clear_target</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.clear_target" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.comm_id">
+<span class="sig-name descname"><span class="pre">comm_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.comm_id" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py attribute">
 <dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.debug">
 <span class="sig-name descname"><span class="pre">debug</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.debug" title="Permalink to this definition"></a></dt>
@@ -263,6 +276,11 @@
 <dd></dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.name">
+<span class="sig-name descname"><span class="pre">name</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.name" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.py_class">
 <span class="sig-name descname"><span class="pre">py_class</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.py_class" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
@@ -285,6 +303,16 @@
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.remove_role">
 <span class="sig-name descname"><span class="pre">remove_role</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.remove_role" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.side">
+<span class="sig-name descname"><span class="pre">side</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.side" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.space_object">
+<span class="sig-name descname"><span class="pre">space_object</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.space_object" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
@@ -327,7 +355,7 @@
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="scatter.html" class="btn btn-neutral float-left" title="The Scatter modules" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="index_contrib.html" class="btn btn-neutral float-left" title="Contribution" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="playership.html" class="btn btn-neutral float-right" title="The Player Ship" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
