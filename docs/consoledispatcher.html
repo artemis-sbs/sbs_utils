@@ -41,7 +41,13 @@
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Console Dispatcher</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.consoledispatcher">consoledispatcher module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#artemis-cosmos-console-system">Artemis Cosmos console system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-adding-comms-to-a-class">Example: Adding Comms to a class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-sending-selection-info">Example: Sending selection info</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-sending-comms-buttons">Example: Sending comms buttons</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-handling-comms-button-messages">Example: handling comms button messages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#non-class-console-handling">non class console handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.consoledispatcher">API consoledispatcher module</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
@@ -79,9 +85,156 @@
              
   <section id="console-dispatcher">
 <h1>Console Dispatcher<a class="headerlink" href="#console-dispatcher" title="Permalink to this heading"></a></h1>
-<p>The ConsoleDispatcher is used to route console related messages to callback functions.</p>
+<p>The ConsoleDispatcher is used to route console related messages to callback functions. Generally this is done to classes.</p>
+<section id="artemis-cosmos-console-system">
+<h2>Artemis Cosmos console system<a class="headerlink" href="#artemis-cosmos-console-system" title="Permalink to this heading"></a></h2>
+<p>Artemis Cosmos calls the script function HandleConsoleObjectSelection when an item is selected on a console.</p>
+<p>Artemis Cosmos calls the script function HandleCommsButton when a button is pressed on a comms console.</p>
+<p>The ConsoleDispatcher is intended receive these and route them to callback functions.
+This can further be used to direct these to classes that represent the ships enabling the handling of this code to be handled in context of the ship(s) involved.</p>
+<p>The HandleConsoleObjectSelection should call <a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_select" title="sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_select"><code class="xref py py-meth docutils literal notranslate"><span class="pre">dispatch_select()</span></code></a>
+The HandleCommsButton should call <a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_comms_message" title="sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_comms_message"><code class="xref py py-meth docutils literal notranslate"><span class="pre">dispatch_comms_message()</span></code></a></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">HandleConsoleObjectSelection</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">console</span><span class="p">,</span> <span class="n">obj_selected_id</span><span class="p">,</span> <span class="n">ship_id</span><span class="p">):</span>
+   <span class="n">ConsoleDispatcher</span><span class="o">.</span><span class="n">dispatch_select</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="n">ship_id</span><span class="p">,</span> <span class="n">console</span><span class="p">,</span><span class="n">obj_selected_id</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">HandleCommsButton</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">button_tag</span><span class="p">,</span> <span class="n">ship_id</span><span class="p">,</span> <span class="n">obj_selected_id</span><span class="p">):</span>
+   <span class="n">ConsoleDispatcher</span><span class="o">.</span><span class="n">dispatch_comms_message</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">button_tag</span><span class="p">,</span> <span class="n">ship_id</span><span class="p">,</span> <span class="n">obj_selected_id</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="example-adding-comms-to-a-class">
+<h2>Example: Adding Comms to a class<a class="headerlink" href="#example-adding-comms-to-a-class" title="Permalink to this heading"></a></h2>
+<p>The best way to use the ConsoleDispatcher is to add comms to a <a class="reference internal" href="spaceobject.html#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code></a> using the <a class="reference internal" href="#sbs_utils.consoledispatcher.MCommunications.comms_selected" title="sbs_utils.consoledispatcher.MCommunications.comms_selected"><code class="xref py py-meth docutils literal notranslate"><span class="pre">comms_selected()</span></code></a> and <a class="reference internal" href="#sbs_utils.consoledispatcher.MCommunications" title="sbs_utils.consoledispatcher.MCommunications"><code class="xref py py-class docutils literal notranslate"><span class="pre">MCommunications</span></code></a> mixin class.
+and provide an implementation of  <a class="reference internal" href="#sbs_utils.consoledispatcher.MCommunications.comms_selected" title="sbs_utils.consoledispatcher.MCommunications.comms_selected"><code class="xref py py-meth docutils literal notranslate"><span class="pre">comms_selected()</span></code></a> and <a class="reference internal" href="#sbs_utils.consoledispatcher.MCommunications.comms_message" title="sbs_utils.consoledispatcher.MCommunications.comms_message"><code class="xref py py-meth docutils literal notranslate"><span class="pre">comms_message()</span></code></a></p>
+<p>To enable comms call <a class="reference internal" href="#sbs_utils.consoledispatcher.MCommunications.enable_comms" title="sbs_utils.consoledispatcher.MCommunications.enable_comms"><code class="xref py py-meth docutils literal notranslate"><span class="pre">enable_comms()</span></code></a>. This should be called after the SpaceObject has spawned and has an id.</p>
+<p><a class="reference internal" href="#sbs_utils.consoledispatcher.MCommunications.enable_comms" title="sbs_utils.consoledispatcher.MCommunications.enable_comms"><code class="xref py py-meth docutils literal notranslate"><span class="pre">enable_comms()</span></code></a> takes a face description and it will set self.face_desc.</p>
+<p>This can be done on a non-player ship and a PlayerShip. The system will send the proper information.</p>
+<p>For a non-player ship the player id is sent.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Harvester</span><span class="p">(</span><span class="n">SpaceObject</span><span class="p">,</span> <span class="n">MSpawnActive</span><span class="p">,</span> <span class="n">MCommunications</span><span class="p">):</span>
+   <span class="k">def</span> <span class="nf">some_method</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">enable_comms</span><span class="p">(</span><span class="n">some_face_desc</span><span class="p">)</span>
+
+   <span class="k">def</span> <span class="nf">comms_selected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">player_id</span><span class="p">):</span>
+      <span class="k">pass</span>
+
+   <span class="k">def</span> <span class="nf">comms_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">player_id</span><span class="p">):</span>
+      <span class="k">pass</span>
+</pre></div>
+</div>
+<p>For a PlayerShip the other ship id is sent.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Player</span><span class="p">(</span><span class="n">PlayerShip</span><span class="p">,</span> <span class="n">MCommunications</span><span class="p">):</span>
+   <span class="k">def</span> <span class="nf">some_method</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">enable_comms</span><span class="p">(</span><span class="n">some_face_desc</span><span class="p">)</span>
+
+   <span class="k">def</span> <span class="nf">comms_selected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">other_id</span><span class="p">):</span>
+      <span class="k">pass</span>
+
+   <span class="k">def</span> <span class="nf">comms_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">other_id</span><span class="p">):</span>
+      <span class="k">pass</span>
+</pre></div>
+</div>
+</section>
+<section id="example-sending-selection-info">
+<h2>Example: Sending selection info<a class="headerlink" href="#example-sending-selection-info" title="Permalink to this heading"></a></h2>
+<p>A non player ship should send its selection info in comms_selected. This will update the comms to show the name and face of the ship when selected.
+The self.face_desc can be used, or the face can be altered based on game conditions e.g. change to angry, changed to new face (change of command) etc.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Harvester</span><span class="p">(</span><span class="n">SpaceObject</span><span class="p">,</span> <span class="n">MSpawnActive</span><span class="p">,</span> <span class="n">MCommunications</span><span class="p">):</span>
+   <span class="k">def</span> <span class="nf">comms_selected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">player_id</span><span class="p">):</span>
+      <span class="n">sbs</span><span class="o">.</span><span class="n">send_comms_selection_info</span><span class="p">(</span><span class="n">player_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">face_desc</span><span class="p">,</span> <span class="s2">&quot;green&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms_id</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="example-sending-comms-buttons">
+<h2>Example: Sending comms buttons<a class="headerlink" href="#example-sending-comms-buttons" title="Permalink to this heading"></a></h2>
+<p>comms_select is also the place where comms button could be sent to the comms console.
+This can be done based on the state of the ship.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Harvester</span><span class="p">(</span><span class="n">SpaceObject</span><span class="p">,</span> <span class="n">MSpawnActive</span><span class="p">,</span> <span class="n">MCommunications</span><span class="p">):</span>
+   <span class="k">def</span> <span class="nf">comms_selected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">player_id</span><span class="p">):</span>
+      <span class="n">sbs</span><span class="o">.</span><span class="n">send_comms_selection_info</span><span class="p">(</span><span class="n">player_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">face_desc</span><span class="p">,</span> <span class="s2">&quot;green&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms_id</span><span class="p">)</span>
+
+     <span class="c1"># if Empty it is waiting for what to harvest</span>
+     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="n">HarvesterState</span><span class="o">.</span><span class="n">EMPTY_WAITING</span><span class="p">:</span>
+         <span class="n">sbs</span><span class="o">.</span><span class="n">send_comms_button_info</span><span class="p">(</span><span class="n">player_id</span><span class="p">,</span> <span class="s2">&quot;blue&quot;</span><span class="p">,</span> <span class="s2">&quot;Harvest energy&quot;</span><span class="p">,</span> <span class="s2">&quot;get_energy&quot;</span><span class="p">)</span>
+         <span class="n">sbs</span><span class="o">.</span><span class="n">send_comms_button_info</span><span class="p">(</span><span class="n">player_id</span><span class="p">,</span> <span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="s2">&quot;Harvest minerals&quot;</span><span class="p">,</span> <span class="s2">&quot;get_mineral&quot;</span><span class="p">)</span>
+         <span class="n">sbs</span><span class="o">.</span><span class="n">send_comms_button_info</span><span class="p">(</span><span class="n">player_id</span><span class="p">,</span> <span class="s2">&quot;gold&quot;</span><span class="p">,</span> <span class="s2">&quot;Harvest rare metals&quot;</span><span class="p">,</span> <span class="s2">&quot;get_rare&quot;</span><span class="p">)</span>
+         <span class="n">sbs</span><span class="o">.</span><span class="n">send_comms_button_info</span><span class="p">(</span><span class="n">player_id</span><span class="p">,</span> <span class="s2">&quot;silver&quot;</span><span class="p">,</span> <span class="s2">&quot;Harvest alloys&quot;</span><span class="p">,</span> <span class="s2">&quot;get_alloy&quot;</span><span class="p">)</span>
+         <span class="n">sbs</span><span class="o">.</span><span class="n">send_comms_button_info</span><span class="p">(</span><span class="n">player_id</span><span class="p">,</span> <span class="s2">&quot;green&quot;</span><span class="p">,</span> <span class="s2">&quot;Harvest replicator fuel&quot;</span><span class="p">,</span> <span class="s2">&quot;get_food&quot;</span><span class="p">)</span>
+
+     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="n">HarvesterState</span><span class="o">.</span><span class="n">FULL_WAITING</span><span class="p">:</span>
+         <span class="k">for</span> <span class="n">base</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_close_list</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="s1">&#39;Spacedock&#39;</span><span class="p">):</span>
+             <span class="n">sbs</span><span class="o">.</span><span class="n">send_comms_button_info</span><span class="p">(</span><span class="n">player_id</span><span class="p">,</span> <span class="s2">&quot;yellow&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Head to </span><span class="si">{</span><span class="n">base</span><span class="o">.</span><span class="n">obj</span><span class="o">.</span><span class="n">comms_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base</span><span class="o">.</span><span class="n">obj</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="example-handling-comms-button-messages">
+<h2>Example: handling comms button messages<a class="headerlink" href="#example-handling-comms-button-messages" title="Permalink to this heading"></a></h2>
+<p>comms_message is called when a comms button is pressed.
+The message is the button_tag.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Harvester</span><span class="p">(</span><span class="n">SpaceObject</span><span class="p">,</span> <span class="n">MSpawnActive</span><span class="p">,</span> <span class="n">MCommunications</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">comms_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">player_id</span><span class="p">):</span>
+
+     <span class="k">if</span> <span class="n">message</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">():</span>
+         <span class="n">other_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+         <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="n">other_id</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+         <span class="c1"># every ten seconds r</span>
+         <span class="bp">self</span><span class="o">.</span><span class="n">tsk</span> <span class="o">=</span> <span class="n">TickDispatcher</span><span class="o">.</span><span class="n">do_interval</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">think</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+         <span class="bp">self</span><span class="o">.</span><span class="n">tsk</span><span class="o">.</span><span class="n">base_id</span> <span class="o">=</span> <span class="n">other_id</span>
+         <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">HarvesterState</span><span class="o">.</span><span class="n">RETURNING</span>
+         <span class="k">return</span>
+
+     <span class="k">match</span> <span class="n">message</span><span class="p">:</span>
+         <span class="k">case</span> <span class="s1">&#39;get_energy&#39;</span><span class="p">:</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">resource_type</span> <span class="o">=</span> <span class="n">ResourceTypes</span><span class="o">.</span><span class="n">ENERGY</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">send_comms</span><span class="p">(</span><span class="s1">&#39;Gathering energy&#39;</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="n">player_id</span><span class="p">)</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">HarvesterState</span><span class="o">.</span><span class="n">HARVESTING</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">find_target</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
+         <span class="k">case</span> <span class="s1">&#39;get_mineral&#39;</span><span class="p">:</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">resource_type</span> <span class="o">=</span> <span class="n">ResourceTypes</span><span class="o">.</span><span class="n">MINERAL</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">send_comms</span><span class="p">(</span><span class="s1">&#39;Gathering minerals&#39;</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="n">player_id</span><span class="p">)</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">HarvesterState</span><span class="o">.</span><span class="n">HARVESTING</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">find_target</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
+         <span class="k">case</span> <span class="s1">&#39;get_rare&#39;</span><span class="p">:</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">resource_type</span> <span class="o">=</span> <span class="n">ResourceTypes</span><span class="o">.</span><span class="n">RARE_METAL</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">send_comms</span><span class="p">(</span><span class="s1">&#39;Gathering rare metals&#39;</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="n">player_id</span><span class="p">)</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">HarvesterState</span><span class="o">.</span><span class="n">HARVESTING</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">find_target</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
+         <span class="k">case</span> <span class="s1">&#39;get_alloy&#39;</span><span class="p">:</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">resource_type</span> <span class="o">=</span> <span class="n">ResourceTypes</span><span class="o">.</span><span class="n">ALLOY</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">send_comms</span><span class="p">(</span><span class="s1">&#39;Gathering alloys&#39;</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="n">player_id</span><span class="p">)</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">HarvesterState</span><span class="o">.</span><span class="n">HARVESTING</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">find_target</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
+         <span class="k">case</span> <span class="s1">&#39;get_food&#39;</span><span class="p">:</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">resource_type</span> <span class="o">=</span> <span class="n">ResourceTypes</span><span class="o">.</span><span class="n">FOOD</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">send_comms</span><span class="p">(</span><span class="s1">&#39;Gathering replicator fuel&#39;</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="n">player_id</span><span class="p">)</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">HarvesterState</span><span class="o">.</span><span class="n">HARVESTING</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">find_target</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
+         <span class="k">case</span> <span class="s1">&#39;</span><span class="k">_</span><span class="s1">&#39;:</span>
+             <span class="k">return</span>
+
+     <span class="c1"># Clear buttons?</span>
+     <span class="n">sbs</span><span class="o">.</span><span class="n">send_comms_selection_info</span><span class="p">(</span><span class="n">player_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">face_desc</span><span class="p">,</span> <span class="s2">&quot;green&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms_id</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="non-class-console-handling">
+<h2>non class console handling<a class="headerlink" href="#non-class-console-handling" title="Permalink to this heading"></a></h2>
+<p>MCommunications is useful for any class. However, if their is another way desired to handle console messages.</p>
+<p><a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.add_select" title="sbs_utils.consoledispatcher.ConsoleDispatcher.add_select"><code class="xref py py-meth docutils literal notranslate"><span class="pre">add_select()</span></code></a> adds any callback to the console dispatcher system for handling selection.</p>
+<p><a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.add_message" title="sbs_utils.consoledispatcher.ConsoleDispatcher.add_message"><code class="xref py py-meth docutils literal notranslate"><span class="pre">add_message()</span></code></a> adds any callback to the console dispatcher system for handling messages.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">some_select_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">other_id</span><span class="p">):</span>
+   <span class="k">pass</span>
+
+<span class="k">def</span> <span class="nf">some_message_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">other_id</span><span class="p">):</span>
+   <span class="k">pass</span>
+
+<span class="k">def</span> <span class="nf">some_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">player_id</span><span class="p">):</span>
+   <span class="n">ConsoleDispatcher</span><span class="o">.</span><span class="n">add_select</span><span class="p">(</span><span class="n">some_id</span><span class="p">,</span> <span class="s1">&#39;comms_targetUID&#39;</span><span class="p">,</span> <span class="n">some_select_handler</span><span class="p">)</span>
+   <span class="n">ConsoleDispatcher</span><span class="o">.</span><span class="n">add_message</span><span class="p">(</span><span class="n">some_id</span><span class="p">,</span> <span class="s1">&#39;comms_targetUID&#39;</span><span class="p">,</span> <span class="n">some_message_handler</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
 <section id="module-sbs_utils.consoledispatcher">
-<span id="consoledispatcher-module"></span><h2>consoledispatcher module<a class="headerlink" href="#module-sbs_utils.consoledispatcher" title="Permalink to this heading"></a></h2>
+<span id="api-consoledispatcher-module"></span><h2>API consoledispatcher module<a class="headerlink" href="#module-sbs_utils.consoledispatcher" title="Permalink to this heading"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.consoledispatcher.</span></span><span class="sig-name descname"><span class="pre">ConsoleDispatcher</span></span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher" title="Permalink to this definition"></a></dt>
@@ -89,37 +242,109 @@
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.add_message">
 <span class="sig-name descname"><span class="pre">add_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.add_message" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>add a target for console message</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
+<li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
+<li><p><strong>cb</strong> (<em>should have arguments of other sim</em><em>, </em><em>message and object's id</em>) – call back function</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.add_select">
 <span class="sig-name descname"><span class="pre">add_select</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.add_select" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>add a target for console selection</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
+<li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
+<li><p><strong>cb</strong> (<em>should have arguments of other sim and object's id</em>) – call back function</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_comms_message">
 <span class="sig-name descname"><span class="pre">dispatch_comms_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message_tag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">player_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">other_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_comms_message" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>dispatches a comms console message</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Simulation</em>) – The simulation</p></li>
+<li><p><strong>message_tag</strong> (<em>string</em>) – The message</p></li>
+<li><p><strong>player_id</strong> (<em>int</em>) – A player ship ID</p></li>
+<li><p><strong>other_id</strong> (<em>int</em>) – A non player ship ID player</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_message">
 <span class="sig-name descname"><span class="pre">dispatch_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message_tag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">player_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">other_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_message" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>dispatches a console message</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Simulation</em>) – The simulation</p></li>
+<li><p><strong>message_tag</strong> (<em>string</em>) – The message</p></li>
+<li><p><strong>player_id</strong> (<em>int</em>) – A player ship ID</p></li>
+<li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
+<li><p><strong>other_id</strong> (<em>int</em>) – A non player ship ID player</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_select">
 <span class="sig-name descname"><span class="pre">dispatch_select</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">player_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">other_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_select" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>dispatches a console selection</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Simulation</em>) – The simulation</p></li>
+<li><p><strong>player_id</strong> (<em>int</em>) – A player ship ID</p></li>
+<li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
+<li><p><strong>other_id</strong> (<em>int</em>) – A non player ship ID player</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.remove_message">
 <span class="sig-name descname"><span class="pre">remove_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.remove_message" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>remove a target for console messages</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
+<li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.remove_select">
 <span class="sig-name descname"><span class="pre">remove_select</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.remove_select" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>remove a target for console selection</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
+<li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 </dd></dl>
 
@@ -129,18 +354,43 @@
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.MCommunications.comms_message">
-<span class="sig-name descname"><span class="pre">comms_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">player_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.MCommunications.comms_message" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<span class="sig-name descname"><span class="pre">comms_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">an_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.MCommunications.comms_message" title="Permalink to this definition"></a></dt>
+<dd><p>handle a comms message</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Simulation</em>) – The simulation</p></li>
+<li><p><strong>message_tag</strong> (<em>string</em>) – The message</p></li>
+<li><p><strong>an_id</strong> (<em>int</em>) – The other ship involved</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.MCommunications.comms_selected">
-<span class="sig-name descname"><span class="pre">comms_selected</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">player_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.MCommunications.comms_selected" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<span class="sig-name descname"><span class="pre">comms_selected</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">an_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.MCommunications.comms_selected" title="Permalink to this definition"></a></dt>
+<dd><p>handle a comms selection</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Simulation</em>) – The simulation</p></li>
+<li><p><strong>an_id</strong> (<em>int</em>) – The other ship involved</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.MCommunications.enable_comms">
 <span class="sig-name descname"><span class="pre">enable_comms</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face_desc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.MCommunications.enable_comms" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>includes in ConsoleDispatch system</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>face_desc</strong> (<em>string</em>) – Face Description</p>
+</dd>
+</dl>
+</dd></dl>
 
 </dd></dl>
 

@@ -206,6 +206,36 @@ class SpaceObject:
         if SpaceObject.debug:
             print(s)
 
+    @property
+    def space_object(self, sim):
+        return sim.get_space_object(self.id)
+
+    @property
+    def side(self):
+        so = self.space_object
+        if so is not None:
+            return so.side
+        return ""
+        
+    @property
+    def name(self):
+        so = self.space_object
+        if so is None:
+            return ""
+        blob = so.data_set
+        return blob.get("name_tag", 0)
+
+    @property
+    def comm_id(self):
+        name = self.name
+        side = self.side
+        if (side != ""):
+            return f"{name}({side})"
+        return name
+
+
+
+
 
 class MSpawn:
     def spawn_common(self, sim, obj, x,y,z,name, side):
