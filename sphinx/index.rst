@@ -18,7 +18,8 @@ Welcome to SBS Utils's documentation!
    :caption: Entity Creation:
    
    spaceobject
-   playership
+   roles
+   targeting
 
    vec
    scatter

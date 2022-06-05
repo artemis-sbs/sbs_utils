@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>The Player Ship &mdash; SBS Utils 1.0 documentation</title>
+  <title>The roles system &mdash; SBS Utils 1.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -19,7 +19,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="The vector class" href="vec.html" />
+    <link rel="next" title="The targeting system" href="targeting.html" />
     <link rel="prev" title="Space Object" href="spaceobject.html" /> 
 </head>
 
@@ -45,10 +45,14 @@
 <p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="spaceobject.html">Space Object</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">The Player Ship</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.playership">API: playership module</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">The roles system</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#adding-a-role">Adding a role</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#remove-a-role">Remove a role</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#check-for-a-role">Check for a role</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#using-with-targeting">Using with targeting</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="targeting.html">The targeting system</a></li>
 <li class="toctree-l1"><a class="reference internal" href="vec.html">The vector class</a></li>
 <li class="toctree-l1"><a class="reference internal" href="scatter.html">The Scatter modules</a></li>
 <li class="toctree-l1"><a class="reference internal" href="faces.html">The Faces module</a></li>
@@ -75,9 +79,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>The Player Ship</li>
+      <li>The roles system</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="_sources/playership.rst.txt" rel="nofollow"> View page source</a>
+            <a href="_sources/roles.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -85,16 +89,41 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="the-player-ship">
-<h1>The Player Ship<a class="headerlink" href="#the-player-ship" title="Permalink to this heading"></a></h1>
-<section id="module-sbs_utils.playership">
-<span id="api-playership-module"></span><h2>API: playership module<a class="headerlink" href="#module-sbs_utils.playership" title="Permalink to this heading"></a></h2>
-<dl class="py class">
-<dt class="sig sig-object py" id="sbs_utils.playership.PlayerShip">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.playership.</span></span><span class="sig-name descname"><span class="pre">PlayerShip</span></span><a class="headerlink" href="#sbs_utils.playership.PlayerShip" title="Permalink to this definition"></a></dt>
-<dd><p>Bases: <a class="reference internal" href="spaceobject.html#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code></a>, <a class="reference internal" href="spaceobject.html#sbs_utils.spaceobject.MSpawnPlayer" title="sbs_utils.spaceobject.MSpawnPlayer"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPlayer</span></code></a></p>
-</dd></dl>
-
+  <section id="the-roles-system">
+<h1>The roles system<a class="headerlink" href="#the-roles-system" title="Permalink to this heading"></a></h1>
+<p>The SpaceObject class has methods for assigning and removing ‘roles’ to objects.</p>
+<p>Roles are like sides but can be more dynamic and are not seen by the simulation.
+You can have multiple roles on an object. Roles can be used in targeting etc.</p>
+<p><strong>This need more documentation</strong>
+placing examples for now</p>
+<section id="adding-a-role">
+<h2>Adding a role<a class="headerlink" href="#adding-a-role" title="Permalink to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">npc</span><span class="o">.</span><span class="n">add_role</span><span class="p">(</span><span class="s1">&#39;spy&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="remove-a-role">
+<h2>Remove a role<a class="headerlink" href="#remove-a-role" title="Permalink to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">npc</span><span class="o">.</span><span class="n">remove_role</span><span class="p">(</span><span class="s1">&#39;spy&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="check-for-a-role">
+<h2>Check for a role<a class="headerlink" href="#check-for-a-role" title="Permalink to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="n">npc</span><span class="o">.</span><span class="n">has_role</span><span class="p">(</span><span class="s1">&#39;spy&#39;</span><span class="p">)</span>
+      <span class="k">pass</span>
+</pre></div>
+</div>
+</section>
+<section id="using-with-targeting">
+<h2>Using with targeting<a class="headerlink" href="#using-with-targeting" title="Permalink to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">close</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_closest</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="s1">&#39;spy&#39;</span><span class="p">)</span>
+<span class="c1"># class names are included in roles</span>
+<span class="n">close</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_closest</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="s1">&#39;Station&#39;</span><span class="p">)</span>
+<span class="c1"># side is included in roles</span>
+<span class="n">close</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_closest</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="s1">&#39;tsn&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
 </section>
 </section>
 
@@ -103,7 +132,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="spaceobject.html" class="btn btn-neutral float-left" title="Space Object" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="vec.html" class="btn btn-neutral float-right" title="The vector class" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="targeting.html" class="btn btn-neutral float-right" title="The targeting system" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
