@@ -29,12 +29,14 @@ The HandleCommsButton should call :py:meth:`~sbs_utils.consoledispatcher.Console
 Example: Adding Comms to a class
 --------------------------------
 
-The best way to use the ConsoleDispatcher is to add comms to a :py:class:`~sbs_utils.spaceobject.SpaceObject` using the :py:meth:`~sbs_utils.consoledispatcher.MCommunications.comms_selected` and :py:class:`~sbs_utils.consoledispatcher.MCommunications` mixin class.
-and provide an implementation of  :py:meth:`~sbs_utils.consoledispatcher.MCommunications.comms_selected` and :py:meth:`~sbs_utils.consoledispatcher.MCommunications.comms_message`
+The best way to use the ConsoleDispatcher is to add comms to a :py:class:`~sbs_utils.spaceobject.SpaceObject` using the :py:class:`~sbs_utils.consoledispatcher.ConsoleDispatcher` and :py:class:`~sbs_utils.consoledispatcher.MCommunications` mixin class.
+and provide an implementation of  :py:meth:`~sbs_utils.consoledispatcher.MCommunications.comms_selected` and :py:meth:`~sbs_utils.consoledispatcher.MCommunications.comms_message` methods.
 
 To enable comms call :py:meth:`~sbs_utils.consoledispatcher.MCommunications.enable_comms`. This should be called after the SpaceObject has spawned and has an id.
 
-:py:meth:`~sbs_utils.consoledispatcher.MCommunications.enable_comms` takes a face description and it will set self.face_desc.
+:py:meth:`~sbs_utils.consoledispatcher.MCommunications.enable_comms` takes a face description and it will set self.face_desc. 
+
+You can use the faces module :doc:`faces` to get some face descriptions.
 
 This can be done on a non-player ship and a PlayerShip. The system will send the proper information.
 
