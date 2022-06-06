@@ -11,9 +11,10 @@ Additionally, there are Mixin classes for spawning Space Objects.
 - :py:class:`~sbs_utils.spaceobject.MSpawnActive`
 - :py:class:`~sbs_utils.spaceobject.MSpawnPlayer`
 
-:py:class:`~sbs_utils.spaceobject.MSpawnPassive` is for Spawning passive objects e.g. 
+:py:class:`~sbs_utils.spaceobject.MSpawnPassive` is for Spawning passive objects e.g. asteroids
 
-:py:class:`~sbs_utils.spaceobject.MSpawnActive`is for spawning active object, npx ships, stations etc.
+
+:py:class:`~sbs_utils.spaceobject.MSpawnActive` is for spawning active object, npx ships, stations etc.
 
 :py:class:`~sbs_utils.spaceobject.MSpawnPlayer` if for spawning player ships.
 
