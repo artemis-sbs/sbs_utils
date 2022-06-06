@@ -12,7 +12,7 @@ This set of images can be extended with new textures added to allFacesFiles.txt
 Face generation functions
 ---------------------------
 
-The faces module has set set of functions to generate random faces for the base set of face image textures.
+The faces module has a set of functions to generate random faces for the base set of face image textures provided by Artemis Cosmos.
 
 - :py:meth:`~sbs_utils.faces.random_skaraan`
 - :py:meth:`~sbs_utils.faces.random_torgoth`
@@ -25,8 +25,8 @@ Others are a work in progress
       
 
 
-There are also function to make it easier to create specific faces by passing indexes to define idds that represent cells containing know art images for things like hair, eyes, mouth etc.
-It may tak some experimentation to find the values for your character, but his is a simplified way to create repeatable characters.
+There are also function to make it easier to create specific faces by passing indexes to define indexes that represent cells containing know art images for things like hair, eyes, mouth etc.
+It may take some experimentation to find the values for your character, but this is a simplified way to create repeatable characters.
 Other ways to create consistent faces is to use one of the predefined :py:class:`~sbs_utils.faces.Characters` or hand code a face string.
 
 - :py:meth:`~sbs_utils.faces.skaraan`
@@ -41,7 +41,7 @@ Character Faces
 -------------------
 The class :py:class:`~sbs_utils.faces.Characters` has a list of predefined face strings.
 
-These are a good example for creating a face string by hand.
+These are a good examples for creating a face string by hand.
 
 
 The faces string syntax

@@ -1,9 +1,9 @@
 Space Object
 ==================
 
-All object (ships, stations, asteroids, etc) are space object in the Artemis Cosmos simulation.
+All objects (ships, stations, asteroids, etc) are space objects in the Artemis Cosmos simulation.
 
-SBS Utils library has the :py:class:`~sbs_utils.spaceobject.SpaceObject` class to wrap things related to space objects easier to code.
+The SBS Utils library has the :py:class:`~sbs_utils.spaceobject.SpaceObject` class to wrap things related to space objects easier to code.
 
 Additionally, there are Mixin classes for spawning Space Objects. 
 
@@ -12,8 +12,10 @@ Additionally, there are Mixin classes for spawning Space Objects.
 - :py:class:`~sbs_utils.spaceobject.MSpawnPlayer`
 
 :py:class:`~sbs_utils.spaceobject.MSpawnPassive` is for Spawning passive objects e.g. 
+
 :py:class:`~sbs_utils.spaceobject.MSpawnActive`is for spawning active object, npx ships, stations etc.
-:py:class:`~sbs_utils.spaceobject.MSpawnPlayer` if fro spawning player ships.
+
+:py:class:`~sbs_utils.spaceobject.MSpawnPlayer` if for spawning player ships.
 
 Each of these add a :py:meth:`~sbs_utils.spaceobject.MSpawnPlayer.spawn` and a each add a :py:meth:`~sbs_utils.spaceobject.MSpawnPlayer.spawn_v` function. These functions allow spawning an entity with one function rather than several.
 These will create a entity that has a name, a side, is positioned in space, has the define engine behavior and art work.
@@ -35,7 +37,7 @@ Space Object typically derives from Space Object and a spawn mixin.
 
 Spawning a SpaceObject
 ----------------------
-Using the default mixin a Space Object can be spawn with one line of code.
+Using the default mixin a Space Object can be spawned with one line of code.
 
 .. code-block:: python
     
