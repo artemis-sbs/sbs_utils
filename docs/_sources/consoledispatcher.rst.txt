@@ -36,7 +36,7 @@ To enable comms call :py:meth:`~sbs_utils.consoledispatcher.MCommunications.enab
 
 :py:meth:`~sbs_utils.consoledispatcher.MCommunications.enable_comms` takes a face description and it will set self.face_desc. 
 
-You can use the faces module :doc:`faces` to get some face descriptions.
+You can use :doc:`faces` to get some face descriptions.
 
 This can be done on a non-player ship and a PlayerShip. The system will send the proper information.
 
