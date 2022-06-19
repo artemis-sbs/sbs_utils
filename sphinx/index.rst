@@ -36,6 +36,17 @@ Welcome to SBS Utils's documentation!
    hookhandlers
    
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Tutorials
+
+   
+   tutorials/overview
+   tutorials/setup
+   
+
+
+
 
 Indices and tables
 ==================
