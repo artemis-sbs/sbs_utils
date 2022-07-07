@@ -107,8 +107,15 @@ Cells are 512x512 and the total images must be a valid DirectX12 pixel size.</p>
 <ul class="simple">
 <li><p><a class="reference internal" href="#sbs_utils.faces.random_skaraan" title="sbs_utils.faces.random_skaraan"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_skaraan()</span></code></a></p></li>
 <li><p><a class="reference internal" href="#sbs_utils.faces.random_torgoth" title="sbs_utils.faces.random_torgoth"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_torgoth()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.faces.random_kralien" title="sbs_utils.faces.random_kralien"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_kralien()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.faces.random_arvonian" title="sbs_utils.faces.random_arvonian"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_arvonian()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.faces.random_skaraan" title="sbs_utils.faces.random_skaraan"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_skaraan()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.faces.random_zimni" title="sbs_utils.faces.random_zimni"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_zimni()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.faces.random_terran" title="sbs_utils.faces.random_terran"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_terran()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.faces.random_terran_male" title="sbs_utils.faces.random_terran_male"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_terran_male()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.faces.random_terran_female" title="sbs_utils.faces.random_terran_female"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_terran_female()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.faces.random_terran_fluid" title="sbs_utils.faces.random_terran_fluid"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_terran_fluid()</span></code></a></p></li>
 </ul>
-<p>Others are a work in progress</p>
 <blockquote>
 <div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">face_desc</span> <span class="o">=</span> <span class="n">random_skaraan</span><span class="p">()</span>
 </pre></div>
@@ -120,6 +127,14 @@ Other ways to create consistent faces is to use one of the predefined <a class="
 <ul class="simple">
 <li><p><a class="reference internal" href="#sbs_utils.faces.skaraan" title="sbs_utils.faces.skaraan"><code class="xref py py-meth docutils literal notranslate"><span class="pre">skaraan()</span></code></a></p></li>
 <li><p><a class="reference internal" href="#sbs_utils.faces.torgoth" title="sbs_utils.faces.torgoth"><code class="xref py py-meth docutils literal notranslate"><span class="pre">torgoth()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.faces.kralien" title="sbs_utils.faces.kralien"><code class="xref py py-meth docutils literal notranslate"><span class="pre">kralien()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.faces.arvonian" title="sbs_utils.faces.arvonian"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arvonian()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.faces.skaraan" title="sbs_utils.faces.skaraan"><code class="xref py py-meth docutils literal notranslate"><span class="pre">skaraan()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.faces.zimni" title="sbs_utils.faces.zimni"><code class="xref py py-meth docutils literal notranslate"><span class="pre">zimni()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.faces.terran" title="sbs_utils.faces.terran"><code class="xref py py-meth docutils literal notranslate"><span class="pre">terran()</span></code></a></p></li>
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">terran_male()</span></code></p></li>
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">terran_female()</span></code></p></li>
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">terran_fluid()</span></code></p></li>
 </ul>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">face_desc</span> <span class="o">=</span> <span class="n">skaraan</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span>
 </pre></div>
@@ -159,6 +174,108 @@ The first layer is the lowest layer.</p>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.faces.arvonian">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">arvonian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eye_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mouth_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crown_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">collar_i</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.arvonian" title="Permalink to this definition"></a></dt>
+<dd><p>Create an arvonian face</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>face_i</strong> (<em>int</em>) – The index of the face 0</p></li>
+<li><p><strong>eye_id</strong> – The index of the eyes 0-4</p></li>
+<li><p><strong>mouth_id</strong> – The index of the mouth 0-4</p></li>
+<li><p><strong>crown_id</strong> – The index of the crown 0-4 or None</p></li>
+<li><p><strong>collar_id</strong> – The index of the collar 0-4 or None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A Face string</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.faces.clear_face">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">clear_face</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ship_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.clear_face" title="Permalink to this definition"></a></dt>
+<dd><p>Removes a face string for a specified ID</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>ship_id</strong> (<em>int</em>) – The id of the ship/object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.faces.get_face">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">get_face</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ship_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.get_face" title="Permalink to this definition"></a></dt>
+<dd><p>returns a face string for a specified ID</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>ship_id</strong> (<em>int</em>) – The id of the ship/object</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A Face string</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.faces.kralien">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">kralien</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eye_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mouth_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scalp_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra_i</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.kralien" title="Permalink to this definition"></a></dt>
+<dd><p>Create an kralien face</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>face_i</strong> (<em>int</em>) – The index of the face 0</p></li>
+<li><p><strong>eye_id</strong> – The index of the eyes 0-4</p></li>
+<li><p><strong>mouth_id</strong> – The index of the mouth 0-4</p></li>
+<li><p><strong>scalp_id</strong> – The index of the scalp 0-4 or None</p></li>
+<li><p><strong>extra_id</strong> – The index of the extra 0-4 or None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A Face string</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.faces.random_arvonian">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_arvonian</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_arvonian" title="Permalink to this definition"></a></dt>
+<dd><p>Create a random arvonian face</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A Face string</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.faces.random_kralien">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_kralien</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_kralien" title="Permalink to this definition"></a></dt>
+<dd><p>Create a random kralien face</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A Face string</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="sbs_utils.faces.random_skaraan">
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_skaraan</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_skaraan" title="Permalink to this definition"></a></dt>
 <dd><p>Create a random skaraan face</p>
@@ -173,6 +290,80 @@ The first layer is the lowest layer.</p>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.faces.random_terran">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_terran</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">civilian</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_terran" title="Permalink to this definition"></a></dt>
+<dd><p>Create a random terran face</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>face</strong> (<em>int</em><em> or </em><em>None</em>) – The index of the hair 0=male,1=female,2=fluid male, 3=fluid female or None= random</p></li>
+<li><p><strong>civilian</strong> (<em>boolean</em><em> or </em><em>None</em>) – The force this to be a civilian=True, For non-civilian=False or None= random</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A Face string</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.faces.random_terran_female">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_terran_female</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">civilian</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_terran_female" title="Permalink to this definition"></a></dt>
+<dd><p>Create a random terran female face</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>face</strong> (<em>int</em><em> or </em><em>None</em>) – The index of the hair 0=male,1=female,2=fluid male, 3=fluid female or None= random</p></li>
+<li><p><strong>civilian</strong> (<em>boolean</em><em> or </em><em>None</em>) – The force this to be a civilian=True, For non-civilian=False or None= random</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A Face string</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.faces.random_terran_fluid">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_terran_fluid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">civilian</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_terran_fluid" title="Permalink to this definition"></a></dt>
+<dd><p>Create a random fluid terran face i.e. may have male or female features</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>civilian</strong> (<em>boolean</em><em> or </em><em>None</em>) – The force this to be a civilian=True, For non-civilian=False or None= random</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A Face string</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.faces.random_terran_male">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_terran_male</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">civilian</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_terran_male" title="Permalink to this definition"></a></dt>
+<dd><p>Create a random terran male face</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>civilian</strong> (<em>boolean</em><em> or </em><em>None</em>) – The force this to be a civilian=True, For non-civilian=False or None= random</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A Face string</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="sbs_utils.faces.random_torgoth">
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_torgoth</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_torgoth" title="Permalink to this definition"></a></dt>
 <dd><p>Create a random torgoth face</p>
@@ -182,6 +373,34 @@ The first layer is the lowest layer.</p>
 </dd>
 <dt class="field-even">Return type</dt>
 <dd class="field-even"><p>string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.faces.random_zimni">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_zimni</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_zimni" title="Permalink to this definition"></a></dt>
+<dd><p>Create a random zimni face</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A Face string</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.faces.set_face">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">set_face</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ship_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">face</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.set_face" title="Permalink to this definition"></a></dt>
+<dd><p>sets a face string for a specified ID</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ship_id</strong> (<em>int</em>) – The id of the ship/object</p></li>
+<li><p><strong>face</strong> (<em>string</em>) – A Face string</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
@@ -210,6 +429,33 @@ The first layer is the lowest layer.</p>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.faces.terran">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">terran</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eye_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mouth_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hair_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">longhair_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">facial_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uniform_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skintone</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hairtone</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.terran" title="Permalink to this definition"></a></dt>
+<dd><p>Create an terran face</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>face_i</strong> (<em>int</em><em> or </em><em>None</em>) – The index of the face 0=male, 1=female, 2=fluid_male, 3=fluid_female</p></li>
+<li><p><strong>eye_id</strong> – The index of the eyes 0-9</p></li>
+<li><p><strong>mouth_id</strong> – The index of the mouth 0-9</p></li>
+<li><p><strong>hair_id</strong> – The index of the hair 0-9 or None</p></li>
+<li><p><strong>longhair_id</strong> – The index of the hair 0-7 or None</p></li>
+<li><p><strong>extra_id</strong> – The index of the extra 0-4 or None</p></li>
+<li><p><strong>uniform_i</strong> (<em>int</em><em> or </em><em>None</em>) – The index of the uniform 0 or None. None = civilian</p></li>
+<li><p><strong>skintone_i</strong> (<em>int</em><em>, </em><em>str</em><em> or </em><em>None</em>) – The index of the skintone 0-??, string = color string or None.</p></li>
+<li><p><strong>hairtone_i</strong> (<em>int</em><em>, </em><em>str</em><em> or </em><em>None</em>) – The index of the skintone 0-??, string = color string  or None.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A Face string</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="sbs_utils.faces.torgoth">
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">torgoth</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eye_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mouth_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hair_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hat_i</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.torgoth" title="Permalink to this definition"></a></dt>
 <dd><p>Create a torgoth face</p>
@@ -222,6 +468,30 @@ The first layer is the lowest layer.</p>
 <li><p><strong>hair_id</strong> – The index of the hair 0-4 or None</p></li>
 <li><p><strong>extra_id</strong> – The index of the extra 0-4 or None</p></li>
 <li><p><strong>hat_id</strong> – The index of the hat 0 or None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A Face string</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.faces.zimni">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">zimni</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eye_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mouth_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horns_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">collar_i</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.zimni" title="Permalink to this definition"></a></dt>
+<dd><p>Create an zimni face</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>face_i</strong> (<em>int</em>) – The index of the face 0</p></li>
+<li><p><strong>eye_id</strong> – The index of the eyes 0-4</p></li>
+<li><p><strong>mouth_id</strong> – The index of the mouth 0-4</p></li>
+<li><p><strong>horns_id</strong> – The index of the horns 0-4 or None</p></li>
+<li><p><strong>mask_id</strong> – The index of the mask 0-4 or None</p></li>
+<li><p><strong>collar_id</strong> – The index of the collar 0 or None</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>

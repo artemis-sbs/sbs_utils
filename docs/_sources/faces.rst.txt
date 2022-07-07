@@ -16,8 +16,15 @@ The faces module has a set of functions to generate random faces for the base se
 
 - :py:meth:`~sbs_utils.faces.random_skaraan`
 - :py:meth:`~sbs_utils.faces.random_torgoth`
+- :py:meth:`~sbs_utils.faces.random_kralien`
+- :py:meth:`~sbs_utils.faces.random_arvonian`
+- :py:meth:`~sbs_utils.faces.random_skaraan`
+- :py:meth:`~sbs_utils.faces.random_zimni`
+- :py:meth:`~sbs_utils.faces.random_terran`
+- :py:meth:`~sbs_utils.faces.random_terran_male`
+- :py:meth:`~sbs_utils.faces.random_terran_female`
+- :py:meth:`~sbs_utils.faces.random_terran_fluid`
 
-Others are a work in progress
 
  .. code-block:: python
 
@@ -31,6 +38,16 @@ Other ways to create consistent faces is to use one of the predefined :py:class:
 
 - :py:meth:`~sbs_utils.faces.skaraan`
 - :py:meth:`~sbs_utils.faces.torgoth`
+- :py:meth:`~sbs_utils.faces.kralien`
+- :py:meth:`~sbs_utils.faces.arvonian`
+- :py:meth:`~sbs_utils.faces.skaraan`
+- :py:meth:`~sbs_utils.faces.zimni`
+- :py:meth:`~sbs_utils.faces.terran`
+- :py:meth:`~sbs_utils.faces.terran_male`
+- :py:meth:`~sbs_utils.faces.terran_female`
+- :py:meth:`~sbs_utils.faces.terran_fluid`
+
+
 
 .. code-block:: python
 
