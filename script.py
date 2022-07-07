@@ -239,7 +239,7 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
                 self.face_desc = faces.random_zimni()
 
 
-
-        sbs.send_comms_selection_info(player_id, self.face_desc, "green", self.comms_id)
+        self.comms_selected(sim, player_id)
+        #sbs.send_comms_selection_info(player_id, self.face_desc, "green", self.comms_id)
         sbs.send_comms_message_to_player_ship(player_id, self.id, "green", self.face_desc,  "Face Gen", self.face_desc, "face")
 

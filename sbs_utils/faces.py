@@ -1,4 +1,5 @@
-from random import randrange
+from random import randrange,uniform
+import math
 from enum import IntEnum
 
 # ter Terran_Big-revised
@@ -428,6 +429,8 @@ hair_tones = [
 
 ]
 
+def probably(chance):
+    return uniform(0, 1) < chance
 
 def terran(face_i, eye_i, mouth_i, hair_i, longhair_i, facial_i, extra_i, uniform_i, skintone, hairtone):
     """ Create an terran face
@@ -554,9 +557,9 @@ def random_terran(face=None, civilian=None):
     """
     is_fluid = False
     if face is None:
-        fluid = randrange(0, 10)
+        fluid = probably(3/10)
     
-        if fluid > 7: # 3 out of 10
+        if fluid: # 3 out of 10
             face = 2
             is_fluid = True
         else:
@@ -580,21 +583,33 @@ def random_terran(face=None, civilian=None):
     hair = None
     extra = None
     longhair = None
-    if randrange(0,10) > 5:
-        hair = randrange(0, len(terran_map["hair"]))
+    if is_fluid or face==1:
+        if probably(95/100):
+            hair = randrange(0, len(terran_map["hair"]))
+    else:
+        if probably(75/100):
+            hair = randrange(0, len(terran_map["hair"]))
 
     facial = None
-    if not is_fluid and face==1:
-        # non-fluid female no facial
-        pass
+    # male more chance of facial hair
+    if is_fluid or face==1:
+        if probably(5/100):
+            facial = randrange(0, len(terran_map["facial"]))
     else:
-        if randrange(0,10) > 5:
+        if probably(65/100):
             facial = randrange(0, len(terran_map["facial"]))
 
-    if randrange(0,10) > 5:
-        longhair = randrange(0, len(terran_map["longhair"]))
+    # if female 80% chance of long hair
+    # male 20%
+    if is_fluid or face==1:
+        if probably(8/10):
+            longhair = randrange(0, len(terran_map["longhair"]))
+    else:
+        if probably(2/10):
+            longhair = randrange(0, len(terran_map["longhair"]))
 
-    if randrange(0,10) > 5:
+    # 35% chance
+    if probably(35/100):
         extra = randrange(0, len(terran_map["extra"]))
 
     if civilian ==True:
@@ -602,7 +617,7 @@ def random_terran(face=None, civilian=None):
     elif civilian == False:
         uniform = randrange(0, len(terran_uniform))
     else:
-        if randrange(0,10) > 8:
+        if probably(2/10):
             uniform = None
         else:
             uniform = randrange(0, len(terran_uniform))
