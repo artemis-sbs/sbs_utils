@@ -507,12 +507,12 @@ def terran(face_i, eye_i, mouth_i, hair_i, longhair_i, facial_i, extra_i, unifor
     ret = ""
     if longhair_i is not None:
         longhair = terran_map["longhair"][longhair_i]
-        ret += f"ter #{hairtone} {longhair[0]} {longhair[1]};"
+        ret += f"ter #{hairtone} {longhair[0]} {longhair[1]} 6  -2;"
 
     ret +=  f"ter #{skintone} {face[0]} {face[1]};ter #{skintone} {eye[0]} {eye[1]};ter #{skintone} {mouth[0]} {mouth[1]};"
     if hair_i is not None:
         hair = terran_map["hair"][hair_i]
-        ret += f"ter #{hairtone} {hair[0]} {hair[1]};"
+        ret += f"ter #{hairtone} {hair[0]} {hair[1]} 6 -2;"
 
 
     # Civilian
