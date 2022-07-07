@@ -43,9 +43,6 @@ Other ways to create consistent faces is to use one of the predefined :py:class:
 - :py:meth:`~sbs_utils.faces.skaraan`
 - :py:meth:`~sbs_utils.faces.zimni`
 - :py:meth:`~sbs_utils.faces.terran`
-- :py:meth:`~sbs_utils.faces.terran_male`
-- :py:meth:`~sbs_utils.faces.terran_female`
-- :py:meth:`~sbs_utils.faces.terran_fluid`
 
 
 
