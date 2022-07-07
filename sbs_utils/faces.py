@@ -469,15 +469,23 @@ def terran(face_i, eye_i, mouth_i, hair_i, longhair_i, facial_i, extra_i, unifor
 
 
     eye_count =len(terran_map["eyes"])
-    female_eyes = eye_i > eye_count
+    
+    female_eyes =  (eye_i > eye_count)
+    if not is_fluid and face_i==1:
+        female_eyes = True
+
     eye = terran_map["eyes"][eye_i%eye_count]
+
     # offset cell
     if female_eyes:
         eye = (eye[0]+ 3, eye[1])
     
     mouth_count =len(terran_map["mouth"])
     female_mouth = mouth_i > mouth_count
-    mouth = terran_map["eyes"][mouth_i%mouth_count]
+    if not is_fluid and face_i==1:
+        female_mouth = True
+
+    mouth = terran_map["mouth"][mouth_i%mouth_count]
     # offset cell
     if female_mouth:
         mouth = (mouth[0] + 3, mouth[1])
@@ -515,7 +523,7 @@ def terran(face_i, eye_i, mouth_i, hair_i, longhair_i, facial_i, extra_i, unifor
 
     
     if hat:
-        ret += f"ter #fff {hat[0]} {hat[1]};"
+        ret += f"ter #fff {hat[0]} {hat[1]} 14 -2;"
     
     if face_i == 1:
         shirt = (shirt[0]+3, shirt[1])
@@ -524,12 +532,12 @@ def terran(face_i, eye_i, mouth_i, hair_i, longhair_i, facial_i, extra_i, unifor
 
     if facial_i is not None:
         facial = terran_map["facial"][facial_i]
-        ret += f"ter #{hairtone} {facial[0]} {facial[1]};"
+        ret += f"ter #{hairtone} {facial[0]} {facial[1]} 12 4;"
 
 
     if extra_i  is not None:
         extra = terran_map["extra"][extra_i]
-        ret += f"ter #fff {extra[0]} {extra[1]};"
+        ret += f"ter #fff {extra[0]} {extra[1]} 20 4;"
     return ret
 
 

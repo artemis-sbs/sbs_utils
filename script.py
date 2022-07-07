@@ -4,6 +4,10 @@ import sbs
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.playership import PlayerShip
 import sbs_utils.faces as faces
+from sbs_utils.consoledispatcher import MCommunications
+from sbs_utils.spaceobject import SpaceObject, MSpawnActive
+
+
 
 
 
@@ -27,8 +31,11 @@ class GuiMain:
                 self.gui_state = "presenting"
                 sbs.send_gui_text(
                     0, "Mission: SBS_Utils unit test.^^This is a unit test for the SBS_Utils library", "text", 25, 30, 99, 90)
-                sbs.send_gui_button(0, "smoke test", "smoke", 80, 80, 99, 85)
-                sbs.send_gui_button(0, "face test", "face", 80, 85, 99, 90)
+
+                sbs.send_gui_button(0, "face gen", "face_gen", 80, 75, 99, 79)
+                sbs.send_gui_button(0, "smoke test", "smoke", 80, 80, 99, 84)
+                sbs.send_gui_button(0, "face test", "face", 80, 85, 99, 89)
+                
                 sbs.send_gui_button(0, "Vec3 tests", "vec_unit", 80, 90, 99, 94)
                 sbs.send_gui_button(0, "Start Mission", "start", 80, 95, 99, 99)
 
@@ -49,6 +56,11 @@ class GuiMain:
                 sbs.create_new_sim()
                 sbs.resume_sim()
                 Mission.face_test(sim)
+
+            case "face_gen":
+                sbs.create_new_sim()
+                sbs.resume_sim()
+                Mission.face_gen(sim)
 
             case "start":
                 sbs.create_new_sim()
@@ -87,6 +99,11 @@ class Mission:
         t.player.spawn(sim, 0,0,0, "Artemis", "tsn", "Battle Cruiser")
         
         t.race = 0
+
+    def face_gen(sim):
+        PlayerShip().spawn(sim, 0,0,0, "Artemis", "tsn", "Battle Cruiser")
+        Spacedock().spawn(sim, 500,0,500,"tsn")
+    
 
     def new_face(sim, t):
         player_id = t.player.id
@@ -150,4 +167,79 @@ def HandlePresentGUIMessage(sim, message_tag, clientID):
     Mission.main.on_message(sim, message_tag, clientID)
 
 
+
+
+
+class Spacedock(SpaceObject, MSpawnActive, MCommunications):
+    ds_id = 0
+
+    def __init__(self):
+        super().__init__()
+
+        Spacedock.ds_id += 1
+        self.ds_id = Spacedock.ds_id
+        self.comms_id =  f"DS {self.ds_id}"
+    
+    def spawn(self, sim, x,y,z, side):
+        super().spawn(sim,x,y,z,self.comms_id, side, "Starbase", "behav_station",)
+        self.enable_comms()
+    
+    
+
+    def comms_selected(self, sim, player_id):
+        # if Empty it is waiting for what to harvest
+        sbs.send_comms_selection_info(player_id, self.face_desc, "green", self.comms_id)
+
+        sbs.send_comms_button_info(player_id, "blue", "Copy to clipboard", "copy")
+        sbs.send_comms_button_info(player_id, "blue", "TSN Male", "t:m")
+        sbs.send_comms_button_info(player_id, "blue", "TSN Female", "t:f")
+        sbs.send_comms_button_info(player_id, "blue", "TSN Fluid", "t:fl")
+        sbs.send_comms_button_info(player_id, "blue", "Civilian Male", "c:m")
+        sbs.send_comms_button_info(player_id, "blue", "Civilian Female", "c:f")
+        sbs.send_comms_button_info(player_id, "blue", "Civilian Fluid", "c:fl")
+        sbs.send_comms_button_info(player_id, "blue", "Arvonian", "arv")
+        sbs.send_comms_button_info(player_id, "blue", "kralien", "kra")
+        sbs.send_comms_button_info(player_id, "blue", "Skaraan", "ska")
+        sbs.send_comms_button_info(player_id, "blue", "Torgoth", "tor")
+        sbs.send_comms_button_info(player_id, "blue", "Zimni", "zim")
+        
+    def to_clipboard(self):
+        import subprocess
+    
+        cmd=f'echo {self.face_desc}|clip'
+        return subprocess.check_call(cmd, shell=True)
+
+    def comms_message(self, sim, message, player_id):
+        
+        match message:
+            case "copy":
+                self.to_clipboard()
+
+            case "t:m":
+                self.face_desc = faces.random_terran_male(False)
+            case "t:f":
+                self.face_desc = faces.random_terran_female(False)
+            case "t:fl":
+                self.face_desc = faces.random_terran_fluid(False)
+            case "c:m":
+                self.face_desc = faces.random_terran_male(True)
+            case "c:f":
+                self.face_desc = faces.random_terran_female(True)
+            case "c:fl":
+                self.face_desc = faces.random_terran_fluid(True)
+            case "arv":
+                self.face_desc = faces.random_arvonian()
+            case "kra":
+                self.face_desc = faces.random_kralien()
+            case "ska":
+                self.face_desc = faces.random_skaraan()
+            case "tor":
+                self.face_desc = faces.random_torgoth()
+            case "zim":
+                self.face_desc = faces.random_zimni()
+
+
+
+        sbs.send_comms_selection_info(player_id, self.face_desc, "green", self.comms_id)
+        sbs.send_comms_message_to_player_ship(player_id, self.id, "green", self.face_desc,  "Face Gen", self.face_desc, "face")
 

@@ -18,7 +18,6 @@ The faces module has a set of functions to generate random faces for the base se
 - :py:meth:`~sbs_utils.faces.random_torgoth`
 - :py:meth:`~sbs_utils.faces.random_kralien`
 - :py:meth:`~sbs_utils.faces.random_arvonian`
-- :py:meth:`~sbs_utils.faces.random_skaraan`
 - :py:meth:`~sbs_utils.faces.random_zimni`
 - :py:meth:`~sbs_utils.faces.random_terran`
 - :py:meth:`~sbs_utils.faces.random_terran_male`
