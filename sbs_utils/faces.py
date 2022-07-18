@@ -437,15 +437,17 @@ def terran(face_i, eye_i, mouth_i, hair_i, longhair_i, facial_i, extra_i, unifor
 
     :param face_i: The index of the face 0=male, 1=female, 2=fluid_male, 3=fluid_female
     :type face_i: int or None 
-    :param eye_id: The index of the eyes 0-9
+    :param eye_i: The index of the eyes 0-9
     :type eye_i: int or None
-    :param mouth_id: The index of the mouth 0-9
+    :param mouth_i: The index of the mouth 0-9
     :type mouth_i: int
-    :param hair_id: The index of the hair 0-9 or None
+    :param hair_i: The index of the hair 0-9 or None
     :type hair_i: int or None
-    :param longhair_id: The index of the hair 0-7 or None
+    :param longhair_i: The index of the hair 0-7 or None
     :type longhair_i: int or None
-    :param extra_id: The index of the extra 0-4 or None
+    :param facial_i: The index of the hair 0-11 or None
+    :type facial_i: int or None
+    :param extra_i: The index of the extra 0-5 or None
     :type extra_i: int or None
     :param uniform_i: The index of the uniform 0 or None. None = civilian
     :type uniform_i: int or None

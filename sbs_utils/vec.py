@@ -9,6 +9,15 @@ class Vec3:
     y: float
     z: float
 
+    def xyz(self):
+        """Get the vector as a tuple
+        Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())
+
+        :return: a tuple with x,y,z
+        :rtype: (float,float,float)
+        """
+        return (self.x,self.y,self.z)
+        
     def neg(self):
         """Negate a vector immutable
 

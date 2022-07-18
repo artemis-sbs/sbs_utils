@@ -6,41 +6,75 @@ from sbs_utils.playership import PlayerShip
 import sbs_utils.faces as faces
 from sbs_utils.consoledispatcher import MCommunications
 from sbs_utils.spaceobject import SpaceObject, MSpawnActive
+import sbs_utils.layout as layout
+from sbs_utils.gui import Page, Gui
+from sbs_utils.pages.avatar import AvatarEditor
+from sbs_utils.pages.shippicker import ShipPicker
 
 
 
+class GuiPage(Page):
+    count = 0
+    def __init__(self) -> None:
+        self.gui_state = 'options'
+        self.pageid = GuiPage.count 
+        GuiPage.count += 1
+
+    def present(self, sim, CID):
+        sbs.send_gui_clear(CID)
+        sbs.send_gui_text(
+                    CID, f"Page: {self.pageid}", "text", 25, 30, 99, 90)
+        w = layout.wrap(99,99, 19, 4,col=1, v_dir=-1, h_dir=-1)
+        
+        sbs.send_gui_button(CID, "Back", "back", *next(w))
+        sbs.send_gui_button(CID, "Another", "again", *next(w))
+        
+
+    def on_message(self, sim, message_tag, clientID):
+        if message_tag == 'back':
+            Gui.pop(sim,clientID)
+        if message_tag == 'again':
+            Gui.push(sim,clientID, GuiPage())
 
 
 
 ############################
 # Test for sbs_utils
-class GuiMain:
+class GuiMain(Page):
     def __init__(self) -> None:
         self.gui_state = 'options'
 
-    def present(self, sim):
-        match self.gui_state:
-            case  "sim_on":
-                self.gui_state = "blank"
-                sbs.send_gui_clear(0)
+    def present(self, sim, CID):
+        sbs.send_gui_clear(CID)
+        sbs.send_gui_text(
+            CID, "Mission: SBS_Utils unit test.^^This is a unit test for the SBS_Utils library", "text", 25, 30, 99, 90)
 
-            case  "options":
-                sbs.send_gui_clear(0)
-                # Setting this to a state we don't process
-                # keeps the existing GUI displayed
-                self.gui_state = "presenting"
-                sbs.send_gui_text(
-                    0, "Mission: SBS_Utils unit test.^^This is a unit test for the SBS_Utils library", "text", 25, 30, 99, 90)
 
-                sbs.send_gui_button(0, "face gen", "face_gen", 80, 75, 99, 79)
-                sbs.send_gui_button(0, "smoke test", "smoke", 80, 80, 99, 84)
-                sbs.send_gui_button(0, "face test", "face", 80, 85, 99, 89)
-                
-                sbs.send_gui_button(0, "Vec3 tests", "vec_unit", 80, 90, 99, 94)
-                sbs.send_gui_button(0, "Start Mission", "start", 80, 95, 99, 99)
+        w = layout.wrap(99,99, 19, 4,col=1, v_dir=-1, h_dir=-1)
+        
+        sbs.send_gui_button(CID, "Start Mission", "start", *next(w))
+        sbs.send_gui_button(CID, "smoke test", "smoke", *next(w))
+        sbs.send_gui_button(CID, "Vec3 tests", "vec_unit", *next(w))
+        sbs.send_gui_button(CID, "face test", "face", *next(w))
+        sbs.send_gui_button(CID, "face gen", "face_gen", *next(w))
+        sbs.send_gui_button(CID, "Gui Pages", "again", *next(w))
+        sbs.send_gui_button(CID, "Avatar Editor", "avatar", *next(w))
+        sbs.send_gui_button(CID, "Ship Picker", "ship", *next(w))
 
     def on_message(self, sim, message_tag, clientID):
         match message_tag:
+            case 'again':
+                # reset state here?
+                Gui.push(sim,clientID, GuiPage())
+
+            case 'avatar':
+                # reset state here?
+                Gui.push(sim,clientID, AvatarEditor())
+
+            case 'ship':
+                # reset state here?
+                Gui.push(sim,clientID, ShipPicker())
+
             case "continue":
                 self.gui_state = "blank"
 
@@ -71,7 +105,6 @@ class GuiMain:
 
 
 class Mission:
-    main = GuiMain()
     many_count = 0
 
     def once(sim,t):
@@ -145,9 +178,6 @@ class Mission:
             case 8:
                 face = faces.random_terran_fluid()
                 race = "Terran Fluid"
-
-
-
         
         sbs.send_comms_message_to_player_ship( 0, player_id, "green", face,  "Face Test", f"{race} {face}", "face")
         t.race += 1
@@ -159,14 +189,6 @@ class Mission:
         
   
         
-
-def HandlePresentGUI(sim):
-    Mission.main.present(sim)
-
-def HandlePresentGUIMessage(sim, message_tag, clientID):
-    Mission.main.on_message(sim, message_tag, clientID)
-
-
 
 
 
@@ -242,4 +264,15 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
         self.comms_selected(sim, player_id)
         #sbs.send_comms_selection_info(player_id, self.face_desc, "green", self.comms_id)
         sbs.send_comms_message_to_player_ship(player_id, self.id, "green", self.face_desc,  "Face Gen", self.face_desc, "face")
+
+
+# Present the main GUI
+# Gui.push(None,0, GuiMain())
+
+Gui.server_start_page_class(GuiMain)
+Gui.client_start_page_class(GuiMain)
+
+
+
+
 

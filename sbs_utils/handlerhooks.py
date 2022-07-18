@@ -1,19 +1,23 @@
 from .damagedispatcher import DamageDispatcher
 from .consoledispatcher import ConsoleDispatcher
 from .tickdispatcher import TickDispatcher
+from .gui import Gui
+
+# https://drive.google.com/file/d/1JS6KvN-4ahvI4WJsoJq-6Vq_MWl8H812/view?usp=sharing
 
 
 def HandlePresentGUI(sim):
-    pass
+    Gui.present(sim)
 
 def HandlePresentGUIMessage(sim, message_tag, clientID):
-    pass
+    Gui.on_message(sim, message_tag, clientID)
+
 
 def  HandleSimulationTick(sim):
     TickDispatcher.dispatch_tick(sim)
 
 def HandleClientConnect(sim, clientID):
-    pass
+    Gui.add_client(sim,clientID)
 
 def HandleDamageEvent(sim, damage_event):
     DamageDispatcher.dispatch_damage(sim,damage_event)
