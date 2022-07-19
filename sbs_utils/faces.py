@@ -19,7 +19,7 @@ def get_face(ship_id):
     :return: A Face string
     :rtype: string
     """
-    faces_map.get(ship_id, None)
+    return faces_map.get(ship_id, None)
 
 def set_face(ship_id, face):
     """ sets a face string for a specified ID
@@ -221,7 +221,7 @@ def random_arvonian():
     return arvonian(face, eye, mouth, crown, collar)
 
 
-zimni_map = {
+ximni_map = {
     "face": [(0,0)],
     "eyes": [(0,1), (0,2), (0,3),(0,4), (0,5)],
     "mouth": [(1,4), (1,5), (1,6),(2,1), (3,1)],
@@ -231,8 +231,8 @@ zimni_map = {
 }
 
 
-def zimni(face_i, eye_i, mouth_i, horns_i, mask_i, collar_i):
-    """ Create an zimni face
+def ximni(face_i, eye_i, mouth_i, horns_i, mask_i, collar_i):
+    """ Create an ximni face
 
     :param face_i: The index of the face 0
     :type face_i: int
@@ -250,42 +250,42 @@ def zimni(face_i, eye_i, mouth_i, horns_i, mask_i, collar_i):
     :return: A Face string
     :rtype: string
     """
-    face = zimni_map["face"][face_i]
-    eye = zimni_map["eyes"][eye_i]
-    mouth = zimni_map["mouth"][mouth_i]
+    face = ximni_map["face"][face_i]
+    eye = ximni_map["eyes"][eye_i]
+    mouth = ximni_map["mouth"][mouth_i]
     
     ret =  f"zim #fff {face[0]} {face[1]};zim #fff {eye[0]} {eye[1]};zim #fff {mouth[0]} {mouth[1]};"
     if horns_i is not None:
-        horns = zimni_map["horns"][horns_i]
+        horns = ximni_map["horns"][horns_i]
         ret += f"zim #fff {horns[0]} {horns[1]};"
     if collar_i  is not None:
-        collar = zimni_map["collar"][collar_i]
+        collar = ximni_map["collar"][collar_i]
         ret += f"zim #fff {collar[0]} {collar[1]};"
 
     if mask_i  is not None:
-        mask = zimni_map["mask"][mask_i]
+        mask = ximni_map["mask"][mask_i]
         ret += f"zim #fff {mask[0]} {mask[1]};"
     return ret
 
-def random_zimni():
-    """ Create a random zimni face
+def random_ximni():
+    """ Create a random ximni face
     
     :return: A Face string
     :rtype: string
     """
-    face = randrange(0, len(zimni_map["face"]))
-    eye = randrange(0, len(zimni_map["eyes"]))
-    mouth = randrange(0, len(zimni_map["mouth"]))
+    face = randrange(0, len(ximni_map["face"]))
+    eye = randrange(0, len(ximni_map["eyes"]))
+    mouth = randrange(0, len(ximni_map["mouth"]))
     horns = None
     mask = None
     collar = None
     if randrange(0,10) > 5:
-        horns = randrange(0, len(zimni_map["horns"]))
+        horns = randrange(0, len(ximni_map["horns"]))
     if randrange(0,10) > 5:
-        mask = randrange(0, len(zimni_map["mask"]))
+        mask = randrange(0, len(ximni_map["mask"]))
     if randrange(0,10) > 7:
-        collar = randrange(0, len(zimni_map["collar"]))
-    return zimni(face, eye, mouth, horns, mask, collar)
+        collar = randrange(0, len(ximni_map["collar"]))
+    return ximni(face, eye, mouth, horns, mask, collar)
 
 kralien_map = {
     "face": [(0,0)],

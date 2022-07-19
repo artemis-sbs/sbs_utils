@@ -61,14 +61,16 @@ class AvatarEditor(Page):
 
     def __init__(self) -> None:
         self.gui_state = 'arv'
+        self.face = faces.Characters.URSULA
 
     def present(self, sim, CID):
         if self.gui_state == "presenting":
             return
         sbs.send_gui_clear(CID)
         sbs.send_gui_text(
-                    0, f"Avatar Editor", "title", 25, 25, 99, 29)
-        l1 = layout.wrap(25, 20, 19, 4,col=3)
+                    0, f"Avatar Editor", "title", 25, 5, 99, 9)
+        sbs.send_gui_face(CID, self.face, "face", 35, 0, 65, 1)
+        l1 = layout.wrap(25, 50, 19, 4,col=3)
         
         sbs.send_gui_button(CID, "Arvonian", "arv", *next(l1))
         sbs.send_gui_button(CID, "Kralien", "kra", *next(l1))
@@ -99,6 +101,36 @@ class AvatarEditor(Page):
         if message_tag == 'back':
             Gui.pop(sim,clientID)
         match message_tag:
+            case "arv":
+                # self.face = faces.arvonian(0,1,2,3,4)
+                self.face = faces.random_arvonian()
+                self.gui_state = message_tag
+                self.present(sim, clientID)
+            case "kra":
+                # self.face = faces.arvonian(0,1,2,3,4)
+                self.face = faces.random_kralien()
+                self.gui_state = message_tag
+                self.present(sim, clientID)
+            case "ska":
+                # self.face = faces.arvonian(0,1,2,3,4)
+                self.face = faces.random_skaraan()
+                self.gui_state = message_tag
+                self.present(sim, clientID)
+            case "tor":
+                # self.face = faces.arvonian(0,1,2,3,4)
+                self.face = faces.random_torgoth()
+                self.gui_state = message_tag
+                self.present(sim, clientID)
+            case "xim":
+                # self.face = faces.arvonian(0,1,2,3,4)
+                self.face = faces.random_ximni()
+                self.gui_state = message_tag
+                self.present(sim, clientID)
+            case "ter":
+                # self.face = faces.arvonian(0,1,2,3,4)
+                self.face = faces.random_terran()
+                self.gui_state = message_tag
+                self.present(sim, clientID)
             
             # catch all for switching race
             case _:
