@@ -3,7 +3,7 @@
 class Page:
     def present(self, sim):
         pass
-    def on_message(self, sim, message_tag, clientID):
+    def on_message(self, sim, message_tag, clientID, data):
         pass
 
 
@@ -25,9 +25,9 @@ class GuiClient:
         if len(self.page_stack)>0:
             self.page_stack[-1].present(sim, CID)
 
-    def on_message(self, sim, message_tag, clientID):
+    def on_message(self, sim, message_tag, clientID, data):
         if len(self.page_stack)>0:
-            self.page_stack[-1].on_message(sim, message_tag, clientID)
+            self.page_stack[-1].on_message(sim, message_tag, clientID, data)
 
 class Gui:
     clients = {0: GuiClient(0)}
@@ -74,9 +74,9 @@ class Gui:
             gui.present(sim, clientId)
 
     @staticmethod
-    def on_message(sim, message_tag, clientID):
+    def on_message(sim, message_tag, clientID, data):
         gui = Gui.clients.get(clientID)
         if gui is not None:
-            gui.on_message(sim, message_tag, clientID)
+            gui.on_message(sim, message_tag, clientID, data)
 
     

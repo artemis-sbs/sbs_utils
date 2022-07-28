@@ -9,8 +9,8 @@ from .gui import Gui
 def HandlePresentGUI(sim):
     Gui.present(sim)
 
-def HandlePresentGUIMessage(sim, message_tag, clientID):
-    Gui.on_message(sim, message_tag, clientID)
+def HandlePresentGUIMessage(sim, message_tag, clientID, data):
+    Gui.on_message(sim, message_tag, clientID, data)
 
 
 def  HandleSimulationTick(sim):

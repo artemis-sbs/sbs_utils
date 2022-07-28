@@ -1,7 +1,12 @@
+from email import message
 from ..gui import Page, Gui
 from .. import layout as layout
 import sbs
 from .. import faces as faces
+
+import ctypes
+MessageBox = ctypes.windll.user32.MessageBoxW
+
 
 
 class AvatarEditor(Page):
@@ -61,7 +66,9 @@ class AvatarEditor(Page):
 
     def __init__(self) -> None:
         self.gui_state = 'arv'
+        self.race = "arv"
         self.face = faces.Characters.URSULA
+        self.cur = [0,0,0,0,0,0, 0,0,0,0,0,0]
 
     def present(self, sim, CID):
         if self.gui_state == "presenting":
@@ -88,51 +95,94 @@ class AvatarEditor(Page):
         if widgets is not None:
             l2 = layout.wrap(25, b, 15, 4,col=4, h_gutter = 1)
             #l3 = layout.wrap(41, b, 10, 4,col=2, h_gutter = 10+10+1)
-
+            v = 0
             for widget in widgets:
                 label = widget["label"]
-                sbs.send_gui_text(0, label, f"lab:{label}", *next(l2))
-                sbs.send_gui_slider(CID, label,  widget["min"],widget["max"],0, *next(l2))
+                loc = next(l2)
+                
+                if "optional" in widget:
+                    enable = 1 if widget["optional"] == True else 0
+                    #enable = 0
+                    sbs.send_gui_checkbox(CID, label, f"op:{v}", enable, *loc)
+                    if enable:
+                        sbs.send_gui_slider(CID, f"{v}",  widget["min"],widget["max"],self.cur[v], *next(l2))
+                    else:
+                        next(l2)
+
+                else:
+                    sbs.send_gui_text(CID, label, f"lab:{label}", *loc)
+                    sbs.send_gui_slider(CID, f"{v}",  widget["min"],widget["max"],self.cur[v], *next(l2))
+
+                
+                v+=1
 
         self.gui_state = "presenting"
 
+    def reset_values(self):
+        widgets = AvatarEditor.widgets.get(self.race)
+        v = 0
+        for w in widgets:
+            if "optional" in w and w["optional"] == False:
+               self.cur[v] = None
+            elif self.cur[v] is None:
+                self.cur[v] = 0
+            elif self.cur[v] > w["max"]:
+                self.cur[v] = w["max"]
+            v += 1
 
-    def on_message(self, sim, message_tag, clientID):
+
+    def on_message(self, sim, message_tag, clientID, data):
+        v = self.cur
         if message_tag == 'back':
             Gui.pop(sim,clientID)
-        match message_tag:
+
+        if message_tag.startswith("op:"):
+            
+            try:
+                val = int(message_tag[3:])
+                widgets = AvatarEditor.widgets.get(self.race)
+                if widgets is not None:
+                    enable = not widgets[val]["optional"]
+                    widgets[val]["optional"] = enable
+                    if not enable:
+                        self.cur[val] = None
+                    else:
+                        self.cur[val] = 0
+            finally:
+                pass
+        else:
+            try:
+                val = int(message_tag)
+                self.cur[val] = round(data)
+            except:
+                self.race = message_tag
+
+        match self.race:
             case "arv":
-                # self.face = faces.arvonian(0,1,2,3,4)
-                self.face = faces.random_arvonian()
-                self.gui_state = message_tag
-                self.present(sim, clientID)
+                self.reset_values()
+                self.face = faces.arvonian(0, v[0], v[1], v[2], v[3])
             case "kra":
-                # self.face = faces.arvonian(0,1,2,3,4)
-                self.face = faces.random_kralien()
-                self.gui_state = message_tag
-                self.present(sim, clientID)
+                self.reset_values()
+                self.face = faces.kralien(0, v[0], v[1], v[2], v[3])
             case "ska":
+                self.reset_values()
                 # self.face = faces.arvonian(0,1,2,3,4)
-                self.face = faces.random_skaraan()
-                self.gui_state = message_tag
-                self.present(sim, clientID)
+                self.face = faces.skaraan(0, v[0], v[1], v[2], v[3])
             case "tor":
                 # self.face = faces.arvonian(0,1,2,3,4)
-                self.face = faces.random_torgoth()
-                self.gui_state = message_tag
-                self.present(sim, clientID)
+                self.reset_values()
+                self.face = faces.torgoth(0, v[0], v[1], v[2], v[3],v[4])
             case "xim":
+                self.reset_values()
                 # self.face = faces.arvonian(0,1,2,3,4)
-                self.face = faces.random_ximni()
-                self.gui_state = message_tag
-                self.present(sim, clientID)
+                self.face = faces.ximni(0, v[1], v[2], v[3],v[4], v[5])
             case "ter":
-                # self.face = faces.arvonian(0,1,2,3,4)
-                self.face = faces.random_terran()
-                self.gui_state = message_tag
-                self.present(sim, clientID)
+                self.reset_values()
+                self.face = faces.terran(v[0], v[1], v[2], v[3],v[4], v[5], v[6],v[7], v[8], v[9])
             
             # catch all for switching race
             case _:
-                self.gui_state = message_tag
-                self.present(sim, clientID)
+                pass
+
+        self.gui_state = self.race
+        self.present(sim, clientID)

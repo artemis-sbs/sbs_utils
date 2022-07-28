@@ -63,7 +63,7 @@ class ShipPicker(Page):
         self.gui_state = "presenting"
 
 
-    def on_message(self, sim, message_tag, clientID):
+    def on_message(self, sim, message_tag, clientID, _):
         if message_tag == 'back':
             Gui.pop(sim,clientID)
         match message_tag:

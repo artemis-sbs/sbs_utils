@@ -30,7 +30,7 @@ class GuiPage(Page):
         sbs.send_gui_button(CID, "Another", "again", *next(w))
         
 
-    def on_message(self, sim, message_tag, clientID):
+    def on_message(self, sim, message_tag, clientID, _):
         if message_tag == 'back':
             Gui.pop(sim,clientID)
         if message_tag == 'again':
@@ -61,7 +61,7 @@ class GuiMain(Page):
         sbs.send_gui_button(CID, "Avatar Editor", "avatar", *next(w))
         sbs.send_gui_button(CID, "Ship Picker", "ship", *next(w))
 
-    def on_message(self, sim, message_tag, clientID):
+    def on_message(self, sim, message_tag, clientID, _):
         match message_tag:
             case 'again':
                 # reset state here?
