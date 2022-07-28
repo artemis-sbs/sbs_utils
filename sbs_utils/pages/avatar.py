@@ -15,7 +15,7 @@ class AvatarEditor(Page):
             {"label": "Eyes", "min": 0, "max":4}, 
             {"label": "Mouth", "min": 0, "max":4}, 
             {"label": "Crown", "min": 0, "max":4, "optional": True}, 
-            {"label": "Collar", "min": 0, "max":4, "optional": True}], 
+            {"label": "Jewels", "min": 0, "max":4, "optional": True}], 
         "kra": [
             {"label": "Eyes", "min": 0, "max":4}, 
             {"label": "Mouth", "min": 0, "max":4}, 
@@ -34,8 +34,8 @@ class AvatarEditor(Page):
             {"label": "Eyes", "min": 0, "max":4}, 
             {"label": "Mouth", "min": 0, "max":4}, 
             {"label": "Hair", "min": 0, "max":4, "optional": True}, 
-            {"label": "Extra", "min": 0, "max":4, "optional": True},
-            {"label": "Hat", "min": 0, "max":4, "optional": True}
+            {"label": "Extra", "min": 0, "max":3, "optional": True},
+            {"label": "Hat", "min": 0, "max":0, "optional": True}
             ], 
 
         
@@ -43,8 +43,8 @@ class AvatarEditor(Page):
             {"label": "Eyes", "min": 0, "max":4}, 
             {"label": "Mouth", "min": 0, "max":4}, 
             {"label": "Horns", "min": 0, "max":4, "optional": True}, 
-            {"label": "Mask", "min": 0, "max":4, "optional": True},
-            {"label": "Collar", "min": 0, "max":4, "optional": True}
+            {"label": "Mask", "min": 0, "max":2, "optional": True},
+            {"label": "Tattoo", "min": 0, "max":1, "optional": True}
             ], 
 
         "ter": [
@@ -104,7 +104,7 @@ class AvatarEditor(Page):
                     enable = 1 if widget["optional"] == True else 0
                     #enable = 0
                     sbs.send_gui_checkbox(CID, label, f"op:{v}", enable, *loc)
-                    if enable:
+                    if enable and widget["max"]>0:
                         sbs.send_gui_slider(CID, f"{v}",  widget["min"],widget["max"],self.cur[v], *next(l2))
                     else:
                         next(l2)
@@ -175,7 +175,7 @@ class AvatarEditor(Page):
             case "xim":
                 self.reset_values()
                 # self.face = faces.arvonian(0,1,2,3,4)
-                self.face = faces.ximni(0, v[1], v[2], v[3],v[4], v[5])
+                self.face = faces.ximni(0, v[0], v[1], v[2],v[3], v[4])
             case "ter":
                 self.reset_values()
                 self.face = faces.terran(v[0], v[1], v[2], v[3],v[4], v[5], v[6],v[7], v[8], v[9])
