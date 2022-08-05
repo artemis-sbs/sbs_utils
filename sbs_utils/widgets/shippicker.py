@@ -12,7 +12,7 @@ def filter_ship(ship):
 class ShipPicker(Widget):
     """ A widget to select a ship"""
 
-    def __init__(self, left, top, tag_prefix) -> None:
+    def __init__(self, left, top, tag_prefix, title_prefix="Ship:") -> None:
         """ Ship Picker widget
 
         A widget the combines a title, ship viewer, next and previous buttons for selecting ships
@@ -26,6 +26,7 @@ class ShipPicker(Widget):
         """
         super().__init__(left,top,tag_prefix)
         self.gui_state = "blank"
+        self.title_prefix = title_prefix
         self.cur = 0
         self.test = fs.get_artemis_data_dir()
 
@@ -63,7 +64,7 @@ class ShipPicker(Widget):
         ship = self.ships[self.cur]
 
         sbs.send_gui_text(
-                    CID, f"Ship: {ship['name']}", f"{self.tag_prefix}title", self.left, self.top, self.left+40, self.top+5)
+                    CID, f"{self.title_prefix} {ship['name']}", f"{self.tag_prefix}title", self.left, self.top, self.left+40, self.top+5)
         l1 = layout.wrap(self.left, self.top+40, 19, 4,col=3)
         
         sbs.send_gui_button(CID, "prev", f"{self.tag_prefix}prev", *next(l1))

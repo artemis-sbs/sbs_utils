@@ -8,8 +8,8 @@ class ShipPicker(Page):
     
     def __init__(self) -> None:
         self.gui_state = "blank"
-        self.picker1 = WShipPicker(25,25, "pick1:")
-        self.picker2 = WShipPicker(65,25, "pick2:")
+        self.picker1 = WShipPicker(25,25, "pick1:", "Your ship:")
+        self.picker2 = WShipPicker(65,25, "pick2:", "Enemy ship:")
 
     def present(self, sim, CID):
         if self.gui_state == "presenting":
