@@ -31,4 +31,4 @@ class ShipPicker(Page):
             self.picker2.on_message(sim,message_tag, clientID, data)
 
     def get_selected(self):
-        return self.picker.get_selected()
+        return [self.picker1.get_selected(), self.picker2.get_selected()]
