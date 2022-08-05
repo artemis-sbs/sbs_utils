@@ -62,7 +62,7 @@ class AvatarEditor(Page):
         
 
 
-    }
+    }  #: :meta hide-value:
 
     def __init__(self) -> None:
         self.gui_state = 'arv'

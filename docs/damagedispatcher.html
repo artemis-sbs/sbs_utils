@@ -57,6 +57,7 @@
 <li class="toctree-l1"><a class="reference internal" href="gui.html">GUI system</a></li>
 <li class="toctree-l1"><a class="reference internal" href="consoledispatcher.html">Console Dispatcher</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">The Damage Dispatcher</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#artemis-cosmos-damage-system">Artemis Cosmos damage system</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.damagedispatcher">API: damagedispatcher module</a></li>
 </ul>
 </li>
@@ -95,6 +96,25 @@
              
   <section id="the-damage-dispatcher">
 <h1>The Damage Dispatcher<a class="headerlink" href="#the-damage-dispatcher" title="Permalink to this heading"></a></h1>
+<p>The DamageDispatcher is used to route damage events to an object interested in the damage.</p>
+<section id="artemis-cosmos-damage-system">
+<h2>Artemis Cosmos damage system<a class="headerlink" href="#artemis-cosmos-damage-system" title="Permalink to this heading"></a></h2>
+<p>Artemis Cosmos calls the script function HandleDamageEvent when an item receives damage.</p>
+<p>The DispatcherDispatcher is intended receive these and route them to callback functions.
+This can further be used to direct these to classes that represent the ships enabling the handling of this code to be handled in context of the ship(s) involved.</p>
+<p>The HandleDamage should call <a class="reference internal" href="#sbs_utils.damagedispatcher.DamageDispatcher.dispatch_damage" title="sbs_utils.damagedispatcher.DamageDispatcher.dispatch_damage"><code class="xref py py-meth docutils literal notranslate"><span class="pre">dispatch_damage()</span></code></a></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">HandleDamageEvent</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">damage_event</span><span class="p">):</span>
+ <span class="n">DamageDispatcher</span><span class="o">.</span><span class="n">dispatch_damage</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="n">damage_event</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Importing the hookhandlers module it does by default.</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sbs_utils.handlerhooks</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="c1"># no longer need to implement handlers in script.py</span>
+</pre></div>
+</div>
+</div></blockquote>
+</section>
 <section id="module-sbs_utils.damagedispatcher">
 <span id="api-damagedispatcher-module"></span><h2>API: damagedispatcher module<a class="headerlink" href="#module-sbs_utils.damagedispatcher" title="Permalink to this heading"></a></h2>
 <dl class="py class">

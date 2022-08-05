@@ -12,9 +12,15 @@ To develop and change this library clone this repo into the missions directory i
 This has a stub mission file for running tests.
 
 ### update the docs. run:
+When adding to this library, the documentation should be updated in the sphinx folder.
 
+to update the docs run:
 ```
 sphinx\make html
 ```
+
+note: The docs use Graphviz to generate some images.
+the location of graphviz may need to change in the conf.py for sphinx since it is hard coded to a location that is not likely the same for everyone.
+
 
 

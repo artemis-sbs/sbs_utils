@@ -96,6 +96,9 @@ class TickDispatcher:
         :rtype: TickFTask
 
         example:
+        
+        .. code-block:: python
+
             def some_use(sim):
                 t = TickDispatcher.do_interval(sim, the_callback, 5)
                 t.data = some_data

@@ -4,19 +4,24 @@ import json
 import re
 
 # the script module should be the startup script
-script_dir = os.path.dirname(sys.modules['script'].__file__)
-
-def get_mission_dir():
+script_dir = None
+def get_script_dir():
+    global script_dir
+    if script_dir is None:
+        script_dir = os.path.dirname(sys.modules['script'].__file__)
     return script_dir
 
+def get_mission_dir():
+    return get_script_dir()
+
 def get_artemis_data_dir():
-    mission = script_dir
+    mission = get_script_dir()
     missions = os.path.dirname(mission)
     return os.path.dirname(missions)
 
 
 def get_artemis_dir():
-    mission = script_dir
+    mission = get_script_dir()
     missions = os.path.dirname(mission)
     data = os.path.dirname(missions)
     return os.path.dirname(data)

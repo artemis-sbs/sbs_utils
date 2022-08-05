@@ -111,6 +111,13 @@ The function <a class="reference internal" href="#sbs_utils.tickdispatcher.TickD
    <span class="n">TickDispatcher</span><span class="o">.</span><span class="n">dispatch_tick</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Importing the hookhandlers module it does by default.</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sbs_utils.handlerhooks</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="c1"># no longer need to implement handlers in script.py</span>
+</pre></div>
+</div>
+</div></blockquote>
 <p>One could implement their own way of handling time and tick related code, the goal of the TickDispatcher is to have a common way to organize this logic.</p>
 <p>A TickTask is similar to Artemis XML’s timer events and are ideally more efficient since they only live while they are relevant.</p>
 <p>To create a TickTask you can use one of two functions.</p>
@@ -279,20 +286,17 @@ and if it is completed</p>
 <dd class="field-odd"><p>TickFTask</p>
 </dd>
 </dl>
-<dl>
-<dt>example:</dt><dd><dl>
-<dt>def some_use(sim):</dt><dd><p>t = TickDispatcher.do_interval(sim, the_callback, 5)
-t.data = some_data</p>
-</dd>
-<dt>def the_callback(sim, t):</dt><dd><p>print(t.some_data)
-if t.some_data.some_condition:</p>
-<blockquote>
-<div><p>t.stop()</p>
-</div></blockquote>
-</dd>
-</dl>
-</dd>
-</dl>
+<p>example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">some_use</span><span class="p">(</span><span class="n">sim</span><span class="p">):</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">TickDispatcher</span><span class="o">.</span><span class="n">do_interval</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">the_callback</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+    <span class="n">t</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">some_data</span>
+
+<span class="k">def</span> <span class="nf">the_callback</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">some_data</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">some_data</span><span class="o">.</span><span class="n">some_condition</span><span class="p">:</span>
+        <span class="n">t</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+</pre></div>
+</div>
 </dd></dl>
 
 <dl class="py method">

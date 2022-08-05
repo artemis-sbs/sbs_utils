@@ -137,11 +137,11 @@ def sphere(count, v, r, outer=0, top_only=False, ring=False):
     v: Vec3
         the start point/origin
     r: float
-        the radius if outer is spedified this is the inner
+        the radius if outer is specified this is the inner
     outer: float = 0 optional
         the height
     top_only: bool
-        generate only top hemispher 
+        generate only top hemisphere 
     ring: bool
         generate a flat ring
     """

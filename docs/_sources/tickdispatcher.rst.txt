@@ -16,6 +16,15 @@ The function :py:meth:`~sbs_utils.tickdispatcher.TickDispatcher.dispatch_tick` s
         TickDispatcher.dispatch_tick(sim)
 
 
+Importing the hookhandlers module it does by default.
+
+ .. code-block:: python
+
+      from sbs_utils.handlerhooks import *
+      # no longer need to implement handlers in script.py
+
+
+
 One could implement their own way of handling time and tick related code, the goal of the TickDispatcher is to have a common way to organize this logic.
 
 A TickTask is similar to Artemis XML's timer events and are ideally more efficient since they only live while they are relevant.

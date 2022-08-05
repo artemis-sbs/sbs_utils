@@ -1,4 +1,48 @@
+class Widget:
+    """ A interface class for creating GUI widgets i.e. composite components.
 
+    """
+    def __init__(self, left, top, tag_prefix) -> None:
+        """ Widget init
+
+        Called to have the page create and update the gui content it is presenting
+
+        :param left: left coordinate
+        :type left: float
+        :param top: top coordinate
+        :type top: float
+        :param tag_prefix: Prefix to use in message tags to mak this component unique
+        :type tag_prefix: str
+        """
+        self.tag_prefix = tag_prefix
+        self.left= left
+        self.top = top
+
+    def present(self, sim):
+        """ present
+
+        Called to have the page create and update the gui content it is presenting
+
+        :param sim: 
+        :type sim: Artemis Cosmos simulation
+        """
+        pass
+
+    def on_message(self, sim, message_tag, clientID, data):
+        """ on_message
+
+        Called when a control on the page has been interacted with
+
+        :param sim: 
+        :type sim: Artemis Cosmos simulation
+        :param message_tag: The tag name of the control interacted with
+        :type message_tag: str
+        :param clientID: The client ID that had the interaction
+        :type clientID: int
+        :param data: Any data associated with the control e.g. slider float value of current value
+        :type clientID: None or str or float
+        """
+        pass
 
 class Page:
     """ A interface class for creating GUI pages

@@ -9,9 +9,36 @@ Artemis Cosmos calls the script function HandlePresentGUI when a console is in '
 
 Artemis Cosmos calls the script function HandlePresentGUIMessage when change occur due to interacting with the GUI.
 
-To use the GUI system call :py:meth:`~sbs_utils.gui.Gui.present` in HandlePresentGUI and call :py:meth:`~sbs_utils.gui.Gui.on_message` in HandlePresentGUIMessage.
+sbs_utils GUI system
+----------------------
+
+To use the sbs utils  GUI system 
+
+- call :py:meth:`~sbs_utils.gui.Gui.present` in HandlePresentGUI 
+- call :py:meth:`~sbs_utils.gui.Gui.on_message` in HandlePresentGUIMessage.
+- call :py:meth:`~sbs_utils.gui.Gui.add_client` in HandleClientConnect.
+
+ .. code-block:: python
+
+   def HandlePresentGUI(sim):
+      Gui.present(sim)
+
+   def HandlePresentGUIMessage(sim, message_tag, clientID, data):
+      Gui.on_message(sim, message_tag, clientID, data)
+
+   def HandleClientConnect(sim, clientID):
+      Gui.add_client(sim,clientID)
+
+
 
 Importing the hookhandlers module it does by default.
+
+
+ .. code-block:: python
+
+      from sbs_utils.handlerhooks import *
+      # no longer need to implement handlers in script.py
+
 
 
 Creating a GUI page
@@ -29,8 +56,18 @@ A :py:class:`~sbs_utils.gui.Page` is an abstract class used to create and organi
         def on_message(self, sim, message_tag, clientID, data):
            pass
 
+The contents of a page is created using the sbs module's GUI calls: e.g.
+
+- send_gui_clear
+- send_gui_text
+- etc.
+
+
 Setting the start pages
 -------------------------
+The GUI needs somewhere to start this will be referred to as a start page.
+The server has a start page shown in the mission select screen.
+The client has a page in the console select screen.
 
 A :py:class:`~sbs_utils.gui.Gui` is used to set start pages.
 This should be done in script.py or as part of the initial loading of the mission.
@@ -41,6 +78,7 @@ This should be done in script.py or as part of the initial loading of the missio
 
  .. code-block:: python
 
+      from sbs_utils.handlerhooks import *
       from lib.sbs_utils.gui import Gui
 
       Gui.server_start_page(MyPage)
@@ -187,6 +225,16 @@ For example a main StartPage could navigate to an Option page that can either na
          op -> av [label="push"];
       }
 
+Reusable pages
+---------------
+
+There are a few reusable pages in sbs_utils:
+
+- :py:class:`~sbs_utils.pages.start.StartPage` 
+- :py:class:`~sbs_utils.pages.shippicker.ShipPicker`
+- :py:class:`~sbs_utils.pages.avatar.AvatarEditor`
+
+
 
 Page layout helpers
 --------------------
@@ -280,6 +328,18 @@ Currently the layout module supports the 'wrap' layout. which will build a table
 
 
 
+Widgets
+--------------------
+
+Widgets provide a method to combine multiple components into a single reusable element.
+
+For example the library has a ShipPicker widget :py:class:`~sbs_utils.widgets.shippicker.ShipPicker`
+
+It combines a text title, a ship viewer, with next and previous buttons.
+
+There is an example Page that shows two instances of the ShipPicker Widget. :py:class:`~sbs_utils.pages.shippicker.ShipPicker``
+
+
 
 
 
@@ -301,7 +361,7 @@ API: pages
    :show-inheritance:
 
 .. automodule:: sbs_utils.pages.shippicker
-   :members:
+   :members: 
    :undoc-members:
    :show-inheritance:
 
@@ -321,6 +381,13 @@ API: layout module
    :show-inheritance:
 
 
+API: widgets
+--------------------
+
+.. automodule:: sbs_utils.widgets.shippicker
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 
 

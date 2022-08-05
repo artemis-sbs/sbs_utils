@@ -56,6 +56,7 @@
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">GUI system</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#artemis-cosmos-gui-system">Artemis Cosmos gui system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#sbs-utils-gui-system">sbs_utils GUI system</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#creating-a-gui-page">Creating a GUI page</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#setting-the-start-pages">Setting the start pages</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#navigating-pages">Navigating pages</a><ul>
@@ -64,10 +65,13 @@
 <li class="toctree-l3"><a class="reference internal" href="#complex-page-hierarchies">Complex page hierarchies</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#reusable-pages">Reusable pages</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#page-layout-helpers">Page layout helpers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#widgets">Widgets</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.gui">API: gui module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.pages.avatar">API: pages</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.layout">API: layout module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.widgets.shippicker">API: widgets</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="consoledispatcher.html">Console Dispatcher</a></li>
@@ -112,8 +116,34 @@
 <h2>Artemis Cosmos gui system<a class="headerlink" href="#artemis-cosmos-gui-system" title="Permalink to this heading"></a></h2>
 <p>Artemis Cosmos calls the script function HandlePresentGUI when a console is in ‘options’ mode. For the server this is when selecting a mission or when the simulation is paused. For consoles this is when in the console select/options.</p>
 <p>Artemis Cosmos calls the script function HandlePresentGUIMessage when change occur due to interacting with the GUI.</p>
-<p>To use the GUI system call <a class="reference internal" href="#sbs_utils.gui.Gui.present" title="sbs_utils.gui.Gui.present"><code class="xref py py-meth docutils literal notranslate"><span class="pre">present()</span></code></a> in HandlePresentGUI and call <a class="reference internal" href="#sbs_utils.gui.Gui.on_message" title="sbs_utils.gui.Gui.on_message"><code class="xref py py-meth docutils literal notranslate"><span class="pre">on_message()</span></code></a> in HandlePresentGUIMessage.</p>
+</section>
+<section id="sbs-utils-gui-system">
+<h2>sbs_utils GUI system<a class="headerlink" href="#sbs-utils-gui-system" title="Permalink to this heading"></a></h2>
+<p>To use the sbs utils  GUI system</p>
+<ul class="simple">
+<li><p>call <a class="reference internal" href="#sbs_utils.gui.Gui.present" title="sbs_utils.gui.Gui.present"><code class="xref py py-meth docutils literal notranslate"><span class="pre">present()</span></code></a> in HandlePresentGUI</p></li>
+<li><p>call <a class="reference internal" href="#sbs_utils.gui.Gui.on_message" title="sbs_utils.gui.Gui.on_message"><code class="xref py py-meth docutils literal notranslate"><span class="pre">on_message()</span></code></a> in HandlePresentGUIMessage.</p></li>
+<li><p>call <a class="reference internal" href="#sbs_utils.gui.Gui.add_client" title="sbs_utils.gui.Gui.add_client"><code class="xref py py-meth docutils literal notranslate"><span class="pre">add_client()</span></code></a> in HandleClientConnect.</p></li>
+</ul>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">HandlePresentGUI</span><span class="p">(</span><span class="n">sim</span><span class="p">):</span>
+   <span class="n">Gui</span><span class="o">.</span><span class="n">present</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">HandlePresentGUIMessage</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">message_tag</span><span class="p">,</span> <span class="n">clientID</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+   <span class="n">Gui</span><span class="o">.</span><span class="n">on_message</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">message_tag</span><span class="p">,</span> <span class="n">clientID</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">HandleClientConnect</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">clientID</span><span class="p">):</span>
+   <span class="n">Gui</span><span class="o">.</span><span class="n">add_client</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="n">clientID</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
 <p>Importing the hookhandlers module it does by default.</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sbs_utils.handlerhooks</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="c1"># no longer need to implement handlers in script.py</span>
+</pre></div>
+</div>
+</div></blockquote>
 </section>
 <section id="creating-a-gui-page">
 <h2>Creating a GUI page<a class="headerlink" href="#creating-a-gui-page" title="Permalink to this heading"></a></h2>
@@ -130,15 +160,25 @@
 </pre></div>
 </div>
 </div></blockquote>
+<p>The contents of a page is created using the sbs module’s GUI calls: e.g.</p>
+<ul class="simple">
+<li><p>send_gui_clear</p></li>
+<li><p>send_gui_text</p></li>
+<li><p>etc.</p></li>
+</ul>
 </section>
 <section id="setting-the-start-pages">
 <h2>Setting the start pages<a class="headerlink" href="#setting-the-start-pages" title="Permalink to this heading"></a></h2>
+<p>The GUI needs somewhere to start this will be referred to as a start page.
+The server has a start page shown in the mission select screen.
+The client has a page in the console select screen.</p>
 <p>A <a class="reference internal" href="#sbs_utils.gui.Gui" title="sbs_utils.gui.Gui"><code class="xref py py-class docutils literal notranslate"><span class="pre">Gui</span></code></a> is used to set start pages.
 This should be done in script.py or as part of the initial loading of the mission.</p>
 <p><a class="reference internal" href="#sbs_utils.gui.Gui.server_start_page_class" title="sbs_utils.gui.Gui.server_start_page_class"><code class="xref py py-meth docutils literal notranslate"><span class="pre">server_start_page_class()</span></code></a> is used to set the Page class to use for the server.
 <a class="reference internal" href="#sbs_utils.gui.Gui.client_start_page_class" title="sbs_utils.gui.Gui.client_start_page_class"><code class="xref py py-meth docutils literal notranslate"><span class="pre">client_start_page_class()</span></code></a> is used to set the Page class to use for clients.</p>
 <blockquote>
-<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">lib.sbs_utils.gui</span> <span class="kn">import</span> <span class="n">Gui</span>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sbs_utils.handlerhooks</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">lib.sbs_utils.gui</span> <span class="kn">import</span> <span class="n">Gui</span>
 
 <span class="n">Gui</span><span class="o">.</span><span class="n">server_start_page</span><span class="p">(</span><span class="n">MyPage</span><span class="p">)</span>
 <span class="n">Gui</span><span class="o">.</span><span class="n">client_start_page</span><span class="p">(</span><span class="n">MyPage</span><span class="p">)</span>
@@ -259,6 +299,15 @@ The StartPage instance still exists, and is below the Options page on the stack.
 }" class="graphviz" /></div>
 </section>
 </section>
+<section id="reusable-pages">
+<h2>Reusable pages<a class="headerlink" href="#reusable-pages" title="Permalink to this heading"></a></h2>
+<p>There are a few reusable pages in sbs_utils:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#sbs_utils.pages.start.StartPage" title="sbs_utils.pages.start.StartPage"><code class="xref py py-class docutils literal notranslate"><span class="pre">StartPage</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.pages.shippicker.ShipPicker" title="sbs_utils.pages.shippicker.ShipPicker"><code class="xref py py-class docutils literal notranslate"><span class="pre">ShipPicker</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.pages.avatar.AvatarEditor" title="sbs_utils.pages.avatar.AvatarEditor"><code class="xref py py-class docutils literal notranslate"><span class="pre">AvatarEditor</span></code></a></p></li>
+</ul>
+</section>
 <section id="page-layout-helpers">
 <h2>Page layout helpers<a class="headerlink" href="#page-layout-helpers" title="Permalink to this heading"></a></h2>
 <p>The layout module helps layout a lot of components using generator that calculate the location for controls.</p>
@@ -339,6 +388,13 @@ The StartPage instance still exists, and is below the Options page on the stack.
 
 
 }" class="graphviz" /></div>
+</section>
+<section id="widgets">
+<h2>Widgets<a class="headerlink" href="#widgets" title="Permalink to this heading"></a></h2>
+<p>Widgets provide a method to combine multiple components into a single reusable element.</p>
+<p>For example the library has a ShipPicker widget <a class="reference internal" href="#sbs_utils.widgets.shippicker.ShipPicker" title="sbs_utils.widgets.shippicker.ShipPicker"><code class="xref py py-class docutils literal notranslate"><span class="pre">ShipPicker</span></code></a></p>
+<p>It combines a text title, a ship viewer, with next and previous buttons.</p>
+<p>There is an example Page that shows two instances of the ShipPicker Widget. <code class="xref py py-class docutils literal notranslate"><span class="pre">ShipPicker`</span></code></p>
 </section>
 <section id="module-sbs_utils.gui">
 <span id="api-gui-module"></span><h2>API: gui module<a class="headerlink" href="#module-sbs_utils.gui" title="Permalink to this heading"></a></h2>
@@ -538,6 +594,40 @@ this is called once in the script.py</p>
 
 </dd></dl>
 
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.gui.Widget">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.gui.</span></span><span class="sig-name descname"><span class="pre">Widget</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">left</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">top</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tag_prefix</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Widget" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A interface class for creating GUI widgets i.e. composite components.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.Widget.on_message">
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Widget.on_message" title="Permalink to this definition"></a></dt>
+<dd><p>Called when a control on the page has been interacted with</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>message_tag</strong> (<em>str</em>) – The tag name of the control interacted with</p></li>
+<li><p><strong>clientID</strong> (<em>None</em><em> or </em><em>str</em><em> or </em><em>float</em>) – The client ID that had the interaction</p></li>
+<li><p><strong>data</strong> – Any data associated with the control e.g. slider float value of current value</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.Widget.present">
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Widget.present" title="Permalink to this definition"></a></dt>
+<dd><p>Called to have the page create and update the gui content it is presenting</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
 </section>
 <section id="module-sbs_utils.pages.avatar">
 <span id="api-pages"></span><h2>API: pages<a class="headerlink" href="#module-sbs_utils.pages.avatar" title="Permalink to this heading"></a></h2>
@@ -579,8 +669,48 @@ this is called once in the script.py</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="sbs_utils.pages.avatar.AvatarEditor.widgets">
-<span class="sig-name descname"><span class="pre">widgets</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'arv':</span> <span class="pre">[{'label':</span> <span class="pre">'Eyes',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Mouth',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Crown',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Jewels',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True}],</span> <span class="pre">'kra':</span> <span class="pre">[{'label':</span> <span class="pre">'Eyes',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Mouth',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Scalp',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Extra',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True}],</span> <span class="pre">'ska':</span> <span class="pre">[{'label':</span> <span class="pre">'Eyes',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Mouth',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Horn',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Hat',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True}],</span> <span class="pre">'ter':</span> <span class="pre">[{'label':</span> <span class="pre">'Body',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">1},</span> <span class="pre">{'label':</span> <span class="pre">'Eyes',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">9},</span> <span class="pre">{'label':</span> <span class="pre">'Mouth',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">9},</span> <span class="pre">{'label':</span> <span class="pre">'Hair',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Long</span> <span class="pre">Hair',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">7,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Facial</span> <span class="pre">Hair',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Extra',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Uniform',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">9,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Skin</span> <span class="pre">Tone',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">30},</span> <span class="pre">{'label':</span> <span class="pre">'Hair</span> <span class="pre">Tone',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">11}],</span> <span class="pre">'tor':</span> <span class="pre">[{'label':</span> <span class="pre">'Eyes',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Mouth',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Hair',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Extra',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">3,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Hat',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">0,</span> <span class="pre">'optional':</span> <span class="pre">True}],</span> <span class="pre">'xim':</span> <span class="pre">[{'label':</span> <span class="pre">'Eyes',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Mouth',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Horns',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Mask',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">2,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Tattoo',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">1,</span> <span class="pre">'optional':</span> <span class="pre">True}]}</span></em><a class="headerlink" href="#sbs_utils.pages.avatar.AvatarEditor.widgets" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">widgets</span></span><a class="headerlink" href="#sbs_utils.pages.avatar.AvatarEditor.widgets" title="Permalink to this definition"></a></dt>
+<dd><dl class="field-list simple">
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<span class="target" id="module-sbs_utils.pages.shippicker"></span><dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.pages.shippicker.ShipPicker">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.pages.shippicker.</span></span><span class="sig-name descname"><span class="pre">ShipPicker</span></span><a class="headerlink" href="#sbs_utils.pages.shippicker.ShipPicker" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.gui.Page" title="sbs_utils.gui.Page"><code class="xref py py-class docutils literal notranslate"><span class="pre">Page</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.pages.shippicker.ShipPicker.get_selected">
+<span class="sig-name descname"><span class="pre">get_selected</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.shippicker.ShipPicker.get_selected" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.pages.shippicker.ShipPicker.on_message">
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.shippicker.ShipPicker.on_message" title="Permalink to this definition"></a></dt>
+<dd><p>Called when a control on the page has been interacted with</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>message_tag</strong> (<em>str</em>) – The tag name of the control interacted with</p></li>
+<li><p><strong>clientID</strong> (<em>None</em><em> or </em><em>str</em><em> or </em><em>float</em>) – The client ID that had the interaction</p></li>
+<li><p><strong>data</strong> – Any data associated with the control e.g. slider float value of current value</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.pages.shippicker.ShipPicker.present">
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CID</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.shippicker.ShipPicker.present" title="Permalink to this definition"></a></dt>
+<dd><p>Called to have the page create and update the gui content it is presenting</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+</dd>
+</dl>
+</dd></dl>
 
 </dd></dl>
 
@@ -651,6 +781,66 @@ this is called once in the script.py</p>
 </dd>
 </dl>
 </dd></dl>
+
+</section>
+<section id="module-sbs_utils.widgets.shippicker">
+<span id="api-widgets"></span><h2>API: widgets<a class="headerlink" href="#module-sbs_utils.widgets.shippicker" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.widgets.shippicker.ShipPicker">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.widgets.shippicker.</span></span><span class="sig-name descname"><span class="pre">ShipPicker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">left</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">top</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tag_prefix</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.widgets.shippicker.ShipPicker" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.gui.Widget" title="sbs_utils.gui.Widget"><code class="xref py py-class docutils literal notranslate"><span class="pre">Widget</span></code></a></p>
+<p>A widget to select a ship</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.widgets.shippicker.ShipPicker.get_selected">
+<span class="sig-name descname"><span class="pre">get_selected</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.widgets.shippicker.ShipPicker.get_selected" title="Permalink to this definition"></a></dt>
+<dd><p>get selected</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>None or string of ship selected</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>None or string of ship selected</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.widgets.shippicker.ShipPicker.on_message">
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.widgets.shippicker.ShipPicker.on_message" title="Permalink to this definition"></a></dt>
+<dd><p>handles messages this will look for components owned by this control and react accordingly
+components owned will have the tag_prefix</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – simulation</p></li>
+<li><p><strong>message_tag</strong> (<em>str</em>) – Tag of the component</p></li>
+<li><p><strong>CID</strong> (<em>int</em>) – Client ID</p></li>
+<li><p><strong>data</strong> (<em>any</em>) – unused no component use data</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.widgets.shippicker.ShipPicker.present">
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CID</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.widgets.shippicker.ShipPicker.present" title="Permalink to this definition"></a></dt>
+<dd><p>builds/manages the content of the widget</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – simulation</p></li>
+<li><p><strong>CID</strong> (<em>int</em>) – Client ID</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.widgets.shippicker.filter_ship">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.widgets.shippicker.</span></span><span class="sig-name descname"><span class="pre">filter_ship</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ship</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.widgets.shippicker.filter_ship" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
 
 </section>
 </section>

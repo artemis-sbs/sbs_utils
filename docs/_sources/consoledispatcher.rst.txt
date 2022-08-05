@@ -26,6 +26,17 @@ The HandleCommsButton should call :py:meth:`~sbs_utils.consoledispatcher.Console
       ConsoleDispatcher.dispatch_comms_message(sim, button_tag, ship_id, obj_selected_id)
 
 
+Importing the hookhandlers module it does by default.
+
+
+ .. code-block:: python
+
+      from sbs_utils.handlerhooks import *
+      # no longer need to implement handlers in script.py
+
+
+
+
 Example: Adding Comms to a class
 --------------------------------
 
