@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GUI system &mdash; SBS Utils 1.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="_static/graphviz.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Console Dispatcher" href="consoledispatcher.html" />
+    <link rel="prev" title="The Faces module" href="faces.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> SBS Utils
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="index_desc.html">Utilities for Artemis Cosmos</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index_contrib.html">Contribution</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="spaceobject.html">Space Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="roles.html">The roles system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="targeting.html">The targeting system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="vec.html">The vector class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scatter.html">The Scatter modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faces.html">The Faces module</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Systems:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">GUI system</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#artemis-cosmos-gui-system">Artemis Cosmos gui system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#creating-a-gui-page">Creating a GUI page</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setting-the-start-pages">Setting the start pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#navigating-pages">Navigating pages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pushing-pages">Pushing pages</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#popping-pages">Popping pages</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#complex-page-hierarchies">Complex page hierarchies</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#page-layout-helpers">Page layout helpers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.gui">API: gui module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.pages.avatar">API: pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.layout">API: layout module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="consoledispatcher.html">Console Dispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/setup.html">Setup</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SBS Utils</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>GUI system</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/gui.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="gui-system">
+<h1>GUI system<a class="headerlink" href="#gui-system" title="Permalink to this heading"></a></h1>
+<p>The GUI System is for managing content that is displayed in the console selection screens e.g. the mission select screen for the server and the console select screen for clients.</p>
+<section id="artemis-cosmos-gui-system">
+<h2>Artemis Cosmos gui system<a class="headerlink" href="#artemis-cosmos-gui-system" title="Permalink to this heading"></a></h2>
+<p>Artemis Cosmos calls the script function HandlePresentGUI when a console is in ‘options’ mode. For the server this is when selecting a mission or when the simulation is paused. For consoles this is when in the console select/options.</p>
+<p>Artemis Cosmos calls the script function HandlePresentGUIMessage when change occur due to interacting with the GUI.</p>
+<p>To use the GUI system call <a class="reference internal" href="#sbs_utils.gui.Gui.present" title="sbs_utils.gui.Gui.present"><code class="xref py py-meth docutils literal notranslate"><span class="pre">present()</span></code></a> in HandlePresentGUI and call <a class="reference internal" href="#sbs_utils.gui.Gui.on_message" title="sbs_utils.gui.Gui.on_message"><code class="xref py py-meth docutils literal notranslate"><span class="pre">on_message()</span></code></a> in HandlePresentGUIMessage.</p>
+<p>Importing the hookhandlers module it does by default.</p>
+</section>
+<section id="creating-a-gui-page">
+<h2>Creating a GUI page<a class="headerlink" href="#creating-a-gui-page" title="Permalink to this heading"></a></h2>
+<p>A <a class="reference internal" href="#sbs_utils.gui.Page" title="sbs_utils.gui.Page"><code class="xref py py-class docutils literal notranslate"><span class="pre">Page</span></code></a> is an abstract class used to create and organize a set of GUI components and react to changes to the GUI</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">lib.sbs_utils.gui</span> <span class="kn">import</span> <span class="n">Page</span>
+
+<span class="k">class</span> <span class="nc">MyPage</span><span class="p">(</span><span class="n">Page</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">present</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">CID</span><span class="p">):</span>
+     <span class="k">pass</span>
+
+  <span class="k">def</span> <span class="nf">on_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">message_tag</span><span class="p">,</span> <span class="n">clientID</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+     <span class="k">pass</span>
+</pre></div>
+</div>
+</div></blockquote>
+</section>
+<section id="setting-the-start-pages">
+<h2>Setting the start pages<a class="headerlink" href="#setting-the-start-pages" title="Permalink to this heading"></a></h2>
+<p>A <a class="reference internal" href="#sbs_utils.gui.Gui" title="sbs_utils.gui.Gui"><code class="xref py py-class docutils literal notranslate"><span class="pre">Gui</span></code></a> is used to set start pages.
+This should be done in script.py or as part of the initial loading of the mission.</p>
+<p><a class="reference internal" href="#sbs_utils.gui.Gui.server_start_page_class" title="sbs_utils.gui.Gui.server_start_page_class"><code class="xref py py-meth docutils literal notranslate"><span class="pre">server_start_page_class()</span></code></a> is used to set the Page class to use for the server.
+<a class="reference internal" href="#sbs_utils.gui.Gui.client_start_page_class" title="sbs_utils.gui.Gui.client_start_page_class"><code class="xref py py-meth docutils literal notranslate"><span class="pre">client_start_page_class()</span></code></a> is used to set the Page class to use for clients.</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">lib.sbs_utils.gui</span> <span class="kn">import</span> <span class="n">Gui</span>
+
+<span class="n">Gui</span><span class="o">.</span><span class="n">server_start_page</span><span class="p">(</span><span class="n">MyPage</span><span class="p">)</span>
+<span class="n">Gui</span><span class="o">.</span><span class="n">client_start_page</span><span class="p">(</span><span class="n">MyPage</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>Calling these function should create the appropriate page at the proper time. For the server start page it will be created when the mission is selected in the mission selection screen.
+This initial page will remain created throughout the running of the mission and would be called when the simulation is paused as well.</p>
+<p>For clients it is created when the client connects. Each client will have their own copy/instance of the page class specified.</p>
+</section>
+<section id="navigating-pages">
+<h2>Navigating pages<a class="headerlink" href="#navigating-pages" title="Permalink to this heading"></a></h2>
+<p>A GUI can have multiple pages. Only one page is displayed at a time.</p>
+<p>The GUI system keeps a ‘stack’ of pages.
+A Page can be navigated to by pushing an instance of a Page.
+and the previous page can be returned to by ‘popping’ the current page off the stack.</p>
+<section id="pushing-pages">
+<h3>Pushing pages<a class="headerlink" href="#pushing-pages" title="Permalink to this heading"></a></h3>
+<p>For example, the start page can navigate to an Options page by pushing the option page on the stack.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">lib.sbs_utils.gui</span> <span class="kn">import</span> <span class="n">Page</span>
+
+<span class="k">class</span> <span class="nc">StartPage</span><span class="p">(</span><span class="n">Page</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">present</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">CID</span><span class="p">):</span>
+      <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_clear</span><span class="p">(</span><span class="n">CID</span><span class="p">)</span>
+      <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_button</span><span class="p">(</span><span class="n">CID</span><span class="p">,</span> <span class="s2">&quot;Options&quot;</span><span class="p">,</span> <span class="s2">&quot;options&quot;</span><span class="p">,</span> <span class="mi">80</span><span class="p">,</span><span class="mi">80</span><span class="p">,</span> <span class="mi">99</span><span class="p">,</span><span class="mi">89</span><span class="p">)</span>
+      <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_button</span><span class="p">(</span><span class="n">CID</span><span class="p">,</span> <span class="s2">&quot;Start&quot;</span><span class="p">,</span> <span class="s2">&quot;start&quot;</span><span class="p">,</span> <span class="mi">80</span><span class="p">,</span><span class="mi">90</span><span class="p">,</span> <span class="mi">99</span><span class="p">,</span><span class="mi">99</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">on_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">message_tag</span><span class="p">,</span> <span class="n">clientID</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">message_tag</span> <span class="o">==</span> <span class="s1">&#39;options&#39;</span><span class="p">:</span>
+         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">options</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="n">Options</span><span class="p">()</span>
+         <span class="n">Gui</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">clientID</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">options</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>When the options button is pressed a Options page instances is ‘pushed’ on to the stack and it becomes the GUI that is presented.
+The StartPage instance still exists, and is below the Options page on the stack.</p>
+<div class="graphviz"><img src="_images/graphviz-4af3516b7e4ac98caa6ce196941eba2bc91bc8b9.png" alt="digraph G {
+   node [shape=box, fontname=&quot;Arial&quot;];
+   constraint=false;
+   rankdir=&quot;LR&quot;;
+   //splines=&quot;ortho&quot;;
+
+   sp [label=&quot;StartPage&quot;];
+   op [label=&quot;Options&quot;];
+
+
+   sp -&gt; op [label=&quot;push&quot;];
+}" class="graphviz" /></div>
+</section>
+<section id="popping-pages">
+<h3>Popping pages<a class="headerlink" href="#popping-pages" title="Permalink to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">lib.sbs_utils.gui</span> <span class="kn">import</span> <span class="n">Page</span>
+
+<span class="k">class</span> <span class="nc">Options</span><span class="p">(</span><span class="n">Page</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">present</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">CID</span><span class="p">):</span>
+      <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_clear</span><span class="p">(</span><span class="n">CID</span><span class="p">)</span>
+      <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_button</span><span class="p">(</span><span class="n">CID</span><span class="p">,</span> <span class="s2">&quot;Back&quot;</span><span class="p">,</span> <span class="s2">&quot;back&quot;</span><span class="p">,</span> <span class="mi">80</span><span class="p">,</span><span class="mi">90</span><span class="p">,</span> <span class="mi">99</span><span class="p">,</span><span class="mi">99</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">on_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">message_tag</span><span class="p">,</span> <span class="n">clientID</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">message_tag</span> <span class="o">==</span> <span class="s1">&#39;back&#39;</span><span class="p">:</span>
+         <span class="n">Gui</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">clientID</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>When the back button is pressed, the Option page is removed from the stack and the StartPage is then presented.</p>
+<div class="graphviz"><img src="_images/graphviz-36caa55980a14c804564771b7c9643bd4f456d1b.png" alt="digraph G {
+   node [shape=box, fontname=&quot;Arial&quot;];
+   //constraint=false;
+   rankdir=&quot;LR&quot;;
+   ordering=in;
+   splines=&quot;ortho&quot;;
+
+   sp [label=&quot;StartPage&quot;];
+   op [label=&quot;Options&quot;  style=dashed];
+
+   sp -&gt; op [weight=10;style=invis]
+   op -&gt; sp [label=&quot;pop&quot;];
+}" class="graphviz" /></div>
+</section>
+<section id="complex-page-hierarchies">
+<h3>Complex page hierarchies<a class="headerlink" href="#complex-page-hierarchies" title="Permalink to this heading"></a></h3>
+<p>The GUI systems’s stack and navigating via push and pop can allow for deep and complex GUI screens.</p>
+<p>For example a main StartPage could navigate to an Option page that can either navigate to a ship picker Page or an Avatar Editor.</p>
+<div class="graphviz"><img src="_images/graphviz-3ccb5e60e6d152f882712df6fa1a84cc99452104.png" alt="digraph G {
+   node [shape=box, fontname=&quot;Arial&quot;];
+   constraint=false;
+   rankdir=&quot;LR&quot;;
+   //splines=&quot;ortho&quot;;
+
+   subgraph cluster_main {
+      label=&quot;Main pages&quot;
+      sp;
+      op;
+   }
+   subgraph cluster_pages {
+      label=&quot;option sub pages&quot;;
+      pick;
+      av;
+   }
+
+
+
+   sp [label=&quot;StartPage&quot;];
+   op [label=&quot;Options&quot;];
+   av [label=&quot;Avatar Editor&quot;];
+   pick [label=&quot;ShipPicker&quot;];
+
+
+   sp -&gt; op [label=&quot;push&quot;];
+   op -&gt; sp [label=&quot;pop&quot;];
+
+   op -&gt; pick [label=&quot;push&quot;];
+   pick -&gt; op [label=&quot;pop&quot;];
+
+
+
+   av -&gt; op [label=&quot;pop&quot;];
+   op -&gt; av [label=&quot;push&quot;];
+}" class="graphviz" /></div>
+</section>
+</section>
+<section id="page-layout-helpers">
+<h2>Page layout helpers<a class="headerlink" href="#page-layout-helpers" title="Permalink to this heading"></a></h2>
+<p>The layout module helps layout a lot of components using generator that calculate the location for controls.</p>
+<p>Currently the layout module supports the ‘wrap’ layout. which will build a table like layout by filling in columns and wrapping to a next row.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">lib.sbs_utils.gui</span> <span class="kn">import</span> <span class="n">Page</span>
+
+<span class="k">class</span> <span class="nc">Example</span><span class="p">(</span><span class="n">Page</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">present</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">CID</span><span class="p">):</span>
+      <span class="n">loc</span> <span class="o">=</span> <span class="n">layout</span><span class="o">.</span><span class="n">wrap</span><span class="p">(</span><span class="mi">25</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span><span class="n">col</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">h_gutter</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">widget</span> <span class="ow">in</span> <span class="n">widgets</span><span class="p">:</span>
+         <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_text</span><span class="p">(</span><span class="n">CID</span><span class="p">,</span> <span class="n">widget</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;lab:</span><span class="si">{</span><span class="n">widget</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="o">*</span><span class="nb">next</span><span class="p">(</span><span class="n">loc</span><span class="p">))</span>
+         <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_slider</span><span class="p">(</span><span class="n">CID</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;value:</span><span class="si">{</span><span class="n">widget</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>  <span class="n">widget</span><span class="p">[</span><span class="s2">&quot;min&quot;</span><span class="p">],</span><span class="n">widget</span><span class="p">[</span><span class="s2">&quot;max&quot;</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">cur</span><span class="p">[</span><span class="n">v</span><span class="p">],</span> <span class="o">*</span><span class="nb">next</span><span class="p">(</span><span class="n">loc</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="graphviz"><img src="_images/graphviz-c135739ab9fb2088901c90c872298d281b7de363.png" alt="digraph G {
+   node [shape=box, fontname=&quot;Arial&quot;];
+   //constraint=false;
+   rankdir=&quot;LR&quot;;
+   //splines=&quot;ortho&quot;;
+
+   subgraph cluster_tHREE {
+      label=&quot;row3&quot;
+      a2;
+      b2;
+      c2;
+      d2;
+   }
+
+   subgraph cluster_two {
+      label=&quot;row2&quot;
+      a1;
+      b1;
+      c1;
+      d1;
+   }
+   subgraph cluster_main {
+      label=&quot;row1&quot;
+      a;
+      b;
+      c;
+      d;
+   }
+
+
+
+
+
+   a [label=label];
+   b [label=slider];
+   c [label=label];
+   d [label=slider];
+
+
+   a -&gt; b [style=invis];
+   b -&gt; c [style=invis];
+   c -&gt; d [style=invis];
+
+   a1 [label=label];
+   b1 [label=slider];
+   c1 [label=label];
+   d1 [label=slider];
+
+
+   a1 -&gt; b1 [style=invis];
+   b1 -&gt; c1 [style=invis];
+   c1 -&gt; d1 [style=invis];
+
+   a2 [label=label];
+   b2 [label=slider];
+   c2 [label=label];
+   d2 [label=slider];
+
+
+   a2 -&gt; b2 [style=invis];
+   b2 -&gt; c2 [style=invis];
+   c2 -&gt; d2 [style=invis];
+
+
+
+}" class="graphviz" /></div>
+</section>
+<section id="module-sbs_utils.gui">
+<span id="api-gui-module"></span><h2>API: gui module<a class="headerlink" href="#module-sbs_utils.gui" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.gui.Gui">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.gui.</span></span><span class="sig-name descname"><span class="pre">Gui</span></span><a class="headerlink" href="#sbs_utils.gui.Gui" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>class GUI
+Manages the GUI pages for all clients</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.Gui.add_client">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">add_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.add_client" title="Permalink to this definition"></a></dt>
+<dd><p>Call when a new client connects.
+handlerhooks.py will call this in HandleClientConnect</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>clientID</strong> – called to add a new client</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.Gui.client_start_page_class">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">client_start_page_class</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls_page</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.client_start_page_class" title="Permalink to this definition"></a></dt>
+<dd><p>client start page</p>
+<p>Called in the script.py to set the start page for clients.
+this is called once in the script.py</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>cls_page</strong> – The class of the page to create</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.gui.Gui.clients">
+<span class="sig-name descname"><span class="pre">clients</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{0:</span> <span class="pre">&lt;sbs_utils.gui.GuiClient</span> <span class="pre">object&gt;}</span></em><a class="headerlink" href="#sbs_utils.gui.Gui.clients" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.Gui.on_message">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.on_message" title="Permalink to this definition"></a></dt>
+<dd><p>Forward to the appropriate GuiClient/Page
+handlerhooks.py will call this in HandlePresentGUIMessage</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>message_tag</strong> (<em>str</em>) – The tag name of the control interacted with</p></li>
+<li><p><strong>clientID</strong> (<em>None</em><em> or </em><em>str</em><em> or </em><em>float</em>) – The client ID that had the interaction</p></li>
+<li><p><strong>data</strong> – Any data associated with the control e.g. slider float value of current value</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.Gui.pop">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">pop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.pop" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.Gui.present">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.present" title="Permalink to this definition"></a></dt>
+<dd><p>calls present on all clients
+handlerhooks.py will call this in HandlePresentGUI</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.Gui.push">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">push</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">page</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.push" title="Permalink to this definition"></a></dt>
+<dd><p>Presents the new Page on the specified client by pushing it on the stack.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>clientID</strong> – called to add a new client</p></li>
+<li><p><strong>page</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.Gui.server_start_page_class">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">server_start_page_class</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls_page</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.server_start_page_class" title="Permalink to this definition"></a></dt>
+<dd><p>server start page</p>
+<p>Called in the script.py to set the start page for the server.
+this is called once in the script.py</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>cls_page</strong> – The class of the page to create</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.gui.GuiClient">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.gui.</span></span><span class="sig-name descname"><span class="pre">GuiClient</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Manages the pages for a client</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.GuiClient.on_message">
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.on_message" title="Permalink to this definition"></a></dt>
+<dd><p>Calls the on_message on the top page of the specified client by calling on_message</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>message_tag</strong> (<em>str</em>) – The tag name of the control interacted with</p></li>
+<li><p><strong>clientID</strong> (<em>None</em><em> or </em><em>str</em><em> or </em><em>float</em>) – The client ID that had the interaction</p></li>
+<li><p><strong>data</strong> – Any data associated with the control e.g. slider float value of current value</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.GuiClient.pop">
+<span class="sig-name descname"><span class="pre">pop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.pop" title="Permalink to this definition"></a></dt>
+<dd><p>Stops presenting the current page and return to the previous one</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.GuiClient.present">
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CID</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.present" title="Permalink to this definition"></a></dt>
+<dd><p>Presents the top Page for the specified clientID by calling present on that page</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>CID</strong> – Client ID</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.GuiClient.push">
+<span class="sig-name descname"><span class="pre">push</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">page</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.push" title="Permalink to this definition"></a></dt>
+<dd><p>Presents the new Page by pushing it on the stack.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>page</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.gui.Page">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.gui.</span></span><span class="sig-name descname"><span class="pre">Page</span></span><a class="headerlink" href="#sbs_utils.gui.Page" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A interface class for creating GUI pages</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.Page.on_message">
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.on_message" title="Permalink to this definition"></a></dt>
+<dd><p>Called when a control on the page has been interacted with</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>message_tag</strong> (<em>str</em>) – The tag name of the control interacted with</p></li>
+<li><p><strong>clientID</strong> (<em>None</em><em> or </em><em>str</em><em> or </em><em>float</em>) – The client ID that had the interaction</p></li>
+<li><p><strong>data</strong> – Any data associated with the control e.g. slider float value of current value</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.Page.present">
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.present" title="Permalink to this definition"></a></dt>
+<dd><p>Called to have the page create and update the gui content it is presenting</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-sbs_utils.pages.avatar">
+<span id="api-pages"></span><h2>API: pages<a class="headerlink" href="#module-sbs_utils.pages.avatar" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.pages.avatar.AvatarEditor">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.pages.avatar.</span></span><span class="sig-name descname"><span class="pre">AvatarEditor</span></span><a class="headerlink" href="#sbs_utils.pages.avatar.AvatarEditor" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.gui.Page" title="sbs_utils.gui.Page"><code class="xref py py-class docutils literal notranslate"><span class="pre">Page</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.pages.avatar.AvatarEditor.on_message">
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.avatar.AvatarEditor.on_message" title="Permalink to this definition"></a></dt>
+<dd><p>Called when a control on the page has been interacted with</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>message_tag</strong> (<em>str</em>) – The tag name of the control interacted with</p></li>
+<li><p><strong>clientID</strong> (<em>None</em><em> or </em><em>str</em><em> or </em><em>float</em>) – The client ID that had the interaction</p></li>
+<li><p><strong>data</strong> – Any data associated with the control e.g. slider float value of current value</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.pages.avatar.AvatarEditor.present">
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CID</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.avatar.AvatarEditor.present" title="Permalink to this definition"></a></dt>
+<dd><p>Called to have the page create and update the gui content it is presenting</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.pages.avatar.AvatarEditor.reset_values">
+<span class="sig-name descname"><span class="pre">reset_values</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.avatar.AvatarEditor.reset_values" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.pages.avatar.AvatarEditor.widgets">
+<span class="sig-name descname"><span class="pre">widgets</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'arv':</span> <span class="pre">[{'label':</span> <span class="pre">'Eyes',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Mouth',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Crown',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Jewels',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True}],</span> <span class="pre">'kra':</span> <span class="pre">[{'label':</span> <span class="pre">'Eyes',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Mouth',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Scalp',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Extra',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True}],</span> <span class="pre">'ska':</span> <span class="pre">[{'label':</span> <span class="pre">'Eyes',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Mouth',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Horn',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Hat',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True}],</span> <span class="pre">'ter':</span> <span class="pre">[{'label':</span> <span class="pre">'Body',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">1},</span> <span class="pre">{'label':</span> <span class="pre">'Eyes',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">9},</span> <span class="pre">{'label':</span> <span class="pre">'Mouth',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">9},</span> <span class="pre">{'label':</span> <span class="pre">'Hair',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Long</span> <span class="pre">Hair',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">7,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Facial</span> <span class="pre">Hair',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Extra',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Uniform',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">9,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Skin</span> <span class="pre">Tone',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">30},</span> <span class="pre">{'label':</span> <span class="pre">'Hair</span> <span class="pre">Tone',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">11}],</span> <span class="pre">'tor':</span> <span class="pre">[{'label':</span> <span class="pre">'Eyes',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Mouth',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Hair',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Extra',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">3,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Hat',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">0,</span> <span class="pre">'optional':</span> <span class="pre">True}],</span> <span class="pre">'xim':</span> <span class="pre">[{'label':</span> <span class="pre">'Eyes',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Mouth',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4},</span> <span class="pre">{'label':</span> <span class="pre">'Horns',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">4,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Mask',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">2,</span> <span class="pre">'optional':</span> <span class="pre">True},</span> <span class="pre">{'label':</span> <span class="pre">'Tattoo',</span> <span class="pre">'min':</span> <span class="pre">0,</span> <span class="pre">'max':</span> <span class="pre">1,</span> <span class="pre">'optional':</span> <span class="pre">True}]}</span></em><a class="headerlink" href="#sbs_utils.pages.avatar.AvatarEditor.widgets" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<span class="target" id="module-sbs_utils.pages.start"></span><dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.pages.start.StartPage">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.pages.start.</span></span><span class="sig-name descname"><span class="pre">StartPage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">description</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.start.StartPage" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.gui.Page" title="sbs_utils.gui.Page"><code class="xref py py-class docutils literal notranslate"><span class="pre">Page</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.pages.start.StartPage.count">
+<span class="sig-name descname"><span class="pre">count</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sbs_utils.pages.start.StartPage.count" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.pages.start.StartPage.on_message">
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.start.StartPage.on_message" title="Permalink to this definition"></a></dt>
+<dd><p>Called when a control on the page has been interacted with</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>message_tag</strong> (<em>str</em>) – The tag name of the control interacted with</p></li>
+<li><p><strong>clientID</strong> (<em>None</em><em> or </em><em>str</em><em> or </em><em>float</em>) – The client ID that had the interaction</p></li>
+<li><p><strong>data</strong> – Any data associated with the control e.g. slider float value of current value</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.pages.start.StartPage.present">
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CID</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.start.StartPage.present" title="Permalink to this definition"></a></dt>
+<dd><p>Called to have the page create and update the gui content it is presenting</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-sbs_utils.layout">
+<span id="api-layout-module"></span><h2>API: layout module<a class="headerlink" href="#module-sbs_utils.layout" title="Permalink to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.layout.wrap">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.layout.</span></span><span class="sig-name descname"><span class="pre">wrap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">left</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">top</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">col</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h_gutter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_gutter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.layout.wrap" title="Permalink to this definition"></a></dt>
+<dd><p>A generator function that returns a tuple for screen locations for the next component.</p>
+<p>The layout will calculate a new horizontal location columns for the number of columns specified it wraps to the next row.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>left</strong> (<em>float</em>) – The starting location</p></li>
+<li><p><strong>top</strong> (<em>float</em>) – The starting location</p></li>
+<li><p><strong>height</strong> (<em>float</em>) – The starting location</p></li>
+<li><p><strong>col</strong> (<em>int</em>) – The number of columns</p></li>
+<li><p><strong>h_gutter</strong> (<em>float</em>) – The starting location</p></li>
+<li><p><strong>v_gutter</strong> (<em>float</em>) – The starting location</p></li>
+<li><p><strong>v_dir</strong> (<em>int 1 = downward -1 = upward</em>) – Vertical direction</p></li>
+<li><p><strong>h_dir</strong> (<em>int 1 = left -1 = right</em>) – Horizontal direction</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a generator that returns a tuple of the left, top, right, bottom</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>generator of (float,float,float,float)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="faces.html" class="btn btn-neutral float-left" title="The Faces module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="consoledispatcher.html" class="btn btn-neutral float-right" title="Console Dispatcher" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Doug Reichard.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

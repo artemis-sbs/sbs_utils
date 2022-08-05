@@ -7,6 +7,7 @@
   <title>The Faces module &mdash; SBS Utils 1.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="_static/graphviz.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -19,7 +20,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Console Dispatcher" href="consoledispatcher.html" />
+    <link rel="next" title="GUI system" href="gui.html" />
     <link rel="prev" title="The Scatter modules" href="scatter.html" /> 
 </head>
 
@@ -59,6 +60,7 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Systems:</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="gui.html">GUI system</a></li>
 <li class="toctree-l1"><a class="reference internal" href="consoledispatcher.html">Console Dispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
@@ -109,8 +111,7 @@ Cells are 512x512 and the total images must be a valid DirectX12 pixel size.</p>
 <li><p><a class="reference internal" href="#sbs_utils.faces.random_torgoth" title="sbs_utils.faces.random_torgoth"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_torgoth()</span></code></a></p></li>
 <li><p><a class="reference internal" href="#sbs_utils.faces.random_kralien" title="sbs_utils.faces.random_kralien"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_kralien()</span></code></a></p></li>
 <li><p><a class="reference internal" href="#sbs_utils.faces.random_arvonian" title="sbs_utils.faces.random_arvonian"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_arvonian()</span></code></a></p></li>
-<li><p><a class="reference internal" href="#sbs_utils.faces.random_skaraan" title="sbs_utils.faces.random_skaraan"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_skaraan()</span></code></a></p></li>
-<li><p><a class="reference internal" href="#sbs_utils.faces.random_zimni" title="sbs_utils.faces.random_zimni"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_zimni()</span></code></a></p></li>
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_zimni()</span></code></p></li>
 <li><p><a class="reference internal" href="#sbs_utils.faces.random_terran" title="sbs_utils.faces.random_terran"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_terran()</span></code></a></p></li>
 <li><p><a class="reference internal" href="#sbs_utils.faces.random_terran_male" title="sbs_utils.faces.random_terran_male"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_terran_male()</span></code></a></p></li>
 <li><p><a class="reference internal" href="#sbs_utils.faces.random_terran_female" title="sbs_utils.faces.random_terran_female"><code class="xref py py-meth docutils literal notranslate"><span class="pre">random_terran_female()</span></code></a></p></li>
@@ -130,7 +131,7 @@ Other ways to create consistent faces is to use one of the predefined <a class="
 <li><p><a class="reference internal" href="#sbs_utils.faces.kralien" title="sbs_utils.faces.kralien"><code class="xref py py-meth docutils literal notranslate"><span class="pre">kralien()</span></code></a></p></li>
 <li><p><a class="reference internal" href="#sbs_utils.faces.arvonian" title="sbs_utils.faces.arvonian"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arvonian()</span></code></a></p></li>
 <li><p><a class="reference internal" href="#sbs_utils.faces.skaraan" title="sbs_utils.faces.skaraan"><code class="xref py py-meth docutils literal notranslate"><span class="pre">skaraan()</span></code></a></p></li>
-<li><p><a class="reference internal" href="#sbs_utils.faces.zimni" title="sbs_utils.faces.zimni"><code class="xref py py-meth docutils literal notranslate"><span class="pre">zimni()</span></code></a></p></li>
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">zimni()</span></code></p></li>
 <li><p><a class="reference internal" href="#sbs_utils.faces.terran" title="sbs_utils.faces.terran"><code class="xref py py-meth docutils literal notranslate"><span class="pre">terran()</span></code></a></p></li>
 </ul>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">face_desc</span> <span class="o">=</span> <span class="n">skaraan</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span>
@@ -243,6 +244,11 @@ The first layer is the lowest layer.</p>
 </dd>
 </dl>
 </dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.faces.probably">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">probably</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chance</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.probably" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="sbs_utils.faces.random_arvonian">
@@ -375,9 +381,9 @@ The first layer is the lowest layer.</p>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="sbs_utils.faces.random_zimni">
-<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_zimni</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_zimni" title="Permalink to this definition"></a></dt>
-<dd><p>Create a random zimni face</p>
+<dt class="sig sig-object py" id="sbs_utils.faces.random_ximni">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_ximni</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_ximni" title="Permalink to this definition"></a></dt>
+<dd><p>Create a random ximni face</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
 <dd class="field-odd"><p>A Face string</p>
@@ -433,11 +439,12 @@ The first layer is the lowest layer.</p>
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>face_i</strong> (<em>int</em><em> or </em><em>None</em>) – The index of the face 0=male, 1=female, 2=fluid_male, 3=fluid_female</p></li>
-<li><p><strong>eye_id</strong> – The index of the eyes 0-9</p></li>
-<li><p><strong>mouth_id</strong> – The index of the mouth 0-9</p></li>
-<li><p><strong>hair_id</strong> – The index of the hair 0-9 or None</p></li>
-<li><p><strong>longhair_id</strong> – The index of the hair 0-7 or None</p></li>
-<li><p><strong>extra_id</strong> – The index of the extra 0-4 or None</p></li>
+<li><p><strong>eye_i</strong> (<em>int</em><em> or </em><em>None</em>) – The index of the eyes 0-9</p></li>
+<li><p><strong>mouth_i</strong> (<em>int</em>) – The index of the mouth 0-9</p></li>
+<li><p><strong>hair_i</strong> (<em>int</em><em> or </em><em>None</em>) – The index of the hair 0-9 or None</p></li>
+<li><p><strong>longhair_i</strong> (<em>int</em><em> or </em><em>None</em>) – The index of the hair 0-7 or None</p></li>
+<li><p><strong>facial_i</strong> (<em>int</em><em> or </em><em>None</em>) – The index of the hair 0-11 or None</p></li>
+<li><p><strong>extra_i</strong> (<em>int</em><em> or </em><em>None</em>) – The index of the extra 0-5 or None</p></li>
 <li><p><strong>uniform_i</strong> (<em>int</em><em> or </em><em>None</em>) – The index of the uniform 0 or None. None = civilian</p></li>
 <li><p><strong>skintone_i</strong> (<em>int</em><em>, </em><em>str</em><em> or </em><em>None</em>) – The index of the skintone 0-??, string = color string or None.</p></li>
 <li><p><strong>hairtone_i</strong> (<em>int</em><em>, </em><em>str</em><em> or </em><em>None</em>) – The index of the skintone 0-??, string = color string  or None.</p></li>
@@ -477,9 +484,9 @@ The first layer is the lowest layer.</p>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="sbs_utils.faces.zimni">
-<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">zimni</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eye_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mouth_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horns_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">collar_i</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.zimni" title="Permalink to this definition"></a></dt>
-<dd><p>Create an zimni face</p>
+<dt class="sig sig-object py" id="sbs_utils.faces.ximni">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">ximni</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eye_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mouth_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horns_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">collar_i</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.ximni" title="Permalink to this definition"></a></dt>
+<dd><p>Create an ximni face</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -508,7 +515,7 @@ The first layer is the lowest layer.</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="scatter.html" class="btn btn-neutral float-left" title="The Scatter modules" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="consoledispatcher.html" class="btn btn-neutral float-right" title="Console Dispatcher" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="gui.html" class="btn btn-neutral float-right" title="GUI system" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

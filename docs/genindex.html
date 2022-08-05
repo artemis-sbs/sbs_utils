@@ -6,6 +6,7 @@
   <title>Index &mdash; SBS Utils 1.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="_static/graphviz.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -50,6 +51,7 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Systems:</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="gui.html">GUI system</a></li>
 <li class="toctree-l1"><a class="reference internal" href="consoledispatcher.html">Console Dispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
@@ -108,6 +110,7 @@
  | <a href="#T"><strong>T</strong></a>
  | <a href="#U"><strong>U</strong></a>
  | <a href="#V"><strong>V</strong></a>
+ | <a href="#W"><strong>W</strong></a>
  | <a href="#X"><strong>X</strong></a>
  | <a href="#Y"><strong>Y</strong></a>
  | <a href="#Z"><strong>Z</strong></a>
@@ -122,6 +125,8 @@
         <li><a href="vec.html#sbs_utils.vec.Vec3.add">(sbs_utils.vec.Vec3 method)</a>
 </li>
       </ul></li>
+      <li><a href="gui.html#sbs_utils.gui.Gui.add_client">add_client() (sbs_utils.gui.Gui static method)</a>
+</li>
       <li><a href="consoledispatcher.html#sbs_utils.consoledispatcher.ConsoleDispatcher.add_message">add_message() (sbs_utils.consoledispatcher.ConsoleDispatcher method)</a>
 </li>
       <li><a href="spaceobject.html#sbs_utils.spaceobject.SpaceObject.add_role">add_role() (sbs_utils.spaceobject.SpaceObject method)</a>
@@ -143,6 +148,8 @@
 </li>
       </ul></li>
       <li><a href="faces.html#sbs_utils.faces.arvonian">arvonian() (in module sbs_utils.faces)</a>
+</li>
+      <li><a href="gui.html#sbs_utils.pages.avatar.AvatarEditor">AvatarEditor (class in sbs_utils.pages.avatar)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -172,6 +179,10 @@
 </li>
       <li><a href="spaceobject.html#sbs_utils.spaceobject.SpaceObject.clear_target">clear_target() (sbs_utils.spaceobject.SpaceObject method)</a>
 </li>
+      <li><a href="gui.html#sbs_utils.gui.Gui.client_start_page_class">client_start_page_class() (sbs_utils.gui.Gui static method)</a>
+</li>
+      <li><a href="gui.html#sbs_utils.gui.Gui.clients">clients (sbs_utils.gui.Gui attribute)</a>
+</li>
       <li><a href="spaceobject.html#sbs_utils.spaceobject.CloseData">CloseData (class in sbs_utils.spaceobject)</a>
 </li>
   </ul></td>
@@ -183,6 +194,8 @@
       <li><a href="consoledispatcher.html#sbs_utils.consoledispatcher.MCommunications.comms_selected">comms_selected() (sbs_utils.consoledispatcher.MCommunications method)</a>
 </li>
       <li><a href="consoledispatcher.html#sbs_utils.consoledispatcher.ConsoleDispatcher">ConsoleDispatcher (class in sbs_utils.consoledispatcher)</a>
+</li>
+      <li><a href="gui.html#sbs_utils.pages.start.StartPage.count">count (sbs_utils.pages.start.StartPage attribute)</a>
 </li>
       <li><a href="vec.html#sbs_utils.vec.Vec3.cross">cross() (sbs_utils.vec.Vec3 method)</a>
 </li>
@@ -260,11 +273,15 @@
 </li>
       <li><a href="spaceobject.html#sbs_utils.spaceobject.SpaceObject.get_as">get_as() (sbs_utils.spaceobject.SpaceObject method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="faces.html#sbs_utils.faces.get_face">get_face() (in module sbs_utils.faces)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="spaceobject.html#sbs_utils.spaceobject.SpaceObject.get_space_object">get_space_object() (sbs_utils.spaceobject.SpaceObject method)</a>
+</li>
+      <li><a href="gui.html#sbs_utils.gui.Gui">Gui (class in sbs_utils.gui)</a>
+</li>
+      <li><a href="gui.html#sbs_utils.gui.GuiClient">GuiClient (class in sbs_utils.gui)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -354,7 +371,15 @@
 </li>
         <li><a href="faces.html#module-sbs_utils.faces">sbs_utils.faces</a>
 </li>
+        <li><a href="gui.html#module-sbs_utils.gui">sbs_utils.gui</a>
+</li>
         <li><a href="hookhandlers.html#module-sbs_utils.handlerhooks">sbs_utils.handlerhooks</a>
+</li>
+        <li><a href="gui.html#module-sbs_utils.layout">sbs_utils.layout</a>
+</li>
+        <li><a href="gui.html#module-sbs_utils.pages.avatar">sbs_utils.pages.avatar</a>
+</li>
+        <li><a href="gui.html#module-sbs_utils.pages.start">sbs_utils.pages.start</a>
 </li>
         <li><a href="scatter.html#module-sbs_utils.scatter">sbs_utils.scatter</a>
 </li>
@@ -399,16 +424,56 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="spaceobject.html#sbs_utils.spaceobject.CloseData.obj">obj (sbs_utils.spaceobject.CloseData attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="spaceobject.html#sbs_utils.spaceobject.SpawnData.object">object (sbs_utils.spaceobject.SpawnData attribute)</a>
 </li>
+      <li><a href="gui.html#sbs_utils.gui.Gui.on_message">on_message() (sbs_utils.gui.Gui static method)</a>
+
+      <ul>
+        <li><a href="gui.html#sbs_utils.gui.GuiClient.on_message">(sbs_utils.gui.GuiClient method)</a>
+</li>
+        <li><a href="gui.html#sbs_utils.gui.Page.on_message">(sbs_utils.gui.Page method)</a>
+</li>
+        <li><a href="gui.html#sbs_utils.pages.avatar.AvatarEditor.on_message">(sbs_utils.pages.avatar.AvatarEditor method)</a>
+</li>
+        <li><a href="gui.html#sbs_utils.pages.start.StartPage.on_message">(sbs_utils.pages.start.StartPage method)</a>
+</li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
 <h2 id="P">P</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="gui.html#sbs_utils.gui.Page">Page (class in sbs_utils.gui)</a>
+</li>
+      <li><a href="gui.html#sbs_utils.gui.Gui.pop">pop() (sbs_utils.gui.Gui static method)</a>
+
+      <ul>
+        <li><a href="gui.html#sbs_utils.gui.GuiClient.pop">(sbs_utils.gui.GuiClient method)</a>
+</li>
+      </ul></li>
+      <li><a href="gui.html#sbs_utils.gui.Gui.present">present() (sbs_utils.gui.Gui static method)</a>
+
+      <ul>
+        <li><a href="gui.html#sbs_utils.gui.GuiClient.present">(sbs_utils.gui.GuiClient method)</a>
+</li>
+        <li><a href="gui.html#sbs_utils.gui.Page.present">(sbs_utils.gui.Page method)</a>
+</li>
+        <li><a href="gui.html#sbs_utils.pages.avatar.AvatarEditor.present">(sbs_utils.pages.avatar.AvatarEditor method)</a>
+</li>
+        <li><a href="gui.html#sbs_utils.pages.start.StartPage.present">(sbs_utils.pages.start.StartPage method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="faces.html#sbs_utils.faces.probably">probably() (in module sbs_utils.faces)</a>
+</li>
+      <li><a href="gui.html#sbs_utils.gui.Gui.push">push() (sbs_utils.gui.Gui static method)</a>
+
+      <ul>
+        <li><a href="gui.html#sbs_utils.gui.GuiClient.push">(sbs_utils.gui.GuiClient method)</a>
+</li>
+      </ul></li>
       <li><a href="spaceobject.html#sbs_utils.spaceobject.SpaceObject.py_class">py_class() (sbs_utils.spaceobject.SpaceObject method)</a>
 </li>
   </ul></td>
@@ -437,16 +502,16 @@
 </li>
       <li><a href="faces.html#sbs_utils.faces.random_torgoth">random_torgoth() (in module sbs_utils.faces)</a>
 </li>
-      <li><a href="faces.html#sbs_utils.faces.random_zimni">random_zimni() (in module sbs_utils.faces)</a>
+      <li><a href="faces.html#sbs_utils.faces.random_ximni">random_ximni() (in module sbs_utils.faces)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="scatter.html#sbs_utils.scatter.rect_fill">rect_fill() (in module sbs_utils.scatter)</a>
 
       <ul>
         <li><a href="scatter.html#sbs_utils.scattervec.rect_fill">(in module sbs_utils.scattervec)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="spaceobject.html#sbs_utils.spaceobject.SpaceObject.remove">remove() (sbs_utils.spaceobject.SpaceObject method)</a>
 </li>
       <li><a href="consoledispatcher.html#sbs_utils.consoledispatcher.ConsoleDispatcher.remove_message">remove_message() (sbs_utils.consoledispatcher.ConsoleDispatcher method)</a>
@@ -458,6 +523,8 @@
       <li><a href="damagedispatcher.html#sbs_utils.damagedispatcher.DamageDispatcher.remove_source">remove_source() (sbs_utils.damagedispatcher.DamageDispatcher method)</a>
 </li>
       <li><a href="damagedispatcher.html#sbs_utils.damagedispatcher.DamageDispatcher.remove_target">remove_target() (sbs_utils.damagedispatcher.DamageDispatcher method)</a>
+</li>
+      <li><a href="gui.html#sbs_utils.pages.avatar.AvatarEditor.reset_values">reset_values() (sbs_utils.pages.avatar.AvatarEditor method)</a>
 </li>
       <li><a href="scatter.html#sbs_utils.scatter.ring">ring() (in module sbs_utils.scatter)</a>
 
@@ -499,10 +566,38 @@
 </li>
       </ul></li>
       <li>
+    sbs_utils.gui
+
+      <ul>
+        <li><a href="gui.html#module-sbs_utils.gui">module</a>
+</li>
+      </ul></li>
+      <li>
     sbs_utils.handlerhooks
 
       <ul>
         <li><a href="hookhandlers.html#module-sbs_utils.handlerhooks">module</a>
+</li>
+      </ul></li>
+      <li>
+    sbs_utils.layout
+
+      <ul>
+        <li><a href="gui.html#module-sbs_utils.layout">module</a>
+</li>
+      </ul></li>
+      <li>
+    sbs_utils.pages.avatar
+
+      <ul>
+        <li><a href="gui.html#module-sbs_utils.pages.avatar">module</a>
+</li>
+      </ul></li>
+      <li>
+    sbs_utils.pages.start
+
+      <ul>
+        <li><a href="gui.html#module-sbs_utils.pages.start">module</a>
 </li>
       </ul></li>
       <li>
@@ -526,6 +621,8 @@
         <li><a href="spaceobject.html#module-sbs_utils.spaceobject">module</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     sbs_utils.tickdispatcher
 
@@ -540,8 +637,8 @@
         <li><a href="vec.html#module-sbs_utils.vec">module</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="gui.html#sbs_utils.gui.Gui.server_start_page_class">server_start_page_class() (sbs_utils.gui.Gui static method)</a>
+</li>
       <li><a href="faces.html#sbs_utils.faces.set_face">set_face() (in module sbs_utils.faces)</a>
 </li>
       <li><a href="spaceobject.html#sbs_utils.spaceobject.SpaceObject.side">side() (sbs_utils.spaceobject.SpaceObject method)</a>
@@ -578,6 +675,8 @@
         <li><a href="scatter.html#sbs_utils.scattervec.sphere">(in module sbs_utils.scattervec)</a>
 </li>
       </ul></li>
+      <li><a href="gui.html#sbs_utils.pages.start.StartPage">StartPage (class in sbs_utils.pages.start)</a>
+</li>
       <li><a href="tickdispatcher.html#sbs_utils.tickdispatcher.TickTask.stop">stop() (sbs_utils.tickdispatcher.TickTask method)</a>
 </li>
       <li><a href="vec.html#sbs_utils.vec.Vec3.subtract">subtract() (sbs_utils.vec.Vec3 method)</a>
@@ -629,10 +728,28 @@
   </ul></td>
 </tr></table>
 
+<h2 id="W">W</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="gui.html#sbs_utils.pages.avatar.AvatarEditor.widgets">widgets (sbs_utils.pages.avatar.AvatarEditor attribute)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="gui.html#sbs_utils.layout.wrap">wrap() (in module sbs_utils.layout)</a>
+</li>
+  </ul></td>
+</tr></table>
+
 <h2 id="X">X</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="vec.html#sbs_utils.vec.Vec3.x">x (sbs_utils.vec.Vec3 attribute)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="faces.html#sbs_utils.faces.ximni">ximni() (in module sbs_utils.faces)</a>
+</li>
+      <li><a href="vec.html#sbs_utils.vec.Vec3.xyz">xyz() (sbs_utils.vec.Vec3 method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -649,10 +766,6 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="vec.html#sbs_utils.vec.Vec3.z">z (sbs_utils.vec.Vec3 attribute)</a>
-</li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="faces.html#sbs_utils.faces.zimni">zimni() (in module sbs_utils.faces)</a>
 </li>
   </ul></td>
 </tr></table>
