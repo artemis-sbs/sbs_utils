@@ -276,3 +276,7 @@ Gui.client_start_page_class(GuiMain)
 
 
 
+
+def HandlePresentGUI(sim):
+    # your code goes here
+    pass

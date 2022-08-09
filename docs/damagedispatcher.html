@@ -58,6 +58,12 @@
 <li class="toctree-l1"><a class="reference internal" href="consoledispatcher.html">Console Dispatcher</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">The Damage Dispatcher</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#artemis-cosmos-damage-system">Artemis Cosmos damage system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#sbs-utils-damage-system">sbs_utils damage system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#being-notified-of-damage">Being notified of damage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#source-of-damage">Source of damage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#target-of-damage">Target of damage</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.damagedispatcher">API: damagedispatcher module</a></li>
 </ul>
 </li>
@@ -68,6 +74,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/overview.html">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/setup.html">Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/entry.html">Entry Points, events, and handlers</a></li>
 </ul>
 
         </div>
@@ -100,6 +107,9 @@
 <section id="artemis-cosmos-damage-system">
 <h2>Artemis Cosmos damage system<a class="headerlink" href="#artemis-cosmos-damage-system" title="Permalink to this heading"></a></h2>
 <p>Artemis Cosmos calls the script function HandleDamageEvent when an item receives damage.</p>
+</section>
+<section id="sbs-utils-damage-system">
+<h2>sbs_utils damage system<a class="headerlink" href="#sbs-utils-damage-system" title="Permalink to this heading"></a></h2>
 <p>The DispatcherDispatcher is intended receive these and route them to callback functions.
 This can further be used to direct these to classes that represent the ships enabling the handling of this code to be handled in context of the ship(s) involved.</p>
 <p>The HandleDamage should call <a class="reference internal" href="#sbs_utils.damagedispatcher.DamageDispatcher.dispatch_damage" title="sbs_utils.damagedispatcher.DamageDispatcher.dispatch_damage"><code class="xref py py-meth docutils literal notranslate"><span class="pre">dispatch_damage()</span></code></a></p>
@@ -114,6 +124,47 @@ This can further be used to direct these to classes that represent the ships ena
 </pre></div>
 </div>
 </div></blockquote>
+</section>
+<section id="being-notified-of-damage">
+<h2>Being notified of damage<a class="headerlink" href="#being-notified-of-damage" title="Permalink to this heading"></a></h2>
+<section id="source-of-damage">
+<h3>Source of damage<a class="headerlink" href="#source-of-damage" title="Permalink to this heading"></a></h3>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Harvester</span><span class="p">(</span><span class="n">SpaceObject</span><span class="p">,</span> <span class="n">MSpawnActive</span><span class="p">):</span>
+
+   <span class="k">def</span> <span class="nf">spawn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">side</span><span class="p">):</span>
+      <span class="n">ship</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">spawn_v</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="n">v</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">side</span><span class="p">,</span>  <span class="s2">&quot;Cargo&quot;</span><span class="p">,</span> <span class="s2">&quot;behav_npcship&quot;</span><span class="p">)</span>
+      <span class="n">DamageDispatcher</span><span class="o">.</span><span class="n">add_source</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_damage_source</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">ship</span>
+
+   <span class="k">def</span> <span class="nf">on_damage_source</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">damage_event</span><span class="p">):</span>
+      <span class="k">pass</span>
+</pre></div>
+</div>
+</div></blockquote>
+</section>
+<section id="target-of-damage">
+<h3>Target of damage<a class="headerlink" href="#target-of-damage" title="Permalink to this heading"></a></h3>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Asteroid</span><span class="p">(</span><span class="n">SpaceObject</span><span class="p">,</span> <span class="n">MSpawnActive</span><span class="p">):</span>
+
+   <span class="k">def</span> <span class="nf">spawn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">side</span><span class="p">):</span>
+      <span class="n">ship</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">spawn_v</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="n">v</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">side</span><span class="p">,</span>  <span class="s2">&quot;Asteroid 1&quot;</span><span class="p">,</span> <span class="s2">&quot;behav_asteroid&quot;</span><span class="p">)</span>
+      <span class="n">DamageDispatcher</span><span class="o">.</span><span class="n">add_target</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_damage_target</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">ship</span>
+
+   <span class="k">def</span> <span class="nf">on_damage_target</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">damage_event</span><span class="p">):</span>
+      <span class="k">pass</span>
+</pre></div>
+</div>
+<p>damage_amount: float, how much damage was done
+damage_type: string, tag of damage type. ‘destroyed’ means that this event is really a dead event, not a damage event
+event_time: long int, time this damage occured, compare to simulation.time_tick_counter
+source_id: int, ID of unit that caused the damage.  Might be zero.
+source_parent_id: int, ID of PARENT of unit that caused the damage.  Might be zero.
+target_id: int, ID of unit that suffered the damage</p>
+</div></blockquote>
+</section>
 </section>
 <section id="module-sbs_utils.damagedispatcher">
 <span id="api-damagedispatcher-module"></span><h2>API: damagedispatcher module<a class="headerlink" href="#module-sbs_utils.damagedispatcher" title="Permalink to this heading"></a></h2>

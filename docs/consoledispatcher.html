@@ -57,6 +57,7 @@
 <li class="toctree-l1"><a class="reference internal" href="gui.html">GUI system</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Console Dispatcher</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#artemis-cosmos-console-system">Artemis Cosmos console system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#sbs-utils-console-system">sbs_utils console system</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#example-adding-comms-to-a-class">Example: Adding Comms to a class</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#example-sending-selection-info">Example: Sending selection info</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#example-sending-comms-buttons">Example: Sending comms buttons</a></li>
@@ -73,6 +74,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/overview.html">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/setup.html">Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/entry.html">Entry Points, events, and handlers</a></li>
 </ul>
 
         </div>
@@ -106,6 +108,9 @@
 <h2>Artemis Cosmos console system<a class="headerlink" href="#artemis-cosmos-console-system" title="Permalink to this heading"></a></h2>
 <p>Artemis Cosmos calls the script function HandleConsoleObjectSelection when an item is selected on a console.</p>
 <p>Artemis Cosmos calls the script function HandleCommsButton when a button is pressed on a comms console.</p>
+</section>
+<section id="sbs-utils-console-system">
+<h2>sbs_utils console system<a class="headerlink" href="#sbs-utils-console-system" title="Permalink to this heading"></a></h2>
 <p>The ConsoleDispatcher is intended receive these and route them to callback functions.
 This can further be used to direct these to classes that represent the ships enabling the handling of this code to be handled in context of the ship(s) involved.</p>
 <p>The HandleConsoleObjectSelection should call <a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_select" title="sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_select"><code class="xref py py-meth docutils literal notranslate"><span class="pre">dispatch_select()</span></code></a>

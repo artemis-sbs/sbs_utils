@@ -9,12 +9,15 @@ Artemis Cosmos calls the script function HandleConsoleObjectSelection when an it
 
 Artemis Cosmos calls the script function HandleCommsButton when a button is pressed on a comms console.
 
+
+sbs_utils console system
+------------------------------
+
 The ConsoleDispatcher is intended receive these and route them to callback functions.
 This can further be used to direct these to classes that represent the ships enabling the handling of this code to be handled in context of the ship(s) involved.
 
 The HandleConsoleObjectSelection should call :py:meth:`~sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_select`
 The HandleCommsButton should call :py:meth:`~sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_comms_message`
-
 
 
 .. code-block:: python

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Adding Gui pages and using the Gui System &mdash; SBS Utils 1.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/graphviz.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Entry Points, events, and handlers" href="entry.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> SBS Utils
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../index_desc.html">Utilities for Artemis Cosmos</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../index_contrib.html">Contribution</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../spaceobject.html">Space Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../roles.html">The roles system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../targeting.html">The targeting system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vec.html">The vector class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../scatter.html">The Scatter modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faces.html">The Faces module</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Systems:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../gui.html">GUI system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../consoledispatcher.html">Console Dispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../damagedispatcher.html">The Damage Dispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tickdispatcher.html">TickDispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../hookhandlers.html">The hook Handlers</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="setup.html">Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="entry.html">Entry Points, events, and handlers</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Adding Gui pages and using the Gui System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#sbs-utils-gui-system">sbs_utils GUI system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#creating-a-page">Creating a Page</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#multiple-pages">Multiple Pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-multiple-pages">Example Multiple Pages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#complex-page-hierarchies">Complex page hierarchies</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">SBS Utils</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Adding Gui pages and using the Gui System</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/tutorials/gui.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="adding-gui-pages-and-using-the-gui-system">
+<h1>Adding Gui pages and using the Gui System<a class="headerlink" href="#adding-gui-pages-and-using-the-gui-system" title="Permalink to this heading"></a></h1>
+<p>Scripted GUIs are presented at various times.</p>
+<ul class="simple">
+<li><p>Server during Mission selection and simulation pause</p></li>
+<li><p>Client during Console Select screen</p></li>
+</ul>
+<p>At the low level, a mission script can handle HandlePresentGui, HandlePresentGUIMessage, HandleClientConnect to presnet a GUI.</p>
+<p>At this low level this can get more complicated as you get multiple clients, and if the script needs more ‘pages’ of content to present.</p>
+<section id="sbs-utils-gui-system">
+<h2>sbs_utils GUI system<a class="headerlink" href="#sbs-utils-gui-system" title="Permalink to this heading"></a></h2>
+<p>The sbs_utils Gui system is provided to help manage multiple client and pages easily.</p>
+<p>Clients are managed seamlessly and the focus is creating a Page and defining the start page for the server and clients.</p>
+</section>
+<section id="creating-a-page">
+<h2>Creating a Page<a class="headerlink" href="#creating-a-page" title="Permalink to this heading"></a></h2>
+<p>A Page is a single class that allow the presentation and handling of messages in on place that can have data.</p>
+<p>Below is the ‘hello, world’ of mission script using sbs_utils.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># enable sbs_utils systems and implement handlers</span>
+<span class="kn">from</span> <span class="nn">sbs_utils.handlerhooks</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="c1"># bring in the Gui system and Page base class</span>
+<span class="kn">from</span> <span class="nn">sbs_utils.gui</span> <span class="kn">import</span> <span class="n">Page</span><span class="p">,</span> <span class="n">Gui</span>
+<span class="c1"># the artemis cosmos engine</span>
+<span class="kn">import</span> <span class="nn">sbs</span>
+
+<span class="k">class</span> <span class="nc">StartPage</span><span class="p">(</span><span class="n">Page</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">present</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">clientID</span><span class="p">):</span>
+        <span class="c1"># clear the gui for the client</span>
+        <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_clear</span><span class="p">(</span><span class="n">clientID</span><span class="p">)</span>
+        <span class="c1"># add a text box</span>
+        <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_text</span><span class="p">(</span>
+                    <span class="n">clientID</span><span class="p">,</span> <span class="s2">&quot;Hello, GUI&quot;</span><span class="p">,</span> <span class="s2">&quot;text&quot;</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">99</span><span class="p">,</span> <span class="mi">90</span><span class="p">)</span>
+        <span class="c1"># add a button</span>
+        <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_button</span><span class="p">(</span><span class="n">clientID</span><span class="p">,</span> <span class="s2">&quot;Start&quot;</span><span class="p">,</span> <span class="s2">&quot;start&quot;</span><span class="p">,</span> <span class="mi">80</span><span class="p">,</span><span class="mi">90</span><span class="p">,</span> <span class="mi">99</span><span class="p">,</span><span class="mi">99</span><span class="p">)</span>
+
+
+    <span class="k">def</span> <span class="nf">on_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">message_tag</span><span class="p">,</span> <span class="n">clientID</span><span class="p">,</span> <span class="n">_</span><span class="p">):</span>
+        <span class="c1"># if the message_tag is &#39;start&#39; the button is pressed</span>
+        <span class="k">if</span> <span class="n">message_tag</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+            <span class="c1"># start the mission</span>
+            <span class="n">sbs</span><span class="o">.</span><span class="n">create_new_sim</span><span class="p">()</span>
+            <span class="n">sbs</span><span class="o">.</span><span class="n">resume_sim</span><span class="p">()</span>
+            <span class="n">start_mission</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">start_mission</span><span class="p">(</span><span class="n">sim</span><span class="p">):</span>
+    <span class="c1"># create the world</span>
+    <span class="k">pass</span>
+
+<span class="c1"># Set the start page as the start page for the server</span>
+<span class="n">Gui</span><span class="o">.</span><span class="n">server_start_page_class</span><span class="p">(</span><span class="n">StartPage</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>With this script, selecting the mission in Artemis Cosmos will present the GUI and allow the mission to start. The world will be empty at this point.</p>
+<p>Notice the clientID is passed to the page. Client id for the server is 0 and the id for other clients are non-zero. These client ids are managed by the gui system.</p>
+<p>Also, the page’s gui components are created in present using the engine’s calls for this.</p>
+<p>The engine (sbs) defines functions to ‘send’ to the GUI. The Artemis Cosmos ‘data’ folder has a file called script_documentation.txt which has the documentation for these functions.</p>
+<dl class="simple">
+<dt>The following are some of functions:</dt><dd><p>send_gui_clear(…)
+send_gui_3dship(…)
+send_gui_button(…)
+send_gui_checkbox(…)
+send_gui_face(…)
+send_gui_slider(…)
+send_gui_text(…)</p>
+</dd>
+</dl>
+<p>Generally these functions take:
+- A client ID - for which client
+- Data for the control
+- a ‘message tag’ which identifies the control
+- it location - location is a percentage on the screen for left, top, right, bottom</p>
+<p>So the following creates a text box with “Hello, GUI”. The ID of the control is text. and is taking up the box from 25% from the left, 30% from the top, to 99% from the left, 90% from the top</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_text</span><span class="p">(</span><span class="n">clientID</span><span class="p">,</span> <span class="s2">&quot;Hello, GUI&quot;</span><span class="p">,</span> <span class="s2">&quot;text&quot;</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">99</span><span class="p">,</span> <span class="mi">90</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="multiple-pages">
+<h2>Multiple Pages<a class="headerlink" href="#multiple-pages" title="Permalink to this heading"></a></h2>
+<p>Pages can be used present a more complex set of screens. Like a stack of plates, or like apps on a phone a stack of pages can have multiple pages while only displaying the top page.
+Removing the top page, the previous one becomes the top/active page.</p>
+<p>The sbs_utils GUI system provides simple methods to manages multiple pages.</p>
+<p>Call Gui. <a class="reference internal" href="../gui.html#sbs_utils.gui.Gui.push" title="sbs_utils.gui.Gui.push"><code class="xref py py-meth docutils literal notranslate"><span class="pre">push()</span></code></a> To place a new active Page</p>
+<div class="graphviz"><img src="../_images/graphviz-65ace05a12f9208ad6a74cbc53c8e097bc87505f.png" alt="digraph G {
+   node [shape=box, fontname=&quot;Arial&quot;];
+   constraint=false;
+   rankdir=&quot;LR&quot;;
+   //splines=&quot;ortho&quot;;
+
+   sp [label=&quot;StartPage&quot;];
+   op [label=&quot;Options&quot;];
+
+
+   sp -&gt; op [label=&quot;push&quot;];
+}" class="graphviz" /></div>
+<p>Call Gui. <a class="reference internal" href="../gui.html#sbs_utils.gui.Gui.pop" title="sbs_utils.gui.Gui.pop"><code class="xref py py-meth docutils literal notranslate"><span class="pre">pop()</span></code></a> To deactivate an active Page and activate the previous page.</p>
+<div class="graphviz"><img src="../_images/graphviz-6b2883a00c5541aa633b8b5dccc726e8a835fd24.png" alt="digraph G {
+   node [shape=box, fontname=&quot;Arial&quot;];
+   //constraint=false;
+   rankdir=&quot;LR&quot;;
+   ordering=in;
+   splines=&quot;ortho&quot;;
+
+   sp [label=&quot;StartPage&quot;];
+   op [label=&quot;Options&quot;  style=dashed];
+
+   sp -&gt; op [weight=10;style=invis]
+   op -&gt; sp [label=&quot;pop&quot;];
+}" class="graphviz" /></div>
+</section>
+<section id="example-multiple-pages">
+<h2>Example Multiple Pages<a class="headerlink" href="#example-multiple-pages" title="Permalink to this heading"></a></h2>
+<p>The following example adds a New Sub Page class and modifies the start page to add activate the new sub page.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">StartPage</span><span class="p">(</span><span class="n">Page</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">present</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">CID</span><span class="p">):</span>
+        <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_clear</span><span class="p">(</span><span class="n">CID</span><span class="p">)</span>
+        <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_text</span><span class="p">(</span><span class="n">CID</span><span class="p">,</span> <span class="s2">&quot;Hello, GUI&quot;</span><span class="p">,</span> <span class="s2">&quot;text&quot;</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">99</span><span class="p">,</span> <span class="mi">90</span><span class="p">)</span>
+        <span class="c1">#added button to show a sub page</span>
+        <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_button</span><span class="p">(</span><span class="n">CID</span><span class="p">,</span> <span class="s2">&quot;Sub page&quot;</span><span class="p">,</span> <span class="s2">&quot;subpage&quot;</span><span class="p">,</span>  <span class="mi">85</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span> <span class="mi">99</span><span class="p">,</span> <span class="mi">94</span><span class="p">)</span>
+        <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_button</span><span class="p">(</span><span class="n">CID</span><span class="p">,</span> <span class="s2">&quot;Start&quot;</span><span class="p">,</span> <span class="s2">&quot;start&quot;</span><span class="p">,</span> <span class="mi">80</span><span class="p">,</span><span class="mi">95</span><span class="p">,</span> <span class="mi">99</span><span class="p">,</span><span class="mi">99</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">on_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">message_tag</span><span class="p">,</span> <span class="n">clientID</span><span class="p">,</span> <span class="n">_</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">message_tag</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+            <span class="c1"># start the mission</span>
+            <span class="n">sbs</span><span class="o">.</span><span class="n">create_new_sim</span><span class="p">()</span>
+            <span class="n">sbs</span><span class="o">.</span><span class="n">resume_sim</span><span class="p">()</span>
+            <span class="n">start_mission</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
+        <span class="c1"># added button handler for sub page</span>
+        <span class="k">if</span> <span class="n">message_tag</span> <span class="o">==</span> <span class="s1">&#39;subpage&#39;</span><span class="p">:</span>
+            <span class="n">Gui</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="n">clientID</span><span class="p">,</span> <span class="n">SubPage</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>The New subPage can stack multiple sub pages on top of each other.
+The back button returns to the previous page.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">SubPage</span><span class="p">(</span><span class="n">Page</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">present</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">CID</span><span class="p">):</span>
+        <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_clear</span><span class="p">(</span><span class="n">CID</span><span class="p">)</span>
+        <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_text</span><span class="p">(</span>
+                    <span class="n">CID</span><span class="p">,</span> <span class="s2">&quot;Sub Page&quot;</span><span class="p">,</span> <span class="s2">&quot;text&quot;</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">99</span><span class="p">,</span> <span class="mi">90</span><span class="p">)</span>
+
+        <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_button</span><span class="p">(</span><span class="n">CID</span><span class="p">,</span> <span class="s2">&quot;Back&quot;</span><span class="p">,</span> <span class="s2">&quot;back&quot;</span><span class="p">,</span>  <span class="mi">85</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span> <span class="mi">99</span><span class="p">,</span> <span class="mi">94</span><span class="p">)</span>
+        <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_button</span><span class="p">(</span><span class="n">CID</span><span class="p">,</span> <span class="s2">&quot;Another&quot;</span><span class="p">,</span> <span class="s2">&quot;again&quot;</span><span class="p">,</span>  <span class="mi">85</span><span class="p">,</span> <span class="mi">95</span><span class="p">,</span> <span class="mi">99</span><span class="p">,</span> <span class="mi">99</span><span class="p">)</span>
+
+
+    <span class="k">def</span> <span class="nf">on_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">message_tag</span><span class="p">,</span> <span class="n">clientID</span><span class="p">,</span> <span class="n">_</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">message_tag</span> <span class="o">==</span> <span class="s1">&#39;back&#39;</span><span class="p">:</span>
+            <span class="n">Gui</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="n">clientID</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">message_tag</span> <span class="o">==</span> <span class="s1">&#39;again&#39;</span><span class="p">:</span>
+            <span class="n">Gui</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="n">clientID</span><span class="p">,</span> <span class="n">SubPage</span><span class="p">())</span>
+</pre></div>
+</div>
+<section id="complex-page-hierarchies">
+<h3>Complex page hierarchies<a class="headerlink" href="#complex-page-hierarchies" title="Permalink to this heading"></a></h3>
+<p>The GUI systems’s stack and navigating via push and pop can allow for deep and complex GUI screens.</p>
+<p>For example a main StartPage could navigate to an Option page that can either navigate to a ship picker Page or an Avatar Editor.</p>
+<div class="graphviz"><img src="../_images/graphviz-286e58a0803a34cebbaf2f47ed690c43860264bc.png" alt="digraph G {
+   node [shape=box, fontname=&quot;Arial&quot;];
+   constraint=false;
+   rankdir=&quot;LR&quot;;
+   //splines=&quot;ortho&quot;;
+
+   subgraph cluster_main {
+      label=&quot;Main pages&quot;
+      sp;
+      op;
+   }
+   subgraph cluster_pages {
+      label=&quot;option sub pages&quot;;
+      pick;
+      av;
+   }
+
+
+
+   sp [label=&quot;StartPage&quot;];
+   op [label=&quot;Options&quot;];
+   av [label=&quot;Avatar Editor&quot;];
+   pick [label=&quot;ShipPicker&quot;];
+
+
+   sp -&gt; op [label=&quot;push&quot;];
+   op -&gt; sp [label=&quot;pop&quot;];
+
+   op -&gt; pick [label=&quot;push&quot;];
+   pick -&gt; op [label=&quot;pop&quot;];
+
+
+
+   av -&gt; op [label=&quot;pop&quot;];
+   op -&gt; av [label=&quot;push&quot;];
+}" class="graphviz" /></div>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="entry.html" class="btn btn-neutral float-left" title="Entry Points, events, and handlers" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Doug Reichard.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -44,6 +44,8 @@ Welcome to SBS Utils's documentation!
    
    tutorials/overview
    tutorials/setup
+   tutorials/entry
+   tutorials/gui
    
 
 
