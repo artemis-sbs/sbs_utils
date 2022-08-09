@@ -20,7 +20,7 @@ Clients are managed seamlessly and the focus is creating a Page and defining the
 Creating a Page
 -----------------
 
-A Page is a single class that allow the presentation and handling of messages in on place that can have data.
+A Page is a single class that allows the presentation and handling of messages in one place that can have data.
 
 Below is the 'hello, world' of mission script using sbs_utils.
 
@@ -68,15 +68,18 @@ Also, the page's gui components are created in present using the engine's calls 
 The engine (sbs) defines functions to 'send' to the GUI. The Artemis Cosmos 'data' folder has a file called script_documentation.txt which has the documentation for these functions.
 
 The following are some of functions:
-    send_gui_clear(...)
-    send_gui_3dship(...)
-    send_gui_button(...)
-    send_gui_checkbox(...)
-    send_gui_face(...)
-    send_gui_slider(...)
-    send_gui_text(...)
+
+|    send_gui_clear(...)
+|    send_gui_3dship(...)
+|    send_gui_button(...)
+|    send_gui_checkbox(...)
+|    send_gui_face(...)
+|    send_gui_slider(...)
+|    send_gui_text(...)
+
 
 Generally these functions take:
+
 - A client ID - for which client
 - Data for the control
 - a 'message tag' which identifies the control

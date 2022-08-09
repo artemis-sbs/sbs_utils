@@ -116,7 +116,7 @@
 </section>
 <section id="creating-a-page">
 <h2>Creating a Page<a class="headerlink" href="#creating-a-page" title="Permalink to this heading"></a></h2>
-<p>A Page is a single class that allow the presentation and handling of messages in on place that can have data.</p>
+<p>A Page is a single class that allows the presentation and handling of messages in one place that can have data.</p>
 <p>Below is the ‘hello, world’ of mission script using sbs_utils.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># enable sbs_utils systems and implement handlers</span>
 <span class="kn">from</span> <span class="nn">sbs_utils.handlerhooks</span> <span class="kn">import</span> <span class="o">*</span>
@@ -156,21 +156,23 @@
 <p>Notice the clientID is passed to the page. Client id for the server is 0 and the id for other clients are non-zero. These client ids are managed by the gui system.</p>
 <p>Also, the page’s gui components are created in present using the engine’s calls for this.</p>
 <p>The engine (sbs) defines functions to ‘send’ to the GUI. The Artemis Cosmos ‘data’ folder has a file called script_documentation.txt which has the documentation for these functions.</p>
-<dl class="simple">
-<dt>The following are some of functions:</dt><dd><p>send_gui_clear(…)
-send_gui_3dship(…)
-send_gui_button(…)
-send_gui_checkbox(…)
-send_gui_face(…)
-send_gui_slider(…)
-send_gui_text(…)</p>
-</dd>
-</dl>
-<p>Generally these functions take:
-- A client ID - for which client
-- Data for the control
-- a ‘message tag’ which identifies the control
-- it location - location is a percentage on the screen for left, top, right, bottom</p>
+<p>The following are some of functions:</p>
+<div class="line-block">
+<div class="line">send_gui_clear(…)</div>
+<div class="line">send_gui_3dship(…)</div>
+<div class="line">send_gui_button(…)</div>
+<div class="line">send_gui_checkbox(…)</div>
+<div class="line">send_gui_face(…)</div>
+<div class="line">send_gui_slider(…)</div>
+<div class="line">send_gui_text(…)</div>
+</div>
+<p>Generally these functions take:</p>
+<ul class="simple">
+<li><p>A client ID - for which client</p></li>
+<li><p>Data for the control</p></li>
+<li><p>a ‘message tag’ which identifies the control</p></li>
+<li><p>it location - location is a percentage on the screen for left, top, right, bottom</p></li>
+</ul>
 <p>So the following creates a text box with “Hello, GUI”. The ID of the control is text. and is taking up the box from 25% from the left, 30% from the top, to 99% from the left, 90% from the top</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_text</span><span class="p">(</span><span class="n">clientID</span><span class="p">,</span> <span class="s2">&quot;Hello, GUI&quot;</span><span class="p">,</span> <span class="s2">&quot;text&quot;</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">99</span><span class="p">,</span> <span class="mi">90</span><span class="p">)</span>
 </pre></div>

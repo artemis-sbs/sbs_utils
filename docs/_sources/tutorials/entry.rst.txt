@@ -5,7 +5,7 @@ Computer programs need a place to start executing code. This is where the system
 
 Artemis Cosmos has multiple entry points. These are where the Artemis Cosmos engine calls code in a missions script.
 
-Artemis Cosmos has certain events that occur where it allows scripters do alter how the game runs.
+Artemis Cosmos has certain events that occur where it allows scripters to alter how the game runs.
 
 The events include:
 
@@ -77,7 +77,7 @@ sbs_utils provides two things to make creating missions scripts simpler.
 sbs_utils systems
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Systems provide a for handling things in a common why.
+Systems provide for handling things in a common why. These are the system sbs_utils provides.
 
 - The GUI System
 - The tick Dispatcher
@@ -85,20 +85,23 @@ Systems provide a for handling things in a common why.
 - The Console Dispatcher
 
 
-The Gui system is handles presentation of Guis. It does so by handling the HandlePresentGui, HandlePresentGUIMessage, and HandleClientConnect.
+The Gui system handles presentation of Guis. It does so by handling the HandlePresentGui, HandlePresentGUIMessage, and HandleClientConnect.
+
 The Tick Dispatcher handle the HandleSimulationTick by providing time delayed function calls.
+
 The Damage Dispatcher is for handling the HandleDamageEvent.
-The Console Dispatcher  is for handling the HandleConsoleObjectSelection and HandleCommsButton.
+
+The Console Dispatcher is for handling the HandleConsoleObjectSelection and HandleCommsButton.
 
 default handlers
 ^^^^^^^^^^^^^^^^^^^
 
 sbs_utils provides a default implementation of all the Entry point handlers.
-The default behavior implements the hnadlers to call the appropriate sbs_utils system as described above.
+The default behavior implements the handlers to call the appropriate sbs_utils system as described above.
 
-to use the default handlers and connect a mission script to these systems.
+To use the default handlers and connect a mission script to these systems do the following.
 
-In a mission's script.py import the handlers with the one line below. With that that should be it. The mission script should now be set to use sbs_utils systems and provide all handlers.
+In a mission's script.py import the handlers with the one line below. That should be it. The mission script should now be set to use sbs_utils systems and provide all handlers.
 
 .. code-block:: python
     

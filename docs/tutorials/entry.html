@@ -105,7 +105,7 @@
 <h1>Entry Points, events, and handlers<a class="headerlink" href="#entry-points-events-and-handlers" title="Permalink to this heading"></a></h1>
 <p>Computer programs need a place to start executing code. This is where the system calls code. This is called an entry point where the system enters code that extends it.</p>
 <p>Artemis Cosmos has multiple entry points. These are where the Artemis Cosmos engine calls code in a missions script.</p>
-<p>Artemis Cosmos has certain events that occur where it allows scripters do alter how the game runs.</p>
+<p>Artemis Cosmos has certain events that occur where it allows scripters to alter how the game runs.</p>
 <p>The events include:</p>
 <ul class="simple">
 <li><p>Presenting GUI elements</p></li>
@@ -167,24 +167,24 @@
 </ul>
 <section id="sbs-utils-systems">
 <h3>sbs_utils systems<a class="headerlink" href="#sbs-utils-systems" title="Permalink to this heading"></a></h3>
-<p>Systems provide a for handling things in a common why.</p>
+<p>Systems provide for handling things in a common why. These are the system sbs_utils provides.</p>
 <ul class="simple">
 <li><p>The GUI System</p></li>
 <li><p>The tick Dispatcher</p></li>
 <li><p>The Damage Dispatcher</p></li>
 <li><p>The Console Dispatcher</p></li>
 </ul>
-<p>The Gui system is handles presentation of Guis. It does so by handling the HandlePresentGui, HandlePresentGUIMessage, and HandleClientConnect.
-The Tick Dispatcher handle the HandleSimulationTick by providing time delayed function calls.
-The Damage Dispatcher is for handling the HandleDamageEvent.
-The Console Dispatcher  is for handling the HandleConsoleObjectSelection and HandleCommsButton.</p>
+<p>The Gui system handles presentation of Guis. It does so by handling the HandlePresentGui, HandlePresentGUIMessage, and HandleClientConnect.</p>
+<p>The Tick Dispatcher handle the HandleSimulationTick by providing time delayed function calls.</p>
+<p>The Damage Dispatcher is for handling the HandleDamageEvent.</p>
+<p>The Console Dispatcher is for handling the HandleConsoleObjectSelection and HandleCommsButton.</p>
 </section>
 <section id="default-handlers">
 <h3>default handlers<a class="headerlink" href="#default-handlers" title="Permalink to this heading"></a></h3>
 <p>sbs_utils provides a default implementation of all the Entry point handlers.
-The default behavior implements the hnadlers to call the appropriate sbs_utils system as described above.</p>
-<p>to use the default handlers and connect a mission script to these systems.</p>
-<p>In a mission’s script.py import the handlers with the one line below. With that that should be it. The mission script should now be set to use sbs_utils systems and provide all handlers.</p>
+The default behavior implements the handlers to call the appropriate sbs_utils system as described above.</p>
+<p>To use the default handlers and connect a mission script to these systems do the following.</p>
+<p>In a mission’s script.py import the handlers with the one line below. That should be it. The mission script should now be set to use sbs_utils systems and provide all handlers.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">lib.sbs_utils.handlerhooks</span> <span class="kn">import</span> <span class="o">*</span>
 </pre></div>
 </div>
