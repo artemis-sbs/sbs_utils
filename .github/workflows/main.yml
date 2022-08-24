@@ -13,7 +13,7 @@ jobs:
       with:
         type: 'zip'
         filename: 'sbs_utils.sbslib'
-        exclusions: '*.git* /docs/* /mock/* /sphinx/* /tests/* *.py'
+        exclusions: '*.git* /docs/* /mock/* /sphinx/* /tests/* *.py .nojekyll'
 
     - name: Upload Release
       uses: ncipollo/release-action@v1

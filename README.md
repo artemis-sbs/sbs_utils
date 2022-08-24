@@ -23,4 +23,10 @@ note: The docs use Graphviz to generate some images.
 the location of graphviz may need to change in the conf.py for sphinx since it is hard coded to a location that is not likely the same for everyone.
 
 
+### Creating a version release and sbslib
+This uses github actions to create the release when a tag is created.
 
+```
+git tag -a vXX.XX.XX -m "Some comment"
+git push --tags
+```
