@@ -27,9 +27,9 @@ Below is the 'hello, world' of mission script using sbs_utils.
 .. code-block:: python
 
     # enable sbs_utils systems and implement handlers
-    from sbs_utils.handlerhooks import *
+    from lib.sbs_utils.handlerhooks import *
     # bring in the Gui system and Page base class
-    from sbs_utils.gui import Page, Gui
+    from lib.sbs_utils.gui import Page, Gui
     # the artemis cosmos engine
     import sbs
 
@@ -147,12 +147,12 @@ The following example adds a New Sub Page class and modifies the start page to a
 .. code-block:: python
 
     class StartPage(Page):
-        def present(self, sim, CID):
-            sbs.send_gui_clear(CID)
-            sbs.send_gui_text(CID, "Hello, GUI", "text", 25, 30, 99, 90)
+        def present(self, sim, clientID):
+            sbs.send_gui_clear(clientID)
+            sbs.send_gui_text(clientID, "Hello, GUI", "text", 25, 30, 99, 90)
             #added button to show a sub page
-            sbs.send_gui_button(CID, "Sub page", "subpage",  85, 90, 99, 94)        
-            sbs.send_gui_button(CID, "Start", "start", 80,95, 99,99)
+            sbs.send_gui_button(clientID, "Sub page", "subpage",  80, 90, 99, 94)        
+            sbs.send_gui_button(clientID, "Start", "start", 80,95, 99,99)
 
         def on_message(self, sim, message_tag, clientID, _):
             if message_tag == 'start':
@@ -171,13 +171,13 @@ The back button returns to the previous page.
 
     class SubPage(Page):
 
-        def present(self, sim, CID):
-            sbs.send_gui_clear(CID)
+        def present(self, sim, clientID):
+            sbs.send_gui_clear(clientID)
             sbs.send_gui_text(
-                        CID, "Sub Page", "text", 25, 30, 99, 90)
+                        clientID, "Sub Page", "text", 25, 30, 99, 90)
             
-            sbs.send_gui_button(CID, "Back", "back",  85, 90, 99, 94)
-            sbs.send_gui_button(CID, "Another", "again",  85, 95, 99, 99)
+            sbs.send_gui_button(clientID, "Back", "back",  80, 90, 99, 94)
+            sbs.send_gui_button(clientID, "Another", "again",  80, 95, 99, 99)
             
 
         def on_message(self, sim, message_tag, clientID, _):
