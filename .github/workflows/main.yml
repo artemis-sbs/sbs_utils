@@ -12,11 +12,11 @@ jobs:
       uses: thedoctor0/zip-release@main
       with:
         type: 'zip'
-        filename: 'sbs_utils_${CI_ACTION_REF_NAME}.sbslib'
+        filename: 'sbs_utils_${{ env.CI_ACTION_REF_NAME }}.sbslib'
         exclusions: '*.git* /docs/* /mock/* /sphinx/* /tests/* *.py .nojekyll'
 
     - name: Upload Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "sbs_utils.sbslib"
+        artifacts: "sbs_utils_${{ env.CI_ACTION_REF_NAME }}.sbslib"
         token: ${{ secrets.GITHUB_TOKEN }}
