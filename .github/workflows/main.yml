@@ -8,18 +8,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Set env version
-      run: |
-        echo "VERSION=$CI_ACTION_REF_NAME" >> $GITHUB_ENV
+      id: get_version
+      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+      
     - uses: actions/checkout@master
     - name: Archive Release
       uses: thedoctor0/zip-release@main
       with:
         type: 'zip'
-        filename: 'sbs_utils_${{ env.VERSION }}.sbslib'
+        filename: 'sbs_utils_${{ steps.get_version.outputs.VERSION }}.sbslib'
         exclusions: '*.git* /docs/* /mock/* /sphinx/* /tests/* *.py .nojekyll'
 
     - name: Upload Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "sbs_utils_${{ env.VERSION }}.sbslib"
+        artifacts: "sbs_utils_${{ steps.get_version.outputs.VERSION }}.sbslib"
         token: ${{ secrets.GITHUB_TOKEN }}
