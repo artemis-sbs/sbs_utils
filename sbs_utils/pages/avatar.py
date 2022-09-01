@@ -4,8 +4,8 @@ from .. import layout as layout
 import sbs
 from .. import faces as faces
 
-import ctypes
-MessageBox = ctypes.windll.user32.MessageBoxW
+# import ctypes
+# MessageBox = ctypes.windll.user32.MessageBoxW
 
 
 
@@ -70,7 +70,9 @@ class AvatarEditor(Page):
         self.face = faces.Characters.URSULA
         self.cur = [0,0,0,0,0,0, 0,0,0,0,0,0]
 
-    def present(self, sim, CID):
+    def present(self, sim, event):
+        CID = event.client_id
+
         if self.gui_state == "presenting":
             return
         sbs.send_gui_clear(CID)
@@ -131,15 +133,15 @@ class AvatarEditor(Page):
             v += 1
 
 
-    def on_message(self, sim, message_tag, clientID, data):
+    def on_message(self, sim, event):
         v = self.cur
-        if message_tag == 'back':
-            Gui.pop(sim,clientID)
+        if event.sub_tag == 'back':
+            Gui.pop(sim,event.client_id)
 
-        if message_tag.startswith("op:"):
+        if event.sub_tag.startswith("op:"):
             
             try:
-                val = int(message_tag[3:])
+                val = int(event.sub_tag[3:])
                 widgets = AvatarEditor.widgets.get(self.race)
                 if widgets is not None:
                     enable = not widgets[val]["optional"]
@@ -152,10 +154,10 @@ class AvatarEditor(Page):
                 pass
         else:
             try:
-                val = int(message_tag)
-                self.cur[val] = round(data)
+                val = int(event.sub_tag)
+                self.cur[val] = round(event.sub_float)
             except:
-                self.race = message_tag
+                self.race = event.sub_tag
 
         match self.race:
             case "arv":
@@ -185,4 +187,4 @@ class AvatarEditor(Page):
                 pass
 
         self.gui_state = self.race
-        self.present(sim, clientID)
+        self.present(sim, event)

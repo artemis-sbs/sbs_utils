@@ -18,7 +18,7 @@ class Widget:
         self.left= left
         self.top = top
 
-    def present(self, sim):
+    def present(self, sim, event):
         """ present
 
         Called to have the page create and update the gui content it is presenting
@@ -28,7 +28,7 @@ class Widget:
         """
         pass
 
-    def on_message(self, sim, message_tag, clientID, data):
+    def on_message(self, sim, event):
         """ on_message
 
         Called when a control on the page has been interacted with
@@ -49,7 +49,7 @@ class Page:
 
     """
 
-    def present(self, sim):
+    def present(self, sim, event):
         """ present
 
         Called to have the page create and update the gui content it is presenting
@@ -59,7 +59,7 @@ class Page:
         """
         pass
 
-    def on_message(self, sim, message_tag, clientID, data):
+    def on_message(self, sim, event):
         """ on_message
 
         Called when a control on the page has been interacted with
@@ -82,9 +82,9 @@ class GuiClient:
     """
 
 
-    def __init__(self, clientID):
+    def __init__(self, client_id):
         self.page_stack = []
-        self.clientID = clientID
+        self.client_id = client_id
 
     def push(self, sim, page):
         """ push
@@ -96,9 +96,9 @@ class GuiClient:
         :param page: 
         :type Page: A GUI Page
         """
-        
+        event = FakeEvent(self.client_id)
         self.page_stack.append(page)
-        self.present(sim, self.clientID)
+        self.present(sim, event)
 
     def pop(self, sim):
         """ pop
@@ -109,10 +109,11 @@ class GuiClient:
         :type sim: Artemis Cosmos simulation
         """
         ret = self.page_stack.pop()
-        self.present(sim, self.clientID)
+        event = FakeEvent(self.client_id)
+        self.present(sim, event)
         return ret
 
-    def present(self, sim, CID):
+    def present(self, sim,  event):
         """ present
 
         Presents the top Page for the specified clientID by calling present on that page
@@ -123,9 +124,12 @@ class GuiClient:
         :type int: A client ID
         """
         if len(self.page_stack) > 0:
-            self.page_stack[-1].present(sim, CID)
+            self.page_stack[-1].present(sim, event)
 
-    def on_message(self, sim, message_tag, clientID, data):
+    def on_pop(self, sim):
+        pass
+
+    def on_message(self, sim, event):
         """ on_message
 
         Calls the on_message on the top page of the specified client by calling on_message
@@ -140,7 +144,11 @@ class GuiClient:
         :type clientID: None or str or float
         """
         if len(self.page_stack) > 0:
-            self.page_stack[-1].on_message(sim, message_tag, clientID, data)
+            self.page_stack[-1].on_message(sim, event)
+
+class FakeEvent:
+    def __init__(self, client_id):
+        self.client_id = client_id
 
 
 class Gui:
@@ -177,7 +185,7 @@ class Gui:
         Gui._client_start_page = cls_page
 
     @staticmethod
-    def add_client(sim, clientID):
+    def add_client(sim, event):
         """ add_client
 
         Call when a new client connects.
@@ -187,10 +195,10 @@ class Gui:
         :type int: client id from the engine
         """
         if Gui._client_start_page is not None:
-            Gui.push(sim, clientID, Gui._client_start_page())
+            Gui.push(sim, event.client_id, Gui._client_start_page())
 
     @staticmethod
-    def push(sim, clientID, page):
+    def push(sim, client_id, page):
         """ push
 
         Presents the new Page on the specified client by pushing it on the stack. 
@@ -203,23 +211,24 @@ class Gui:
         :type Page: A GUI Page
         
         """
-        gui = Gui.clients.get(clientID)
+        gui = Gui.clients.get(client_id)
         if gui is not None:
             gui.push(sim, page)
         else:
-            gui = GuiClient(clientID)
-            Gui.clients[clientID] = gui
+            gui = GuiClient(client_id)
+            Gui.clients[client_id] = gui
             gui.push(sim, page)
 
     @staticmethod
-    def pop(sim, clientID):
-        gui = Gui.clients.get(clientID)
+    def pop(sim, client_id):
+        gui = Gui.clients.get(client_id)
         if gui is not None:
+            gui.on_pop(sim)
             return gui.pop(sim)
         return None
 
     @staticmethod
-    def present(sim):
+    def present(sim, event):
         """ present
 
         calls present on all clients
@@ -228,11 +237,12 @@ class Gui:
         :param sim: 
         :type sim: Artemis Cosmos simulation
         """
-        for clientId, gui in Gui.clients.items():
-            gui.present(sim, clientId)
+        for client_id, gui in Gui.clients.items():
+            event = FakeEvent(client_id)
+            gui.present(sim, event)
 
     @staticmethod
-    def on_message(sim, message_tag, clientID, data):
+    def on_message(sim, event):
         """ on_message
 
         Forward to the appropriate GuiClient/Page
@@ -247,6 +257,7 @@ class Gui:
         :param data: Any data associated with the control e.g. slider float value of current value
         :type clientID: None or str or float
         """
-        gui = Gui.clients.get(clientID)
+        # message_tag, clientID, data
+        gui = Gui.clients.get(event.client_id)
         if gui is not None:
-            gui.on_message(sim, message_tag, clientID, data)
+            gui.on_message(sim, event)

@@ -9,7 +9,9 @@ class StartPage(Page):
         self.desc = description
         self.callback = callback
 
-    def present(self, sim, CID):
+    def present(self, sim, event):
+        CID = event.client_id
+
         sbs.send_gui_clear(CID)
         sbs.send_gui_text(
                     CID, self.desc, "text", 25, 30, 99, 90)
@@ -17,8 +19,8 @@ class StartPage(Page):
         sbs.send_gui_button(CID, "Start", "start", 80,90, 99,99)
         
 
-    def on_message(self, sim, message_tag, clientID, _):
-        if message_tag == 'start':
-            self.callback    
+    def on_message(self, sim, event):
+        if event.sub_tag == 'start':
+            self.callback
         
 

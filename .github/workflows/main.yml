@@ -12,7 +12,7 @@ jobs:
       uses: thedoctor0/zip-release@main
       with:
         type: 'zip'
-        filename: 'sbs_utils.sbslib'
+        filename: 'sbs_utils_${CI_ACTION_REF_NAME}.sbslib'
         exclusions: '*.git* /docs/* /mock/* /sphinx/* /tests/* *.py .nojekyll'
 
     - name: Upload Release

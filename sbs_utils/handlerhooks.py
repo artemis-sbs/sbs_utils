@@ -3,29 +3,50 @@ from .consoledispatcher import ConsoleDispatcher
 from .tickdispatcher import TickDispatcher
 from .gui import Gui
 
-# https://drive.google.com/file/d/1JS6KvN-4ahvI4WJsoJq-6Vq_MWl8H812/view?usp=sharing
+
+########################################################################################################
+def  HandleEvent(sim, event):
+
+
+    match(event.tag):
+        case "damage":
+            DamageDispatcher.dispatch_damage(sim,event)
+
+        case "client_connect":
+            Gui.add_client(sim, event)
+
+        case "select_space_object":
+            ConsoleDispatcher.dispatch_select(sim, event.selected_id, event.sub_tag, event.origin_id)
+
+        case "press_comms_button":
+            ConsoleDispatcher.dispatch_comms_message(sim, event.sub_tag, event.origin_id, event.selected_id)
+
+        case "gui_message":
+            Gui.on_message(sim, event)
+
+        case "grid_object":
+            pass
+
+        case _:
+            print (f"Unhandled event {event.tag}")
+        
+
+#	client_id"
+#	parent_id"
+#	origin_id"
+#	selected_id"
+#	tag"
+#	sub_tag"
+#	value_tag"
+#	source_point"
+#	event_time"
+#	sub_float"
 
 
 def HandlePresentGUI(sim):
-    Gui.present(sim)
-
-def HandlePresentGUIMessage(sim, message_tag, clientID, data):
-    Gui.on_message(sim, message_tag, clientID, data)
-
+    Gui.present(sim, None)
 
 def  HandleSimulationTick(sim):
     TickDispatcher.dispatch_tick(sim)
 
-def HandleClientConnect(sim, clientID):
-    Gui.add_client(sim,clientID)
-
-def HandleDamageEvent(sim, damage_event):
-    DamageDispatcher.dispatch_damage(sim,damage_event)
-
-########################################################################################################
-def HandleConsoleObjectSelection(sim, console, obj_selected_id, ship_id):
-    ConsoleDispatcher.dispatch_select(sim,ship_id, console,obj_selected_id)
-########################################################################################################
-def HandleCommsButton(sim, button_tag, ship_id, obj_selected_id):
-    ConsoleDispatcher.dispatch_comms_message(sim, button_tag, ship_id, obj_selected_id)
 

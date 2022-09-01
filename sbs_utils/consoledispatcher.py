@@ -52,7 +52,7 @@ class ConsoleDispatcher:
         """
         ConsoleDispatcher._dispatch_messages.pop((player_id, console))
 
-    def dispatch_select(sim, player_id: int, console: str, other_id):
+    def dispatch_select(sim, event):
         """ dispatches a console selection
         
         :param sim: The simulation
@@ -65,16 +65,17 @@ class ConsoleDispatcher:
         :type other_id: int
         """
 
-        cb = ConsoleDispatcher._dispatch_select.get((player_id, console))
+
+        cb = ConsoleDispatcher._dispatch_select.get((event.origin_id, event.sub_tag))
         if cb is not None:
-            cb(sim, other_id)
+            cb(sim, event.selected_id)
             return
         # Allow to route to the selected ship too
-        cb = ConsoleDispatcher._dispatch_select.get((other_id, console))
+        cb = ConsoleDispatcher._dispatch_select.get((event.selected_id, event.sub_tag))
         if cb is not None:
-            cb(sim, player_id)
+            cb(sim, event.origin_id)
 
-    def dispatch_message(sim, message_tag: str, player_id: int, console: str, other_id):
+    def dispatch_message(sim, event, console: str):
         """ dispatches a console message
         
         :param sim: The simulation
@@ -88,14 +89,14 @@ class ConsoleDispatcher:
         :param other_id: A non player ship ID player
         :type other_id: int
         """
-        cb = ConsoleDispatcher._dispatch_messages.get((player_id, console))
+        cb = ConsoleDispatcher._dispatch_messages.get((event.origin_id, console))
         if cb is not None:
-            cb(sim, message_tag, other_id)
+            cb(sim, event.sub_tag, event.selected_id)
 
-        cb = ConsoleDispatcher._dispatch_messages.get((other_id, console))
+        cb = ConsoleDispatcher._dispatch_messages.get((event.selected_id, console))
         # Allow the target to process
         if cb is not None:
-            cb(sim, message_tag, player_id)
+            cb(sim, event.sub_tag, event.origin_id)
 
     def dispatch_comms_message(sim, message_tag: str, player_id: int,  other_id):
         """ dispatches a comms console message

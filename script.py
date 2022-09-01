@@ -20,21 +20,21 @@ class GuiPage(Page):
         self.pageid = GuiPage.count 
         GuiPage.count += 1
 
-    def present(self, sim, CID):
-        sbs.send_gui_clear(CID)
+    def present(self, sim, event):
+        sbs.send_gui_clear(event.client_id)
         sbs.send_gui_text(
-                    CID, f"Page: {self.pageid}", "text", 25, 30, 99, 90)
+                    event.client_id, f"Page: {self.pageid}", "text", 25, 30, 99, 90)
         w = layout.wrap(99,99, 19, 4,col=1, v_dir=-1, h_dir=-1)
         
-        sbs.send_gui_button(CID, "Back", "back", *next(w))
-        sbs.send_gui_button(CID, "Another", "again", *next(w))
+        sbs.send_gui_button(event.client_id, "Back", "back", *next(w))
+        sbs.send_gui_button(event.client_id, "Another", "again", *next(w))
         
 
-    def on_message(self, sim, message_tag, clientID, _):
-        if message_tag == 'back':
-            Gui.pop(sim,clientID)
-        if message_tag == 'again':
-            Gui.push(sim,clientID, GuiPage())
+    def on_message(self, sim, event):
+        if event.sub_tag == 'back':
+            Gui.pop(sim,event.client_id)
+        if event.sub_tag == 'again':
+            Gui.push(sim,event.client_id, GuiPage())
 
 
 
@@ -44,36 +44,36 @@ class GuiMain(Page):
     def __init__(self) -> None:
         self.gui_state = 'options'
 
-    def present(self, sim, CID):
-        sbs.send_gui_clear(CID)
+    def present(self, sim, event):
+        sbs.send_gui_clear(event.client_id)
         sbs.send_gui_text(
-            CID, "Mission: SBS_Utils unit test.^^This is a unit test for the SBS_Utils library", "text", 25, 30, 99, 90)
+            event.client_id, "Mission: SBS_Utils unit test.^^This is a unit test for the SBS_Utils library", "text", 25, 30, 99, 90)
 
 
         w = layout.wrap(99,99, 19, 4,col=1, v_dir=-1, h_dir=-1)
         
-        sbs.send_gui_button(CID, "Start Mission", "start", *next(w))
-        sbs.send_gui_button(CID, "smoke test", "smoke", *next(w))
-        sbs.send_gui_button(CID, "Vec3 tests", "vec_unit", *next(w))
-        sbs.send_gui_button(CID, "face test", "face", *next(w))
-        sbs.send_gui_button(CID, "face gen", "face_gen", *next(w))
-        sbs.send_gui_button(CID, "Gui Pages", "again", *next(w))
-        sbs.send_gui_button(CID, "Avatar Editor", "avatar", *next(w))
-        sbs.send_gui_button(CID, "Ship Picker", "ship", *next(w))
+        sbs.send_gui_button(event.client_id, "Start Mission", "start", *next(w))
+        sbs.send_gui_button(event.client_id, "smoke test", "smoke", *next(w))
+        sbs.send_gui_button(event.client_id, "Vec3 tests", "vec_unit", *next(w))
+        sbs.send_gui_button(event.client_id, "face test", "face", *next(w))
+        sbs.send_gui_button(event.client_id, "face gen", "face_gen", *next(w))
+        sbs.send_gui_button(event.client_id, "Gui Pages", "again", *next(w))
+        sbs.send_gui_button(event.client_id, "Avatar Editor", "avatar", *next(w))
+        sbs.send_gui_button(event.client_id, "Ship Picker", "ship", *next(w))
 
-    def on_message(self, sim, message_tag, clientID, _):
-        match message_tag:
+    def on_message(self, sim, event):
+        match event.sub_tag:
             case 'again':
                 # reset state here?
-                Gui.push(sim,clientID, GuiPage())
+                Gui.push(sim,event.client_id, GuiPage())
 
             case 'avatar':
                 # reset state here?
-                Gui.push(sim,clientID, AvatarEditor())
+                Gui.push(sim,event.client_id, AvatarEditor())
 
             case 'ship':
                 # reset state here?
-                Gui.push(sim,clientID, ShipPicker())
+                Gui.push(sim,event.client_id, ShipPicker())
 
             case "continue":
                 self.gui_state = "blank"
@@ -160,8 +160,8 @@ class Mission:
                 race = "Kralien"
 
             case 4:
-                face = faces.random_zimni()
-                race = "Zimni"
+                face = faces.random_ximni()
+                race = "Ximni"
 
             case 5:
                 face = faces.random_terran()
@@ -223,7 +223,7 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
         sbs.send_comms_button_info(player_id, "blue", "kralien", "kra")
         sbs.send_comms_button_info(player_id, "blue", "Skaraan", "ska")
         sbs.send_comms_button_info(player_id, "blue", "Torgoth", "tor")
-        sbs.send_comms_button_info(player_id, "blue", "Zimni", "zim")
+        sbs.send_comms_button_info(player_id, "blue", "Ximni", "xim")
         
     def to_clipboard(self):
         import subprocess
@@ -257,8 +257,8 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
                 self.face_desc = faces.random_skaraan()
             case "tor":
                 self.face_desc = faces.random_torgoth()
-            case "zim":
-                self.face_desc = faces.random_zimni()
+            case "xim":
+                self.face_desc = faces.random_ximni()
 
 
         self.comms_selected(sim, player_id)
@@ -275,8 +275,3 @@ Gui.client_start_page_class(GuiMain)
 
 
 
-
-
-def HandlePresentGUI(sim):
-    # your code goes here
-    pass

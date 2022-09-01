@@ -44,7 +44,7 @@ class ShipPicker(Widget):
                 self.ships = None
 
 
-    def present(self, sim, CID):
+    def present(self, sim, event):
         """ present
 
         builds/manages the content of the widget
@@ -54,6 +54,8 @@ class ShipPicker(Widget):
         :param CID: Client ID
         :type CID: int
         """
+        CID = event.client_id
+
         if self.gui_state == "presenting":
             return
         if self.ships is None:
@@ -76,7 +78,7 @@ class ShipPicker(Widget):
         self.gui_state = "presenting"
 
 
-    def on_message(self, sim, message_tag, clientID, _):
+    def on_message(self, sim, event):
         """ on_message
 
         handles messages this will look for components owned by this control and react accordingly
@@ -91,6 +93,8 @@ class ShipPicker(Widget):
         :param data: unused no component use data
         :type data: any
         """
+        message_tag = event.sub_tag
+        client_id = event.client_id
 
         if not message_tag.startswith(self.tag_prefix):
             return False
@@ -103,7 +107,7 @@ class ShipPicker(Widget):
                     self.gui_state = "redraw"
                     if self.cur <0:
                         self.cur = len(self.ships)-1
-                    self.present(sim, clientID)
+                    self.present(sim, event)
                     return True
                 
             case "next":
@@ -112,7 +116,7 @@ class ShipPicker(Widget):
                     self.gui_state = "redraw"
                     if self.cur >= len(self.ships):
                         self.cur = 0
-                    self.present(sim, clientID)
+                    self.present(sim, event)
                     return True
         return False
                 
