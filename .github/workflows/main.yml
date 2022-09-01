@@ -9,7 +9,7 @@ jobs:
     steps:
     - name: Set env version
       run: |
-        echo "VERSION=$(CI_ACTION_REF_NAME)" >> $GITHUB_ENV"
+        echo "VERSION=$(CI_ACTION_REF_NAME)" >> $GITHUB_ENV
     - uses: actions/checkout@master
     - name: Archive Release
       uses: thedoctor0/zip-release@main
