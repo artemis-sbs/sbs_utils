@@ -6,9 +6,17 @@ from .gui import Gui
 
 ########################################################################################################
 def  HandleEvent(sim, event):
+    # print(f"""tag: {event.tag}
+    #     sub_tag: {event.sub_tag}
+    #     par: {event.parent_id}
+    #     origin: {event.origin_id} 
+    #     sel: {event.selected_id} 
+    #     client_id: {event.parent_id}
 
+    #     """)
 
     match(event.tag):
+        
         case "damage":
             DamageDispatcher.dispatch_damage(sim,event)
 
@@ -16,10 +24,10 @@ def  HandleEvent(sim, event):
             Gui.add_client(sim, event)
 
         case "select_space_object":
-            ConsoleDispatcher.dispatch_select(sim, event.selected_id, event.sub_tag, event.origin_id)
+            ConsoleDispatcher.dispatch_select(sim, event)
 
         case "press_comms_button":
-            ConsoleDispatcher.dispatch_comms_message(sim, event.sub_tag, event.origin_id, event.selected_id)
+            ConsoleDispatcher.dispatch_message(sim, event, "comms_targetUID")
 
         case "gui_message":
             Gui.on_message(sim, event)

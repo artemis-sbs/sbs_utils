@@ -20,7 +20,7 @@ class ConsoleDispatcher:
         """
         ConsoleDispatcher._dispatch_select[(an_id, console)] = cb
 
-    def add_message(player_id: int, console: str, cb: typing.Callable):
+    def add_message(an_id: int, console: str, cb: typing.Callable):
         """ add a target for console message
         
         :param an_id: A ships ID player or non-player
@@ -30,9 +30,9 @@ class ConsoleDispatcher:
         :param cb: call back function
         :type cb:  should have arguments of other sim, message and object's id
         """
-        ConsoleDispatcher._dispatch_messages[(player_id, console)] = cb
+        ConsoleDispatcher._dispatch_messages[(an_id, console)] = cb
 
-    def remove_select(player_id: int, console: str):
+    def remove_select(an_id: int, console: str):
         """ remove a target for console selection
         
         :param an_id: A ships ID player or non-player
@@ -40,9 +40,9 @@ class ConsoleDispatcher:
         :param console: The consoles unique ID
         :type console: string
         """
-        ConsoleDispatcher._dispatch_select.pop((player_id, console))
+        ConsoleDispatcher._dispatch_select.pop((an_id, console))
 
-    def remove_message(player_id: int, console: str):
+    def remove_message(an_id: int, console: str):
         """ remove a target for console messages
         
         :param an_id: A ships ID player or non-player
@@ -50,7 +50,7 @@ class ConsoleDispatcher:
         :param console: The consoles unique ID
         :type console: string
         """
-        ConsoleDispatcher._dispatch_messages.pop((player_id, console))
+        ConsoleDispatcher._dispatch_messages.pop((an_id, console))
 
     def dispatch_select(sim, event):
         """ dispatches a console selection
@@ -68,12 +68,12 @@ class ConsoleDispatcher:
 
         cb = ConsoleDispatcher._dispatch_select.get((event.origin_id, event.sub_tag))
         if cb is not None:
-            cb(sim, event.selected_id)
-            return
+            cb(sim, event.selected_id, event)
+            
         # Allow to route to the selected ship too
         cb = ConsoleDispatcher._dispatch_select.get((event.selected_id, event.sub_tag))
         if cb is not None:
-            cb(sim, event.origin_id)
+            cb(sim, event.origin_id, event)
 
     def dispatch_message(sim, event, console: str):
         """ dispatches a console message
@@ -91,26 +91,12 @@ class ConsoleDispatcher:
         """
         cb = ConsoleDispatcher._dispatch_messages.get((event.origin_id, console))
         if cb is not None:
-            cb(sim, event.sub_tag, event.selected_id)
+            cb(sim, event.sub_tag, event.selected_id, event)
 
         cb = ConsoleDispatcher._dispatch_messages.get((event.selected_id, console))
         # Allow the target to process
         if cb is not None:
-            cb(sim, event.sub_tag, event.origin_id)
-
-    def dispatch_comms_message(sim, message_tag: str, player_id: int,  other_id):
-        """ dispatches a comms console message
-        
-        :param sim: The simulation
-        :type sim: Artemis Simulation
-        :param message_tag: The message
-        :type message_tag: string
-        :param player_id: A player ship ID
-        :type player_id: int
-        :param other_id: A non player ship ID player
-        :type other_id: int
-        """
-        return ConsoleDispatcher.dispatch_message(sim, message_tag, player_id, 'comms_targetUID', other_id)
+            cb(sim, event.sub_tag, event.origin_id, event)
 
 
 class MCommunications:
@@ -126,7 +112,7 @@ class MCommunications:
         ConsoleDispatcher.add_select(self.id, 'comms_targetUID', self.comms_selected)
         ConsoleDispatcher.add_message(self.id, 'comms_targetUID', self.comms_message)
 
-    def comms_selected(self, sim, an_id):
+    def comms_selected(self, sim, an_id, event):
         """ handle a comms selection
         
         :param sim: The simulation
@@ -136,7 +122,7 @@ class MCommunications:
         """
         pass
 
-    def comms_message(self, sim, message, an_id):
+    def comms_message(self, sim, message, an_id, event):
         """ handle a comms message
         
         :param sim: The simulation

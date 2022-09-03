@@ -46,7 +46,7 @@ class TickTask:
         return False
 
     @property
-    def done(self):
+    def done(self)->bool:
         """ returns if this is the task will not run in the future
         """
         return self.count <= 0

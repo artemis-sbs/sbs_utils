@@ -10,6 +10,7 @@ import sbs_utils.layout as layout
 from sbs_utils.gui import Page, Gui
 from sbs_utils.pages.avatar import AvatarEditor
 from sbs_utils.pages.shippicker import ShipPicker
+import sbs_utils
 
 
 
@@ -52,6 +53,7 @@ class GuiMain(Page):
 
         w = layout.wrap(99,99, 19, 4,col=1, v_dir=-1, h_dir=-1)
         
+
         sbs.send_gui_button(event.client_id, "Start Mission", "start", *next(w))
         sbs.send_gui_button(event.client_id, "smoke test", "smoke", *next(w))
         sbs.send_gui_button(event.client_id, "Vec3 tests", "vec_unit", *next(w))
@@ -60,6 +62,7 @@ class GuiMain(Page):
         sbs.send_gui_button(event.client_id, "Gui Pages", "again", *next(w))
         sbs.send_gui_button(event.client_id, "Avatar Editor", "avatar", *next(w))
         sbs.send_gui_button(event.client_id, "Ship Picker", "ship", *next(w))
+        sbs.send_gui_button(event.client_id, "StubGen", "stub", *next(w))
 
     def on_message(self, sim, event):
         match event.sub_tag:
@@ -70,6 +73,9 @@ class GuiMain(Page):
             case 'avatar':
                 # reset state here?
                 Gui.push(sim,event.client_id, AvatarEditor())
+
+            case 'stub':
+                self.stub_gen()
 
             case 'ship':
                 # reset state here?
@@ -101,6 +107,11 @@ class GuiMain(Page):
                 sbs.resume_sim()
                 Mission.start(sim)
 
+    def stub_gen(self):
+        import stub
+        gen = stub.GenStubs()
+        gen.stub_module("sbs")
+        gen.stub_module("sbs_utils")
 
 
 
