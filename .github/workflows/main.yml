@@ -30,6 +30,6 @@ jobs:
     - name: Upload Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "sbs_utils_${{ steps.get_version.outputs.VERSION }}.sbslib, sbs_utils_${{ steps.get_version.outputs.VERSION }}_types.zip"
+        artifacts: "sbs_utils_${{ steps.get_version.outputs.VERSION }}.sbslib,sbs_utils_${{ steps.get_version.outputs.VERSION }}_types.zip"
         token: ${{ secrets.GITHUB_TOKEN }}
 
