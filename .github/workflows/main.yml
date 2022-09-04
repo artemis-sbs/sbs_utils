@@ -20,13 +20,6 @@ jobs:
         directory: 'sbs_utils'
         # exclusions: '*.git* /docs/* /mock/* /sphinx/* /tests/* *.py .nojekyll'
 
-    - name: Upload Release
-      uses: ncipollo/release-action@v1
-      with:
-        artifacts: "sbs_utils_${{ steps.get_version.outputs.VERSION }}.sbslib"
-        token: ${{ secrets.GITHUB_TOKEN }}
-
-
     - name: Archive Typings Release
       uses: thedoctor0/zip-release@main
       with:
@@ -34,8 +27,9 @@ jobs:
         filename: 'sbs_utils_${{ steps.get_version.outputs.VERSION }}_types.zip'
         directory: 'typings'
 
-    - name: Upload Typings Release
+    - name: Upload Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "sbs_utils_${{ steps.get_version.outputs.VERSION }}_types.zip"
+        artifacts: "sbs_utils_${{ steps.get_version.outputs.VERSION }}.sbslib, sbs_utils_${{ steps.get_version.outputs.VERSION }}_types.zip"
         token: ${{ secrets.GITHUB_TOKEN }}
+
