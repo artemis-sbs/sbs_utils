@@ -18,7 +18,7 @@ jobs:
         type: 'zip'
         filename: 'sbs_utils_${{ steps.get_version.outputs.VERSION }}.sbslib'
         #directory: 'sbs_utils'
-        exclusions: '*.git* /docs/* /mock/* /typings/* /sphinx/* /tests/* *.py .nojekyll'
+        exclusions: '*.* .* *. *.git* /docs/* /mock/* /typings/* /sphinx/* /tests/* *.py .nojekyll'
 
     - name: Archive Typings Release
       uses: thedoctor0/zip-release@main
@@ -26,7 +26,7 @@ jobs:
         type: 'zip'
         filename: 'sbs_utils_${{ steps.get_version.outputs.VERSION }}_types.zip'
         # directory: 'typings'
-        exclusions: '*.* /docs/* /mock/* /sbs_utils/* /sphinx/* /tests/*'
+        exclusions: '*.* *.git* .* *. /docs/* /mock/* /sbs_utils/* /sphinx/* /tests/*'
 
     - name: Upload Release
       uses: ncipollo/release-action@v1
