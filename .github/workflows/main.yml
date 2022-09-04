@@ -17,15 +17,16 @@ jobs:
       with:
         type: 'zip'
         filename: 'sbs_utils_${{ steps.get_version.outputs.VERSION }}.sbslib'
-        directory: 'sbs_utils'
-        # exclusions: '*.git* /docs/* /mock/* /sphinx/* /tests/* *.py .nojekyll'
+        #directory: 'sbs_utils'
+        exclusions: '*.git* /docs/* /mock/* /typings/* /sphinx/* /tests/* *.py .nojekyll'
 
     - name: Archive Typings Release
       uses: thedoctor0/zip-release@main
       with:
         type: 'zip'
         filename: 'sbs_utils_${{ steps.get_version.outputs.VERSION }}_types.zip'
-        directory: 'typings'
+        # directory: 'typings'
+        exclusions: '*.git* /docs/* /mock/* /sbs_utils/* /sphinx/* /tests/* *.py .nojekyll'
 
     - name: Upload Release
       uses: ncipollo/release-action@v1
