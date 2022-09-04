@@ -26,7 +26,7 @@ jobs:
         type: 'zip'
         filename: 'sbs_utils_${{ steps.get_version.outputs.VERSION }}_types.zip'
         # directory: 'typings'
-        exclusions: '*.git* /docs/* /mock/* /sbs_utils/* /sphinx/* /tests/* *.py .nojekyll'
+        exclusions: '*.* /docs/* /mock/* /sbs_utils/* /sphinx/* /tests/*'
 
     - name: Upload Release
       uses: ncipollo/release-action@v1
