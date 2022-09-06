@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="sbs_utils",
-    version="1.0.0",
+    version="0.2.0",
     author="Doug Reichard",
     author_email="demo@email.com",
     description="A small demo package",
