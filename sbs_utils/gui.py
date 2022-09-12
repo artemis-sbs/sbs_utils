@@ -59,6 +59,9 @@ class Page:
         """
         pass
 
+    def on_pop(self, sim):
+        pass
+
     def on_message(self, sim, event):
         """ on_message
 
@@ -80,8 +83,6 @@ class GuiClient:
     """ Manages the pages for a client
 
     """
-
-
     def __init__(self, client_id):
         self.page_stack = []
         self.client_id = client_id
@@ -108,7 +109,10 @@ class GuiClient:
         :param sim: 
         :type sim: Artemis Cosmos simulation
         """
-        ret = self.page_stack.pop()
+        if len(self.page_stack) > 0:
+            ret = self.page_stack.pop()
+            self.page_stack[-1].on_pop(sim)
+
         event = FakeEvent(self.client_id)
         self.present(sim, event)
         return ret
@@ -126,9 +130,7 @@ class GuiClient:
         if len(self.page_stack) > 0:
             self.page_stack[-1].present(sim, event)
 
-    def on_pop(self, sim):
-        pass
-
+  
     def on_message(self, sim, event):
         """ on_message
 
@@ -223,8 +225,8 @@ class Gui:
     def pop(sim, client_id):
         gui = Gui.clients.get(client_id)
         if gui is not None:
-            gui.on_pop(sim)
             return gui.pop(sim)
+            
         return None
 
     @staticmethod
