@@ -2,7 +2,7 @@ from sbs_utils.handlerhooks import *
 import unittest
 import sbs
 from sbs_utils.tickdispatcher import TickDispatcher
-from sbs_utils.playership import PlayerShip
+from sbs_utils.objects import PlayerShip
 import sbs_utils.faces as faces
 from sbs_utils.consoledispatcher import MCommunications
 from sbs_utils.spaceobject import SpaceObject, MSpawnActive

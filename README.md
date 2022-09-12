@@ -30,3 +30,24 @@ This uses github actions to create the release when a tag is created.
 git tag -a vXX.XX.XX -m "Some comment"
 git push --tags
 ```
+
+## redo release
+Delete the tag and the create it again
+```
+git tag -d tagname
+git push --delete origin tagname
+```
+
+## Make sure to
+
+Update the docs 
+- delete docs content (except nojekyl)
+
+```
+sphinx\make html
+```
+
+Update typings
+- delete typings content
+- Run the script in artemis
+- select 'stubgen'
