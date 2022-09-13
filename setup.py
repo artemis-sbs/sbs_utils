@@ -12,7 +12,10 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/dougreichard/sbs_utils",
-    packages=setuptools.find_packages(exclude=["script.py", "tests", "tests.*"]),
+    packages=["sbs_utils"],
+    package_dir={
+        "sbs_utils": "./sbs_utils"
+    },
     classifiers=(
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

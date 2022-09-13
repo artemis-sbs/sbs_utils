@@ -83,8 +83,6 @@ class GuiClient(object):
         :type clientID: int
         :param data: Any data associated with the control e.g. slider float value of current value
         :type clientID: None or str or float"""
-    def on_pop (self, sim):
-        ...
     def pop (self, sim):
         """pop
         
@@ -127,6 +125,8 @@ class Page(object):
         :type clientID: int
         :param data: Any data associated with the control e.g. slider float value of current value
         :type clientID: None or str or float"""
+    def on_pop (self, sim):
+        ...
     def present (self, sim, event):
         """present
         
