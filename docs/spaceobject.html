@@ -46,12 +46,16 @@
 <p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Space Object</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#creating-space-objects-in-artemis-cosmos">Creating space objects in Artemis Cosmos</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#creating-space-objects-using-sbs-utils">Creating Space Objects using sbs_utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#spawning-spaceobjects">Spawning SpaceObjects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#what-spawn-returns">What Spawn returns</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#deriving-a-spaceobject">Deriving a SpaceObject</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#spawning-a-spaceobject">Spawning a SpaceObject</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#spawning-a-derived-spaceobject">Spawning a derived SpaceObject</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#customizing-spawn">Customizing Spawn</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#playership">PlayerShip</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#customizing-playership">Customizing PlayerShip</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#what-spawn-returns">What Spawn returns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id1">What Spawn returns</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.spaceobject">API: spaceobject module</a></li>
 </ul>
 </li>
@@ -104,32 +108,68 @@
   <section id="space-object">
 <h1>Space Object<a class="headerlink" href="#space-object" title="Permalink to this heading"></a></h1>
 <p>All objects (ships, stations, asteroids, etc) are space objects in the Artemis Cosmos simulation.</p>
+<section id="creating-space-objects-in-artemis-cosmos">
+<h2>Creating space objects in Artemis Cosmos<a class="headerlink" href="#creating-space-objects-in-artemis-cosmos" title="Permalink to this heading"></a></h2>
+<p>Creating a ship or terrain element in Cosmos takes several lines of code.</p>
+<p>At the very least, you need to create the objects, set its side, position the object and name the object.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">shipID</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">make_new_active</span><span class="p">(</span><span class="s2">&quot;behav_station&quot;</span><span class="p">,</span> <span class="n">hull_type</span><span class="p">)</span>
+<span class="n">ship</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_space_object</span><span class="p">(</span><span class="n">shipID</span><span class="p">)</span>
+<span class="n">ship</span><span class="o">.</span><span class="n">side</span> <span class="o">=</span> <span class="n">side_tag</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">reposition_space_object</span><span class="p">(</span><span class="n">ship</span><span class="p">,</span> <span class="n">pos_x</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">pos_z</span><span class="p">)</span>
+<span class="n">blob</span> <span class="o">=</span> <span class="n">ship</span><span class="o">.</span><span class="n">data_set</span>
+<span class="n">blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;name_tag&quot;</span><span class="p">,</span> <span class="n">station_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Additionally, you may want to have a character face, and keep track of the ship id as part of a group.</p>
+</section>
+<section id="creating-space-objects-using-sbs-utils">
+<h2>Creating Space Objects using sbs_utils<a class="headerlink" href="#creating-space-objects-using-sbs-utils" title="Permalink to this heading"></a></h2>
 <p>The SBS Utils library has the <a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code></a> class to wrap things related to space objects easier to code.</p>
-<p>Additionally, there are Mixin classes for spawning Space Objects.</p>
+<p>Additionally, has the library has these classes to create space objects:</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPassive" title="sbs_utils.spaceobject.MSpawnPassive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPassive</span></code></a></p></li>
-<li><p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnActive" title="sbs_utils.spaceobject.MSpawnActive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnActive</span></code></a></p></li>
-<li><p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPlayer" title="sbs_utils.spaceobject.MSpawnPlayer"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPlayer</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.objects.PlayerShip" title="sbs_utils.objects.PlayerShip"><code class="xref py py-class docutils literal notranslate"><span class="pre">PlayerShip</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.objects.Npc" title="sbs_utils.objects.Npc"><code class="xref py py-class docutils literal notranslate"><span class="pre">Npc</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.objects.Active" title="sbs_utils.objects.Active"><code class="xref py py-class docutils literal notranslate"><span class="pre">Active</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.objects.Terrain" title="sbs_utils.objects.Terrain"><code class="xref py py-class docutils literal notranslate"><span class="pre">Terrain</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.objects.Passive" title="sbs_utils.objects.Passive"><code class="xref py py-class docutils literal notranslate"><span class="pre">Passive</span></code></a></p></li>
 </ul>
-<p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPassive" title="sbs_utils.spaceobject.MSpawnPassive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPassive</span></code></a> is for Spawning passive objects e.g. asteroids</p>
-<p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnActive" title="sbs_utils.spaceobject.MSpawnActive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnActive</span></code></a> is for spawning active object, npx ships, stations etc.</p>
-<p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPlayer" title="sbs_utils.spaceobject.MSpawnPlayer"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPlayer</span></code></a> if for spawning player ships.</p>
-<p>Each of these add a <a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPlayer.spawn" title="sbs_utils.spaceobject.MSpawnPlayer.spawn"><code class="xref py py-meth docutils literal notranslate"><span class="pre">spawn()</span></code></a> and a each add a <a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPlayer.spawn_v" title="sbs_utils.spaceobject.MSpawnPlayer.spawn_v"><code class="xref py py-meth docutils literal notranslate"><span class="pre">spawn_v()</span></code></a> function. These functions allow spawning an entity with one function rather than several.
-These will create a entity that has a name, a side, is positioned in space, has the define engine behavior and art work.</p>
-<p>The <code class="xref py py-class docutils literal notranslate"><span class="pre">PlayerShip</span></code> class is a SpaceObject used for deriving Player Objects.</p>
+<p><a class="reference internal" href="#sbs_utils.objects.PlayerShip" title="sbs_utils.objects.PlayerShip"><code class="xref py py-class docutils literal notranslate"><span class="pre">PlayerShip</span></code></a> is used to create player ships.</p>
+<p><a class="reference internal" href="#sbs_utils.objects.Npc" title="sbs_utils.objects.Npc"><code class="xref py py-class docutils literal notranslate"><span class="pre">Npc</span></code></a> and <a class="reference internal" href="#sbs_utils.objects.Active" title="sbs_utils.objects.Active"><code class="xref py py-class docutils literal notranslate"><span class="pre">Active</span></code></a> are similar and are for creating non-player ships.</p>
+<p><a class="reference internal" href="#sbs_utils.objects.Terrain" title="sbs_utils.objects.Terrain"><code class="xref py py-class docutils literal notranslate"><span class="pre">Terrain</span></code></a> and <a class="reference internal" href="#sbs_utils.objects.Passive" title="sbs_utils.objects.Passive"><code class="xref py py-class docutils literal notranslate"><span class="pre">Passive</span></code></a> are similar and are for creating world item that are not ships.</p>
+</section>
+<section id="spawning-spaceobjects">
+<h2>Spawning SpaceObjects<a class="headerlink" href="#spawning-spaceobjects" title="Permalink to this heading"></a></h2>
+<p>sbs_utils Space Objects provide a single spawn function.
+spawn takes a position, a Name (can be None) a side (can be None), the art id and a behavior string.</p>
+<p>This single function does all the setup for the space object.</p>
+<blockquote>
+<div></div></blockquote>
+</section>
+<section id="what-spawn-returns">
+<h2>What Spawn returns<a class="headerlink" href="#what-spawn-returns" title="Permalink to this heading"></a></h2>
+<p>Spawn returns a <a class="reference internal" href="#sbs_utils.spaceobject.SpawnData" title="sbs_utils.spaceobject.SpawnData"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpawnData</span></code></a> which provides the ships simulation id , its simulation object, and its data blob.
+This allows it to be further changes as needed easily without needing to retrieve these again.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">PlayerShip</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Artemis&quot;</span><span class="p">,</span> <span class="s2">&quot;TSN&quot;</span><span class="p">,</span> <span class="s2">&quot;Battle Cruiser&quot;</span><span class="p">)</span>
+<span class="c1"># Super fuel</span>
+<span class="n">data</span><span class="o">.</span><span class="n">blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;energy&quot;</span><span class="p">,</span> <span class="mi">2000</span><span class="p">)</span>
+<span class="c1"># tons of torps</span>
+<span class="n">data</span><span class="o">.</span><span class="n">blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;torpedo_count&quot;</span><span class="p">,</span> <span class="mi">25</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
 <section id="deriving-a-spaceobject">
 <h2>Deriving a SpaceObject<a class="headerlink" href="#deriving-a-spaceobject" title="Permalink to this heading"></a></h2>
-<p>Space Object typically derives from Space Object and a spawn mixin.</p>
+<p>Space Object typically derives from PlayerShip, Npc, or Terrain.</p>
 <blockquote>
-<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Station</span><span class="p">(</span><span class="n">SpaceObject</span><span class="p">,</span> <span class="n">MSpawnActive</span><span class="p">):</span>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Station</span><span class="p">(</span><span class="n">Npc</span><span class="p">):</span>
    <span class="k">pass</span>
 </pre></div>
 </div>
 </div></blockquote>
 </section>
-<section id="spawning-a-spaceobject">
-<h2>Spawning a SpaceObject<a class="headerlink" href="#spawning-a-spaceobject" title="Permalink to this heading"></a></h2>
-<p>Using the default mixin a Space Object can be spawned with one line of code.</p>
+<section id="spawning-a-derived-spaceobject">
+<h2>Spawning a derived SpaceObject<a class="headerlink" href="#spawning-a-derived-spaceobject" title="Permalink to this heading"></a></h2>
+<p>The Station can be spawned with one line of code.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">Station</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="o">-</span><span class="mi">500</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span>
                    <span class="s2">&quot;DS 1&quot;</span><span class="p">,</span> <span class="s2">&quot;TSN&quot;</span><span class="p">,</span> <span class="s2">&quot;Starbase&quot;</span><span class="p">,</span> <span class="s2">&quot;behav_station&quot;</span><span class="p">)</span>
 </pre></div>
@@ -138,20 +178,34 @@ These will create a entity that has a name, a side, is positioned in space, has 
 <section id="customizing-spawn">
 <h2>Customizing Spawn<a class="headerlink" href="#customizing-spawn" title="Permalink to this heading"></a></h2>
 <p>Spawn can be further simplified by implementing a new spawn in the derive SpaceObject as well as do other things related to spawn.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Station</span><span class="p">(</span><span class="n">SpaceObject</span><span class="p">,</span> <span class="n">MSpawnActive</span><span class="p">,</span> <span class="n">MCommunications</span><span class="p">):</span>
+<p>For example, this example spawn of a station only needs the position.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Station</span><span class="p">(</span><span class="n">Npc</span><span class="p">,</span> <span class="n">MCommunications</span><span class="p">):</span>
+   <span class="n">count</span> <span class="o">=</span> <span class="mi">1</span>
+   <span class="k">def</span> <span class="nf">spawn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">):</span>
+      <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">z</span><span class="p">,</span>
+                     <span class="sa">f</span><span class="s2">&quot;DS</span><span class="si">{</span><span class="n">Station</span><span class="o">.</span><span class="n">count</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;TSN&quot;</span><span class="p">,</span> <span class="s2">&quot;Starbase&quot;</span><span class="p">,</span> <span class="s2">&quot;behav_station&quot;</span><span class="p">)</span>
+      <span class="n">Station</span><span class="o">.</span><span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+
+ <span class="c1"># to spawn a space station</span>
+<span class="n">Station</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">100</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Spawn can be further simplified by implementing a new spawn in the derive SpaceObject as well as do other things related to spawn.
+e.g. Enabling comms and adding a face description.</p>
+<p>The example automatically positions the stations.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Station</span><span class="p">(</span><span class="n">Npc</span><span class="p">,</span> <span class="n">MCommunications</span><span class="p">):</span>
    <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
 
    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">num</span> <span class="o">=</span> <span class="n">Station</span><span class="o">.</span><span class="n">count</span>
       <span class="n">Station</span><span class="o">.</span><span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">=</span> <span class="n">Board</span><span class="p">()</span>
-
-      <span class="bp">self</span><span class="o">.</span><span class="n">face_desc</span> <span class="o">=</span> <span class="n">faces</span><span class="o">.</span><span class="n">random_skaraan</span><span class="p">()</span>
 
    <span class="k">def</span> <span class="nf">spawn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">):</span>
       <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="o">-</span><span class="mi">500</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num</span> <span class="o">*</span> <span class="mi">400</span><span class="p">,</span>
                      <span class="sa">f</span><span class="s2">&quot;DS</span><span class="si">{</span><span class="n">Station</span><span class="o">.</span><span class="n">count</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;TSN&quot;</span><span class="p">,</span> <span class="s2">&quot;Starbase&quot;</span><span class="p">,</span> <span class="s2">&quot;behav_station&quot;</span><span class="p">)</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">enable_comms</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">face_desc</span><span class="p">)</span>
+
+      <span class="n">face_desc</span> <span class="o">=</span> <span class="n">faces</span><span class="o">.</span><span class="n">random_skaraan</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">enable_comms</span><span class="p">(</span><span class="n">face_desc</span><span class="p">)</span>
 
 <span class="c1"># . . . a few lines later</span>
 <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="n">sim</span><span class="p">):</span>
@@ -176,13 +230,13 @@ Making it simple to spawn a player.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Player</span><span class="p">(</span><span class="n">PlayerShip</span><span class="p">):</span>
    <span class="k">def</span> <span class="nf">spawn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">):</span>
       <span class="c1"># playerID will be a NUMBER, a unique value for every space object that you create.</span>
-      <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Artemis&quot;</span><span class="p">,</span> <span class="s2">&quot;TSN&quot;</span><span class="p">,</span> <span class="s2">&quot;Battle Cruiser&quot;</span><span class="p">)</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">face_desc</span> <span class="o">=</span> <span class="n">faces</span><span class="o">.</span><span class="n">Characters</span><span class="o">.</span><span class="n">URSULA</span>
+      <span class="n">spawn_data</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Artemis&quot;</span><span class="p">,</span> <span class="s2">&quot;TSN&quot;</span><span class="p">,</span> <span class="s2">&quot;Battle Cruiser&quot;</span><span class="p">)</span>
+      <span class="n">faces</span><span class="o">.</span><span class="n">set_face</span><span class="p">(</span><span class="n">spawn_data</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">faces</span><span class="o">.</span><span class="n">Characters</span><span class="o">.</span><span class="n">URSULA</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
-<section id="what-spawn-returns">
-<h2>What Spawn returns<a class="headerlink" href="#what-spawn-returns" title="Permalink to this heading"></a></h2>
+<section id="id1">
+<h2>What Spawn returns<a class="headerlink" href="#id1" title="Permalink to this heading"></a></h2>
 <p>Spawn returns a <a class="reference internal" href="#sbs_utils.spaceobject.SpawnData" title="sbs_utils.spaceobject.SpawnData"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpawnData</span></code></a> which provides the ships simulation id , its simulation object, and its data blob.
 This allows it to be further changes as needed easily without needing to retrieve these again.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Player</span><span class="p">(</span><span class="n">PlayerShip</span><span class="p">):</span>
@@ -194,6 +248,18 @@ This allows it to be further changes as needed easily without needing to retriev
       <span class="n">data</span><span class="o">.</span><span class="n">blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;torpedo_count&quot;</span><span class="p">,</span> <span class="mi">25</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>The following classes are created using Mixin classes for spawning Space Objects.
+They can be used to derive new Space Object classes. However, it is likely the PlayerShip, Npc, and Terrain classes should be sufficient.</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPassive" title="sbs_utils.spaceobject.MSpawnPassive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPassive</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnActive" title="sbs_utils.spaceobject.MSpawnActive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnActive</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPlayer" title="sbs_utils.spaceobject.MSpawnPlayer"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPlayer</span></code></a></p></li>
+</ul>
+<p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPassive" title="sbs_utils.spaceobject.MSpawnPassive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPassive</span></code></a> is for Spawning passive objects e.g. asteroids</p>
+<p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnActive" title="sbs_utils.spaceobject.MSpawnActive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnActive</span></code></a> is for spawning active object, npx ships, stations etc.</p>
+<p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPlayer" title="sbs_utils.spaceobject.MSpawnPlayer"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPlayer</span></code></a> if for spawning player ships.</p>
+<p>Each of these add a <a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPlayer.spawn" title="sbs_utils.spaceobject.MSpawnPlayer.spawn"><code class="xref py py-meth docutils literal notranslate"><span class="pre">spawn()</span></code></a> and a each add a <a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPlayer.spawn_v" title="sbs_utils.spaceobject.MSpawnPlayer.spawn_v"><code class="xref py py-meth docutils literal notranslate"><span class="pre">spawn_v()</span></code></a> function. These functions allow spawning an entity with one function rather than several.
+These will create a entity that has a name, a side, is positioned in space, has the define engine behavior and art work.</p>
 </section>
 <section id="module-sbs_utils.spaceobject">
 <span id="api-spaceobject-module"></span><h2>API: spaceobject module<a class="headerlink" href="#module-sbs_utils.spaceobject" title="Permalink to this heading"></a></h2>
@@ -710,6 +776,36 @@ This allows it to be further changes as needed easily without needing to retriev
 <span class="sig-name descname"><span class="pre">object</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">any</span></em><a class="headerlink" href="#sbs_utils.spaceobject.SpawnData.object" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
+</dd></dl>
+
+<span class="target" id="module-sbs_utils.objects"></span><dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.objects.Active">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.objects.</span></span><span class="sig-name descname"><span class="pre">Active</span></span><a class="headerlink" href="#sbs_utils.objects.Active" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code></a>, <a class="reference internal" href="#sbs_utils.spaceobject.MSpawnActive" title="sbs_utils.spaceobject.MSpawnActive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnActive</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.objects.Npc">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.objects.</span></span><span class="sig-name descname"><span class="pre">Npc</span></span><a class="headerlink" href="#sbs_utils.objects.Npc" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code></a>, <a class="reference internal" href="#sbs_utils.spaceobject.MSpawnActive" title="sbs_utils.spaceobject.MSpawnActive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnActive</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.objects.Passive">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.objects.</span></span><span class="sig-name descname"><span class="pre">Passive</span></span><a class="headerlink" href="#sbs_utils.objects.Passive" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code></a>, <a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPassive" title="sbs_utils.spaceobject.MSpawnPassive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPassive</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.objects.PlayerShip">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.objects.</span></span><span class="sig-name descname"><span class="pre">PlayerShip</span></span><a class="headerlink" href="#sbs_utils.objects.PlayerShip" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code></a>, <a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPlayer" title="sbs_utils.spaceobject.MSpawnPlayer"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPlayer</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.objects.Terrain">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.objects.</span></span><span class="sig-name descname"><span class="pre">Terrain</span></span><a class="headerlink" href="#sbs_utils.objects.Terrain" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code></a>, <a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPassive" title="sbs_utils.spaceobject.MSpawnPassive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPassive</span></code></a></p>
 </dd></dl>
 
 </section>

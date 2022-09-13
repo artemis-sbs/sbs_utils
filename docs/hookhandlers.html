@@ -99,34 +99,47 @@
 <h1>The hook Handlers<a class="headerlink" href="#the-hook-handlers" title="Permalink to this heading"></a></h1>
 <section id="module-sbs_utils.handlerhooks">
 <span id="api-handlerhooks-module"></span><h2>API: handlerhooks module<a class="headerlink" href="#module-sbs_utils.handlerhooks" title="Permalink to this heading"></a></h2>
-<dl class="py function">
-<dt class="sig sig-object py" id="sbs_utils.handlerhooks.HandleClientConnect">
-<span class="sig-prename descclassname"><span class="pre">sbs_utils.handlerhooks.</span></span><span class="sig-name descname"><span class="pre">HandleClientConnect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.handlerhooks.HandleClientConnect" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.handlerhooks.ErrorPage">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.handlerhooks.</span></span><span class="sig-name descname"><span class="pre">ErrorPage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.handlerhooks.ErrorPage" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="gui.html#sbs_utils.gui.Page" title="sbs_utils.gui.Page"><code class="xref py py-class docutils literal notranslate"><span class="pre">Page</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.handlerhooks.ErrorPage.on_message">
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.handlerhooks.ErrorPage.on_message" title="Permalink to this definition"></a></dt>
+<dd><p>Called when a control on the page has been interacted with</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>message_tag</strong> (<em>str</em>) – The tag name of the control interacted with</p></li>
+<li><p><strong>clientID</strong> (<em>None</em><em> or </em><em>str</em><em> or </em><em>float</em>) – The client ID that had the interaction</p></li>
+<li><p><strong>data</strong> – Any data associated with the control e.g. slider float value of current value</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.handlerhooks.ErrorPage.present">
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.handlerhooks.ErrorPage.present" title="Permalink to this definition"></a></dt>
+<dd><p>Called to have the page create and update the gui content it is presenting</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="sbs_utils.handlerhooks.HandleCommsButton">
-<span class="sig-prename descclassname"><span class="pre">sbs_utils.handlerhooks.</span></span><span class="sig-name descname"><span class="pre">HandleCommsButton</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">button_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ship_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obj_selected_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.handlerhooks.HandleCommsButton" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="sbs_utils.handlerhooks.HandleConsoleObjectSelection">
-<span class="sig-prename descclassname"><span class="pre">sbs_utils.handlerhooks.</span></span><span class="sig-name descname"><span class="pre">HandleConsoleObjectSelection</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obj_selected_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ship_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.handlerhooks.HandleConsoleObjectSelection" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="sbs_utils.handlerhooks.HandleDamageEvent">
-<span class="sig-prename descclassname"><span class="pre">sbs_utils.handlerhooks.</span></span><span class="sig-name descname"><span class="pre">HandleDamageEvent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damage_event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.handlerhooks.HandleDamageEvent" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="sbs_utils.handlerhooks.HandleEvent">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.handlerhooks.</span></span><span class="sig-name descname"><span class="pre">HandleEvent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.handlerhooks.HandleEvent" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="sbs_utils.handlerhooks.HandlePresentGUI">
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.handlerhooks.</span></span><span class="sig-name descname"><span class="pre">HandlePresentGUI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.handlerhooks.HandlePresentGUI" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="sbs_utils.handlerhooks.HandlePresentGUIMessage">
-<span class="sig-prename descclassname"><span class="pre">sbs_utils.handlerhooks.</span></span><span class="sig-name descname"><span class="pre">HandlePresentGUIMessage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.handlerhooks.HandlePresentGUIMessage" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py function">

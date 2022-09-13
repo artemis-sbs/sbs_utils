@@ -401,6 +401,12 @@ The StartPage instance still exists, and is below the Options page on the stack.
 <section id="module-sbs_utils.gui">
 <span id="api-gui-module"></span><h2>API: gui module<a class="headerlink" href="#module-sbs_utils.gui" title="Permalink to this heading"></a></h2>
 <dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.gui.FakeEvent">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.gui.</span></span><span class="sig-name descname"><span class="pre">FakeEvent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.FakeEvent" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+</dd></dl>
+
+<dl class="py class">
 <dt class="sig sig-object py" id="sbs_utils.gui.Gui">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.gui.</span></span><span class="sig-name descname"><span class="pre">Gui</span></span><a class="headerlink" href="#sbs_utils.gui.Gui" title="Permalink to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
@@ -408,7 +414,7 @@ The StartPage instance still exists, and is below the Options page on the stack.
 Manages the GUI pages for all clients</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Gui.add_client">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">add_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.add_client" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">add_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.add_client" title="Permalink to this definition"></a></dt>
 <dd><p>Call when a new client connects.
 handlerhooks.py will call this in HandleClientConnect</p>
 <dl class="field-list simple">
@@ -438,7 +444,7 @@ this is called once in the script.py</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Gui.on_message">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.on_message" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.on_message" title="Permalink to this definition"></a></dt>
 <dd><p>Forward to the appropriate GuiClient/Page
 handlerhooks.py will call this in HandlePresentGUIMessage</p>
 <dl class="field-list simple">
@@ -455,12 +461,12 @@ handlerhooks.py will call this in HandlePresentGUIMessage</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Gui.pop">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">pop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.pop" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">pop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">client_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.pop" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Gui.present">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.present" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.present" title="Permalink to this definition"></a></dt>
 <dd><p>calls present on all clients
 handlerhooks.py will call this in HandlePresentGUI</p>
 <dl class="field-list simple">
@@ -472,7 +478,7 @@ handlerhooks.py will call this in HandlePresentGUI</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Gui.push">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">push</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">page</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.push" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">push</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">client_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">page</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.push" title="Permalink to this definition"></a></dt>
 <dd><p>Presents the new Page on the specified client by pushing it on the stack.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -502,12 +508,12 @@ this is called once in the script.py</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="sbs_utils.gui.GuiClient">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.gui.</span></span><span class="sig-name descname"><span class="pre">GuiClient</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.gui.</span></span><span class="sig-name descname"><span class="pre">GuiClient</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient" title="Permalink to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Manages the pages for a client</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.GuiClient.on_message">
-<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.on_message" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.on_message" title="Permalink to this definition"></a></dt>
 <dd><p>Calls the on_message on the top page of the specified client by calling on_message</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -534,7 +540,7 @@ this is called once in the script.py</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.GuiClient.present">
-<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CID</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.present" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.present" title="Permalink to this definition"></a></dt>
 <dd><p>Presents the top Page for the specified clientID by calling present on that page</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -569,7 +575,7 @@ this is called once in the script.py</p>
 <p>A interface class for creating GUI pages</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Page.on_message">
-<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.on_message" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.on_message" title="Permalink to this definition"></a></dt>
 <dd><p>Called when a control on the page has been interacted with</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -584,8 +590,13 @@ this is called once in the script.py</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.Page.on_pop">
+<span class="sig-name descname"><span class="pre">on_pop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.on_pop" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Page.present">
-<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.present" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.present" title="Permalink to this definition"></a></dt>
 <dd><p>Called to have the page create and update the gui content it is presenting</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -603,7 +614,7 @@ this is called once in the script.py</p>
 <p>A interface class for creating GUI widgets i.e. composite components.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Widget.on_message">
-<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Widget.on_message" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Widget.on_message" title="Permalink to this definition"></a></dt>
 <dd><p>Called when a control on the page has been interacted with</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -619,7 +630,7 @@ this is called once in the script.py</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Widget.present">
-<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Widget.present" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Widget.present" title="Permalink to this definition"></a></dt>
 <dd><p>Called to have the page create and update the gui content it is presenting</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -639,7 +650,7 @@ this is called once in the script.py</p>
 <dd><p>Bases: <a class="reference internal" href="#sbs_utils.gui.Page" title="sbs_utils.gui.Page"><code class="xref py py-class docutils literal notranslate"><span class="pre">Page</span></code></a></p>
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.pages.avatar.AvatarEditor.on_message">
-<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.avatar.AvatarEditor.on_message" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.avatar.AvatarEditor.on_message" title="Permalink to this definition"></a></dt>
 <dd><p>Called when a control on the page has been interacted with</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -655,7 +666,7 @@ this is called once in the script.py</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.pages.avatar.AvatarEditor.present">
-<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CID</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.avatar.AvatarEditor.present" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.avatar.AvatarEditor.present" title="Permalink to this definition"></a></dt>
 <dd><p>Called to have the page create and update the gui content it is presenting</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -689,7 +700,7 @@ this is called once in the script.py</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.pages.shippicker.ShipPicker.on_message">
-<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.shippicker.ShipPicker.on_message" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.shippicker.ShipPicker.on_message" title="Permalink to this definition"></a></dt>
 <dd><p>Called when a control on the page has been interacted with</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -705,7 +716,7 @@ this is called once in the script.py</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.pages.shippicker.ShipPicker.present">
-<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CID</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.shippicker.ShipPicker.present" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.shippicker.ShipPicker.present" title="Permalink to this definition"></a></dt>
 <dd><p>Called to have the page create and update the gui content it is presenting</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -727,7 +738,7 @@ this is called once in the script.py</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.pages.start.StartPage.on_message">
-<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.start.StartPage.on_message" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.start.StartPage.on_message" title="Permalink to this definition"></a></dt>
 <dd><p>Called when a control on the page has been interacted with</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -743,7 +754,7 @@ this is called once in the script.py</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.pages.start.StartPage.present">
-<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CID</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.start.StartPage.present" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.start.StartPage.present" title="Permalink to this definition"></a></dt>
 <dd><p>Called to have the page create and update the gui content it is presenting</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -808,7 +819,7 @@ this is called once in the script.py</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.widgets.shippicker.ShipPicker.on_message">
-<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clientID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.widgets.shippicker.ShipPicker.on_message" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.widgets.shippicker.ShipPicker.on_message" title="Permalink to this definition"></a></dt>
 <dd><p>handles messages this will look for components owned by this control and react accordingly
 components owned will have the tag_prefix</p>
 <dl class="field-list simple">
@@ -825,7 +836,7 @@ components owned will have the tag_prefix</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.widgets.shippicker.ShipPicker.present">
-<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CID</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.widgets.shippicker.ShipPicker.present" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.widgets.shippicker.ShipPicker.present" title="Permalink to this definition"></a></dt>
 <dd><p>builds/manages the content of the widget</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>

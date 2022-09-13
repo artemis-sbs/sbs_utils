@@ -115,7 +115,7 @@
 <p>The ConsoleDispatcher is intended receive these and route them to callback functions.
 This can further be used to direct these to classes that represent the ships enabling the handling of this code to be handled in context of the ship(s) involved.</p>
 <p>The HandleConsoleObjectSelection should call <a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_select" title="sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_select"><code class="xref py py-meth docutils literal notranslate"><span class="pre">dispatch_select()</span></code></a>
-The HandleCommsButton should call <a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_comms_message" title="sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_comms_message"><code class="xref py py-meth docutils literal notranslate"><span class="pre">dispatch_comms_message()</span></code></a></p>
+The HandleCommsButton should call <code class="xref py py-meth docutils literal notranslate"><span class="pre">dispatch_comms_message()</span></code></p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">HandleConsoleObjectSelection</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">console</span><span class="p">,</span> <span class="n">obj_selected_id</span><span class="p">,</span> <span class="n">ship_id</span><span class="p">):</span>
    <span class="n">ConsoleDispatcher</span><span class="o">.</span><span class="n">dispatch_select</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="n">ship_id</span><span class="p">,</span> <span class="n">console</span><span class="p">,</span><span class="n">obj_selected_id</span><span class="p">)</span>
 
@@ -300,24 +300,8 @@ The message is the button_tag.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_comms_message">
-<span class="sig-name descname"><span class="pre">dispatch_comms_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message_tag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">player_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">other_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_comms_message" title="Permalink to this definition"></a></dt>
-<dd><p>dispatches a comms console message</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Simulation</em>) – The simulation</p></li>
-<li><p><strong>message_tag</strong> (<em>string</em>) – The message</p></li>
-<li><p><strong>player_id</strong> (<em>int</em>) – A player ship ID</p></li>
-<li><p><strong>other_id</strong> (<em>int</em>) – A non player ship ID player</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_message">
-<span class="sig-name descname"><span class="pre">dispatch_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message_tag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">player_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">other_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_message" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">dispatch_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_message" title="Permalink to this definition"></a></dt>
 <dd><p>dispatches a console message</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -334,7 +318,7 @@ The message is the button_tag.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_select">
-<span class="sig-name descname"><span class="pre">dispatch_select</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">player_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">other_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_select" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">dispatch_select</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_select" title="Permalink to this definition"></a></dt>
 <dd><p>dispatches a console selection</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -384,7 +368,7 @@ The message is the button_tag.</p>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.MCommunications.comms_message">
-<span class="sig-name descname"><span class="pre">comms_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">an_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.MCommunications.comms_message" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">comms_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">an_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.MCommunications.comms_message" title="Permalink to this definition"></a></dt>
 <dd><p>handle a comms message</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -399,7 +383,7 @@ The message is the button_tag.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.MCommunications.comms_selected">
-<span class="sig-name descname"><span class="pre">comms_selected</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">an_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.MCommunications.comms_selected" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">comms_selected</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">an_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.MCommunications.comms_selected" title="Permalink to this definition"></a></dt>
 <dd><p>handle a comms selection</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
