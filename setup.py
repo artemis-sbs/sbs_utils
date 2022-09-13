@@ -12,9 +12,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/dougreichard/sbs_utils",
-    packages=setuptools.find_packages(
-        where='sbs_utils'
-    ),
+    packages=setuptools.find_packages(),
     
     classifiers=(
         "Programming Language :: Python :: 3",
