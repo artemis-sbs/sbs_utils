@@ -1,0 +1,41 @@
+tell a b "Hi
+
+
+there
+"
+
+var t_int = 3
+var t_float= 3.14
+var t_str = "Hello, World"
+var t_array = [2,3,4]
+var t_dict = {"t": 3, "r":3.14}
+
+t_dict.t = 99
+t_int = t_dict.t * t_dict.r + t_int
+t_int = 100
+
+
+
+if x>2
+
+run  Targeting every 5s
+
+any -> sss else -> fff timeout 10s -> zzz
+    near a b 700
+    near a any Station as station 700 
+    if x>2
+    run label
+
+
+all -> sss else -> fff timeout 10s -> zzz
+    near a b 700
+    near: a c 700 
+
+== Targeting ==
+    exists my_target -> CONTINUE
+    target a as my_target -> CONTINUE else ->TRUE
+        closest Station
+        closest tsn
+        player
+    
+    

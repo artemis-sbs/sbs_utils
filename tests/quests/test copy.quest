@@ -1,0 +1,56 @@
+comms player self 
+    timeout 5s -> TooSlow
+    button "Say Hello" -> Hello
+    button "Say Hi" -> Hi
+
+if>
+    near player ds1 300
+|>
+    near player ds2 300
+&>
+:>
+elif>
+
+else>
+
+=> x = x +1
+
+== skip ==
+tell player self "Come to pick the princess"
+near player self 300
+tell player ship "You have the princess goto ds1"
+near player station 700
+tell player station "the princess is on ds1"
+
+== Hello ==
+tell player self "HELLO"
+comms player self timeout 5s -> TooSlow
+    button "Say Blue" -> Blue
+    button "Say Yellow" -> Yellow
+    button "Say Cyan" -> Cyan
+
+
+== Hi ==
+tell player self "Hi"
+delay 10s
+-> main
+
+== Blue ==
+tell player self "Blue"
+delay 10s
+-> main
+
+== Yellow ==
+tell player self "Yellow"
+delay 10s
+-> main
+
+== Cyan ==
+tell player self "Cyan"
+comms player self timeout 5s -> TooSlow
+    button "Say main" -> main
+
+== TooSlow ==
+tell player self "Woh too slow"
+delay 10s
+-> main

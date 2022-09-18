@@ -32,6 +32,10 @@ class SpaceObject:
     def destroyed(self):
         self.remove()
 
+    def get_id(self):
+        return self.id
+
+
     def _add(id, obj):
         SpaceObject.ids['all'][id] = obj
 

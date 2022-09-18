@@ -2,7 +2,7 @@ from sbs_utils.handlerhooks import *
 import unittest
 import sbs
 from sbs_utils.tickdispatcher import TickDispatcher
-from sbs_utils.objects import PlayerShip
+from sbs_utils.objects import PlayerShip, Npc
 import sbs_utils.faces as faces
 from sbs_utils.consoledispatcher import MCommunications
 from sbs_utils.spaceobject import SpaceObject, MSpawnActive
@@ -11,6 +11,32 @@ from sbs_utils.gui import Page, Gui
 from sbs_utils.pages.avatar import AvatarEditor
 from sbs_utils.pages.shippicker import ShipPicker
 import sbs_utils
+from sbs_utils.quest import Quest
+from sbs_utils.questrunner import SbsQuestRunner
+
+
+class QuestShip(Npc):
+    def spawn(self, sim, x, y, z, name, side, art_id):
+        super().spawn(sim, x, y, z, name, side, art_id, "behav_npcship")
+
+    def compile(self, sim, ins, script):
+        self.quest = Quest()
+        self.quest.compile(script)
+        inputs = {
+            "self": self
+        } | ins
+        
+        self.runner = SbsQuestRunner(
+            self.quest, inputs)
+        
+        TickDispatcher.do_interval(sim, self.tick_quest, 0)
+
+    def start(self, sim, label="main"):
+        self.runner.start(sim, label)
+
+    def tick_quest(self, sim, t):
+        self.runner.tick(sim)
+
 
 
 
@@ -63,6 +89,7 @@ class GuiMain(Page):
         sbs.send_gui_button(event.client_id, "Avatar Editor", "avatar", *next(w))
         sbs.send_gui_button(event.client_id, "Ship Picker", "ship", *next(w))
         sbs.send_gui_button(event.client_id, "StubGen", "stub", *next(w))
+        sbs.send_gui_button(event.client_id, "Quest", "quest", *next(w))
 
     def on_message(self, sim, event):
         match event.sub_tag:
@@ -106,6 +133,12 @@ class GuiMain(Page):
                 sbs.create_new_sim()
                 sbs.resume_sim()
                 Mission.start(sim)
+
+            case "quest":
+                sbs.create_new_sim()
+                sbs.resume_sim()
+                Mission.quest(sim)
+
 
     def stub_gen(self):
         import stub
@@ -195,7 +228,77 @@ class Mission:
         if t.race >= 9:
             t.race = 0
 
-        
+    def quest(sim):
+
+        player = PlayerShip()
+        player.spawn(sim, 0,0,-1400, "Artemis", "tsn", "Battle Cruiser")
+        q = QuestShip()
+        q.spawn(sim, 0,0,0, "Quest", "tsn", "Battle Cruiser" )
+        ds = Spacedock()
+        ds.spawn(sim, 500,0,2500,"tsn")
+        inputs = {
+            "player": player,
+            "station": ds,
+            "ship": q
+        }
+
+        q.compile(sim, inputs, 
+"""
+comms player self
+    button "Say Hello" -> Hello
+    button "Say Hi" -> Hi
+
+
+== skip ==
+tell player self "Come to pick the princess"
+near player self 300
+tell player ship "You have the princess goto ds1"
+near player station 700
+tell player station "the princess is on ds1"
+
+== Hello ==
+tell player self "HELLO"
+comms player self
+    button "Say Blue" -> Blue
+    button "Say Yellow" -> Yellow
+    button "Say Cyan" -> Cyan
+
+
+== Hi ==
+tell player self "Hi"
+delay 10s
+-> main
+
+== Chat ==
+tell player self "Blah, Blah"
+delay 10s
+-> Chat
+
+== Blue ==
+tell player self "Blue"
+delay 10s
+-> main
+
+== Yellow ==
+tell player self "Yellow"
+delay 10s
+-> main
+
+== Cyan ==
+tell player self "Cyan"
+comms player self timeout 5s -> TooSlow
+    button "Say main" -> main
+
+== TooSlow ==
+tell player self "Woh too slow"
+delay 10s
+-> main
+
+""")
+        q.start(sim)
+        # Demo threads
+        q.start(sim,"Chat")
+
 
         
   
@@ -219,7 +322,7 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
     
     
 
-    def comms_selected(self, sim, player_id):
+    def comms_selected(self, sim, player_id, _):
         # if Empty it is waiting for what to harvest
         sbs.send_comms_selection_info(player_id, self.face_desc, "green", self.comms_id)
 
@@ -242,7 +345,7 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
         cmd=f'echo {self.face_desc}|clip'
         return subprocess.check_call(cmd, shell=True)
 
-    def comms_message(self, sim, message, player_id):
+    def comms_message(self, sim, message, player_id, e):
         
         match message:
             case "copy":
@@ -272,7 +375,7 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
                 self.face_desc = faces.random_ximni()
 
 
-        self.comms_selected(sim, player_id)
+        self.comms_selected(sim, player_id, e)
         #sbs.send_comms_selection_info(player_id, self.face_desc, "green", self.comms_id)
         sbs.send_comms_message_to_player_ship(player_id, self.id, "green", self.face_desc,  "Face Gen", self.face_desc, "face")
 
