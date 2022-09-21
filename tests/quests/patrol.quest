@@ -1,0 +1,25 @@
+
+# Set the comms buttons to start the 'quest'
+self comms player
+    button "Start at DS1" -> One
+    button "Start at DS2" -> Two
+
+== One ==
+await=>HeadToDS1
+await=>HeadToDS2
+->One
+
+== Two ==
+await=>HeadToDS2
+await=>HeadToDS1
+->Two
+
+== HeadToDS1 ==
+self approach ds1                           # Goto DS1
+self near  ds1 700                          # wait until near d1
+self tell player  "I have arrived at ds1"   # tell the player
+
+== HeadToDS2 ==
+self approach ds2                           # goto DS2
+self near ds2 700                           # wait until near D2
+self tell player "I have arrived at ds2"    # tell the player

@@ -1,10 +1,11 @@
-tell a b "Hi
+tell player self "Needed a console otherwise message are lost"
+approach self station
+near self station 700
+approach self
+tell player self "I have arrived"
 
-
-there
-"
-
-var t_int = 3
+# This is a comment
+var t_int = 3 # comment
 var t_float= 3.14
 var t_str = "Hello, World"
 var t_array = [2,3,4]
@@ -16,26 +17,99 @@ t_int = 100
 
 
 
-if x>2
+# adds a thread to main
+my_task => Targeting
+    station_list = station_list # set the inputs
+    player = player_two
 
-run  Targeting every 5s
-
-any -> sss else -> fff timeout 10s -> zzz
-    near a b 700
-    near a any Station as station 700 
-    if x>2
-    run label
+cancel my_task #coded
 
 
-all -> sss else -> fff timeout 10s -> zzz
-    near a b 700
-    near: a c 700 
+
+any -> sss timeout 10s
+    => RunAsync -> WhenDone
+    a near b 700
+    a near station 700 
+    # holds a thread and calls it
+    ->some_label ->
+
+any -> sss timeout 10s
+    => RunAsync -> WhenDone
+    a near b 700
+    a near station 700 
+    # holds a thread and calls it
+    ->some_label ->
+
 
 == Targeting ==
-    exists my_target -> CONTINUE
-    target a as my_target -> CONTINUE else ->TRUE
-        closest Station
-        closest tsn
-        player
-    
-    
+match
+    case -> xxx
+        ship target station_list
+    case 
+        ship target tsn_list
+    case 
+        ship target player
+
+
+
+all -> sss timeout 10s -> zzz
+    a near b 700
+    a near  c 700
+
+
+# essentially a join
+all 
+    await=> some_label1
+    await=> some_label2
+    await some_thread_name
+
+
+match
+    case exp1 -> jjj1
+    case esp2 -> jjj2
+    case exp3 -> jjj3
+    else ->
+
+
+objects station from Station
+objects station from Station cyclical
+objects station
+    spawn ....
+    spawn ....
+
+
+
+navpoints patrol
+
+griditems items From DamCon
+
+ship closest station_list exclude prev_stations
+next station_list -> done_label
+rewind station_list
+
+
+ship approach station_list exclude some_list
+
+== GotoStation ==
+    ship approach station_list  # uses current if list
+    ship near  station_list  # uses current if list
+    prev_station = station_list
+    station_list closest ship exclude prev_stations -> VisitedAllStations
+    next station_list -> NoStations
+    -> GotoStation
+
+
+role friend [
+    joe
+    curly
+    moe
+    shemp
+    ]
+
+
+
+
+ship approach  station_list  #will need to know its a list/generator
+ship near station_list # What if one doesn't exists
+
+

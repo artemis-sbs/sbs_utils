@@ -1,4 +1,4 @@
-from sbs_utils.quest import Quest, validate_quest, QuestRunner, PollResults, QuestRuntimeNode, Comms, Tell, Near
+from sbs_utils.quests.quest import Quest, validate_quest, QuestRunner, PollResults, QuestRuntimeNode, Comms, Tell, Near
 import os
 
 
@@ -66,8 +66,8 @@ for file in files:
         q = Quest(content)
     
         validate_quest(q)
-        run = QuestRunner(q, {"player": FakeObject("fred"), "ship": FakeObject("wilma")}, over)
-        run.start()
+        run = QuestRunner(q, over)
+        run.start_thread(inputs={"player": FakeObject("fred"), "ship": FakeObject("wilma")})
         while not run.tick():
             pass
 

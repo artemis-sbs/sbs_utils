@@ -11,31 +11,29 @@ from sbs_utils.gui import Page, Gui
 from sbs_utils.pages.avatar import AvatarEditor
 from sbs_utils.pages.shippicker import ShipPicker
 import sbs_utils
-from sbs_utils.quest import Quest
-from sbs_utils.questrunner import SbsQuestRunner
+from sbs_utils.quests.quest import Quest
+from sbs_utils.quests.questrunner import SbsQuestRunner
 
 
 class QuestShip(Npc):
     def spawn(self, sim, x, y, z, name, side, art_id):
         super().spawn(sim, x, y, z, name, side, art_id, "behav_npcship")
 
-    def compile(self, sim, ins, script):
-        self.quest = Quest()
-        self.quest.compile(script)
+    def compile(sim, script):
+        QuestShip.quest = Quest()
+        QuestShip.quest.compile(script)
+        QuestShip.runner = SbsQuestRunner(
+            QuestShip.quest)
+        TickDispatcher.do_interval(sim, QuestShip.tick_quest, 0)
+
+    def run(self, sim, label="main", inputs=None):
         inputs = {
             "self": self
-        } | ins
-        
-        self.runner = SbsQuestRunner(
-            self.quest, inputs)
-        
-        TickDispatcher.do_interval(sim, self.tick_quest, 0)
+        } | inputs
+        QuestShip.runner.run(sim, label, inputs)
 
-    def start(self, sim, label="main"):
-        self.runner.start(sim, label)
-
-    def tick_quest(self, sim, t):
-        self.runner.tick(sim)
+    def tick_quest(sim, t):
+        QuestShip.runner.tick(sim)
 
 
 
@@ -231,73 +229,115 @@ class Mission:
     def quest(sim):
 
         player = PlayerShip()
-        player.spawn(sim, 0,0,-1400, "Artemis", "tsn", "Battle Cruiser")
-        q = QuestShip()
-        q.spawn(sim, 0,0,0, "Quest", "tsn", "Battle Cruiser" )
-        ds = Spacedock()
-        ds.spawn(sim, 500,0,2500,"tsn")
-        inputs = {
-            "player": player,
-            "station": ds,
-            "ship": q
-        }
+        player.spawn(sim, 0,0,0, "Artemis", "tsn", "Battle Cruiser")
 
-        q.compile(sim, inputs, 
+        
+        ds1 = Spacedock()
+        ds1.spawn(sim, 1000,0,2500,"tsn")
+        ds2 = Spacedock()
+        ds2.spawn(sim, -1000,0,2500,"tsn")
+     
+        QuestShip.compile(sim, 
 """
-comms player self
+
+# Set the comms buttons to start the 'quest'
+self comms player
+    button "Start at DS1" -> One
+    button "Start at DS2" -> Two
+
+== One ==
+await=>HeadToDS1
+await=>HeadToDS2
+->One
+
+== Two ==
+await=>HeadToDS2
+await=>HeadToDS1
+->Two
+
+== HeadToDS1 ==
+self approach ds1                           # Goto DS1
+self near  ds1 700                          # wait until near d1
+self tell player  "I have arrived at ds1"   # tell the player
+
+== HeadToDS2 ==
+self approach ds2                           # goto DS2
+self near ds2 700                           # wait until near D2
+self tell player "I have arrived at ds2"    # tell the player
+
+
+== Start ==
+self comms player
     button "Say Hello" -> Hello
     button "Say Hi" -> Hi
+    button "Shutup" -> Shutup
 
 
 == skip ==
-tell player self "Come to pick the princess"
-near player self 300
-tell player ship "You have the princess goto ds1"
-near player station 700
-tell player station "the princess is on ds1"
+self tell player "Come to pick the princess"
+self near player 300
+self tell player "You have the princess goto ds1"
+player near  station 700
+station tell player "the princess is on ds1"
 
 == Hello ==
-tell player self "HELLO"
-comms player self
+self tell player "HELLO"
+self comms player
     button "Say Blue" -> Blue
     button "Say Yellow" -> Yellow
     button "Say Cyan" -> Cyan
 
 
 == Hi ==
-tell player self "Hi"
+self tell player  "Hi"
 delay 10s
--> main
+-> Start
 
 == Chat ==
-tell player self "Blah, Blah"
-delay 10s
+self tell player "Blah, Blah"
+delay 2s
 -> Chat
 
+== Shutup ==
+cancel chat
+
 == Blue ==
-tell player self "Blue"
+self tell player "Blue"
 delay 10s
--> main
+-> Start
 
 == Yellow ==
-tell player self "Yellow"
+self tell player "Yellow"
 delay 10s
--> main
+-> Start
 
 == Cyan ==
-tell player self "Cyan"
-comms player self timeout 5s -> TooSlow
+self tell player "Cyan"
+self comms self timeout 5s -> TooSlow
     button "Say main" -> main
 
 == TooSlow ==
-tell player self "Woh too slow"
+self tell player "Woh too slow"
 delay 10s
--> main
+-> Start
 
 """)
-        q.start(sim)
+
+        # Run multiple ships using the same Quest
+        for i in range(3):
+            q = QuestShip()
+            q.spawn(sim, -500+i*500,0,400, f"TSN {i}", "tsn", "Battle Cruiser" )
+
+            inputs = {
+                "player": player,
+                "ds1": ds1,
+                "ds2": ds2,
+                "ship": q,
+                "self": q
+            }
+            q.run(sim, inputs=inputs)
         # Demo threads
-        q.start(sim,"Chat")
+        # q.start(sim,"Chat", inputs)
 
 
         

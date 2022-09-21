@@ -172,12 +172,12 @@ class SpaceObject:
             if roles is not None and not other_obj.has_role(roles):
                 continue
 
+            # test distance
+            test = sbs.distance_id(self.id, other_id)
             if max_dist is None:
                 ret.append(CloseData(other_id, other_obj, test))
                 continue
 
-            # test distance
-            test = sbs.distance_id(self.id, other_id)
             if test < max_dist:
                 ret.append(CloseData(other_id, other_obj, test))
 
@@ -254,6 +254,7 @@ class SpaceObject:
         close = self.find_closest(sim, roles, max_dist, filter_func)
         if close.id is not None:
             self.target(sim, close.id, shoot)
+        return close
 
     def target(self, sim, other_id: int, shoot: bool = True):
         """ Set the item to target
@@ -267,16 +268,82 @@ class SpaceObject:
         """
         this = sim.get_space_object(self.id)
         other = sim.get_space_object(other_id)
+        if other:
+            blob = this.data_set
+            blob.set("target_pos_x", other.pos.x)
+            blob.set("target_pos_y", other.pos.y)
+            blob.set("target_pos_z", other.pos.z)
+            if shoot:
+                blob.set("target_id", other.unique_ID)
+            else:
+                blob.set("target_id", 0)
+
+    def target_pos(self, sim, x:float, y:float, z:float):
+        """ Set the item to target
+
+        :param sim: The simulation
+        :type sim: Artemis Cosmos simulation
+        :param other_id: the id of the object to target
+        :type other_id: int
+        :param shoot: if the object should be shot at
+        :type shoot: bool
+        """
+        this = sim.get_space_object(self.id)
 
         blob = this.data_set
-        blob.set("target_pos_x", other.pos.x)
-        blob.set("target_pos_y", other.pos.y)
-        blob.set("target_pos_z", other.pos.z)
-        if shoot:
-            blob.set("target_id", other.unique_ID)
-        else:
-            blob.set("target_id", 0)
+        blob.set("target_pos_x", x)
+        blob.set("target_pos_y", y)
+        blob.set("target_pos_z", z)
 
+    def find_closest_nav(self, sim, nav=None, max_dist=None, filter_func=None) -> CloseData:
+        """ Finds the closest object matching the criteria
+
+        :param sim: The simulation
+        :type sim: Artemis Cosmos simulation
+        :param roles: Roles to looks for can also be class name
+        :type nav: str or List[str] 
+        :param max_dist: Max distance to search (faster)
+        :type max_dist: float
+        :param filter_func: Called to test each object to filter out non matches
+        :type filter_func: function that takes ID
+        :return: A list of close object
+        :rtype: CloseData
+        """
+        close_id = None
+        close_obj = None
+        dist = max_dist
+
+        ###### TODO USe boardtest if max_dist used
+
+        items = []
+        if type(nav) == str:
+            items.append(nav)
+        else:
+            items.extend(nav)
+            
+        if filter_func is not None:
+            items = filter(filter_func, items)
+
+        for nav in items:
+            
+            test = sbs.distance_to_navpoint(self.id, nav)
+            if dist is None:
+                close_id = nav
+                close_obj = nav
+                dist = test
+            elif test < dist:
+                close_id = nav
+                close_obj = nav
+                dist = test
+
+        return CloseData(close_id, close_obj, dist)
+
+    def target_closest_nav(self, sim, nav=None, max_dist=None, filter_func=None, shoot: bool = True):
+        found = self.find_closest_nav(sim,nav,max_dist, filter_func)
+        if found.id is not None:
+            nav_object = sim.get_navpoint_by_name(found.id)
+            self.target_pos(nav_object.pos.x, nav_object.pos.y,nav_object.pos.z)
+        return found
 
     def clear_target(self, sim):
         """ Clear the target

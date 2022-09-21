@@ -4,6 +4,7 @@ import re
 import ast
 import math
 
+
 class QuestError:
     def __init__(self, message, line_no):
         if isinstance(message, str):
@@ -31,7 +32,6 @@ class QuestNode:
     def gen(self):
         return ''
 
-
 class Label(QuestNode):
     rule = re.compile(r'==\s*(?P<name>\w+)\s*==')
     def __init__(self, name):
@@ -46,6 +46,11 @@ class Input(QuestNode):
     rule = re.compile(r'input\s+(?P<name>\w+)')
     def __init__(self, name):
         self.name = name
+
+class Comment(QuestNode):
+    rule = re.compile(r'#.*')
+    def __init__(self):
+        pass
 
 class QuestData(object):
     def __init__(self, dictionary):
@@ -91,6 +96,7 @@ class Assign(QuestNode):
         return f'{self.lhs} = ...'
 
 
+
 class Jump(QuestNode):
     rule = re.compile(r'->\s*(?P<label>\w+)')
     def __init__(self, label):
@@ -101,9 +107,106 @@ class Jump(QuestNode):
     def gen(self):
         return f'-> {self.label}"'
 
+class Parallel(QuestNode):
+    """
+    Creates a new 'thread' to run in parallel
+    """
+    rule = re.compile(r"""((?P<name>[\w\.\[\]]+)\s*)?=>\s*(?P<label>\w+)""")
+    def __init__(self, name=None, label=None):
+        self.name = name
+        self.label = label
+        self.cmds = []
+
+    def validate(self, quest):
+        for cmd in self.cmds:
+            if type(cmd) != Assign:
+                return QuestError( f'Only assignments allowed as child', self.line_no)
+
+        return None
+        #if quest.labels.get(self.label) is None:
+        #    return QuestError( f'Jump cannot find {self.to_tag}', self.line_no)
+    def gen(self):
+        s=""
+        if self.name: 
+            s+= f'{self.name} '
+        s += f'=> {self.label}'
+        
+
+    def add_child(self, cmd):
+        self.cmds.append(cmd)
+
+class Await(QuestNode):
+    """
+    waits for an existing or a new 'thread' to run in parallel
+    this needs to be a rule before Parallel
+    """
+    rule = re.compile(r"""await(\s*(?P<spawn>=>))?\s*(?P<label>\w+)""")
+    def __init__(self, name=None, spawn=None, label=None):
+        self.spawn = True if spawn is not None else False
+        self.label = label
+        self.cmds = []
+
+    def validate(self, quest):
+        for cmd in self.cmds:
+            if type(cmd) != Assign:
+                return QuestError( f'Only assignments allowed as child', self.line_no)
+
+        return None
+        #if quest.labels.get(self.label) is None:
+        #    return QuestError( f'Jump cannot find {self.to_tag}', self.line_no)
+    def gen(self):
+        s=""
+        if self.spawn: 
+            s+= f'await {self.label} '
+        s += f'await => {self.label}'
+        
+
+    def add_child(self, cmd):
+        self.cmds.append(cmd)
+
+class Cancel(QuestNode):
+    """
+    Cancels a new 'thread' to run in parallel
+    """
+    rule = re.compile(r"""cancel\s*(?P<name>[\w\.\[\]]+)""")
+    def __init__(self, lhs=None, name=None):
+        self.name = name
+
+    def validate(self, quest):
+        return None
+        #if quest.labels.get(self.label) is None:
+        #    return QuestError( f'Jump cannot find {self.to_tag}', self.line_no)
+    def gen(self):
+        s=""
+        s += f'cancel {self.name}'
+
+
+class Target(QuestNode):
+    """
+    Creates a new 'thread' to run in parallel
+    """
+    rule = re.compile(r"""(?P<from_tag>[\w\.\[\]]+)\s*(?P<cmd>target|approach)(\s*(?P<to_tag>[\w\.\[\]]+))?""")
+    def __init__(self, cmd=None, from_tag=None, to_tag=None):
+        self.from_tag = from_tag
+        self.to_tag = to_tag
+        self.approach = cmd=="approach"
+        print(f'target {self.from_tag} {self.to_tag}')
+
+    def validate(self, quest):
+        # this may not be the right check
+        if quest.vars.get(self.from_tag) is None:
+            return QuestError( f'approach/target with invalid var {self.from_tag}', self.line_no)
+
+    def gen(self):
+        if self.approach: 
+            return f'approach {self.from_tag} {self.to_tag}'
+        else:
+            return f'target {self.from_tag} {self.to_tag}'
+        
+
 class Tell(QuestNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
-    rule = re.compile(r"""tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)\4)""")
+    rule = re.compile(r"""(?P<from_tag>\w+)\s+tell\s+(?P<to_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)\4)""")
     def __init__(self, to_tag, from_tag, message):
         self.to_tag = to_tag
         self.from_tag = from_tag
@@ -147,7 +250,7 @@ class Delay(QuestNode):
 
 
 class Comms(QuestNode):
-    rule = re.compile(r'comms\s*(?P<to_tag>\w+)\s*(?P<from_tag>\w+)(\s*timeout(\s*(?P<minutes>\d+)m)?(\s*(?P<seconds>\d+)s)?\s*->\s*(?P<time_jump>\w+)?)?')
+    rule = re.compile(r'(?P<from_tag>\w+)\s*comms\s*(?P<to_tag>\w+)(\s*timeout(\s*(?P<minutes>\d+)m)?(\s*(?P<seconds>\d+)s)?\s*->\s*(?P<time_jump>\w+)?)?')
     def __init__(self, to_tag, from_tag, buttons=None, minutes=None, seconds=None, time_jump=""):
         self.to_tag = to_tag
         self.from_tag = from_tag
@@ -205,7 +308,7 @@ class Button(QuestNode):
         return f'   button "{self.message}" -> {self.jump}'
 
 class Near(QuestNode):
-    rule = re.compile(r'near\s*(?P<to_tag>\w+)\s*(?P<from_tag>\w+)\s*(?P<distance>\d+)\s*(->\s*(?P<jump>\w+))?(\s*timeout(\s*(?P<minutes>\d+)m)?(\s*(?P<seconds>\d+)s)?\s*->\s*(?P<time_jump>\w+)?)?')
+    rule = re.compile(r'(?P<from_tag>\w+)\s+near\s+(?P<to_tag>\w+)\s*(?P<distance>\d+)\s*(->\s*(?P<jump>\w+))?(\s*timeout(\s*(?P<minutes>\d+)m)?(\s*(?P<seconds>\d+)s)?\s*->\s*(?P<time_jump>\w+)?)?')
     def __init__(self, to_tag, from_tag, distance, jump, minutes=None, seconds=None, time_jump=""):
         self.to_tag = to_tag
         self.from_tag = from_tag
@@ -281,20 +384,26 @@ class Quest:
                     self.labels[cmd.name] = cmd
                     active = cmd
                 case "Var":
-                    self.inputs[cmd.name] = cmd
+                    self.vars[cmd.name] = cmd
                     active = cmd
                 case _:
                     active.cmds.append(cmd)
 
     nodes = [
+        Comment,
         Label,
         Input,
         Var,
+        Await, # needs to be before Parallel
+        Parallel, # needs to be before Assign
+        Cancel,
         Assign,
         End,
         Jump,
         Delay,
         
+        # sbs specific
+        Target,
         Tell,
         Comms,
         Button,
@@ -352,6 +461,12 @@ class Quest:
                             input = Input(**data)
                             self.inputs[data['name']] = input
 
+                        case "Comment":
+                            # obj.line_no = line_no
+                            # self.cmd_stack[-1].add_child(obj)
+                            # active_cmd = obj
+                            pass
+
                         case "Var":
                             var = Var(**data)
                             if var.value is not None:
@@ -369,61 +484,6 @@ class Quest:
                 mo = lines.find('\n')
                 line = lines[:mo]
                 lines = lines[mo+1:]
-                print(f"ERROR: {line_no} - {line}")
-                
-
-
-    def compile_OLD(self, lines):
-        self.clear()
-        active = self.labels["main"]
-        # tag =  "\w+"
-        lines = lines.split('\n')
-        for line_no, line in enumerate(lines):
-            parsed = False
-            indent = first_non_space_index(line)
-            if indent is None:
-                continue
-            if indent > self.indent_stack[-1]:
-                # new indent
-                self.cmd_stack.append(active_cmd)
-                self.indent_stack.append(indent)
-            while indent < self.indent_stack[-1]:
-                self.cmd_stack.pop()
-                self.indent_stack.pop()
-            if indent>0:
-                # strip spaces
-                line = line[indent:]
-
-            for node_cls in Quest.nodes:
-                mo = node_cls.rule.match(line)
-
-                if mo:
-                    parsed = True
-                    data = mo.groupdict()
-                    
-                    match node_cls.__name__:
-                        case "Label":
-                            active = Label(**data)
-                            self.labels[data['name']] = active
-                            self.cmd_stack.pop()
-                            self.cmd_stack.append(active)
-                        case "Input":
-                            input = Input(**data)
-                            self.inputs[data['name']] = input
-
-                        case "Var":
-                            var = Var(**data)
-                            self.vars[data['name']] = var
-
-
-                        
-                        case _:
-                            obj = node_cls(**data)
-                            obj.line_no = line_no
-                            self.cmd_stack[-1].add_child(obj)
-                            active_cmd = obj
-                    break
-            if not parsed:
                 print(f"ERROR: {line_no} - {line}")
                 
 
@@ -457,7 +517,8 @@ def validate_var(quest, name, value):
     v.value = value
     print(v.gen())
 
-
+class QuestAsync:
+    pass
 
 # Using enum.IntEnum 
 class PollResults(IntEnum):
@@ -468,11 +529,11 @@ class PollResults(IntEnum):
      OK_END = 99
 
 class EndRunner(QuestRuntimeNode):
-    def poll(self, quest, thread, node):
+    def poll(self, quest, thread, node:End):
         return PollResults.OK_END
 
 class AssignRunner(QuestRuntimeNode):
-    def poll(self, quest, thread, node):
+    def poll(self, quest, thread, node:Assign):
         allowed = {"math": math}| quest.vars
         value = eval(node.code, {"__builtins__": {}}, allowed)
         locals = {"__quest_value": value} | quest.vars
@@ -481,9 +542,40 @@ class AssignRunner(QuestRuntimeNode):
         return PollResults.OK_ADVANCE_TRUE
 
 class JumpRunner(QuestRuntimeNode):
-    def poll(self, quest, thread, node):
+    def poll(self, quest, thread, node:Jump):
         thread.jump(node.label)
         return PollResults.OK_JUMP
+
+class ParallelRunner(QuestRuntimeNode):
+    def enter(self, quest, thread, node:Parallel):
+        thread.start_thread(node.label, thread_name=node.name)
+    def poll(self, quest, thread, node:Parallel):
+        return PollResults.OK_ADVANCE_TRUE
+
+class AwaitRunner(QuestRuntimeNode):
+    def enter(self, quest, thread, node:Await):
+        self.thread = None
+        if node.spawn:
+            # spawn via thread to pass same inputs
+            self.thread = thread.start_thread(node.label)
+        else:
+            self.thread = thread.name_threads.get(node.label)
+
+    def poll(self, quest, thread, node:Await):
+        if self.thread is None:
+            return PollResults.OK_ADVANCE_TRUE
+        if self.thread.done:
+            if self.thread.result == PollResults.OK_ADVANCE_FALSE:
+                return PollResults.OK_ADVANCE_FALSE
+            else:
+                return PollResults.OK_ADVANCE_TRUE
+        return PollResults.OK_RUN_AGAIN
+
+
+class CancelRunner(QuestRuntimeNode):
+    def poll(self, quest, thread: QuestAsync, node:Cancel):
+        thread.main.cancel_thread(node.name)
+        return PollResults.OK_ADVANCE_TRUE
 
     
 class DelayRunner(QuestRuntimeNode):
@@ -498,56 +590,95 @@ class DelayRunner(QuestRuntimeNode):
 
         return PollResults.OK_RUN_AGAIN
 
+class QuestRunner:
+    pass
 
-class QuestThread:
+class QuestAsync:
+    main: QuestRunner
     
-    def __init__(self, main):
+    def __init__(self, main: QuestRunner, inputs=None):
         self.done = False
         self.runner = None
         self.main= main
+        self.inputs= inputs if inputs else {}
+        self.result = None
+               
 
     def jump(self, label = "main"):
         self.cmds = self.main.quest.labels[label].cmds
         self.active_label = label
         self.active_cmd = 0
-        #self.runner = None
+        self.runner = None
         self.done = False
         self.next(True)
+
+    def start_thread(self, label = "main", inputs=None, thread_name=None)->QuestAsync:
+        inputs= self.inputs|inputs if inputs else self.inputs
+        return self.main.start_thread(label, inputs, thread_name)
     
     def tick(self):
-        if self.done:
-            # should unschedule
+        cmd = None
+        try:
+            if self.done:
+                # should unschedule
+                return PollResults.OK_END
+
+            count = 0
+            while not self.done:
+                count += 1
+                # avoid tight loops
+                if count > 1000:
+                    break
+
+                if self.runner:
+                    cmd = self.cmds[self.active_cmd]
+                    result = self.runner.poll(self.main.quest, self, cmd)
+                    match result:
+                        case PollResults.OK_ADVANCE_TRUE:
+                            self.result = result
+                            self.next()
+                        case PollResults.OK_ADVANCE_FALSE:
+                            self.result = result
+                            self.next()
+                        case PollResults.OK_END:
+                            self.done = True
+                        case PollResults.OK_RUN_AGAIN:
+                            break
+                        case PollResults.OK_JUMP:
+                            break
+            return PollResults.OK_RUN_AGAIN
+        except BaseException as err:
+            self.main.runtime_error("")
             return PollResults.OK_END
+                            
 
-        while not self.done:
-            if self.runner:
-                cmd = self.cmds[self.active_cmd]
-                match self.runner.poll(self.main.quest, self, cmd):
-                    case PollResults.OK_ADVANCE_TRUE:
-                        self.next()
-                    case PollResults.OK_END:
-                        self.done = True
-                    case PollResults.OK_RUN_AGAIN:
-                        break
+    def runtime_error(self, s):
+        if self.runner:
+            cmd = self.cmds[self.active_cmd]
+        s += f"label: {self.active_label}^"
+        if cmd:
+            s += f"cmd: {cmd.__class__.__name__}^"
+            s += f"line: {cmd.gen()}^"
+        self.main.runtime_error(s)
+        self.done = True
 
-        return PollResults.OK_RUN_AGAIN
 
     def next(self, first=False):
         if self.runner:
             cmd = self.cmds[self.active_cmd]
             self.runner.leave(self.main.quest, self, cmd)
-
-        if not first:
             self.active_cmd += 1
+        
         if self.active_cmd >= len(self.cmds):
             self.done = True
-            return
+            return len(self.cmds) > 0
         
         cmd = self.cmds[self.active_cmd]
         runner_cls = self.main.nodes.get(cmd.__class__.__name__, QuestRuntimeNode)
         
         self.runner = runner_cls()
         self.runner.enter(self.main.quest, self, cmd)
+        return True
 
 
 
@@ -555,33 +686,58 @@ class QuestRunner:
     runners = {
         "End": EndRunner,
         "Jump": JumpRunner,
+        "Await": AwaitRunner,
+        "Parallel": ParallelRunner,
+        "Cancel": CancelRunner,
         "Assign": AssignRunner,
         "Delay": DelayRunner,
     }
 
-    def __init__(self, quest: Quest, inputs, overrides=None):
+    def __init__(self, quest: Quest, overrides=None):
         if overrides is None:
             overrides = {}
         self.nodes = QuestRunner.runners | overrides
-        self.inputs = inputs
-        self.vars = inputs | quest.vars
+        self.vars = {} | quest.vars
         self.quest = quest
         self.threads = []
-    
+        self.name_threads = {}
+        self.inputs = None
+        self.done = []
 
-    def start(self, label = "main"):
-        t= QuestThread(self)
+    def runtime_error(self, message):
+        pass
+
+    def start_thread(self, label = "main", inputs=None, thread_name=None)->QuestAsync:
+        if self.inputs is None:
+            self.inputs = inputs
+            inputs = {} | inputs
+        if inputs is None:
+           inputs = {} | self.inputs
+
+        t= QuestAsync(self, inputs)
         t.jump(label)
         self.threads.append(t)
+        if thread_name is not None:
+            self.name_threads[thread_name] = t
+        return t
+
+    def cancel_thread(self, name):
+        t = self.name_threads.get(name)
+        if t:
+            print(f"canceling {name}")
+            self.done.append(t)
 
     def tick(self):
-        done = []
         for thread in self.threads:
             res = thread.tick()
             if res == PollResults.OK_END:
-                done.append(thread)
-        for rem in done:
-            self.threads.remove(rem)
+                self.done.append(thread)
+        
+        if len(self.done):
+            for rem in self.done:
+                self.threads.remove(rem)
+            self.done = []
+
         if len(self.threads):
             return True
         else:
