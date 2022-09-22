@@ -1,0 +1,50 @@
+
+== Briefing == 
+layout
+    row
+        face captain_frank
+        text """Welcome to the TSN"""
+    row
+        text  """
+You're in for an adventure
+Have you every flown a spaceship
+"""
+    face captain_alicia
+
+choices timeout 10s -> NoChoice
+    + "Yes.." -> YouLied
+    + "Ready to learn" -> Learn
+    + "Not interested" -> GotoBar
+    + "Exit" ->END
+
+        text|empty|image|face|ship "data"
+
+
+choices timeout 10s -> NoChoice
+    + "Prev" ->PREV
+    + "Next" ->NEXT
+    + "Exit" ->END
+
+PREV       other choice        EXIT
+PREV            NEXT           EXIT
+PREV                           NEXT
+
+
+
+
+
+== Label == # are pages
+layout
+    row
+        text|empty|image|face|ship "data"
+
+
+choices timeout 10s -> NoChoice
+    + "Prev" ->PREV
+    + "Next" ->NEXT
+    + "Exit" ->END
+
+PREV       other choice        EXIT
+PREV            NEXT           EXIT
+PREV                           NEXT
+

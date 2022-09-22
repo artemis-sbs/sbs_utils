@@ -10,9 +10,10 @@ import sbs_utils.layout as layout
 from sbs_utils.gui import Page, Gui
 from sbs_utils.pages.avatar import AvatarEditor
 from sbs_utils.pages.shippicker import ShipPicker
+from sbs_utils.pages.layout import LayoutPage, Layout, Row, Text, Face, Ship, Separate
 import sbs_utils
-from sbs_utils.quests.quest import Quest
-from sbs_utils.quests.questrunner import SbsQuestRunner
+from sbs_utils.quests.sbsquest import SbsQuest
+from sbs_utils.quests.sbsquestrunner import SbsQuestRunner
 
 
 class QuestShip(Npc):
@@ -20,7 +21,7 @@ class QuestShip(Npc):
         super().spawn(sim, x, y, z, name, side, art_id, "behav_npcship")
 
     def compile(sim, script):
-        QuestShip.quest = Quest()
+        QuestShip.quest = SbsQuest()
         QuestShip.quest.compile(script)
         QuestShip.runner = SbsQuestRunner(
             QuestShip.quest)
@@ -62,6 +63,35 @@ class GuiPage(Page):
             Gui.push(sim,event.client_id, GuiPage())
 
 
+class TestLayoutPage(LayoutPage):
+    def __init__(self) -> None:
+        super().__init__()
+        self.layout.left = 30
+        self.layout.top = 20
+        self.layout.width = 70
+        self.layout.height = 70
+
+        text = " l;k;lk; k;lk ;lk;k;k; jhkj  kjhhkjh kjhh jkh k kjh jh  jljlk j lk j kj lkj kjlk lkjlk jllk  kjkjl  jhjhkh kh k iojiopipi rrrwqrrq"
+        self.layout.add(
+            Row()
+                .add(Face(faces.random_terran(),
+                    "tag_two"))
+                .add(Text(text,
+                    "tag_one"))
+        )
+        self.layout.add(
+            Row()
+                #.add(Ship("Battle Cruiser",
+                #    "tag_three"))
+                .add(Text(text,
+                    "tag_four"))
+                .add(Face(faces.random_terran(),
+                    "tag_five"))
+        )
+        
+        self.layout.calc()
+
+
 
 ############################
 # Test for sbs_utils
@@ -88,6 +118,7 @@ class GuiMain(Page):
         sbs.send_gui_button(event.client_id, "Ship Picker", "ship", *next(w))
         sbs.send_gui_button(event.client_id, "StubGen", "stub", *next(w))
         sbs.send_gui_button(event.client_id, "Quest", "quest", *next(w))
+        sbs.send_gui_button(event.client_id, "Layout", "layout", *next(w))
 
     def on_message(self, sim, event):
         match event.sub_tag:
@@ -122,6 +153,9 @@ class GuiMain(Page):
                 sbs.resume_sim()
                 Mission.face_test(sim)
 
+            case "layout":
+                Gui.push(sim,event.client_id, TestLayoutPage())
+
             case "face_gen":
                 sbs.create_new_sim()
                 sbs.resume_sim()
@@ -136,6 +170,11 @@ class GuiMain(Page):
                 sbs.create_new_sim()
                 sbs.resume_sim()
                 Mission.quest(sim)
+
+            case "target":
+                sbs.create_new_sim()
+                sbs.resume_sim()
+                Mission.target_bug(sim)
 
 
     def stub_gen(self):
@@ -226,6 +265,34 @@ class Mission:
         if t.race >= 9:
             t.race = 0
 
+    def target_bug(sim: sbs.simulation):
+
+        #player = PlayerShip()
+        #player.spawn(sim, 0,0,0, "Artemis", "tsn", "Battle Cruiser")
+        #bad = Npc()
+        #bad.spawn(sim,0,0, 1400, "BadGuy", "baddy", "Battle Cruiser", "behav_npcship")
+        #bad.target_closest(sim, "PlayerShip")
+
+        player_id = sim.make_new_player("behav_playership", "Battle Cruiser")
+        sbs.assign_player_ship(player_id)
+        player = sim.get_space_object(player_id)
+        player.side = "TSN";
+        blob = player.data_set
+        blob.set("name_tag", "Artemis", 0)
+        sim.reposition_space_object(player, 0, 0, 10)
+
+        other_id = sim.make_new_active("behav_npcship", "Battle Cruiser")
+        other = sim.get_space_object(other_id)
+        other.side = "baddy"
+        sim.reposition_space_object(other, 0,0,1400)
+
+        blob = other.data_set
+        blob.set("target_pos_x", player.pos.x)
+        blob.set("target_pos_y", player.pos.y)
+        blob.set("target_pos_z", player.pos.z)
+        blob.set("target_id", player.unique_ID)
+
+
     def quest(sim):
 
         player = PlayerShip()
@@ -239,11 +306,23 @@ class Mission:
      
         QuestShip.compile(sim, 
 """
+var x = 34
 
 # Set the comms buttons to start the 'quest'
 self comms player
     button "Start at DS1" -> One
     button "Start at DS2" -> Two
+    button "Taunt" -> Taunt
+
+== Taunt ==
+
+self comms player
+    * "Your mother" -> Taunt color "red"
+    * "Kiss my Engine" -> Taunt color"green"
+    * "Skip me" -> Taunt color "white" if x > 54
+    * "Don't Skip me" -> Taunt color "white" if x < 54
+    + "Taunt" -> Taunt
+
 
 == One ==
 await=>HeadToDS1
