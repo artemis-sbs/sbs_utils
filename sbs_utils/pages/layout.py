@@ -1,9 +1,5 @@
 from ..gui import Page
 import sbs
-from ctypes import byref, windll
-from ctypes import wintypes, Structure, windll, byref, c_int16, \
-            c_int, c_long, WINFUNCTYPE
-
 
 class Row:
     def __init__(self, cols=None, width=0, height=0) -> None:
@@ -21,10 +17,10 @@ class Row:
         self.columns.append(col)
         return self
 
-    def present(self, sim, client_id):
+    def present(self, sim, event):
         col:Column
         for col in self.columns:
-            col.present(sim,client_id)
+            col.present(sim,event)
 
 class Column:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
@@ -46,9 +42,22 @@ class Text(Column):
         super().__init__()
         self.message = message
         self.tag = tag
+        #self.color = color
 
-    def present(self, sim, client_id):
-        sbs.send_gui_text(client_id, 
+    def present(self, sim, event):
+        sbs.send_gui_text(event.client_id, 
+            self.message, self.tag, 
+            self.left, self.top, self.right, self.bottom)
+
+class Button(Column):
+    def __init__(self, message, tag) -> None:
+        super().__init__()
+        self.message = message
+        self.tag = tag
+        #self.color = color
+
+    def present(self, sim, event):
+        sbs.send_gui_button(event.client_id, 
             self.message, self.tag, 
             self.left, self.top, self.right, self.bottom)
 
@@ -65,8 +74,8 @@ class Face(Column):
         self.tag = tag
         self.square = True
 
-    def present(self, sim, client_id):
-        sbs.send_gui_face(client_id, 
+    def present(self, sim, event):
+        sbs.send_gui_face(event.client_id, 
             self.face, self.tag,
             self.left, self.top, self.right, self.bottom)
             #self.left, self.top, self.left+(self.right-self.left)*.60, 100)
@@ -77,22 +86,26 @@ class Ship(Column):
         super().__init__()
         self.ship = ship
         self.tag = tag
-        self.square = True
 
-    def present(self, sim, client_id):
-        sbs.send_gui_3dship(client_id, 
+    def present(self, sim, event):
+        sbs.send_gui_3dship(event.client_id, 
             self.ship, self.tag, 
             self.left, self.top, self.right, self.bottom)
 
 
-
 class Layout:
-    def __init__(self, rows = None, left=0, top=0, width=100, height=100) -> None:
+    def __init__(self, rows = None, left=0, top=0, right=100, bottom=100) -> None:
         self.rows = rows if rows else []
+        self.aspect_ratio = sbs.vec2(1920,1071)
+        self.set_size(left,top,right,bottom)
+
+    def set_size(self, left=0, top=0, right=100, bottom=100):
         self.left = left
         self.top = top
-        self.width = width
-        self.height = height
+        self.width = right-left
+        self.height = bottom-top
+        
+
 
 
     def add(self, row:Row):
@@ -111,19 +124,23 @@ class Layout:
                 row.top = top
                 squares = 0
 
-                screen_width  = 1920 #1029
-                screen_height = 1010 #800-30
-                screen_width  = 1029
-                screen_height = 800-30
-
                 col: Column
                 for col in row.columns:
                     squares += 1 if col.square else 0
-                # Set width 
-                square_width = (screen_height/screen_width)*row.width/len(row.columns) 
-                if row.height < square_width:
-                    square_width = row.height
+                # Set width
+                actual_width = row.width/len(row.columns) * self.aspect_ratio.x / 100
+                actual_height =  row.height * self.aspect_ratio.y /100
+                if actual_height < actual_width:
+                    square_width = (actual_height/self.aspect_ratio.x) * 100
+                else:
+                    square_width = (actual_width/self.aspect_ratio.x) *100
+                                
                 rect_col_width = (row.width-(squares*square_width))/(len(row.columns)-squares)
+
+                # bit of a hack to make sure face aren't the biggest things
+                if square_width> rect_col_width:
+                    square_width= rect_col_width
+                    rect_col_width = (row.width-(squares*square_width))/(len(row.columns)-squares)
 
                 col_left = left
                 for col in row.columns:
@@ -139,10 +156,10 @@ class Layout:
 
                 top += row_height
 
-    def present(self, sim, client_id):
+    def present(self, sim, event):
         row:Row
         for row in self.rows:
-            row.present(sim,client_id)
+            row.present(sim,event)
         
 
 
@@ -151,15 +168,27 @@ class LayoutPage(Page):
         super().__init__()
         self.gui_state = 'repaint'
         self.layout = Layout()
+        
 
     def present(self, sim, event):
+        """ Present the gui """
+
+        sz = sbs.get_screen_size()
+        if sz is not None and sz.y != 0:
+            aspect_ratio = sz.x/sz.y
+            if self.layout.aspect_ratio != aspect_ratio:
+                self.layout.aspect_ratio = aspect_ratio
+                self.layout.calc()
+                self.gui_state = 'repaint'
+
+        
         match self.gui_state:
             case  "repaint":
                 sbs.send_gui_clear(event.client_id)
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
                 self.gui_state = "presenting"
-                self.layout.present(sim,event.client_id)
+                self.layout.present(sim,event)
                 
 
 

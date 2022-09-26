@@ -1,8 +1,7 @@
 from email import message
-from enum import IntEnum
+from enum import IntEnum, Enum
 import re
 import ast
-import math
 
 # tokens
 #
@@ -24,6 +23,7 @@ class QuestError:
 
 class QuestNode:
     def add_child(self, cmd):
+        #print("ADD CHILD")
         pass
 
     def validate(self, quest):
@@ -48,7 +48,7 @@ class Input(QuestNode):
         self.name = name
 
 class Comment(QuestNode):
-    rule = re.compile(r'#.*')
+    rule = re.compile(r'#[ \t\S]*')
     def __init__(self):
         pass
 
@@ -79,12 +79,18 @@ class Var(QuestNode):
             return QuestError( f'variable {self.name} cannot be set {self.val}', self.line_no)
     def gen(self):
         return f'var {self.name} {repr(self.value)}'
-    
+
+class Scope(Enum):
+    SHARED=1 # per quest instance
+    NORMAL=2 # per runner
+    TEMP=99 # Per thread? 
+
 
 class Assign(QuestNode):
-    rule = re.compile(r'(?P<lhs>[\w\.\[\]]+)\s*=(?P<exp>.*)')
-    def __init__(self, lhs, exp):
+    rule = re.compile(r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*=(?P<exp>.*)')
+    def __init__(self, scope, lhs, exp):
         self.lhs = lhs
+        self.scope =  Scope.NORMAL if scope is None else Scope[scope.strip().upper()]
         exp = exp.lstrip()
         self.code = compile(exp, "<string>", "eval")
     def validate(self, quest):
@@ -94,17 +100,30 @@ class Assign(QuestNode):
     def gen(self):
         return f'{self.lhs} = ...'
 
-
+JUMP_CMD_REGEX = r"""((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+)))"""
+JUMP_ARG_REGEX = r"""(\s*((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+))))"""
+OPT_JUMP_REGEX = JUMP_ARG_REGEX+r"""?"""
+TIME_JUMP_REGEX = r"""((?P<time_pop><<-)|(->(?P<time_push>>)?\s*(?P<time_jump>\w+)))?"""
+MIN_SECONDS_REGEX = r"""(\s*((?P<minutes>\d+))m)?(\s*((?P<seconds>\d+)s))?"""
+TIMEOUT_REGEX = r"(\s*timeout"+MIN_SECONDS_REGEX+r"\s*" + TIME_JUMP_REGEX+ r")?"
+OPT_COLOR = r"""(\s*color\s*["'](?P<color>[ \t\S]+)["'])?"""
 
 class Jump(QuestNode):
-    rule = re.compile(r'->\s*(?P<label>\w+)')
-    def __init__(self, label):
-        self.label = label
+    rule = re.compile(JUMP_CMD_REGEX)
+    def __init__(self, pop, push, jump):
+        self.label = jump
+        self.push = push == "->>"
+        self.pop = pop is not None
     def validate(self, quest):
         if quest.labels.get(self.label) is None:
             return QuestError( f'Jump cannot find {self.to_tag}', self.line_no)
     def gen(self):
-        return f'-> {self.label}"'
+        if self.push:
+            return f'-> {self.label}"'
+        elif self.pop:
+            return f'<<- {self.label}"'
+        else:
+            return f'->> {self.label}"'
 
 class Parallel(QuestNode):
     """
@@ -189,7 +208,7 @@ class End(QuestNode):
         return "->END"
 
 class Delay(QuestNode):
-    rule = re.compile(r'delay(\s*(?P<minutes>\d+)m)?(\s*(?P<seconds>\d+)s)?')
+    rule = re.compile(r'delay\s*'+MIN_SECONDS_REGEX)
     def __init__(self, seconds=None, minutes=None):
         self.seconds = 0 if  seconds is None else int(seconds)
         self.minutes = 0 if  minutes is None else int(minutes)
@@ -260,7 +279,7 @@ class Quest:
         Comment,
         Label,
         Input,
-        Var,
+#        Var,
         Await, # needs to be before Parallel
         Parallel, # needs to be before Assign
         Cancel,
@@ -277,10 +296,34 @@ class Quest:
         self.labels["main"] = Label("main")
         self.cmd_stack = [self.labels["main"]]
         self.indent_stack = [0]
-    
+        self.main_pruned = False
+        self.runners = set()
+
+    def prune_main(self):
+        if self.main_pruned:
+            return
+        main = self.labels.get("main")
+        # remove all the assigned from the main
+        if main is not None:
+            main.cmds = [cmd for cmd in main.cmds if not (cmd.__class__ == Assign and cmd.scope==Scope.SHARED)]
+            self.main_pruned = True
+
+    def add_runner(self, runner):
+        self.runners.add(runner)
+
+    def refresh_runners(self, source, label):
+        for runner in self.runners:
+            if runner == source:
+                continue
+            runner.refresh(label)
+
+    def remove_runner(self, runner):
+        self.runners.remove(runner)
+        
+
     def compile(self, lines):
         self.clear()
-        active = self.labels["main"]
+        active_cmd = self.labels["main"]
         line_no = -1
         while len(lines):
             mo = first_non_newline_index(lines)
@@ -310,7 +353,7 @@ class Quest:
                     
                     parsed = True
                     data = mo.groupdict()
-                    
+                    # print(f"PARSED: {node_cls.__name__:}")
                     match node_cls.__name__:
                         case "Label":
                             active = Label(**data)
@@ -341,10 +384,13 @@ class Quest:
                             active_cmd = obj
                     break
             if not parsed:
-                mo = lines.find('\n')
-                line = lines[:mo]
-                lines = lines[mo+1:]
-                print(f"ERROR: {line_no} - {line}")
+                mo = first_non_newline_index(lines)
+                if mo:
+                    line = lines[:mo+1]
+                    lines = lines[mo:]
+                    print(f"ERROR: {line_no} - {line}")
+                else:
+                    lines = lines[1:]
 
 
 

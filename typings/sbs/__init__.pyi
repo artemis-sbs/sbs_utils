@@ -10,6 +10,8 @@ def clear_client_tags() -> None:
     """return a list of client ids, for the computers that are currently connected to this server."""
 def create_new_sim() -> None:
     """all space objects are deleted; a blank slate is born."""
+def create_transient(arg0: int, arg1: int, arg2: int, arg3: int, arg4: float, arg5: float, arg6: float, arg7: str) -> None:
+    """Generates a temporary graphical object, like an explosion."""
 def delete_object(arg0: int) -> None:
     """deletes a space object by its ID"""
 def distance(arg0: sbs.space_object, arg1: sbs.space_object) -> float:
@@ -22,6 +24,8 @@ def distance_to_navpoint(arg0: str, arg1: int) -> float:
     """returns the distance between a nav point and a space object; navpoint name, then object ID"""
 def get_client_ID_list() -> List[int]:
     """return a list of client ids, for the computers that are currently connected to this server."""
+def get_screen_size() -> sbs.vec2:
+    """returns a VEC2, with the width and height of the display in pixels"""
 def pause_sim() -> None:
     """the sim will now pause; HandlePresentGUI() and HandlePresentGUIMessage() are called."""
 def query_client_tags() -> None:
@@ -96,62 +100,32 @@ class event(object): ### from pybind
     @property
     def client_id (self: sbs.event) -> int:
         """id of computer this event came from."""
-    @client_id.setter
-    def client_id (self: sbs.event, arg0: int) -> None:
-        """id of computer this event came from."""
     @property
     def event_time (self: sbs.event) -> int:
-        """long int, time this damage occured, compare to simulation.time_tick_counter"""
-    @event_time.setter
-    def event_time (self: sbs.event, arg0: int) -> None:
         """long int, time this damage occured, compare to simulation.time_tick_counter"""
     @property
     def origin_id (self: sbs.event) -> int:
         """id of space object this event came from"""
-    @origin_id.setter
-    def origin_id (self: sbs.event, arg0: int) -> None:
-        """id of space object this event came from"""
     @property
     def parent_id (self: sbs.event) -> int:
-        """id of owner/creator of space object this event came from (like the ship that fired the missile)"""
-    @parent_id.setter
-    def parent_id (self: sbs.event, arg0: int) -> None:
         """id of owner/creator of space object this event came from (like the ship that fired the missile)"""
     @property
     def selected_id (self: sbs.event) -> int:
         """id of space object this event is talking about, or doing something to"""
-    @selected_id.setter
-    def selected_id (self: sbs.event, arg0: int) -> None:
-        """id of space object this event is talking about, or doing something to"""
     @property
     def source_point (self: sbs.event) -> sbs.vec3:
-        """vec3, 3d point this event originated from"""
-    @source_point.setter
-    def source_point (self: sbs.event, arg0: sbs.vec3) -> None:
         """vec3, 3d point this event originated from"""
     @property
     def sub_float (self: sbs.event) -> float:
         """float, numeric information"""
-    @sub_float.setter
-    def sub_float (self: sbs.event, arg0: float) -> None:
-        """float, numeric information"""
     @property
     def sub_tag (self: sbs.event) -> str:
-        """string describing message sub-type"""
-    @sub_tag.setter
-    def sub_tag (self: sbs.event, arg0: str) -> None:
         """string describing message sub-type"""
     @property
     def tag (self: sbs.event) -> str:
         """string describing message type"""
-    @tag.setter
-    def tag (self: sbs.event, arg0: str) -> None:
-        """string describing message type"""
     @property
     def value_tag (self: sbs.event) -> str:
-        """string, more information"""
-    @value_tag.setter
-    def value_tag (self: sbs.event, arg0: str) -> None:
         """string, more information"""
 class grid_object(object): ### from pybind
     """class grid_object"""
@@ -171,6 +145,12 @@ class grid_object(object): ### from pybind
     def tag (self: sbs.grid_object, arg0: str) -> None:
         """string, text tag"""
     @property
+    def type (self: sbs.grid_object) -> str:
+        """string, text value, broad type of object"""
+    @type.setter
+    def type (self: sbs.grid_object, arg0: str) -> None:
+        """string, text value, broad type of object"""
+    @property
     def unique_ID (self: sbs.grid_object) -> int:
         """int32, read only, id of this particular grid object"""
 class hullmap(object): ### from pybind
@@ -181,7 +161,7 @@ class hullmap(object): ### from pybind
     @art_file_root.setter
     def art_file_root (self: sbs.hullmap, arg0: str) -> None:
         """string, file name, used to get top-down image from disk"""
-    def create_grid_object(self: sbs.hullmap, arg0: str, arg1: str) -> sbs.grid_object:
+    def create_grid_object(self: sbs.hullmap, arg0: str, arg1: str, arg2: str) -> sbs.grid_object:
         """returns a gridobject, after creating it"""
     def delete_grid_object(self: sbs.hullmap, arg0: sbs.grid_object) -> bool:
         """deletes the grid object, returns true if deletion actually occured"""
@@ -191,6 +171,8 @@ class hullmap(object): ### from pybind
     @desc.setter
     def desc (self: sbs.hullmap, arg0: str) -> None:
         """string, description text"""
+    def get_grid_object_by_id(self: sbs.hullmap, arg0: int) -> sbs.grid_object:
+        """returns a gridobject, by int32 ID"""
     def get_grid_object_by_index(self: sbs.hullmap, arg0: int) -> sbs.grid_object:
         """returns a gridobject, by position in the list"""
     def get_grid_object_by_name(*args, **kwargs):

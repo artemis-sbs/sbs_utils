@@ -1,4 +1,4 @@
-from .quest import Quest, QuestNode, QuestError
+from .quest import JUMP_ARG_REGEX, OPT_JUMP_REGEX, TIMEOUT_REGEX, OPT_COLOR, Quest, QuestNode, QuestError
 import re
 
 
@@ -44,14 +44,16 @@ class Tell(QuestNode):
         return f'tell {self.to_tag} {self.from_tag} "{self.message}"'
 
 class Comms(QuestNode):
-    rule = re.compile(r"""(?P<from_tag>\w+)\s*comms\s*(?P<to_tag>\w+)((?P<color>[ \t\S]+)["'])?(\s*timeout(\s*(?P<minutes>\d+)m)?(\s*(?P<seconds>\d+)s)?\s*->\s*(?P<time_jump>\w+)?)?""")
-    def __init__(self, to_tag, from_tag, buttons=None, minutes=None, seconds=None, time_jump="", color="white"):
+    rule = re.compile(r"""(?P<from_tag>\w+)\s*comms\s*(?P<to_tag>\w+)(\s+color\s*["'](?P<color>[ \t\S]+)["'])?"""+TIMEOUT_REGEX)
+    def __init__(self, to_tag, from_tag, buttons=None, minutes=None, seconds=None, time_pop=None,time_push="", time_jump="", color="white"):
         self.to_tag = to_tag
         self.from_tag = from_tag
         self.buttons = buttons if buttons is not None else []
         self.seconds = 0 if  seconds is None else int(seconds)
         self.minutes = 0 if  minutes is None else int(minutes)
         self.time_jump = time_jump
+        self.time_push = time_push == ">"
+        self.time_pop = time_pop is not None
         self.color = color
     def add_child(self, obj):
         self.buttons.append(obj)
@@ -90,10 +92,12 @@ class Comms(QuestNode):
 
 
 class Button(QuestNode):
-    rule = re.compile(r"""(?P<button>\*|\+|button|button\s+once)\s+"(?P<message>.+?)"\s*->\s*(?P<jump>\w+)(\s+color\s*["'](?P<color>[ \t\S]+)["'])?(\s+if(?P<if_exp>.+))?""")
-    def __init__(self, button, message, jump, color, if_exp):
+    rule = re.compile(r"""(?P<button>\*|\+|button|button\s+once)\s+["'](?P<message>.+?)["']"""+OPT_COLOR+JUMP_ARG_REGEX+r"""(\s+if(?P<if_exp>.+))?""")
+    def __init__(self, button, message, pop, push, jump, color, if_exp):
         self.message = message
         self.jump = jump
+        self.push = push == ">"
+        self.pop = pop is not None
         self.sticky = (button == '+' or button=="button")
         self.color = color
         
@@ -128,15 +132,19 @@ class Button(QuestNode):
         return f'   button "{self.message}" -> {self.jump}'
 
 class Near(QuestNode):
-    rule = re.compile(r'(?P<from_tag>\w+)\s+near\s+(?P<to_tag>\w+)\s*(?P<distance>\d+)\s*(->\s*(?P<jump>\w+))?(\s*timeout(\s*(?P<minutes>\d+)m)?(\s*(?P<seconds>\d+)s)?\s*->\s*(?P<time_jump>\w+)?)?')
-    def __init__(self, to_tag, from_tag, distance, jump, minutes=None, seconds=None, time_jump=""):
+    rule = re.compile(r'(?P<from_tag>\w+)\s+near\s+(?P<to_tag>\w+)\s*(?P<distance>\d+)'+OPT_JUMP_REGEX+TIMEOUT_REGEX)
+    def __init__(self, to_tag, from_tag, distance, pop="", push="", jump="", minutes=None, seconds=None, time_pop="",time_push="", time_jump=""):
         self.to_tag = to_tag
         self.from_tag = from_tag
         self.distance = 0 if distance is None else int(distance)
         self.jump = jump
+        self.push = push == '>'
+        self.pop = pop != ""
         self.seconds = 0 if  seconds is None else int(seconds)
         self.minutes = 0 if  minutes is None else int(minutes)
         self.time_jump = time_jump
+        self.time_push = time_push == '>'
+        self.time_pop = pop != ""
 
     def validate(self, quest):
         messages = []
@@ -160,6 +168,15 @@ class Near(QuestNode):
             s += f"->{self.time_jump}"
         return s
 
+class Simulation(QuestNode):
+    """
+    Handle commands to the simulation
+    """
+    rule = re.compile(r"""simulation\s+(?P<cmd>pause|create|resume)""")
+    def __init__(self, cmd=None):
+        self.cmd = cmd
+
+
 class SbsQuest(Quest):
     nodes = Quest.nodes + [
         # sbs specific
@@ -167,5 +184,6 @@ class SbsQuest(Quest):
         Tell,
         Comms,
         Button,
-        Near
+        Near,
+        Simulation
     ]

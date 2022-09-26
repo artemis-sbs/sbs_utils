@@ -219,9 +219,24 @@ class SpaceObject(object):
         :type filter_func: function that takes ID
         :return: A list of close object
         :rtype: CloseData"""
+    def find_closest_nav (self, sim, nav=None, max_dist=None, filter_func=None) -> sbs_utils.spaceobject.CloseData:
+        """Finds the closest object matching the criteria
+        
+        :param sim: The simulation
+        :type sim: Artemis Cosmos simulation
+        :param roles: Roles to looks for can also be class name
+        :type nav: str or List[str]
+        :param max_dist: Max distance to search (faster)
+        :type max_dist: float
+        :param filter_func: Called to test each object to filter out non matches
+        :type filter_func: function that takes ID
+        :return: A list of close object
+        :rtype: CloseData"""
     def get (id):
         ...
     def get_as (id, cls):
+        ...
+    def get_id (self):
         ...
     def get_space_object (self, sim):
         """Gets the simulation space object
@@ -294,6 +309,17 @@ class SpaceObject(object):
         :type shoot: bool
         :return: A list of close object
         :rtype: CloseData"""
+    def target_closest_nav (self, sim, nav=None, max_dist=None, filter_func=None, shoot: bool = True):
+        ...
+    def target_pos (self, sim, x: float, y: float, z: float):
+        """Set the item to target
+        
+        :param sim: The simulation
+        :type sim: Artemis Cosmos simulation
+        :param other_id: the id of the object to target
+        :type other_id: int
+        :param shoot: if the object should be shot at
+        :type shoot: bool"""
 class SpawnData(object):
     """class SpawnData"""
     def __init__ (self, id, obj, blob) -> None:

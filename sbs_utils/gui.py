@@ -1,3 +1,4 @@
+import sbs
 class Widget:
     """ A interface class for creating GUI widgets i.e. composite components.
 
@@ -109,9 +110,13 @@ class GuiClient:
         :param sim: 
         :type sim: Artemis Cosmos simulation
         """
+        sbs.send_gui_clear(self.client_id)
         if len(self.page_stack) > 0:
             ret = self.page_stack.pop()
-            self.page_stack[-1].on_pop(sim)
+            if len(self.page_stack) > 0:
+                self.page_stack[-1].on_pop(sim)
+
+
 
         event = FakeEvent(self.client_id)
         self.present(sim, event)
@@ -239,9 +244,39 @@ class Gui:
         :param sim: 
         :type sim: Artemis Cosmos simulation
         """
+        Gui.represent = set()
+        Gui.represent_throttle = 0
         for client_id, gui in Gui.clients.items():
             event = FakeEvent(client_id)
             gui.present(sim, event)
+        # Try to repaint things we can this round
+        Gui.present_dirty(sim)
+
+    @staticmethod
+    def dirty(client_id):
+        Gui.represent.add(client_id)
+
+    @staticmethod
+    def present_dirty(sim):
+        if len(Gui.represent) <1:
+            return
+
+        # Ideally this is only called once per 'tick'
+        # but account for cascading repaints, but limit it
+        # to avoid infinite loop
+        if Gui.represent_throttle > 5:
+            return
+
+        Gui.represent_throttle += 1
+        dirty = list(Gui.represent)
+        Gui.represent = set()
+        for client_id in dirty:
+            gui = Gui.clients.get(client_id)
+            event = FakeEvent(client_id)
+            gui.present(sim, event)
+        Gui.present_dirty()
+
+        
 
     @staticmethod
     def on_message(sim, event):
@@ -263,3 +298,4 @@ class Gui:
         gui = Gui.clients.get(event.client_id)
         if gui is not None:
             gui.on_message(sim, event)
+            

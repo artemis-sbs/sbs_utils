@@ -11,9 +11,14 @@ from sbs_utils.gui import Page, Gui
 from sbs_utils.pages.avatar import AvatarEditor
 from sbs_utils.pages.shippicker import ShipPicker
 from sbs_utils.pages.layout import LayoutPage, Layout, Row, Text, Face, Ship, Separate
-import sbs_utils
+#import sbs_utils
 from sbs_utils.quests.sbsquest import SbsQuest
 from sbs_utils.quests.sbsquestrunner import SbsQuestRunner
+
+from sbs_utils.quests.storyquest import StoryQuest
+from sbs_utils.quests.storyquestrunner import StoryPage, StoryRunner
+from sbs_utils import fs
+import os
 
 
 class QuestShip(Npc):
@@ -93,11 +98,34 @@ class TestLayoutPage(LayoutPage):
 
 
 
+class MyStory(StoryPage):
+    story = None
+    
+    def __init__(self) -> None:
+        super().__init__()
+        self.init_quest()
+        self.story_runner = story_runner = StoryRunner(MyStory.story)
+        self.story_runner.run(None, self)
+        
+
+    def init_quest(self):
+        if MyStory.story is not None:
+            return
+        with open(os.path.join(fs.get_mission_dir(), 'tests/quests', "story_gui.story")) as f:
+            content = f.read()
+            MyStory.story = StoryQuest(content)
+   
+        
+
+
 ############################
 # Test for sbs_utils
 class GuiMain(Page):
     def __init__(self) -> None:
         self.gui_state = 'options'
+
+    def on_pop(self, sim):
+        return super().on_pop(sim)
 
     def present(self, sim, event):
         sbs.send_gui_clear(event.client_id)
@@ -119,6 +147,7 @@ class GuiMain(Page):
         sbs.send_gui_button(event.client_id, "StubGen", "stub", *next(w))
         sbs.send_gui_button(event.client_id, "Quest", "quest", *next(w))
         sbs.send_gui_button(event.client_id, "Layout", "layout", *next(w))
+        sbs.send_gui_button(event.client_id, "Story", "story", *next(w))
 
     def on_message(self, sim, event):
         match event.sub_tag:
@@ -155,6 +184,11 @@ class GuiMain(Page):
 
             case "layout":
                 Gui.push(sim,event.client_id, TestLayoutPage())
+
+            case "story":
+                page = MyStory()
+                #page.run(sim , story_script)                
+                Gui.push(sim,event.client_id, page)
 
             case "face_gen":
                 sbs.create_new_sim()
@@ -503,7 +537,7 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
 # Gui.push(None,0, GuiMain())
 
 Gui.server_start_page_class(GuiMain)
-Gui.client_start_page_class(GuiMain)
+Gui.client_start_page_class(MyStory)
 
 
 

@@ -1,5 +1,5 @@
 from .quest import Quest
-from .sbsquest import Target, Tell, Comms, Button, Near
+from .sbsquest import Simulation, Target, Tell, Comms, Button, Near
 from .questrunner import QuestRunner, PollResults, QuestRuntimeNode,  QuestAsync
 import sbs
 from ..spaceobject import SpaceObject
@@ -102,15 +102,24 @@ class CommsRunner(QuestRuntimeNode):
             return PollResults.OK_ADVANCE_TRUE
 
         if self.button is not None:
-            jump = self.buttons[self.button].jump 
-            
-            thread.jump(jump)
+            button = self.buttons[self.button] 
+            if button.push:
+                thread.push_label(button.jump)
+            elif button.pop:
+                thread.pop_label()
+            else:
+                thread.jump(button.jump)
             return PollResults.OK_JUMP
 
         if self.timeout:
             self.timeout -= 1
             if self.timeout <= 0:
-                thread.jump(node.time_jump)
+                if node.time_push:
+                    thread.push_label(node.time_jump)
+                elif node.time_pop:
+                    thread.pop_label()
+                else:
+                    thread.jump(node.time_jump)
                 return PollResults.OK_JUMP
             else:
                 PollResults.OK_ADVANCE_FALSE
@@ -155,7 +164,12 @@ class NearRunner(QuestRuntimeNode):
         dist = sbs.distance_id(self.to_id, self.from_id)
         if dist <= node.distance:
             if node.jump:
-                thread.jump(node.jump)
+                if node.push:
+                    thread.push_label(node.jump)
+                elif node.pop:
+                    thread.pop_label()
+                else:
+                    thread.jump(node.jump)
                 return PollResults.OK_JUMP
             else:
                 return PollResults.OK_ADVANCE_TRUE
@@ -163,7 +177,12 @@ class NearRunner(QuestRuntimeNode):
         if self.timeout is not None:
             self.timeout -= 1
             if self.timeout <= 0:
-                thread.jump(node.time_jump)
+                if node.time_push:
+                    thread.push_label(node.time_jump)
+                elif node.time_pop:
+                    thread.pop_label()
+                else:
+                    thread.jump(node.time_jump)
                 return PollResults.OK_JUMP
             else:
                 PollResults.OK_ADVANCE_FALSE
@@ -171,11 +190,26 @@ class NearRunner(QuestRuntimeNode):
         return PollResults.OK_RUN_AGAIN
 
 
+class SimulationRunner(QuestRuntimeNode):
+    def poll(self, quest:Quest, thread:QuestAsync, node: Simulation):
+        match node.cmd:
+            case "create":
+                sbs.create_new_sim()
+            case "pause":
+                sbs.pause_sim()
+            case "resume":
+                sbs.resume_sim()
+
+        return PollResults.OK_ADVANCE_TRUE
+
+        
+
 over =     {
-        "Comms": CommsRunner,
-        "Tell": TellRunner,
-        "Near": NearRunner,
-        "Target": TargetRunner
+      "Comms": CommsRunner,
+      "Tell": TellRunner,
+      "Near": NearRunner,
+      "Target": TargetRunner,
+      "Simulation": SimulationRunner
     }
 
 class SbsQuestRunner(QuestRunner):
@@ -184,6 +218,7 @@ class SbsQuestRunner(QuestRunner):
             super().__init__(quest, over|overrides)
         else:
             super().__init__(quest,  over)
+        self.sim = None
 
     def run(self, sim, label="main", inputs=None):
         self.sim = sim
@@ -192,7 +227,7 @@ class SbsQuestRunner(QuestRunner):
 
     def tick(self, sim):
         self.sim = sim
-        super().tick()
+        return super().tick()
 
     def runtime_error(self, message):
         sbs.pause_sim()
