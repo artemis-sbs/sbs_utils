@@ -1,4 +1,4 @@
-from .quest import JUMP_ARG_REGEX, OPT_JUMP_REGEX, TIMEOUT_REGEX, OPT_COLOR, Quest, QuestNode, QuestError
+from .quest import IF_EXP_REGEX, JUMP_ARG_REGEX, OPT_JUMP_REGEX, TIMEOUT_REGEX, OPT_COLOR, Quest, QuestNode, QuestError
 import re
 
 
@@ -92,7 +92,7 @@ class Comms(QuestNode):
 
 
 class Button(QuestNode):
-    rule = re.compile(r"""(?P<button>\*|\+|button|button\s+once)\s+["'](?P<message>.+?)["']"""+OPT_COLOR+JUMP_ARG_REGEX+r"""(\s+if(?P<if_exp>.+))?""")
+    rule = re.compile(r"""(?P<button>\*|\+|button|button\s+once)\s+["'](?P<message>.+?)["']"""+OPT_COLOR+JUMP_ARG_REGEX+IF_EXP_REGEX)
     def __init__(self, button, message, pop, push, jump, color, if_exp):
         self.message = message
         self.jump = jump

@@ -96,7 +96,7 @@ class Ship(Column):
 class Layout:
     def __init__(self, rows = None, left=0, top=0, right=100, bottom=100) -> None:
         self.rows = rows if rows else []
-        self.aspect_ratio = sbs.vec2(1920,1071)
+        self.aspect_ratio = sbs.get_screen_size()
         self.set_size(left,top,right,bottom)
 
     def set_size(self, left=0, top=0, right=100, bottom=100):
@@ -127,20 +127,28 @@ class Layout:
                 col: Column
                 for col in row.columns:
                     squares += 1 if col.square else 0
-                # Set width
+                # get the width and the height of a cell in pixels
                 actual_width = row.width/len(row.columns) * self.aspect_ratio.x / 100
                 actual_height =  row.height * self.aspect_ratio.y /100
+
+                # get the low of these two as a percentage of the window width
                 if actual_height < actual_width:
                     square_width = (actual_height/self.aspect_ratio.x) * 100
+                    square_height = (actual_height/self.aspect_ratio.y) * 100
                 else:
                     square_width = (actual_width/self.aspect_ratio.x) *100
-                                
-                rect_col_width = (row.width-(squares*square_width))/(len(row.columns)-squares)
+                    square_height = (actual_width/self.aspect_ratio.y) * 100
+
+                if len(row.columns) != squares:
+                    rect_col_width = (row.width-(squares*square_width))/(len(row.columns)-squares)
+                    if square_width> rect_col_width:
+                        square_width= rect_col_width
+                        rect_col_width = (row.width-(squares*square_width))/(len(row.columns)-squares)
+                else:
+                    rect_col_width = square_width
 
                 # bit of a hack to make sure face aren't the biggest things
-                if square_width> rect_col_width:
-                    square_width= rect_col_width
-                    rect_col_width = (row.width-(squares*square_width))/(len(row.columns)-squares)
+                
 
                 col_left = left
                 for col in row.columns:
@@ -149,7 +157,7 @@ class Layout:
                     col.bottom = top+row_height
                     if col.square:
                         col.right = col_left + square_width
-                        col.bottom = top+square_width
+                        col.bottom = top+square_height
                     else:
                         col.right = col_left+rect_col_width
                     col_left = col.right

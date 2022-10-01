@@ -6,7 +6,7 @@ from ..gui import FakeEvent, Gui, Page
 from ..pages import layout
 
 from .errorpage import ErrorPage
-from .storyquest import StoryQuest, Choices, Text, Separator, Ship, Face, Button, Row, Section, Size, Refresh
+from .storyquest import AppendText, StoryQuest, Choices, Text, Blank, Ship, Face, Button, Row, Section, Area, Refresh
 import traceback
 from .sbsquestrunner import SbsQuestRunner
 
@@ -38,10 +38,33 @@ class ShipRunner(StoryRuntimeNode):
 
 
 class TextRunner(StoryRuntimeNode):
+    current = None
     def enter(self, quest:Quest, thread:QuestAsync, node: Text):
         tag = thread.main.page.get_tag()
-        msg = node.message.format(**thread.get_symbols())
-        thread.main.page.add_content(layout.Text(msg, tag), self)
+        msg = ""
+        value = True
+        if node.code is not None:
+            value = thread.eval_code(node.code)
+        if value:
+            msg = thread.format_string(node.message)
+            self.layout_text = layout.Text(msg, tag)
+            TextRunner.current = self
+            thread.main.page.add_content(self.layout_text, self)
+
+class AppendTextRunner(StoryRuntimeNode):
+    def enter(self, quest:Quest, thread:QuestAsync, node: AppendText):
+        msg = ""
+        value = True
+        if node.code is not None:
+            value = thread.eval_code(node.code)
+        if value:
+            msg = thread.format_string(node.message)
+            text = TextRunner.current
+            if text is not None:
+                text.layout_text.message += '\n'
+                text.layout_text.message += msg
+        
+
 
 
 class ButtonRunner(StoryRuntimeNode):
@@ -70,8 +93,8 @@ class RowRunner(StoryRuntimeNode):
         thread.main.page.add_row()
         
 
-class SeparatorRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Separator):
+class BlankRunner(StoryRuntimeNode):
+    def enter(self, quest:Quest, thread:QuestAsync, node: Blank):
         tag = thread.main.page.get_tag()
         thread.main.page.add_content(layout.Separate(), self)
 
@@ -79,8 +102,8 @@ class SectionRunner(StoryRuntimeNode):
     def enter(self, quest:Quest, thread:QuestAsync, node: Section):
         thread.main.page.add_section()
 
-class SizeRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Size):
+class AreaRunner(StoryRuntimeNode):
+    def enter(self, quest:Quest, thread:QuestAsync, node: Area):
         thread.main.page.set_section_size(node.left, node.top, node.right, node.bottom)
 
 
@@ -93,7 +116,7 @@ class ChoicesRunner(StoryRuntimeNode):
 
         button_layout = layout.Layout(None, 30,95,90,100)
 
-        tag = 0
+        active = 0
         row: Row
         layout_row = layout.Row()
 
@@ -109,24 +132,24 @@ class ChoicesRunner(StoryRuntimeNode):
                         layout_button = layout.Button(button.message, runner.tag)
                         layout_row.add(layout_button)
                         thread.main.page.add_tag(runner)
+                        active += 1
                 case "Separator":
                     # Handle face expression
                     layout_row.add(layout.Separate())
-            tag+=1
-        button_layout.add(layout_row)
-        
-        thread.main.page.set_button_layout(button_layout)
 
+        if active>0:    
+            button_layout.add(layout_row)
+            thread.main.page.set_button_layout(button_layout)
+        else:
+            thread.main.page.set_button_layout(None)
+
+        self.active = active
         self.buttons = node.buttons
         self.button = None
 
-    # def on_message(self, sim, event):
-    #     self.button = int(event.sub_tag)
-    #     this_button: Button = self.buttons[self.button]
-    #     this_button.visit(event.client_id)
 
     def poll(self, quest:Quest, thread:QuestAsync, node: Choices):
-        if len(node.buttons)==0:
+        if self.active==0 and self.timeout is None:
             return PollResults.OK_ADVANCE_TRUE
 
         if self.button is not None:
@@ -172,23 +195,18 @@ class ChoiceButtonRunner(StoryRuntimeNode):
             elif  self.button_node.pop:
                 self.thread.pop_label()
 
-        
-        
-        
-
-
-
 
 over =     {
     "Row": RowRunner,
     "Text": TextRunner,
+    "AppendText": AppendTextRunner,
     "Face": FaceRunner,
     "Ship": ShipRunner,
     "Button": ButtonRunner,
-    "Separator": SeparatorRunner,
+    "Blank": BlankRunner,
     "Choices": ChoicesRunner,
     "Section": SectionRunner,
-    "Size": SizeRunner,
+    "Area": AreaRunner,
     "Refresh": RefreshRunner
 
 }
@@ -211,6 +229,7 @@ class StoryRunner(SbsQuestRunner):
     def tick(self, sim, client_id):
         self.sim = sim
         self.client_id = client_id
+        self.vars['sim'] = sim
         return super().tick(sim)
 
     def refresh(self, label):
@@ -226,8 +245,9 @@ class StoryRunner(SbsQuestRunner):
         err = traceback.format_exc()
         if not err.startswith("NoneType"):
             message += str(err)
+            self.errors.append(message)
         
-        Gui.push(self.sim, 0, ErrorPage(message))
+        
 
 class StoryPage(Page):
     tag = 0
@@ -243,13 +263,19 @@ class StoryPage(Page):
         self.client_id = None
         self.sim = None
         #self.tag = 0
+        self.errors = []
                     
 
     def run(self, sim, story_script):
         story = StoryQuest()
-        story.compile(story_script)
-        self.story_runner = StoryRunner(story)
-        self.story_runner.run(sim, self)
+        errors = story.compile(story_script)
+        if len(errors) > 0:
+            message = "Compile errors\n".join(errors)
+            self.errors.append(message)
+            self.errors.extend(errors)
+        else:    
+            self.story_runner = StoryRunner(story)
+            self.story_runner.run(sim, self)
 
     def swap_layout(self):
         self.layouts = self.pending_layouts
@@ -279,7 +305,7 @@ class StoryPage(Page):
     def add_tag(self, layout_item):
         if self.pending_tag_map is not None:
             if hasattr(layout_item, 'tag'):
-                print(f"TAGGED: {layout_item.__class__.__name__} {layout_item.tag}")
+                #print(f"TAGGED: {layout_item.__class__.__name__} {layout_item.tag}")
                 self.pending_tag_map[layout_item.tag] = layout_item
 
     def add_content(self, layout_item, runner):
@@ -298,7 +324,7 @@ class StoryPage(Page):
             self.pending_layouts.append(layout.Layout(None, 20,10, 100, 90))
 
     def set_section_size(self, left, top, right, bottom):
-        print( f"SIZE: {left} {top} {right} {bottom}")
+        #print( f"SIZE: {left} {top} {right} {bottom}")
         if not self.pending_layouts:
             self.add_row()
         l = self.pending_layouts[-1]
@@ -309,7 +335,8 @@ class StoryPage(Page):
         if self.pending_row and self.pending_layouts:
             if self.pending_row:
                 self.pending_layouts[-1].add(self.pending_row)
-            self.pending_layouts.append(layout)
+            if layout:
+                self.pending_layouts.append(layout)
             self.swap_layout()
     
     def present(self, sim, event):
@@ -323,6 +350,14 @@ class StoryPage(Page):
                 #self.story_runner.quest.remove_runner(self)
                 Gui.pop(sim, event.client_id)
                 return
+        elif len(self.errors) > 0:
+            #errors = self.errors.reverse()
+            message = "Compile errors\n".join(self.errors)
+            sbs.send_gui_clear(event.client_id)
+            sbs.send_gui_text(event.client_id, message, "error", 30,20,100,100)
+            self.gui_state = "errors"
+
+
         
         sz = sbs.get_screen_size()
         if sz is not None and sz.y != 0:

@@ -26,6 +26,7 @@ class CloseData:
 class SpaceObject:
     ids = {'all':{}}
     debug = True
+    removing =set()
     def __init__(self):
         pass
 
@@ -56,11 +57,9 @@ class SpaceObject:
         SpaceObject._add_role(role, self.id, self)
 
     def _remove_role(role, id):
-        if role not in SpaceObject.remove:
-            SpaceObject.removing[role]={}
-        if SpaceObject.ids[role].get(id) is not None:
-            SpaceObject.removing[role].append(id) 
-        return SpaceObject.ids['all'][id]
+        if SpaceObject.ids.get(role) is not None:
+            SpaceObject.ids[role].pop(id, None)
+
 
     def remove_role(self, role: str):
         """ Remove a role from the space object
@@ -97,6 +96,15 @@ class SpaceObject:
     def _remove_every_role(id):
         for role, _ in SpaceObject.ids:
             SpaceObject.remove_role(role, id)
+
+    def get_roles(self, id):
+        roles = []
+        for role in SpaceObject.ids:
+            if self.has_role(role):
+                roles.append(role)
+        return roles
+
+
 
 
     def get(id):

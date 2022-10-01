@@ -1,6 +1,6 @@
 from sbs_utils.quests.storyquest import Quest
 from sbs_utils.quests.questrunner import PollResults, QuestAsync, QuestRuntimeNode, QuestRunner
-from sbs_utils.quests.storyquest import StoryQuest, Face, Ship, Text, Button, Row, Choices, Section, Separator, Size
+from sbs_utils.quests.storyquest import StoryQuest, Face, Ship, Text, Button, Row, Choices, Section, Blank, Area
 import os
 
 class StoryRuntimeNode(QuestRuntimeNode):
@@ -36,7 +36,7 @@ class RowRunner(StoryRuntimeNode):
         
 
 class SeparatorRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Separator):
+    def enter(self, quest:Quest, thread:QuestAsync, node: Blank):
         pass
 
 class SectionRunner(StoryRuntimeNode):
@@ -44,7 +44,7 @@ class SectionRunner(StoryRuntimeNode):
         pass
 
 class SizeRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Size):
+    def enter(self, quest:Quest, thread:QuestAsync, node: Area):
         pass
 
 

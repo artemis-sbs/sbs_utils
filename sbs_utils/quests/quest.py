@@ -2,6 +2,8 @@ from email import message
 from enum import IntEnum, Enum
 import re
 import ast
+import os
+from .. import fs
 
 # tokens
 #
@@ -12,6 +14,8 @@ import ast
 # Conditional
 #       (\s+if(?P<if>.+))?
 #
+
+
 class QuestError:
     def __init__(self, message, line_no):
         if isinstance(message, str):
@@ -32,37 +36,61 @@ class QuestNode:
     def gen(self):
         return ''
 
+    def compile_formatted_string(self, message):
+        if "{" in message:
+            message = f"""f'''{message}'''"""
+            code = compile(message, "<string>", "eval")
+            return code
+        else:
+            return message
+
+
 class Label(QuestNode):
-    rule = re.compile(r'==\s*(?P<name>\w+)\s*==')
+    rule = re.compile(r'(={2,})\s*(?P<name>\w+)\s*(={2,})')
+
     def __init__(self, name):
         self.name = name
         self.cmds = []
 
     def add_child(self, cmd):
         self.cmds.append(cmd)
-        
+
 
 class Input(QuestNode):
     rule = re.compile(r'input\s+(?P<name>\w+)')
+
     def __init__(self, name):
         self.name = name
 
+
+class Import(QuestNode):
+    rule = re.compile(r'import\s+(?P<name>[\w\./-]+)')
+
+    def __init__(self, name):
+        self.name = name
+
+
 class Comment(QuestNode):
     rule = re.compile(r'#[ \t\S]*')
+
     def __init__(self):
         pass
 
+
 class QuestData(object):
     def __init__(self, dictionary):
-        #for dictionary in initial_data:
+        # for dictionary in initial_data:
         for key in dictionary:
             setattr(self, key, dictionary[key])
+
     def __repr__(self):
         return repr(vars(self))
 
 
 class Var(QuestNode):
-    rule = re.compile(r"""var\s*(?P<name>\w+)\s*=\s* (?P<val>(\[[\s\S]+?\])|(\{[\s\S]+?\})|([+-]?\d+(\.\d+)?)|((["']{3}|["'])[\s\S]+?\8))""")
+    rule = re.compile(
+        r"""var\s*(?P<name>\w+)\s*=\s* (?P<val>(\[[\s\S]+?\])|(\{[\s\S]+?\})|([+-]?\d+(\.\d+)?)|((["']{3}|["'])[\s\S]+?\8))""")
+
     def __init__(self, name, val):
         self.name = name
         self.val = val
@@ -76,47 +104,67 @@ class Var(QuestNode):
 
     def validate(self, quest):
         if self.value is None:
-            return QuestError( f'variable {self.name} cannot be set {self.val}', self.line_no)
+            return QuestError(f'variable {self.name} cannot be set {self.val}', self.line_no)
+
     def gen(self):
         return f'var {self.name} {repr(self.value)}'
 
+
 class Scope(Enum):
-    SHARED=1 # per quest instance
-    NORMAL=2 # per runner
-    TEMP=99 # Per thread? 
+    SHARED = 1  # per quest instance
+    NORMAL = 2  # per runner
+    TEMP = 99  # Per thread?
 
-
-class Assign(QuestNode):
-    rule = re.compile(r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*=(?P<exp>.*)')
-    def __init__(self, scope, lhs, exp):
-        self.lhs = lhs
-        self.scope =  Scope.NORMAL if scope is None else Scope[scope.strip().upper()]
-        exp = exp.lstrip()
-        self.code = compile(exp, "<string>", "eval")
-    def validate(self, quest):
-        return None
-        #if quest.labels.get(self.label) is None:
-        #    return QuestError( f'Jump cannot find {self.to_tag}', self.line_no)
-    def gen(self):
-        return f'{self.lhs} = ...'
 
 JUMP_CMD_REGEX = r"""((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+)))"""
 JUMP_ARG_REGEX = r"""(\s*((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+))))"""
 OPT_JUMP_REGEX = JUMP_ARG_REGEX+r"""?"""
 TIME_JUMP_REGEX = r"""((?P<time_pop><<-)|(->(?P<time_push>>)?\s*(?P<time_jump>\w+)))?"""
 MIN_SECONDS_REGEX = r"""(\s*((?P<minutes>\d+))m)?(\s*((?P<seconds>\d+)s))?"""
-TIMEOUT_REGEX = r"(\s*timeout"+MIN_SECONDS_REGEX+r"\s*" + TIME_JUMP_REGEX+ r")?"
+TIMEOUT_REGEX = r"(\s*timeout"+MIN_SECONDS_REGEX + \
+    r"\s*" + TIME_JUMP_REGEX + r")?"
 OPT_COLOR = r"""(\s*color\s*["'](?P<color>[ \t\S]+)["'])?"""
+IF_EXP_REGEX = r"""(\s+if(?P<if_exp>.+))?"""
+LIST_REGEX = r"""(\[[\s\S]*\])"""
+DICT_REGEX = r"""(\{[\s\S]*\})"""
+STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[\s\S]+?(?P=quote))"""
+
+
+class Assign(QuestNode):
+    # '|'+STRING_REGEX+
+    rule = re.compile(
+        r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*=\s*(?P<exp>('+DICT_REGEX+'|'+STRING_REGEX+'|'+LIST_REGEX+'|.*))')
+
+    def __init__(self, scope, lhs, exp, quote=None):
+        self.lhs = lhs
+        self.scope = Scope.NORMAL if scope is None else Scope[scope.strip(
+        ).upper()]
+        #print(f"EXP: {exp}")
+        #print(f"quote: {quote}")
+        exp = exp.lstrip()
+        self.code = compile(exp, "<string>", "eval")
+
+    def validate(self, quest):
+        return None
+        # if quest.labels.get(self.label) is None:
+        #    return QuestError( f'Jump cannot find {self.to_tag}', self.line_no)
+
+    def gen(self):
+        return f'{self.lhs} = ...'
+
 
 class Jump(QuestNode):
     rule = re.compile(JUMP_CMD_REGEX)
+
     def __init__(self, pop, push, jump):
         self.label = jump
         self.push = push == "->>"
         self.pop = pop is not None
+
     def validate(self, quest):
         if quest.labels.get(self.label) is None:
-            return QuestError( f'Jump cannot find {self.to_tag}', self.line_no)
+            return QuestError(f'Jump cannot find {self.to_tag}', self.line_no)
+
     def gen(self):
         if self.push:
             return f'-> {self.label}"'
@@ -125,11 +173,13 @@ class Jump(QuestNode):
         else:
             return f'->> {self.label}"'
 
+
 class Parallel(QuestNode):
     """
     Creates a new 'thread' to run in parallel
     """
     rule = re.compile(r"""((?P<name>[\w\.\[\]]+)\s*)?=>\s*(?P<label>\w+)""")
+
     def __init__(self, name=None, label=None):
         self.name = name
         self.label = label
@@ -138,20 +188,21 @@ class Parallel(QuestNode):
     def validate(self, quest):
         for cmd in self.cmds:
             if type(cmd) != Assign:
-                return QuestError( f'Only assignments allowed as child', self.line_no)
+                return QuestError(f'Only assignments allowed as child', self.line_no)
 
         return None
-        #if quest.labels.get(self.label) is None:
+        # if quest.labels.get(self.label) is None:
         #    return QuestError( f'Jump cannot find {self.to_tag}', self.line_no)
+
     def gen(self):
-        s=""
-        if self.name: 
-            s+= f'{self.name} '
+        s = ""
+        if self.name:
+            s += f'{self.name} '
         s += f'=> {self.label}'
-        
 
     def add_child(self, cmd):
         self.cmds.append(cmd)
+
 
 class Await(QuestNode):
     """
@@ -159,6 +210,7 @@ class Await(QuestNode):
     this needs to be a rule before Parallel
     """
     rule = re.compile(r"""await(\s*(?P<spawn>=>))?\s*(?P<label>\w+)""")
+
     def __init__(self, name=None, spawn=None, label=None):
         self.spawn = True if spawn is not None else False
         self.label = label
@@ -167,54 +219,62 @@ class Await(QuestNode):
     def validate(self, quest):
         for cmd in self.cmds:
             if type(cmd) != Assign:
-                return QuestError( f'Only assignments allowed as child', self.line_no)
+                return QuestError(f'Only assignments allowed as child', self.line_no)
 
         return None
-        #if quest.labels.get(self.label) is None:
+        # if quest.labels.get(self.label) is None:
         #    return QuestError( f'Jump cannot find {self.to_tag}', self.line_no)
+
     def gen(self):
-        s=""
-        if self.spawn: 
-            s+= f'await {self.label} '
+        s = ""
+        if self.spawn:
+            s += f'await {self.label} '
         s += f'await => {self.label}'
-        
 
     def add_child(self, cmd):
         self.cmds.append(cmd)
+
 
 class Cancel(QuestNode):
     """
     Cancels a new 'thread' to run in parallel
     """
     rule = re.compile(r"""cancel\s*(?P<name>[\w\.\[\]]+)""")
+
     def __init__(self, lhs=None, name=None):
         self.name = name
 
     def validate(self, quest):
         return None
-        #if quest.labels.get(self.label) is None:
+        # if quest.labels.get(self.label) is None:
         #    return QuestError( f'Jump cannot find {self.to_tag}', self.line_no)
-    def gen(self):
-        s=""
-        s += f'cancel {self.name}'
 
+    def gen(self):
+        s = ""
+        s += f'cancel {self.name}'
 
 
 class End(QuestNode):
     rule = re.compile(r'->\s*END')
+
     def validate(self, _):
         return None
+
     def gen(self):
         return "->END"
 
+
 class Delay(QuestNode):
     rule = re.compile(r'delay\s*'+MIN_SECONDS_REGEX)
+
     def __init__(self, seconds=None, minutes=None):
-        self.seconds = 0 if  seconds is None else int(seconds)
-        self.minutes = 0 if  minutes is None else int(minutes)
+        self.seconds = 0 if seconds is None else int(seconds)
+        self.minutes = 0 if minutes is None else int(minutes)
+
     def validate(self, _):
-        if self.minutes<=0 and self.seconds<=0:
+        if self.minutes <= 0 and self.seconds <= 0:
             return QuestError("Delay has no time set", self.line_no)
+
     def gen(self):
         s = 'delay '
         if self.minutes:
@@ -224,25 +284,32 @@ class Delay(QuestNode):
         return s
 
 
-
-
-
 class Rule:
     def __init__(self, re, cls):
         self.re = re
         self.cls = cls
 
+
 def first_non_space_index(s):
     for idx, c in enumerate(s):
         if not c.isspace():
             return idx
-        if c=='\n':
+        if c == '\n':
             return idx
+
 
 def first_non_newline_index(s):
     for idx, c in enumerate(s):
-        if c!='\n':
+        if c != '\n':
             return idx
+    return len(s)
+
+
+def first_newline_index(s):
+    for idx, c in enumerate(s):
+        if c == '\n':
+            return idx
+    return len(s)
 
 
 class Quest:
@@ -253,7 +320,7 @@ class Quest:
             cmds = self.compile(cmds)
         else:
             self.build(cmds)
-    
+
     def build(self, cmds):
         """
         Used to build via code not a script file
@@ -279,9 +346,10 @@ class Quest:
         Comment,
         Label,
         Input,
-#        Var,
-        Await, # needs to be before Parallel
-        Parallel, # needs to be before Assign
+        #        Var,
+        Import,
+        Await,  # needs to be before Parallel
+        Parallel,  # needs to be before Assign
         Cancel,
         Assign,
         End,
@@ -292,7 +360,7 @@ class Quest:
     def clear(self):
         self.inputs = {}
         self.vars = {}
-        self.labels = {} 
+        self.labels = {}
         self.labels["main"] = Label("main")
         self.cmd_stack = [self.labels["main"]]
         self.indent_stack = [0]
@@ -305,7 +373,8 @@ class Quest:
         main = self.labels.get("main")
         # remove all the assigned from the main
         if main is not None:
-            main.cmds = [cmd for cmd in main.cmds if not (cmd.__class__ == Assign and cmd.scope==Scope.SHARED)]
+            main.cmds = [cmd for cmd in main.cmds if not (
+                cmd.__class__ == Assign and cmd.scope == Scope.SHARED)]
             self.main_pruned = True
 
     def add_runner(self, runner):
@@ -319,14 +388,53 @@ class Quest:
 
     def remove_runner(self, runner):
         self.runners.remove(runner)
-        
+
+    def from_file(self, filename):
+        file_name = os.path.join(fs.get_mission_dir(), filename)
+        print(f"file to import: {file_name}")
+        self.basedir = os.path.dirname(file_name)
+        content = None
+        errors = []
+        try:
+            with open(file_name) as f:
+                content = f.read()
+        except:
+            message = f"File load error\nCannot load file {file_name}"
+            print(message)
+            errors.append(message)
+
+        if content is not None:
+            errors = self.compile(content)
+
+            if len(errors) > 0:
+                message = f"Compile errors\nCannot compile file {file_name}"
+                errors.append(message)
+
+        if len(errors) > 0:
+            return errors
+        return None
+
+    def import_content(self, filename):
+        add = self.__class__()
+        errors = add.from_file(filename)
+        if errors is None:
+            for label, node in add.labels.items():
+                if label == "main":
+                    main = self.labels["main"]
+                    main.cmds.extend(node.cmds)
+                else:
+                    #print(f"import label {label}")
+                    self.labels[label] = node
+        return errors
 
     def compile(self, lines):
         self.clear()
         active_cmd = self.labels["main"]
-        line_no = -1
+        line_no = 0
+        errors = []
         while len(lines):
             mo = first_non_newline_index(lines)
+            line_no += mo if mo is not None else 0
             #line = lines[:mo]
             lines = lines[mo:]
             parsed = False
@@ -340,17 +448,18 @@ class Quest:
             while indent < self.indent_stack[-1]:
                 self.cmd_stack.pop()
                 self.indent_stack.pop()
-            if indent>0:
+            if indent > 0:
                 # strip spaces
                 lines = lines[indent:]
-        
+
             for node_cls in self.__class__.nodes:
                 mo = node_cls.rule.match(lines)
                 if mo:
                     span = mo.span()
                     line = lines[span[0]:span[1]]
+
                     lines = lines[span[1]:]
-                    
+                    line_no += line.count('\n')
                     parsed = True
                     data = mo.groupdict()
                     # print(f"PARSED: {node_cls.__name__:}")
@@ -364,6 +473,13 @@ class Quest:
                             input = Input(**data)
                             self.inputs[data['name']] = input
 
+                        case "Import":
+                            err = self.import_content(data['name'])
+                            if err is not None:
+                                errors.extend(err)
+                                for e in err:
+                                    print("import error "+e)
+
                         case "Comment":
                             # obj.line_no = line_no
                             # self.cmd_stack[-1].add_child(obj)
@@ -375,8 +491,6 @@ class Quest:
                             if var.value is not None:
                                 self.vars[data['name']] = var.value
 
-
-                        
                         case _:
                             obj = node_cls(**data)
                             obj.line_no = line_no
@@ -385,14 +499,17 @@ class Quest:
                     break
             if not parsed:
                 mo = first_non_newline_index(lines)
+
                 if mo:
-                    line = lines[:mo+1]
+                    # this just blank lines
+                    line_no += mo
+                    line = lines[:mo]
                     lines = lines[mo:]
-                    print(f"ERROR: {line_no} - {line}")
                 else:
-                    lines = lines[1:]
-
-
+                    mo = first_newline_index(lines)
+                    errors.append(f"ERROR: {line_no} - {lines[0:mo]}")
+                    lines = lines[mo+1:]
+        return errors
 
 
 def validate_quest(quest):
@@ -404,9 +521,11 @@ def validate_quest(quest):
         print(f"=={label.name}==")
         validate_label(quest, label)
 
+
 def validate_label(quest, label):
     for cmd in label.cmds:
         validate_cmd(quest, cmd)
+
 
 def validate_cmd(quest, cmd):
     err = cmd.validate(quest)
@@ -417,10 +536,10 @@ def validate_cmd(quest, cmd):
 
     print(cmd.gen())
 
+
 def validate_var(quest, name, value):
     if value is None:
         print(f"ERROR: var set is invalid {name}")
     v = Var(name, None)
     v.value = value
     print(v.gen())
-

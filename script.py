@@ -34,7 +34,9 @@ class QuestShip(Npc):
 
     def run(self, sim, label="main", inputs=None):
         inputs = {
-            "self": self
+            "self": self,
+            "PlayerShip": PlayerShip,
+            "Npc": Npc
         } | inputs
         QuestShip.runner.run(sim, label, inputs)
 
@@ -103,17 +105,42 @@ class MyStory(StoryPage):
     
     def __init__(self) -> None:
         super().__init__()
-        self.init_quest()
-        self.story_runner = story_runner = StoryRunner(MyStory.story)
-        self.story_runner.run(None, self)
-        
+        if self.init_quest() is None:
+            self.story_runner = StoryRunner(MyStory.story)
+            self.story_runner.run(None, self, inputs= {
+            "PlayerShip": PlayerShip,
+            "Npc": Npc
+            })
 
     def init_quest(self):
         if MyStory.story is not None:
-            return
-        with open(os.path.join(fs.get_mission_dir(), 'tests/quests', "story_gui.story")) as f:
-            content = f.read()
-            MyStory.story = StoryQuest(content)
+            return True
+
+        MyStory.story = StoryQuest()
+        return MyStory.story.from_file("tests/quests/story_gui.story")
+
+        """
+        file_name = os.path.join(fs.get_mission_dir(),'tests/quests', "story_gui.story")
+        content = None
+        try:
+            with open(file_name ) as f:
+                content = f.read()
+        except:
+            message = f"File load error\nCannot load file {file_name}"
+            self.errors.append(message)
+
+        if content is not None:
+            MyStory.story = StoryQuest()
+            errors = MyStory.story.compile(content)
+            
+            if len(errors) > 0:
+                message = f"Compile errors\nCannot compile file {file_name}"
+                self.errors.append(message)
+                self.errors.extend(errors)
+                return False
+            return True
+        """
+
    
         
 

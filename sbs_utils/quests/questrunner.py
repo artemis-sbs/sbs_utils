@@ -46,7 +46,7 @@ class AssignRunner(QuestRuntimeNode):
             else:
                 thread.set_value(node.lhs, value, node.scope)
         except:
-            self.main.runtime_error(f"assignment error {node.lhs}")
+            thread.main.runtime_error(f"assignment error {node.lhs}")
 
         return PollResults.OK_ADVANCE_TRUE
 
@@ -175,7 +175,13 @@ class QuestAsync:
             cmd = self.cmds[self.active_cmd]
             self.runner.leave(self.main.quest, self, cmd)
             self.runner = None
-        
+
+    def format_string(self, message):
+        if isinstance(message, str):
+            return message
+        allowed = {"math": math, "faces": faces}| self.get_symbols()
+        value = eval(message, {"__builtins__": {}}, allowed)
+        return value
 
     def eval_code(self, code):
         value = None
@@ -259,7 +265,7 @@ class QuestAsync:
         runner_cls = self.main.nodes.get(cmd.__class__.__name__, QuestRuntimeNode)
         
         self.runner = runner_cls()
-        #print(f"RUNNER {self.runner.__class__.__name__}")
+        print(f"RUNNER {self.runner.__class__.__name__}")
         self.runner.enter(self.main.quest, self, cmd)
         return True
 
