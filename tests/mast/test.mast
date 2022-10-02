@@ -41,16 +41,6 @@ any -> sss timeout 10s
     ->some_label ->
 
 
-== Targeting ==
-match
-    case -> xxx
-        ship target station_list
-    case 
-        ship target tsn_list
-    case 
-        ship target player
-
-
 
 all -> sss timeout 10s -> zzz
     a near b 700

@@ -12,25 +12,25 @@ from sbs_utils.pages.avatar import AvatarEditor
 from sbs_utils.pages.shippicker import ShipPicker
 from sbs_utils.pages.layout import LayoutPage, Layout, Row, Text, Face, Ship, Separate
 #import sbs_utils
-from sbs_utils.quests.sbsquest import SbsQuest
-from sbs_utils.quests.sbsquestrunner import SbsQuestRunner
+from sbs_utils.mast.mastsbs import MastSbs
+from sbs_utils.mast.mastsbsrunner import MastSbsRunner
 
-from sbs_utils.quests.storyquest import StoryQuest
-from sbs_utils.quests.storyquestrunner import StoryPage, StoryRunner
+from sbs_utils.mast.maststory import MastStory
+from sbs_utils.mast.maststoryrunner import StoryPage, StoryRunner
 from sbs_utils import fs
 import os
 
 
-class QuestShip(Npc):
+class MastShip(Npc):
     def spawn(self, sim, x, y, z, name, side, art_id):
         super().spawn(sim, x, y, z, name, side, art_id, "behav_npcship")
 
     def compile(sim, script):
-        QuestShip.quest = SbsQuest()
-        QuestShip.quest.compile(script)
-        QuestShip.runner = SbsQuestRunner(
-            QuestShip.quest)
-        TickDispatcher.do_interval(sim, QuestShip.tick_quest, 0)
+        MastShip.mast = MastSbs()
+        MastShip.mast.compile(script)
+        MastShip.runner = MastSbsRunner(
+            MastShip.mast)
+        TickDispatcher.do_interval(sim, MastShip.tick_mast, 0)
 
     def run(self, sim, label="main", inputs=None):
         inputs = {
@@ -38,10 +38,10 @@ class QuestShip(Npc):
             "PlayerShip": PlayerShip,
             "Npc": Npc
         } | inputs
-        QuestShip.runner.run(sim, label, inputs)
+        MastShip.runner.run(sim, label, inputs)
 
-    def tick_quest(sim, t):
-        QuestShip.runner.tick(sim)
+    def tick_mast(sim, t):
+        MastShip.runner.tick(sim)
 
 
 
@@ -105,7 +105,7 @@ class MyStory(StoryPage):
     
     def __init__(self) -> None:
         super().__init__()
-        err = self.init_quest()
+        err = self.init_mast()
         if err  is None:
             self.story_runner = StoryRunner(MyStory.story)
             self.story_runner.run(None, self, inputs= {
@@ -115,12 +115,12 @@ class MyStory(StoryPage):
         else:
             self.errors = err
 
-    def init_quest(self):
+    def init_mast(self):
         if MyStory.story is not None:
             return True
 
-        MyStory.story = StoryQuest()
-        ret =  MyStory.story.from_file("tests/quests/story_gui.mast")
+        MyStory.story = MastStory()
+        ret =  MyStory.story.from_file("tests/mast/story_gui.mast")
         return ret
 
         """
@@ -176,7 +176,7 @@ class GuiMain(Page):
         sbs.send_gui_button(event.client_id, "Avatar Editor", "avatar", *next(w))
         sbs.send_gui_button(event.client_id, "Ship Picker", "ship", *next(w))
         sbs.send_gui_button(event.client_id, "StubGen", "stub", *next(w))
-        sbs.send_gui_button(event.client_id, "Quest", "quest", *next(w))
+        sbs.send_gui_button(event.client_id, "Mast", "mast", *next(w))
         sbs.send_gui_button(event.client_id, "Layout", "layout", *next(w))
         sbs.send_gui_button(event.client_id, "Story", "story", *next(w))
 
@@ -231,10 +231,10 @@ class GuiMain(Page):
                 sbs.resume_sim()
                 Mission.start(sim)
 
-            case "quest":
+            case "mast":
                 sbs.create_new_sim()
                 sbs.resume_sim()
-                Mission.quest(sim)
+                Mission.mast(sim)
 
             case "target":
                 sbs.create_new_sim()
@@ -358,7 +358,7 @@ class Mission:
         blob.set("target_id", player.unique_ID)
 
 
-    def quest(sim):
+    def mast(sim):
 
         player = PlayerShip()
         player.spawn(sim, 0,0,0, "Artemis", "tsn", "Battle Cruiser")
@@ -369,15 +369,16 @@ class Mission:
         ds2 = Spacedock()
         ds2.spawn(sim, -1000,0,2500,"tsn")
      
-        QuestShip.compile(sim, 
+        MastShip.compile(sim, 
 """
 var x = 34
 
 # Set the comms buttons to start the 'quest'
+
+button "Start at DS1" -> One
+button "Start at DS2" -> Two
+button "Taunt" -> Taunt
 self comms player
-    button "Start at DS1" -> One
-    button "Start at DS2" -> Two
-    button "Taunt" -> Taunt
 
 == Taunt ==
 
@@ -469,7 +470,7 @@ delay 10s
 
         # Run multiple ships using the same Quest
         for i in range(3):
-            q = QuestShip()
+            q = MastShip()
             q.spawn(sim, -500+i*500,0,400, f"TSN {i}", "tsn", "Battle Cruiser" )
 
             inputs = {

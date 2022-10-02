@@ -1,19 +1,19 @@
-from .quest import IF_EXP_REGEX, JUMP_ARG_REGEX,TIME_JUMP_REGEX, Quest, QuestNode, QuestError, OPT_COLOR, TIMEOUT_REGEX
-from .sbsquest import SbsQuest, Button
+from .mast import IF_EXP_REGEX, JUMP_ARG_REGEX,TIME_JUMP_REGEX, Mast, MastNode, MastCompilerError, OPT_COLOR, TIMEOUT_REGEX
+from .mastsbs import MastSbs, Button
 import re
 
-class Row(QuestNode):
+class Row(MastNode):
     rule = re.compile(r"""row""")
     def __init__(self):
         pass
 
-class Refresh(QuestNode):
+class Refresh(MastNode):
     rule = re.compile(r"""refresh\s*(?P<label>\w+)""")
     def __init__(self, label):
         self.label = label
 
 
-class Text(QuestNode):
+class Text(MastNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
     #(\s+color\s*["'](?P<color>[ \t\S]+)["'])?
     rule = re.compile(r"""((['"]{3,})(\n)?(?P<message>[\s\S]+?)(\n)?(['"]{3,}))"""+IF_EXP_REGEX)
@@ -25,7 +25,7 @@ class Text(QuestNode):
         else:
             self.code = None
 
-class AppendText(QuestNode):
+class AppendText(MastNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
     #(\s+color\s*["'](?P<color>[ \t\S]+)["'])?
     rule = re.compile(r"""(([\^]{3,})(\n)?(?P<message>[\s\S]+?)(\n)?([\^]{3,}))"""+IF_EXP_REGEX)
@@ -38,7 +38,7 @@ class AppendText(QuestNode):
             self.code = None
 
 
-class Face(QuestNode):
+class Face(MastNode):
     rule = re.compile(r"""face\s*(((['"]{3}|["'])(?P<face>[\s\S]+?)\3)|(?P<face_exp>[ \t\S]+)?)""")
     def __init__(self, face=None, face_exp=None):
         self.face = face
@@ -48,22 +48,22 @@ class Face(QuestNode):
         else:
             self.code = None
 
-class Ship(QuestNode):
+class Ship(MastNode):
     rule = re.compile(r"""ship\s+(?P<ship>[ \t\S]+)""")
     def __init__(self, ship=None):
         self.ship= ship
 
-class Blank(QuestNode):
+class Blank(MastNode):
     rule = re.compile(r"""blank""")
     def __init__(self):
         pass
 
-class Section(QuestNode):
+class Section(MastNode):
     rule = re.compile(r"""section""")
     def __init__(self):
         pass
 
-class Area(QuestNode):
+class Area(MastNode):
     rule = re.compile(r"""area\s+(?P<left>\d+)\s+(?P<top>\d+)\s+(?P<right>\d+)\s+(?P<bottom>\d+)""")
     def __init__(self, left=None, top=None, right=None, bottom=None):
         self.left = int(left) if left else 0
@@ -72,7 +72,7 @@ class Area(QuestNode):
         self.bottom= int(bottom) if bottom else 100
         
 
-class Choices(QuestNode):
+class Choices(MastNode):
     rule = re.compile(r"""choose"""+TIMEOUT_REGEX)
     def __init__(self, minutes=None, seconds=None, time_pop=None,time_push="", time_jump=""):
         self.seconds = 0 if  seconds is None else int(seconds)
@@ -83,7 +83,7 @@ class Choices(QuestNode):
         self.buttons = Button.stack
         Button.stack = []
 
-class ButtonControl(QuestNode):
+class ButtonControl(MastNode):
     rule = re.compile(r"""button\s+["'](?P<message>.+?)["']"""+JUMP_ARG_REGEX+IF_EXP_REGEX)
     def __init__(self, message, pop, push, jump, if_exp):
         self.message = message
@@ -100,7 +100,7 @@ class ButtonControl(QuestNode):
 
 
 
-class StoryQuest(SbsQuest):
+class MastStory(MastSbs):
     nodes = [
         # sbs specific
         Row,
@@ -114,4 +114,4 @@ class StoryQuest(SbsQuest):
         Choices,
             ButtonControl,
         Refresh
-    ] + SbsQuest.nodes 
+    ] + MastSbs.nodes 

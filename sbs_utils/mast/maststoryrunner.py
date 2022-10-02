@@ -1,21 +1,21 @@
-from .questrunner import PollResults, QuestRunner, QuestRuntimeNode, QuestRunner, QuestAsync
-from .quest import Quest
+from .mastrunner import PollResults, MastRuntimeNode, MastRunner, MastAsync
+from .mast import Mast
 import sbs
 from ..gui import FakeEvent, Gui, Page
 
 from ..pages import layout
 
 from .errorpage import ErrorPage
-from .storyquest import AppendText, StoryQuest, Choices, Text, Blank, Ship, Face, Button, Row, Section, Area, Refresh
+from .maststory import AppendText, MastStory, Choices, Text, Blank, Ship, Face, Button, Row, Section, Area, Refresh
 import traceback
-from .sbsquestrunner import SbsQuestRunner
+from .mastsbsrunner import MastSbsRunner
 
-class StoryRuntimeNode(QuestRuntimeNode):
+class StoryRuntimeNode(MastRuntimeNode):
     def on_message(self, sim, event):
         pass
 
 class FaceRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Face):
+    def enter(self, mast:Mast, thread:MastAsync, node: Face):
         tag = thread.main.page.get_tag()
         face = node.face
         if node.code:
@@ -23,23 +23,23 @@ class FaceRunner(StoryRuntimeNode):
         if face is not None:
             thread.main.page.add_content(layout.Face(face, tag), self)
 
-    def poll(self, quest, thread, node:Face):
+    def poll(self, mast, thread, node:Face):
         return PollResults.OK_ADVANCE_TRUE
 
 class RefreshRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Refresh):
-        thread.main.quest.refresh_runners(thread.main, node.label)
+    def enter(self, mast:Mast, thread:MastAsync, node: Refresh):
+        thread.main.mast.refresh_runners(thread.main, node.label)
         
 
 class ShipRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Ship):
+    def enter(self, mast:Mast, thread:MastAsync, node: Ship):
         tag = thread.main.page.get_tag()
         thread.main.page.add_content(layout.Ship(node.ship, tag), self)
 
 
 class TextRunner(StoryRuntimeNode):
     current = None
-    def enter(self, quest:Quest, thread:QuestAsync, node: Text):
+    def enter(self, mast:Mast, thread:MastAsync, node: Text):
         tag = thread.main.page.get_tag()
         msg = ""
         value = True
@@ -52,7 +52,7 @@ class TextRunner(StoryRuntimeNode):
             thread.main.page.add_content(self.layout_text, self)
 
 class AppendTextRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: AppendText):
+    def enter(self, mast:Mast, thread:MastAsync, node: AppendText):
         msg = ""
         value = True
         if node.code is not None:
@@ -65,7 +65,7 @@ class AppendTextRunner(StoryRuntimeNode):
                 text.layout_text.message += msg
 
 class ButtonControlRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Button):
+    def enter(self, mast:Mast, thread:MastAsync, node: Button):
         self.tag = thread.main.page.get_tag()
         value = True
         if node.code is not None:
@@ -88,26 +88,26 @@ class ButtonControlRunner(StoryRuntimeNode):
 
 
 class RowRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Row):
+    def enter(self, mast:Mast, thread:MastAsync, node: Row):
         thread.main.page.add_row()
         
 
 class BlankRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Blank):
+    def enter(self, mast:Mast, thread:MastAsync, node: Blank):
         tag = thread.main.page.get_tag()
         thread.main.page.add_content(layout.Separate(), self)
 
 class SectionRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Section):
+    def enter(self, mast:Mast, thread:MastAsync, node: Section):
         thread.main.page.add_section()
 
 class AreaRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Area):
+    def enter(self, mast:Mast, thread:MastAsync, node: Area):
         thread.main.page.set_section_size(node.left, node.top, node.right, node.bottom)
 
 
 class ChoicesRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Choices):
+    def enter(self, mast:Mast, thread:MastAsync, node: Choices):
         
         self.timeout = node.minutes*60+node.seconds
         if self.timeout == 0:
@@ -127,7 +127,7 @@ class ChoicesRunner(StoryRuntimeNode):
                         value = thread.eval_code(button.code)
                     if value and button.should_present(0):#thread.main.client_id):
                         runner = ChoiceButtonRunner()
-                        runner.enter(quest, thread, button)
+                        runner.enter(mast, thread, button)
                         layout_button = layout.Button(button.message, runner.tag)
                         layout_row.add(layout_button)
                         thread.main.page.add_tag(runner)
@@ -147,7 +147,7 @@ class ChoicesRunner(StoryRuntimeNode):
         self.button = None
 
 
-    def poll(self, quest:Quest, thread:QuestAsync, node: Choices):
+    def poll(self, mast:Mast, thread:MastAsync, node: Choices):
         if self.active==0 and self.timeout is None:
             return PollResults.OK_ADVANCE_TRUE
 
@@ -178,7 +178,7 @@ class ChoicesRunner(StoryRuntimeNode):
 
 
 class ChoiceButtonRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Button):
+    def enter(self, mast:Mast, thread:MastAsync, node: Button):
         self.tag = thread.main.page.get_tag()
         self.thread = thread
         self.button_node = node
@@ -210,12 +210,12 @@ over =     {
 
 }
 
-class StoryRunner(SbsQuestRunner):
-    def __init__(self, quest: Quest, overrides=None):
+class StoryRunner(MastSbsRunner):
+    def __init__(self, mast: Mast, overrides=None):
         if overrides:
-            super().__init__(quest, over|overrides)
+            super().__init__(mast, over|overrides)
         else:
-            super().__init__(quest,  over)
+            super().__init__(mast,  over)
         self.sim = None
         self.paint_refresh = False
         self.errors = []
@@ -267,7 +267,7 @@ class StoryPage(Page):
                     
 
     def run(self, sim, story_script):
-        story = StoryQuest()
+        story = MastStory()
         errors = story.compile(story_script)
         if len(errors) > 0:
             message = "Compile errors\n".join(errors)
@@ -357,7 +357,7 @@ class StoryPage(Page):
                     self.gui_state = "refresh"
                 self.story_runner.paint_refresh = False
             if not self.story_runner.tick(sim, event.client_id):
-                #self.story_runner.quest.remove_runner(self)
+                #self.story_runner.mast.remove_runner(self)
                 Gui.pop(sim, event.client_id)
                 return
         if len(self.errors) > 0:

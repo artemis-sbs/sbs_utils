@@ -1,6 +1,6 @@
-from .quest import Quest
-from .sbsquest import Simulation, Target, Tell, Comms, Button, Near
-from .questrunner import QuestRunner, PollResults, QuestRuntimeNode,  QuestAsync
+from .mast import Mast
+from .mastsbs import Simulation, Target, Tell, Comms, Button, Near
+from .mastrunner import MastRunner, PollResults, MastRuntimeNode,  MastAsync
 import sbs
 from ..spaceobject import SpaceObject
 from ..consoledispatcher import ConsoleDispatcher
@@ -9,12 +9,12 @@ from .errorpage import ErrorPage
 
 import traceback
 
-class ButtonRunner(QuestRuntimeNode):
-    def poll(self, quest, runner, node):
+class ButtonRunner(MastRuntimeNode):
+    def poll(self, mast, runner, node):
         return PollResults.OK_ADVANCE_TRUE
 
-class TellRunner(QuestRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Tell):
+class TellRunner(MastRuntimeNode):
+    def enter(self, mast:Mast, thread:MastAsync, node: Tell):
         to_so:SpaceObject = thread.inputs.get(node.to_tag)
         self.face = ""
         self.title = ""
@@ -29,7 +29,7 @@ class TellRunner(QuestRuntimeNode):
         else:
             thread.runtime_error("Tell has invalid from")            
 
-    def poll(self, quest:Quest, thread:QuestAsync, node: Tell):
+    def poll(self, mast:Mast, thread:MastAsync, node: Tell):
 
         if self.to_id and self.from_id:
             msg = node.message.format(**thread.get_symbols())
@@ -42,8 +42,8 @@ class TellRunner(QuestRuntimeNode):
         else:
             PollResults.OK_ADVANCE_FALSE
 
-class CommsRunner(QuestRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Comms):
+class CommsRunner(MastRuntimeNode):
+    def enter(self, mast:Mast, thread:MastAsync, node: Comms):
         self.timeout = node.minutes*60+node.seconds
         if self.timeout == 0:
             self.timeout = None
@@ -93,13 +93,13 @@ class CommsRunner(QuestRuntimeNode):
         this_button.visit((from_id, to_id))
 
 
-    def leave(self, quest:Quest, thread:QuestAsync, node: Comms):
+    def leave(self, mast:Mast, thread:MastAsync, node: Comms):
         ConsoleDispatcher.remove_select(self.from_id, 'comms_targetUID')
         ConsoleDispatcher.remove_message(self.from_id, 'comms_targetUID')
         sbs.send_comms_selection_info(self.to_id, "", self.color, self.comms_id)
         
 
-    def poll(self, quest:Quest, thread:QuestAsync, node: Comms):
+    def poll(self, mast:Mast, thread:MastAsync, node: Comms):
 
         if len(node.buttons)==0:
             # clear the comms buttons
@@ -130,15 +130,15 @@ class CommsRunner(QuestRuntimeNode):
 
         return PollResults.OK_RUN_AGAIN
 
-class TargetRunner(QuestRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Target):
+class TargetRunner(MastRuntimeNode):
+    def enter(self, mast:Mast, thread:MastAsync, node: Target):
         to_so:SpaceObject = thread.inputs.get(node.to_tag)
         self.to_id = to_so.get_id() if to_so else None
         from_so:SpaceObject = thread.inputs.get(node.from_tag)
         self.from_id = from_so.get_id() if from_so else None
 
 
-    def poll(self, quest, thread, node:Target):
+    def poll(self, mast, thread, node:Target):
         if self.to_id:
             obj:SpaceObject = SpaceObject.get(self.from_id)
             obj.target(thread.main.sim, self.to_id, not node.approach)
@@ -149,8 +149,8 @@ class TargetRunner(QuestRuntimeNode):
         return PollResults.OK_ADVANCE_TRUE
 
 
-class NearRunner(QuestRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Near):
+class NearRunner(MastRuntimeNode):
+    def enter(self, mast:Mast, thread:MastAsync, node: Near):
         self.timeout = node.minutes*60+node.seconds
         if self.timeout==0:
             self.timeout = None
@@ -163,7 +163,7 @@ class NearRunner(QuestRuntimeNode):
         if from_so:
             self.from_id = from_so.get_id()
 
-    def poll(self, quest:Quest, thread:QuestAsync, node: Near):
+    def poll(self, mast:Mast, thread:MastAsync, node: Near):
         # Need to check the distance
         dist = sbs.distance_id(self.to_id, self.from_id)
         if dist <= node.distance:
@@ -194,8 +194,8 @@ class NearRunner(QuestRuntimeNode):
         return PollResults.OK_RUN_AGAIN
 
 
-class SimulationRunner(QuestRuntimeNode):
-    def poll(self, quest:Quest, thread:QuestAsync, node: Simulation):
+class SimulationRunner(MastRuntimeNode):
+    def poll(self, mast:Mast, thread:MastAsync, node: Simulation):
         match node.cmd:
             case "create":
                 sbs.create_new_sim()
@@ -217,12 +217,12 @@ over =     {
       "Button": ButtonRunner
     }
 
-class SbsQuestRunner(QuestRunner):
-    def __init__(self, quest: Quest, overrides=None):
+class MastSbsRunner(MastRunner):
+    def __init__(self, mast: Mast, overrides=None):
         if overrides:
-            super().__init__(quest, over|overrides)
+            super().__init__(mast, over|overrides)
         else:
-            super().__init__(quest,  over)
+            super().__init__(mast,  over)
         self.sim = None
 
     def run(self, sim, label="main", inputs=None):

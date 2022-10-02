@@ -1,5 +1,6 @@
-import tests/quests/bar.mast
+import tests/mast/bar.mast
 ~~~~~~~~~~~~~~~~
+# Example of embedded python script
 @export()
 def test_func(a,b):
     return a + b

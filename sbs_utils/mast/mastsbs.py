@@ -1,8 +1,8 @@
-from .quest import IF_EXP_REGEX, JUMP_ARG_REGEX, OPT_JUMP_REGEX, TIMEOUT_REGEX, OPT_COLOR, Quest, QuestNode, QuestError
+from .mast import IF_EXP_REGEX, JUMP_ARG_REGEX, OPT_JUMP_REGEX, TIMEOUT_REGEX, OPT_COLOR, Mast, MastNode, MastCompilerError
 import re
 
 
-class Target(QuestNode):
+class Target(MastNode):
     """
     Creates a new 'thread' to run in parallel
     """
@@ -13,10 +13,10 @@ class Target(QuestNode):
         self.approach = cmd=="approach"
         print(f'target {self.from_tag} {self.to_tag}')
 
-    def validate(self, quest):
+    def validate(self, mast):
         # this may not be the right check
-        if quest.vars.get(self.from_tag) is None:
-            return QuestError( f'approach/target with invalid var {self.from_tag}', self.line_no)
+        if mast.vars.get(self.from_tag) is None:
+            return MastCompilerError( f'approach/target with invalid var {self.from_tag}', self.line_no)
 
     def gen(self):
         if self.approach: 
@@ -24,26 +24,26 @@ class Target(QuestNode):
         else:
             return f'target {self.from_tag} {self.to_tag}'
         
-class Tell(QuestNode):
+class Tell(MastNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
     rule = re.compile(r"""(?P<from_tag>\w+)\s+tell\s+(?P<to_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)\4)""")
     def __init__(self, to_tag, from_tag, message):
         self.to_tag = to_tag
         self.from_tag = from_tag
         self.message = message
-    def validate(self, quest):
+    def validate(self, mast):
         messages = []
-        if quest.inputs.get(self.to_tag) is None:
+        if mast.inputs.get(self.to_tag) is None:
             messages.append(f'Tell cannot find {self.to_tag}')
-        elif quest.inputs.get(self.from_tag) is None:
+        elif mast.inputs.get(self.from_tag) is None:
             messages.append(f'Tell cannot find {self.from_tag}')
         if len(messages):
-            return QuestError(messages, self.line_no)
+            return MastCompilerError(messages, self.line_no)
 
     def gen(self):
         return f'tell {self.to_tag} {self.from_tag} "{self.message}"'
 
-class Comms(QuestNode):
+class Comms(MastNode):
     rule = re.compile(r"""(?P<from_tag>\w+)\s*comms\s*(?P<to_tag>\w+)(\s+color\s*["'](?P<color>[ \t\S]+)["'])?"""+TIMEOUT_REGEX)
     def __init__(self, to_tag, from_tag, buttons=None, minutes=None, seconds=None, time_pop=None,time_push="", time_jump="", color="white"):
         self.to_tag = to_tag
@@ -58,21 +58,21 @@ class Comms(QuestNode):
     def add_child(self, obj):
         self.buttons.append(obj)
 
-    def validate(self, quest):
+    def validate(self, mast):
         messages = []
-        if quest.inputs.get(self.to_tag) is None:
+        if mast.inputs.get(self.to_tag) is None:
            messages.append( f'Comms cannot find {self.to_tag}')
-        elif quest.inputs.get(self.from_tag) is None:
+        elif mast.inputs.get(self.from_tag) is None:
             messages.append(f'Comms cannot find {self.from_tag}')
-        elif self.time_jump and quest.labels.get(self.time_jump) is None:
+        elif self.time_jump and mast.labels.get(self.time_jump) is None:
             messages.append(f'Comms cannot find {self.time_jump}')
             
         for button in self.buttons:
-            err = button.validate(quest)
+            err = button.validate(mast)
             if err:
                 messages.extend(err.messages)
         if len(messages):
-            return QuestError(messages, self.line_no)
+            return MastCompilerError(messages, self.line_no)
 
     def gen(self):
         s = f"comms {self.to_tag} {self.from_tag}"
@@ -91,7 +91,7 @@ class Comms(QuestNode):
         return s
 
 
-class Button(QuestNode):
+class Button(MastNode):
     rule = re.compile(r"""(?P<button>\*|\+)\s+["'](?P<message>.+?)["']"""+OPT_COLOR+JUMP_ARG_REGEX+IF_EXP_REGEX)
     stack = []
     def __init__(self, button, message, pop, push, jump, color, if_exp):
@@ -126,14 +126,14 @@ class Button(QuestNode):
             return not id_tuple in self.visited
         return True
 
-    def validate(self, quest):
-        if quest.labels.get(self.jump) is None:
-            return QuestError(f'Button cannot find {self.jump}', self.line_no)
+    def validate(self, mast):
+        if mast.labels.get(self.jump) is None:
+            return MastCompilerError(f'Button cannot find {self.jump}', self.line_no)
 
     def gen(self):
         return f'   button "{self.message}" -> {self.jump}'
 
-class Near(QuestNode):
+class Near(MastNode):
     rule = re.compile(r'(?P<from_tag>\w+)\s+near\s+(?P<to_tag>\w+)\s*(?P<distance>\d+)'+OPT_JUMP_REGEX+TIMEOUT_REGEX)
     def __init__(self, to_tag, from_tag, distance, pop="", push="", jump="", minutes=None, seconds=None, time_pop="",time_push="", time_jump=""):
         self.to_tag = to_tag
@@ -148,15 +148,15 @@ class Near(QuestNode):
         self.time_push = time_push == '>'
         self.time_pop = pop != ""
 
-    def validate(self, quest):
+    def validate(self, mast):
         messages = []
-        if quest.inputs.get(self.to_tag) is None:
+        if mast.inputs.get(self.to_tag) is None:
             messages.append(f'Near cannot find {self.to_tag}')
-        elif quest.inputs.get(self.from_tag) is None:
+        elif mast.inputs.get(self.from_tag) is None:
             messages.append(f'Near cannot find {self.from_tag}')
 
         if len(messages):
-            return QuestError(messages, self.line_no)
+            return MastCompilerError(messages, self.line_no)
 
     def gen(self):
         s = f"near {self.to_tag} {self.from_tag} {self.distance} -> {self.jump}"
@@ -170,7 +170,7 @@ class Near(QuestNode):
             s += f"->{self.time_jump}"
         return s
 
-class Simulation(QuestNode):
+class Simulation(MastNode):
     """
     Handle commands to the simulation
     """
@@ -179,8 +179,8 @@ class Simulation(QuestNode):
         self.cmd = cmd
 
 
-class SbsQuest(Quest):
-    nodes = Quest.nodes + [
+class MastSbs(Mast):
+    nodes = Mast.nodes + [
         # sbs specific
         Target,
         Tell,

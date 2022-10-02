@@ -1,16 +1,16 @@
 from enum import IntEnum
-from .quest import *
+from .mast import *
 
-class QuestRuntimeNode:
-    def enter(self, quest, runner, node):
+class MastRuntimeNode:
+    def enter(self, mast, runner, node):
         pass
-    def leave(self, quest, runner, node):
+    def leave(self, mast, runner, node):
         pass
 
-    def poll(self, quest, runner, node):
+    def poll(self, mast, runner, node):
         return PollResults.OK_ADVANCE_TRUE
 
-class QuestRuntimeError:
+class MastRuntimeError:
     def __init__(self, message, line_no):
         if isinstance(message, str):
             self.messages = [message]
@@ -19,7 +19,7 @@ class QuestRuntimeError:
         self.line_no = line_no
 
 
-class QuestAsync:
+class MastAsync:
     pass
 
 # Using enum.IntEnum 
@@ -30,17 +30,17 @@ class PollResults(IntEnum):
      OK_RUN_AGAIN = 4
      OK_END = 99
 
-class EndRunner(QuestRuntimeNode):
-    def poll(self, quest, thread, node:End):
+class EndRunner(MastRuntimeNode):
+    def poll(self, mast, thread, node:End):
         return PollResults.OK_END
 
-class AssignRunner(QuestRuntimeNode):
-    def poll(self, quest, thread:QuestAsync, node:Assign):
+class AssignRunner(MastRuntimeNode):
+    def poll(self, mast, thread:MastAsync, node:Assign):
         try:
             value = thread.eval_code(node.code)
             if "." in node.lhs:
-                locals = {"__quest_value": value} | thread.get_symbols()
-                exec(f"""{node.lhs} = __quest_value""",{"__builtins__": Quest.globals}, locals)
+                locals = {"__mast_value": value} | thread.get_symbols()
+                exec(f"""{node.lhs} = __mast_value""",{"__builtins__": Mast.globals}, locals)
             else:
                 thread.set_value(node.lhs, value, node.scope)
         except:
@@ -49,8 +49,8 @@ class AssignRunner(QuestRuntimeNode):
 
         return PollResults.OK_ADVANCE_TRUE
 
-class PyCodeRunner(QuestRuntimeNode):
-    def poll(self, quest, thread:QuestAsync, node:PyCode):
+class PyCodeRunner(MastRuntimeNode):
+    def poll(self, mast, thread:MastAsync, node:PyCode):
         def export():
             add_to = thread.main.vars
             def decorator(cls):
@@ -62,18 +62,18 @@ class PyCodeRunner(QuestRuntimeNode):
             thread.main.vars[name] = value
 
         locals = {"export": export, "export_var": export_var} | thread.get_symbols()
-        exec(node.code,{"__builtins__": Quest.globals}, locals)
+        exec(node.code,{"__builtins__": Mast.globals}, locals)
 
         # before = set(locals.items())
-        # exec(node.code,{"__builtins__": Quest.globals}, locals)
+        # exec(node.code,{"__builtins__": Mast.globals}, locals)
         # after = set(locals.items())
         # new_vars = dict(before ^ after)
         # thread.main.vars = thread.main.vars | new_vars
         return PollResults.OK_ADVANCE_TRUE
 
 
-class JumpRunner(QuestRuntimeNode):
-    def poll(self, quest, thread, node:Jump):
+class JumpRunner(MastRuntimeNode):
+    def poll(self, mast, thread, node:Jump):
         if node.code:
             value = thread.eval_code(node.code)
             if not value:
@@ -86,20 +86,20 @@ class JumpRunner(QuestRuntimeNode):
             thread.jump(node.label)
         return PollResults.OK_JUMP
 
-class InlineLabelRunner(QuestRuntimeNode):
-    def enter(self, quest, thread, node:InlineLabel):
+class InlineLabelRunner(MastRuntimeNode):
+    def enter(self, mast, thread, node:InlineLabel):
         if node.code:
             value = thread.eval_code(node.code)
             if value:
                 self.thread = thread.start_thread(node.label_name)
             else:
                 self.thread = None
-    def poll(self, quest, thread, node:InlineLabel):
+    def poll(self, mast, thread, node:InlineLabel):
         if self.thread is None:
             return PollResults.OK_ADVANCE_TRUE
         if self.thread.done:
             if node.loop:
-                self.enter(quest, thread, node)
+                self.enter(mast, thread, node)
             else:
                 return PollResults.OK_ADVANCE_TRUE
         return PollResults.OK_JUMP
@@ -110,14 +110,14 @@ class InlineLabelRunner(QuestRuntimeNode):
 
 
 
-class ParallelRunner(QuestRuntimeNode):
-    def enter(self, quest, thread, node:Parallel):
+class ParallelRunner(MastRuntimeNode):
+    def enter(self, mast, thread, node:Parallel):
         thread.start_thread(node.label, thread_name=node.name)
-    def poll(self, quest, thread, node:Parallel):
+    def poll(self, mast, thread, node:Parallel):
         return PollResults.OK_ADVANCE_TRUE
 
-class AwaitRunner(QuestRuntimeNode):
-    def enter(self, quest, thread, node:Await):
+class AwaitRunner(MastRuntimeNode):
+    def enter(self, mast, thread, node:Await):
         self.thread = None
         if node.spawn:
             # spawn via thread to pass same inputs
@@ -125,7 +125,7 @@ class AwaitRunner(QuestRuntimeNode):
         else:
             self.thread = thread.name_threads.get(node.label)
 
-    def poll(self, quest, thread, node:Await):
+    def poll(self, mast, thread, node:Await):
         if self.thread is None:
             return PollResults.OK_ADVANCE_TRUE
         if self.thread.done:
@@ -136,31 +136,31 @@ class AwaitRunner(QuestRuntimeNode):
         return PollResults.OK_RUN_AGAIN
 
 
-class CancelRunner(QuestRuntimeNode):
-    def poll(self, quest, thread: QuestAsync, node:Cancel):
+class CancelRunner(MastRuntimeNode):
+    def poll(self, mast, thread: MastAsync, node:Cancel):
         thread.main.cancel_thread(node.name)
         return PollResults.OK_ADVANCE_TRUE
 
     
-class DelayRunner(QuestRuntimeNode):
-    def enter(self, quest, thread, node):
+class DelayRunner(MastRuntimeNode):
+    def enter(self, mast, thread, node):
         self.timeout = node.minutes*60+node.seconds
         self.tag = None
 
-    def poll(self, quest, thread, node):
+    def poll(self, mast, thread, node):
         self.timeout -= 1
         if self.timeout <= 0:
             return PollResults.OK_ADVANCE_TRUE
 
         return PollResults.OK_RUN_AGAIN
 
-class QuestRunner:
+class MastRunner:
     pass
 
-class QuestAsync:
-    main: QuestRunner
+class MastAsync:
+    main: MastRunner
     
-    def __init__(self, main: QuestRunner, inputs=None):
+    def __init__(self, main: MastRunner, inputs=None):
         self.done = False
         self.runner = None
         self.main= main
@@ -188,12 +188,12 @@ class QuestAsync:
             self.runner = None
             self.done = True
         else:
-            label_runner = self.main.quest.labels.get(label)
+            label_runner = self.main.mast.labels.get(label)
             if label_runner is not None:
                 if self.active_label == "main":
-                    self.main.quest.prune_main()
+                    self.main.mast.prune_main()
                     
-                self.cmds = self.main.quest.labels[label].cmds
+                self.cmds = self.main.mast.labels[label].cmds
                 self.active_label = label
                 self.active_cmd = 0
                 self.runner = None
@@ -206,14 +206,14 @@ class QuestAsync:
                 self.done = True
 
     def get_symbols(self):
-        m1 = self.main.quest.vars | self.main.vars
+        m1 = self.main.mast.vars | self.main.vars
         return self.inputs | m1
 
     def set_value(self, key, value, scope):
         if scope == Scope.SHARED:
-            self.main.quest.vars[key] = value
+            self.main.mast.vars[key] = value
         # elif scope == Scope.TEMP:
-        #     self.main.quest.vars[key] = value
+        #     self.main.mast.vars[key] = value
         else:
             self.main.vars[key] = value
 
@@ -221,21 +221,21 @@ class QuestAsync:
     def call_leave(self):
         if self.runner:
             cmd = self.cmds[self.active_cmd]
-            self.runner.leave(self.main.quest, self, cmd)
+            self.runner.leave(self.main.mast, self, cmd)
             self.runner = None
 
     def format_string(self, message):
         if isinstance(message, str):
             return message
         allowed = self.get_symbols()
-        value = eval(message, {"__builtins__": Quest.globals}, allowed)
+        value = eval(message, {"__builtins__": Mast.globals}, allowed)
         return value
 
     def eval_code(self, code):
         value = None
         try:
             allowed = self.get_symbols()
-            value = eval(code, {"__builtins__": Quest.globals}, allowed)
+            value = eval(code, {"__builtins__": Mast.globals}, allowed)
         except:
             self.runtime_error("")
             self.done = True
@@ -243,7 +243,7 @@ class QuestAsync:
             pass
         return value
 
-    def start_thread(self, label = "main", inputs=None, thread_name=None)->QuestAsync:
+    def start_thread(self, label = "main", inputs=None, thread_name=None)->MastAsync:
         inputs= self.inputs|inputs if inputs else self.inputs
         return self.main.start_thread(label, inputs, thread_name)
     
@@ -263,7 +263,7 @@ class QuestAsync:
 
                 if self.runner:
                     cmd = self.cmds[self.active_cmd]
-                    result = self.runner.poll(self.main.quest, self, cmd)
+                    result = self.runner.poll(self.main.mast, self, cmd)
                     match result:
                         case PollResults.OK_ADVANCE_TRUE:
                             self.result = result
@@ -287,7 +287,7 @@ class QuestAsync:
     def runtime_error(self, s):
         cmd = None
         print(s)
-        s = "QUEST SCRIPT ERROR\n"+ s
+        s = "mast SCRIPT ERROR\n"+ s
         print(s)
         if self.runner:
             cmd = self.cmds[self.active_cmd]
@@ -311,16 +311,16 @@ class QuestAsync:
             return len(self.cmds) > 0
         
         cmd = self.cmds[self.active_cmd]
-        runner_cls = self.main.nodes.get(cmd.__class__.__name__, QuestRuntimeNode)
+        runner_cls = self.main.nodes.get(cmd.__class__.__name__, MastRuntimeNode)
         
         self.runner = runner_cls()
         #print(f"RUNNER {self.runner.__class__.__name__}")
-        self.runner.enter(self.main.quest, self, cmd)
+        self.runner.enter(self.main.mast, self, cmd)
         return True
 
 
 
-class QuestRunner:
+class MastRunner:
     runners = {
         "End": EndRunner,
         "Jump": JumpRunner,
@@ -333,29 +333,29 @@ class QuestRunner:
         "Delay": DelayRunner,
     }
 
-    def __init__(self, quest: Quest, overrides=None):
+    def __init__(self, mast: Mast, overrides=None):
         if overrides is None:
             overrides = {}
-        self.nodes = QuestRunner.runners | overrides
-        self.quest = quest
+        self.nodes = MastRunner.runners | overrides
+        self.mast = mast
         self.threads = []
         self.name_threads = {}
         self.inputs = None
         self.vars = {}
         self.done = []
-        self.quest.add_runner(self)
+        self.mast.add_runner(self)
 
     def runtime_error(self, message):
         pass
 
-    def start_thread(self, label = "main", inputs=None, thread_name=None)->QuestAsync:
+    def start_thread(self, label = "main", inputs=None, thread_name=None)->MastAsync:
         if self.inputs is None:
             self.inputs = inputs
             inputs = {} | inputs
         if inputs is None:
            inputs = {} | self.inputs
 
-        t= QuestAsync(self, inputs)
+        t= MastAsync(self, inputs)
         t.jump(label)
         self.on_start_thread(t)
         self.threads.append(t)

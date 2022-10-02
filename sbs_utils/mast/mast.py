@@ -1,5 +1,3 @@
-import pickle
-from email import message
 from enum import IntEnum, Enum
 import re
 import ast
@@ -35,7 +33,7 @@ STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[\s\S]+?(?P=quote))"""
 
 
 
-class QuestError:
+class MastCompilerError:
     def __init__(self, message, line_no):
         if isinstance(message, str):
             self.messages = [message]
@@ -44,12 +42,12 @@ class QuestError:
         self.line_no = line_no
 
 
-class QuestNode:
+class MastNode:
     def add_child(self, cmd):
         #print("ADD CHILD")
         pass
 
-    def validate(self, quest):
+    def validate(self, mast):
         return None
 
     def gen(self):
@@ -64,7 +62,7 @@ class QuestNode:
             return message
 
 
-class Label(QuestNode):
+class Label(MastNode):
     rule = re.compile(r'(={2,})\s*(?P<name>\w+)\s*(={2,})')
 
     def __init__(self, name):
@@ -74,7 +72,7 @@ class Label(QuestNode):
     def add_child(self, cmd):
         self.cmds.append(cmd)
 
-class InlineLabel(QuestNode):
+class InlineLabel(MastNode):
     rule = re.compile(r'((\-{2,})(\(\s*((?P<if_exp>.+))\))?(\-{2,}))\n(?P<cmds>[\s\S]+?)\n((\-{2,})(?P<loop>loop)?(\-{2,}))')
 
     def __init__(self, if_exp=None, loop=None, cmds=None):
@@ -87,21 +85,21 @@ class InlineLabel(QuestNode):
         self.cmds = cmds
         self.label_name = None
 
-class PyCode(QuestNode):
+class PyCode(MastNode):
     rule = re.compile(r'(\~{2,})\n(?P<py_cmds>[\s\S]+?)\n(\~{2,})')
 
     def __init__(self, py_cmds=None):
         self.code = compile(py_cmds, "<string>", "exec")
 
 
-class Input(QuestNode):
+class Input(MastNode):
     rule = re.compile(r'input\s+(?P<name>\w+)')
 
     def __init__(self, name):
         self.name = name
 
 
-class Import(QuestNode):
+class Import(MastNode):
     rule = re.compile(r'(from\s+(?P<lib>[\w\.\/-]+)\s+)?import\s+(?P<name>[\w\.\/-]+)')
 
     def __init__(self, name, lib=None):
@@ -109,14 +107,14 @@ class Import(QuestNode):
         self.lib = lib
 
 
-class Comment(QuestNode):
+class Comment(MastNode):
     rule = re.compile(r'#[ \t\S]*')
 
     def __init__(self):
         pass
 
 
-class QuestData(object):
+class MastData(object):
     def __init__(self, dictionary):
         # for dictionary in initial_data:
         for key in dictionary:
@@ -126,7 +124,7 @@ class QuestData(object):
         return repr(vars(self))
 
 
-class Var(QuestNode):
+class Var(MastNode):
     rule = re.compile(
         r"""var\s*(?P<name>\w+)\s*=\s* (?P<val>(\[[\s\S]+?\])|(\{[\s\S]+?\})|([+-]?\d+(\.\d+)?)|((["']{3}|["'])[\s\S]+?\8))""")
 
@@ -136,27 +134,27 @@ class Var(QuestNode):
         try:
             self.value = ast.literal_eval(val)
             if type(self.value) is dict:
-                self.value = QuestData(self.value)
+                self.value = MastData(self.value)
 
         except:
             self.value = None
 
-    def validate(self, quest):
+    def validate(self, mast):
         if self.value is None:
-            return QuestError(f'variable {self.name} cannot be set {self.val}', self.line_no)
+            return MastCompilerError(f'variable {self.name} cannot be set {self.val}', self.line_no)
 
     def gen(self):
         return f'var {self.name} {repr(self.value)}'
 
 
 class Scope(Enum):
-    SHARED = 1  # per quest instance
+    SHARED = 1  # per mast instance
     NORMAL = 2  # per runner
     TEMP = 99  # Per thread?
 
 
 
-class Assign(QuestNode):
+class Assign(MastNode):
     # '|'+STRING_REGEX+
     rule = re.compile(
         r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*=\s*(?P<exp>('+LIST_REGEX+'|'+DICT_REGEX+'|'+STRING_REGEX+'|.*))')
@@ -173,16 +171,16 @@ class Assign(QuestNode):
             exp = 'f'+exp        
         self.code = compile(exp, "<string>", "eval")
 
-    def validate(self, quest):
+    def validate(self, mast):
         return None
-        # if quest.labels.get(self.label) is None:
-        #    return QuestError( f'Jump cannot find {self.to_tag}', self.line_no)
+        # if mast.labels.get(self.label) is None:
+        #    return MastCompilerError( f'Jump cannot find {self.to_tag}', self.line_no)
 
     def gen(self):
         return f'{self.lhs} = ...'
 
 
-class Jump(QuestNode):
+class Jump(MastNode):
     rule = re.compile(JUMP_CMD_REGEX+IF_EXP_REGEX)
 
     def __init__(self, pop, push, jump, if_exp):
@@ -195,9 +193,9 @@ class Jump(QuestNode):
         else:
             self.code = None
 
-    def validate(self, quest):
-        if quest.labels.get(self.label) is None:
-            return QuestError(f'Jump cannot find {self.to_tag}', self.line_no)
+    def validate(self, mast):
+        if mast.labels.get(self.label) is None:
+            return MastCompilerError(f'Jump cannot find {self.to_tag}', self.line_no)
 
     def gen(self):
         if self.push:
@@ -208,7 +206,7 @@ class Jump(QuestNode):
             return f'->> {self.label}"'
 
 
-class Parallel(QuestNode):
+class Parallel(MastNode):
     """
     Creates a new 'thread' to run in parallel
     """
@@ -219,14 +217,14 @@ class Parallel(QuestNode):
         self.label = label
         self.cmds = []
 
-    def validate(self, quest):
+    def validate(self, mast):
         for cmd in self.cmds:
             if type(cmd) != Assign:
-                return QuestError(f'Only assignments allowed as child', self.line_no)
+                return MastCompilerError(f'Only assignments allowed as child', self.line_no)
 
         return None
-        # if quest.labels.get(self.label) is None:
-        #    return QuestError( f'Jump cannot find {self.to_tag}', self.line_no)
+        # if mast.labels.get(self.label) is None:
+        #    return MastCompilerError( f'Jump cannot find {self.to_tag}', self.line_no)
 
     def gen(self):
         s = ""
@@ -238,7 +236,7 @@ class Parallel(QuestNode):
         self.cmds.append(cmd)
 
 
-class Await(QuestNode):
+class Await(MastNode):
     """
     waits for an existing or a new 'thread' to run in parallel
     this needs to be a rule before Parallel
@@ -250,14 +248,14 @@ class Await(QuestNode):
         self.label = label
         self.cmds = []
 
-    def validate(self, quest):
+    def validate(self, mast):
         for cmd in self.cmds:
             if type(cmd) != Assign:
-                return QuestError(f'Only assignments allowed as child', self.line_no)
+                return MastCompilerError(f'Only assignments allowed as child', self.line_no)
 
         return None
-        # if quest.labels.get(self.label) is None:
-        #    return QuestError( f'Jump cannot find {self.to_tag}', self.line_no)
+        # if mast.labels.get(self.label) is None:
+        #    return MastCompilerError( f'Jump cannot find {self.to_tag}', self.line_no)
 
     def gen(self):
         s = ""
@@ -269,7 +267,7 @@ class Await(QuestNode):
         self.cmds.append(cmd)
 
 
-class Cancel(QuestNode):
+class Cancel(MastNode):
     """
     Cancels a new 'thread' to run in parallel
     """
@@ -278,17 +276,17 @@ class Cancel(QuestNode):
     def __init__(self, lhs=None, name=None):
         self.name = name
 
-    def validate(self, quest):
+    def validate(self, mast):
         return None
-        # if quest.labels.get(self.label) is None:
-        #    return QuestError( f'Jump cannot find {self.to_tag}', self.line_no)
+        # if mast.labels.get(self.label) is None:
+        #    return MastCompilerError( f'Jump cannot find {self.to_tag}', self.line_no)
 
     def gen(self):
         s = ""
         s += f'cancel {self.name}'
 
 
-class End(QuestNode):
+class End(MastNode):
     rule = re.compile(r'->\s*END')
 
     def validate(self, _):
@@ -298,7 +296,7 @@ class End(QuestNode):
         return "->END"
 
 
-class Delay(QuestNode):
+class Delay(MastNode):
     rule = re.compile(r'delay\s*'+MIN_SECONDS_REGEX)
 
     def __init__(self, seconds=None, minutes=None):
@@ -307,7 +305,7 @@ class Delay(QuestNode):
 
     def validate(self, _):
         if self.minutes <= 0 and self.seconds <= 0:
-            return QuestError("Delay has no time set", self.line_no)
+            return MastCompilerError("Delay has no time set", self.line_no)
 
     def gen(self):
         s = 'delay '
@@ -347,7 +345,7 @@ def first_newline_index(s):
     return len(s)
 
 
-class Quest:
+class Mast:
     globals = {
         "math": math, 
         "faces": faces, 
@@ -419,12 +417,7 @@ class Quest:
         self.runners = set()
         self.lib_name = None
         self.inline_count = 0
-
-    def to_pickle(self):
-        b = pickle.dumps(self.labels)
-        with open("test.p") as f:
-            f.write(b)
-
+    
     def prune_main(self):
         if self.main_pruned:
             return
@@ -658,23 +651,23 @@ class Quest:
         return errors
 
 
-def validate_quest(quest):
-    for name, value in quest.vars.items():
-        validate_var(quest, name, value)
+def validate_mast(mast):
+    for name, value in mast.vars.items():
+        validate_var(mast, name, value)
 
-    for label in quest.labels.values():
+    for label in mast.labels.values():
         print()
         print(f"=={label.name}==")
-        validate_label(quest, label)
+        validate_label(mast, label)
 
 
-def validate_label(quest, label):
+def validate_label(mast, label):
     for cmd in label.cmds:
-        validate_cmd(quest, cmd)
+        validate_cmd(mast, cmd)
 
 
-def validate_cmd(quest, cmd):
-    err = cmd.validate(quest)
+def validate_cmd(mast, cmd):
+    err = cmd.validate(mast)
     if err:
         print(f"ERROR: line {err.line_no}")
         for msg in err.messages:
@@ -683,7 +676,7 @@ def validate_cmd(quest, cmd):
     print(cmd.gen())
 
 
-def validate_var(quest, name, value):
+def validate_var(mast, name, value):
     if value is None:
         print(f"ERROR: var set is invalid {name}")
     v = Var(name, None)

@@ -1,6 +1,6 @@
-from sbs_utils.quests.storyquest import Quest
+from sbs_utils.quests.storyquest import Mast
 from sbs_utils.quests.questrunner import PollResults, QuestAsync, QuestRuntimeNode, QuestRunner
-from sbs_utils.quests.storyquest import StoryQuest, Face, Ship, Text, Button, Row, Choices, Section, Blank, Area
+from sbs_utils.quests.storyquest import MastStory, Face, Ship, Text, Button, Row, Choices, Section, Blank, Area
 import os
 
 class StoryRuntimeNode(QuestRuntimeNode):
@@ -8,7 +8,7 @@ class StoryRuntimeNode(QuestRuntimeNode):
         pass
 
 class FaceRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Face):
+    def enter(self, quest:Mast, thread:QuestAsync, node: Face):
         tag = thread.main.page.get_tag()
         face = node.face
         if node.code:
@@ -17,39 +17,39 @@ class FaceRunner(StoryRuntimeNode):
         
 
 class ShipRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Ship):
+    def enter(self, quest:Mast, thread:QuestAsync, node: Ship):
         pass
 
 
 class TextRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Text):
+    def enter(self, quest:Mast, thread:QuestAsync, node: Text):
         pass
 
 
 class ButtonRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Button):
+    def enter(self, quest:Mast, thread:QuestAsync, node: Button):
         pass
 
 class RowRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Row):
+    def enter(self, quest:Mast, thread:QuestAsync, node: Row):
         pass
         
 
 class SeparatorRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Blank):
+    def enter(self, quest:Mast, thread:QuestAsync, node: Blank):
         pass
 
 class SectionRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Section):
+    def enter(self, quest:Mast, thread:QuestAsync, node: Section):
         pass
 
 class SizeRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Area):
+    def enter(self, quest:Mast, thread:QuestAsync, node: Area):
         pass
 
 
 class ChoicesRunner(StoryRuntimeNode):
-    def enter(self, quest:Quest, thread:QuestAsync, node: Choices):
+    def enter(self, quest:Mast, thread:QuestAsync, node: Choices):
         pass
 
 
@@ -78,7 +78,7 @@ files = ["story_gui.story"]
 for file in files:
     with open(os.path.join(basedir, './tests/quests', file)) as f:
         content = f.read()
-        q = StoryQuest(content)
+        q = MastStory(content)
     
         run = QuestRunner(q, over)
         run.start_thread(inputs={"player": FakeObject("fred"), "ship": FakeObject("wilma")})
