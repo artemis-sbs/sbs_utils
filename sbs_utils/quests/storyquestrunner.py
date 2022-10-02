@@ -63,17 +63,14 @@ class AppendTextRunner(StoryRuntimeNode):
             if text is not None:
                 text.layout_text.message += '\n'
                 text.layout_text.message += msg
-        
 
-
-
-class ButtonRunner(StoryRuntimeNode):
+class ButtonControlRunner(StoryRuntimeNode):
     def enter(self, quest:Quest, thread:QuestAsync, node: Button):
         self.tag = thread.main.page.get_tag()
         value = True
         if node.code is not None:
             value = self.thread.eval_code(node.code)
-        if value and node.should_present(thread.main.client_id):
+        if value:
             thread.main.page.add_content(layout.Button(node.message, self.tag), self)
         self.button_node = node
         self.thread = thread
@@ -86,7 +83,9 @@ class ButtonRunner(StoryRuntimeNode):
                     self.thread.pop_label()
                 else:
                     self.thread.jump(self.button_node.jump)
- 
+
+
+
 
 class RowRunner(StoryRuntimeNode):
     def enter(self, quest:Quest, thread:QuestAsync, node: Row):
@@ -126,7 +125,7 @@ class ChoicesRunner(StoryRuntimeNode):
                     value = True
                     if button.code is not None:
                         value = thread.eval_code(button.code)
-                    if value and button.should_present(thread.main.client_id):
+                    if value and button.should_present(0):#thread.main.client_id):
                         runner = ChoiceButtonRunner()
                         runner.enter(quest, thread, button)
                         layout_button = layout.Button(button.message, runner.tag)
@@ -202,7 +201,7 @@ over =     {
     "AppendText": AppendTextRunner,
     "Face": FaceRunner,
     "Ship": ShipRunner,
-    "Button": ButtonRunner,
+    "ButtonControl": ButtonControlRunner,
     "Blank": BlankRunner,
     "Choices": ChoicesRunner,
     "Section": SectionRunner,
@@ -246,7 +245,6 @@ class StoryRunner(SbsQuestRunner):
         if not err.startswith("NoneType"):
             message += str(err)
             self.errors.append(message)
-        
         
 
 class StoryPage(Page):

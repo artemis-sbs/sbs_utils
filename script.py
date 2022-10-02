@@ -117,7 +117,8 @@ class MyStory(StoryPage):
             return True
 
         MyStory.story = StoryQuest()
-        return MyStory.story.from_file("tests/quests/story_gui.story")
+        ret =  MyStory.story.from_file("tests/quests/story_gui.mast")
+        return ret
 
         """
         file_name = os.path.join(fs.get_mission_dir(),'tests/quests', "story_gui.story")

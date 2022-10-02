@@ -1,4 +1,4 @@
-import tests/quests/bar.story
+import tests/quests/bar.mast
 
 
 shared alisa = "ter #6d8b01 3 0;ter #6d8b01 4 1;ter #6d8b01 4 3;ter #CC9966 8 4 6 -2;ter #fff 13 0 14 -2;ter #fff 3 6;"
@@ -40,6 +40,7 @@ Have you ever flown a spaceship?
 
 face frank
 
+
 section
 area 60 10 100 90
 
@@ -54,12 +55,15 @@ This is your first ship
 blank
 
 
-choices
-    + "Yes.." -> YouLied if learn == True
-    + "Yes.." -> YouTrained if learn == False
-    + "Ready to learn" -> Learn
-    + "Not interested" ->> GotoBar
-    + "Exit" ->END
+
++ "Yes.." -> YouLied if learn == True
++ "Yes.." -> YouTrained if learn == False
++ "Ready to learn" -> Learn
++ "Bar" ->> GotoBar
++ "HUD" ->> Hud
++ "Exit" ->END
+choose
+
 
 
 =================== YouLied ========
@@ -73,8 +77,9 @@ I will not tolerate those who are untruthful.
 You should board the next shuttle and get the hell out of my sector
 """""""""""""""""""""""""""""""""""""""""""
 
-choices
-    + "Exit" ->END
+
++ "Exit" ->END
+choose
 
 
 ============== YouTrained =========
@@ -93,8 +98,8 @@ You're ready to command your own ship.
 Good luck
 """""""""""""""""""""""""""""""""
 
-choices
-    + "Exit" -> StartMission
++ "Exit" -> StartMission
+choose
 
 ================= StartMission ==============================
 
@@ -109,21 +114,21 @@ area 20 20 100 40
 
 learn = False
 
-* "Test 1" -> Learn
-* "Test 2" ->Learn
-* "Test 3" -> Learn
-* "Test 4" ->Learn
+button "Test 1" -> Learn
+button "Test 2" ->Learn
+button "Test 3" -> Learn
+button "Test 4" ->Learn
 row
-* "Test 5" -> Learn
-* "Test 6" ->Learn
-* "Test 7" -> Learn
-* "Test 8" ->Learn
+button "Test 5" -> Learn
+button "Test 6" ->Learn
+button "Test 7" -> Learn
+button "Test 8" ->Learn
 row
-* "Test 9" -> Briefing
-* "Test 10" -> Briefing
+button "Test 9" -> Briefing
+button "Test 10" -> Briefing
 
-choices
-    + "exit" ->END
++ "exit" ->END
+choose
 
 ====================== NoChoice ======================
 
@@ -136,3 +141,34 @@ shared tsn =  [Npc().spawn(sim, 1000, 0, 1000, "TSN0", "tsn", "Battle Cruiser", 
 
 <<-
 
+
+===================== Hud ============
+
+index = 0
+---------(index < 5)---------
+f = "hud #fff {index} 0"
+face f
+index = index +1
+--------loop----------------
+
+
+row
+face "hud #fff 0 1"
+face "hud #fff 1 1"
+face "hud #fff 2 1"
+face "hud #fff 3 1"
+face "hud #fff 4 1"
+
+row
+face "hud #fff 0 2"
+face "hud #fff 1 2"
+face "hud #fff 2 2"
+face "hud #fff 3 2"
+face "hud #fff 4 2"
+
+
+
+
+
++ "Back" <<-
+choose

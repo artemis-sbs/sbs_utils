@@ -1,9 +1,12 @@
+import pickle
 from email import message
 from enum import IntEnum, Enum
 import re
 import ast
 import os
 from .. import fs
+from zipfile import ZipFile
+
 
 # tokens
 #
@@ -14,6 +17,19 @@ from .. import fs
 # Conditional
 #       (\s+if(?P<if>.+))?
 #
+JUMP_CMD_REGEX = r"""((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+)))"""
+JUMP_ARG_REGEX = r"""(\s*((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+))))"""
+OPT_JUMP_REGEX = JUMP_ARG_REGEX+r"""?"""
+TIME_JUMP_REGEX = r"""((?P<time_pop><<-)|(->(?P<time_push>>)?\s*(?P<time_jump>\w+)))?"""
+MIN_SECONDS_REGEX = r"""(\s*((?P<minutes>\d+))m)?(\s*((?P<seconds>\d+)s))?"""
+TIMEOUT_REGEX = r"(\s*timeout"+MIN_SECONDS_REGEX + \
+    r"\s*" + TIME_JUMP_REGEX + r")?"
+OPT_COLOR = r"""(\s*color\s*["'](?P<color>[ \t\S]+)["'])?"""
+IF_EXP_REGEX = r"""(\s+if(?P<if_exp>.+))?"""
+LIST_REGEX = r"""(\[[\s\S]*\])"""
+DICT_REGEX = r"""(\{[\s\S]*\})"""
+STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[\s\S]+?(?P=quote))"""
+
 
 
 class QuestError:
@@ -55,6 +71,19 @@ class Label(QuestNode):
     def add_child(self, cmd):
         self.cmds.append(cmd)
 
+class InlineLabel(QuestNode):
+    rule = re.compile(r'((\-{2,})(\(\s*((?P<if_exp>.+))\))?(\-{2,}))\n(?P<cmds>[\s\S]+?)\n((\-{2,})(?P<loop>loop)?(\-{2,}))')
+
+    def __init__(self, if_exp=None, loop=None, cmds=None):
+        if if_exp:
+            if_exp = if_exp.lstrip()
+            self.code = compile(if_exp, "<string>", "eval")
+        else:
+            self.code = None
+        self.loop = True if loop is not None and 'loop' in loop else False
+        self.cmds = cmds
+        self.label_name = None
+
 
 class Input(QuestNode):
     rule = re.compile(r'input\s+(?P<name>\w+)')
@@ -64,10 +93,11 @@ class Input(QuestNode):
 
 
 class Import(QuestNode):
-    rule = re.compile(r'import\s+(?P<name>[\w\./-]+)')
+    rule = re.compile(r'(from\s+(?P<lib>[\w\.\/-]+)\s+)?import\s+(?P<name>[\w\.\/-]+)')
 
-    def __init__(self, name):
+    def __init__(self, name, lib=None):
         self.name = name
+        self.lib = lib
 
 
 class Comment(QuestNode):
@@ -116,19 +146,6 @@ class Scope(Enum):
     TEMP = 99  # Per thread?
 
 
-JUMP_CMD_REGEX = r"""((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+)))"""
-JUMP_ARG_REGEX = r"""(\s*((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+))))"""
-OPT_JUMP_REGEX = JUMP_ARG_REGEX+r"""?"""
-TIME_JUMP_REGEX = r"""((?P<time_pop><<-)|(->(?P<time_push>>)?\s*(?P<time_jump>\w+)))?"""
-MIN_SECONDS_REGEX = r"""(\s*((?P<minutes>\d+))m)?(\s*((?P<seconds>\d+)s))?"""
-TIMEOUT_REGEX = r"(\s*timeout"+MIN_SECONDS_REGEX + \
-    r"\s*" + TIME_JUMP_REGEX + r")?"
-OPT_COLOR = r"""(\s*color\s*["'](?P<color>[ \t\S]+)["'])?"""
-IF_EXP_REGEX = r"""(\s+if(?P<if_exp>.+))?"""
-LIST_REGEX = r"""(\[[\s\S]*\])"""
-DICT_REGEX = r"""(\{[\s\S]*\})"""
-STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[\s\S]+?(?P=quote))"""
-
 
 class Assign(QuestNode):
     # '|'+STRING_REGEX+
@@ -142,6 +159,8 @@ class Assign(QuestNode):
         #print(f"EXP: {exp}")
         #print(f"quote: {quote}")
         exp = exp.lstrip()
+        if quote:
+            exp = 'f'+exp        
         self.code = compile(exp, "<string>", "eval")
 
     def validate(self, quest):
@@ -154,12 +173,17 @@ class Assign(QuestNode):
 
 
 class Jump(QuestNode):
-    rule = re.compile(JUMP_CMD_REGEX)
+    rule = re.compile(JUMP_CMD_REGEX+IF_EXP_REGEX)
 
-    def __init__(self, pop, push, jump):
+    def __init__(self, pop, push, jump, if_exp):
         self.label = jump
         self.push = push == "->>"
         self.pop = pop is not None
+        if if_exp:
+            if_exp = if_exp.lstrip()
+            self.code = compile(if_exp, "<string>", "eval")
+        else:
+            self.code = None
 
     def validate(self, quest):
         if quest.labels.get(self.label) is None:
@@ -314,12 +338,15 @@ def first_newline_index(s):
 
 class Quest:
     def __init__(self, cmds=None):
+        self.lib_name = None
+
         if cmds is None:
             return
         if isinstance(cmds, str):
             cmds = self.compile(cmds)
         else:
             self.build(cmds)
+        
 
     def build(self, cmds):
         """
@@ -345,6 +372,7 @@ class Quest:
     nodes = [
         Comment,
         Label,
+        InlineLabel,
         Input,
         #        Var,
         Import,
@@ -366,6 +394,13 @@ class Quest:
         self.indent_stack = [0]
         self.main_pruned = False
         self.runners = set()
+        self.lib_name = None
+        self.inline_count = 0
+
+    def to_pickle(self):
+        b = pickle.dumps(self.labels)
+        with open("test.p") as f:
+            f.write(b)
 
     def prune_main(self):
         if self.main_pruned:
@@ -389,7 +424,17 @@ class Quest:
     def remove_runner(self, runner):
         self.runners.remove(runner)
 
-    def from_file(self, filename):
+    def from_file(self, filename, lib_name=None):
+        """ Docstring"""
+
+        # Import from lib
+        if lib_name is not None:
+            return self.from_lib_file(filename, lib_name)
+
+        # Import from already in a lib
+        if self.lib_name is not None:
+            return self.from_lib_file(filename, self.lib_name)
+            
         file_name = os.path.join(fs.get_mission_dir(), filename)
         print(f"file to import: {file_name}")
         self.basedir = os.path.dirname(file_name)
@@ -404,6 +449,7 @@ class Quest:
             errors.append(message)
 
         if content is not None:
+            print( f"Compiling file {file_name}")
             errors = self.compile(content)
 
             if len(errors) > 0:
@@ -414,17 +460,73 @@ class Quest:
             return errors
         return None
 
-    def import_content(self, filename):
+    def from_lib_file(self, file_name, lib_name):
+        lib_name = os.path.join(fs.get_mission_dir(), lib_name)
+        content = None
+
+        errors = []
+        try:
+            with ZipFile(lib_name) as lib_file:
+                print("LIB Opened")
+                with lib_file.open(file_name) as f:
+                    print("LIB content")
+                    content = f.read().decode('UTF-8')
+                    print(f"LIB {content[0:10]}")
+                    self.lib_name = lib_name
+        except:
+            message = f"File load error\nCannot load file {file_name}"
+            print(message)
+            errors.append(message)
+            
+
+        if content is not None:
+            errors = self.compile(content)
+
+            if len(errors) > 0:
+                message = f"Compile errors\nCannot compile file {file_name}"
+                errors.append(message)
+
+        if len(errors) > 0:
+            return errors
+        return None
+
+
+    def import_content(self, filename, lib_file):
         add = self.__class__()
-        errors = add.from_file(filename)
+        errors = add.from_file(filename, lib_file)
         if errors is None:
             for label, node in add.labels.items():
                 if label == "main":
                     main = self.labels["main"]
                     main.cmds.extend(node.cmds)
                 else:
-                    #print(f"import label {label}")
                     self.labels[label] = node
+        return errors
+
+        
+    def compile_inline(self, node:InlineLabel):
+        add = self.__class__()
+        errors = add.compile(node.cmds)
+        if len(errors)<1:
+            main = add.labels.get("main")
+            self.labels[node.label_name] = main
+            # add repeat
+            # if node.loop:
+            #     loop = Jump(None, None, node.label_name,None )
+            #     loop.code = node.code
+            #     main.cmds.append(loop)
+            # # add a pop
+            # main.cmds.append(Jump(True, None, None, None))
+        else:
+            if len(errors) > 0:
+                message = f"Compile errors\nCannot compile inline"
+                errors.append(message)
+        if len(add.labels.keys()) != 1:
+            message = f"Compile errors\nInline too many labels"
+            if errors is None:
+                errors = []
+            errors.append(message)
+
         return errors
 
     def compile(self, lines):
@@ -474,11 +576,32 @@ class Quest:
                             self.inputs[data['name']] = input
 
                         case "Import":
-                            err = self.import_content(data['name'])
+                            lib_name = data.get("lib")
+                            err = self.import_content(data['name'], lib_name)
                             if err is not None:
                                 errors.extend(err)
                                 for e in err:
                                     print("import error "+e)
+
+                        case "InlineLabel":
+                            label_name = f"___inline_{self.inline_count}"
+                            inline = InlineLabel(**data)
+                            inline.label_name = label_name
+                            print(f"Inline {label_name} {inline.cmds} {inline.loop}")
+                            
+                            err = self.compile_inline(inline)
+                            if len(err)>0:
+                                errors.extend(err)
+                                for e in err:
+                                    print("inline error "+e)
+                            else:
+                                self.inline_count += 1
+                                inline.line_no = line_no
+                                self.cmd_stack[-1].add_child(inline)
+                                active_cmd = inline
+                                #save memory
+                                inline.cmds = None
+
 
                         case "Comment":
                             # obj.line_no = line_no

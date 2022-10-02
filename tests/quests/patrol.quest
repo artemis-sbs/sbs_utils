@@ -1,8 +1,10 @@
 
 # Set the comms buttons to start the 'quest'
+
++ "Start at DS1" -> One
++ "Start at DS2" -> Two
 self comms player
-    button "Start at DS1" -> One
-    button "Start at DS2" -> Two
+
 
 == One ==
 await=>HeadToDS1

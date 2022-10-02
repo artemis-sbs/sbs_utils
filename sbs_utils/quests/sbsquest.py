@@ -92,8 +92,10 @@ class Comms(QuestNode):
 
 
 class Button(QuestNode):
-    rule = re.compile(r"""(?P<button>\*|\+|button|button\s+once)\s+["'](?P<message>.+?)["']"""+OPT_COLOR+JUMP_ARG_REGEX+IF_EXP_REGEX)
+    rule = re.compile(r"""(?P<button>\*|\+)\s+["'](?P<message>.+?)["']"""+OPT_COLOR+JUMP_ARG_REGEX+IF_EXP_REGEX)
+    stack = []
     def __init__(self, button, message, pop, push, jump, color, if_exp):
+        self.stack.append(self)
         self.message = message
         self.jump = jump
         self.push = push == ">"

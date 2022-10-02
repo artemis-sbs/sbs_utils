@@ -9,6 +9,10 @@ from .errorpage import ErrorPage
 
 import traceback
 
+class ButtonRunner(QuestRuntimeNode):
+    def poll(self, quest, runner, node):
+        return PollResults.OK_ADVANCE_TRUE
+
 class TellRunner(QuestRuntimeNode):
     def enter(self, quest:Quest, thread:QuestAsync, node: Tell):
         to_so:SpaceObject = thread.inputs.get(node.to_tag)
@@ -209,7 +213,8 @@ over =     {
       "Tell": TellRunner,
       "Near": NearRunner,
       "Target": TargetRunner,
-      "Simulation": SimulationRunner
+      "Simulation": SimulationRunner,
+      "Button": ButtonRunner
     }
 
 class SbsQuestRunner(QuestRunner):

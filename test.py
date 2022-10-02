@@ -1,5 +1,5 @@
-from sbs_utils.quests.quest import DICT_REGEX, STRING_REGEX, LIST_REGEX
+from sbs_utils.quests.quest import IF_EXP_REGEX, DICT_REGEX, STRING_REGEX, LIST_REGEX
 
 
-print('(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*=\s*(?P<exp>('+DICT_REGEX+'|'+STRING_REGEX+'|'+LIST_REGEX+'|.*))')
+print(r'((\-{2,})'+IF_EXP_REGEX+r'(\-{2,}))\n(?P<code>[\s\S]+?)\n(?P<loop>((\-{2,})|(\^{2,})))')
 

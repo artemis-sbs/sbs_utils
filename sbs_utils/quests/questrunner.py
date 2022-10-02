@@ -52,6 +52,10 @@ class AssignRunner(QuestRuntimeNode):
 
 class JumpRunner(QuestRuntimeNode):
     def poll(self, quest, thread, node:Jump):
+        if node.code:
+            value = thread.eval_code(node.code)
+            if not value:
+                return PollResults.OK_ADVANCE_TRUE
         if node.push:
             thread.push_label(node.label)
         elif node.pop:
@@ -59,6 +63,28 @@ class JumpRunner(QuestRuntimeNode):
         else:
             thread.jump(node.label)
         return PollResults.OK_JUMP
+
+class InlineLabelRunner(QuestRuntimeNode):
+    def enter(self, quest, thread, node:InlineLabel):
+        if node.code:
+            value = thread.eval_code(node.code)
+            if value:
+                self.thread = thread.start_thread(node.label_name)
+            else:
+                self.thread = None
+    def poll(self, quest, thread, node:InlineLabel):
+        if self.thread is None:
+            return PollResults.OK_ADVANCE_TRUE
+        if self.thread.done:
+            if node.loop:
+                self.enter(quest, thread, node)
+            else:
+                return PollResults.OK_ADVANCE_TRUE
+        return PollResults.OK_JUMP
+
+
+
+
 
 
 
@@ -265,7 +291,7 @@ class QuestAsync:
         runner_cls = self.main.nodes.get(cmd.__class__.__name__, QuestRuntimeNode)
         
         self.runner = runner_cls()
-        print(f"RUNNER {self.runner.__class__.__name__}")
+        #print(f"RUNNER {self.runner.__class__.__name__}")
         self.runner.enter(self.main.quest, self, cmd)
         return True
 
@@ -275,6 +301,7 @@ class QuestRunner:
     runners = {
         "End": EndRunner,
         "Jump": JumpRunner,
+        "InlineLabel": InlineLabelRunner,
         "Await": AwaitRunner,
         "Parallel": ParallelRunner,
         "Cancel": CancelRunner,
@@ -306,11 +333,14 @@ class QuestRunner:
 
         t= QuestAsync(self, inputs)
         t.jump(label)
+        self.on_start_thread(t)
         self.threads.append(t)
         if thread_name is not None:
             self.name_threads[thread_name] = t
         return t
 
+    def on_start_thread(self, t):
+        t.tick()
     def cancel_thread(self, name):
         t = self.name_threads.get(name)
         if t:

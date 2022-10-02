@@ -73,22 +73,35 @@ class Area(QuestNode):
         
 
 class Choices(QuestNode):
-    rule = re.compile(r"""(no)?choices"""+TIMEOUT_REGEX)
-    def __init__(self, buttons=None, minutes=None, seconds=None, time_pop=None,time_push="", time_jump=""):
-        self.buttons = buttons if buttons is not None else []
+    rule = re.compile(r"""choose"""+TIMEOUT_REGEX)
+    def __init__(self, minutes=None, seconds=None, time_pop=None,time_push="", time_jump=""):
         self.seconds = 0 if  seconds is None else int(seconds)
         self.minutes = 0 if  minutes is None else int(minutes)
         self.time_jump = time_jump
         self.time_push = time_push == ">"
         self.time_pop = time_pop is not None
-    def add_child(self, obj):
-        self.buttons.append(obj)
+        self.buttons = Button.stack
+        Button.stack = []
 
+class ButtonControl(QuestNode):
+    rule = re.compile(r"""button\s+["'](?P<message>.+?)["']"""+JUMP_ARG_REGEX+IF_EXP_REGEX)
+    def __init__(self, message, pop, push, jump, if_exp):
+        self.message = message
+        self.jump = jump
+        self.push = push == ">"
+        self.pop = pop is not None
+    
+        if if_exp:
+            if_exp = if_exp.lstrip()
+            self.code = compile(if_exp, "<string>", "eval")
+        else:
+            self.code = None
+        
 
 
 
 class StoryQuest(SbsQuest):
-    nodes = SbsQuest.nodes + [
+    nodes = [
         # sbs specific
         Row,
             Text,
@@ -99,6 +112,6 @@ class StoryQuest(SbsQuest):
             Section,
             Area,
         Choices,
-            Button,
+            ButtonControl,
         Refresh
-    ] 
+    ] + SbsQuest.nodes 
