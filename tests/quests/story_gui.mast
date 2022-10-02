@@ -1,5 +1,16 @@
 import tests/quests/bar.mast
+~~~~~~~~~~~~~~~~
+@export()
+def test_func(a,b):
+    return a + b
 
+@export()
+class MyShip(Npc):
+    pass
+
+free = 99
+export_var("free", free)
+~~~~~~~~~~~~~~~~
 
 shared alisa = "ter #6d8b01 3 0;ter #6d8b01 4 1;ter #6d8b01 4 3;ter #CC9966 8 4 6 -2;ter #fff 13 0 14 -2;ter #fff 3 6;"
 shared frank = "ter #f2efee 0 0;ter #f2efee 2 0;ter #f2efee 0 3;ter #fff 12 1 14 -2;ter #fff 2 6;ter #3d0463 9 0 12 4;"
@@ -22,7 +33,7 @@ area 20 10 60 90
 
 face alisa
 """""""""""""""""""""""""""""""""
-Welcome to the TSN
+Welcome to the TSN {test_func(2,5)} {free}
 I'm Captain Alisa. I've been running things in this sector for 10 years. We run a tight sector.
 I don't take any crap and I do not like people who lie and disobey orders out of a matter of principle.
 """""""""""""""""""""""""""""""""
@@ -144,11 +155,16 @@ shared tsn =  [Npc().spawn(sim, 1000, 0, 1000, "TSN0", "tsn", "Battle Cruiser", 
 
 ===================== Hud ============
 
-index = 0
----------(index < 5)---------
-f = "hud #fff {index} 0"
+# This is a way to 'flatten out' a nested loop
+fred = itertools.product(range(4), range(4))
+x_y = next(fred, False)
+
+---------( x_y )---------
+y = x_y[0]
+x = x_y[1]
+f = "hud #fff {x} {y}"
 face f
-index = index +1
+x_y = next(fred, False)
 --------loop----------------
 
 

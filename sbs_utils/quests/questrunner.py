@@ -1,7 +1,5 @@
 from enum import IntEnum
 from .quest import *
-from .. import faces
-import math
 
 class QuestRuntimeNode:
     def enter(self, quest, runner, node):
@@ -42,13 +40,37 @@ class AssignRunner(QuestRuntimeNode):
             value = thread.eval_code(node.code)
             if "." in node.lhs:
                 locals = {"__quest_value": value} | thread.get_symbols()
-                exec(f"""{node.lhs} = __quest_value""",{"__builtins__": {}}, locals)
+                exec(f"""{node.lhs} = __quest_value""",{"__builtins__": Quest.globals}, locals)
             else:
                 thread.set_value(node.lhs, value, node.scope)
         except:
             thread.main.runtime_error(f"assignment error {node.lhs}")
+            return PollResults.OK_END
 
         return PollResults.OK_ADVANCE_TRUE
+
+class PyCodeRunner(QuestRuntimeNode):
+    def poll(self, quest, thread:QuestAsync, node:PyCode):
+        def export():
+            add_to = thread.main.vars
+            def decorator(cls):
+                add_to[cls.__name__] = cls
+                return cls
+            return decorator
+
+        def export_var(name, value):
+            thread.main.vars[name] = value
+
+        locals = {"export": export, "export_var": export_var} | thread.get_symbols()
+        exec(node.code,{"__builtins__": Quest.globals}, locals)
+
+        # before = set(locals.items())
+        # exec(node.code,{"__builtins__": Quest.globals}, locals)
+        # after = set(locals.items())
+        # new_vars = dict(before ^ after)
+        # thread.main.vars = thread.main.vars | new_vars
+        return PollResults.OK_ADVANCE_TRUE
+
 
 class JumpRunner(QuestRuntimeNode):
     def poll(self, quest, thread, node:Jump):
@@ -205,17 +227,18 @@ class QuestAsync:
     def format_string(self, message):
         if isinstance(message, str):
             return message
-        allowed = {"math": math, "faces": faces}| self.get_symbols()
-        value = eval(message, {"__builtins__": {}}, allowed)
+        allowed = self.get_symbols()
+        value = eval(message, {"__builtins__": Quest.globals}, allowed)
         return value
 
     def eval_code(self, code):
         value = None
         try:
-            allowed = {"math": math, "faces": faces}| self.get_symbols()
-            value = eval(code, {"__builtins__": {}}, allowed)
+            allowed = self.get_symbols()
+            value = eval(code, {"__builtins__": Quest.globals}, allowed)
         except:
             self.runtime_error("")
+            self.done = True
         finally:
             pass
         return value
@@ -302,6 +325,7 @@ class QuestRunner:
         "End": EndRunner,
         "Jump": JumpRunner,
         "InlineLabel": InlineLabelRunner,
+        "PyCode": PyCodeRunner,
         "Await": AwaitRunner,
         "Parallel": ParallelRunner,
         "Cancel": CancelRunner,

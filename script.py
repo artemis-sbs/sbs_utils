@@ -105,12 +105,15 @@ class MyStory(StoryPage):
     
     def __init__(self) -> None:
         super().__init__()
-        if self.init_quest() is None:
+        err = self.init_quest()
+        if err  is None:
             self.story_runner = StoryRunner(MyStory.story)
             self.story_runner.run(None, self, inputs= {
             "PlayerShip": PlayerShip,
             "Npc": Npc
             })
+        else:
+            self.errors = err
 
     def init_quest(self):
         if MyStory.story is not None:

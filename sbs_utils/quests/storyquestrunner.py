@@ -218,6 +218,7 @@ class StoryRunner(SbsQuestRunner):
             super().__init__(quest,  over)
         self.sim = None
         self.paint_refresh = False
+        self.errors = []
 
     def run(self, sim, page, label="main", inputs=None):
         self.sim = sim
@@ -244,7 +245,8 @@ class StoryRunner(SbsQuestRunner):
         err = traceback.format_exc()
         if not err.startswith("NoneType"):
             message += str(err)
-            self.errors.append(message)
+            self.errors = [message]
+            
         
 
 class StoryPage(Page):
@@ -339,7 +341,17 @@ class StoryPage(Page):
     
     def present(self, sim, event):
         """ Present the gui """
+        if self.gui_state == "errors":
+            return
         if self.story_runner is not None:
+            if len(self.story_runner.errors) > 0:
+                #errors = self.errors.reverse()
+                message = "Compile errors\n".join(self.story_runner.errors)
+                sbs.send_gui_clear(event.client_id)
+                sbs.send_gui_text(event.client_id, message, "error", 30,20,100,100)
+                self.gui_state = "errors"
+                return
+
             if self.story_runner.paint_refresh:
                 if self.gui_state != "repaint":  
                     self.gui_state = "refresh"
@@ -348,12 +360,14 @@ class StoryPage(Page):
                 #self.story_runner.quest.remove_runner(self)
                 Gui.pop(sim, event.client_id)
                 return
-        elif len(self.errors) > 0:
+        if len(self.errors) > 0:
             #errors = self.errors.reverse()
             message = "Compile errors\n".join(self.errors)
             sbs.send_gui_clear(event.client_id)
             sbs.send_gui_text(event.client_id, message, "error", 30,20,100,100)
             self.gui_state = "errors"
+
+        
 
 
         

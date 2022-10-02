@@ -6,6 +6,9 @@ import ast
 import os
 from .. import fs
 from zipfile import ZipFile
+from .. import faces
+import math
+import itertools
 
 
 # tokens
@@ -26,8 +29,8 @@ TIMEOUT_REGEX = r"(\s*timeout"+MIN_SECONDS_REGEX + \
     r"\s*" + TIME_JUMP_REGEX + r")?"
 OPT_COLOR = r"""(\s*color\s*["'](?P<color>[ \t\S]+)["'])?"""
 IF_EXP_REGEX = r"""(\s+if(?P<if_exp>.+))?"""
-LIST_REGEX = r"""(\[[\s\S]*\])"""
-DICT_REGEX = r"""(\{[\s\S]*\})"""
+LIST_REGEX = r"""(\[[\s\S]+?\])"""
+DICT_REGEX = r"""(\{[\s\S]+?\})"""
 STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[\s\S]+?(?P=quote))"""
 
 
@@ -83,6 +86,12 @@ class InlineLabel(QuestNode):
         self.loop = True if loop is not None and 'loop' in loop else False
         self.cmds = cmds
         self.label_name = None
+
+class PyCode(QuestNode):
+    rule = re.compile(r'(\~{2,})\n(?P<py_cmds>[\s\S]+?)\n(\~{2,})')
+
+    def __init__(self, py_cmds=None):
+        self.code = compile(py_cmds, "<string>", "exec")
 
 
 class Input(QuestNode):
@@ -150,8 +159,9 @@ class Scope(Enum):
 class Assign(QuestNode):
     # '|'+STRING_REGEX+
     rule = re.compile(
-        r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*=\s*(?P<exp>('+DICT_REGEX+'|'+STRING_REGEX+'|'+LIST_REGEX+'|.*))')
+        r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*=\s*(?P<exp>('+LIST_REGEX+'|'+DICT_REGEX+'|'+STRING_REGEX+'|.*))')
 
+    """ Not this doesn't support destructuring. To do so isn't worth the effort"""
     def __init__(self, scope, lhs, exp, quote=None):
         self.lhs = lhs
         self.scope = Scope.NORMAL if scope is None else Scope[scope.strip(
@@ -314,6 +324,7 @@ class Rule:
         self.cls = cls
 
 
+
 def first_non_space_index(s):
     for idx, c in enumerate(s):
         if not c.isspace():
@@ -337,6 +348,17 @@ def first_newline_index(s):
 
 
 class Quest:
+    globals = {
+        "math": math, 
+        "faces": faces, 
+        "print": print, 
+        "dir":dir, 
+        "itertools": itertools,
+        "next": next,
+        "range": range,
+        "__build_class__":__build_class__, # ability to define classes
+        "__name__":__name__ # needed to define classes?
+    }
     def __init__(self, cmds=None):
         self.lib_name = None
 
@@ -373,6 +395,7 @@ class Quest:
         Comment,
         Label,
         InlineLabel,
+        PyCode,
         Input,
         #        Var,
         Import,
