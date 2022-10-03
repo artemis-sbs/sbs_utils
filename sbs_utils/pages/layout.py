@@ -61,6 +61,34 @@ class Button(Column):
             self.message, self.tag, 
             self.left, self.top, self.right, self.bottom)
 
+class Slider(Column):
+    def __init__(self,  value=0.5, low=0.0, high=1.0, tag=None) -> None:
+        super().__init__()
+        self.tag = tag
+        self.value = value
+        self.low = low
+        self.high = high
+
+    def present(self, sim, event):
+        sbs.send_gui_slider(event.client_id, 
+            self.tag, 
+            self.low, self.high, self.value,
+            self.left, self.top, self.right, self.bottom)
+
+class Checkbox(Column):
+    def __init__(self, message, tag, value=False) -> None:
+        super().__init__()
+        self.message = message
+        self.tag = tag
+        self.value = value
+        
+    def present(self, sim, event):
+        sbs.send_gui_checkbox(event.client_id, 
+            self.message, self.tag, 
+            1 if self.value else 0,
+            self.left, self.top, self.right, self.bottom)
+
+
 class Separate(Column):
     def __init__(self) -> None:
         super().__init__()

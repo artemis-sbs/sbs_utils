@@ -157,6 +157,11 @@ class DelayRunner(MastRuntimeNode):
 class MastRunner:
     pass
 
+class PushData:
+    def __init__(self, label, active_cmd):
+        self.label = label
+        self.active_cmd = active_cmd
+
 class MastAsync:
     main: MastRunner
     
@@ -171,17 +176,21 @@ class MastAsync:
 
     def push_label(self, label):
         if self.active_label:
-            self.label_stack.append(self.active_label)
+            push_data = PushData(self.active_label, self.active_cmd)
+            print(f"PUSH DATA {push_data.label} {push_data.active_cmd}")
+            self.label_stack.append(push_data)
         self.jump(label)
 
     def pop_label(self):
         if len(self.label_stack)>0:
-            label = self.label_stack.pop()
-            self.jump(label)
+            push_data: PushData
+            push_data = self.label_stack.pop()
+            print(f"POP DATA {push_data.label} {push_data.active_cmd}")
+            self.jump(push_data.label, push_data.active_cmd+1)
 
         
 
-    def jump(self, label = "main"):
+    def jump(self, label = "main", activate_cmd=0):
         self.call_leave()
         if label == "END":
             self.active_cmd = 0
@@ -195,10 +204,10 @@ class MastAsync:
                     
                 self.cmds = self.main.mast.labels[label].cmds
                 self.active_label = label
-                self.active_cmd = 0
+                self.active_cmd = activate_cmd
                 self.runner = None
                 self.done = False
-                self.next(True)
+                self.next()
             else:
                 self.runtime_error(f"""Jump to label "{label}" not found""")
                 self.active_cmd = 0
@@ -217,6 +226,12 @@ class MastAsync:
         else:
             self.main.vars[key] = value
 
+    def get_value(self, key, defa):
+        val = self.main.mast.vars.get(key, None)
+        if val is not None:
+            return (val, Scope.SHARED)
+        val = self.main.vars.get(key, defa)
+        return (val, Scope.NORMAL)
 
     def call_leave(self):
         if self.runner:
@@ -300,7 +315,7 @@ class MastAsync:
         self.done = True
 
 
-    def next(self, first=False):
+    def next(self):
         if self.runner:
             self.call_leave()
             cmd = self.cmds[self.active_cmd]

@@ -117,7 +117,7 @@ class MyStory(StoryPage):
 
     def init_mast(self):
         if MyStory.story is not None:
-            return True
+            return []
 
         MyStory.story = MastStory()
         ret =  MyStory.story.from_file("tests/mast/story_gui.mast")

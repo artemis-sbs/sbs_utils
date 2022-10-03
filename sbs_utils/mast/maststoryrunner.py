@@ -1,4 +1,4 @@
-from .mastrunner import PollResults, MastRuntimeNode, MastRunner, MastAsync
+from .mastrunner import PollResults, MastRuntimeNode, MastRunner, MastAsync, Scope
 from .mast import Mast
 import sbs
 from ..gui import FakeEvent, Gui, Page
@@ -6,7 +6,7 @@ from ..gui import FakeEvent, Gui, Page
 from ..pages import layout
 
 from .errorpage import ErrorPage
-from .maststory import AppendText, MastStory, Choices, Text, Blank, Ship, Face, Button, Row, Section, Area, Refresh
+from .maststory import AppendText, MastStory, Choices, Text, Blank, Ship, Face, Button, Row, Section, Area, Refresh, SliderControl, CheckboxControl
 import traceback
 from .mastsbsrunner import MastSbsRunner
 
@@ -194,6 +194,43 @@ class ChoiceButtonRunner(StoryRuntimeNode):
             elif  self.button_node.pop:
                 self.thread.pop_label()
 
+class SliderControlRunner(StoryRuntimeNode):
+    def enter(self, mast:Mast, thread:MastAsync, node: SliderControl):
+        self.tag = thread.main.page.get_tag()
+        self.node = node
+        scoped_val = thread.get_value(self.node.var, self.node.value)
+        val = scoped_val[0]
+        self.scope = scoped_val[1]
+        self.layout = layout.Slider(val, node.low, node.high, self.tag)
+        self.thread = thread
+        
+
+        thread.main.page.add_content(self.layout, self)
+
+    def on_message(self, sim, event):
+        if event.sub_tag == self.tag:
+            self.thread.set_value(self.node.var, event.sub_float, self.scope)
+            self.layout.value = event.sub_float
+
+
+class CheckboxControlRunner(StoryRuntimeNode):
+    def enter(self, mast:Mast, thread:MastAsync, node: SliderControl):
+        self.tag = thread.main.page.get_tag()
+        self.node = node
+        scoped_val = thread.get_value(self.node.var, False)
+        val = scoped_val[0]
+        self.scope = scoped_val[1]
+        self.layout = layout.Checkbox(node.message, self.tag, val)
+        self.thread = thread
+        thread.main.page.add_content(self.layout, self)
+
+    def on_message(self, sim, event):
+        if event.sub_tag == self.tag:
+            self.layout.value = not self.layout.value
+            self.thread.set_value(self.node.var, self.layout.value, self.scope)
+            self.layout.present(sim, event)
+            
+
 
 over =     {
     "Row": RowRunner,
@@ -202,6 +239,8 @@ over =     {
     "Face": FaceRunner,
     "Ship": ShipRunner,
     "ButtonControl": ButtonControlRunner,
+    "SliderControl": SliderControlRunner,
+    "CheckboxControl": CheckboxControlRunner,
     "Blank": BlankRunner,
     "Choices": ChoicesRunner,
     "Section": SectionRunner,

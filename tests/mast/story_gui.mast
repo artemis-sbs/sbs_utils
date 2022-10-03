@@ -15,6 +15,7 @@ export_var("free", free)
 
 shared alisa = "ter #6d8b01 3 0;ter #6d8b01 4 1;ter #6d8b01 4 3;ter #CC9966 8 4 6 -2;ter #fff 13 0 14 -2;ter #fff 3 6;"
 shared frank = "ter #f2efee 0 0;ter #f2efee 2 0;ter #f2efee 0 3;ter #fff 12 1 14 -2;ter #fff 2 6;ter #3d0463 9 0 12 4;"
+shared mission_started = False
 
 
 long_text = """  kjlkjkljll;jl
@@ -75,7 +76,8 @@ blank
 + "HUD" ->> Hud
 + "Exit" ->END
 choose
-
+# This is for the bar/hud when they pops
+->Briefing
 
 
 =================== YouLied ========
@@ -110,15 +112,21 @@ You're ready to command your own ship.
 Good luck
 """""""""""""""""""""""""""""""""
 
-+ "Exit" -> StartMission
++ "Resume Mission" -> ResumeMission if mission_started==True
++ "Start Mission" -> StartMission if mission_started==False
+
 choose
 
 ================= StartMission ==============================
 
 simulation create
-simulation resume
+shared mission_started = True
 ->>MapStuff
+->ResumeMission
 
+================= ResumeMission ==============================
+simulation resume
+->YouTrained
 
 ==================           Learn     ===========
 x = 0
@@ -138,6 +146,8 @@ button "Test 8" ->Learn
 row
 button "Test 9" -> Briefing
 button "Test 10" -> Briefing
+slider fred 0.0 1.0 0.5
+checkbox wilma "Yaba"
 
 + "exit" ->END
 choose
@@ -149,7 +159,11 @@ choose
 
 ====================== MapStuff ======================
 shared player = PlayerShip().spawn(sim, 0, 0, 0,"Artemis", "tsn", "Battle Cruiser")
-shared tsn =  [Npc().spawn(sim, 1000, 0, 1000, "TSN0", "tsn", "Battle Cruiser", "behav_npcship").obj,Npc().spawn(sim ,1200, 0, 1000, "TSN1", "tsn", "Battle Cruiser", "behav_npcship").obj,Npc().spawn(sim, 1400, 0, 1000, "TSN2", "tsn", "Battle Cruiser", "behav_npcship").obj]
+shared tsn =  [
+    Npc().spawn(sim, 1000, 0, 1000, "TSN0", "tsn", "Battle Cruiser", "behav_npcship").py_object,
+    Npc().spawn(sim ,1200, 0, 1000, "TSN1", "tsn", "Battle Cruiser", "behav_npcship").py_object,
+    Npc().spawn(sim, 1400, 0, 1000, "TSN2", "tsn", "Battle Cruiser", "behav_npcship").py_object
+    ]
 
 <<-
 

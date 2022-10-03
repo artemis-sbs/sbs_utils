@@ -185,7 +185,7 @@ class Jump(MastNode):
 
     def __init__(self, pop, push, jump, if_exp):
         self.label = jump
-        self.push = push == "->>"
+        self.push = push == ">"
         self.pop = pop is not None
         if if_exp:
             if_exp = if_exp.lstrip()

@@ -96,7 +96,27 @@ class ButtonControl(MastNode):
             self.code = compile(if_exp, "<string>", "eval")
         else:
             self.code = None
-        
+
+FLOAT_VALUE_REGEX = r"[+-]?([0-9]*[.])?[0-9]+"
+
+class SliderControl(MastNode):
+    rule = re.compile(r"""slider"""+
+        r"""\s+(?P<var>[ \t\S]+)"""+
+        r"""\s+(?P<low>"""+FLOAT_VALUE_REGEX+
+        r""")\s+(?P<high>"""+FLOAT_VALUE_REGEX+
+        r""")\s+(?P<value>"""+FLOAT_VALUE_REGEX+
+        r""")""")
+    def __init__(self, var=None, low=0.0, high=1.0, value=0.5):
+        self.var= var
+        self.low = float(low)
+        self.high = float(high)
+        self.value = float(value)
+    
+class CheckboxControl(MastNode):
+    rule = re.compile(r"""checkbox\s+(?P<var>[ \t\S]+)\s+["'](?P<message>.+?)["']""")
+    def __init__(self, var=None, message=None):
+        self.var= var
+        self.message = message
 
 
 
@@ -112,6 +132,8 @@ class MastStory(MastSbs):
             Section,
             Area,
         Choices,
-            ButtonControl,
+        ButtonControl,
+        SliderControl,
+        CheckboxControl,
         Refresh
     ] + MastSbs.nodes 
