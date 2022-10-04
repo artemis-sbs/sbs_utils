@@ -72,22 +72,23 @@ class Label(MastNode):
     def add_child(self, cmd):
         self.cmds.append(cmd)
 
-class InlineLabel(MastNode):
-    rule = re.compile(
-         r'((\-{2,})\s*(?P<name>\w+)\s*)(\((?P<if_exp>[\s\S]+?)\))\s*(\-{2,})' + 
-        r'\n?(?P<cmds>[\s\S]+?)\n?'+
-        r'((\-{2,})\s*(?P<loop>next)?\s*(?P=name)\s*(\-{2,}))' 
-    )
-        
 
-    def __init__(self, if_exp=None, loop=None, cmds="", name=None):
+
+class InlineLabelStart(MastNode):
+    rule = re.compile(r'((\-{2,})\s*(?P<name>\w+)\s*)(\((?P<if_exp>[\s\S]+?)\))\s*(\-{2,})')
+
+    def __init__(self, if_exp=None, name=None):
         if if_exp:
             if_exp = if_exp.lstrip()
             self.code = compile(if_exp, "<string>", "eval")
         else:
             self.code = None
+        self.name = name
+
+class InlineLabelEnd(MastNode):
+    rule = re.compile(r'((\-{2,})\s*(?P<loop>next)?\s*(?P<name>\w+)\s*(\-{2,}))')
+    def __init__(self, loop=None, name=None):
         self.loop = True if loop is not None and 'next' in loop else False
-        self.cmds = cmds.lstrip()
         self.name = name
 
 class PyCode(MastNode):
@@ -349,6 +350,11 @@ def first_newline_index(s):
             return idx
     return len(s)
 
+class InlineData:
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
+
 
 class Mast:
     globals = {
@@ -395,10 +401,12 @@ class Mast:
                 case _:
                     active.cmds.append(cmd)
 
+
     nodes = [
         Comment,
         Label,
-        InlineLabel,
+        InlineLabelStart,
+        InlineLabelEnd,
         PyCode,
         Input,
         #        Var,
@@ -416,6 +424,7 @@ class Mast:
         self.inputs = {}
         self.vars = {}
         self.labels = {}
+        self.inline_labels = {}
         self.labels["main"] = Label("main")
         self.cmd_stack = [self.labels["main"]]
         self.indent_stack = [0]
@@ -525,27 +534,6 @@ class Mast:
                     self.labels[label] = node
         return errors
 
-        
-    def compile_inline(self, node:InlineLabel):
-        add = self.__class__()
-        print(f"Compiling inline label {node.label_name}")
-        errors = add.compile(node.cmds)
-        
-        if len(errors)<1:
-            for label in add.labels:
-                label_cmd = add.labels.get(label)
-                if label == 'main':
-                    print(f"Main replacement inline label {node.label_name}")
-                    self.labels[node.label_name] = label_cmd
-                else:
-                    print(f"Adding inline label {label}")
-                    self.labels[label] = label_cmd
-        else:
-            if len(errors) > 0:
-                message = f"Compile errors\nCannot compile inline"
-                errors.append(message)
-        
-        return errors
 
     def compile(self, lines):
         self.clear()
@@ -601,24 +589,23 @@ class Mast:
                                 for e in err:
                                     print("import error "+e)
 
-                        case "InlineLabel":
-                            label_name = f"___inline_{Mast.inline_count}"
-                            Mast.inline_count += 1
-                            inline = InlineLabel(**data)
-                            inline.label_name = label_name
-                            print(f"Inline NAME {label_name} LOOP {inline.loop}")
-                            
-                            err = self.compile_inline(inline)
-                            if len(err)>0:
-                                errors.extend(err)
-                                for e in err:
-                                    print("inline error "+e)
-                            else:
-                                inline.line_no = line_no
-                                self.cmd_stack[-1].add_child(inline)
-                                active_cmd = inline
-                                #save memory
-                                inline.cmds = None
+                        case "InlineLabelStart":
+                            inline = InlineLabelStart(**data)
+                            label_name = f"{active.name}:{inline.name}"
+                            start = len(self.cmd_stack[-1].cmds)
+                            #print(f"INLINE START {label_name} start {start}")
+                            self.cmd_stack[-1].add_child(inline)
+                            self.inline_labels[label_name] = InlineData(start, None)
+
+                        case "InlineLabelEnd":
+                            inline = InlineLabelEnd(**data)
+                            label_name = f"{active.name}:{inline.name}"
+                            end = len(self.cmd_stack[-1].cmds)
+                            #print(f"INLINE END {label_name} end {end}")
+                            self.cmd_stack[-1].add_child(inline)
+                            data = self.inline_labels.get(label_name, InlineData(None,None))
+                            data.end = end
+                            self.inline_labels[label_name] = data
 
 
                         case "Comment":

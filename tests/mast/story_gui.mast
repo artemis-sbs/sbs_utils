@@ -11,6 +11,7 @@ class MyShip(Npc):
 
 free = 99
 export_var("free", free)
+export_var("free_shared", free, True)
 ~~~~~~~~~~~~~~~~
 
 shared alisa = "ter #6d8b01 3 0;ter #6d8b01 4 1;ter #6d8b01 4 3;ter #CC9966 8 4 6 -2;ter #fff 13 0 14 -2;ter #fff 3 6;"
@@ -183,7 +184,7 @@ x_y = next(fred, False)
 face f
 --b( x == 3 )--row-- b --
 
---next a----------------
+--next a ----------------
 
 
 + "Back" <<-

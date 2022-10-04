@@ -58,8 +58,11 @@ class PyCodeRunner(MastRuntimeNode):
                 return cls
             return decorator
 
-        def export_var(name, value):
-            thread.main.vars[name] = value
+        def export_var(name, value, shared=False):
+            if shared:
+                thread.main.mast.vars[name] = value
+            else:
+                thread.main.vars[name] = value
 
         locals = {"export": export, "export_var": export_var} | thread.get_symbols()
         exec(node.code,{"__builtins__": Mast.globals}, locals)
@@ -86,40 +89,38 @@ class JumpRunner(MastRuntimeNode):
             thread.jump(node.label)
         return PollResults.OK_JUMP
 
-class InlineLabelRunner(MastRuntimeNode):
-    def enter(self, mast, thread, node:InlineLabel):
-        self.index = None
-        self.thread = None
 
-    def poll(self, mast, thread, node:InlineLabel):
-        # Await thread
-        #print(f"Polling {node.label_name}")
-        if self.thread and self.thread.done == False:
-            return PollResults.OK_JUMP
+class InlineLabelStartRunner(MastRuntimeNode):
+    def enter(self, mast, thread:MastAsync, node:InlineLabelStart):
+        print("INLINE START")
+        self.index = 0
+        thread.set_value(node.name, self.index, Scope.TEMP)
 
-        # thread is done or we are starting
+    def poll(self, mast, thread, node:InlineLabelStart):
         value = True
         if node.code:
             value = thread.eval_code(node.code)
         if value == False:
-            print(f"Ending {node.label_name}")
+            # jump to the end label
+            inline_label = f"{thread.active_label}:{node.name}"
+            print(f"{inline_label} looped {self.index}")
+            thread.jump_inline_end(inline_label)
             return PollResults.OK_ADVANCE_TRUE
+        print(f"{node.name} fallthrough {self.index}")
+        self.index += 1
+        #thread.set_value(node.name, self.index, Scope.TEMP)
+        return PollResults.OK_ADVANCE_TRUE
 
-        if self.index is None:
-            print(f"Starting {node.label_name}")
-            self.thread = thread.start_thread(node.label_name)
-            self.index = 0
-        elif node.loop:
-            print(f"Looping {node.label_name} {self.index} {value}")
-            self.thread = thread.start_thread(node.label_name)
-            self.index += 1
-        else:
-            print(f"Ending {node.label_name}")
-            return PollResults.OK_ADVANCE_TRUE
-
-        # keep running
-        thread.set_value(node.name, self.index, Scope.TEMP)
-        return PollResults.OK_JUMP
+class InlineLabelEndRunner(MastRuntimeNode):
+    def poll(self, mast, thread, node:InlineLabelEnd):
+        inline_label = f"{thread.active_label}:{node.name}"
+        if node.loop == True:
+            print(f"END LOOP {inline_label} loop")
+            print(f"{inline_label} loop")
+            thread.jump_inline_start(inline_label)
+            return PollResults.OK_JUMP
+        print(f"{inline_label} end fall through")
+        return PollResults.OK_ADVANCE_TRUE
 
 
 
@@ -205,7 +206,19 @@ class MastAsync:
             print(f"POP DATA {push_data.label} {push_data.active_cmd}")
             self.jump(push_data.label, push_data.active_cmd+1)
 
-        
+    def jump_inline_start(self, label_name):
+        data = self.main.mast.inline_labels.get(label_name)
+        print(f"jump start {label_name}")
+        if data and data.start is not None:
+            print(f"jump start {data.start}")
+            self.jump(self.active_label, data.start)
+
+    def jump_inline_end(self, label_name):
+        data = self.main.mast.inline_labels.get(label_name)
+        print(f"jump end {label_name}")
+        if data and data.end is not None:
+            print(f"jump end {data.end}")
+            self.jump(self.active_label, data.end)
 
     def jump(self, label = "main", activate_cmd=0):
         self.call_leave()
@@ -356,7 +369,8 @@ class MastRunner:
     runners = {
         "End": EndRunner,
         "Jump": JumpRunner,
-        "InlineLabel": InlineLabelRunner,
+        "InlineLabelStart": InlineLabelStartRunner,
+        "InlineLabelEnd": InlineLabelEndRunner,
         "PyCode": PyCodeRunner,
         "Await": AwaitRunner,
         "Parallel": ParallelRunner,
