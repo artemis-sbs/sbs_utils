@@ -230,7 +230,7 @@ class MastSbsRunner(MastRunner):
         inputs = inputs if inputs else {}
         super().start_thread( label, inputs)
 
-    def tick(self, sim):
+    def sbs_tick_threads(self, sim):
         self.sim = sim
         return super().tick()
 

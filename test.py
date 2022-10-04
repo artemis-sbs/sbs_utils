@@ -1,8 +1,13 @@
 from sbs_utils.mast.mast import IF_EXP_REGEX, DICT_REGEX, STRING_REGEX, LIST_REGEX
 
 
-print(r'((\-{2,})'+IF_EXP_REGEX+r'(\-{2,}))\n(?P<code>[\s\S]+?)\n(?P<loop>((\-{2,})|(\^{2,})))')
+#print(r'((\-{2,})'+IF_EXP_REGEX+r'(\-{2,}))\n(?P<code>[\s\S]+?)\n(?P<loop>((\-{2,})|(\^{2,})))')
 
+print(
+        r'((\-{2,})\s*(?P<name>\w+)\s*)(\((?P<if_exp>[\s\S]+?)\))\s*(\-{2,})' + 
+        r'\n?(?P<cmds>[\s\S]+?)\n?'+
+        r'((\-{2,})\s*(?P<loop>next)?\s*(?P=name)(\-{2,}))' 
+    )
 
 def export():
     def decorator(cls):

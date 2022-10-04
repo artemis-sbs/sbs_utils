@@ -73,17 +73,22 @@ class Label(MastNode):
         self.cmds.append(cmd)
 
 class InlineLabel(MastNode):
-    rule = re.compile(r'((\-{2,})(\(\s*((?P<if_exp>.+))\))?(\-{2,}))\n(?P<cmds>[\s\S]+?)\n((\-{2,})(?P<loop>loop)?(\-{2,}))')
+    rule = re.compile(
+         r'((\-{2,})\s*(?P<name>\w+)\s*)(\((?P<if_exp>[\s\S]+?)\))\s*(\-{2,})' + 
+        r'\n?(?P<cmds>[\s\S]+?)\n?'+
+        r'((\-{2,})\s*(?P<loop>next)?\s*(?P=name)\s*(\-{2,}))' 
+    )
+        
 
-    def __init__(self, if_exp=None, loop=None, cmds=None):
+    def __init__(self, if_exp=None, loop=None, cmds="", name=None):
         if if_exp:
             if_exp = if_exp.lstrip()
             self.code = compile(if_exp, "<string>", "eval")
         else:
             self.code = None
-        self.loop = True if loop is not None and 'loop' in loop else False
-        self.cmds = cmds
-        self.label_name = None
+        self.loop = True if loop is not None and 'next' in loop else False
+        self.cmds = cmds.lstrip()
+        self.name = name
 
 class PyCode(MastNode):
     rule = re.compile(r'(\~{2,})\n(?P<py_cmds>[\s\S]+?)\n(\~{2,})')
@@ -357,6 +362,7 @@ class Mast:
         "__build_class__":__build_class__, # ability to define classes
         "__name__":__name__ # needed to define classes?
     }
+    inline_count = 0
     def __init__(self, cmds=None):
         self.lib_name = None
 
@@ -416,7 +422,7 @@ class Mast:
         self.main_pruned = False
         self.runners = set()
         self.lib_name = None
-        self.inline_count = 0
+        
     
     def prune_main(self):
         if self.main_pruned:
@@ -522,27 +528,23 @@ class Mast:
         
     def compile_inline(self, node:InlineLabel):
         add = self.__class__()
+        print(f"Compiling inline label {node.label_name}")
         errors = add.compile(node.cmds)
+        
         if len(errors)<1:
-            main = add.labels.get("main")
-            self.labels[node.label_name] = main
-            # add repeat
-            # if node.loop:
-            #     loop = Jump(None, None, node.label_name,None )
-            #     loop.code = node.code
-            #     main.cmds.append(loop)
-            # # add a pop
-            # main.cmds.append(Jump(True, None, None, None))
+            for label in add.labels:
+                label_cmd = add.labels.get(label)
+                if label == 'main':
+                    print(f"Main replacement inline label {node.label_name}")
+                    self.labels[node.label_name] = label_cmd
+                else:
+                    print(f"Adding inline label {label}")
+                    self.labels[label] = label_cmd
         else:
             if len(errors) > 0:
                 message = f"Compile errors\nCannot compile inline"
                 errors.append(message)
-        if len(add.labels.keys()) != 1:
-            message = f"Compile errors\nInline too many labels"
-            if errors is None:
-                errors = []
-            errors.append(message)
-
+        
         return errors
 
     def compile(self, lines):
@@ -600,10 +602,11 @@ class Mast:
                                     print("import error "+e)
 
                         case "InlineLabel":
-                            label_name = f"___inline_{self.inline_count}"
+                            label_name = f"___inline_{Mast.inline_count}"
+                            Mast.inline_count += 1
                             inline = InlineLabel(**data)
                             inline.label_name = label_name
-                            print(f"Inline {label_name} {inline.cmds} {inline.loop}")
+                            print(f"Inline NAME {label_name} LOOP {inline.loop}")
                             
                             err = self.compile_inline(inline)
                             if len(err)>0:
@@ -611,7 +614,6 @@ class Mast:
                                 for e in err:
                                     print("inline error "+e)
                             else:
-                                self.inline_count += 1
                                 inline.line_no = line_no
                                 self.cmd_stack[-1].add_child(inline)
                                 active_cmd = inline

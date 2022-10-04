@@ -72,7 +72,7 @@ class Area(MastNode):
         self.bottom= int(bottom) if bottom else 100
         
 
-class Choices(MastNode):
+class Choose(MastNode):
     rule = re.compile(r"""choose"""+TIMEOUT_REGEX)
     def __init__(self, minutes=None, seconds=None, time_pop=None,time_push="", time_jump=""):
         self.seconds = 0 if  seconds is None else int(seconds)
@@ -131,7 +131,7 @@ class MastStory(MastSbs):
             Blank,
             Section,
             Area,
-        Choices,
+        Choose,
         ButtonControl,
         SliderControl,
         CheckboxControl,

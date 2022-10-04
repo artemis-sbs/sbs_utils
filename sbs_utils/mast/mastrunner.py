@@ -88,20 +88,37 @@ class JumpRunner(MastRuntimeNode):
 
 class InlineLabelRunner(MastRuntimeNode):
     def enter(self, mast, thread, node:InlineLabel):
+        self.index = None
+        self.thread = None
+
+    def poll(self, mast, thread, node:InlineLabel):
+        # Await thread
+        #print(f"Polling {node.label_name}")
+        if self.thread and self.thread.done == False:
+            return PollResults.OK_JUMP
+
+        # thread is done or we are starting
+        value = True
         if node.code:
             value = thread.eval_code(node.code)
-            if value:
-                self.thread = thread.start_thread(node.label_name)
-            else:
-                self.thread = None
-    def poll(self, mast, thread, node:InlineLabel):
-        if self.thread is None:
+        if value == False:
+            print(f"Ending {node.label_name}")
             return PollResults.OK_ADVANCE_TRUE
-        if self.thread.done:
-            if node.loop:
-                self.enter(mast, thread, node)
-            else:
-                return PollResults.OK_ADVANCE_TRUE
+
+        if self.index is None:
+            print(f"Starting {node.label_name}")
+            self.thread = thread.start_thread(node.label_name)
+            self.index = 0
+        elif node.loop:
+            print(f"Looping {node.label_name} {self.index} {value}")
+            self.thread = thread.start_thread(node.label_name)
+            self.index += 1
+        else:
+            print(f"Ending {node.label_name}")
+            return PollResults.OK_ADVANCE_TRUE
+
+        # keep running
+        thread.set_value(node.name, self.index, Scope.TEMP)
         return PollResults.OK_JUMP
 
 
@@ -292,7 +309,7 @@ class MastAsync:
                         case PollResults.OK_RUN_AGAIN:
                             break
                         case PollResults.OK_JUMP:
-                            pass
+                            continue
             return PollResults.OK_RUN_AGAIN
         except BaseException as err:
             self.main.runtime_error("")

@@ -6,7 +6,7 @@ from ..gui import FakeEvent, Gui, Page
 from ..pages import layout
 
 from .errorpage import ErrorPage
-from .maststory import AppendText, MastStory, Choices, Text, Blank, Ship, Face, Button, Row, Section, Area, Refresh, SliderControl, CheckboxControl
+from .maststory import AppendText, MastStory, Choose, Text, Blank, Ship, Face, Button, Row, Section, Area, Refresh, SliderControl, CheckboxControl
 import traceback
 from .mastsbsrunner import MastSbsRunner
 
@@ -106,9 +106,8 @@ class AreaRunner(StoryRuntimeNode):
         thread.main.page.set_section_size(node.left, node.top, node.right, node.bottom)
 
 
-class ChoicesRunner(StoryRuntimeNode):
-    def enter(self, mast:Mast, thread:MastAsync, node: Choices):
-        
+class ChooseRunner(StoryRuntimeNode):
+    def enter(self, mast:Mast, thread:MastAsync, node: Choose):
         self.timeout = node.minutes*60+node.seconds
         if self.timeout == 0:
             self.timeout = None
@@ -135,7 +134,7 @@ class ChoicesRunner(StoryRuntimeNode):
                 case "Separator":
                     # Handle face expression
                     layout_row.add(layout.Separate())
-
+        
         if active>0:    
             button_layout.add(layout_row)
             thread.main.page.set_button_layout(button_layout)
@@ -147,7 +146,7 @@ class ChoicesRunner(StoryRuntimeNode):
         self.button = None
 
 
-    def poll(self, mast:Mast, thread:MastAsync, node: Choices):
+    def poll(self, mast:Mast, thread:MastAsync, node: Choose):
         if self.active==0 and self.timeout is None:
             return PollResults.OK_ADVANCE_TRUE
 
@@ -242,7 +241,7 @@ over =     {
     "SliderControl": SliderControlRunner,
     "CheckboxControl": CheckboxControlRunner,
     "Blank": BlankRunner,
-    "Choices": ChoicesRunner,
+    "Choose": ChooseRunner,
     "Section": SectionRunner,
     "Area": AreaRunner,
     "Refresh": RefreshRunner
@@ -265,17 +264,17 @@ class StoryRunner(MastSbsRunner):
         inputs = inputs if inputs else {}
         super().start_thread( label, inputs)
 
-    def tick(self, sim, client_id):
+    def story_tick_threads(self, sim, client_id):
         self.sim = sim
         self.client_id = client_id
         self.vars['sim'] = sim
-        return super().tick(sim)
+        return super().sbs_tick_threads(sim)
 
     def refresh(self, label):
         for thread in self.threads:
             if label == thread.active_label:
                 thread.jump(thread.active_label)
-                self.tick(self.sim, self.client_id)
+                self.story_tick_threads(self.sim, self.client_id)
                 Gui.dirty(self.client_id)
 
     def runtime_error(self, message):
@@ -294,8 +293,8 @@ class StoryPage(Page):
         self.gui_state = 'repaint'
         self.story_runner = None
         self.layouts = []
-        self.pending_layouts = None
-        self.pending_row = None
+        self.pending_layouts = self.pending_layouts = [layout.Layout(None, 20,10, 100, 90)]
+        self.pending_row = self.pending_row = layout.Row()
         self.pending_tag_map = {}
         self.tag_map = {}
         self.aspect_ratio = sbs.vec2(1920,1071)
@@ -320,12 +319,15 @@ class StoryPage(Page):
         self.layouts = self.pending_layouts
         self.tag_map = self.pending_tag_map
         self.tag = 0
+        
         if self.layouts:
-            for layout in self.layouts:
-                layout.calc()
-            self.pending_layouts = None
-            self.pending_row = None
+            for layout_obj in self.layouts:
+                layout_obj.calc()
+            
+            self.pending_layouts = self.pending_layouts = [layout.Layout(None, 20,10, 100, 90)]
+            self.pending_row = self.pending_row = layout.Row()
             self.pending_tag_map = {}
+        
         self.gui_state = 'repaint'
 
     def get_tag(self):
@@ -336,16 +338,19 @@ class StoryPage(Page):
         if not self.pending_layouts:
             self.pending_layouts = [layout.Layout(None, 20,10, 100, 90)]
         if self.pending_row:
-            self.pending_layouts[-1].add(self.pending_row)
+            if len(self.pending_row.columns):
+                self.pending_layouts[-1].add(self.pending_row)
         if self.pending_tag_map is None:
             self.pending_tag_map = {}
         self.pending_row = layout.Row()
 
     def add_tag(self, layout_item):
-        if self.pending_tag_map is not None:
-            if hasattr(layout_item, 'tag'):
-                #print(f"TAGGED: {layout_item.__class__.__name__} {layout_item.tag}")
-                self.pending_tag_map[layout_item.tag] = layout_item
+        if self.pending_tag_map is None:
+            self.pending_tag_map = {}
+
+        if hasattr(layout_item, 'tag'):
+            #print(f"TAGGED: {layout_item.__class__.__name__} {layout_item.tag}")
+            self.pending_tag_map[layout_item.tag] = layout_item
 
     def add_content(self, layout_item, runner):
         if self.pending_layouts is None:
@@ -374,9 +379,14 @@ class StoryPage(Page):
         if self.pending_row and self.pending_layouts:
             if self.pending_row:
                 self.pending_layouts[-1].add(self.pending_row)
-            if layout:
-                self.pending_layouts.append(layout)
-            self.swap_layout()
+        
+        if not self.pending_layouts:
+            self.add_section()
+
+        if layout:
+            self.pending_layouts.append(layout)
+        
+        self.swap_layout()
     
     def present(self, sim, event):
         """ Present the gui """
@@ -395,7 +405,7 @@ class StoryPage(Page):
                 if self.gui_state != "repaint":  
                     self.gui_state = "refresh"
                 self.story_runner.paint_refresh = False
-            if not self.story_runner.tick(sim, event.client_id):
+            if not self.story_runner.story_tick_threads(sim, event.client_id):
                 #self.story_runner.mast.remove_runner(self)
                 Gui.pop(sim, event.client_id)
                 return

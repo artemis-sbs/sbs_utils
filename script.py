@@ -41,7 +41,7 @@ class MastShip(Npc):
         MastShip.runner.run(sim, label, inputs)
 
     def tick_mast(sim, t):
-        MastShip.runner.tick(sim)
+        MastShip.runner.tick_threads(sim)
 
 
 
@@ -117,7 +117,7 @@ class MyStory(StoryPage):
 
     def init_mast(self):
         if MyStory.story is not None:
-            return []
+            return None
 
         MyStory.story = MastStory()
         ret =  MyStory.story.from_file("tests/mast/story_gui.mast")

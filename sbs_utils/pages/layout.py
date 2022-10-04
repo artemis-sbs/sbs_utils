@@ -140,6 +140,7 @@ class Layout:
         self.rows.append(row)
 
     def calc(self):
+        
         if len(self.rows):
             row_height = self.height / len(self.rows)
             row : Row
@@ -153,6 +154,9 @@ class Layout:
                 squares = 0
 
                 col: Column
+                if len(row.columns)==0:
+                    continue
+                
                 for col in row.columns:
                     squares += 1 if col.square else 0
                 # get the width and the height of a cell in pixels

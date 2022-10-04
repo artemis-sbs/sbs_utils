@@ -174,32 +174,18 @@ shared tsn =  [
 fred = itertools.product(range(4), range(4))
 x_y = next(fred, False)
 
----------( x_y )---------
+--a ( x_y )---------
+
 y = x_y[0]
 x = x_y[1]
 f = "hud #fff {x} {y}"
-face f
 x_y = next(fred, False)
---------loop----------------
+face f
+--b( x == 3 )--row-- b --
 
-
-row
-face "hud #fff 0 1"
-face "hud #fff 1 1"
-face "hud #fff 2 1"
-face "hud #fff 3 1"
-face "hud #fff 4 1"
-
-row
-face "hud #fff 0 2"
-face "hud #fff 1 2"
-face "hud #fff 2 2"
-face "hud #fff 3 2"
-face "hud #fff 4 2"
-
-
-
+--next a----------------
 
 
 + "Back" <<-
 choose
+
