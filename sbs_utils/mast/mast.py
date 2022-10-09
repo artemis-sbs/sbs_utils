@@ -18,8 +18,13 @@ import itertools
 # Conditional
 #       (\s+if(?P<if>.+))?
 #
+LIST_REGEX = r"""(\[[\s\S]+?\])"""
+DICT_REGEX = r"""(\{[\s\S]+?\})"""
+PY_EXP_REGEX = r"""((?P<py>~~)[\s\S]+?(?P=py))"""
+STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[\s\S]+?(?P=quote))"""
+
 JUMP_CMD_REGEX = r"""((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+)))"""
-JUMP_ARG_REGEX = r"""(\s*((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+))))"""
+JUMP_ARG_REGEX = r"""\s*((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+))|(=>\s*(?P<await_name>\w+)(?P<with_data>\s*("""+PY_EXP_REGEX+"|"+DICT_REGEX+"""))?))"""
 OPT_JUMP_REGEX = JUMP_ARG_REGEX+r"""?"""
 TIME_JUMP_REGEX = r"""((?P<time_pop><<-)|(->(?P<time_push>>)?\s*(?P<time_jump>\w+)))?"""
 MIN_SECONDS_REGEX = r"""(\s*((?P<minutes>\d+))m)?(\s*((?P<seconds>\d+)s))?"""
@@ -27,9 +32,6 @@ TIMEOUT_REGEX = r"(\s*timeout"+MIN_SECONDS_REGEX + \
     r"\s*" + TIME_JUMP_REGEX + r")?"
 OPT_COLOR = r"""(\s*color\s*["'](?P<color>[ \t\S]+)["'])?"""
 IF_EXP_REGEX = r"""(\s+if(?P<if_exp>.+))?"""
-LIST_REGEX = r"""(\[[\s\S]+?\])"""
-DICT_REGEX = r"""(\{[\s\S]+?\})"""
-STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[\s\S]+?(?P=quote))"""
 
 
 
@@ -46,12 +48,6 @@ class MastNode:
     def add_child(self, cmd):
         #print("ADD CHILD")
         pass
-
-    def validate(self, mast):
-        return None
-
-    def gen(self):
-        return ''
 
     def compile_formatted_string(self, message):
         if "{" in message:
@@ -84,18 +80,42 @@ class InlineLabelStart(MastNode):
         else:
             self.code = None
         self.name = name
+        self.iter = None
+
+
+class InlineLabelBreak(MastNode):
+    rule = re.compile(r'(?P<op>break|continue)\s*(?P<name>\w+)')
+    def __init__(self, op=None, name=None):
+        self.name = name
+        self.op = op
 
 class InlineLabelEnd(MastNode):
-    rule = re.compile(r'((\-{2,})\s*(?P<loop>next)?\s*(?P<name>\w+)\s*(\-{2,}))')
+    rule = re.compile(r'((\-{2,})\s*(end|(?P<loop>next))\s*(?P<name>\w+)\s*(\-{2,}))')
     def __init__(self, loop=None, name=None):
         self.loop = True if loop is not None and 'next' in loop else False
         self.name = name
 
+
+class IfStatements(MastNode):
+    rule = re.compile(r'(\-{2,})\s*((?P<end>else|endif)|(((?P<if_op>if|elif)\s+?(\((?P<if_exp>[\s\S]+?)\)))))\s*(\-{2,})')
+    def __init__(self, end=None, if_op=None, if_exp=None):
+        if if_exp:
+            if_exp = if_exp.lstrip()
+            self.code = compile(if_exp, "<string>", "eval")
+        else:
+            self.code = None
+        self.end = end
+        self.if_op = if_op
+        self.if_chain = None
+
 class PyCode(MastNode):
-    rule = re.compile(r'(\~{2,})\n(?P<py_cmds>[\s\S]+?)\n(\~{2,})')
+    rule = re.compile(r'((\~{2,})\n?(?P<py_cmds>[\s\S]+?)\n?(\~{2,}))')
 
     def __init__(self, py_cmds=None):
-        self.code = compile(py_cmds, "<string>", "exec")
+        if py_cmds:
+            py_cmds= py_cmds.lstrip()
+            self.code = compile(py_cmds, "<string>", "exec")
+
 
 
 class Input(MastNode):
@@ -120,7 +140,12 @@ class Comment(MastNode):
         pass
 
 
-class MastData(object):
+class Scope(Enum):
+    SHARED = 1  # per mast instance
+    NORMAL = 2  # per runner
+    TEMP = 99  # Per thread?
+
+class MastDataObject(object):
     def __init__(self, dictionary):
         # for dictionary in initial_data:
         for key in dictionary:
@@ -129,61 +154,28 @@ class MastData(object):
     def __repr__(self):
         return repr(vars(self))
 
-
-class Var(MastNode):
-    rule = re.compile(
-        r"""var\s*(?P<name>\w+)\s*=\s* (?P<val>(\[[\s\S]+?\])|(\{[\s\S]+?\})|([+-]?\d+(\.\d+)?)|((["']{3}|["'])[\s\S]+?\8))""")
-
-    def __init__(self, name, val):
-        self.name = name
-        self.val = val
-        try:
-            self.value = ast.literal_eval(val)
-            if type(self.value) is dict:
-                self.value = MastData(self.value)
-
-        except:
-            self.value = None
-
-    def validate(self, mast):
-        if self.value is None:
-            return MastCompilerError(f'variable {self.name} cannot be set {self.val}', self.line_no)
-
-    def gen(self):
-        return f'var {self.name} {repr(self.value)}'
-
-
-class Scope(Enum):
-    SHARED = 1  # per mast instance
-    NORMAL = 2  # per runner
-    TEMP = 99  # Per thread?
-
-
-
 class Assign(MastNode):
     # '|'+STRING_REGEX+
     rule = re.compile(
-        r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*=\s*(?P<exp>('+LIST_REGEX+'|'+DICT_REGEX+'|'+STRING_REGEX+'|.*))')
+        r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*=\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|.*))')
 
     """ Not this doesn't support destructuring. To do so isn't worth the effort"""
-    def __init__(self, scope, lhs, exp, quote=None):
+    def __init__(self, scope, lhs, exp, quote=None, py=None):
         self.lhs = lhs
         self.scope = Scope.NORMAL if scope is None else Scope[scope.strip(
         ).upper()]
-        #print(f"EXP: {exp}")
+        
         #print(f"quote: {quote}")
         exp = exp.lstrip()
         if quote:
             exp = 'f'+exp        
+        if py:
+            exp = exp[2:-2]
+            exp = exp.strip()
+
+        #print(f"EXP: {exp}")
         self.code = compile(exp, "<string>", "eval")
 
-    def validate(self, mast):
-        return None
-        # if mast.labels.get(self.label) is None:
-        #    return MastCompilerError( f'Jump cannot find {self.to_tag}', self.line_no)
-
-    def gen(self):
-        return f'{self.lhs} = ...'
 
 
 class Jump(MastNode):
@@ -199,44 +191,28 @@ class Jump(MastNode):
         else:
             self.code = None
 
-    def validate(self, mast):
-        if mast.labels.get(self.label) is None:
-            return MastCompilerError(f'Jump cannot find {self.to_tag}', self.line_no)
-
-    def gen(self):
-        if self.push:
-            return f'-> {self.label}"'
-        elif self.pop:
-            return f'<<- {self.label}"'
-        else:
-            return f'->> {self.label}"'
 
 
 class Parallel(MastNode):
     """
     Creates a new 'thread' to run in parallel
     """
-    rule = re.compile(r"""((?P<name>[\w\.\[\]]+)\s*)?=>\s*(?P<label>\w+)""")
+    rule = re.compile(r"""((?P<name>[\w\.\[\]]+)\s*)?=>\s*(?P<label>\w+)(?P<inputs>\s*"""+ DICT_REGEX+")?"+IF_EXP_REGEX)
 
-    def __init__(self, name=None, label=None):
+    def __init__(self, name=None, label=None, inputs=None, if_exp=None):
         self.name = name
         self.label = label
         self.cmds = []
+        if inputs:
+            inputs = inputs.lstrip()
+            self.code = compile(inputs, "<string>", "eval")
+        if if_exp:
+            if_exp = if_exp.lstrip()
+            self.if_code = compile(if_exp, "<string>", "eval")
+        else:
+            self.if_code = None
 
-    def validate(self, mast):
-        for cmd in self.cmds:
-            if type(cmd) != Assign:
-                return MastCompilerError(f'Only assignments allowed as child', self.line_no)
 
-        return None
-        # if mast.labels.get(self.label) is None:
-        #    return MastCompilerError( f'Jump cannot find {self.to_tag}', self.line_no)
-
-    def gen(self):
-        s = ""
-        if self.name:
-            s += f'{self.name} '
-        s += f'=> {self.label}'
 
     def add_child(self, cmd):
         self.cmds.append(cmd)
@@ -247,27 +223,25 @@ class Await(MastNode):
     waits for an existing or a new 'thread' to run in parallel
     this needs to be a rule before Parallel
     """
-    rule = re.compile(r"""await(\s*(?P<spawn>=>))?\s*(?P<label>\w+)""")
-
-    def __init__(self, name=None, spawn=None, label=None):
+    rule = re.compile(r"""await((\s*(?P<label>\w+))|((\s*(?P<spawn>=>))\s*(?P<name>\w+)(?P<inputs>\s*"""+DICT_REGEX+")?))"+IF_EXP_REGEX)
+                      
+    def __init__(self, name=None, spawn=None, label=None, inputs=None, if_exp=None):
         self.spawn = True if spawn is not None else False
         self.label = label
+        if name:
+            self.label = name
         self.cmds = []
+        if inputs:
+            inputs = inputs.lstrip()
+            self.code = compile(inputs, "<string>", "eval")
+        else:
+            self.code = None
+        if if_exp:
+            if_exp = if_exp.lstrip()
+            self.if_code = compile(if_exp, "<string>", "eval")
+        else:
+            self.if_code = None
 
-    def validate(self, mast):
-        for cmd in self.cmds:
-            if type(cmd) != Assign:
-                return MastCompilerError(f'Only assignments allowed as child', self.line_no)
-
-        return None
-        # if mast.labels.get(self.label) is None:
-        #    return MastCompilerError( f'Jump cannot find {self.to_tag}', self.line_no)
-
-    def gen(self):
-        s = ""
-        if self.spawn:
-            s += f'await {self.label} '
-        s += f'await => {self.label}'
 
     def add_child(self, cmd):
         self.cmds.append(cmd)
@@ -282,25 +256,9 @@ class Cancel(MastNode):
     def __init__(self, lhs=None, name=None):
         self.name = name
 
-    def validate(self, mast):
-        return None
-        # if mast.labels.get(self.label) is None:
-        #    return MastCompilerError( f'Jump cannot find {self.to_tag}', self.line_no)
-
-    def gen(self):
-        s = ""
-        s += f'cancel {self.name}'
-
 
 class End(MastNode):
     rule = re.compile(r'->\s*END')
-
-    def validate(self, _):
-        return None
-
-    def gen(self):
-        return "->END"
-
 
 class Delay(MastNode):
     rule = re.compile(r'delay\s*'+MIN_SECONDS_REGEX)
@@ -308,18 +266,6 @@ class Delay(MastNode):
     def __init__(self, seconds=None, minutes=None):
         self.seconds = 0 if seconds is None else int(seconds)
         self.minutes = 0 if minutes is None else int(minutes)
-
-    def validate(self, _):
-        if self.minutes <= 0 and self.seconds <= 0:
-            return MastCompilerError("Delay has no time set", self.line_no)
-
-    def gen(self):
-        s = 'delay '
-        if self.minutes:
-            s += f"{self.minutes}m"
-        if self.seconds:
-            s += f"{self.seconds}s"
-        return s
 
 
 class Rule:
@@ -335,6 +281,7 @@ def first_non_space_index(s):
             return idx
         if c == '\n':
             return idx
+    return len(s)
 
 
 def first_non_newline_index(s):
@@ -364,6 +311,8 @@ class Mast:
         "dir":dir, 
         "itertools": itertools,
         "next": next,
+        "len": len,
+        "MastDataObject": MastDataObject,
         "range": range,
         "__build_class__":__build_class__, # ability to define classes
         "__name__":__name__ # needed to define classes?
@@ -405,8 +354,10 @@ class Mast:
     nodes = [
         Comment,
         Label,
+        IfStatements,
         InlineLabelStart,
         InlineLabelEnd,
+        InlineLabelBreak,
         PyCode,
         Input,
         #        Var,
@@ -437,10 +388,13 @@ class Mast:
         if self.main_pruned:
             return
         main = self.labels.get("main")
-        # remove all the assigned from the main
+        # Convert all the assigned from the main into comments
+        # removing is bad it will affect if statements
         if main is not None:
-            main.cmds = [cmd for cmd in main.cmds if not (
-                cmd.__class__ == Assign and cmd.scope == Scope.SHARED)]
+            for i in range(len(main.cmds)):
+                cmd = main.cmds[i]
+                if cmd.__class__ == Assign and cmd.scope == Scope.SHARED:
+                    main.cmds[i] = Comment()
             self.main_pruned = True
 
     def add_runner(self, runner):
@@ -498,11 +452,11 @@ class Mast:
         errors = []
         try:
             with ZipFile(lib_name) as lib_file:
-                print("LIB Opened")
+                #print("LIB Opened")
                 with lib_file.open(file_name) as f:
-                    print("LIB content")
+                    #print("LIB content")
                     content = f.read().decode('UTF-8')
-                    print(f"LIB {content[0:10]}")
+                    #print(f"LIB {content[0:10]}")
                     self.lib_name = lib_name
         except:
             message = f"File load error\nCannot load file {file_name}"
@@ -534,12 +488,11 @@ class Mast:
                     self.labels[label] = node
         return errors
 
-
     def compile(self, lines):
         self.clear()
-        active_cmd = self.labels["main"]
         line_no = 0
         errors = []
+        if_chains = []
         while len(lines):
             mo = first_non_newline_index(lines)
             line_no += mo if mo is not None else 0
@@ -549,16 +502,21 @@ class Mast:
             indent = first_non_space_index(lines)
             if indent is None:
                 continue
-            if indent > self.indent_stack[-1]:
-                # new indent
-                self.cmd_stack.append(active_cmd)
-                self.indent_stack.append(indent)
-            while indent < self.indent_stack[-1]:
-                self.cmd_stack.pop()
-                self.indent_stack.pop()
+            ###########################################
+            ### Support indent as meaningful
+            ###########################################
+            # if indent > self.indent_stack[-1]:
+            #     # new indent
+            #     self.cmd_stack.append(active_cmd)
+            #     self.indent_stack.append(indent)
+            # while indent < self.indent_stack[-1]:
+            #     self.cmd_stack.pop()
+            #     self.indent_stack.pop()
             if indent > 0:
                 # strip spaces
                 lines = lines[indent:]
+            if len(lines)==0:
+                break
 
             for node_cls in self.__class__.nodes:
                 mo = node_cls.rule.match(lines)
@@ -607,6 +565,23 @@ class Mast:
                             data.end = end
                             self.inline_labels[label_name] = data
 
+                        case "IfStatements":
+                            if_node = IfStatements(**data)
+                            loc = len(self.cmd_stack[-1].cmds)
+                            self.cmd_stack[-1].add_child(if_node)
+                            if "endif" == if_node.end:
+                                if_node.if_chain = if_chains[-1]
+                                if_chains[-1].append(loc)
+                                if_chains.pop()
+                            elif "else" == if_node.end:
+                                if_node.if_chain = if_chains[-1]
+                                if_chains[-1].append(loc)
+                            elif "elif" == if_node.if_op:
+                                if_node.if_chain = if_chains[-1]
+                                if_chains[-1].append(loc)
+                            elif "if" == if_node.if_op:
+                                if_node.if_chain = [loc]
+                                if_chains.append(if_node.if_chain)
 
                         case "Comment":
                             # obj.line_no = line_no
@@ -614,16 +589,16 @@ class Mast:
                             # active_cmd = obj
                             pass
 
-                        case "Var":
-                            var = Var(**data)
-                            if var.value is not None:
-                                self.vars[data['name']] = var.value
-
                         case _:
-                            obj = node_cls(**data)
+                            try:
+                                obj = node_cls(**data)
+                            except Exception as e:
+                                errors.append(f"ERROR: {line_no} - {line}")
+                                errors.append(f"Exception: {e.msg}")
+                                return errors # return with first errors
+
                             obj.line_no = line_no
                             self.cmd_stack[-1].add_child(obj)
-                            active_cmd = obj
                     break
             if not parsed:
                 mo = first_non_newline_index(lines)
@@ -640,34 +615,5 @@ class Mast:
         return errors
 
 
-def validate_mast(mast):
-    for name, value in mast.vars.items():
-        validate_var(mast, name, value)
-
-    for label in mast.labels.values():
-        print()
-        print(f"=={label.name}==")
-        validate_label(mast, label)
 
 
-def validate_label(mast, label):
-    for cmd in label.cmds:
-        validate_cmd(mast, cmd)
-
-
-def validate_cmd(mast, cmd):
-    err = cmd.validate(mast)
-    if err:
-        print(f"ERROR: line {err.line_no}")
-        for msg in err.messages:
-            print('\t'+msg)
-
-    print(cmd.gen())
-
-
-def validate_var(mast, name, value):
-    if value is None:
-        print(f"ERROR: var set is invalid {name}")
-    v = Var(name, None)
-    v.value = value
-    print(v.gen())

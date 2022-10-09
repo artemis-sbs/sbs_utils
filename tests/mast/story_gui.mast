@@ -68,6 +68,34 @@ This is your first ship
 """""""""""""""""""""""""""""""""
 blank
 
+a1 => Test{"self": 10}
+a2 => Test {"self": 40}
+
+wilma = 50
+
+await a1
+await a2
+await => Test {"self":  wilma}
+
+betty = 3
+
+-- if (betty < 50) --
+""" LESS """
+
+-- if (betty < 50) --
+""" LESS """
+-- elif (betty > 50) --
+""" MORE """
+-- else --
+""" EQUAL """
+-- endif --
+
+
+-- elif (betty > 50) --
+""" MORE """
+-- else --
+""" EQUAL """
+-- endif --
 
 
 + "Yes.." -> YouLied if learn == True
@@ -79,6 +107,11 @@ blank
 choose
 # This is for the bar/hud when they pops
 ->Briefing
+
+=========== Test ============
+
+""" {self} """
+->END
 
 
 =================== YouLied ========
@@ -130,7 +163,7 @@ simulation resume
 ->YouTrained
 
 ==================           Learn     ===========
-x = 0
+
 area 20 20 100 40
 
 learn = False
@@ -147,7 +180,8 @@ button "Test 8" ->Learn
 row
 button "Test 9" -> Briefing
 button "Test 10" -> Briefing
-slider fred 0.0 1.0 0.5
+
+slider slider_value 0.0 1.0 0.5
 checkbox wilma "Yaba"
 
 + "exit" ->END
@@ -171,20 +205,14 @@ shared tsn =  [
 
 ===================== Hud ============
 
-# This is a way to 'flatten out' a nested loop
-fred = itertools.product(range(4), range(4))
-x_y = next(fred, False)
+--y ( range(4) )----------------
+----x ( range(4) )-----
+    f = "hud #fff {x} {y}"
+    face f
+----next x ------------
+row
+--next y ----------------
 
---a ( x_y )---------
-
-y = x_y[0]
-x = x_y[1]
-f = "hud #fff {x} {y}"
-x_y = next(fred, False)
-face f
---b( x == 3 )--row-- b --
-
---next a ----------------
 
 
 + "Back" <<-

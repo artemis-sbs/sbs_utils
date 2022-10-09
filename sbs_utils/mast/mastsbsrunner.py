@@ -15,14 +15,14 @@ class ButtonRunner(MastRuntimeNode):
 
 class TellRunner(MastRuntimeNode):
     def enter(self, mast:Mast, thread:MastAsync, node: Tell):
-        to_so:SpaceObject = thread.inputs.get(node.to_tag)
+        to_so:SpaceObject = thread.vars.get(node.to_tag)
         self.face = ""
         self.title = ""
         if to_so:
             self.to_id = to_so.get_id()
         else:
             thread.runtime_error("Tell has invalid TO")            
-        from_so:SpaceObject = thread.inputs.get(node.from_tag)
+        from_so:SpaceObject = thread.vars.get(node.from_tag)
         if from_so:
             self.from_id = from_so.get_id()
             self.title = from_so.comm_id(thread.main.sim)
@@ -54,10 +54,10 @@ class CommsRunner(MastRuntimeNode):
         self.thread = thread
         self.color = node.color if node.color else "white"
 
-        to_so:SpaceObject = thread.inputs.get(node.to_tag)
+        to_so:SpaceObject = thread.vars.get(node.to_tag)
         if to_so:
             self.to_id = to_so.get_id()
-        from_so:SpaceObject = thread.inputs.get(node.from_tag)
+        from_so:SpaceObject = thread.vars.get(node.from_tag)
         if from_so:
             self.from_id = from_so.get_id()
             self.comms_id = from_so.comm_id(thread.main.sim)
@@ -81,7 +81,8 @@ class CommsRunner(MastRuntimeNode):
                 if button.code is not None:
                     value = self.thread.eval_code(button.code)
                 if value and button.should_present((from_id, to_id)):
-                    sbs.send_comms_button_info(to_id, color, button.message, f"{i}")
+                    msg = self.thread.format_string(button.message)
+                    sbs.send_comms_button_info(to_id, color, msg, f"{i}")
 
     def comms_message(self, sim, message, an_id, event):
         ### These are opposite from selected??
@@ -132,9 +133,9 @@ class CommsRunner(MastRuntimeNode):
 
 class TargetRunner(MastRuntimeNode):
     def enter(self, mast:Mast, thread:MastAsync, node: Target):
-        to_so:SpaceObject = thread.inputs.get(node.to_tag)
+        to_so:SpaceObject = thread.vars.get(node.to_tag)
         self.to_id = to_so.get_id() if to_so else None
-        from_so:SpaceObject = thread.inputs.get(node.from_tag)
+        from_so:SpaceObject = thread.vars.get(node.from_tag)
         self.from_id = from_so.get_id() if from_so else None
 
 
@@ -156,10 +157,10 @@ class NearRunner(MastRuntimeNode):
             self.timeout = None
         self.tag = None
 
-        to_so:SpaceObject = thread.inputs.get(node.to_tag)
+        to_so:SpaceObject = thread.vars.get(node.to_tag)
         if to_so:
             self.to_id = to_so.get_id()
-        from_so:SpaceObject = thread.inputs.get(node.from_tag)
+        from_so:SpaceObject = thread.vars.get(node.from_tag)
         if from_so:
             self.from_id = from_so.get_id()
 

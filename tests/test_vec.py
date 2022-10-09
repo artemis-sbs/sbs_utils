@@ -1,6 +1,6 @@
 from sbs_utils.vec import Vec3
 import unittest
-class TestStringMethods(unittest.TestCase):
+class TestVec3(unittest.TestCase):
 
     def test_init(self):
         v = Vec3(1,2,3)

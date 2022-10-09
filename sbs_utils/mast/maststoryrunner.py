@@ -67,16 +67,26 @@ class AppendTextRunner(StoryRuntimeNode):
 class ButtonControlRunner(StoryRuntimeNode):
     def enter(self, mast:Mast, thread:MastAsync, node: Button):
         self.tag = thread.main.page.get_tag()
+        self.await_thread= None
         value = True
+        self.thread = thread
         if node.code is not None:
             value = self.thread.eval_code(node.code)
+        if node.with_data is not None:
+            self.with_data = self.thread.eval_code(node.with_data)
         if value:
-            thread.main.page.add_content(layout.Button(node.message, self.tag), self)
+            msg = thread.format_string(node.message)
+            thread.main.page.add_content(layout.Button(msg, self.tag), self)
         self.button_node = node
-        self.thread = thread
+        
     def on_message(self, sim, event):
         if event.sub_tag == self.tag:
-            if self.button_node.jump:
+            if self.button_node.await_name:
+                if self.with_data is not None:
+                    self.await_thread = self.thread.start_thread(self.button_node.await_name, self.with_data)
+                else:
+                    self.await_thread = self.thread.start_thread(self.button_node.await_name)
+            elif self.button_node.jump:
                 if self.button_node.push:
                     self.thread.push_label(self.button_node.jump)
                 elif self.button_node.pop:
@@ -127,7 +137,8 @@ class ChooseRunner(StoryRuntimeNode):
                     if value and button.should_present(0):#thread.main.client_id):
                         runner = ChoiceButtonRunner()
                         runner.enter(mast, thread, button)
-                        layout_button = layout.Button(button.message, runner.tag)
+                        msg = thread.format_string(button.message)
+                        layout_button = layout.Button(msg, runner.tag)
                         layout_row.add(layout_button)
                         thread.main.page.add_tag(runner)
                         active += 1
@@ -219,7 +230,8 @@ class CheckboxControlRunner(StoryRuntimeNode):
         scoped_val = thread.get_value(self.node.var, False)
         val = scoped_val[0]
         self.scope = scoped_val[1]
-        self.layout = layout.Checkbox(node.message, self.tag, val)
+        msg = thread.format_string(node.message)
+        self.layout = layout.Checkbox(msg, self.tag, val)
         self.thread = thread
         thread.main.page.add_content(self.layout, self)
 
@@ -454,6 +466,5 @@ class StoryPage(Page):
         if runner:
             runner.on_message(sim, event)
             self.present(sim, event)
-
 
 

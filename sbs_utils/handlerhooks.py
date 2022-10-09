@@ -57,7 +57,12 @@ def HandleEvent(sim, event):
 
             case "grid_object":
                 pass
+            case "grid_object_selection":
+                pass
 
+            case "grid_point_selection":
+                pass
+        
             case _:
                 print (f"Unhandled event {event.tag}")
   

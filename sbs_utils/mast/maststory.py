@@ -85,9 +85,17 @@ class Choose(MastNode):
 
 class ButtonControl(MastNode):
     rule = re.compile(r"""button\s+["'](?P<message>.+?)["']"""+JUMP_ARG_REGEX+IF_EXP_REGEX)
-    def __init__(self, message, pop, push, jump, if_exp):
-        self.message = message
+    def __init__(self, message, pop, push, jump,await_name, with_data, if_exp):
+        #self.message = message
+        self.message = self.compile_formatted_string(message)
         self.jump = jump
+        self.await_name = await_name
+        if with_data:
+            with_data = with_data.lstrip()
+            self.with_data = compile(with_data, "<string>", "eval")
+        else:
+            self.with_data = None
+
         self.push = push == ">"
         self.pop = pop is not None
     
@@ -116,7 +124,8 @@ class CheckboxControl(MastNode):
     rule = re.compile(r"""checkbox\s+(?P<var>[ \t\S]+)\s+["'](?P<message>.+?)["']""")
     def __init__(self, var=None, message=None):
         self.var= var
-        self.message = message
+        #self.message = message
+        self.message = self.compile_formatted_string(message)
 
 
 

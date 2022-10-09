@@ -1,0 +1,150 @@
+END_UNKNOWN = 0
+END_X_WINS = 1
+END_Y_WINS = 2
+END_DRAW = 99
+
+X_TURN = 1
+Y_TURN = -1
+
+checks = ~~[
+    [0,1,2],
+    [3,4,5],
+    [6,7,8],
+    [0,3,6],
+    [1,4,7],
+    [2,5,8],
+    [0,4,8],
+    [6,4,2]
+]~~
+
+
+->>init
+-> play
+
+=============== init  ==========
+->> clear
+turn = X_TURN
+<<-
+
+============== clear ============
+grid = []
+####
+--i (i<9 )--- 
+~~grid.append(END_UNKNOWN)~~
+-- next i --
+winning_loc = []
+<<-
+
+============ check_winner  ==========
+
+draw = grid[0]
+--------------- check (check < len(checks)) ----------
+end_game = END_UNKNOWN
+
+check_cur = checks[check]
+draw = draw* grid[check+1]
+
+sum = grid[check_cur[0]]+grid[check_cur[1]]+grid[check_cur[2]]
+
+-- if  (sum == 3 ) --
+winning_loc = check_cur
+-> X_WINS
+-- elif  (sum == -3 ) --
+winning_loc = check_cur
+-> O_WINS
+-- endif --
+------------------- next check --------------------------
+
+# if any zero on grid draw would = 0
+# so non zero means draw        
+--if  (draw != 0) --
+-> DRAW
+--endif  ---
+->play
+
+============== set_grid ===============
+grid[slot] = turn
+turn = -turn
+->check_winner
+
+
+=========== play ================
+
+--y ( y<3 )---------
+-------x ( x<3 )-----
+
+    space = grid[y*3+x]
+    test = y*3+x
+    -- if (space == 0) --
+        button "{test+1}" => set_grid{"slot":test}
+    -- elif (space == 1) --
+        """ X """
+    -- elif (space == -1) --
+        """ 0 """
+    -- endif ---
+
+------next x--- 
+row
+-- next y---
+
++ "TEST" -> play
+choose
+
+========== play_again =============
+->> clear
+->play
+
+============== X_WINS =================
+""""""""""""""""
+X WINS
+""""""""""""""""""""""
+->>draw_board
++ "Play Again" -> play_again
+choose
+
+============== O_WINS =================
+
+""""""""""""""""
+O WINS
+""""""""""""""""""""""
+->>draw_board
+
++ "Play Again" -> play_again
+choose
+
+============== DRAW =================
+
+""""""""""""""""
+DRAW
+"""""""""""""""""
+->>draw_board
+
++ "Play Again" -> play_again
+choose
+
+
+============== draw_board   ======
+# This draws the board after the game is over
+row
+--y ( y<3 )---------
+--x ( x<3 )-----
+
+space = grid[y*3+x]
+test = y*3+x
+is_win_loc = test in winning_loc
+left_text = ~~"[ " if is_win_loc else "  "~~
+right_text = ~~" ]" if is_win_loc else "  "~~
+
+-- if (space == 0) --
+"""  .  """
+-- elif (space == 1) --
+"""{left_text}X{right_text}"""
+-- elif (space == -1) --
+"""{left_text}O{right_text}"""
+-- endif ---
+
+
+-- next x--- 
+row
+-- next y---
+<<-

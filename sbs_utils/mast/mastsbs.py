@@ -94,10 +94,12 @@ class Comms(MastNode):
 class Button(MastNode):
     rule = re.compile(r"""(?P<button>\*|\+)\s+["'](?P<message>.+?)["']"""+OPT_COLOR+JUMP_ARG_REGEX+IF_EXP_REGEX)
     stack = []
-    def __init__(self, button, message, pop, push, jump, color, if_exp):
+    def __init__(self, button, message, pop, push, jump, color, await_name, with_data, if_exp):
         self.stack.append(self)
-        self.message = message
+        self.message = self.compile_formatted_string(message)
         self.jump = jump
+        self.await_name= await_name
+        self.with_data = with_data
         self.push = push == ">"
         self.pop = pop is not None
         self.sticky = (button == '+' or button=="button")

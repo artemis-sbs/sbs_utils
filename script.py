@@ -120,7 +120,7 @@ class MyStory(StoryPage):
             return None
 
         MyStory.story = MastStory()
-        ret =  MyStory.story.from_file("tests/mast/story_gui.mast")
+        ret =  MyStory.story.from_file("tests/mast/ttt.mast")
         return ret
 
         """

@@ -38,7 +38,7 @@ class AssignRunner(MastRuntimeNode):
     def poll(self, mast, thread:MastAsync, node:Assign):
         try:
             value = thread.eval_code(node.code)
-            if "." in node.lhs:
+            if "." in node.lhs or "[" in node.lhs:
                 locals = {"__mast_value": value} | thread.get_symbols()
                 exec(f"""{node.lhs} = __mast_value""",{"__builtins__": Mast.globals}, locals)
             else:
@@ -92,36 +92,123 @@ class JumpRunner(MastRuntimeNode):
 
 class InlineLabelStartRunner(MastRuntimeNode):
     def enter(self, mast, thread:MastAsync, node:InlineLabelStart):
-        print("INLINE START")
-        self.index = 0
-        thread.set_value(node.name, self.index, Scope.TEMP)
+        scoped_val = thread.get_value(node.name, None)
+        index = scoped_val[0]
+        scope = scoped_val[1]
+        scoped_val = thread.get_value(node.name+"__iter", None)
+        _iter = scoped_val[0]
+        iter_scope  = scoped_val[1]
+        if index is None:
+            index = 0
+            scope = Scope.TEMP
+            thread.set_value(node.name, index, scope)
+        elif not node.iter:
+            index+=1
+            thread.set_value(node.name, index, scope)
+        self.scope = scope
+
+        # One time om start create iterator        
+        if node.code is not None and node.iter is None:
+            value = thread.eval_code(node.code)
+            try:
+                _iter = iter(value)
+                node.iter = True
+            except TypeError:
+                node.iter = False
+
+        # All the time if iterable
+        if _iter is not None and node.iter:
+            try:
+                index = next(_iter)
+                thread.set_value(node.name, index, Scope.TEMP)
+                thread.set_value(node.name+"__iter", _iter, Scope.TEMP)
+            except StopIteration:
+                thread.set_value(node.name, None, Scope.TEMP)
+                thread.set_value(node.name+"__iter", None, Scope.TEMP)
+ 
 
     def poll(self, mast, thread, node:InlineLabelStart):
         value = True
-        if node.code:
+        if node.iter:
+            scoped_val = thread.get_value(node.name, None)
+            index = scoped_val[0]
+            if index is None:
+                value = False
+                node.iter = None
+        elif node.code:
             value = thread.eval_code(node.code)
         if value == False:
-            # jump to the end label
             inline_label = f"{thread.active_label}:{node.name}"
-            print(f"{inline_label} looped {self.index}")
-            thread.jump_inline_end(inline_label)
+            # End loop clear value
+            thread.set_value(node.name, None, self.scope)
+            thread.jump_inline_end(inline_label, False)
             return PollResults.OK_ADVANCE_TRUE
-        print(f"{node.name} fallthrough {self.index}")
-        self.index += 1
-        #thread.set_value(node.name, self.index, Scope.TEMP)
         return PollResults.OK_ADVANCE_TRUE
 
 class InlineLabelEndRunner(MastRuntimeNode):
     def poll(self, mast, thread, node:InlineLabelEnd):
         inline_label = f"{thread.active_label}:{node.name}"
         if node.loop == True:
-            print(f"END LOOP {inline_label} loop")
-            print(f"{inline_label} loop")
             thread.jump_inline_start(inline_label)
             return PollResults.OK_JUMP
-        print(f"{inline_label} end fall through")
         return PollResults.OK_ADVANCE_TRUE
 
+class InlineLabelBreakRunner(MastRuntimeNode):
+    def enter(self, mast, thread:MastAsync, node:InlineLabelStart):
+        scoped_val = thread.get_value(node.name, None)
+        index = scoped_val[0]
+        scope = scoped_val[1]
+        if index is None:
+            scope = Scope.TEMP
+        self.scope = scope
+
+    def poll(self, mast, thread, node:InlineLabelEnd):
+        inline_label = f"{thread.active_label}:{node.name}"
+        if node.op == 'break':
+            thread.jump_inline_end(inline_label, True)
+            # End loop clear value
+            thread.set_value(node.name, None, self.scope)
+            return PollResults.OK_JUMP
+        elif node.op == 'continue':
+            thread.jump_inline_start(inline_label)
+            return PollResults.OK_JUMP
+        return PollResults.OK_ADVANCE_TRUE
+
+class IfStatementsRunner(MastRuntimeNode):
+    def poll(self, mast, thread, node:IfStatements):
+        """ """
+        # if this is THE if, find the first true branch
+        if node.if_op == "if":
+            activate = self.first_true(thread, node)
+            if activate is not None:
+                thread.jump(thread.active_label, activate+1)
+                return PollResults.OK_JUMP
+        else:
+            # Everything else jumps to past the endif
+            activate = node.if_chain[-1]
+            thread.jump(thread.active_label, activate+1)
+            return PollResults.OK_JUMP
+
+    def first_true(self, thread: MastAsync, node: IfStatements):
+        cmd_to_run = None
+        for i in node.if_chain:
+            test_node = thread.cmds[i]
+            if test_node.code:
+                value = thread.eval_code(test_node.code)
+                if value:
+                    cmd_to_run = i
+                    break
+            elif test_node.end == 'else':
+                cmd_to_run = i
+                break
+            elif test_node.end == 'endif':
+                cmd_to_run = i
+                break
+
+        return cmd_to_run
+
+
+        
 
 
 
@@ -130,18 +217,36 @@ class InlineLabelEndRunner(MastRuntimeNode):
 
 class ParallelRunner(MastRuntimeNode):
     def enter(self, mast, thread, node:Parallel):
-        thread.start_thread(node.label, thread_name=node.name)
+        vars = {} | thread.vars
+        if node.code:
+            inputs = thread.eval_code(node.code)
+            vars = vars | inputs
+        if node.if_code:
+            value = thread.eval_code(node.if_code)
+            if not value:
+                return
+        thread.start_thread(node.label, vars, thread_name=node.name)
     def poll(self, mast, thread, node:Parallel):
         return PollResults.OK_ADVANCE_TRUE
 
 class AwaitRunner(MastRuntimeNode):
     def enter(self, mast, thread, node:Await):
         self.thread = None
+
+        if node.if_code:
+            value = thread.eval_code(node.if_code)
+            if not value:
+                return
+        
         if node.spawn:
+            vars = {} | thread.vars
+            if node.code:
+                inputs = thread.eval_code(node.code)
+                vars = vars | inputs
             # spawn via thread to pass same inputs
-            self.thread = thread.start_thread(node.label)
+            self.thread = thread.start_thread(node.label, vars)
         else:
-            self.thread = thread.name_threads.get(node.label)
+            self.thread = thread.main.name_threads.get(node.label)
 
     def poll(self, mast, thread, node:Await):
         if self.thread is None:
@@ -187,7 +292,7 @@ class MastAsync:
         self.done = False
         self.runner = None
         self.main= main
-        self.inputs= inputs if inputs else {}
+        self.vars= inputs if inputs else {}
         self.result = None
         self.label_stack = []
         self.active_label = None
@@ -195,7 +300,7 @@ class MastAsync:
     def push_label(self, label):
         if self.active_label:
             push_data = PushData(self.active_label, self.active_cmd)
-            print(f"PUSH DATA {push_data.label} {push_data.active_cmd}")
+            #print(f"PUSH DATA {push_data.label} {push_data.active_cmd}")
             self.label_stack.append(push_data)
         self.jump(label)
 
@@ -203,22 +308,20 @@ class MastAsync:
         if len(self.label_stack)>0:
             push_data: PushData
             push_data = self.label_stack.pop()
-            print(f"POP DATA {push_data.label} {push_data.active_cmd}")
             self.jump(push_data.label, push_data.active_cmd+1)
 
     def jump_inline_start(self, label_name):
         data = self.main.mast.inline_labels.get(label_name)
-        print(f"jump start {label_name}")
         if data and data.start is not None:
-            print(f"jump start {data.start}")
             self.jump(self.active_label, data.start)
 
-    def jump_inline_end(self, label_name):
+    def jump_inline_end(self, label_name, break_op):
         data = self.main.mast.inline_labels.get(label_name)
-        print(f"jump end {label_name}")
         if data and data.end is not None:
-            print(f"jump end {data.end}")
-            self.jump(self.active_label, data.end)
+            if break_op:
+                self.jump(self.active_label, data.end+1)
+            else:
+                self.jump(self.active_label, data.end)
 
     def jump(self, label = "main", activate_cmd=0):
         self.call_leave()
@@ -246,17 +349,20 @@ class MastAsync:
 
     def get_symbols(self):
         m1 = self.main.mast.vars | self.main.vars
-        return self.inputs | m1
+        return self.vars | m1
 
     def set_value(self, key, value, scope):
         if scope == Scope.SHARED:
             self.main.mast.vars[key] = value
-        # elif scope == Scope.TEMP:
-        #     self.main.mast.vars[key] = value
+        elif scope == Scope.TEMP:
+            self.vars[key] = value
         else:
             self.main.vars[key] = value
 
     def get_value(self, key, defa):
+        val = self.vars.get(key, None)
+        if val is not None:
+            return (val, Scope.TEMP)
         val = self.main.mast.vars.get(key, None)
         if val is not None:
             return (val, Scope.SHARED)
@@ -289,7 +395,7 @@ class MastAsync:
         return value
 
     def start_thread(self, label = "main", inputs=None, thread_name=None)->MastAsync:
-        inputs= self.inputs|inputs if inputs else self.inputs
+        inputs= self.vars|inputs if inputs else self.vars
         return self.main.start_thread(label, inputs, thread_name)
     
     def tick(self):
@@ -308,6 +414,11 @@ class MastAsync:
 
                 if self.runner:
                     cmd = self.cmds[self.active_cmd]
+                    # Purged Assigned are seen as Comments
+                    if cmd.__class__== "Comment":
+                        self.next()
+                        continue
+                    
                     result = self.runner.poll(self.main.mast, self, cmd)
                     match result:
                         case PollResults.OK_ADVANCE_TRUE:
@@ -325,7 +436,7 @@ class MastAsync:
                             continue
             return PollResults.OK_RUN_AGAIN
         except BaseException as err:
-            self.main.runtime_error("")
+            self.main.runtime_error(err)
             return PollResults.OK_END
                             
 
@@ -339,7 +450,7 @@ class MastAsync:
         s += f"\nlabel: {self.active_label}"
         if cmd is not None:
             s += f"\ncmd: {cmd.__class__.__name__}"
-            s += f"\nline: {cmd.gen()}^"
+            
         
         self.main.runtime_error(s)
         self.done = True
@@ -369,8 +480,10 @@ class MastRunner:
     runners = {
         "End": EndRunner,
         "Jump": JumpRunner,
+        "IfStatements": IfStatementsRunner,
         "InlineLabelStart": InlineLabelStartRunner,
         "InlineLabelEnd": InlineLabelEndRunner,
+        "InlineLabelBreak": InlineLabelBreakRunner,
         "PyCode": PyCodeRunner,
         "Await": AwaitRunner,
         "Parallel": ParallelRunner,
@@ -397,10 +510,7 @@ class MastRunner:
     def start_thread(self, label = "main", inputs=None, thread_name=None)->MastAsync:
         if self.inputs is None:
             self.inputs = inputs
-            inputs = {} | inputs
-        if inputs is None:
-           inputs = {} | self.inputs
-
+        
         t= MastAsync(self, inputs)
         t.jump(label)
         self.on_start_thread(t)
@@ -415,6 +525,18 @@ class MastRunner:
         t = self.name_threads.get(name)
         if t:
             self.done.append(t)
+
+    def is_running(self):
+        if len(self.threads) == 0:
+            return False
+        return True
+
+    def get_value(self, key, defa=None):
+        val = self.mast.vars.get(key, None)
+        if val is not None:
+            return (val, Scope.SHARED)
+        val = self.vars.get(key, defa)
+        return (val, Scope.NORMAL)
 
     def tick(self):
         for thread in self.threads:
@@ -432,7 +554,3 @@ class MastRunner:
         else:
             return False
 
-
-
-
-    
