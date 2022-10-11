@@ -73,19 +73,21 @@ class Area(MastNode):
         
 
 class Choose(MastNode):
-    rule = re.compile(r"""choose"""+TIMEOUT_REGEX)
-    def __init__(self, minutes=None, seconds=None, time_pop=None,time_push="", time_jump=""):
+    rule = re.compile(r"""choose((\s*(?P<nothing>nothing))|(\s*set\s*(?P<assign>\w+)))?"""+TIMEOUT_REGEX)
+    def __init__(self, nothing=None, assign=None,minutes=None, seconds=None, time_pop=None,time_push="", time_jump=""):
+        self.assign = assign
         self.seconds = 0 if  seconds is None else int(seconds)
         self.minutes = 0 if  minutes is None else int(minutes)
         self.time_jump = time_jump
         self.time_push = time_push == ">"
+        self.nothing = nothing is not None
         self.time_pop = time_pop is not None
         self.buttons = Button.stack
         Button.stack = []
 
 class ButtonControl(MastNode):
     rule = re.compile(r"""button\s+["'](?P<message>.+?)["']"""+JUMP_ARG_REGEX+IF_EXP_REGEX)
-    def __init__(self, message, pop, push, jump,await_name, with_data, if_exp):
+    def __init__(self, message, pop, push, jump,await_name, with_data, py, if_exp):
         #self.message = message
         self.message = self.compile_formatted_string(message)
         self.jump = jump

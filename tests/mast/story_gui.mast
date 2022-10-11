@@ -81,21 +81,20 @@ betty = 3
 
 -- if (betty < 50) --
 """ LESS """
-
 -- if (betty < 50) --
 """ LESS """
 -- elif (betty > 50) --
 """ MORE """
 -- else --
 """ EQUAL """
--- endif --
+-- end_if --
 
 
 -- elif (betty > 50) --
 """ MORE """
 -- else --
 """ EQUAL """
--- endif --
+-- end_if --
 
 
 + "Yes.." -> YouLied if learn == True
@@ -194,11 +193,11 @@ choose
 
 ====================== MapStuff ======================
 shared player = PlayerShip().spawn(sim, 0, 0, 0,"Artemis", "tsn", "Battle Cruiser")
-shared tsn =  [
+shared tsn =  ~~ [
     Npc().spawn(sim, 1000, 0, 1000, "TSN0", "tsn", "Battle Cruiser", "behav_npcship").py_object,
     Npc().spawn(sim ,1200, 0, 1000, "TSN1", "tsn", "Battle Cruiser", "behav_npcship").py_object,
     Npc().spawn(sim, 1400, 0, 1000, "TSN2", "tsn", "Battle Cruiser", "behav_npcship").py_object
-    ]
+    ]~~
 
 <<-
 

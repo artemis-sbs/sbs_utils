@@ -2,6 +2,8 @@ from sbs_utils.mast.mast import Mast, Scope
 from sbs_utils.mast.mastrunner import MastRunner
 import unittest
 
+Mast.enable_logging()
+
 class TMastRunner(MastRunner):
     def runtime_error(self, message):
         print(f"RUNTIME ERROR: {message}")
@@ -29,16 +31,7 @@ def mast_run(code=None):
     return decorator
 
 class TestMastCompile(unittest.TestCase):
-    @mast_run( code = """
-     x = 52
-    -- if (x<50) --
-    x=100
-    -- endif --
-    """)
-    def test_if(self, runner, errors, mast):
-        while runner.is_running():
-            runner.tick()
-
+    
     @mast_compile( code = """
      x = ~~[
         [2,3,4],
@@ -132,6 +125,43 @@ class TestMastCompile(unittest.TestCase):
         assert(list_value[1][0]==4)
         assert(list_value[1][1]==5)
 
+    @mast_run( code = """
+     x = 52
+    -- if (x<50) --
+    x=100
+    -- end_if --
+
+    -- if (x<50) --
+    x=9999
+    -- elif (x>50) --
+    x=200
+    -- else --
+    x=300
+    -- end_if --
+
+    """)
+    def test_if(self, runner, errors, mast):
+        while runner.is_running():
+            runner.tick()
+
+    @mast_run( code = """
+     x = 52
+    -- match (x) --
+    -- case (50) --
+    x=100
+    -- case (52) --
+    x=300
+    -- case (55) --
+    x=999
+    -- end_match --
+    """)
+    def test_match(self, runner, errors, mast):
+        assert(len(errors)==0)
+        x = runner.get_value("x")
+        assert(x==(300, Scope.NORMAL))
+
+
+
 
     @mast_run( code = """
     var1 = 100
@@ -146,19 +176,19 @@ class TestMastCompile(unittest.TestCase):
     ->> Push  # var1 is 700
     -- else --
     var1 = "Don't get here"
-    -- endif --
+    -- end_if --
     -- if (var1==300) --
     var1 = "Don't get here"
     -- else --
     ->> Push  # var1 is 800
-    -- endif --
+    -- end_if --
         -- if (var1==500) --
     var1 = "Don't get here"
     -- elif (var1==800) --
     var1 = var1+ 100
     -- else --
     var1 = "Don't get here"
-    -- endif --
+    -- end_if --
     ~~ print(f"VAR1 E {var1}") ~~
     ~~ print(f"VAR2 E {var2}") ~~
     
@@ -202,8 +232,8 @@ if __name__ == '__main__':
 
 """
     Comment,
-Label,
-IfStatements,
+    Label,
+    IfStatements,
 InlineLabelStart,
 InlineLabelEnd,
 InlineLabelBreak,

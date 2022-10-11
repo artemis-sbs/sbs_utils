@@ -1,4 +1,16 @@
 from sbs_utils.gui import Page
+class Button(Column):
+    """class Button"""
+    def __init__ (self, message, tag) -> None:
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def present (self, sim, event):
+        ...
+class Checkbox(Column):
+    """class Checkbox"""
+    def __init__ (self, message, tag, value=False) -> None:
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def present (self, sim, event):
+        ...
 class Column(object):
     """class Column"""
     def __init__ (self, left=0, top=0, right=0, bottom=0) -> None:
@@ -9,17 +21,19 @@ class Face(Column):
     """class Face"""
     def __init__ (self, face, tag) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def present (self, sim, client_id):
+    def present (self, sim, event):
         ...
 class Layout(object):
     """class Layout"""
-    def __init__ (self, rows=None, left=0, top=0, width=100, height=100) -> None:
+    def __init__ (self, rows=None, left=0, top=0, right=100, bottom=100) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
     def add (self, row: sbs_utils.pages.layout.Row):
         ...
     def calc (self):
         ...
-    def present (self, sim, client_id):
+    def present (self, sim, event):
+        ...
+    def set_size (self, left=0, top=0, right=100, bottom=100):
         ...
 class LayoutPage(Page):
     """A interface class for creating GUI pages
@@ -28,12 +42,7 @@ class LayoutPage(Page):
     def __init__ (self) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
     def present (self, sim, event):
-        """present
-        
-        Called to have the page create and update the gui content it is presenting
-        
-        :param sim:
-        :type sim: Artemis Cosmos simulation"""
+        """Present the gui """
 class Row(object):
     """class Row"""
     def __init__ (self, cols=None, width=0, height=0) -> None:
@@ -42,7 +51,7 @@ class Row(object):
         ...
     def clear (self):
         ...
-    def present (self, sim, client_id):
+    def present (self, sim, event):
         ...
 class Separate(Column):
     """class Separate"""
@@ -54,11 +63,17 @@ class Ship(Column):
     """class Ship"""
     def __init__ (self, ship, tag) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def present (self, sim, client_id):
+    def present (self, sim, event):
+        ...
+class Slider(Column):
+    """class Slider"""
+    def __init__ (self, value=0.5, low=0.0, high=1.0, tag=None) -> None:
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def present (self, sim, event):
         ...
 class Text(Column):
     """class Text"""
     def __init__ (self, message, tag) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def present (self, sim, client_id):
+    def present (self, sim, event):
         ...

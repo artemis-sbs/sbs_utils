@@ -1,6 +1,6 @@
 END_UNKNOWN = 0
 END_X_WINS = 1
-END_Y_WINS = 2
+END_O_WINS = 2
 END_DRAW = 99
 
 X_TURN = 1
@@ -38,9 +38,9 @@ winning_loc = []
 ============ check_winner  ==========
 
 draw = grid[0]
---------------- check (check < len(checks)) ----------
-end_game = END_UNKNOWN
 
+end_game = END_UNKNOWN
+--------------- check (check < len(checks)) ----------
 check_cur = checks[check]
 draw = draw* grid[check+1]
 
@@ -48,19 +48,43 @@ sum = grid[check_cur[0]]+grid[check_cur[1]]+grid[check_cur[2]]
 
 -- if  (sum == 3 ) --
 winning_loc = check_cur
--> X_WINS
+end_game = END_X_WINS
 -- elif  (sum == -3 ) --
 winning_loc = check_cur
--> O_WINS
--- endif --
+end_game = END_O_WINS
+-- end_if --
 ------------------- next check --------------------------
 
 # if any zero on grid draw would = 0
 # so non zero means draw        
 --if  (draw != 0) --
--> DRAW
---endif  ---
+end_game = END_DRAW
+--end_if  ---
+
+-- match (end_game) --
+-- case (END_X_WINS) --
+"""
+X WINS
+"""
+-- case (END_O_WINS) --
+"""
+O WINS
+"""
+-- case (END_DRAW) --
+"""
+DRAW
+"""
+-- else --
 ->play
+-- end_match --
+
+->>draw_board
++ "Play Again"
+choose set answer
+->> clear
+->play
+
+
 
 ============== set_grid ===============
 grid[slot] = turn
@@ -81,46 +105,15 @@ turn = -turn
         """ X """
     -- elif (space == -1) --
         """ 0 """
-    -- endif ---
+    -- end_if ---
 
 ------next x--- 
 row
 -- next y---
 
-+ "TEST" -> play
-choose
+# + "TEST" -> play
+choose nothing
 
-========== play_again =============
-->> clear
-->play
-
-============== X_WINS =================
-""""""""""""""""
-X WINS
-""""""""""""""""""""""
-->>draw_board
-+ "Play Again" -> play_again
-choose
-
-============== O_WINS =================
-
-""""""""""""""""
-O WINS
-""""""""""""""""""""""
-->>draw_board
-
-+ "Play Again" -> play_again
-choose
-
-============== DRAW =================
-
-""""""""""""""""
-DRAW
-"""""""""""""""""
-->>draw_board
-
-+ "Play Again" -> play_again
-choose
 
 
 ============== draw_board   ======
@@ -141,7 +134,7 @@ right_text = ~~" ]" if is_win_loc else "  "~~
 """{left_text}X{right_text}"""
 -- elif (space == -1) --
 """{left_text}O{right_text}"""
--- endif ---
+-- end_if ---
 
 
 -- next x--- 

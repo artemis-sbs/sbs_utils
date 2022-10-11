@@ -185,7 +185,7 @@ class IfStatementsRunner(MastRuntimeNode):
                 return PollResults.OK_JUMP
         else:
             # Everything else jumps to past the endif
-            activate = node.if_chain[-1]
+            activate = node.if_node.if_chain[-1]
             thread.jump(thread.active_label, activate+1)
             return PollResults.OK_JUMP
 
@@ -201,13 +201,44 @@ class IfStatementsRunner(MastRuntimeNode):
             elif test_node.end == 'else':
                 cmd_to_run = i
                 break
-            elif test_node.end == 'endif':
+            elif test_node.end == 'end_if':
                 cmd_to_run = i
                 break
 
         return cmd_to_run
 
+class MatchStatementsRunner(MastRuntimeNode):
+    def poll(self, mast, thread, node:MatchStatements):
+        """ """
+        # if this is THE if, find the first true branch
+        if node.if_op == "match":
+            activate = self.first_true(thread, node)
+            if activate is not None:
+                thread.jump(thread.active_label, activate+1)
+                return PollResults.OK_JUMP
+        else:
+            # Everything else jumps to past the endif
+            activate = node.match_node.if_chain[-1]
+            thread.jump(thread.active_label, activate+1)
+            return PollResults.OK_JUMP
 
+    def first_true(self, thread: MastAsync, node: MatchStatements):
+        cmd_to_run = None
+        for i in node.if_chain:
+            test_node = thread.cmds[i]
+            if test_node.code:
+                value = thread.eval_code(test_node.code)
+                if value:
+                    cmd_to_run = i
+                    break
+            elif test_node.end == 'else':
+                cmd_to_run = i
+                break
+            elif test_node.end == 'end_match':
+                cmd_to_run = i
+                break
+
+        return cmd_to_run
         
 
 
@@ -359,6 +390,13 @@ class MastAsync:
         else:
             self.main.vars[key] = value
 
+    def set_value_keep_scope(self, key, value):
+        scoped_val = self.get_value(key, None)
+        scope = scoped_val[1]
+        if scope is None:
+            scope = Scope.TEMP
+        self.set_value(key,value, scope)
+
     def get_value(self, key, defa):
         val = self.vars.get(key, None)
         if val is not None:
@@ -418,7 +456,7 @@ class MastAsync:
                     if cmd.__class__== "Comment":
                         self.next()
                         continue
-                    
+
                     result = self.runner.poll(self.main.mast, self, cmd)
                     match result:
                         case PollResults.OK_ADVANCE_TRUE:
@@ -442,16 +480,17 @@ class MastAsync:
 
     def runtime_error(self, s):
         cmd = None
-        print(s)
+        logger = logging.getLogger("mast.runtime")
+        logger.error(s)
         s = "mast SCRIPT ERROR\n"+ s
-        print(s)
         if self.runner:
             cmd = self.cmds[self.active_cmd]
         s += f"\nlabel: {self.active_label}"
         if cmd is not None:
             s += f"\ncmd: {cmd.__class__.__name__}"
-            
-        
+        logger = logging.getLogger("mast.runtime")
+        logger.error(s)
+
         self.main.runtime_error(s)
         self.done = True
 
@@ -481,6 +520,7 @@ class MastRunner:
         "End": EndRunner,
         "Jump": JumpRunner,
         "IfStatements": IfStatementsRunner,
+        "MatchStatements": MatchStatementsRunner,
         "InlineLabelStart": InlineLabelStartRunner,
         "InlineLabelEnd": InlineLabelEndRunner,
         "InlineLabelBreak": InlineLabelBreakRunner,

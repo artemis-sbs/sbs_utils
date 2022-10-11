@@ -1,3 +1,4 @@
+from asyncio.log import logger
 from enum import IntEnum, Enum
 import re
 import ast
@@ -7,6 +8,7 @@ from zipfile import ZipFile
 from .. import faces
 import math
 import itertools
+import logging
 
 
 # tokens
@@ -25,11 +27,10 @@ STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[\s\S]+?(?P=quote))"""
 
 JUMP_CMD_REGEX = r"""((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+)))"""
 JUMP_ARG_REGEX = r"""\s*((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+))|(=>\s*(?P<await_name>\w+)(?P<with_data>\s*("""+PY_EXP_REGEX+"|"+DICT_REGEX+"""))?))"""
-OPT_JUMP_REGEX = JUMP_ARG_REGEX+r"""?"""
-TIME_JUMP_REGEX = r"""((?P<time_pop><<-)|(->(?P<time_push>>)?\s*(?P<time_jump>\w+)))?"""
+OPT_JUMP_REGEX = r"("+JUMP_ARG_REGEX+r""")?"""
+TIME_JUMP_REGEX = r"""(\s*((?P<time_pop><<-)|(->(?P<time_push>>))?\s*(?P<time_jump>\w+)))?"""
 MIN_SECONDS_REGEX = r"""(\s*((?P<minutes>\d+))m)?(\s*((?P<seconds>\d+)s))?"""
-TIMEOUT_REGEX = r"(\s*timeout"+MIN_SECONDS_REGEX + \
-    r"\s*" + TIME_JUMP_REGEX + r")?"
+TIMEOUT_REGEX = r"(\s*timeout"+MIN_SECONDS_REGEX + TIME_JUMP_REGEX + r")?"
 OPT_COLOR = r"""(\s*color\s*["'](?P<color>[ \t\S]+)["'])?"""
 IF_EXP_REGEX = r"""(\s+if(?P<if_exp>.+))?"""
 
@@ -51,7 +52,7 @@ class MastNode:
 
     def compile_formatted_string(self, message):
         if "{" in message:
-            message = f"""f'''{message}'''"""
+            message = f'''f"""{message}"""'''
             code = compile(message, "<string>", "eval")
             return code
         else:
@@ -97,8 +98,9 @@ class InlineLabelEnd(MastNode):
 
 
 class IfStatements(MastNode):
-    rule = re.compile(r'(\-{2,})\s*((?P<end>else|endif)|(((?P<if_op>if|elif)\s+?(\((?P<if_exp>[\s\S]+?)\)))))\s*(\-{2,})')
+    rule = re.compile(r'(\-{2,})\s*((?P<end>else|end_if)|(((?P<if_op>if|elif)\s+?(\((?P<if_exp>[\s\S]+?)\)))))\s*(\-{2,})')
     def __init__(self, end=None, if_op=None, if_exp=None):
+
         if if_exp:
             if_exp = if_exp.lstrip()
             self.code = compile(if_exp, "<string>", "eval")
@@ -107,6 +109,25 @@ class IfStatements(MastNode):
         self.end = end
         self.if_op = if_op
         self.if_chain = None
+        self.if_node = None
+
+class MatchStatements(MastNode):
+    rule = re.compile(r'(\-{2,})\s*((?P<end>else|end_match)|(((?P<if_op>match|case)\s+?(\((?P<if_exp>[\s\S]+?)\)))))\s*(\-{2,})')
+    def __init__(self, match_node=None, match=None, end=None, if_op=None, if_exp=None):
+        self.match_exp = None
+        if if_op == "match":
+            self.match_exp = if_exp.lstrip()
+        elif if_exp:
+            if_exp = if_exp.lstrip()
+            if_exp = match_node.match_exp +"==" + if_exp
+            self.code = compile(if_exp, "<string>", "eval")
+        else:
+            self.code = None
+        self.end = end
+        self.if_op = if_op
+        self.if_chain = None
+        self.match_node = match_node
+
 
 class PyCode(MastNode):
     rule = re.compile(r'((\~{2,})\n?(?P<py_cmds>[\s\S]+?)\n?(\~{2,}))')
@@ -172,8 +193,6 @@ class Assign(MastNode):
         if py:
             exp = exp[2:-2]
             exp = exp.strip()
-
-        #print(f"EXP: {exp}")
         self.code = compile(exp, "<string>", "eval")
 
 
@@ -355,6 +374,7 @@ class Mast:
         Comment,
         Label,
         IfStatements,
+        MatchStatements,
         InlineLabelStart,
         InlineLabelEnd,
         InlineLabelBreak,
@@ -528,7 +548,10 @@ class Mast:
                     line_no += line.count('\n')
                     parsed = True
                     data = mo.groupdict()
-                    # print(f"PARSED: {node_cls.__name__:}")
+                    
+                    logger = logging.getLogger("mast.compile")
+                    logger.debug(f"PARSED: {node_cls.__name__:} {line}")
+
                     match node_cls.__name__:
                         case "Label":
                             active = Label(**data)
@@ -551,7 +574,6 @@ class Mast:
                             inline = InlineLabelStart(**data)
                             label_name = f"{active.name}:{inline.name}"
                             start = len(self.cmd_stack[-1].cmds)
-                            #print(f"INLINE START {label_name} start {start}")
                             self.cmd_stack[-1].add_child(inline)
                             self.inline_labels[label_name] = InlineData(start, None)
 
@@ -559,7 +581,6 @@ class Mast:
                             inline = InlineLabelEnd(**data)
                             label_name = f"{active.name}:{inline.name}"
                             end = len(self.cmd_stack[-1].cmds)
-                            #print(f"INLINE END {label_name} end {end}")
                             self.cmd_stack[-1].add_child(inline)
                             data = self.inline_labels.get(label_name, InlineData(None,None))
                             data.end = end
@@ -569,32 +590,58 @@ class Mast:
                             if_node = IfStatements(**data)
                             loc = len(self.cmd_stack[-1].cmds)
                             self.cmd_stack[-1].add_child(if_node)
-                            if "endif" == if_node.end:
-                                if_node.if_chain = if_chains[-1]
-                                if_chains[-1].append(loc)
+                            if "end_if" == if_node.end:
+                                if_node.if_node = if_chains[-1]
+                                if_chains[-1].if_chain.append(loc)
                                 if_chains.pop()
                             elif "else" == if_node.end:
-                                if_node.if_chain = if_chains[-1]
-                                if_chains[-1].append(loc)
+                                if_node.if_node = if_chains[-1]
+                                if_chains[-1].if_chain.append(loc)
                             elif "elif" == if_node.if_op:
-                                if_node.if_chain = if_chains[-1]
-                                if_chains[-1].append(loc)
+                                if_node.if_node = if_chains[-1]
+                                if_chains[-1].if_chain.append(loc)
                             elif "if" == if_node.if_op:
                                 if_node.if_chain = [loc]
-                                if_chains.append(if_node.if_chain)
+                                if_chains.append(if_node)
+
+                        case "MatchStatements":
+                            loc = len(self.cmd_stack[-1].cmds)
+                            if "end_match" == data['end']:
+                                the_match_node = if_chains[-1]
+                                match_node = MatchStatements(match_node=the_match_node, **data)
+                                self.cmd_stack[-1].add_child(match_node)
+                                match_node.match_node = if_chains[-1]
+                                the_match_node.if_chain.append(loc)
+                                if_chains.pop()
+                            elif "else" == data["end"]:
+                                the_match_node = if_chains[-1]
+                                match_node = MatchStatements(match_node=the_match_node, **data)
+                                self.cmd_stack[-1].add_child(match_node)
+                                the_match_node.if_chain.append(loc)
+                            elif "case" == data["if_op"]:
+                                the_match_node = if_chains[-1]
+                                match_node = MatchStatements(match_node=the_match_node, **data)
+                                self.cmd_stack[-1].add_child(match_node)
+                                the_match_node.if_chain.append(loc)
+                            elif "match" == data["if_op"]:
+                                match_node = MatchStatements(**data)
+                                self.cmd_stack[-1].add_child(match_node)
+                                match_node.if_chain = []
+                                if_chains.append(match_node)
 
                         case "Comment":
-                            # obj.line_no = line_no
-                            # self.cmd_stack[-1].add_child(obj)
-                            # active_cmd = obj
                             pass
 
                         case _:
                             try:
                                 obj = node_cls(**data)
                             except Exception as e:
+                                logger = logging.getLogger("mast.compile")
+                                logger.error(f"ERROR: {line_no} - {line}")
+                                logger.error(f"Exception: {e}")
+
                                 errors.append(f"ERROR: {line_no} - {line}")
-                                errors.append(f"Exception: {e.msg}")
+                                errors.append(f"Exception: {e}")
                                 return errors # return with first errors
 
                             obj.line_no = line_no
@@ -610,9 +657,24 @@ class Mast:
                     lines = lines[mo:]
                 else:
                     mo = first_newline_index(lines)
+
+                    logger = logging.getLogger("mast.compile")
+                    logger.error(f"ERROR: {line_no} - {lines[0:mo]}")
+
                     errors.append(f"ERROR: {line_no} - {lines[0:mo]}")
                     lines = lines[mo+1:]
         return errors
+
+    def enable_logging():
+        logger = logging.getLogger("mast")
+        handler  = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(levelname)s|%(name)s|%(message)s"))
+        handler.setLevel(logging.DEBUG)
+        logger.addHandler(handler)
+        # fh = logging.FileHandler('mast.log')
+        # fh.setLevel(logging.DEBUG)
+        # logger.addHandler(fh)
+        
 
 
 

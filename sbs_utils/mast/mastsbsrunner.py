@@ -1,4 +1,4 @@
-from .mast import Mast
+from .mast import Mast, Scope
 from .mastsbs import Simulation, Target, Tell, Comms, Button, Near
 from .mastrunner import MastRunner, PollResults, MastRuntimeNode,  MastAsync
 import sbs
@@ -98,6 +98,10 @@ class CommsRunner(MastRuntimeNode):
         ConsoleDispatcher.remove_select(self.from_id, 'comms_targetUID')
         ConsoleDispatcher.remove_message(self.from_id, 'comms_targetUID')
         sbs.send_comms_selection_info(self.to_id, "", self.color, self.comms_id)
+        if node.assign is not None:
+            thread.set_value_keep_scope(node.assign, self.button)
+            
+
         
 
     def poll(self, mast:Mast, thread:MastAsync, node: Comms):

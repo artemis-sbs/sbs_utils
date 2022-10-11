@@ -125,9 +125,9 @@ class ChooseRunner(StoryRuntimeNode):
         button_layout = layout.Layout(None, 30,95,90,100)
 
         active = 0
+        index = 0
         row: Row
         layout_row = layout.Row()
-
         for button in node.buttons:
             match button.__class__.__name__:
                 case "Button":
@@ -135,8 +135,8 @@ class ChooseRunner(StoryRuntimeNode):
                     if button.code is not None:
                         value = thread.eval_code(button.code)
                     if value and button.should_present(0):#thread.main.client_id):
-                        runner = ChoiceButtonRunner()
-                        runner.enter(mast, thread, button)
+                        runner = ChoiceButtonRunner(self, index, thread.main.page.get_tag(), button)
+                        #runner.enter(mast, thread, button)
                         msg = thread.format_string(button.message)
                         layout_button = layout.Button(msg, runner.tag)
                         layout_row.add(layout_button)
@@ -145,7 +145,8 @@ class ChooseRunner(StoryRuntimeNode):
                 case "Separator":
                     # Handle face expression
                     layout_row.add(layout.Separate())
-        
+            index+=1
+
         if active>0:    
             button_layout.add(layout_row)
             thread.main.page.set_button_layout(button_layout)
@@ -158,17 +159,24 @@ class ChooseRunner(StoryRuntimeNode):
 
 
     def poll(self, mast:Mast, thread:MastAsync, node: Choose):
-        if self.active==0 and self.timeout is None:
+        if self.active==0 and self.timeout is None and not node.nothing:
             return PollResults.OK_ADVANCE_TRUE
 
+
         if self.button is not None:
-            button = self.buttons[self.button]
-            if button.push:
-                thread.push_label(button)
-            elif button.pop:
+            if node.assign:
+                thread.set_value_keep_scope(node.assign, self.button.index)
+                return PollResults.OK_ADVANCE_TRUE
+
+            self.button.node.visit(self.button.client_id)
+            if self.button.node.jump:
+                if self.button.node.push:
+                    thread.push_label(self.button.node.jump)
+                else:
+                    thread.jump(self.button.node.jump)
+            elif  self.button.node.pop:
                 thread.pop_label()
-            else:
-                button.jump(button.jump)
+            
             return PollResults.OK_JUMP
 
         if self.timeout:
@@ -187,22 +195,20 @@ class ChooseRunner(StoryRuntimeNode):
         return PollResults.OK_RUN_AGAIN
 
 
-class ChoiceButtonRunner(StoryRuntimeNode):
-    def enter(self, mast:Mast, thread:MastAsync, node: Button):
-        self.tag = thread.main.page.get_tag()
-        self.thread = thread
-        self.button_node = node
-
+class ChoiceButtonRunner:
+    def __init__(self, choice, index, tag, node):
+        self.choice = choice
+        self.index = index
+        self.tag = tag
+        self.client_id = None
+        self.node = node
+        
     def on_message(self, sim, event):
         if event.sub_tag == self.tag:
-            self.button_node.visit(event.client_id)
-            if self.button_node.jump:
-                if self.button_node.push:
-                    self.thread.push_label(self.button_node.jump)
-                else:
-                    self.thread.jump(self.button_node.jump)
-            elif  self.button_node.pop:
-                self.thread.pop_label()
+            self.choice.button = self
+            self.client_id = event.client_id
+
+
 
 class SliderControlRunner(StoryRuntimeNode):
     def enter(self, mast:Mast, thread:MastAsync, node: SliderControl):

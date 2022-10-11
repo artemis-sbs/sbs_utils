@@ -238,6 +238,8 @@ class SpaceObject(object):
         ...
     def get_id (self):
         ...
+    def get_roles (self, id):
+        ...
     def get_space_object (self, sim):
         """Gets the simulation space object
         
@@ -322,5 +324,5 @@ class SpaceObject(object):
         :type shoot: bool"""
 class SpawnData(object):
     """class SpawnData"""
-    def __init__ (self, id, obj, blob) -> None:
+    def __init__ (self, id, obj, blob, py_obj) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""

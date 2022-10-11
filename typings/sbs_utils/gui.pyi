@@ -21,6 +21,8 @@ class Gui(object):
         
         :param cls_page:  The class of the page to create
         :type class: A python class typically a Page"""
+    def dirty (client_id):
+        ...
     def on_message (sim, event):
         """on_message
         
@@ -45,6 +47,8 @@ class Gui(object):
         
         :param sim:
         :type sim: Artemis Cosmos simulation"""
+    def present_dirty (sim):
+        ...
     def push (sim, client_id, page):
         """push
         

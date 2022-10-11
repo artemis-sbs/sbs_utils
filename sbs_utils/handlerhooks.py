@@ -1,3 +1,4 @@
+from .griddispatcher import GridDispatcher
 from .damagedispatcher import DamageDispatcher
 from .consoledispatcher import ConsoleDispatcher
 from .tickdispatcher import TickDispatcher
@@ -56,12 +57,12 @@ def HandleEvent(sim, event):
                 Gui.on_message(sim, event)
 
             case "grid_object":
-                pass
+                GridDispatcher.dispatch_grid_event(sim,event)
             case "grid_object_selection":
-                pass
+                GridDispatcher.dispatch_grid_event(sim,event)
 
             case "grid_point_selection":
-                pass
+                GridDispatcher.dispatch_grid_event(sim,event)
         
             case _:
                 print (f"Unhandled event {event.tag}")

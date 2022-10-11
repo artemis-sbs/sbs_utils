@@ -12,6 +12,7 @@ from sbs_utils.pages.avatar import AvatarEditor
 from sbs_utils.pages.shippicker import ShipPicker
 from sbs_utils.pages.layout import LayoutPage, Layout, Row, Text, Face, Ship, Separate
 #import sbs_utils
+from sbs_utils.mast.mast import Mast
 from sbs_utils.mast.mastsbs import MastSbs
 from sbs_utils.mast.mastsbsrunner import MastSbsRunner
 
@@ -19,6 +20,11 @@ from sbs_utils.mast.maststory import MastStory
 from sbs_utils.mast.maststoryrunner import StoryPage, StoryRunner
 from sbs_utils import fs
 import os
+from sbs_utils.gridobject import GridObject
+
+
+Mast.enable_logging()
+
 
 
 class MastShip(Npc):
@@ -41,7 +47,7 @@ class MastShip(Npc):
         MastShip.runner.run(sim, label, inputs)
 
     def tick_mast(sim, t):
-        MastShip.runner.tick_threads(sim)
+        MastShip.runner.sbs_tick_threads(sim)
 
 
 
@@ -103,24 +109,26 @@ class TestLayoutPage(LayoutPage):
 class MyStory(StoryPage):
     story = None
     
-    def __init__(self) -> None:
+    def __init__(self, file=None) -> None:
         super().__init__()
-        err = self.init_mast()
-        if err  is None:
-            self.story_runner = StoryRunner(MyStory.story)
-            self.story_runner.run(None, self, inputs= {
-            "PlayerShip": PlayerShip,
-            "Npc": Npc
-            })
-        else:
-            self.errors = err
+        if MyStory.story is None:
+            err = self.init_mast(file)
+            if err  is None:
+                self.story_runner = StoryRunner(MyStory.story)
+                self.story_runner.run(None, self, inputs= {
+                "PlayerShip": PlayerShip,
+                "Npc": Npc
+                })
+            else:
+                self.errors = err
 
-    def init_mast(self):
+    def init_mast(self, file):
         if MyStory.story is not None:
             return None
 
         MyStory.story = MastStory()
-        ret =  MyStory.story.from_file("tests/mast/ttt.mast")
+        ret =  MyStory.story.from_file(file)
+        #ret =  MyStory.story.from_file("tests/mast/story_gui.mast")
         return ret
 
         """
@@ -178,7 +186,9 @@ class GuiMain(Page):
         sbs.send_gui_button(event.client_id, "StubGen", "stub", *next(w))
         sbs.send_gui_button(event.client_id, "Mast", "mast", *next(w))
         sbs.send_gui_button(event.client_id, "Layout", "layout", *next(w))
-        sbs.send_gui_button(event.client_id, "Story", "story", *next(w))
+        sbs.send_gui_button(event.client_id, "Mast bar", "story", *next(w))
+        sbs.send_gui_button(event.client_id, "Mast ttt", "story_ttt", *next(w))
+        sbs.send_gui_button(event.client_id, "GridItems", "grid", *next(w))
 
     def on_message(self, sim, event):
         match event.sub_tag:
@@ -217,7 +227,12 @@ class GuiMain(Page):
                 Gui.push(sim,event.client_id, TestLayoutPage())
 
             case "story":
-                page = MyStory()
+                page = MyStory("tests/mast/story_gui.mast")
+                #page.run(sim , story_script)                
+                Gui.push(sim,event.client_id, page)
+                
+            case "story_ttt":
+                page = MyStory("tests/mast/ttt.mast")
                 #page.run(sim , story_script)                
                 Gui.push(sim,event.client_id, page)
 
@@ -230,6 +245,11 @@ class GuiMain(Page):
                 sbs.create_new_sim()
                 sbs.resume_sim()
                 Mission.start(sim)
+
+            case "grid":
+                sbs.create_new_sim()
+                sbs.resume_sim()
+                Mission.start_grid(sim)
 
             case "mast":
                 sbs.create_new_sim()
@@ -357,6 +377,18 @@ class Mission:
         blob.set("target_pos_z", player.pos.z)
         blob.set("target_id", player.unique_ID)
 
+    def start_grid(sim: sbs.simulation):
+
+        player = PlayerShip()
+        sd_player = player.spawn(sim, 0,0,0, "Artemis", "tsn", "Battle Cruiser")
+        go1 = GridObject()
+        go1.spawn(sim, sd_player.id, "fred", "fred", 9,4, 3, "blue", "flint")
+        go2 = GridObject()
+        go2.spawn(sim, sd_player.id, "barney", "fred", 8,4, 3, "green", "rubble")
+        go2.update_blob(sim, speed=0.01, icon_scale=1.3)
+        go2.target_pos(sim,9,12)
+        
+        
 
     def mast(sim):
 
@@ -371,24 +403,21 @@ class Mission:
      
         MastShip.compile(sim, 
 """
-var x = 34
-
 # Set the comms buttons to start the 'quest'
 
-button "Start at DS1" -> One
-button "Start at DS2" -> Two
-button "Taunt" -> Taunt
++ "Start at DS1" -> One
++ "Start at DS2" -> Two
++ "Taunt" -> Taunt
 self comms player
 
 == Taunt ==
 
+* "Your mother"  color "red" -> Taunt
++ "Kiss my Engine"  color "green" -> Taunt
++ "Skip me" color "white" -> Taunt if x > 54
+* "Don't Skip me" color "white" -> Taunt if x < 54
++ "Taunt" -> Taunt
 self comms player
-    * "Your mother" -> Taunt color "red"
-    * "Kiss my Engine" -> Taunt color"green"
-    * "Skip me" -> Taunt color "white" if x > 54
-    * "Don't Skip me" -> Taunt color "white" if x < 54
-    + "Taunt" -> Taunt
-
 
 == One ==
 await=>HeadToDS1
@@ -412,11 +441,11 @@ self tell player "I have arrived at ds2"    # tell the player
 
 
 == Start ==
-self comms player
-    button "Say Hello" -> Hello
-    button "Say Hi" -> Hi
-    button "Shutup" -> Shutup
 
++ "Say Hello" -> Hello
++ "Say Hi" -> Hi
++ "Shutup" -> Shutup
+self comms player
 
 == skip ==
 self tell player "Come to pick the princess"
@@ -427,11 +456,11 @@ station tell player "the princess is on ds1"
 
 == Hello ==
 self tell player "HELLO"
-self comms player
-    button "Say Blue" -> Blue
-    button "Say Yellow" -> Yellow
-    button "Say Cyan" -> Cyan
 
++ "Say Blue" -> Blue
++ "Say Yellow" -> Yellow
++ "Say Cyan" -> Cyan
+self comms player
 
 == Hi ==
 self tell player  "Hi"
@@ -458,8 +487,8 @@ delay 10s
 
 == Cyan ==
 self tell player "Cyan"
-self comms self timeout 5s -> TooSlow
-    button "Say main" -> main
++ "Say main" -> main
+self comms player timeout 5s-> TooSlow
 
 == TooSlow ==
 self tell player "Woh too slow"
@@ -569,7 +598,7 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
 # Gui.push(None,0, GuiMain())
 
 Gui.server_start_page_class(GuiMain)
-Gui.client_start_page_class(MyStory)
+Gui.client_start_page_class(GuiMain)
 
 
 

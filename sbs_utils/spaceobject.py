@@ -478,7 +478,7 @@ class MSpawnPlayer(MSpawn):
         # playerID will be a NUMBER, a unique value for every space object that you create.
         ship = self._make_new_player(sim, "behav_playership", art_id)
         blob = self.spawn_common(sim, ship, x,y,z,name, side)
-        return SpawnData(id, ship, blob, self)
+        return SpawnData(self.id, ship, blob, self)
 
 
     def spawn(self, sim, x, y, z, name, side, art_id):
@@ -535,7 +535,7 @@ class MSpawnActive(MSpawn):
     def _spawn(self, sim, x, y, z, name, side, art_id, behave_id):
         ship = self._make_new_active(sim, behave_id, art_id)
         blob = self.spawn_common(sim, ship, x,y,z,name, side)
-        return SpawnData(id, ship, blob, self)
+        return SpawnData(self.id, ship, blob, self)
 
     def spawn(self, sim, x, y, z, name, side, art_id, behave_id):
         """ Spawn a new active object e.g. npc, station
@@ -594,7 +594,7 @@ class MSpawnPassive(MSpawn):
     def _spawn(self, sim, x, y, z, name, side, art_id, behave_id):
         ship = self._make_new_passive(sim, behave_id, art_id)
         blob = self.spawn_common(sim, ship, x,y,z,name, side)
-        return SpawnData(id, ship, blob, self)
+        return SpawnData(self.id, ship, blob, self)
 
     def spawn(self, sim, x, y, z, name, side, art_id, behave_id):
         """ Spawn a new passive object e.g. Asteroid, etc.
