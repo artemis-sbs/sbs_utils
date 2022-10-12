@@ -113,14 +113,16 @@ class MyStory(StoryPage):
         super().__init__()
         if MyStory.story is None:
             err = self.init_mast(file)
-            if err  is None:
-                self.story_runner = StoryRunner(MyStory.story)
-                self.story_runner.run(None, self, inputs= {
-                "PlayerShip": PlayerShip,
-                "Npc": Npc
-                })
-            else:
-                self.errors = err
+        else:
+            err = None
+        if err  is None:
+            self.story_runner = StoryRunner(MyStory.story)
+            self.story_runner.run(None, self, inputs= {
+            "PlayerShip": PlayerShip,
+            "Npc": Npc
+            })
+        else:
+            self.errors = err
 
     def init_mast(self, file):
         if MyStory.story is not None:
@@ -228,7 +230,8 @@ class GuiMain(Page):
 
             case "story":
                 page = MyStory("tests/mast/story_gui.mast")
-                #page.run(sim , story_script)                
+                #page.run(sim , story_script)        
+                Gui.client_start_page_class(MyStory)        
                 Gui.push(sim,event.client_id, page)
                 
             case "story_ttt":

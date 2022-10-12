@@ -25,11 +25,12 @@ class Tell(MastNode):
 
 class Comms(MastNode):
     rule = re.compile(r"""(?P<from_tag>\w+)\s*comms\s*(?P<to_tag>\w+)(\s*set\s*(?P<assign>\w+))?(\s+color\s*["'](?P<color>[ \t\S]+)["'])?"""+TIMEOUT_REGEX)
-    def __init__(self, to_tag, from_tag, assign=None, buttons=None, minutes=None, seconds=None, time_pop=None,time_push="", time_jump="", color="white"):
+    def __init__(self, to_tag, from_tag, assign=None, minutes=None, seconds=None, time_pop=None,time_push="", time_jump="", color="white"):
         self.to_tag = to_tag
         self.from_tag = from_tag
         self.assign = assign
-        self.buttons = buttons if buttons is not None else []
+        self.buttons = Button.stack 
+        Button.stack=[]
         self.seconds = 0 if  seconds is None else int(seconds)
         self.minutes = 0 if  minutes is None else int(minutes)
         self.time_jump = time_jump

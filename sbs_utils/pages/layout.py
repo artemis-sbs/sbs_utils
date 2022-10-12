@@ -215,7 +215,7 @@ class LayoutPage(Page):
 
         sz = sbs.get_screen_size()
         if sz is not None and sz.y != 0:
-            aspect_ratio = sz.x/sz.y
+            aspect_ratio = sbs.get_screen_size()
             if self.layout.aspect_ratio != aspect_ratio:
                 self.layout.aspect_ratio = aspect_ratio
                 self.layout.calc()
