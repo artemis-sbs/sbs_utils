@@ -114,8 +114,8 @@ class MyStory(StoryPage):
         if MyStory.story is None:
             err = self.init_mast(file)
         else:
-            err = None
-        if err  is None:
+            err = []
+        if len(err)==0:
             self.story_runner = StoryRunner(MyStory.story)
             self.story_runner.run(None, self, inputs= {
             "PlayerShip": PlayerShip,
@@ -129,34 +129,7 @@ class MyStory(StoryPage):
             return None
 
         MyStory.story = MastStory()
-        ret =  MyStory.story.from_file(file)
-        #ret =  MyStory.story.from_file("tests/mast/story_gui.mast")
-        return ret
-
-        """
-        file_name = os.path.join(fs.get_mission_dir(),'tests/quests', "story_gui.story")
-        content = None
-        try:
-            with open(file_name ) as f:
-                content = f.read()
-        except:
-            message = f"File load error\nCannot load file {file_name}"
-            self.errors.append(message)
-
-        if content is not None:
-            MyStory.story = StoryQuest()
-            errors = MyStory.story.compile(content)
-            
-            if len(errors) > 0:
-                message = f"Compile errors\nCannot compile file {file_name}"
-                self.errors.append(message)
-                self.errors.extend(errors)
-                return False
-            return True
-        """
-
-   
-        
+        return  MyStory.story.from_file(file)
 
 
 ############################
@@ -408,19 +381,33 @@ class Mission:
 """
 # Set the comms buttons to start the 'quest'
 
-+ "Start at DS1" -> One
-+ "Start at DS2" -> Two
-+ "Taunt" -> Taunt
-self comms player
+await self comms player
++ "Start at DS1"
+ -> One
++ "Start at DS2"
+ -> Two
++ "Taunt"
+ -> Taunt
++ "Menu"
+ -> Start
+ end_await
+
 
 == Taunt ==
+x = 52
+await self comms player
+    * "Your mother"  color "red"
+        -> Taunt
+    + "Kiss my Engine"  color "green"
+        -> Taunt
+    + "Skip me" color "white" if x > 54
+        -> Taunt 
+    * "Don't Skip me" color "white" if x < 54
+     -> Taunt 
+    + "Taunt" 
+        -> Taunt
+end_await
 
-* "Your mother"  color "red" -> Taunt
-+ "Kiss my Engine"  color "green" -> Taunt
-+ "Skip me" color "white" -> Taunt if x > 54
-* "Don't Skip me" color "white" -> Taunt if x < 54
-+ "Taunt" -> Taunt
-self comms player
 
 == One ==
 await=>HeadToDS1
@@ -433,45 +420,59 @@ await=>HeadToDS1
 ->Two
 
 == HeadToDS1 ==
-self approach ds1                           # Goto DS1
-self near  ds1 700                          # wait until near d1
-self tell player  "I have arrived at ds1"   # tell the player
+have self approach ds1                           # Goto DS1
+await self near  ds1 700
+    have self tell player  "I have arrived at ds1"   # tell the player
+end_await
 
 == HeadToDS2 ==
-self approach ds2                           # goto DS2
-self near ds2 700                           # wait until near D2
-self tell player "I have arrived at ds2"    # tell the player
+have self approach ds2                           # goto DS2
+await self near ds2 700                           # wait until near D2
+    have self tell player "I have arrived at ds2"    # tell the player
+end_await
 
 
 == Start ==
 
-+ "Say Hello" -> Hello
-+ "Say Hi" -> Hi
-+ "Shutup" -> Shutup
-self comms player
+await self comms player
++ "Say Hello" 
+-> Hello
++ "Say Hi"
+ -> Hi
++ "Shutup"
+ -> Shutup
+end_await
+
 
 == skip ==
-self tell player "Come to pick the princess"
-self near player 300
-self tell player "You have the princess goto ds1"
-player near  station 700
-station tell player "the princess is on ds1"
+have self tell player "Come to pick the princess"
+await self near player 300
+    have self tell player "You have the princess goto ds1"
+end_await
+await player near  station 700
+    have station tell player "the princess is on ds1"
+end_await
 
 == Hello ==
-self tell player "HELLO"
+have self tell player "HELLO"
 
-+ "Say Blue" -> Blue
-+ "Say Yellow" -> Yellow
-+ "Say Cyan" -> Cyan
-self comms player
+await self comms player
++ "Say Blue"
+-> Blue
++ "Say Yellow"
+-> Yellow
++ "Say Cyan"
+-> Cyan
+end_await
+
 
 == Hi ==
-self tell player  "Hi"
+have self tell player  "Hi"
 delay 10s
 -> Start
 
 == Chat ==
-self tell player "Blah, Blah"
+have self tell player "Blah, Blah"
 delay 2s
 -> Chat
 
@@ -479,22 +480,26 @@ delay 2s
 cancel chat
 
 == Blue ==
-self tell player "Blue"
+have self tell player "Blue"
 delay 10s
 -> Start
 
 == Yellow ==
-self tell player "Yellow"
+have self tell player "Yellow"
 delay 10s
 -> Start
 
 == Cyan ==
-self tell player "Cyan"
+have self tell player "Cyan"
+await self comms player timeout 5s
 + "Say main" -> main
-self comms player timeout 5s-> TooSlow
+timeout
+-> TooSlow
+end_await
+
 
 == TooSlow ==
-self tell player "Woh too slow"
+have self tell player "Woh too slow"
 delay 10s
 -> Start
 

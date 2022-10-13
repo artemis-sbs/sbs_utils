@@ -198,7 +198,7 @@ class IfStatementsRunner(MastRuntimeNode):
                 if value:
                     cmd_to_run = i
                     break
-            elif test_node.end == 'else':
+            elif test_node.end == 'else:':
                 cmd_to_run = i
                 break
             elif test_node.end == 'end_if':
@@ -211,27 +211,27 @@ class MatchStatementsRunner(MastRuntimeNode):
     def poll(self, mast, thread, node:MatchStatements):
         """ """
         # if this is THE if, find the first true branch
-        if node.if_op == "match":
+        if node.op == "match":
             activate = self.first_true(thread, node)
             if activate is not None:
                 thread.jump(thread.active_label, activate+1)
                 return PollResults.OK_JUMP
         else:
             # Everything else jumps to past the endif
-            activate = node.match_node.if_chain[-1]
+            activate = node.match_node.chain[-1]
             thread.jump(thread.active_label, activate+1)
             return PollResults.OK_JUMP
 
     def first_true(self, thread: MastAsync, node: MatchStatements):
         cmd_to_run = None
-        for i in node.if_chain:
+        for i in node.chain:
             test_node = thread.cmds[i]
             if test_node.code:
                 value = thread.eval_code(test_node.code)
                 if value:
                     cmd_to_run = i
                     break
-            elif test_node.end == 'else':
+            elif test_node.end == 'case_:':
                 cmd_to_run = i
                 break
             elif test_node.end == 'end_match':
@@ -312,9 +312,10 @@ class MastRunner:
     pass
 
 class PushData:
-    def __init__(self, label, active_cmd):
+    def __init__(self, label, active_cmd, data=None):
         self.label = label
         self.active_cmd = active_cmd
+        self.data = data
 
 class MastAsync:
     main: MastRunner
@@ -328,12 +329,12 @@ class MastAsync:
         self.label_stack = []
         self.active_label = None
 
-    def push_label(self, label):
+    def push_label(self, label, activate_cmd=0, data=None):
         if self.active_label:
-            push_data = PushData(self.active_label, self.active_cmd)
+            push_data = PushData(self.active_label, self.active_cmd, data)
             #print(f"PUSH DATA {push_data.label} {push_data.active_cmd}")
             self.label_stack.append(push_data)
-        self.jump(label)
+        self.jump(label, activate_cmd)
 
     def pop_label(self):
         if len(self.label_stack)>0:
@@ -380,7 +381,13 @@ class MastAsync:
 
     def get_symbols(self):
         m1 = self.main.mast.vars | self.main.vars
-        return self.vars | m1
+        m1 =  self.vars | m1
+        for st in self.label_stack:
+            data = st.data
+            print(f"data -- {data}")
+            if data is not None:
+                m1 =  m1 | data
+        return m1
 
     def set_value(self, key, value, scope):
         if scope == Scope.SHARED:
@@ -398,6 +405,12 @@ class MastAsync:
         self.set_value(key,value, scope)
 
     def get_value(self, key, defa):
+        if len(self.label_stack) > 0:
+            data = self.label_stack[-1].data
+            if data is not None:
+                val = data.get(key, None)
+                if val is not None:
+                    return (val, Scope.TEMP)
         val = self.vars.get(key, None)
         if val is not None:
             return (val, Scope.TEMP)

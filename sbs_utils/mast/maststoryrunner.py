@@ -1,3 +1,4 @@
+import logging
 from .mastrunner import PollResults, MastRuntimeNode, MastRunner, MastAsync, Scope
 from .mast import Mast
 import sbs
@@ -6,9 +7,9 @@ from ..gui import FakeEvent, Gui, Page
 from ..pages import layout
 
 from .errorpage import ErrorPage
-from .maststory import AppendText, MastStory, Choose, Text, Blank, Ship, Face, Button, Row, Section, Area, Refresh, SliderControl, CheckboxControl
+from .maststory import AppendText, ButtonControl, MastStory, Choose, Text, Blank, Ship, Face, Row, Section, Area, Refresh, SliderControl, CheckboxControl
 import traceback
-from .mastsbsrunner import MastSbsRunner
+from .mastsbsrunner import MastSbsRunner, Button
 
 class StoryRuntimeNode(MastRuntimeNode):
     def on_message(self, sim, event):
@@ -65,35 +66,38 @@ class AppendTextRunner(StoryRuntimeNode):
                 text.layout_text.message += msg
 
 class ButtonControlRunner(StoryRuntimeNode):
-    def enter(self, mast:Mast, thread:MastAsync, node: Button):
-        self.tag = thread.main.page.get_tag()
-        self.await_thread= None
-        value = True
+    def enter(self, mast:Mast, thread:MastAsync, node: ButtonControl):
+        self.data = None
+        if node.is_end == False:
+            
+            self.tag = thread.main.page.get_tag()
+            value = True
+            
+            if node.code is not None:
+                value = self.thread.eval_code(node.code)
+            if value:
+                msg = thread.format_string(node.message)
+                thread.main.page.add_content(layout.Button(msg, self.tag), self)
+            if node.data_code is not None:
+                self.data = thread.eval_code(node.data_code)
+                
+        self.node = node
         self.thread = thread
-        if node.code is not None:
-            value = self.thread.eval_code(node.code)
-        if node.with_data is not None:
-            self.with_data = self.thread.eval_code(node.with_data)
-        if value:
-            msg = thread.format_string(node.message)
-            thread.main.page.add_content(layout.Button(msg, self.tag), self)
-        self.button_node = node
+
         
     def on_message(self, sim, event):
         if event.sub_tag == self.tag:
-            if self.button_node.await_name:
-                if self.with_data is not None:
-                    self.await_thread = self.thread.start_thread(self.button_node.await_name, self.with_data)
-                else:
-                    self.await_thread = self.thread.start_thread(self.button_node.await_name)
-            elif self.button_node.jump:
-                if self.button_node.push:
-                    self.thread.push_label(self.button_node.jump)
-                elif self.button_node.pop:
-                    self.thread.pop_label()
-                else:
-                    self.thread.jump(self.button_node.jump)
+            # Jump to the cmds after the button
+            self.thread.push_label(self.thread.active_label, self.node.loc+1, self.data)
 
+    def poll(self, mast:Mast, thread:MastAsync, node: ButtonControl):
+        if node.is_end:
+            self.thread.pop_label()
+            return PollResults.OK_JUMP
+        elif node.end_node:
+            self.thread.jump(self.thread.active_label, node.end_node.loc+1)
+            return PollResults.OK_JUMP
+        
 
 
 
@@ -132,6 +136,7 @@ class ChooseRunner(StoryRuntimeNode):
             match button.__class__.__name__:
                 case "Button":
                     value = True
+                    #button.end_await_node = node.end_await_node
                     if button.code is not None:
                         value = thread.eval_code(button.code)
                     if value and button.should_present(0):#thread.main.client_id):
@@ -169,29 +174,21 @@ class ChooseRunner(StoryRuntimeNode):
                 return PollResults.OK_ADVANCE_TRUE
 
             self.button.node.visit(self.button.client_id)
-            if self.button.node.jump:
-                if self.button.node.push:
-                    thread.push_label(self.button.node.jump)
-                else:
-                    thread.jump(self.button.node.jump)
-            elif  self.button.node.pop:
-                thread.pop_label()
-            
+
+        if self.button is not None:
+            button = self.buttons[self.button.index]
+            thread.jump(thread.active_label,button.loc+1)
             return PollResults.OK_JUMP
 
         if self.timeout:
             self.timeout -= 1
             if self.timeout <= 0:
-                if node.time_push:
-                    thread.push_label(node.time_jump)
-                elif node.time_pop:
-                    thread.pop_label()
-                else:
-                    thread.jump(node.time_jump)
-                return PollResults.OK_JUMP
-            else:
-                PollResults.OK_ADVANCE_FALSE
-
+                if self.timeout_node:
+                    thread.jump(thread.active_label,self.timeout_node.loc+1)
+                    return PollResults.OK_JUMP
+                elif self.end_await_node:
+                    thread.jump(thread.active_label,self.end_await_node.loc+1)
+                    return PollResults.OK_JUMP
         return PollResults.OK_RUN_AGAIN
 
 

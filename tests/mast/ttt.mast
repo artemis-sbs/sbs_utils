@@ -46,43 +46,45 @@ draw = draw* grid[check+1]
 
 sum = grid[check_cur[0]]+grid[check_cur[1]]+grid[check_cur[2]]
 
--- if  (sum == 3 ) --
-winning_loc = check_cur
-end_game = END_X_WINS
--- elif  (sum == -3 ) --
-winning_loc = check_cur
-end_game = END_O_WINS
--- end_if --
+if  sum == 3:
+    winning_loc = check_cur
+    end_game = END_X_WINS
+elif  sum == -3:
+    winning_loc = check_cur
+    end_game = END_O_WINS
+end_if
 ------------------- next check --------------------------
 
 # if any zero on grid draw would = 0
 # so non zero means draw        
---if  (draw != 0) --
+if  draw != 0:
 end_game = END_DRAW
---end_if  ---
+end_if
 
--- match (end_game) --
--- case (END_X_WINS) --
+match end_game:
+case END_X_WINS:
 """
 X WINS
 """
--- case (END_O_WINS) --
+case END_O_WINS:
 """
 O WINS
 """
--- case (END_DRAW) --
+case END_DRAW:
 """
 DRAW
 """
--- else --
+case _:
 ->play
--- end_match --
+end_match
 
 ->>draw_board
-+ "Play Again"
-choose set answer
-->> clear
-->play
+
+await choice
+    + "Play Again"
+        ->> clear
+        ->play
+end_await
 
 
 
@@ -96,23 +98,25 @@ turn = -turn
 
 --y ( y<3 )---------
 -------x ( x<3 )-----
-
-    space = grid[y*3+x]
     test = y*3+x
-    -- if (space == 0) --
-        button "{test+1}" => set_grid{"slot":test}
-    -- elif (space == 1) --
+    space = grid[test]
+    
+    if space == 0:
+        button "{test+1}" data = ~~{"test": test}~~
+            await => set_grid {"slot":test} 
+        end_button
+    elif space == 1:
         """ X """
-    -- elif (space == -1) --
+    elif space == -1:
         """ 0 """
-    -- end_if ---
+    end_if
 
 ------next x--- 
 row
 -- next y---
 
 # + "TEST" -> play
-choose nothing
+await choice nothing
 
 
 
@@ -128,13 +132,13 @@ is_win_loc = test in winning_loc
 left_text = ~~"[ " if is_win_loc else "  "~~
 right_text = ~~" ]" if is_win_loc else "  "~~
 
--- if (space == 0) --
+if space == 0:
 """  .  """
--- elif (space == 1) --
+elif space == 1:
 """{left_text}X{right_text}"""
--- elif (space == -1) --
+elif space == -1:
 """{left_text}O{right_text}"""
--- end_if ---
+end_if
 
 
 -- next x--- 

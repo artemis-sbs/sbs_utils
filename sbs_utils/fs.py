@@ -8,7 +8,11 @@ script_dir = None
 def get_script_dir():
     global script_dir
     if script_dir is None:
-        script_dir = os.path.dirname(sys.modules['script'].__file__)
+        if sys.modules.get('script') is not None:
+            script_dir = os.path.dirname(sys.modules['script'].__file__)
+        else:
+            script_dir =sys.path[0]
+
     return script_dir
 
 def get_mission_dir():

@@ -1,14 +1,16 @@
-from sbs_utils.mast.mast import Mast, Scope
-from sbs_utils.mast.mastrunner import MastRunner
+from sbs_utils.mast.mast import Mast
+from sbs_utils.mast.mastsbs import MastSbs
+from sbs_utils.mast.mastsbsrunner import MastSbsRunner
 import unittest
 
 Mast.enable_logging()
 
-class TMastRunner(MastRunner):
+class TMastSbsRunner(MastSbsRunner):
     def runtime_error(self, message):
         print(f"RUNTIME ERROR: {message}")
 
-def mast_compile(code=None):
+
+def mast_sbs_compile(code=None):
     def decorator(func):
         def wrapper(self, **kargs):
             mast = Mast()
@@ -18,12 +20,12 @@ def mast_compile(code=None):
     return decorator
 
 
-def mast_run(code=None):
+def mast_sbs_run(code=None):
     def decorator(func):
         def wrapper(self, **kargs):
             mast = Mast()
             errors = mast.compile(code)
-            runner = TMastRunner(mast)
+            runner = TMastSbsRunner(mast)
             runner.start_thread()
 
             func(self, runner=runner, mast=mast, errors=errors,  **kargs)
@@ -127,17 +129,17 @@ class TestMastCompile(unittest.TestCase):
 
     @mast_run( code = """
      x = 52
-    if x<50:
+    -- if (x<50) --
     x=100
-    end_if
+    -- end_if --
 
-    if x<50:
+    -- if (x<50) --
     x=9999
-    elif x>50:
+    -- elif (x>50) --
     x=200
-    else:
+    -- else --
     x=300
-    end_if
+    -- end_if --
 
     """)
     def test_if(self, runner, errors, mast):
@@ -145,76 +147,63 @@ class TestMastCompile(unittest.TestCase):
             runner.tick()
 
     @mast_run( code = """
-    x = 52
-    match x:
-    case 50:
+     x = 52
+    -- match (x) --
+    -- case (50) --
     x=100
-    case 52:
+    -- case (52) --
     x=300
-    case 55:
+    -- case (55) --
     x=999
-    case _:
-        x=-19
-    end_match
-# test the default case _
-    match x:
-    case 50:
-    x=100
-        case 55:
-    x=999
-    case _:
-        x= x *2
-    end_match
+    -- end_match --
     """)
     def test_match(self, runner, errors, mast):
         assert(len(errors)==0)
         x = runner.get_value("x")
-        assert(x==(600, Scope.NORMAL))
+        assert(x==(300, Scope.NORMAL))
 
 
 
 
     @mast_run( code = """
-var1 = 100
-shared var2 = 100
-->> Push  # var1 is 200 # var2 200
-->> Push  # var1 is 300 # var2 300
-
-
-await => Spawn # var1 is 400 var2 is 400
-await => Spawn # var1 is 500 var2 is 500
-await => Spawn {"var1": 99} # var1 still 300 on this 
-
-if var1==600:
+    var1 = 100
+    shared var2 = 100
+    ->> Push  # var1 is 200 # var2 200
+    ->> Push  # var1 is 300 # var2 300
+    
+    await => Spawn # var1 is 400 var2 is 400
+    await => Spawn # var1 is 500 var2 is 500
+    await => Spawn {"var1": 99} # var1 still 300 on this 
+        -- if (var1==600) --
     ->> Push  # var1 is 700
-else:
+    -- else --
     var1 = "Don't get here"
-end_if
-
-if var1==300:
+    -- end_if --
+    -- if (var1==300) --
     var1 = "Don't get here"
-else:
+    -- else --
     ->> Push  # var1 is 800
-end_if
-
-if var1==500:
+    -- end_if --
+        -- if (var1==500) --
     var1 = "Don't get here"
-elif var1 == 800:
+    -- elif (var1==800) --
     var1 = var1+ 100
-else:
-var1 = "Don't get here"
-end_if
+    -- else --
+    var1 = "Don't get here"
+    -- end_if --
+    ~~ print(f"VAR1 E {var1}") ~~
+    ~~ print(f"VAR2 E {var2}") ~~
+    
 
+    === Push ===
+    var1 = var1 + 100
+    shared var2 = var2 + 100
+    <<-
 
-=== Push ===
-var1 = var1 + 100
-shared var2 = var2 + 100
-<<-
-
-=== Spawn ===
-var1 = var1 + 100
-shared var2 = var2 + 100
-->END
+    === Spawn ===
+    var1 = var1 + 100
+    shared var2 = var2 + 100
+    ->END
 
     """)
     def test_py_exp_run_no_err(self, runner:MastRunner, errors, mast:Mast):

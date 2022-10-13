@@ -10,7 +10,10 @@ from .errorpage import ErrorPage
 import traceback
 
 class ButtonRunner(MastRuntimeNode):
-    def poll(self, mast, runner, node):
+    def poll(self, mast, thread, node: Button):
+        if node.await_node and node.await_node.end_await_node:
+            thread.jump(thread.active_label,node.await_node.end_await_node.loc+1)
+            return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
 class TellRunner(MastRuntimeNode):
@@ -112,26 +115,18 @@ class CommsRunner(MastRuntimeNode):
 
         if self.button is not None:
             button = self.buttons[self.button] 
-            if button.push:
-                thread.push_label(button.jump)
-            elif button.pop:
-                thread.pop_label()
-            else:
-                thread.jump(button.jump)
+            thread.jump(thread.active_label,button.loc+1)
             return PollResults.OK_JUMP
 
         if self.timeout:
             self.timeout -= 1
             if self.timeout <= 0:
-                if node.time_push:
-                    thread.push_label(node.time_jump)
-                elif node.time_pop:
-                    thread.pop_label()
-                else:
-                    thread.jump(node.time_jump)
-                return PollResults.OK_JUMP
-            else:
-                PollResults.OK_ADVANCE_FALSE
+                if self.timeout_node:
+                    thread.jump(thread.active_label,self.timeout_node.loc+1)
+                    return PollResults.OK_JUMP
+                elif node.end_await_node:
+                    thread.jump(thread.active_label,node.end_await_node.loc+1)
+                    return PollResults.OK_JUMP
 
         return PollResults.OK_RUN_AGAIN
 
@@ -172,29 +167,17 @@ class NearRunner(MastRuntimeNode):
         # Need to check the distance
         dist = sbs.distance_id(self.to_id, self.from_id)
         if dist <= node.distance:
-            if node.jump:
-                if node.push:
-                    thread.push_label(node.jump)
-                elif node.pop:
-                    thread.pop_label()
-                else:
-                    thread.jump(node.jump)
-                return PollResults.OK_JUMP
-            else:
-                return PollResults.OK_ADVANCE_TRUE
+            return PollResults.OK_ADVANCE_TRUE
 
-        if self.timeout is not None:
+        if self.timeout:
             self.timeout -= 1
             if self.timeout <= 0:
-                if node.time_push:
-                    thread.push_label(node.time_jump)
-                elif node.time_pop:
-                    thread.pop_label()
-                else:
-                    thread.jump(node.time_jump)
-                return PollResults.OK_JUMP
-            else:
-                PollResults.OK_ADVANCE_FALSE
+                if self.timeout_node:
+                    thread.jump(thread.active_label,self.timeout_node.loc+1)
+                    return PollResults.OK_JUMP
+                elif node.end_await_node:
+                    thread.jump(thread.active_label,node.end_await_node.loc+1)
+                    return PollResults.OK_JUMP
 
         return PollResults.OK_RUN_AGAIN
 

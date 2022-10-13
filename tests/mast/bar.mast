@@ -8,7 +8,7 @@ shared vodka = 8
 
 face barkeep
 """""""""""""""""""""""""""""""""
-Thirty?
+Thirsty?
 I have
 """""""""""""""""""""""""""""""""
 ^^^    {martinis} Martinis^^^ if martinis > 0
@@ -22,11 +22,16 @@ I'm all out.
 If you go to DS1 and get more supply them the Next one is on me.
 ^^^^^^^^^^^^ if martinis == 0 and vodka == 0 and beer ==0
 
-+ "Martini"-> Martinis if martinis > 0
-+ "Beer" -> Beer if beer > 0
-+ "Vodka" -> Vodka if vodka > 0
-+ "Had enough" <<- if (beer+martinis+vodka) > 0
-choose
+await choice
++ "Martini" if martinis > 0
+-> Martinis
++ "Beer"  if beer > 0
+-> Beer
++ "Vodka" if vodka > 0
+ -> Vodka
++ "Had enough"  if (beer+martinis+vodka) > 0
+<<-
+end_await
 
 # it gets here when there are no more buttons
 # delay to give a chance to read
@@ -40,7 +45,7 @@ BAR is closed until more supplies arrive
 they are available at DS1
 """""""""""""""""""""""""""""""""""
 
-choose
+await choice nothing
 delay 5s
 <<-
 

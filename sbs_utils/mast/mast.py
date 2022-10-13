@@ -26,11 +26,16 @@ PY_EXP_REGEX = r"""((?P<py>~~)[\s\S]+?(?P=py))"""
 STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[\s\S]+?(?P=quote))"""
 
 JUMP_CMD_REGEX = r"""((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+)))"""
-JUMP_ARG_REGEX = r"""\s*((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+))|(=>\s*(?P<await_name>\w+)(?P<with_data>\s*("""+PY_EXP_REGEX+"|"+DICT_REGEX+"""))?))"""
-OPT_JUMP_REGEX = r"("+JUMP_ARG_REGEX+r""")?"""
-TIME_JUMP_REGEX = r"""(\s*((?P<time_pop><<-)|(->(?P<time_push>>))?\s*(?P<time_jump>\w+)))?"""
+#JUMP_ARG_REGEX = r"""\s*((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+))|(=>\s*(?P<await_name>\w+)(?P<with_data>\s*("""+PY_EXP_REGEX+"|"+DICT_REGEX+"""))?))"""
+#OPT_JUMP_REGEX = r"("+JUMP_ARG_REGEX+r""")?"""
+
+#TIME_PY_EXP_REGEX = r"""((?P<time_py>~~)[\s\S]+?(?P=time_py))"""
+#TIME_JUMP_ARG_REGEX = r"""\s*((?P<time_pop><<-)|(->(?P<time_push>>)?\s*(?P<time_jump>\w+))|(=>\s*(?P<time_await_name>\w+)(?P<time_with_data>\s*("""+TIME_PY_EXP_REGEX+"|"+DICT_REGEX+"""))?))"""
+#TIME_OPT_JUMP_REGEX = r"("+TIME_JUMP_ARG_REGEX+r""")?"""
+#TIME_JUMP_REGEX = TIME_OPT_JUMP_REGEX
+#r"""((\s*((?P<time_pop><<-)|(->(?P<time_push>>))?\s*(?P<time_jump>\w+))))?"""
 MIN_SECONDS_REGEX = r"""(\s*((?P<minutes>\d+))m)?(\s*((?P<seconds>\d+)s))?"""
-TIMEOUT_REGEX = r"(\s*timeout"+MIN_SECONDS_REGEX + TIME_JUMP_REGEX + r")?"
+TIMEOUT_REGEX = r"(\s*timeout"+MIN_SECONDS_REGEX + r")?"
 OPT_COLOR = r"""(\s*color\s*["'](?P<color>[ \t\S]+)["'])?"""
 IF_EXP_REGEX = r"""(\s+if(?P<if_exp>.+))?"""
 
@@ -62,7 +67,7 @@ class MastNode:
 class Label(MastNode):
     rule = re.compile(r'(={2,})\s*(?P<name>\w+)\s*(={2,})')
 
-    def __init__(self, name):
+    def __init__(self, name, loc=None):
         self.name = name
         self.cmds = []
 
@@ -70,11 +75,10 @@ class Label(MastNode):
         self.cmds.append(cmd)
 
 
-
 class InlineLabelStart(MastNode):
     rule = re.compile(r'((\-{2,})\s*(?P<name>\w+)\s*)(\((?P<if_exp>[\s\S]+?)\))\s*(\-{2,})')
 
-    def __init__(self, if_exp=None, name=None):
+    def __init__(self, if_exp=None, name=None, loc=None):
         if if_exp:
             if_exp = if_exp.lstrip()
             self.code = compile(if_exp, "<string>", "eval")
@@ -86,53 +90,93 @@ class InlineLabelStart(MastNode):
 
 class InlineLabelBreak(MastNode):
     rule = re.compile(r'(?P<op>break|continue)\s*(?P<name>\w+)')
-    def __init__(self, op=None, name=None):
+    def __init__(self, op=None, name=None, loc=None):
         self.name = name
         self.op = op
 
 class InlineLabelEnd(MastNode):
     rule = re.compile(r'((\-{2,})\s*(end|(?P<loop>next))\s*(?P<name>\w+)\s*(\-{2,}))')
-    def __init__(self, loop=None, name=None):
+    def __init__(self, loop=None, name=None, loc=None):
         self.loop = True if loop is not None and 'next' in loop else False
         self.name = name
 
 
 class IfStatements(MastNode):
-    rule = re.compile(r'(\-{2,})\s*((?P<end>else|end_if)|(((?P<if_op>if|elif)\s+?(\((?P<if_exp>[\s\S]+?)\)))))\s*(\-{2,})')
-    def __init__(self, end=None, if_op=None, if_exp=None):
+    rule = re.compile(r'((?P<end>else:|end_if)|(((?P<if_op>if|elif)\s+?(?P<if_exp>[\s\S]+?)[:])))')
+
+    if_chains = []
+
+    def __init__(self, end=None, if_op=None, if_exp=None, loc=None):
 
         if if_exp:
             if_exp = if_exp.lstrip()
             self.code = compile(if_exp, "<string>", "eval")
         else:
             self.code = None
+
         self.end = end
         self.if_op = if_op
         self.if_chain = None
         self.if_node = None
 
+
+        if "end_if" == self.end:
+            self.if_node = IfStatements.if_chains[-1]
+            IfStatements.if_chains[-1].if_chain.append(loc)
+            IfStatements.if_chains.pop()
+        elif "else:" == self.end:
+            self.if_node = IfStatements.if_chains[-1]
+            IfStatements.if_chains[-1].if_chain.append(loc)
+        elif "elif" == self.if_op:
+            self.if_node = IfStatements.if_chains[-1]
+            IfStatements.if_chains[-1].if_chain.append(loc)
+        elif "if" == self.if_op:
+            self.if_chain = [loc]
+            IfStatements.if_chains.append(self)
+
 class MatchStatements(MastNode):
-    rule = re.compile(r'(\-{2,})\s*((?P<end>else|end_match)|(((?P<if_op>match|case)\s+?(\((?P<if_exp>[\s\S]+?)\)))))\s*(\-{2,})')
-    def __init__(self, match_node=None, match=None, end=None, if_op=None, if_exp=None):
+    rule = re.compile(r'((?P<end>case\s*_:|end_match)|(((?P<op>match|case)\s+?(?P<exp>[\s\S]+?):)))')
+    chains = []
+    def __init__(self, end=None, op=None, exp=None, loc=None):
         self.match_exp = None
-        if if_op == "match":
-            self.match_exp = if_exp.lstrip()
-        elif if_exp:
-            if_exp = if_exp.lstrip()
-            if_exp = match_node.match_exp +"==" + if_exp
-            self.code = compile(if_exp, "<string>", "eval")
+        self.end = end
+        self.op = op
+        self.chain = None
+        self.match_node = None
+
+        if "end_match" == end:
+            the_match_node = MatchStatements.chains[-1]
+            self.match_node = the_match_node
+            the_match_node.chain.append(loc)
+            MatchStatements.chains.pop()
+        elif end is not None and end.startswith("case"):
+            the_match_node = MatchStatements.chains[-1]
+            self.match_node = the_match_node
+            the_match_node.chain.append(loc)
+            self.end = "case_:"
+        elif "case" == op:
+            the_match_node = MatchStatements.chains[-1]
+            self.match_node = the_match_node
+            the_match_node.chain.append(loc)
+        elif "match" == op:
+            self.match_node = self
+            self.chain = []
+            MatchStatements.chains.append(self)
+        
+        if op == "match":
+            self.match_exp = exp.lstrip()
+        elif exp:
+            exp = exp.lstrip()
+            exp = self.match_node.match_exp +"==" + exp
+            self.code = compile(exp, "<string>", "eval")
         else:
             self.code = None
-        self.end = end
-        self.if_op = if_op
-        self.if_chain = None
-        self.match_node = match_node
 
 
 class PyCode(MastNode):
     rule = re.compile(r'((\~{2,})\n?(?P<py_cmds>[\s\S]+?)\n?(\~{2,}))')
 
-    def __init__(self, py_cmds=None):
+    def __init__(self, py_cmds=None, loc=None):
         if py_cmds:
             py_cmds= py_cmds.lstrip()
             self.code = compile(py_cmds, "<string>", "exec")
@@ -142,14 +186,14 @@ class PyCode(MastNode):
 class Input(MastNode):
     rule = re.compile(r'input\s+(?P<name>\w+)')
 
-    def __init__(self, name):
+    def __init__(self, name, loc=None):
         self.name = name
 
 
 class Import(MastNode):
     rule = re.compile(r'(from\s+(?P<lib>[\w\.\/-]+)\s+)?import\s+(?P<name>[\w\.\/-]+)')
 
-    def __init__(self, name, lib=None):
+    def __init__(self, name, lib=None, loc=None):
         self.name = name
         self.lib = lib
 
@@ -157,7 +201,7 @@ class Import(MastNode):
 class Comment(MastNode):
     rule = re.compile(r'#[ \t\S]*')
 
-    def __init__(self):
+    def __init__(self, loc=None):
         pass
 
 
@@ -181,7 +225,7 @@ class Assign(MastNode):
         r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*=\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|.*))')
 
     """ Not this doesn't support destructuring. To do so isn't worth the effort"""
-    def __init__(self, scope, lhs, exp, quote=None, py=None):
+    def __init__(self, scope, lhs, exp, quote=None, py=None, loc=None):
         self.lhs = lhs
         self.scope = Scope.NORMAL if scope is None else Scope[scope.strip(
         ).upper()]
@@ -200,7 +244,7 @@ class Assign(MastNode):
 class Jump(MastNode):
     rule = re.compile(JUMP_CMD_REGEX+IF_EXP_REGEX)
 
-    def __init__(self, pop, push, jump, if_exp):
+    def __init__(self, pop, push, jump, if_exp, loc=None):
         self.label = jump
         self.push = push == ">"
         self.pop = pop is not None
@@ -218,7 +262,7 @@ class Parallel(MastNode):
     """
     rule = re.compile(r"""((?P<name>[\w\.\[\]]+)\s*)?=>\s*(?P<label>\w+)(?P<inputs>\s*"""+ DICT_REGEX+")?"+IF_EXP_REGEX)
 
-    def __init__(self, name=None, label=None, inputs=None, if_exp=None):
+    def __init__(self, name=None, label=None, inputs=None, if_exp=None, loc=None):
         self.name = name
         self.label = label
         self.cmds = []
@@ -244,7 +288,7 @@ class Await(MastNode):
     """
     rule = re.compile(r"""await((\s*(?P<label>\w+))|((\s*(?P<spawn>=>))\s*(?P<name>\w+)(?P<inputs>\s*"""+DICT_REGEX+")?))"+IF_EXP_REGEX)
                       
-    def __init__(self, name=None, spawn=None, label=None, inputs=None, if_exp=None):
+    def __init__(self, name=None, spawn=None, label=None, inputs=None, if_exp=None, loc=None):
         self.spawn = True if spawn is not None else False
         self.label = label
         if name:
@@ -272,17 +316,19 @@ class Cancel(MastNode):
     """
     rule = re.compile(r"""cancel\s*(?P<name>[\w\.\[\]]+)""")
 
-    def __init__(self, lhs=None, name=None):
+    def __init__(self, lhs=None, name=None, loc=None):
         self.name = name
 
 
 class End(MastNode):
     rule = re.compile(r'->\s*END')
+    def __init__(self,  loc=None):
+        pass
 
 class Delay(MastNode):
     rule = re.compile(r'delay\s*'+MIN_SECONDS_REGEX)
 
-    def __init__(self, seconds=None, minutes=None):
+    def __init__(self, seconds=None, minutes=None, loc=None):
         self.seconds = 0 if seconds is None else int(seconds)
         self.minutes = 0 if minutes is None else int(minutes)
 
@@ -461,9 +507,8 @@ class Mast:
                 message = f"Compile errors\nCannot compile file {file_name}"
                 errors.append(message)
 
-        if len(errors) > 0:
-            return errors
-        return None
+        return errors
+        
 
     def from_lib_file(self, file_name, lib_name):
         lib_name = os.path.join(fs.get_mission_dir(), lib_name)
@@ -499,7 +544,7 @@ class Mast:
     def import_content(self, filename, lib_file):
         add = self.__class__()
         errors = add.from_file(filename, lib_file)
-        if errors is None:
+        if len(errors)==0:
             for label, node in add.labels.items():
                 if label == "main":
                     main = self.labels["main"]
@@ -586,55 +631,14 @@ class Mast:
                             data.end = end
                             self.inline_labels[label_name] = data
 
-                        case "IfStatements":
-                            if_node = IfStatements(**data)
-                            loc = len(self.cmd_stack[-1].cmds)
-                            self.cmd_stack[-1].add_child(if_node)
-                            if "end_if" == if_node.end:
-                                if_node.if_node = if_chains[-1]
-                                if_chains[-1].if_chain.append(loc)
-                                if_chains.pop()
-                            elif "else" == if_node.end:
-                                if_node.if_node = if_chains[-1]
-                                if_chains[-1].if_chain.append(loc)
-                            elif "elif" == if_node.if_op:
-                                if_node.if_node = if_chains[-1]
-                                if_chains[-1].if_chain.append(loc)
-                            elif "if" == if_node.if_op:
-                                if_node.if_chain = [loc]
-                                if_chains.append(if_node)
-
-                        case "MatchStatements":
-                            loc = len(self.cmd_stack[-1].cmds)
-                            if "end_match" == data['end']:
-                                the_match_node = if_chains[-1]
-                                match_node = MatchStatements(match_node=the_match_node, **data)
-                                self.cmd_stack[-1].add_child(match_node)
-                                match_node.match_node = if_chains[-1]
-                                the_match_node.if_chain.append(loc)
-                                if_chains.pop()
-                            elif "else" == data["end"]:
-                                the_match_node = if_chains[-1]
-                                match_node = MatchStatements(match_node=the_match_node, **data)
-                                self.cmd_stack[-1].add_child(match_node)
-                                the_match_node.if_chain.append(loc)
-                            elif "case" == data["if_op"]:
-                                the_match_node = if_chains[-1]
-                                match_node = MatchStatements(match_node=the_match_node, **data)
-                                self.cmd_stack[-1].add_child(match_node)
-                                the_match_node.if_chain.append(loc)
-                            elif "match" == data["if_op"]:
-                                match_node = MatchStatements(**data)
-                                self.cmd_stack[-1].add_child(match_node)
-                                match_node.if_chain = []
-                                if_chains.append(match_node)
 
                         case "Comment":
                             pass
 
                         case _:
                             try:
-                                obj = node_cls(**data)
+                                loc = len(self.cmd_stack[-1].cmds)
+                                obj = node_cls(loc=loc, **data)
                             except Exception as e:
                                 logger = logging.getLogger("mast.compile")
                                 logger.error(f"ERROR: {line_no} - {line}")

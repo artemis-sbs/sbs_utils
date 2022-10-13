@@ -40,8 +40,6 @@ Welcome to the TSN {test_func(2,5)} {free}
 I'm Captain Alisa. I've been running things in this sector for 10 years. We run a tight sector.
 I don't take any crap and I do not like people who lie and disobey orders out of a matter of principle.
 """""""""""""""""""""""""""""""""
-
-
 row
 
 """""""""""""""""""""""""""""""""
@@ -68,42 +66,21 @@ This is your first ship
 """""""""""""""""""""""""""""""""
 blank
 
-a1 => Test{"self": 10}
-a2 => Test {"self": 40}
+await choice
+    + "Yes.." if learn == True
+        -> YouLied 
+    + "Yes.." if learn == False
+        -> YouTrained 
+    + "Ready to learn"
+         -> Learn
+    + "Bar"
+     ->> GotoBar
+    + "HUD" 
+    ->> Hud
+    + "Exit" 
+    ->END
+end_await
 
-wilma = 50
-
-await a1
-await a2
-await => Test {"self":  wilma}
-
-betty = 3
-
--- if (betty < 50) --
-""" LESS """
--- if (betty < 50) --
-""" LESS """
--- elif (betty > 50) --
-""" MORE """
--- else --
-""" EQUAL """
--- end_if --
-
-
--- elif (betty > 50) --
-""" MORE """
--- else --
-""" EQUAL """
--- end_if --
-
-
-+ "Yes.." -> YouLied if learn == True
-+ "Yes.." -> YouTrained if learn == False
-+ "Ready to learn" -> Learn
-+ "Bar" ->> GotoBar
-+ "HUD" ->> Hud
-+ "Exit" ->END
-choose
 # This is for the bar/hud when they pops
 ->Briefing
 
@@ -124,9 +101,10 @@ I will not tolerate those who are untruthful.
 You should board the next shuttle and get the hell out of my sector
 """""""""""""""""""""""""""""""""""""""""""
 
-
-+ "Exit" ->END
-choose
+await choice
+    + "Exit"
+         ->END
+end_await
 
 
 ============== YouTrained =========
@@ -145,10 +123,12 @@ You're ready to command your own ship.
 Good luck
 """""""""""""""""""""""""""""""""
 
-+ "Resume Mission" -> ResumeMission if mission_started==True
-+ "Start Mission" -> StartMission if mission_started==False
-
-choose
+await choice
+    + "Resume Mission"  if mission_started==True
+        -> ResumeMission
+    + "Start Mission"  if mission_started==False
+     -> StartMission
+end_await
 
 ================= StartMission ==============================
 
@@ -167,24 +147,27 @@ area 20 20 100 40
 
 learn = False
 
-button "Test 1" -> Learn
-button "Test 2" ->Learn
-button "Test 3" -> Learn
-button "Test 4" ->Learn
+button "Test 1" -> Learn end_button
+
+button "Test 2" ->Learn end_button
+button "Test 3" -> Learn  end_button
+button "Test 4" ->Learn end_button
 row
-button "Test 5" -> Learn
-button "Test 6" ->Learn
-button "Test 7" -> Learn
-button "Test 8" ->Learn
+button "Test 5" -> Learn end_button
+button "Test 6" ->Learn end_button
+button "Test 7" -> Learn end_button
+button "Test 8" ->Learn end_button
 row
-button "Test 9" -> Briefing
-button "Test 10" -> Briefing
+button "Test 9" -> Briefing end_button
+button "Test 10" -> Briefing end_button
 
 slider slider_value 0.0 1.0 0.5
 checkbox wilma "Yaba"
 
-+ "exit" ->END
-choose
+await choice
+    + "exit" 
+    ->END
+end_await
 
 ====================== NoChoice ======================
 
@@ -213,7 +196,8 @@ row
 --next y ----------------
 
 
-
-+ "Back" <<-
-choose
+await choice
+    + "Back" 
+        <<-
+end_await
 
