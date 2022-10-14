@@ -1,0 +1,144 @@
+enemy_count=20
+
+if IS_SERVER:
+    ->StartMenu
+else:
+    ->StartClient
+end_if
+
+
+========== StartMenu ===============
+
+area 50 10 99 90
+"""""
+Basic Siege written in Mast
+"""""
+section
+area 60 75 99 89
+
+slider enemy_count 1.0 50.0 5.0
+row
+""" Enemies: {enemy_count} """
+
+
+await choice
++ "Start Mission"
+~~~
+sbs.create_new_sim()
+sbs.resume_sim()
+~~~~
+    -> CreateMap
+end_await
+
+
+========== StartClient  ===============
+area 30 10 65 60
+""" 
+Mission: Basic Siege
+please wait for the game to Start
+
+Mean while pick a ship
+"""
+face faces.random_terran()
+section
+area 70 40 95 80
+checkbox art "Artemis"
+row
+checkbox hera "Hera"
+row
+checkbox atlas "Atlas"
+
+await choice
++ "Accept Mission"
+end_await
+
+================= Won ===================
+
+area 50 10 99 90
+"""""""
+Mission is won!  All the enemies have been destroyed.
+""""""
+
+await choice
+    + "Continue"
+    -> Start
+end_await
+
+================= Lost ===================
+"""
+Mission is lost!  All yer base are belong to us, dammit.
+"""
+
+await choice
+    + "Continue"
+    -> Start
+end_await
+
+================= CreateMap ===================
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+player_ships =  [ 
+        PlayerShip().spawn(sim, 500,0,0, "Artemis", "tsn", "Battle Cruiser").py_object,
+        PlayerShip().spawn(sim, 200,0,0, "Hera", "tsn", "Missile Cruiser").py_object,
+        PlayerShip().spawn(sim, 900,0,0, "Atlas", "tsn", "Missile Cruiser").py_object
+    ]
+sbs.assign_player_ship(player_ships[0].id)
+for player in player_ships:
+    faces.set_face(player.id, faces.random_terran())
+
+stations = [
+    Npc().spawn(sim,0,0,0, "Alpha", "tsn", "Starbase", "behav_station").py_object,
+    Npc().spawn(sim,2400,0,100, "Beta", "tsn", "Starbase", "behav_station").py_object
+]
+for ds in stations:
+    faces.set_face(ds.id, faces.random_terran(civilian=True))
+    ds.add_role('Station')
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# start the comms for the players and stations
+for ds in SpaceObject.get_object_with_role('Station'):
+    for player in SpaceObject.get_object_with_role('PlayerShip'):
+        ~~print(f"ds {ds.comms_id(sim)} player {player.comms_id(sim)}")~~
+        => station_comms {"self": ds, "player": player}
+    next player
+next ds
+
+=============== station_comms ===============
+comms_id = player.comms_id(sim)
+await self comms player
+    + "hail_tag"
+        -> HandleHail
+    + "Now Docking"
+        have self tell player  """We read you, {comms_id}.  We're standing by for expedited docking.^"""
+
+    + "Hello, world"
+        have self tell player  """Hello, World"""
+
+    + "Build Homing"
+        have self tell player  """We read you, {comms_id}.  We will focus on homing production.^"""
+       ~~ self.update_engine_data(sim, {"torpedo_build_type": sbs.TORPEDO.HOMING})~~
+    + "Build Nuke"
+        have self tell player  """We read you, {comms_id}.  We will focus on nuke production.^"""
+        ~~self.update_engine_data(sim, {"torpedo_build_type":sbs.TORPEDO.NUKE})~~
+    + "Build Emp"
+        have self tell player  """We read you, {comms_id}.  We will focus on EMP production.^"""
+        ~~self.update_engine_data(sim, {"torpedo_build_type": sbs.TORPEDO.EMP})~~
+    + "Build Mine"
+        have self tell player  """We read you, {comms_id}.  We will focus on MINE production.^"""
+       ~~self.update_engine_data(sim, {"torpedo_build_type": sbs.TORPEDO.MINE})~~
+end_await
+-> station_comms
+
+================ NPC_Comms ==================
+await self comms player
+    + "hail_tag"
+        -> HandleHail
+    + "You're Ugly"
+        have otherShip tell console_ship_id """You are a foolish Terran, {commsName}.  We know that the taunt functionality is not currently implemented.^"""
+
+    + "Surrender now"
+        have otherShip tell console_ship_id """OK we give up, {commsName}."""
+end_await
+
+
+

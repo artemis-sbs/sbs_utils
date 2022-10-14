@@ -273,16 +273,19 @@ class StoryRunner(MastSbsRunner):
         self.paint_refresh = False
         self.errors = []
 
-    def run(self, sim, page, label="main", inputs=None):
+    def run(self, sim, client_id, page, label="main", inputs=None):
         self.sim = sim
         self.page = page
         inputs = inputs if inputs else {}
+        self.vars['sim'] = sim
+        self.vars['client_id'] = client_id
+        self.vars['IS_SERVER'] = client_id==0
+        self.vars['IS_CLIENT'] = client_id!=0
         super().start_thread( label, inputs)
 
     def story_tick_threads(self, sim, client_id):
         self.sim = sim
         self.client_id = client_id
-        self.vars['sim'] = sim
         return super().sbs_tick_threads(sim)
 
     def refresh(self, label):
@@ -304,6 +307,9 @@ class StoryRunner(MastSbsRunner):
 
 class StoryPage(Page):
     tag = 0
+    story_file = None
+    inputs = None
+    story = None
     def __init__(self) -> None:
         self.gui_state = 'repaint'
         self.story_runner = None
@@ -317,18 +323,25 @@ class StoryPage(Page):
         self.sim = None
         #self.tag = 0
         self.errors = []
-                    
+        cls = self.__class__
+        
+        if cls.story is None:
+            if cls.story is  None:
+                cls.story = MastStory()
+                self.errors =  cls.story.from_file(cls.story_file)
+        
 
-    def run(self, sim, story_script):
-        story = MastStory()
-        errors = story.compile(story_script)
-        if len(errors) > 0:
-            message = "Compile errors\n".join(errors)
-            self.errors.append(message)
-            self.errors.extend(errors)
-        else:    
-            self.story_runner = StoryRunner(story)
-            self.story_runner.run(sim, self)
+    def start_story(self, sim, client_id):
+        if self.story_runner is not None:
+            return
+        cls = self.__class__
+        if len(self.errors)==0:
+            self.story_runner = StoryRunner(cls.story)
+            if cls.inputs:
+                self.story_runner.run(sim, client_id, self, inputs=cls.inputs)
+            else:
+                self.story_runner.run(sim, client_id, self)
+   
 
     def swap_layout(self):
         self.layouts = self.pending_layouts
@@ -407,7 +420,9 @@ class StoryPage(Page):
         """ Present the gui """
         if self.gui_state == "errors":
             return
-        if self.story_runner is not None:
+        if self.story_runner is None:
+            self.start_story(sim, event.client_id)
+        else:
             if len(self.story_runner.errors) > 0:
                 #errors = self.errors.reverse()
                 message = "Compile errors\n".join(self.story_runner.errors)
@@ -425,15 +440,11 @@ class StoryPage(Page):
                 Gui.pop(sim, event.client_id)
                 return
         if len(self.errors) > 0:
-            #errors = self.errors.reverse()
             message = "Compile errors\n".join(self.errors)
             sbs.send_gui_clear(event.client_id)
             sbs.send_gui_text(event.client_id, message, "error", 30,20,100,100)
             self.gui_state = "errors"
-
-        
-
-
+            return
         
         sz = sbs.get_screen_size()
         if sz is not None and sz.y != 0:

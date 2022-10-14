@@ -121,5 +121,6 @@ class MastSbs(Mast):
         EndAwait,
         Button,
         Near,
-        Simulation
+      #  Simulation
     ] + Mast.nodes 
+    

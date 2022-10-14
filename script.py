@@ -106,30 +106,25 @@ class TestLayoutPage(LayoutPage):
 
 
 
-class MyStory(StoryPage):
-    story = None
-    
-    def __init__(self, file=None) -> None:
-        super().__init__()
-        if MyStory.story is None:
-            err = self.init_mast(file)
-        else:
-            err = []
-        if len(err)==0:
-            self.story_runner = StoryRunner(MyStory.story)
-            self.story_runner.run(None, self, inputs= {
+class GuiStory(StoryPage):
+    story_file = "tests/mast/story_gui.mast"
+    inputs = {
             "PlayerShip": PlayerShip,
             "Npc": Npc
-            })
-        else:
-            self.errors = err
+            }
+    
+class SiegeStory(StoryPage):
+    story_file = "tests/mast/siege.mast"
+    inputs = {
+            "PlayerShip": PlayerShip,
+            "Npc": Npc
+            }
 
-    def init_mast(self, file):
-        if MyStory.story is not None:
-            return None
+class TttStory(StoryPage):
+    story_file = "tests/mast/ttt.mast"
+    inputs = None
 
-        MyStory.story = MastStory()
-        return  MyStory.story.from_file(file)
+
 
 
 ############################
@@ -164,6 +159,7 @@ class GuiMain(Page):
         sbs.send_gui_button(event.client_id, "Mast bar", "story", *next(w))
         sbs.send_gui_button(event.client_id, "Mast ttt", "story_ttt", *next(w))
         sbs.send_gui_button(event.client_id, "GridItems", "grid", *next(w))
+        sbs.send_gui_button(event.client_id, "Mast Siege", "siege", *next(w))
 
     def on_message(self, sim, event):
         match event.sub_tag:
@@ -202,13 +198,19 @@ class GuiMain(Page):
                 Gui.push(sim,event.client_id, TestLayoutPage())
 
             case "story":
-                page = MyStory("tests/mast/story_gui.mast")
+                page = GuiStory()
                 #page.run(sim , story_script)        
-                Gui.client_start_page_class(MyStory)        
+                Gui.client_start_page_class(GuiStory)        
+                Gui.push(sim,event.client_id, page)
+
+            case "siege":
+                page = SiegeStory()
+                #page.run(sim , story_script)        
+                Gui.client_start_page_class(SiegeStory)        
                 Gui.push(sim,event.client_id, page)
                 
             case "story_ttt":
-                page = MyStory("tests/mast/ttt.mast")
+                page = TttStory()
                 #page.run(sim , story_script)                
                 Gui.push(sim,event.client_id, page)
 
@@ -539,7 +541,7 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
         self.comms_id =  f"DS {self.ds_id}"
     
     def spawn(self, sim, x,y,z, side):
-        super().spawn(sim,x,y,z,self.comms_id, side, "Starbase", "behav_station",)
+        super().spawn(sim,x,y,z,self.comms_id, side, "Starbase", "behav_station")
         self.enable_comms()
     
     

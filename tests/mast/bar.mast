@@ -24,11 +24,17 @@ If you go to DS1 and get more supply them the Next one is on me.
 
 await choice
 + "Martini" if martinis > 0
--> Martinis
+    shared martinis = martinis-1
+    refresh GotoBar
+    ->GotoBar
 + "Beer"  if beer > 0
--> Beer
+    shared beer = beer-1
+    refresh GotoBar
+    ->GotoBar
 + "Vodka" if vodka > 0
- -> Vodka
+    shared vodka = vodka-1
+    refresh GotoBar
+    ->GotoBar
 + "Had enough"  if (beer+martinis+vodka) > 0
 <<-
 end_await
@@ -49,17 +55,3 @@ await choice nothing
 delay 5s
 <<-
 
-===================Vodka======================
-shared vodka = vodka-1
-refresh GotoBar
-->GotoBar
-
-======================Beer======================
-shared beer = beer-1
-refresh GotoBar
-->GotoBar
-
-======================Martinis======================
-shared martinis = martinis-1
-refresh GotoBar
-->GotoBar

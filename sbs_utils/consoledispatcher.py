@@ -20,6 +20,18 @@ class ConsoleDispatcher:
         """
         ConsoleDispatcher._dispatch_select[(an_id, console)] = cb
 
+    def add_select_pair(an_id: int, another_id: int, console: str, cb: typing.Callable):
+        """ add a target for console selection
+        
+        :param an_id: A ships ID player or non-player
+        :type an_id: int
+        :param console: The consoles unique ID
+        :type console: string
+        :param cb: call back function
+        :type cb:  should have arguments of other sim and object's id
+        """
+        ConsoleDispatcher._dispatch_select[(an_id, another_id, console)] = cb
+
     def add_message(an_id: int, console: str, cb: typing.Callable):
         """ add a target for console message
         
@@ -32,6 +44,19 @@ class ConsoleDispatcher:
         """
         ConsoleDispatcher._dispatch_messages[(an_id, console)] = cb
 
+    def add_message_pair(an_id: int, another, console: str, cb: typing.Callable):
+        """ add a target for console message
+        
+        :param an_id: A ships ID player or non-player
+        :type an_id: int
+        :param console: The consoles unique ID
+        :type console: string
+        :param cb: call back function
+        :type cb:  should have arguments of other sim, message and object's id
+        """
+        ConsoleDispatcher._dispatch_messages[(an_id, another, console)] = cb
+
+
     def remove_select(an_id: int, console: str):
         """ remove a target for console selection
         
@@ -42,6 +67,16 @@ class ConsoleDispatcher:
         """
         ConsoleDispatcher._dispatch_select.pop((an_id, console))
 
+    def remove_select_pair(an_id: int, another_id:int, console: str):
+        """ remove a target for console selection
+        
+        :param an_id: A ships ID player or non-player
+        :type an_id: int
+        :param console: The consoles unique ID
+        :type console: string
+        """
+        ConsoleDispatcher._dispatch_select.pop((an_id, another_id, console))
+
     def remove_message(an_id: int, console: str):
         """ remove a target for console messages
         
@@ -51,6 +86,16 @@ class ConsoleDispatcher:
         :type console: string
         """
         ConsoleDispatcher._dispatch_messages.pop((an_id, console))
+
+    def remove_message_pair(an_id: int, another_id:int, console: str):
+        """ remove a target for console messages
+        
+        :param an_id: A ships ID player or non-player
+        :type an_id: int
+        :param console: The consoles unique ID
+        :type console: string
+        """
+        ConsoleDispatcher._dispatch_messages.pop((an_id, another_id, console))
 
     def dispatch_select(sim, event):
         """ dispatches a console selection
@@ -75,6 +120,15 @@ class ConsoleDispatcher:
         if cb is not None:
             cb(sim, event.origin_id, event)
 
+        cb = ConsoleDispatcher._dispatch_select.get((event.origin_id, event.selected_id, event.sub_tag))
+        if cb is not None:
+            cb(sim, event.selected_id, event)
+            
+        # Allow to route to the selected ship too
+        cb = ConsoleDispatcher._dispatch_select.get((event.selected_id, event.origin_id, event.sub_tag))
+        if cb is not None:
+            cb(sim, event.origin_id, event)
+
     def dispatch_message(sim, event, console: str):
         """ dispatches a console message
         
@@ -94,6 +148,15 @@ class ConsoleDispatcher:
             cb(sim, event.sub_tag, event.selected_id, event)
 
         cb = ConsoleDispatcher._dispatch_messages.get((event.selected_id, console))
+        # Allow the target to process
+        if cb is not None:
+            cb(sim, event.sub_tag, event.origin_id, event)
+
+        cb = ConsoleDispatcher._dispatch_messages.get((event.origin_id, event.selected_id, console))
+        if cb is not None:
+            cb(sim, event.sub_tag, event.selected_id, event)
+
+        cb = ConsoleDispatcher._dispatch_messages.get((event.selected_id, event.origin_id, console))
         # Allow the target to process
         if cb is not None:
             cb(sim, event.sub_tag, event.origin_id, event)

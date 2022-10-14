@@ -75,8 +75,8 @@ class Label(MastNode):
         self.cmds.append(cmd)
 
 
-class InlineLabelStart(MastNode):
-    rule = re.compile(r'((\-{2,})\s*(?P<name>\w+)\s*)(\((?P<if_exp>[\s\S]+?)\))\s*(\-{2,})')
+class LoopStart(MastNode):
+    rule = re.compile(r'(for\s*(?P<name>\w+)\s*)(in|while)((?P<if_exp>[\s\S]+?):)')
 
     def __init__(self, if_exp=None, name=None, loc=None):
         if if_exp:
@@ -88,14 +88,14 @@ class InlineLabelStart(MastNode):
         self.iter = None
 
 
-class InlineLabelBreak(MastNode):
+class LoopBreak(MastNode):
     rule = re.compile(r'(?P<op>break|continue)\s*(?P<name>\w+)')
     def __init__(self, op=None, name=None, loc=None):
         self.name = name
         self.op = op
 
-class InlineLabelEnd(MastNode):
-    rule = re.compile(r'((\-{2,})\s*(end|(?P<loop>next))\s*(?P<name>\w+)\s*(\-{2,}))')
+class LoopEnd(MastNode):
+    rule = re.compile(r'((?P<loop>next)\s*(?P<name>\w+))')
     def __init__(self, loop=None, name=None, loc=None):
         self.loop = True if loop is not None and 'next' in loop else False
         self.name = name
@@ -201,6 +201,11 @@ class Import(MastNode):
 class Comment(MastNode):
     rule = re.compile(r'#[ \t\S]*')
 
+    def __init__(self, loc=None):
+        pass
+
+class Marker(MastNode):
+    rule = re.compile(r'[-*+]{3,}')
     def __init__(self, loc=None):
         pass
 
@@ -421,9 +426,9 @@ class Mast:
         Label,
         IfStatements,
         MatchStatements,
-        InlineLabelStart,
-        InlineLabelEnd,
-        InlineLabelBreak,
+        LoopStart,
+        LoopEnd,
+        LoopBreak,
         PyCode,
         Input,
         #        Var,
@@ -435,6 +440,7 @@ class Mast:
         End,
         Jump,
         Delay,
+        Marker,
     ]
 
     def clear(self):
@@ -557,7 +563,7 @@ class Mast:
         self.clear()
         line_no = 0
         errors = []
-        if_chains = []
+        active = self.labels.get("main")
         while len(lines):
             mo = first_non_newline_index(lines)
             line_no += mo if mo is not None else 0
@@ -615,15 +621,15 @@ class Mast:
                                 for e in err:
                                     print("import error "+e)
 
-                        case "InlineLabelStart":
-                            inline = InlineLabelStart(**data)
+                        case "LoopStart":
+                            inline = LoopStart(**data)
                             label_name = f"{active.name}:{inline.name}"
                             start = len(self.cmd_stack[-1].cmds)
                             self.cmd_stack[-1].add_child(inline)
                             self.inline_labels[label_name] = InlineData(start, None)
 
-                        case "InlineLabelEnd":
-                            inline = InlineLabelEnd(**data)
+                        case "LoopEnd":
+                            inline = LoopEnd(**data)
                             label_name = f"{active.name}:{inline.name}"
                             end = len(self.cmd_stack[-1].cmds)
                             self.cmd_stack[-1].add_child(inline)
@@ -632,7 +638,10 @@ class Mast:
                             self.inline_labels[label_name] = data
 
 
+                        # Throw comments and markers away
                         case "Comment":
+                            pass
+                        case "Marker":
                             pass
 
                         case _:

@@ -90,8 +90,8 @@ class JumpRunner(MastRuntimeNode):
         return PollResults.OK_JUMP
 
 
-class InlineLabelStartRunner(MastRuntimeNode):
-    def enter(self, mast, thread:MastAsync, node:InlineLabelStart):
+class LoopStartRunner(MastRuntimeNode):
+    def enter(self, mast, thread:MastAsync, node:LoopStart):
         scoped_val = thread.get_value(node.name, None)
         index = scoped_val[0]
         scope = scoped_val[1]
@@ -127,7 +127,7 @@ class InlineLabelStartRunner(MastRuntimeNode):
                 thread.set_value(node.name+"__iter", None, Scope.TEMP)
  
 
-    def poll(self, mast, thread, node:InlineLabelStart):
+    def poll(self, mast, thread, node:LoopStart):
         value = True
         if node.iter:
             scoped_val = thread.get_value(node.name, None)
@@ -145,16 +145,16 @@ class InlineLabelStartRunner(MastRuntimeNode):
             return PollResults.OK_ADVANCE_TRUE
         return PollResults.OK_ADVANCE_TRUE
 
-class InlineLabelEndRunner(MastRuntimeNode):
-    def poll(self, mast, thread, node:InlineLabelEnd):
+class LoopEndRunner(MastRuntimeNode):
+    def poll(self, mast, thread, node:LoopEnd):
         inline_label = f"{thread.active_label}:{node.name}"
         if node.loop == True:
             thread.jump_inline_start(inline_label)
             return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
-class InlineLabelBreakRunner(MastRuntimeNode):
-    def enter(self, mast, thread:MastAsync, node:InlineLabelStart):
+class LoopBreakRunner(MastRuntimeNode):
+    def enter(self, mast, thread:MastAsync, node:LoopStart):
         scoped_val = thread.get_value(node.name, None)
         index = scoped_val[0]
         scope = scoped_val[1]
@@ -162,7 +162,7 @@ class InlineLabelBreakRunner(MastRuntimeNode):
             scope = Scope.TEMP
         self.scope = scope
 
-    def poll(self, mast, thread, node:InlineLabelEnd):
+    def poll(self, mast, thread, node:LoopEnd):
         inline_label = f"{thread.active_label}:{node.name}"
         if node.op == 'break':
             thread.jump_inline_end(inline_label, True)
@@ -534,9 +534,9 @@ class MastRunner:
         "Jump": JumpRunner,
         "IfStatements": IfStatementsRunner,
         "MatchStatements": MatchStatementsRunner,
-        "InlineLabelStart": InlineLabelStartRunner,
-        "InlineLabelEnd": InlineLabelEndRunner,
-        "InlineLabelBreak": InlineLabelBreakRunner,
+        "LoopStart": LoopStartRunner,
+        "LoopEnd": LoopEndRunner,
+        "LoopBreak": LoopBreakRunner,
         "PyCode": PyCodeRunner,
         "Await": AwaitRunner,
         "Parallel": ParallelRunner,

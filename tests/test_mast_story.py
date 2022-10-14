@@ -64,6 +64,20 @@ end_await
                 print(err)
         assert(len(errors) == 0)
 
+    def test_compile_file_bar(self):
+        (errors, mast) = mast_story_compile_file( code ="tests/mast/bar.mast")     
+        if len(errors)>0:
+            for err in errors:
+                print(err)
+        assert(len(errors) == 0)
+
+    def test_compile_file_gui(self):
+        (errors, mast) = mast_story_compile_file( code ="tests/mast/story_gui.mast")     
+        if len(errors)>0:
+            for err in errors:
+                print(err)
+        assert(len(errors) == 0)
+
 
 if __name__ == '__main__':
     try:
@@ -71,21 +85,3 @@ if __name__ == '__main__':
     except Exception as e:
         print(e.msg)
 
-"""
-    Comment,
-    Label,
-    IfStatements,
-InlineLabelStart,
-InlineLabelEnd,
-InlineLabelBreak,
-    PyCode,
-Input,
-Import,
-    Await,  # needs to be before Parallel
-    Parallel,  # needs to be before Assign
-Cancel,
-    Assign,
-    End,
-    Jump,
-    Delay,
-"""

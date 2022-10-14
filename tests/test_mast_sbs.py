@@ -243,21 +243,3 @@ if __name__ == '__main__':
     except Exception as e:
         print(e.msg)
 
-"""
-    Comment,
-    Label,
-    IfStatements,
-InlineLabelStart,
-InlineLabelEnd,
-InlineLabelBreak,
-    PyCode,
-Input,
-Import,
-    Await,  # needs to be before Parallel
-    Parallel,  # needs to be before Assign
-Cancel,
-    Assign,
-    End,
-    Jump,
-    Delay,
-"""

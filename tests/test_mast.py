@@ -9,44 +9,38 @@ class TMastRunner(MastRunner):
         print(f"RUNTIME ERROR: {message}")
 
 def mast_compile(code=None):
-    def decorator(func):
-        def wrapper(self, **kargs):
-            mast = Mast()
-            errors = mast.compile(code)
-            func(self, errors=errors, mast=mast, **kargs)
-        return wrapper
-    return decorator
+        mast = Mast()
+        errors = mast.compile(code)
+        return (errors, mast)
 
 
 def mast_run(code=None):
-    def decorator(func):
-        def wrapper(self, **kargs):
-            mast = Mast()
-            errors = mast.compile(code)
-            runner = TMastRunner(mast)
-            runner.start_thread()
+    mast = Mast()
+    errors = mast.compile(code)
+    runner = TMastRunner(mast)
+    runner.start_thread()
+    return (errors,runner, mast)
 
-            func(self, runner=runner, mast=mast, errors=errors,  **kargs)
-        return wrapper
-    return decorator
 
 class TestMastCompile(unittest.TestCase):
     
-    @mast_compile( code = """
-     x = ~~[
-        [2,3,4],
-        [4,5,6]
-        ]~~
-    """)
-    def test_compile_err(self, errors, mast):
+    
+    def test_compile_err(self):
+        (errors, _) = mast_compile( code = """
+x = ~~[
+[2,3,4],
+[4,5,6]
+]~~
+""")
         for e in errors:
             print(e)
 
-    @mast_compile( code = """
-     ~~ "{}{}".format(2,3) ~~
-    """)
-    def test_py_exp_compile_err(self, errors, mast):
-       assert(len(errors)==0)
+    
+    def test_py_exp_compile_err(self):
+        (errors, mast) = mast_compile( code = """
+~~ "{}{}".format(2,3) ~~
+""")
+        assert(len(errors)==0)
 
     # @mast_compile( code = """
     # import test/file/name.mast
@@ -55,56 +49,74 @@ class TestMastCompile(unittest.TestCase):
     # def test_import_compile_err(self, errors, mast):
     #    assert(len(errors)==0)
 
-    @mast_compile( code = """
-    delay 1m
-    delay 2s
-    delay 1m 5s
-    """)
-    def test_jump_compile_err(self, errors, mast):
-       assert(len(errors)==0)
-    @mast_compile( code = """
-    ->END
-    -> END
-    -> a_label
-    ->another
-    -> maybe if x> 3
-    ->> a_push
-    ->>b_push
-    <<-
-    => fork
-    f1 => fork
-    =>fork_you
-    =>fork_you if y == 3
-    => pass_data {"self": player1, "HP": 30}
-    => pass_data ~~{
-        "self": player1, 
-        "HP": 30
-        }~~
-    await => trend
-    await => pass_data {"self": player1, "HP": 30}
-    await => pass_data ~~{
-        "self": player1, 
-        "HP": 30
-        }~~
-    await => trend if t > 23
-    """)
-    def test_delay_compile_err(self, errors, mast):
-       assert(len(errors)==0)
+    
+    def test_delay_compile_err(self):
+        (errors, mast) = mast_compile( code = """
+delay 1m
+delay 2s
+delay 1m 5s
+""")
+        assert(len(errors)==0)
+
+    def test_loop_compile_err(self):
+        (errors, mast) = mast_compile( code = """
+for x while y<0:
+y = y + x
+next x
+
+for x in range(10):
+y = y + x
+next x
+""")
+        assert(len(errors)==0)
 
 
-    @mast_run( code = """
-    shared var1 = 100
-     var2 = 200
-     var3 = "This is a string"
-     var4 = "This is a string {var2}"
-     var5 = var1 + var2
-     var6 = MastDataObject({"HP": 10, "XP": 20})
-    var6.HP = 40
-    # var6.HP = 400 comments
-     var7 = var2 / var1 * var5
-     var8 = ~~ [[2,3],[4,5]] ~~
-    """)
-    def test_py_exp_run_no_err(self, runner:MastRunner, errors, mast:Mast):
+
+    def test_delay_compile_err(self):
+        (errors, mast) =mast_compile( code = """
+->END
+-> END
+-> a_label
+->another
+-> maybe if x> 3
+->> a_push
+->>b_push
+<<-
+=> fork
+f1 => fork
+=>fork_you
+=>fork_you if y == 3
+=> pass_data {"self": player1, "HP": 30}
+=> pass_data ~~{
+    "self": player1, 
+    "HP": 30
+    }~~
+await => trend
+await => pass_data {"self": player1, "HP": 30}
+await => pass_data ~~{
+    "self": player1, 
+    "HP": 30
+    }~~
+await => trend if t > 23
+""")
+
+        assert(len(errors)==0)
+
+
+    
+    def test_py_exp_run_no_err(self):
+        (errors, runner, _) = mast_run( code = """
+shared var1 = 100
+var2 = 200
+var3 = "This is a string"
+var4 = "This is a string {var2}"
+var5 = var1 + var2
+var6 = MastDataObject({"HP": 10, "XP": 20})
+var6.HP = 40
+# var6.HP = 400 comments
+var7 = var2 / var1 * var5
+var8 = ~~ [[2,3],[4,5]] ~~
+""")
         assert(len(errors)==0)
         assert(runner.get_value("var1") == (100,Scope.SHARED))
         assert(runner.get_value("var2") == (200,Scope.NORMAL))
@@ -124,30 +136,42 @@ class TestMastCompile(unittest.TestCase):
         assert(list_value[0][1]==3)
         assert(list_value[1][0]==4)
         assert(list_value[1][1]==5)
+     
+    def test_if(self):
+        (errors, runner, _) = mast_run( code = """
+x = 52
+if x<50:
+x=100
+end_if
 
-    @mast_run( code = """
-     x = 52
-    if x<50:
-    x=100
-    end_if
+if x<50:
+x=9999
+elif x>50:
+x=200
+else:
+x=300
+end_if
 
-    if x<50:
-    x=9999
-    elif x>50:
-    x=200
-    else:
-    x=300
-    end_if
+if x<50:
+x=9999
+elif x>250:
+x=200
+else:
+x=300
+end_if
 
     """)
-    def test_if(self, runner, errors, mast):
+        assert(len(errors)==0)
         while runner.is_running():
             runner.tick()
+        x = runner.get_value("x")
+        assert(x==(300, Scope.NORMAL))
 
-    @mast_run( code = """
-    x = 52
-    match x:
-    case 50:
+    def test_match(self):
+        (errors, runner, _) = mast_run( code = """
+x = 52
+match x:
+case 50:
     x=100
     case 52:
     x=300
@@ -165,8 +189,7 @@ class TestMastCompile(unittest.TestCase):
     case _:
         x= x *2
     end_match
-    """)
-    def test_match(self, runner, errors, mast):
+""")
         assert(len(errors)==0)
         x = runner.get_value("x")
         assert(x==(600, Scope.NORMAL))
@@ -174,7 +197,9 @@ class TestMastCompile(unittest.TestCase):
 
 
 
-    @mast_run( code = """
+
+    def test_py_exp_run_no_err(self):
+        (errors, runner, _) = mast_run( code = """
 var1 = 100
 shared var2 = 100
 ->> Push  # var1 is 200 # var2 200
@@ -217,7 +242,6 @@ shared var2 = var2 + 100
 ->END
 
     """)
-    def test_py_exp_run_no_err(self, runner:MastRunner, errors, mast:Mast):
         assert(len(errors)==0)
         var1 = runner.get_value("var1")
         var2 = runner.get_value("var2")
@@ -247,9 +271,9 @@ if __name__ == '__main__':
     Comment,
     Label,
     IfStatements,
-InlineLabelStart,
-InlineLabelEnd,
-InlineLabelBreak,
+LoopStart,
+LoopEnd,
+LoopBreak,
     PyCode,
 Input,
 Import,

@@ -29,9 +29,9 @@ turn = X_TURN
 ============== clear ============
 grid = []
 ####
---i (i<9 )--- 
+for i in range(9):
 ~~grid.append(END_UNKNOWN)~~
--- next i --
+next i
 winning_loc = []
 <<-
 
@@ -40,7 +40,7 @@ winning_loc = []
 draw = grid[0]
 
 end_game = END_UNKNOWN
---------------- check (check < len(checks)) ----------
+for check in range(len(checks)):
 check_cur = checks[check]
 draw = draw* grid[check+1]
 
@@ -53,7 +53,7 @@ elif  sum == -3:
     winning_loc = check_cur
     end_game = END_O_WINS
 end_if
-------------------- next check --------------------------
+next check
 
 # if any zero on grid draw would = 0
 # so non zero means draw        
@@ -96,8 +96,8 @@ turn = -turn
 
 =========== play ================
 
---y ( y<3 )---------
--------x ( x<3 )-----
+for y while y<3:
+for x while x<3:
     test = y*3+x
     space = grid[test]
     
@@ -111,11 +111,10 @@ turn = -turn
         """ 0 """
     end_if
 
-------next x--- 
+next x
 row
--- next y---
+next y
 
-# + "TEST" -> play
 await choice nothing
 
 
@@ -123,8 +122,8 @@ await choice nothing
 ============== draw_board   ======
 # This draws the board after the game is over
 row
---y ( y<3 )---------
---x ( x<3 )-----
+for y in range(3):
+for x in range(3):
 
 space = grid[y*3+x]
 test = y*3+x
@@ -141,7 +140,7 @@ elif space == -1:
 end_if
 
 
--- next x--- 
+next x
 row
--- next y---
+next y
 <<-

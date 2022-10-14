@@ -107,6 +107,13 @@ class SpaceObject:
                 roles.append(role)
         return roles
 
+    def get_object_with_role(role):
+        ret = []
+        if SpaceObject.ids.get(role):
+            
+            for id in SpaceObject.ids.get(role):
+                ret.append(SpaceObject.get(id))
+        return ret
 
 
 
@@ -277,17 +284,18 @@ class SpaceObject:
         :param shoot: if the object should be shot at
         :type shoot: bool
         """
-        this = sim.get_space_object(self.id)
         other = sim.get_space_object(other_id)
+        
         if other:
-            blob = this.data_set
-            blob.set("target_pos_x", other.pos.x)
-            blob.set("target_pos_y", other.pos.y)
-            blob.set("target_pos_z", other.pos.z)
+            data = {
+            "target_pos_x": other.pos.x,
+            "target_pos_y": other.pos.y,
+            "target_pos_z": other.pos.z,
+            "target_id": 0
+            }
             if shoot:
-                blob.set("target_id", other.unique_ID)
-            else:
-                blob.set("target_id", 0)
+                data["target_id"] = other.unique_ID
+            self.update_engine_data(sim, data)
 
     def target_pos(self, sim, x:float, y:float, z:float):
         """ Set the item to target
@@ -299,12 +307,13 @@ class SpaceObject:
         :param shoot: if the object should be shot at
         :type shoot: bool
         """
-        this = sim.get_space_object(self.id)
-
-        blob = this.data_set
-        blob.set("target_pos_x", x)
-        blob.set("target_pos_y", y)
-        blob.set("target_pos_z", z)
+        data = {
+            "target_pos_x": x,
+            "target_pos_y": y,
+            "target_pos_z": z,
+            "target_id": 0
+            }
+        self.update_engine_data(sim, data)
 
     def find_closest_nav(self, sim, nav=None, max_dist=None, filter_func=None) -> CloseData:
         """ Finds the closest object matching the criteria
@@ -356,6 +365,17 @@ class SpaceObject:
             self.target_pos(nav_object.pos.x, nav_object.pos.y,nav_object.pos.z)
         return found
 
+    def update_engine_data(self,sim, data):
+        this = sim.get_space_object(self.id)
+        blob = this.data_set
+        for (key, value) in data.items():
+            if type(value) is tuple:
+                blob.set(key, value[0], value[1])
+            else:
+                blob.set(key, value)
+        
+
+
     def clear_target(self, sim):
         """ Clear the target
 
@@ -363,12 +383,13 @@ class SpaceObject:
         :type sim: Artemis Cosmos simulation
         """
         this = sim.get_space_object(self.id)
-
-        blob = this.data_set
-        blob.set("target_pos_x", this.pos.x)
-        blob.set("target_pos_y", this.pos.y)
-        blob.set("target_pos_z", this.pos.z)
-        blob.set("target_id", 0)
+        self.update_engine_data(sim, {
+            "target_pos_x": this.pos.x,
+            "target_pos_y": this.pos.y,
+            "target_pos_z": this.pos.z,
+            "target_id": 0
+        })
+        
 
     def debug_mark_loc(sim,  x: float, y: float, z: float, name: str, color: str):
         """ Adds a nav point to the location passed if debug mode is on
@@ -436,7 +457,7 @@ class SpaceObject:
         blob = so.data_set
         return blob.get("name_tag", 0)
 
-    def comm_id(self, sim):
+    def comms_id(self, sim):
         """ Get the text to use in the comms messages
 
         :param sim: The simulation

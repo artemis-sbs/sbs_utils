@@ -128,7 +128,7 @@ FLOAT_VALUE_REGEX = r"[+-]?([0-9]*[.])?[0-9]+"
 
 class SliderControl(MastNode):
     rule = re.compile(r"""slider"""+
-        r"""\s+(?P<var>[ \t\S]+)"""+
+        r"""\s+(?P<var>\w+)"""+
         r"""\s+(?P<low>"""+FLOAT_VALUE_REGEX+
         r""")\s+(?P<high>"""+FLOAT_VALUE_REGEX+
         r""")\s+(?P<value>"""+FLOAT_VALUE_REGEX+

@@ -6,6 +6,7 @@ from ..spaceobject import SpaceObject
 from ..consoledispatcher import ConsoleDispatcher
 from ..gui import Gui
 from .errorpage import ErrorPage
+from .. import faces
 
 import traceback
 
@@ -28,7 +29,9 @@ class TellRunner(MastRuntimeNode):
         from_so:SpaceObject = thread.vars.get(node.from_tag)
         if from_so:
             self.from_id = from_so.get_id()
-            self.title = from_so.comm_id(thread.main.sim)
+            self.title = from_so.comms_id(thread.main.sim)
+            self.face = faces.get_face(self.from_id)
+            
         else:
             thread.runtime_error("Tell has invalid from")            
 
@@ -63,21 +66,26 @@ class CommsRunner(MastRuntimeNode):
         from_so:SpaceObject = thread.vars.get(node.from_tag)
         if from_so:
             self.from_id = from_so.get_id()
-            self.comms_id = from_so.comm_id(thread.main.sim)
-            ConsoleDispatcher.add_select(self.from_id, 'comms_targetUID', self.comms_selected)
-            ConsoleDispatcher.add_message(self.from_id, 'comms_targetUID', self.comms_message)
+            self.comms_id = from_so.comms_id(thread.main.sim)
+            ConsoleDispatcher.add_select_pair(self.from_id, self.to_id, 'comms_targetUID', self.comms_selected)
+            ConsoleDispatcher.add_message_pair(self.from_id, self.to_id,  'comms_targetUID', self.comms_message)
             self.set_buttons(self.from_id, self.to_id)
             # from_so.face_desc
 
     def comms_selected(self, sim, an_id, event):
         to_id = event.origin_id
         from_id = event.selected_id
+        print(f"comms to {to_id} from {from_id} other {an_id}")
+        print(f"comms origin {event.origin_id} selected {event.selected_id}")
         self.set_buttons(from_id, to_id)
 
     def set_buttons(self, from_id, to_id):
         # check to see if the from ship still exists
         if from_id is not None:
-            sbs.send_comms_selection_info(to_id, "", self.color, self.comms_id)
+            from_face = faces.get_face(from_id) 
+            if from_face is None:
+                from_face = ""
+            sbs.send_comms_selection_info(to_id, from_face, self.color, self.comms_id)
             for i, button in enumerate(self.buttons):
                 value = True
                 color = "blue" if button.color is None else button.color
@@ -89,31 +97,34 @@ class CommsRunner(MastRuntimeNode):
 
     def comms_message(self, sim, message, an_id, event):
         ### These are opposite from selected??
-        from_id = event.origin_id
-        to_id = event.selected_id
+        from_id =self.from_id
+        to_id = self.to_id
 
+        print(" buttons A")
         self.button = int(event.sub_tag)
+        print(" buttons B")
         this_button: Button = self.buttons[self.button]
+        print(" buttons C")
         this_button.visit((from_id, to_id))
+        self.thread.tick()
 
 
     def leave(self, mast:Mast, thread:MastAsync, node: Comms):
-        ConsoleDispatcher.remove_select(self.from_id, 'comms_targetUID')
-        ConsoleDispatcher.remove_message(self.from_id, 'comms_targetUID')
+        ConsoleDispatcher.remove_select_pair(self.from_id, self.to_id, 'comms_targetUID')
+        ConsoleDispatcher.remove_message_pair(self.from_id, self.to_id, 'comms_targetUID')
         sbs.send_comms_selection_info(self.to_id, "", self.color, self.comms_id)
         if node.assign is not None:
             thread.set_value_keep_scope(node.assign, self.button)
-            
-
         
 
     def poll(self, mast:Mast, thread:MastAsync, node: Comms):
-
+        print(" buttons poll")
         if len(node.buttons)==0:
             # clear the comms buttons
             return PollResults.OK_ADVANCE_TRUE
 
         if self.button is not None:
+            print("Jump to buttons")
             button = self.buttons[self.button] 
             thread.jump(thread.active_label,button.loc+1)
             return PollResults.OK_JUMP
@@ -127,7 +138,7 @@ class CommsRunner(MastRuntimeNode):
                 elif node.end_await_node:
                     thread.jump(thread.active_label,node.end_await_node.loc+1)
                     return PollResults.OK_JUMP
-
+        print("buttons run again")
         return PollResults.OK_RUN_AGAIN
 
 class TargetRunner(MastRuntimeNode):
@@ -201,7 +212,7 @@ over =     {
       "Tell": TellRunner,
       "Near": NearRunner,
       "Target": TargetRunner,
-      "Simulation": SimulationRunner,
+#      "Simulation": SimulationRunner,
       "Button": ButtonRunner
     }
 
@@ -212,6 +223,8 @@ class MastSbsRunner(MastRunner):
         else:
             super().__init__(mast,  over)
         self.sim = None
+        Mast.globals["sbs"] = sbs
+        Mast.globals["SpaceObject"] =SpaceObject
 
     def run(self, sim, label="main", inputs=None):
         self.sim = sim

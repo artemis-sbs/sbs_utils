@@ -18,12 +18,7 @@ shared alisa = "ter #6d8b01 3 0;ter #6d8b01 4 1;ter #6d8b01 4 3;ter #CC9966 8 4 
 shared frank = "ter #f2efee 0 0;ter #f2efee 2 0;ter #f2efee 0 3;ter #fff 12 1 14 -2;ter #fff 2 6;ter #3d0463 9 0 12 4;"
 shared mission_started = False
 
-
-long_text = """  kjlkjkljll;jl
-
-;jljlkkhkjhkhkj
-"""
-
+# Non-Shared data unique to the client (runner)
 learn = True
 
 
@@ -31,7 +26,12 @@ learn = True
 
 ================== Briefing ================
 
-area 20 10 60 90
+if IS_SERVER:
+    area 21 10 60 90
+else:
+    area 30 10 60 90
+end_if
+
 
 
 face alisa
@@ -66,7 +66,7 @@ This is your first ship
 """""""""""""""""""""""""""""""""
 blank
 
-await choice
+-------------await choice---------------------
     + "Yes.." if learn == True
         -> YouLied 
     + "Yes.." if learn == False
@@ -75,11 +75,11 @@ await choice
          -> Learn
     + "Bar"
      ->> GotoBar
-    + "HUD" 
+    + "HUD"
     ->> Hud
     + "Exit" 
     ->END
-end_await
+-----------------end_await------------------
 
 # This is for the bar/hud when they pops
 ->Briefing
@@ -102,8 +102,8 @@ You should board the next shuttle and get the hell out of my sector
 """""""""""""""""""""""""""""""""""""""""""
 
 await choice
-    + "Exit"
-         ->END
++ "Exit"
+->END
 end_await
 
 
@@ -132,13 +132,14 @@ end_await
 
 ================= StartMission ==============================
 
-simulation create
+~~sbs.create_new_sim()~~
+
 shared mission_started = True
 ->>MapStuff
 ->ResumeMission
 
 ================= ResumeMission ==============================
-simulation resume
+~~ sbs.resume_sim() ~~
 ->YouTrained
 
 ==================           Learn     ===========
@@ -187,13 +188,13 @@ shared tsn =  ~~ [
 
 ===================== Hud ============
 
---y ( range(4) )----------------
-----x ( range(4) )-----
+for y in range(4):
+for x in range(4):
     f = "hud #fff {x} {y}"
     face f
-----next x ------------
+next x
 row
---next y ----------------
+next y
 
 
 await choice
