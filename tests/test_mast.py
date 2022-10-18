@@ -194,6 +194,27 @@ case 50:
         x = runner.get_value("x")
         assert(x==(600, Scope.NORMAL))
 
+    def test_loops(self):
+            (errors, runner, _) = mast_run( code = """
+    x = 52
+    for y in range(10):
+        x = x + 1
+    next y
+    x = x + 20
+    x = x + 50
+    for y in range(10):
+        x = x + 1
+    next y
+    for y in range(10):
+        for z in range(10):
+            x = x + 1
+        next z
+    next y
+    """)
+            assert(len(errors)==0)
+            x = runner.get_value("x")
+            assert(x==(242, Scope.NORMAL))
+
 
 
 

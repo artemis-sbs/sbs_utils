@@ -1,5 +1,8 @@
 from enum import IntEnum
+
+from ..tickdispatcher import TickDispatcher
 from .mast import *
+
 
 class MastRuntimeNode:
     def enter(self, mast, runner, node):
@@ -141,15 +144,16 @@ class LoopStartRunner(MastRuntimeNode):
             inline_label = f"{thread.active_label}:{node.name}"
             # End loop clear value
             thread.set_value(node.name, None, self.scope)
-            thread.jump_inline_end(inline_label, False)
-            return PollResults.OK_ADVANCE_TRUE
+            thread.jump(thread.active_label, node.end.loc+1)
+            #thread.jump_inline_end(inline_label, False)
+            return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
 class LoopEndRunner(MastRuntimeNode):
     def poll(self, mast, thread, node:LoopEnd):
         inline_label = f"{thread.active_label}:{node.name}"
         if node.loop == True:
-            thread.jump_inline_start(inline_label)
+            thread.jump(thread.active_label, node.start.loc)
             return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
@@ -165,12 +169,14 @@ class LoopBreakRunner(MastRuntimeNode):
     def poll(self, mast, thread, node:LoopEnd):
         inline_label = f"{thread.active_label}:{node.name}"
         if node.op == 'break':
-            thread.jump_inline_end(inline_label, True)
+            #thread.jump_inline_end(inline_label, True)
+            thread.jump(thread.active_label, node.start.end.loc+1)
             # End loop clear value
             thread.set_value(node.name, None, self.scope)
             return PollResults.OK_JUMP
         elif node.op == 'continue':
-            thread.jump_inline_start(inline_label)
+            thread.jump(thread.active_label, node.start.loc)
+            #thread.jump_inline_start(inline_label)
             return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
@@ -277,7 +283,9 @@ class AwaitRunner(MastRuntimeNode):
             # spawn via thread to pass same inputs
             self.thread = thread.start_thread(node.label, vars)
         else:
-            self.thread = thread.main.name_threads.get(node.label)
+            named_thread = thread.get_value(node.label, None)
+            if named_thread is not None:
+                self.thread = named_thread[0]
 
     def poll(self, mast, thread, node:Await):
         if self.thread is None:
@@ -298,12 +306,11 @@ class CancelRunner(MastRuntimeNode):
     
 class DelayRunner(MastRuntimeNode):
     def enter(self, mast, thread, node):
-        self.timeout = node.minutes*60+node.seconds
+        self.timeout = TickDispatcher.current + (node.minutes*60+node.seconds)*TickDispatcher.tps
         self.tag = None
 
     def poll(self, mast, thread, node):
-        self.timeout -= 1
-        if self.timeout <= 0:
+        if self.timeout <= TickDispatcher.current:
             return PollResults.OK_ADVANCE_TRUE
 
         return PollResults.OK_RUN_AGAIN
@@ -384,7 +391,6 @@ class MastAsync:
         m1 =  self.vars | m1
         for st in self.label_stack:
             data = st.data
-            print(f"data -- {data}")
             if data is not None:
                 m1 =  m1 | data
         return m1
@@ -487,7 +493,7 @@ class MastAsync:
                             continue
             return PollResults.OK_RUN_AGAIN
         except BaseException as err:
-            self.main.runtime_error(err)
+            self.main.runtime_error(str(err))
             return PollResults.OK_END
                             
 
@@ -553,9 +559,10 @@ class MastRunner:
         self.threads = []
         self.name_threads = {}
         self.inputs = None
-        self.vars = {}
+        self.vars = self.labels = {"mast_runtime": self}
         self.done = []
         self.mast.add_runner(self)
+        
 
     def runtime_error(self, message):
         pass
@@ -569,15 +576,16 @@ class MastRunner:
         self.on_start_thread(t)
         self.threads.append(t)
         if thread_name is not None:
-            self.name_threads[thread_name] = t
+            self.active_thread.set_value(thread_name, t, Scope.NORMAL)
         return t
 
     def on_start_thread(self, t):
         t.tick()
     def cancel_thread(self, name):
-        t = self.name_threads.get(name)
-        if t:
-            self.done.append(t)
+        data = self.active_thread.get_value(name, None)
+        # Assuming its OK to cancel none
+        if data is not None:
+            self.done.append(data[0])
 
     def is_running(self):
         if len(self.threads) == 0:
@@ -593,13 +601,15 @@ class MastRunner:
 
     def tick(self):
         for thread in self.threads:
+            self.active_thread = thread
             res = thread.tick()
             if res == PollResults.OK_END:
                 self.done.append(thread)
         
         if len(self.done):
             for rem in self.done:
-                self.threads.remove(rem)
+                if rem in self.threads:
+                    self.threads.remove(rem)
             self.done = []
 
         if len(self.threads):

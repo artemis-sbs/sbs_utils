@@ -7,6 +7,7 @@ from ..consoledispatcher import ConsoleDispatcher
 from ..gui import Gui
 from .errorpage import ErrorPage
 from .. import faces
+from ..tickdispatcher import TickDispatcher
 
 import traceback
 
@@ -50,10 +51,13 @@ class TellRunner(MastRuntimeNode):
 
 class CommsRunner(MastRuntimeNode):
     def enter(self, mast:Mast, thread:MastAsync, node: Comms):
-        self.timeout = node.minutes*60+node.seconds
-        if self.timeout == 0:
+        seconds = (node.minutes*60+node.seconds)
+        if seconds == 0:
             self.timeout = None
+        else:
+            self.timeout = TickDispatcher.current + (node.minutes*60+node.seconds)*TickDispatcher.tps
 
+        print("CHOOSE")
         self.tag = None
         self.buttons = node.buttons
         self.button = None
@@ -75,8 +79,6 @@ class CommsRunner(MastRuntimeNode):
     def comms_selected(self, sim, an_id, event):
         to_id = event.origin_id
         from_id = event.selected_id
-        print(f"comms to {to_id} from {from_id} other {an_id}")
-        print(f"comms origin {event.origin_id} selected {event.selected_id}")
         self.set_buttons(from_id, to_id)
 
     def set_buttons(self, from_id, to_id):
@@ -99,12 +101,8 @@ class CommsRunner(MastRuntimeNode):
         ### These are opposite from selected??
         from_id =self.from_id
         to_id = self.to_id
-
-        print(" buttons A")
         self.button = int(event.sub_tag)
-        print(" buttons B")
         this_button: Button = self.buttons[self.button]
-        print(" buttons C")
         this_button.visit((from_id, to_id))
         self.thread.tick()
 
@@ -118,27 +116,26 @@ class CommsRunner(MastRuntimeNode):
         
 
     def poll(self, mast:Mast, thread:MastAsync, node: Comms):
-        print(" buttons poll")
         if len(node.buttons)==0:
             # clear the comms buttons
+            print("CHOOSE no but")
             return PollResults.OK_ADVANCE_TRUE
 
         if self.button is not None:
-            print("Jump to buttons")
+            print("CHOOSE selection")
             button = self.buttons[self.button] 
+            self.button = None
             thread.jump(thread.active_label,button.loc+1)
             return PollResults.OK_JUMP
 
-        if self.timeout:
-            self.timeout -= 1
-            if self.timeout <= 0:
-                if self.timeout_node:
-                    thread.jump(thread.active_label,self.timeout_node.loc+1)
-                    return PollResults.OK_JUMP
-                elif node.end_await_node:
-                    thread.jump(thread.active_label,node.end_await_node.loc+1)
-                    return PollResults.OK_JUMP
-        print("buttons run again")
+        if self.timeout is not None and self.timeout <= TickDispatcher.current:
+            print("CHOOSE timeout")
+            if node.timeout_label:
+                thread.jump(thread.active_label,node.timeout_label.loc+1)
+                return PollResults.OK_JUMP
+            elif node.end_await_node:
+                thread.jump(thread.active_label,node.end_await_node.loc+1)
+                return PollResults.OK_JUMP
         return PollResults.OK_RUN_AGAIN
 
 class TargetRunner(MastRuntimeNode):
@@ -162,9 +159,12 @@ class TargetRunner(MastRuntimeNode):
 
 class NearRunner(MastRuntimeNode):
     def enter(self, mast:Mast, thread:MastAsync, node: Near):
-        self.timeout = node.minutes*60+node.seconds
-        if self.timeout==0:
+        seconds = (node.minutes*60+node.seconds)
+        if seconds == 0:
             self.timeout = None
+        else:
+            self.timeout = TickDispatcher.current + (node.minutes*60+node.seconds)*TickDispatcher.tps
+
         self.tag = None
 
         to_so:SpaceObject = thread.vars.get(node.to_tag)
@@ -180,15 +180,13 @@ class NearRunner(MastRuntimeNode):
         if dist <= node.distance:
             return PollResults.OK_ADVANCE_TRUE
 
-        if self.timeout:
-            self.timeout -= 1
-            if self.timeout <= 0:
-                if self.timeout_node:
-                    thread.jump(thread.active_label,self.timeout_node.loc+1)
-                    return PollResults.OK_JUMP
-                elif node.end_await_node:
-                    thread.jump(thread.active_label,node.end_await_node.loc+1)
-                    return PollResults.OK_JUMP
+        if self.timeout is not None and self.timeout <= TickDispatcher.current:
+            if node.timeout_label:
+                thread.jump(thread.active_label,node.timeout_label.loc+1)
+                return PollResults.OK_JUMP
+            elif node.end_await_node:
+                thread.jump(thread.active_label,node.end_await_node.loc+1)
+                return PollResults.OK_JUMP
 
         return PollResults.OK_RUN_AGAIN
 

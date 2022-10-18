@@ -74,22 +74,20 @@ class Area(MastNode):
         
 
 class Choose(MastNode):
-    rule = re.compile(r"""await choice((\s*(?P<nothing>nothing))|(\s*set\s*(?P<assign>\w+)))?"""+TIMEOUT_REGEX)
-    def __init__(self, nothing=None, assign=None,minutes=None, seconds=None, loc=None):
+    rule = re.compile(r"""await choice((\s*set\s*(?P<assign>\w+)))?"""+TIMEOUT_REGEX+"\s*:")
+    def __init__(self, assign=None,minutes=None, seconds=None, loc=None):
         self.assign = assign
         self.seconds = 0 if  seconds is None else int(seconds)
         self.minutes = 0 if  minutes is None else int(minutes)
-        self.nothing = nothing is not None
-        
+                
         self.buttons = []
-
-        if not self.nothing:
-            self.timeout_label = None
-            self.end_await_node = None
-            EndAwait.stack.append(self)
+    
+        self.timeout_label = None
+        self.end_await_node = None
+        EndAwait.stack.append(self)
 
 class ButtonControl(MastNode):
-    rule = re.compile(r"""((button\s+["'](?P<message>.+?)["'])(\s*data\s*=\s*(?P<data>"""+PY_EXP_REGEX+r"""))?"""+IF_EXP_REGEX+r")|(?P<end>end_button)")
+    rule = re.compile(r"""((button\s+["'](?P<message>.+?)["'])(\s*data\s*=\s*(?P<data>"""+PY_EXP_REGEX+r"""))?"""+IF_EXP_REGEX+r"\s*:)|(?P<end>end_button)")
     stack = []
     def __init__(self, message, data=None, py=None, if_exp=None, end=None, loc=None):
         #self.message = message
@@ -127,14 +125,15 @@ class ButtonControl(MastNode):
 FLOAT_VALUE_REGEX = r"[+-]?([0-9]*[.])?[0-9]+"
 
 class SliderControl(MastNode):
-    rule = re.compile(r"""slider"""+
+    rule = re.compile(r"""(?P<is_int>intslider|slider)"""+
         r"""\s+(?P<var>\w+)"""+
         r"""\s+(?P<low>"""+FLOAT_VALUE_REGEX+
         r""")\s+(?P<high>"""+FLOAT_VALUE_REGEX+
         r""")\s+(?P<value>"""+FLOAT_VALUE_REGEX+
         r""")""")
-    def __init__(self, var=None, low=0.0, high=1.0, value=0.5, loc=None):
+    def __init__(self, is_int=None, var=None, low=0.0, high=1.0, value=0.5, loc=None):
         self.var= var
+        self.is_int = (is_int=="intslider")
         self.low = float(low)
         self.high = float(high)
         self.value = float(value)

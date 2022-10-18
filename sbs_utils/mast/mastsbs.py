@@ -11,7 +11,6 @@ class Target(MastNode):
         self.from_tag = from_tag
         self.to_tag = to_tag
         self.approach = cmd=="approach"
-        print(f'target {self.from_tag} {self.to_tag}')
 
         
 class Tell(MastNode):
@@ -24,7 +23,7 @@ class Tell(MastNode):
 
 
 class Timeout(MastNode):
-    rule = re.compile(r'timeout')
+    rule = re.compile(r'timeout\s*:')
     def __init__(self, loc=None):
         self.loc = loc
         self.await_node = EndAwait.stack[-1]
@@ -41,7 +40,7 @@ class EndAwait(MastNode):
 
 
 class Comms(MastNode):
-    rule = re.compile(r"""await\s*(?P<from_tag>\w+)\s*comms\s*(?P<to_tag>\w+)(\s*set\s*(?P<assign>\w+))?(\s+color\s*["'](?P<color>[ \t\S]+)["'])?"""+TIMEOUT_REGEX)
+    rule = re.compile(r"""await\s*(?P<from_tag>\w+)\s*comms\s*(?P<to_tag>\w+)(\s*set\s*(?P<assign>\w+))?(\s+color\s*["'](?P<color>[ \t\S]+)["'])?"""+TIMEOUT_REGEX+'\s*:')
     def __init__(self, to_tag, from_tag, assign=None, minutes=None, seconds=None, time_pop=None,time_push="", time_jump="", color="white", loc=None):
         self.to_tag = to_tag
         self.from_tag = from_tag
@@ -56,7 +55,7 @@ class Comms(MastNode):
         EndAwait.stack.append(self)
 
 class Button(MastNode):
-    rule = re.compile(r"""(?P<button>\*|\+)\s+(?P<q>["'])(?P<message>.+?)(?P=q)"""+OPT_COLOR+IF_EXP_REGEX)
+    rule = re.compile(r"""(?P<button>\*|\+)\s+(?P<q>["'])(?P<message>.+?)(?P=q)"""+OPT_COLOR+IF_EXP_REGEX+"\s*:")
     def __init__(self, button, message,  color, if_exp, q=None, loc=None):
         self.message = self.compile_formatted_string(message)
         self.sticky = (button == '+' or button=="button")
@@ -88,7 +87,7 @@ class Button(MastNode):
 
 
 class Near(MastNode):
-    rule = re.compile(r'await\s*(?P<from_tag>\w+)\s+near\s+(?P<to_tag>\w+)\s*(?P<distance>\d+)'+TIMEOUT_REGEX)
+    rule = re.compile(r'await\s*(?P<from_tag>\w+)\s+near\s+(?P<to_tag>\w+)\s*(?P<distance>\d+)'+TIMEOUT_REGEX+"\s*:")
     def __init__(self, to_tag, from_tag, distance, minutes=None, seconds=None, loc=None):
         self.to_tag = to_tag
         self.from_tag = from_tag

@@ -97,8 +97,8 @@ class SpaceObject:
 
 
     def _remove_every_role(id):
-        for role, _ in SpaceObject.ids:
-            SpaceObject.remove_role(role, id)
+        for role in SpaceObject.ids:
+            SpaceObject._remove_role(role, id)
 
     def get_roles(self, id):
         roles = []
@@ -107,7 +107,7 @@ class SpaceObject:
                 roles.append(role)
         return roles
 
-    def get_object_with_role(role):
+    def get_objects_with_role(role):
         ret = []
         if SpaceObject.ids.get(role):
             
@@ -226,7 +226,6 @@ class SpaceObject:
             ids = SpaceObject.ids['all']
         else:
             # non need to check role later
-            print(f"count {len(ids)}")
             roles = None
 
             
@@ -367,13 +366,38 @@ class SpaceObject:
 
     def update_engine_data(self,sim, data):
         this = sim.get_space_object(self.id)
+        if this is None:
+            # Object is destroyed
+            return
         blob = this.data_set
         for (key, value) in data.items():
             if type(value) is tuple:
                 blob.set(key, value[0], value[1])
             else:
                 blob.set(key, value)
-        
+
+    def get_engine_data(self,sim, key, index=0):
+        this = sim.get_space_object(self.id)
+        if this is None:
+            # Object is destroyed
+            return
+        blob = this.data_set
+        return blob.get(key, index)
+    
+    def set_engine_data(self,sim, key, value, index=0):
+        this = sim.get_space_object(self.id)
+        if this is None:
+            # Object is destroyed
+            return
+        blob = this.data_set
+        blob.set(key, value, index)
+
+    def get_engine_data_set(self,sim):
+        this = sim.get_space_object(self.id)
+        if this is None:
+            # Object is destroyed
+            return None
+        return  this.data_set
 
 
     def clear_target(self, sim):

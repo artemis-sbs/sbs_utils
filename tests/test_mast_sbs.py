@@ -30,34 +30,31 @@ class TestMastSbsCompile(unittest.TestCase):
 have self tell player "Hello"
 have self approach player
 have self target player
-simulation create
-simulation pause
-simulation resume
 
-await self near player 700 timeout 1m 1s
+await self near player 700 timeout 1m 1s:
 -> Test
-timeout
+timeout:
 -> Test
 end_await
 
 
-await self comms player timeout 1m 1s
-    * "Button one"
+await self comms player timeout 1m 1s:
+    * "Button one":
         -> JumpLabel
-    + "Button Two"
+    + "Button Two":
         -> JumpLabel
-    + "Button Jump" 
-    timeout
+    + "Button Jump": 
+    timeout:
         -> JumpSomeWhere
 end_await
 
 
-await self comms player
-* "Button one"
-    await self comms player
-    * "Button one"
-        await self comms player
-        * "Button one"
+await self comms player:
+* "Button one":
+    await self comms player:
+    * "Button one":
+        await self comms player:
+        * "Button one":
             -> JumpLabel
         end_await
     end_await
@@ -74,28 +71,28 @@ end_await
     @mast_sbs_compile( code ="""
 # Set the comms buttons to start the 'quest'
 
-await self comms player
-+ "Start at DS1"
+await self comms player:
++ "Start at DS1":
  -> One
-+ "Start at DS2"
++ "Start at DS2":
  -> Two
-+ "Taunt"
++ "Taunt":
  -> Taunt
  end_await
 
 
 == Taunt ==
 
-await self comms player
-    * "Your mother"  color "red"
+await self comms player:
+    * "Your mother"  color "red":
         -> Taunt
-    + "Kiss my Engine"  color "green"
+    + "Kiss my Engine"  color "green":
         -> Taunt
-    + "Skip me" color "white" if x > 54
+    + "Skip me" color "white" if x > 54:
         -> Taunt 
-    * "Don't Skip me" color "white" if x < 54
+    * "Don't Skip me" color "white" if x < 54:
      -> Taunt 
-    + "Taunt" 
+    + "Taunt" :
         -> Taunt
 end_await
 
@@ -112,48 +109,48 @@ await=>HeadToDS1
 
 == HeadToDS1 ==
 have self approach ds1                           # Goto DS1
-await self near  ds1 700
+await self near  ds1 700:
     have self tell player  "I have arrived at ds1"   # tell the player
 end_await
 
 == HeadToDS2 ==
 have self approach ds2                           # goto DS2
-await self near ds2 700                           # wait until near D2
+await self near ds2 700:                           # wait until near D2
     have self tell player "I have arrived at ds2"    # tell the player
 end_await
 
 
 == Start ==
 
-await self comms player
-+ "Say Hello" 
+await self comms player:
++ "Say Hello" :
 -> Hello
-+ "Say Hi"
++ "Say Hi":
  -> Hi
-+ "Shutup"
++ "Shutup":
  -> Shutup
 end_await
 
 
 == skip ==
 have self tell player "Come to pick the princess"
-await self near player 300
+await self near player 300:
     have self tell player "You have the princess goto ds1"
 end_await
 
-await player near  station 700
+await player near  station 700:
     have station tell player "the princess is on ds1"
 end_await
 
 == Hello ==
 have self tell player "HELLO"
 
-await self comms player
-+ "Say Blue"
+await self comms player:
++ "Say Blue":
 -> Blue
-+ "Say Yellow"
++ "Say Yellow":
 -> Yellow
-+ "Say Cyan"
++ "Say Cyan":
 -> Cyan
 end_await
 
@@ -183,9 +180,9 @@ delay 10s
 
 == Cyan ==
 have self tell player "Cyan"
-await self comms player timeout 5s
-+ "Say main" -> main
-timeout
+await self comms player timeout 5s:
++ "Say main": -> main
+timeout:
 -> TooSlow
 end_await
 
@@ -204,32 +201,32 @@ delay 10s
 
 
 """
---------await self near player 700 timeout 1m 1s----------
+--------await self near player 700 timeout 1m 1s:----------
 
-----------timeout-----------------
+----------timeout:-----------------
 
 ----------end_await-----------------
 
 
-await self comms player timeout 1m 1s
-* "Button one" ******
+await self comms player timeout 1m 1s:
+* "Button one": ******
 
-+ "Button Two"
++ "Button Two":
 -> JumpLabel
-+ "Button Jump" 
-+ "Button Push"
++ "Button Jump": 
++ "Button Push":
 ->> PushLabel
-+ "Button Pop"
++ "Button Pop":
 <<-
-+ "Button Await 1" ****
++ "Button Await 1": ****
     await => par
-++++++++++++ "Button Await 1"  ****
+++++++++++++ "Button Await 1":  ****
 await => par {"S":1}
-+++++++++++ "Button Await 1" ******
++++++++++++ "Button Await 1": ******
 await => par ~~ {
     "S":1
     }~~
-------------- timeout---------------
+------------- timeout:---------------
 -> JumpSomeWhere
 ---------------end_await ----------------
 """

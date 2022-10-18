@@ -24,8 +24,10 @@ class DamageDispatcher:
         parent = DamageDispatcher._dispatch_source.get(damage_event.parent_id)
         source = DamageDispatcher._dispatch_source.get(damage_event.origin_id)
         target = DamageDispatcher._dispatch_target.get(damage_event.selected_id)
+        
+
         if damage_event.sub_tag == 'destroyed':
-            so:SpaceObject = SpaceObject.get(damage_event.origin_id)
+            so:SpaceObject = SpaceObject.get(damage_event.selected_id)
             if so is not None:
                 so.destroyed()
 

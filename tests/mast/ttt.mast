@@ -80,8 +80,8 @@ end_match
 
 ->>draw_board
 
-await choice
-    + "Play Again"
+await choice:
+    + "Play Again":
         ->> clear
         ->play
 end_await
@@ -102,7 +102,7 @@ for x while x<3:
     space = grid[test]
     
     if space == 0:
-        button "{test+1}" data = ~~{"test": test}~~
+        button "{test+1}" data = ~~{"test": test}~~:
             await => set_grid {"slot":test} 
         end_button
     elif space == 1:
@@ -115,7 +115,9 @@ next x
 row
 next y
 
-await choice nothing
+await choice: end_await
+delay 4m
+
 
 
 

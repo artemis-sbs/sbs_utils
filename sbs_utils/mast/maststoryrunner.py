@@ -5,6 +5,7 @@ import sbs
 from ..gui import FakeEvent, Gui, Page
 
 from ..pages import layout
+from ..tickdispatcher import TickDispatcher
 
 from .errorpage import ErrorPage
 from .maststory import AppendText, ButtonControl, MastStory, Choose, Text, Blank, Ship, Face, Row, Section, Area, Refresh, SliderControl, CheckboxControl
@@ -14,6 +15,8 @@ from .mastsbsrunner import MastSbsRunner, Button
 class StoryRuntimeNode(MastRuntimeNode):
     def on_message(self, sim, event):
         pass
+    def databind(self):
+        return False
 
 class FaceRunner(StoryRuntimeNode):
     def enter(self, mast:Mast, thread:MastAsync, node: Face):
@@ -22,7 +25,8 @@ class FaceRunner(StoryRuntimeNode):
         if node.code:
             face = thread.eval_code(node.code)
         if face is not None:
-            thread.main.page.add_content(layout.Face(face, tag), self)
+            self.layout_item = layout.Face(face, tag)
+            thread.main.page.add_content(self.layout_item, self)
 
     def poll(self, mast, thread, node:Face):
         return PollResults.OK_ADVANCE_TRUE
@@ -41,16 +45,31 @@ class ShipRunner(StoryRuntimeNode):
 class TextRunner(StoryRuntimeNode):
     current = None
     def enter(self, mast:Mast, thread:MastAsync, node: Text):
-        tag = thread.main.page.get_tag()
+        self.tag = thread.main.page.get_tag()
         msg = ""
+        # for databind
+        self.node = node
+        self.thread = thread 
         value = True
         if node.code is not None:
             value = thread.eval_code(node.code)
         if value:
             msg = thread.format_string(node.message)
-            self.layout_text = layout.Text(msg, tag)
+            self.layout_text = layout.Text(msg, self.tag)
             TextRunner.current = self
             thread.main.page.add_content(self.layout_text, self)
+
+    def databind(self):
+        value = True
+        if self.node.code is not None:
+            value = self.thread.eval_code(self.node.code)
+        if value:
+            msg = self.thread.format_string(self.node.message)
+            if self.layout_text.message !=msg:
+                self.layout_text.message = msg
+                return True
+        return False
+        
 
 class AppendTextRunner(StoryRuntimeNode):
     def enter(self, mast:Mast, thread:MastAsync, node: AppendText):
@@ -122,10 +141,13 @@ class AreaRunner(StoryRuntimeNode):
 
 class ChooseRunner(StoryRuntimeNode):
     def enter(self, mast:Mast, thread:MastAsync, node: Choose):
-        self.timeout = node.minutes*60+node.seconds
-        if self.timeout == 0:
+        seconds = (node.minutes*60+node.seconds)
+        if seconds == 0:
             self.timeout = None
+        else:
+            self.timeout = TickDispatcher.current + (node.minutes*60+node.seconds)*TickDispatcher.tps
 
+        
         button_layout = layout.Layout(None, 30,95,90,100)
 
         active = 0
@@ -164,7 +186,7 @@ class ChooseRunner(StoryRuntimeNode):
 
 
     def poll(self, mast:Mast, thread:MastAsync, node: Choose):
-        if self.active==0 and self.timeout is None and not node.nothing:
+        if self.active==0 and self.timeout is None:
             return PollResults.OK_ADVANCE_TRUE
 
 
@@ -174,25 +196,23 @@ class ChooseRunner(StoryRuntimeNode):
                 return PollResults.OK_ADVANCE_TRUE
 
             self.button.node.visit(self.button.client_id)
-
-        if self.button is not None:
             button = self.buttons[self.button.index]
+            self.button = None
             thread.jump(thread.active_label,button.loc+1)
             return PollResults.OK_JUMP
 
         if self.timeout:
-            self.timeout -= 1
-            if self.timeout <= 0:
-                if self.timeout_node:
-                    thread.jump(thread.active_label,self.timeout_node.loc+1)
+            if self.timeout <= TickDispatcher.current:
+                if node.timeout_label:
+                    thread.jump(thread.active_label,node.timeout_label.loc+1)
                     return PollResults.OK_JUMP
-                elif self.end_await_node:
-                    thread.jump(thread.active_label,self.end_await_node.loc+1)
+                elif node.end_await_node:
+                    thread.jump(thread.active_label,node.end_await_node.loc+1)
                     return PollResults.OK_JUMP
         return PollResults.OK_RUN_AGAIN
 
 
-class ChoiceButtonRunner:
+class ChoiceButtonRunner(StoryRuntimeNode):
     def __init__(self, choice, index, tag, node):
         self.choice = choice
         self.index = index
@@ -204,6 +224,7 @@ class ChoiceButtonRunner:
         if event.sub_tag == self.tag:
             self.choice.button = self
             self.client_id = event.client_id
+    
 
 
 
@@ -216,14 +237,16 @@ class SliderControlRunner(StoryRuntimeNode):
         self.scope = scoped_val[1]
         self.layout = layout.Slider(val, node.low, node.high, self.tag)
         self.thread = thread
-        
 
         thread.main.page.add_content(self.layout, self)
 
     def on_message(self, sim, event):
         if event.sub_tag == self.tag:
-            self.thread.set_value(self.node.var, event.sub_float, self.scope)
-            self.layout.value = event.sub_float
+            if self.node.is_int:
+                self.layout.value = int(event.sub_float)
+            else:
+                self.layout.value = event.sub_float
+            self.thread.set_value(self.node.var, self.layout.value, self.scope)
 
 
 class CheckboxControlRunner(StoryRuntimeNode):
@@ -341,6 +364,12 @@ class StoryPage(Page):
                 self.story_runner.run(sim, client_id, self, inputs=cls.inputs)
             else:
                 self.story_runner.run(sim, client_id, self)
+            TickDispatcher.do_interval(sim, self.tick_mast, 0)
+
+    def tick_mast(self, sim, t):
+        if self.story_runner:
+            self.story_runner.story_tick_threads(sim, self.client_id)
+
    
 
     def swap_layout(self):
@@ -377,7 +406,6 @@ class StoryPage(Page):
             self.pending_tag_map = {}
 
         if hasattr(layout_item, 'tag'):
-            #print(f"TAGGED: {layout_item.__class__.__name__} {layout_item.tag}")
             self.pending_tag_map[layout_item.tag] = layout_item
 
     def add_content(self, layout_item, runner):
@@ -475,10 +503,19 @@ class StoryPage(Page):
 
 
     def on_message(self, sim, event):
+        
         message_tag = event.sub_tag
         runner = self.tag_map.get(message_tag)
         if runner:
+            
             runner.on_message(sim, event)
+            refresh = False
+            for node in self.tag_map.values():
+                if node != runner:
+                    bound = node.databind()
+                    refresh = bound or refresh
+            if refresh:
+                self.gui_state = "refresh"
             self.present(sim, event)
 
 

@@ -24,25 +24,26 @@ def mast_story_compile_file(code=None):
 class TestMastStoryCompile(unittest.TestCase):
     
     @mast_story_compile( code = """
-await choice nothing
+await choice: end_await
 
-await choice timeout 1m 1s
-    * "Button one"
+
+await choice timeout 1m 1s:
+    * "Button one":
         -> JumpLabel
-    + "Button Two"
+    + "Button Two":
         -> JumpLabel
-    + "Button Jump" 
-    timeout
+    + "Button Jump": 
+    timeout:
         -> JumpSomeWhere
 end_await
 
 
-await choice
-* "Button one"
-    await self comms player
-    * "Button one"
-        await self comms player
-        * "Button one"
+await choice:
+* "Button one":
+    await choice:
+    * "Button one":
+        await choice:
+        * "Button one":
             -> JumpLabel
         end_await
     end_await

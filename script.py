@@ -1,8 +1,9 @@
 from sbs_utils.handlerhooks import *
 import unittest
 import sbs
+
 from sbs_utils.tickdispatcher import TickDispatcher
-from sbs_utils.objects import PlayerShip, Npc
+from sbs_utils.objects import PlayerShip, Npc, Terrain
 import sbs_utils.faces as faces
 from sbs_utils.consoledispatcher import MCommunications
 from sbs_utils.spaceobject import SpaceObject, MSpawnActive
@@ -110,14 +111,16 @@ class GuiStory(StoryPage):
     story_file = "tests/mast/story_gui.mast"
     inputs = {
             "PlayerShip": PlayerShip,
-            "Npc": Npc
+            "Npc": Npc,
+            "Terrain": Terrain
             }
     
 class SiegeStory(StoryPage):
     story_file = "tests/mast/siege.mast"
     inputs = {
             "PlayerShip": PlayerShip,
-            "Npc": Npc
+            "Npc": Npc,
+            "Terrain": Terrain
             }
 
 class TttStory(StoryPage):
@@ -543,6 +546,8 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
     def spawn(self, sim, x,y,z, side):
         super().spawn(sim,x,y,z,self.comms_id, side, "Starbase", "behav_station")
         self.enable_comms()
+        
+
     
     
 

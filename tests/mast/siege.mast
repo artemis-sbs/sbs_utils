@@ -1,11 +1,6 @@
 enemy_count=20
 
-if IS_SERVER:
-    ->StartMenu
-else:
-    ->StartClient
-end_if
-
+if IS_SERVER:->StartMenu else: ->StartClient end_if
 
 ========== StartMenu ===============
 
@@ -16,20 +11,18 @@ Basic Siege written in Mast
 section
 area 60 75 99 89
 
-slider enemy_count 1.0 50.0 5.0
+intslider enemy_count 1.0 50.0 5.0
 row
-""" Enemies: {enemy_count} """
+""" Enemies: {int(enemy_count)} """
 
-
-await choice
-+ "Start Mission"
+await choice:
++ "Start Mission":
 ~~~
 sbs.create_new_sim()
 sbs.resume_sim()
 ~~~~
     -> CreateMap
 end_await
-
 
 ========== StartClient  ===============
 area 30 10 65 60
@@ -48,34 +41,50 @@ checkbox hera "Hera"
 row
 checkbox atlas "Atlas"
 
-await choice
-+ "Accept Mission"
+await choice:
++ "Accept Mission":
 end_await
 
-================= Won ===================
+============ WatchEndGame ======= 
+players = ~~ SpaceObject.get_objects_with_role('PlayerShip') ~~
+if len(players)==0:
+    ->Lost
+end_if
 
+raiders = ~~SpaceObject.get_objects_with_role('Raider')~~
+if len(raiders)==0:
+    -> Won
+end_if
+
+delay 4s
+-> WatchEndGame
+
+================= Won ===================
+~~ sbs.pause_sim() ~~
 area 50 10 99 90
 """""""
 Mission is won!  All the enemies have been destroyed.
 """"""
 
-await choice
-    + "Continue"
+await choice:
+    + "Continue":
     -> Start
 end_await
 
 ================= Lost ===================
+~~ sbs.pause_sim() ~~
 """
 Mission is lost!  All yer base are belong to us, dammit.
 """
 
-await choice
-    + "Continue"
+await choice:
+    + "Continue":
     -> Start
 end_await
 
 ================= CreateMap ===================
 
+### This is a python code snippet to create the map content
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 player_ships =  [ 
         PlayerShip().spawn(sim, 500,0,0, "Artemis", "tsn", "Battle Cruiser").py_object,
@@ -93,52 +102,244 @@ stations = [
 for ds in stations:
     faces.set_face(ds.id, faces.random_terran(civilian=True))
     ds.add_role('Station')
+
+enemyTypeNameList = ["Dreadnaught","Battleship","Hunter","Cargo","ARV Carrier","Behemoth"]
+enemy_prefix = "KLMNQ"
+
+enemy = 0
+spawn_points = scatter.sphere(int(enemy_count), 0,0,0, 6000, 6000+250*enemy_count, ring=True)
+for v in spawn_points:
+    r_type = random.choice(enemyTypeNameList)
+    r_name = f"{random.choice(enemy_prefix)}_{enemy}"
+    spawn_data = Npc().spawn_v(sim,v, r_name, "RAIDER", r_type, "behav_npcship")
+    faces.set_face(spawn_data.id, faces.random_kralien())
+    spawn_data.py_object.add_role("Raider")
+    enemy += 1
+    for player in player_ships:
+        mast_runtime.start_thread("NPC_Comms", {"self": spawn_data.py_object, "player": player})
+        mast_runtime.start_thread("PlayerDocking", {"self": player})
+
+# make a few random clusters of nebula
+spawn_points = scatter.sphere(random.randint(2,7), 0,0,0, 1000, 4000, ring=True)
+for v in spawn_points:
+    cluster_spawn_points = scatter.sphere(random.randint(10,20), v.x, 0,v.z, 100, 1000, ring=True)
+    for v2 in cluster_spawn_points:
+        Terrain().spawn_v(sim,v2,None, None, "nebula", "behav_nebula")
+
+# make a few random clusters of Asteroids
+spawn_points = scatter.sphere(random.randint(10,20), 0,0,0, 1000, 4000, ring=True)
+for v in spawn_points:
+    cluster_spawn_points = scatter.sphere(random.randint(10,20), v.x, 0,v.z, 100, 1000, ring=False)
+    for v2 in cluster_spawn_points:
+        #keep value between -500 and 500??
+        v2.y = abs(v2.y) % 500 * (v2.y/abs(v2.y))
+        a_type = f"Asteroid {random.randint(1,11)}"
+        Terrain().spawn_v(sim,v2,None, None, a_type, "behav_asteroid")
+
+# I want candy
+spawn_points = scatter.sphere(random.randint(5,12), 0,0,0, 1000, 4000, ring=True)
+for v in spawn_points:
+    cluster_spawn_points = scatter.sphere(random.randrange(10,20), v.x, 0,v.z, 100, 1000, ring=False)
+    # Random type, but same for cluster
+    a_type = f"Danger Object {random.randint(1,5)}{random.choice('ABC')}"
+    for v2 in cluster_spawn_points:
+        #keep value between -500 and 500??
+        v2.y = abs(v2.y) % 500 * (v2.y/abs(v2.y))
+        Terrain().spawn_v(sim,v2,None, None, a_type, "behav_mine")
+
+
+################################
+### You can callback into the runtime
+###mast_runtime.start_thread("Test_python_link")
+### Need a way to mark a thread is for a specific SpaceObject
+### So that it can be cleaned up if the SpaceObject is destroyed
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # start the comms for the players and stations
-for ds in SpaceObject.get_object_with_role('Station'):
-    for player in SpaceObject.get_object_with_role('PlayerShip'):
-        ~~print(f"ds {ds.comms_id(sim)} player {player.comms_id(sim)}")~~
+# Each ship will have its of thread for comms
+# this enables them to have a unique path
+for ds in SpaceObject.get_objects_with_role('Station'):
+    for player in SpaceObject.get_objects_with_role('PlayerShip'):
         => station_comms {"self": ds, "player": player}
     next player
 next ds
 
+
+#############################################
+# Create task to watch for end game condition
+#############################################
+=>WatchEndGame
+##### Start raiders targeting ###
+=>NPC_Targeting
+
+
 =============== station_comms ===============
 comms_id = player.comms_id(sim)
-await self comms player
-    + "hail_tag"
-        -> HandleHail
-    + "Now Docking"
+
+await self comms player:
+    + "Hail":
+        homing = self.get_engine_data(sim, "torpedo_count", sbs.TORPEDO.HOMING)
+        nuke = self.get_engine_data(sim, "torpedo_count", sbs.TORPEDO.NUKE)
+        emp = self.get_engine_data(sim, "torpedo_count", sbs.TORPEDO.EMP)
+        mine = self.get_engine_data(sim, "torpedo_count", sbs.TORPEDO.MINE)
+        have self tell player """
+Hello, {comms_id}.  We stand ready to assist.
+You have full docking privileges.
+{homing} Homing ready
+{nuke} Nuke ready
+{emp} EMP ready
+{mine} Mine ready
+{torpedo_build_type} in production.
+"""
+    + "Now Docking":
         have self tell player  """We read you, {comms_id}.  We're standing by for expedited docking.^"""
 
-    + "Hello, world"
+    + "Hello, world":
         have self tell player  """Hello, World"""
 
-    + "Build Homing"
+    + "Build Homing": 
         have self tell player  """We read you, {comms_id}.  We will focus on homing production.^"""
-       ~~ self.update_engine_data(sim, {"torpedo_build_type": sbs.TORPEDO.HOMING})~~
-    + "Build Nuke"
+        torpedo_build_type = sbs.TORPEDO.HOMING
+        cancel build_task
+        build_task => build_torp
+
+    + "Build Nuke":
         have self tell player  """We read you, {comms_id}.  We will focus on nuke production.^"""
-        ~~self.update_engine_data(sim, {"torpedo_build_type":sbs.TORPEDO.NUKE})~~
-    + "Build Emp"
+        torpedo_build_type= sbs.TORPEDO.NUKE
+        cancel build_task
+        build_task => build_torp
+
+    + "Build Emp":
         have self tell player  """We read you, {comms_id}.  We will focus on EMP production.^"""
-        ~~self.update_engine_data(sim, {"torpedo_build_type": sbs.TORPEDO.EMP})~~
-    + "Build Mine"
+        torpedo_build_type= sbs.TORPEDO.EMP
+        cancel build_task
+        build_task => build_torp
+    + "Build Mine":
         have self tell player  """We read you, {comms_id}.  We will focus on MINE production.^"""
-       ~~self.update_engine_data(sim, {"torpedo_build_type": sbs.TORPEDO.MINE})~~
+        torpedo_build_type = sbs.TORPEDO.MINE
+        cancel build_task
+        build_task => build_torp
 end_await
+
 -> station_comms
 
+=== build_torp ===
+delay 10s
+~~
+cur_count = self.get_engine_data(sim, "torpedo_count", torpedo_build_type)
+self.set_engine_data(sim, "torpedo_count", cur_count+1, torpedo_build_type)
+~~
+have self tell player  """{comms_id}. {torpedo_build_type} Production complete."""
+->END
+
+
+
+
+
 ================ NPC_Comms ==================
-await self comms player
-    + "hail_tag"
-        -> HandleHail
-    + "You're Ugly"
-        have otherShip tell console_ship_id """You are a foolish Terran, {commsName}.  We know that the taunt functionality is not currently implemented.^"""
-
-    + "Surrender now"
-        have otherShip tell console_ship_id """OK we give up, {commsName}."""
+comms_id = player.comms_id(sim)
+await self comms player:
+    + "Hail":
+        have self tell player "{comms_id}! We will destroy you, disgusting Terran scum!"
+    + "You're Ugly":
+        have self tell player  """You are a foolish Terran, {comms_id}.  We know that the taunt functionality is not currently implemented.^"""
+    + "Surrender now":
+        have self tell player """OK we give up, {comms_id}."""
 end_await
+-> NPC_Comms
+
+========== NPC_Targeting === 
+~~~~~
+for raider in SpaceObject.get_objects_with_role('Raider'):
+    target = raider.target_closest(sim, "PlayerShip", 2000)
+    if target.id is None:
+        target = raider.target_closest(sim, "Station")
+~~
+delay 5s
+-> NPC_Targeting
 
 
+======== PlayerDocking  ===================
 
+player_blob = self.get_engine_data_set(sim)
+dock_state_string = player_blob.get("dock_state", 0)
+if "undocked" == dock_state_string:
+    ~~ self.set_engine_data(sim, "dock_base_id", 0) ~~
+
+    dock_rng = 600
+    station = ~~self.find_closest(sim, "Station", 600)~~
+    if station.id is not None:
+        ~~player_blob.set("dock_base_id", station.id) ~~
+    end_if
+end_if
+
+
+dock_stationID = player_blob.get("dock_base_id", 0)
+dock_station = SpaceObject.get(dock_stationID)
+if dock_station is not None:
+    if "docking" == dock_state_string:
+        
+        # check to see if the player ship is close enough to be docked
+        distanceValue = ~~sbs.distance_id(dock_station.id, self.id)~~
+        closeEnough = ~~dock_station.get_space_object(sim).exclusion_radius + self.get_space_object(sim).exclusion_radius~~
+        closeEnough = closeEnough * 1.1
+        if distanceValue <= closeEnough:
+            ~~self.set_engine_data(sim, "dock_state", "docked")~~
+        end_if
+    end_if
+end_if
+
+
+if "docked" == dock_state_string:
+    dock_station_blob = dock_station.get_engine_data_set(sim)
+    # refuel
+    fuel_value = player_blob.get("energy",0)
+    fuel_value = fuel_value + 20
+    if fuel_value > 1000:
+        fuel_value = 1000
+    end_if
+    ~~player_blob.set("energy", int(fuel_value))~~
+
+    # resupply torps
+    for torps in range(sbs.TORPEDO.MINE):
+        tLeft = ~~ dock_station_blob.get("torpedo_count", torps)~~
+        if tLeft > 0:
+            torp_max = player_blob.get("torpedo_max", torps)
+            torp_now = player_blob.get("torpedo_count", torps)
+            if torp_now < torp_max:
+                torp_now = torp_now + 1
+                ~~player_blob.set("torpedo_count", torp_now,torps)~~
+                ~~dock_station_blob.set("torpedo_count", tLeft-1, torps)~~
+            end_if
+        end_if
+    next torps
+
+
+    #repair shields (more than normal)
+    shieldCoeff = ~~player_blob.get("repair_rate_shields",0)~~
+    systemCoeff = ~~player_blob.get("repair_rate_systems",0)~~
+
+    sCount = player_blob.get("shield_count",0)
+    for shield in range(sCount-1):
+        sVal = player_blob.get("shield_val", shield)
+        sValMax = player_blob.get("shield_max_val", shield)
+        changed = (sVal < sValMax)
+        sVal = max(0.0, min(sVal + shieldCoeff, sValMax)) # clamp the value
+        if changed:
+            ~~player_blob.set("shield_val", sVal, shield)~~
+        end_if
+    next shield
+    #repair systems (more than normal)
+    for system in range(sbs.SHPSYS.SHIELDS):
+        damage = player_blob.get("system_damage", system)
+        maxDamage = player_blob.get("system_max_damage", system)
+        changed = (damage > 0.0)
+        damage = max(0.0, min(damage - systemCoeff, maxDamage)) # clamp the value
+        if changed:
+            ~~player_blob.set("system_damage", damage, system)~~
+        end_if
+    next system
+end_if
+delay 1s
+->PlayerDocking

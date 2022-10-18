@@ -18,6 +18,7 @@ class TickTask:
         # capture the start time
         self.start = sim.time_tick_counter
         self.count = count
+        
 
     def stop(self):
         """ Stop a tasks
@@ -58,6 +59,7 @@ class TickDispatcher:
     """
     _dispatch_tick = set()
     _new_this_tick = set()
+    current = 0
     # ticks per second
     tps = 30
 
@@ -117,6 +119,7 @@ class TickDispatcher:
         The task is updated to see if it should be triggered, 
         and if it is completed
         """
+        TickDispatcher.current = sim.time_tick_counter
         TickDispatcher.completed = set()
         # Before running add items that are new
         # these would have been added last time

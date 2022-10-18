@@ -66,18 +66,18 @@ This is your first ship
 """""""""""""""""""""""""""""""""
 blank
 
--------------await choice---------------------
-    + "Yes.." if learn == True
+-------------await choice:---------------------
+    + "Yes.." if learn == True:
         -> YouLied 
-    + "Yes.." if learn == False
+    + "Yes.." if learn == False:
         -> YouTrained 
-    + "Ready to learn"
+    + "Ready to learn":
          -> Learn
-    + "Bar"
+    + "Bar":
      ->> GotoBar
-    + "HUD"
+    + "HUD":
     ->> Hud
-    + "Exit" 
+    + "Exit": 
     ->END
 -----------------end_await------------------
 
@@ -101,8 +101,8 @@ I will not tolerate those who are untruthful.
 You should board the next shuttle and get the hell out of my sector
 """""""""""""""""""""""""""""""""""""""""""
 
-await choice
-+ "Exit"
+await choice:
++ "Exit":
 ->END
 end_await
 
@@ -123,10 +123,10 @@ You're ready to command your own ship.
 Good luck
 """""""""""""""""""""""""""""""""
 
-await choice
-    + "Resume Mission"  if mission_started==True
+await choice:
+    + "Resume Mission"  if mission_started==True:
         -> ResumeMission
-    + "Start Mission"  if mission_started==False
+    + "Start Mission"  if mission_started==False:
      -> StartMission
 end_await
 
@@ -148,25 +148,25 @@ area 20 20 100 40
 
 learn = False
 
-button "Test 1" -> Learn end_button
+button "Test 1": -> Learn end_button
 
-button "Test 2" ->Learn end_button
-button "Test 3" -> Learn  end_button
-button "Test 4" ->Learn end_button
+button "Test 2": ->Learn end_button
+button "Test 3": -> Learn  end_button
+button "Test 4": ->Learn end_button
 row
-button "Test 5" -> Learn end_button
-button "Test 6" ->Learn end_button
-button "Test 7" -> Learn end_button
-button "Test 8" ->Learn end_button
+button "Test 5": -> Learn end_button
+button "Test 6": ->Learn end_button
+button "Test 7": -> Learn end_button
+button "Test 8": ->Learn end_button
 row
-button "Test 9" -> Briefing end_button
-button "Test 10" -> Briefing end_button
+button "Test 9": -> Briefing end_button
+button "Test 10": -> Briefing end_button
 
 slider slider_value 0.0 1.0 0.5
 checkbox wilma "Yaba"
 
-await choice
-    + "exit" 
+await choice:
+    + "exit":
     ->END
 end_await
 
@@ -197,8 +197,8 @@ row
 next y
 
 
-await choice
-    + "Back" 
+await choice:
+    + "Back":
         <<-
 end_await
 

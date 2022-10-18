@@ -5,10 +5,11 @@ import ast
 import os
 from .. import fs
 from zipfile import ZipFile
-from .. import faces
+from .. import faces, scatter
 import math
 import itertools
 import logging
+import random
 
 
 # tokens
@@ -77,7 +78,7 @@ class Label(MastNode):
 
 class LoopStart(MastNode):
     rule = re.compile(r'(for\s*(?P<name>\w+)\s*)(in|while)((?P<if_exp>[\s\S]+?):)')
-
+    loop_stack = []
     def __init__(self, if_exp=None, name=None, loc=None):
         if if_exp:
             if_exp = if_exp.lstrip()
@@ -86,6 +87,9 @@ class LoopStart(MastNode):
             self.code = None
         self.name = name
         self.iter = None
+        self.loc = loc
+        self.end = None
+        LoopStart.loop_stack.append(self)
 
 
 class LoopBreak(MastNode):
@@ -93,12 +97,17 @@ class LoopBreak(MastNode):
     def __init__(self, op=None, name=None, loc=None):
         self.name = name
         self.op = op
+        self.start = LoopStart.loop_stack[-1]
+        self.loc = loc
 
 class LoopEnd(MastNode):
     rule = re.compile(r'((?P<loop>next)\s*(?P<name>\w+))')
     def __init__(self, loop=None, name=None, loc=None):
         self.loop = True if loop is not None and 'next' in loop else False
         self.name = name
+        self.start = LoopStart.loop_stack.pop()
+        self.loc = loc
+        self.start.end = self
 
 
 class IfStatements(MastNode):
@@ -274,6 +283,8 @@ class Parallel(MastNode):
         if inputs:
             inputs = inputs.lstrip()
             self.code = compile(inputs, "<string>", "eval")
+        else:
+            self.code = None
         if if_exp:
             if_exp = if_exp.lstrip()
             self.if_code = compile(if_exp, "<string>", "eval")
@@ -376,12 +387,18 @@ class InlineData:
 class Mast:
     globals = {
         "math": math, 
-        "faces": faces, 
+        "faces": faces,
+        "scatter": scatter,
+        "random": random,
         "print": print, 
         "dir":dir, 
         "itertools": itertools,
         "next": next,
         "len": len,
+        "int": int,
+        "min": min,
+        "max": max,
+        "abs": abs,
         "MastDataObject": MastDataObject,
         "range": range,
         "__build_class__":__build_class__, # ability to define classes
@@ -446,7 +463,7 @@ class Mast:
     def clear(self):
         self.inputs = {}
         self.vars = {}
-        self.labels = {}
+        self.labels = {"mast": self}
         self.inline_labels = {}
         self.labels["main"] = Label("main")
         self.cmd_stack = [self.labels["main"]]
@@ -493,7 +510,6 @@ class Mast:
             return self.from_lib_file(filename, self.lib_name)
             
         file_name = os.path.join(fs.get_mission_dir(), filename)
-        print(f"file to import: {file_name}")
         self.basedir = os.path.dirname(file_name)
         content = None
         errors = []
@@ -506,7 +522,6 @@ class Mast:
             errors.append(message)
 
         if content is not None:
-            print( f"Compiling file {file_name}")
             errors = self.compile(content)
 
             if len(errors) > 0:
@@ -523,11 +538,8 @@ class Mast:
         errors = []
         try:
             with ZipFile(lib_name) as lib_file:
-                #print("LIB Opened")
                 with lib_file.open(file_name) as f:
-                    #print("LIB content")
                     content = f.read().decode('UTF-8')
-                    #print(f"LIB {content[0:10]}")
                     self.lib_name = lib_name
         except:
             message = f"File load error\nCannot load file {file_name}"
@@ -620,22 +632,6 @@ class Mast:
                                 errors.extend(err)
                                 for e in err:
                                     print("import error "+e)
-
-                        case "LoopStart":
-                            inline = LoopStart(**data)
-                            label_name = f"{active.name}:{inline.name}"
-                            start = len(self.cmd_stack[-1].cmds)
-                            self.cmd_stack[-1].add_child(inline)
-                            self.inline_labels[label_name] = InlineData(start, None)
-
-                        case "LoopEnd":
-                            inline = LoopEnd(**data)
-                            label_name = f"{active.name}:{inline.name}"
-                            end = len(self.cmd_stack[-1].cmds)
-                            self.cmd_stack[-1].add_child(inline)
-                            data = self.inline_labels.get(label_name, InlineData(None,None))
-                            data.end = end
-                            self.inline_labels[label_name] = data
 
 
                         # Throw comments and markers away
