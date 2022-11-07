@@ -41,9 +41,9 @@ end_await
 
 # it gets here when there are no more buttons
 # delay to give a chance to read
-delay 5s
+delay gui 5s
 
-area 40 20 70 70
+area 40, 20, 70, 70
 face barkeep
 row
 """""""""""""""""""""""""""""""""""
@@ -52,6 +52,6 @@ they are available at DS1
 """""""""""""""""""""""""""""""""""
 
 await choice: end_await
-delay 5s
+delay gui 5s
 <<-
 

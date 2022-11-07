@@ -2,6 +2,7 @@ from enum import IntEnum
 
 from ..tickdispatcher import TickDispatcher
 from .mast import *
+import sbs
 
 
 class MastRuntimeNode:
@@ -86,6 +87,9 @@ class JumpRunner(MastRuntimeNode):
                 return PollResults.OK_ADVANCE_TRUE
         if node.push:
             thread.push_label(node.label)
+        elif node.pop_jump:
+            thread.pop_label()
+            thread.jump(node.pop_jump)
         elif node.pop:
             thread.pop_label()
         else:
@@ -306,12 +310,21 @@ class CancelRunner(MastRuntimeNode):
     
 class DelayRunner(MastRuntimeNode):
     def enter(self, mast, thread, node):
-        self.timeout = TickDispatcher.current + (node.minutes*60+node.seconds)*TickDispatcher.tps
+        if node.clock=="gui":
+            self.timeout = sbs.app_seconds()+ (node.minutes*60+node.seconds)
+            pass
+        else:
+            self.timeout = TickDispatcher.current + (node.minutes*60+node.seconds)*TickDispatcher.tps
         self.tag = None
 
     def poll(self, mast, thread, node):
-        if self.timeout <= TickDispatcher.current:
-            return PollResults.OK_ADVANCE_TRUE
+        match node.clock:
+            case "gui":
+                if self.timeout <= sbs.app_seconds():
+                    return PollResults.OK_ADVANCE_TRUE
+            case _:
+                if self.timeout <= TickDispatcher.current:
+                    return PollResults.OK_ADVANCE_TRUE
 
         return PollResults.OK_RUN_AGAIN
 
@@ -343,24 +356,28 @@ class MastAsync:
             self.label_stack.append(push_data)
         self.jump(label, activate_cmd)
 
-    def pop_label(self):
+    def pop_label(self, inc_loc=True):
         if len(self.label_stack)>0:
             push_data: PushData
             push_data = self.label_stack.pop()
-            self.jump(push_data.label, push_data.active_cmd+1)
-
-    def jump_inline_start(self, label_name):
-        data = self.main.mast.inline_labels.get(label_name)
-        if data and data.start is not None:
-            self.jump(self.active_label, data.start)
-
-    def jump_inline_end(self, label_name, break_op):
-        data = self.main.mast.inline_labels.get(label_name)
-        if data and data.end is not None:
-            if break_op:
-                self.jump(self.active_label, data.end+1)
+            #print(f"POP DATA {push_data.label} {push_data.active_cmd} len {len(self.label_stack)}")
+            if inc_loc:
+                self.jump(push_data.label, push_data.active_cmd+1)
             else:
-                self.jump(self.active_label, data.end)
+                self.jump(push_data.label, push_data.active_cmd)
+
+    # def jump_inline_start(self, label_name):
+    #     data = self.main.mast.inline_labels.get(label_name)
+    #     if data and data.start is not None:
+    #         self.jump(self.active_label, data.start)
+
+    # def jump_inline_end(self, label_name, break_op):
+    #     data = self.main.mast.inline_labels.get(label_name)
+    #     if data and data.end is not None:
+    #         if break_op:
+    #             self.jump(self.active_label, data.end+1)
+    #         else:
+    #             self.jump(self.active_label, data.end)
 
     def jump(self, label = "main", activate_cmd=0):
         self.call_leave()

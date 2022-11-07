@@ -1,6 +1,7 @@
 from .mast import IF_EXP_REGEX, Mast, MastNode, PY_EXP_REGEX, OPT_COLOR, TIMEOUT_REGEX
 from .mastsbs import MastSbs, EndAwait
 import re
+from .parsers import LayoutAreaParser
 import logging
 
 class Row(MastNode):
@@ -65,26 +66,33 @@ class Section(MastNode):
         pass
 
 class Area(MastNode):
-    rule = re.compile(r"""area\s+(?P<left>\d+)\s+(?P<top>\d+)\s+(?P<right>\d+)\s+(?P<bottom>\d+)""")
-    def __init__(self, left=None, top=None, right=None, bottom=None, loc=None):
-        self.left = int(left) if left else 0
-        self.top = int(top) if top else 0
-        self.right = int(right) if right else 100
-        self.bottom= int(bottom) if bottom else 100
+    rule = re.compile(r"""area\s+(?P<args>"""+LayoutAreaParser.AREA_LIST_TOKENS+r")")
+    def __init__(self, args, loc=None):
+        LayoutAreaParser()
+        tokens = LayoutAreaParser.lex(args)
+        self.asts = LayoutAreaParser.parse_list(tokens)
+        if (len(self.asts)!=4):
+            raise Exception("Invalid area arguments")
         
-
 class Choose(MastNode):
-    rule = re.compile(r"""await choice((\s*set\s*(?P<assign>\w+)))?"""+TIMEOUT_REGEX+"\s*:")
-    def __init__(self, assign=None,minutes=None, seconds=None, loc=None):
+    rule = re.compile(r"""await choice(\s*(?P<nothing>nothing))|((\s*set\s*(?P<assign>\w+)))?"""+TIMEOUT_REGEX+"\s*:")
+    def __init__(self, assign=None,minutes=None, seconds=None, nothing=None, loc=None):
         self.assign = assign
         self.seconds = 0 if  seconds is None else int(seconds)
         self.minutes = 0 if  minutes is None else int(minutes)
                 
         self.buttons = []
-    
-        self.timeout_label = None
-        self.end_await_node = None
-        EndAwait.stack.append(self)
+        self.active = False
+        self.nothing = False
+        if nothing is not None:
+            self.minutes = 525600 # wait one year
+            self.nothing = True
+            self.timeout_label = None
+            self.end_await_node = self
+        else:
+            self.timeout_label = None
+            self.end_await_node = None
+            EndAwait.stack.append(self)
 
 class ButtonControl(MastNode):
     rule = re.compile(r"""((button\s+["'](?P<message>.+?)["'])(\s*data\s*=\s*(?P<data>"""+PY_EXP_REGEX+r"""))?"""+IF_EXP_REGEX+r"\s*:)|(?P<end>end_button)")
@@ -145,6 +153,47 @@ class CheckboxControl(MastNode):
         #self.message = message
         self.message = self.compile_formatted_string(message)
 
+class TextInputControl(MastNode):
+    rule = re.compile(r"""input\s+(?P<var>[ \t\S]+)""")
+    def __init__(self, var=None, message=None, loc=None):
+        self.var= var
+
+
+class DropdownControl(MastNode):
+    rule = re.compile(r"""(dropdown\s+(?P<var>[ \t\S]+)\s+["'](?P<values>.+?)["'])|(?P<end>end_dropdown)""")
+    stack = []
+    def __init__(self, var=None, values=None, end=None, loc=None):
+        self.is_end = False
+        self.end_node = None
+        self.loc = loc
+        if end is not None:
+            DropdownControl.stack[-1].end_node = self
+            self.is_end = True
+            DropdownControl.stack.pop()
+        else:
+            DropdownControl.stack.append(self)
+            self.var= var
+            self.values = self.compile_formatted_string(values)
+
+class ImageControl(MastNode):
+    rule = re.compile(r"""image\s*["'](?P<file>.+?)["']"""+OPT_COLOR)
+    def __init__(self, file, color, loc=None):
+        self.file = self.compile_formatted_string(file)
+        self.color = color if color is not None else "#fff"
+
+
+
+class WidgetList(MastNode):
+    #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
+    #(\s+color\s*["'](?P<color>[ \t\S]+)["'])?
+    rule = re.compile(r"""widget_list\s+((?P<clear>clear)|(?P<console>['"]\w+['"])(\s*['"](?P<widgets>[\s\S]+?)['"]))""")
+    def __init__(self, clear, console, widgets, loc=None):
+        if clear == "clear":
+            self.console = ""
+            self.widgets = ""
+        else:
+            self.console = console
+            self.widgets = widgets
 
 
 class MastStory(MastSbs):
@@ -162,5 +211,9 @@ class MastStory(MastSbs):
         ButtonControl,
         SliderControl,
         CheckboxControl,
+        DropdownControl,
+        ImageControl,
+        TextInputControl,
+        WidgetList,
         Refresh
     ] + MastSbs.nodes 

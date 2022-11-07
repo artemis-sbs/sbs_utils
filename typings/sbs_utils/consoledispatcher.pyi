@@ -9,7 +9,25 @@ class ConsoleDispatcher(object):
         :type console: string
         :param cb: call back function
         :type cb:  should have arguments of other sim, message and object's id"""
+    def add_message_pair (an_id: int, another, console: str, cb: callable):
+        """add a target for console message
+        
+        :param an_id: A ships ID player or non-player
+        :type an_id: int
+        :param console: The consoles unique ID
+        :type console: string
+        :param cb: call back function
+        :type cb:  should have arguments of other sim, message and object's id"""
     def add_select (an_id: int, console: str, cb: callable):
+        """add a target for console selection
+        
+        :param an_id: A ships ID player or non-player
+        :type an_id: int
+        :param console: The consoles unique ID
+        :type console: string
+        :param cb: call back function
+        :type cb:  should have arguments of other sim and object's id"""
+    def add_select_pair (an_id: int, another_id: int, console: str, cb: callable):
         """add a target for console selection
         
         :param an_id: A ships ID player or non-player
@@ -49,7 +67,21 @@ class ConsoleDispatcher(object):
         :type an_id: int
         :param console: The consoles unique ID
         :type console: string"""
+    def remove_message_pair (an_id: int, another_id: int, console: str):
+        """remove a target for console messages
+        
+        :param an_id: A ships ID player or non-player
+        :type an_id: int
+        :param console: The consoles unique ID
+        :type console: string"""
     def remove_select (an_id: int, console: str):
+        """remove a target for console selection
+        
+        :param an_id: A ships ID player or non-player
+        :type an_id: int
+        :param console: The consoles unique ID
+        :type console: string"""
+    def remove_select_pair (an_id: int, another_id: int, console: str):
         """remove a target for console selection
         
         :param an_id: A ships ID player or non-player

@@ -1,5 +1,11 @@
 def add_client_tag() -> None:
     """return a list of client ids, for the computers that are currently connected to this server."""
+def app_milliseconds() -> int:
+    ...
+def app_minutes() -> int:
+    ...
+def app_seconds() -> int:
+    ...
 def assign_client_to_ship(arg0: int, arg1: int) -> None:
     """Tells a client computer which ship it should control."""
 def assign_player_ship(arg0: int) -> None:
@@ -28,10 +34,14 @@ def get_screen_size() -> sbs.vec2:
     """returns a VEC2, with the width and height of the display in pixels"""
 def pause_sim() -> None:
     """the sim will now pause; HandlePresentGUI() and HandlePresentGUIMessage() are called."""
+def play_music_file(arg0: str, arg1: int, arg2: int) -> None:
+    """Plays a music file now, for the specified ship."""
 def query_client_tags() -> None:
     """return a list of client ids, for the computers that are currently connected to this server."""
 def resume_sim() -> None:
     """the sim will now run; HandleStartMission() and HandleTickMission() are called."""
+def send_client_widget_list(arg0: int, arg1: str, arg2: str) -> None:
+    """sends the gameplay widgets to draw, on the targeted client (0 = server screen)"""
 def send_comms_button_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
     """sends a complex message to the comms console of a certain ship. args:  uint32_t playerID (0 = all ships), std::string color, std::string bodyText"""
 def send_comms_message_to_player_ship(playerID: int, sourceID: int, colorDesc: str, faceDesc: str, titleText: str, bodyText: str, messageTagSet: str = '') -> None:
@@ -46,14 +56,26 @@ def send_gui_checkbox(arg0: int, arg1: str, arg2: str, arg3: int, arg4: float, a
     """Creates a checkbox GUI element, on the targeted client (0 = server screen)"""
 def send_gui_clear(arg0: int) -> None:
     """Clears all GUI elements from screen, on the targeted client (0 = server screen)"""
+def send_gui_dropdown(arg0: int, arg1: str, arg2: str, arg3: str, arg4: float, arg5: float, arg6: float, arg7: float) -> None:
+    """Creates a dropdown GUI element, on the targeted client (0 = server screen)"""
 def send_gui_face(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
     """Creates a face box GUI element, on the targeted client (0 = server screen)"""
+def send_gui_icon(arg0: int, arg1: str, arg2: str, arg3: int, arg4: float, arg5: float, arg6: float) -> None:
+    """Creates an icon art GUI element, on the targeted client (0 = server screen)"""
+def send_gui_image(arg0: int, arg1: str, arg2: str, arg3: str, arg4: float, arg5: float, arg6: float, arg7: float, arg8: float, arg9: float, arg10: float, arg11: float) -> None:
+    """Creates an icon art GUI element, on the targeted client (0 = server screen)"""
 def send_gui_slider(arg0: int, arg1: str, arg2: float, arg3: float, arg4: float, arg5: float, arg6: float, arg7: float, arg8: float) -> None:
     """Creates a slider bar GUI element, on the targeted client (0 = server screen) (long clientID, std::string tag, float low, float high, float current, float left, float top, float right, float bottom)"""
 def send_gui_text(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
     """Creates a text box GUI element, on the targeted client (0 = server screen)"""
+def send_gui_typein(arg0: int, arg1: str, arg2: str, arg3: str, arg4: float, arg5: float, arg6: float, arg7: float) -> None:
+    """Creates a text entry GUI element, on the targeted client (0 = server screen)"""
 def send_message_to_player_ship(arg0: int, arg1: str, arg2: str) -> None:
     """sends a text message to the text box, on every client for a certain ship. args:  uint32_t playerID (0 = all ships), std::string color, std::string text"""
+def set_music_folder(arg0: str, arg1: int, arg2: int) -> None:
+    """Sets the folder from which music is streamed, for the specified ship."""
+def set_music_tension(arg0: float, arg1: int, arg2: int) -> None:
+    """Sets the tension value of ambient music (0-100), for the specified ship."""
 class SHPSYS(object): ### from pybind
     """One of four ship systems to track damage
     

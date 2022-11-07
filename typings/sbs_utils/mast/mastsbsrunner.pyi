@@ -8,14 +8,16 @@ from sbs_utils.consoledispatcher import ConsoleDispatcher
 from sbs_utils.mast.errorpage import ErrorPage
 from sbs_utils.gui import Gui
 from sbs_utils.mast.mast import Mast
+from sbs_utils.mast.mast import Scope
 from sbs_utils.mast.mastrunner import MastAsync
 from sbs_utils.mast.mastrunner import MastRunner
 from sbs_utils.mast.mastrunner import MastRuntimeNode
 from sbs_utils.mast.mastrunner import PollResults
 from sbs_utils.spaceobject import SpaceObject
+from sbs_utils.tickdispatcher import TickDispatcher
 class ButtonRunner(MastRuntimeNode):
     """class ButtonRunner"""
-    def poll (self, mast, runner, node):
+    def poll (self, mast, thread, node: sbs_utils.mast.mastsbs.Button):
         ...
 class CommsRunner(MastRuntimeNode):
     """class CommsRunner"""

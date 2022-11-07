@@ -13,23 +13,25 @@ Mast.enable_logging()
     Simulation
 """
 
-def mast_sbs_compile(code=None):
-    def decorator(func):
-        def wrapper(self, **kargs):
-            mast = MastSbs()
-            errors = mast.compile(code)
-            func(self, errors=errors, mast=mast, **kargs)
-        return wrapper
-    return decorator
+def mast_sbs_compile(code):
+    mast = MastSbs()
+    errors = mast.compile(code)
+    return (errors, mast)
 
 
 
 class TestMastSbsCompile(unittest.TestCase):
     
-    @mast_sbs_compile( code = """
+    
+    def test_compile_no_err(self):
+        (errors, mast) = mast_sbs_compile( code = """
 have self tell player "Hello"
+have self tell player "Hello" color "black"
 have self approach player
 have self target player
+have self broadcast "Hello, World"
+have self broadcast "Hello, RGB" color "#fff"
+
 
 await self near player 700 timeout 1m 1s:
 -> Test
@@ -62,13 +64,14 @@ end_await
 
 
 """)
-    def test_compile_no_err(self, errors, mast):
         if len(errors)>0:
             for err in errors:
                 print(err)
         assert(len(errors) == 0)
 
-    @mast_sbs_compile( code ="""
+     
+    def test_compile_no_err_2(self):
+        (errors, mast) = mast_sbs_compile( code ="""
 # Set the comms buttons to start the 'quest'
 
 await self comms player:
@@ -192,8 +195,7 @@ have self tell player "Woh too slow"
 delay 10s
 -> Start
 
-""") 
-    def test_compile_no_err_2(self, errors, mast):
+""")
         if len(errors)>0:
             for err in errors:
                 print(err)

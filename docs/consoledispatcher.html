@@ -285,8 +285,38 @@ The message is the button_tag.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.add_message_pair">
+<span class="sig-name descname"><span class="pre">add_message_pair</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">another</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.add_message_pair" title="Permalink to this definition"></a></dt>
+<dd><p>add a target for console message</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
+<li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
+<li><p><strong>cb</strong> (<em>should have arguments of other sim</em><em>, </em><em>message and object's id</em>) – call back function</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.add_select">
 <span class="sig-name descname"><span class="pre">add_select</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.add_select" title="Permalink to this definition"></a></dt>
+<dd><p>add a target for console selection</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
+<li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
+<li><p><strong>cb</strong> (<em>should have arguments of other sim and object's id</em>) – call back function</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.add_select_pair">
+<span class="sig-name descname"><span class="pre">add_select_pair</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">another_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.add_select_pair" title="Permalink to this definition"></a></dt>
 <dd><p>add a target for console selection</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -347,8 +377,36 @@ The message is the button_tag.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.remove_message_pair">
+<span class="sig-name descname"><span class="pre">remove_message_pair</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">another_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.remove_message_pair" title="Permalink to this definition"></a></dt>
+<dd><p>remove a target for console messages</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
+<li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.remove_select">
 <span class="sig-name descname"><span class="pre">remove_select</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.remove_select" title="Permalink to this definition"></a></dt>
+<dd><p>remove a target for console selection</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
+<li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.remove_select_pair">
+<span class="sig-name descname"><span class="pre">remove_select_pair</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">another_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.remove_select_pair" title="Permalink to this definition"></a></dt>
 <dd><p>remove a target for console selection</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>

@@ -1,18 +1,4 @@
 import tests/mast/bar.mast
-~~~~~~~~~~~~~~~~
-# Example of embedded python script
-@export()
-def test_func(a,b):
-    return a + b
-
-@export()
-class MyShip(Npc):
-    pass
-
-free = 99
-export_var("free", free)
-export_var("free_shared", free, True)
-~~~~~~~~~~~~~~~~
 
 shared alisa = "ter #6d8b01 3 0;ter #6d8b01 4 1;ter #6d8b01 4 3;ter #CC9966 8 4 6 -2;ter #fff 13 0 14 -2;ter #fff 3 6;"
 shared frank = "ter #f2efee 0 0;ter #f2efee 2 0;ter #f2efee 0 3;ter #fff 12 1 14 -2;ter #fff 2 6;ter #3d0463 9 0 12 4;"
@@ -20,23 +6,23 @@ shared mission_started = False
 
 # Non-Shared data unique to the client (runner)
 learn = True
+console = "Console"
+mast_view  = "Mast"
+view = "View"
+ship_select = "Ship"
+text_in = "Hello, World"
 
 
 ->Briefing
 
 ================== Briefing ================
 
-if IS_SERVER:
-    area 21 10 60 90
-else:
-    area 30 10 60 90
-end_if
-
+area 0, 30px, 60, 100-30px
 
 
 face alisa
 """""""""""""""""""""""""""""""""
-Welcome to the TSN {test_func(2,5)} {free}
+Welcome to the TSN
 I'm Captain Alisa. I've been running things in this sector for 10 years. We run a tight sector.
 I don't take any crap and I do not like people who lie and disobey orders out of a matter of principle.
 """""""""""""""""""""""""""""""""
@@ -54,7 +40,7 @@ face frank
 
 
 section
-area 60 10 100 90
+area 60, 10, 100, 100-30px
 
 blank
 row
@@ -92,7 +78,7 @@ blank
 
 =================== YouLied ========
 
-area 20 10 100 90
+area 20, 10, 100, 100-30px
 face alisa
 
 """"""""""""""""""""""""""""""""""""""""""""""
@@ -109,7 +95,7 @@ end_await
 
 ============== YouTrained =========
 
-area 20 10 100 90
+area 20, 10, 100, 100-30px
 
 face alisa
 
@@ -144,7 +130,7 @@ shared mission_started = True
 
 ==================           Learn     ===========
 
-area 20 20 100 40
+area 20, 20, 100, 40
 
 learn = False
 
@@ -161,6 +147,9 @@ button "Test 8": ->Learn end_button
 row
 button "Test 9": -> Briefing end_button
 button "Test 10": -> Briefing end_button
+row
+
+input text_in
 
 slider slider_value 0.0 1.0 0.5
 checkbox wilma "Yaba"
@@ -176,7 +165,9 @@ end_await
 
 
 ====================== MapStuff ======================
-shared player = PlayerShip().spawn(sim, 0, 0, 0,"Artemis", "tsn", "Battle Cruiser")
+shared player = PlayerShip().spawn(sim, 0, 0, 0,"Artemis", "tsn", "Battle Cruiser").py_object
+shared hera = PlayerShip().spawn(sim, 0, 0, 0,"Hera", "tsn", "Battle Cruiser").py_object
+shared atlas = PlayerShip().spawn(sim, 0, 0, 0,"Atlas", "tsn", "Battle Cruiser").py_object
 shared tsn =  ~~ [
     Npc().spawn(sim, 1000, 0, 1000, "TSN0", "tsn", "Battle Cruiser", "behav_npcship").py_object,
     Npc().spawn(sim ,1200, 0, 1000, "TSN1", "tsn", "Battle Cruiser", "behav_npcship").py_object,
@@ -186,19 +177,147 @@ shared tsn =  ~~ [
 <<-
 
 
+===================== Menu ============
+if IS_SERVER:
+    area 100-500px,0, 100, 30px
+else:
+    area 100-500px, 0, 100, 30px
+end_if
+
+
+dropdown ship_select "Artemis^Hera^Atlas"
+<<- PickedShip<<
+end_dropdown
+
+dropdown console "Helm^Weapons^Science^Engineering^Comms^Medical^Main Screen"
+view = "Main"
+<<- PickedView<<
+end_dropdown
+
+dropdown view "Main^Auxiliary^Crafting^Quarters^P.A.D.D.^Bar"
+<<- PickedView<<
+end_dropdown
+
+dropdown mast_view "Variables^Debug^restart"
+<<- PickedMast <<
+end_dropdown
+
+section
+area 0, 30px, 100, 100-30px
+<<-
+
+
 ===================== Hud ============
+->> Menu
 
-for y in range(4):
-for x in range(4):
-    f = "hud #fff {x} {y}"
-    face f
-next x
-row
-next y
+"""
+Welcome, select your ship, and console.
 
+You can also select from a selection of different views.
+
+"""
 
 await choice:
     + "Back":
         <<-
 end_await
 
+========== PickedShip =====
+match ship_select:
+case "Artemis":
+    ~~sbs.assign_client_to_ship(client_id, player.id)~~
+case "Hera":
+    ~~sbs.assign_client_to_ship(client_id, hera.id)~~
+case "Atlas":
+    ~~sbs.assign_client_to_ship(client_id, atlas.id)~~
+end_match
+
+-> PickedView
+
+
+
+========== MainView =====
+->> Menu
+
+
+match console:
+    case "Helm":
+        widget_list "normal_helm" "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+    case "Weapons":
+        widget_list "normal_weap" "2dview^weapon_control^ship_data^shield_control^text_waterfall^main_screen_control"
+    case "Science":
+        widget_list "normal_sci" "science_2d_view^ship_data^text_waterfall^science_data^object_sorted_list"
+    case "Engineering":
+        widget_list "normal_engi" "ship_internal_view^grid_object_list^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
+    case "Comms":
+        widget_list "normal_comm" "text_waterfall^comms_waterfall^comms_control^comms_face^object_sorted_list^ship_data"
+    case "Main Screen":
+        widget_list "normal_main" "3dview^ship_data^text_waterfall"
+    case _:
+        """Pick a Console"""
+end_match
+await choice nothing
+
+========== PickedView =====
+->> Menu
+match view:
+    case "Main":
+        -> MainView
+    case "Auxiliary":
+        -> ViewAux
+    case "Crafting":
+        -> ViewCrafting
+    case "Quarters":
+        -> ViewQuarters
+    case "P.A.D.D.":
+        -> ViewPad
+    case "Bar":
+        ->> GotoBar
+        ->Hud
+    case _:
+        -> MainView
+end_match
+
+"""
+Unrreachable?
+"""
+await choice nothing
+
+========== PickedMast =====
+->> Menu
+
+"""
+Mast {mast_view}
+"""
+await choice:
+    + "Back":
+        <<-
+end_await
+
+========== ViewQuarters =====
+->> Menu
+
+image "{mission_dir}\data\quarters"
+
+await choice nothing
+
+========== ViewCrafting =====
+->> Menu
+
+image "{mission_dir}\data\crafting"
+
+await choice nothing
+========== ViewPad =====
+->> Menu
+
+image "{mission_dir}\data\datapad"
+
+await choice nothing
+
+========== ViewAux =====
+->> Menu
+
+"""
+This would be the auxiliary Screen
+"""
+await choice nothing

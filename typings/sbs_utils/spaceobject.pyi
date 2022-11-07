@@ -167,7 +167,7 @@ class SpaceObject(object):
         
         :param sim: The simulation
         :type sim: Artemis Cosmos simulation"""
-    def comm_id (self, sim):
+    def comms_id (self, sim):
         """Get the text to use in the comms messages
         
         :param sim: The simulation
@@ -236,7 +236,13 @@ class SpaceObject(object):
         ...
     def get_as (id, cls):
         ...
+    def get_engine_data (self, sim, key, index=0):
+        ...
+    def get_engine_data_set (self, sim):
+        ...
     def get_id (self):
+        ...
+    def get_objects_with_role (role):
         ...
     def get_roles (self, id):
         ...
@@ -273,6 +279,8 @@ class SpaceObject(object):
         
         :param role: The role to add e.g. spy, pirate etc.
         :type id: str"""
+    def set_engine_data (self, sim, key, value, index=0):
+        ...
     def side (self, sim):
         """Get the side of the object
         
@@ -322,6 +330,8 @@ class SpaceObject(object):
         :type other_id: int
         :param shoot: if the object should be shot at
         :type shoot: bool"""
+    def update_engine_data (self, sim, data):
+        ...
 class SpawnData(object):
     """class SpawnData"""
     def __init__ (self, id, obj, blob, py_obj) -> None:

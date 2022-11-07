@@ -40,14 +40,34 @@ class ErrorPage(Page):
 def HandleEvent(sim, event):
     try:
         match(event.tag):
-            
+
+
+
+#	value_tag"
+#	source_point"
+#	event_time"
+            #    print(f"{event.parent_id}")
+            #     print(f"{event.origin_id}")
+            #     print(f"{event.selected_id}")
+            #     print(f"{event.sub_tag}")
+            #     print(f"{event.sub_float}")
+ 
             case "damage":
                 DamageDispatcher.dispatch_damage(sim,event)
 
             case "client_connect":
                 Gui.add_client(sim, event)
 
+            case "client_change":
+                Gui.on_client_change(sim, event)
+
             case "select_space_object":
+                print(f"{event.parent_id}")
+                print(f"{event.origin_id}")
+                print(f"{event.selected_id}")
+                print(f"{event.sub_tag}")
+                print(f"{event.sub_float}")
+
                 ConsoleDispatcher.dispatch_select(sim, event)
 
             case "press_comms_button":

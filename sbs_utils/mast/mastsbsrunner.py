@@ -1,5 +1,5 @@
 from .mast import Mast, Scope
-from .mastsbs import Simulation, Target, Tell, Comms, Button, Near
+from .mastsbs import Simulation, Target, Tell, Comms, Button, Near,Broadcast
 from .mastrunner import MastRunner, PollResults, MastRuntimeNode,  MastAsync
 import sbs
 from ..spaceobject import SpaceObject
@@ -20,14 +20,16 @@ class ButtonRunner(MastRuntimeNode):
 
 class TellRunner(MastRuntimeNode):
     def enter(self, mast:Mast, thread:MastAsync, node: Tell):
-        to_so:SpaceObject = thread.vars.get(node.to_tag)
+        to_so= thread.get_value(node.to_tag, None)
+        to_so = to_so[0]
         self.face = ""
         self.title = ""
         if to_so:
             self.to_id = to_so.get_id()
         else:
             thread.runtime_error("Tell has invalid TO")            
-        from_so:SpaceObject = thread.vars.get(node.from_tag)
+        from_so= thread.get_value(node.from_tag, None)
+        from_so = to_so[0]
         if from_so:
             self.from_id = from_so.get_id()
             self.title = from_so.comms_id(thread.main.sim)
@@ -43,11 +45,27 @@ class TellRunner(MastRuntimeNode):
             sbs.send_comms_message_to_player_ship(
                 self.to_id,
                 self.from_id,
-                "white",
+                node.color,
                 self.face, self.title, msg)
             return PollResults.OK_ADVANCE_TRUE
         else:
             PollResults.OK_ADVANCE_FALSE
+
+class BroadcastRunner(MastRuntimeNode):
+    def enter(self, mast:Mast, thread:MastAsync, node: Broadcast):
+        to_so= thread.get_value(node.to_tag, None)
+        to_so = to_so[0]
+        if to_so:
+            self.to_id = to_so.get_id()
+        else:
+            thread.runtime_error(f"Broadcast has invalid TO {node.to_tag}")            
+    
+    def poll(self, mast:Mast, thread:MastAsync, node: Broadcast):
+        if self.to_id:
+            msg = thread.format_string(node.message)
+            sbs.send_message_to_player_ship(self.to_id, node.color, msg)
+            return PollResults.OK_ADVANCE_TRUE
+        return PollResults.OK_ADVANCE_TRUE
 
 class CommsRunner(MastRuntimeNode):
     def enter(self, mast:Mast, thread:MastAsync, node: Comms):
@@ -208,6 +226,7 @@ class SimulationRunner(MastRuntimeNode):
 over =     {
       "Comms": CommsRunner,
       "Tell": TellRunner,
+      "Broadcast": BroadcastRunner,
       "Near": NearRunner,
       "Target": TargetRunner,
 #      "Simulation": SimulationRunner,

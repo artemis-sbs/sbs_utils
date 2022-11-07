@@ -1,5 +1,9 @@
 from ..gui import Page
 import sbs
+import struct # for images sizes
+from .. import fs
+import os
+
 
 class Row:
     def __init__(self, cols=None, width=0, height=0) -> None:
@@ -88,6 +92,73 @@ class Checkbox(Column):
             1 if self.value else 0,
             self.left, self.top, self.right, self.bottom)
 
+class Image(Column):
+    def __init__(self, file, color, tag) -> None:
+        super().__init__()
+        fs.get_artemis_data_dir()
+        self.file = os.path.abspath(file)
+        self.rel_file = os.path.relpath(file, fs.get_artemis_data_dir()+"\graphics")
+        print(f"{self.file} >> {self.rel_file}")
+        self.color = color
+        self.tag = tag
+        self.width = -1
+        self.height = -1
+        self.get_image_size()
+        
+    def present(self, sim, event):
+        if self.width == -1:
+            message = f"IMAGE NOT FOUND: {self.file}"
+            sbs.send_gui_text(event.client_id, 
+                message, self.tag, 
+                self.left, self.top, self.right, self.bottom)
+        else:
+            sbs.send_gui_image(event.client_id, 
+                self.rel_file, self.color, self.tag, 
+                0,0,self.width, self.height,
+                self.left, self.top, self.right, self.bottom)
+
+    # Get image width and height of image
+    def get_image_size(self):
+        try:
+            with open(self.file+".png", 'rb') as f:
+                data = f.read(26)
+                print("Opened")
+                # Chck if is png
+                #if (data[:8] == '\211PNG\r\n\032\n'and (data[12:16] == 'IHDR')):
+                w, h = struct.unpack('>LL', data[16:24])
+                self.width = int(w)
+                self.height = int(h)
+                print(f"Images size {w} {h}")
+        except Exception:
+            self.width = -1
+            self.height = -1
+
+            
+
+
+class Dropdown(Column):
+    def __init__(self, value, values, tag) -> None:
+        super().__init__()
+        self.value = value
+        self.values = values
+        self.tag = tag
+        
+    def present(self, sim, event):
+        sbs.send_gui_dropdown(event.client_id, 
+            self.value, self.tag, self.values,
+            self.left, self.top, self.right, self.bottom)
+
+class TextInput(Column):
+    def __init__(self, value, tag) -> None:
+        super().__init__()
+        self.value = value
+        self.tag = tag
+        
+    def present(self, sim, event):
+        sbs.send_gui_typein(event.client_id, 
+            self.value, "blue", self.tag,
+            self.left, self.top, self.right, self.bottom)
+
 
 class Separate(Column):
     def __init__(self) -> None:
@@ -122,7 +193,9 @@ class Ship(Column):
 
 
 class Layout:
-    def __init__(self, rows = None, left=0, top=0, right=100, bottom=100) -> None:
+    def __init__(self, rows = None, 
+                left=0, top=0, right=100, bottom=100,
+                left_pixels=False, top_pixels=False, right_pixels=False, bottom_pixels=False) -> None:
         self.rows = rows if rows else []
         self.aspect_ratio = sbs.get_screen_size()
         self.set_size(left,top,right,bottom)
@@ -132,6 +205,7 @@ class Layout:
         self.top = top
         self.width = right-left
         self.height = bottom-top
+       
         
 
 

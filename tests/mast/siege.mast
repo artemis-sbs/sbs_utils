@@ -1,15 +1,15 @@
 enemy_count=20
 
-if IS_SERVER:->StartMenu else: ->StartClient end_if
+if IS_SERVER:->StartMenu else: -> ConsoleSelect end_if
 
 ========== StartMenu ===============
 
-area 50 10 99 90
+area 50, 10, 99, 90
 """""
 Basic Siege written in Mast
 """""
 section
-area 60 75 99 89
+area 60, 75, 99, 89
 
 intslider enemy_count 1.0 50.0 5.0
 row
@@ -25,7 +25,8 @@ sbs.resume_sim()
 end_await
 
 ========== StartClient  ===============
-area 30 10 65 60
+
+area 30, 10, 65, 60
 """ 
 Mission: Basic Siege
 please wait for the game to Start
@@ -34,7 +35,7 @@ Mean while pick a ship
 """
 face faces.random_terran()
 section
-area 70 40 95 80
+area 70, 40, 95, 80
 checkbox art "Artemis"
 row
 checkbox hera "Hera"
@@ -61,7 +62,7 @@ delay 4s
 
 ================= Won ===================
 ~~ sbs.pause_sim() ~~
-area 50 10 99 90
+area 50, 10, 99, 90
 """""""
 Mission is won!  All the enemies have been destroyed.
 """"""
@@ -343,3 +344,39 @@ if "docked" == dock_state_string:
 end_if
 delay 1s
 ->PlayerDocking
+
+============== ConsoleSelect =====
+
+if IS_SERVER:
+    area 100-500px,0, 100, 30px
+else:
+    area 100-500px, 0, 100, 30px
+end_if
+
+
+dropdown console "Helm^Weapons^Science^Engineering^Comms^Medical^Main Screen"
+view = "Main"
+<<- PickedConsole<<
+end_dropdown
+await choice nothing
+
+============== PickedConsole =====
+
+match console:
+    case "Helm":
+        widget_list "normal_helm" "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+    case "Weapons":
+        widget_list "normal_weap" "2dview^weapon_control^ship_data^shield_control^text_waterfall^main_screen_control"
+    case "Science":
+        widget_list "normal_sci" "science_2d_view^ship_data^text_waterfall^science_data^object_sorted_list"
+    case "Engineering":
+        widget_list "normal_engi" "ship_internal_view^grid_object_list^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
+    case "Comms":
+        widget_list "normal_comm" "text_waterfall^comms_waterfall^comms_control^comms_face^object_sorted_list^ship_data"
+    case "Main Screen":
+        widget_list "normal_main" "3dview^ship_data^text_waterfall"
+    case _:
+        """Pick a Console"""
+end_match
+
+->ConsoleSelect

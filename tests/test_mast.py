@@ -1,5 +1,9 @@
 from sbs_utils.mast.mast import Mast, Scope
+from . import fake_sbs
+import sys        
+sys.modules["sbs"] = fake_sbs
 from sbs_utils.mast.mastrunner import MastRunner
+
 import unittest
 
 Mast.enable_logging()
@@ -72,7 +76,7 @@ next x
 
 
 
-    def test_delay_compile_err(self):
+    def test_jumps_compile_err(self):
         (errors, mast) =mast_compile( code = """
 ->END
 -> END
@@ -82,6 +86,7 @@ next x
 ->> a_push
 ->>b_push
 <<-
+<<- pop_jump
 => fork
 f1 => fork
 =>fork_you

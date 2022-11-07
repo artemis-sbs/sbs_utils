@@ -64,18 +64,25 @@ class Page:
         pass
 
     def on_message(self, sim, event):
-        """ on_message
+        """ on_client_change
 
-        Called when a control on the page has been interacted with
+        Called when the option pages page has been interacted with
 
         :param sim: 
         :type sim: Artemis Cosmos simulation
-        :param message_tag: The tag name of the control interacted with
-        :type message_tag: str
-        :param clientID: The client ID that had the interaction
-        :type clientID: int
-        :param data: Any data associated with the control e.g. slider float value of current value
-        :type clientID: None or str or float
+        :param event: The event data
+        :type event: event
+        """
+        pass
+    def on_client_change(self, sim, event):
+        """ on_client_change
+
+        Called when the option pages page has been interacted with
+
+        :param sim: 
+        :type sim: Artemis Cosmos simulation
+        :param event: The event data
+        :type event: event
         """
         pass
 
@@ -143,15 +150,26 @@ class GuiClient:
 
         :param sim: 
         :type sim: Artemis Cosmos simulation
-        :param message_tag: The tag name of the control interacted with
-        :type message_tag: str
-        :param clientID: The client ID that had the interaction
-        :type clientID: int
-        :param data: Any data associated with the control e.g. slider float value of current value
-        :type clientID: None or str or float
+        :param event: The event data
+        :type event: event
+        
         """
         if len(self.page_stack) > 0:
             self.page_stack[-1].on_message(sim, event)
+
+    def on_client_change(self, sim, event):
+        """ on_client_change
+
+        Calls the on_client_change on the top page of the specified client by calling on_client_change
+
+        :param sim: 
+        :type sim: Artemis Cosmos simulation
+        :param event: The event data
+        :type event: event
+        
+        """
+        if len(self.page_stack) > 0:
+            self.page_stack[-1].on_client_change(sim, event)
 
 class FakeEvent:
     def __init__(self, client_id):
@@ -244,11 +262,18 @@ class Gui:
         :param sim: 
         :type sim: Artemis Cosmos simulation
         """
+        client_list = sbs.get_client_ID_list()
+        disconnect = []
         Gui.represent = set()
         Gui.represent_throttle = 0
         for client_id, gui in Gui.clients.items():
-            event = FakeEvent(client_id)
-            gui.present(sim, event)
+            if client_id == 0 or client_id in client_list:
+                event = FakeEvent(client_id)
+                gui.present(sim, event)
+            else:
+                disconnect.append(client_id)
+        for cid in disconnect:
+            Gui.clients.pop(cid)
         # Try to repaint things we can this round
         Gui.present_dirty(sim)
 
@@ -274,7 +299,7 @@ class Gui:
             gui = Gui.clients.get(client_id)
             event = FakeEvent(client_id)
             gui.present(sim, event)
-        Gui.present_dirty()
+        #Gui.present_dirty()
 
         
 
@@ -287,15 +312,28 @@ class Gui:
 
         :param sim: 
         :type sim: Artemis Cosmos simulation
-        :param message_tag: The tag name of the control interacted with
-        :type message_tag: str
-        :param clientID: The client ID that had the interaction
-        :type clientID: int
-        :param data: Any data associated with the control e.g. slider float value of current value
-        :type clientID: None or str or float
+        :param event: The tag name of the control interacted with
+        :type event: event
         """
         # message_tag, clientID, data
         gui = Gui.clients.get(event.client_id)
         if gui is not None:
             gui.on_message(sim, event)
+
+    @staticmethod
+    def on_client_change(sim, event):
+        """ on_client_change
+
+        Forward to the appropriate GuiClient/Page
+        handlerhooks.py will call this in HandleEvent
+
+        :param sim: 
+        :type sim: Artemis Cosmos simulation
+        :param event: The tag name of the control interacted with
+        :type event: event
+        """
+        # message_tag, clientID, data
+        gui = Gui.clients.get(event.client_id)
+        if gui is not None:
+            gui.on_client_change(sim, event)    
             

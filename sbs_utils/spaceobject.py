@@ -626,7 +626,7 @@ class MSpawnActive(MSpawn):
         :return: spawn data
         :rtype: SpawnData
         """
-        return self.spawn(sim, v.x, v.y, v.z, name, side, art_id, behave_id)
+        return self._spawn(sim, v.x, v.y, v.z, name, side, art_id, behave_id)
 
 class MSpawnPassive(MSpawn):
     """
@@ -684,5 +684,5 @@ class MSpawnPassive(MSpawn):
         :return: spawn data
         :rtype: SpawnData
         """
-        return self.spawn(sim, v.x, v.y, v.z, name, side, art_id, behave_id)
+        return self._spawn(sim, v.x, v.y, v.z, name, side, art_id, behave_id)
 

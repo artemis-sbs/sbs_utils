@@ -8,9 +8,10 @@ from ..pages import layout
 from ..tickdispatcher import TickDispatcher
 
 from .errorpage import ErrorPage
-from .maststory import AppendText, ButtonControl, MastStory, Choose, Text, Blank, Ship, Face, Row, Section, Area, Refresh, SliderControl, CheckboxControl
+from .maststory import AppendText, ButtonControl, MastStory, Choose, Text, Blank, Ship, Face, Row, Section, Area, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl
 import traceback
 from .mastsbsrunner import MastSbsRunner, Button
+from .parsers import LayoutAreaParser
 
 class StoryRuntimeNode(MastRuntimeNode):
     def on_message(self, sim, event):
@@ -136,7 +137,16 @@ class SectionRunner(StoryRuntimeNode):
 
 class AreaRunner(StoryRuntimeNode):
     def enter(self, mast:Mast, thread:MastAsync, node: Area):
-        thread.main.page.set_section_size(node.left, node.top, node.right, node.bottom)
+        values =[]
+        i = 1
+        for ast in node.asts:
+            if i >0:
+                ratio =  thread.main.page.aspect_ratio.x
+            else:
+                ratio =  thread.main.page.aspect_ratio.y
+            i=-i
+            values.append(LayoutAreaParser.compute(ast, thread.get_symbols(),ratio))
+        thread.main.page.set_section_size(values)
 
 
 class ChooseRunner(StoryRuntimeNode):
@@ -147,8 +157,11 @@ class ChooseRunner(StoryRuntimeNode):
         else:
             self.timeout = TickDispatcher.current + (node.minutes*60+node.seconds)*TickDispatcher.tps
 
-        
-        button_layout = layout.Layout(None, 30,95,90,100)
+        top = ((thread.main.page.aspect_ratio.y - 30)/thread.main.page.aspect_ratio.y)*100
+
+        # ast = LayoutAreaParser.parse_e(LayoutAreaParser.lex("100-30px"))
+        # top = LayoutAreaParser.compute(ast, {}, thread.main.page.aspect_ratio.y)
+        button_layout = layout.Layout(None, 0,top,100,100)
 
         active = 0
         index = 0
@@ -183,6 +196,7 @@ class ChooseRunner(StoryRuntimeNode):
         self.active = active
         self.buttons = node.buttons
         self.button = None
+
 
 
     def poll(self, mast:Mast, thread:MastAsync, node: Choose):
@@ -266,7 +280,67 @@ class CheckboxControlRunner(StoryRuntimeNode):
             self.layout.value = not self.layout.value
             self.thread.set_value(self.node.var, self.layout.value, self.scope)
             self.layout.present(sim, event)
+
+class TextInputControlRunner(StoryRuntimeNode):
+    def enter(self, mast:Mast, thread:MastAsync, node: TextInputControl):
+        self.tag = thread.main.page.get_tag()
+        self.node = node
+        scoped_val = thread.get_value(self.node.var, False)
+        val = scoped_val[0]
+        self.scope = scoped_val[1]
+        self.layout = layout.TextInput(val, self.tag)
+        self.thread = thread
+        thread.main.page.add_content(self.layout, self)
+
+    def on_message(self, sim, event):
+        if event.sub_tag == self.tag:
+            self.layout.value = event.value_tag
+            self.thread.set_value(self.node.var, self.layout.value, self.scope)
+            self.layout.present(sim, event)
+
+class DropdownControlRunner(StoryRuntimeNode):
+    def enter(self, mast:Mast, thread:MastAsync, node: DropdownControl):
+        self.thread = thread
+        # This is weird label may not be active label
+        # May need a fiber
+        self.label = thread.active_label
+        if not node.is_end:
+            self.tag = thread.main.page.get_tag()
+            self.node = node
+            scoped_val = thread.get_value(self.node.var, "")
+            val = scoped_val[0]
+            self.scope = scoped_val[1]
+            values = thread.format_string(node.values)
+            self.layout = layout.Dropdown(val, values, self.tag )
+            thread.main.page.add_content(self.layout, self)
+
+
+    def on_message(self, sim, event):
+        if event.sub_tag == self.tag:
+            self.layout.value = event.value_tag
+            self.thread.set_value(self.node.var, self.layout.value, self.scope)
+            self.thread.push_label(self.label, self.node.loc+1)
+
+    def poll(self, mast:Mast, thread:MastAsync, node: DropdownControl):
+        if node.is_end:
+            thread.pop_label(False)
+            return PollResults.OK_JUMP
+        elif node.end_node:
+            # skip on first pass
+            self.thread.jump(self.thread.active_label, node.end_node.loc+1)
+            return PollResults.OK_JUMP
+    
             
+class WidgetListRunner(MastRuntimeNode):
+    def enter(self, mast, thread: MastAsync, node:WidgetList):
+        thread.main.page.set_widget_list(node.console, node.widgets)
+
+class ImageControlRunner(StoryRuntimeNode):
+    def enter(self, mast:Mast, thread:MastAsync, node: ImageControl):
+        tag = thread.main.page.get_tag()
+        file = thread.format_string(node.file)
+        self.layout = layout.Image(file, node.color, tag)
+        thread.main.page.add_content(self.layout, self)
 
 
 over =     {
@@ -278,6 +352,10 @@ over =     {
     "ButtonControl": ButtonControlRunner,
     "SliderControl": SliderControlRunner,
     "CheckboxControl": CheckboxControlRunner,
+    "DropdownControl": DropdownControlRunner,
+    "ImageControl":ImageControlRunner,
+    "TextInputControl": TextInputControlRunner,
+    "WidgetList":WidgetListRunner,
     "Blank": BlankRunner,
     "Choose": ChooseRunner,
     "Section": SectionRunner,
@@ -326,7 +404,6 @@ class StoryRunner(MastSbsRunner):
             message += str(err)
             self.errors = [message]
             
-        
 
 class StoryPage(Page):
     tag = 0
@@ -337,13 +414,17 @@ class StoryPage(Page):
         self.gui_state = 'repaint'
         self.story_runner = None
         self.layouts = []
-        self.pending_layouts = self.pending_layouts = [layout.Layout(None, 20,10, 100, 90)]
+        self.pending_layouts = self.pending_layouts = [layout.Layout(None, 0,0, 100, 90)]
         self.pending_row = self.pending_row = layout.Row()
         self.pending_tag_map = {}
         self.tag_map = {}
         self.aspect_ratio = sbs.vec2(1920,1071)
         self.client_id = None
         self.sim = None
+        self.console = ""
+        self.widgets = ""
+        self.pending_console = ""
+        self.pending_widgets = ""
         #self.tag = 0
         self.errors = []
         cls = self.__class__
@@ -375,15 +456,20 @@ class StoryPage(Page):
     def swap_layout(self):
         self.layouts = self.pending_layouts
         self.tag_map = self.pending_tag_map
-        self.tag = 0
+        self.console = self.pending_console
+        self.widgets = self.pending_widgets
+        
+        self.tag = 10000
         
         if self.layouts:
             for layout_obj in self.layouts:
                 layout_obj.calc()
             
-            self.pending_layouts = self.pending_layouts = [layout.Layout(None, 20,10, 100, 90)]
+            self.pending_layouts = self.pending_layouts = [layout.Layout(None, 0,0, 100, 90)]
             self.pending_row = self.pending_row = layout.Row()
             self.pending_tag_map = {}
+            self.pending_console = ""
+            self.pending_widgets = ""
         
         self.gui_state = 'repaint'
 
@@ -415,20 +501,24 @@ class StoryPage(Page):
         self.add_tag(runner)
         self.pending_row.add(layout_item)
 
+    def set_widget_list(self, console,widgets):
+        self.pending_console = console
+        self.pending_widgets = widgets
     
     def add_section(self):
         if not self.pending_layouts:
-            self.pending_layouts = [layout.Layout(None, 20,10, 100, 90)]
+            self.pending_layouts = [layout.Layout(None, 0,0, 100, 90)]
         else:
             self.add_row()
-            self.pending_layouts.append(layout.Layout(None, 20,10, 100, 90))
+            self.pending_layouts.append(layout.Layout(None, 0,0, 100, 90))
 
-    def set_section_size(self, left, top, right, bottom):
+    def set_section_size(self, values):
         #print( f"SIZE: {left} {top} {right} {bottom}")
         if not self.pending_layouts:
             self.add_row()
         l = self.pending_layouts[-1]
-        l.set_size(left,top, right, bottom)
+        
+        l.set_size(values[0],values[1], values[2], values[3])
     
 
     def set_button_layout(self, layout):
@@ -438,10 +528,10 @@ class StoryPage(Page):
         
         if not self.pending_layouts:
             self.add_section()
-
+        
         if layout:
             self.pending_layouts.append(layout)
-        
+
         self.swap_layout()
     
     def present(self, sim, event):
@@ -455,6 +545,7 @@ class StoryPage(Page):
                 #errors = self.errors.reverse()
                 message = "Compile errors\n".join(self.story_runner.errors)
                 sbs.send_gui_clear(event.client_id)
+                sbs.send_client_widget_list(event.client_id, "", "")
                 sbs.send_gui_text(event.client_id, message, "error", 30,20,100,100)
                 self.gui_state = "errors"
                 return
@@ -470,6 +561,7 @@ class StoryPage(Page):
         if len(self.errors) > 0:
             message = "Compile errors\n".join(self.errors)
             sbs.send_gui_clear(event.client_id)
+            sbs.send_client_widget_list(event.client_id, "", "")
             sbs.send_gui_text(event.client_id, message, "error", 30,20,100,100)
             self.gui_state = "errors"
             return
@@ -489,6 +581,7 @@ class StoryPage(Page):
         match self.gui_state:
             case  "repaint":
                 sbs.send_gui_clear(event.client_id)
+                sbs.send_client_widget_list(event.client_id, self.console, self.widgets)
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
 

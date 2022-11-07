@@ -15,11 +15,20 @@ class Target(MastNode):
         
 class Tell(MastNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
-    rule = re.compile(r"""have\s*(?P<from_tag>\w+)\s+tell\s+(?P<to_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)\4)""")
-    def __init__(self, to_tag, from_tag, message, loc=None):
+    rule = re.compile(r"""have\s*(?P<from_tag>\w+)\s+tell\s+(?P<to_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)\4)"""+OPT_COLOR)
+    def __init__(self, to_tag, from_tag, message, color=None, loc=None):
         self.to_tag = to_tag
         self.from_tag = from_tag
         self.message = message
+        self.color = color if color is not None else "#fff"
+
+class Broadcast(MastNode):
+    #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
+    rule = re.compile(r"""have\s*(?P<to_tag>\w+)\s+broadcast\s+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)"""+OPT_COLOR)
+    def __init__(self, to_tag, message, color=None, q=None,loc=None):
+        self.to_tag = to_tag
+        self.message = message
+        self.color = color if color is not None else "#fff"
 
 
 class Timeout(MastNode):
@@ -115,6 +124,7 @@ class MastSbs(Mast):
         # sbs specific
         Target,
         Tell,
+        Broadcast,
         Comms,
         Timeout,
         EndAwait,

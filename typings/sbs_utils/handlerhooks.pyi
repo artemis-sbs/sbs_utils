@@ -1,5 +1,6 @@
 from sbs_utils.consoledispatcher import ConsoleDispatcher
 from sbs_utils.damagedispatcher import DamageDispatcher
+from sbs_utils.griddispatcher import GridDispatcher
 from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
 from sbs_utils.tickdispatcher import TickDispatcher

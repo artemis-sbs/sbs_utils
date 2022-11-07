@@ -1,8 +1,10 @@
 from sbs_utils.mast.maststory import AppendText
 from sbs_utils.mast.maststory import Area
 from sbs_utils.mast.maststory import Blank
+from sbs_utils.mast.maststory import ButtonControl
 from sbs_utils.mast.maststory import CheckboxControl
 from sbs_utils.mast.maststory import Choose
+from sbs_utils.mast.maststory import DropdownControl
 from sbs_utils.mast.maststory import Face
 from sbs_utils.mast.maststory import MastStory
 from sbs_utils.mast.maststory import Refresh
@@ -11,6 +13,7 @@ from sbs_utils.mast.maststory import Section
 from sbs_utils.mast.maststory import Ship
 from sbs_utils.mast.maststory import SliderControl
 from sbs_utils.mast.maststory import Text
+from sbs_utils.mast.maststory import WidgetList
 from sbs_utils.mast.mastsbs import Button
 from sbs_utils.mast.errorpage import ErrorPage
 from sbs_utils.gui import FakeEvent
@@ -23,6 +26,7 @@ from sbs_utils.mast.mastrunner import MastRunner
 from sbs_utils.mast.mastrunner import MastRuntimeNode
 from sbs_utils.mast.mastrunner import PollResults
 from sbs_utils.mast.mastsbsrunner import MastSbsRunner
+from sbs_utils.tickdispatcher import TickDispatcher
 class AppendTextRunner(StoryRuntimeNode):
     """class AppendTextRunner"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, thread: sbs_utils.mast.mastrunner.MastAsync, node: sbs_utils.mast.maststory.AppendText):
@@ -37,9 +41,11 @@ class BlankRunner(StoryRuntimeNode):
         ...
 class ButtonControlRunner(StoryRuntimeNode):
     """class ButtonControlRunner"""
-    def enter (self, mast: sbs_utils.mast.mast.Mast, thread: sbs_utils.mast.mastrunner.MastAsync, node: sbs_utils.mast.mastsbs.Button):
+    def enter (self, mast: sbs_utils.mast.mast.Mast, thread: sbs_utils.mast.mastrunner.MastAsync, node: sbs_utils.mast.maststory.ButtonControl):
         ...
     def on_message (self, sim, event):
+        ...
+    def poll (self, mast: sbs_utils.mast.mast.Mast, thread: sbs_utils.mast.mastrunner.MastAsync, node: sbs_utils.mast.maststory.ButtonControl):
         ...
 class CheckboxControlRunner(StoryRuntimeNode):
     """class CheckboxControlRunner"""
@@ -49,8 +55,8 @@ class CheckboxControlRunner(StoryRuntimeNode):
         ...
 class ChoiceButtonRunner(StoryRuntimeNode):
     """class ChoiceButtonRunner"""
-    def enter (self, mast: sbs_utils.mast.mast.Mast, thread: sbs_utils.mast.mastrunner.MastAsync, node: sbs_utils.mast.mastsbs.Button):
-        ...
+    def __init__ (self, choice, index, tag, node):
+        """Initialize self.  See help(type(self)) for accurate signature."""
     def on_message (self, sim, event):
         ...
 class ChooseRunner(StoryRuntimeNode):
@@ -59,11 +65,23 @@ class ChooseRunner(StoryRuntimeNode):
         ...
     def poll (self, mast: sbs_utils.mast.mast.Mast, thread: sbs_utils.mast.mastrunner.MastAsync, node: sbs_utils.mast.maststory.Choose):
         ...
+class DropdownControlRunner(StoryRuntimeNode):
+    """class DropdownControlRunner"""
+    def enter (self, mast: sbs_utils.mast.mast.Mast, thread: sbs_utils.mast.mastrunner.MastAsync, node: sbs_utils.mast.maststory.DropdownControl):
+        ...
+    def on_message (self, sim, event):
+        ...
+    def poll (self, mast: sbs_utils.mast.mast.Mast, thread: sbs_utils.mast.mastrunner.MastAsync, node: sbs_utils.mast.maststory.DropdownControl):
+        ...
 class FaceRunner(StoryRuntimeNode):
     """class FaceRunner"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, thread: sbs_utils.mast.mastrunner.MastAsync, node: sbs_utils.mast.maststory.Face):
         ...
     def poll (self, mast, thread, node: sbs_utils.mast.maststory.Face):
+        ...
+class ImageControlRunner(StoryRuntimeNode):
+    """class ImageControlRunner"""
+    def enter (self, mast: sbs_utils.mast.mast.Mast, thread: sbs_utils.mast.mastrunner.MastAsync, node: sbs_utils.mast.maststory.SliderControl):
         ...
 class RefreshRunner(StoryRuntimeNode):
     """class RefreshRunner"""
@@ -118,13 +136,17 @@ class StoryPage(Page):
         :type clientID: None or str or float"""
     def present (self, sim, event):
         """Present the gui """
-    def run (self, sim, story_script):
-        ...
     def set_button_layout (self, layout):
         ...
-    def set_section_size (self, left, top, right, bottom):
+    def set_section_size (self, area: sbs_utils.mast.maststory.Area):
+        ...
+    def set_widget_list (self, console, widgets):
+        ...
+    def start_story (self, sim, client_id):
         ...
     def swap_layout (self):
+        ...
+    def tick_mast (self, sim, t):
         ...
 class StoryRunner(MastSbsRunner):
     """class StoryRunner"""
@@ -132,7 +154,7 @@ class StoryRunner(MastSbsRunner):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def refresh (self, label):
         ...
-    def run (self, sim, page, label='main', inputs=None):
+    def run (self, sim, client_id, page, label='main', inputs=None):
         ...
     def runtime_error (self, message):
         ...
@@ -140,9 +162,17 @@ class StoryRunner(MastSbsRunner):
         ...
 class StoryRuntimeNode(MastRuntimeNode):
     """class StoryRuntimeNode"""
+    def databind (self):
+        ...
     def on_message (self, sim, event):
         ...
 class TextRunner(StoryRuntimeNode):
     """class TextRunner"""
+    def databind (self):
+        ...
     def enter (self, mast: sbs_utils.mast.mast.Mast, thread: sbs_utils.mast.mastrunner.MastAsync, node: sbs_utils.mast.maststory.Text):
+        ...
+class WidgetListRunner(MastRuntimeNode):
+    """class WidgetListRunner"""
+    def enter (self, mast, thread: sbs_utils.mast.mastrunner.MastAsync, node: sbs_utils.mast.maststory.WidgetList):
         ...

@@ -497,8 +497,8 @@ These will create a entity that has a name, a side, is positioned in space, has 
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.comm_id">
-<span class="sig-name descname"><span class="pre">comm_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.comm_id" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.comms_id">
+<span class="sig-name descname"><span class="pre">comms_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.comms_id" title="Permalink to this definition"></a></dt>
 <dd><p>Get the text to use in the comms messages</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -591,6 +591,28 @@ These will create a entity that has a name, a side, is positioned in space, has 
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.find_closest_nav">
+<span class="sig-name descname"><span class="pre">find_closest_nav</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nav</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#sbs_utils.spaceobject.CloseData" title="sbs_utils.spaceobject.CloseData"><span class="pre">CloseData</span></a></span></span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.find_closest_nav" title="Permalink to this definition"></a></dt>
+<dd><p>Finds the closest object matching the criteria</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – The simulation</p></li>
+<li><p><strong>roles</strong> – Roles to looks for can also be class name</p></li>
+<li><p><strong>max_dist</strong> (<em>float</em>) – Max distance to search (faster)</p></li>
+<li><p><strong>filter_func</strong> (<em>function that takes ID</em>) – Called to test each object to filter out non matches</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A list of close object</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#sbs_utils.spaceobject.CloseData" title="sbs_utils.spaceobject.CloseData">CloseData</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.get">
 <span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.get" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
@@ -598,6 +620,31 @@ These will create a entity that has a name, a side, is positioned in space, has 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.get_as">
 <span class="sig-name descname"><span class="pre">get_as</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.get_as" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.get_engine_data">
+<span class="sig-name descname"><span class="pre">get_engine_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.get_engine_data" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.get_engine_data_set">
+<span class="sig-name descname"><span class="pre">get_engine_data_set</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.get_engine_data_set" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.get_id">
+<span class="sig-name descname"><span class="pre">get_id</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.get_id" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.get_objects_with_role">
+<span class="sig-name descname"><span class="pre">get_objects_with_role</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.get_objects_with_role" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.get_roles">
+<span class="sig-name descname"><span class="pre">get_roles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.get_roles" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
@@ -683,6 +730,16 @@ These will create a entity that has a name, a side, is positioned in space, has 
 </dl>
 </dd></dl>
 
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.removing">
+<span class="sig-name descname"><span class="pre">removing</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.removing" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.set_engine_data">
+<span class="sig-name descname"><span class="pre">set_engine_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.set_engine_data" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.side">
 <span class="sig-name descname"><span class="pre">side</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.side" title="Permalink to this definition"></a></dt>
@@ -755,15 +812,45 @@ These will create a entity that has a name, a side, is positioned in space, has 
 </dl>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.target_closest_nav">
+<span class="sig-name descname"><span class="pre">target_closest_nav</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nav</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shoot</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.target_closest_nav" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.target_pos">
+<span class="sig-name descname"><span class="pre">target_pos</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.target_pos" title="Permalink to this definition"></a></dt>
+<dd><p>Set the item to target</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – The simulation</p></li>
+<li><p><strong>other_id</strong> (<em>int</em>) – the id of the object to target</p></li>
+<li><p><strong>shoot</strong> (<em>bool</em>) – if the object should be shot at</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.update_engine_data">
+<span class="sig-name descname"><span class="pre">update_engine_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.update_engine_data" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="sbs_utils.spaceobject.SpawnData">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.spaceobject.</span></span><span class="sig-name descname"><span class="pre">SpawnData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blob</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpawnData" title="Permalink to this definition"></a></dt>
-<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.SpawnData.object" title="sbs_utils.spaceobject.SpawnData.object"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.spaceobject.</span></span><span class="sig-name descname"><span class="pre">SpawnData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blob</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">py_obj</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpawnData" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="sbs_utils.spaceobject.SpawnData.blob">
 <span class="sig-name descname"><span class="pre">blob</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">any</span></em><a class="headerlink" href="#sbs_utils.spaceobject.SpawnData.blob" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpawnData.engine_object">
+<span class="sig-name descname"><span class="pre">engine_object</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">any</span></em><a class="headerlink" href="#sbs_utils.spaceobject.SpawnData.engine_object" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -772,8 +859,8 @@ These will create a entity that has a name, a side, is positioned in space, has 
 <dd></dd></dl>
 
 <dl class="py attribute">
-<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpawnData.object">
-<span class="sig-name descname"><span class="pre">object</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">any</span></em><a class="headerlink" href="#sbs_utils.spaceobject.SpawnData.object" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpawnData.py_object">
+<span class="sig-name descname"><span class="pre">py_object</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><span class="pre">SpaceObject</span></a></em><a class="headerlink" href="#sbs_utils.spaceobject.SpawnData.py_object" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>
