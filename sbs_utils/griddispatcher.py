@@ -32,7 +32,7 @@ class GridDispatcher:
             if object:
                 object(sim, event)
         elif event.tag == "grid_object_selection":
-            object_select = GridDispatcher._dispatch_object.get(event.selected_id)
+            object_select = GridDispatcher._dispatch_object_select.get(event.selected_id)
             if object_select:
                 object_select(sim, event)
         elif event.tag == "grid_point_selection":

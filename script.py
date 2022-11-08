@@ -11,6 +11,7 @@ import sbs_utils.layout as layout
 from sbs_utils.gui import Page, Gui
 from sbs_utils.pages.avatar import AvatarEditor
 from sbs_utils.pages.shippicker import ShipPicker
+from sbs_utils.pages.start import ClientSelectPage
 from sbs_utils.pages.layout import LayoutPage, Layout, Row, Text, Face, Ship, Separate
 #import sbs_utils
 from sbs_utils.mast.mast import Mast
@@ -359,7 +360,7 @@ class Mission:
         blob.set("target_id", player.unique_ID)
 
     def start_grid(sim: sbs.simulation):
-
+        Gui.client_start_page_class(ClientSelectPage)
         player = PlayerShip()
         sd_player = player.spawn(sim, 0,0,0, "Artemis", "tsn", "Battle Cruiser")
         go1 = GridObject()
@@ -368,6 +369,7 @@ class Mission:
         go2.spawn(sim, sd_player.id, "barney", "fred", 8,4, 3, "green", "rubble")
         go2.update_blob(sim, speed=0.01, icon_scale=1.3)
         go2.target_pos(sim,9,12)
+        GridDispatcher.add_object(go2.id, lambda sim, event: print("Barney Arrived"))
         
         
 
