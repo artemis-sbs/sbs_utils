@@ -16,10 +16,10 @@ from sbs_utils.pages.layout import LayoutPage, Layout, Row, Text, Face, Ship, Se
 #import sbs_utils
 from sbs_utils.mast.mast import Mast
 from sbs_utils.mast.mastsbs import MastSbs
-from sbs_utils.mast.mastsbsrunner import MastSbsRunner
+from sbs_utils.mast.mastsbsscheduler import MastSbsScheduler
 
 from sbs_utils.mast.maststory import MastStory
-from sbs_utils.mast.maststoryrunner import StoryPage, StoryRunner
+from sbs_utils.mast.maststoryscheduler import StoryPage, StoryScheduler
 from sbs_utils import fs
 import os
 from sbs_utils.gridobject import GridObject
@@ -36,7 +36,7 @@ class MastShip(Npc):
     def compile(sim, script):
         MastShip.mast = MastSbs()
         MastShip.mast.compile(script)
-        MastShip.runner = MastSbsRunner(
+        MastShip.runner = MastSbsScheduler(
             MastShip.mast)
         TickDispatcher.do_interval(sim, MastShip.tick_mast, 0)
 

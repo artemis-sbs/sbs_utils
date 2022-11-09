@@ -2,13 +2,13 @@ from sbs_utils.mast.mast import Mast, Scope
 from . import fake_sbs
 import sys        
 sys.modules["sbs"] = fake_sbs
-from sbs_utils.mast.mastrunner import MastRunner
+from sbs_utils.mast.mastrunner import MastScheduler
 
 import unittest
 
 Mast.enable_logging()
 
-class TMastRunner(MastRunner):
+class TMastRunner(MastScheduler):
     def runtime_error(self, message):
         print(f"RUNTIME ERROR: {message}")
 

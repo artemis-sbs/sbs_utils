@@ -221,8 +221,8 @@ class Marker(MastNode):
 
 class Scope(Enum):
     SHARED = 1  # per mast instance
-    NORMAL = 2  # per runner
-    TEMP = 99  # Per thread?
+    NORMAL = 2  # per scheduler
+    TEMP = 99  # Per task?
 
 class MastDataObject(object):
     def __init__(self, dictionary):
@@ -273,7 +273,7 @@ class Jump(MastNode):
 
 class Parallel(MastNode):
     """
-    Creates a new 'thread' to run in parallel
+    Creates a new 'task' to run in parallel
     """
     rule = re.compile(r"""((?P<name>[\w\.\[\]]+)\s*)?=>\s*(?P<label>\w+)(?P<inputs>\s*"""+ DICT_REGEX+")?"+IF_EXP_REGEX)
 
@@ -300,7 +300,7 @@ class Parallel(MastNode):
 
 class Await(MastNode):
     """
-    waits for an existing or a new 'thread' to run in parallel
+    waits for an existing or a new 'task' to run in parallel
     this needs to be a rule before Parallel
     """
     rule = re.compile(r"""await((\s*(?P<label>\w+))|((\s*(?P<spawn>=>))\s*(?P<name>\w+)(?P<inputs>\s*"""+DICT_REGEX+")?))"+IF_EXP_REGEX)
@@ -329,7 +329,7 @@ class Await(MastNode):
 
 class Cancel(MastNode):
     """
-    Cancels a new 'thread' to run in parallel
+    Cancels a new 'task' to run in parallel
     """
     rule = re.compile(r"""cancel\s*(?P<name>[\w\.\[\]]+)""")
 
@@ -474,7 +474,7 @@ class Mast:
         self.cmd_stack = [self.labels["main"]]
         self.indent_stack = [0]
         self.main_pruned = False
-        self.runners = set()
+        self.schedulers = set()
         self.lib_name = None
         
     
@@ -491,17 +491,17 @@ class Mast:
                     main.cmds[i] = Comment()
             self.main_pruned = True
 
-    def add_runner(self, runner):
-        self.runners.add(runner)
+    def add_scheduler(self, scheduler):
+        self.schedulers.add(scheduler)
 
-    def refresh_runners(self, source, label):
-        for runner in self.runners:
-            if runner == source:
+    def refresh_schedulers(self, source, label):
+        for scheduler in self.schedulers:
+            if scheduler == source:
                 continue
-            runner.refresh(label)
+            scheduler.refresh(label)
 
-    def remove_runner(self, runner):
-        self.runners.remove(runner)
+    def remove_scheduler(self, scheduler):
+        self.schedulers.remove(scheduler)
 
     def from_file(self, filename, lib_name=None):
         """ Docstring"""

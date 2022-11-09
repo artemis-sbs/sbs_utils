@@ -6,12 +6,12 @@ import sbs
 
 
 class MastRuntimeNode:
-    def enter(self, mast, runner, node):
+    def enter(self, mast, runtime_node, node):
         pass
-    def leave(self, mast, runner, node):
+    def leave(self, mast, runtime_node, node):
         pass
 
-    def poll(self, mast, runner, node):
+    def poll(self, mast, runtime_node, node):
         return PollResults.OK_ADVANCE_TRUE
 
 class MastRuntimeError:
@@ -23,7 +23,7 @@ class MastRuntimeError:
         self.line_no = line_no
 
 
-class MastAsync:
+class MastAsyncTask:
     pass
 
 # Using enum.IntEnum 
@@ -34,29 +34,29 @@ class PollResults(IntEnum):
      OK_RUN_AGAIN = 4
      OK_END = 99
 
-class EndRunner(MastRuntimeNode):
-    def poll(self, mast, thread, node:End):
+class EndRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task, node:End):
         return PollResults.OK_END
 
-class AssignRunner(MastRuntimeNode):
-    def poll(self, mast, thread:MastAsync, node:Assign):
+class AssignRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task:MastAsyncTask, node:Assign):
         try:
-            value = thread.eval_code(node.code)
+            value = task.eval_code(node.code)
             if "." in node.lhs or "[" in node.lhs:
-                locals = {"__mast_value": value} | thread.get_symbols()
+                locals = {"__mast_value": value} | task.get_symbols()
                 exec(f"""{node.lhs} = __mast_value""",{"__builtins__": Mast.globals}, locals)
             else:
-                thread.set_value(node.lhs, value, node.scope)
+                task.set_value(node.lhs, value, node.scope)
         except:
-            thread.main.runtime_error(f"assignment error {node.lhs}")
+            task.main.runtime_error(f"assignment error {node.lhs}")
             return PollResults.OK_END
 
         return PollResults.OK_ADVANCE_TRUE
 
-class PyCodeRunner(MastRuntimeNode):
-    def poll(self, mast, thread:MastAsync, node:PyCode):
+class PyCodeRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task:MastAsyncTask, node:PyCode):
         def export():
-            add_to = thread.main.vars
+            add_to = task.main.vars
             def decorator(cls):
                 add_to[cls.__name__] = cls
                 return cls
@@ -64,59 +64,59 @@ class PyCodeRunner(MastRuntimeNode):
 
         def export_var(name, value, shared=False):
             if shared:
-                thread.main.mast.vars[name] = value
+                task.main.mast.vars[name] = value
             else:
-                thread.main.vars[name] = value
+                task.main.vars[name] = value
 
-        locals = {"export": export, "export_var": export_var} | thread.get_symbols()
+        locals = {"export": export, "export_var": export_var} | task.get_symbols()
         exec(node.code,{"__builtins__": Mast.globals}, locals)
 
         # before = set(locals.items())
         # exec(node.code,{"__builtins__": Mast.globals}, locals)
         # after = set(locals.items())
         # new_vars = dict(before ^ after)
-        # thread.main.vars = thread.main.vars | new_vars
+        # task.main.vars = task.main.vars | new_vars
         return PollResults.OK_ADVANCE_TRUE
 
 
-class JumpRunner(MastRuntimeNode):
-    def poll(self, mast, thread, node:Jump):
+class JumpRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task, node:Jump):
         if node.code:
-            value = thread.eval_code(node.code)
+            value = task.eval_code(node.code)
             if not value:
                 return PollResults.OK_ADVANCE_TRUE
         if node.push:
-            thread.push_label(node.label)
+            task.push_label(node.label)
         elif node.pop_jump:
-            thread.pop_label()
-            thread.jump(node.pop_jump)
+            task.pop_label()
+            task.jump(node.pop_jump)
         elif node.pop:
-            thread.pop_label()
+            task.pop_label()
         else:
-            thread.jump(node.label)
+            task.jump(node.label)
         return PollResults.OK_JUMP
 
 
-class LoopStartRunner(MastRuntimeNode):
-    def enter(self, mast, thread:MastAsync, node:LoopStart):
-        scoped_val = thread.get_value(node.name, None)
+class LoopStartRuntimeNode(MastRuntimeNode):
+    def enter(self, mast, task:MastAsyncTask, node:LoopStart):
+        scoped_val = task.get_value(node.name, None)
         index = scoped_val[0]
         scope = scoped_val[1]
-        scoped_val = thread.get_value(node.name+"__iter", None)
+        scoped_val = task.get_value(node.name+"__iter", None)
         _iter = scoped_val[0]
         iter_scope  = scoped_val[1]
         if index is None:
             index = 0
             scope = Scope.TEMP
-            thread.set_value(node.name, index, scope)
+            task.set_value(node.name, index, scope)
         elif not node.iter:
             index+=1
-            thread.set_value(node.name, index, scope)
+            task.set_value(node.name, index, scope)
         self.scope = scope
 
         # One time om start create iterator        
         if node.code is not None and node.iter is None:
-            value = thread.eval_code(node.code)
+            value = task.eval_code(node.code)
             try:
                 _iter = iter(value)
                 node.iter = True
@@ -127,84 +127,84 @@ class LoopStartRunner(MastRuntimeNode):
         if _iter is not None and node.iter:
             try:
                 index = next(_iter)
-                thread.set_value(node.name, index, Scope.TEMP)
-                thread.set_value(node.name+"__iter", _iter, Scope.TEMP)
+                task.set_value(node.name, index, Scope.TEMP)
+                task.set_value(node.name+"__iter", _iter, Scope.TEMP)
             except StopIteration:
-                thread.set_value(node.name, None, Scope.TEMP)
-                thread.set_value(node.name+"__iter", None, Scope.TEMP)
+                task.set_value(node.name, None, Scope.TEMP)
+                task.set_value(node.name+"__iter", None, Scope.TEMP)
  
 
-    def poll(self, mast, thread, node:LoopStart):
+    def poll(self, mast, task, node:LoopStart):
         value = True
         if node.iter:
-            scoped_val = thread.get_value(node.name, None)
+            scoped_val = task.get_value(node.name, None)
             index = scoped_val[0]
             if index is None:
                 value = False
                 node.iter = None
         elif node.code:
-            value = thread.eval_code(node.code)
+            value = task.eval_code(node.code)
         if value == False:
-            inline_label = f"{thread.active_label}:{node.name}"
+            inline_label = f"{task.active_label}:{node.name}"
             # End loop clear value
-            thread.set_value(node.name, None, self.scope)
-            thread.jump(thread.active_label, node.end.loc+1)
-            #thread.jump_inline_end(inline_label, False)
+            task.set_value(node.name, None, self.scope)
+            task.jump(task.active_label, node.end.loc+1)
+            #task.jump_inline_end(inline_label, False)
             return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
-class LoopEndRunner(MastRuntimeNode):
-    def poll(self, mast, thread, node:LoopEnd):
-        inline_label = f"{thread.active_label}:{node.name}"
+class LoopEndRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task, node:LoopEnd):
+        inline_label = f"{task.active_label}:{node.name}"
         if node.loop == True:
-            thread.jump(thread.active_label, node.start.loc)
+            task.jump(task.active_label, node.start.loc)
             return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
-class LoopBreakRunner(MastRuntimeNode):
-    def enter(self, mast, thread:MastAsync, node:LoopStart):
-        scoped_val = thread.get_value(node.name, None)
+class LoopBreakRuntimeNode(MastRuntimeNode):
+    def enter(self, mast, task:MastAsyncTask, node:LoopStart):
+        scoped_val = task.get_value(node.name, None)
         index = scoped_val[0]
         scope = scoped_val[1]
         if index is None:
             scope = Scope.TEMP
         self.scope = scope
 
-    def poll(self, mast, thread, node:LoopEnd):
-        inline_label = f"{thread.active_label}:{node.name}"
+    def poll(self, mast, task, node:LoopEnd):
+        inline_label = f"{task.active_label}:{node.name}"
         if node.op == 'break':
-            #thread.jump_inline_end(inline_label, True)
-            thread.jump(thread.active_label, node.start.end.loc+1)
+            #task.jump_inline_end(inline_label, True)
+            task.jump(task.active_label, node.start.end.loc+1)
             # End loop clear value
-            thread.set_value(node.name, None, self.scope)
+            task.set_value(node.name, None, self.scope)
             return PollResults.OK_JUMP
         elif node.op == 'continue':
-            thread.jump(thread.active_label, node.start.loc)
-            #thread.jump_inline_start(inline_label)
+            task.jump(task.active_label, node.start.loc)
+            #task.jump_inline_start(inline_label)
             return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
-class IfStatementsRunner(MastRuntimeNode):
-    def poll(self, mast, thread, node:IfStatements):
+class IfStatementsRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task, node:IfStatements):
         """ """
         # if this is THE if, find the first true branch
         if node.if_op == "if":
-            activate = self.first_true(thread, node)
+            activate = self.first_true(task, node)
             if activate is not None:
-                thread.jump(thread.active_label, activate+1)
+                task.jump(task.active_label, activate+1)
                 return PollResults.OK_JUMP
         else:
             # Everything else jumps to past the endif
             activate = node.if_node.if_chain[-1]
-            thread.jump(thread.active_label, activate+1)
+            task.jump(task.active_label, activate+1)
             return PollResults.OK_JUMP
 
-    def first_true(self, thread: MastAsync, node: IfStatements):
+    def first_true(self, task: MastAsyncTask, node: IfStatements):
         cmd_to_run = None
         for i in node.if_chain:
-            test_node = thread.cmds[i]
+            test_node = task.cmds[i]
             if test_node.code:
-                value = thread.eval_code(test_node.code)
+                value = task.eval_code(test_node.code)
                 if value:
                     cmd_to_run = i
                     break
@@ -217,27 +217,27 @@ class IfStatementsRunner(MastRuntimeNode):
 
         return cmd_to_run
 
-class MatchStatementsRunner(MastRuntimeNode):
-    def poll(self, mast, thread, node:MatchStatements):
+class MatchStatementsRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task, node:MatchStatements):
         """ """
         # if this is THE if, find the first true branch
         if node.op == "match":
-            activate = self.first_true(thread, node)
+            activate = self.first_true(task, node)
             if activate is not None:
-                thread.jump(thread.active_label, activate+1)
+                task.jump(task.active_label, activate+1)
                 return PollResults.OK_JUMP
         else:
             # Everything else jumps to past the endif
             activate = node.match_node.chain[-1]
-            thread.jump(thread.active_label, activate+1)
+            task.jump(task.active_label, activate+1)
             return PollResults.OK_JUMP
 
-    def first_true(self, thread: MastAsync, node: MatchStatements):
+    def first_true(self, task: MastAsyncTask, node: MatchStatements):
         cmd_to_run = None
         for i in node.chain:
-            test_node = thread.cmds[i]
+            test_node = task.cmds[i]
             if test_node.code:
-                value = thread.eval_code(test_node.code)
+                value = task.eval_code(test_node.code)
                 if value:
                     cmd_to_run = i
                     break
@@ -256,60 +256,60 @@ class MatchStatementsRunner(MastRuntimeNode):
 
 
 
-class ParallelRunner(MastRuntimeNode):
-    def enter(self, mast, thread, node:Parallel):
-        vars = {} | thread.vars
+class ParallelRuntimeNode(MastRuntimeNode):
+    def enter(self, mast, task, node:Parallel):
+        vars = {} | task.vars
         if node.code:
-            inputs = thread.eval_code(node.code)
+            inputs = task.eval_code(node.code)
             vars = vars | inputs
         if node.if_code:
-            value = thread.eval_code(node.if_code)
+            value = task.eval_code(node.if_code)
             if not value:
                 return
-        thread.start_thread(node.label, vars, thread_name=node.name)
-    def poll(self, mast, thread, node:Parallel):
+        task.start_task(node.label, vars, task_name=node.name)
+    def poll(self, mast, task, node:Parallel):
         return PollResults.OK_ADVANCE_TRUE
 
-class AwaitRunner(MastRuntimeNode):
-    def enter(self, mast, thread, node:Await):
-        self.thread = None
+class AwaitRuntimeNode(MastRuntimeNode):
+    def enter(self, mast, task, node:Await):
+        self.task = None
 
         if node.if_code:
-            value = thread.eval_code(node.if_code)
+            value = task.eval_code(node.if_code)
             if not value:
                 return
         
         if node.spawn:
-            vars = {} | thread.vars
+            vars = {} | task.vars
             if node.code:
-                inputs = thread.eval_code(node.code)
+                inputs = task.eval_code(node.code)
                 vars = vars | inputs
-            # spawn via thread to pass same inputs
-            self.thread = thread.start_thread(node.label, vars)
+            # spawn via task to pass same inputs
+            self.task = task.start_task(node.label, vars)
         else:
-            named_thread = thread.get_value(node.label, None)
-            if named_thread is not None:
-                self.thread = named_thread[0]
+            named_task = task.get_value(node.label, None)
+            if named_task is not None:
+                self.task = named_task[0]
 
-    def poll(self, mast, thread, node:Await):
-        if self.thread is None:
+    def poll(self, mast, task, node:Await):
+        if self.task is None:
             return PollResults.OK_ADVANCE_TRUE
-        if self.thread.done:
-            if self.thread.result == PollResults.OK_ADVANCE_FALSE:
+        if self.task.done:
+            if self.task.result == PollResults.OK_ADVANCE_FALSE:
                 return PollResults.OK_ADVANCE_FALSE
             else:
                 return PollResults.OK_ADVANCE_TRUE
         return PollResults.OK_RUN_AGAIN
 
 
-class CancelRunner(MastRuntimeNode):
-    def poll(self, mast, thread: MastAsync, node:Cancel):
-        thread.main.cancel_thread(node.name)
+class CancelRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task: MastAsyncTask, node:Cancel):
+        task.main.cancel_task(node.name)
         return PollResults.OK_ADVANCE_TRUE
 
     
-class DelayRunner(MastRuntimeNode):
-    def enter(self, mast, thread, node):
+class DelayRuntimeNode(MastRuntimeNode):
+    def enter(self, mast, task, node):
         if node.clock=="gui":
             self.timeout = sbs.app_seconds()+ (node.minutes*60+node.seconds)
             pass
@@ -317,7 +317,7 @@ class DelayRunner(MastRuntimeNode):
             self.timeout = TickDispatcher.current + (node.minutes*60+node.seconds)*TickDispatcher.tps
         self.tag = None
 
-    def poll(self, mast, thread, node):
+    def poll(self, mast, task, node):
         match node.clock:
             case "gui":
                 if self.timeout <= sbs.app_seconds():
@@ -328,7 +328,7 @@ class DelayRunner(MastRuntimeNode):
 
         return PollResults.OK_RUN_AGAIN
 
-class MastRunner:
+class MastScheduler:
     pass
 
 class PushData:
@@ -337,12 +337,12 @@ class PushData:
         self.active_cmd = active_cmd
         self.data = data
 
-class MastAsync:
-    main: MastRunner
+class MastAsyncTask:
+    main: MastScheduler
     
-    def __init__(self, main: MastRunner, inputs=None):
+    def __init__(self, main: MastScheduler, inputs=None):
         self.done = False
-        self.runner = None
+        self.runtime_node = None
         self.main= main
         self.vars= inputs if inputs else {}
         self.result = None
@@ -383,24 +383,24 @@ class MastAsync:
         self.call_leave()
         if label == "END":
             self.active_cmd = 0
-            self.runner = None
+            self.runtime_node = None
             self.done = True
         else:
-            label_runner = self.main.mast.labels.get(label)
-            if label_runner is not None:
+            label_runtime_node = self.main.mast.labels.get(label)
+            if label_runtime_node is not None:
                 if self.active_label == "main":
                     self.main.mast.prune_main()
                     
                 self.cmds = self.main.mast.labels[label].cmds
                 self.active_label = label
                 self.active_cmd = activate_cmd
-                self.runner = None
+                self.runtime_node = None
                 self.done = False
                 self.next()
             else:
                 self.runtime_error(f"""Jump to label "{label}" not found""")
                 self.active_cmd = 0
-                self.runner = None
+                self.runtime_node = None
                 self.done = True
 
     def get_symbols(self):
@@ -444,10 +444,10 @@ class MastAsync:
         return (val, Scope.NORMAL)
 
     def call_leave(self):
-        if self.runner:
+        if self.runtime_node:
             cmd = self.cmds[self.active_cmd]
-            self.runner.leave(self.main.mast, self, cmd)
-            self.runner = None
+            self.runtime_node.leave(self.main.mast, self, cmd)
+            self.runtime_node = None
 
     def format_string(self, message):
         if isinstance(message, str):
@@ -468,9 +468,9 @@ class MastAsync:
             pass
         return value
 
-    def start_thread(self, label = "main", inputs=None, thread_name=None)->MastAsync:
+    def start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:
         inputs= self.vars|inputs if inputs else self.vars
-        return self.main.start_thread(label, inputs, thread_name)
+        return self.main.start_task(label, inputs, task_name)
     
     def tick(self):
         cmd = None
@@ -486,14 +486,14 @@ class MastAsync:
                 if count > 1000:
                     break
 
-                if self.runner:
+                if self.runtime_node:
                     cmd = self.cmds[self.active_cmd]
                     # Purged Assigned are seen as Comments
                     if cmd.__class__== "Comment":
                         self.next()
                         continue
 
-                    result = self.runner.poll(self.main.mast, self, cmd)
+                    result = self.runtime_node.poll(self.main.mast, self, cmd)
                     match result:
                         case PollResults.OK_ADVANCE_TRUE:
                             self.result = result
@@ -519,7 +519,7 @@ class MastAsync:
         logger = logging.getLogger("mast.runtime")
         logger.error(s)
         s = "mast SCRIPT ERROR\n"+ s
-        if self.runner:
+        if self.runtime_node:
             cmd = self.cmds[self.active_cmd]
         s += f"\nlabel: {self.active_label}"
         if cmd is not None:
@@ -532,7 +532,7 @@ class MastAsync:
 
 
     def next(self):
-        if self.runner:
+        if self.runtime_node:
             self.call_leave()
             cmd = self.cmds[self.active_cmd]
             self.active_cmd += 1
@@ -542,70 +542,70 @@ class MastAsync:
             return len(self.cmds) > 0
         
         cmd = self.cmds[self.active_cmd]
-        runner_cls = self.main.nodes.get(cmd.__class__.__name__, MastRuntimeNode)
+        runtime_node_cls = self.main.nodes.get(cmd.__class__.__name__, MastRuntimeNode)
         
-        self.runner = runner_cls()
-        #print(f"RUNNER {self.runner.__class__.__name__}")
-        self.runner.enter(self.main.mast, self, cmd)
+        self.runtime_node = runtime_node_cls()
+        #print(f"RUNNER {self.runtime_node.__class__.__name__}")
+        self.runtime_node.enter(self.main.mast, self, cmd)
         return True
 
 
 
-class MastRunner:
-    runners = {
-        "End": EndRunner,
-        "Jump": JumpRunner,
-        "IfStatements": IfStatementsRunner,
-        "MatchStatements": MatchStatementsRunner,
-        "LoopStart": LoopStartRunner,
-        "LoopEnd": LoopEndRunner,
-        "LoopBreak": LoopBreakRunner,
-        "PyCode": PyCodeRunner,
-        "Await": AwaitRunner,
-        "Parallel": ParallelRunner,
-        "Cancel": CancelRunner,
-        "Assign": AssignRunner,
-        "Delay": DelayRunner,
+class MastScheduler:
+    runtime_nodes = {
+        "End": EndRuntimeNode,
+        "Jump": JumpRuntimeNode,
+        "IfStatements": IfStatementsRuntimeNode,
+        "MatchStatements": MatchStatementsRuntimeNode,
+        "LoopStart": LoopStartRuntimeNode,
+        "LoopEnd": LoopEndRuntimeNode,
+        "LoopBreak": LoopBreakRuntimeNode,
+        "PyCode": PyCodeRuntimeNode,
+        "Await": AwaitRuntimeNode,
+        "Parallel": ParallelRuntimeNode,
+        "Cancel": CancelRuntimeNode,
+        "Assign": AssignRuntimeNode,
+        "Delay": DelayRuntimeNode,
     }
 
     def __init__(self, mast: Mast, overrides=None):
         if overrides is None:
             overrides = {}
-        self.nodes = MastRunner.runners | overrides
+        self.nodes = MastScheduler.runtime_nodes | overrides
         self.mast = mast
-        self.threads = []
-        self.name_threads = {}
+        self.tasks = []
+        self.name_tasks = {}
         self.inputs = None
         self.vars = self.labels = {"mast_runtime": self}
         self.done = []
-        self.mast.add_runner(self)
+        self.mast.add_runtime_node(self)
         
 
     def runtime_error(self, message):
         pass
 
-    def start_thread(self, label = "main", inputs=None, thread_name=None)->MastAsync:
+    def start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:
         if self.inputs is None:
             self.inputs = inputs
         
-        t= MastAsync(self, inputs)
+        t= MastAsyncTask(self, inputs)
         t.jump(label)
-        self.on_start_thread(t)
-        self.threads.append(t)
-        if thread_name is not None:
-            self.active_thread.set_value(thread_name, t, Scope.NORMAL)
+        self.on_start_task(t)
+        self.tasks.append(t)
+        if task_name is not None:
+            self.active_task.set_value(task_name, t, Scope.NORMAL)
         return t
 
-    def on_start_thread(self, t):
+    def on_start_task(self, t):
         t.tick()
-    def cancel_thread(self, name):
-        data = self.active_thread.get_value(name, None)
+    def cancel_task(self, name):
+        data = self.active_task.get_value(name, None)
         # Assuming its OK to cancel none
         if data is not None:
             self.done.append(data[0])
 
     def is_running(self):
-        if len(self.threads) == 0:
+        if len(self.tasks) == 0:
             return False
         return True
 
@@ -617,19 +617,19 @@ class MastRunner:
         return (val, Scope.NORMAL)
 
     def tick(self):
-        for thread in self.threads:
-            self.active_thread = thread
-            res = thread.tick()
+        for task in self.tasks:
+            self.active_task = task
+            res = task.tick()
             if res == PollResults.OK_END:
-                self.done.append(thread)
+                self.done.append(task)
         
         if len(self.done):
             for rem in self.done:
-                if rem in self.threads:
-                    self.threads.remove(rem)
+                if rem in self.tasks:
+                    self.tasks.remove(rem)
             self.done = []
 
-        if len(self.threads):
+        if len(self.tasks):
             return True
         else:
             return False

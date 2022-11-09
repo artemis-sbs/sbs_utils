@@ -4,7 +4,7 @@ import re
 
 class Target(MastNode):
     """
-    Creates a new 'thread' to run in parallel
+    Creates a new 'task' to run in parallel
     """
     rule = re.compile(r"""have\s*(?P<from_tag>[\w\.\[\]]+)\s*(?P<cmd>target|approach)(\s*(?P<to_tag>[\w\.\[\]]+))?""")
     def __init__(self, cmd=None, from_tag=None, to_tag=None, loc=None):
