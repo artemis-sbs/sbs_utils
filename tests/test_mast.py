@@ -2,7 +2,7 @@ from sbs_utils.mast.mast import Mast, Scope
 from . import fake_sbs
 import sys        
 sys.modules["sbs"] = fake_sbs
-from sbs_utils.mast.mastrunner import MastScheduler
+from sbs_utils.mast.mastscheduler import MastScheduler
 
 import unittest
 
@@ -22,7 +22,7 @@ def mast_run(code=None):
     mast = Mast()
     errors = mast.compile(code)
     runner = TMastRunner(mast)
-    runner.start_thread()
+    runner.start_task()
     return (errors,runner, mast)
 
 
@@ -275,7 +275,7 @@ shared var2 = var2 + 100
         assert(var2 == (800,Scope.SHARED))
         
         # run again, shared data should NOT reset
-        runner.start_thread()
+        runner.start_task()
         var1 = runner.get_value("var1")
         var2 = runner.get_value("var2")
         assert(var1 == (900,Scope.NORMAL))

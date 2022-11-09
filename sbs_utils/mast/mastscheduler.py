@@ -6,12 +6,12 @@ import sbs
 
 
 class MastRuntimeNode:
-    def enter(self, mast, runtime_node, node):
+    def enter(self, mast, scheduler, node):
         pass
-    def leave(self, mast, runtime_node, node):
+    def leave(self, mast, scheduler, node):
         pass
 
-    def poll(self, mast, runtime_node, node):
+    def poll(self, mast, scheduler, node):
         return PollResults.OK_ADVANCE_TRUE
 
 class MastRuntimeError:
@@ -155,7 +155,6 @@ class LoopStartRuntimeNode(MastRuntimeNode):
 
 class LoopEndRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:LoopEnd):
-        inline_label = f"{task.active_label}:{node.name}"
         if node.loop == True:
             task.jump(task.active_label, node.start.loc)
             return PollResults.OK_JUMP
@@ -171,7 +170,6 @@ class LoopBreakRuntimeNode(MastRuntimeNode):
         self.scope = scope
 
     def poll(self, mast, task, node:LoopEnd):
-        inline_label = f"{task.active_label}:{node.name}"
         if node.op == 'break':
             #task.jump_inline_end(inline_label, True)
             task.jump(task.active_label, node.start.end.loc+1)
@@ -578,7 +576,7 @@ class MastScheduler:
         self.inputs = None
         self.vars = self.labels = {"mast_runtime": self}
         self.done = []
-        self.mast.add_runtime_node(self)
+        self.mast.add_scheduler(self)
         
 
     def runtime_error(self, message):

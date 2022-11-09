@@ -96,6 +96,7 @@ turn = -turn
 
 =========== play ================
 
+~~ print("In Play")~~
 for y while y<3:
 for x while x<3:
     test = y*3+x
@@ -115,10 +116,7 @@ next x
 row
 next y
 
-await choice: end_await
-delay 4m
-
-
+await choice nothing
 
 
 ============== draw_board   ======
