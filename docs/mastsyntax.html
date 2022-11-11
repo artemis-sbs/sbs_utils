@@ -72,11 +72,27 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#task-flow-story-sections-via-labels">Task Flow: Story sections via labels</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#labels">Labels</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#state-flow-changes-jump-push-pop">State/Flow changes: Jump, Push, Pop</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#state-flow-changes-jump-push-pop">State/Flow changes: Jump, Push, Pop</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#jump">Jump</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#push-pop">Push/Pop</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pop-n-jump">Pop n’ Jump</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jump-to-end">Jump to End</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#scheduling-tasks-and-waiting-for-them-to-complete">Scheduling tasks and waiting for them to complete</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#scheduling-tasks">Scheduling tasks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scheduling-tasks-in-mast">Scheduling tasks in mast</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#passing-data-to-a-task">passing data to a task</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#named-task-and-waiting-for-a-task-or-tasks">Named task and waiting for a Task or Tasks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#awaiting-for-any-or-all-tasks">Awaiting for any or all tasks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#canceling-a-task">Canceling a task</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#conditional-statements">Conditional Statements</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#if-statements">If statements</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#match-statements">Match statements</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#for-loops">For loops</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#comments-and-markers">Comments and Markers</a><ul>
@@ -86,6 +102,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#markers">Markers</a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="#logging">Logging</a></li>
 </ul>
 </li>
 </ul>
@@ -239,12 +256,19 @@ You also can have comments, and there are also other ‘markers’ that can help
  <span class="o">.</span> <span class="o">.</span> <span class="o">.</span>
 </pre></div>
 </div>
+<p>There are two labels that are implied: main and END.</p>
+<p>The label “main” is the very start of the script.
+The label “END” end the current task.</p>
+<p>They are predefined and don’t need to be defined in script.</p>
+</section>
 </section>
 <section id="state-flow-changes-jump-push-pop">
-<h4>State/Flow changes: Jump, Push, Pop<a class="headerlink" href="#state-flow-changes-jump-push-pop" title="Permalink to this heading"></a></h4>
+<h3>State/Flow changes: Jump, Push, Pop<a class="headerlink" href="#state-flow-changes-jump-push-pop" title="Permalink to this heading"></a></h3>
 <p>There are times you will want to change what part of a task is running.
-This is done by redirecting the flow to a label.
-This can be done by a Jump command. Which is a ‘thin arrow’ followed by the label name.:</p>
+This is done by redirecting the flow to a label.</p>
+<section id="jump">
+<h4>Jump<a class="headerlink" href="#jump" title="Permalink to this heading"></a></h4>
+<p>This can be done by a Jump command. Which is a ‘thin arrow’ followed by the label name.:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">-&gt;</span> <span class="n">Here</span>
 
 <span class="o">========</span> <span class="n">NotHere</span> <span class="o">=====</span>
@@ -268,22 +292,277 @@ This can be done by a Jump command. Which is a ‘thin arrow’ followed by the 
 <span class="n">Done</span>
 </pre></div>
 </div>
-<p>End,
-Jump,</p>
+</section>
+<section id="push-pop">
+<h4>Push/Pop<a class="headerlink" href="#push-pop" title="Permalink to this heading"></a></h4>
+<p>Push is kind of the “Hold my Beer” of jump. When you Push it remembers the current location. Pop returns back to that location.</p>
+<p>Push is a ‘thin double arrow’ followed by the label name.</p>
+<p>Pop returns back to the previous location. Pop is a backwards thin double arrow.</p>
+<p>For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">log</span> <span class="s2">&quot;See you later&quot;</span>
+<span class="o">-&gt;&gt;</span> <span class="n">PushHere</span>
+<span class="n">log</span> <span class="s2">&quot;and we&#39;re back&quot;</span>
+
+<span class="o">========</span> <span class="n">PushHere</span> <span class="o">=====</span>
+<span class="n">log</span> <span class="s2">&quot;Going back&quot;</span>
+<span class="o">&lt;&lt;-</span>
+</pre></div>
+</div>
+<p>The expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">See</span> <span class="n">you</span> <span class="n">later</span>
+<span class="n">Going</span> <span class="n">Back</span>
+<span class="ow">and</span> <span class="n">we</span><span class="s1">&#39;re back</span>
+</pre></div>
+</div>
+</section>
+<section id="pop-n-jump">
+<h4>Pop n’ Jump<a class="headerlink" href="#pop-n-jump" title="Permalink to this heading"></a></h4>
+<p>There are some admittedly rare occasions where you do not want to return to the pop location.
+The push need to be cleared before you can jump to a different location.</p>
+<p>The Pop and Jump allows this odd case.</p>
+<p>Pop and Jump returns back to the previous location then immediately jumps to another location.
+Pop and jump is a backwards thin double arrow, a name and the two more arrow heads.</p>
+<p>It may seem odd, but the Pop needs to occur. Otherwise its is waisting memory remembering the push location.</p>
+<p>For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">log</span> <span class="s2">&quot;See you later&quot;</span>
+<span class="o">-&gt;&gt;</span> <span class="n">PushHere</span>
+<span class="n">log</span> <span class="s2">&quot;and we&#39;re back&quot;</span>
+
+<span class="o">========</span> <span class="n">PushHere</span> <span class="o">=====</span>
+<span class="n">log</span> <span class="s2">&quot;Going places!&quot;</span>
+<span class="o">&lt;&lt;-</span><span class="n">NewPlace</span><span class="o">&lt;&lt;</span>
+
+<span class="o">========</span> <span class="n">HereInstead</span> <span class="o">=====</span>
+<span class="n">log</span> <span class="s2">&quot;New place&quot;</span>
+</pre></div>
+</div>
+<p>The expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>See you later
+Going places!
+New place
+</pre></div>
+</div>
+</section>
+<section id="jump-to-end">
+<h4>Jump to End<a class="headerlink" href="#jump-to-end" title="Permalink to this heading"></a></h4>
+<p>To immediately end a task you can use a Jump to End.</p>
+<p>Jump to end looks like a Jump with a thin arrow and the label “END”:</p>
+<p>For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">log</span> <span class="s2">&quot;See you later&quot;</span>
+<span class="o">-&gt;</span><span class="n">END</span>
+<span class="n">log</span> <span class="s2">&quot;Never gets here&quot;</span>
+</pre></div>
+</div>
+<p>The expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">See</span> <span class="n">you</span> <span class="n">later</span>
+</pre></div>
+</div>
+<p>Jump to End ends the task. If that task the only task, the whole story ends.</p>
 </section>
 </section>
 <section id="scheduling-tasks-and-waiting-for-them-to-complete">
 <h3>Scheduling tasks and waiting for them to complete<a class="headerlink" href="#scheduling-tasks-and-waiting-for-them-to-complete" title="Permalink to this heading"></a></h3>
-<section id="scheduling-tasks">
-<h4>Scheduling tasks<a class="headerlink" href="#scheduling-tasks" title="Permalink to this heading"></a></h4>
-<p>Parallel,  # needs to be before Assign</p>
-<p>Await,  # needs to be before Parallel</p>
-<p>Cancel,</p>
-<p>IfStatements,
-MatchStatements,</p>
-<p>LoopStart,
-LoopEnd,
-LoopBreak,</p>
+<p>A story can have multiple tasks running in parallel.</p>
+<p>For example, a ship maybe have multiple Tasks associated with it.
+One tracking it comms, several for its client consoles, and several related to ‘quest’ it is involved in.</p>
+<p>To do so, new task can be scheduled. Either in python or via Mast.</p>
+<section id="scheduling-tasks-in-mast">
+<h4>Scheduling tasks in mast<a class="headerlink" href="#scheduling-tasks-in-mast" title="Permalink to this heading"></a></h4>
+<p>Schedule a task is similar to a Jump, but it uses the Fat arrow.
+The difference is another task begins, and the original task continues on.</p>
+<p>Example scheduling a task:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">log</span> <span class="s2">&quot;before&quot;</span>
+<span class="o">=&gt;</span> <span class="n">ATask</span>
+<span class="n">log</span> <span class="s2">&quot;after&quot;</span>
+
+<span class="o">===</span> <span class="n">ATask</span> <span class="o">===</span>
+<span class="n">log</span> <span class="s2">&quot;in task&quot;</span>
+</pre></div>
+</div>
+<dl class="simple">
+<dt>Expected output::</dt><dd><p>before
+after
+in task</p>
+</dd>
+</dl>
+</section>
+<section id="passing-data-to-a-task">
+<h4>passing data to a task<a class="headerlink" href="#passing-data-to-a-task" title="Permalink to this heading"></a></h4>
+<p>You can pass data to a new task. The data passed is different than the original task.</p>
+<p>Example scheduling a task:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Different&quot;</span>
+<span class="o">=&gt;</span> <span class="n">ATask</span> <span class="p">{</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Hello&quot;</span><span class="p">}</span>
+<span class="n">log</span> <span class="s2">&quot;</span><span class="si">{message}</span><span class="s2">&quot;</span>
+
+<span class="o">===</span> <span class="n">ATask</span> <span class="o">===</span>
+<span class="n">log</span> <span class="s2">&quot;</span><span class="si">{message}</span><span class="s2">&quot;</span>
+<span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Who cares&quot;</span>
+</pre></div>
+</div>
+<dl class="simple">
+<dt>Expected output::</dt><dd><p>different
+Hello</p>
+</dd>
+</dl>
+</section>
+<section id="named-task-and-waiting-for-a-task-or-tasks">
+<h4>Named task and waiting for a Task or Tasks<a class="headerlink" href="#named-task-and-waiting-for-a-task-or-tasks" title="Permalink to this heading"></a></h4>
+<p>You can assign a task to a variable by putting a name in front of the fat arrow.</p>
+<p>This can be used to await the task later.</p>
+<p>Example scheduling a task:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">log</span> <span class="s2">&quot;Start&quot;</span>
+<span class="n">task1</span> <span class="o">=&gt;</span> <span class="n">ATask</span>
+<span class="k">await</span> <span class="n">task1</span>
+<span class="n">log</span> <span class="s2">&quot;Done&quot;</span>
+
+<span class="o">===</span> <span class="n">ATask</span> <span class="o">===</span>
+<span class="n">log</span> <span class="s2">&quot;task run&quot;</span>
+</pre></div>
+</div>
+<dl class="simple">
+<dt>Expected output::</dt><dd><p>Start
+task run
+Done</p>
+</dd>
+</dl>
+</section>
+<section id="awaiting-for-any-or-all-tasks">
+<h4>Awaiting for any or all tasks<a class="headerlink" href="#awaiting-for-any-or-all-tasks" title="Permalink to this heading"></a></h4>
+<p>This can be used to await a list of tasks.
+You can await for ay task to complete.
+And you can await for all tasks to finish.</p>
+<p>Example await all:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">log</span> <span class="s2">&quot;Start&quot;</span>
+<span class="n">task1</span> <span class="o">=&gt;</span> <span class="n">ATask</span> <span class="p">{</span><span class="s2">&quot;say&quot;</span><span class="p">:</span> <span class="s2">&quot;Task1&quot;</span><span class="p">}</span>
+<span class="n">task2</span> <span class="o">=&gt;</span> <span class="n">ATask</span> <span class="p">{</span><span class="s2">&quot;say&quot;</span><span class="p">:</span> <span class="s2">&quot;Task2&quot;</span><span class="p">}</span>
+<span class="k">await</span> <span class="nb">all</span> <span class="p">[</span><span class="n">task1</span><span class="p">,</span><span class="n">task2</span><span class="p">]</span>
+<span class="n">log</span> <span class="s2">&quot;Done&quot;</span>
+
+<span class="o">===</span> <span class="n">ATask</span> <span class="o">===</span>
+<span class="n">log</span> <span class="s2">&quot;</span><span class="si">{say}</span><span class="s2">&quot;</span>
+</pre></div>
+</div>
+<dl class="simple">
+<dt>Expected output::</dt><dd><p>Start
+Task1
+Task2
+Done</p>
+</dd>
+</dl>
+<p>Example await any:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">log</span> <span class="s2">&quot;Start&quot;</span>
+<span class="n">task1</span> <span class="o">=&gt;</span> <span class="n">ATask</span> <span class="p">{</span><span class="s2">&quot;say&quot;</span><span class="p">:</span> <span class="s2">&quot;Task1&quot;</span><span class="p">}</span>
+<span class="n">task2</span> <span class="o">=&gt;</span> <span class="n">ATask</span> <span class="p">{</span><span class="s2">&quot;say&quot;</span><span class="p">:</span> <span class="s2">&quot;Task2&quot;</span><span class="p">}</span>
+<span class="k">await</span> <span class="nb">any</span> <span class="p">[</span><span class="n">task1</span><span class="p">,</span><span class="n">task2</span><span class="p">]</span>
+<span class="n">log</span> <span class="s2">&quot;Done&quot;</span>
+
+<span class="o">===</span> <span class="n">ATask</span> <span class="o">===</span>
+<span class="n">log</span> <span class="s2">&quot;</span><span class="si">{say}</span><span class="s2">&quot;</span>
+</pre></div>
+</div>
+<dl class="simple">
+<dt>Expected output::</dt><dd><p>Start
+Task1
+Task2
+Done</p>
+</dd>
+</dl>
+<p>The order maybe be different based on timing of the tasks.</p>
+<p>For an await any if any task end, the await is satisfied.</p>
+</section>
+<section id="canceling-a-task">
+<h4>Canceling a task<a class="headerlink" href="#canceling-a-task" title="Permalink to this heading"></a></h4>
+<p>You can cancel a tasks by name from another task.</p>
+<p>Example cancel:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">log</span> <span class="s2">&quot;Start&quot;</span>
+<span class="n">task1</span> <span class="o">=&gt;</span> <span class="n">ATask</span>
+<span class="n">cancel</span> <span class="n">task1</span>
+<span class="n">log</span> <span class="s2">&quot;Done&quot;</span>
+
+<span class="o">===</span> <span class="n">ATask</span> <span class="o">===</span>
+<span class="n">log</span> <span class="s2">&quot;May not run&quot;</span>
+</pre></div>
+</div>
+<dl class="simple">
+<dt>Expected output::</dt><dd><p>Start
+Done</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="conditional-statements">
+<h3>Conditional Statements<a class="headerlink" href="#conditional-statements" title="Permalink to this heading"></a></h3>
+<p>Mast supports both a if and match statements similar to python’s.</p>
+<section id="if-statements">
+<h4>If statements<a class="headerlink" href="#if-statements" title="Permalink to this heading"></a></h4>
+<p>Mast supports if statements similar to python with if, elif, and else.
+Mast is not a whitespace language so you need to close an if with and end_if</p>
+<p>If conditionals can be nested as well.</p>
+<p>Example if:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">value</span> <span class="o">=</span> <span class="mi">300</span>
+
+<span class="k">if</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="mi">300</span><span class="p">:</span>
+    <span class="n">log</span> <span class="s2">&quot;less&quot;</span>
+<span class="k">elif</span> <span class="n">value</span> <span class="o">&gt;</span> <span class="mi">300</span><span class="p">:</span>
+   <span class="n">log</span> <span class="s2">&quot;more&quot;</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">log</span> <span class="s2">&quot;equal&quot;</span>
+<span class="n">end_if</span>
+</pre></div>
+</div>
+<dl class="simple">
+<dt>Expected output::</dt><dd><p>equal</p>
+</dd>
+</dl>
+</section>
+<section id="match-statements">
+<h4>Match statements<a class="headerlink" href="#match-statements" title="Permalink to this heading"></a></h4>
+<p>Mast supports match statements similar to python with match, case.
+Mast is not a whitespace language so you need to close an if with and end_match</p>
+<p>Example match:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">value</span> <span class="o">=</span> <span class="mi">300</span>
+
+<span class="k">match</span> <span class="n">value</span><span class="p">:</span>
+    <span class="k">case</span> <span class="mi">200</span><span class="p">:</span>
+        <span class="n">log</span> <span class="s2">&quot;200&quot;</span>
+    <span class="k">case</span> <span class="mi">300</span><span class="p">:</span>
+        <span class="n">log</span> <span class="s2">&quot;300&quot;</span>
+    <span class="k">case</span> <span class="k">_</span><span class="p">:</span>
+        <span class="n">log</span> <span class="s2">&quot;something else&quot;</span>
+<span class="n">end_match</span>
+</pre></div>
+</div>
+<dl class="simple">
+<dt>Expected output::</dt><dd><p>300</p>
+</dd>
+</dl>
+</section>
+<section id="for-loops">
+<h4>For loops<a class="headerlink" href="#for-loops" title="Permalink to this heading"></a></h4>
+<p>Mast supports for loop similar to python with for, break, continue .
+Mast is not a whitespace language so you need to close an if with and next.</p>
+<p>However, mast support a for … in loop and a for .. while loop.</p>
+<p>Example for:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+    <span class="n">log</span> <span class="s2">&quot;</span><span class="si">{x}</span><span class="s2">&quot;</span>
+<span class="nb">next</span> <span class="n">x</span>
+
+<span class="n">y</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="k">for</span> <span class="n">z</span> <span class="k">while</span> <span class="n">y</span> <span class="o">&lt;</span> <span class="mi">30</span><span class="p">:</span>
+    <span class="n">log</span> <span class="s2">&quot;</span><span class="si">{z}</span><span class="s2"> </span><span class="si">{y}</span><span class="s2">&quot;</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">y</span> <span class="o">+</span> <span class="mi">10</span>
+<span class="nb">next</span> <span class="n">z</span>
+</pre></div>
+</div>
+<dl class="simple">
+<dt>Expected output::</dt><dd><p>1
+2
+3
+0 10
+1 20
+2 30</p>
+</dd>
+</dl>
 </section>
 </section>
 <section id="comments-and-markers">
@@ -348,6 +627,13 @@ Marker characters are dash(-), plus(+) or asterisk(*)</p>
 You don’t need to use them.</p>
 <p>Delay,</p>
 <p>Import,</p>
+</section>
+</section>
+<section id="logging">
+<h3>Logging<a class="headerlink" href="#logging" title="Permalink to this heading"></a></h3>
+<blockquote>
+<div><p>logger name test1 file “{mission_dir}/test1.out”</p>
+</div></blockquote>
 <ul class="simple">
 <li><p>Layout</p></li>
 <li><p>Layout components</p></li>
@@ -375,7 +661,6 @@ Tell,
 Broadcast,
 Comms,
 Near,</p>
-</section>
 </section>
 </section>
 </section>

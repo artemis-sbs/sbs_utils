@@ -362,9 +362,34 @@ shared var2 = var2 + 100
                 assert(value =="""First
 Got here later
 Done
-"""
+""")
 
-)
+
+    def test_multi_log_run_no_err(self):
+                (errors, runner, _) = mast_run( code = """
+    logger name test1 string output1
+    logger name test2 string output2
+    log name test1 "Test1"
+    
+    log name test2 "Test2"
+    log name test1 "Done1"
+    log name test2 "Done2"
+    
+            """)
+                assert(len(errors)==0)
+                output = runner.get_value("output1", None)
+                assert(output is not None)
+                st = output[0]
+                #st.seek(0)
+                value = st.getvalue()
+                assert(value =="""Test1\nDone1\n""")
+                output = runner.get_value("output2", None)
+                assert(output is not None)
+                st = output[0]
+                #st.seek(0)
+                value = st.getvalue()
+                assert(value =="""Test2\nDone2\n""")
+
 
 
     
@@ -386,7 +411,36 @@ Done
             """)
                 assert(len(errors)==0)
 
+    def test_push_pop_run_no_err(self):
+                (errors, runner, _) = mast_run( code = """
+    logger string output            
+    ->> PushHere
+    ->> PushJump
+    log "out"
+    
+    ======== PushHere =====
+    log "Push"
+    <<-
+    ======== PushJump =====
+    log "PushJump"
+    -> Popper
+    ===== Popper ====
+    log "Popper"
+    <<-
 
+            """)
+                assert(len(errors)==0)
+                output = runner.get_value("output", None)
+                assert(output is not None)
+                st = output[0]
+                #st.seek(0)
+                value = st.getvalue()
+
+                assert(value =="""Push
+PushJump
+Popper
+out
+""")
 
 
 

@@ -142,11 +142,24 @@ Labels have a Name with no spaces and are  enclosed in 2 or more equals::
     ========================================== MoreStuff ===========================
      . . .
 
+There are two labels that are implied: main and END.
+
+The label "main" is the very start of the script.
+The label "END" end the current task.
+
+They are predefined and don't need to be defined in script.
+
+
 
 State/Flow changes: Jump, Push, Pop
----------------------------------------
+=====================================
+
 There are times you will want to change what part of a task is running.
 This is done by redirecting the flow to a label.
+
+Jump
+----------
+
 This can be done by a Jump command. Which is a 'thin arrow' followed by the label name.::
 
     -> Here
@@ -170,34 +183,303 @@ The expected output::
     First
     Got Here later
     Done
+
+Push/Pop
+----------
+Push is kind of the "Hold my Beer" of jump. When you Push it remembers the current location. Pop returns back to that location.
+
+Push is a 'thin double arrow' followed by the label name.
+
+Pop returns back to the previous location. Pop is a backwards thin double arrow.
+
+For example::
+
+    log "See you later"
+    ->> PushHere
+    log "and we're back"
+
+    ======== PushHere =====
+    log "Going back"
+    <<-
     
+The expected output::
+
+    See you later
+    Going Back
+    and we're back
 
 
+Pop n' Jump
+-------------
 
+There are some admittedly rare occasions where you do not want to return to the pop location.
+The push need to be cleared before you can jump to a different location.
 
+The Pop and Jump allows this odd case.
 
-End,
-Jump,
+Pop and Jump returns back to the previous location then immediately jumps to another location.
+Pop and jump is a backwards thin double arrow, a name and the two more arrow heads.
+
+It may seem odd, but the Pop needs to occur. Otherwise its is waisting memory remembering the push location.
+
+For example::
+
+    log "See you later"
+    ->> PushHere
+    log "and we're back"
+
+    ======== PushHere =====
+    log "Going places!"
+    <<-NewPlace<<
+
+    ======== HereInstead =====
+    log "New place"
+
+The expected output::
+
+    See you later
+    Going places!
+    New place
+
+Jump to End
+-------------
+To immediately end a task you can use a Jump to End.
+
+Jump to end looks like a Jump with a thin arrow and the label "END"::
+
+For example::
+
+    log "See you later"
+    ->END
+    log "Never gets here"
+
+The expected output::
+
+    See you later
+
+Jump to End ends the task. If that task the only task, the whole story ends.
 
 Scheduling tasks and waiting for them to complete
 ==================================================
+A story can have multiple tasks running in parallel.
 
-Scheduling tasks
-------------------------------------------------------
-Parallel,  # needs to be before Assign
+For example, a ship maybe have multiple Tasks associated with it. 
+One tracking it comms, several for its client consoles, and several related to 'quest' it is involved in.
+
+To do so, new task can be scheduled. Either in python or via Mast.
+
+Scheduling tasks in mast
+--------------------------
+
+Schedule a task is similar to a Jump, but it uses the Fat arrow.
+The difference is another task begins, and the original task continues on.
+
+Example scheduling a task::
+
+    log "before"
+    => ATask
+    log "after"
+
+    === ATask ===
+    log "in task"
+
+Expected output::
+    before
+    after
+    in task
 
 
-Await,  # needs to be before Parallel
+passing data to a task
+------------------------
 
-Cancel,
+You can pass data to a new task. The data passed is different than the original task.
+
+Example scheduling a task::
+
+    message = "Different"
+    => ATask {"message": "Hello"}
+    log "{message}"
+
+    === ATask ===
+    log "{message}"
+    message = "Who cares"
+
+Expected output::
+    different
+    Hello
+
+Named task and waiting for a Task or Tasks
+------------------------------------------------
+
+You can assign a task to a variable by putting a name in front of the fat arrow.
+
+This can be used to await the task later.
+
+Example scheduling a task::
+
+    log "Start"
+    task1 => ATask
+    await task1
+    log "Done"
+
+    === ATask ===
+    log "task run"
+
+Expected output::
+    Start
+    task run
+    Done
 
 
-IfStatements,
-MatchStatements,
+Awaiting for any or all tasks
+------------------------------------------------
 
-LoopStart,
-LoopEnd,
-LoopBreak,
+This can be used to await a list of tasks.
+You can await for ay task to complete.
+And you can await for all tasks to finish.
+
+Example await all::
+
+    log "Start"
+    task1 => ATask {"say": "Task1"}
+    task2 => ATask {"say": "Task2"}
+    await all [task1,task2]
+    log "Done"
+
+    === ATask ===
+    log "{say}"
+
+Expected output::
+    Start
+    Task1
+    Task2
+    Done
+
+Example await any::
+
+    log "Start"
+    task1 => ATask {"say": "Task1"}
+    task2 => ATask {"say": "Task2"}
+    await any [task1,task2]
+    log "Done"
+
+    === ATask ===
+    log "{say}"
+
+Expected output::
+    Start
+    Task1
+    Task2
+    Done
+
+
+The order maybe be different based on timing of the tasks.
+
+For an await any if any task end, the await is satisfied.
+
+
+Canceling a task
+-------------------
+
+You can cancel a tasks by name from another task.
+
+Example cancel::
+
+    log "Start"
+    task1 => ATask
+    cancel task1
+    log "Done"
+
+    === ATask ===
+    log "May not run"
+
+Expected output::
+    Start
+    Done
+
+
+Conditional Statements
+=========================
+
+Mast supports both a if and match statements similar to python's.
+
+If statements
+----------------
+
+Mast supports if statements similar to python with if, elif, and else.
+Mast is not a whitespace language so you need to close an if with and end_if
+
+If conditionals can be nested as well.
+
+Example if::
+
+    value = 300
+
+    if value < 300:
+        log "less"
+    elif value > 300:
+       log "more"
+    else:
+        log "equal"
+    end_if
+
+Expected output::
+    equal
+
+
+Match statements
+----------------
+
+Mast supports match statements similar to python with match, case.
+Mast is not a whitespace language so you need to close an if with and end_match
+
+Example match::
+
+    value = 300
+
+    match value:
+        case 200:
+            log "200"
+        case 300:
+            log "300"
+        case _:
+            log "something else"
+    end_match
+
+Expected output::
+    300
+
+
+For loops
+----------------
+
+Mast supports for loop similar to python with for, break, continue .
+Mast is not a whitespace language so you need to close an if with and next.
+
+However, mast support a for ... in loop and a for .. while loop.
+
+Example for::
+
+    for x in range(3):
+        log "{x}"
+    next x
+
+    y = 10
+    for z while y < 30:
+        log "{z} {y}"
+        y = y + 10
+    next z
+    
+    
+Expected output::
+    1
+    2
+    3
+    0 10
+    1 20
+    2 30
+
+
 
 Comments and Markers
 ======================
@@ -230,7 +512,6 @@ Using block comments to 'disable' code it can quickly get confusing. Therefore, 
 
 Named block comments
 ----------------------
-
 
 You can have a named block comment enclosing the name in using 3 or more !.
 You must explicitly end the comment with the name as well::
@@ -272,6 +553,10 @@ Delay,
 
 Import,
 
+Logging
+================
+
+ logger name test1 file "{mission_dir}/test1.out"
 
 **********************
 Gui Story components
