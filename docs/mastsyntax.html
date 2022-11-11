@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>The Mast Language &mdash; SBS Utils 1.0 documentation</title>
+  <title>Language Basics &mdash; SBS Utils 1.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/graphviz.css" type="text/css" />
@@ -20,7 +20,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="TBD" href="mastextending.html" />
+    <link rel="next" title="Engine Interactions" href="mastsbssyntax.html" />
     <link rel="prev" title="The hook Handlers" href="hookhandlers.html" /> 
 </head>
 
@@ -60,8 +60,9 @@
 <li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">The Mast Language:</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">The Mast Language</a><ul>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Language Basics</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#language-high-level-concepts">Language high level concepts</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#basic-language">Basic Language</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#data">Data</a><ul>
@@ -107,6 +108,8 @@
 </li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="mastsbssyntax.html">Engine Interactions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="maststorysyntax.html">Story Components</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mastextending.html">TBD</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
@@ -132,7 +135,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>The Mast Language</li>
+      <li>Language Basics</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/mastsyntax.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -142,8 +145,8 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="the-mast-language">
-<h1>The Mast Language<a class="headerlink" href="#the-mast-language" title="Permalink to this heading"></a></h1>
+  <section id="language-basics">
+<h1>Language Basics<a class="headerlink" href="#language-basics" title="Permalink to this heading"></a></h1>
 <p>Mast is an abbreviation for Multiple Actor/Audience Story Telling. So, it is for writing Multiplayer choose your own adventure types of stories.</p>
 <p>Mast is a interpreted scripting Language for adding interactivity, narrative, quest etc.</p>
 <p>The  Mast technology can be used in many various systems. What may be different is the actors, tasks and events that are in the system.</p>
@@ -379,12 +382,12 @@ The difference is another task begins, and the original task continues on.</p>
 <span class="n">log</span> <span class="s2">&quot;in task&quot;</span>
 </pre></div>
 </div>
-<dl class="simple">
-<dt>Expected output::</dt><dd><p>before
-after
-in task</p>
-</dd>
-</dl>
+<p>Expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">before</span>
+<span class="n">after</span>
+<span class="ow">in</span> <span class="n">task</span>
+</pre></div>
+</div>
 </section>
 <section id="passing-data-to-a-task">
 <h4>passing data to a task<a class="headerlink" href="#passing-data-to-a-task" title="Permalink to this heading"></a></h4>
@@ -399,11 +402,11 @@ in task</p>
 <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Who cares&quot;</span>
 </pre></div>
 </div>
-<dl class="simple">
-<dt>Expected output::</dt><dd><p>different
-Hello</p>
-</dd>
-</dl>
+<p>Expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">different</span>
+<span class="n">Hello</span>
+</pre></div>
+</div>
 </section>
 <section id="named-task-and-waiting-for-a-task-or-tasks">
 <h4>Named task and waiting for a Task or Tasks<a class="headerlink" href="#named-task-and-waiting-for-a-task-or-tasks" title="Permalink to this heading"></a></h4>
@@ -419,12 +422,12 @@ Hello</p>
 <span class="n">log</span> <span class="s2">&quot;task run&quot;</span>
 </pre></div>
 </div>
-<dl class="simple">
-<dt>Expected output::</dt><dd><p>Start
-task run
-Done</p>
-</dd>
-</dl>
+<p>Expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Start</span>
+<span class="n">task</span> <span class="n">run</span>
+<span class="n">Done</span>
+</pre></div>
+</div>
 </section>
 <section id="awaiting-for-any-or-all-tasks">
 <h4>Awaiting for any or all tasks<a class="headerlink" href="#awaiting-for-any-or-all-tasks" title="Permalink to this heading"></a></h4>
@@ -442,13 +445,13 @@ And you can await for all tasks to finish.</p>
 <span class="n">log</span> <span class="s2">&quot;</span><span class="si">{say}</span><span class="s2">&quot;</span>
 </pre></div>
 </div>
-<dl class="simple">
-<dt>Expected output::</dt><dd><p>Start
-Task1
-Task2
-Done</p>
-</dd>
-</dl>
+<p>Expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Start</span>
+<span class="n">Task1</span>
+<span class="n">Task2</span>
+<span class="n">Done</span>
+</pre></div>
+</div>
 <p>Example await any:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">log</span> <span class="s2">&quot;Start&quot;</span>
 <span class="n">task1</span> <span class="o">=&gt;</span> <span class="n">ATask</span> <span class="p">{</span><span class="s2">&quot;say&quot;</span><span class="p">:</span> <span class="s2">&quot;Task1&quot;</span><span class="p">}</span>
@@ -460,13 +463,13 @@ Done</p>
 <span class="n">log</span> <span class="s2">&quot;</span><span class="si">{say}</span><span class="s2">&quot;</span>
 </pre></div>
 </div>
-<dl class="simple">
-<dt>Expected output::</dt><dd><p>Start
-Task1
-Task2
-Done</p>
-</dd>
-</dl>
+<p>Expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Start</span>
+<span class="n">Task1</span>
+<span class="n">Task2</span>
+<span class="n">Done</span>
+</pre></div>
+</div>
 <p>The order maybe be different based on timing of the tasks.</p>
 <p>For an await any if any task end, the await is satisfied.</p>
 </section>
@@ -483,11 +486,11 @@ Done</p>
 <span class="n">log</span> <span class="s2">&quot;May not run&quot;</span>
 </pre></div>
 </div>
-<dl class="simple">
-<dt>Expected output::</dt><dd><p>Start
-Done</p>
-</dd>
-</dl>
+<p>Expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Start</span>
+<span class="n">Done</span>
+</pre></div>
+</div>
 </section>
 </section>
 <section id="conditional-statements">
@@ -510,10 +513,10 @@ Mast is not a whitespace language so you need to close an if with and end_if</p>
 <span class="n">end_if</span>
 </pre></div>
 </div>
-<dl class="simple">
-<dt>Expected output::</dt><dd><p>equal</p>
-</dd>
-</dl>
+<p>Expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">equal</span>
+</pre></div>
+</div>
 </section>
 <section id="match-statements">
 <h4>Match statements<a class="headerlink" href="#match-statements" title="Permalink to this heading"></a></h4>
@@ -532,10 +535,10 @@ Mast is not a whitespace language so you need to close an if with and end_match<
 <span class="n">end_match</span>
 </pre></div>
 </div>
-<dl class="simple">
-<dt>Expected output::</dt><dd><p>300</p>
-</dd>
-</dl>
+<p>Expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">300</span>
+</pre></div>
+</div>
 </section>
 <section id="for-loops">
 <h4>For loops<a class="headerlink" href="#for-loops" title="Permalink to this heading"></a></h4>
@@ -554,15 +557,15 @@ Mast is not a whitespace language so you need to close an if with and next.</p>
 <span class="nb">next</span> <span class="n">z</span>
 </pre></div>
 </div>
-<dl class="simple">
-<dt>Expected output::</dt><dd><p>1
-2
-3
-0 10
-1 20
-2 30</p>
-</dd>
-</dl>
+<p>Expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">1</span>
+<span class="mi">2</span>
+<span class="mi">3</span>
+<span class="mi">0</span> <span class="mi">10</span>
+<span class="mi">1</span> <span class="mi">20</span>
+<span class="mi">2</span> <span class="mi">30</span>
+</pre></div>
+</div>
 </section>
 </section>
 <section id="comments-and-markers">
@@ -634,33 +637,6 @@ You don’t need to use them.</p>
 <blockquote>
 <div><p>logger name test1 file “{mission_dir}/test1.out”</p>
 </div></blockquote>
-<ul class="simple">
-<li><p>Layout</p></li>
-<li><p>Layout components</p></li>
-<li><p>Form Controls</p></li>
-</ul>
-<p>Row,
-Text,
-AppendText,
-Face,
-Ship,
-Blank,
-Section,
-Area,
-Choose,
-ButtonControl,
-SliderControl,
-CheckboxControl,
-DropdownControl,
-ImageControl,
-TextInputControl,
-WidgetList,
-Refresh</p>
-<p>Target,
-Tell,
-Broadcast,
-Comms,
-Near,</p>
 </section>
 </section>
 </section>
@@ -670,7 +646,7 @@ Near,</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="hookhandlers.html" class="btn btn-neutral float-left" title="The hook Handlers" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="mastextending.html" class="btn btn-neutral float-right" title="TBD" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="mastsbssyntax.html" class="btn btn-neutral float-right" title="Engine Interactions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

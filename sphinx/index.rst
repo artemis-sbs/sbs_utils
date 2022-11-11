@@ -38,8 +38,11 @@ Welcome to SBS Utils's documentation!
 
 .. toctree::
    :maxdepth: 2
+   :caption: The Mast Language:
 
    mastsyntax
+   mastsbssyntax
+   maststorysyntax
    mastextending
    
 

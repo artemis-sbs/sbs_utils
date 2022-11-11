@@ -1,5 +1,5 @@
 ##################
-The Mast Language
+Language Basics
 ##################
 
 Mast is an abbreviation for Multiple Actor/Audience Story Telling. So, it is for writing Multiplayer choose your own adventure types of stories.
@@ -284,6 +284,7 @@ Example scheduling a task::
     log "in task"
 
 Expected output::
+    
     before
     after
     in task
@@ -305,6 +306,7 @@ Example scheduling a task::
     message = "Who cares"
 
 Expected output::
+
     different
     Hello
 
@@ -326,9 +328,10 @@ Example scheduling a task::
     log "task run"
 
 Expected output::
-    Start
-    task run
-    Done
+
+ Start
+ task run
+ Done
 
 
 Awaiting for any or all tasks
@@ -350,10 +353,11 @@ Example await all::
     log "{say}"
 
 Expected output::
-    Start
-    Task1
-    Task2
-    Done
+
+ Start
+ Task1
+ Task2
+ Done
 
 Example await any::
 
@@ -367,10 +371,11 @@ Example await any::
     log "{say}"
 
 Expected output::
-    Start
-    Task1
-    Task2
-    Done
+
+ Start
+ Task1
+ Task2
+ Done
 
 
 The order maybe be different based on timing of the tasks.
@@ -394,8 +399,9 @@ Example cancel::
     log "May not run"
 
 Expected output::
-    Start
-    Done
+
+ Start
+ Done
 
 
 Conditional Statements
@@ -424,6 +430,7 @@ Example if::
     end_if
 
 Expected output::
+
     equal
 
 
@@ -447,6 +454,7 @@ Example match::
     end_match
 
 Expected output::
+    
     300
 
 
@@ -472,12 +480,14 @@ Example for::
     
     
 Expected output::
-    1
-    2
-    3
-    0 10
-    1 20
-    2 30
+
+ 1
+ 2
+ 3
+ 0 10
+ 1 20
+ 2 30
+
 
 
 
@@ -558,38 +568,3 @@ Logging
 
  logger name test1 file "{mission_dir}/test1.out"
 
-**********************
-Gui Story components
-*********************
-
-- Layout
-- Layout components
-- Form Controls
-
-Row,
-Text,
-AppendText,
-Face,
-Ship,
-Blank,
-Section,
-Area,
-Choose,
-ButtonControl,
-SliderControl,
-CheckboxControl,
-DropdownControl,
-ImageControl,
-TextInputControl,
-WidgetList,
-Refresh
-
-********************************
-Engine Interaction and events
-*******************************
-
-Target,
-Tell,
-Broadcast,
-Comms,
-Near,
