@@ -20,7 +20,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Overview" href="tutorials/overview.html" />
+    <link rel="next" title="The Mast Language" href="mastsyntax.html" />
     <link rel="prev" title="TickDispatcher" href="tickdispatcher.html" /> 
 </head>
 
@@ -63,12 +63,17 @@
 </ul>
 </li>
 </ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="mastsyntax.html">The Mast Language</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mastextending.html">TBD</a></li>
+</ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/overview.html">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/setup.html">Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/entry.html">Entry Points, events, and handlers</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/gui.html">Adding Gui pages and using the Gui System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/mast.html">Adding MAST to you mission</a></li>
 </ul>
 
         </div>
@@ -106,14 +111,13 @@
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.handlerhooks.ErrorPage.on_message">
 <span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.handlerhooks.ErrorPage.on_message" title="Permalink to this definition"></a></dt>
-<dd><p>Called when a control on the page has been interacted with</p>
+<dd><p>on_client_change</p>
+<p>Called when the option pages page has been interacted with</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>message_tag</strong> (<em>str</em>) – The tag name of the control interacted with</p></li>
-<li><p><strong>clientID</strong> (<em>None</em><em> or </em><em>str</em><em> or </em><em>float</em>) – The client ID that had the interaction</p></li>
-<li><p><strong>data</strong> – Any data associated with the control e.g. slider float value of current value</p></li>
+<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
 </ul>
 </dd>
 </dl>
@@ -155,7 +159,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="tickdispatcher.html" class="btn btn-neutral float-left" title="TickDispatcher" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="tutorials/overview.html" class="btn btn-neutral float-right" title="Overview" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="mastsyntax.html" class="btn btn-neutral float-right" title="The Mast Language" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

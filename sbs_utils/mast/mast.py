@@ -10,6 +10,7 @@ import math
 import itertools
 import logging
 import random
+from io import StringIO
 
 
 # tokens
@@ -75,6 +76,24 @@ class Label(MastNode):
     def add_child(self, cmd):
         self.cmds.append(cmd)
 
+
+class Log(MastNode):
+    rule = re.compile(r"""log\s+(name\s+(?P<logger>[\w\.]*)\s+)?(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)(\s+(?P<level>debug|info|warning|error|critical))?""")
+    
+    def __init__(self, message, logger=None, level=None, q=None, loc=None):
+        self.message = self.compile_formatted_string(message)
+        self.level = level if level is not None else "debug"
+        self.logger = logger if logger is not None else "mast.story"
+
+class Logger(MastNode):
+    rule = re.compile(r"""logger(\s+name\s+(?P<logger>[\w\.]*))?(\s+string\s+(?P<var>\w*))?(\s+file\s*(?P<q>['"]{3}|["'])(?P<name>[\s\S]+?)(?P=q))?""")
+
+    def __init__(self, logger=None, var=None, name=None, q=None, loc=None):
+        self.var = var
+        if name is not None:
+            name = self.compile_formatted_string(name)
+        self.name = name
+        self.logger = logger if logger is not None else "mast.story"
 
 class LoopStart(MastNode):
     rule = re.compile(r'(for\s*(?P<name>\w+)\s*)(in|while)((?P<if_exp>[\s\S]+?):)')
@@ -199,6 +218,8 @@ class Input(MastNode):
         self.name = name
 
 
+
+
 class Import(MastNode):
     rule = re.compile(r'(from\s+(?P<lib>[\w\.\/-]+)\s+)?import\s+(?P<name>[\w\.\/-]+)')
 
@@ -208,9 +229,10 @@ class Import(MastNode):
 
 
 class Comment(MastNode):
-    rule = re.compile(r'#[ \t\S]*')
+    #rule = re.compile(r'(#[ \t\S]*)|((?P<com>[!]{3,})[\s\S]+(?P=com))')
+    rule = re.compile(r'(#[ \t\S]*)|(\/\*[\s\S]+\*\/)|([!]{3,}\s*(?P<com>\w+)\s*[!]{3,}[\s\S]+[!]{3,}\s*end\s+(?P=com)\s*[!]{3,})')
 
-    def __init__(self, loc=None):
+    def __init__(self, com=None, loc=None):
         pass
 
 class Marker(MastNode):
@@ -452,6 +474,8 @@ class Mast:
         LoopEnd,
         LoopBreak,
         PyCode,
+        Log,
+        Logger,
         Input,
         #        Var,
         Import,
@@ -467,8 +491,8 @@ class Mast:
 
     def clear(self):
         self.inputs = {}
-        self.vars = {}
-        self.labels = {"mast": self}
+        self.vars = {"mast": self}
+        self.labels = {}
         self.inline_labels = {}
         self.labels["main"] = Label("main")
         self.cmd_stack = [self.labels["main"]]

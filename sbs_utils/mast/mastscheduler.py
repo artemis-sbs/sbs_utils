@@ -305,7 +305,52 @@ class CancelRuntimeNode(MastRuntimeNode):
         task.main.cancel_task(node.name)
         return PollResults.OK_ADVANCE_TRUE
 
+class LogRuntimeNode(MastRuntimeNode):
+    def enter(self, mast, task: MastAsyncTask, node:Log):
+        logger = logging.getLogger(node.logger)
+        message = task.format_string(node.message)
+        match node.level:
+            case "info":
+                logger.info(message)
+            case "debug":
+                logger.debug(message)
+            case "warning":
+                logger.warning(message)
+            case "error":
+                logger.error(message)
+            case "critical":
+                logger.critical(message)
+            case _:
+                logger.debug(message)
+
+class LoggerRuntimeNode(MastRuntimeNode):
+    def enter(self, mast:Mast, task: MastAsyncTask, node:Logger):
+        logger = logging.getLogger(node.logger)
+        logging.basicConfig(level=logging.NOTSET)
+        logger.setLevel(logging.NOTSET)
+        handler  = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(levelname)s|%(name)s|%(message)s"))
+        handler.setLevel(logging.NOTSET)
+        logger.addHandler(handler)
+
+        if node.var is not None:
+            streamer = StringIO()
+            handler = logging.StreamHandler(stream=streamer)
+            handler.setFormatter(logging.Formatter("%(message)s"))
+            handler.setLevel(logging.NOTSET)
+            logger.addHandler(handler)
+            
+            mast.vars[node.var] = streamer
+
+        if node.name is not None:
+            name = task.format_string(node.name)
+            handler = logging.FileHandler(f'{name}',mode='w',)
+            handler.setFormatter(logging.Formatter("%(message)s"))
+            handler.setLevel(logging.NOTSET)
+            logger.addHandler(handler)
+
     
+
 class DelayRuntimeNode(MastRuntimeNode):
     def enter(self, mast, task, node):
         if node.clock=="gui":
@@ -564,6 +609,8 @@ class MastScheduler:
         "Cancel": CancelRuntimeNode,
         "Assign": AssignRuntimeNode,
         "Delay": DelayRuntimeNode,
+        "Log": LogRuntimeNode,
+        "Logger": LoggerRuntimeNode,
     }
 
     def __init__(self, mast: Mast, overrides=None):
@@ -574,7 +621,7 @@ class MastScheduler:
         self.tasks = []
         self.name_tasks = {}
         self.inputs = None
-        self.vars = self.labels = {"mast_runtime": self}
+        self.vars = self.labels = {"mast_scheduler": self}
         self.done = []
         self.mast.add_scheduler(self)
         

@@ -92,6 +92,7 @@ player_ships =  [
         PlayerShip().spawn(sim, 200,0,0, "Hera", "tsn", "Missile Cruiser").py_object,
         PlayerShip().spawn(sim, 900,0,0, "Atlas", "tsn", "Missile Cruiser").py_object
     ]
+
 sbs.assign_player_ship(player_ships[0].id)
 for player in player_ships:
     faces.set_face(player.id, faces.random_terran())
@@ -107,8 +108,10 @@ for ds in stations:
 enemyTypeNameList = ["Dreadnaught","Battleship","Hunter","Cargo","ARV Carrier","Behemoth"]
 enemy_prefix = "KLMNQ"
 
+
 enemy = 0
 spawn_points = scatter.sphere(int(enemy_count), 0,0,0, 6000, 6000+250*enemy_count, ring=True)
+
 for v in spawn_points:
     r_type = random.choice(enemyTypeNameList)
     r_name = f"{random.choice(enemy_prefix)}_{enemy}"
@@ -117,8 +120,9 @@ for v in spawn_points:
     spawn_data.py_object.add_role("Raider")
     enemy += 1
     for player in player_ships:
-        mast_runtime.start_thread("NPC_Comms", {"self": spawn_data.py_object, "player": player})
-        mast_runtime.start_thread("PlayerDocking", {"self": player})
+        mast_runtime.start_task("NPC_Comms", {"self": spawn_data.py_object, "player": player})
+        mast_runtime.start_task("PlayerDocking", {"self": player})
+
 
 # make a few random clusters of nebula
 spawn_points = scatter.sphere(random.randint(2,7), 0,0,0, 1000, 4000, ring=True)

@@ -149,14 +149,15 @@ class Dropdown(Column):
             self.left, self.top, self.right, self.bottom)
 
 class TextInput(Column):
-    def __init__(self, value, tag) -> None:
+    def __init__(self, value, label, tag) -> None:
         super().__init__()
         self.value = value
         self.tag = tag
+        self.label = label
         
     def present(self, sim, event):
         sbs.send_gui_typein(event.client_id, 
-            self.value, "blue", self.tag,
+            self.value, self.label, self.tag,
             self.left, self.top, self.right, self.bottom)
 
 

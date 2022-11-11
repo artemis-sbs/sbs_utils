@@ -26,6 +26,7 @@ class TestMastStoryCompile(unittest.TestCase):
     @mast_story_compile( code = """
 await choice: end_await
 
+input name "enter name"
 
 await choice timeout 1m 1s:
     * "Button one":

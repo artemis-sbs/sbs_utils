@@ -8,11 +8,12 @@ class Row(MastNode):
     rule = re.compile(r"""row""")
     def __init__(self, loc=None):
         pass
-
+    
 class Refresh(MastNode):
     rule = re.compile(r"""refresh\s*(?P<label>\w+)""")
     def __init__(self, label, loc=None):
         self.label = label
+    
 
 
 class Text(MastNode):
@@ -51,8 +52,8 @@ class Face(MastNode):
             self.code = None
 
 class Ship(MastNode):
-    rule = re.compile(r"""ship\s+(?P<ship>[ \t\S]+)""")
-    def __init__(self, ship=None, loc=None):
+    rule = re.compile(r"""ship\s+(?P<q>['"]{3}|["'])(?P<ship>[\s\S]+?)(?P=q)""")
+    def __init__(self, ship=None, q=None, loc=None):
         self.ship= ship
 
 class Blank(MastNode):
@@ -95,9 +96,9 @@ class Choose(MastNode):
             EndAwait.stack.append(self)
 
 class ButtonControl(MastNode):
-    rule = re.compile(r"""((button\s+["'](?P<message>.+?)["'])(\s*data\s*=\s*(?P<data>"""+PY_EXP_REGEX+r"""))?"""+IF_EXP_REGEX+r"\s*:)|(?P<end>end_button)")
+    rule = re.compile(r"""((button\s+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q))(\s*data\s*=\s*(?P<data>"""+PY_EXP_REGEX+r"""))?"""+IF_EXP_REGEX+r"\s*:)|(?P<end>end_button)")
     stack = []
-    def __init__(self, message, data=None, py=None, if_exp=None, end=None, loc=None):
+    def __init__(self, message, q, data=None, py=None, if_exp=None, end=None, loc=None):
         #self.message = message
         if message: #Message is none for end
             self.message = self.compile_formatted_string(message)
@@ -147,22 +148,26 @@ class SliderControl(MastNode):
         self.value = float(value)
     
 class CheckboxControl(MastNode):
-    rule = re.compile(r"""checkbox\s+(?P<var>[ \t\S]+)\s+["'](?P<message>.+?)["']""")
-    def __init__(self, var=None, message=None, loc=None):
+    rule = re.compile(r"""checkbox\s+(?P<var>[ \t\S]+)\s+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)""")
+    def __init__(self, var=None, message=None, q=None, loc=None):
         self.var= var
         #self.message = message
         self.message = self.compile_formatted_string(message)
 
 class TextInputControl(MastNode):
-    rule = re.compile(r"""input\s+(?P<var>[ \t\S]+)""")
-    def __init__(self, var=None, message=None, loc=None):
+    
+    rule = re.compile(r"""input\s+(?P<var>[ \t\S]+)(\s+(?P<q>['"]{3}|["'])(?P<label>[\s\S]+?)(?P=q))?""")
+    def __init__(self, var=None, label=None,q=None, loc=None):
         self.var= var
+        self.label = self.compile_formatted_string(label) if label is not None else None
+
 
 
 class DropdownControl(MastNode):
-    rule = re.compile(r"""(dropdown\s+(?P<var>[ \t\S]+)\s+["'](?P<values>.+?)["'])|(?P<end>end_dropdown)""")
+    
+    rule = re.compile(r"""(dropdown\s+(?P<var>[ \t\S]+)\s+(?P<q>['"]{3}|["'])(?P<values>[\s\S]+?)(?P=q))|(?P<end>end_dropdown)""")
     stack = []
-    def __init__(self, var=None, values=None, end=None, loc=None):
+    def __init__(self, var=None, values=None, q=None,end=None, loc=None):
         self.is_end = False
         self.end_node = None
         self.loc = loc
@@ -176,8 +181,8 @@ class DropdownControl(MastNode):
             self.values = self.compile_formatted_string(values)
 
 class ImageControl(MastNode):
-    rule = re.compile(r"""image\s*["'](?P<file>.+?)["']"""+OPT_COLOR)
-    def __init__(self, file, color, loc=None):
+    rule = re.compile(r"""image\s*(?P<q>['"]{3}|["'])(?P<file>[\s\S]+?)(?P=q)"""+OPT_COLOR)
+    def __init__(self, file, q, color, loc=None):
         self.file = self.compile_formatted_string(file)
         self.color = color if color is not None else "#fff"
 
@@ -186,8 +191,8 @@ class ImageControl(MastNode):
 class WidgetList(MastNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
     #(\s+color\s*["'](?P<color>[ \t\S]+)["'])?
-    rule = re.compile(r"""widget_list\s+((?P<clear>clear)|(?P<console>['"]\w+['"])(\s*['"](?P<widgets>[\s\S]+?)['"]))""")
-    def __init__(self, clear, console, widgets, loc=None):
+    rule = re.compile(r"""widget_list\s+((?P<clear>clear)|(?P<console>['"]\w+['"])(\s*(?P<q>['"]{3}|["'])(?P<widgets>[\s\S]+?)(?P=q)))""")
+    def __init__(self, clear, console, widgets, q, loc=None):
         if clear == "clear":
             self.console = ""
             self.widgets = ""

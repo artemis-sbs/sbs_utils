@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Mast Language &mdash; SBS Utils 1.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="_static/graphviz.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="TBD" href="mastextending.html" />
+    <link rel="prev" title="The hook Handlers" href="hookhandlers.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> SBS Utils
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="index_desc.html">Utilities for Artemis Cosmos</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index_contrib.html">Contribution</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="spaceobject.html">Space Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="roles.html">The roles system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="targeting.html">The targeting system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="vec.html">The vector class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scatter.html">The Scatter modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faces.html">The Faces module</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Systems:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="gui.html">GUI system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="consoledispatcher.html">Console Dispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">The Mast Language</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#language-high-level-concepts">Language high level concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#basic-language">Basic Language</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#data">Data</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#simple-assignment">Simple assignment</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#using-python-with-assignment">Using python with assignment</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#shared-data-assignment">Shared data assignment</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#task-flow-story-sections-via-labels">Task Flow: Story sections via labels</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#labels">Labels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#state-flow-changes-jump-push-pop">State/Flow changes: Jump, Push, Pop</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#scheduling-tasks-and-waiting-for-them-to-complete">Scheduling tasks and waiting for them to complete</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#scheduling-tasks">Scheduling tasks</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#comments-and-markers">Comments and Markers</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#comments">Comments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#multi-line-comments-aka-block-comments">Multi line Comments aka block comments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#named-block-comments">Named block comments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#markers">Markers</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mastextending.html">TBD</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/setup.html">Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/entry.html">Entry Points, events, and handlers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/gui.html">Adding Gui pages and using the Gui System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/mast.html">Adding MAST to you mission</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SBS Utils</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>The Mast Language</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/mastsyntax.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="the-mast-language">
+<h1>The Mast Language<a class="headerlink" href="#the-mast-language" title="Permalink to this heading"></a></h1>
+<p>Mast is an abbreviation for Multiple Actor/Audience Story Telling. So, it is for writing Multiplayer choose your own adventure types of stories.</p>
+<p>Mast is a interpreted scripting Language for adding interactivity, narrative, quest etc.</p>
+<p>The  Mast technology can be used in many various systems. What may be different is the actors, tasks and events that are in the system.</p>
+<p>Mast in Artemis Cosmos the multiple actors are the players, the ships and various characters that can be on ships, etc.</p>
+<p>Task and events that are specific  for Artemis Cosmos are things like ship comms, targeting, the startup screen, client console screens.</p>
+<section id="language-high-level-concepts">
+<h2>Language high level concepts<a class="headerlink" href="#language-high-level-concepts" title="Permalink to this heading"></a></h2>
+<p>This section will present terms of how Mast works and how mast code is organized.</p>
+<ul class="simple">
+<li><p>story aka mast</p></li>
+<li><p>data</p></li>
+<li><p>tasks</p></li>
+<li><p>scheduler</p></li>
+<li><p>labels and states</p></li>
+</ul>
+<p>The language itself is for describing a mast Story. A story consists of a sets of data, Tasks and events.</p>
+<p>Data is values and can be things like Ship, Characters, Inventories of objects etc.</p>
+<p>A Tasks a set of steps or states that run.</p>
+<p>A Task is scheduled (using a scheduler)</p>
+<p>A scheduler manages the running of multiple Tasks. Typically the scheduler is sort of the wizard behind the curtain.</p>
+<p>Tasks can be organized into sections called labels.</p>
+<p>Labels also are points that the task can transition to i.e. within a task you can jump around from one label to another.</p>
+<p>Therefore, a Label can represent changing a Task from one state, to another.</p>
+<p>Typically, a task runs sequentially but not necessarily synchronously. It stays on a line of code, until that line is completed.
+So it can stay on the same line of code for quite some time. e.g. telling it to wait until a ship is near another ship:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">await</span> <span class="n">tsn01</span> <span class="n">near</span> <span class="n">ds91</span> <span class="mi">700</span> <span class="n">timeout</span> <span class="mi">4</span><span class="n">m</span><span class="p">:</span>
+    <span class="o">-&gt;</span> <span class="n">ReachedStation</span>
+<span class="n">timeout</span><span class="p">:</span>
+    <span class="o">-&gt;</span> <span class="n">DidNotReachInTime</span>
+<span class="n">end_await</span>
+</pre></div>
+</div>
+<p>The example, waits for the event when the ships tsn01 is 700 away from ds91.
+If it gets there within 4 minutes, it jumps to the label ReachedStation changing to that state.
+If it doesn’t reach it in time, it changes to the state DidNotReachInTime.</p>
+<p>It is import to understand, while it is waiting on the line of code it is not preventing the game or other tasks from running.</p>
+<p>Synchronous vs. Asynchronous programming can be highly complicated. Mast tries to simplify this greatly.</p>
+</section>
+<section id="basic-language">
+<h2>Basic Language<a class="headerlink" href="#basic-language" title="Permalink to this heading"></a></h2>
+<ul class="simple">
+<li><p>Data</p></li>
+<li><p>Task flow</p></li>
+<li><p>Conditional</p></li>
+<li><p>Loops</p></li>
+<li><p>Scheduling Tasks</p></li>
+</ul>
+<section id="data">
+<h3>Data<a class="headerlink" href="#data" title="Permalink to this heading"></a></h3>
+<p>You can create data that is any valid python type.
+This data can be used in you mast tasks.</p>
+<section id="simple-assignment">
+<h4>Simple assignment<a class="headerlink" href="#simple-assignment" title="Permalink to this heading"></a></h4>
+<p>To do so you use the assignment statement:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">fred</span> <span class="o">=</span> <span class="mi">3</span>
+</pre></div>
+</div>
+<p>Assignment has a variable name an equals followed by a value.</p>
+</section>
+<section id="using-python-with-assignment">
+<h4>Using python with assignment<a class="headerlink" href="#using-python-with-assignment" title="Permalink to this heading"></a></h4>
+<p>The assignment is simple and has trouble with more complex python statements e.g. a list of list, etc.
+To allow more complex assignments you can wrap the value in ‘snakes’ to have the python compiler used:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">players_inventory</span> <span class="o">=</span> <span class="o">~~</span> <span class="p">[</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">],</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span><span class="mi">5</span><span class="p">]]</span> <span class="o">~~</span>
+</pre></div>
+</div>
+<p>You need at least 2 ‘snakes’ (the tilde character), before and after the python values. But you can have more tha two, and the number doesn’t need to be exactly the same, as long as you have at least two:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">players_inventory</span> <span class="o">=</span>
+    <span class="o">~~~~~~~~~</span>
+    <span class="p">[</span>
+        <span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">],</span>
+        <span class="p">[</span><span class="mi">4</span><span class="p">,</span><span class="mi">5</span><span class="p">]</span>
+    <span class="p">]</span>
+    <span class="o">~~~~~~</span>
+</pre></div>
+</div>
+</section>
+<section id="shared-data-assignment">
+<h4>Shared data assignment<a class="headerlink" href="#shared-data-assignment" title="Permalink to this heading"></a></h4>
+<p>Data has multiple scopes. Data can be at the scope of a Mast story, For a scheduler, A task, and block</p>
+<p>There are times you want data to be shared by all tasks within a story. To share data you add the ‘shared’ marked in front of the assignment:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shared</span> <span class="n">enemy_count</span> <span class="o">=</span> <span class="mi">20</span>
+<span class="n">shared</span> <span class="n">beer_count</span> <span class="o">=</span> <span class="mi">8</span>
+</pre></div>
+</div>
+<p>When using Data, scope is automatically handled you only need to specify shared at assignment:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shared</span> <span class="n">beer_count</span> <span class="o">=</span> <span class="mi">8</span>
+<span class="n">my_beer</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="c1"># Drink all the beer</span>
+<span class="n">my_beer</span> <span class="o">=</span> <span class="n">my_beer</span> <span class="o">+</span> <span class="n">beer_count</span>
+<span class="n">share</span> <span class="n">beer_count</span> <span class="o">=</span> <span class="mi">0</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="task-flow-story-sections-via-labels">
+<h3>Task Flow: Story sections via labels<a class="headerlink" href="#task-flow-story-sections-via-labels" title="Permalink to this heading"></a></h3>
+<p>A mast story is broken into sections using labels.
+You also can have comments, and there are also other ‘markers’ that can help organizing sections and help have them stand out in the file.</p>
+<section id="labels">
+<h4>Labels<a class="headerlink" href="#labels" title="Permalink to this heading"></a></h4>
+<p>Labels have a Name with no spaces and are  enclosed in 2 or more equals:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">======</span> <span class="n">GotoBar</span> <span class="o">====</span>
+ <span class="o">.</span> <span class="o">.</span> <span class="o">.</span>
+<span class="o">==</span> <span class="n">ShowHelm</span> <span class="o">==</span>
+ <span class="o">.</span> <span class="o">.</span> <span class="o">.</span>
+
+<span class="o">==========================================</span> <span class="n">MoreStuff</span> <span class="o">===========================</span>
+ <span class="o">.</span> <span class="o">.</span> <span class="o">.</span>
+</pre></div>
+</div>
+</section>
+<section id="state-flow-changes-jump-push-pop">
+<h4>State/Flow changes: Jump, Push, Pop<a class="headerlink" href="#state-flow-changes-jump-push-pop" title="Permalink to this heading"></a></h4>
+<p>There are times you will want to change what part of a task is running.
+This is done by redirecting the flow to a label.
+This can be done by a Jump command. Which is a ‘thin arrow’ followed by the label name.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">-&gt;</span> <span class="n">Here</span>
+
+<span class="o">========</span> <span class="n">NotHere</span> <span class="o">=====</span>
+<span class="n">log</span> <span class="s2">&quot;Got here later&quot;</span>
+<span class="o">-&gt;</span> <span class="n">End</span>
+
+<span class="o">========</span> <span class="n">Here</span> <span class="o">=====</span>
+<span class="n">log</span> <span class="s2">&quot;First&quot;</span>
+<span class="o">-&gt;</span> <span class="n">NotHere</span>
+
+<span class="o">========</span> <span class="n">End</span> <span class="o">=====</span>
+<span class="n">log</span> <span class="s2">&quot;Done&quot;</span>
+
+<span class="o">========</span> <span class="n">Never</span> <span class="o">=====</span>
+<span class="n">log</span> <span class="s2">&quot;Can never reach&quot;</span>
+</pre></div>
+</div>
+<p>The expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">First</span>
+<span class="n">Got</span> <span class="n">Here</span> <span class="n">later</span>
+<span class="n">Done</span>
+</pre></div>
+</div>
+<p>End,
+Jump,</p>
+</section>
+</section>
+<section id="scheduling-tasks-and-waiting-for-them-to-complete">
+<h3>Scheduling tasks and waiting for them to complete<a class="headerlink" href="#scheduling-tasks-and-waiting-for-them-to-complete" title="Permalink to this heading"></a></h3>
+<section id="scheduling-tasks">
+<h4>Scheduling tasks<a class="headerlink" href="#scheduling-tasks" title="Permalink to this heading"></a></h4>
+<p>Parallel,  # needs to be before Assign</p>
+<p>Await,  # needs to be before Parallel</p>
+<p>Cancel,</p>
+<p>IfStatements,
+MatchStatements,</p>
+<p>LoopStart,
+LoopEnd,
+LoopBreak,</p>
+</section>
+</section>
+<section id="comments-and-markers">
+<h3>Comments and Markers<a class="headerlink" href="#comments-and-markers" title="Permalink to this heading"></a></h3>
+<p>Comments provide code extra information to help make it more understandable.</p>
+<p>Mast provides comments, Multi-line comments and markers to help make the code easier to understand and navigate.</p>
+<section id="comments">
+<h4>Comments<a class="headerlink" href="#comments" title="Permalink to this heading"></a></h4>
+<p>Single line comments start with a # and go until the end of the line.</p>
+<p>Comments use the # like python does:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">fred</span> <span class="o">=</span> <span class="mi">10</span> <span class="c1"># set fred to 10</span>
+</pre></div>
+</div>
+</section>
+<section id="multi-line-comments-aka-block-comments">
+<h4>Multi line Comments aka block comments<a class="headerlink" href="#multi-line-comments-aka-block-comments" title="Permalink to this heading"></a></h4>
+<p>You can have a c style block comment:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">/*********</span>
+<span class="n">Beware</span>
+<span class="n">This</span> <span class="ow">is</span> <span class="n">the</span> <span class="n">tricky</span> <span class="n">part</span>
+<span class="o">****/</span>
+</pre></div>
+</div>
+<p>Using block comments to ‘disable’ code it can quickly get confusing. Therefore, an additional block comment is supported.</p>
+</section>
+<section id="named-block-comments">
+<h4>Named block comments<a class="headerlink" href="#named-block-comments" title="Permalink to this heading"></a></h4>
+<p>You can have a named block comment enclosing the name in using 3 or more !.
+You must explicitly end the comment with the name as well:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>!!!! skipthis !!!!!!!!!
+beer = 0
+vodka = 0
+!!!! end skipthis !!!!!
+</pre></div>
+</div>
+<p>This allows for nested block comments as well:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>!!!! skipthis !!!!!!!!!
+beer = 0
+vodka = 0
+!!!! skipthistoo !!!!!!!!!
+wine = 0
+!!!! end skipthistoo !!!!!
+something = 12
+!!!! end skipthis !!!!!
+</pre></div>
+</div>
+</section>
+<section id="markers">
+<h4>Markers<a class="headerlink" href="#markers" title="Permalink to this heading"></a></h4>
+<p>Markers are repeating characters used to imply make text stand out as you scroll.
+Marker are simply removed when they are seen.
+The markers are any time you have 3 or of the same marker character.
+Marker characters are dash(-), plus(+) or asterisk(*)</p>
+<blockquote>
+<div><dl class="simple">
+<dt><strong>********if beer == 0***********</strong></dt><dd><p>vodka = 0</p>
+</dd>
+</dl>
+<p><strong>*******end_if **********</strong></p>
+</div></blockquote>
+<p>Again they are simply to make some code to stand out and ideal help scanning code.
+You don’t need to use them.</p>
+<p>Delay,</p>
+<p>Import,</p>
+<ul class="simple">
+<li><p>Layout</p></li>
+<li><p>Layout components</p></li>
+<li><p>Form Controls</p></li>
+</ul>
+<p>Row,
+Text,
+AppendText,
+Face,
+Ship,
+Blank,
+Section,
+Area,
+Choose,
+ButtonControl,
+SliderControl,
+CheckboxControl,
+DropdownControl,
+ImageControl,
+TextInputControl,
+WidgetList,
+Refresh</p>
+<p>Target,
+Tell,
+Broadcast,
+Comms,
+Near,</p>
+</section>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="hookhandlers.html" class="btn btn-neutral float-left" title="The hook Handlers" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="mastextending.html" class="btn btn-neutral float-right" title="TBD" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Doug Reichard.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

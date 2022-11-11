@@ -16,7 +16,9 @@ class TickTask:
         self.cb = cb
         self.delay = delay
         # capture the start time
-        self.start = sim.time_tick_counter
+        
+        self.start = 0 if sim is None else sim.time_tick_counter
+        
         self.count = count
         
 

@@ -35,6 +35,12 @@ Welcome to SBS Utils's documentation!
    damagedispatcher
    tickdispatcher
    hookhandlers
+
+.. toctree::
+   :maxdepth: 2
+
+   mastsyntax
+   mastextending
    
 
 .. toctree::
@@ -46,7 +52,9 @@ Welcome to SBS Utils's documentation!
    tutorials/setup
    tutorials/entry
    tutorials/gui
+   tutorials/mast
    
+
 
 
 

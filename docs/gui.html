@@ -79,12 +79,17 @@
 <li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
 </ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="mastsyntax.html">The Mast Language</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mastextending.html">TBD</a></li>
+</ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/overview.html">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/setup.html">Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/entry.html">Entry Points, events, and handlers</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/gui.html">Adding Gui pages and using the Gui System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/mast.html">Adding MAST to you mission</a></li>
 </ul>
 
         </div>
@@ -448,6 +453,21 @@ this is called once in the script.py</p>
 <dd></dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.Gui.on_client_change">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">on_client_change</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.on_client_change" title="Permalink to this definition"></a></dt>
+<dd><p>Forward to the appropriate GuiClient/Page
+handlerhooks.py will call this in HandleEvent</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>event</strong> (<em>event</em>) – The tag name of the control interacted with</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Gui.on_message">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.on_message" title="Permalink to this definition"></a></dt>
 <dd><p>Forward to the appropriate GuiClient/Page
@@ -456,9 +476,7 @@ handlerhooks.py will call this in HandlePresentGUIMessage</p>
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>message_tag</strong> (<em>str</em>) – The tag name of the control interacted with</p></li>
-<li><p><strong>clientID</strong> (<em>None</em><em> or </em><em>str</em><em> or </em><em>float</em>) – The client ID that had the interaction</p></li>
-<li><p><strong>data</strong> – Any data associated with the control e.g. slider float value of current value</p></li>
+<li><p><strong>event</strong> (<em>event</em>) – The tag name of the control interacted with</p></li>
 </ul>
 </dd>
 </dl>
@@ -522,6 +540,20 @@ this is called once in the script.py</p>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Manages the pages for a client</p>
 <dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.GuiClient.on_client_change">
+<span class="sig-name descname"><span class="pre">on_client_change</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.on_client_change" title="Permalink to this definition"></a></dt>
+<dd><p>Calls the on_client_change on the top page of the specified client by calling on_client_change</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.GuiClient.on_message">
 <span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.on_message" title="Permalink to this definition"></a></dt>
 <dd><p>Calls the on_message on the top page of the specified client by calling on_message</p>
@@ -529,9 +561,7 @@ this is called once in the script.py</p>
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>message_tag</strong> (<em>str</em>) – The tag name of the control interacted with</p></li>
-<li><p><strong>clientID</strong> (<em>None</em><em> or </em><em>str</em><em> or </em><em>float</em>) – The client ID that had the interaction</p></li>
-<li><p><strong>data</strong> – Any data associated with the control e.g. slider float value of current value</p></li>
+<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
 </ul>
 </dd>
 </dl>
@@ -584,16 +614,29 @@ this is called once in the script.py</p>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>A interface class for creating GUI pages</p>
 <dl class="py method">
-<dt class="sig sig-object py" id="sbs_utils.gui.Page.on_message">
-<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.on_message" title="Permalink to this definition"></a></dt>
-<dd><p>Called when a control on the page has been interacted with</p>
+<dt class="sig sig-object py" id="sbs_utils.gui.Page.on_client_change">
+<span class="sig-name descname"><span class="pre">on_client_change</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.on_client_change" title="Permalink to this definition"></a></dt>
+<dd><p>Called when the option pages page has been interacted with</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>message_tag</strong> (<em>str</em>) – The tag name of the control interacted with</p></li>
-<li><p><strong>clientID</strong> (<em>None</em><em> or </em><em>str</em><em> or </em><em>float</em>) – The client ID that had the interaction</p></li>
-<li><p><strong>data</strong> – Any data associated with the control e.g. slider float value of current value</p></li>
+<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.Page.on_message">
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.on_message" title="Permalink to this definition"></a></dt>
+<dd><p>on_client_change</p>
+<p>Called when the option pages page has been interacted with</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
 </ul>
 </dd>
 </dl>
@@ -661,14 +704,13 @@ this is called once in the script.py</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.pages.avatar.AvatarEditor.on_message">
 <span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.avatar.AvatarEditor.on_message" title="Permalink to this definition"></a></dt>
-<dd><p>Called when a control on the page has been interacted with</p>
+<dd><p>on_client_change</p>
+<p>Called when the option pages page has been interacted with</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>message_tag</strong> (<em>str</em>) – The tag name of the control interacted with</p></li>
-<li><p><strong>clientID</strong> (<em>None</em><em> or </em><em>str</em><em> or </em><em>float</em>) – The client ID that had the interaction</p></li>
-<li><p><strong>data</strong> – Any data associated with the control e.g. slider float value of current value</p></li>
+<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
 </ul>
 </dd>
 </dl>
@@ -711,14 +753,13 @@ this is called once in the script.py</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.pages.shippicker.ShipPicker.on_message">
 <span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.shippicker.ShipPicker.on_message" title="Permalink to this definition"></a></dt>
-<dd><p>Called when a control on the page has been interacted with</p>
+<dd><p>on_client_change</p>
+<p>Called when the option pages page has been interacted with</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>message_tag</strong> (<em>str</em>) – The tag name of the control interacted with</p></li>
-<li><p><strong>clientID</strong> (<em>None</em><em> or </em><em>str</em><em> or </em><em>float</em>) – The client ID that had the interaction</p></li>
-<li><p><strong>data</strong> – Any data associated with the control e.g. slider float value of current value</p></li>
+<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
 </ul>
 </dd>
 </dl>
@@ -738,6 +779,57 @@ this is called once in the script.py</p>
 </dd></dl>
 
 <span class="target" id="module-sbs_utils.pages.start"></span><dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.pages.start.ClientSelectPage">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.pages.start.</span></span><span class="sig-name descname"><span class="pre">ClientSelectPage</span></span><a class="headerlink" href="#sbs_utils.pages.start.ClientSelectPage" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.gui.Page" title="sbs_utils.gui.Page"><code class="xref py py-class docutils literal notranslate"><span class="pre">Page</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.pages.start.ClientSelectPage.count">
+<span class="sig-name descname"><span class="pre">count</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sbs_utils.pages.start.ClientSelectPage.count" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.pages.start.ClientSelectPage.on_client_change">
+<span class="sig-name descname"><span class="pre">on_client_change</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.start.ClientSelectPage.on_client_change" title="Permalink to this definition"></a></dt>
+<dd><p>Called when the option pages page has been interacted with</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.pages.start.ClientSelectPage.on_message">
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.start.ClientSelectPage.on_message" title="Permalink to this definition"></a></dt>
+<dd><p>on_client_change</p>
+<p>Called when the option pages page has been interacted with</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.pages.start.ClientSelectPage.present">
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.start.ClientSelectPage.present" title="Permalink to this definition"></a></dt>
+<dd><p>Called to have the page create and update the gui content it is presenting</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
 <dt class="sig sig-object py" id="sbs_utils.pages.start.StartPage">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.pages.start.</span></span><span class="sig-name descname"><span class="pre">StartPage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">description</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.start.StartPage" title="Permalink to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="#sbs_utils.gui.Page" title="sbs_utils.gui.Page"><code class="xref py py-class docutils literal notranslate"><span class="pre">Page</span></code></a></p>
@@ -749,14 +841,13 @@ this is called once in the script.py</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.pages.start.StartPage.on_message">
 <span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.pages.start.StartPage.on_message" title="Permalink to this definition"></a></dt>
-<dd><p>Called when a control on the page has been interacted with</p>
+<dd><p>on_client_change</p>
+<p>Called when the option pages page has been interacted with</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>message_tag</strong> (<em>str</em>) – The tag name of the control interacted with</p></li>
-<li><p><strong>clientID</strong> (<em>None</em><em> or </em><em>str</em><em> or </em><em>float</em>) – The client ID that had the interaction</p></li>
-<li><p><strong>data</strong> – Any data associated with the control e.g. slider float value of current value</p></li>
+<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
 </ul>
 </dd>
 </dl>

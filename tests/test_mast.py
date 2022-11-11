@@ -281,7 +281,110 @@ shared var2 = var2 + 100
         assert(var1 == (900,Scope.NORMAL))
         assert(var2 == (1500,Scope.SHARED))
         
-        
+
+    def test_comments_run_no_err(self):
+        (errors, runner, _) = mast_run( code = """
+var1 = 100
+shared var2 = 100
+->> Push  # var1 is 200 # var2 200
+->> Push  # var1 is 300 # var2 300
+
+/*
+->> Push  # var1 is 300 # var2 300
+*/
+
+!!!  test !!!!!!!!
+await => Spawn # var1 is 400 var2 is 400
+await => Spawn # var1 is 500 var2 is 500
+await => Spawn {"var1": 99} # var1 still 300 on this 
+
+if var1==600:
+    ->> Push  # var1 is 700
+else:
+    var1 = "Don't get here"
+end_if
+!!! inner!!!!
+if var1==300:
+    var1 = "Don't get here"
+else:
+    ->> Push  # var1 is 800
+end_if
+!!! end inner !!!!
+
+if var1==500:
+    var1 = "Don't get here"
+elif var1 == 800:
+    var1 = var1+ 100
+else:
+var1 = "Don't get here"
+end_if
+!!!!!  end  test      !!!!!!!!!!!!!!
+
+=== Push ===
+var1 = var1 + 100
+shared var2 = var2 + 100
+<<-
+!!!s!!!!!
+=== Spawn ===
+var1 = var1 + 100
+shared var2 = var2 + 100
+->END
+!!!!!!!!! end s!!!!!!
+    """)
+        assert(len(errors)==0)
+        var1 = runner.get_value("var1")
+        var2 = runner.get_value("var2")
+        assert(var1 == (300,Scope.NORMAL))
+        assert(var2 == (300,Scope.SHARED))
+
+    def test_log_run_no_err(self):
+                (errors, runner, _) = mast_run( code = """
+    logger string output            
+    -> Here
+    ======== NotHere =====
+    log "Got here later"
+    -> End
+    ======== Here =====
+    log "First"
+    -> NotHere
+    ======== End =====
+    log "Done"
+    ======== Never =====
+    log "Can never reach"        
+            """)
+                assert(len(errors)==0)
+                output = runner.get_value("output", None)
+                assert(output is not None)
+                st = output[0]
+                #st.seek(0)
+                value = st.getvalue()
+
+                assert(value =="""First
+Got here later
+Done
+"""
+
+)
+
+
+    
+    def test_log_compile_no_err(self):
+                (errors, _) = mast_compile( code = """
+    logger string output
+    logger file "test"
+    -> Here
+    ======== NotHere =====
+    log "Got here later"
+    -> End
+    ======== Here =====
+    log "First"
+    -> NotHere
+    ======== End =====
+    log "Done"
+    ======== Never =====
+    log "Can never reach"        
+            """)
+                assert(len(errors)==0)
 
 
 

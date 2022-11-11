@@ -44,7 +44,7 @@ area 60, 10, 100, 100-30px
 
 blank
 row
-ship Battle Cruiser
+ship "Battle Cruiser"
 row
 blank
 """""""""""""""""""""""""""""""""

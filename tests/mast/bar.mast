@@ -6,6 +6,7 @@ shared vodka = 8
 
 ============== GotoBar ===================
 
+input name "Test"
 face barkeep
 """""""""""""""""""""""""""""""""
 Thirsty?
@@ -44,6 +45,7 @@ end_await
 delay gui 5s
 
 area 40, 20, 70, 70
+
 face barkeep
 row
 """""""""""""""""""""""""""""""""""

@@ -1,5 +1,5 @@
 import logging
-from .mastscheduler import PollResults, MastRuntimeNode, MastScheduler, MastAsyncTask, Scope
+from .mastscheduler import PollResults, MastRuntimeNode, MastAsyncTask
 from .mast import Mast
 import sbs
 from ..gui import FakeEvent, Gui, Page
@@ -10,7 +10,7 @@ from ..tickdispatcher import TickDispatcher
 from .errorpage import ErrorPage
 from .maststory import AppendText, ButtonControl, MastStory, Choose, Text, Blank, Ship, Face, Row, Section, Area, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl
 import traceback
-from .mastsbsruntime_node import MastSbsRuntimeNode, Button
+from .mastsbsscheduler import MastSbsScheduler 
 from .parsers import LayoutAreaParser
 
 class StoryRuntimeNode(MastRuntimeNode):
@@ -34,7 +34,7 @@ class FaceRuntimeNode(StoryRuntimeNode):
 
 class RefreshRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Refresh):
-        task.main.mast.refresh_runtime_nodes(task.main, node.label)
+        task.main.mast.refresh_schedulers(task.main, node.label)
         
 
 class ShipRuntimeNode(StoryRuntimeNode):
@@ -285,10 +285,15 @@ class TextInputControlRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: TextInputControl):
         self.tag = task.main.page.get_tag()
         self.node = node
-        scoped_val = task.get_value(self.node.var, False)
+        label = ""
+        if node.label is not None:
+            label = task.format_string(node.label)
+            if label is None:
+                label=""
+        scoped_val = task.get_value(self.node.var, "")
         val = scoped_val[0]
         self.scope = scoped_val[1]
-        self.layout = layout.TextInput(val, self.tag)
+        self.layout = layout.TextInput(val, label, self.tag)
         self.task = task
         task.main.page.add_content(self.layout, self)
 
@@ -382,10 +387,13 @@ class StoryScheduler(MastSbsScheduler):
         self.vars['client_id'] = client_id
         self.vars['IS_SERVER'] = client_id==0
         self.vars['IS_CLIENT'] = client_id!=0
+        self.vars['page'] = page
         super().start_task( label, inputs)
 
     def story_tick_tasks(self, sim, client_id):
         self.sim = sim
+        self.vars['sim'] = sim
+        print(f"tick sim {sim}")
         self.client_id = client_id
         return super().sbs_tick_tasks(sim)
 
@@ -449,6 +457,7 @@ class StoryPage(Page):
 
     def tick_mast(self, sim, t):
         if self.story_scheduler:
+            print(f"tick mast {sim}")
             self.story_scheduler.story_tick_tasks(sim, self.client_id)
 
    
@@ -546,7 +555,7 @@ class StoryPage(Page):
                 message = "Compile errors\n".join(self.story_scheduler.errors)
                 sbs.send_gui_clear(event.client_id)
                 sbs.send_client_widget_list(event.client_id, "", "")
-                sbs.send_gui_text(event.client_id, message, "error", 30,20,100,100)
+                sbs.send_gui_text(event.client_id, message, "error", 0,20,100,100)
                 self.gui_state = "errors"
                 return
 
@@ -554,6 +563,7 @@ class StoryPage(Page):
                 if self.gui_state != "repaint":  
                     self.gui_state = "refresh"
                 self.story_scheduler.paint_refresh = False
+            
             if not self.story_scheduler.story_tick_tasks(sim, event.client_id):
                 #self.story_runtime_node.mast.remove_runtime_node(self)
                 Gui.pop(sim, event.client_id)
@@ -562,7 +572,7 @@ class StoryPage(Page):
             message = "Compile errors\n".join(self.errors)
             sbs.send_gui_clear(event.client_id)
             sbs.send_client_widget_list(event.client_id, "", "")
-            sbs.send_gui_text(event.client_id, message, "error", 30,20,100,100)
+            sbs.send_gui_text(event.client_id, message, "error", 0,20,100,100)
             self.gui_state = "errors"
             return
         
