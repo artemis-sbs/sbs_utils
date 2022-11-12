@@ -220,7 +220,27 @@ case 50:
             x = runner.get_value("x")
             assert(x==(242, Scope.NORMAL))
 
-
+    def test_await_condition(self):
+        (errors, runner, _) = mast_run( code = """
+shared x = 0
+t => Inc
+await until x==10:
+    log "x={x}"
+end_await
+cancel t
+log "done"
+->END
+=== Inc ==
+x = x + 1
+if x < 10:
+    ->Inc
+end_if
+    """)
+        assert(len(errors)==0)
+        while runner.is_running():
+            runner.tick()
+        x = runner.get_value("x")
+        assert(x==(10, Scope.SHARED))
 
 
 
@@ -231,31 +251,30 @@ shared var2 = 100
 ->> Push  # var1 is 200 # var2 200
 ->> Push  # var1 is 300 # var2 300
 
-
 await => Spawn # var1 is 400 var2 is 400
 await => Spawn # var1 is 500 var2 is 500
-await => Spawn {"var1": 99} # var1 still 300 on this 
+await => Spawn {"var1": 99} # var1 still 500 on this 
 
-if var1==600:
-    ->> Push  # var1 is 700
+if var1==500:
+    ->> Push  # var1 is 600
 else:
-    var1 = "Don't get here"
+    var1 = 10000000
 end_if
 
 if var1==300:
-    var1 = "Don't get here"
+    var1 = 20000000
 else:
-    ->> Push  # var1 is 800
+    ->> Push  # var1 is 700
 end_if
 
 if var1==500:
-    var1 = "Don't get here"
-elif var1 == 800:
+    var1 = 30000000
+elif var1 == 700:
     var1 = var1+ 100
 else:
-var1 = "Don't get here"
+var1 = 40000000 + var1
 end_if
-
+->END
 
 === Push ===
 var1 = var1 + 100
@@ -271,14 +290,14 @@ shared var2 = var2 + 100
         assert(len(errors)==0)
         var1 = runner.get_value("var1")
         var2 = runner.get_value("var2")
-        assert(var1 == (900,Scope.NORMAL))
+        assert(var1 == (800,Scope.NORMAL))
         assert(var2 == (800,Scope.SHARED))
         
         # run again, shared data should NOT reset
         runner.start_task()
         var1 = runner.get_value("var1")
         var2 = runner.get_value("var2")
-        assert(var1 == (900,Scope.NORMAL))
+        assert(var1 == (800,Scope.NORMAL))
         assert(var2 == (1500,Scope.SHARED))
         
 
@@ -320,6 +339,7 @@ var1 = "Don't get here"
 end_if
 !!!!!  end  test      !!!!!!!!!!!!!!
 
+->END
 === Push ===
 var1 = var1 + 100
 shared var2 = var2 + 100
@@ -349,6 +369,7 @@ shared var2 = var2 + 100
     -> NotHere
     ======== End =====
     log "Done"
+    ->END
     ======== Never =====
     log "Can never reach"        
             """)
@@ -417,6 +438,7 @@ Done
     ->> PushHere
     ->> PushJump
     log "out"
+    ->END
     
     ======== PushHere =====
     log "Push"
@@ -441,6 +463,25 @@ PushJump
 Popper
 out
 """)
+
+
+    def test_label_pass_through_run_no_err(self):
+                (errors, runner, _) = mast_run( code = """
+logger string output
+======== One =====
+log "One"
+======== Two =====
+log "Two"
+===== Three ====
+log "Three"
+            """)
+                assert(len(errors)==0)
+                output = runner.get_value("output", None)
+                assert(output is not None)
+                st = output[0]
+                #st.seek(0)
+                value = st.getvalue()
+                assert(value =="""One\nTwo\nThree\n""")
 
 
 

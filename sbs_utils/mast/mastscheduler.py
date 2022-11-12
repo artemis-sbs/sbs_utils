@@ -45,8 +45,11 @@ class AssignRuntimeNode(MastRuntimeNode):
             if "." in node.lhs or "[" in node.lhs:
                 locals = {"__mast_value": value} | task.get_symbols()
                 exec(f"""{node.lhs} = __mast_value""",{"__builtins__": Mast.globals}, locals)
-            else:
+            elif node.scope: 
                 task.set_value(node.lhs, value, node.scope)
+            else:
+                task.set_value_keep_scope(node.lhs, value)
+                
         except:
             task.main.runtime_error(f"assignment error {node.lhs}")
             return PollResults.OK_END
@@ -299,6 +302,13 @@ class AwaitRuntimeNode(MastRuntimeNode):
                 return PollResults.OK_ADVANCE_TRUE
         return PollResults.OK_RUN_AGAIN
 
+class TimeoutRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task: MastAsyncTask, node:Timeout):
+        if node.end_await_node:
+            task.jump(task.active_label,node.end_await_node.loc+1)
+
+class EndAwaitRuntimeNode(MastRuntimeNode):
+    pass
 
 class CancelRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task: MastAsyncTask, node:Cancel):
@@ -328,10 +338,10 @@ class LoggerRuntimeNode(MastRuntimeNode):
         logger = logging.getLogger(node.logger)
         logging.basicConfig(level=logging.NOTSET)
         logger.setLevel(logging.NOTSET)
-        handler  = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("%(levelname)s|%(name)s|%(message)s"))
-        handler.setLevel(logging.NOTSET)
-        logger.addHandler(handler)
+        # handler  = logging.StreamHandler()
+        # handler.setFormatter(logging.Formatter("%(levelname)s|%(name)s|%(message)s"))
+        # handler.setLevel(logging.NOTSET)
+        # logger.addHandler(handler)
 
         if node.var is not None:
             streamer = StringIO()
@@ -370,6 +380,30 @@ class DelayRuntimeNode(MastRuntimeNode):
                     return PollResults.OK_ADVANCE_TRUE
 
         return PollResults.OK_RUN_AGAIN
+
+class AwaitConditionRuntimeNode(MastRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: AwaitCondition):
+        seconds = (node.minutes*60+node.seconds)
+        if seconds == 0:
+            self.timeout = None
+        else:
+            self.timeout = TickDispatcher.current + (node.minutes*60+node.seconds)*TickDispatcher.tps
+
+    def poll(self, mast:Mast, task:MastAsyncTask, node: AwaitCondition):
+        value = task.eval_code(node.code)
+        if value:
+            return PollResults.OK_ADVANCE_TRUE
+
+        if self.timeout is not None and self.timeout <= TickDispatcher.current:
+            print("CHOOSE timeout")
+            if node.timeout_label:
+                task.jump(task.active_label,node.timeout_label.loc+1)
+                return PollResults.OK_JUMP
+            elif node.end_await_node:
+                task.jump(task.active_label,node.end_await_node.loc+1)
+                return PollResults.OK_JUMP
+        return PollResults.OK_RUN_AGAIN
+
 
 class MastScheduler:
     pass
@@ -464,10 +498,12 @@ class MastAsyncTask:
             self.main.vars[key] = value
 
     def set_value_keep_scope(self, key, value):
-        scoped_val = self.get_value(key, None)
+        scoped_val = self.get_value(key, value)
         scope = scoped_val[1]
         if scope is None:
             scope = Scope.TEMP
+        # elif scope == Scope.UNKNOWN:
+        #     scope = Scope.NORMAL
         self.set_value(key,value, scope)
 
     def get_value(self, key, defa):
@@ -483,7 +519,9 @@ class MastAsyncTask:
         val = self.main.mast.vars.get(key, None)
         if val is not None:
             return (val, Scope.SHARED)
-        val = self.main.vars.get(key, defa)
+        val = self.main.vars.get(key, Scope.UNKNOWN)
+        if val == Scope.UNKNOWN:
+            return (defa, Scope.NORMAL)
         return (val, Scope.NORMAL)
 
     def call_leave(self):
@@ -566,7 +604,7 @@ class MastAsyncTask:
             cmd = self.cmds[self.active_cmd]
         s += f"\nlabel: {self.active_label}"
         if cmd is not None:
-            s += f"\ncmd: {cmd.__class__.__name__}"
+            s += f"\ncmd: {cmd.__class__.__name__} loc {cmd.loc}"
         logger = logging.getLogger("mast.runtime")
         logger.error(s)
 
@@ -581,8 +619,14 @@ class MastAsyncTask:
             self.active_cmd += 1
         
         if self.active_cmd >= len(self.cmds):
-            self.done = True
-            return len(self.cmds) > 0
+            # move to the next label
+            active = self.main.mast.labels.get(self.active_label)
+            next = active.next
+            if next is None:
+                self.done = True
+                return False
+            return self.jump(next.name)
+            
         
         cmd = self.cmds[self.active_cmd]
         runtime_node_cls = self.main.nodes.get(cmd.__class__.__name__, MastRuntimeNode)
@@ -608,6 +652,9 @@ class MastScheduler:
         "Parallel": ParallelRuntimeNode,
         "Cancel": CancelRuntimeNode,
         "Assign": AssignRuntimeNode,
+        "AwaitCondition": AwaitConditionRuntimeNode,
+        "Timeout": TimeoutRuntimeNode,
+        "EndAwait": EndAwaitRuntimeNode,
         "Delay": DelayRuntimeNode,
         "Log": LogRuntimeNode,
         "Logger": LoggerRuntimeNode,

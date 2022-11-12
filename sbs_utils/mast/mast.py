@@ -72,6 +72,7 @@ class Label(MastNode):
     def __init__(self, name, loc=None):
         self.name = name
         self.cmds = []
+        self.next = None
 
     def add_child(self, cmd):
         self.cmds.append(cmd)
@@ -217,16 +218,12 @@ class Input(MastNode):
     def __init__(self, name, loc=None):
         self.name = name
 
-
-
-
 class Import(MastNode):
     rule = re.compile(r'(from\s+(?P<lib>[\w\.\/-]+)\s+)?import\s+(?P<name>[\w\.\/-]+)')
 
     def __init__(self, name, lib=None, loc=None):
         self.name = name
         self.lib = lib
-
 
 class Comment(MastNode):
     #rule = re.compile(r'(#[ \t\S]*)|((?P<com>[!]{3,})[\s\S]+(?P=com))')
@@ -245,6 +242,7 @@ class Scope(Enum):
     SHARED = 1  # per mast instance
     NORMAL = 2  # per scheduler
     TEMP = 99  # Per task?
+    UNKNOWN = 100
 
 class MastDataObject(object):
     def __init__(self, dictionary):
@@ -263,7 +261,7 @@ class Assign(MastNode):
     """ Not this doesn't support destructuring. To do so isn't worth the effort"""
     def __init__(self, scope, lhs, exp, quote=None, py=None, loc=None):
         self.lhs = lhs
-        self.scope = Scope.NORMAL if scope is None else Scope[scope.strip(
+        self.scope = None if scope is None else Scope[scope.strip(
         ).upper()]
         
         #print(f"quote: {quote}")
@@ -344,9 +342,44 @@ class Await(MastNode):
         else:
             self.if_code = None
 
+class EndAwait(MastNode):
+    rule = re.compile(r'end_await')
+    stack = []
+    def __init__(self, loc=None):
+        self.loc = loc
+        EndAwait.stack[-1].end_await_node = self
+        EndAwait.stack.pop()
 
-    def add_child(self, cmd):
-        self.cmds.append(cmd)
+
+class Timeout(MastNode):
+    rule = re.compile(r'timeout\s*:')
+    def __init__(self, loc=None):
+        self.loc = loc
+        self.await_node = EndAwait.stack[-1]
+        EndAwait.stack[-1].timeout_label = self
+
+
+class AwaitCondition(MastNode):
+    """
+    waits for an existing or a new 'task' to run in parallel
+    this needs to be a rule before Parallel
+    """
+    rule = re.compile(r"""await\s+until\s+(?P<if_exp>[^:]+)"""+TIMEOUT_REGEX+""":""")
+                      
+    def __init__(self, minutes=None, seconds=None, if_exp=None, loc=None):
+        self.timeout_label = None
+        self.end_await_node = None
+
+        self.seconds = 0 if  seconds is None else int(seconds)
+        self.minutes = 0 if  minutes is None else int(minutes)
+        
+        EndAwait.stack.append(self)
+
+        if if_exp:
+            if_exp = if_exp.lstrip()
+            self.code = compile(if_exp, "<string>", "eval")
+        else:
+            self.code = None
 
 
 class Cancel(MastNode):
@@ -457,6 +490,7 @@ class Mast:
                     self.inputs[cmd.name] = cmd
                 case "Label":
                     self.labels[cmd.name] = cmd
+                    active.next = cmd
                     active = cmd
                 case "Var":
                     self.vars[cmd.name] = cmd
@@ -479,7 +513,10 @@ class Mast:
         Input,
         #        Var,
         Import,
+        AwaitCondition,
         Await,  # needs to be before Parallel
+        Timeout,
+        EndAwait,
         Parallel,  # needs to be before Assign
         Cancel,
         Assign,
@@ -646,7 +683,9 @@ class Mast:
 
                     match node_cls.__name__:
                         case "Label":
-                            active = Label(**data)
+                            next = Label(**data)
+                            active.next = next
+                            active = next
                             self.labels[data['name']] = active
                             self.cmd_stack.pop()
                             self.cmd_stack.append(active)

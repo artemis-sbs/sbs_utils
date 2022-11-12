@@ -393,7 +393,6 @@ class StoryScheduler(MastSbsScheduler):
     def story_tick_tasks(self, sim, client_id):
         self.sim = sim
         self.vars['sim'] = sim
-        print(f"tick sim {sim}")
         self.client_id = client_id
         return super().sbs_tick_tasks(sim)
 
@@ -457,7 +456,6 @@ class StoryPage(Page):
 
     def tick_mast(self, sim, t):
         if self.story_scheduler:
-            print(f"tick mast {sim}")
             self.story_scheduler.story_tick_tasks(sim, self.client_id)
 
    

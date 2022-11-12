@@ -1,5 +1,5 @@
 from .mast import Mast, Scope
-from .mastsbs import Simulation, Target, Tell, Comms, Button, Near,Broadcast
+from .mastsbs import Simulation, Target, Tell, Comms, Button, ButtonSet, Near,Broadcast
 from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask
 import sbs
 from ..spaceobject import SpaceObject
@@ -12,11 +12,19 @@ from ..tickdispatcher import TickDispatcher
 import traceback
 
 class ButtonRuntimeNode(MastRuntimeNode):
-    def poll(self, mast, task, node: Button):
+    def poll(self, mast, task, node: ButtonSet):
         if node.await_node and node.await_node.end_await_node:
             task.jump(task.active_label,node.await_node.end_await_node.loc+1)
             return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
+
+class ButtonSetRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task, node: ButtonSet):
+        if node.end:
+            task.jump(task.active_label,node.end.loc+1)
+            return PollResults.OK_JUMP
+        return PollResults.OK_ADVANCE_TRUE
+
 
 class TellRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Tell):
@@ -229,8 +237,8 @@ over =     {
       "Broadcast": BroadcastRuntimeNode,
       "Near": NearRuntimeNode,
       "Target": TargetRuntimeNode,
-#      "Simulation": SimulationRuntimeNode,
-      "Button": ButtonRuntimeNode
+      "Button": ButtonRuntimeNode,
+      "ButtonSet": ButtonSetRuntimeNode
     }
 
 class MastSbsScheduler(MastScheduler):

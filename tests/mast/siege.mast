@@ -177,6 +177,8 @@ next ds
 =>WatchEndGame
 ##### Start raiders targeting ###
 =>NPC_Targeting
+# This tasks ends
+->END
 
 
 =============== station_comms ===============

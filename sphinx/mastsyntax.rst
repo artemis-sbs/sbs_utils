@@ -149,7 +149,20 @@ The label "END" end the current task.
 
 They are predefined and don't need to be defined in script.
 
+Labels are not 'functions', one label passes into the next label::
 
+    ======== One =====
+    log "One"
+    ======== Two =====
+    log "Two"
+    ===== Three ====
+    log "Three"
+
+Expected output::
+
+ One
+ Two
+ Three
 
 State/Flow changes: Jump, Push, Pop
 =====================================
@@ -174,7 +187,7 @@ This can be done by a Jump command. Which is a 'thin arrow' followed by the labe
 
     ======== End =====
     log "Done"
-
+    ->END
     ======== Never =====
     log "Can never reach"
 
@@ -197,7 +210,7 @@ For example::
     log "See you later"
     ->> PushHere
     log "and we're back"
-
+    ->END
     ======== PushHere =====
     log "Going back"
     <<-
@@ -227,7 +240,7 @@ For example::
     log "See you later"
     ->> PushHere
     log "and we're back"
-
+    
     ======== PushHere =====
     log "Going places!"
     <<-NewPlace<<
@@ -558,13 +571,80 @@ Marker characters are dash(-), plus(+) or asterisk(*)
 Again they are simply to make some code to stand out and ideal help scanning code.
 You don't need to use them.
 
+Importing
+==================
 
-Delay,
+You can break up mast content into multiple files and use import to included them::
 
-Import,
+    import story_two.mast
+
+The import command also supports importing from a zip fill::
+
+    from my_lib.zip import bar.mast
+
+One use of the zip file concept it to create a sharable library of things.
+
 
 Logging
 ================
 
- logger name test1 file "{mission_dir}/test1.out"
+Mast supports syntax to simplify pythons logging features.
+
+The logger command sets up logging. 
+
+Logging needs to be enabled
+
+Logging can enabled for stdout, to a string stream (stringIO) variable, and a file::
+
+    # enable logging to stdout
+    logger
+    # enable logging to stdout, and a string
+    logger string my_string_logger
+    # enable logging to stdout, and a file
+    logger file "{mission_dir}/my_log.log"
+    # enable logging to stdout, a string and a file
+    logger string my_string_logger file "{mission_dir}/my_log.log"
+
+You can have multiple loggers, each logger can have separate strings, or files.
+
+The default logger does not need to specify the name.
+
+To create a new loggers by using the logger command specifying a name::
+
+    logger name tonnage string tonnage
+
+The log command is how you send messages to the log::
+
+    log "Hello, World"
+    log name tonnage "Tonnage score {tonnage}"
+
+The log command can accept levels::
+
+    log "Hello, World" info
+    log "Hello, World" debug
+    log "Hello, World" error
+
+These are visible is the stdout messages.
+
+
+Delay command
+==================
+
+The delay command continues to execute for a period of time.
+
+A Delay needs a clock to use Artemis Cosmos has two clocks and sim.
+The gui clock is running continuously (realtime), the sim clock can be paused when the simulation is not running(game time).
+
+For gui and other things use the gui clock.
+If you want to delay 10s of game time use sim.
+
+Delay can specify minutes and seconds. Some examples::
+
+    delay gui 1m
+    delay gui 10s
+    delay gui 1m 5s
+    delay sim 10m
+
+
+
 

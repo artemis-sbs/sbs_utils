@@ -202,6 +202,30 @@ delay 10s
         assert(len(errors) == 0)
 
 
+    def test_button_set_compile_no_err_2(self):
+        (errors, mast) = mast_sbs_compile( code ="""
+
+button_set fred:
+    + "Test":
+
+end_button_set
+
+button_set barney:
+    + "Test":
+end_button_set
+
+await self comms player timeout 5s:
+    button_set use fred
+    button_set use barney
+end_await
+
+""")
+        if len(errors)>0:
+            for err in errors:
+                print(err)
+        assert(len(errors) == 0)
+
+
 """
 --------await self near player 700 timeout 1m 1s:----------
 

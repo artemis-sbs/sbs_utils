@@ -6,13 +6,9 @@ Mast.enable_logging()
 
 
 def mast_story_compile(code=None):
-    def decorator(func):
-        def wrapper(self, **kargs):
-            mast = MastStory()
-            errors = mast.compile(code)
-            func(self, errors=errors, mast=mast, **kargs)
-        return wrapper
-    return decorator
+    mast = MastStory()
+    errors = mast.compile(code)
+    return (errors, mast)
 
 def mast_story_compile_file(code=None):
     mast = MastStory()
@@ -23,7 +19,8 @@ def mast_story_compile_file(code=None):
 
 class TestMastStoryCompile(unittest.TestCase):
     
-    @mast_story_compile( code = """
+    def test_compile_no_err(self):
+        (errors, mast)= mast_story_compile( code = """
 await choice: end_await
 
 input name "enter name"
@@ -52,7 +49,6 @@ end_await
 
 
 """)
-    def test_compile_no_err(self, errors, mast):
         if len(errors)>0:
             for err in errors:
                 print(err)

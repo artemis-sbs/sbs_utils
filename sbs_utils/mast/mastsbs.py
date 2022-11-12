@@ -1,4 +1,4 @@
-from .mast import IF_EXP_REGEX, TIMEOUT_REGEX, OPT_COLOR, Mast, MastNode, MastCompilerError
+from .mast import IF_EXP_REGEX, TIMEOUT_REGEX, OPT_COLOR, Mast, MastNode, EndAwait
 import re
 
 
@@ -29,23 +29,6 @@ class Broadcast(MastNode):
         self.to_tag = to_tag
         self.message = message
         self.color = color if color is not None else "#fff"
-
-
-class Timeout(MastNode):
-    rule = re.compile(r'timeout\s*:')
-    def __init__(self, loc=None):
-        self.loc = loc
-        self.await_node = EndAwait.stack[-1]
-        EndAwait.stack[-1].timeout_label = self
-
-class EndAwait(MastNode):
-    rule = re.compile(r'end_await')
-    #rule = re.compile(r'end_wait')
-    stack = []
-    def __init__(self, loc=None):
-        self.loc = loc
-        EndAwait.stack[-1].end_await_node = self
-        EndAwait.stack.pop()
 
 
 class Comms(MastNode):
@@ -95,6 +78,25 @@ class Button(MastNode):
         return True
 
 
+class ButtonSet(MastNode):
+    rule = re.compile(r"""(button_set\s+use\s+(?P<use>\w+))|(button_set\s*(?P<name>\w+):)|(end_button_set)""")
+    lookup = {}
+    def __init__(self, use=None, name=None, loc=None):
+        self.buttons = []
+        self.use = use
+        self.end = None
+        if use is not None:
+            EndAwait.stack[-1].buttons.extend(self.buttons)
+        elif name is None:
+            EndAwait.stack[-1].end = self
+            EndAwait.stack.pop(-1)
+        else:
+            ButtonSet.lookup[name] = self
+            EndAwait.stack.append(self)
+    
+
+
+
 class Near(MastNode):
     rule = re.compile(r'await\s*(?P<from_tag>\w+)\s+near\s+(?P<to_tag>\w+)\s*(?P<distance>\d+)'+TIMEOUT_REGEX+"\s*:")
     def __init__(self, to_tag, from_tag, distance, minutes=None, seconds=None, loc=None):
@@ -126,9 +128,8 @@ class MastSbs(Mast):
         Tell,
         Broadcast,
         Comms,
-        Timeout,
-        EndAwait,
         Button,
+        ButtonSet,
         Near,
       #  Simulation
     ] + Mast.nodes 
