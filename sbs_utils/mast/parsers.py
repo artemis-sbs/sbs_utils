@@ -23,7 +23,7 @@ class LayoutAreaParser:
         "rparen": r"\)",
     }
     #AREA_LIST_TOKENS = "|".join(map(lambda a: f"({a})", rules.values()))
-    AREA_LIST_TOKENS = r"[^\n]*"
+    AREA_LIST_TOKENS = r"[^\n^;]*"
 
 
     def lex(source):

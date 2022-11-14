@@ -25,9 +25,9 @@ from io import StringIO
 LIST_REGEX = r"""(\[[\s\S]+?\])"""
 DICT_REGEX = r"""(\{[\s\S]+?\})"""
 PY_EXP_REGEX = r"""((?P<py>~~)[\s\S]+?(?P=py))"""
-STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[\s\S]+?(?P=quote))"""
+STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[ \t\S]*(?P=quote))"""
 
-JUMP_CMD_REGEX = r"""((?P<pop><<-(\s+?(?P<pop_jump>\w+)\s*<<)?)|(->(?P<push>>)?\s*(?P<jump>\w+)))"""
+JUMP_CMD_REGEX = r"""((?P<pop><<-(\s*(?P<pop_jump>\w+)\s*<<)?)|(->(?P<push>>)?\s*(?P<jump>\w+)))"""
 #JUMP_ARG_REGEX = r"""\s*((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+))|(=>\s*(?P<await_name>\w+)(?P<with_data>\s*("""+PY_EXP_REGEX+"|"+DICT_REGEX+"""))?))"""
 #OPT_JUMP_REGEX = r"("+JUMP_ARG_REGEX+r""")?"""
 
@@ -147,6 +147,7 @@ class IfStatements(MastNode):
         self.if_op = if_op
         self.if_chain = None
         self.if_node = None
+        self.loc = loc
 
 
         if "end_if" == self.end:
@@ -453,6 +454,7 @@ class Mast:
         "itertools": itertools,
         "next": next,
         "len": len,
+        "reversed": reversed,
         "int": int,
         "min": min,
         "max": max,

@@ -161,11 +161,18 @@ class TextInput(Column):
             self.left, self.top, self.right, self.bottom)
 
 
-class Separate(Column):
+class Blank(Column):
     def __init__(self) -> None:
         super().__init__()
     def present(self, sim, client_id):
         pass
+
+class Hole(Column):
+    def __init__(self) -> None:
+        super().__init__()
+    def present(self, sim, client_id):
+        pass
+
 
 class Face(Column):
     def __init__(self, face, tag) -> None:
@@ -200,6 +207,7 @@ class Layout:
         self.rows = rows if rows else []
         self.aspect_ratio = sbs.get_screen_size()
         self.set_size(left,top,right,bottom)
+        self.default_height = None
 
     def set_size(self, left=0, top=0, right=100, bottom=100):
         self.left = left
@@ -207,9 +215,8 @@ class Layout:
         self.width = right-left
         self.height = bottom-top
        
-        
-
-
+    def set_default_height(self, height):
+        self.default_height = height
 
     def add(self, row:Row):
         self.rows.append(row)
@@ -217,7 +224,10 @@ class Layout:
     def calc(self):
         
         if len(self.rows):
-            row_height = self.height / len(self.rows)
+            if self.default_height is not None:
+                row_height = self.default_height
+            else:
+                row_height = self.height / len(self.rows)
             row : Row
             left = self.left
             top = self.top
@@ -258,6 +268,7 @@ class Layout:
                 
 
                 col_left = left
+                hole_size = 0
                 for col in row.columns:
                     col.left = col_left
                     col.top = top
@@ -265,8 +276,13 @@ class Layout:
                     if col.square:
                         col.right = col_left + square_width
                         col.bottom = top+square_height
+                        # Square ignores holes?
+                        hole_size = 0
+                    elif col.__class__ == Hole:
+                        hole_size += rect_col_width
                     else:
-                        col.right = col_left+rect_col_width
+                        col.right = col_left+rect_col_width + hole_size
+                        hole_size = 0
                     col_left = col.right
 
                 top += row_height

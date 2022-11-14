@@ -75,7 +75,7 @@ class ClientSelectPage(Page):
             sbs.send_client_widget_list(event.client_id, console_name, widget_list)
             self.state = "main"
 
-    def on_client_change(self, sim, event):
+    def on_event(self, sim, event):
         match event.sub_tag:
             # This is the client_change event being handled
             case "change_console":

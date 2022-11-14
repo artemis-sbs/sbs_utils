@@ -21,7 +21,9 @@ class TestMastStoryCompile(unittest.TestCase):
     
     def test_compile_no_err(self):
         (errors, mast)= mast_story_compile( code = """
-await choice: end_await
+await gui
+
+await gui timeout 5s
 
 input name "enter name"
 
@@ -46,6 +48,10 @@ await choice:
         end_await
     end_await
 end_await
+
+style area:1,2,3,4;
+style area: 1,2,3-1px,4;
+style area:1,2,3,4;row-height:10px;
 
 
 """)

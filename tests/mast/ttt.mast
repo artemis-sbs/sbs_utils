@@ -116,7 +116,7 @@ next x
 row
 next y
 
-await choice nothing
+await gui
 
 
 ============== draw_board   ======

@@ -64,7 +64,7 @@ class Page:
         pass
 
     def on_message(self, sim, event):
-        """ on_client_change
+        """ on_message
 
         Called when the option pages page has been interacted with
 
@@ -74,8 +74,8 @@ class Page:
         :type event: event
         """
         pass
-    def on_client_change(self, sim, event):
-        """ on_client_change
+    def on_event(self, sim, event):
+        """ on_event
 
         Called when the option pages page has been interacted with
 
@@ -105,7 +105,7 @@ class GuiClient:
         :param page: 
         :type Page: A GUI Page
         """
-        event = FakeEvent(self.client_id)
+        event = FakeEvent(self.client_id, "x#gui_push")
         self.page_stack.append(page)
         self.present(sim, event)
 
@@ -125,7 +125,7 @@ class GuiClient:
 
 
 
-        event = FakeEvent(self.client_id)
+        event = FakeEvent(self.client_id, "gui_pop")
         self.present(sim, event)
         return ret
 
@@ -157,10 +157,10 @@ class GuiClient:
         if len(self.page_stack) > 0:
             self.page_stack[-1].on_message(sim, event)
 
-    def on_client_change(self, sim, event):
-        """ on_client_change
+    def on_event(self, sim, event):
+        """ on_event
 
-        Calls the on_client_change on the top page of the specified client by calling on_client_change
+        Calls the on_event on the top page of the specified client by calling on_event
 
         :param sim: 
         :type sim: Artemis Cosmos simulation
@@ -169,11 +169,13 @@ class GuiClient:
         
         """
         if len(self.page_stack) > 0:
-            self.page_stack[-1].on_client_change(sim, event)
+            self.page_stack[-1].on_event(sim, event)
 
 class FakeEvent:
-    def __init__(self, client_id):
+    def __init__(self, client_id, tag):
         self.client_id = client_id
+        self.tag = tag
+
 
 
 class Gui:
@@ -268,11 +270,16 @@ class Gui:
         Gui.represent_throttle = 0
         for client_id, gui in Gui.clients.items():
             if client_id == 0 or client_id in client_list:
-                event = FakeEvent(client_id)
+                event = FakeEvent(client_id, "gui_present")
                 gui.present(sim, event)
             else:
                 disconnect.append(client_id)
         for cid in disconnect:
+            gui = Gui.clients.get(cid)
+            if gui is not None:
+                event = FakeEvent(cid,"x#client_disconnect")
+                gui.on_event(sim, event)
+
             Gui.clients.pop(cid)
         # Try to repaint things we can this round
         Gui.present_dirty(sim)
@@ -297,8 +304,10 @@ class Gui:
         Gui.represent = set()
         for client_id in dirty:
             gui = Gui.clients.get(client_id)
-            event = FakeEvent(client_id)
-            gui.present(sim, event)
+            # Gui could have disconnected
+            if gui:
+                event = FakeEvent(client_id, "gui_represent")
+                gui.present(sim, event)
         #Gui.present_dirty()
 
         
@@ -321,8 +330,8 @@ class Gui:
             gui.on_message(sim, event)
 
     @staticmethod
-    def on_client_change(sim, event):
-        """ on_client_change
+    def on_event(sim, event):
+        """ on_event
 
         Forward to the appropriate GuiClient/Page
         handlerhooks.py will call this in HandleEvent
@@ -335,5 +344,5 @@ class Gui:
         # message_tag, clientID, data
         gui = Gui.clients.get(event.client_id)
         if gui is not None:
-            gui.on_client_change(sim, event)    
+            gui.on_event(sim, event)    
             

@@ -12,7 +12,7 @@ from sbs_utils.gui import Page, Gui
 from sbs_utils.pages.avatar import AvatarEditor
 from sbs_utils.pages.shippicker import ShipPicker
 from sbs_utils.pages.start import ClientSelectPage
-from sbs_utils.pages.layout import LayoutPage, Layout, Row, Text, Face, Ship, Separate
+from sbs_utils.pages.layout import LayoutPage, Layout, Row, Text, Face, Ship
 #import sbs_utils
 from sbs_utils.mast.mast import Mast
 from sbs_utils.mast.mastsbs import MastSbs

@@ -8,7 +8,7 @@ import unittest
 
 Mast.enable_logging()
 
-class TMastRunner(MastScheduler):
+class TMastScheduler(MastScheduler):
     def runtime_error(self, message):
         print(f"RUNTIME ERROR: {message}")
 
@@ -21,7 +21,7 @@ def mast_compile(code=None):
 def mast_run(code=None):
     mast = Mast()
     errors = mast.compile(code)
-    runner = TMastRunner(mast)
+    runner = TMastScheduler(mast)
     runner.start_task()
     return (errors,runner, mast)
 
@@ -141,6 +141,37 @@ var8 = ~~ [[2,3],[4,5]] ~~
         assert(list_value[0][1]==3)
         assert(list_value[1][0]==4)
         assert(list_value[1][1]==5)
+    def test_if_comp(self):
+        (errors,  _) = mast_compile( code = """
+x = 52
+if x<50:
+x=100
+end_if
+
+s = "hello"
+if x=="hello":
+x=100
+end_if
+
+if x<50:
+x=9999
+elif x>50:
+x=200
+else:
+x=300
+end_if
+
+if x<50:
+x=9999
+elif x>250:
+x=200
+else:
+x=300
+end_if
+
+    """)
+        assert(len(errors)==0)
+      
      
     def test_if(self):
         (errors, runner, _) = mast_run( code = """

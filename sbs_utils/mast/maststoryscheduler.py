@@ -8,7 +8,7 @@ from ..pages import layout
 from ..tickdispatcher import TickDispatcher
 
 from .errorpage import ErrorPage
-from .maststory import AppendText, ButtonControl, MastStory, Choose, Text, Blank, Ship, Face, Row, Section, Area, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl
+from .maststory import AppendText, ButtonControl, MastStory, Choose, Text, Blank, Ship, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, Hole
 import traceback
 from .mastsbsscheduler import MastSbsScheduler 
 from .parsers import LayoutAreaParser
@@ -61,15 +61,19 @@ class TextRuntimeNode(StoryRuntimeNode):
             task.main.page.add_content(self.layout_text, self)
 
     def databind(self):
-        value = True
-        if self.node.code is not None:
-            value = self.task.eval_code(self.node.code)
-        if value:
-            msg = self.task.format_string(self.node.message)
-            if self.layout_text.message !=msg:
-                self.layout_text.message = msg
-                return True
-        return False
+        if True:
+            return False
+        # value = True
+        # if self.node.code is not None:
+        #     value = self.task.eval_code(self.node.code)
+        # if value:
+        #     print("BEFORE")
+        #     msg = self.task.format_string(self.node.message)
+        #     print(f"DATABIND {msg} {self.layout_text.message}")
+        #     if self.layout_text.message !=msg:
+        #         self.layout_text.message = msg
+        #         return True
+        # return False
         
 
 class AppendTextRuntimeNode(StoryRuntimeNode):
@@ -117,8 +121,6 @@ class ButtonControlRuntimeNode(StoryRuntimeNode):
         elif node.end_node:
             self.task.jump(self.task.active_label, node.end_node.loc+1)
             return PollResults.OK_JUMP
-        
-
 
 
 class RowRuntimeNode(StoryRuntimeNode):
@@ -128,15 +130,17 @@ class RowRuntimeNode(StoryRuntimeNode):
 
 class BlankRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Blank):
-        tag = task.main.page.get_tag()
-        task.main.page.add_content(layout.Separate(), self)
+        task.main.page.add_content(layout.Blank(), self)
+class HoleRuntimeNode(StoryRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: Hole):
+        task.main.page.add_content(layout.Hole(), self)
 
 class SectionRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Section):
         task.main.page.add_section()
 
-class AreaRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Area):
+class SyleRuntimeNode(StoryRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: Style):
         values =[]
         i = 1
         for ast in node.asts:
@@ -146,7 +150,27 @@ class AreaRuntimeNode(StoryRuntimeNode):
                 ratio =  task.main.page.aspect_ratio.y
             i=-i
             values.append(LayoutAreaParser.compute(ast, task.get_symbols(),ratio))
+        if node.height is not None:
+            height = LayoutAreaParser.compute(node.height, task.get_symbols(),ratio)
+            task.main.page.set_default_height(height)
+
         task.main.page.set_section_size(values)
+
+
+class AwaitGuiRuntimeNode(StoryRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: AwaitGui):
+        seconds = (node.minutes*60+node.seconds)
+        if seconds == 0:
+            self.timeout = None
+        else:
+            self.timeout = sbs.app_seconds()+ (node.minutes*60+node.seconds)
+        task.main.page.set_button_layout(None)
+
+    def poll(self, mast:Mast, task:MastAsyncTask, node: AwaitGui):
+        if self.timeout:
+            if self.timeout <= sbs.app_seconds():
+                return PollResults.OK_ADVANCE_TRUE
+        return PollResults.OK_RUN_AGAIN
 
 
 class ChooseRuntimeNode(StoryRuntimeNode):
@@ -155,7 +179,7 @@ class ChooseRuntimeNode(StoryRuntimeNode):
         if seconds == 0:
             self.timeout = None
         else:
-            self.timeout = TickDispatcher.current + (node.minutes*60+node.seconds)*TickDispatcher.tps
+            self.timeout = sbs.app_seconds()+ (node.minutes*60+node.seconds)
 
         top = ((task.main.page.aspect_ratio.y - 30)/task.main.page.aspect_ratio.y)*100
 
@@ -184,7 +208,7 @@ class ChooseRuntimeNode(StoryRuntimeNode):
                         active += 1
                 case "Separator":
                     # Handle face expression
-                    layout_row.add(layout.Separate())
+                    layout_row.add(layout.Blank())
             index+=1
 
         if active>0:    
@@ -216,7 +240,7 @@ class ChooseRuntimeNode(StoryRuntimeNode):
             return PollResults.OK_JUMP
 
         if self.timeout:
-            if self.timeout <= TickDispatcher.current:
+            if self.timeout <= sbs.app_seconds():
                 if node.timeout_label:
                     task.jump(task.active_label,node.timeout_label.loc+1)
                     return PollResults.OK_JUMP
@@ -301,6 +325,7 @@ class TextInputControlRuntimeNode(StoryRuntimeNode):
         if event.sub_tag == self.tag:
             self.layout.value = event.value_tag
             self.task.set_value(self.node.var, self.layout.value, self.scope)
+            self.task.main.paint_refresh = True
             self.layout.present(sim, event)
 
 class DropdownControlRuntimeNode(StoryRuntimeNode):
@@ -362,9 +387,11 @@ over =     {
     "TextInputControl": TextInputControlRuntimeNode,
     "WidgetList":WidgetListRuntimeNode,
     "Blank": BlankRuntimeNode,
+    "Hole": HoleRuntimeNode,
+    "AwaitGui": AwaitGuiRuntimeNode,
     "Choose": ChooseRuntimeNode,
     "Section": SectionRuntimeNode,
-    "Area": AreaRuntimeNode,
+    "Style": SyleRuntimeNode,
     "Refresh": RefreshRuntimeNode
 
 }
@@ -378,10 +405,12 @@ class StoryScheduler(MastSbsScheduler):
         self.sim = None
         self.paint_refresh = False
         self.errors = []
+        self.client_id = None
 
     def run(self, sim, client_id, page, label="main", inputs=None):
         self.sim = sim
         self.page = page
+        self.client_id = client_id
         inputs = inputs if inputs else {}
         self.vars['sim'] = sim
         self.vars['client_id'] = client_id
@@ -410,6 +439,10 @@ class StoryScheduler(MastSbsScheduler):
         if not err.startswith("NoneType"):
             message += str(err)
             self.errors = [message]
+    def on_event(self, sim, event):
+        if event.client_id == self.client_id:
+            # is this too chatty?
+            self.start_task("__EVENT__", {"event": event})
             
 
 class StoryPage(Page):
@@ -524,8 +557,13 @@ class StoryPage(Page):
         if not self.pending_layouts:
             self.add_row()
         l = self.pending_layouts[-1]
-        
         l.set_size(values[0],values[1], values[2], values[3])
+
+    def set_default_height(self, height):
+        if not self.pending_layouts:
+            self.add_row()
+        l = self.pending_layouts[-1]
+        l.set_default_height(height)
     
 
     def set_button_layout(self, layout):
@@ -619,4 +657,10 @@ class StoryPage(Page):
                 self.gui_state = "refresh"
             self.present(sim, event)
 
+    def on_event(self, sim, event):
+        if self.story_scheduler is None:
+            return
+        self.story_scheduler.on_event(sim, event)
+
+        
 

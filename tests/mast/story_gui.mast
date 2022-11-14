@@ -17,7 +17,7 @@ text_in = "Hello, World"
 
 ================== Briefing ================
 
-area 0, 30px, 60, 100-30px
+style area: 0, 30px, 60, 100-30px;
 
 
 face alisa
@@ -40,7 +40,7 @@ face frank
 
 
 section
-area 60, 10, 100, 100-30px
+style area: 60, 10, 100, 100-30px;
 
 blank
 row
@@ -78,7 +78,7 @@ blank
 
 =================== YouLied ========
 
-area 20, 10, 100, 100-30px
+style area: 20, 10, 100, 100-30px;
 face alisa
 
 """"""""""""""""""""""""""""""""""""""""""""""
@@ -95,7 +95,7 @@ end_await
 
 ============== YouTrained =========
 
-area 20, 10, 100, 100-30px
+style area: 20, 10, 100, 100-30px;
 
 face alisa
 
@@ -130,7 +130,7 @@ shared mission_started = True
 
 ==================           Learn     ===========
 
-area 20, 20, 100, 40
+style area: 20, 20, 100, 40;
 
 learn = False
 
@@ -179,9 +179,9 @@ shared tsn =  ~~ [
 
 ===================== Menu ============
 if IS_SERVER:
-    area 100-500px,0, 100, 30px
+    style area: 100-500px,0, 100, 30px;
 else:
-    area 100-500px, 0, 100, 30px
+    style area: 100-500px, 0, 100, 30px;
 end_if
 
 
@@ -203,7 +203,7 @@ dropdown mast_view "Variables^Debug^restart"
 end_dropdown
 
 section
-area 0, 30px, 100, 100-30px
+style area: 0, 30px, 100, 100-30px;
 <<-
 
 
@@ -256,7 +256,7 @@ match console:
     case _:
         """Pick a Console"""
 end_match
-await choice nothing
+await gui
 
 ========== PickedView =====
 ->> Menu
@@ -281,7 +281,7 @@ end_match
 """
 Unrreachable?
 """
-await choice nothing
+await gui
 
 ========== PickedMast =====
 ->> Menu
@@ -299,20 +299,20 @@ end_await
 
 image "{mission_dir}\data\quarters"
 
-await choice nothing
+await gui
 
 ========== ViewCrafting =====
 ->> Menu
 
 image "{mission_dir}\data\crafting"
 
-await choice nothing
+await gui
 ========== ViewPad =====
 ->> Menu
 
 image "{mission_dir}\data\datapad"
 
-await choice nothing
+await gui
 
 ========== ViewAux =====
 ->> Menu
@@ -320,4 +320,4 @@ await choice nothing
 """
 This would be the auxiliary Screen
 """
-await choice nothing
+await gui

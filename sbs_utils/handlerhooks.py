@@ -39,6 +39,9 @@ class ErrorPage(Page):
 
 def HandleEvent(sim, event):
     try:
+        # Allow guis more direct access to events
+        # e.g. Mast Story Page, Clients change
+        Gui.on_event(sim, event)
         match(event.tag):
 
 
@@ -57,9 +60,6 @@ def HandleEvent(sim, event):
 
             case "client_connect":
                 Gui.add_client(sim, event)
-
-            case "client_change":
-                Gui.on_client_change(sim, event)
 
             case "select_space_object":
                 print(f"{event.parent_id}")

@@ -486,7 +486,7 @@ class MastAsyncTask:
         for st in self.label_stack:
             data = st.data
             if data is not None:
-                m1 =  m1 | data
+                m1 =  data | m1
         return m1
 
     def set_value(self, key, value, scope):
@@ -532,6 +532,7 @@ class MastAsyncTask:
 
     def format_string(self, message):
         if isinstance(message, str):
+            print(f"FORMAT {message}")
             return message
         allowed = self.get_symbols()
         value = eval(message, {"__builtins__": Mast.globals}, allowed)
@@ -668,7 +669,7 @@ class MastScheduler:
         self.tasks = []
         self.name_tasks = {}
         self.inputs = None
-        self.vars = self.labels = {"mast_scheduler": self}
+        self.vars = {"mast_scheduler": self}
         self.done = []
         self.mast.add_scheduler(self)
         
@@ -679,6 +680,9 @@ class MastScheduler:
     def start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:
         if self.inputs is None:
             self.inputs = inputs
+
+        if self.mast and self.mast.labels.get(label,  None) is None:
+            return None
         
         t= MastAsyncTask(self, inputs)
         t.jump(label)

@@ -13,7 +13,12 @@ class Refresh(MastNode):
     rule = re.compile(r"""refresh\s*(?P<label>\w+)""")
     def __init__(self, label, loc=None):
         self.label = label
+
     
+class Hole(MastNode):
+    rule = re.compile(r"""hole""")
+    def __init__(self,  loc=None):
+        pass
 
 
 class Text(MastNode):
@@ -66,18 +71,23 @@ class Section(MastNode):
     def __init__(self, loc=None):
         pass
 
-class Area(MastNode):
-    rule = re.compile(r"""area\s+(?P<args>"""+LayoutAreaParser.AREA_LIST_TOKENS+r")")
-    def __init__(self, args, loc=None):
+class Style(MastNode):
+    rule = re.compile(r"""style(\s+area:\s*(?P<area>"""+LayoutAreaParser.AREA_LIST_TOKENS+r");)?(\s*row-height:\s*(?P<height>\d+(px)?);)?")
+    def __init__(self, area, height, loc=None):
         LayoutAreaParser()
-        tokens = LayoutAreaParser.lex(args)
+        tokens = LayoutAreaParser.lex(area)
         self.asts = LayoutAreaParser.parse_list(tokens)
         if (len(self.asts)!=4):
             raise Exception("Invalid area arguments")
-        
-class Choose(MastNode):
-    rule = re.compile(r"""await choice(\s*(?P<nothing>nothing))|((\s*set\s*(?P<assign>\w+)))?"""+TIMEOUT_REGEX+"\s*:")
-    def __init__(self, assign=None,minutes=None, seconds=None, nothing=None, loc=None):
+        if height is not None:
+            tokens = LayoutAreaParser.lex(height)
+            self.height = LayoutAreaParser.parse_e2(tokens)
+        else:
+            self.height = None
+
+class AwaitGui(MastNode):
+    rule = re.compile(r"await\s+gui"+TIMEOUT_REGEX)
+    def __init__(self, assign=None,minutes=None, seconds=None, loc=None):
         self.assign = assign
         self.seconds = 0 if  seconds is None else int(seconds)
         self.minutes = 0 if  minutes is None else int(minutes)
@@ -85,15 +95,23 @@ class Choose(MastNode):
         self.buttons = []
         self.active = False
         self.nothing = False
-        if nothing is not None:
-            self.minutes = 525600 # wait one year
-            self.nothing = True
-            self.timeout_label = None
-            self.end_await_node = self
-        else:
-            self.timeout_label = None
-            self.end_await_node = None
-            EndAwait.stack.append(self)
+        # just await gui
+   
+class Choose(MastNode):
+    #d=r"(\s*timeout"+MIN_SECONDS_REGEX + r")?"
+    #test = r"""await gui((((\s*(?P<choice>choice)(\s*set\s*(?P<assign>\w+))?)?):)?"""
+    rule = re.compile(r"(await choice(\s*set\s*(?P<assign>\w+))?"+ TIMEOUT_REGEX+ r"\s*:)")
+    def __init__(self, assign=None,minutes=None, seconds=None, loc=None):
+        self.assign = assign
+        self.seconds = 0 if  seconds is None else int(seconds)
+        self.minutes = 0 if  minutes is None else int(minutes)
+                
+        self.buttons = []
+        self.active = False
+
+        self.timeout_label = None
+        self.end_await_node = None
+        EndAwait.stack.append(self)
 
 class ButtonControl(MastNode):
     rule = re.compile(r"""((button\s+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q))(\s*data\s*=\s*(?P<data>"""+PY_EXP_REGEX+r"""))?"""+IF_EXP_REGEX+r"\s*:)|(?P<end>end_button)")
@@ -210,9 +228,11 @@ class MastStory(MastSbs):
             Face,
             Ship,
             Blank,
+            Hole,
             Section,
-            Area,
+            Style,
         Choose,
+        AwaitGui,
         ButtonControl,
         SliderControl,
         CheckboxControl,

@@ -19,7 +19,6 @@ def mast_sbs_compile(code):
     return (errors, mast)
 
 
-
 class TestMastSbsCompile(unittest.TestCase):
     
     
@@ -224,6 +223,16 @@ end_await
             for err in errors:
                 print(err)
         assert(len(errors) == 0)
+
+#     def test_run_tell_no_err(self):
+#           (errors, runner, mast) = mast_sbs_run( code = """
+#  have self tell player "Hello"
+#  have self tell player "Hello" color "black"
+# """)
+#           if len(errors)>0:
+#               for err in errors:
+#                   print(err)
+#           assert(len(errors) == 0)
 
 
 """
