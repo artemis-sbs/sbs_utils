@@ -116,12 +116,13 @@ for v in spawn_points:
     r_type = random.choice(enemyTypeNameList)
     r_name = f"{random.choice(enemy_prefix)}_{enemy}"
     spawn_data = Npc().spawn_v(sim,v, r_name, "RAIDER", r_type, "behav_npcship")
-    faces.set_face(spawn_data.id, faces.random_kralien())
-    spawn_data.py_object.add_role("Raider")
+    raider = spawn_data.py_object
+    faces.set_face(raider.id, faces.random_kralien())
+    raider.add_role("Raider")
     enemy += 1
     for player in player_ships:
-        mast_runtime.start_task("NPC_Comms", {"self": spawn_data.py_object, "player": player})
-        mast_runtime.start_task("PlayerDocking", {"self": player})
+        raider.start_task("NPC_Comms", {"player": player})
+        player.start_task("PlayerDocking")
 
 
 # make a few random clusters of nebula

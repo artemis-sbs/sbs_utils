@@ -277,7 +277,7 @@ class Gui:
         for cid in disconnect:
             gui = Gui.clients.get(cid)
             if gui is not None:
-                event = FakeEvent(cid,"x#client_disconnect")
+                event = FakeEvent(cid,"mast:client_disconnect")
                 gui.on_event(sim, event)
 
             Gui.clients.pop(cid)

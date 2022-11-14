@@ -107,6 +107,15 @@ await => trend if t > 23
 
         assert(len(errors)==0)
 
+    def test_event_compile_err(self):
+        (errors, mast) =mast_compile( code = """
+event disconnect:
+    log "ok"
+end_event
+""")
+
+        assert(len(errors)==0)
+
 
     
     def test_py_exp_run_no_err(self):

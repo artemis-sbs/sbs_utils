@@ -110,19 +110,19 @@ class TestLayoutPage(LayoutPage):
 
 class GuiStory(StoryPage):
     story_file = "tests/mast/story_gui.mast"
-    inputs = {
-            "PlayerShip": PlayerShip,
-            "Npc": Npc,
-            "Terrain": Terrain
-            }
+    # inputs = {
+    #         "PlayerShip": PlayerShip,
+    #         "Npc": Npc,
+    #         "Terrain": Terrain
+    #         }
     
 class SiegeStory(StoryPage):
     story_file = "tests/mast/siege.mast"
-    inputs = {
-            "PlayerShip": PlayerShip,
-            "Npc": Npc,
-            "Terrain": Terrain
-            }
+    # inputs = {
+    #         "PlayerShip": PlayerShip,
+    #         "Npc": Npc,
+    #         "Terrain": Terrain
+    #         }
 
 class TttStory(StoryPage):
     story_file = "tests/mast/ttt.mast"

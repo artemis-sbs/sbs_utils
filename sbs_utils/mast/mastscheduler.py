@@ -72,7 +72,10 @@ class PyCodeRuntimeNode(MastRuntimeNode):
                 task.main.vars[name] = value
 
         locals = {"export": export, "export_var": export_var} | task.get_symbols()
-        exec(node.code,{"__builtins__": Mast.globals}, locals)
+        try:
+            exec(node.code,{"__builtins__": Mast.globals}, locals)
+        except:
+            task.runtime_error(f"""Embedded python failed""")
 
         # before = set(locals.items())
         # exec(node.code,{"__builtins__": Mast.globals}, locals)
@@ -381,6 +384,21 @@ class DelayRuntimeNode(MastRuntimeNode):
 
         return PollResults.OK_RUN_AGAIN
 
+class EventRuntimeNode(MastRuntimeNode):
+    def enter(self, mast, task:MastAsyncTask, node):
+        if node.end is not None:
+            task.add_event(node.event, node)
+
+    def poll(self, mast, task, node):
+        if node.end is not None:
+            task.jump(task.active_label,node.end.loc+1)
+            return PollResults.OK_JUMP
+        else:
+            task.pop_label(False)
+            return PollResults.OK_JUMP
+
+
+
 class AwaitConditionRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: AwaitCondition):
         seconds = (node.minutes*60+node.seconds)
@@ -405,8 +423,8 @@ class AwaitConditionRuntimeNode(MastRuntimeNode):
         return PollResults.OK_RUN_AGAIN
 
 
-class MastScheduler:
-    pass
+#class MastScheduler:
+#    pass
 
 class PushData:
     def __init__(self, label, active_cmd, data=None):
@@ -414,10 +432,11 @@ class PushData:
         self.active_cmd = active_cmd
         self.data = data
 
+
 class MastAsyncTask:
-    main: MastScheduler
+    main: 'MastScheduler'
     
-    def __init__(self, main: MastScheduler, inputs=None):
+    def __init__(self, main: 'MastScheduler', inputs=None):
         self.done = False
         self.runtime_node = None
         self.main= main
@@ -425,6 +444,8 @@ class MastAsyncTask:
         self.result = None
         self.label_stack = []
         self.active_label = None
+        self.events = {}
+        self.vars["mast_task"] = self
 
     def push_label(self, label, activate_cmd=0, data=None):
         if self.active_label:
@@ -443,19 +464,16 @@ class MastAsyncTask:
             else:
                 self.jump(push_data.label, push_data.active_cmd)
 
-    # def jump_inline_start(self, label_name):
-    #     data = self.main.mast.inline_labels.get(label_name)
-    #     if data and data.start is not None:
-    #         self.jump(self.active_label, data.start)
+    def add_event(self, event_name, event):
+        event_data = PushData(self.active_label, event.loc)
+        self.events[event_name] = event_data
 
-    # def jump_inline_end(self, label_name, break_op):
-    #     data = self.main.mast.inline_labels.get(label_name)
-    #     if data and data.end is not None:
-    #         if break_op:
-    #             self.jump(self.active_label, data.end+1)
-    #         else:
-    #             self.jump(self.active_label, data.end)
-
+    def run_event(self, event_name, event):
+        ev_data = self.events.get(event_name)
+        if ev_data is not None:
+            self.push_label(ev_data.label, ev_data.active_cmd+1, {"event": event})
+            self.tick()
+    
     def jump(self, label = "main", activate_cmd=0):
         self.call_leave()
         if label == "END":
@@ -524,6 +542,10 @@ class MastAsyncTask:
             return (defa, Scope.NORMAL)
         return (val, Scope.NORMAL)
 
+    def get_variable(self, key):
+        value = self.get_value(key, None)
+        return value[0]
+
     def call_leave(self):
         if self.runtime_node:
             cmd = self.cmds[self.active_cmd]
@@ -532,7 +554,6 @@ class MastAsyncTask:
 
     def format_string(self, message):
         if isinstance(message, str):
-            print(f"FORMAT {message}")
             return message
         allowed = self.get_symbols()
         value = eval(message, {"__builtins__": Mast.globals}, allowed)
@@ -656,6 +677,7 @@ class MastScheduler:
         "AwaitCondition": AwaitConditionRuntimeNode,
         "Timeout": TimeoutRuntimeNode,
         "EndAwait": EndAwaitRuntimeNode,
+        "Event": EventRuntimeNode,
         "Delay": DelayRuntimeNode,
         "Log": LogRuntimeNode,
         "Logger": LoggerRuntimeNode,
@@ -711,6 +733,10 @@ class MastScheduler:
             return (val, Scope.SHARED)
         val = self.vars.get(key, defa)
         return (val, Scope.NORMAL)
+
+    def get_variable(self, key):
+        val = self.get_value(key)
+        return val[0]
 
     def tick(self):
         for task in self.tasks:

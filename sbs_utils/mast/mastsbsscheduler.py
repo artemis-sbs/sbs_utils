@@ -2,12 +2,14 @@ from .mast import Mast, Scope
 from .mastsbs import Simulation, Target, Tell, Comms, Button, ButtonSet, Near,Broadcast
 from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask
 import sbs
-from ..spaceobject import SpaceObject
+from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain
+
 from ..consoledispatcher import ConsoleDispatcher
 from ..gui import Gui
 from .errorpage import ErrorPage
 from .. import faces
 from ..tickdispatcher import TickDispatcher
+import sys
 
 import traceback
 
@@ -44,7 +46,7 @@ class TellRuntimeNode(MastRuntimeNode):
             self.face = faces.get_face(self.from_id)
             
         else:
-            task.runtime_error("Tell has invalid from")            
+            task.runtime_error("Tell has invalid from")
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: Tell):
 
@@ -248,8 +250,21 @@ class MastSbsScheduler(MastScheduler):
         else:
             super().__init__(mast,  over)
         self.sim = None
-        Mast.globals["sbs"] = sbs
-        Mast.globals["SpaceObject"] =SpaceObject
+        self.vars["sbs"] = sbs
+        # Create schedulable space objects
+        self.vars["SpaceObject"] =MastSpaceObject
+
+        self.vars["Npc"] = self.Npc
+        self.vars["Terrain"] = self.Terrain
+        self.vars["PlayerShip"] = self.PlayerShip
+        self.vars["script"] = sys.modules['script']
+
+    def Npc(self):
+        return Npc(self)
+    def PlayerShip(self):
+        return PlayerShip(self)
+    def Terrain(self):
+        return Terrain(self)
 
     def run(self, sim, label="main", inputs=None):
         self.sim = sim

@@ -207,6 +207,7 @@ class PyCode(MastNode):
     rule = re.compile(r'((\~{2,})\n?(?P<py_cmds>[\s\S]+?)\n?(\~{2,}))')
 
     def __init__(self, py_cmds=None, loc=None):
+        self.loc = loc
         if py_cmds:
             py_cmds= py_cmds.lstrip()
             self.code = compile(py_cmds, "<string>", "exec")
@@ -262,6 +263,7 @@ class Assign(MastNode):
     """ Not this doesn't support destructuring. To do so isn't worth the effort"""
     def __init__(self, scope, lhs, exp, quote=None, py=None, loc=None):
         self.lhs = lhs
+        self.loc = loc
         self.scope = None if scope is None else Scope[scope.strip(
         ).upper()]
         
@@ -350,6 +352,21 @@ class EndAwait(MastNode):
         self.loc = loc
         EndAwait.stack[-1].end_await_node = self
         EndAwait.stack.pop()
+
+
+class Event(MastNode):
+    rule = re.compile(r'(event\s+(?P<event>disconnect):)|(end_event)')
+    stack = []
+    def __init__(self, event=None, loc=None):
+        self.loc = loc
+        self.end = None
+        self.event = event
+        if event is None:
+            Event.stack[-1].end = self
+            Event.stack.pop()
+        else:
+            Event.stack.append(self)
+
 
 
 class Timeout(MastNode):
@@ -513,6 +530,7 @@ class Mast:
         Log,
         Logger,
         Input,
+        Event,
         #        Var,
         Import,
         AwaitCondition,

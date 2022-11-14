@@ -439,10 +439,14 @@ class StoryScheduler(MastSbsScheduler):
         if not err.startswith("NoneType"):
             message += str(err)
             self.errors = [message]
+
     def on_event(self, sim, event):
         if event.client_id == self.client_id:
-            # is this too chatty?
-            self.start_task("__EVENT__", {"event": event})
+            event_name = event.tag
+            if event_name == "mast:client_disconnect":
+                event_name = "disconnect"
+                for task in self.tasks:
+                    task.run_event(event_name, {"event": event})
             
 
 class StoryPage(Page):
