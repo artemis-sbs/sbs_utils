@@ -8,8 +8,6 @@ def app_seconds() -> int:
     ...
 def assign_client_to_ship(arg0: int, arg1: int) -> None:
     """Tells a client computer which ship it should control."""
-def assign_player_ship(arg0: int) -> None:
-    """hack; sends player ID to clients"""
 def broad_test(arg0: float, arg1: float, arg2: float, arg3: float, arg4: int) -> List[sbs.space_object]:
     """return a list of space objects that are currently inside an x/z 2d rect  ARGS: 2D bounding rect, and type value (0, 1, or 2, -1 = all)"""
 def clear_client_tags() -> None:
@@ -72,6 +70,8 @@ def send_gui_typein(arg0: int, arg1: str, arg2: str, arg3: str, arg4: float, arg
     """Creates a text entry GUI element, on the targeted client (0 = server screen)"""
 def send_message_to_player_ship(arg0: int, arg1: str, arg2: str) -> None:
     """sends a text message to the text box, on every client for a certain ship. args:  uint32_t playerID (0 = all ships), std::string color, std::string text"""
+def send_story_dialog(arg0: int, arg1: str, arg2: str, arg3: str, arg4: str) -> None:
+    """sends a story dialog to the targeted client (0 = server screen)"""
 def set_music_folder(arg0: str, arg1: int, arg2: int) -> None:
     """Sets the folder from which music is streamed, for the specified ship."""
 def set_music_tension(arg0: float, arg1: int, arg2: int) -> None:
