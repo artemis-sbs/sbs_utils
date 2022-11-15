@@ -30,6 +30,7 @@ have self approach player
 have self target player
 have self broadcast "Hello, World"
 have self broadcast "Hello, RGB" color "#fff"
+have *PlayerShip broadcast "Hello, World"
 
 
 await self near player 700 timeout 1m 1s:

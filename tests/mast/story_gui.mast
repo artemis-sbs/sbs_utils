@@ -194,7 +194,7 @@ view = "Main"
 <<- PickedView<<
 end_dropdown
 
-dropdown view "Main^Auxiliary^Crafting^Quarters^P.A.D.D.^Bar"
+dropdown view "Main^Auxiliary^Crafting^Quarters^P.A.D.D.^Broadcast^Bar"
 <<- PickedView<<
 end_dropdown
 
@@ -225,7 +225,13 @@ end_await
 ========== PickedShip =====
 match ship_select:
 case "Artemis":
-    ~~sbs.assign_client_to_ship(client_id, player.id)~~
+~~
+sbs.assign_client_to_ship(client_id, player.id)
+sbs.send_message_to_player_ship(0,"yellow","New officer")
+sbs.send_message_to_player_ship(player.id,"blue","New officer")
+sbs.send_message_to_player_ship(hera.id,"red","New officer")
+sbs.send_message_to_player_ship(atlas.id,"green","New officer")
+~~
 case "Hera":
     ~~sbs.assign_client_to_ship(client_id, hera.id)~~
 case "Atlas":
@@ -271,6 +277,8 @@ match view:
         -> ViewQuarters
     case "P.A.D.D.":
         -> ViewPad
+    case "Broadcast":
+        -> BroadcastTest
     case "Bar":
         ->> GotoBar
         ->Hud
@@ -293,6 +301,10 @@ await choice:
     + "Back":
         <<-
 end_await
+
+====== BroadcastTest ==============
+have *PlayerShip broadcast "Hello"
+<<-
 
 ========== ViewQuarters =====
 ->> Menu

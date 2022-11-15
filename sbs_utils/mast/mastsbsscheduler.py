@@ -51,7 +51,7 @@ class TellRuntimeNode(MastRuntimeNode):
     def poll(self, mast:Mast, task:MastAsyncTask, node: Tell):
 
         if self.to_id and self.from_id:
-            msg = node.message.format(**task.get_symbols())
+            msg = task.format_string(node.message)
             sbs.send_comms_message_to_player_ship(
                 self.to_id,
                 self.from_id,
@@ -63,18 +63,30 @@ class TellRuntimeNode(MastRuntimeNode):
 
 class BroadcastRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Broadcast):
-        to_so= task.get_value(node.to_tag, None)
-        to_so = to_so[0]
-        if to_so:
-            self.to_id = to_so.get_id()
+        self.to_ids = None
+        if node.to_tag.startswith('*'):
+            role = node.to_tag[1:]
+            self.to_ids = SpaceObject.get_objects_with_role(role)
+        elif node.to_tag=="SERVER":
+            self.to_ids = [0]
         else:
-            task.runtime_error(f"Broadcast has invalid TO {node.to_tag}")            
+            to_so= task.get_value(node.to_tag, None)
+            to_so = to_so[0]
+            if to_so:
+                self.to_ids = [to_so.get_id()]
+            else:
+                task.runtime_error(f"Broadcast has invalid TO {node.to_tag}")            
     
     def poll(self, mast:Mast, task:MastAsyncTask, node: Broadcast):
-        if self.to_id:
-            msg = task.format_string(node.message)
-            sbs.send_message_to_player_ship(self.to_id, node.color, msg)
-            return PollResults.OK_ADVANCE_TRUE
+        if self.to_ids:
+            for id in self.to_ids:
+                print(f"Broadcasting id {id}")
+                obj = SpaceObject.get(id)
+                if obj is not None:
+                    task.set_value("broadcast_target", obj)
+                    msg = task.format_string(node.message)
+                    sbs.send_message_to_player_ship(id, node.color, msg)
+
         return PollResults.OK_ADVANCE_TRUE
 
 class CommsRuntimeNode(MastRuntimeNode):
@@ -85,7 +97,6 @@ class CommsRuntimeNode(MastRuntimeNode):
         else:
             self.timeout = TickDispatcher.current + (node.minutes*60+node.seconds)*TickDispatcher.tps
 
-        print("CHOOSE")
         self.tag = None
         self.buttons = node.buttons
         self.button = None

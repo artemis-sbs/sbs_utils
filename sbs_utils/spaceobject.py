@@ -110,9 +110,7 @@ class SpaceObject:
     def get_objects_with_role(role):
         ret = []
         if SpaceObject.ids.get(role):
-            
-            for id in SpaceObject.ids.get(role):
-                ret.append(SpaceObject.get(id))
+            return SpaceObject.ids.get(role).keys()
         return ret
 
 
