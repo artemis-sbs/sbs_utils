@@ -311,7 +311,9 @@ class TextInputControlRuntimeNode(StoryRuntimeNode):
         self.node = node
         label = ""
         if node.label is not None:
+            print(f"node {node.label}")
             label = task.format_string(node.label)
+            print(f"formatted {label}")
             if label is None:
                 label=""
         scoped_val = task.get_value(self.node.var, "")

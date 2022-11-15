@@ -133,9 +133,6 @@ class Image(Column):
             self.width = -1
             self.height = -1
 
-            
-
-
 class Dropdown(Column):
     def __init__(self, value, values, tag) -> None:
         super().__init__()
@@ -157,7 +154,7 @@ class TextInput(Column):
         
     def present(self, sim, event):
         sbs.send_gui_typein(event.client_id, 
-            self.value, self.label, self.tag,
+            self.value, self.label,self.tag,
             self.left, self.top, self.right, self.bottom)
 
 

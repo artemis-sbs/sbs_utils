@@ -174,10 +174,12 @@ class CheckboxControl(MastNode):
 
 class TextInputControl(MastNode):
     
-    rule = re.compile(r"""input\s+(?P<var>[ \t\S]+)(\s+(?P<q>['"]{3}|["'])(?P<label>[\s\S]+?)(?P=q))?""")
+    rule = re.compile(r"""input\s+(?P<var>[_\w][\w]*)(\s+(?P<q>['"]{3}|["'])(?P<label>[\s\S]+?)(?P=q))?""")
     def __init__(self, var=None, label=None,q=None, loc=None):
         self.var= var
+        print(f"node {label}")
         self.label = self.compile_formatted_string(label) if label is not None else None
+        print(f"self label {self.label}")
 
 
 
