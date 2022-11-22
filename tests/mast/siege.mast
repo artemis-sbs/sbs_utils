@@ -93,7 +93,7 @@ player_ships =  [
         PlayerShip().spawn(sim, 900,0,0, "Atlas", "tsn", "Missile Cruiser").py_object
     ]
 
-sbs.assign_player_ship(player_ships[0].id)
+sbs.assign_client_to_ship(0,player_ships[0].id)
 for player in player_ships:
     faces.set_face(player.id, faces.random_terran())
 

@@ -110,7 +110,7 @@ class SpaceObject:
     def get_objects_with_role(role):
         ret = []
         if SpaceObject.ids.get(role):
-            return SpaceObject.ids.get(role).keys()
+            return SpaceObject.ids.get(role).values()
         return ret
 
 
@@ -514,7 +514,6 @@ class MSpawn:
 class MSpawnPlayer(MSpawn):
     def _make_new_player(self, sim, behave, data_id):
         self.id = sim.make_new_player(behave, data_id)
-        sbs.assign_player_ship(self.id)
         return sim.get_space_object(self.id)
 
     def _spawn(self, sim, x, y, z, name, side, art_id):

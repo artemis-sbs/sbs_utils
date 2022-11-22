@@ -6,7 +6,7 @@ class ConsoleDispatcher:
     _dispatch_select = {}
     _dispatch_messages = {}
     # tick dispatch
-
+    convert_to_console_id = None
     
     def add_select(an_id: int, console: str, cb: typing.Callable):
         """ add a target for console selection
@@ -109,27 +109,30 @@ class ConsoleDispatcher:
         :param other_id: A non player ship ID player
         :type other_id: int
         """
+        console = ConsoleDispatcher.convert_to_console_id(sim,event)
+        ConsoleDispatcher.do_select(sim, event, console)
+        print(f"con select{console}")
 
 
-        cb = ConsoleDispatcher._dispatch_select.get((event.origin_id, event.sub_tag))
+        cb = ConsoleDispatcher._dispatch_select.get((event.origin_id, console))
         if cb is not None:
             cb(sim, event.selected_id, event)
             
         # Allow to route to the selected ship too
-        cb = ConsoleDispatcher._dispatch_select.get((event.selected_id, event.sub_tag))
+        cb = ConsoleDispatcher._dispatch_select.get((event.selected_id, console))
         if cb is not None:
             cb(sim, event.origin_id, event)
 
-        cb = ConsoleDispatcher._dispatch_select.get((event.origin_id, event.selected_id, event.sub_tag))
+        cb = ConsoleDispatcher._dispatch_select.get((event.origin_id, event.selected_id, console))
         if cb is not None:
             cb(sim, event.selected_id, event)
             
         # Allow to route to the selected ship too
-        cb = ConsoleDispatcher._dispatch_select.get((event.selected_id, event.origin_id, event.sub_tag))
+        cb = ConsoleDispatcher._dispatch_select.get((event.selected_id, event.origin_id, console))
         if cb is not None:
             cb(sim, event.origin_id, event)
 
-    def dispatch_message(sim, event, console: str):
+    def dispatch_message(sim, event, console):
         """ dispatches a console message
         
         :param sim: The simulation
@@ -143,6 +146,7 @@ class ConsoleDispatcher:
         :param other_id: A non player ship ID player
         :type other_id: int
         """
+
         cb = ConsoleDispatcher._dispatch_messages.get((event.origin_id, console))
         if cb is not None:
             cb(sim, event.sub_tag, event.selected_id, event)
@@ -161,6 +165,23 @@ class ConsoleDispatcher:
         if cb is not None:
             cb(sim, event.sub_tag, event.origin_id, event)
 
+    def convert(sim, event):
+        if "weap" in event.sub_tag:
+            return "weapon_target_UID"
+        if "sci" in event.sub_tag:
+            return "science_target_UID"
+        if "comm" in event.sub_tag:
+            return "comms_target_UID"
+
+
+    def do_select(sim, event, console):
+        my_ship  = sim.get_space_object(event.origin_id)
+        blob = my_ship.data_set
+        blob.set(console, event.selected_id,0)
+
+############
+### Set the initial 
+ConsoleDispatcher.convert_to_console_id = ConsoleDispatcher.convert
 
 class MCommunications:
     def enable_comms(self, face_desc=None):
@@ -172,8 +193,8 @@ class MCommunications:
         self.face_desc = face_desc if face_desc is not None \
             else f"ter #964b00 8 1;ter #968b00 3 0;ter #968b00 4 0;ter #968b00 5 2;ter #fff 3 5;ter #964b00 8 4;"
 
-        ConsoleDispatcher.add_select(self.id, 'comms_targetUID', self.comms_selected)
-        ConsoleDispatcher.add_message(self.id, 'comms_targetUID', self.comms_message)
+        ConsoleDispatcher.add_select(self.id, 'comms_target_UID', self.comms_selected)
+        ConsoleDispatcher.add_message(self.id, 'comms_target_UID', self.comms_message)
 
     def comms_selected(self, sim, an_id, event):
         """ handle a comms selection

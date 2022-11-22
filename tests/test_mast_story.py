@@ -54,6 +54,11 @@ style area: 1,2,3-1px,4;
 style area:1,2,3,4;row-height:10px;
 
 
+radio var "helm,weapons,science"
+vradio var "helm,weapons,science"
+
+
+
 """)
         if len(errors)>0:
             for err in errors:

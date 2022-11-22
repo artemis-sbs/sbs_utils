@@ -117,6 +117,7 @@ class GuiClient:
         :param sim: 
         :type sim: Artemis Cosmos simulation
         """
+        ret = None
         sbs.send_gui_clear(self.client_id)
         if len(self.page_stack) > 0:
             ret = self.page_stack.pop()

@@ -8,6 +8,7 @@ class Target(MastNode):
     """
     rule = re.compile(r"""have\s*(?P<from_tag>[\w\.\[\]]+)\s*(?P<cmd>target|approach)(\s*(?P<to_tag>[\w\.\[\]]+))?""")
     def __init__(self, cmd=None, from_tag=None, to_tag=None, loc=None):
+        self.loc = loc
         self.from_tag = from_tag
         self.to_tag = to_tag
         self.approach = cmd=="approach"
@@ -17,6 +18,7 @@ class Tell(MastNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
     rule = re.compile(r"""have\s*(?P<from_tag>\*?\w+)\s+tell\s+(?P<to_tag>\*?\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)\4)"""+OPT_COLOR)
     def __init__(self, to_tag, from_tag, message, color=None, loc=None):
+        self.loc = loc
         self.to_tag = to_tag
         self.from_tag = from_tag
         self.message = self.compile_formatted_string(message)
@@ -35,6 +37,7 @@ class Broadcast(MastNode):
 class Comms(MastNode):
     rule = re.compile(r"""await\s*(?P<from_tag>\w+)\s*comms\s*(?P<to_tag>\w+)(\s*set\s*(?P<assign>\w+))?(\s+color\s*["'](?P<color>[ \t\S]+)["'])?"""+TIMEOUT_REGEX+'\s*:')
     def __init__(self, to_tag, from_tag, assign=None, minutes=None, seconds=None, time_pop=None,time_push="", time_jump="", color="white", loc=None):
+        self.loc = loc
         self.to_tag = to_tag
         self.from_tag = from_tag
         self.assign = assign
@@ -83,6 +86,7 @@ class ButtonSet(MastNode):
     rule = re.compile(r"""(button_set\s+use\s+(?P<use>\w+))|(button_set\s*(?P<name>\w+):)|(end_button_set)""")
     lookup = {}
     def __init__(self, use=None, name=None, loc=None):
+        self.loc = loc
         self.buttons = []
         self.use = use
         self.end = None
@@ -101,6 +105,7 @@ class ButtonSet(MastNode):
 class Near(MastNode):
     rule = re.compile(r'await\s*(?P<from_tag>\w+)\s+near\s+(?P<to_tag>\w+)\s*(?P<distance>\d+)'+TIMEOUT_REGEX+"\s*:")
     def __init__(self, to_tag, from_tag, distance, minutes=None, seconds=None, loc=None):
+        self.loc = loc
         self.to_tag = to_tag
         self.from_tag = from_tag
         self.distance = 0 if distance is None else int(distance)
@@ -119,6 +124,7 @@ class Simulation(MastNode):
     """
     rule = re.compile(r"""simulation\s+(?P<cmd>pause|create|resume)""")
     def __init__(self, cmd=None, loc=None):
+        self.loc = loc
         self.cmd = cmd
 
 

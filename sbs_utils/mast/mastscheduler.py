@@ -76,12 +76,6 @@ class PyCodeRuntimeNode(MastRuntimeNode):
             exec(node.code,{"__builtins__": Mast.globals}, locals)
         except:
             task.runtime_error(f"""Embedded python failed""")
-
-        # before = set(locals.items())
-        # exec(node.code,{"__builtins__": Mast.globals}, locals)
-        # after = set(locals.items())
-        # new_vars = dict(before ^ after)
-        # task.main.vars = task.main.vars | new_vars
         return PollResults.OK_ADVANCE_TRUE
 
 
@@ -570,6 +564,17 @@ class MastAsyncTask:
         finally:
             pass
         return value
+
+    def exec_code(self, code):
+        try:
+            allowed = self.get_symbols()
+            eval(code, {"__builtins__": Mast.globals}, allowed)
+        except:
+            self.runtime_error("")
+            self.done = True
+        finally:
+            pass
+        
 
     def start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:
         inputs= self.vars|inputs if inputs else self.vars

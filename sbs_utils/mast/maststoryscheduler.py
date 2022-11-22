@@ -8,7 +8,7 @@ from ..pages import layout
 from ..tickdispatcher import TickDispatcher
 
 from .errorpage import ErrorPage
-from .maststory import AppendText, ButtonControl, MastStory, Choose, Text, Blank, Ship, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, Hole
+from .maststory import AppendText, ButtonControl, MastStory, Choose, Text, Blank, Ship, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, Hole, RadioControl
 import traceback
 from .mastsbsscheduler import MastSbsScheduler 
 from .parsers import LayoutAreaParser
@@ -204,7 +204,7 @@ class ChooseRuntimeNode(StoryRuntimeNode):
                         msg = task.format_string(button.message)
                         layout_button = layout.Button(msg, runtime_node.tag)
                         layout_row.add(layout_button)
-                        task.main.page.add_tag(runtime_node)
+                        task.main.page.add_tag(layout_button, runtime_node)
                         active += 1
                 case "Separator":
                     # Handle face expression
@@ -305,15 +305,48 @@ class CheckboxControlRuntimeNode(StoryRuntimeNode):
             self.task.set_value(self.node.var, self.layout.value, self.scope)
             self.layout.present(sim, event)
 
+class RadioControlRuntimeNode(StoryRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: RadioControl):
+        self.tag = task.main.page.get_tag()
+        self.node = node
+        scoped_val = task.get_value(self.node.var, False)
+        val = scoped_val[0]
+        self.scope = scoped_val[1]
+        msg = task.format_string(node.message)
+        buttons = msg.split(",")
+        self.buttons = []
+        self.layouts = []
+        
+        for button in buttons:
+            button = button.strip()
+            self.buttons.append(button)
+            radio =layout.Checkbox(button, f"{self.tag}:{button}", val==button)
+            self.layouts.append(radio)
+            task.main.page.add_content(radio, self)
+            if node.vertical:
+                task.main.page.add_row()
+        self.task = task
+        
+
+    def on_message(self, sim, event):
+        if event.sub_tag.startswith(self.tag+":"):
+            values = event.sub_tag.split(":")
+            if len(values) == 2:
+                
+                self.task.set_value(self.node.var, values[1], self.scope)
+                for i, button in enumerate(self.buttons):
+                    self.layouts[i].value = button == values[1]
+                    self.layouts[i].present(sim, event)
+
 class TextInputControlRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: TextInputControl):
         self.tag = task.main.page.get_tag()
         self.node = node
         label = ""
         if node.label is not None:
-            print(f"node {node.label}")
+            #print(f"node {node.label}")
             label = task.format_string(node.label)
-            print(f"formatted {label}")
+            #print(f"formatted {label}")
             if label is None:
                 label=""
         scoped_val = task.get_value(self.node.var, "")
@@ -384,6 +417,7 @@ over =     {
     "ButtonControl": ButtonControlRuntimeNode,
     "SliderControl": SliderControlRuntimeNode,
     "CheckboxControl": CheckboxControlRuntimeNode,
+    "RadioControl": RadioControlRuntimeNode,
     "DropdownControl": DropdownControlRuntimeNode,
     "ImageControl":ImageControlRuntimeNode,
     "TextInputControl": TextInputControlRuntimeNode,
@@ -449,6 +483,14 @@ class StoryScheduler(MastSbsScheduler):
                 event_name = "disconnect"
                 for task in self.tasks:
                     task.run_event(event_name, {"event": event})
+                    self.page.present(sim,event)
+            elif event.tag == "client_change":
+                if event.sub_tag == "change_console":
+                    for task in self.tasks:
+                        #print(f"{event.tag} [] {event.sub_tag}")
+                        task.run_event(event.sub_tag, {"event": event})
+                        self.page.present(sim,event)
+
             
 
 class StoryPage(Page):
@@ -485,6 +527,7 @@ class StoryPage(Page):
         if self.story_scheduler is not None:
             return
         cls = self.__class__
+        self.client_id == client_id
         if len(self.errors)==0:
             self.story_scheduler = StoryScheduler(cls.story)
             if cls.inputs:
@@ -519,6 +562,7 @@ class StoryPage(Page):
         
         self.gui_state = 'repaint'
 
+
     def get_tag(self):
         self.tag += 1
         return str(self.tag)
@@ -533,18 +577,18 @@ class StoryPage(Page):
             self.pending_tag_map = {}
         self.pending_row = layout.Row()
 
-    def add_tag(self, layout_item):
+    def add_tag(self, layout_item, runtime_node):
         if self.pending_tag_map is None:
             self.pending_tag_map = {}
-
         if hasattr(layout_item, 'tag'):
-            self.pending_tag_map[layout_item.tag] = layout_item
+            self.pending_tag_map[layout_item.tag] = runtime_node
 
     def add_content(self, layout_item, runtime_node):
         if self.pending_layouts is None:
             self.add_row()
 
-        self.add_tag(runtime_node)
+        self.add_tag(layout_item, runtime_node)
+
         self.pending_row.add(layout_item)
 
     def set_widget_list(self, console,widgets):
@@ -584,9 +628,13 @@ class StoryPage(Page):
             self.pending_layouts.append(layout)
 
         self.swap_layout()
+        
+        
     
     def present(self, sim, event):
         """ Present the gui """
+        if self.client_id is None:
+            self.client_id = event.client_id
         if self.gui_state == "errors":
             return
         if self.story_scheduler is None:
@@ -650,9 +698,9 @@ class StoryPage(Page):
     def on_message(self, sim, event):
         
         message_tag = event.sub_tag
+        
         runtime_node = self.tag_map.get(message_tag)
         if runtime_node:
-            
             runtime_node.on_message(sim, event)
             refresh = False
             for node in self.tag_map.values():
@@ -664,9 +712,11 @@ class StoryPage(Page):
             self.present(sim, event)
 
     def on_event(self, sim, event):
+        #print (f"Story event {event.client_id} {event.tag} {event.sub_tag}")
         if self.story_scheduler is None:
             return
         self.story_scheduler.on_event(sim, event)
+        
 
         
 

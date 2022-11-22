@@ -76,7 +76,7 @@ class ClientSelectPage(Page):
             self.state = "main"
 
     def on_event(self, sim, event):
-        match event.sub_tag:
+        match event.tag:
             # This is the client_change event being handled
             case "change_console":
                 self.state = "choose"

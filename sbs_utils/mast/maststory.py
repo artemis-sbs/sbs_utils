@@ -7,18 +7,19 @@ import logging
 class Row(MastNode):
     rule = re.compile(r"""row""")
     def __init__(self, loc=None):
-        pass
+        self.loc = loc
     
 class Refresh(MastNode):
     rule = re.compile(r"""refresh\s*(?P<label>\w+)""")
     def __init__(self, label, loc=None):
+        self.loc = loc
         self.label = label
 
     
 class Hole(MastNode):
     rule = re.compile(r"""hole""")
     def __init__(self,  loc=None):
-        pass
+        self.loc = loc
 
 
 class Text(MastNode):
@@ -26,6 +27,7 @@ class Text(MastNode):
     #(\s+color\s*["'](?P<color>[ \t\S]+)["'])?
     rule = re.compile(r"""((['"]{3,})(\n)?(?P<message>[\s\S]+?)(\n)?(['"]{3,}))"""+IF_EXP_REGEX)
     def __init__(self, message, if_exp, loc=None):
+        self.loc = loc
         self.message = self.compile_formatted_string(message)
         if if_exp is not None:
             if_exp = if_exp.lstrip()
@@ -38,6 +40,7 @@ class AppendText(MastNode):
     #(\s+color\s*["'](?P<color>[ \t\S]+)["'])?
     rule = re.compile(r"""(([\^]{3,})(\n)?(?P<message>[\s\S]+?)(\n)?([\^]{3,}))"""+IF_EXP_REGEX)
     def __init__(self, message, if_exp, loc=None):
+        self.loc = loc
         self.message = self.compile_formatted_string(message)
         if if_exp is not None:
             if_exp = if_exp.lstrip()
@@ -49,6 +52,7 @@ class AppendText(MastNode):
 class Face(MastNode):
     rule = re.compile(r"""face\s*(((['"]{3}|["'])(?P<face>[\s\S]+?)\3)|(?P<face_exp>[ \t\S]+)?)""")
     def __init__(self, face=None, face_exp=None, loc=None):
+        self.loc = loc
         self.face = face
         if face_exp:
             face_exp = face_exp.lstrip()
@@ -59,21 +63,24 @@ class Face(MastNode):
 class Ship(MastNode):
     rule = re.compile(r"""ship\s+(?P<q>['"]{3}|["'])(?P<ship>[\s\S]+?)(?P=q)""")
     def __init__(self, ship=None, q=None, loc=None):
+        self.loc = loc
         self.ship= ship
 
 class Blank(MastNode):
     rule = re.compile(r"""blank""")
     def __init__(self, loc=None):
-        pass
+        self.loc = loc
+
 
 class Section(MastNode):
     rule = re.compile(r"""section""")
     def __init__(self, loc=None):
-        pass
+        self.loc = loc
 
 class Style(MastNode):
     rule = re.compile(r"""style(\s+area:\s*(?P<area>"""+LayoutAreaParser.AREA_LIST_TOKENS+r");)?(\s*row-height:\s*(?P<height>\d+(px)?);)?")
     def __init__(self, area, height, loc=None):
+        self.loc = loc
         LayoutAreaParser()
         tokens = LayoutAreaParser.lex(area)
         self.asts = LayoutAreaParser.parse_list(tokens)
@@ -88,6 +95,7 @@ class Style(MastNode):
 class AwaitGui(MastNode):
     rule = re.compile(r"await\s+gui"+TIMEOUT_REGEX)
     def __init__(self, assign=None,minutes=None, seconds=None, loc=None):
+        self.loc = loc
         self.assign = assign
         self.seconds = 0 if  seconds is None else int(seconds)
         self.minutes = 0 if  minutes is None else int(minutes)
@@ -102,6 +110,7 @@ class Choose(MastNode):
     #test = r"""await gui((((\s*(?P<choice>choice)(\s*set\s*(?P<assign>\w+))?)?):)?"""
     rule = re.compile(r"(await choice(\s*set\s*(?P<assign>\w+))?"+ TIMEOUT_REGEX+ r"\s*:)")
     def __init__(self, assign=None,minutes=None, seconds=None, loc=None):
+        self.loc = loc
         self.assign = assign
         self.seconds = 0 if  seconds is None else int(seconds)
         self.minutes = 0 if  minutes is None else int(minutes)
@@ -118,11 +127,11 @@ class ButtonControl(MastNode):
     stack = []
     def __init__(self, message, q, data=None, py=None, if_exp=None, end=None, loc=None):
         #self.message = message
+        self.loc = loc
         if message: #Message is none for end
             self.message = self.compile_formatted_string(message)
         self.end_node = None
         self.is_end = False
-        self.loc = loc
     
         if if_exp:
             if_exp = if_exp.lstrip()
@@ -159,6 +168,7 @@ class SliderControl(MastNode):
         r""")\s+(?P<value>"""+FLOAT_VALUE_REGEX+
         r""")""")
     def __init__(self, is_int=None, var=None, low=0.0, high=1.0, value=0.5, loc=None):
+        self.loc = loc
         self.var= var
         self.is_int = (is_int=="intslider")
         self.low = float(low)
@@ -168,14 +178,25 @@ class SliderControl(MastNode):
 class CheckboxControl(MastNode):
     rule = re.compile(r"""checkbox\s+(?P<var>[ \t\S]+)\s+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)""")
     def __init__(self, var=None, message=None, q=None, loc=None):
+        self.loc = loc
         self.var= var
         #self.message = message
         self.message = self.compile_formatted_string(message)
+
+class RadioControl(MastNode):
+    rule = re.compile(r"""(?P<radio>radio|vradio)\s+(?P<var>[ \t\S]+)\s+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)""")
+    def __init__(self, radio, var=None, message=None, q=None, loc=None):
+        self.loc = loc
+        self.vertical = radio == "vradio"
+        self.var= var
+        self.message = self.compile_formatted_string(message)
+
 
 class TextInputControl(MastNode):
     
     rule = re.compile(r"""input\s+(?P<var>[_\w][\w]*)(\s+(?P<q>['"]{3}|["'])(?P<label>[\s\S]+?)(?P=q))?""")
     def __init__(self, var=None, label=None,q=None, loc=None):
+        self.loc = loc
         self.var= var
         print(f"node {label}")
         self.label = self.compile_formatted_string(label) if label is not None else None
@@ -188,6 +209,7 @@ class DropdownControl(MastNode):
     rule = re.compile(r"""(dropdown\s+(?P<var>[ \t\S]+)\s+(?P<q>['"]{3}|["'])(?P<values>[\s\S]+?)(?P=q))|(?P<end>end_dropdown)""")
     stack = []
     def __init__(self, var=None, values=None, q=None,end=None, loc=None):
+        self.loc = loc
         self.is_end = False
         self.end_node = None
         self.loc = loc
@@ -203,6 +225,7 @@ class DropdownControl(MastNode):
 class ImageControl(MastNode):
     rule = re.compile(r"""image\s*(?P<q>['"]{3}|["'])(?P<file>[\s\S]+?)(?P=q)"""+OPT_COLOR)
     def __init__(self, file, q, color, loc=None):
+        self.loc = loc
         self.file = self.compile_formatted_string(file)
         self.color = color if color is not None else "#fff"
 
@@ -213,6 +236,7 @@ class WidgetList(MastNode):
     #(\s+color\s*["'](?P<color>[ \t\S]+)["'])?
     rule = re.compile(r"""widget_list\s+((?P<clear>clear)|(?P<console>['"]\w+['"])(\s*(?P<q>['"]{3}|["'])(?P<widgets>[\s\S]+?)(?P=q)))""")
     def __init__(self, clear, console, widgets, q, loc=None):
+        self.loc = loc
         if clear == "clear":
             self.console = ""
             self.widgets = ""
@@ -238,6 +262,7 @@ class MastStory(MastSbs):
         ButtonControl,
         SliderControl,
         CheckboxControl,
+        RadioControl,
         DropdownControl,
         ImageControl,
         TextInputControl,

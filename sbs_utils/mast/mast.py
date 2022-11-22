@@ -73,6 +73,7 @@ class Label(MastNode):
         self.name = name
         self.cmds = []
         self.next = None
+        self.loc = loc
 
     def add_child(self, cmd):
         self.cmds.append(cmd)
@@ -85,6 +86,7 @@ class Log(MastNode):
         self.message = self.compile_formatted_string(message)
         self.level = level if level is not None else "debug"
         self.logger = logger if logger is not None else "mast.story"
+        self.loc = loc
 
 class Logger(MastNode):
     rule = re.compile(r"""logger(\s+name\s+(?P<logger>[\w\.]*))?(\s+string\s+(?P<var>\w*))?(\s+file\s*(?P<q>['"]{3}|["'])(?P<name>[\s\S]+?)(?P=q))?""")
@@ -95,6 +97,7 @@ class Logger(MastNode):
             name = self.compile_formatted_string(name)
         self.name = name
         self.logger = logger if logger is not None else "mast.story"
+        self.loc = loc
 
 class LoopStart(MastNode):
     rule = re.compile(r'(for\s*(?P<name>\w+)\s*)(in|while)((?P<if_exp>[\s\S]+?):)')
@@ -168,6 +171,7 @@ class MatchStatements(MastNode):
     rule = re.compile(r'((?P<end>case\s*_:|end_match)|(((?P<op>match|case)\s+?(?P<exp>[\s\S]+?):)))')
     chains = []
     def __init__(self, end=None, op=None, exp=None, loc=None):
+        self.loc = loc
         self.match_exp = None
         self.end = end
         self.op = op
@@ -218,12 +222,14 @@ class Input(MastNode):
     rule = re.compile(r'input\s+(?P<name>\w+)')
 
     def __init__(self, name, loc=None):
+        self.loc = loc
         self.name = name
 
 class Import(MastNode):
-    rule = re.compile(r'(from\s+(?P<lib>[\w\.\/-]+)\s+)?import\s+(?P<name>[\w\.\/-]+)')
+    rule = re.compile(r'(from\s+(?P<lib>[\w\.\\\/-]+)\s+)?import\s+(?P<name>[\w\.\\\/-]+)')
 
     def __init__(self, name, lib=None, loc=None):
+        self.loc = loc
         self.name = name
         self.lib = lib
 
@@ -232,12 +238,12 @@ class Comment(MastNode):
     rule = re.compile(r'(#[ \t\S]*)|(\/\*[\s\S]+\*\/)|([!]{3,}\s*(?P<com>\w+)\s*[!]{3,}[\s\S]+[!]{3,}\s*end\s+(?P=com)\s*[!]{3,})')
 
     def __init__(self, com=None, loc=None):
-        pass
+        self.loc = loc
 
 class Marker(MastNode):
     rule = re.compile(r'[-*+]{3,}')
     def __init__(self, loc=None):
-        pass
+        self.loc = loc
 
 
 class Scope(Enum):
@@ -282,6 +288,7 @@ class Jump(MastNode):
     rule = re.compile(JUMP_CMD_REGEX+IF_EXP_REGEX)
 
     def __init__(self, pop, pop_jump, push, jump, if_exp, loc=None):
+        self.loc = loc
         self.label = jump
         self.push = push == ">"
         self.pop = pop is not None
@@ -301,6 +308,7 @@ class Parallel(MastNode):
     rule = re.compile(r"""((?P<name>[\w\.\[\]]+)\s*)?=>\s*(?P<label>\w+)(?P<inputs>\s*"""+ DICT_REGEX+")?"+IF_EXP_REGEX)
 
     def __init__(self, name=None, label=None, inputs=None, if_exp=None, loc=None):
+        self.loc = loc
         self.name = name
         self.label = label
         self.cmds = []
@@ -329,6 +337,7 @@ class Await(MastNode):
     rule = re.compile(r"""await((\s*(?P<label>\w+))|((\s*(?P<spawn>=>))\s*(?P<name>\w+)(?P<inputs>\s*"""+DICT_REGEX+")?))"+IF_EXP_REGEX)
                       
     def __init__(self, name=None, spawn=None, label=None, inputs=None, if_exp=None, loc=None):
+        self.loc = loc
         self.spawn = True if spawn is not None else False
         self.label = label
         if name:
@@ -355,7 +364,7 @@ class EndAwait(MastNode):
 
 
 class Event(MastNode):
-    rule = re.compile(r'(event\s+(?P<event>disconnect):)|(end_event)')
+    rule = re.compile(r'(event\s+(?P<event>[\w|_]+):)|(end_event)')
     stack = []
     def __init__(self, event=None, loc=None):
         self.loc = loc
@@ -385,6 +394,7 @@ class AwaitCondition(MastNode):
     rule = re.compile(r"""await\s+until\s+(?P<if_exp>[^:]+)"""+TIMEOUT_REGEX+""":""")
                       
     def __init__(self, minutes=None, seconds=None, if_exp=None, loc=None):
+        self.loc = loc
         self.timeout_label = None
         self.end_await_node = None
 
@@ -407,19 +417,21 @@ class Cancel(MastNode):
     rule = re.compile(r"""cancel\s*(?P<name>[\w\.\[\]]+)""")
 
     def __init__(self, lhs=None, name=None, loc=None):
+        self.loc = loc
         self.name = name
 
 
 class End(MastNode):
     rule = re.compile(r'->\s*END')
     def __init__(self,  loc=None):
-        pass
+        self.loc = loc
 
 class Delay(MastNode):
     clock = r"(\s*(?P<clock>\w+))"
     rule = re.compile(r'delay'+clock+MIN_SECONDS_REGEX)
 
     def __init__(self, clock, seconds=None, minutes=None, loc=None):
+        self.loc = loc
         self.seconds = 0 if seconds is None else int(seconds)
         self.minutes = 0 if minutes is None else int(minutes)
         self.clock = clock
@@ -476,6 +488,9 @@ class Mast:
         "min": min,
         "max": max,
         "abs": abs,
+        "map": map,
+        "filter": filter,
+        "list": list,
         "mission_dir": fs.get_mission_dir(),
         "data_dir": fs.get_artemis_data_dir(),
         "MastDataObject": MastDataObject,
@@ -642,7 +657,7 @@ class Mast:
 
         if len(errors) > 0:
             return errors
-        return None
+        return []
 
 
     def import_content(self, filename, lib_file):

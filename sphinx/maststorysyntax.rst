@@ -1,6 +1,14 @@
-
 Story Components
 =================================
+
+The MAST Story Components are used to create GUI elements.
+
+This can be part of a console, 
+
+
+
+
+
 
 - Layout
 - Layout components

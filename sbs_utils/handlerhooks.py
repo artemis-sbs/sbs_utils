@@ -24,7 +24,7 @@ class ErrorPage(Page):
                 # keeps the existing GUI displayed
                 self.gui_state = "presenting"
                 sbs.send_gui_text(
-                    event.client_id, f"scripting error^{self.message}", "text", 25, 30, 99, 90)
+                    event.client_id, f"scripting error^{self.message}", "text", 0.3, 0, 100, 95)
                 sbs.send_gui_button(event.client_id, "back", "back", 80, 90, 99, 94)
                 sbs.send_gui_button(event.client_id, "Resume Mission", "resume", 80, 95, 99, 99)
 
@@ -42,6 +42,7 @@ def HandleEvent(sim, event):
         # Allow guis more direct access to events
         # e.g. Mast Story Page, Clients change
         Gui.on_event(sim, event)
+
         match(event.tag):
 
 
@@ -54,6 +55,7 @@ def HandleEvent(sim, event):
             #     print(f"{event.selected_id}")
             #     print(f"{event.sub_tag}")
             #     print(f"{event.sub_float}")
+            
  
             case "damage":
                 DamageDispatcher.dispatch_damage(sim,event)
@@ -62,16 +64,18 @@ def HandleEvent(sim, event):
                 Gui.add_client(sim, event)
 
             case "select_space_object":
-                print(f"{event.parent_id}")
-                print(f"{event.origin_id}")
-                print(f"{event.selected_id}")
-                print(f"{event.sub_tag}")
-                print(f"{event.sub_float}")
+                # print(f"{event.parent_id}")
+                # print(f"{event.origin_id}")
+                # print(f"{event.selected_id}")
+                # print(f"{event.sub_tag}")
+                # print(f"{event.sub_float}")
+                # print(f"{event.value_tag}")
+                
 
                 ConsoleDispatcher.dispatch_select(sim, event)
 
             case "press_comms_button":
-                ConsoleDispatcher.dispatch_message(sim, event, "comms_targetUID")
+                ConsoleDispatcher.dispatch_message(sim, event, "comms_target_UID")
 
             case "gui_message":
                 Gui.on_message(sim, event)
@@ -85,7 +89,7 @@ def HandleEvent(sim, event):
                 GridDispatcher.dispatch_grid_event(sim,event)
         
             case _:
-                print (f"Unhandled event {event.tag}")
+                print (f"Unhandled event {event.client_id} {event.tag} {event.sub_tag}")
   
     except BaseException as err:
         sbs.pause_sim()

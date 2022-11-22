@@ -168,6 +168,7 @@ end_await
 shared player = PlayerShip().spawn(sim, 0, 0, 0,"Artemis", "tsn", "Battle Cruiser").py_object
 shared hera = PlayerShip().spawn(sim, 0, 0, 0,"Hera", "tsn", "Battle Cruiser").py_object
 shared atlas = PlayerShip().spawn(sim, 0, 0, 0,"Atlas", "tsn", "Battle Cruiser").py_object
+~~sbs.assign_client_to_ship(0, player.id)~~
 shared tsn =  ~~ [
     Npc().spawn(sim, 1000, 0, 1000, "TSN0", "tsn", "Battle Cruiser", "behav_npcship").py_object,
     Npc().spawn(sim ,1200, 0, 1000, "TSN1", "tsn", "Battle Cruiser", "behav_npcship").py_object,
@@ -233,9 +234,21 @@ sbs.send_message_to_player_ship(hera.id,"red","New officer")
 sbs.send_message_to_player_ship(atlas.id,"green","New officer")
 ~~
 case "Hera":
-    ~~sbs.assign_client_to_ship(client_id, hera.id)~~
+~~
+sbs.assign_client_to_ship(client_id, hera.id)
+sbs.send_message_to_player_ship(0,"yellow","New officer")
+sbs.send_message_to_player_ship(player.id,"blue","New officer")
+sbs.send_message_to_player_ship(hera.id,"red","New officer")
+sbs.send_message_to_player_ship(atlas.id,"green","New officer")
+~~
 case "Atlas":
-    ~~sbs.assign_client_to_ship(client_id, atlas.id)~~
+~~
+sbs.assign_client_to_ship(client_id, atlas.id)
+sbs.send_message_to_player_ship(0,"yellow","New officer")
+sbs.send_message_to_player_ship(player.id,"blue","New officer")
+sbs.send_message_to_player_ship(hera.id,"red","New officer")
+sbs.send_message_to_player_ship(atlas.id,"green","New officer")
+~~
 end_match
 
 -> PickedView
