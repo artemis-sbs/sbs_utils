@@ -105,7 +105,7 @@ class GuiClient:
         :param page: 
         :type Page: A GUI Page
         """
-        event = FakeEvent(self.client_id, "x#gui_push")
+        event = FakeEvent(self.client_id, "gui_push")
         self.page_stack.append(page)
         self.present(sim, event)
 
@@ -173,9 +173,10 @@ class GuiClient:
             self.page_stack[-1].on_event(sim, event)
 
 class FakeEvent:
-    def __init__(self, client_id, tag):
+    def __init__(self, client_id, tag, sub_tag=""):
         self.client_id = client_id
         self.tag = tag
+        self.sub_tag = sub_tag
 
 
 
@@ -345,5 +346,23 @@ class Gui:
         # message_tag, clientID, data
         gui = Gui.clients.get(event.client_id)
         if gui is not None:
-            gui.on_event(sim, event)    
+            gui.on_event(sim, event)
+
+    @staticmethod
+    def send_custom_event(sim, tag, sub_tag=""):
+        """ on_event
+
+        Forward to the appropriate GuiClient/Page
+        handlerhooks.py will call this in HandleEvent
+
+        :param sim: 
+        :type sim: Artemis Cosmos simulation
+        :param event: The tag name of the control interacted with
+        :type event: event
+        """
+        # message_tag, clientID, data
+        for client_id, gui in Gui.clients.items():
+            event = FakeEvent(client_id, tag, sub_tag)
+            gui.on_event(sim, event)
+
             

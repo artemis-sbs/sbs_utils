@@ -2,7 +2,7 @@ import logging
 from .mastscheduler import PollResults, MastRuntimeNode, MastAsyncTask
 from .mast import Mast
 import sbs
-from ..gui import FakeEvent, Gui, Page
+from ..gui import Gui, Page
 
 from ..pages import layout
 from ..tickdispatcher import TickDispatcher

@@ -1,5 +1,7 @@
 from ..gui import Page
 import sbs
+from ..spaceobject import SpaceObject
+from ..tickdispatcher import TickDispatcher
 
 
 class StartPage(Page):
@@ -28,9 +30,19 @@ class ClientSelectPage(Page):
     count = 0
     def __init__(self) -> None:
         self.state = "choose"
+        self.console = "Helm"
+        self.player_id = None
+        self.console_name = "normal_helm" 
+        self.widget_list =  "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+        self.player_count = 0
 
     def present(self, sim, event):
         CID = event.client_id
+
+        players = SpaceObject.get_objects_with_role("__PLAYER__")
+        if self.player_count != len(players):
+           self.state == "choose"
+           self.player_count == len(players)
 
         if self.state == "choose":
             sbs.send_gui_clear(CID)
@@ -38,50 +50,74 @@ class ClientSelectPage(Page):
             sbs.send_client_widget_list(event.client_id, "","")
             i = 0
             for console in ["Helm", "Weapons", "Science", "Engineering", "Comms", "Main Screen"]:
-                sbs.send_gui_button(CID, console, console, 80,95-i*5, 99,99-i*5)
+                sbs.send_gui_checkbox(CID, console, console, int(console==self.console), 80,75-i*5, 99,79-i*5)
                 i+=1
+
+            i = 0
+            for player in players:
+                name = player.name(sim)
+                if self.player_id is None:
+                    self.player_id = player.id
+                sbs.send_gui_checkbox(CID, name, str(player.id), int(self.player_id == player.id), 20,75-i*5, 39,79-i*5)
+                i+=1
+
+            if self.player_id is not None:
+                sbs.send_gui_button(CID, "Select", "select", 80,95-i*5, 99,99-i*5)
+            self.state = "skip"
+            
         
 
     def on_message(self, sim, event):
-        console_name = ""
-        widget_list = ""
+
         match event.sub_tag:
             case "Helm":
-                console_name = "normal_helm" 
-                widget_list =  "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+                self.console_name = "normal_helm" 
+                self.console = event.sub_tag
+                self.widget_list =  "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
             case "Weapons":
-                console_name = "normal_weap"
-                widget_list = "2dview^weapon_control^ship_data^shield_control^text_waterfall^main_screen_control"
+                self.console_name = "normal_weap"
+                self.console = event.sub_tag
+                self.widget_list = "2dview^weapon_control^ship_data^shield_control^text_waterfall^main_screen_control"
             case "Science":
-                console_name = "normal_sci" 
-                widget_list = "science_2d_view^ship_data^text_waterfall^science_data^object_sorted_list"
+                self.console_name = "normal_sci" 
+                self.console = event.sub_tag
+                self.widget_list = "science_2d_view^ship_data^text_waterfall^science_data^object_sorted_list"
             case "Engineering":
-                console_name = "normal_engi" 
-                widget_list = "ship_internal_view^grid_object_list^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
+                self.console_name = "normal_engi" 
+                self.console = event.sub_tag
+                self.widget_list = "ship_internal_view^grid_object_list^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
             case "Comms":
-                console_name = "normal_comm" 
-                widget_list = "text_waterfall^comms_waterfall^comms_control^comms_face^object_sorted_list^ship_data"
+                self.console_name = "normal_comm" 
+                self.console = event.sub_tag
+                self.widget_list = "text_waterfall^comms_waterfall^comms_control^comms_face^object_sorted_list^ship_data"
             case "Main Screen":
-                console_name = "normal_main" 
-                widget_list = "3dview^ship_data^text_waterfall"
+                self.console_name = "normal_main" 
+                self.console = event.sub_tag
+                self.widget_list = "3dview^ship_data^text_waterfall"
             # This is the client_change event being handled
             case "change_console":
                 self.state = "choose"
                 self.present(sim, event)
-                
+            case "select":
+                sbs.send_gui_clear(event.client_id)
+                sbs.send_client_widget_list(event.client_id, self.console_name, self.widget_list)
+                self.state = "main"
+                self.present(sim, event)
+                sbs.assign_client_to_ship(event.client_id, self.player_id)
+                return
+            case _:
+                self.player_id = int(event.sub_tag)
 
-        if event.tag == "gui_message":
-            sbs.send_gui_clear(event.client_id)
-            sbs.send_client_widget_list(event.client_id, console_name, widget_list)
-            self.state = "main"
+        self.state = "choose"
+        self.present(sim, event)
 
     def on_event(self, sim, event):
-        match event.tag:
-            # This is the client_change event being handled
-            case "change_console":
+        if event.tag == "client_change":
+            if event.sub_tag == "change_console":
                 self.state = "choose"
                 self.present(sim, event)
-                
+        elif event.tag == "x_sim_resume":
+            self.state = "choose"
+            self.present(sim, event)
 
-        
 

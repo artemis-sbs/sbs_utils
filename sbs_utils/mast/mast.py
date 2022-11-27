@@ -508,6 +508,14 @@ class Mast:
             cmds = self.compile(cmds)
         else:
             self.build(cmds)
+
+    def make_global(func):
+        add_to = Mast.globals
+        add_to[func.__name__] = func
+
+
+    def make_global_var(name, value):
+        Mast.globals[name] = value
         
 
     def build(self, cmds):

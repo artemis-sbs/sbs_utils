@@ -109,9 +109,13 @@ def HandleEvent(sim, event):
 #	event_time"
 #	sub_float"
 
-
+paused = True
 def HandlePresentGUI(sim):
+    global paused
     try:
+        if not paused:
+            Gui.send_custom_event(sim, "x_sim_paused")
+            paused = True
         Gui.present(sim, None)
     except BaseException as err:
         sbs.pause_sim()
@@ -119,7 +123,11 @@ def HandlePresentGUI(sim):
         Gui.push(sim, 0, ErrorPage(text_err))
 
 def  HandleSimulationTick(sim):
+    global paused
     try:
+        if paused:
+            paused = False
+            Gui.send_custom_event(sim, "x_sim_resume")
         TickDispatcher.dispatch_tick(sim)
     except BaseException as err:
         sbs.pause_sim()

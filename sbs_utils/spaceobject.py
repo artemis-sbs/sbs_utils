@@ -520,6 +520,7 @@ class MSpawnPlayer(MSpawn):
         # playerID will be a NUMBER, a unique value for every space object that you create.
         ship = self._make_new_player(sim, "behav_playership", art_id)
         blob = self.spawn_common(sim, ship, x,y,z,name, side)
+        self.add_role("__PLAYER__")
         return SpawnData(self.id, ship, blob, self)
 
 
