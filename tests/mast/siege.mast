@@ -4,12 +4,11 @@ if IS_SERVER:->StartMenu else: -> ConsoleSelect end_if
 
 ========== StartMenu ===============
 
-style area: 50, 10, 99, 90;
+section style="area: 50, 10, 99, 90;"
 """""
 Basic Siege written in Mast
 """""
-section
-style area: 60, 75, 99, 89;
+section style=" area: 60, 75, 99, 89;"
 
 intslider enemy_count 1.0 50.0 5.0
 row
@@ -26,7 +25,7 @@ end_await
 
 ========== StartClient  ===============
 
-style area: 30, 10, 65, 60;
+section style="area: 30, 10, 65, 60;"
 """ 
 Mission: Basic Siege
 please wait for the game to Start
@@ -34,8 +33,7 @@ please wait for the game to Start
 Mean while pick a ship
 """
 face faces.random_terran()
-section
-style area: 70, 40, 95, 80;
+section style="area: 70, 40, 95, 80;"
 checkbox art "Artemis"
 row
 checkbox hera "Hera"
@@ -62,7 +60,7 @@ delay 4s
 
 ================= Won ===================
 ~~ sbs.pause_sim() ~~
-style area: 50, 10, 99, 90;
+section style="area: 50, 10, 99, 90;"
 """""""
 Mission is won!  All the enemies have been destroyed.
 """"""
@@ -74,6 +72,7 @@ end_await
 
 ================= Lost ===================
 ~~ sbs.pause_sim() ~~
+section style="area: 50, 10, 99, 90;"
 """
 Mission is lost!  All yer base are belong to us, dammit.
 """
@@ -355,9 +354,9 @@ delay 1s
 ============== ConsoleSelect =====
 
 if IS_SERVER:
-    style area: 100-500px,0, 100, 30px;
+    section style="area: 100-500px,0, 100, 30px;"
 else:
-    style area: 100-500px, 0, 100, 30px;
+    section style="area: 100-500px, 0, 100, 30px;"
 end_if
 
 

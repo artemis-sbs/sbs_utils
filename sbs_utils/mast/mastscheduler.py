@@ -81,15 +81,14 @@ class PyCodeRuntimeNode(MastRuntimeNode):
 
 class JumpRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:Jump):
-        if node.code:
-            value = task.eval_code(node.code)
-            if not value:
-                return PollResults.OK_ADVANCE_TRUE
         if node.push:
             task.push_label(node.label)
         elif node.pop_jump:
             task.pop_label()
             task.jump(node.pop_jump)
+        elif node.pop_push:
+            task.pop_label()
+            task.push_label(node.pop_push)
         elif node.pop:
             task.pop_label()
         else:

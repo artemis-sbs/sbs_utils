@@ -12,12 +12,18 @@ view = "View"
 ship_select = "Ship"
 text_in = "Hello, World"
 
+style .choice="padding:0.5,0,0.5,0;"
+style .button="padding:0.5,0.25,0.5,0.25;"
+style .input="padding:0.5,0.25,0.5,0.25;"
+style .checkbox="padding:0.5,0.25,0.5,0.25;"
+style .slider="padding:0.5,0.25,0.5,0.25;"
+
 
 ->Briefing
 
 ================== Briefing ================
 
-style area: 0, 30px, 60, 100-30px;
+section style="area: 0, 30px, 60, 100-30px;"
 
 
 face alisa
@@ -39,8 +45,7 @@ Have you ever flown a spaceship?
 face frank
 
 
-section
-style area: 60, 10, 100, 100-30px;
+section style="area: 60, 10, 100, 100-30px;"
 
 blank
 row
@@ -78,7 +83,7 @@ blank
 
 =================== YouLied ========
 
-style area: 20, 10, 100, 100-30px;
+section style="area: 20, 10, 100, 100-30px;"
 face alisa
 
 """"""""""""""""""""""""""""""""""""""""""""""
@@ -95,7 +100,7 @@ end_await
 
 ============== YouTrained =========
 
-style area: 20, 10, 100, 100-30px;
+section style="area: 20, 10, 100, 100-30px;"
 
 face alisa
 
@@ -130,7 +135,7 @@ shared mission_started = True
 
 ==================           Learn     ===========
 
-style area: 20, 20, 100, 40;
+section style="area: 20, 20, 100, 40;"
 
 learn = False
 
@@ -180,9 +185,9 @@ shared tsn =  ~~ [
 
 ===================== Menu ============
 if IS_SERVER:
-    style area: 100-500px,0, 100, 30px;
+    section style="area: 100-500px,0, 100, 30px;"
 else:
-    style area: 100-500px, 0, 100, 30px;
+    section style="area: 100-500px, 0, 100, 30px;"
 end_if
 
 
@@ -203,8 +208,7 @@ dropdown mast_view "Variables^Debug^restart"
 <<- PickedMast <<
 end_dropdown
 
-section
-style area: 0, 30px, 100, 100-30px;
+section style="area: 0, 30px, 100, 100-30px;"
 <<-
 
 

@@ -90,15 +90,16 @@ next x
 -> END
 -> a_label
 ->another
--> maybe if x> 3
+-> maybe
 ->> a_push
 ->>b_push
 <<-
-<<- pop_jump
+<<- pop_jump <
+<<- pop_push <<
 => fork
 f1 => fork
 =>fork_you
-=>fork_you if y == 3
+=>fork_you
 => pass_data {"self": player1, "HP": 30}
 => pass_data ~~{
     "self": player1, 
@@ -110,7 +111,7 @@ await => pass_data ~~{
     "self": player1, 
     "HP": 30
     }~~
-await => trend if t > 23
+await => trend
 """)
 
         assert(len(errors)==0)

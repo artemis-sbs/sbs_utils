@@ -3,6 +3,7 @@ from .mastscheduler import PollResults, MastRuntimeNode, MastAsyncTask
 from .mast import Mast
 import sbs
 from ..gui import Gui, Page
+from .parsers import StyleDefinition
 
 from ..pages import layout
 from ..tickdispatcher import TickDispatcher
@@ -18,6 +19,50 @@ class StoryRuntimeNode(MastRuntimeNode):
         pass
     def databind(self):
         return False
+    def apply_style_name(self, style_name, layout_item, task):
+        style_def = StyleDefinition.styles.get(style_name)
+        self.apply_style_def(style_def, layout_item, task)
+    def apply_style_def(self, style_def, layout_item, task):
+        if style_def is None:
+            return
+        aspect_ratio = task.main.page.aspect_ratio
+        area = style_def.get("area")
+        if area is not None:
+            i = 1
+            values=[]
+            for ast in area:
+                if i >0:
+                    ratio =  aspect_ratio.x
+                else:
+                    ratio =  aspect_ratio.y
+                i=-i
+                values.append(LayoutAreaParser.compute(ast, task.get_symbols(),ratio))
+            layout_item.set_bounds(layout.Bounds(*values))
+
+        height = style_def.get("row-height")
+        if height is not None:
+            height = LayoutAreaParser.compute(height, task.get_symbols(),aspect_ratio.y)
+            layout_item.set_row_height(height)        
+        width = style_def.get("col-width")
+        if width is not None:
+            width = LayoutAreaParser.compute(height, task.get_symbols(),aspect_ratio.x)
+            layout_item.set_col_width(height)        
+        padding = style_def.get("padding")
+        if padding is not None:
+            aspect_ratio = task.main.page.aspect_ratio
+            i = 1
+            values=[]
+            for ast in padding:
+                if i >0:
+                    ratio =  aspect_ratio.x
+                else:
+                    ratio =  aspect_ratio.y
+                i=-i
+                values.append(LayoutAreaParser.compute(ast, task.get_symbols(),ratio))
+            while len(values)<4:
+                values.append(0.0)
+            layout_item.set_padding(layout.Bounds(*values))
+
 
 class FaceRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Face):
@@ -28,6 +73,9 @@ class FaceRuntimeNode(StoryRuntimeNode):
         if face is not None:
             self.layout_item = layout.Face(face, tag)
             task.main.page.add_content(self.layout_item, self)
+            self.apply_style_name(".face", self.layout_item, task)
+            if node.style_def is not None:
+                self.apply_style_def(node.style_def,  self.layout_item, task)
 
     def poll(self, mast, task, node:Face):
         return PollResults.OK_ADVANCE_TRUE
@@ -40,7 +88,11 @@ class RefreshRuntimeNode(StoryRuntimeNode):
 class ShipRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Ship):
         tag = task.main.page.get_tag()
-        task.main.page.add_content(layout.Ship(node.ship, tag), self)
+        item = layout.Ship(node.ship, tag)
+        task.main.page.add_content(item, self)
+        self.apply_style_name(".ship", item, task)
+        if node.style_def is not None:
+            self.apply_style_def(node.style_def, item, task)
 
 
 class TextRuntimeNode(StoryRuntimeNode):
@@ -59,6 +111,9 @@ class TextRuntimeNode(StoryRuntimeNode):
             self.layout_text = layout.Text(msg, self.tag)
             TextRuntimeNode.current = self
             task.main.page.add_content(self.layout_text, self)
+            self.apply_style_name(".text", self.layout_text, task)
+            if node.style_def is not None:
+                self.apply_style_def(node.style_def, self.layout_text, task)
 
     def databind(self):
         if True:
@@ -101,7 +156,11 @@ class ButtonControlRuntimeNode(StoryRuntimeNode):
                 value = self.task.eval_code(node.code)
             if value:
                 msg = task.format_string(node.message)
-                task.main.page.add_content(layout.Button(msg, self.tag), self)
+                layout_button = layout.Button(msg, self.tag)
+                task.main.page.add_content(layout_button, self)
+                self.apply_style_name(".button", layout_button, task)
+                if node.style_def is not None:
+                    self.apply_style_def(node.style_def,  layout_button, task)
             if node.data_code is not None:
                 self.data = task.eval_code(node.data_code)
                 
@@ -126,11 +185,20 @@ class ButtonControlRuntimeNode(StoryRuntimeNode):
 class RowRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Row):
         task.main.page.add_row()
+        item = task.main.page.get_pending_row()
+        self.apply_style_name(".row", item, task)
+        if node.style_def is not None:
+            self.apply_style_def(node.style_def, item, task)
         
 
 class BlankRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Blank):
-        task.main.page.add_content(layout.Blank(), self)
+        item = layout.Blank()
+        task.main.page.add_content(item, self)
+        self.apply_style_name(".blank", item, task)
+        if node.style_def is not None:
+            self.apply_style_def(node.style_def, item, task)
+        
 class HoleRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Hole):
         task.main.page.add_content(layout.Hole(), self)
@@ -138,23 +206,11 @@ class HoleRuntimeNode(StoryRuntimeNode):
 class SectionRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Section):
         task.main.page.add_section()
+        self.apply_style_name(".section", task.main.page.get_pending_layout(), task)
+        if node.style_def is None:
+            return
+        self.apply_style_def(node.style_def, task.main.page.get_pending_layout(), task)
 
-class SyleRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Style):
-        values =[]
-        i = 1
-        for ast in node.asts:
-            if i >0:
-                ratio =  task.main.page.aspect_ratio.x
-            else:
-                ratio =  task.main.page.aspect_ratio.y
-            i=-i
-            values.append(LayoutAreaParser.compute(ast, task.get_symbols(),ratio))
-        if node.height is not None:
-            height = LayoutAreaParser.compute(node.height, task.get_symbols(),ratio)
-            task.main.page.set_default_height(height)
-
-        task.main.page.set_section_size(values)
 
 
 class AwaitGuiRuntimeNode(StoryRuntimeNode):
@@ -205,6 +261,9 @@ class ChooseRuntimeNode(StoryRuntimeNode):
                         layout_button = layout.Button(msg, runtime_node.tag)
                         layout_row.add(layout_button)
                         task.main.page.add_tag(layout_button, runtime_node)
+                        self.apply_style_name(".choice", layout_button, task)
+                        if node.style_def is not None:
+                            self.apply_style_def(node.style_def,  layout_button, task)
                         active += 1
                 case "Separator":
                     # Handle face expression
@@ -275,6 +334,9 @@ class SliderControlRuntimeNode(StoryRuntimeNode):
         self.scope = scoped_val[1]
         self.layout = layout.Slider(val, node.low, node.high, self.tag)
         self.task = task
+        self.apply_style_name(".slider", self.layout, task)
+        if node.style_def is not None:
+            self.apply_style_def(node.style_def,  self.layout, task)
 
         task.main.page.add_content(self.layout, self)
 
@@ -298,6 +360,9 @@ class CheckboxControlRuntimeNode(StoryRuntimeNode):
         self.layout = layout.Checkbox(msg, self.tag, val)
         self.task = task
         task.main.page.add_content(self.layout, self)
+        self.apply_style_name(".checkbox", self.layout, task)
+        if node.style_def is not None:
+            self.apply_style_def(node.style_def,  self.layout, task)
 
     def on_message(self, sim, event):
         if event.sub_tag == self.tag:
@@ -321,6 +386,9 @@ class RadioControlRuntimeNode(StoryRuntimeNode):
             button = button.strip()
             self.buttons.append(button)
             radio =layout.Checkbox(button, f"{self.tag}:{button}", val==button)
+            self.apply_style_name(".radio", radio, task)
+            if node.style_def is not None:
+                self.apply_style_def(node.style_def, radio, task)
             self.layouts.append(radio)
             task.main.page.add_content(radio, self)
             if node.vertical:
@@ -356,6 +424,10 @@ class TextInputControlRuntimeNode(StoryRuntimeNode):
         self.task = task
         task.main.page.add_content(self.layout, self)
 
+        self.apply_style_name(".input", self.layout, task)
+        if node.style_def is not None:
+            self.apply_style_def(node.style_def,  self.layout, task)
+
     def on_message(self, sim, event):
         if event.sub_tag == self.tag:
             self.layout.value = event.value_tag
@@ -378,6 +450,9 @@ class DropdownControlRuntimeNode(StoryRuntimeNode):
             values = task.format_string(node.values)
             self.layout = layout.Dropdown(val, values, self.tag )
             task.main.page.add_content(self.layout, self)
+            self.apply_style_name(".dropdown", self.layout, task)
+            if node.style_def is not None:
+                self.apply_style_def(node.style_def,  self.layout, task)
 
 
     def on_message(self, sim, event):
@@ -427,7 +502,7 @@ over =     {
     "AwaitGui": AwaitGuiRuntimeNode,
     "Choose": ChooseRuntimeNode,
     "Section": SectionRuntimeNode,
-    "Style": SyleRuntimeNode,
+#    "Style": StyleRuntimeNode,
     "Refresh": RefreshRuntimeNode
 
 }
@@ -602,19 +677,16 @@ class StoryPage(Page):
             self.add_row()
             self.pending_layouts.append(layout.Layout(None, 0,0, 100, 90))
 
-    def set_section_size(self, values):
-        #print( f"SIZE: {left} {top} {right} {bottom}")
+    def get_pending_layout(self):
         if not self.pending_layouts:
             self.add_row()
-        l = self.pending_layouts[-1]
-        l.set_size(values[0],values[1], values[2], values[3])
+        return self.pending_layouts[-1]
 
-    def set_default_height(self, height):
+    def get_pending_row(self):
         if not self.pending_layouts:
             self.add_row()
-        l = self.pending_layouts[-1]
-        l.set_default_height(height)
-    
+        return self.pending_row
+
 
     def set_button_layout(self, layout):
         if self.pending_row and self.pending_layouts:
@@ -628,7 +700,6 @@ class StoryPage(Page):
             self.pending_layouts.append(layout)
 
         self.swap_layout()
-        
         
     
     def present(self, sim, event):

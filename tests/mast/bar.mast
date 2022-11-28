@@ -44,7 +44,7 @@ end_await
 # delay to give a chance to read
 delay gui 5s
 
-style area: 40, 20, 70, 70;
+section style="area: 40, 20, 70, 70;"
 
 face barkeep
 row

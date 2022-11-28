@@ -49,10 +49,17 @@ await choice:
     end_await
 end_await
 
-style area:1,2,3,4;
-style area: 1,2,3-1px,4;
-style area:1,2,3,4;row-height:10px;
+style .button="padding:3px;"
+style .face="padding:2px;"
 
+style fred = "area:1,2,3,4;"
+style barney="area: 1,2,3-1px,4;"
+style wilma="area:1,2,3,4;row-height:10px;"
+
+section style="area:1,2,3,4;"
+section style="area: 1,2,3-1px,4;"
+section style="area:1,2,3,4;row-height:10px;"
+section style=fred
 
 radio var "helm,weapons,science"
 vradio var "helm,weapons,science"

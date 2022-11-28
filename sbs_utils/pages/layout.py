@@ -4,6 +4,19 @@ import struct # for images sizes
 from .. import fs
 import os
 
+class Bounds:
+    def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
+        self.left=left
+        self.top=top
+        self.right=right
+        self.bottom=bottom
+    @property
+    def height(self):
+        return self.bottom-self.top
+    @property
+    def width(self):
+        return self.right-self.left
+
 
 class Row:
     def __init__(self, cols=None, width=0, height=0) -> None:
@@ -12,6 +25,13 @@ class Row:
         self.columns = cols if cols else []
         self.left=0
         self.top=0
+        self.padding = None
+
+    def set_row_height(self, height):
+        self.default_height = height
+
+    def set_col_width(self, width):
+        self.default_width = width
 
     def clear(self):
         self.columns = []
@@ -28,17 +48,31 @@ class Row:
 
 class Column:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
-        self.left=left
-        self.top=top
-        self.right=right
-        self.bottom=bottom
+        self.bounds = Bounds(left,top,right,bottom)
+        self.padding = None
         self.square = False
 
-    def layout(self, height=0, left=0, top=0, right=0, bottom=0) -> None:
-        self.left=left
-        self.top=top
-        self.right=right
-        self.bottom=bottom
+    def set_bounds(self, bounds) -> None:
+        if self.padding is None:
+            self.bounds.left=bounds.left
+            self.bounds.top=bounds.top
+            self.bounds.right=bounds.right
+            self.bounds.bottom=bounds.bottom
+        else:
+            self.bounds.left=bounds.left+self.padding.left
+            self.bounds.top=bounds.top+self.padding.top
+            self.bounds.right=bounds.right-self.padding.right
+            self.bounds.bottom=bounds.bottom-self.padding.bottom
+
+    def set_row_height(self, height):
+        self.default_height = height
+
+    def set_col_width(self, width):
+        self.default_width = width
+
+    def set_padding(self, padding):
+        self.padding = padding
+
 
     
 class Text(Column):
@@ -51,7 +85,7 @@ class Text(Column):
     def present(self, sim, event):
         sbs.send_gui_text(event.client_id, 
             self.message, self.tag, 
-            self.left, self.top, self.right, self.bottom)
+            self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
 
 class Button(Column):
     def __init__(self, message, tag) -> None:
@@ -63,7 +97,7 @@ class Button(Column):
     def present(self, sim, event):
         sbs.send_gui_button(event.client_id, 
             self.message, self.tag, 
-            self.left, self.top, self.right, self.bottom)
+            self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
 
 class Slider(Column):
     def __init__(self,  value=0.5, low=0.0, high=1.0, tag=None) -> None:
@@ -77,7 +111,7 @@ class Slider(Column):
         sbs.send_gui_slider(event.client_id, 
             self.tag, 
             self.low, self.high, self.value,
-            self.left, self.top, self.right, self.bottom)
+            self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
 
 class Checkbox(Column):
     def __init__(self, message, tag, value=False) -> None:
@@ -90,7 +124,7 @@ class Checkbox(Column):
         sbs.send_gui_checkbox(event.client_id, 
             self.message, self.tag, 
             1 if self.value else 0,
-            self.left, self.top, self.right, self.bottom)
+            self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
 
 class Image(Column):
     def __init__(self, file, color, tag) -> None:
@@ -110,12 +144,12 @@ class Image(Column):
             message = f"IMAGE NOT FOUND: {self.file}"
             sbs.send_gui_text(event.client_id, 
                 message, self.tag, 
-                self.left, self.top, self.right, self.bottom)
+                self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
         else:
             sbs.send_gui_image(event.client_id, 
                 self.rel_file, self.color, self.tag, 
                 0,0,self.width, self.height,
-                self.left, self.top, self.right, self.bottom)
+                self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
 
     # Get image width and height of image
     def get_image_size(self):
@@ -143,7 +177,7 @@ class Dropdown(Column):
     def present(self, sim, event):
         sbs.send_gui_dropdown(event.client_id, 
             self.value, self.tag, self.values,
-            self.left, self.top, self.right, self.bottom)
+            self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
 
 class TextInput(Column):
     def __init__(self, value, label, tag) -> None:
@@ -155,7 +189,7 @@ class TextInput(Column):
     def present(self, sim, event):
         sbs.send_gui_typein(event.client_id, 
             self.value, self.label,self.tag,
-            self.left, self.top, self.right, self.bottom)
+            self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
 
 
 class Blank(Column):
@@ -181,7 +215,7 @@ class Face(Column):
     def present(self, sim, event):
         sbs.send_gui_face(event.client_id, 
             self.face, self.tag,
-            self.left, self.top, self.right, self.bottom)
+            self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
             #self.left, self.top, self.left+(self.right-self.left)*.60, 100)
             #self.left, self.top, self.left+w, self.top+w)
 
@@ -194,7 +228,7 @@ class Ship(Column):
     def present(self, sim, event):
         sbs.send_gui_3dship(event.client_id, 
             self.ship, self.tag, 
-            self.left, self.top, self.right, self.bottom)
+            self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
 
 
 class Layout:
@@ -203,17 +237,20 @@ class Layout:
                 left_pixels=False, top_pixels=False, right_pixels=False, bottom_pixels=False) -> None:
         self.rows = rows if rows else []
         self.aspect_ratio = sbs.get_screen_size()
-        self.set_size(left,top,right,bottom)
+        self.set_bounds(Bounds(left,top,right,bottom))
         self.default_height = None
+        self.default_width = None
+        self.padding = None
 
-    def set_size(self, left=0, top=0, right=100, bottom=100):
-        self.left = left
-        self.top = top
-        self.width = right-left
-        self.height = bottom-top
+    def set_bounds(self, bounds):
+        self.bounds = bounds
+
        
-    def set_default_height(self, height):
+    def set_row_height(self, height):
         self.default_height = height
+
+    def set_col_width(self, width):
+        self.default_width = width
 
     def add(self, row:Row):
         self.rows.append(row)
@@ -224,13 +261,13 @@ class Layout:
             if self.default_height is not None:
                 row_height = self.default_height
             else:
-                row_height = self.height / len(self.rows)
+                row_height = self.bounds.height / len(self.rows)
             row : Row
-            left = self.left
-            top = self.top
+            left = self.bounds.left
+            top = self.bounds.top
             for row in self.rows:
                 row.height = row_height
-                row.width = self.width
+                row.width = self.bounds.width
                 row.left = left
                 row.top = top
                 squares = 0
@@ -267,21 +304,21 @@ class Layout:
                 col_left = left
                 hole_size = 0
                 for col in row.columns:
-                    col.left = col_left
-                    col.top = top
-                    col.bottom = top+row_height
+                    bounds = Bounds(col_left,0,0,0)
+                    bounds.top = top
+                    bounds.bottom = top+row_height
                     if col.square:
-                        col.right = col_left + square_width
-                        col.bottom = top+square_height
+                        bounds.right = bounds.left + square_width
+                        bounds.bottom = top+square_height
                         # Square ignores holes?
                         hole_size = 0
                     elif col.__class__ == Hole:
                         hole_size += rect_col_width
                     else:
-                        col.right = col_left+rect_col_width + hole_size
+                        bounds.right = bounds.left+rect_col_width + hole_size
                         hole_size = 0
-                    col_left = col.right
-
+                    col_left = bounds.right
+                    col.set_bounds(bounds)
                 top += row_height
 
     def present(self, sim, event):

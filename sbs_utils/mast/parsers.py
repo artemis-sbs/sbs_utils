@@ -23,7 +23,7 @@ class LayoutAreaParser:
         "rparen": r"\)",
     }
     #AREA_LIST_TOKENS = "|".join(map(lambda a: f"({a})", rules.values()))
-    AREA_LIST_TOKENS = r"[^\n^;]*"
+    STYLE_LIST_TOKENS = r"[^\n^;]*"
 
 
     def lex(source):
@@ -120,6 +120,56 @@ class LayoutAreaParser:
         operation = LayoutAreaParser.operations[node.token_type]
         return operation(left_result, right_result)
 
+
+class StyleDefinition:
+    styles = {}
+    def parse(style):
+        ret = {}
+        rules = style.split(";")
+        for rule in rules:
+            rule = rule.strip()
+            if len(rule)<1:
+                continue
+            item = rule.split(":")
+            key = item[0]
+            value = item[1]
+            match key:
+                case "area":
+                    ret[key]=StyleDefinition.parse_area(value)
+                case "padding":
+                    ret[key]=StyleDefinition.parse_padding(value)
+                case "row-height":
+                    ret[key]=StyleDefinition.parse_height(value)
+                case "col-width":
+                    ret[key]=StyleDefinition.parse_width(value)
+                case "padding":
+                    ret[key]=StyleDefinition.parse_padding(value)
+        return ret
+
+    def parse_area(area):
+        tokens = LayoutAreaParser.lex(area)
+        asts = LayoutAreaParser.parse_list(tokens)
+        if (len(asts)!=4):
+            raise Exception("Invalid area arguments")
+        return asts
+
+    def parse_padding(padding):
+        if padding is not None:
+            tokens = LayoutAreaParser.lex(padding)
+            return LayoutAreaParser.parse_list(tokens)
+        return None
+
+    def parse_width(width):
+        if width is not None:
+            tokens = LayoutAreaParser.lex(width)
+            return LayoutAreaParser.parse_e2(tokens)
+        return None
+
+    def parse_height(height):
+        if height is not None:
+            tokens = LayoutAreaParser.lex(height)
+            return LayoutAreaParser.parse_e2(tokens)
+        return None
 
 
 

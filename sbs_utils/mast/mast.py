@@ -27,15 +27,8 @@ DICT_REGEX = r"""(\{[\s\S]+?\})"""
 PY_EXP_REGEX = r"""((?P<py>~~)[\s\S]+?(?P=py))"""
 STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[ \t\S]*(?P=quote))"""
 
-JUMP_CMD_REGEX = r"""((?P<pop><<-(\s*(?P<pop_jump>\w+)\s*<<)?)|(->(?P<push>>)?\s*(?P<jump>\w+)))"""
-#JUMP_ARG_REGEX = r"""\s*((?P<pop><<-)|(->(?P<push>>)?\s*(?P<jump>\w+))|(=>\s*(?P<await_name>\w+)(?P<with_data>\s*("""+PY_EXP_REGEX+"|"+DICT_REGEX+"""))?))"""
-#OPT_JUMP_REGEX = r"("+JUMP_ARG_REGEX+r""")?"""
+JUMP_CMD_REGEX = r"""((?P<pop><<-(\s*(?P<pop_jump>\w+\s*(<<|<)))?)|(->(?P<push>>)?\s*(?P<jump>\w+)))"""
 
-#TIME_PY_EXP_REGEX = r"""((?P<time_py>~~)[\s\S]+?(?P=time_py))"""
-#TIME_JUMP_ARG_REGEX = r"""\s*((?P<time_pop><<-)|(->(?P<time_push>>)?\s*(?P<time_jump>\w+))|(=>\s*(?P<time_await_name>\w+)(?P<time_with_data>\s*("""+TIME_PY_EXP_REGEX+"|"+DICT_REGEX+"""))?))"""
-#TIME_OPT_JUMP_REGEX = r"("+TIME_JUMP_ARG_REGEX+r""")?"""
-#TIME_JUMP_REGEX = TIME_OPT_JUMP_REGEX
-#r"""((\s*((?P<time_pop><<-)|(->(?P<time_push>>))?\s*(?P<time_jump>\w+))))?"""
 MIN_SECONDS_REGEX = r"""(\s*((?P<minutes>\d+))m)?(\s*((?P<seconds>\d+)s))?"""
 TIMEOUT_REGEX = r"(\s*timeout"+MIN_SECONDS_REGEX + r")?"
 OPT_COLOR = r"""(\s*color\s*["'](?P<color>[ \t\S]+)["'])?"""
@@ -285,19 +278,20 @@ class Assign(MastNode):
 
 
 class Jump(MastNode):
-    rule = re.compile(JUMP_CMD_REGEX+IF_EXP_REGEX)
+    rule = re.compile(JUMP_CMD_REGEX)
 
-    def __init__(self, pop, pop_jump, push, jump, if_exp, loc=None):
+    def __init__(self, pop, pop_jump, push, jump, loc=None):
         self.loc = loc
         self.label = jump
         self.push = push == ">"
         self.pop = pop is not None
-        self.pop_jump = pop_jump
-        if if_exp:
-            if_exp = if_exp.lstrip()
-            self.code = compile(if_exp, "<string>", "eval")
-        else:
-            self.code = None
+        self.pop_jump = None
+        self.pop_push = None
+        if pop_jump is not None:
+            if pop_jump[-2:] == "<<":
+                self.pop_push = pop_jump[:-2].strip()
+            else:
+                self.pop_jump = pop_jump[:-1].strip()
 
 
 
@@ -305,7 +299,7 @@ class Parallel(MastNode):
     """
     Creates a new 'task' to run in parallel
     """
-    rule = re.compile(r"""((?P<name>[\w\.\[\]]+)\s*)?=>\s*(?P<label>\w+)(?P<inputs>\s*"""+ DICT_REGEX+")?"+IF_EXP_REGEX)
+    rule = re.compile(r"""((?P<name>[\w\.\[\]]+)\s*)?=>\s*(?P<label>\w+)(?P<inputs>\s*"""+ DICT_REGEX+")?")
 
     def __init__(self, name=None, label=None, inputs=None, if_exp=None, loc=None):
         self.loc = loc
@@ -334,7 +328,7 @@ class Await(MastNode):
     waits for an existing or a new 'task' to run in parallel
     this needs to be a rule before Parallel
     """
-    rule = re.compile(r"""await((\s*(?P<label>\w+))|((\s*(?P<spawn>=>))\s*(?P<name>\w+)(?P<inputs>\s*"""+DICT_REGEX+")?))"+IF_EXP_REGEX)
+    rule = re.compile(r"""await((\s*(?P<label>\w+))|((\s*(?P<spawn>=>))\s*(?P<name>\w+)(?P<inputs>\s*"""+DICT_REGEX+")?))")
                       
     def __init__(self, name=None, spawn=None, label=None, inputs=None, if_exp=None, loc=None):
         self.loc = loc
