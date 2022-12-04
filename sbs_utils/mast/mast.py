@@ -27,7 +27,7 @@ DICT_REGEX = r"""(\{[\s\S]+?\})"""
 PY_EXP_REGEX = r"""((?P<py>~~)[\s\S]+?(?P=py))"""
 STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[ \t\S]*(?P=quote))"""
 
-JUMP_CMD_REGEX = r"""((?P<pop><<-(\s*(?P<pop_jump>\w+\s*(<<|<)))?)|(->(?P<push>>)?\s*(?P<jump>\w+)))"""
+
 
 MIN_SECONDS_REGEX = r"""(\s*((?P<minutes>\d+))m)?(\s*((?P<seconds>\d+)s))?"""
 TIMEOUT_REGEX = r"(\s*timeout"+MIN_SECONDS_REGEX + r")?"
@@ -278,20 +278,20 @@ class Assign(MastNode):
 
 
 class Jump(MastNode):
-    rule = re.compile(JUMP_CMD_REGEX)
+    rule = re.compile(r"""((?P<pop><<-((?P<pop_jump_type>>>|>)\s*(?P<pop_jump>\w+))?)|(->(?P<push>>)?\s*(?P<jump>\w+)))""")
 
-    def __init__(self, pop, pop_jump, push, jump, loc=None):
+    def __init__(self, pop, pop_jump_type, pop_jump, push, jump, loc=None):
         self.loc = loc
         self.label = jump
         self.push = push == ">"
         self.pop = pop is not None
         self.pop_jump = None
         self.pop_push = None
-        if pop_jump is not None:
-            if pop_jump[-2:] == "<<":
-                self.pop_push = pop_jump[:-2].strip()
+        if pop_jump_type is not None:
+            if pop_jump_type == ">>":
+                self.pop_push = pop_jump.strip()
             else:
-                self.pop_jump = pop_jump[:-1].strip()
+                self.pop_jump = pop_jump.strip()
 
 
 

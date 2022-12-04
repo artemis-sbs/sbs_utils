@@ -192,20 +192,20 @@ end_if
 
 
 dropdown ship_select "Artemis^Hera^Atlas"
-<<- PickedShip<<
+<<->>PickedShip
 end_dropdown
 
 dropdown console "Helm^Weapons^Science^Engineering^Comms^Medical^Main Screen"
 view = "Main"
-<<- PickedView<<
+<<->>PickedView
 end_dropdown
 
 dropdown view "Main^Auxiliary^Crafting^Quarters^P.A.D.D.^Broadcast^Bar"
-<<- PickedView<<
+<<->>PickedView
 end_dropdown
 
 dropdown mast_view "Variables^Debug^restart"
-<<- PickedMast <<
+<<->>PickedMast
 end_dropdown
 
 section style="area: 0, 30px, 100, 100-30px;"

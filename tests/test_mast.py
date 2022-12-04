@@ -94,8 +94,8 @@ next x
 ->> a_push
 ->>b_push
 <<-
-<<- pop_jump <
-<<- pop_push <<
+<<-> pop_jump
+<<->> pop_push
 => fork
 f1 => fork
 =>fork_you

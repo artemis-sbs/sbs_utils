@@ -615,7 +615,7 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
 # Gui.push(None,0, GuiMain())
 
 Gui.server_start_page_class(GuiMain)
-Gui.client_start_page_class(GuiMain)
+Gui.client_start_page_class(ClientSelectPage)
 
 
 
