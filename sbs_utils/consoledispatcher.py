@@ -111,26 +111,32 @@ class ConsoleDispatcher:
         """
         console = ConsoleDispatcher.convert_to_console_id(sim,event)
         ConsoleDispatcher.do_select(sim, event, console)
-        print(f"con select{console}")
 
-
+        handled = False
         cb = ConsoleDispatcher._dispatch_select.get((event.origin_id, console))
         if cb is not None:
             cb(sim, event.selected_id, event)
+            handled = True
             
         # Allow to route to the selected ship too
         cb = ConsoleDispatcher._dispatch_select.get((event.selected_id, console))
         if cb is not None:
             cb(sim, event.origin_id, event)
+            handled = True
 
         cb = ConsoleDispatcher._dispatch_select.get((event.origin_id, event.selected_id, console))
         if cb is not None:
             cb(sim, event.selected_id, event)
+            handled = True
             
         # Allow to route to the selected ship too
         cb = ConsoleDispatcher._dispatch_select.get((event.selected_id, event.origin_id, console))
         if cb is not None:
             cb(sim, event.origin_id, event)
+            handled = True
+
+        return handled
+
 
     def dispatch_message(sim, event, console):
         """ dispatches a console message

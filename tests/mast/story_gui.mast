@@ -57,7 +57,7 @@ This is your first ship
 """""""""""""""""""""""""""""""""
 blank
 
--------------await choice:---------------------
+await choice:
     + "Yes.." if learn == True:
         -> YouLied 
     + "Yes.." if learn == False:
@@ -68,9 +68,9 @@ blank
      ->> GotoBar
     + "HUD":
     ->> Hud
-    + "Exit": 
+    + "Exit":
     ->END
------------------end_await------------------
+end_await
 
 # This is for the bar/hud when they pops
 ->Briefing
@@ -139,19 +139,39 @@ section style="area: 20, 20, 100, 40;"
 
 learn = False
 
-button "Test 1": -> Learn end_button
+button "Test 1":
+ -> Learn 
+ end_button
 
-button "Test 2": ->Learn end_button
-button "Test 3": -> Learn  end_button
-button "Test 4": ->Learn end_button
+button "Test 2":
+ ->Learn 
+end_button
+button "Test 3":
+ -> Learn  
+end_button
+button "Test 4":
+->Learn 
+end_button
 row
-button "Test 5": -> Learn end_button
-button "Test 6": ->Learn end_button
-button "Test 7": -> Learn end_button
-button "Test 8": ->Learn end_button
+button "Test 5":
+-> Learn
+end_button
+button "Test 6":
+ ->Learn 
+end_button
+button "Test 7":
+-> Learn 
+end_button
+button "Test 8":
+ ->Learn 
+ end_button
 row
-button "Test 9": -> Briefing end_button
-button "Test 10": -> Briefing end_button
+button "Test 9":
+ -> Briefing 
+ end_button
+button "Test 10":
+ -> Briefing 
+ end_button
 row
 
 input text_in
@@ -160,8 +180,8 @@ slider slider_value 0.0 1.0 0.5
 checkbox wilma "Yaba"
 
 await choice:
-    + "exit":
-    ->END
++ "exit":
+  ->END
 end_await
 
 ====================== NoChoice ======================
@@ -191,20 +211,20 @@ else:
 end_if
 
 
-dropdown ship_select "Artemis^Hera^Atlas"
+dropdown ship_select "Artemis^Hera^Atlas":   #ddd
 <<->>PickedShip
 end_dropdown
 
-dropdown console "Helm^Weapons^Science^Engineering^Comms^Medical^Main Screen"
+dropdown console "Helm^Weapons^Science^Engineering^Comms^Medical^Main Screen": 
 view = "Main"
 <<->>PickedView
 end_dropdown
 
-dropdown view "Main^Auxiliary^Crafting^Quarters^P.A.D.D.^Broadcast^Bar"
+dropdown view "Main^Auxiliary^Crafting^Quarters^P.A.D.D.^Broadcast^Bar":
 <<->>PickedView
 end_dropdown
 
-dropdown mast_view "Variables^Debug^restart"
+dropdown mast_view "Variables^Debug^restart":
 <<->>PickedMast
 end_dropdown
 

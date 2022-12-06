@@ -76,6 +76,10 @@ for x while y<0:
 y = y + x
 next x
 
+for x while y!="test:test":
+y = y + x
+next x
+
 for x in range(10):
 y = y + x
 next x

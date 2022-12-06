@@ -1,4 +1,4 @@
-from .mast import IF_EXP_REGEX, TIMEOUT_REGEX, OPT_COLOR, Mast, MastNode, EndAwait
+from .mast import IF_EXP_REGEX, TIMEOUT_REGEX, OPT_COLOR, Mast, MastNode, EndAwait,BLOCK_START
 import re
 
 
@@ -35,7 +35,7 @@ class Broadcast(MastNode):
 
 
 class Comms(MastNode):
-    rule = re.compile(r"""await\s*(?P<from_tag>\w+)\s*comms\s*(?P<to_tag>\w+)(\s*set\s*(?P<assign>\w+))?(\s+color\s*["'](?P<color>[ \t\S]+)["'])?"""+TIMEOUT_REGEX+'\s*:')
+    rule = re.compile(r"""await\s*(?P<from_tag>\w+)\s*comms\s*(?P<to_tag>\w+)(\s*set\s*(?P<assign>\w+))?(\s+color\s*["'](?P<color>[ \t\S]+)["'])?"""+TIMEOUT_REGEX+'\s*'+BLOCK_START)
     def __init__(self, to_tag, from_tag, assign=None, minutes=None, seconds=None, time_pop=None,time_push="", time_jump="", color="white", loc=None):
         self.loc = loc
         self.to_tag = to_tag
@@ -51,7 +51,7 @@ class Comms(MastNode):
         EndAwait.stack.append(self)
 
 class Button(MastNode):
-    rule = re.compile(r"""(?P<button>\*|\+)\s+(?P<q>["'])(?P<message>.+?)(?P=q)"""+OPT_COLOR+IF_EXP_REGEX+"\s*:")
+    rule = re.compile(r"""(?P<button>\*|\+)\s+(?P<q>["'])(?P<message>.+?)(?P=q)"""+OPT_COLOR+IF_EXP_REGEX+r"\s*"+BLOCK_START)
     def __init__(self, button, message,  color, if_exp, q=None, loc=None):
         self.message = self.compile_formatted_string(message)
         self.sticky = (button == '+' or button=="button")
@@ -83,7 +83,7 @@ class Button(MastNode):
 
 
 class ButtonSet(MastNode):
-    rule = re.compile(r"""(button_set\s+use\s+(?P<use>\w+))|(button_set\s*(?P<name>\w+):)|(end_button_set)""")
+    rule = re.compile(r"""(button_set\s+use\s+(?P<use>\w+))|(button_set\s*(?P<name>\w+)"""+BLOCK_START+""")|(end_button_set)""")
     lookup = {}
     def __init__(self, use=None, name=None, loc=None):
         self.loc = loc
@@ -103,7 +103,7 @@ class ButtonSet(MastNode):
 
 
 class Near(MastNode):
-    rule = re.compile(r'await\s*(?P<from_tag>\w+)\s+near\s+(?P<to_tag>\w+)\s*(?P<distance>\d+)'+TIMEOUT_REGEX+"\s*:")
+    rule = re.compile(r'await\s*(?P<from_tag>\w+)\s+near\s+(?P<to_tag>\w+)\s*(?P<distance>\d+)'+TIMEOUT_REGEX+"\s*"+BLOCK_START)
     def __init__(self, to_tag, from_tag, distance, minutes=None, seconds=None, loc=None):
         self.loc = loc
         self.to_tag = to_tag

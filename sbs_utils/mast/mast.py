@@ -33,7 +33,7 @@ MIN_SECONDS_REGEX = r"""(\s*((?P<minutes>\d+))m)?(\s*((?P<seconds>\d+)s))?"""
 TIMEOUT_REGEX = r"(\s*timeout"+MIN_SECONDS_REGEX + r")?"
 OPT_COLOR = r"""(\s*color\s*["'](?P<color>[ \t\S]+)["'])?"""
 IF_EXP_REGEX = r"""(\s+if(?P<if_exp>.+))?"""
-
+BLOCK_START = r":[ |\t]*(?=\r\n|\n|\#)"
 
 
 class MastCompilerError:
@@ -93,7 +93,7 @@ class Logger(MastNode):
         self.loc = loc
 
 class LoopStart(MastNode):
-    rule = re.compile(r'(for\s*(?P<name>\w+)\s*)(in|while)((?P<if_exp>[\s\S]+?):)')
+    rule = re.compile(r'(for\s*(?P<name>\w+)\s*)(in|while)((?P<if_exp>[\s\S]+?))'+BLOCK_START)
     loop_stack = []
     def __init__(self, if_exp=None, name=None, loc=None):
         if if_exp:
@@ -127,7 +127,7 @@ class LoopEnd(MastNode):
 
 
 class IfStatements(MastNode):
-    rule = re.compile(r'((?P<end>else:|end_if)|(((?P<if_op>if|elif)\s+?(?P<if_exp>[\s\S]+?)[:])))')
+    rule = re.compile(r'((?P<end>else:|end_if)|(((?P<if_op>if|elif)\s+?(?P<if_exp>[\s\S]+?)'+BLOCK_START+')))')
 
     if_chains = []
 
@@ -161,7 +161,7 @@ class IfStatements(MastNode):
             IfStatements.if_chains.append(self)
 
 class MatchStatements(MastNode):
-    rule = re.compile(r'((?P<end>case\s*_:|end_match)|(((?P<op>match|case)\s+?(?P<exp>[\s\S]+?):)))')
+    rule = re.compile(r'((?P<end>case\s*_:|end_match)|(((?P<op>match|case)\s+?(?P<exp>[\s\S]+?)'+BLOCK_START+')))')
     chains = []
     def __init__(self, end=None, op=None, exp=None, loc=None):
         self.loc = loc
@@ -358,7 +358,7 @@ class EndAwait(MastNode):
 
 
 class Event(MastNode):
-    rule = re.compile(r'(event\s+(?P<event>[\w|_]+):)|(end_event)')
+    rule = re.compile(r'(event\s+(?P<event>[\w|_]+)'+BLOCK_START+')|(end_event)')
     stack = []
     def __init__(self, event=None, loc=None):
         self.loc = loc
@@ -385,7 +385,7 @@ class AwaitCondition(MastNode):
     waits for an existing or a new 'task' to run in parallel
     this needs to be a rule before Parallel
     """
-    rule = re.compile(r"""await\s+until\s+(?P<if_exp>[^:]+)"""+TIMEOUT_REGEX+""":""")
+    rule = re.compile(r"""await\s+until\s+(?P<if_exp>[^:]+)"""+TIMEOUT_REGEX+BLOCK_START)
                       
     def __init__(self, minutes=None, seconds=None, if_exp=None, loc=None):
         self.loc = loc

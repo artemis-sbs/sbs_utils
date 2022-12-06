@@ -30,8 +30,6 @@ class SpaceObject:
     ids = {'all':{}}
     debug = True
     removing =set()
-    def __init__(self):
-        pass
 
     def destroyed(self):
         self.remove()
@@ -514,6 +512,7 @@ class MSpawn:
 class MSpawnPlayer(MSpawn):
     def _make_new_player(self, sim, behave, data_id):
         self.id = sim.make_new_player(behave, data_id)
+        self.is_player = True
         return sim.get_space_object(self.id)
 
     def _spawn(self, sim, x, y, z, name, side, art_id):
@@ -573,6 +572,7 @@ class MSpawnActive(MSpawn):
     """
     def _make_new_active(self, sim,  behave, data_id):
         self.id = sim.make_new_active(behave, data_id)
+        self.is_player = False
         return self.get_space_object(sim)
 
     def _spawn(self, sim, x, y, z, name, side, art_id, behave_id):
@@ -632,6 +632,7 @@ class MSpawnPassive(MSpawn):
     """
     def _make_new_passive(self, sim, behave, data_id):
         self.id = sim.make_new_passive(behave, data_id)
+        self.is_player = False
         return sim.get_space_object(self.id)
 
     def _spawn(self, sim, x, y, z, name, side, art_id, behave_id):

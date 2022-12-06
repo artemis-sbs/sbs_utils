@@ -1,8 +1,6 @@
 from enum import IntEnum
-
-from ..tickdispatcher import TickDispatcher
 from .mast import *
-import sbs
+import time
 
 
 class MastRuntimeNode:
@@ -359,21 +357,13 @@ class LoggerRuntimeNode(MastRuntimeNode):
 
 class DelayRuntimeNode(MastRuntimeNode):
     def enter(self, mast, task, node):
-        if node.clock=="gui":
-            self.timeout = sbs.app_seconds()+ (node.minutes*60+node.seconds)
-            pass
-        else:
-            self.timeout = TickDispatcher.current + (node.minutes*60+node.seconds)*TickDispatcher.tps
+        self.timeout = task.main.get_seconds(node.clock) + (node.minutes*60+node.seconds)
+        
         self.tag = None
 
     def poll(self, mast, task, node):
-        match node.clock:
-            case "gui":
-                if self.timeout <= sbs.app_seconds():
-                    return PollResults.OK_ADVANCE_TRUE
-            case _:
-                if self.timeout <= TickDispatcher.current:
-                    return PollResults.OK_ADVANCE_TRUE
+        if self.timeout <= task.main.get_seconds(node.clock):
+            return PollResults.OK_ADVANCE_TRUE
 
         return PollResults.OK_RUN_AGAIN
 
@@ -398,14 +388,14 @@ class AwaitConditionRuntimeNode(MastRuntimeNode):
         if seconds == 0:
             self.timeout = None
         else:
-            self.timeout = TickDispatcher.current + (node.minutes*60+node.seconds)*TickDispatcher.tps
+            self.timeout = task.main.get_seconds("sim") + (node.minutes*60+node.seconds)
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: AwaitCondition):
         value = task.eval_code(node.code)
         if value:
             return PollResults.OK_ADVANCE_TRUE
 
-        if self.timeout is not None and self.timeout <= TickDispatcher.current:
+        if self.timeout is not None and self.timeout <= task.main.get_seconds("sim"):
             print("CHOOSE timeout")
             if node.timeout_label:
                 task.jump(task.active_label,node.timeout_label.loc+1)
@@ -527,13 +517,7 @@ class MastAsyncTask:
         val = self.vars.get(key, None)
         if val is not None:
             return (val, Scope.TEMP)
-        val = self.main.mast.vars.get(key, None)
-        if val is not None:
-            return (val, Scope.SHARED)
-        val = self.main.vars.get(key, Scope.UNKNOWN)
-        if val == Scope.UNKNOWN:
-            return (defa, Scope.NORMAL)
-        return (val, Scope.NORMAL)
+        return self.main.get_value(key, defa)
 
     def get_variable(self, key):
         value = self.get_value(key, None)
@@ -703,6 +687,11 @@ class MastScheduler:
     def runtime_error(self, message):
         pass
 
+    def get_seconds(self, clock):
+        """ Gets time for a given clock default is just system """
+        return time.time()
+
+
     def start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:
         if self.inputs is None:
             self.inputs = inputs
@@ -732,6 +721,9 @@ class MastScheduler:
         return True
 
     def get_value(self, key, defa=None):
+        val = Mast.globals.get(key, None)
+        if val is not None:
+            return (val, Scope.SHARED)
         val = self.mast.vars.get(key, None)
         if val is not None:
             return (val, Scope.SHARED)

@@ -32,7 +32,7 @@ await choice timeout 1m 1s:
         -> JumpLabel
     + "Button Two":
         -> JumpLabel
-    + "Button Jump": 
+    + "Button Jump":
     timeout:
         -> JumpSomeWhere
 end_await

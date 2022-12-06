@@ -5,6 +5,8 @@ from .tickdispatcher import TickDispatcher
 from .gui import Gui, Page
 import sbs
 import traceback
+from . import faces
+from .spaceobject import SpaceObject
 
 
 class ErrorPage(Page):
@@ -72,7 +74,14 @@ def HandleEvent(sim, event):
                 # print(f"{event.value_tag}")
                 
 
-                ConsoleDispatcher.dispatch_select(sim, event)
+                handled = ConsoleDispatcher.dispatch_select(sim, event)
+                if not handled and "comm" in event.sub_tag:
+                    face = faces.get_face(event.selected_id)
+                    so = SpaceObject.get(event.selected_id)
+                    comms_id = "static"
+                    if so:
+                        comms_id = so.comms_id(sim)
+                    sbs.send_comms_selection_info(event.origin_id, face, "green", comms_id)
 
             case "press_comms_button":
                 ConsoleDispatcher.dispatch_message(sim, event, "comms_target_UID")

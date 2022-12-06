@@ -1,10 +1,11 @@
-from .mast import IF_EXP_REGEX, Mast, MastNode, PY_EXP_REGEX, OPT_COLOR, TIMEOUT_REGEX
+from .mast import IF_EXP_REGEX, Mast, MastNode, PY_EXP_REGEX, OPT_COLOR, TIMEOUT_REGEX, BLOCK_START
 from .mastsbs import MastSbs, EndAwait
 import re
 from .parsers import StyleDefinition
 import logging
 
 STYLE_REF_RULE = r"""(\s+style\s*=\s*((?P<style_name>\w+)|((?P<style_q>['"]{3}|["'])(?P<style>[\s\S]+?)(?P=style_q))))?"""
+
 
 class Row(MastNode):
     rule = re.compile(r"""row"""+STYLE_REF_RULE)
@@ -135,7 +136,7 @@ class AwaitGui(MastNode):
 class Choose(MastNode):
     #d=r"(\s*timeout"+MIN_SECONDS_REGEX + r")?"
     #test = r"""await gui((((\s*(?P<choice>choice)(\s*set\s*(?P<assign>\w+))?)?):)?"""
-    rule = re.compile(r"(await choice(\s*set\s*(?P<assign>\w+))?"+STYLE_REF_RULE+ TIMEOUT_REGEX+ r"\s*:)")
+    rule = re.compile(r"(await choice(\s*set\s*(?P<assign>\w+))?"+STYLE_REF_RULE+ TIMEOUT_REGEX+ r"\s*"+BLOCK_START+r")")
     def __init__(self, assign=None,minutes=None, seconds=None, style_name=None, style=None, style_q=None, loc=None):
         self.loc = loc
         self.assign = assign
@@ -156,7 +157,7 @@ class Choose(MastNode):
             self.style_def = StyleDefinition.styles.get(style_name)
 
 class ButtonControl(MastNode):
-    rule = re.compile(r"""((button\s+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q))(\s*data\s*=\s*(?P<data>"""+PY_EXP_REGEX+r"""))?"""+STYLE_REF_RULE+IF_EXP_REGEX+r"\s*:)|(?P<end>end_button)")
+    rule = re.compile(r"""((button\s+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q))(\s*data\s*=\s*(?P<data>"""+PY_EXP_REGEX+r"""))?"""+STYLE_REF_RULE+IF_EXP_REGEX+r"\s*"+BLOCK_START+")|(?P<end>end_button)")
     stack = []
     def __init__(self, message, q, data=None, py=None, if_exp=None, end=None,style_name=None, style=None, style_q=None, loc=None):
         #self.message = message
@@ -269,7 +270,7 @@ class TextInputControl(MastNode):
 
 class DropdownControl(MastNode):
     
-    rule = re.compile(r"""(dropdown\s+(?P<var>[ \t\S]+)\s+(?P<q>['"]{3}|["'])(?P<values>[\s\S]+?)(?P=q))|(?P<end>end_dropdown)"""+STYLE_REF_RULE)
+    rule = re.compile(r"""(dropdown\s+(?P<var>[ \t\S]+)\s+(?P<q>['"]{3}|["'])(?P<values>[\s\S]+?)(?P=q)"""+BLOCK_START+""")|(?P<end>end_dropdown)"""+STYLE_REF_RULE)
     stack = []
     def __init__(self, var=None, values=None, q=None,end=None, style_name=None, style=None, style_q=None, loc=None):
         self.loc = loc

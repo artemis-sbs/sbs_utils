@@ -45,7 +45,7 @@ await self comms player timeout 1m 1s:
         -> JumpLabel
     + "Button Two":
         -> JumpLabel
-    + "Button Jump": 
+    + "Button Jump":
     timeout:
         -> JumpSomeWhere
 end_await
@@ -118,7 +118,8 @@ end_await
 
 == HeadToDS2 ==
 have self approach ds2                           # goto DS2
-await self near ds2 700:                           # wait until near D2
+# wait until near D2
+await self near ds2 700:
     have self tell player "I have arrived at ds2"    # tell the player
 end_await
 
@@ -184,7 +185,8 @@ delay 10s
 == Cyan ==
 have self tell player "Cyan"
 await self comms player timeout 5s:
-+ "Say main": -> main
++ "Say main":
+    -> main
 timeout:
 -> TooSlow
 end_await

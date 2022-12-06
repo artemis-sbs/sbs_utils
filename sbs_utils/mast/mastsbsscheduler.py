@@ -30,33 +30,40 @@ class ButtonSetRuntimeNode(MastRuntimeNode):
 
 class TellRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Tell):
-        to_so= task.get_value(node.to_tag, None)
-        to_so = to_so[0]
+        to_so= task.get_variable(node.to_tag)
         self.face = ""
         self.title = ""
-        if to_so:
-            self.to_id = to_so.get_id()
-        else:
-            task.runtime_error("Tell has invalid TO")            
-        from_so= task.get_value(node.from_tag, None)
-        from_so = to_so[0]
-        if from_so:
-            self.from_id = from_so.get_id()
-            self.title = from_so.comms_id(task.main.sim)
-            self.face = faces.get_face(self.from_id)
-            
-        else:
-            task.runtime_error("Tell has invalid from")
+        to_so:SpaceObject = task.get_variable(node.to_tag)
+        from_so:SpaceObject = task.get_variable(node.from_tag)
+        if to_so is None or from_so is None:
+            return
+        # From face should be used
+        self.title = from_so.comms_id(task.main.sim)+">"+to_so.comms_id(task.main.sim)
+        self.face = faces.get_face(from_so.get_id())
+        # Just in case swap if from is not a player
+        if not from_so.is_player:
+            swap = to_so
+            to_so = from_so
+            from_so = swap
+
+        self.to_id = to_so.get_id()
+        self.from_id = from_so.get_id()
+    
+        if self.face is None:
+            self.face = ""
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: Tell):
 
         if self.to_id and self.from_id:
             msg = task.format_string(node.message)
+            #print(f"{self.from_id} {self.from_id} {node.color} {self.face} {self.title} {msg}")
             sbs.send_comms_message_to_player_ship(
-                self.to_id,
                 self.from_id,
+                self.to_id,
                 node.color,
-                self.face, self.title, msg)
+                self.face, 
+                self.title, 
+                msg)
             return PollResults.OK_ADVANCE_TRUE
         else:
             PollResults.OK_ADVANCE_FALSE
@@ -95,7 +102,7 @@ class CommsRuntimeNode(MastRuntimeNode):
         if seconds == 0:
             self.timeout = None
         else:
-            self.timeout = TickDispatcher.current + (node.minutes*60+node.seconds)*TickDispatcher.tps
+            self.timeout = task.main.get_seconds("sim")+ (node.minutes*60+node.seconds)
 
         self.tag = None
         self.buttons = node.buttons
@@ -103,17 +110,25 @@ class CommsRuntimeNode(MastRuntimeNode):
         self.task = task
         self.color = node.color if node.color else "white"
 
-        to_so:SpaceObject = task.vars.get(node.to_tag)
-        if to_so:
-            self.to_id = to_so.get_id()
-        from_so:SpaceObject = task.vars.get(node.from_tag)
-        if from_so:
-            self.from_id = from_so.get_id()
-            self.comms_id = from_so.comms_id(task.main.sim)
-            ConsoleDispatcher.add_select_pair(self.from_id, self.to_id, 'comms_targetUID', self.comms_selected)
-            ConsoleDispatcher.add_message_pair(self.from_id, self.to_id,  'comms_targetUID', self.comms_message)
-            self.set_buttons(self.from_id, self.to_id)
-            # from_so.face_desc
+        to_so:SpaceObject = task.get_variable(node.to_tag)
+        from_so:SpaceObject = task.get_variable(node.from_tag)
+        if to_so is None or from_so is None:
+            return
+        # Just in case swap if from is not a player
+        if not from_so.is_player:
+            swap = to_so
+            to_so = from_so
+            from_so = swap
+
+        self.to_id = to_so.get_id()
+        self.from_id = from_so.get_id()
+        self.comms_id = to_so.comms_id(task.main.sim)
+        self.face = faces.get_face(to_so.id) 
+        
+        ConsoleDispatcher.add_select_pair(self.from_id, self.to_id, 'comms_target_UID', self.comms_selected)
+        ConsoleDispatcher.add_message_pair(self.from_id, self.to_id,  'comms_target_UID', self.comms_message)
+        self.set_buttons(self.to_id, self.from_id)
+        # from_so.face_desc
 
     def comms_selected(self, sim, an_id, event):
         to_id = event.origin_id
@@ -123,10 +138,7 @@ class CommsRuntimeNode(MastRuntimeNode):
     def set_buttons(self, from_id, to_id):
         # check to see if the from ship still exists
         if from_id is not None:
-            from_face = faces.get_face(from_id) 
-            if from_face is None:
-                from_face = ""
-            sbs.send_comms_selection_info(to_id, from_face, self.color, self.comms_id)
+            sbs.send_comms_selection_info(to_id, self.face, self.color, self.comms_id)
             for i, button in enumerate(self.buttons):
                 value = True
                 color = "blue" if button.color is None else button.color
@@ -147,9 +159,9 @@ class CommsRuntimeNode(MastRuntimeNode):
 
 
     def leave(self, mast:Mast, task:MastAsyncTask, node: Comms):
-        ConsoleDispatcher.remove_select_pair(self.from_id, self.to_id, 'comms_targetUID')
-        ConsoleDispatcher.remove_message_pair(self.from_id, self.to_id, 'comms_targetUID')
-        sbs.send_comms_selection_info(self.to_id, "", self.color, self.comms_id)
+        ConsoleDispatcher.remove_select_pair(self.from_id, self.to_id, 'comms_target_UID')
+        ConsoleDispatcher.remove_message_pair(self.from_id, self.to_id, 'comms_target_UID')
+        sbs.send_comms_selection_info(self.from_id, self.face, self.color, self.comms_id)
         if node.assign is not None:
             task.set_value_keep_scope(node.assign, self.button)
         
@@ -167,7 +179,7 @@ class CommsRuntimeNode(MastRuntimeNode):
             task.jump(task.active_label,button.loc+1)
             return PollResults.OK_JUMP
 
-        if self.timeout is not None and self.timeout <= TickDispatcher.current:
+        if self.timeout is not None and self.timeout <= task.main.get_seconds("sim"):
             print("CHOOSE timeout")
             if node.timeout_label:
                 task.jump(task.active_label,node.timeout_label.loc+1)
@@ -202,7 +214,7 @@ class NearRuntimeNode(MastRuntimeNode):
         if seconds == 0:
             self.timeout = None
         else:
-            self.timeout = TickDispatcher.current + (node.minutes*60+node.seconds)*TickDispatcher.tps
+            self.timeout = task.main.get_seconds("sim")+ (node.minutes*60+node.seconds)
 
         self.tag = None
 
@@ -219,7 +231,7 @@ class NearRuntimeNode(MastRuntimeNode):
         if dist <= node.distance:
             return PollResults.OK_ADVANCE_TRUE
 
-        if self.timeout is not None and self.timeout <= TickDispatcher.current:
+        if self.timeout is not None and self.timeout <= task.main.get_seconds("sim"):
             if node.timeout_label:
                 task.jump(task.active_label,node.timeout_label.loc+1)
                 return PollResults.OK_JUMP
@@ -285,6 +297,12 @@ class MastSbsScheduler(MastScheduler):
     def sbs_tick_tasks(self, sim):
         self.sim = sim
         return super().tick()
+
+    def get_seconds(self, clock):
+        if clock == "sim":
+            return TickDispatcher.current/TickDispatcher.tps
+        return super().get_seconds(clock)
+
 
     def runtime_error(self, message):
         sbs.pause_sim()

@@ -19,7 +19,7 @@ def get_face(ship_id):
     :return: A Face string
     :rtype: string
     """
-    return faces_map.get(ship_id, None)
+    return faces_map.get(ship_id, "")
 
 def set_face(ship_id, face):
     """ sets a face string for a specified ID

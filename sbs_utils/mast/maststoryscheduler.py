@@ -788,6 +788,3 @@ class StoryPage(Page):
             return
         self.story_scheduler.on_event(sim, event)
         
-
-        
-
