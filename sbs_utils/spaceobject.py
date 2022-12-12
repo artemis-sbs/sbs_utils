@@ -1,8 +1,11 @@
+from __future__ import annotations
+from typing import Callable
 import sbs
+from random import randrange, choice, choices
 
 
-class SpaceObject:
-    pass
+#class SpaceObject:
+#    pass
 
 class SpawnData:
     id : int
@@ -18,18 +21,22 @@ class SpawnData:
 
 class CloseData:
     id: int
-    obj: SpaceObject
+    py_object: SpaceObject
     distance: float
 
     def __init__(self, other_id, other_obj, distance) -> None:
         self.id = other_id
-        self.obj = other_obj
+        self.py_object = other_obj
         self.distance = distance
 
 class SpaceObject:
     ids = {'all':{}}
     debug = True
     removing =set()
+
+    def __init__(self):
+        self._name = ""
+        self._side = ""
 
     def destroyed(self):
         self.remove()
@@ -106,13 +113,112 @@ class SpaceObject:
         return roles
 
     def get_objects_with_role(role):
-        ret = []
         if SpaceObject.ids.get(role):
-            return SpaceObject.ids.get(role).values()
-        return ret
+            # return a list so you can remove while iterating
+            return list(SpaceObject.ids.get(role).values())
+        return []
+
+    def get_role_set(role):
+        if SpaceObject.ids.get(role):
+            return set(SpaceObject.ids.get(role).keys())
+        return set()
 
 
+    ############### LINKS ############
+    def _add_link(self, link_name: str, id : int):
+        if not hasattr(self, "links"):
+            self.links = {}
+        if link_name not in self.links:
+            self.links[link_name]=set()
+        self.links[link_name].add(id)
 
+    def add_link(self, link_name: str, other: SpaceObject | CloseData | int):
+        """ Add a link to the space object. Links are uni-directional
+
+        :param role: The role/link name to add e.g. spy, pirate etc.
+        :type id: str
+        """
+        id = SpaceObject.resolve_id(other)
+
+        self._add_link(link_name, id)
+
+    def _remove_link(self, role, id):
+        if self.links.get(role) is not None:
+            self.links[role].remove(id)
+
+
+    def remove_link(self, link_name: str, other: SpaceObject | CloseData | int):
+        """ Remove a role from the space object
+
+        :param role: The role to add e.g. spy, pirate etc.
+        :type id: str
+        """
+        id = SpaceObject.resolve_id(other)
+
+        self._remove_link(link_name, id)
+
+    def has_link_to(self, link_name: str | list[str], other: SpaceObject| CloseData |int):
+        """ check if the object has a role
+
+        :param role: The role to add e.g. spy, pirate etc.
+        :type id: str
+        :return: If the object has the role
+        :rtype: bool
+        """
+        id = SpaceObject.resolve_id(other)
+            
+        if link_name not in self.links:
+            return False
+
+        if isinstance(link_name, str):
+            return  id in self.links[link_name]
+        try:
+            for r in link_name:
+                if id in self.links[link_name]:
+                    return True
+        except:
+            return False
+        return False
+
+
+    def _remove_every_link(self, other: SpaceObject | CloseData| int):
+        id = SpaceObject.resolve_id(other)
+        for role in self.links:
+            self._remove_link(role, id)
+
+    def get_links(self, other: SpaceObject| CloseData | int):
+        links = []
+        id = SpaceObject.resolve_id(other)
+        for link_name in self.links.keys():
+            if self.has_link_to(link_name, id):
+                links.append(link_name)
+        return links
+
+    def resolve_id(other: SpaceObject | CloseData | int ):
+        id = other
+        if isinstance(other, SpaceObject):
+            id = other.id
+        elif isinstance(other, CloseData):
+            id = other.id
+        elif isinstance(other, SpawnData):
+            id = other.id
+        return id
+
+    def get_objects_with_link(self, link_name):
+        the_set = self.links.get(link_name)
+        if self.links.get(link_name):
+            # return a list so you can remove while iterating
+            return [ SpaceObject.get(x) for x in the_set]
+        return []
+
+    def get_link_set(self, link_name):
+        return self.links.get(link_name, set())
+
+    def get_objects_from_set(the_set):
+        return [ SpaceObject.get(x) for x in the_set]
+
+
+    ####################################
     def get(id):
         o = SpaceObject.ids['all'].get(id)
         if o is None:
@@ -151,7 +257,26 @@ class SpaceObject:
 
         return sim.get_space_object(self.id)
 
-    def find_close_list(self, sim, roles=None, max_dist=None, filter_func=None)-> list[CloseData]:
+    
+    def all(roles:str, linked_object: SpaceObject|None = None, filter_func=None):
+        roles = roles.split(",\*")
+        ret = set()
+        if linked_object:
+            for role in roles:
+                objects = linked_object.get_objects_with_link(role)
+                ret |= set(objects)
+        else:
+            for role in roles:
+                objects = SpaceObject.get_objects_with_role(role)
+                ret |= set(objects)
+
+        items = list(ret)
+        if filter_func is not None:
+            items = filter(filter_func, items)
+
+        return items
+
+    def find_close_list(self, sim, roles=None, max_dist=None, filter_func=None, linked = False)-> list[CloseData]:
         """ Finds a list of matching objects 
 
         :param sim: The simulation
@@ -165,39 +290,30 @@ class SpaceObject:
         :return: A list of close object
         :rtype: List[CloseData]
         """
+        items = SpaceObject.all(roles, self if linked else None, filter_func)
+        return self.find_close_filtered_list(sim, items, max_dist)
+
+    def find_close_filtered_list(self, sim, items, max_dist=None)-> list[CloseData]:
         ret = []
         test = max_dist
-        ids = SpaceObject.ids.get(roles)
-        if ids is None:
-            ids = SpaceObject.ids['all']
-        else:
-            # non need to check role later
-            roles = None
 
-        items = ids.items()
-        if filter_func is not None:
-            items = filter(filter_func, items)
-
-        for (other_id, other_obj) in items:
+        for other_obj in items:
             # if this is self skip
-            if other_id == self.id:
-                continue
-
-            if roles is not None and not other_obj.has_role(roles):
+            if other_obj.id == self.id:
                 continue
 
             # test distance
-            test = sbs.distance_id(self.id, other_id)
+            test = sbs.distance_id(self.id, other_obj.id)
             if max_dist is None:
-                ret.append(CloseData(other_id, other_obj, test))
+                ret.append(CloseData(other_obj.id, other_obj, test))
                 continue
 
             if test < max_dist:
-                ret.append(CloseData(other_id, other_obj, test))
+                ret.append(CloseData(other_obj.id, other_obj, test))
 
         return ret
 
-    def find_closest(self, sim, roles=None, max_dist=None, filter_func=None) -> CloseData:
+    def find_closest(self, sim, roles=None, max_dist=None, filter_func=None, linked:bool = False) -> CloseData:
         """ Finds the closest object matching the criteria
 
         :param sim: The simulation
@@ -211,44 +327,23 @@ class SpaceObject:
         :return: A list of close object
         :rtype: CloseData
         """
-        close_id = None
-        close_obj = None
-        dist = max_dist
-
-        ###### TODO USe boardtest if max_dist used
-
-        ids = SpaceObject.ids.get(roles)
-        if ids is None:
-            ids = SpaceObject.ids['all']
-        else:
-            # non need to check role later
-            roles = None
-
-            
-        items = ids.items()
-        if filter_func is not None:
-            items = filter(filter_func, items)
-
-        for (other_id, other_obj) in items:
-            # if this is self skip
-            if other_id == self.id:
-                continue
-            if roles is not None and not other_obj.has_role(roles):
-                continue
-
-            test = sbs.distance_id(self.id, other_id)
+        dist = None
+        # list of close objects
+        items = self.find_close_list(sim, roles, max_dist, filter_func, linked )
+        # Slightly inefficient 
+        # Maybe this should be a filter function?
+        for other in items:
+            test = sbs.distance_id(self.id, other.id)
             if dist is None:
-                close_id = other_id
-                close_obj = other_obj
+                close_obj = other
                 dist = test
             elif test < dist:
-                close_id = other_id
-                close_obj = other_obj
+                close_obj = other
                 dist = test
 
-        return CloseData(close_id, close_obj, dist)
+        return close_obj
 
-    def target_closest(self, sim, roles=None, max_dist=None, filter_func=None, shoot: bool = True):
+    def target_closest(self, sim, roles=None, max_dist=None, filter_func=None, shoot: bool = True, linked: bool = True):
         """ Find and target the closest object matching the criteria
 
         :param sim: The simulation
@@ -264,7 +359,7 @@ class SpaceObject:
         :return: A list of close object
         :rtype: CloseData
         """
-        close = self.find_closest(sim, roles, max_dist, filter_func)
+        close = self.find_closest(sim, roles, max_dist, filter_func, linked)
         if close.id is not None:
             self.target(sim, close.id, shoot)
         return close
@@ -279,6 +374,7 @@ class SpaceObject:
         :param shoot: if the object should be shot at
         :type shoot: bool
         """
+        SpaceObject.resolve_id(other_id)
         other = sim.get_space_object(other_id)
         
         if other:
@@ -450,7 +546,7 @@ class SpaceObject:
         """
         return sim.get_space_object(self.id)
 
-    def side(self, sim):
+    def set_side(self, sim, side):
         """ Get the side of the object
 
         :param sim: The simulation
@@ -459,11 +555,13 @@ class SpaceObject:
         :rtype: str
         """
         so = self.space_object(sim)
+        self.side = side
+        self.update_comms_id()
         if so is not None:
-            return so.side
-        return ""
+            so.side = side
+
         
-    def name(self, sim):
+    def set_name(self, sim, name):
         """ Get the name of the object
 
         :param sim: The simulation
@@ -472,24 +570,38 @@ class SpaceObject:
         :rtype: str
         """
         so = self.space_object(sim)
+        self.name = name
+        self.update_comms_id()
         if so is None:
-            return ""
+            return
         blob = so.data_set
-        return blob.get("name_tag", 0)
+        return blob.set("name_tag", name, 0)
 
-    def comms_id(self, sim):
-        """ Get the text to use in the comms messages
-
-        :param sim: The simulation
-        :type sim: Artemis Cosmos simulation
+    def update_comms_id(self):
+        """ Updates the comms ID when the name or side has changed
         :return: this is name or name(side)
         :rtype: str
         """
-        name = self.name(sim)
-        side = self.side(sim)
-        if (side != ""):
-            return f"{name}({side})"
-        return name
+        
+        if (self.side != ""):
+            self._comms_id = f"{self.name}({self.side})"
+        else:
+            self._comms_id = self.name
+
+    @property
+    def name(self: SpaceObject) -> str:
+        """str, cached version of comms_id"""
+        return self._name
+
+    @property
+    def side(self: SpaceObject) -> str:
+        """str, cached version of comms_id"""
+        return self._side
+
+    @property
+    def comms_id (self: SpaceObject) -> str:
+        """str, cached version of comms_id"""
+        return self._comms_id
 
 
 
@@ -500,11 +612,13 @@ class MSpawn:
         self.add_role(self.__class__.__name__)
         blob = obj.data_set
         if side is not None:
-            name = name if name is not None else f"{side} {self.id}"
-            blob.set("name_tag", name, 0)
-            obj.side = side
-            self.add_role(self.side)
-        elif name is not None:
+            self._comms_id= f"{name}({side})" if name is not None else f"{side}{self.id}"
+            obj._side = side
+            self.add_role(side)
+        else:
+            self._comms_id= name if name is not None else f""
+        if name is not None:
+            self._name = name
             blob.set("name_tag", name, 0)
         
         return blob
@@ -684,4 +798,82 @@ class MSpawnPassive(MSpawn):
         :rtype: SpawnData
         """
         return self._spawn(sim, v.x, v.y, v.z, name, side, art_id, behave_id)
+
+
+###################
+## Set functions
+def role(role:str):
+    return SpaceObject.get_role_set(role)
+
+def linked_to(link_name:str, link_source):
+    link_source.get_link_set(link_name)
+
+# Get the set of IDS of a broad test
+def broad_test(x1:float,z1:float, x2:float,z2:float, broad_type=-1):
+    obj_list = sbs.broad_test(x1, z1, x2, z2, broad_type)
+    return {so.unique_ID for so in obj_list}
+
+
+#######################
+## Set resolvers
+def closest_list(source: int|CloseData|SpawnData|SpaceObject, the_set, max_dist=None, filter_func=None)-> list[CloseData]:
+    ret = []
+    test = max_dist
+    source_id = SpaceObject.resolve_id(source) 
+
+    for other_id  in the_set:
+        # if this is self skip
+        if other_id == source_id:
+            continue
+        other_obj =SpaceObject.get(other_id)
+        if filter_func is not None and not filter_func(other_obj):
+            continue
+        # test distance
+        test = sbs.distance_id(source_id, other_id)
+        if max_dist is None:
+            ret.append(CloseData(other_id, other_obj, test))
+            continue
+
+        if test < max_dist:
+            ret.append(CloseData(other_id, other_obj, test))
+
+    return ret
+
+def closest(self, the_set, max_dist=None, filter_func=None)-> CloseData:
+    test = max_dist
+    ret = None
+    source_id = SpaceObject.resolve_id(self) 
+
+    for other_id  in the_set:
+        # if this is self skip
+        if other_id == SpaceObject.resolve_id(self):
+            continue
+        other_obj =SpaceObject.get(other_id)
+        if filter_func is not None and not filter_func(other_obj):
+            continue
+
+        # test distance
+        test = sbs.distance_id(source_id, other_id)
+        if max_dist is None:
+            ret = CloseData(other_id, other_obj, test)
+            max_dist=test
+            continue
+        elif test < max_dist:
+            ret = CloseData(other_id, other_obj, test)
+            continue
+
+    return ret
+
+def closest_object(self, sim, the_set, max_dist=None, filter_func=None)-> SpaceObject:
+    ret = closest(self, sim, the_set, max_dist=None, filter_func=None)
+    if ret:
+        return ret.py_object
+
+def random(the_set):
+    rand_id = choice(tuple(the_set))
+    return SpaceObject.get(rand_id)
+
+def random_list(the_set, count=1):
+    rand_id_list = choices(tuple(the_set), count)
+    return [SpaceObject.get(x) for x in rand_id_list]
 

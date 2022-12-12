@@ -136,12 +136,12 @@ class AwaitGui(MastNode):
 class Choose(MastNode):
     #d=r"(\s*timeout"+MIN_SECONDS_REGEX + r")?"
     #test = r"""await gui((((\s*(?P<choice>choice)(\s*set\s*(?P<assign>\w+))?)?):)?"""
-    rule = re.compile(r"(await choice(\s*set\s*(?P<assign>\w+))?"+STYLE_REF_RULE+ TIMEOUT_REGEX+ r"\s*"+BLOCK_START+r")")
-    def __init__(self, assign=None,minutes=None, seconds=None, style_name=None, style=None, style_q=None, loc=None):
+    rule = re.compile(r"(await choice(\s*set\s*(?P<assign>\w+))?"+STYLE_REF_RULE+ r"\s*"+BLOCK_START+r")")
+    def __init__(self, assign=None, style_name=None, style=None, style_q=None, loc=None):
         self.loc = loc
         self.assign = assign
-        self.seconds = 0 if  seconds is None else int(seconds)
-        self.minutes = 0 if  minutes is None else int(minutes)
+        self.seconds = 0
+        self.minutes = 0
                 
         self.buttons = []
         self.active = False

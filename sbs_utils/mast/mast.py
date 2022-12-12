@@ -27,10 +27,6 @@ DICT_REGEX = r"""(\{[\s\S]+?\})"""
 PY_EXP_REGEX = r"""((?P<py>~~)[\s\S]+?(?P=py))"""
 STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[ \t\S]*(?P=quote))"""
 
-
-
-MIN_SECONDS_REGEX = r"""(\s*((?P<minutes>\d+))m)?(\s*((?P<seconds>\d+)s))?"""
-TIMEOUT_REGEX = r"(\s*timeout"+MIN_SECONDS_REGEX + r")?"
 OPT_COLOR = r"""(\s*color\s*["'](?P<color>[ \t\S]+)["'])?"""
 IF_EXP_REGEX = r"""(\s+if(?P<if_exp>.+))?"""
 BLOCK_START = r":[ |\t]*(?=\r\n|\n|\#)"
@@ -43,6 +39,13 @@ class MastCompilerError:
         else:
             self.messages = message
         self.line_no = line_no
+
+
+class ParseData:
+    def __init__(self, start, end, data):
+        self.start = start
+        self.end = end
+        self.data = data
 
 
 class MastNode:
@@ -58,6 +61,20 @@ class MastNode:
         else:
             return message
 
+    @classmethod
+    def parse(cls, lines):
+        mo = cls.rule.match(lines)
+
+        if mo:
+            span = mo.span()
+            data = mo.groupdict()
+            return ParseData(span[0], span[1], data)
+        else:
+            return None
+
+        
+
+
 
 class Label(MastNode):
     rule = re.compile(r'(={2,})\s*(?P<name>\w+)\s*(={2,})')
@@ -70,6 +87,7 @@ class Label(MastNode):
 
     def add_child(self, cmd):
         self.cmds.append(cmd)
+
 
 
 class Log(MastNode):
@@ -370,14 +388,17 @@ class Event(MastNode):
         else:
             Event.stack.append(self)
 
-
-
+MIN_SECONDS_REGEX = r"""(\s*((?P<minutes>\d+))m)?(\s*((?P<seconds>\d+)s))?"""
+TIMEOUT_REGEX = r"(\s*timeout"+MIN_SECONDS_REGEX + r")?"
 class Timeout(MastNode):
-    rule = re.compile(r'timeout\s*:')
-    def __init__(self, loc=None):
+    rule = re.compile(r'timeout(\s*((?P<minutes>\d+))m)?(\s*((?P<seconds>\d+)s))?:')
+    def __init__(self, minutes, seconds, loc=None):
         self.loc = loc
+        
         self.await_node = EndAwait.stack[-1]
         EndAwait.stack[-1].timeout_label = self
+        self.await_node.seconds = 0 if  seconds is None else int(seconds)
+        self.await_node.minutes = 0 if  minutes is None else int(minutes)
 
 
 class AwaitCondition(MastNode):
@@ -385,15 +406,16 @@ class AwaitCondition(MastNode):
     waits for an existing or a new 'task' to run in parallel
     this needs to be a rule before Parallel
     """
-    rule = re.compile(r"""await\s+until\s+(?P<if_exp>[^:]+)"""+TIMEOUT_REGEX+BLOCK_START)
+    rule = re.compile(r"""await\s+until\s+(?P<if_exp>[^:]+)"""+BLOCK_START)
                       
     def __init__(self, minutes=None, seconds=None, if_exp=None, loc=None):
         self.loc = loc
         self.timeout_label = None
         self.end_await_node = None
 
-        self.seconds = 0 if  seconds is None else int(seconds)
-        self.minutes = 0 if  minutes is None else int(minutes)
+        # Done int timeout now
+        #self.seconds = 0 if  seconds is None else int(seconds)
+        #self.minutes = 0 if  minutes is None else int(minutes)
         
         EndAwait.stack.append(self)
 
@@ -705,15 +727,17 @@ class Mast:
                 break
 
             for node_cls in self.__class__.nodes:
-                mo = node_cls.rule.match(lines)
+                #mo = node_cls.rule.match(lines)
+                mo = node_cls.parse(lines)
                 if mo:
-                    span = mo.span()
-                    line = lines[span[0]:span[1]]
+                    #span = mo.span()
+                    data = mo.data
 
-                    lines = lines[span[1]:]
+                    line = lines[mo.start:mo.end]
+                    lines = lines[mo.end:]
                     line_no += line.count('\n')
                     parsed = True
-                    data = mo.groupdict()
+                
                     
                     logger = logging.getLogger("mast.compile")
                     logger.debug(f"PARSED: {node_cls.__name__:} {line}")

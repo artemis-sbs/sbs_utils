@@ -27,14 +27,14 @@ await gui timeout 5s
 
 input name "enter name"
 
-await choice timeout 1m 1s:
+await choice:
     * "Button one":
         -> JumpLabel
     + "Button Two":
         -> JumpLabel
     + "Button Jump":
-    timeout:
-        -> JumpSomeWhere
+timeout  1m 1s:
+    -> JumpSomeWhere
 end_await
 
 

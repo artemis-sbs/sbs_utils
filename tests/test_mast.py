@@ -1,7 +1,7 @@
 from sbs_utils.mast.mast import Mast, Scope
-from . import fake_sbs
-import sys        
-sys.modules["sbs"] = fake_sbs
+#from . import fake_sbs as sbs
+#import sys        
+#sys.modules["sbs"] = fake_sbs
 from sbs_utils.mast.mastscheduler import MastScheduler
 
 import unittest

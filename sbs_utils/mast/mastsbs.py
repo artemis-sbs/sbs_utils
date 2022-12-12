@@ -127,6 +127,49 @@ class Simulation(MastNode):
         self.loc = loc
         self.cmd = cmd
 
+class Role(MastNode):
+    """
+    Handle commands to the simulation
+    """
+    rule = re.compile(r"""have\s+(?P<name>\w+)\s+(?P<cmd>add|remove)\s+(role|roles)\s*(?P<q>["'])(?P<roles>.+?)(?P=q)""")
+    def __init__(self, name, roles, cmd=None, q=None, loc=None):
+        self.loc = loc
+        self.cmd = cmd
+        self.name = name
+        self.roles = [x.strip() for x in roles.split(',')]
+
+class Find(MastNode):
+    """
+    
+    """
+    """ships = find all "Station" near artemis by 700  filter(lambda score: score >= 70)"""
+    rule = re.compile(r"""(?P<assign>\w+)\s*=\s*all\s*(?P<q>["'])(?P<role>.+?)(?P=q)(\s*near\s+(?P<name>\w+)(\s+by\s+(?P<max>\d+))?)?(\s+filter\s*\((?P<the_filter>.*\)))?(\s*include\s+(?P<inc_dist>distance))?""")
+    def __init__(self, assign, name, role,max, the_filter, inc_dist, q=None, loc=None):
+        self.loc = loc
+        self.all = all is not None
+        self.name = name
+        self.assign = assign
+        self.role = role.strip()
+        self.max = None if max is None else int(max)
+        self.the_filter = the_filter
+        self.inc_dist = inc_dist
+
+class Closest(MastNode):
+    """
+    
+    """
+    """ships = find all "Station" near artemis by 700  filter(lambda score: score >= 70)"""
+    rule = re.compile(r"""(?P<assign>\w+)\s*=\s*closest\s*(?P<q>["'])(?P<role>.+?)(?P=q)(\s*near\s+(?P<name>\w+)(\s+by\s+(?P<max>\d+))?)?(\s+filter\s*\((?P<the_filter>.*\)))?""")
+    def __init__(self, assign, name, role,max, the_filter, q=None, loc=None):
+        self.loc = loc
+        self.all = all is not None
+        self.name = name
+        self.assign = assign
+        self.role = role.strip()
+        self.max = None if max is None else int(max)
+        self.the_filter = the_filter
+
+
 
 class MastSbs(Mast):
     nodes =  [
@@ -138,6 +181,9 @@ class MastSbs(Mast):
         Button,
         ButtonSet,
         Near,
-      #  Simulation
+        Simulation,
+        Role,
+        Find,
+        Closest
     ] + Mast.nodes 
     

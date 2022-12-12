@@ -1,5 +1,5 @@
 from .mast import Mast, Scope
-from .mastsbs import Simulation, Target, Tell, Comms, Button, ButtonSet, Near,Broadcast
+from .mastsbs import Role, Simulation, Target, Tell, Comms, Button, ButtonSet, Near,Broadcast
 from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask
 import sbs
 from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain
@@ -254,6 +254,22 @@ class SimulationRuntimeNode(MastRuntimeNode):
 
         return PollResults.OK_ADVANCE_TRUE
 
+class RoleRuntimeNode(MastRuntimeNode):
+    def poll(self, mast:Mast, task:MastAsyncTask, node: Role):
+        py_object = task.get_variable(node.name)
+        if py_object is None:
+            return
+        match node.cmd:
+            case "add":
+                for role in node.roles:
+                    py_object.add_role(role)
+            case "remove":
+                for role in node.roles:
+                    py_object.remove_role(role)
+            
+
+        return PollResults.OK_ADVANCE_TRUE
+
         
 
 over =     {
@@ -263,7 +279,8 @@ over =     {
       "Near": NearRuntimeNode,
       "Target": TargetRuntimeNode,
       "Button": ButtonRuntimeNode,
-      "ButtonSet": ButtonSetRuntimeNode
+      "ButtonSet": ButtonSetRuntimeNode,
+      "Simulation": SimulationRuntimeNode
     }
 
 class MastSbsScheduler(MastScheduler):

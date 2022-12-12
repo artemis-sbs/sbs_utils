@@ -1,0 +1,138 @@
+
+===== sequential_version  ====
+await => not_freezing
+await => not_hungry
+->END
+
+===== parallel_version  ====
+get_warm => not_freezing
+eat => not_hungry
+await all [get_warm, eat]
+
+->END
+
+======= not_freezing ==========
+
+brain:
+    scratchpad:
+        freezing = True
+
+    select "Not Freezing":
+        if freezing:
+            ->FAIL
+        else:
+            ->SUCCESS
+        end_if
+
+    select "Jacket":
+        has_jacket = inventory.has("Jacket")
+        if has_jacket:
+            await => wear_jacket
+            freezing = False
+            ->SUCCESS
+        else:
+            ->FAIL
+        end_if
+
+    select "Door":
+        brain:
+            scratchpad:
+                door_open = False
+
+            select "Door Open:
+                if door_open:
+                    ->SUCCESS
+                else:
+                    ->FAIL
+                end_if
+
+            select "Person open door?":
+                person = closest(self, role: "Person", less: 700)
+                if not person:
+                    ->FAIL
+                end_if
+                await => ask_person_to_open_door {"person": person}
+                ->SUCCEED
+
+            select "Has key":
+                key = inventory.has("Key")
+                if not key:
+                    ->FAIL
+                end_if
+                await => open_door
+                ->SUCCEED
+
+            select "Under door mat":
+                doormat = get_by_name("Doormat")
+                if doormat:
+                    ->FAIL
+                end_if
+                await => search_under_doormat
+                ->SUCCEED
+
+            select "Search Garden":
+                await => search_garden
+                ->SUCCEED
+        end_brain
+end_brain
+->END
+
+======== search_under_doormat   ======
+delay sim 2s
+inventory.add("Key", True)
+->END
+
+======== search_garden   ======
+delay sim 3s
+inventory.add("Key", True)
+->END
+
+======== open_door   ======
+delay sim 2s
+door_open = True
+->END
+        
+======= not_hungry ==========
+
+brain:
+    scratchpad:
+        hungry = True
+
+
+    select "Not Hungry":
+        if hungry:
+            ->FAIL
+        else:
+            ->SUCCEED
+        end_if
+
+    select "Has apple":
+        apple = inventory.has("Apple")
+        if not apple:
+            ->FAIL
+        end_if
+        await => eat_apple
+        ->SUCCEED
+
+    select "Has banana":
+        banana = inventory.has("Banana")
+        if not banana:
+            ->FAIL
+        end_if
+        await => eat_banana
+        ->SUCCEED
+end_brain
+->END
+
+======== eat_apple   ======
+delay sim 2s
+inventory.Remove("Apple")
+hungry = FALSE
+->END
+
+
+======== eat_banana   ======
+delay sim 3s
+inventory.Remove("Banana")
+hungry = FALSE
+->END
