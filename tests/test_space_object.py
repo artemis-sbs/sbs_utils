@@ -1,7 +1,7 @@
 import unittest
 from . import mock_sbs as sbs
 
-from sbs_utils.spaceobject import SpaceObject, role, linked_to, closest_list, closest, random, broad_test
+from sbs_utils.spaceobject import SpaceObject, role, linked_to, closest_list, closest, random, broad_test, to_py_object
 from sbs_utils.objects import Npc, Terrain, PlayerShip
 
 def get_sim():
@@ -144,11 +144,23 @@ class TestMastSbsCompile(unittest.TestCase):
 
         for i, name in enumerate(names):
             test_obj.append(PlayerShip().spawn(sim, i*100,0,0, name, "tsn", "Battle Cruiser").py_object)
+
+        players = role("PlayerShip")
+        assert(len(players)==6)
+        players=list(players)
+        artemis = players[0]
+
+        player_objs = to_py_object(players)
+        assert(len(player_objs) == len(players))
+
         
         for station in range(5):
             station_obj = Npc().spawn(sim, station*100,0,100, f"DS{station}", "tsn", "Starbase", "behav_spaceport").py_object
             test_obj.append(station_obj)
             station_obj.add_role("Station")
+            # Add there visits to artemis
+            if station % 2:
+                player_objs[0].add_link("Visit", station_obj)
             eo = station_obj.get_space_object(sim)
             assert(eo)
             pos = eo.pos
@@ -156,12 +168,20 @@ class TestMastSbsCompile(unittest.TestCase):
             assert(pos.y == 0)
             assert(pos.z == 100)
 
-        players = role("PlayerShip")
-        assert(len(players)==6)
+        for friendly in range(5):
+            friendly_obj = Npc().spawn(sim, station*100,0,100, f"F{friendly}", "tsn", "Light Cruiser", "behav_npcship").py_object
+            if friendly  % 2:
+                player_objs[0].add_link("Visit", friendly_obj)
+
+
+        for raider in range(5):
+            Npc().spawn(sim, station*100,0,100, f"R{raider}", "raider", "Light Cruiser", "behav_npcship").py_object
+
+
         stations = role("Station")
         assert(len(stations)==5)
-        players=list(players)
-        artemis = players[0]
+
+
 
         test = closest(artemis, role("Station"))
         assert(test.py_object.name=="DS0") 
@@ -173,10 +193,15 @@ class TestMastSbsCompile(unittest.TestCase):
 
         # get a set of things with the role Station
         stations = role("Station")
+        assert(len(stations)==5)
         # Get the list of things artemis is supposed to visit
         visit_list = linked_to(artemis, "Visit")
+        assert(len(visit_list )==4)
         # Get the set active objects in the area
-        in_range = broad_test(10000,10000, -10000, -10000, 2)
+        in_range = broad_test(10000,10000, -10000, -10000, 1)
+        assert(len(in_range)==15)
+        test = in_range & visit_list & stations 
+        assert(len(test)==2) # 2 stations and NOT the two friendly
         # get the closest stations Artemis is assigned to visit the is in
         test = closest(artemis,  in_range & visit_list & stations )
 
@@ -186,9 +211,48 @@ class TestMastSbsCompile(unittest.TestCase):
             & role("Station") )
 
         friendly_tsn = role("tsn") - role("PlayerShip") - role("Station")
+        assert(len(friendly_tsn) == 5)
         
 
+    def test_fake_broad_test(self):
+        test_obj = []
+        names = ["Artemis", "Hera", "Atlas", "Juno", "Zeus", "Jupiter"]
+        sbs.create_new_sim()
+        sim = get_sim()
 
+        for i, name in enumerate(names):
+            test_obj.append(PlayerShip().spawn(sim, i*100,0,0, name, "tsn", "Battle Cruiser").py_object)
+
+        for station in range(5):
+            station_obj = Npc().spawn(sim, station*100-5,0,100, f"DS{station}", "tsn", "Starbase", "behav_spaceport").py_object
+            test_obj.append(station_obj)
+            station_obj.add_role("Station")
+
+        for asteroid in range(10):
+            asteroid_obj = Terrain().spawn(sim, asteroid*100-10,0,200, None, None, "Asteroid 1", "behav_asteroid").py_object
+            asteroid_obj.add_role("Asteroid")
+        
+        test = sbs.broad_test(-50,-50, 50,50, -1)
+        assert(len(test)==1) # Just the player
+
+        test = sbs.broad_test(-100,-200, 100,200, -1)
+        assert(len(test)==5) # 1 Player, 2 npc, 2 asteroid
+
+        # """int, 0=passive, 1=active, 2=playerShip""" #
+        for asteroid in range(1,11):
+            test = sbs.broad_test(-(asteroid*100-20),-200, asteroid*100-20,200, 0)
+            assert(len(test)==asteroid) # Just the asteroid
+            assert(test[0].data_tag=="Asteroid 1")
+
+        for station in range(1,6):
+            test = sbs.broad_test(-(station)*100+20,-100, (station)*100-20,100, 1)
+            assert(len(test)==station) # Just the starbases
+            assert(test[0].data_tag=="Starbase")
+        
+        for player in range(1,7):
+            test = sbs.broad_test(-(player*100)-10,-100, (player*100)-10,100, 2)
+            assert(len(test)==player) # Just the player
+            assert(test[0].data_tag=="Battle Cruiser")
 
 
         

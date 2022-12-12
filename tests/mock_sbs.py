@@ -7,23 +7,50 @@ sys.modules["sbs"] = sys.modules[__name__]
 
 
 sim = None
+seconds = 0
 
 
 def add_client_tag() -> None:
     """return a list of client ids, for the computers that are currently connected to this server."""
+    
 def app_milliseconds() -> int:
-    ...
+    global seconds
+    return seconds * 1000
 def app_minutes() -> int:
-    ...
-seconds = 0
+    global seconds
+    return seconds / 60
+
 def app_seconds() -> int:
     seconds += 1
     return seconds
     ...
 def assign_client_to_ship(arg0: int, arg1: int) -> None:
     """Tells a client computer which ship it should control."""
-def broad_test(arg0: float, arg1: float, arg2: float, arg3: float, arg4: int) -> List[space_object]:
+def broad_test(x1: float, z1: float, x2: float, z2: float, tick_type: int) -> List[space_object]:
     """return a list of space objects that are currently inside an x/z 2d rect  ARGS: 2D bounding rect, and type value (0, 1, or 2, -1 = all)"""
+    global sim
+    ret = []
+    # make sure things are oriented right
+    if x1> x2:
+        x = x1
+        x1 = x2
+        x2 = x
+    if z1> z2:
+        z = z1
+        z1 = z2
+        z2 = z
+        
+    if sim is not None:
+        for v in sim.space_objects.values():
+            if tick_type != -1 and tick_type != v._type:
+                continue
+            pos = v.pos
+            if pos.x >= x1 and pos.x < x2 and pos.z >= z1 and pos.z <= z2:
+                ret.append(v)
+    return ret
+
+            
+
 def clear_client_tags() -> None:
     """return a list of client ids, for the computers that are currently connected to this server."""
 def create_new_sim() -> None:
@@ -33,8 +60,11 @@ def create_new_sim() -> None:
 
 def create_transient(arg0: int, arg1: int, arg2: int, arg3: int, arg4: float, arg5: float, arg6: float, arg7: str) -> None:
     """Generates a temporary graphical object, like an explosion."""
+
 def delete_object(arg0: int) -> None:
     """deletes a space object by its ID"""
+
+
 def distance(arg0: space_object, arg1: space_object) -> float:
     """returns the distance between two space objects; arguments are two spaceObjects"""
     one = Vec3(arg0.pos.x, arg0.pos.y,arg0.pos.z)
@@ -54,6 +84,7 @@ def distance_id(arg0: int, arg1: int) -> float:
 def distance_to_navpoint(arg0: str, arg1: int) -> float:
     """returns the distance between a nav point and a space object; navpoint name, then object ID"""
     return 1000
+
 def get_client_ID_list() -> List[int]:
     """return a list of client ids, for the computers that are currently connected to this server."""
 def get_screen_size() -> vec2:
@@ -378,6 +409,7 @@ class simulation(object): ### from pybind
         
         self.object_ids = 0
         self.space_objects = {}
+        self._time_tick = 0 # increment by 30
 
     """class simulation"""
     def AddTractorConnection(self: simulation, arg0: int, arg1: int, arg2: vec3, arg3: float) -> tractor_connection:
@@ -419,9 +451,10 @@ class simulation(object): ### from pybind
         sim.object_ids += 1
         id = sim.object_ids
         obj  = space_object()
+        obj._id = id
         obj._type = tick_type # """int, 0=passive, 1=active, 2=playerShip""" #
-        self._data_tag = arg1
-        self._tick_type = arg0
+        obj._data_tag = arg1
+        obj._tick_type = arg0
         sim.space_objects[id] = obj
         return id
 
@@ -437,9 +470,13 @@ class simulation(object): ### from pybind
 
     def space_object_exists(self: simulation, arg0: int) -> bool:
         """returns true if the spaceobject exists, by ID"""
+        return (arg0 in self.space_objects)
+            
     @property
     def time_tick_counter (self: simulation) -> int:
         """get current time value"""
+        return self._time_tick_counter
+
 class space_object(object): ### from pybind
     def __init__(self):
         self. data_set_blob = object_data_set()
@@ -449,6 +486,11 @@ class space_object(object): ### from pybind
         self._tick_type = ""
         self._type = 0
         self._id = 0
+        self._exclusion_radius= 0
+        self._fat_radius= 0
+        self._steer_pitch = 0
+        self._steer_roll = 0
+        self._steer_yaw = 0
         self._pos = vec3(0,0,0)
     """class space_object"""
     @property
@@ -474,15 +516,19 @@ class space_object(object): ### from pybind
     @property
     def exclusion_radius (self: space_object) -> float:
         """float, other objects cannot be closer to me than this distance"""
+        return self._exclusion_radius
     @exclusion_radius.setter
     def exclusion_radius (self: space_object, arg0: float) -> None:
         """float, other objects cannot be closer to me than this distance"""
+        self._exclusion_radius = arg0
     @property
     def fat_radius (self: space_object) -> float:
         """float, radius of box for internal sorting calculations"""
+        return self._fat_radius
     @fat_radius.setter
     def fat_radius (self: space_object, arg0: float) -> None:
         """float, radius of box for internal sorting calculations"""
+        self._fat_radius = arg0
     @property
     def pos (self: space_object) -> vec3:
         """vec3, position in space"""
@@ -500,6 +546,7 @@ class space_object(object): ### from pybind
     def set_behavior(self: space_object, arg0: str) -> None:
         """set name of behavior module
         current available behavior modules : nebula, npcship, asteroid, playership, station"""
+        self._tick_type = arg0
     @property
     def side (self: space_object) -> str:
         """string, friendly to other objects on this same side; leave empty for 'no side'"""
@@ -511,21 +558,27 @@ class space_object(object): ### from pybind
     @property
     def steer_pitch (self: space_object) -> float:
         """float, change to heading and orientation of this object, over time"""
+        return self._steer_pitch
     @steer_pitch.setter
     def steer_pitch (self: space_object, arg0: float) -> None:
         """float, change to heading and orientation of this object, over time"""
+        self._steer_pitch = arg0
     @property
     def steer_roll (self: space_object) -> float:
         """float, change to heading and orientation of this object, over time"""
+        return self._steer_roll
     @steer_roll.setter
     def steer_roll (self: space_object, arg0: float) -> None:
         """float, change to heading and orientation of this object, over time"""
+        self._steer_roll=arg0
     @property
     def steer_yaw (self: space_object) -> float:
         """float, change to heading and orientation of this object, over time"""
+        return self._steer_yaw
     @steer_yaw.setter
     def steer_yaw (self: space_object, arg0: float) -> None:
         """float, change to heading and orientation of this object, over time"""
+        self._steer_yaw = arg0
     @property
     def tick_type (self: space_object) -> str:
         """string, name of behavior module

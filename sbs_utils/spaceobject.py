@@ -37,6 +37,7 @@ class SpaceObject:
     def __init__(self):
         self._name = ""
         self._side = ""
+        self.links = {}
 
     def destroyed(self):
         self.remove()
@@ -203,6 +204,18 @@ class SpaceObject:
         elif isinstance(other, SpawnData):
             id = other.id
         return id
+
+    def resolve_py_object(other: SpaceObject | CloseData | int ):
+        py_object = other
+        if isinstance(other, SpaceObject):
+            py_object = other
+        elif isinstance(other, CloseData):
+            py_object = other.py_object
+        elif isinstance(other, SpawnData):
+            py_object = other.py_object
+        else:
+            py_object = SpaceObject.get(other)
+        return py_object
 
     def get_objects_with_link(self, link_name):
         the_set = self.links.get(link_name)
@@ -805,8 +818,9 @@ class MSpawnPassive(MSpawn):
 def role(role:str):
     return SpaceObject.get_role_set(role)
 
-def linked_to(link_name:str, link_source):
-    link_source.get_link_set(link_name)
+def linked_to(link_source, link_name:str):
+    link_source = SpaceObject.resolve_py_object(link_source)
+    return link_source.get_link_set(link_name)
 
 # Get the set of IDS of a broad test
 def broad_test(x1:float,z1:float, x2:float,z2:float, broad_type=-1):
@@ -877,3 +891,5 @@ def random_list(the_set, count=1):
     rand_id_list = choices(tuple(the_set), count)
     return [SpaceObject.get(x) for x in rand_id_list]
 
+def to_py_object(the_set):
+    return [SpaceObject.get(id) for id in the_set]
