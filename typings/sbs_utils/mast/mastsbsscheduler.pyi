@@ -3,6 +3,7 @@ from sbs_utils.mast.mastsbs import Button
 from sbs_utils.mast.mastsbs import ButtonSet
 from sbs_utils.mast.mastsbs import Comms
 from sbs_utils.mast.mastsbs import Near
+from sbs_utils.mast.mastsbs import Role
 from sbs_utils.mast.mastsbs import Simulation
 from sbs_utils.mast.mastsbs import Target
 from sbs_utils.mast.mastsbs import Tell
@@ -59,6 +60,8 @@ class MastSbsScheduler(MastScheduler):
         ...
     def __init__ (self, mast: sbs_utils.mast.mast.Mast, overrides=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def get_seconds (self, clock):
+        """Gets time for a given clock default is just system """
     def run (self, sim, label='main', inputs=None):
         ...
     def runtime_error (self, message):
@@ -70,6 +73,10 @@ class NearRuntimeNode(MastRuntimeNode):
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Near):
         ...
     def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Near):
+        ...
+class RoleRuntimeNode(MastRuntimeNode):
+    """class RoleRuntimeNode"""
+    def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Role):
         ...
 class SimulationRuntimeNode(MastRuntimeNode):
     """class SimulationRuntimeNode"""

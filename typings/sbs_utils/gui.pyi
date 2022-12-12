@@ -1,6 +1,6 @@
 class FakeEvent(object):
     """class FakeEvent"""
-    def __init__ (self, client_id, tag):
+    def __init__ (self, client_id, tag, sub_tag=''):
         """Initialize self.  See help(type(self)) for accurate signature."""
 class Gui(object):
     """class GUI
@@ -66,6 +66,16 @@ class Gui(object):
         :type int: client id from the engine
         :param page:
         :type Page: A GUI Page"""
+    def send_custom_event (sim, tag, sub_tag=''):
+        """on_event
+        
+        Forward to the appropriate GuiClient/Page
+        handlerhooks.py will call this in HandleEvent
+        
+        :param sim:
+        :type sim: Artemis Cosmos simulation
+        :param event: The tag name of the control interacted with
+        :type event: event"""
     def server_start_page_class (cls_page):
         """server start page
         

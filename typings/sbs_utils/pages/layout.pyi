@@ -5,6 +5,16 @@ class Blank(Column):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def present (self, sim, client_id):
         ...
+class Bounds(object):
+    """class Bounds"""
+    def __init__ (self, left=0, top=0, right=0, bottom=0) -> None:
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    @property
+    def height (self):
+        ...
+    @property
+    def width (self):
+        ...
 class Button(Column):
     """class Button"""
     def __init__ (self, message, tag) -> None:
@@ -21,7 +31,13 @@ class Column(object):
     """class Column"""
     def __init__ (self, left=0, top=0, right=0, bottom=0) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def layout (self, height=0, left=0, top=0, right=0, bottom=0) -> None:
+    def set_bounds (self, bounds) -> None:
+        ...
+    def set_col_width (self, width):
+        ...
+    def set_padding (self, padding):
+        ...
+    def set_row_height (self, height):
         ...
 class Dropdown(Column):
     """class Dropdown"""
@@ -59,9 +75,11 @@ class Layout(object):
         ...
     def present (self, sim, event):
         ...
-    def set_default_height (self, height):
+    def set_bounds (self, bounds):
         ...
-    def set_size (self, left=0, top=0, right=100, bottom=100):
+    def set_col_width (self, width):
+        ...
+    def set_row_height (self, height):
         ...
 class LayoutPage(Page):
     """A interface class for creating GUI pages
@@ -80,6 +98,10 @@ class Row(object):
     def clear (self):
         ...
     def present (self, sim, event):
+        ...
+    def set_col_width (self, width):
+        ...
+    def set_row_height (self, height):
         ...
 class Ship(Column):
     """class Ship"""

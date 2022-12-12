@@ -1,4 +1,6 @@
 from sbs_utils.gui import Page
+from sbs_utils.spaceobject import SpaceObject
+from sbs_utils.tickdispatcher import TickDispatcher
 class ClientSelectPage(Page):
     """A interface class for creating GUI pages
     

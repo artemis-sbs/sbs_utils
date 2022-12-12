@@ -25,13 +25,13 @@ from sbs_utils.mast.mast import MastDataObject
 from sbs_utils.mast.mast import MastNode
 from sbs_utils.mast.mast import MatchStatements
 from sbs_utils.mast.mast import Parallel
+from sbs_utils.mast.mast import ParseData
 from sbs_utils.mast.mast import PyCode
 from sbs_utils.mast.mast import Rule
 from sbs_utils.mast.mast import Scope
 from sbs_utils.mast.mast import Timeout
 from enum import Enum
 from enum import IntEnum
-from sbs_utils.tickdispatcher import TickDispatcher
 from zipfile import ZipFile
 def first_newline_index (s):
     ...
@@ -121,6 +121,8 @@ class MastAsyncTask(object):
         ...
     def eval_code (self, code):
         ...
+    def exec_code (self, code):
+        ...
     def format_string (self, message):
         ...
     def get_symbols (self):
@@ -167,6 +169,8 @@ class MastScheduler(object):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def cancel_task (self, name):
         ...
+    def get_seconds (self, clock):
+        """Gets time for a given clock default is just system """
     def get_value (self, key, defa=None):
         ...
     def get_variable (self, key):

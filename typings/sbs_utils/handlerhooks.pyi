@@ -3,6 +3,7 @@ from sbs_utils.damagedispatcher import DamageDispatcher
 from sbs_utils.griddispatcher import GridDispatcher
 from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
+from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.tickdispatcher import TickDispatcher
 def HandleEvent (sim, event):
     ...

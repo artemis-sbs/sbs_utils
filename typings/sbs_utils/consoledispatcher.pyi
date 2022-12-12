@@ -36,7 +36,11 @@ class ConsoleDispatcher(object):
         :type console: string
         :param cb: call back function
         :type cb:  should have arguments of other sim and object's id"""
-    def dispatch_message (sim, event, console: str):
+    def convert (sim, event):
+        ...
+    def convert_to_console_id (sim, event):
+        ...
+    def dispatch_message (sim, event, console):
         """dispatches a console message
         
         :param sim: The simulation
@@ -60,6 +64,8 @@ class ConsoleDispatcher(object):
         :type console: string
         :param other_id: A non player ship ID player
         :type other_id: int"""
+    def do_select (sim, event, console):
+        ...
     def remove_message (an_id: int, console: str):
         """remove a target for console messages
         

@@ -9,6 +9,7 @@ from sbs_utils.mast.maststory import Face
 from sbs_utils.mast.maststory import Hole
 from sbs_utils.mast.maststory import ImageControl
 from sbs_utils.mast.maststory import MastStory
+from sbs_utils.mast.maststory import RadioControl
 from sbs_utils.mast.maststory import Refresh
 from sbs_utils.mast.maststory import Row
 from sbs_utils.mast.maststory import Section
@@ -19,10 +20,10 @@ from sbs_utils.mast.maststory import Text
 from sbs_utils.mast.maststory import TextInputControl
 from sbs_utils.mast.maststory import WidgetList
 from sbs_utils.mast.errorpage import ErrorPage
-from sbs_utils.gui import FakeEvent
 from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
 from sbs_utils.mast.parsers import LayoutAreaParser
+from sbs_utils.mast.parsers import StyleDefinition
 from sbs_utils.mast.mast import Mast
 from sbs_utils.mast.mastscheduler import MastAsyncTask
 from sbs_utils.mast.mastscheduler import MastRuntimeNode
@@ -91,6 +92,12 @@ class ImageControlRuntimeNode(StoryRuntimeNode):
     """class ImageControlRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.ImageControl):
         ...
+class RadioControlRuntimeNode(StoryRuntimeNode):
+    """class RadioControlRuntimeNode"""
+    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.RadioControl):
+        ...
+    def on_message (self, sim, event):
+        ...
 class RefreshRuntimeNode(StoryRuntimeNode):
     """class RefreshRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.Refresh):
@@ -125,7 +132,11 @@ class StoryPage(Page):
         ...
     def add_section (self):
         ...
-    def add_tag (self, layout_item):
+    def add_tag (self, layout_item, runtime_node):
+        ...
+    def get_pending_layout (self):
+        ...
+    def get_pending_row (self):
         ...
     def get_tag (self):
         ...
@@ -151,10 +162,6 @@ class StoryPage(Page):
         """Present the gui """
     def set_button_layout (self, layout):
         ...
-    def set_default_height (self, height):
-        ...
-    def set_section_size (self, values):
-        ...
     def set_widget_list (self, console, widgets):
         ...
     def start_story (self, sim, client_id):
@@ -165,6 +172,10 @@ class StoryPage(Page):
         ...
 class StoryRuntimeNode(MastRuntimeNode):
     """class StoryRuntimeNode"""
+    def apply_style_def (self, style_def, layout_item, task):
+        ...
+    def apply_style_name (self, style_name, layout_item, task):
+        ...
     def databind (self):
         ...
     def on_message (self, sim, event):
@@ -182,10 +193,6 @@ class StoryScheduler(MastSbsScheduler):
     def runtime_error (self, message):
         ...
     def story_tick_tasks (self, sim, client_id):
-        ...
-class SyleRuntimeNode(StoryRuntimeNode):
-    """class SyleRuntimeNode"""
-    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.Style):
         ...
 class TextInputControlRuntimeNode(StoryRuntimeNode):
     """class TextInputControlRuntimeNode"""

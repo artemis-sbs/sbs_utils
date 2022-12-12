@@ -1,8 +1,9 @@
 import unittest
 from . import mock_sbs as sbs
 
-from sbs_utils.spaceobject import SpaceObject, role, linked_to, closest_list, closest, random, broad_test, to_py_object_list
+from sbs_utils.spaceobject import SpaceObject, TickType, role, linked_to, closest_list, closest, random, broad_test, to_py_object_list
 from sbs_utils.objects import Npc, Terrain, PlayerShip
+
 
 def get_sim():
     """ Function in case I change how to get the sim"""
@@ -12,7 +13,7 @@ def get_sim():
 class TestMastSbsCompile(unittest.TestCase):
     def setUp(self) -> None:
         ### This clears all the role info
-        SpaceObject.ids = {'all':{}}
+        SpaceObject.clear()
         
         return super().setUp()
     
@@ -25,6 +26,10 @@ class TestMastSbsCompile(unittest.TestCase):
         assert(artemis is not None)
         assert(artemis.py_object is not None)
         assert(artemis.py_object.is_player)
+        assert(not artemis.py_object.is_passive)
+        assert(not artemis.py_object.is_terrain)
+        assert(not artemis.py_object.is_npc)
+        assert(not artemis.py_object.is_active)
         assert(artemis.py_object.has_role("__PLAYER__"))
         assert(artemis.py_object.has_role("PlayerShip"))
         assert(artemis.py_object.has_role("tsn"))
@@ -34,6 +39,10 @@ class TestMastSbsCompile(unittest.TestCase):
         py_ds1 = ds1.py_object 
         assert(py_ds1 is not None)
         assert(not py_ds1.is_player)
+        assert(not py_ds1.is_passive)
+        assert(not py_ds1.is_terrain)
+        assert(py_ds1.is_npc)
+        assert(py_ds1.is_active)
         assert(py_ds1.has_role("Npc"))
         assert(py_ds1.has_role("tsn"))
         assert(py_ds1.comms_id == "DS1(tsn)")
@@ -43,6 +52,12 @@ class TestMastSbsCompile(unittest.TestCase):
         assert(py_ast is not None)
         assert(not py_ast.is_player)
         assert(py_ast.has_role("Terrain"))
+        assert(not py_ast.is_player)
+        assert(py_ast.is_passive)
+        assert(py_ast.is_terrain)
+        assert(not py_ast.is_npc)
+        assert(not py_ast.is_active)
+
 
         assert(py_ast.comms_id == "")
 
@@ -97,8 +112,9 @@ class TestMastSbsCompile(unittest.TestCase):
         # This is a test to make sure objects are different than ints
         test_id = id(test)
         assert(not players[0].has_link_to("Visit", test_id))
+        assert(players[0].id in SpaceObject.has_links_set("Visit"))
 
-        stations = SpaceObject.all("Station")
+        stations = SpaceObject.all_roles("Station")
         assert(len(stations)==3)
 
 
@@ -295,25 +311,25 @@ class TestMastSbsCompile(unittest.TestCase):
             asteroid_obj = Terrain().spawn(sim, asteroid*100-10,0,200, None, None, "Asteroid 1", "behav_asteroid").py_object
             asteroid_obj.add_role("Asteroid")
         
-        test = sbs.broad_test(-50,-50, 50,50, -1)
+        test = sbs.broad_test(-50,-50, 50,50, TickType.ALL)
         assert(len(test)==1) # Just the player
 
-        test = sbs.broad_test(-100,-200, 100,200, -1)
+        test = sbs.broad_test(-100,-200, 100,200, TickType.ALL)
         assert(len(test)==5) # 1 Player, 2 npc, 2 asteroid
 
         # """int, 0=passive, 1=active, 2=playerShip""" #
         for asteroid in range(1,11):
-            test = sbs.broad_test(-(asteroid*100-20),-200, asteroid*100-20,200, 0)
+            test = sbs.broad_test(-(asteroid*100-20),-200, asteroid*100-20,200, TickType.PASSIVE)
             assert(len(test)==asteroid) # Just the asteroid
             assert(test[0].data_tag=="Asteroid 1")
 
         for station in range(1,6):
-            test = sbs.broad_test(-(station)*100+20,-100, (station)*100-20,100, 1)
+            test = sbs.broad_test(-(station)*100+20,-100, (station)*100-20,100, TickType.NPC)
             assert(len(test)==station) # Just the starbases
             assert(test[0].data_tag=="Starbase")
         
         for player in range(1,7):
-            test = sbs.broad_test(-(player*100)-10,-100, (player*100)-10,100, 2)
+            test = sbs.broad_test(-(player*100)-10,-100, (player*100)-10,100, TickType.PLAYER)
             assert(len(test)==player) # Just the player
             assert(test[0].data_tag=="Battle Cruiser")
 
