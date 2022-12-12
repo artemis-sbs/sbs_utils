@@ -1,7 +1,7 @@
 import unittest
 from . import mock_sbs as sbs
 
-from sbs_utils.spaceobject import SpaceObject, role, linked_to, closest_list, closest, random, broad_test, to_py_object
+from sbs_utils.spaceobject import SpaceObject, role, linked_to, closest_list, closest, random, broad_test, to_py_object_list
 from sbs_utils.objects import Npc, Terrain, PlayerShip
 
 def get_sim():
@@ -10,7 +10,11 @@ def get_sim():
 
 
 class TestMastSbsCompile(unittest.TestCase):
-    
+    def setUp(self) -> None:
+        ### This clears all the role info
+        SpaceObject.ids = {'all':{}}
+        
+        return super().setUp()
     
     def test_space_object(self):
         """ Test for the basic creation of SpaceObjects"""
@@ -150,7 +154,7 @@ class TestMastSbsCompile(unittest.TestCase):
         players=list(players)
         artemis = players[0]
 
-        player_objs = to_py_object(players)
+        player_objs = to_py_object_list(players)
         assert(len(player_objs) == len(players))
 
         
@@ -169,7 +173,7 @@ class TestMastSbsCompile(unittest.TestCase):
             assert(pos.z == 100)
 
         for friendly in range(5):
-            friendly_obj = Npc().spawn(sim, station*100,0,100, f"F{friendly}", "tsn", "Light Cruiser", "behav_npcship").py_object
+            friendly_obj = Npc().spawn(sim, friendly*100,0,100, f"F{friendly}", "tsn", "Light Cruiser", "behav_npcship").py_object
             if friendly  % 2:
                 player_objs[0].add_link("Visit", friendly_obj)
 
@@ -205,13 +209,72 @@ class TestMastSbsCompile(unittest.TestCase):
         # get the closest stations Artemis is assigned to visit the is in
         test = closest(artemis,  in_range & visit_list & stations )
 
+        assert(test.py_object.name == "DS1")
+
         test = closest(artemis,  
-            broad_test(10000,10000, -10000, -10000, 2) 
+            broad_test(10000,10000, -10000, -10000, 1) 
             & linked_to(artemis, "Visit")
             & role("Station") )
+        assert(test.py_object.name == "DS1")
+
+        # Gets the all visitable in range
+        test = closest_list(artemis,  
+            broad_test(5000,5000, -5000, -5000, 1) 
+            & linked_to(artemis, "Visit")
+             )
+        assert(len(test)==4)
+        names = [obj.py_object.name for obj in test]
+        assert("DS1" in names)
+        assert("F1" in names)
+        assert("DS3" in names)
+        assert("F3" in names)
+        # Gets the all visitable in narrower range
+        test = closest_list(artemis,  
+            broad_test(200,200, -200, -200, 1) 
+            & linked_to(artemis, "Visit")
+             )
+        assert(len(test)==2)
+        names = [obj.py_object.name for obj in test]
+        assert("DS1" in names)
+        assert("F1" in names)
+
+        # get all visitable that are not stations
+        test = closest_list(artemis,  
+            broad_test(10000,10000, -10000, -10000, 1) 
+            & linked_to(artemis, "Visit")
+            - role("Station") )
+        assert(len(test)==2)
+        names = [obj.py_object.name for obj in test]
+        assert("F1" in names)
+        assert("F3" in names)
+
+        # get all visitable that are stations
+        test = closest_list(artemis,  
+            broad_test(10000,10000, -10000, -10000, 1) 
+            & linked_to(artemis, "Visit")
+            & role("Station") )
+        assert(len(test)==2)
+        names = [obj.py_object.name for obj in test]
+        assert("DS1" in names)
+        assert("DS3" in names)
 
         friendly_tsn = role("tsn") - role("PlayerShip") - role("Station")
         assert(len(friendly_tsn) == 5)
+        names = [obj.name for obj in to_py_object_list(friendly_tsn)]
+        assert("F0" in names)
+        assert("F1" in names)
+        assert("F2" in names)
+        assert("F3" in names)
+        assert("F4" in names)
+
+        raiders = role("Npc") - role("tsn")
+        assert(len(raiders) == 5)
+        names = [obj.name for obj in to_py_object_list(raiders)]
+        assert("R0" in names)
+        assert("R1" in names)
+        assert("R2" in names)
+        assert("R3" in names)
+        assert("R4" in names)
         
 
     def test_fake_broad_test(self):

@@ -891,5 +891,5 @@ def random_list(the_set, count=1):
     rand_id_list = choices(tuple(the_set), count)
     return [SpaceObject.get(x) for x in rand_id_list]
 
-def to_py_object(the_set):
+def to_py_object_list(the_set):
     return [SpaceObject.get(id) for id in the_set]

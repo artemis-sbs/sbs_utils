@@ -63,7 +63,7 @@ def create_transient(arg0: int, arg1: int, arg2: int, arg3: int, arg4: float, ar
 
 def delete_object(arg0: int) -> None:
     """deletes a space object by its ID"""
-
+    
 
 def distance(arg0: space_object, arg1: space_object) -> float:
     """returns the distance between two space objects; arguments are two spaceObjects"""
