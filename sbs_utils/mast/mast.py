@@ -227,6 +227,15 @@ class PyCode(MastNode):
             py_cmds= py_cmds.lstrip()
             self.code = compile(py_cmds, "<string>", "exec")
 
+class DoCommand(MastNode):
+    rule = re.compile(r'do\s+(?P<py_cmds>.+)')
+    def __init__(self, py_cmds=None, loc=None):
+        self.loc = loc
+        if py_cmds:
+            py_cmds= py_cmds.lstrip()
+            self.code = compile(py_cmds, "<string>", "exec")
+
+
 
 
 class Input(MastNode):
@@ -566,6 +575,7 @@ class Mast:
         LoopEnd,
         LoopBreak,
         PyCode,
+        DoCommand,
         Log,
         Logger,
         Input,

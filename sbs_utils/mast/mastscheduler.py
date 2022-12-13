@@ -76,6 +76,14 @@ class PyCodeRuntimeNode(MastRuntimeNode):
             task.runtime_error(f"""Embedded python failed""")
         return PollResults.OK_ADVANCE_TRUE
 
+class DoCommandRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task:MastAsyncTask, node:DoCommand):
+        locals = task.get_symbols()
+        try:
+            exec(node.code,{"__builtins__": Mast.globals}, locals)
+        except:
+            task.runtime_error(f"""Do Command failed""")
+        return PollResults.OK_ADVANCE_TRUE
 
 class JumpRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:Jump):
@@ -658,6 +666,7 @@ class MastScheduler:
         "LoopEnd": LoopEndRuntimeNode,
         "LoopBreak": LoopBreakRuntimeNode,
         "PyCode": PyCodeRuntimeNode,
+        "DoCommand": DoCommandRuntimeNode,
         "Await": AwaitRuntimeNode,
         "Parallel": ParallelRuntimeNode,
         "Cancel": CancelRuntimeNode,

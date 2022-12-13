@@ -43,6 +43,8 @@ x = ~~[
     def test_py_exp_compile_err(self):
         (errors, mast) = mast_compile( code = """
 ~~ "{}{}".format(2,3) ~~
+do x + fred(123)
+
 """)
         assert(len(errors)==0)
 

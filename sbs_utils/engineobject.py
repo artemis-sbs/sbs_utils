@@ -31,10 +31,10 @@ class Stuff:
             return False
 
         if isinstance(collection, str):
-            return id in self.collections[collection]
+            return id in self.collection_set(collection)
         try:
             for r in collection:
-                if id in self.collections[r]:
+                if id in self.collection_set(r):
                     return True
         except:
             return False
@@ -47,11 +47,16 @@ class Stuff:
     def get_collections_in(self, id):
         roles = []
         for role in self.collections:
-            if self.collection_has(id, role):
+            if self.collection_has(role, id):
                 roles.append(role)
         return roles
+    # def collection_set(self, collection):
+    #     return self.collections.get(collection, set())
     def collection_set(self, collection):
-        return self.collections.get(collection, set())
+        the_set = self.collections.get(collection)
+        if the_set and not isinstance(the_set,set):
+            return {the_set}
+        return the_set
 
     def collection_list(self, collection):
         return list(self.collection_set(collection))
@@ -297,9 +302,21 @@ class EngineObject():
         return []
 
     def get_inventory_set(self, collection_name):
-        return self.links.collection_set(collection_name)
+        return self.inventory.collection_set(collection_name)
+    
     def get_inventory_list(self, collection_name):
-        return self.links.collection_list(collection_name)
+        return self.inventory.collection_list(collection_name)
+
+    def get_inventory_value(self, collection_name):
+        return self.inventory.collections.get(collection_name)
+
+    def set_inventory_value(self, collection_name, value):
+        self._has_inventory.add_to_collection(collection_name, self.id)
+        self.inventory.collections[collection_name]=value
+
+    def remove_inventory_value(self, collection_name):
+        self._has_inventory.remove_from_collection(collection_name, self.id)
+        return self.inventory.collections.pop(collection_name,None)
 
     @classmethod
     def has_inventory_set(cls, collection_name):

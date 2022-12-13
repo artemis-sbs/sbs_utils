@@ -338,6 +338,69 @@ class TestMastSbsCompile(unittest.TestCase):
             assert(len(test)==player) # Just the player
             assert(test[0].data_tag=="Battle Cruiser")
 
+    def test_inventory(self):
+        
+        sbs.create_new_sim()
+        sim = get_sim()
+
+        
+        artemis = PlayerShip().spawn(sim, 0,0,0, "Artemis", "tsn", "Battle Cruiser").py_object
+        artemis.set_inventory_value("Gold", 5)
+        assert(artemis.has_any_inventory("Gold"))
+        assert(artemis.get_inventory_value("Gold")==5)
+
+        class Passenger:
+            def __init__(self, name):
+                self.name = name
+
+        kirk = Passenger("Kirk")
+        spock = Passenger("Spock")
+        mccoy = Passenger("McCoy")
+        artemis.add_inventory("Passengers", kirk)
+        artemis.add_inventory("Passengers", spock)
+        artemis.add_inventory("Passengers", mccoy)
+        artemis.add_inventory("Doctor", mccoy)
+
+        passengers = artemis.get_inventory_set("Passengers")
+        assert(len(passengers)==3)
+        names = [obj.name for obj in passengers]
+        assert("Kirk" in names)
+        assert("Spock" in names)
+        assert("McCoy" in names)
+
+        doctors = artemis.get_inventory_set("Doctor")
+        assert(len(doctors)==1)
+        names = [obj.name for obj in doctors]
+        assert("McCoy" in names)
+
+        collections = artemis.get_inventory_in(mccoy)
+        assert(len(collections)==2)
+        assert("Passengers" in collections)
+        assert("Doctor" in collections)
+
+        artemis.remove_inventory("Passengers", mccoy)
+        collections = artemis.get_inventory_in(mccoy)
+        assert(len(collections)==1)
+        assert("Doctor" in collections)
+
+
+        collections = artemis.get_inventory_in(spock)
+        assert(len(collections)==1)
+        assert("Passengers" in collections)
+
+        passengers = artemis.get_inventory_set("Passengers")
+        assert(len(passengers)==2)
+        names = [obj.name for obj in passengers]
+        assert("Kirk" in names)
+        assert("Spock" in names)
+
+
+
+
+
+
+
+
 
         
 
