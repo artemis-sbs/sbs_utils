@@ -156,13 +156,14 @@ class EngineObject():
         return self.roles.get_collections_in(id)
 
     @classmethod
-    def get_objects_with_role(cls,role):
+    def get_role_objects(cls,role):
         id_set = cls.roles.collection_set(role)
         return [cls.get(x) for x in id_set]
 
     @classmethod
     def get_role_set(cls, role):
         return  cls.roles.collection_set(role)
+ 
     ############### LINKS ############
     def add_link(self, link_name: str, other: EngineObject | CloseData | int):
         """ Add a link to the space object. Links are uni-directional
@@ -183,7 +184,7 @@ class EngineObject():
         id = EngineObject.resolve_id(other)
         the_set = self.links.remove_from_collection(link_name,id)
         if len(the_set)<1:
-            self.has_links.remove_from_collection(self.id)
+            self.has_links.remove_from_collection(link_name, self.id)
 
     def has_link_to(self, link_name: str | list[str], other: EngineObject | CloseData | int):
         """ check if the object has a role

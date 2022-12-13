@@ -1,7 +1,8 @@
 import unittest
 from . import mock_sbs as sbs
 
-from sbs_utils.spaceobject import SpaceObject, TickType, role, linked_to, closest_list, closest, random, broad_test, to_py_object_list
+from sbs_utils.spaceobject import SpaceObject, TickType
+from sbs_utils.query import role, linked_to, closest_list, closest, broad_test, to_py_object_list
 from sbs_utils.objects import Npc, Terrain, PlayerShip
 from sbs_utils.gridobject import GridObject
 
@@ -10,7 +11,7 @@ def get_sim():
     return sbs.sim
 
 
-class TestMastSbsCompile(unittest.TestCase):
+class TestSpaceObject(unittest.TestCase):
     def setUp(self) -> None:
         ### This clears all the role info
         SpaceObject.clear()
@@ -43,6 +44,7 @@ class TestMastSbsCompile(unittest.TestCase):
         assert(not py_ds1.is_terrain)
         assert(py_ds1.is_npc)
         assert(py_ds1.is_active)
+        assert(py_ds1.has_role("__NPC__"))
         assert(py_ds1.has_role("Npc"))
         assert(py_ds1.has_role("tsn"))
         assert(py_ds1.comms_id == "DS1(tsn)")
@@ -51,6 +53,7 @@ class TestMastSbsCompile(unittest.TestCase):
         py_ast = ast.py_object 
         assert(py_ast is not None)
         assert(not py_ast.is_player)
+        assert(py_ast.has_role("__TERRAIN__"))
         assert(py_ast.has_role("Terrain"))
         assert(not py_ast.is_player)
         assert(py_ast.is_passive)

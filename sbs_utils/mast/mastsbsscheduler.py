@@ -10,6 +10,7 @@ from .errorpage import ErrorPage
 from .. import faces
 from ..tickdispatcher import TickDispatcher
 import sys
+from .. import query
 
 import traceback
 
@@ -77,8 +78,7 @@ class BroadcastRuntimeNode(MastRuntimeNode):
         elif node.to_tag=="SERVER":
             self.to_ids = [0]
         else:
-            to_so= task.get_value(node.to_tag, None)
-            to_so = to_so[0]
+            to_so= task.get_variable(node.to_tag, None)
             if to_so:
                 self.to_ids = [to_so.get_id()]
             else:
@@ -122,7 +122,7 @@ class CommsRuntimeNode(MastRuntimeNode):
 
         self.to_id = to_so.get_id()
         self.from_id = from_so.get_id()
-        self.comms_id = to_so.comms_id(task.main.sim)
+        self.comms_id = to_so.comms_id
         self.face = faces.get_face(to_so.id) 
         
         ConsoleDispatcher.add_select_pair(self.from_id, self.to_id, 'comms_target_UID', self.comms_selected)
@@ -191,10 +191,11 @@ class CommsRuntimeNode(MastRuntimeNode):
 
 class TargetRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Target):
-        to_so:SpaceObject = task.vars.get(node.to_tag)
+        to_so:SpaceObject = task.get_variable(node.to_tag)
         self.to_id = to_so.get_id() if to_so else None
-        from_so:SpaceObject = task.vars.get(node.from_tag)
+        from_so:SpaceObject = task.get_variable(node.from_tag)
         self.from_id = from_so.get_id() if from_so else None
+
 
 
     def poll(self, mast, task, node:Target):
@@ -218,10 +219,10 @@ class NearRuntimeNode(MastRuntimeNode):
 
         self.tag = None
 
-        to_so:SpaceObject = task.vars.get(node.to_tag)
+        to_so:SpaceObject = task.get_variable(node.to_tag)
         if to_so:
             self.to_id = to_so.get_id()
-        from_so:SpaceObject = task.vars.get(node.from_tag)
+        from_so:SpaceObject = task.get_variable(node.from_tag)
         if from_so:
             self.from_id = from_so.get_id()
 
@@ -283,6 +284,34 @@ over =     {
       "Simulation": SimulationRuntimeNode
     }
 
+
+Mast.globals["SpaceObject"] =MastSpaceObject
+Mast.globals["script"] = sys.modules['script']
+for func in [
+        # query sets
+        query.role,
+        query.has_inventory,
+        query.has_link,
+        query.inventory_set,
+        query.inventory_value,
+        query.linked_to,
+        query.broad_test,
+        # resolvers
+        query.closest_list,
+        query.closest,
+        query.closest_object,
+        query.random_object,
+        query.random_object_list,
+        query.to_py_object_list,
+        query.link,
+        query.unlink,
+        query.to_id,
+        query.to_object
+    ]:
+    Mast.globals[func.__name__] = func
+
+
+
 class MastSbsScheduler(MastScheduler):
     def __init__(self, mast: Mast, overrides=None):
         if overrides:
@@ -292,12 +321,10 @@ class MastSbsScheduler(MastScheduler):
         self.sim = None
         self.vars["sbs"] = sbs
         # Create schedulable space objects
-        self.vars["SpaceObject"] =MastSpaceObject
-
         self.vars["Npc"] = self.Npc
         self.vars["Terrain"] = self.Terrain
         self.vars["PlayerShip"] = self.PlayerShip
-        self.vars["script"] = sys.modules['script']
+
 
     def Npc(self):
         return Npc(self)

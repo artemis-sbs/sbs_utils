@@ -4,6 +4,7 @@ from .mastscheduler import MastAsyncTask, MastScheduler
 
 class MastSpaceObject(SpaceObject):
     def __init__(self, scheduler: MastScheduler):
+        super().__init__()
         self.scheduler = scheduler
         self.tasks = []
 
