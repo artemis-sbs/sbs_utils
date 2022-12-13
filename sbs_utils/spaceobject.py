@@ -3,7 +3,7 @@ from typing import Callable
 import sbs
 from random import randrange, choice, choices
 from enum import IntEnum
-from .relationship import Stuff
+from .engineobject import Stuff, EngineObject, SpawnData, CloseData
 
 
 class TickType(IntEnum):
@@ -16,54 +16,19 @@ class TickType(IntEnum):
     ALL = -1
 
 
-class SpawnData:
-    id: int
-    engine_object: any
-    blob: any
-    py_object: SpaceObject
-
-    def __init__(self, id, obj, blob, py_obj) -> None:
-        self.id = id
-        self.engine_object = obj
-        self.blob = blob
-        self.py_object = py_obj
-
-
-class CloseData:
-    id: int
-    py_object: SpaceObject
-    distance: float
-
-    def __init__(self, other_id, other_obj, distance) -> None:
-        self.id = other_id
-        self.py_object = other_obj
-        self.distance = distance
-
-
-class SpaceObject:
-    #ids = {'all': {}}
+class SpaceObject(EngineObject):
     roles : Stuff = Stuff()
-    has_inventory : Stuff = Stuff()
+    _has_inventory : Stuff = Stuff()
     has_links : Stuff = Stuff()
     all = {}
-    
-    debug = True
     removing = set()
 
     def __init__(self):
+        super().__init__()
         self._name = ""
         self._side = ""
-        self.inventory = Stuff()
-        self.links = Stuff()
         self.tick_type = TickType.UNKNOWN
-
-    @classmethod
-    def clear(cls):
-        cls.all = {}
-        cls.roles = Stuff()
-        cls.has_inventory = Stuff()
-        cls.has_links = Stuff()
-
+    
     @property
     def is_player(self):
         return self.tick_type == TickType.PLAYER
@@ -84,227 +49,6 @@ class SpaceObject:
     def is_passive(self):
         return self.tick_type == TickType.PASSIVE
 
-    def destroyed(self):
-        self.remove()
-
-    def get_id(self):
-        return self.id
-
-    def _add(id, obj):
-        SpaceObject.all[id] = obj
-
-    def _remove(id):
-        SpaceObject.all.pop(id)
-        return SpaceObject.roles.remove_every_collection(id)
-
-    def add_role(self, role: str):
-        """ Add a role to the space object
-
-        :param role: The role to add e.g. spy, pirate etc.
-        :type id: str
-        """
-        SpaceObject.roles.add_to_collection(role, self.id)
-
-    def remove_role(self, role: str):
-        """ Remove a role from the space object
-
-        :param role: The role to add e.g. spy, pirate etc.
-        :type id: str
-        """
-        SpaceObject.roles.remove_from_collection(role, self.id)
-
-    def has_role(self, role):
-        """ check if the object has a role
-
-        :param role: The role to add e.g. spy, pirate etc.
-        :type id: str
-        :return: If the object has the role
-        :rtype: bool
-        """
-        return SpaceObject.roles.collection_has(role, self.id)
-
-    def get_roles(self, id):
-        return SpaceObject.roles.get_collections_in(id)
-
-    def get_objects_with_role(role):
-        id_set = SpaceObject.roles.collection_set(role)
-        return [SpaceObject.get(x) for x in id_set]
-
-    def get_role_set(role):
-        return  SpaceObject.roles.collection_set(role)
-    ############### LINKS ############
-
-    def add_link(self, link_name: str, other: SpaceObject | CloseData | int):
-        """ Add a link to the space object. Links are uni-directional
-
-        :param role: The role/link name to add e.g. spy, pirate etc.
-        :type id: str
-        """
-        id = SpaceObject.resolve_id(other)
-        self.links.add_to_collection(link_name,id)
-        SpaceObject.has_links.add_to_collection(link_name, self.id)
-
-    def remove_link(self, link_name: str, other: SpaceObject | CloseData | int):
-        """ Remove a role from the space object
-
-        :param role: The role to add e.g. spy, pirate etc.
-        :type id: str
-        """
-        id = SpaceObject.resolve_id(other)
-        the_set = self.links.remove_from_collection(link_name,id)
-        if len(the_set)<1:
-            SpaceObject.has_links.remove_from_collection(self.id)
-
-    def has_link_to(self, link_name: str | list[str], other: SpaceObject | CloseData | int):
-        """ check if the object has a role
-
-        :param role: The role to add e.g. spy, pirate etc.
-        :type id: str
-        :return: If the object has the role
-        :rtype: bool
-        """
-        id = SpaceObject.resolve_id(other)
-        return self.links.collection_has(link_name,id)
-
-    def _remove_every_link(self, other: SpaceObject | CloseData | int):
-        id = SpaceObject.resolve_id(other)
-        for role in self.links:
-            self._remove_link(role, id)
-
-    def get_in_links(self, other: SpaceObject | CloseData | int):
-        id = SpaceObject.resolve_id(other)
-        return self.inventory.get_collections_in(id)
-        
-    def get_objects_with_link(self, link_name):
-        the_set =  self.links.collection_set(link_name)
-        if the_set:
-            # return a list so you can remove while iterating
-            return [SpaceObject.get(x) for x in the_set]
-        return []
-
-    def get_link_set(self, link_name):
-        return self.links.collection_set(link_name)
-
-    def get_link_list(self, link_name):
-        return self.links.collection_list(link_name)
-
-    def has_links_set(collection_name):
-        return SpaceObject.has_links.collection_set(collection_name)
-
-    def has_links_list(collection_name):
-        return SpaceObject.has_links.collection_list(collection_name)
-    ####################################
-    def resolve_id(other: SpaceObject | CloseData | int):
-        id = other
-        if isinstance(other, SpaceObject):
-            id = other.id
-        elif isinstance(other, CloseData):
-            id = other.id
-        elif isinstance(other, SpawnData):
-            id = other.id
-        return id
-
-    def resolve_py_object(other: SpaceObject | CloseData | int):
-        py_object = other
-        if isinstance(other, SpaceObject):
-            py_object = other
-        elif isinstance(other, CloseData):
-            py_object = other.py_object
-        elif isinstance(other, SpawnData):
-            py_object = other.py_object
-        else:
-            py_object = SpaceObject.get(other)
-        return py_object
-
-    def get_objects_from_set(the_set):
-        return [SpaceObject.get(x) for x in the_set]
-    ####################################
-
-    ############### INVENTORY (Links to data) ############
-    def add_inventory(self, collection_name: str, data: object):
-        """ Add a link to the space object. Links are uni-directional
-
-        :param role: The role/link name to add e.g. spy, pirate etc.
-        :type id: str
-        """
-        self.inventory.add_to_collection(collection_name,data)
-        SpaceObject.has_inventory.add_to_collection(collection_name, self.id)
-
-    def remove_inventory(self, collection_name: str, data: object):
-        """ Remove a role from the space object
-
-        :param role: The role to add e.g. spy, pirate etc.
-        :type id: str
-        """
-        the_set = self.inventory.remove_from_collection(collection_name,data)
-        if len(the_set)<1:
-            SpaceObject.has_inventory.remove_from_collection(collection_name, self.id)
-
-    def has_any_inventory(self, collection_name: str | list[str]):
-        return SpaceObject.has_inventory.collection_has(collection_name,self.id)
-
-    def has_in_inventory(self, link_name: str | list[str], data: object):
-        """ check if the object has a role
-
-        :param role: The role to add e.g. spy, pirate etc.
-        :type id: str
-        :return: If the object has the role
-        :rtype: bool
-        """
-        return self.links.collection_has(link_name,data)
-
-    def _remove_every_inventory(self, data: object):
-        self.inventory.remove_every_collection(data)
-
-    def get_inventory_in(self, data: object):
-        return self.inventory.get_collections_in(data)
-        
-    def get_objects_in_inventory(self, collection_name):
-        the_set =  self.inventory.collection_set(collection_name)
-        if the_set:
-            # return a list so you can remove while iterating
-            return [SpaceObject.get(x) for x in the_set]
-        return []
-
-    def get_inventory_set(self, collection_name):
-        return self.links.collection_set(collection_name)
-    def get_inventory_list(self, collection_name):
-        return self.links.collection_list(collection_name)
-
-    def has_inventory_set(collection_name):
-        return SpaceObject.has_inventory.collection_set(collection_name)
-
-    def has_inventory_list(collection_name):
-        return SpaceObject.has_inventory.collection_list(collection_name)
-    ###########################################################
-
-
-    def get(id):
-        o = SpaceObject.all.get(id)
-        if o is None:
-            return None
-        return o
-
-    def get_as(id, cls):
-        o = SpaceObject.all.get(id)
-        if o is None:
-            return None
-        if o.__class__ != cls:
-            return None
-        return o
-
-    def py_class():
-        return __class__
-
-    def add(self):
-        """ Add the object to the system, called by spawn normally
-        """
-        SpaceObject._add(self.id, self)
-
-    def remove(self):
-        """ remove the object to the system, called by destroyed normally
-        """
-        SpaceObject._remove(self.id)
 
     def get_space_object(self, sim):
         """ Gets the simulation space object
@@ -318,6 +62,7 @@ class SpaceObject:
         return sim.get_space_object(self.id)
 
     def all_roles(roles: str, linked_object: SpaceObject | None = None, filter_func=None):
+        
         roles = roles.split(",\*")
         ret = set()
         if linked_object:
@@ -328,10 +73,11 @@ class SpaceObject:
             for role in roles:
                 objects = SpaceObject.get_objects_with_role(role)
                 ret |= set(objects)
-
+        
         items = list(ret)
         if filter_func is not None:
             items = filter(filter_func, items)
+            
 
         return items
 
@@ -387,6 +133,7 @@ class SpaceObject:
         :rtype: CloseData
         """
         dist = None
+        close_obj = None
         # list of close objects
         items = self.find_close_list(sim, roles, max_dist, filter_func, linked)
         # Slightly inefficient
@@ -399,10 +146,9 @@ class SpaceObject:
             elif test < dist:
                 close_obj = other
                 dist = test
-
         return close_obj
 
-    def target_closest(self, sim, roles=None, max_dist=None, filter_func=None, shoot: bool = True, linked: bool = True):
+    def target_closest(self, sim, roles=None, max_dist=None, filter_func=None, shoot: bool = True, linked: bool = False):
         """ Find and target the closest object matching the criteria
 
         :param sim: The simulation
@@ -419,7 +165,7 @@ class SpaceObject:
         :rtype: CloseData
         """
         close = self.find_closest(sim, roles, max_dist, filter_func, linked)
-        if close.id is not None:
+        if close is not None and close.id is not None:
             self.target(sim, close.id, shoot)
         return close
 
@@ -669,7 +415,7 @@ class MSpawn:
         blob = obj.data_set
         if side is not None:
             self._comms_id = f"{name}({side})" if name is not None else f"{side}{self.id}"
-            obj._side = side
+            obj.side = side
             self.add_role(side)
         else:
             self._comms_id = name if name is not None else f""

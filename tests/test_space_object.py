@@ -3,7 +3,7 @@ from . import mock_sbs as sbs
 
 from sbs_utils.spaceobject import SpaceObject, TickType, role, linked_to, closest_list, closest, random, broad_test, to_py_object_list
 from sbs_utils.objects import Npc, Terrain, PlayerShip
-
+from sbs_utils.gridobject import GridObject
 
 def get_sim():
     """ Function in case I change how to get the sim"""
@@ -57,6 +57,11 @@ class TestMastSbsCompile(unittest.TestCase):
         assert(py_ast.is_terrain)
         assert(not py_ast.is_npc)
         assert(not py_ast.is_active)
+
+        # Sanity check to make sure
+        # SpaceObject and GridObject are not sharing static data
+        assert(len(GridObject.all.keys())==0)
+        assert(len(SpaceObject.all.keys())!=0)
 
 
         assert(py_ast.comms_id == "")

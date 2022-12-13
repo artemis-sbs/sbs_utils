@@ -363,6 +363,7 @@ class Mission:
         Gui.client_start_page_class(ClientSelectPage)
         player = PlayerShip()
         sd_player = player.spawn(sim, 0,0,0, "Artemis", "tsn", "Battle Cruiser")
+        sbs.assign_client_to_ship(0, sd_player.id)
         go1 = GridObject()
         go1.spawn(sim, sd_player.id, "fred", "fred", 9,4, 3, "blue", "flint")
         go2 = GridObject()

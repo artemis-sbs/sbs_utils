@@ -1,142 +1,22 @@
+from __future__ import annotations
 import sbs
 import functools
+from .engineobject import EngineObject, SpawnData, CloseData, Stuff
 
 
-class GridObject:
-    pass
-
-
-class GridSpawnData:
-    id: int
-    engine_object: any
-    blob: any
-    py_object: GridObject
-
-    def __init__(self, id, obj, blob, py_obj) -> None:
-        self.id = id
-        self.engine_object = obj
-        self.blob = blob
-        self.py_object = py_obj
-
-
-class GridCloseData:
-    id: int
-    obj: GridObject
-    distance: float
-
-    def __init__(self, other_id, other_obj, distance) -> None:
-        self.id = other_id
-        self.obj = other_obj
-        self.distance = distance
-
-
-class GridObject:
-    ids = {'all': {}}
-    debug = True
+class GridObject(EngineObject):
+    roles : Stuff = Stuff()
+    _has_inventory : Stuff = Stuff()
+    has_links : Stuff = Stuff()
+    all = {}
     removing = set()
 
     def __init__(self):
-        pass
+        super().__init__()
+        self._name = ""
+        self._side = ""
 
-    def destroyed(self):
-        self.remove()
-
-    def get_id(self):
-        return self.id
-
-    def _add(id, obj):
-        GridObject.ids['all'][id] = obj
-
-    def _remove(id):
-        return GridObject._remove_every_role(id)
-
-    def _add_role(role, id, obj):
-        if role not in GridObject.ids:
-            GridObject.ids[role] = {}
-        GridObject.ids[role][id] = obj
-
-    def add_role(self, role: str):
-        """ Add a role to the space object
-
-        :param role: The role to add e.g. spy, pirate etc.
-        :type id: str
-        """
-        GridObject._add_role(role, self.id, self)
-
-    def _remove_role(role, id):
-        if GridObject.ids.get(role) is not None:
-            GridObject.ids[role].pop(id, None)
-
-    def remove_role(self, role: str):
-        """ Remove a role from the space object
-
-        :param role: The role to add e.g. spy, pirate etc.
-        :type id: str
-        """
-
-        GridObject._remove_role(role, self.id)
-
-    def has_role(self, role):
-        """ check if the object has a role
-
-        :param role: The role to add e.g. spy, pirate etc.
-        :type id: str
-        :return: If the object has the role
-        :rtype: bool
-        """
-
-        if role not in GridObject.ids:
-            return False
-
-        if isinstance(role, str):
-            return GridObject.ids[role].get(self.id) is not None
-        try:
-            for r in role:
-                if GridObject.ids[r].get(self.id) is not None:
-                    return True
-        except:
-            return False
-        return False
-
-    def _remove_every_role(id):
-        for role, _ in GridObject.ids:
-            GridObject.remove_role(role, id)
-
-    def get_roles(self):
-        roles = []
-        for role in GridObject.ids:
-            if self.has_role(role):
-                roles.append(role)
-        return roles
-
-    def get(id):
-        o = GridObject.ids['all'].get(id)
-        if o is None:
-            return None
-        return o
-
-    def get_as(id, cls):
-        o = GridObject.ids['all'].get(id)
-        if o is None:
-            return None
-        if o.__class__ != cls:
-            return None
-        return o
-
-    def py_class():
-        return __class__
-
-    def add(self):
-        """ Add the object to the system, called by spawn normally
-        """
-        GridObject._add(self.id, self)
-
-    def remove(self):
-        """ remove the object to the system, called by destroyed normally
-        """
-        GridObject._remove(self.id)
-
-    def find_close_list(self, sim, roles=None, max_dist=None, filter_func=None) -> list[GridCloseData]:
+    def find_close_list(self, sim, roles=None, max_dist=None, filter_func=None) -> list[CloseData]:
         """ Finds a list of matching objects
         :param sim: The simulation
         :type sim: Artemis Cosmos simulation
@@ -175,16 +55,16 @@ class GridObject:
                 
                 test = 0
                 if test < max_dist:
-                    ret.append(GridCloseData(other_id, other_go, test))
+                    ret.append(CloseData(other_id, other_go, test))
 
-                ret.append(GridCloseData(other_id, other_go, test))
+                ret.append(CloseData(other_id, other_go, test))
                 continue
 
                 
 
             return ret
 
-    def find_closest(self, sim, roles=None, max_dist=None, filter_func=None) -> GridCloseData:
+    def find_closest(self, sim, roles=None, max_dist=None, filter_func=None) -> CloseData:
         """ Finds the closest object matching the criteria
 
         :param sim: The simulation
@@ -297,6 +177,7 @@ class GridObject:
         if go is None:
             return ""
         return go.name
+
     def update_blob(self, sim:sbs.simulation, speed=None, icon_index=None, icon_scale=None, color=None):
         go = self.grid_object(sim)
         if go is None:
@@ -317,8 +198,8 @@ class GridObject:
         if color is not None:
             blob.set("icon_color", color , 0)
 
-        
-
+      
+    
     def spawn(self, sim:sbs.simulation, host_id, name, tag, x, y, icon_index, color,  go_type=None):
         self.host_id = host_id
         hullMap: sbs.hullmap

@@ -55,7 +55,7 @@ class ClientSelectPage(Page):
 
             i = 0
             for player in players:
-                name = player.name(sim)
+                name = player.name
                 if self.player_id is None:
                     self.player_id = player.id
                 sbs.send_gui_checkbox(CID, name, str(player.id), int(self.player_id == player.id), 20,75-i*5, 39,79-i*5)
