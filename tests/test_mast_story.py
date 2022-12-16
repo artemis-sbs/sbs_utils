@@ -28,6 +28,13 @@ await gui timeout 5s
 input name "enter name"
 
 await choice:
+    + "Start Mission" if started==False:
+    ~~ sbs.resume_sim()~~
+    + "Resume Mission" if started==True:
+    ~~ sbs.resume_sim() ~~
+end_await
+
+await choice:
     * "Button one":
         -> JumpLabel
     + "Button Two":

@@ -8,6 +8,18 @@ class Stuff:
     def clear(self):
         self.collections = {}
 
+
+    def remove_collection(self, collection):
+        self.collections.discard(collection)
+
+    def dedicated_collection(self, collection, id):
+        if id is None:
+            self.remove_collection(collection)
+            return
+        self.collections[collection] = set()
+        self.collections[collection].add(id)
+
+
     def add_to_collection(self, collection, id):
         if collection not in self.collections:
             self.collections[collection] = set()
@@ -16,7 +28,7 @@ class Stuff:
     def remove_from_collection(self, collection, id):
         the_set = self.collections.get(collection) 
         if the_set is not None:
-            the_set.remove(id)
+            the_set.discard(id)
             return the_set
         return set()
 
@@ -56,6 +68,8 @@ class Stuff:
         the_set = self.collections.get(collection)
         if the_set and not isinstance(the_set,set):
             return {the_set}
+        elif the_set is None:
+            return set()
         return the_set
 
     def collection_list(self, collection):
@@ -163,6 +177,14 @@ class EngineObject():
     @classmethod
     def get_role_set(cls, role):
         return  cls.roles.collection_set(role)
+
+    @classmethod
+    def get_role_object(cls, link_name):
+        the_set =  cls.roles.collection_set(link_name)
+        if len(the_set)==1:
+            # return a list so you can remove while iterating
+            return cls.get(next(iter(the_set)))
+        return None
  
     ############### LINKS ############
     def add_link(self, link_name: str, other: EngineObject | CloseData | int):
@@ -175,6 +197,11 @@ class EngineObject():
         self.links.add_to_collection(link_name,id)
         self.has_links.add_to_collection(link_name, self.id)
 
+    def set_dedicated_link(self, link_name: str, other: EngineObject | CloseData | int):
+        self.links.dedicated_collection(link_name, self.resolve_id(other))
+        if other is not None:
+            self.has_links.add_to_collection(link_name, self.id)
+
     def remove_link(self, link_name: str, other: EngineObject | CloseData | int):
         """ Remove a role from the space object
 
@@ -185,6 +212,14 @@ class EngineObject():
         the_set = self.links.remove_from_collection(link_name,id)
         if len(the_set)<1:
             self.has_links.remove_from_collection(link_name, self.id)
+
+    def remove_link_all(self, link_name: str):
+        """ Remove a role from the space object
+        :param role: The role to add e.g. spy, pirate etc.
+        :type id: str
+        """
+        self.links.remove_collection(link_name)
+        self.has_links.remove_from_collection(link_name, self.id)
 
     def has_link_to(self, link_name: str | list[str], other: EngineObject | CloseData | int):
         """ check if the object has a role
@@ -206,12 +241,23 @@ class EngineObject():
         id = self.resolve_id(other)
         return self.inventory.get_collections_in(id)
         
-    def get_objects_with_link(self, link_name):
+    def get_link_objects(self, link_name):
         the_set =  self.links.collection_set(link_name)
         if the_set:
             # return a list so you can remove while iterating
             return [self.get(x) for x in the_set]
         return []
+
+    def get_dedicated_link(self, link_name):
+        the_set =  self.links.collection_set(link_name)
+        if len(the_set)==1:
+            # return a list so you can remove while iterating
+            return next(iter(the_set))
+        return None
+
+    def get_dedicated_link_object(self, link_name):
+        return self.resolve_py_object(self.get_dedicated_link("link_name"))
+        
 
     def get_link_set(self, link_name):
         return self.links.collection_set(link_name)
@@ -295,7 +341,7 @@ class EngineObject():
     def get_inventory_in(self, data: object):
         return self.inventory.get_collections_in(data)
         
-    def get_objects_in_inventory(self, collection_name):
+    def get_inventory_objects(self, collection_name):
         the_set =  self.inventory.collection_set(collection_name)
         if the_set:
             # return a list so you can remove while iterating
@@ -312,12 +358,11 @@ class EngineObject():
         return self.inventory.collections.get(collection_name)
 
     def set_inventory_value(self, collection_name, value):
-        self._has_inventory.add_to_collection(collection_name, self.id)
         self.inventory.collections[collection_name]=value
-
-    def remove_inventory_value(self, collection_name):
-        self._has_inventory.remove_from_collection(collection_name, self.id)
-        return self.inventory.collections.pop(collection_name,None)
+        if value is not None:
+            self._has_inventory.add_to_collection(collection_name, self.id)
+        else:
+            self._has_inventory.remove_from_collection(collection_name, self.id)
 
     @classmethod
     def has_inventory_set(cls, collection_name):

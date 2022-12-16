@@ -1,5 +1,6 @@
 from random import randrange, choice, choices
-from .spaceobject import SpaceObject, CloseData, SpawnData
+from .spaceobject import SpaceObject
+from .engineobject import EngineObject, CloseData, SpawnData
 import sbs
 ###################
 # Set functions
@@ -113,20 +114,19 @@ def target(sim, set_or_object, target_id, shoot: bool = True):
     :param shoot: if the object should be shot at
     :type shoot: bool
     """
-    SpaceObject.resolve_id(target_id)
-    target = sim.get_space_object(target_id)
+    target_id = SpaceObject.resolve_id(target_id)
+    target_engine = sim.get_space_object(target_id)
 
-    if target:
+    if target_engine:
         data = {
-            "target_pos_x": target.pos.x,
-            "target_pos_y": target.pos.y,
-            "target_pos_z": target.pos.z,
+            "target_pos_x": target_engine.pos.x,
+            "target_pos_y": target_engine.pos.y,
+            "target_pos_z": target_engine.pos.z,
             "target_id": 0
         }
         if shoot:
-            data["target_id"] = target.unique_ID
-
-    all = list(set_or_object)
+            data["target_id"] = target_engine.unique_ID
+    all = to_list(set_or_object)
     for chaser in all:
         chaser = SpaceObject.resolve_py_object(chaser)
         chaser.update_engine_data(sim, data)
@@ -148,27 +148,116 @@ def target_pos(sim, chasers: set | int | CloseData|SpawnData, x: float, y: float
         "target_pos_z": z,
         "target_id": 0
     }
-    all = list(chasers)
+    all = to_list(chasers)
     for chaser in all:
         chaser = SpaceObject.resolve_py_object(chaser)
         chaser.update_engine_data(sim, data)
 
-def to_object(the_set):
+def clear_target(sim, chasers: set | int | CloseData|SpawnData):
+        """ Clear the target
+
+        :param sim: The simulation
+        :type sim: Artemis Cosmos simulation
+        """
+        all = to_list(chasers)
+        for chaser in all:
+            chaser = SpaceObject.resolve_py_object(chaser)
+            this = sim.get_space_object(chaser.id)
+            chaser.update_engine_data(sim, {
+                "target_pos_x": this.pos.x,
+                "target_pos_y": this.pos.y,
+                "target_pos_z": this.pos.z,
+                "target_id": 0
+            })
+
+def to_object_list(the_set):
     return [SpaceObject.resolve_py_object(x) for x in list(the_set)]
-def to_id(the_set):
+def to_id_list(the_set):
     return [SpaceObject.resolve_id(x) for x in list(the_set)]
+
+def to_list(other: EngineObject | CloseData | int):
+    if isinstance(other, set):
+        return list(other)
+    elif isinstance(other, list):
+        return other
+    elif other is None:
+        return []
+    return [other]
+
+def to_set(other: EngineObject | CloseData | int):
+    if isinstance(other, list):
+        return set(other)
+    elif isinstance(other, set):
+        return other
+    elif other is None:
+        return {}
+    return {to_id(other)}
+
+
+
+def to_id(other: EngineObject | CloseData | int):
+    other_id = other
+    if isinstance(other, EngineObject):
+        other_id = other.id
+    elif isinstance(other, CloseData):
+        other_id = other.id
+    elif isinstance(other, SpawnData):
+        other_id = other.id
+   
+    return other_id
+
+def to_object(other: EngineObject | CloseData | int):
+    py_object = other
+    if isinstance(other, EngineObject):
+        py_object = other
+    elif isinstance(other, CloseData):
+        py_object = other.py_object
+    elif isinstance(other, SpawnData):
+        py_object = other.py_object
+    else:
+        # In the future this should be EngineObject
+        # When Grid  Items and space object live as one
+        py_object = SpaceObject.get(other)
+    return py_object
 
 
 def link(set_holder, link, set_to):
-    linkers = to_object(set_holder)
-    ids = to_id(set_to)
+    linkers = to_object_list(to_set(set_holder))
+    ids = to_id_list(to_set(set_to))
     for so in linkers:
         for target in ids:
             so.add_link(link, target)
 
+def get_dedicated_link(so, link):
+    so = to_object(so)
+    return so.get_dedicated_link(link)
+            
+def set_dedicated_link(so, link, to):
+    so = to_object(so)
+    to = to_id(to)
+    so.set_dedicated_link(link, to)
+
+
+def get_inventory_value(so, link):
+    so = to_object(so)
+    return so.get_inventory_value(link)
+            
+def set_inventory_value(so, link, to):
+    so = to_object(so)
+    to = to_id(to)
+    so.set_inventory_value(link, to)
+
+
 def unlink(set_holder, link, set_to):
-    linkers = to_object(set_holder)
-    ids = to_id(set_to)
+    linkers = to_object_list(to_set(set_holder))
+    ids = to_id_list(to_set(set_to))
     for so in linkers:
         for target in ids:
             so.remove_link(link, target)
+
+def object_exists(sim, so_id):
+    so_id = to_id(so_id)
+    eo = sim.get_space_object(so_id)
+    return eo is not None
+
+

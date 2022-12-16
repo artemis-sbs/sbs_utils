@@ -1,10 +1,8 @@
 from sbs_utils.mast.mast import Mast, Scope
-#from . import fake_sbs as sbs
-#import sys        
-#sys.modules["sbs"] = fake_sbs
 from sbs_utils.mast.mastscheduler import MastScheduler
 
 import unittest
+import time
 
 Mast.enable_logging()
 
@@ -120,6 +118,32 @@ await => pass_data ~~{
 await => trend
 """)
 
+        assert(len(errors)==0)
+
+
+    def test_btree_compile_err(self):
+        (errors, mast) =mast_compile( code = """
+->FAIL
+-> FAIL
+-> FAIL if x
+=> fork
+f1 => fork
+
+=> fork_you | test2
+=> fork_you & test2
+=>=>fork_you & test2
+=>=>fork_you | test2
+=> cond ? fork_you | test2
+=> cond ? fork_you & test2
+=>=> cond ? fork_you | test2
+=>=> cond ? fork_you & test2 & test3
+
+=> pass_data {"self": player1, "HP": 30}
+=> pass_data ~~{
+    "self": player1, 
+    "HP": 30
+    }~~
+""")
         assert(len(errors)==0)
 
     def test_event_compile_err(self):
@@ -293,6 +317,7 @@ x = x + 1
 if x < 10:
     ->Inc
 end_if
+
     """)
         assert(len(errors)==0)
         while runner.is_running():
@@ -520,6 +545,268 @@ Done
 PushJump
 Popper
 out
+""")
+
+
+    def test_all_no_err(self):
+        (errors, runner, _) = mast_run( code = """
+        logger string output            
+        
+        =>=> Seq1 & Seq2 & Seq3
+        ->END
+        ======== Seq1 =====
+        log "S1"
+        delay test 3s
+        log "S1 Again"
+        -> END
+        ======== Seq2 =====
+        log "S2"
+        -> END
+        ===== Seq3 ====
+        log "S3"
+        delay test 1s
+        log "S3 Again"
+        -> END
+    """)
+        assert(len(errors)==0)
+        for _ in range(10):
+            runner.tick()
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        #st.seek(0)
+        value = st.getvalue()
+
+        assert(value =="""S1
+S2
+S3
+S3 Again
+S1 Again
+""")
+
+
+
+    def test_any_no_err(self):
+        (errors, runner, _) = mast_run( code = """
+        logger string output            
+        
+        =>=> Seq1 | Seq2 | Seq3
+        ->END
+        ======== Seq1 =====
+        log "S1"
+        delay gui 10s
+        log "S1 Again"
+        ======== Seq2 =====
+        log "S2"
+        -> END
+        ===== Seq3 ====
+        delay gui 10s
+        log "S3"
+        -> FAIL
+    """)
+        assert(len(errors)==0)
+        for _ in range(10):
+            runner.tick()
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        #st.seek(0)
+        value = st.getvalue()
+
+        assert(value =="""S1
+S2
+""")
+
+
+
+
+    def test_fallback_no_err(self):
+        (errors, runner, _) = mast_run( code = """
+        logger string output            
+        
+        => Seq1 | Seq2 | Seq3
+        ->END
+        ======== Seq1 =====
+        log "S1"
+        ->FAIL
+        delay test 3s
+        log "S1 Again"
+
+        ======== Seq2 =====
+        log "S2"
+        delay test 10s
+        log "S2 Again"
+        -> END
+        ===== Seq3 ====
+        delay test 3s
+        log "S3"
+        -> FAIL
+    """)
+        assert(len(errors)==0)
+        #for _ in range(50):
+        while runner.tick():
+            pass
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        #st.seek(0)
+        value = st.getvalue()
+
+        assert(value =="""S1
+S2
+S2 Again
+""")
+
+
+    def test_fallback_loop_no_err(self):
+        (errors, runner, _) = mast_run( code = """
+        logger string output            
+        x = 0
+        => Seq1 | Seq2 | Seq3
+        ->END
+        ======== Seq1 =====
+        log "S1"
+        ->FAIL
+        
+
+        ======== Seq2 =====
+        log "S2"
+        x = x +1
+        -> FAIL if x<3
+        -> END
+        ===== Seq3 ====
+        log "S3"
+        -> FAIL
+    """)
+        assert(len(errors)==0)
+        #for _ in range(50):
+        while runner.tick():
+            pass
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        #st.seek(0)
+        value = st.getvalue()
+
+        assert(value =="""S1\nS2\nS3\nS1\nS2\nS3\nS1\nS2\n""")
+
+    def test_fallback_no_cond_no_err(self):
+        (errors, runner, _) = mast_run( code = """
+        logger string output            
+        has_apple = False
+        has_banana = False
+        # Start something that will eventually find an apple
+        => external
+        # Start hungry until you eat something
+        await => eat_apple | eat_banana        
+        #await a
+        
+        log "not hungry"
+        ->END
+        ??????? eat_apple ??????
+        ->FAIL if not has_apple
+        log "Ate Apple"
+        -> END
+        ??????? eat_banana ?????
+        -> FAIL if not has_banana
+        -> END
+
+        ===== external ====
+        delay test 10s
+        has_apple = True
+    """)
+        assert(len(errors)==0)
+        #for _ in range(50):
+        while runner.tick():
+            pass
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        #st.seek(0)
+        value = st.getvalue()
+
+        assert(value =="""Ate Apple\nnot hungry\n""")
+
+
+
+    def test_fallback_cond_no_err(self):
+        (errors, runner, _) = mast_run( code = """
+        logger string output            
+        not_hungry = False
+        has_apple = False
+        has_banana = False
+        => external
+
+        a => eat_apple | eat_banana
+        await a
+        log "not hungry"
+        ->END
+        ??????? eat_apple ??????
+        ->FAIL if not has_apple
+        not_hungry = True
+        log "Ate Apple"
+        -> END
+        ??????? eat_banana ?????
+        -> FAIL if not has_banana
+        not_hungry = True
+        -> END
+
+
+        ===== external ====
+        delay test 10s
+        has_apple = True
+    """)
+        assert(len(errors)==0)
+        #for _ in range(50):
+        while runner.tick():
+            pass
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        #st.seek(0)
+        value = st.getvalue()
+
+        assert(value =="""Ate Apple\nnot hungry\n""")
+
+
+
+    def test_sequence_no_err(self):
+        (errors, runner, _) = mast_run( code = """
+        logger string output            
+        
+        => Seq1 & Seq2 & Seq3
+        ->END
+        ======== Seq1 =====
+        log "S1"
+        delay test 3s
+        log "S1 Again"
+        ->END
+
+        ======== Seq2 =====
+        log "S2"
+        delay test 10s
+        log "S2 Again"
+        -> END
+        ===== Seq3 ====
+        delay test 3s
+        log "S3"
+        ->END
+    """)
+        assert(len(errors)==0)
+        #for _ in range(50):
+        while runner.tick():
+            pass
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        #st.seek(0)
+        value = st.getvalue()
+
+        assert(value =="""S1
+S1 Again
+S2
+S2 Again
+S3
 """)
 
 

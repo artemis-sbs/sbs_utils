@@ -490,15 +490,6 @@ end_await
 
 #####################
 
-===== sequential_version  ====
-await => not_freezing
-await => not_hungry
-->END
-
-===== parallel_version  ====
-get_warm => not_freezing
-eat => not_hungry
-await all [get_warm, eat]
 
 ->END
 
@@ -621,6 +612,120 @@ inventory.Remove("Apple")
 hungry = FALSE
 ->END
 
+
+======== eat_banana   ======
+delay sim 3s
+inventory.Remove("Banana")
+hungry = FALSE
+->END
+
+
+
+
+===== sequential_version  ====
+await => not_freezing & not_hungry
+->END
+
+===== parallel_version  ====
+# Simple start task
+=>  not_freezing
+#Sequence - Single task in order needs to end
+=>  not_freezing & not_hungry
+#Selection
+=> freezing ? not_freezing | not_hungry
+=> not_freezing | not_hungry # Illegal ? or conditional is internal
+# All - multiple task needs all to finish
+=>=>  not_freezing & not_hungry
+# Any = Multiple tasks any finish
+=>=> freezing ? not_freezing | not_hungry
+=>=> not_freezing | not_hungry
+
+
+======= not_freezing ==========
+
+?> not_freezing = wear_jacket | open_door
+->END
+
+?????? wear_jacket  ?????
+
+has_jacket = inventory.has("Jacket")
+?> END if not has_jacket
+await => wear_jacket
+not_freezing = True
+->END
+
+??? open_door ????
+await ?>  door_open = person_opens_door | key_opens_door
+->END
+
+???????  person_opens_door ???????
+person = closest(self, role: "Person", less: 700)
+?> END if not person
+await => ask_person_to_open_door {"person": person}
+->END
+
+await ?> key_found = have_key | check_under_mat | search_garden
+await => open_door
+->END
+
+?????? have_key ??????
+key = get_by_name("Key")
+?> key if not key
+key_found = True
+->END
+
+?????? check_under_mat ??????
+doormat = get_by_name("Doormat")
+?>END if not doormat.flipped
+await => search_under_doormat
+->END
+
+???? SearchGarden ???????
+await => search_garden
+
+======== search_under_doormat   ======
+delay sim 2s
+inventory.add("Key", True)
+->END
+
+======== search_garden   ======
+delay sim 3s
+inventory.add("Key", True)
+->END
+
+======== open_door   ======
+delay sim 2s
+door_open = True
+->END
+
+
+
+=> HasApple  | HasBanana
+=> HasApple  & HasBanana
+
+await ?> not_hungry = HasApple  | HasBanana
+?> not_hungry = HasApple  | HasBanana
+
+
+?????? HasApple ???????
+    apple = inventory.has("Apple")
+    ?>END if not apple
+    await => eat_apple
+    not_hungry = True
+    ->END
+
+???? HasBanana ??????
+    banana = inventory.has("Banana")
+    ?>END if not banana
+    await => eat_banana
+    not_hungry = True
+    ->END
+
+======== eat_apple   ======
+delay sim 2s
+inventory.Remove("Apple")
+hungry = FALSE
+->END
 
 ======== eat_banana   ======
 delay sim 3s

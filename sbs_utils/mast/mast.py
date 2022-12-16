@@ -77,9 +77,9 @@ class MastNode:
 
 
 class Label(MastNode):
-    rule = re.compile(r'(={2,})\s*(?P<name>\w+)\s*(={2,})')
+    rule = re.compile(r'(?P<m>=|\?){2,}\s*(?P<name>\w+)\s*(?P=m){2,}')
 
-    def __init__(self, name, loc=None):
+    def __init__(self, name, m=None, loc=None):
         self.name = name
         self.cmds = []
         self.next = None
@@ -326,55 +326,89 @@ class Parallel(MastNode):
     """
     Creates a new 'task' to run in parallel
     """
-    rule = re.compile(r"""((?P<name>[\w\.\[\]]+)\s*)?=>\s*(?P<label>\w+)(?P<inputs>\s*"""+ DICT_REGEX+")?")
+    task_name =  re.compile(r"""await\s(?P<name>\w+)""")
+    spawn_rule = re.compile("""((?P<name>\w+)\s*)?\=>(?P<all_any>\=>)?(\s*(?P<conditional>\w+)\s*\?)?\s*(?P<labels>\s*(\w+)((\s*[\|&]\s*)\w+)*)(?P<inputs>\s*"""+ DICT_REGEX+")?")
+    await_rule = re.compile(r"await\s+")
+    block_rule = re.compile(r"s*:")
 
-    def __init__(self, name=None, label=None, inputs=None, if_exp=None, loc=None):
+    def __init__(self, name=None, is_block=None, await_task=None, all_any=None, conditional=None,  labels=None, inputs=None, loc=None):
         self.loc = loc
         self.name = name
-        self.label = label
-        self.cmds = []
+        self.conditional = conditional
+        self.labels = labels
+        self.await_task = await_task
+        self.code = None
+        self.end_await_node = None
+        if is_block:
+            EndAwait.stack.append(self)
+
+        if await_task and name:
+            self.await_task = True
+            return
+
+        
+        if '|' in labels and '&' in labels:
+             raise Exception("Mixing sequence (&) and fallback (|) is not allowed")
+        self.sequence =  '&' in labels
+        self.fallback =  '|' in labels
+        self.labels = labels
+        self.all_any = True if all_any is not None else False
+        if self.sequence:
+            self.labels = re.split(r'\s*&\s*', labels)
+        elif self.fallback:
+            self.labels = re.split(r'\s*\|\s*', labels)
+
         if inputs:
             inputs = inputs.lstrip()
             self.code = compile(inputs, "<string>", "eval")
+        
+
+    @classmethod
+    def parse(cls, lines):
+
+        match_task_await =  Parallel.task_name.match(lines) 
+        if match_task_await:
+            span = match_task_await.span()
+            data = match_task_await.groupdict()
+            data["await_task"] = True
+            end = span[1]
+            block =  Parallel.block_rule.match(lines[end:])
+            
+            if block:
+                end+= block.span[1]
+                data["is_block"] = True
+            
+            
+            return ParseData(span[0], end, data)
+
+        match_await =  Parallel.await_rule.match(lines)
+        if match_await:
+            await_span = match_await.span()
+            lines = lines[await_span[1]:]
+            spawn =  Parallel.spawn_rule.match(lines)
+            if spawn is not None:
+                span = spawn.span()
+                data = spawn.groupdict()
+                data["await_task"] = True
+                end = await_span[1]+span[1]
+                block =  Parallel.block_rule.match(lines[end:])
+                
+                if block:
+                    end+= block.span[1]
+                    data["is_block"] = True
+                return ParseData(await_span[0], end, data)
+            else:
+                return None
+
+        mo =  Parallel.spawn_rule.match(lines)
+        if mo:
+            span = mo.span()
+            data = mo.groupdict()
+            return ParseData(span[0], span[1], data)
         else:
-            self.code = None
-        if if_exp:
-            if_exp = if_exp.lstrip()
-            self.if_code = compile(if_exp, "<string>", "eval")
-        else:
-            self.if_code = None
+            return None
 
-
-
-    def add_child(self, cmd):
-        self.cmds.append(cmd)
-
-
-class Await(MastNode):
-    """
-    waits for an existing or a new 'task' to run in parallel
-    this needs to be a rule before Parallel
-    """
-    rule = re.compile(r"""await((\s*(?P<label>\w+))|((\s*(?P<spawn>=>))\s*(?P<name>\w+)(?P<inputs>\s*"""+DICT_REGEX+")?))")
-                      
-    def __init__(self, name=None, spawn=None, label=None, inputs=None, if_exp=None, loc=None):
-        self.loc = loc
-        self.spawn = True if spawn is not None else False
-        self.label = label
-        if name:
-            self.label = name
-        self.cmds = []
-        if inputs:
-            inputs = inputs.lstrip()
-            self.code = compile(inputs, "<string>", "eval")
-        else:
-            self.code = None
-        if if_exp:
-            if_exp = if_exp.lstrip()
-            self.if_code = compile(if_exp, "<string>", "eval")
-        else:
-            self.if_code = None
-
+        
 class EndAwait(MastNode):
     rule = re.compile(r'end_await')
     stack = []
@@ -450,6 +484,16 @@ class End(MastNode):
     rule = re.compile(r'->\s*END')
     def __init__(self,  loc=None):
         self.loc = loc
+
+class Fail(MastNode):
+    rule = re.compile(r'->\s*FAIL'+IF_EXP_REGEX)
+    def __init__(self, if_exp=None, loc=None):
+        self.loc = loc
+        if if_exp:
+            if_exp = if_exp.lstrip()
+            self.if_code = compile(if_exp, "<string>", "eval")
+        else:
+            self.if_code = None
 
 class Delay(MastNode):
     clock = r"(\s*(?P<clock>\w+))"
@@ -584,12 +628,13 @@ class Mast:
         #        Var,
         Import,
         AwaitCondition,
-        Await,  # needs to be before Parallel
+#        Await,  # needs to be before Parallel
         Timeout,
         EndAwait,
         Parallel,  # needs to be before Assign
         Cancel,
         Assign,
+        Fail,
         End,
         Jump,
         Delay,
@@ -654,7 +699,7 @@ class Mast:
                 content = f.read()
         except:
             message = f"File load error\nCannot load file {file_name}"
-            print(message)
+            #print(message)
             errors.append(message)
 
         if content is not None:

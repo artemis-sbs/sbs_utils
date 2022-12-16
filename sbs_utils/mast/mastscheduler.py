@@ -1,4 +1,5 @@
 from enum import IntEnum
+from typing import List
 from .mast import *
 import time
 
@@ -30,11 +31,21 @@ class PollResults(IntEnum):
      OK_ADVANCE_TRUE = 2
      OK_ADVANCE_FALSE=3
      OK_RUN_AGAIN = 4
+     FAIL_END = 100
      OK_END = 99
 
 class EndRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:End):
         return PollResults.OK_END
+
+class FailRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task, node:Fail):
+        if node.if_code:
+            value = task.eval_code(node.if_code)
+            if not value:
+                return PollResults.OK_ADVANCE_TRUE
+    
+        return PollResults.FAIL_END
 
 class AssignRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task:MastAsyncTask, node:Assign):
@@ -252,57 +263,38 @@ class MatchStatementsRuntimeNode(MastRuntimeNode):
                 break
 
         return cmd_to_run
-        
-
-
-
-
 
 
 class ParallelRuntimeNode(MastRuntimeNode):
     def enter(self, mast, task, node:Parallel):
-        vars = {} | task.vars
+        vars = {} | task.vars if node.labels is not None else None
         if node.code:
             inputs = task.eval_code(node.code)
             vars = vars | inputs
-        if node.if_code:
-            value = task.eval_code(node.if_code)
-            if not value:
-                return
-        task.start_task(node.label, vars, task_name=node.name)
+        if isinstance(node.labels, list):
+            if node.all_any:
+                if node.sequence:
+                    task = task.main.start_all_task(node.labels, vars, task_name=node.name, conditional=node.conditional)
+                elif node.fallback:
+                    task = task.main.start_any_task(node.labels, vars, task_name=node.name, conditional=node.conditional)
+            else:
+                if node.sequence:
+                    task = task.main.start_sequence_task(node.labels, vars, task_name=node.name, conditional=node.conditional)
+                elif node.fallback:
+                    task = task.main.start_fallback_task(node.labels, vars, task_name=node.name, conditional=node.conditional)
+        elif node.await_task and node.name:
+            task = task.get_variable(node.name)        
+        else:
+            task = task.start_task(node.labels, vars, task_name=node.name)
+
+        self.task = task if node.await_task else None
+        
     def poll(self, mast, task, node:Parallel):
+        if self.task:
+            if not self.task.done:
+                return PollResults.OK_RUN_AGAIN
         return PollResults.OK_ADVANCE_TRUE
 
-class AwaitRuntimeNode(MastRuntimeNode):
-    def enter(self, mast, task, node:Await):
-        self.task = None
-
-        if node.if_code:
-            value = task.eval_code(node.if_code)
-            if not value:
-                return
-        
-        if node.spawn:
-            vars = {} | task.vars
-            if node.code:
-                inputs = task.eval_code(node.code)
-                vars = vars | inputs
-            # spawn via task to pass same inputs
-            self.task = task.start_task(node.label, vars)
-        else:
-            named_task = task.get_value(node.label, None)
-            if named_task is not None:
-                self.task = named_task[0]
-
-    def poll(self, mast, task, node:Await):
-        if self.task is None:
-            return PollResults.OK_ADVANCE_TRUE
-        if self.task.done:
-            if self.task.result == PollResults.OK_ADVANCE_FALSE:
-                return PollResults.OK_ADVANCE_FALSE
-            else:
-                return PollResults.OK_ADVANCE_TRUE
-        return PollResults.OK_RUN_AGAIN
 
 class TimeoutRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task: MastAsyncTask, node:Timeout):
@@ -404,7 +396,6 @@ class AwaitConditionRuntimeNode(MastRuntimeNode):
             return PollResults.OK_ADVANCE_TRUE
 
         if self.timeout is not None and self.timeout <= task.main.get_seconds("sim"):
-            print("CHOOSE timeout")
             if node.timeout_label:
                 task.jump(task.active_label,node.timeout_label.loc+1)
                 return PollResults.OK_JUMP
@@ -427,7 +418,7 @@ class PushData:
 class MastAsyncTask:
     main: 'MastScheduler'
     
-    def __init__(self, main: 'MastScheduler', inputs=None):
+    def __init__(self, main: 'MastScheduler', inputs=None, conditional= None):
         self.done = False
         self.runtime_node = None
         self.main= main
@@ -437,7 +428,7 @@ class MastAsyncTask:
         self.active_label = None
         self.events = {}
         self.vars["mast_task"] = self
-
+    
     def push_label(self, label, activate_cmd=0, data=None):
         if self.active_label:
             push_data = PushData(self.active_label, self.active_cmd, data)
@@ -603,6 +594,9 @@ class MastAsyncTask:
                         case PollResults.OK_END:
                             self.done = True
                             return PollResults.OK_END
+                        case PollResults.FAIL_END:
+                            return PollResults.FAIL_END
+
                         case PollResults.OK_RUN_AGAIN:
                             break
                         case PollResults.OK_JUMP:
@@ -611,7 +605,8 @@ class MastAsyncTask:
         except BaseException as err:
             self.main.runtime_error(str(err))
             return PollResults.OK_END
-                            
+
+        
 
     def runtime_error(self, s):
         cmd = None
@@ -654,11 +649,107 @@ class MastAsyncTask:
         self.runtime_node.enter(self.main.mast, self, cmd)
         return True
 
+class MastAllTask:
+    def __init__(self) -> None:
+        self.tasks = []
+        self.conditional = None
+        self.done = False
+        self.result = None
+
+    def tick(self) -> PollResults:
+        if self.conditional is not None and self.task.get_variable(self.conditional):
+            self.done = True
+            return PollResults.OK_END
+        for t in list(self.tasks):
+            self.result = t.tick()
+            if self.result == PollResults.OK_END:
+                self.tasks.remove(t)
+        if len(self.tasks):
+            return PollResults.OK_RUN_AGAIN
+        self.done = True
+        return PollResults.OK_END
+        
+class MastAnyTask:
+    def __init__(self) -> None:
+        self.tasks = []
+        self.conditional = None
+        self.done = False
+        self.result = None
+
+    def tick(self) -> PollResults:
+        if self.conditional is not None and self.task.get_variable(self.conditional):
+            self.done = True
+            return PollResults.OK_END
+        for t in self.tasks:
+            self.result = t.tick()
+            if self.result == PollResults.OK_END:
+                self.done = True
+                return PollResults.OK_END
+        if len(self.tasks):
+            return PollResults.OK_RUN_AGAIN
+        self.done = True
+        return PollResults.OK_END
+
+class MastSequenceTask:
+    def __init__(self, labels, conditional) -> None:
+        self.task = None
+        self.labels = labels
+        self.conditional = conditional
+        self.current_label = 0
+        self.done = False
+        self.result = None
+
+    def tick(self) -> PollResults:
+        if self.conditional is not None and self.task.get_variable(self.conditional):
+            self.done = True
+            return PollResults.OK_END
+        self.result = self.task.tick()
+        if self.result == PollResults.OK_END:
+            self.current_label += 1
+            if self.current_label >= len(self.labels):
+                self.done = True
+                return PollResults.OK_END
+            # so if this fails as a sequence it reruns the sequence?
+            label = self.labels[self.current_label]
+            self.task.jump(label)
+            return PollResults.OK_JUMP
+        return PollResults.OK_RUN_AGAIN
+
+class MastFallbackTask:
+    def __init__(self, labels, conditional) -> None:
+        self.task = None
+        self.labels = labels
+        self.conditional = conditional
+        self.current_selection = 0
+        self.done = False
+        self.result = None
+
+    def tick(self) -> PollResults:
+        if self.conditional is not None and  self.task.get_variable(self.conditional):
+            self.done = True
+            return PollResults.OK_END
+        self.result = self.task.tick()
+        if self.result == PollResults.FAIL_END:
+            self.current_selection += 1
+            if self.current_selection >= len(self.labels):
+                self.current_selection = 0
+            # so if this fails as a sequence it reruns the sequence?
+            label = self.labels[self.current_selection]
+            self.task.jump(label)
+            return PollResults.OK_JUMP
+        if self.result == PollResults.OK_END:
+            self.done = True
+            #print(f"Fallback ended {self.task.active_label}")
+            return PollResults.OK_END
+        return PollResults.OK_RUN_AGAIN
+    
+
 
 
 class MastScheduler:
     runtime_nodes = {
         "End": EndRuntimeNode,
+        "Fail": FailRuntimeNode,
         "Jump": JumpRuntimeNode,
         "IfStatements": IfStatementsRuntimeNode,
         "MatchStatements": MatchStatementsRuntimeNode,
@@ -667,7 +758,7 @@ class MastScheduler:
         "LoopBreak": LoopBreakRuntimeNode,
         "PyCode": PyCodeRuntimeNode,
         "DoCommand": DoCommandRuntimeNode,
-        "Await": AwaitRuntimeNode,
+#        "Await": AwaitRuntimeNode,
         "Parallel": ParallelRuntimeNode,
         "Cancel": CancelRuntimeNode,
         "Assign": AssignRuntimeNode,
@@ -691,6 +782,8 @@ class MastScheduler:
         self.vars = {"mast_scheduler": self}
         self.done = []
         self.mast.add_scheduler(self)
+        self.test_clock = 0
+        self.active_task = None
         
 
     def runtime_error(self, message):
@@ -698,31 +791,106 @@ class MastScheduler:
 
     def get_seconds(self, clock):
         """ Gets time for a given clock default is just system """
+        if clock == 'test':
+            self.test_clock += 0.2
+            return self.test_clock
         return time.time()
 
 
-    def start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:
+    def start_all_task(self, labels = "main", inputs=None, task_name=None, conditional=None)-> MastAllTask:
+        all_task = MastAllTask()
+        if not isinstance(labels, list):
+            return self.start_task(label, inputs, task_name)
+        
+        for label in labels:
+            t = self._start_task(label, inputs, None)
+            t.jump(label)
+            all_task.tasks.append(t)
+
+        #self.on_start_task(t)
+        self.tasks.append(all_task)
+        if task_name is not None:
+            self.active_task.set_value(task_name, all_task, Scope.NORMAL)
+        return all_task
+
+    def start_any_task(self, labels = "main", inputs=None, task_name=None, conditional=None)->MastAnyTask:
+        any_task = MastAnyTask()
+        # if single label no need for any
+        if not isinstance(labels, list):
+            return self.start_task(label, inputs, task_name)
+        
+        for label in labels:
+            t = self._start_task(label, inputs, None)
+            t.jump(label)
+            any_task.tasks.append(t)
+
+        #self.on_start_task(t)
+        self.tasks.append(any_task)
+        if task_name is not None:
+            self.active_task.set_value(task_name, any_task, Scope.NORMAL)
+        return any_task
+
+    def start_sequence_task(self, labels = "main", inputs=None, task_name=None, conditional=None)->MastAnyTask:
+        # if single label no need for any
+        if not isinstance(labels, list):
+            return self.start_task(labels, inputs, task_name)
+
+        seq_task = MastSequenceTask(labels, conditional)    
+        t = self._start_task(labels[0], inputs, None)
+        t.jump(labels[0])
+        seq_task.task = t
+
+        #self.on_start_task(t)
+        self.tasks.append(seq_task)
+        if task_name is not None:
+            self.active_task.set_value(task_name, seq_task, Scope.NORMAL)
+        return seq_task
+
+    def start_fallback_task(self, labels = "main", inputs=None, task_name=None, conditional=None)->MastAnyTask:
+        # if single label no need for any
+        if not isinstance(labels, list):
+            return self.start_task(labels, inputs, task_name)
+
+        seq_task = MastFallbackTask(labels, conditional)    
+        t = self._start_task(labels[0], inputs, None)
+        t.jump(labels[0])
+        seq_task.task = t
+
+        #self.on_start_task(t)
+        self.tasks.append(seq_task)
+        if task_name is not None:
+            self.active_task.set_value(task_name, seq_task, Scope.NORMAL)
+        return seq_task
+
+
+    def _start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:
         if self.inputs is None:
             self.inputs = inputs
 
         if self.mast and self.mast.labels.get(label,  None) is None:
-            return None
-        
+            raise Exception(f"Calling undefined label {label}")
         t= MastAsyncTask(self, inputs)
+        return t
+
+
+    def start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:
+        t = self._start_task(label, inputs, task_name)
         t.jump(label)
-        self.on_start_task(t)
         self.tasks.append(t)
+        self.on_start_task(t)
+        
         if task_name is not None:
             self.active_task.set_value(task_name, t, Scope.NORMAL)
         return t
 
     def on_start_task(self, t):
+        self.active_task = t
         t.tick()
     def cancel_task(self, name):
-        data = self.active_task.get_value(name, None)
+        data = self.active_task.get_variable(name, None)
         # Assuming its OK to cancel none
         if data is not None:
-            self.done.append(data[0])
+            self.done.append(data)
 
     def is_running(self):
         if len(self.tasks) == 0:

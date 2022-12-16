@@ -201,10 +201,10 @@ class TargetRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:Target):
         if self.to_id:
             obj:SpaceObject = SpaceObject.get(self.from_id)
-            obj.target(task.main.sim, self.to_id, not node.approach)
+            query.target(task.main.sim, obj, self.to_id, not node.approach)
         else:
             obj:SpaceObject = SpaceObject.get(self.from_id)
-            obj.clear_target(task.main.sim)
+            query.clear_target(task.main.sim, obj)
 
         return PollResults.OK_ADVANCE_TRUE
 
@@ -299,14 +299,27 @@ for func in [
         # resolvers
         query.closest_list,
         query.closest,
+        query.target,
+        query.target_pos,
         query.closest_object,
         query.random_object,
         query.random_object_list,
         query.to_py_object_list,
         query.link,
         query.unlink,
+        query.to_id_list,
+        query.to_object_list,
         query.to_id,
-        query.to_object
+        query.to_object,
+        query.get_dedicated_link,
+        query.set_dedicated_link,
+        query.get_inventory_value,
+        query.set_inventory_value,
+        query.object_exists,
+        ############################
+        ## sbs
+        sbs.distance_id
+
     ]:
     Mast.globals[func.__name__] = func
 
