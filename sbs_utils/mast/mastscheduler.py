@@ -36,7 +36,20 @@ class PollResults(IntEnum):
 
 class EndRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:End):
+        if node.if_code:
+            value = task.eval_code(node.if_code)
+            if not value:
+                return PollResults.OK_ADVANCE_TRUE
         return PollResults.OK_END
+
+class PopIfRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task, node:End):
+        if node.if_code:
+            value = task.eval_code(node.if_code)
+            if not value:
+                return PollResults.OK_ADVANCE_TRUE
+        task.pop_label()
+        return PollResults.OK_JUMP
 
 class FailRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:Fail):
@@ -668,6 +681,11 @@ class MastAllTask:
             return PollResults.OK_RUN_AGAIN
         self.done = True
         return PollResults.OK_END
+
+    def run_event(self, event_name, event):
+        for t in list(self.tasks):
+            t.run_event(event_name, event)
+            
         
 class MastAnyTask:
     def __init__(self) -> None:
@@ -689,6 +707,9 @@ class MastAnyTask:
             return PollResults.OK_RUN_AGAIN
         self.done = True
         return PollResults.OK_END
+    def run_event(self, event_name, event):
+        for t in list(self.tasks):
+            t.run_event(event_name, event)
 
 class MastSequenceTask:
     def __init__(self, labels, conditional) -> None:
@@ -714,6 +735,8 @@ class MastSequenceTask:
             self.task.jump(label)
             return PollResults.OK_JUMP
         return PollResults.OK_RUN_AGAIN
+    def run_event(self, event_name, event):
+        self.task.run_event(event_name, event)
 
 class MastFallbackTask:
     def __init__(self, labels, conditional) -> None:
@@ -742,6 +765,8 @@ class MastFallbackTask:
             #print(f"Fallback ended {self.task.active_label}")
             return PollResults.OK_END
         return PollResults.OK_RUN_AGAIN
+    def run_event(self, event_name, event):
+        self.task.run_event(event_name, event)
     
 
 
@@ -749,6 +774,7 @@ class MastFallbackTask:
 class MastScheduler:
     runtime_nodes = {
         "End": EndRuntimeNode,
+        "PopIf": PopIfRuntimeNode,
         "Fail": FailRuntimeNode,
         "Jump": JumpRuntimeNode,
         "IfStatements": IfStatementsRuntimeNode,

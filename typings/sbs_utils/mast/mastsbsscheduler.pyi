@@ -22,6 +22,10 @@ from sbs_utils.mast.mastobjects import PlayerShip
 from sbs_utils.mast.mastobjects import Terrain
 from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.tickdispatcher import TickDispatcher
+def func(*argv):
+    """distance_id(arg0: int, arg1: int) -> float
+    
+    returns the distance between two space objects; arguments are two IDs"""
 class BroadcastRuntimeNode(MastRuntimeNode):
     """class BroadcastRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Broadcast):

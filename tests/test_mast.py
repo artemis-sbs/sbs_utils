@@ -98,6 +98,7 @@ next x
 ->> a_push
 ->>b_push
 <<-
+<<- POP  if s
 <<-> pop_jump
 <<->> pop_push
 => fork
@@ -530,8 +531,9 @@ Done
     log "PushJump"
     -> Popper
     ===== Popper ====
+    <<- POP if False    
     log "Popper"
-    <<-
+    <<- POP if True
 
             """)
                 assert(len(errors)==0)

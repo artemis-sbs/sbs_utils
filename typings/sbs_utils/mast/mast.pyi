@@ -13,13 +13,6 @@ class Assign(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
-class Await(MastNode):
-    """waits for an existing or a new 'task' to run in parallel
-    this needs to be a rule before Parallel"""
-    def __init__ (self, name=None, spawn=None, label=None, inputs=None, if_exp=None, loc=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
-        ...
 class AwaitCondition(MastNode):
     """waits for an existing or a new 'task' to run in parallel
     this needs to be a rule before Parallel"""
@@ -45,6 +38,12 @@ class Delay(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
+class DoCommand(MastNode):
+    """class DoCommand"""
+    def __init__ (self, py_cmds=None, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
 class End(MastNode):
     """class End"""
     def __init__ (self, loc=None):
@@ -60,6 +59,12 @@ class EndAwait(MastNode):
 class Event(MastNode):
     """class Event"""
     def __init__ (self, event=None, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
+class Fail(MastNode):
+    """class Fail"""
+    def __init__ (self, if_exp=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -93,7 +98,7 @@ class Jump(MastNode):
         ...
 class Label(MastNode):
     """class Label"""
-    def __init__ (self, name, loc=None):
+    def __init__ (self, name, m=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def add_child (self, cmd):
         ...
@@ -192,10 +197,8 @@ class MatchStatements(MastNode):
         ...
 class Parallel(MastNode):
     """Creates a new 'task' to run in parallel"""
-    def __init__ (self, name=None, label=None, inputs=None, if_exp=None, loc=None):
+    def __init__ (self, name=None, is_block=None, await_task=None, all_any=None, conditional=None, labels=None, inputs=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def add_child (self, cmd):
-        ...
     def parse (lines):
         ...
 class ParseData(object):

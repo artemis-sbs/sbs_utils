@@ -301,6 +301,7 @@ for func in [
         query.closest,
         query.target,
         query.target_pos,
+        query.clear_target,
         query.closest_object,
         query.random_object,
         query.random_object_list,
@@ -316,6 +317,7 @@ for func in [
         query.get_inventory_value,
         query.set_inventory_value,
         query.object_exists,
+        query.has_role,
         ############################
         ## sbs
         sbs.distance_id

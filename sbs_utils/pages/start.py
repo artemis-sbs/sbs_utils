@@ -39,7 +39,7 @@ class ClientSelectPage(Page):
     def present(self, sim, event):
         CID = event.client_id
 
-        players = SpaceObject.get_objects_with_role("__PLAYER__")
+        players = SpaceObject.get_role_objects("__PLAYER__")
         if self.player_count != len(players):
            self.state == "choose"
            self.player_count == len(players)

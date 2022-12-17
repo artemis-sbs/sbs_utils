@@ -80,7 +80,7 @@ def HandleEvent(sim, event):
                     so = SpaceObject.get(event.selected_id)
                     comms_id = "static"
                     if so:
-                        comms_id = so.comms_id(sim)
+                        comms_id = so.comms_id#(sim)
                     sbs.send_comms_selection_info(event.origin_id, face, "green", comms_id)
 
             case "press_comms_button":

@@ -10,7 +10,7 @@ class Stuff:
 
 
     def remove_collection(self, collection):
-        self.collections.discard(collection)
+        self.collections.pop(collection, None)
 
     def dedicated_collection(self, collection, id):
         if id is None:

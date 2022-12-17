@@ -203,6 +203,7 @@ class MSpawn:
         if side is not None:
             self._comms_id = f"{name}({side})" if name is not None else f"{side}{self.id}"
             obj.side = side
+            self._side = side
             self.add_role(side)
         else:
             self._comms_id = name if name is not None else f""

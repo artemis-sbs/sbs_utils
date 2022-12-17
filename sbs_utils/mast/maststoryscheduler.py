@@ -557,14 +557,18 @@ class StoryScheduler(MastSbsScheduler):
             if event_name == "mast:client_disconnect":
                 event_name = "disconnect"
                 for task in self.tasks:
-                    task.run_event(event_name, {"event": event})
+                    task.run_event(event_name, event)
                     self.page.present(sim,event)
             elif event.tag == "client_change":
                 if event.sub_tag == "change_console":
                     for task in self.tasks:
                         #print(f"{event.tag} [] {event.sub_tag}")
-                        task.run_event(event.sub_tag, {"event": event})
+                        task.run_event(event.sub_tag, event)
                         self.page.present(sim,event)
+            elif event.tag == "damage":
+                for task in self.tasks:
+                    task.run_event(event.tag,  event)
+                    #self.page.present(sim,event)
 
             
 

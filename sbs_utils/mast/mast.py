@@ -481,9 +481,25 @@ class Cancel(MastNode):
 
 
 class End(MastNode):
-    rule = re.compile(r'->\s*END')
-    def __init__(self,  loc=None):
+    rule = re.compile(r'->\s*END\s*'+IF_EXP_REGEX)
+    def __init__(self,  if_exp=None, loc=None):
         self.loc = loc
+        if if_exp:
+            if_exp = if_exp.lstrip()
+            self.if_code = compile(if_exp, "<string>", "eval")
+        else:
+            self.if_code = None
+
+class PopIf(MastNode):
+    rule = re.compile(r'<<-\s*POP'+IF_EXP_REGEX)
+    def __init__(self, if_exp=None,  loc=None):
+        self.loc = loc
+        if if_exp:
+            if_exp = if_exp.lstrip()
+            self.if_code = compile(if_exp, "<string>", "eval")
+        else:
+            self.if_code = None
+
 
 class Fail(MastNode):
     rule = re.compile(r'->\s*FAIL'+IF_EXP_REGEX)
@@ -636,7 +652,9 @@ class Mast:
         Assign,
         Fail,
         End,
+        PopIf,
         Jump,
+        
         Delay,
         Marker,
     ]

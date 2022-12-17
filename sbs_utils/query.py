@@ -10,6 +10,7 @@ def role(role: str):
 def has_inventory(role: str):
     return SpaceObject.has_inventory_set(role)
 
+
 def has_link(role: str):
     return SpaceObject.has_links_set(role)
 
@@ -81,6 +82,7 @@ def closest(self, the_set, max_dist=None, filter_func=None) -> CloseData:
             continue
         elif test < max_dist:
             ret = CloseData(other_id, other_obj, test)
+            max_dist = test
             continue
 
     return ret
@@ -236,6 +238,11 @@ def set_dedicated_link(so, link, to):
     so = to_object(so)
     to = to_id(to)
     so.set_dedicated_link(link, to)
+
+
+def has_role(so, role):
+    so = to_object(so)
+    return so.has_role(role)
 
 
 def get_inventory_value(so, link):
