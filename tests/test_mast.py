@@ -117,6 +117,9 @@ await => pass_data ~~{
     "HP": 30
     }~~
 await => trend
+await ->=> trend
+await->=> trend
+await->=> trend
 """)
 
         assert(len(errors)==0)
@@ -136,8 +139,11 @@ f1 => fork
 =>=>fork_you | test2
 => cond ? fork_you | test2
 => cond ? fork_you & test2
+await->=> cond ? fork_you & test2
 =>=> cond ? fork_you | test2
 =>=> cond ? fork_you & test2 & test3
+await->=>=> cond ? fork_you & test2 & test3
+
 
 => pass_data {"self": player1, "HP": 30}
 => pass_data ~~{
@@ -250,9 +256,10 @@ end_if
 
     """)
         assert(len(errors)==0)
+        task = runner.active_task
         while runner.is_running():
             runner.tick()
-        x = runner.get_value("x")
+        x = task.get_value("x", None)
         assert(x==(300, Scope.NORMAL))
 
     def test_match(self):
@@ -279,7 +286,7 @@ case 50:
     end_match
 """)
         assert(len(errors)==0)
-        x = runner.get_value("x")
+        x = runner.active_task.get_value("x", None)
         assert(x==(600, Scope.NORMAL))
 
     def test_loops(self):
@@ -300,7 +307,7 @@ case 50:
     next y
     """)
             assert(len(errors)==0)
-            x = runner.get_value("x")
+            x = runner.active_task.get_value("x", None)
             assert(x==(242, Scope.NORMAL))
 
     def test_await_condition(self):
@@ -372,15 +379,15 @@ shared var2 = var2 + 100
 
     """)
         assert(len(errors)==0)
-        var1 = runner.get_value("var1")
-        var2 = runner.get_value("var2")
+        var1 = runner.active_task.get_value("var1", None)
+        var2 = runner.active_task.get_value("var2", None)
         assert(var1 == (800,Scope.NORMAL))
         assert(var2 == (800,Scope.SHARED))
         
         # run again, shared data should NOT reset
-        runner.start_task()
-        var1 = runner.get_value("var1")
-        var2 = runner.get_value("var2")
+        task = runner.start_task()
+        var1 = task.get_value("var1", None)
+        var2 = task.get_value("var2", None)
         assert(var1 == (800,Scope.NORMAL))
         assert(var2 == (1500,Scope.SHARED))
         
@@ -436,8 +443,8 @@ shared var2 = var2 + 100
 !!!!!!!!! end s!!!!!!
     """)
         assert(len(errors)==0)
-        var1 = runner.get_value("var1")
-        var2 = runner.get_value("var2")
+        var1 = runner.active_task.get_value("var1", None)
+        var2 = runner.active_task.get_value("var2", None)
         assert(var1 == (300,Scope.NORMAL))
         assert(var2 == (300,Scope.SHARED))
 
@@ -695,8 +702,8 @@ S2 Again
     def test_fallback_no_cond_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger string output            
-        has_apple = False
-        has_banana = False
+        shared has_apple = False
+        shared has_banana = False
         # Start something that will eventually find an apple
         => external
         # Start hungry until you eat something
@@ -733,30 +740,38 @@ S2 Again
 
     def test_fallback_cond_no_err(self):
         (errors, runner, _) = mast_run( code = """
-        logger string output            
-        not_hungry = False
-        has_apple = False
-        has_banana = False
-        => external
+        logger string output
 
-        a => eat_apple | eat_banana
-        await a
+        blackboard  = ~~{
+            "not_hungry":  False,
+            "has_apple": False,
+            "has_banana": False
+        }~~
+
+        await =>=> external & not_hungry  {"blackboard": blackboard}
+
+        
+        
         log "not hungry"
         ->END
+
+        ====== not_hungry =====
+        await ->=> eat_apple | eat_banana  {"blackboard": blackboard}
+
         ??????? eat_apple ??????
-        ->FAIL if not has_apple
-        not_hungry = True
+        ->FAIL if not blackboard.has_apple
+        blackboard.not_hungry = True
         log "Ate Apple"
         -> END
         ??????? eat_banana ?????
-        -> FAIL if not has_banana
-        not_hungry = True
+        -> FAIL if not blackboard.has_banana
+        blackboard.not_hungry = True
         -> END
 
 
         ===== external ====
         delay test 10s
-        has_apple = True
+        blackboard.has_apple = True
     """)
         assert(len(errors)==0)
         #for _ in range(50):

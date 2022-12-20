@@ -62,19 +62,19 @@ class FailRuntimeNode(MastRuntimeNode):
 
 class AssignRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task:MastAsyncTask, node:Assign):
-        try:
-            value = task.eval_code(node.code)
-            if "." in node.lhs or "[" in node.lhs:
-                locals = {"__mast_value": value} | task.get_symbols()
-                exec(f"""{node.lhs} = __mast_value""",{"__builtins__": Mast.globals}, locals)
-            elif node.scope: 
-                task.set_value(node.lhs, value, node.scope)
-            else:
-                task.set_value_keep_scope(node.lhs, value)
-                
-        except:
-            task.main.runtime_error(f"assignment error {node.lhs}")
-            return PollResults.OK_END
+        #try:
+        value = task.eval_code(node.code)
+        if "." in node.lhs or "[" in node.lhs:
+            locals = {"__mast_value": value} | task.get_symbols()
+            exec(f"""{node.lhs} = __mast_value""",{"__builtins__": Mast.globals}, locals)
+        elif node.scope: 
+            task.set_value(node.lhs, value, node.scope)
+        else:
+            task.set_value_keep_scope(node.lhs, value)
+            
+        # except:
+        #     task.main.runtime_error(f"assignment error {node.lhs}")
+        #     return PollResults.OK_END
 
         return PollResults.OK_ADVANCE_TRUE
 
@@ -94,10 +94,10 @@ class PyCodeRuntimeNode(MastRuntimeNode):
                 task.main.vars[name] = value
 
         locals = {"export": export, "export_var": export_var} | task.get_symbols()
-        try:
-            exec(node.code,{"__builtins__": Mast.globals}, locals)
-        except:
-            task.runtime_error(f"""Embedded python failed""")
+        #try:
+        exec(node.code,{"__builtins__": Mast.globals}, locals)
+       #except:
+       #     task.runtime_error(f"""Embedded python failed""")
         return PollResults.OK_ADVANCE_TRUE
 
 class DoCommandRuntimeNode(MastRuntimeNode):
@@ -306,6 +306,9 @@ class ParallelRuntimeNode(MastRuntimeNode):
         if self.task:
             if not self.task.done:
                 return PollResults.OK_RUN_AGAIN
+            if node.reflect:
+                return self.task.result
+
         return PollResults.OK_ADVANCE_TRUE
 
 
@@ -508,7 +511,7 @@ class MastAsyncTask:
         elif scope == Scope.TEMP:
             self.vars[key] = value
         else:
-            self.main.vars[key] = value
+            self.vars[key] = value
 
     def set_value_keep_scope(self, key, value):
         scoped_val = self.get_value(key, value)
@@ -528,7 +531,7 @@ class MastAsyncTask:
                     return (val, Scope.TEMP)
         val = self.vars.get(key, None)
         if val is not None:
-            return (val, Scope.TEMP)
+            return (val, Scope.NORMAL)
         return self.main.get_value(key, defa)
 
     def get_variable(self, key):
@@ -605,9 +608,11 @@ class MastAsyncTask:
                             self.result = result
                             self.next()
                         case PollResults.OK_END:
+                            self.result = result
                             self.done = True
                             return PollResults.OK_END
                         case PollResults.FAIL_END:
+                            self.result = result
                             return PollResults.FAIL_END
 
                         case PollResults.OK_RUN_AGAIN:
@@ -668,6 +673,7 @@ class MastAllTask:
         self.conditional = None
         self.done = False
         self.result = None
+        self.active_label = ""
 
     def tick(self) -> PollResults:
         if self.conditional is not None and self.task.get_variable(self.conditional):
@@ -693,6 +699,7 @@ class MastAnyTask:
         self.conditional = None
         self.done = False
         self.result = None
+        self.active_label = ""
 
     def tick(self) -> PollResults:
         if self.conditional is not None and self.task.get_variable(self.conditional):
@@ -720,6 +727,10 @@ class MastSequenceTask:
         self.done = False
         self.result = None
 
+    @property
+    def active_label(self):
+        self.task.active_label
+
     def tick(self) -> PollResults:
         if self.conditional is not None and self.task.get_variable(self.conditional):
             self.done = True
@@ -734,6 +745,9 @@ class MastSequenceTask:
             label = self.labels[self.current_label]
             self.task.jump(label)
             return PollResults.OK_JUMP
+        if self.result == PollResults.FAIL_END:
+                self.done = True
+                return PollResults.FAIL_END
         return PollResults.OK_RUN_AGAIN
     def run_event(self, event_name, event):
         self.task.run_event(event_name, event)
@@ -746,6 +760,11 @@ class MastFallbackTask:
         self.current_selection = 0
         self.done = False
         self.result = None
+        
+
+    @property
+    def active_label(self):
+        self.task.active_label
 
     def tick(self) -> PollResults:
         if self.conditional is not None and  self.task.get_variable(self.conditional):
@@ -755,7 +774,8 @@ class MastFallbackTask:
         if self.result == PollResults.FAIL_END:
             self.current_selection += 1
             if self.current_selection >= len(self.labels):
-                self.current_selection = 0
+                self.done = True
+                return PollResults.FAIL_END
             # so if this fails as a sequence it reruns the sequence?
             label = self.labels[self.current_selection]
             self.task.jump(label)

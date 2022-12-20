@@ -5,6 +5,7 @@ END_DRAW = 99
 
 X_TURN = 1
 Y_TURN = -1
+logger
 
 checks = ~~[
     [0,1,2],
@@ -75,7 +76,10 @@ case END_DRAW:
 DRAW
 """
 case _:
-->play
+###
+### This needs to pop then jump to play
+### This is a bit complex, can this be made easier?
+<<-> play
 end_match
 
 ->>draw_board
@@ -83,7 +87,10 @@ end_match
 await choice:
     + "Play Again":
         ->> clear
-        ->play
+        ###
+        ### This needs to pop then jump to play
+        ### This is a bit complex, can this be made easier?
+        <<->play
 end_await
 
 
@@ -91,8 +98,7 @@ end_await
 ============== set_grid ===============
 grid[slot] = turn
 turn = -turn
-->check_winner
-
+->END
 
 =========== play ================
 
@@ -103,8 +109,9 @@ for x while x<3:
     space = grid[test]
     
     if space == 0:
-        button "{test+1}" data = ~~{"test": test}~~:
-            await => set_grid {"slot":test} 
+        button "{test+1}" data = ~~{"myslot": test}~~:
+            await => set_grid {"slot":myslot} 
+            ->check_winner
         end_button
     elif space == 1:
         """ X """

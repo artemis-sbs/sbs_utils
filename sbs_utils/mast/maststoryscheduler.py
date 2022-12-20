@@ -2,7 +2,7 @@ import logging
 from .mastscheduler import PollResults, MastRuntimeNode, MastAsyncTask
 from .mast import Mast
 import sbs
-from ..gui import Gui, Page
+from ..gui import Gui, Page, FakeEvent
 from .parsers import StyleDefinition
 
 from ..pages import layout
@@ -235,7 +235,7 @@ class ChooseRuntimeNode(StoryRuntimeNode):
         if seconds == 0:
             self.timeout = None
         else:
-            self.timeout = sbs.app_seconds()+ (node.minutes*60+node.seconds)
+            self.timeout = sbs.app_seconds()+ seconds
 
         top = ((task.main.page.aspect_ratio.y - 30)/task.main.page.aspect_ratio.y)*100
 
@@ -245,7 +245,7 @@ class ChooseRuntimeNode(StoryRuntimeNode):
 
         active = 0
         index = 0
-        row: Row
+        layout_row: Row
         layout_row = layout.Row()
         for button in node.buttons:
             match button.__class__.__name__:
@@ -298,7 +298,7 @@ class ChooseRuntimeNode(StoryRuntimeNode):
             task.jump(task.active_label,button.loc+1)
             return PollResults.OK_JUMP
 
-        if self.timeout:
+        if self.timeout is not None:
             if self.timeout <= sbs.app_seconds():
                 if node.timeout_label:
                     task.jump(task.active_label,node.timeout_label.loc+1)
@@ -618,6 +618,9 @@ class StoryPage(Page):
     def tick_mast(self, sim, t):
         if self.story_scheduler:
             self.story_scheduler.story_tick_tasks(sim, self.client_id)
+        if self.gui_state == 'repaint':
+            event = FakeEvent(self.client_id, "gui_represent")
+            self.present(sim, event)
 
    
 
@@ -702,8 +705,11 @@ class StoryPage(Page):
         
         if layout:
             self.pending_layouts.append(layout)
-
+        
         self.swap_layout()
+        
+        
+
         
     
     def present(self, sim, event):

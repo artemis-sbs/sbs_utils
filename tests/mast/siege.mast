@@ -1,6 +1,10 @@
 enemy_count=20
 
-if IS_SERVER:->StartMenu else: -> ConsoleSelect end_if
+if IS_SERVER:
+->StartMenu 
+else: 
+-> ConsoleSelect 
+end_if
 
 ========== StartMenu ===============
 
@@ -8,7 +12,7 @@ section style="area: 50, 10, 99, 90;"
 """""
 Basic Siege written in Mast
 """""
-section style=" area: 60, 75, 99, 89;"
+section style="area: 60, 75, 99, 89;"
 
 intslider enemy_count 1.0 50.0 5.0
 row
@@ -45,12 +49,12 @@ await choice:
 end_await
 
 ============ WatchEndGame ======= 
-players = ~~ SpaceObject.get_objects_with_role('PlayerShip') ~~
+players = role('PlayerShip')
 if len(players)==0:
     ->Lost
 end_if
 
-raiders = ~~SpaceObject.get_objects_with_role('Raider')~~
+raiders = role('Raider')
 if len(raiders)==0:
     -> Won
 end_if
@@ -164,8 +168,8 @@ for v in spawn_points:
 # start the comms for the players and stations
 # Each ship will have its of thread for comms
 # this enables them to have a unique path
-for ds in SpaceObject.get_objects_with_role('Station'):
-    for player in SpaceObject.get_objects_with_role('PlayerShip'):
+for ds in SpaceObject.get_role_objects('Station'):
+    for player in SpaceObject.get_role_objects('PlayerShip'):
         => station_comms {"self": ds, "player": player}
     next player
 next ds
@@ -182,7 +186,7 @@ next ds
 
 
 =============== station_comms ===============
-comms_id = player.comms_id(sim)
+comms_id = player.comms_id # (sim)
 
 await self comms player:
     + "Hail":
@@ -245,7 +249,7 @@ have self tell player  """{comms_id}. {torpedo_build_type} Production complete."
 
 
 ================ NPC_Comms ==================
-comms_id = player.comms_id(sim)
+comms_id = player.comms_id #(sim)
 await self comms player:
     + "Hail":
         have self tell player "{comms_id}! We will destroy you, disgusting Terran scum!"
@@ -258,10 +262,12 @@ end_await
 
 ========== NPC_Targeting === 
 ~~~~~
-for raider in SpaceObject.get_objects_with_role('Raider'):
-    target = raider.target_closest(sim, "PlayerShip", 2000)
-    if target.id is None:
-        target = raider.target_closest(sim, "Station")
+for raider in SpaceObject.get_role_objects('Raider'):
+    the_target = closest(raider, role("PlayerShip"), 2000)
+    if the_target is None:
+        the_target = closest(raider, role("Station"))
+    if the_target is not None:
+        target(sim, raider, the_target, True)
 ~~
 delay 5s
 -> NPC_Targeting
@@ -275,9 +281,9 @@ if "undocked" == dock_state_string:
     ~~ self.set_engine_data(sim, "dock_base_id", 0) ~~
 
     dock_rng = 600
-    station = ~~self.find_closest(sim, "Station", 600)~~
-    if station.id is not None:
-        ~~player_blob.set("dock_base_id", station.id) ~~
+    station = closest(self, role("Station"), 600)
+    if station is not None:
+        ~~player_blob.set("dock_base_id", to_id(station)) ~~
     end_if
 end_if
 
@@ -360,9 +366,9 @@ else:
 end_if
 
 
-dropdown console "Helm^Weapons^Science^Engineering^Comms^Medical^Main Screen"
+dropdown console "Helm^Weapons^Science^Engineering^Comms^Medical^Main Screen":
 view = "Main"
-<<- PickedConsole<<
+<<->> PickedConsole
 end_dropdown
 await gui
 

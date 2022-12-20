@@ -318,6 +318,8 @@ for func in [
         query.set_inventory_value,
         query.object_exists,
         query.has_role,
+        query.add_role,
+        query.remove_role,
         ############################
         ## sbs
         sbs.distance_id

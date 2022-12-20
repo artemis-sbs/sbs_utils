@@ -328,16 +328,18 @@ class Parallel(MastNode):
     """
     task_name =  re.compile(r"""await\s(?P<name>\w+)""")
     spawn_rule = re.compile("""((?P<name>\w+)\s*)?\=>(?P<all_any>\=>)?(\s*(?P<conditional>\w+)\s*\?)?\s*(?P<labels>\s*(\w+)((\s*[\|&]\s*)\w+)*)(?P<inputs>\s*"""+ DICT_REGEX+")?")
-    await_rule = re.compile(r"await\s+")
+    #await_rule = re.compile(r"await\s+")
+    await_return_rule = re.compile(r"await\s*(?P<ret>->)?\s*")
     block_rule = re.compile(r"s*:")
 
-    def __init__(self, name=None, is_block=None, await_task=None, all_any=None, conditional=None,  labels=None, inputs=None, loc=None):
+    def __init__(self, name=None, is_block=None, await_task=None, reflect=None, all_any=None, conditional=None,  labels=None, inputs=None, loc=None):
         self.loc = loc
         self.name = name
         self.conditional = conditional
         self.labels = labels
         self.await_task = await_task
         self.code = None
+        self.reflect = reflect
         self.end_await_node = None
         if is_block:
             EndAwait.stack.append(self)
@@ -381,15 +383,18 @@ class Parallel(MastNode):
             
             return ParseData(span[0], end, data)
 
-        match_await =  Parallel.await_rule.match(lines)
+        match_await =  Parallel.await_return_rule.match(lines)
         if match_await:
             await_span = match_await.span()
+            reflect_return = match_await.groupdict().get("ret", None)
+            reflect_return = reflect_return  is not None
             lines = lines[await_span[1]:]
             spawn =  Parallel.spawn_rule.match(lines)
             if spawn is not None:
                 span = spawn.span()
                 data = spawn.groupdict()
                 data["await_task"] = True
+                data["reflect"] = reflect_return
                 end = await_span[1]+span[1]
                 block =  Parallel.block_rule.match(lines[end:])
                 

@@ -65,10 +65,11 @@ def closest(self, the_set, max_dist=None, filter_func=None) -> CloseData:
     test = max_dist
     ret = None
     source_id = SpaceObject.resolve_id(self)
+    the_set = to_set(the_set)
 
     for other_id in the_set:
         # if this is self skip
-        if other_id == SpaceObject.resolve_id(self):
+        if other_id == source_id:
             continue
         other_obj = SpaceObject.get(other_id)
         if filter_func is not None and not filter_func(other_obj):
@@ -230,6 +231,17 @@ def link(set_holder, link, set_to):
         for target in ids:
             so.add_link(link, target)
 
+def add_role(set_holder, role):
+    linkers = to_object_list(to_set(set_holder))
+    for so in linkers:
+        so.add_role(role)
+
+def remove_role(set_holder, role):
+    linkers = to_object_list(to_set(set_holder))
+    for so in linkers:
+        so.remove_role(role)
+
+
 def get_dedicated_link(so, link):
     so = to_object(so)
     return so.get_dedicated_link(link)
@@ -243,6 +255,7 @@ def set_dedicated_link(so, link, to):
 def has_role(so, role):
     so = to_object(so)
     return so.has_role(role)
+
 
 
 def get_inventory_value(so, link):

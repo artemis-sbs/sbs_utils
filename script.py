@@ -29,28 +29,6 @@ Mast.enable_logging()
 
 
 
-class MastShip(Npc):
-    def spawn(self, sim, x, y, z, name, side, art_id):
-        super().spawn(sim, x, y, z, name, side, art_id, "behav_npcship")
-
-    def compile(sim, script):
-        MastShip.mast = MastSbs()
-        MastShip.mast.compile(script)
-        MastShip.runner = MastSbsScheduler(
-            MastShip.mast)
-        TickDispatcher.do_interval(sim, MastShip.tick_mast, 0)
-
-    def run(self, sim, label="main", inputs=None):
-        inputs = {
-            "self": self,
-            "PlayerShip": PlayerShip,
-            "Npc": Npc
-        } | inputs
-        MastShip.runner.run(sim, label, inputs)
-
-    def tick_mast(sim, t):
-        MastShip.runner.sbs_tick_threads(sim)
-
 
 
 
@@ -158,7 +136,6 @@ class GuiMain(Page):
         sbs.send_gui_button(event.client_id, "Avatar Editor", "avatar", *next(w))
         sbs.send_gui_button(event.client_id, "Ship Picker", "ship", *next(w))
         sbs.send_gui_button(event.client_id, "StubGen", "stub", *next(w))
-        sbs.send_gui_button(event.client_id, "Mast", "mast", *next(w))
         sbs.send_gui_button(event.client_id, "Layout", "layout", *next(w))
         sbs.send_gui_button(event.client_id, "Mast bar", "story", *next(w))
         sbs.send_gui_button(event.client_id, "Mast ttt", "story_ttt", *next(w))
@@ -374,165 +351,6 @@ class Mission:
         
         
 
-    def mast(sim):
-
-        player = PlayerShip()
-        player.spawn(sim, 0,0,0, "Artemis", "tsn", "Battle Cruiser")
-
-        
-        ds1 = Spacedock()
-        ds1.spawn(sim, 1000,0,2500,"tsn")
-        ds2 = Spacedock()
-        ds2.spawn(sim, -1000,0,2500,"tsn")
-     
-        MastShip.compile(sim, 
-"""
-# Set the comms buttons to start the 'quest'
-
-await self comms player
-+ "Start at DS1"
- -> One
-+ "Start at DS2"
- -> Two
-+ "Taunt"
- -> Taunt
-+ "Menu"
- -> Start
- end_await
-
-
-== Taunt ==
-x = 52
-await self comms player
-    * "Your mother"  color "red"
-        -> Taunt
-    + "Kiss my Engine"  color "green"
-        -> Taunt
-    + "Skip me" color "white" if x > 54
-        -> Taunt 
-    * "Don't Skip me" color "white" if x < 54
-     -> Taunt 
-    + "Taunt" 
-        -> Taunt
-end_await
-
-
-== One ==
-await=>HeadToDS1
-await=>HeadToDS2
-->One
-
-== Two ==
-await=>HeadToDS2
-await=>HeadToDS1
-->Two
-
-== HeadToDS1 ==
-have self approach ds1                           # Goto DS1
-await self near  ds1 700
-    have self tell player  "I have arrived at ds1"   # tell the player
-end_await
-
-== HeadToDS2 ==
-have self approach ds2                           # goto DS2
-await self near ds2 700                           # wait until near D2
-    have self tell player "I have arrived at ds2"    # tell the player
-end_await
-
-
-== Start ==
-
-await self comms player
-+ "Say Hello" 
--> Hello
-+ "Say Hi"
- -> Hi
-+ "Shutup"
- -> Shutup
-end_await
-
-
-== skip ==
-have self tell player "Come to pick the princess"
-await self near player 300
-    have self tell player "You have the princess goto ds1"
-end_await
-await player near  station 700
-    have station tell player "the princess is on ds1"
-end_await
-
-== Hello ==
-have self tell player "HELLO"
-
-await self comms player
-+ "Say Blue"
--> Blue
-+ "Say Yellow"
--> Yellow
-+ "Say Cyan"
--> Cyan
-end_await
-
-
-== Hi ==
-have self tell player  "Hi"
-delay 10s
--> Start
-
-== Chat ==
-have self tell player "Blah, Blah"
-delay 2s
--> Chat
-
-== Shutup ==
-cancel chat
-
-== Blue ==
-have self tell player "Blue"
-delay 10s
--> Start
-
-== Yellow ==
-have self tell player "Yellow"
-delay 10s
--> Start
-
-== Cyan ==
-have self tell player "Cyan"
-await self comms player timeout 5s
-+ "Say main" -> main
-timeout
--> TooSlow
-end_await
-
-
-== TooSlow ==
-have self tell player "Woh too slow"
-delay 10s
--> Start
-
-""")
-
-        # Run multiple ships using the same Quest
-        for i in range(3):
-            q = MastShip()
-            q.spawn(sim, -500+i*500,0,400, f"TSN {i}", "tsn", "Battle Cruiser" )
-
-            inputs = {
-                "player": player,
-                "ds1": ds1,
-                "ds2": ds2,
-                "ship": q,
-                "self": q
-            }
-            q.run(sim, inputs=inputs)
-        # Demo threads
-        # q.start(sim,"Chat", inputs)
-
-
-        
-  
-        
 
 
 
@@ -544,10 +362,11 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
 
         Spacedock.ds_id += 1
         self.ds_id = Spacedock.ds_id
-        self.comms_id =  f"DS {self.ds_id}"
+        
     
     def spawn(self, sim, x,y,z, side):
-        super().spawn(sim,x,y,z,self.comms_id, side, "Starbase", "behav_station")
+        use_name =  f"DS {self.ds_id}"
+        super().spawn(sim,x,y,z,use_name, side, "Starbase", "behav_station")
         self.enable_comms()
         
 
