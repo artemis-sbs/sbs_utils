@@ -90,6 +90,9 @@ next x
 
     def test_jumps_compile_err(self):
         (errors, mast) =mast_compile( code = """
+
+
+
 ->END
 -> END
 -> a_label
@@ -120,6 +123,14 @@ await => trend
 await ->=> trend
 await->=> trend
 await->=> trend
+await => fred & barney:
+->END
+fail:
+->FAIL
+end_await
+await ->=> fred & barney
+
+
 """)
 
         assert(len(errors)==0)

@@ -301,13 +301,19 @@ class ParallelRuntimeNode(MastRuntimeNode):
             task = task.start_task(node.labels, vars, task_name=node.name)
 
         self.task = task if node.await_task else None
+        self.timeout = task.main.get_seconds("sim") + (node.minutes*60+node.seconds)
         
-    def poll(self, mast, task, node:Parallel):
+    def poll(self, mast, task: MastAsyncTask, node:Parallel):
         if self.task:
             if not self.task.done:
                 return PollResults.OK_RUN_AGAIN
             if node.reflect:
                 return self.task.result
+            if node.fail_label and self.task.done and self.task.result == PollResults.FAIL_END:
+                task.jump(task.active_label,node.fail_label.loc+1)
+        if node.timeout_label and self.timeout < task.main.get_seconds("sim"):
+            task.jump(task.active_label,node.timeout_label.loc+1)
+
 
         return PollResults.OK_ADVANCE_TRUE
 

@@ -47,6 +47,7 @@ class Comms(MastNode):
         self.color = color
 
         self.timeout_label = None
+        self.fail_label = None
         self.end_await_node = None
         EndAwait.stack.append(self)
 
@@ -114,6 +115,7 @@ class Near(MastNode):
         self.minutes = 0 if  minutes is None else int(minutes)
 
         self.timeout_label = None
+        self.fail_label = None
         self.end_await_node = None
         EndAwait.stack.append(self)
     

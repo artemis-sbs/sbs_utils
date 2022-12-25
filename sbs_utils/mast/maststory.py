@@ -147,6 +147,7 @@ class Choose(MastNode):
         self.active = False
 
         self.timeout_label = None
+        self.fail_label = None
         self.end_await_node = None
         EndAwait.stack.append(self)
 

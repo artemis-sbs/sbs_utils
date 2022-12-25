@@ -330,7 +330,7 @@ class Parallel(MastNode):
     spawn_rule = re.compile("""((?P<name>\w+)\s*)?\=>(?P<all_any>\=>)?(\s*(?P<conditional>\w+)\s*\?)?\s*(?P<labels>\s*(\w+)((\s*[\|&]\s*)\w+)*)(?P<inputs>\s*"""+ DICT_REGEX+")?")
     #await_rule = re.compile(r"await\s+")
     await_return_rule = re.compile(r"await\s*(?P<ret>->)?\s*")
-    block_rule = re.compile(r"s*:")
+    block_rule = re.compile(r"\s*:")
 
     def __init__(self, name=None, is_block=None, await_task=None, reflect=None, all_any=None, conditional=None,  labels=None, inputs=None, loc=None):
         self.loc = loc
@@ -342,6 +342,8 @@ class Parallel(MastNode):
         self.reflect = reflect
         self.end_await_node = None
         if is_block:
+            self.timeout_label = None
+            self.fail_label = None
             EndAwait.stack.append(self)
 
         if await_task and name:
@@ -386,6 +388,7 @@ class Parallel(MastNode):
         match_await =  Parallel.await_return_rule.match(lines)
         if match_await:
             await_span = match_await.span()
+            await_len = await_span[1]-await_span[0]
             reflect_return = match_await.groupdict().get("ret", None)
             reflect_return = reflect_return  is not None
             lines = lines[await_span[1]:]
@@ -395,13 +398,15 @@ class Parallel(MastNode):
                 data = spawn.groupdict()
                 data["await_task"] = True
                 data["reflect"] = reflect_return
-                end = await_span[1]+span[1]
+                end = span[1]
                 block =  Parallel.block_rule.match(lines[end:])
                 
                 if block:
-                    end+= block.span[1]
+                    span = block.span()
+                    end = end + span[1]
+                    line = lines[end:]
                     data["is_block"] = True
-                return ParseData(await_span[0], end, data)
+                return ParseData(await_span[0], await_len+end, data)
             else:
                 return None
 
@@ -449,6 +454,16 @@ class Timeout(MastNode):
         self.await_node.minutes = 0 if  minutes is None else int(minutes)
 
 
+class AwaitFail(MastNode):
+    rule = re.compile(r'fail:')
+    def __init__(self, loc=None):
+        self.loc = loc
+        
+        self.await_node = EndAwait.stack[-1]
+        EndAwait.stack[-1].fail_label = self
+
+
+
 class AwaitCondition(MastNode):
     """
     waits for an existing or a new 'task' to run in parallel
@@ -460,6 +475,7 @@ class AwaitCondition(MastNode):
         self.loc = loc
         self.timeout_label = None
         self.end_await_node = None
+        self.fail_label = None
 
         # Done int timeout now
         #self.seconds = 0 if  seconds is None else int(seconds)
@@ -652,6 +668,7 @@ class Mast:
 #        Await,  # needs to be before Parallel
         Timeout,
         EndAwait,
+        AwaitFail,
         Parallel,  # needs to be before Assign
         Cancel,
         Assign,
