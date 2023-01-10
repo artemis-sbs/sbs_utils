@@ -9,7 +9,7 @@ from ..pages import layout
 from ..tickdispatcher import TickDispatcher
 
 from .errorpage import ErrorPage
-from .maststory import AppendText, ButtonControl, MastStory, Choose, Text, Blank, Ship, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, Hole, RadioControl
+from .maststory import AppendText, ButtonControl, MastStory, Choose, Text, Blank, Ship, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, Hole, RadioControl, Console
 import traceback
 from .mastsbsscheduler import MastSbsScheduler 
 from .parsers import LayoutAreaParser
@@ -475,6 +475,42 @@ class WidgetListRuntimeNode(MastRuntimeNode):
     def enter(self, mast, task: MastAsyncTask, node:WidgetList):
         task.main.page.set_widget_list(node.console, node.widgets)
 
+class ConsoleRuntimeNode(MastRuntimeNode):
+    def enter(self, mast, task: MastAsyncTask, node:Console):
+        if node.var:
+            console = task.get_variable(node.console)
+            match console.lower():
+                case "helm":
+                    console =  "normal_helm"
+                    widgets = "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+                case "weapons":
+                    console =  "normal_weap"
+                    widgets = "2dview^weapon_control^ship_data^shield_control^text_waterfall^main_screen_control"
+                case "science":
+                    console =  "normal_sci"
+                    widgets = "science_2d_view^ship_data^text_waterfall^science_data^object_sorted_list"
+                case "engineering":
+                    console =  "normal_engi"
+                    widgets = "ship_internal_view^grid_object_list^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
+                case "comms":
+                    console =  "normal_comm"
+                    widgets = "text_waterfall^comms_waterfall^comms_control^comms_face^object_sorted_list^ship_data"
+                case "mainscreen":
+                    console =  "normal_main"
+                    widgets = "3dview^ship_data^text_waterfall"
+                case "clear":
+                    console = ""
+                    widgets = ""
+                case _:
+                    # use variable name as console name
+                    # variable value is widgets
+                    widgets = console
+                    console = node.console
+                    
+            task.main.page.set_widget_list(console, widgets)
+        else:
+            task.main.page.set_widget_list(node.console, node.widgets)
+
 class ImageControlRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: ImageControl):
         tag = task.main.page.get_tag()
@@ -497,6 +533,7 @@ over =     {
     "ImageControl":ImageControlRuntimeNode,
     "TextInputControl": TextInputControlRuntimeNode,
     "WidgetList":WidgetListRuntimeNode,
+    "Console":ConsoleRuntimeNode,
     "Blank": BlankRuntimeNode,
     "Hole": HoleRuntimeNode,
     "AwaitGui": AwaitGuiRuntimeNode,
@@ -798,3 +835,5 @@ class StoryPage(Page):
             return
         self.story_scheduler.on_event(sim, event)
         
+
+    

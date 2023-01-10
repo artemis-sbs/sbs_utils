@@ -321,6 +321,42 @@ class WidgetList(MastNode):
             self.console = console
             self.widgets = widgets
 
+class Console(MastNode):
+    #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
+    #(\s+color\s*["'](?P<color>[ \t\S]+)["'])?
+    rule = re.compile(r"""console\s+(?P<console>\w+)""")
+    def __init__(self,  console, loc=None):
+        self.loc = loc
+        self.var = False
+        widgets = None
+        match console:
+            case "helm":
+                console =  "normal_helm"
+                widgets = "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+            case "weapons":
+                console =  "normal_weap"
+                widgets = "2dview^weapon_control^ship_data^shield_control^text_waterfall^main_screen_control"
+            case "science":
+                console =  "normal_sci"
+                widgets = "science_2d_view^ship_data^text_waterfall^science_data^object_sorted_list"
+            case "engineering":
+                console =  "normal_engi"
+                widgets = "ship_internal_view^grid_object_list^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
+            case "comms":
+                console =  "normal_comm"
+                widgets = "text_waterfall^comms_waterfall^comms_control^comms_face^object_sorted_list^ship_data"
+            case "mainscreen":
+                console =  "normal_main"
+                widgets = "3dview^ship_data^text_waterfall"
+            case "clear":
+                console = ""
+                widgets = ""
+            case _:
+                self.var = True
+
+        self.console = console
+        self.widgets = widgets
+
 
 class MastStory(MastSbs):
     nodes = [
@@ -344,5 +380,6 @@ class MastStory(MastSbs):
         ImageControl,
         TextInputControl,
         WidgetList,
+        Console,
         Refresh
     ] + MastSbs.nodes 

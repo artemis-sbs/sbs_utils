@@ -681,8 +681,13 @@ S2 Again
     def test_fallback_loop_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger string output            
-        x = 0
-        => Seq1 | Seq2 | Seq3
+        shared x = 0
+        === run ===
+        await => Seq1 | Seq2 | Seq3:
+        fail:
+            log "Fail"
+            ->run
+        end_await
         ->END
         ======== Seq1 =====
         log "S1"
@@ -708,7 +713,7 @@ S2 Again
         #st.seek(0)
         value = st.getvalue()
 
-        assert(value =="""S1\nS2\nS3\nS1\nS2\nS3\nS1\nS2\n""")
+        assert(value =="""S1\nS2\nS3\nFail\nS1\nS2\nS3\nFail\nS1\nS2\n""")
 
     def test_fallback_no_cond_no_err(self):
         (errors, runner, _) = mast_run( code = """
@@ -753,11 +758,11 @@ S2 Again
         (errors, runner, _) = mast_run( code = """
         logger string output
 
-        blackboard  = ~~{
+        blackboard  = ~~MastDataObject({
             "not_hungry":  False,
             "has_apple": False,
             "has_banana": False
-        }~~
+        })~~
 
         await =>=> external & not_hungry  {"blackboard": blackboard}
 

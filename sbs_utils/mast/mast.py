@@ -341,6 +341,10 @@ class Parallel(MastNode):
         self.code = None
         self.reflect = reflect
         self.end_await_node = None
+        self.minutes = 0
+        self.seconds = 0
+        self.timeout_label = None
+        self.fail_label = None
         if is_block:
             self.timeout_label = None
             self.fail_label = None

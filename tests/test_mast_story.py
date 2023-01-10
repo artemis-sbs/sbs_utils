@@ -71,6 +71,9 @@ section style=fred
 radio var "helm,weapons,science"
 vradio var "helm,weapons,science"
 
+console helm
+console clear
+console console_name
 
 
 """)

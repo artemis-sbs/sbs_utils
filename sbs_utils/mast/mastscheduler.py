@@ -323,6 +323,12 @@ class TimeoutRuntimeNode(MastRuntimeNode):
         if node.end_await_node:
             task.jump(task.active_label,node.end_await_node.loc+1)
 
+class AwaitFailRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task: MastAsyncTask, node:AwaitFail):
+        if node.end_await_node:
+            task.jump(task.active_label,node.end_await_node.loc+1)
+
+
 class EndAwaitRuntimeNode(MastRuntimeNode):
     pass
 
@@ -674,8 +680,9 @@ class MastAsyncTask:
         return True
 
 class MastAllTask:
-    def __init__(self) -> None:
+    def __init__(self, main) -> None:
         self.tasks = []
+        self.main= main
         self.conditional = None
         self.done = False
         self.result = None
@@ -700,8 +707,9 @@ class MastAllTask:
             
         
 class MastAnyTask:
-    def __init__(self) -> None:
+    def __init__(self, main) -> None:
         self.tasks = []
+        self.main= main
         self.conditional = None
         self.done = False
         self.result = None
@@ -725,8 +733,9 @@ class MastAnyTask:
             t.run_event(event_name, event)
 
 class MastSequenceTask:
-    def __init__(self, labels, conditional) -> None:
+    def __init__(self, main, labels, conditional) -> None:
         self.task = None
+        self.main= main
         self.labels = labels
         self.conditional = conditional
         self.current_label = 0
@@ -759,8 +768,9 @@ class MastSequenceTask:
         self.task.run_event(event_name, event)
 
 class MastFallbackTask:
-    def __init__(self, labels, conditional) -> None:
+    def __init__(self, main,  labels, conditional) -> None:
         self.task = None
+        self.main= main
         self.labels = labels
         self.conditional = conditional
         self.current_selection = 0
@@ -815,6 +825,7 @@ class MastScheduler:
         "Cancel": CancelRuntimeNode,
         "Assign": AssignRuntimeNode,
         "AwaitCondition": AwaitConditionRuntimeNode,
+        "AwaitFail": AwaitFailRuntimeNode,
         "Timeout": TimeoutRuntimeNode,
         "EndAwait": EndAwaitRuntimeNode,
         "Event": EventRuntimeNode,
@@ -850,7 +861,7 @@ class MastScheduler:
 
 
     def start_all_task(self, labels = "main", inputs=None, task_name=None, conditional=None)-> MastAllTask:
-        all_task = MastAllTask()
+        all_task = MastAllTask(self)
         if not isinstance(labels, list):
             return self.start_task(label, inputs, task_name)
         
@@ -866,7 +877,7 @@ class MastScheduler:
         return all_task
 
     def start_any_task(self, labels = "main", inputs=None, task_name=None, conditional=None)->MastAnyTask:
-        any_task = MastAnyTask()
+        any_task = MastAnyTask(self)
         # if single label no need for any
         if not isinstance(labels, list):
             return self.start_task(label, inputs, task_name)
@@ -882,12 +893,12 @@ class MastScheduler:
             self.active_task.set_value(task_name, any_task, Scope.NORMAL)
         return any_task
 
-    def start_sequence_task(self, labels = "main", inputs=None, task_name=None, conditional=None)->MastAnyTask:
+    def start_sequence_task(self, labels = "main", inputs=None, task_name=None, conditional=None)->MastSequenceTask:
         # if single label no need for any
         if not isinstance(labels, list):
             return self.start_task(labels, inputs, task_name)
 
-        seq_task = MastSequenceTask(labels, conditional)    
+        seq_task = MastSequenceTask(self, labels, conditional)    
         t = self._start_task(labels[0], inputs, None)
         t.jump(labels[0])
         seq_task.task = t
@@ -898,12 +909,12 @@ class MastScheduler:
             self.active_task.set_value(task_name, seq_task, Scope.NORMAL)
         return seq_task
 
-    def start_fallback_task(self, labels = "main", inputs=None, task_name=None, conditional=None)->MastAnyTask:
+    def start_fallback_task(self, labels = "main", inputs=None, task_name=None, conditional=None)->MastFallbackTask:
         # if single label no need for any
         if not isinstance(labels, list):
             return self.start_task(labels, inputs, task_name)
 
-        seq_task = MastFallbackTask(labels, conditional)    
+        seq_task = MastFallbackTask(self, labels, conditional)    
         t = self._start_task(labels[0], inputs, None)
         t.jump(labels[0])
         seq_task.task = t
@@ -968,6 +979,8 @@ class MastScheduler:
             self.active_task = task
             res = task.tick()
             if res == PollResults.OK_END:
+                self.done.append(task)
+            elif task.done:
                 self.done.append(task)
         
         if len(self.done):
