@@ -39,7 +39,7 @@ class TellRuntimeNode(MastRuntimeNode):
         if to_so is None or from_so is None:
             return
         # From face should be used
-        self.title = from_so.comms_id(task.main.sim)+">"+to_so.comms_id(task.main.sim)
+        self.title = from_so.comms_id +">"+to_so.comms_id
         self.face = faces.get_face(from_so.get_id())
         # Just in case swap if from is not a player
         if not from_so.is_player:
