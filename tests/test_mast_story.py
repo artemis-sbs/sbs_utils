@@ -104,6 +104,41 @@ console console_name
                 print(err)
         assert(len(errors) == 0)
 
+    def test_compile_no_err_22(self):
+        (errors, mast)= mast_story_compile( code = """
+
+=========== server_main =====
+section style="area:2,20,18,35;"
+
+button "Speak":
+log "{fred}"
+<<->server_main
+end_button
+row
+slider fred 0 10 5
+
+button_set clear doug
+for x in range(3):
+button_set append doug:
+    + "{x}":
+        log "well shit"
+end_button_set
+next x
+
+await choice:
+    button_set use doug
+end_await
+
+->END
+
+
+""")
+        if len(errors)>0:
+            for err in errors:
+                print(err)
+        assert(len(errors) == 0)
+
+
 
 if __name__ == '__main__':
     try:

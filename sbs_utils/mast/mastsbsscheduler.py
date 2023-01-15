@@ -15,14 +15,44 @@ from .. import query
 import traceback
 
 class ButtonRuntimeNode(MastRuntimeNode):
-    def poll(self, mast, task, node: ButtonSet):
+    def poll(self, mast:Mast, task:MastAsyncTask, node: Button):
         if node.await_node and node.await_node.end_await_node:
             task.jump(task.active_label,node.await_node.end_await_node.loc+1)
             return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
 class ButtonSetRuntimeNode(MastRuntimeNode):
-    def poll(self, mast, task, node: ButtonSet):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: ButtonSet):
+        if node.use is not None:
+            return
+        # the end node needs to format all the buttons at runtime
+        if node.append:
+            main_node = task.get_variable(node.name)
+            # if main_node is None:
+            #     task.set_value_keep_scope(node.name, node)    
+            #     main_node = node
+            for button in node.buttons:
+                message=task.format_string(button.message)
+                proxy = Button(message=message,proxy=True)
+                proxy.code = button.code
+                proxy.color = button.color
+                proxy.loc = button.loc
+                proxy.await_node = button.await_node
+                proxy.sticky = True #button.sticky
+                proxy.visited = None
+                main_node.buttons.append(proxy)
+        elif node.clear:
+            proxy = ButtonSet(clear=True)
+            proxy.loc = node.loc
+            proxy.buttons = []
+            proxy.use = None
+            proxy.end = node.end
+            self.name = node.name
+            task.set_value_keep_scope(node.name, proxy)
+        elif node.name is not None:
+            task.set_value_keep_scope(node.name, node)
+       
+    def poll(self, mast:Mast, task:MastAsyncTask, node: ButtonSet):
         if node.end:
             task.jump(task.active_label,node.end.loc+1)
             return PollResults.OK_JUMP

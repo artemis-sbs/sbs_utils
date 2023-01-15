@@ -247,7 +247,17 @@ class ChooseRuntimeNode(StoryRuntimeNode):
         index = 0
         layout_row: Row
         layout_row = layout.Row()
+        buttons = []
         for button in node.buttons:
+            match button.__class__.__name__:
+                case "ButtonSet":
+                    bs = task.get_variable(button.use)
+                    if bs is not None and bs.__class__.__name__ == "ButtonSet":
+                        buttons.extend(bs.buttons)
+                case _:
+                    buttons.append(button)
+
+        for button in buttons:
             match button.__class__.__name__:
                 case "Button":
                     value = True

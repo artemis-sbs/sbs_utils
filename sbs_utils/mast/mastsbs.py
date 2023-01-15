@@ -53,8 +53,10 @@ class Comms(MastNode):
 
 class Button(MastNode):
     rule = re.compile(r"""(?P<button>\*|\+)\s+(?P<q>["'])(?P<message>.+?)(?P=q)"""+OPT_COLOR+IF_EXP_REGEX+r"\s*"+BLOCK_START)
-    def __init__(self, button, message,  color, if_exp, q=None, loc=None):
+    def __init__(self, message=None, button=None,  color=None, if_exp=None, proxy=False, q=None, loc=None):
         self.message = self.compile_formatted_string(message)
+        if proxy:
+            return
         self.sticky = (button == '+' or button=="button")
         self.color = color
         self.visited = set() if not self.sticky else None
@@ -84,20 +86,25 @@ class Button(MastNode):
 
 
 class ButtonSet(MastNode):
-    rule = re.compile(r"""(button_set\s+use\s+(?P<use>\w+))|(button_set\s*(?P<name>\w+)"""+BLOCK_START+""")|(end_button_set)""")
-    lookup = {}
-    def __init__(self, use=None, name=None, loc=None):
+    rule = re.compile(r"""(button_set\s+use\s+(?P<use>\w+))|(button_set\s+clear\s+(?P<clear>\w+))|(button_set\s+((?P<append>append)\s+)?(?P<name>\w+)"""+BLOCK_START+r""")|(end_button_set)""")
+    def __init__(self, use=None, name=None, clear=None, append=None, loc=None):
         self.loc = loc
         self.buttons = []
         self.use = use
+        self.append = append is not None
         self.end = None
-        if use is not None:
-            EndAwait.stack[-1].buttons.extend(self.buttons)
+        self.name = name
+        self.clear = False
+        if clear:
+            self.name = clear
+            self.clear = True
+            return
+        elif use is not None:
+            EndAwait.stack[-1].buttons.append(self)
         elif name is None:
             EndAwait.stack[-1].end = self
             EndAwait.stack.pop(-1)
         else:
-            ButtonSet.lookup[name] = self
             EndAwait.stack.append(self)
     
 
@@ -180,8 +187,8 @@ class MastSbs(Mast):
         Tell,
         Broadcast,
         Comms,
-        Button,
         ButtonSet,
+        Button,
         Near,
         Simulation,
         Role,

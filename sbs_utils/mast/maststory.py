@@ -158,7 +158,7 @@ class Choose(MastNode):
             self.style_def = StyleDefinition.styles.get(style_name)
 
 class ButtonControl(MastNode):
-    rule = re.compile(r"""((button\s+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q))(\s*data\s*=\s*(?P<data>"""+PY_EXP_REGEX+r"""))?"""+STYLE_REF_RULE+IF_EXP_REGEX+r"\s*"+BLOCK_START+")|(?P<end>end_button)")
+    rule = re.compile(r"""((button\s+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q))(\s*data\s*=\s*(?P<data>"""+PY_EXP_REGEX+r"""))?"""+STYLE_REF_RULE+IF_EXP_REGEX+r"\s*"+BLOCK_START+")|(?P<end>end_button(?!_set))")
     stack = []
     def __init__(self, message, q, data=None, py=None, if_exp=None, end=None,style_name=None, style=None, style_q=None, loc=None):
         #self.message = message
