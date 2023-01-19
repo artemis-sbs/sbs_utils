@@ -39,6 +39,12 @@ class Choose(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
+class Console(MastNode):
+    """class Console"""
+    def __init__ (self, console, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
 class DropdownControl(MastNode):
     """class DropdownControl"""
     def __init__ (self, var=None, values=None, q=None, end=None, style_name=None, style=None, style_q=None, loc=None):

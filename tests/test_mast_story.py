@@ -111,22 +111,35 @@ console console_name
 section style="area:2,20,18,35;"
 
 button "Speak":
-log "{fred}"
-<<->server_main
+    log "{fred}"
+    <<->server_main
 end_button
 row
 slider fred 0 10 5
 
-button_set clear doug
-for x in range(3):
-button_set append doug:
-    + "{x}":
-        log "well shit"
-end_button_set
-next x
 
 await choice:
-    button_set use doug
+    + "{x}" for x in range(3):
+        log "well test"
+end_await
+
+await choice:
+    + "Test" if y == 2:
+        log "well test"
+end_await
+
+await choice:
+    + "{x}" for x in range(3) if s==3:
+        log "well test"
+end_await
+
+await choice:
+    + "{x}" if s==3:
+        log "well test"
+    + "{x}" for x in range(3) if s==3:
+        log "well test"
+    + "Test":
+        log "well test"
 end_await
 
 ->END

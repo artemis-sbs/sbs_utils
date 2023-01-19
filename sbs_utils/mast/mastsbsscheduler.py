@@ -16,9 +16,14 @@ import traceback
 
 class ButtonRuntimeNode(MastRuntimeNode):
     def poll(self, mast:Mast, task:MastAsyncTask, node: Button):
+        #task.redirect_pop_label(True)
+        #return PollResults.OK_JUMP
         if node.await_node and node.await_node.end_await_node:
-            task.jump(task.active_label,node.await_node.end_await_node.loc+1)
-            return PollResults.OK_JUMP
+             #print(f"Button return {task.active_label} {node.await_node.end_await_node.loc+1}")
+
+             task.jump(task.active_label,node.await_node.end_await_node.loc+1)
+             return PollResults.OK_JUMP
+            
         return PollResults.OK_ADVANCE_TRUE
 
 class ButtonSetRuntimeNode(MastRuntimeNode):
@@ -32,14 +37,9 @@ class ButtonSetRuntimeNode(MastRuntimeNode):
             #     task.set_value_keep_scope(node.name, node)    
             #     main_node = node
             for button in node.buttons:
-                message=task.format_string(button.message)
-                proxy = Button(message=message,proxy=True)
-                proxy.code = button.code
-                proxy.color = button.color
-                proxy.loc = button.loc
-                proxy.await_node = button.await_node
-                proxy.sticky = True #button.sticky
-                proxy.visited = None
+                proxy = button.clone()
+                # For append we calculate message inline
+                proxy.message=task.format_string(button.message)
                 main_node.buttons.append(proxy)
         elif node.clear:
             proxy = ButtonSet(clear=True)
@@ -53,7 +53,11 @@ class ButtonSetRuntimeNode(MastRuntimeNode):
             task.set_value_keep_scope(node.name, node)
        
     def poll(self, mast:Mast, task:MastAsyncTask, node: ButtonSet):
-        if node.end:
+        if node.end == node:
+            #print("End_Button_Set")
+            task.redirect_pop_label(True)
+            return PollResults.OK_JUMP
+        elif node.end:
             task.jump(task.active_label,node.end.loc+1)
             return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE

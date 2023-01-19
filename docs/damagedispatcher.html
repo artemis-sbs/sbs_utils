@@ -64,7 +64,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#target-of-damage">Target of damage</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.damagedispatcher">API: damagedispatcher module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#api-damagedispatcher-module">API: damagedispatcher module</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
@@ -121,7 +121,7 @@
 <h2>sbs_utils damage system<a class="headerlink" href="#sbs-utils-damage-system" title="Permalink to this heading"></a></h2>
 <p>The DispatcherDispatcher is intended receive these and route them to callback functions.
 This can further be used to direct these to classes that represent the ships enabling the handling of this code to be handled in context of the ship(s) involved.</p>
-<p>The HandleDamage should call <a class="reference internal" href="#sbs_utils.damagedispatcher.DamageDispatcher.dispatch_damage" title="sbs_utils.damagedispatcher.DamageDispatcher.dispatch_damage"><code class="xref py py-meth docutils literal notranslate"><span class="pre">dispatch_damage()</span></code></a></p>
+<p>The HandleDamage should call <code class="xref py py-meth docutils literal notranslate"><span class="pre">dispatch_damage()</span></code></p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">HandleDamageEvent</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">damage_event</span><span class="p">):</span>
  <span class="n">DamageDispatcher</span><span class="o">.</span><span class="n">dispatch_damage</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="n">damage_event</span><span class="p">)</span>
 </pre></div>
@@ -175,39 +175,8 @@ target_id: int, ID of unit that suffered the damage</p>
 </div></blockquote>
 </section>
 </section>
-<section id="module-sbs_utils.damagedispatcher">
-<span id="api-damagedispatcher-module"></span><h2>API: damagedispatcher module<a class="headerlink" href="#module-sbs_utils.damagedispatcher" title="Permalink to this heading"></a></h2>
-<dl class="py class">
-<dt class="sig sig-object py" id="sbs_utils.damagedispatcher.DamageDispatcher">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.damagedispatcher.</span></span><span class="sig-name descname"><span class="pre">DamageDispatcher</span></span><a class="headerlink" href="#sbs_utils.damagedispatcher.DamageDispatcher" title="Permalink to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<dl class="py method">
-<dt class="sig sig-object py" id="sbs_utils.damagedispatcher.DamageDispatcher.add_source">
-<span class="sig-name descname"><span class="pre">add_source</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.damagedispatcher.DamageDispatcher.add_source" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="sbs_utils.damagedispatcher.DamageDispatcher.add_target">
-<span class="sig-name descname"><span class="pre">add_target</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.damagedispatcher.DamageDispatcher.add_target" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="sbs_utils.damagedispatcher.DamageDispatcher.dispatch_damage">
-<span class="sig-name descname"><span class="pre">dispatch_damage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">damage_event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.damagedispatcher.DamageDispatcher.dispatch_damage" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="sbs_utils.damagedispatcher.DamageDispatcher.remove_source">
-<span class="sig-name descname"><span class="pre">remove_source</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.damagedispatcher.DamageDispatcher.remove_source" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="sbs_utils.damagedispatcher.DamageDispatcher.remove_target">
-<span class="sig-name descname"><span class="pre">remove_target</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.damagedispatcher.DamageDispatcher.remove_target" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
+<section id="api-damagedispatcher-module">
+<h2>API: damagedispatcher module<a class="headerlink" href="#api-damagedispatcher-module" title="Permalink to this heading"></a></h2>
 </section>
 </section>
 

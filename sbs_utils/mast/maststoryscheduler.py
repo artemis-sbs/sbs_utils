@@ -1,6 +1,6 @@
 import logging
 from .mastscheduler import PollResults, MastRuntimeNode, MastAsyncTask
-from .mast import Mast
+from .mast import Mast, Scope
 import sbs
 from ..gui import Gui, Page, FakeEvent
 from .parsers import StyleDefinition
@@ -11,7 +11,7 @@ from ..tickdispatcher import TickDispatcher
 from .errorpage import ErrorPage
 from .maststory import AppendText, ButtonControl, MastStory, Choose, Text, Blank, Ship, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, Hole, RadioControl, Console
 import traceback
-from .mastsbsscheduler import MastSbsScheduler 
+from .mastsbsscheduler import MastSbsScheduler, Button
 from .parsers import LayoutAreaParser
 
 class StoryRuntimeNode(MastRuntimeNode):
@@ -175,10 +175,10 @@ class ButtonControlRuntimeNode(StoryRuntimeNode):
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: ButtonControl):
         if node.is_end:
-            self.task.pop_label()
+            self.task.redirect_pop_label()
             return PollResults.OK_JUMP
         elif node.end_node:
-            self.task.jump(self.task.active_label, node.end_node.loc+1)
+            self.task.redirect_push_label(self.task.active_label, node.end_node.loc+1)
             return PollResults.OK_JUMP
 
 
@@ -248,15 +248,16 @@ class ChooseRuntimeNode(StoryRuntimeNode):
         layout_row: Row
         layout_row = layout.Row()
         buttons = []
-        for button in node.buttons:
-            match button.__class__.__name__:
-                case "ButtonSet":
-                    bs = task.get_variable(button.use)
-                    if bs is not None and bs.__class__.__name__ == "ButtonSet":
-                        buttons.extend(bs.buttons)
-                case _:
-                    buttons.append(button)
 
+        # Expand all the 'for' buttons
+        for button in node.buttons:
+            if button.__class__.__name__ != "Button":
+                buttons.append(button)
+            elif button.for_name is None:
+                buttons.append(button)
+            else:
+                buttons.extend(self.expand(button, task))
+        
         for button in buttons:
             match button.__class__.__name__:
                 case "Button":
@@ -287,9 +288,21 @@ class ChooseRuntimeNode(StoryRuntimeNode):
             task.main.page.set_button_layout(None)
 
         self.active = active
-        self.buttons = node.buttons
+        self.buttons = buttons
         self.button = None
 
+    def expand(self, button: Button, task: MastAsyncTask):
+        buttons = []
+        if button.for_code is not None:
+            iter_value = task.eval_code(button.for_code)
+            for data in iter_value:
+                task.set_value(button.for_name, data, Scope.TEMP)
+                clone = button.clone()
+                clone.data = data
+                clone.message = task.format_string(clone.message)
+                buttons.append(clone)
+
+        return buttons
 
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: Choose):
@@ -301,11 +314,15 @@ class ChooseRuntimeNode(StoryRuntimeNode):
             if node.assign:
                 task.set_value_keep_scope(node.assign, self.button.index)
                 return PollResults.OK_ADVANCE_TRUE
-
+            
             self.button.node.visit(self.button.client_id)
             button = self.buttons[self.button.index]
+            if button.for_name:
+                task.set_value(button.for_name, button.data, Scope.TEMP)
+
             self.button = None
-            task.jump(task.active_label,button.loc+1)
+            #print(f"CHOICE {button.loc+1} {node.end_await_node.loc}")
+            task.redirect_push_label(task.active_label,button.loc+1, node.end_await_node.loc)
             return PollResults.OK_JUMP
 
         if self.timeout is not None:

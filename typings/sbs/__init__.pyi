@@ -24,6 +24,8 @@ def distance_between_navpoints(arg0: str, arg1: str) -> float:
     """returns the distance between two nav points; navpoints by name"""
 def distance_id(arg0: int, arg1: int) -> float:
     """returns the distance between two space objects; arguments are two IDs"""
+def distance_point_line(arg0: sbs.vec3, arg1: sbs.vec3, arg2: sbs.vec3) -> tuple:
+    """calulates the distance from a point to a line, for checking potential collisions. Returns a tuple, containing: distance to collision pt along line; distance from line start to point; tangent (positive == in front"""
 def distance_to_navpoint(arg0: str, arg1: int) -> float:
     """returns the distance between a nav point and a space object; navpoint name, then object ID"""
 def get_client_ID_list() -> List[int]:
@@ -40,12 +42,14 @@ def resume_sim() -> None:
     """the sim will now run; HandleStartMission() and HandleTickMission() are called."""
 def send_client_widget_list(arg0: int, arg1: str, arg2: str) -> None:
     """sends the gameplay widgets to draw, on the targeted client (0 = server screen)"""
+def send_client_widget_rects(arg0: int, arg1: str, arg2: float, arg3: float, arg4: float, arg5: float, arg6: float, arg7: float, arg8: float, arg9: float) -> None:
+    """changes the rects of a gameplay widget, on the targeted client (0 = server screen)."""
 def send_comms_button_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
-    """sends a complex message to the comms console of a certain ship. args:  uint32_t playerID (0 = all ships), std::string color, std::string bodyText"""
+    """sends a complex message to the comms console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
 def send_comms_message_to_player_ship(playerID: int, sourceID: int, colorDesc: str, faceDesc: str, titleText: str, bodyText: str, messageTagSet: str = '') -> None:
-    """sends a complex message to the comms console of a certain ship. args:  uint32_t playerID (0 = all ships), std::string color, std::string bodyText"""
+    """sends a complex message to the comms console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
 def send_comms_selection_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
-    """sends a complex message to the comms console of a certain ship. args:  uint32_t playerID (0 = all ships), std::string color, std::string bodyText"""
+    """sends a complex message to the comms console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
 def send_gui_3dship(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
     """Creates a 3D ship box GUI element, on the targeted client (0 = server screen)"""
 def send_gui_button(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
@@ -72,6 +76,8 @@ def send_message_to_player_ship(arg0: int, arg1: str, arg2: str) -> None:
     """sends a text message to the text box, on every client for a certain ship. args:  uint32_t playerID (0 = all ships), std::string color, std::string text"""
 def send_story_dialog(arg0: int, arg1: str, arg2: str, arg3: str, arg4: str) -> None:
     """sends a story dialog to the targeted client (0 = server screen)"""
+def set_dmx_channel(arg0: int, arg1: int, arg2: int, arg3: int, arg4: int, arg5: int) -> None:
+    """set a color channel of dmx."""
 def set_music_folder(arg0: str, arg1: int, arg2: int) -> None:
     """Sets the folder from which music is streamed, for the specified ship."""
 def set_music_tension(arg0: float, arg1: int, arg2: int) -> None:
@@ -126,6 +132,9 @@ class event(object): ### from pybind
     def event_time (self: sbs.event) -> int:
         """long int, time this damage occured, compare to simulation.time_tick_counter"""
     @property
+    def extra_tag (self: sbs.event) -> str:
+        """string, even more information"""
+    @property
     def origin_id (self: sbs.event) -> int:
         """id of space object this event came from"""
     @property
@@ -174,7 +183,7 @@ class grid_object(object): ### from pybind
         """string, text value, broad type of object"""
     @property
     def unique_ID (self: sbs.grid_object) -> int:
-        """int32, read only, id of this particular grid object"""
+        """uint64, read only, id of this particular grid object"""
 class hullmap(object): ### from pybind
     """class hullmap"""
     @property
@@ -286,27 +295,35 @@ class object_data_set(object): ### from pybind
         
         Set an int64 value, by name
         
-        3. set(self: sbs.object_data_set, tag: str, in: float, index: int = 0, extraDocText: str = 'a') -> int
+        3. set(self: sbs.object_data_set, tag: str, in: int, index: int = 0, extraDocText: str = 'a') -> int
+        
+        Set a uint64 value, by name
+        
+        4. set(self: sbs.object_data_set, tag: str, in: float, index: int = 0, extraDocText: str = 'a') -> int
         
         Set a float value, by name
         
-        4. set(self: sbs.object_data_set, tag: str, in: str, index: int = 0, extraDocText: str = 'a') -> int
+        5. set(self: sbs.object_data_set, tag: str, in: str, index: int = 0, extraDocText: str = 'a') -> int
         
         Set a string value, by name
         
-        5. set(self: sbs.object_data_set, arg0: int, arg1: int, arg2: int) -> int
+        6. set(self: sbs.object_data_set, arg0: int, arg1: int, arg2: int) -> int
         
         Set an int value, by ID
         
-        6. set(self: sbs.object_data_set, arg0: int, arg1: int, arg2: int) -> int
+        7. set(self: sbs.object_data_set, arg0: int, arg1: int, arg2: int) -> int
         
         Set an int64 value, by ID
         
-        7. set(self: sbs.object_data_set, arg0: int, arg1: float, arg2: int) -> int
+        8. set(self: sbs.object_data_set, arg0: int, arg1: int, arg2: int) -> int
+        
+        Set a uint64 value, by ID
+        
+        9. set(self: sbs.object_data_set, arg0: int, arg1: float, arg2: int) -> int
         
         Set a float value, by ID
         
-        8. set(self: sbs.object_data_set, arg0: int, arg1: str, arg2: int) -> int
+        10. set(self: sbs.object_data_set, arg0: int, arg1: str, arg2: int) -> int
         
         Set a string value, by ID"""
 class quaternion(object): ### from pybind
@@ -346,11 +363,11 @@ class quaternion(object): ### from pybind
 class simulation(object): ### from pybind
     """class simulation"""
     def AddTractorConnection(self: sbs.simulation, arg0: int, arg1: int, arg2: sbs.vec3, arg3: float) -> sbs.tractor_connection:
-        """makes a new connection between two space objects.  Args: uint32_t sourceID, uint32_t targetID, sbs::vec3 offsetPoint, float pullDistance"""
+        """makes a new connection between two space objects.  Args: u64 sourceID, u64 targetID, sbs::vec3 offsetPoint, float pullDistance"""
     def ClearTractorConnections(self: sbs.simulation) -> None:
         """destroys all existing tractor connections right now."""
     def DeleteTractorConnection(self: sbs.simulation, arg0: int, arg1: int) -> None:
-        """finds and deletes an existing tractor connection.  Args: uint32_t sourceID, uint32_t targetID"""
+        """finds and deletes an existing tractor connection.  Args: u64 sourceID, u64 targetID"""
     def GetTractorConnection(self: sbs.simulation, arg0: int, arg1: int) -> sbs.tractor_connection:
         ...
     def add_navpoint(self: sbs.simulation, arg0: float, arg1: float, arg2: float, arg3: str, arg4: str) -> sbs.navpoint:
@@ -411,12 +428,16 @@ class space_object(object): ### from pybind
     @fat_radius.setter
     def fat_radius (self: sbs.space_object, arg0: float) -> None:
         """float, radius of box for internal sorting calculations"""
+    def forward_vector(self: sbs.space_object) -> sbs.vec3:
+        """returns a vec3, a vector direction, related to which way the space object is oriented"""
     @property
     def pos (self: sbs.space_object) -> sbs.vec3:
         """vec3, position in space"""
     @pos.setter
     def pos (self: sbs.space_object, arg0: sbs.vec3) -> None:
         """vec3, position in space"""
+    def right_vector(self: sbs.space_object) -> sbs.vec3:
+        """returns a vec3, a vector direction, related to which way the space object is oriented"""
     @property
     def rot_quat (self: sbs.space_object) -> sbs.quaternion:
         """quaternion, heading and orientation of this object"""
@@ -462,7 +483,9 @@ class space_object(object): ### from pybind
         """int, 0=passive, 1=active, 2=playerShip"""
     @property
     def unique_ID (self: sbs.space_object) -> int:
-        """int32, read only, id of this particular object"""
+        """uint64, read only, id of this particular object"""
+    def up_vector(self: sbs.space_object) -> sbs.vec3:
+        """returns a vec3, a vector direction, related to which way the space object is oriented"""
 class tractor_connection(object): ### from pybind
     """class tractor_connection"""
     @property
@@ -479,6 +502,12 @@ class tractor_connection(object): ### from pybind
         """int, ID of object that is attached to the other"""
 class vec2(object): ### from pybind
     """class vec2"""
+    def __add__(self: sbs.vec2, arg0: sbs.vec2) -> sbs.vec2:
+        ...
+    def __iadd__(self: sbs.vec2, arg0: sbs.vec2) -> sbs.vec2:
+        ...
+    def __imul__(self: sbs.vec2, arg0: float) -> sbs.vec2:
+        ...
     def __init__(*args, **kwargs):
         """Overloaded function.
         
@@ -487,6 +516,12 @@ class vec2(object): ### from pybind
         2. __init__(self: sbs.vec2, arg0: sbs.vec2) -> None
         
         3. __init__(self: sbs.vec2) -> None"""
+    def __mul__(self: sbs.vec2, arg0: float) -> sbs.vec2:
+        ...
+    def __neg__(self: sbs.vec2) -> sbs.vec2:
+        ...
+    def __rmul__(self: sbs.vec2, arg0: float) -> sbs.vec2:
+        ...
     @property
     def x (self: sbs.vec2) -> float:
         """float, component value"""
@@ -501,6 +536,12 @@ class vec2(object): ### from pybind
         """float, component value"""
 class vec3(object): ### from pybind
     """class vec3"""
+    def __add__(self: sbs.vec3, arg0: sbs.vec3) -> sbs.vec3:
+        ...
+    def __iadd__(self: sbs.vec3, arg0: sbs.vec3) -> sbs.vec3:
+        ...
+    def __imul__(self: sbs.vec3, arg0: float) -> sbs.vec3:
+        ...
     def __init__(*args, **kwargs):
         """Overloaded function.
         
@@ -509,6 +550,12 @@ class vec3(object): ### from pybind
         2. __init__(self: sbs.vec3, arg0: sbs.vec3) -> None
         
         3. __init__(self: sbs.vec3) -> None"""
+    def __mul__(self: sbs.vec3, arg0: float) -> sbs.vec3:
+        ...
+    def __neg__(self: sbs.vec3) -> sbs.vec3:
+        ...
+    def __rmul__(self: sbs.vec3, arg0: float) -> sbs.vec3:
+        ...
     @property
     def x (self: sbs.vec3) -> float:
         """float, component value"""
@@ -529,6 +576,12 @@ class vec3(object): ### from pybind
         """float, component value"""
 class vec4(object): ### from pybind
     """class vec4"""
+    def __add__(self: sbs.vec4, arg0: sbs.vec4) -> sbs.vec4:
+        ...
+    def __iadd__(self: sbs.vec4, arg0: sbs.vec4) -> sbs.vec4:
+        ...
+    def __imul__(self: sbs.vec4, arg0: float) -> sbs.vec4:
+        ...
     def __init__(*args, **kwargs):
         """Overloaded function.
         
@@ -537,6 +590,12 @@ class vec4(object): ### from pybind
         2. __init__(self: sbs.vec4, arg0: sbs.vec4) -> None
         
         3. __init__(self: sbs.vec4) -> None"""
+    def __mul__(self: sbs.vec4, arg0: float) -> sbs.vec4:
+        ...
+    def __neg__(self: sbs.vec4) -> sbs.vec4:
+        ...
+    def __rmul__(self: sbs.vec4, arg0: float) -> sbs.vec4:
+        ...
     @property
     def a (self: sbs.vec4) -> float:
         """float, component value (0.0-1.0)"""

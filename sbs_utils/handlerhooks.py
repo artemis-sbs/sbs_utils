@@ -39,7 +39,7 @@ class ErrorPage(Page):
                 Gui.pop(sim, event.client_id)
                 sbs.resume_sim()
 
-def HandleEvent(sim, event):
+def cosmos_event_handler(sim, event):
     try:
         # Allow guis more direct access to events
         # e.g. Mast Story Page, Clients change
@@ -57,7 +57,11 @@ def HandleEvent(sim, event):
             #     print(f"{event.selected_id}")
             #     print(f"{event.sub_tag}")
             #     print(f"{event.sub_float}")
+            case "present_gui":
+                Gui.present(sim, event)
             
+            case "mission_tick":
+                TickDispatcher.dispatch_tick(sim)
  
             case "damage":
                 DamageDispatcher.dispatch_damage(sim,event)
@@ -96,6 +100,11 @@ def HandleEvent(sim, event):
 
             case "grid_point_selection":
                 GridDispatcher.dispatch_grid_event(sim,event)
+
+            case "sim_paused":
+                Gui.send_custom_event(sim, "x_sim_paused")
+            case "sim_unpaused":
+                Gui.send_custom_event(sim, "x_sim_resume")
         
             case _:
                 print (f"Unhandled event {event.client_id} {event.tag} {event.sub_tag}")
@@ -118,30 +127,30 @@ def HandleEvent(sim, event):
 #	event_time"
 #	sub_float"
 
-paused = True
-def HandlePresentGUI(sim):
-    global paused
-    try:
-        if not paused:
-            Gui.send_custom_event(sim, "x_sim_paused")
-            paused = True
-        Gui.present(sim, None)
-    except BaseException as err:
-        sbs.pause_sim()
-        text_err = traceback.format_exc()
-        Gui.push(sim, 0, ErrorPage(text_err))
+# paused = True
+# def HandlePresentGUI(sim):
+#     global paused
+#     try:
+#         if not paused:
+#             Gui.send_custom_event(sim, "x_sim_paused")
+#             paused = True
+#         Gui.present(sim, None)
+#     except BaseException as err:
+#         sbs.pause_sim()
+#         text_err = traceback.format_exc()
+#         Gui.push(sim, 0, ErrorPage(text_err))
 
-def  HandleSimulationTick(sim):
-    global paused
-    try:
-        if paused:
-            paused = False
-            Gui.send_custom_event(sim, "x_sim_resume")
-        TickDispatcher.dispatch_tick(sim)
-    except BaseException as err:
-        sbs.pause_sim()
-        text_err = traceback.format_exc()
-        Gui.push(sim, 0, ErrorPage(text_err))
+# def  HandleSimulationTick(sim):
+#     global paused
+#     try:
+#         if paused:
+#             paused = False
+#             Gui.send_custom_event(sim, "x_sim_resume")
+#         TickDispatcher.dispatch_tick(sim)
+#     except BaseException as err:
+#         sbs.pause_sim()
+#         text_err = traceback.format_exc()
+#         Gui.push(sim, 0, ErrorPage(text_err))
 
 
 

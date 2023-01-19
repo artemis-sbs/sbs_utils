@@ -515,8 +515,8 @@ class End(MastNode):
         else:
             self.if_code = None
 
-class PopIf(MastNode):
-    rule = re.compile(r'<<-\s*POP'+IF_EXP_REGEX)
+class ReturnIf(MastNode):
+    rule = re.compile(r'->\s*RETURN'+IF_EXP_REGEX)
     def __init__(self, if_exp=None,  loc=None):
         self.loc = loc
         if if_exp:
@@ -678,7 +678,7 @@ class Mast:
         Assign,
         Fail,
         End,
-        PopIf,
+        ReturnIf,
         Jump,
         
         Delay,

@@ -37,6 +37,8 @@ class Vec3(object):
         :type v: Vec3 or number
         :return: new vector
         :rtype: Vec3"""
+    def __iter__ (self):
+        ...
     def __itruediv__ (self, v):
         """operator inline divide mutable
         
@@ -188,6 +190,7 @@ class Vec3(object):
         
         :return: new vector
         :rtype: Vec3"""
+    @property
     def xyz (self):
         """Get the vector as a tuple
         Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())

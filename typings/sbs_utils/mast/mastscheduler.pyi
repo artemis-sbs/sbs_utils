@@ -1,5 +1,6 @@
 from sbs_utils.mast.mast import Assign
 from sbs_utils.mast.mast import AwaitCondition
+from sbs_utils.mast.mast import AwaitFail
 from sbs_utils.mast.mast import Cancel
 from sbs_utils.mast.mast import Comment
 from sbs_utils.mast.mast import Delay
@@ -28,6 +29,7 @@ from sbs_utils.mast.mast import MatchStatements
 from sbs_utils.mast.mast import Parallel
 from sbs_utils.mast.mast import ParseData
 from sbs_utils.mast.mast import PyCode
+from sbs_utils.mast.mast import ReturnIf
 from sbs_utils.mast.mast import Rule
 from sbs_utils.mast.mast import Scope
 from sbs_utils.mast.mast import Timeout
@@ -49,6 +51,10 @@ class AwaitConditionRuntimeNode(MastRuntimeNode):
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.AwaitCondition):
         ...
     def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.AwaitCondition):
+        ...
+class AwaitFailRuntimeNode(MastRuntimeNode):
+    """class AwaitFailRuntimeNode"""
+    def poll (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.AwaitFail):
         ...
 class CancelRuntimeNode(MastRuntimeNode):
     """class CancelRuntimeNode"""
@@ -74,7 +80,7 @@ class EventRuntimeNode(MastRuntimeNode):
     """class EventRuntimeNode"""
     def enter (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node):
         ...
-    def poll (self, mast, task, node):
+    def poll (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node):
         ...
 class FailRuntimeNode(MastRuntimeNode):
     """class FailRuntimeNode"""
@@ -116,14 +122,18 @@ class LoopStartRuntimeNode(MastRuntimeNode):
         ...
 class MastAllTask(object):
     """class MastAllTask"""
-    def __init__ (self) -> None:
+    def __init__ (self, main) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def run_event (self, event_name, event):
+        ...
     def tick (self) -> sbs_utils.mast.mastscheduler.PollResults:
         ...
 class MastAnyTask(object):
     """class MastAnyTask"""
-    def __init__ (self) -> None:
+    def __init__ (self, main) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def run_event (self, event_name, event):
+        ...
     def tick (self) -> sbs_utils.mast.mastscheduler.PollResults:
         ...
 class MastAsyncTask(object):
@@ -154,6 +164,10 @@ class MastAsyncTask(object):
         ...
     def push_label (self, label, activate_cmd=0, data=None):
         ...
+    def redirect_pop_label (self, inc_loc=True):
+        ...
+    def redirect_push_label (self, label, activate_cmd=0, return_loc=-1, data=None):
+        ...
     def run_event (self, event_name, event):
         ...
     def runtime_error (self, s):
@@ -168,8 +182,13 @@ class MastAsyncTask(object):
         ...
 class MastFallbackTask(object):
     """class MastFallbackTask"""
-    def __init__ (self, labels, conditional) -> None:
+    def __init__ (self, main, labels, conditional) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    @property
+    def active_label (self):
+        ...
+    def run_event (self, event_name, event):
+        ...
     def tick (self) -> sbs_utils.mast.mastscheduler.PollResults:
         ...
 class MastRuntimeError(object):
@@ -208,9 +227,9 @@ class MastScheduler(object):
         ...
     def start_any_task (self, labels='main', inputs=None, task_name=None, conditional=None) -> sbs_utils.mast.mastscheduler.MastAnyTask:
         ...
-    def start_fallback_task (self, labels='main', inputs=None, task_name=None, conditional=None) -> sbs_utils.mast.mastscheduler.MastAnyTask:
+    def start_fallback_task (self, labels='main', inputs=None, task_name=None, conditional=None) -> sbs_utils.mast.mastscheduler.MastFallbackTask:
         ...
-    def start_sequence_task (self, labels='main', inputs=None, task_name=None, conditional=None) -> sbs_utils.mast.mastscheduler.MastAnyTask:
+    def start_sequence_task (self, labels='main', inputs=None, task_name=None, conditional=None) -> sbs_utils.mast.mastscheduler.MastSequenceTask:
         ...
     def start_task (self, label='main', inputs=None, task_name=None) -> sbs_utils.mast.mastscheduler.MastAsyncTask:
         ...
@@ -218,8 +237,13 @@ class MastScheduler(object):
         ...
 class MastSequenceTask(object):
     """class MastSequenceTask"""
-    def __init__ (self, labels, conditional) -> None:
+    def __init__ (self, main, labels, conditional) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    @property
+    def active_label (self):
+        ...
+    def run_event (self, event_name, event):
+        ...
     def tick (self) -> sbs_utils.mast.mastscheduler.PollResults:
         ...
 class MatchStatementsRuntimeNode(MastRuntimeNode):
@@ -232,10 +256,23 @@ class ParallelRuntimeNode(MastRuntimeNode):
     """class ParallelRuntimeNode"""
     def enter (self, mast, task, node: sbs_utils.mast.mast.Parallel):
         ...
-    def poll (self, mast, task, node: sbs_utils.mast.mast.Parallel):
+    def poll (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.Parallel):
         ...
 class PollResults(IntEnum):
-    """An enumeration."""
+    """int([x]) -> integer
+    int(x, base=10) -> integer
+    
+    Convert a number or string to an integer, or return 0 if no arguments
+    are given.  If x is a number, return x.__int__().  For floating point
+    numbers, this truncates towards zero.
+    
+    If x is not a number or if base is given, then x must be a string,
+    bytes, or bytearray instance representing an integer literal in the
+    given base.  The literal can be preceded by '+' or '-' and be surrounded
+    by whitespace.  The base defaults to 10.  Valid bases are 0 and 2-36.
+    Base 0 means to interpret the base from the string as an integer literal.
+    >>> int('0b100', base=0)
+    4"""
     FAIL_END : 100
     OK_ADVANCE_FALSE : 3
     OK_ADVANCE_TRUE : 2
@@ -249,6 +286,10 @@ class PushData(object):
 class PyCodeRuntimeNode(MastRuntimeNode):
     """class PyCodeRuntimeNode"""
     def poll (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.PyCode):
+        ...
+class ReturnIfRuntimeNode(MastRuntimeNode):
+    """class ReturnIfRuntimeNode"""
+    def poll (self, mast, task, node: sbs_utils.mast.mast.ReturnIf):
         ...
 class TimeoutRuntimeNode(MastRuntimeNode):
     """class TimeoutRuntimeNode"""

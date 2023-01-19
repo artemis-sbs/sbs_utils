@@ -51,12 +51,17 @@ class Comms(MastNode):
         self.end_await_node = None
         EndAwait.stack.append(self)
 
+FOR_RULE = r'(\s+for\s+(?P<for_name>\w+)\s+in\s+(?P<for_exp>[\s\S]+?))?'
 class Button(MastNode):
-    rule = re.compile(r"""(?P<button>\*|\+)\s+(?P<q>["'])(?P<message>.+?)(?P=q)"""+OPT_COLOR+IF_EXP_REGEX+r"\s*"+BLOCK_START)
-    def __init__(self, message=None, button=None,  color=None, if_exp=None, proxy=False, q=None, loc=None):
-        self.message = self.compile_formatted_string(message)
-        if proxy:
+    
+    rule = re.compile(r"""(?P<button>\*|\+)\s+(?P<q>["'])(?P<message>.+?)(?P=q)"""+OPT_COLOR+FOR_RULE+IF_EXP_REGEX+r"\s*"+BLOCK_START)
+    def __init__(self, message=None, button=None,  
+                 color=None, if_exp=None, 
+                 for_name=None, for_exp=None, 
+                 clone=False, q=None, loc=None):
+        if clone:
             return
+        self.message = self.compile_formatted_string(message)
         self.sticky = (button == '+' or button=="button")
         self.color = color
         self.visited = set() if not self.sticky else None
@@ -69,6 +74,14 @@ class Button(MastNode):
             self.code = compile(if_exp, "<string>", "eval")
         else:
             self.code = None
+
+        self.for_name = for_name
+        self.data = None
+        if for_exp:
+            for_exp = for_exp.lstrip()
+            self.for_code = compile(for_exp, "<string>", "eval")
+        else:
+            self.cor_code = None
 
     def visit(self, id_tuple):
         if self.visited is not None:
@@ -83,6 +96,25 @@ class Button(MastNode):
         if self.visited is not None:
             return not id_tuple in self.visited
         return True
+
+    def clone(self):
+        proxy = Button(clone=True)
+        proxy.message = self.message
+        proxy.code = self.code
+        proxy.color = self.color
+        proxy.loc = self.loc
+        proxy.await_node = self.await_node
+        proxy.sticky = self.sticky
+        proxy.visited = self.visited
+        proxy.data = self.data
+        proxy.for_code = self.for_code
+        proxy.for_name = self.for_name
+
+        return proxy
+    
+    def expand(self):
+        pass
+
 
 
 class ButtonSet(MastNode):
@@ -103,6 +135,7 @@ class ButtonSet(MastNode):
             EndAwait.stack[-1].buttons.append(self)
         elif name is None:
             EndAwait.stack[-1].end = self
+            self.end = self
             EndAwait.stack.pop(-1)
         else:
             EndAwait.stack.append(self)

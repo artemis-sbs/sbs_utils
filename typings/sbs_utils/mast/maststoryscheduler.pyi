@@ -4,6 +4,7 @@ from sbs_utils.mast.maststory import Blank
 from sbs_utils.mast.maststory import ButtonControl
 from sbs_utils.mast.maststory import CheckboxControl
 from sbs_utils.mast.maststory import Choose
+from sbs_utils.mast.maststory import Console
 from sbs_utils.mast.maststory import DropdownControl
 from sbs_utils.mast.maststory import Face
 from sbs_utils.mast.maststory import Hole
@@ -19,12 +20,15 @@ from sbs_utils.mast.maststory import Style
 from sbs_utils.mast.maststory import Text
 from sbs_utils.mast.maststory import TextInputControl
 from sbs_utils.mast.maststory import WidgetList
+from sbs_utils.mast.mastsbs import Button
 from sbs_utils.mast.errorpage import ErrorPage
+from sbs_utils.gui import FakeEvent
 from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
 from sbs_utils.mast.parsers import LayoutAreaParser
 from sbs_utils.mast.parsers import StyleDefinition
 from sbs_utils.mast.mast import Mast
+from sbs_utils.mast.mast import Scope
 from sbs_utils.mast.mastscheduler import MastAsyncTask
 from sbs_utils.mast.mastscheduler import MastRuntimeNode
 from sbs_utils.mast.mastscheduler import PollResults
@@ -68,7 +72,13 @@ class ChooseRuntimeNode(StoryRuntimeNode):
     """class ChooseRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.Choose):
         ...
+    def expand (self, button: sbs_utils.mast.mastsbs.Button, task: sbs_utils.mast.mastscheduler.MastAsyncTask):
+        ...
     def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.Choose):
+        ...
+class ConsoleRuntimeNode(MastRuntimeNode):
+    """class ConsoleRuntimeNode"""
+    def enter (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.Console):
         ...
 class DropdownControlRuntimeNode(StoryRuntimeNode):
     """class DropdownControlRuntimeNode"""

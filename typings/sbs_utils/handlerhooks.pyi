@@ -5,11 +5,7 @@ from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
 from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.tickdispatcher import TickDispatcher
-def HandleEvent (sim, event):
-    ...
-def HandlePresentGUI (sim):
-    ...
-def HandleSimulationTick (sim):
+def cosmos_event_handler (sim, event):
     ...
 class ErrorPage(Page):
     """A interface class for creating GUI pages

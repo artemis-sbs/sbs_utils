@@ -101,7 +101,7 @@ next x
 ->> a_push
 ->>b_push
 <<-
-<<- POP  if s
+->RETURN  if s
 <<-> pop_jump
 <<->> pop_push
 => fork
@@ -539,20 +539,25 @@ Done
     logger string output            
     ->> PushHere
     ->> PushJump
+    ->> PushDouble
     log "out"
     ->END
     
     ======== PushHere =====
     log "Push"
     <<-
+    ======== PushDouble =====
+    log "PushDouble"
+    ->> PushJump
+    log "PopDouble"
+    <<-
+
     ======== PushJump =====
     log "PushJump"
     -> Popper
     ===== Popper ====
-    <<- POP if False    
     log "Popper"
-    <<- POP if True
-
+    <<-
             """)
                 assert(len(errors)==0)
                 output = runner.get_value("output", None)
@@ -564,6 +569,10 @@ Done
                 assert(value =="""Push
 PushJump
 Popper
+PushDouble
+PushJump
+Popper
+PopDouble
 out
 """)
 
@@ -791,8 +800,8 @@ S2 Again
     """)
         assert(len(errors)==0)
         #for _ in range(50):
-        while runner.tick():
-            pass
+        # while runner.tick():
+        #     pass
         output = runner.get_value("output", None)
         assert(output is not None)
         st = output[0]

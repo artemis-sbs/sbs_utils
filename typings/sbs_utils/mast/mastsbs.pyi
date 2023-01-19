@@ -9,9 +9,13 @@ class Broadcast(MastNode):
         ...
 class Button(MastNode):
     """class Button"""
-    def __init__ (self, button, message, color, if_exp, q=None, loc=None):
+    def __init__ (self, message=None, button=None, color=None, if_exp=None, for_name=None, for_exp=None, clone=False, q=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def been_here (self, id_tuple):
+        ...
+    def clone (self):
+        ...
+    def expand (self):
         ...
     def parse (lines):
         ...
@@ -21,7 +25,7 @@ class Button(MastNode):
         ...
 class ButtonSet(MastNode):
     """class ButtonSet"""
-    def __init__ (self, use=None, name=None, loc=None):
+    def __init__ (self, use=None, name=None, clear=None, append=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...

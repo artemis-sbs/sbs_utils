@@ -141,7 +141,7 @@ The HandleCommsButton should call <code class="xref py py-meth docutils literal 
 </section>
 <section id="example-adding-comms-to-a-class">
 <h2>Example: Adding Comms to a class<a class="headerlink" href="#example-adding-comms-to-a-class" title="Permalink to this heading"></a></h2>
-<p>The best way to use the ConsoleDispatcher is to add comms to a <a class="reference internal" href="spaceobject.html#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code></a> using the <a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher" title="sbs_utils.consoledispatcher.ConsoleDispatcher"><code class="xref py py-class docutils literal notranslate"><span class="pre">ConsoleDispatcher</span></code></a> and <a class="reference internal" href="#sbs_utils.consoledispatcher.MCommunications" title="sbs_utils.consoledispatcher.MCommunications"><code class="xref py py-class docutils literal notranslate"><span class="pre">MCommunications</span></code></a> mixin class.
+<p>The best way to use the ConsoleDispatcher is to add comms to a <code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code> using the <a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher" title="sbs_utils.consoledispatcher.ConsoleDispatcher"><code class="xref py py-class docutils literal notranslate"><span class="pre">ConsoleDispatcher</span></code></a> and <a class="reference internal" href="#sbs_utils.consoledispatcher.MCommunications" title="sbs_utils.consoledispatcher.MCommunications"><code class="xref py py-class docutils literal notranslate"><span class="pre">MCommunications</span></code></a> mixin class.
 and provide an implementation of  <a class="reference internal" href="#sbs_utils.consoledispatcher.MCommunications.comms_selected" title="sbs_utils.consoledispatcher.MCommunications.comms_selected"><code class="xref py py-meth docutils literal notranslate"><span class="pre">comms_selected()</span></code></a> and <a class="reference internal" href="#sbs_utils.consoledispatcher.MCommunications.comms_message" title="sbs_utils.consoledispatcher.MCommunications.comms_message"><code class="xref py py-meth docutils literal notranslate"><span class="pre">comms_message()</span></code></a> methods.</p>
 <p>To enable comms call <a class="reference internal" href="#sbs_utils.consoledispatcher.MCommunications.enable_comms" title="sbs_utils.consoledispatcher.MCommunications.enable_comms"><code class="xref py py-meth docutils literal notranslate"><span class="pre">enable_comms()</span></code></a>. This should be called after the SpaceObject has spawned and has an id.</p>
 <p><a class="reference internal" href="#sbs_utils.consoledispatcher.MCommunications.enable_comms" title="sbs_utils.consoledispatcher.MCommunications.enable_comms"><code class="xref py py-meth docutils literal notranslate"><span class="pre">enable_comms()</span></code></a> takes a face description and it will set self.face_desc.</p>
@@ -338,8 +338,18 @@ The message is the button_tag.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.convert">
+<span class="sig-name descname"><span class="pre">convert</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.convert" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.convert_to_console_id">
+<span class="sig-name descname"><span class="pre">convert_to_console_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.convert_to_console_id" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_message">
-<span class="sig-name descname"><span class="pre">dispatch_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_message" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">dispatch_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_message" title="Permalink to this definition"></a></dt>
 <dd><p>dispatches a console message</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -369,6 +379,11 @@ The message is the button_tag.</p>
 </dd>
 </dl>
 </dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.do_select">
+<span class="sig-name descname"><span class="pre">do_select</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.do_select" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.remove_message">

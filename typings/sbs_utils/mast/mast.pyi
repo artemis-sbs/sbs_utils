@@ -20,6 +20,12 @@ class AwaitCondition(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
+class AwaitFail(MastNode):
+    """class AwaitFail"""
+    def __init__ (self, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
 class Cancel(MastNode):
     """Cancels a new 'task' to run in parallel"""
     def __init__ (self, lhs=None, name=None, loc=None):
@@ -46,7 +52,7 @@ class DoCommand(MastNode):
         ...
 class End(MastNode):
     """class End"""
-    def __init__ (self, loc=None):
+    def __init__ (self, if_exp=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -197,7 +203,7 @@ class MatchStatements(MastNode):
         ...
 class Parallel(MastNode):
     """Creates a new 'task' to run in parallel"""
-    def __init__ (self, name=None, is_block=None, await_task=None, all_any=None, conditional=None, labels=None, inputs=None, loc=None):
+    def __init__ (self, name=None, is_block=None, await_task=None, reflect=None, all_any=None, conditional=None, labels=None, inputs=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -211,12 +217,18 @@ class PyCode(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
+class ReturnIf(MastNode):
+    """class ReturnIf"""
+    def __init__ (self, if_exp=None, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
 class Rule(object):
     """class Rule"""
     def __init__ (self, re, cls):
         """Initialize self.  See help(type(self)) for accurate signature."""
 class Scope(Enum):
-    """An enumeration."""
+    """class Scope"""
     NORMAL : 2
     SHARED : 1
     TEMP : 99
