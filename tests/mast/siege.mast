@@ -91,9 +91,9 @@ end_await
 ### This is a python code snippet to create the map content
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 player_ships =  [ 
-        PlayerShip().spawn(sim, 500,0,0, "Artemis", "tsn", "Battle Cruiser").py_object,
-        PlayerShip().spawn(sim, 200,0,0, "Hera", "tsn", "Missile Cruiser").py_object,
-        PlayerShip().spawn(sim, 900,0,0, "Atlas", "tsn", "Missile Cruiser").py_object
+        spawn_player(500,0,0, "Artemis", "tsn", "Battle Cruiser").py_object,
+        spawn_player(200,0,0, "Hera", "tsn", "Missile Cruiser").py_object,
+        spawn_player( 900,0,0, "Atlas", "tsn", "Missile Cruiser").py_object
     ]
 
 sbs.assign_client_to_ship(0,player_ships[0].id)
@@ -101,12 +101,12 @@ for player in player_ships:
     faces.set_face(player.id, faces.random_terran())
 
 stations = [
-    Npc().spawn(sim,0,0,0, "Alpha", "tsn", "Starbase", "behav_station").py_object,
-    Npc().spawn(sim,2400,0,100, "Beta", "tsn", "Starbase", "behav_station").py_object
+    spawn_npc(0,0,0, "Alpha", "tsn", "Starbase", "behav_station").py_object,
+    spawn_npc(2400,0,100, "Beta", "tsn", "Starbase", "behav_station").py_object
 ]
 for ds in stations:
     faces.set_face(ds.id, faces.random_terran(civilian=True))
-    ds.add_role('Station')
+    add_role(ds,'Station')
 
 enemyTypeNameList = ["Dreadnaught","Battleship","Hunter","Cargo","ARV Carrier","Behemoth"]
 enemy_prefix = "KLMNQ"
@@ -118,10 +118,10 @@ spawn_points = scatter.sphere(int(enemy_count), 0,0,0, 6000, 6000+250*enemy_coun
 for v in spawn_points:
     r_type = random.choice(enemyTypeNameList)
     r_name = f"{random.choice(enemy_prefix)}_{enemy}"
-    spawn_data = Npc().spawn_v(sim,v, r_name, "RAIDER", r_type, "behav_npcship")
+    spawn_data = spawn_npc(v.x, v.y, v.z, r_name, "RAIDER", r_type, "behav_npcship")
     raider = spawn_data.py_object
     faces.set_face(raider.id, faces.random_kralien())
-    raider.add_role("Raider")
+    add_role(raider, "Raider")
     enemy += 1
     for player in player_ships:
         raider.start_task("NPC_Comms", {"player": player})
@@ -133,7 +133,7 @@ spawn_points = scatter.sphere(random.randint(2,7), 0,0,0, 1000, 4000, ring=True)
 for v in spawn_points:
     cluster_spawn_points = scatter.sphere(random.randint(10,20), v.x, 0,v.z, 100, 1000, ring=True)
     for v2 in cluster_spawn_points:
-        Terrain().spawn_v(sim,v2,None, None, "nebula", "behav_nebula")
+        spawn_terrain(v2.x, v2.y, v2.z,None, None, "nebula", "behav_nebula")
 
 # make a few random clusters of Asteroids
 spawn_points = scatter.sphere(random.randint(10,20), 0,0,0, 1000, 4000, ring=True)
@@ -143,7 +143,7 @@ for v in spawn_points:
         #keep value between -500 and 500??
         v2.y = abs(v2.y) % 500 * (v2.y/abs(v2.y))
         a_type = f"Asteroid {random.randint(1,11)}"
-        Terrain().spawn_v(sim,v2,None, None, a_type, "behav_asteroid")
+        spawn_terrain(v2.x, v2.y, v2.z,None, None, a_type, "behav_asteroid")
 
 # I want candy
 spawn_points = scatter.sphere(random.randint(5,12), 0,0,0, 1000, 4000, ring=True)
@@ -154,7 +154,7 @@ for v in spawn_points:
     for v2 in cluster_spawn_points:
         #keep value between -500 and 500??
         v2.y = abs(v2.y) % 500 * (v2.y/abs(v2.y))
-        Terrain().spawn_v(sim,v2,None, None, a_type, "behav_mine")
+        spawn_terrain(v2.x, v2.y, v2.z,None, None, a_type, "behav_mine")
 
 
 ################################
@@ -169,7 +169,7 @@ for v in spawn_points:
 # Each ship will have its of thread for comms
 # this enables them to have a unique path
 for ds in SpaceObject.get_role_objects('Station'):
-    for player in SpaceObject.get_role_objects('PlayerShip'):
+    for player in to_object_list(role('PlayerShip')):
         => station_comms {"self": ds, "player": player}
     next player
 next ds

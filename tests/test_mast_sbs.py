@@ -271,6 +271,31 @@ next x
                 print(err)
         assert(len(errors) == 0)
 
+    def test_scan_compile_no_err(self):
+        (errors, mast) = mast_sbs_compile( code ="""
+=========== server_main =====
+await artemis scan raider1:
+    scan tab "scan":
+        scan results "test"
+end_await
+
+await artemis scan raider1:
+    scantab "scan":
+        scan results "test"
+    scan tab "bio":
+        scan results "test bio"
+end_await
+
+->END
+
+
+""")
+        if len(errors)>0:
+            for err in errors:
+                print(err)
+        assert(len(errors) == 0)
+
+
 
 
 

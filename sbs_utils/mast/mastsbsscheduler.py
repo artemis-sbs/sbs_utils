@@ -1,5 +1,5 @@
 from .mast import Mast, Scope
-from .mastsbs import Role, Simulation, Target, Tell, Comms, Button, ButtonSet, Near,Broadcast
+from .mastsbs import Role, Simulation, Target, Tell, Comms, Button, ButtonSet, Near,Broadcast, ScanTab,ScanResult
 from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask
 import sbs
 from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain
@@ -112,7 +112,7 @@ class BroadcastRuntimeNode(MastRuntimeNode):
         elif node.to_tag=="SERVER":
             self.to_ids = [0]
         else:
-            to_so= task.get_variable(node.to_tag, None)
+            to_so= task.get_variable(node.to_tag)
             if to_so:
                 self.to_ids = [to_so.get_id()]
             else:
@@ -139,10 +139,21 @@ class CommsRuntimeNode(MastRuntimeNode):
             self.timeout = task.main.get_seconds("sim")+ (node.minutes*60+node.seconds)
 
         self.tag = None
-        self.buttons = node.buttons
         self.button = None
         self.task = task
         self.color = node.color if node.color else "white"
+
+        buttons = []
+        # Expand all the 'for' buttons
+        for button in node.buttons:
+            if button.__class__.__name__ != "Button":
+                buttons.append(button)
+            elif button.for_name is None:
+                buttons.append(button)
+            else:
+                buttons.extend(self.expand(button, task))
+        self.buttons = buttons
+
 
         to_so:SpaceObject = task.get_variable(node.to_tag)
         from_so:SpaceObject = task.get_variable(node.from_tag)
@@ -182,6 +193,20 @@ class CommsRuntimeNode(MastRuntimeNode):
                     msg = self.task.format_string(button.message)
                     sbs.send_comms_button_info(to_id, color, msg, f"{i}")
 
+    def expand(self, button: Button, task: MastAsyncTask):
+        buttons = []
+        if button.for_code is not None:
+            iter_value = task.eval_code(button.for_code)
+            for data in iter_value:
+                task.set_value(button.for_name, data, Scope.TEMP)
+                clone = button.clone()
+                clone.data = data
+                clone.message = task.format_string(clone.message)
+                buttons.append(clone)
+
+        return buttons
+
+
     def comms_message(self, sim, message, an_id, event):
         ### These are opposite from selected??
         from_id =self.from_id
@@ -203,13 +228,14 @@ class CommsRuntimeNode(MastRuntimeNode):
     def poll(self, mast:Mast, task:MastAsyncTask, node: Comms):
         if len(node.buttons)==0:
             # clear the comms buttons
-            print("CHOOSE no but")
             return PollResults.OK_ADVANCE_TRUE
 
         if self.button is not None:
             print("CHOOSE selection")
             button = self.buttons[self.button] 
             self.button = None
+            if button.for_name:
+                task.set_value(button.for_name, button.data, Scope.TEMP)
             task.jump(task.active_label,button.loc+1)
             return PollResults.OK_JUMP
 
@@ -222,6 +248,138 @@ class CommsRuntimeNode(MastRuntimeNode):
                 task.jump(task.active_label,node.end_await_node.loc+1)
                 return PollResults.OK_JUMP
         return PollResults.OK_RUN_AGAIN
+    
+class ScanRuntimeNode(MastRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: Comms):
+        self.button = None
+        self.task = task
+        self.tab = None
+        self.node = node
+        buttons = []
+        # Expand all the 'for' buttons
+        for button in node.buttons:
+            if button.for_name is None:
+                buttons.append(button)
+            else:
+                buttons.extend(self.expand(button, task))
+        self.buttons = buttons
+
+        to_so:SpaceObject = task.get_variable(node.to_tag)
+        from_so:SpaceObject = task.get_variable(node.from_tag)
+        if to_so is None or from_so is None:
+            return
+        # Just in case swap if from is not a player
+        if not from_so.is_player:
+            swap = to_so
+            to_so = from_so
+            from_so = swap
+
+        self.to_id = to_so.get_id()
+        self.from_id = from_so.get_id()
+                ###############
+        scan_tabs = ""
+        if to_so is not None:
+            for button in self.buttons:
+                value = True
+                if button.code is not None:
+                    value = task.eval_code(button.code)
+                if value:
+                    msg = self.task.format_string(button.message).strip()
+                    if msg != "scan":
+                        if len(scan_tabs):
+                            scan_tabs += " "
+                        scan_tabs += msg
+            to_so.update_engine_data(task.main.sim, {"scan_type_list":scan_tabs})
+
+        
+        ConsoleDispatcher.add_select_pair(self.from_id, self.to_id, 'science_target_UID', self.science_selected)
+        ConsoleDispatcher.add_message_pair(self.from_id, self.to_id,  'science_target_UID', self.science_message)
+        #self.set_buttons(self.to_id, self.from_id)
+        # from_so.face_desc
+
+    def science_selected(self, sim, an_id, event):
+        # to_id = event.origin_id
+        # from_id = event.selected_id
+        # #self.set_buttons(from_id, to_id)
+        #print("Science Select")
+        so = query.to_object(self.from_id)
+        if so:
+            so.update_engine_data(sim, {
+                "cur_scan_ID": self.to_id,
+                "cur_scan_type": event.extra_tag,
+                "cur_scan_percent":0.0
+            })
+
+    # def set_buttons(self, from_id, to_id):
+    #     # check to see if the from ship still exists
+        
+
+    def expand(self, button: ScanTab, task: MastAsyncTask):
+        buttons = []
+        if button.for_code is not None:
+            iter_value = task.eval_code(button.for_code)
+            for data in iter_value:
+                task.set_value(button.for_name, data, Scope.TEMP)
+                clone = button.clone()
+                clone.data = data
+                clone.message = task.format_string(clone.message)
+                buttons.append(clone)
+        return buttons
+
+
+    def science_message(self, sim, message, an_id, event):
+        ### These are opposite from selected??
+        self.tab = event.extra_tag
+        #print(f"science scanned {self.tab}")
+        self.task.tick()
+
+
+    def leave(self, mast:Mast, task:MastAsyncTask, node: Comms):
+        ConsoleDispatcher.remove_select_pair(self.from_id, self.to_id, 'science_target_UID')
+        ConsoleDispatcher.remove_message_pair(self.from_id, self.to_id, 'science_target_UID')
+        
+
+    def poll(self, mast:Mast, task:MastAsyncTask, node: Comms):
+        if len(node.buttons)==0:
+            # clear the comms buttons
+            return PollResults.OK_ADVANCE_TRUE
+
+        if self.tab is not None:
+            for i, button in enumerate(self.buttons):
+                 if task.format_string(button.message) == self.tab:
+                    self.button = i
+                    print(f"science scanned {i}")
+            so_player = query.to_object(self.from_id)
+            if so_player:
+                self.tab = so_player.side+self.tab
+   
+            task.set_value("__SCAN_TAB__", self,  Scope.TEMP)
+            if self.button is not None:
+                button = self.buttons[self.button] 
+                self.button = None
+                task.set_value(button.for_name, button.data, Scope.TEMP)
+                task.jump(task.active_label,button.loc+1)
+            return PollResults.OK_JUMP
+        return PollResults.OK_RUN_AGAIN
+
+class ScanResultRuntimeNode(MastRuntimeNode):
+    def poll(self, mast:Mast, task:MastAsyncTask, node: ScanResult):
+        scan = task.get_variable("__SCAN_TAB__")
+        if scan is None:
+            return
+        
+        msg = task.format_string(node.message)
+        print(f"{scan.tab} scan {msg}")
+        so = query.to_object(scan.to_id)
+        if so:
+            so.update_engine_data(task.main.sim, {
+                scan.tab: msg,
+            })
+        if scan.node.end_await_node:
+                task.jump(task.active_label,scan.node.end_await_node.loc+1)
+                return PollResults.OK_JUMP
+        return PollResults.OK_RUN_AGAIN
+
 
 class TargetRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Target):
@@ -315,7 +473,9 @@ over =     {
       "Target": TargetRuntimeNode,
       "Button": ButtonRuntimeNode,
       "ButtonSet": ButtonSetRuntimeNode,
-      "Simulation": SimulationRuntimeNode
+      "Simulation": SimulationRuntimeNode,
+      "Scan": ScanRuntimeNode,
+      "ScanResult": ScanResultRuntimeNode
     }
 
 
@@ -372,9 +532,9 @@ class MastSbsScheduler(MastScheduler):
         self.sim = None
         self.vars["sbs"] = sbs
         # Create schedulable space objects
-        self.vars["Npc"] = self.Npc
-        self.vars["Terrain"] = self.Terrain
-        self.vars["PlayerShip"] = self.PlayerShip
+        self.vars["spawn_npc"] = self.spawn_npc
+        self.vars["spawn_terrain"] = self.spawn_terrain
+        self.vars["spawn_player"] = self.spawn_player
 
 
     def Npc(self):
@@ -383,6 +543,17 @@ class MastSbsScheduler(MastScheduler):
         return PlayerShip(self)
     def Terrain(self):
         return Terrain(self)
+    
+    def spawn_npc(self, x,y,z,name, side, art_id, behave_id):
+        so = Npc(self)
+        return so.spawn(self.sim, x,y,z,name, side, art_id, behave_id)
+        
+    def spawn_player(self, x,y,z,name, side, art_id):
+        so = PlayerShip(self)
+        return so.spawn(self.sim, x,y,z,name, side, art_id)
+    def spawn_terrain(self, x,y,z,name, side, art_id, behave_id):
+        so = Terrain(self)
+        return so.spawn(self.sim, x,y,z,name, side, art_id, behave_id)
 
     def run(self, sim, label="main", inputs=None):
         self.sim = sim

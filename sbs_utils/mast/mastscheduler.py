@@ -980,7 +980,7 @@ class MastScheduler:
         self.active_task = t
         t.tick()
     def cancel_task(self, name):
-        data = self.active_task.get_variable(name, None)
+        data = self.active_task.get_variable(name)
         # Assuming its OK to cancel none
         if data is not None:
             self.done.append(data)

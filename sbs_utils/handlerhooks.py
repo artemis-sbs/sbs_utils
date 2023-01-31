@@ -25,8 +25,9 @@ class ErrorPage(Page):
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
                 self.gui_state = "presenting"
+                print(self.message)
                 sbs.send_gui_text(
-                    event.client_id, f"scripting error^{self.message}", "text", 0.3, 0, 100, 95)
+                    event.client_id, f"scripting error^{self.message}", "text", 0, 0, 80, 95)
                 sbs.send_gui_button(event.client_id, "back", "back", 80, 90, 99, 94)
                 sbs.send_gui_button(event.client_id, "Resume Mission", "resume", 80, 95, 99, 99)
 
@@ -89,6 +90,9 @@ def cosmos_event_handler(sim, event):
 
             case "press_comms_button":
                 ConsoleDispatcher.dispatch_message(sim, event, "comms_target_UID")
+
+            case "science_scan_complete":
+                ConsoleDispatcher.dispatch_message(sim, event, "science_target_UID")
 
             case "gui_message":
                 Gui.on_message(sim, event)

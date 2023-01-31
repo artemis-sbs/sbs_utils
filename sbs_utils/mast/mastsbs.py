@@ -51,6 +51,69 @@ class Comms(MastNode):
         self.end_await_node = None
         EndAwait.stack.append(self)
 
+class Scan(MastNode):
+    rule = re.compile(r"""await\s*(?P<from_tag>\w+)\s*scan\s*(?P<to_tag>\w+)"""+BLOCK_START)
+    def __init__(self, to_tag, from_tag, loc=None):
+        self.loc = loc
+        self.to_tag = to_tag
+        self.from_tag = from_tag
+        self.buttons = []
+
+        self.end_await_node = None
+        EndAwait.stack.append(self)
+
+class ScanResult(MastNode):
+    rule = re.compile(r"""scan\s*results\s*((['"]{3}|["'])(?P<message>[\s\S]+?)\2)""")
+    def __init__(self, message=None, loc=None):
+        self.loc = loc
+        self.message = message
+
+FOR_RULE = r'(\s+for\s+(?P<for_name>\w+)\s+in\s+(?P<for_exp>[\s\S]+?))?'
+class ScanTab(MastNode):
+    rule = re.compile(r"""scan\s*tab\s+(?P<q>["'])(?P<message>.+?)(?P=q)"""+FOR_RULE+IF_EXP_REGEX+r"\s*"+BLOCK_START)
+    def __init__(self, message=None, button=None,  
+                 if_exp=None, 
+                 for_name=None, for_exp=None, 
+                 clone=False, q=None, loc=None):
+        if clone:
+            return
+        self.message = self.compile_formatted_string(message)
+        self.loc = loc
+        self.await_node = EndAwait.stack[-1]
+        self.await_node.buttons.append(self)
+
+        if if_exp:
+            if_exp = if_exp.lstrip()
+            self.code = compile(if_exp, "<string>", "eval")
+        else:
+            self.code = None
+
+        self.for_name = for_name
+        self.data = None
+        if for_exp:
+            for_exp = for_exp.lstrip()
+            self.for_code = compile(for_exp, "<string>", "eval")
+        else:
+            self.cor_code = None
+
+
+    def clone(self):
+        proxy = ScanTab(clone=True)
+        proxy.message = self.message
+        proxy.code = self.code
+        proxy.loc = self.loc
+        proxy.await_node = self.await_node
+        proxy.data = self.data
+        proxy.for_code = self.for_code
+        proxy.for_name = self.for_name
+
+        return proxy
+    
+    def expand(self):
+        pass
+
+
+
 FOR_RULE = r'(\s+for\s+(?P<for_name>\w+)\s+in\s+(?P<for_exp>[\s\S]+?))?'
 class Button(MastNode):
     
@@ -226,6 +289,9 @@ class MastSbs(Mast):
         Simulation,
         Role,
         Find,
-        Closest
+        Closest,
+        Scan,
+        ScanTab,
+        ScanResult
     ] + Mast.nodes 
     
