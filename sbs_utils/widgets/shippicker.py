@@ -29,6 +29,8 @@ class ShipPicker(Widget):
         self.title_prefix = title_prefix
         self.cur = 0
         self.test = fs.get_artemis_data_dir()
+        self.bottom = top+40
+        self.right = left+33
 
         data = fs.get_ship_data()
         #data = None
@@ -60,20 +62,21 @@ class ShipPicker(Widget):
             return
         if self.ships is None:
             sbs.send_gui_text(
-                    CID, f"Error {self.test}", f"{self.tag_prefix}error", self.left, self.top, self.left+40, self.top+5)
+                    CID, f"Error {self.test}", f"{self.tag_prefix}error", self.left, self.top, self.right, self.top+5)
             return
 
         ship = self.ships[self.cur]
 
         sbs.send_gui_text(
-                    CID, f"{self.title_prefix} {ship['name']}", f"{self.tag_prefix}title", self.left, self.top, self.left+40, self.top+5)
-        l1 = layout.wrap(self.left, self.top+40, 19, 4,col=3)
+                    CID, f"{self.title_prefix} {ship['name']}", f"{self.tag_prefix}title", self.left, self.top, self.right, self.top+5)
+        #l1 = layout.wrap(self.left, self.bottom, , 4,col=2)
+        half = (self.right-self.left)/2
         
-        sbs.send_gui_button(CID, "prev", f"{self.tag_prefix}prev", *next(l1))
-        sbs.send_gui_button(CID, "next", f"{self.tag_prefix}next", *next(l1))
-        sbs.send_gui_3dship(CID, ship['name'], f"{self.tag_prefix}ship", 
+        sbs.send_gui_button(CID, "prev", f"{self.tag_prefix}prev", self.left, self.bottom-5, self.left+half, self.bottom)
+        sbs.send_gui_button(CID, "next", f"{self.tag_prefix}next", self.right-half, self.bottom-5, self.right, self.bottom)
+        sbs.send_gui_3dship(CID, ship['key'], f"{self.tag_prefix}ship", 
             self.left+5, self.top+5,
-            self.left+33, self.top+33 )
+            self.right-5, self.bottom-5 )
      
         self.gui_state = "presenting"
 
@@ -128,6 +131,16 @@ class ShipPicker(Widget):
         :rtype: None or string of ship selected
         """
 
+        ship = self.ships[self.cur]
+        if "key" in ship:
+            return ship["key"]
+        return None
+    def get_selected_name(self):
+        """ get selected
+
+        :return: None or string of ship selected
+        :rtype: None or string of ship selected
+        """
         ship = self.ships[self.cur]
         if "name" in ship:
             return ship["name"]

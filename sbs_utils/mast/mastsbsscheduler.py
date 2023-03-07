@@ -1,5 +1,5 @@
 from .mast import Mast, Scope
-from .mastsbs import Role, Simulation, Target, Tell, Comms, Button, ButtonSet, Near,Broadcast, ScanTab,ScanResult
+from .mastsbs import Role, Simulation, Target, Tell, Comms, Button, ButtonSet, Near,Broadcast, ScanTab,ScanResult, Load
 from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask
 import sbs
 from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain
@@ -10,6 +10,7 @@ from .errorpage import ErrorPage
 from .. import faces
 from ..tickdispatcher import TickDispatcher
 import sys
+import json
 from .. import query
 
 import traceback
@@ -463,6 +464,27 @@ class RoleRuntimeNode(MastRuntimeNode):
 
         return PollResults.OK_ADVANCE_TRUE
 
+
+class LoadRuntimeNode(MastRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: Load):
+        content, errors = mast.content_from_lib_or_file(node.name, node.lib)
+        if content is None:
+            return
+        
+        match node.format:
+            case "data":
+                content = json.loads(content)
+                self.process_data(content)
+            case "map":
+                content = json.loads(content)
+                self.process_map(content)
+
+    def process_data(self, content):
+        pass
+
+    def process_data(self, content):
+        pass
+
         
 
 over =     {
@@ -475,6 +497,7 @@ over =     {
       "ButtonSet": ButtonSetRuntimeNode,
       "Simulation": SimulationRuntimeNode,
       "Scan": ScanRuntimeNode,
+      "Load": LoadRuntimeNode,
       "ScanResult": ScanResultRuntimeNode
     }
 

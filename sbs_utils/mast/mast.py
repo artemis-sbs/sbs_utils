@@ -253,6 +253,7 @@ class Import(MastNode):
         self.name = name
         self.lib = lib
 
+
 class Comment(MastNode):
     #rule = re.compile(r'(#[ \t\S]*)|((?P<com>[!]{3,})[\s\S]+(?P=com))')
     rule = re.compile(r'(#[ \t\S]*)|(\/\*[\s\S]+\*\/)|([!]{3,}\s*(?P<com>\w+)\s*[!]{3,}[\s\S]+[!]{3,}\s*end\s+(?P=com)\s*[!]{3,})')
@@ -723,66 +724,81 @@ class Mast:
     def remove_scheduler(self, scheduler):
         self.schedulers.remove(scheduler)
 
-    def from_file(self, filename, lib_name=None):
+    def from_file(self, file_name, lib_name=None):
         """ Docstring"""
-
-        # Import from lib
-        if lib_name is not None:
-            return self.from_lib_file(filename, lib_name)
-
-        # Import from already in a lib
-        if self.lib_name is not None:
-            return self.from_lib_file(filename, self.lib_name)
-            
-        file_name = os.path.join(fs.get_mission_dir(), filename)
-        self.basedir = os.path.dirname(file_name)
         content = None
-        errors = []
-        try:
-            with open(file_name) as f:
-                content = f.read()
-        except:
-            message = f"File load error\nCannot load file {file_name}"
-            #print(message)
-            errors.append(message)
-
+        errors= None
+        if self.lib_name is not None:
+            content, errors = self.content_from_lib_or_file(file_name, self.lib_name)
+        else:
+            content, errors = self.content_from_lib_or_file(file_name, lib_name)
+            if lib_name is not None and content is not None:
+                self.lib_name = lib_name
+        if errors is not None:
+            return errors
         if content is not None:
             errors = self.compile(content)
-
             if len(errors) > 0:
                 message = f"Compile errors\nCannot compile file {file_name}"
                 errors.append(message)
+            return errors
+        return []
+        
+
+    def process_file_content(self,content, file_name):
+        file_name, ext = os.path.splitext(file_name)
+        errors = []
+        match ext:
+            case _:
+                if content is not None:
+                    errors = self.compile(content)
+
+                    if len(errors) > 0:
+                        message = f"Compile errors\nCannot compile file {file_name}"
+                        errors.append(message)
 
         return errors
         
 
-    def from_lib_file(self, file_name, lib_name):
-        lib_name = os.path.join(fs.get_mission_dir(), lib_name)
-        content = None
+    # def from_lib_file(self, file_name, lib_name):
+    #     lib_name = os.path.join(fs.get_mission_dir(), lib_name)
+    #     content = None
 
-        errors = []
+    #     errors = []
+    #     try:
+    #         with ZipFile(lib_name) as lib_file:
+    #             with lib_file.open(file_name) as f:
+    #                 content = f.read().decode('UTF-8')
+    #                 self.lib_name = lib_name
+    #                 return self.process_file_content(content, file_name)
+    #     except:
+    #         message = f"File load error\nCannot load file {file_name}"
+    #         print(message)
+    #         errors.append(message)
+    #     return errors
+        
+
+    def content_from_lib_or_file(self, file_name, lib_name):
         try:
-            with ZipFile(lib_name) as lib_file:
-                with lib_file.open(file_name) as f:
-                    content = f.read().decode('UTF-8')
-                    self.lib_name = lib_name
+            if lib_name is not None:
+                lib_name = os.path.join(fs.get_mission_dir(), lib_name)
+                with ZipFile(lib_name) as lib_file:
+                    with lib_file.open(file_name) as f:
+                        content = f.read().decode('UTF-8')
+                        return content, None
+                    
+            else:
+                file_name = os.path.join(fs.get_mission_dir(), file_name)
+                self.basedir = os.path.dirname(file_name)
+                with open(file_name) as f:
+                    content = f.read()
+                return content, None
         except:
             message = f"File load error\nCannot load file {file_name}"
-            print(message)
-            errors.append(message)
+            return None, [message]
             
-
-        if content is not None:
-            errors = self.compile(content)
-
-            if len(errors) > 0:
-                message = f"Compile errors\nCannot compile file {file_name}"
-                errors.append(message)
-
-        if len(errors) > 0:
-            return errors
-        return []
-
+        
+    
 
     def import_content(self, filename, lib_file):
         add = self.__class__()

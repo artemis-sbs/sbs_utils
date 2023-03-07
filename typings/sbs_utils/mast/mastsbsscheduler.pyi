@@ -2,8 +2,11 @@ from sbs_utils.mast.mastsbs import Broadcast
 from sbs_utils.mast.mastsbs import Button
 from sbs_utils.mast.mastsbs import ButtonSet
 from sbs_utils.mast.mastsbs import Comms
+from sbs_utils.mast.mastsbs import Load
 from sbs_utils.mast.mastsbs import Near
 from sbs_utils.mast.mastsbs import Role
+from sbs_utils.mast.mastsbs import ScanResult
+from sbs_utils.mast.mastsbs import ScanTab
 from sbs_utils.mast.mastsbs import Simulation
 from sbs_utils.mast.mastsbs import Target
 from sbs_utils.mast.mastsbs import Tell
@@ -50,11 +53,19 @@ class CommsRuntimeNode(MastRuntimeNode):
         ...
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Comms):
         ...
+    def expand (self, button: sbs_utils.mast.mastsbs.Button, task: sbs_utils.mast.mastscheduler.MastAsyncTask):
+        ...
     def leave (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Comms):
         ...
     def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Comms):
         ...
     def set_buttons (self, from_id, to_id):
+        ...
+class LoadRuntimeNode(MastRuntimeNode):
+    """class LoadRuntimeNode"""
+    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Load):
+        ...
+    def process_data (self, content):
         ...
 class MastSbsScheduler(MastScheduler):
     """class MastSbsScheduler"""
@@ -74,6 +85,12 @@ class MastSbsScheduler(MastScheduler):
         ...
     def sbs_tick_tasks (self, sim):
         ...
+    def spawn_npc (self, x, y, z, name, side, art_id, behave_id):
+        ...
+    def spawn_player (self, x, y, z, name, side, art_id):
+        ...
+    def spawn_terrain (self, x, y, z, name, side, art_id, behave_id):
+        ...
 class NearRuntimeNode(MastRuntimeNode):
     """class NearRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Near):
@@ -83,6 +100,24 @@ class NearRuntimeNode(MastRuntimeNode):
 class RoleRuntimeNode(MastRuntimeNode):
     """class RoleRuntimeNode"""
     def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Role):
+        ...
+class ScanResultRuntimeNode(MastRuntimeNode):
+    """class ScanResultRuntimeNode"""
+    def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.ScanResult):
+        ...
+class ScanRuntimeNode(MastRuntimeNode):
+    """class ScanRuntimeNode"""
+    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Comms):
+        ...
+    def expand (self, button: sbs_utils.mast.mastsbs.ScanTab, task: sbs_utils.mast.mastscheduler.MastAsyncTask):
+        ...
+    def leave (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Comms):
+        ...
+    def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Comms):
+        ...
+    def science_message (self, sim, message, an_id, event):
+        ...
+    def science_selected (self, sim, an_id, event):
         ...
 class SimulationRuntimeNode(MastRuntimeNode):
     """class SimulationRuntimeNode"""

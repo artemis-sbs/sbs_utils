@@ -119,10 +119,10 @@ class EngineObject():
 
     @classmethod
     def clear(cls):
-        cls.all = {}
-        cls.roles = Stuff()
-        cls._has_inventory = Stuff()
-        cls.has_links = Stuff()
+        EngineObject.all = {}
+        EngineObject.roles = Stuff()
+        EngineObject._has_inventory = Stuff()
+        EngineObject.has_links = Stuff()
 
     def destroyed(self):
         self.remove()
@@ -132,12 +132,12 @@ class EngineObject():
 
     @classmethod
     def _add(cls, id, obj):
-        cls.all[id] = obj
+        EngineObject.all[id] = obj
 
     @classmethod
     def _remove(cls, id):
-        cls.all.pop(id)
-        return cls.roles.remove_every_collection(id)
+        EngineObject.all.pop(id)
+        return EngineObject.roles.remove_every_collection(id)
 
     ########## ROLES ########################
     def add_role(self, role: str):

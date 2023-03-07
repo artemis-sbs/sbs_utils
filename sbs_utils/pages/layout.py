@@ -2,6 +2,7 @@ from ..gui import Page
 import sbs
 import struct # for images sizes
 from .. import fs
+from ..widgets.shippicker import ShipPicker
 import os
 
 class Bounds:
@@ -26,6 +27,8 @@ class Row:
         self.left=0
         self.top=0
         self.padding = None
+        self.default_height = None
+        self.default_width = None
 
     def set_row_height(self, height):
         self.default_height = height
@@ -45,6 +48,11 @@ class Row:
         col:Column
         for col in self.columns:
             col.present(sim,event)
+
+    def on_message(self, sim, event):
+        col:Column
+        for col in self.columns:
+            col.on_message(sim,event)
 
 class Column:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
@@ -72,6 +80,9 @@ class Column:
 
     def set_padding(self, padding):
         self.padding = padding
+
+    def on_message(self, sim, event):
+        pass
 
 
     
@@ -224,11 +235,39 @@ class Ship(Column):
         super().__init__()
         self.ship = ship
         self.tag = tag
+        #self.square = False
 
     def present(self, sim, event):
         sbs.send_gui_3dship(event.client_id, 
             self.ship, self.tag, 
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+
+class PickShip(Column):
+    def __init__(self, ship, tag) -> None:
+        super().__init__()
+        self.ship = ship
+        self.tag = tag
+        self.picker = ShipPicker(25,25, f"pick{tag}:", "Your ship:")
+        self.value=""
+
+    def present(self, sim, event):
+        self.picker.present(sim, event)
+        #sbs.send_gui_3dship(event.client_id, 
+        #    self.ship, self.tag, 
+        #    self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+    def on_message(self, sim, event):
+        self.picker.on_message(sim,event)
+        self.value = self.picker.get_selected()
+        #return super().on_message(sim, event)
+
+    def set_bounds(self, bounds) -> None:
+        super().set_bounds(bounds)
+        self.picker.left = self.bounds.left
+        self.picker.top = self.bounds.top
+        self.picker.right = self.bounds.right
+        self.picker.bottom = self.bounds.bottom
+        self.picker.gui_state = ""
+
 
 
 class Layout:
@@ -259,13 +298,23 @@ class Layout:
         
         if len(self.rows):
             if self.default_height is not None:
-                row_height = self.default_height
+                layout_row_height = self.default_height
             else:
-                row_height = self.bounds.height / len(self.rows)
+                layout_row_height = self.bounds.height / len(self.rows)
+
+            # if self.default_width is not None:
+            #     layout_col_width = self.default_width
+            # else:
+            #     layout_col_width = None
+
             row : Row
             left = self.bounds.left
             top = self.bounds.top
             for row in self.rows:
+                if row.default_height is not None:
+                    row_height = row.default_height
+                else:
+                    row_height = layout_row_height
                 row.height = row_height
                 row.width = self.bounds.width
                 row.left = left
@@ -290,6 +339,9 @@ class Layout:
                     square_width = (actual_width/self.aspect_ratio.x) *100
                     square_height = (actual_width/self.aspect_ratio.y) * 100
 
+                # if layout_col_width is not None:
+                #     rect_col_width = layout_col_width
+                # el
                 if len(row.columns) != squares:
                     rect_col_width = (row.width-(squares*square_width))/(len(row.columns)-squares)
                     if square_width> rect_col_width:
@@ -309,11 +361,13 @@ class Layout:
                     bounds.bottom = top+row_height
                     if col.square:
                         bounds.right = bounds.left + square_width
+                        print(f"SW {square_width} SH {square_height}")
                         bounds.bottom = top+square_height
                         # Square ignores holes?
                         hole_size = 0
                     elif col.__class__ == Hole:
                         hole_size += rect_col_width
+                        continue
                     else:
                         bounds.right = bounds.left+rect_col_width + hole_size
                         hole_size = 0
@@ -325,6 +379,11 @@ class Layout:
         row:Row
         for row in self.rows:
             row.present(sim,event)
+    
+    def on_message(self, sim, event):
+        row:Row
+        for row in self.rows:
+            row.on_message(sim,event)
         
 
 

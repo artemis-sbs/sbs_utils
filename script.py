@@ -11,6 +11,7 @@ import sbs_utils.layout as layout
 from sbs_utils.gui import Page, Gui
 from sbs_utils.pages.avatar import AvatarEditor
 from sbs_utils.pages.shippicker import ShipPicker
+from sbs_utils.widgets.listbox import Listbox
 from sbs_utils.pages.start import ClientSelectPage
 from sbs_utils.pages.layout import LayoutPage, Layout, Row, Text, Face, Ship
 #import sbs_utils
@@ -23,13 +24,76 @@ from sbs_utils.mast.maststoryscheduler import StoryPage, StoryScheduler
 from sbs_utils import fs
 import os
 from sbs_utils.gridobject import GridObject
+from random import randrange, choice
 
 
 Mast.enable_logging()
 
 
 
+class ShipListDemo(Page):
+    
+    def __init__(self, ships) -> None:
+        self.gui_state = "blank"
+        self.picker1 = Listbox(5,5, "pick1:", ships, 
+                               text=lambda item: item.comms_id,
+                               face=lambda item: faces.get_face(item.id), 
+                               ship=lambda item: item.art_id, 
+                               item_height=5,
+                               select=True)
+        self.picker1.bottom = 45
+        self.picker1.right = 45
+        self.picker4 = Listbox(5,50, "pick4:", ships, 
+                               text=lambda item: item.comms_id,
+                               #face=lambda item: faces.get_face(item.id), 
+                               #ship=lambda item: item.art_id, 
+                               item_height=5,
+                               multi=True)
+        self.picker4.bottom = 95
+        self.picker4.right = 45
+        self.picker2 = Listbox(50,5, "pick2:", ships, 
+                               text=lambda item: item.comms_id,
+                               face=lambda item: faces.get_face(item.id), 
+                               #ship=lambda item: item.art_id, 
+                               item_height=5,
+                               select=False)
+        self.picker2.bottom = 95
+        self.picker2.right = 65
+        self.picker3 = Listbox(75,5, "pick3:", ships, 
+                               text=lambda item: item.comms_id,
+                               #face=lambda item: faces.get_face(item.id), 
+                               ship=lambda item: item.art_id, 
+                               item_height=5,
+                               select=False)
+        self.picker3.bottom = 95
+        self.picker3.right = 95
 
+
+    def present(self, sim, event):
+        CID = event.client_id
+        if self.gui_state == "presenting":
+            return
+
+        sbs.send_gui_clear(CID)
+        self.picker1.present(sim, event)
+        self.picker2.present(sim, event)
+        self.picker3.present(sim, event)
+        self.picker4.present(sim, event)
+        sbs.send_gui_button(CID, "Back", "back", 85,95, 99,99)
+
+        self.gui_state = "presenting"
+
+
+    def on_message(self, sim, event):
+        if event.sub_tag == 'back':
+            Gui.pop(sim, event.client_id)
+        else:
+            self.picker1.on_message(sim,event)
+            self.picker2.on_message(sim,event)
+            self.picker3.on_message(sim,event)
+            self.picker4.on_message(sim,event)
+
+ 
 
 
 class GuiPage(Page):
@@ -135,6 +199,7 @@ class GuiMain(Page):
         sbs.send_gui_button(event.client_id, "Gui Pages", "again", *next(w))
         sbs.send_gui_button(event.client_id, "Avatar Editor", "avatar", *next(w))
         sbs.send_gui_button(event.client_id, "Ship Picker", "ship", *next(w))
+        sbs.send_gui_button(event.client_id, "Ship Lists", "shiplist", *next(w))
         sbs.send_gui_button(event.client_id, "StubGen", "stub", *next(w))
         sbs.send_gui_button(event.client_id, "Layout", "layout", *next(w))
         sbs.send_gui_button(event.client_id, "Mast bar", "story", *next(w))
@@ -143,6 +208,7 @@ class GuiMain(Page):
         sbs.send_gui_button(event.client_id, "Mast Siege", "siege", *next(w))
 
     def on_message(self, sim, event):
+        Gui.client_start_page_class(ClientSelectPage)
         match event.sub_tag:
             case 'again':
                 # reset state here?
@@ -158,6 +224,25 @@ class GuiMain(Page):
             case 'ship':
                 # reset state here?
                 Gui.push(sim,event.client_id, ShipPicker())
+
+            case 'shiplist':
+                # reset state here?
+                sbs.create_new_sim()
+                enemy_ships = ["skaraan_defiler", "skaraan_enforcer","kralien_battleship", "kralien_dreadnaught", "torgoth_goliath", "torgoth_leviathan", "torgoth_behemoth"]
+                ships = []
+                markers = "QKWR"
+
+                for ship in range(20):
+                    marker = f"{choice(markers)}_{randrange(99)}"
+                    ship_art = choice(enemy_ships)
+
+                    npc = Npc()
+                    npc.spawn(sim, 500+ship*200,0,500,marker, "raider", ship_art, "behav_npcship")
+                    face = faces.random_terran()
+                    faces.set_face(npc.id, face)
+                    ships.append(npc)
+                Gui.push(sim,event.client_id, ShipListDemo(ships))
+                Gui.client_start_page_class(lambda: ShipListDemo(ships))
 
             case "continue":
                 self.gui_state = "blank"
@@ -366,7 +451,7 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
     
     def spawn(self, sim, x,y,z, side):
         use_name =  f"DS {self.ds_id}"
-        super().spawn(sim,x,y,z,use_name, side, "Starbase", "behav_station")
+        super().spawn(sim,x,y,z,use_name, side, "starbase_command", "behav_station")
         self.enable_comms()
         
 

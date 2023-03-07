@@ -66,7 +66,7 @@ class ScanResult(MastNode):
     rule = re.compile(r"""scan\s*results\s*((['"]{3}|["'])(?P<message>[\s\S]+?)\2)""")
     def __init__(self, message=None, loc=None):
         self.loc = loc
-        self.message = message
+        self.message = self.compile_formatted_string(message)
 
 FOR_RULE = r'(\s+for\s+(?P<for_name>\w+)\s+in\s+(?P<for_exp>[\s\S]+?))?'
 class ScanTab(MastNode):
@@ -275,12 +275,21 @@ class Closest(MastNode):
         self.the_filter = the_filter
 
 
+class Load(MastNode):
+    rule = re.compile(r'(from\s+(?P<lib>[\w\.\\\/-]+)\s+)?load\s+(?P<format>json|map)\s+(?P<name>[\w\.\\\/-]+)')
+
+    def __init__(self, name, lib=None, format=None, loc=None):
+        self.loc = loc
+        self.name = name
+        self.lib = lib
+        self.format = format
 
 class MastSbs(Mast):
     nodes =  [
         # sbs specific
         Target,
         Tell,
+        Load,
         Broadcast,
         Comms,
         ButtonSet,

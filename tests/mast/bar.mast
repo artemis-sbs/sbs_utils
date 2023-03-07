@@ -5,7 +5,6 @@ shared beer = 10
 shared vodka = 8
 
 ============== GotoBar ===================
-input name "Test"
 face barkeep
 """""""""""""""""""""""""""""""""
 Thirsty?

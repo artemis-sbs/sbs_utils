@@ -47,6 +47,12 @@ class Find(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
+class Load(MastNode):
+    """class Load"""
+    def __init__ (self, name, lib=None, format=None, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
 class MastSbs(Mast):
     """class MastSbs"""
 class Near(MastNode):
@@ -59,6 +65,28 @@ class Role(MastNode):
     """Handle commands to the simulation"""
     def __init__ (self, name, roles, cmd=None, q=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
+class Scan(MastNode):
+    """class Scan"""
+    def __init__ (self, to_tag, from_tag, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
+class ScanResult(MastNode):
+    """class ScanResult"""
+    def __init__ (self, message=None, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
+class ScanTab(MastNode):
+    """class ScanTab"""
+    def __init__ (self, message=None, button=None, if_exp=None, for_name=None, for_exp=None, clone=False, q=None, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def clone (self):
+        ...
+    def expand (self):
+        ...
     def parse (lines):
         ...
 class Simulation(MastNode):

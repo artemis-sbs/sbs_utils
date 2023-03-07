@@ -16,16 +16,17 @@ class TickType(IntEnum):
 
 
 class SpaceObject(EngineObject):
-    roles : Stuff = Stuff()
-    _has_inventory : Stuff = Stuff()
-    has_links : Stuff = Stuff()
-    all = {}
-    removing = set()
+    # roles : Stuff = Stuff()
+    # _has_inventory : Stuff = Stuff()
+    # has_links : Stuff = Stuff()
+    # all = {}
+    # removing = set()
 
     def __init__(self):
         super().__init__()
         self._name = ""
         self._side = ""
+        self._art_id = ""
         self.tick_type = TickType.UNKNOWN
     
     @property
@@ -166,6 +167,17 @@ class SpaceObject(EngineObject):
             return
         blob = so.data_set
         return blob.set("name_tag", name, 0)
+    
+    def set_art_id(self, sim, art_id):
+        """ Get the name of the object
+
+        :param sim: The simulation
+        :type sim: Artemis Cosmos simulation
+        :return: name
+        :rtype: str
+        """
+        so = self.space_object(sim)
+        so.data_tag = art_id
 
     def update_comms_id(self):
         """ Updates the comms ID when the name or side has changed
@@ -192,6 +204,11 @@ class SpaceObject(EngineObject):
     def comms_id(self: SpaceObject) -> str:
         """str, cached version of comms_id"""
         return self._comms_id
+    
+    @property
+    def art_id(self: SpaceObject) -> str:
+        """str, cached version of art_id"""
+        return self._art_id
 
 
 class MSpawn:
@@ -225,6 +242,7 @@ class MSpawnPlayer(MSpawn):
         ship = self._make_new_player(sim, "behav_playership", art_id)
         blob = self.spawn_common(sim, ship, x, y, z, name, side)
         self.add_role("__PLAYER__")
+        self._art_id = art_id
         return SpawnData(self.id, ship, blob, self)
 
     def spawn(self, sim, x, y, z, name, side, art_id):
@@ -284,6 +302,7 @@ class MSpawnActive(MSpawn):
     def _spawn(self, sim, x, y, z, name, side, art_id, behave_id):
         ship = self._make_new_active(sim, behave_id, art_id)
         blob = self.spawn_common(sim, ship, x, y, z, name, side)
+        self._art_id = art_id
         self.add_role("__NPC__")
         return SpawnData(self.id, ship, blob, self)
 
@@ -347,6 +366,7 @@ class MSpawnPassive(MSpawn):
     def _spawn(self, sim, x, y, z, name, side, art_id, behave_id):
         ship = self._make_new_passive(sim, behave_id, art_id)
         blob = self.spawn_common(sim, ship, x, y, z, name, side)
+        self._art_id = art_id
         self.add_role("__TERRAIN__")
         return SpawnData(self.id, ship, blob, self)
 
@@ -395,208 +415,3 @@ class MSpawnPassive(MSpawn):
         """
         return self._spawn(sim, v.x, v.y, v.z, name, side, art_id, behave_id)
 
-
-
-#####################################
-### DEPREICATE????
-
-# def all_roles(roles: str, linked_object: SpaceObject | None = None, filter_func=None):
-        
-#         roles = roles.split(",\*")
-#         ret = set()
-#         if linked_object:
-#             for role in roles:
-#                 objects = linked_object.get_objects_with_link(role)
-#                 ret |= set(objects)
-#         else:
-#             for role in roles:
-#                 objects = SpaceObject.get_role_objects(role)
-#                 ret |= set(objects)
-        
-#         items = list(ret)
-#         if filter_func is not None:
-#             items = filter(filter_func, items)
-            
-
-#         return items
-
-#     def find_close_list(self, sim, roles=None, max_dist=None, filter_func=None, linked=False) -> list[CloseData]:
-#         """ Finds a list of matching objects 
-
-#         :param sim: The simulation
-#         :type sim: Artemis Cosmos simulation
-#         :param roles: Roles to looks for can also be class name
-#         :type roles: str or List[str] 
-#         :param max_dist: Max distance to search (faster)
-#         :type max_dist: float
-#         :param filter_func: Called to test each object to filter out non matches
-#         :type filter_func: 
-#         :return: A list of close object
-#         :rtype: List[CloseData]
-#         """
-#         items = SpaceObject.all_roles(roles, self if linked else None, filter_func)
-#         return self.find_close_filtered_list(sim, items, max_dist)
-
-#     def find_close_filtered_list(self, sim, items, max_dist=None) -> list[CloseData]:
-#         ret = []
-#         test = max_dist
-
-#         for other_obj in items:
-#             # if this is self skip
-#             if other_obj.id == self.id:
-#                 continue
-
-#             # test distance
-#             test = sbs.distance_id(self.id, other_obj.id)
-#             if max_dist is None:
-#                 ret.append(CloseData(other_obj.id, other_obj, test))
-#                 continue
-
-#             if test < max_dist:
-#                 ret.append(CloseData(other_obj.id, other_obj, test))
-
-#         return ret
-
-#     def find_closest(self, sim, roles=None, max_dist=None, filter_func=None, linked: bool = False) -> CloseData:
-#         """ Finds the closest object matching the criteria
-
-#         :param sim: The simulation
-#         :type sim: Artemis Cosmos simulation
-#         :param roles: Roles to looks for can also be class name
-#         :type roles: str or List[str] 
-#         :param max_dist: Max distance to search (faster)
-#         :type max_dist: float
-#         :param filter_func: Called to test each object to filter out non matches
-#         :type filter_func: function that takes ID
-#         :return: A list of close object
-#         :rtype: CloseData
-#         """
-#         dist = None
-#         close_obj = None
-#         # list of close objects
-#         items = self.find_close_list(sim, roles, max_dist, filter_func, linked)
-#         # Slightly inefficient
-#         # Maybe this should be a filter function?
-#         for other in items:
-#             test = sbs.distance_id(self.id, other.id)
-#             if dist is None:
-#                 close_obj = other
-#                 dist = test
-#             elif test < dist:
-#                 close_obj = other
-#                 dist = test
-#         return close_obj
-
-#     def target_closest(self, sim, roles=None, max_dist=None, filter_func=None, shoot: bool = True, linked: bool = False):
-#         """ Find and target the closest object matching the criteria
-
-#         :param sim: The simulation
-#         :type sim: Artemis Cosmos simulation
-#         :param roles: Roles to looks for can also be class name
-#         :type roles: str or List[str] 
-#         :param max_dist: Max distance to search (faster)
-#         :type max_dist: float
-#         :param filter_func: Called to test each object to filter out non matches
-#         :type filter_func: function
-#         :param shoot: if the target should be shot at
-#         :type shoot: bool
-#         :return: A list of close object
-#         :rtype: CloseData
-#         """
-#         close = self.find_closest(sim, roles, max_dist, filter_func, linked)
-#         if close is not None and close.id is not None:
-#             self.target(sim, close.id, shoot)
-#         return close
-
-#     def target(self, sim, other_id: int, shoot: bool = True):
-#         """ Set the item to target
-
-#         :param sim: The simulation
-#         :type sim: Artemis Cosmos simulation
-#         :param other_id: the id of the object to target
-#         :type other_id: int
-#         :param shoot: if the object should be shot at
-#         :type shoot: bool
-#         """
-#         SpaceObject.resolve_id(other_id)
-#         other = sim.get_space_object(other_id)
-
-#         if other:
-#             data = {
-#                 "target_pos_x": other.pos.x,
-#                 "target_pos_y": other.pos.y,
-#                 "target_pos_z": other.pos.z,
-#                 "target_id": 0
-#             }
-#             if shoot:
-#                 data["target_id"] = other.unique_ID
-#             self.update_engine_data(sim, data)
-
-#     def target_pos(self, sim, x: float, y: float, z: float):
-#         """ Set the item to target
-
-#         :param sim: The simulation
-#         :type sim: Artemis Cosmos simulation
-#         :param other_id: the id of the object to target
-#         :type other_id: int
-#         :param shoot: if the object should be shot at
-#         :type shoot: bool
-#         """
-#         data = {
-#             "target_pos_x": x,
-#             "target_pos_y": y,
-#             "target_pos_z": z,
-#             "target_id": 0
-#         }
-#         self.update_engine_data(sim, data)
-
-#     def find_closest_nav(self, sim, nav=None, max_dist=None, filter_func=None) -> CloseData:
-#         """ Finds the closest object matching the criteria
-
-#         :param sim: The simulation
-#         :type sim: Artemis Cosmos simulation
-#         :param roles: Roles to looks for can also be class name
-#         :type nav: str or List[str] 
-#         :param max_dist: Max distance to search (faster)
-#         :type max_dist: float
-#         :param filter_func: Called to test each object to filter out non matches
-#         :type filter_func: function that takes ID
-#         :return: A list of close object
-#         :rtype: CloseData
-#         """
-#         close_id = None
-#         close_obj = None
-#         dist = max_dist
-
-#         # TODO USe boardtest if max_dist used
-
-#         items = []
-#         if type(nav) == str:
-#             items.append(nav)
-#         else:
-#             items.extend(nav)
-
-#         if filter_func is not None:
-#             items = filter(filter_func, items)
-
-#         for nav in items:
-
-#             test = sbs.distance_to_navpoint(self.id, nav)
-#             if dist is None:
-#                 close_id = nav
-#                 close_obj = nav
-#                 dist = test
-#             elif test < dist:
-#                 close_id = nav
-#                 close_obj = nav
-#                 dist = test
-
-#         return CloseData(close_id, close_obj, dist)
-
-#     def target_closest_nav(self, sim, nav=None, max_dist=None, filter_func=None, shoot: bool = True):
-#         found = self.find_closest_nav(sim, nav, max_dist, filter_func)
-#         if found.id is not None:
-#             nav_object = sim.get_navpoint_by_name(found.id)
-#             self.target_pos(nav_object.pos.x,
-#                             nav_object.pos.y, nav_object.pos.z)
-#         return found

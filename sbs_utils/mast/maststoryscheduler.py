@@ -9,7 +9,7 @@ from ..pages import layout
 from ..tickdispatcher import TickDispatcher
 
 from .errorpage import ErrorPage
-from .maststory import AppendText, ButtonControl, MastStory, Choose, Text, Blank, Ship, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, Hole, RadioControl, Console
+from .maststory import AppendText, ButtonControl, MastStory, Choose, Text, Blank, Ship, PickShip, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, Hole, RadioControl, Console
 import traceback
 from .mastsbsscheduler import MastSbsScheduler, Button
 from .parsers import LayoutAreaParser
@@ -88,13 +88,25 @@ class RefreshRuntimeNode(StoryRuntimeNode):
 class ShipRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Ship):
         tag = task.main.page.get_tag()
-        item = layout.Ship(node.ship, tag)
+        ship = task.format_string(node.ship)
+        item = layout.Ship(ship, tag)
         task.main.page.add_content(item, self)
         self.apply_style_name(".ship", item, task)
         if node.style_def is not None:
             self.apply_style_def(node.style_def, item, task)
 
+class PickShipRuntimeNode(StoryRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: PickShip):
+        tag = task.main.page.get_tag()
+        item = layout.PickShip(node.ship, tag)
+        task.set_value_keep_scope(node.var, item)
+        task.main.page.add_content(item, self)
+        self.apply_style_name(".pickship", item, task)
+        if node.style_def is not None:
+            self.apply_style_def(node.style_def, item, task)
 
+        
+        
 class TextRuntimeNode(StoryRuntimeNode):
     current = None
     def enter(self, mast:Mast, task:MastAsyncTask, node: Text):
@@ -552,6 +564,7 @@ over =     {
     "AppendText": AppendTextRuntimeNode,
     "Face": FaceRuntimeNode,
     "Ship": ShipRuntimeNode,
+    "PickShip": PickShipRuntimeNode,
     "ButtonControl": ButtonControlRuntimeNode,
     "SliderControl": SliderControlRuntimeNode,
     "CheckboxControl": CheckboxControlRuntimeNode,
@@ -771,10 +784,6 @@ class StoryPage(Page):
             self.pending_layouts.append(layout)
         
         self.swap_layout()
-        
-        
-
-        
     
     def present(self, sim, event):
         """ Present the gui """
@@ -855,6 +864,9 @@ class StoryPage(Page):
             if refresh:
                 self.gui_state = "refresh"
             self.present(sim, event)
+        # else:
+        for layout in self.layouts:
+            layout.on_message(sim,event)
 
     def on_event(self, sim, event):
         #print (f"Story event {event.client_id} {event.tag} {event.sub_tag}")

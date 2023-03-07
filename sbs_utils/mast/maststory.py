@@ -82,12 +82,25 @@ class Ship(MastNode):
     rule = re.compile(r"""ship\s+(?P<q>['"]{3}|["'])(?P<ship>[\s\S]+?)(?P=q)"""+STYLE_REF_RULE)
     def __init__(self, ship=None, q=None, style_name=None, style=None, style_q=None, loc=None):
         self.loc = loc
-        self.ship= ship
+        self.ship= self.compile_formatted_string(ship)
         self.style_def = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
             self.style_def = StyleDefinition.styles.get(style_name)
+
+class PickShip(MastNode):
+    rule = re.compile(r"""pick\s+ship\s+(?P<var>\w+)"""+STYLE_REF_RULE)
+    def __init__(self, ship=None, var=None, style_name=None, style=None, style_q=None, loc=None):
+        self.loc = loc
+        self.ship= ship
+        self.var = var
+        self.style_def = None
+        if style is not None:
+            self.style_def = StyleDefinition.parse(style)
+        elif style_name is not None:
+            self.style_def = StyleDefinition.styles.get(style_name)
+
 
 class Blank(MastNode):
     rule = re.compile(r"""blank"""+STYLE_REF_RULE)
@@ -366,6 +379,7 @@ class MastStory(MastSbs):
             AppendText,
             Face,
             Ship,
+            PickShip,
             Blank,
             Hole,
             Section,

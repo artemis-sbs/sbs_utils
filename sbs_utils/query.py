@@ -1,30 +1,29 @@
 from random import randrange, choice, choices
-from .spaceobject import SpaceObject
 from .engineobject import EngineObject, CloseData, SpawnData
 import sbs
 ###################
 # Set functions
 def role(role: str):
-    return SpaceObject.get_role_set(role)
+    return EngineObject.get_role_set(role)
 
 def has_inventory(role: str):
-    return SpaceObject.has_inventory_set(role)
+    return EngineObject.has_inventory_set(role)
 
 
 def has_link(role: str):
-    return SpaceObject.has_links_set(role)
+    return EngineObject.has_links_set(role)
 
 def inventory_set(link_source, link_name: str):
-    link_source = SpaceObject.resolve_py_object(link_source)
+    link_source = EngineObject.resolve_py_object(link_source)
     return link_source.get_inventory_set(link_name)
 
 def inventory_value(link_source, link_name: str):
-    link_source = SpaceObject.resolve_py_object(link_source)
+    link_source = EngineObject.resolve_py_object(link_source)
     return link_source.get_inventory_value(link_name)
 
 
 def linked_to(link_source, link_name: str):
-    link_source = SpaceObject.resolve_py_object(link_source)
+    link_source = EngineObject.resolve_py_object(link_source)
     return link_source.get_link_set(link_name)
 
 # Get the set of IDS of a broad test
@@ -37,16 +36,16 @@ def broad_test(x1: float, z1: float, x2: float, z2: float, broad_type=-1):
 
 #######################
 # Set resolvers
-def closest_list(source: int | CloseData | SpawnData | SpaceObject, the_set, max_dist=None, filter_func=None) -> list[CloseData]:
+def closest_list(source: int | CloseData | SpawnData | EngineObject, the_set, max_dist=None, filter_func=None) -> list[CloseData]:
     ret = []
     test = max_dist
-    source_id = SpaceObject.resolve_id(source)
+    source_id = EngineObject.resolve_id(source)
 
     for other_id in the_set:
         # if this is self skip
         if other_id == source_id:
             continue
-        other_obj = SpaceObject.get(other_id)
+        other_obj = EngineObject.get(other_id)
         if filter_func is not None and not filter_func(other_obj):
             continue
         # test distance
@@ -64,14 +63,14 @@ def closest_list(source: int | CloseData | SpawnData | SpaceObject, the_set, max
 def closest(self, the_set, max_dist=None, filter_func=None) -> CloseData:
     test = max_dist
     ret = None
-    source_id = SpaceObject.resolve_id(self)
+    source_id = EngineObject.resolve_id(self)
     the_set = to_set(the_set)
 
     for other_id in the_set:
         # if this is self skip
         if other_id == source_id:
             continue
-        other_obj = SpaceObject.get(other_id)
+        other_obj = EngineObject.get(other_id)
         if filter_func is not None and not filter_func(other_obj):
             continue
 
@@ -89,23 +88,23 @@ def closest(self, the_set, max_dist=None, filter_func=None) -> CloseData:
     return ret
 
 
-def closest_object(self, the_set, max_dist=None, filter_func=None) -> SpaceObject:
+def closest_object(self, the_set, max_dist=None, filter_func=None) -> EngineObject:
     ret = closest(self, the_set, max_dist, filter_func)
     if ret:
         return ret.py_object
 
 def random_object(the_set):
     rand_id = choice(tuple(the_set))
-    return SpaceObject.get(rand_id)
+    return EngineObject.get(rand_id)
 
 
 def random_object_list(the_set, count=1):
     rand_id_list = choices(tuple(the_set), count)
-    return [SpaceObject.get(x) for x in rand_id_list]
+    return [EngineObject.get(x) for x in rand_id_list]
 
 
 def to_py_object_list(the_set):
-    return [SpaceObject.get(id) for id in the_set]
+    return [EngineObject.get(id) for id in the_set]
 
 
 def target(sim, set_or_object, target_id, shoot: bool = True):
@@ -117,7 +116,7 @@ def target(sim, set_or_object, target_id, shoot: bool = True):
     :param shoot: if the object should be shot at
     :type shoot: bool
     """
-    target_id = SpaceObject.resolve_id(target_id)
+    target_id = EngineObject.resolve_id(target_id)
     target_engine = sim.get_space_object(target_id)
 
     if target_engine:
@@ -131,7 +130,7 @@ def target(sim, set_or_object, target_id, shoot: bool = True):
             data["target_id"] = target_engine.unique_ID
     all = to_list(set_or_object)
     for chaser in all:
-        chaser = SpaceObject.resolve_py_object(chaser)
+        chaser = EngineObject.resolve_py_object(chaser)
         chaser.update_engine_data(sim, data)
 
 
@@ -153,7 +152,7 @@ def target_pos(sim, chasers: set | int | CloseData|SpawnData, x: float, y: float
     }
     all = to_list(chasers)
     for chaser in all:
-        chaser = SpaceObject.resolve_py_object(chaser)
+        chaser = EngineObject.resolve_py_object(chaser)
         chaser.update_engine_data(sim, data)
 
 def clear_target(sim, chasers: set | int | CloseData|SpawnData):
@@ -164,7 +163,7 @@ def clear_target(sim, chasers: set | int | CloseData|SpawnData):
         """
         all = to_list(chasers)
         for chaser in all:
-            chaser = SpaceObject.resolve_py_object(chaser)
+            chaser = EngineObject.resolve_py_object(chaser)
             this = sim.get_space_object(chaser.id)
             chaser.update_engine_data(sim, {
                 "target_pos_x": this.pos.x,
@@ -174,9 +173,9 @@ def clear_target(sim, chasers: set | int | CloseData|SpawnData):
             })
 
 def to_object_list(the_set):
-    return [SpaceObject.resolve_py_object(x) for x in list(the_set)]
+    return [EngineObject.resolve_py_object(x) for x in list(the_set)]
 def to_id_list(the_set):
-    return [SpaceObject.resolve_id(x) for x in list(the_set)]
+    return [EngineObject.resolve_id(x) for x in list(the_set)]
 
 def to_list(other: EngineObject | CloseData | int):
     if isinstance(other, set):
@@ -220,7 +219,7 @@ def to_object(other: EngineObject | CloseData | int):
     else:
         # In the future this should be EngineObject
         # When Grid  Items and space object live as one
-        py_object = SpaceObject.get(other)
+        py_object = EngineObject.get(other)
     return py_object
 
 
@@ -281,3 +280,13 @@ def object_exists(sim, so_id):
     return eo is not None
 
 
+def grid_objects(sim, so_id):
+    gos = set()
+    hm = sbs.get_hull_map(sim, to_id(so_id))
+    if hm is None:
+        return gos
+    count = hm.get_grid_object_count()
+    for i in range(count):
+        go = hm.get_grid_object_by_index(i)
+        gos.add(go.unique_ID)
+    return gos

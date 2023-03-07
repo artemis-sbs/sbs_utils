@@ -17,6 +17,9 @@ class GridObject(EngineObject):
         
         :param sim: The simulation
         :type sim: Artemis Cosmos simulation"""
+    @property
+    def comms_id (self: 'GridObject') -> 'str':
+        """str, cached version of comms_id"""
     def find_close_list (self, sim, roles=None, max_dist=None, filter_func=None) -> 'list[CloseData]':
         """Finds a list of matching objects
         :param sim: The simulation
@@ -46,6 +49,10 @@ class GridObject(EngineObject):
         ...
     def get_as (id, as_cls):
         ...
+    def get_engine_data (self, sim, key, index=0):
+        ...
+    def get_engine_data_set (self, sim):
+        ...
     def get_objects_from_set (the_set):
         ...
     def get_role_object (link_name):
@@ -54,6 +61,9 @@ class GridObject(EngineObject):
         ...
     def get_role_set (role):
         ...
+    @property
+    def gotype (self: 'GridObject') -> 'str':
+        """str, cached version of type"""
     def grid_object (self, sim):
         """get the simulation's space object for the object
         
@@ -69,19 +79,34 @@ class GridObject(EngineObject):
         ...
     def has_links_set (collection_name):
         ...
-    def name (self, sim):
-        """Get the name of the object
-        
-        :param sim: The simulation
-        :type sim: Artemis Cosmos simulation
-        :return: name
-        :rtype: str"""
+    @property
+    def name (self: 'GridObject') -> 'str':
+        """str, cached version of name"""
     def resolve_id (other: 'EngineObject | CloseData | int'):
         ...
     def resolve_py_object (other: 'EngineObject | CloseData | int'):
         ...
+    def set_engine_data (self, sim, key, value, index=0):
+        ...
+    def set_name (self, sim, name):
+        """Set the name of the object
+        
+        :param sim: The simulation
+        :type sim: Artemis Cosmos simulation
+        :param name: The object name
+        :type str: The object name"""
+    def set_tag (self, sim, tag):
+        """Set the name of the object
+        
+        :param sim: The simulation
+        :type sim: Artemis Cosmos simulation
+        :param name: The object name
+        :type str: The object name"""
     def spawn (self, sim: 'sbs.simulation', host_id, name, tag, x, y, icon_index, color, go_type=None):
         ...
+    @property
+    def tag (self: 'GridObject') -> 'str':
+        """str, cached version of tag"""
     def target (self, sim, other_id: 'int'):
         """Set the item to target
         
@@ -116,4 +141,6 @@ class GridObject(EngineObject):
         :param shoot: if the object should be shot at
         :type shoot: bool"""
     def update_blob (self, sim: 'sbs.simulation', speed=None, icon_index=None, icon_scale=None, color=None):
+        ...
+    def update_engine_data (self, sim, data):
         ...

@@ -62,9 +62,10 @@ class TestSpaceObject(unittest.TestCase):
         assert(not py_ast.is_active)
 
         # Sanity check to make sure
-        # SpaceObject and GridObject are not sharing static data
-        assert(len(GridObject.all.keys())==0)
+        # SpaceObject and GridObject are sharing static data
+        assert(len(GridObject.all.keys())!=0)
         assert(len(SpaceObject.all.keys())!=0)
+        assert(SpaceObject.all.keys()==GridObject.all.keys())
 
 
         assert(py_ast.comms_id == "")
