@@ -44,10 +44,6 @@ next player_ship
 
 console console_select
 
-await choice:
-    + "Head to the bar":
-        ->>EnterBar
-end_await
-# Need this when return from bar
-->console_selected
+await gui
+
 

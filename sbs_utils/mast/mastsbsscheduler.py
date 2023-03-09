@@ -12,6 +12,7 @@ from ..tickdispatcher import TickDispatcher
 import sys
 import json
 from .. import query
+from .. import scatter
 
 import traceback
 
@@ -505,46 +506,18 @@ over =     {
 Mast.globals["SpaceObject"] =MastSpaceObject
 Mast.globals["script"] = sys.modules['script']
 for func in [
-        # query sets
-        query.role,
-        query.has_inventory,
-        query.has_link,
-        query.inventory_set,
-        query.inventory_value,
-        query.linked_to,
-        query.broad_test,
-        # resolvers
-        query.closest_list,
-        query.closest,
-        query.target,
-        query.target_pos,
-        query.clear_target,
-        query.closest_object,
-        query.random_object,
-        query.random_object_list,
-        query.to_py_object_list,
-        query.link,
-        query.unlink,
-        query.to_id_list,
-        query.to_object_list,
-        query.to_id,
-        query.to_object,
-        query.get_dedicated_link,
-        query.set_dedicated_link,
-        query.get_inventory_value,
-        query.set_inventory_value,
-        query.object_exists,
-        query.has_role,
-        query.add_role,
-        query.remove_role,
         ############################
         ## sbs
-        sbs.distance_id
-
+        sbs.distance_id,
+        sbs.assign_client_to_ship
     ]:
     Mast.globals[func.__name__] = func
 
 
+
+Mast.import_python_module('sbs_utils.query')
+Mast.import_python_module('sbs_utils.faces')
+Mast.import_python_module('sbs_utils.scatter', 'scatter')
 
 class MastSbsScheduler(MastScheduler):
     def __init__(self, mast: Mast, overrides=None):
@@ -555,9 +528,9 @@ class MastSbsScheduler(MastScheduler):
         self.sim = None
         self.vars["sbs"] = sbs
         # Create schedulable space objects
-        self.vars["spawn_npc"] = self.spawn_npc
-        self.vars["spawn_terrain"] = self.spawn_terrain
-        self.vars["spawn_player"] = self.spawn_player
+        self.vars["npc_spawn"] = self.npc_spawn
+        self.vars["terrain_spawn"] = self.terrain_spawn
+        self.vars["player_spawn"] = self.player_spawn
 
 
     def Npc(self):
@@ -567,14 +540,14 @@ class MastSbsScheduler(MastScheduler):
     def Terrain(self):
         return Terrain(self)
     
-    def spawn_npc(self, x,y,z,name, side, art_id, behave_id):
+    def npc_spawn(self, x,y,z,name, side, art_id, behave_id):
         so = Npc(self)
         return so.spawn(self.sim, x,y,z,name, side, art_id, behave_id)
         
-    def spawn_player(self, x,y,z,name, side, art_id):
+    def player_spawn(self, x,y,z,name, side, art_id):
         so = PlayerShip(self)
         return so.spawn(self.sim, x,y,z,name, side, art_id)
-    def spawn_terrain(self, x,y,z,name, side, art_id, behave_id):
+    def terrain_spawn(self, x,y,z,name, side, art_id, behave_id):
         so = Terrain(self)
         return so.spawn(self.sim, x,y,z,name, side, art_id, behave_id)
 

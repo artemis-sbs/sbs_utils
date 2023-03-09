@@ -11,6 +11,8 @@ import itertools
 import logging
 import random
 from io import StringIO
+from inspect import getmembers, isfunction  
+import sys
 
 
 # tokens
@@ -111,16 +113,16 @@ class Logger(MastNode):
         self.loc = loc
 
 class LoopStart(MastNode):
-    rule = re.compile(r'(for\s*(?P<name>\w+)\s*)(in|while)((?P<if_exp>[\s\S]+?))'+BLOCK_START)
+    rule = re.compile(r'(for\s*(?P<name>\w+)\s*)(?P<while_in>in|while)((?P<cond>[\s\S]+?))'+BLOCK_START)
     loop_stack = []
-    def __init__(self, if_exp=None, name=None, loc=None):
-        if if_exp:
-            if_exp = if_exp.lstrip()
-            self.code = compile(if_exp, "<string>", "eval")
+    def __init__(self, while_in=None, cond=None, name=None, loc=None):
+        if cond:
+            cond = cond.lstrip()
+            self.code = compile(cond, "<string>", "eval")
         else:
             self.code = None
         self.name = name
-        self.iter = None
+        self.is_while = while_in == "while"
         self.loc = loc
         self.end = None
         LoopStart.loop_stack.append(self)
@@ -630,6 +632,16 @@ class Mast:
     def make_global_var(name, value):
         Mast.globals[name] = value
         
+    def import_python_module(mod_name, prepend=None):
+        sca = sys.modules.get(mod_name)
+        if sca:
+            for (name, func) in getmembers(sca,isfunction):
+                if prepend == None:
+                    Mast.globals[name] = func
+                elif prepend == True:
+                    Mast.globals[f"{mod_name}_{name}"] = func
+                elif isinstance(prepend, str):
+                    Mast.globals[f"{prepend}_{name}"] = func
 
     def build(self, cmds):
         """

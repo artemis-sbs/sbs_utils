@@ -126,60 +126,120 @@ class JumpRuntimeNode(MastRuntimeNode):
         return PollResults.OK_JUMP
 
 
+# class LoopStartRuntimeNode(MastRuntimeNode):
+#     def enter(self, mast, task:MastAsyncTask, node:LoopStart):
+#         scoped_val = task.get_value(node.name, None)
+#         index = scoped_val[0]
+#         scope = scoped_val[1]
+#         scoped_val = task.get_value(node.name+"__iter", None)
+#         _iter = scoped_val[0]
+#         iter_scope  = scoped_val[1]
+#         if index is None:
+#             index = 0
+#             scope = Scope.TEMP
+#             task.set_value(node.name, index, scope)
+#         elif not node.iter:
+#             print(f"it is this {index}")
+#             index+=1
+#             print("no its not")
+#             task.set_value(node.name, index, scope)
+#         self.scope = scope
+
+#         # One time om start create iterator        
+#         if node.code is not None and node.iter is None:
+#             value = task.eval_code(node.code)
+#             try:
+#                 _iter = iter(value)
+#                 node.iter = True
+#             except TypeError:
+#                 node.iter = False
+
+#         # All the time if iterable
+#         if _iter is not None and node.iter:
+#             try:
+#                 index = next(_iter)
+#                 task.set_value(node.name, index, Scope.TEMP)
+#                 task.set_value(node.name+"__iter", _iter, Scope.TEMP)
+#             except StopIteration:
+#                 task.set_value(node.name, None, Scope.TEMP)
+#                 task.set_value(node.name+"__iter", None, Scope.TEMP)
+ 
+
+#     def poll(self, mast, task, node:LoopStart):
+#         value = True
+#         if node.iter:
+#             scoped_val = task.get_value(node.name, None)
+#             index = scoped_val[0]
+#             if index is None:
+#                 value = False
+#                 node.iter = None
+#         elif node.code:
+#             value = task.eval_code(node.code)
+#         if value == False:
+#             inline_label = f"{task.active_label}:{node.name}"
+#             # End loop clear value
+#             task.set_value(node.name, None, self.scope)
+#             task.jump(task.active_label, node.end.loc+1)
+#             #task.jump_inline_end(inline_label, False)
+#             return PollResults.OK_JUMP
+#         return PollResults.OK_ADVANCE_TRUE
+
 class LoopStartRuntimeNode(MastRuntimeNode):
     def enter(self, mast, task:MastAsyncTask, node:LoopStart):
-        scoped_val = task.get_value(node.name, None)
-        index = scoped_val[0]
-        scope = scoped_val[1]
-        scoped_val = task.get_value(node.name+"__iter", None)
-        _iter = scoped_val[0]
-        iter_scope  = scoped_val[1]
-        if index is None:
-            index = 0
-            scope = Scope.TEMP
-            task.set_value(node.name, index, scope)
-        elif not node.iter:
-            index+=1
-            task.set_value(node.name, index, scope)
-        self.scope = scope
+        #scoped_val = task.get_scoped_value(node.name, Scope.TEMP, None)
+        scoped_cond = task.get_scoped_value(node.name+"__iter", None, Scope.TEMP)
+        # The loop is running if cond
+        if scoped_cond is None:
+            # set cond to true to show we have initialized
+            if node.is_while:
+                task.set_value(node.name, 0, Scope.TEMP)
+                task.set_value(node.name+"__iter", True, Scope.TEMP)
+            else:
+                value = task.eval_code(node.code)
+                try:
+                    _iter = iter(value)
+                    task.set_value(node.name+"__iter", _iter, Scope.TEMP)
+                except TypeError:
+                    task.set_value(node.name+"__iter", False, Scope.TEMP)
 
-        # One time om start create iterator        
-        if node.code is not None and node.iter is None:
-            value = task.eval_code(node.code)
-            try:
-                _iter = iter(value)
-                node.iter = True
-            except TypeError:
-                node.iter = False
-
-        # All the time if iterable
-        if _iter is not None and node.iter:
-            try:
-                index = next(_iter)
-                task.set_value(node.name, index, Scope.TEMP)
-                task.set_value(node.name+"__iter", _iter, Scope.TEMP)
-            except StopIteration:
-                task.set_value(node.name, None, Scope.TEMP)
-                task.set_value(node.name+"__iter", None, Scope.TEMP)
  
 
     def poll(self, mast, task, node:LoopStart):
-        value = True
-        if node.iter:
-            scoped_val = task.get_value(node.name, None)
-            index = scoped_val[0]
-            if index is None:
-                value = False
-                node.iter = None
-        elif node.code:
-            value = task.eval_code(node.code)
-        if value == False:
-            inline_label = f"{task.active_label}:{node.name}"
+        # All the time if iterable
+        # Value is an index
+        current = task.get_scoped_value(node.name, None, Scope.TEMP)
+        scoped_cond = task.get_scoped_value(node.name+"__iter", None, Scope.TEMP)
+        if node.is_while:
+            if node.code:
+                value = task.eval_code(node.code)
+                if value == False:
+                    inline_label = f"{task.active_label}:{node.name}"
+                    # End loop clear value
+                    task.set_value(node.name, None, Scope.TEMP)
+                    task.set_value(node.name+"__iter", None, Scope.TEMP)
+                    task.jump(task.active_label, node.end.loc+1)
+                    return PollResults.OK_JUMP
+
+            current += 1
+            task.set_value(node.name, current, Scope.TEMP)
+        elif scoped_cond == False:
+            print("Possible badly formed for")
             # End loop clear value
-            task.set_value(node.name, None, self.scope)
+            task.set_value(node.name, None, Scope.TEMP)
+            task.set_value(node.name+"__iter", None, Scope.TEMP)
             task.jump(task.active_label, node.end.loc+1)
             #task.jump_inline_end(inline_label, False)
             return PollResults.OK_JUMP
+        else:
+            try:
+                current = next(scoped_cond)
+                task.set_value(node.name, current, Scope.TEMP)
+            except StopIteration:
+                # done iterating jump to end
+                task.set_value(node.name, None, Scope.TEMP)
+                task.set_value(node.name+"__iter", None, Scope.TEMP)
+                task.jump(task.active_label, node.end.loc+1)
+                return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
 class LoopEndRuntimeNode(MastRuntimeNode):
@@ -190,7 +250,7 @@ class LoopEndRuntimeNode(MastRuntimeNode):
         return PollResults.OK_ADVANCE_TRUE
 
 class LoopBreakRuntimeNode(MastRuntimeNode):
-    def enter(self, mast, task:MastAsyncTask, node:LoopStart):
+    def enter(self, mast, task:MastAsyncTask, node:LoopBreak):
         scoped_val = task.get_value(node.name, None)
         index = scoped_val[0]
         scope = scoped_val[1]
@@ -198,7 +258,7 @@ class LoopBreakRuntimeNode(MastRuntimeNode):
             scope = Scope.TEMP
         self.scope = scope
 
-    def poll(self, mast, task, node:LoopEnd):
+    def poll(self, mast, task, node:LoopBreak):
         if node.op == 'break':
             #task.jump_inline_end(inline_label, True)
             task.jump(task.active_label, node.start.end.loc+1)
@@ -575,6 +635,23 @@ class MastAsyncTask:
         if val is not None:
             return (val, Scope.NORMAL)
         return self.main.get_value(key, defa)
+    
+    def get_scoped_value(self, key, defa, scope):
+        if scope == Scope.SHARED:
+            return self.main.get_value(key, defa)
+        if scope == Scope.TEMP:
+            data = None
+            if self.redirect:
+                data = self.redirect.data
+            if len(self.label_stack) > 0:
+                data = self.label_stack[-1].data
+            if data is not None:
+                val = data.get(key, None)
+                if val is not None:
+                    return val
+        val = self.vars.get(key, None)
+        return val
+        
 
     def get_variable(self, key):
         value = self.get_value(key, None)

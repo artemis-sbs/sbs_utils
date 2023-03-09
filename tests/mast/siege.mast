@@ -3,6 +3,8 @@
 import common_console_select.mast
 import common_docking.mast
 
+logger
+
 enemy_count=20
 
 if IS_SERVER:
@@ -72,66 +74,74 @@ end_await
 
 ================= CreateMap ===================
 
-### This is a python code snippet to create the map content
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-player_ships =  [ 
-        spawn_player(500,0,0, "Artemis", "tsn", "tsn_battle_cruiser").py_object,
-        spawn_player(200,0,0, "Hera", "tsn", "tsn_missile_cruiser").py_object,
-        spawn_player( 900,0,0, "Atlas", "tsn", "tsn_missile_cruiser").py_object
-    ]
+player_ships =  ~~[ (500,0,0, "Artemis", "tsn", "tsn_battle_cruiser"),
+                (200,0,0, "Hera", "tsn", "tsn_missile_cruiser"),
+                ( 900,0,0, "Atlas", "tsn", "tsn_missile_cruiser")
+]~~
 
-sbs.assign_client_to_ship(0,player_ships[0].id)
-for player in player_ships:
-    faces.set_face(player.id, faces.random_terran())
+first = True
+for player_args in player_ships:
+    player_ship = to_id(player_spawn(*player_args))
+    do set_face(player_ship, random_terran())
+    if first:
+        do assign_client_to_ship(0,player_ship)
+        first = False
+    end_if
+next player
 
-stations = [
-    spawn_npc(0,0,0, "Alpha", "tsn", "starbase_command", "behav_station").py_object,
-    spawn_npc(2400,0,100, "Beta", "tsn", "starbase_command", "behav_station").py_object
-]
-for ds in stations:
-    faces.set_face(ds.id, faces.random_terran(civilian=True))
-    add_role(ds,'Station')
+stations = [(0,0,0, "Alpha"),(2400,0,100, "Beta")]
+for station in stations:
+    ds = to_id(npc_spawn(*station, "tsn", "starbase_command", "behav_station"))
+    do add_role(ds, "Station")
+    do set_face(ds, random_terran(civilian=True))
+next station 
+
 
 enemyTypeNameList = ["kralien_dreadnaught","kralien_battleship","skaraan_defiler","cargo_ship","arvonian_carrier","torgoth_behemoth"]
 enemy_prefix = "KLMNQ"
 
 
 enemy = 0
-spawn_points = scatter.sphere(int(enemy_count), 0,0,0, 6000, 6000+250*enemy_count, ring=True)
+spawn_points = scatter_sphere(int(enemy_count), 0,0,0, 6000, 6000+250*enemy_count, ring=True)
 
 for v in spawn_points:
     r_type = random.choice(enemyTypeNameList)
     r_name = f"{random.choice(enemy_prefix)}_{enemy}"
-    spawn_data = spawn_npc(v.x, v.y, v.z, r_name, "RAIDER", r_type, "behav_npcship")
+    spawn_data = npc_spawn(v.x, v.y, v.z, r_name, "RAIDER", r_type, "behav_npcship")
     raider = spawn_data.py_object
-    faces.set_face(raider.id, faces.random_kralien())
-    add_role(raider, "Raider")
-    enemy += 1
-    for player in player_ships:
-        raider.start_task("NPC_Comms", {"player": player})
-        player.start_task("player_docking")
-
+    do set_face(raider.id, random_kralien())
+    do add_role(raider.id, "Raider")
+    enemy = enemy + 1
+    for player in to_object_list(role("__PLAYER__")):
+        do raider.start_task("NPC_Comms", {"player": player})
+        do to_object(player).start_task("player_docking")
+    next player
+next v
 
 # make a few random clusters of nebula
-spawn_points = scatter.sphere(random.randint(2,7), 0,0,0, 1000, 4000, ring=True)
+spawn_points = scatter_sphere(random.randint(2,7), 0,0,0, 1000, 4000, ring=True)
 for v in spawn_points:
-    cluster_spawn_points = scatter.sphere(random.randint(10,20), v.x, 0,v.z, 100, 1000, ring=True)
+    cluster_spawn_points = scatter_sphere(random.randint(10,20), v.x, 0,v.z, 100, 1000, ring=True)
     for v2 in cluster_spawn_points:
-        spawn_terrain(v2.x, v2.y, v2.z,None, None, "nebula", "behav_nebula")
+        do terrain_spawn(v2.x, v2.y, v2.z,None, None, "nebula", "behav_nebula")
+    next v2
+next v
 
 # make a few random clusters of Asteroids
-spawn_points = scatter.sphere(random.randint(10,20), 0,0,0, 1000, 4000, ring=True)
+spawn_points = scatter_sphere(random.randint(10,20), 0,0,0, 1000, 4000, ring=True)
 for v in spawn_points:
-    cluster_spawn_points = scatter.sphere(random.randint(10,20), v.x, 0,v.z, 100, 1000, ring=False)
+    cluster_spawn_points = scatter_sphere(random.randint(10,20), v.x, 0,v.z, 100, 1000, ring=False)
     for v2 in cluster_spawn_points:
         #keep value between -500 and 500??
         v2.y = abs(v2.y) % 500 * (v2.y/abs(v2.y))
         a_type = f"Asteroid {random.randint(1,11)}"
         a_type = "asteroid_crystal_blue"
-        spawn_terrain(v2.x, v2.y, v2.z,None, None, a_type, "behav_asteroid")
+        do terrain_spawn(v2.x, v2.y, v2.z,None, None, a_type, "behav_asteroid")
+    next v2
+next v
 
 # I want candy
-spawn_points = scatter.sphere(random.randint(5,12), 0,0,0, 1000, 4000, ring=True)
+spawn_points = scatter_sphere(random.randint(5,12), 0,0,0, 1000, 4000, ring=True)
 for v in spawn_points:
     cluster_spawn_points = scatter.sphere(random.randrange(10,20), v.x, 0,v.z, 100, 1000, ring=False)
     # Random type, but same for cluster
@@ -139,21 +149,14 @@ for v in spawn_points:
     for v2 in cluster_spawn_points:
         #keep value between -500 and 500??
         v2.y = abs(v2.y) % 500 * (v2.y/abs(v2.y))
-        spawn_terrain(v2.x, v2.y, v2.z,None, None, a_type, "behav_mine")
-
-
-################################
-### You can callback into the runtime
-###mast_runtime.start_thread("Test_python_link")
-### Need a way to mark a thread is for a specific SpaceObject
-### So that it can be cleaned up if the SpaceObject is destroyed
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        do terrain_spawn(v2.x, v2.y, v2.z,None, None, a_type, "behav_mine")
+    next v2
+next v
 
 # start the comms for the players and stations
 # Each ship will have its of thread for comms
 # this enables them to have a unique path
-for ds in SpaceObject.get_role_objects('Station'):
+for ds in to_object_list(role('Station')):
     for player in to_object_list(role('PlayerShip')):
         => station_comms {"self": ds, "player": player}
     next player
@@ -243,14 +246,17 @@ end_await
 -> NPC_Comms
 
 ========== NPC_Targeting === 
-~~~~~
-for raider in SpaceObject.get_role_objects('Raider'):
+for raider in role('Raider'):
     the_target = closest(raider, role("PlayerShip"), 2000)
     if the_target is None:
         the_target = closest(raider, role("Station"))
+    end_if
     if the_target is not None:
-        target(sim, raider, the_target, True)
-~~
+        do target(sim, raider, the_target, True)
+    end_if
+next raider
+
+
 delay sim 5s
 -> NPC_Targeting
 

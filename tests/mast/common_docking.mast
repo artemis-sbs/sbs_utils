@@ -1,4 +1,8 @@
 ======== player_docking  ===================
+if not object_exists(sim, self):
+    log "Docking ship died"
+    -> END
+end_if
 
 player_blob = self.get_engine_data_set(sim)
 dock_state_string = player_blob.get("dock_state", 0)
