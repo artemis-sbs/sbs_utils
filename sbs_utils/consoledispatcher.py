@@ -110,6 +110,8 @@ class ConsoleDispatcher:
         :type other_id: int
         """
         console = ConsoleDispatcher.convert_to_console_id(sim,event)
+        if console is None:
+            return
         ConsoleDispatcher.do_select(sim, event, console)
 
         handled = False
@@ -178,6 +180,7 @@ class ConsoleDispatcher:
             return "science_target_UID"
         if "comm" in event.sub_tag:
             return "comms_target_UID"
+        return None
 
 
     def do_select(sim, event, console):

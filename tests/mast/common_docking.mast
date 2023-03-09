@@ -1,0 +1,83 @@
+======== player_docking  ===================
+
+player_blob = self.get_engine_data_set(sim)
+dock_state_string = player_blob.get("dock_state", 0)
+if "undocked" == dock_state_string:
+    ~~ self.set_engine_data(sim, "dock_base_id", 0) ~~
+
+    dock_rng = 600
+    station = closest(self, role("Station"), 600)
+    if station is not None:
+        ~~player_blob.set("dock_base_id", to_id(station)) ~~
+    end_if
+end_if
+
+
+dock_stationID = player_blob.get("dock_base_id", 0)
+dock_station = SpaceObject.get(dock_stationID)
+if dock_station is not None:
+    if "docking" == dock_state_string:
+        
+        # check to see if the player ship is close enough to be docked
+        distanceValue = ~~sbs.distance_id(dock_station.id, self.id)~~
+        closeEnough = ~~dock_station.get_space_object(sim).exclusion_radius + self.get_space_object(sim).exclusion_radius~~
+        closeEnough = closeEnough * 1.1
+        if distanceValue <= closeEnough:
+            ~~self.set_engine_data(sim, "dock_state", "docked")~~
+        end_if
+    end_if
+end_if
+
+
+if "docked" == dock_state_string:
+    dock_station_blob = dock_station.get_engine_data_set(sim)
+    # refuel
+    fuel_value = player_blob.get("energy",0)
+    fuel_value = fuel_value + 20
+    if fuel_value > 1000:
+        fuel_value = 1000
+    end_if
+    ~~player_blob.set("energy", int(fuel_value))~~
+
+    # resupply torps
+    for torps in range(sbs.TORPEDO.MINE):
+        tLeft = ~~ dock_station_blob.get("torpedo_count", torps)~~
+        if tLeft > 0:
+            torp_max = player_blob.get("torpedo_max", torps)
+            torp_now = player_blob.get("torpedo_count", torps)
+            if torp_now < torp_max:
+                torp_now = torp_now + 1
+                ~~player_blob.set("torpedo_count", torp_now,torps)~~
+                ~~dock_station_blob.set("torpedo_count", tLeft-1, torps)~~
+            end_if
+        end_if
+    next torps
+
+
+    #repair shields (more than normal)
+    shieldCoeff = ~~player_blob.get("repair_rate_shields",0)~~
+    systemCoeff = ~~player_blob.get("repair_rate_systems",0)~~
+
+    sCount = player_blob.get("shield_count",0)
+    for shield in range(sCount-1):
+        sVal = player_blob.get("shield_val", shield)
+        sValMax = player_blob.get("shield_max_val", shield)
+        changed = (sVal < sValMax)
+        sVal = max(0.0, min(sVal + shieldCoeff, sValMax)) # clamp the value
+        if changed:
+            ~~player_blob.set("shield_val", sVal, shield)~~
+        end_if
+    next shield
+    #repair systems (more than normal)
+    for system in range(sbs.SHPSYS.SHIELDS):
+        damage = player_blob.get("system_damage", system)
+        maxDamage = player_blob.get("system_max_damage", system)
+        changed = (damage > 0.0)
+        damage = max(0.0, min(damage - systemCoeff, maxDamage)) # clamp the value
+        if changed:
+            ~~player_blob.set("system_damage", damage, system)~~
+        end_if
+    next system
+end_if
+delay sim 1s
+-> player_docking

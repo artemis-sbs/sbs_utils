@@ -613,6 +613,7 @@ class Mast:
     inline_count = 0
     def __init__(self, cmds=None):
         self.lib_name = None
+        self.basedir = None
 
         if cmds is None:
             return
@@ -697,7 +698,7 @@ class Mast:
         self.main_pruned = False
         self.schedulers = set()
         self.lib_name = None
-        
+                
     
     def prune_main(self):
         if self.main_pruned:
@@ -786,10 +787,17 @@ class Mast:
                     with lib_file.open(file_name) as f:
                         content = f.read().decode('UTF-8')
                         return content, None
-                    
+
             else:
-                file_name = os.path.join(fs.get_mission_dir(), file_name)
-                self.basedir = os.path.dirname(file_name)
+                if self.basedir is None:
+                    file_name = os.path.join(fs.get_mission_dir(), file_name)
+                    self.basedir = os.path.dirname(file_name)
+                else:
+                    file_name = os.path.join(self.basedir, file_name)
+                    # if its not in this dir try the mission script dir
+                    if not os.path.isfile(file_name):
+                        file_name = os.path.join(fs.get_mission_dir(), file_name)
+                    
                 with open(file_name) as f:
                     content = f.read()
                 return content, None
@@ -802,6 +810,7 @@ class Mast:
 
     def import_content(self, filename, lib_file):
         add = self.__class__()
+        add.basedir = self.basedir
         errors = add.from_file(filename, lib_file)
         if len(errors)==0:
             for label, node in add.labels.items():
