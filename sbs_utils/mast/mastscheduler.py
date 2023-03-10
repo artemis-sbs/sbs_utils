@@ -191,8 +191,9 @@ class LoopStartRuntimeNode(MastRuntimeNode):
         # The loop is running if cond
         if scoped_cond is None:
             # set cond to true to show we have initialized
+            # setting to -1 to start it will be made 0 in poll
             if node.is_while:
-                task.set_value(node.name, 0, Scope.TEMP)
+                task.set_value(node.name, -1, Scope.TEMP)
                 task.set_value(node.name+"__iter", True, Scope.TEMP)
             else:
                 value = task.eval_code(node.code)
@@ -210,6 +211,8 @@ class LoopStartRuntimeNode(MastRuntimeNode):
         current = task.get_scoped_value(node.name, None, Scope.TEMP)
         scoped_cond = task.get_scoped_value(node.name+"__iter", None, Scope.TEMP)
         if node.is_while:
+            current += 1
+            task.set_value(node.name, current, Scope.TEMP)
             if node.code:
                 value = task.eval_code(node.code)
                 if value == False:
@@ -220,8 +223,7 @@ class LoopStartRuntimeNode(MastRuntimeNode):
                     task.jump(task.active_label, node.end.loc+1)
                     return PollResults.OK_JUMP
 
-            current += 1
-            task.set_value(node.name, current, Scope.TEMP)
+            
         elif scoped_cond == False:
             print("Possible badly formed for")
             # End loop clear value

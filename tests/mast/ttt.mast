@@ -93,24 +93,16 @@ await choice:
         <<->play
 end_await
 
-
-
-============== set_grid ===============
-grid[slot] = turn
-turn = -turn
-->END
-
 =========== play ================
-
-~~ print("In Play")~~
 for y while y<3:
 for x while x<3:
-    test = y*3+x
+    test = y * 3 + x
     space = grid[test]
     
     if space == 0:
         button "{test+1}" data = ~~{"myslot": test}~~:
-            await => set_grid {"slot":myslot} 
+            grid[myslot] = turn
+            turn = -turn
             ->check_winner
         end_button
     elif space == 1:

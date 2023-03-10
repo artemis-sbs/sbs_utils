@@ -1,3 +1,4 @@
+import functools
 from random import randrange, choice, choices
 from .engineobject import EngineObject, CloseData, SpawnData
 import sbs
@@ -217,8 +218,7 @@ def to_object(other: EngineObject | CloseData | int):
     elif isinstance(other, SpawnData):
         py_object = other.py_object
     else:
-        # In the future this should be EngineObject
-        # When Grid  Items and space object live as one
+        # should return space object or grid object
         py_object = EngineObject.get(other)
     return py_object
 
@@ -290,3 +290,161 @@ def grid_objects(sim, so_id):
         go = hm.get_grid_object_by_index(i)
         gos.add(go.unique_ID)
     return gos
+
+def update_engine_data(sim, to_update, data):
+    objects = to_object_list(to_set(to_update))
+    for object in objects:
+        object.update_engine_data(sim, data)
+
+def get_engine_data(id_or_obj, sim, key, index=0):
+    object = to_object(id_or_obj)
+    if object is not None:
+        return object.get_engine_data(sim, key, index)
+    return None
+
+
+def set_engine_data(to_update, sim, key, value, index=0):
+    objects = to_object_list(to_set(to_update))
+    for object in objects:
+        object.set_engine_data(sim, key, value, index=0)
+
+
+
+################################
+##########################################
+####### TODO: Update for sets
+
+def grid_close_list(grid_obj, sim, roles=None, max_dist=None, filter_func=None) -> list[CloseData]:
+    """ Finds a list of matching objects
+    :param sim: The simulation
+    :type sim: Artemis Cosmos simulation
+    :param roles: Roles to looks for can also be class name
+    :type roles: str or List[str]
+    :param max_dist: Max distance to search (faster)
+    :type max_dist: float
+    :param filter_func: Called to test each object to filter out non matches
+    :type filter_func:
+    :return: A list of close object
+    :rtype: List[GridCloseData]
+    """
+    ret = []
+    test_roles = None
+    if roles is not None:
+        test_roles = set(roles)
+    hullMap = sim.get_hull_map(grid_obj.host_id)
+    if hullMap != None:
+        num_units = hullMap.get_grid_object_count()
+        for x in range(num_units):
+            other = hullMap.get_grid_object_by_index(x)
+            other_id = other.unique_ID
+            other_go = EngineObject.get(other_id)
+            # skip this one
+            if other_id == grid_obj.id:
+                continue
+            if test_roles:
+                other_roles = set(other_go.get_roles())
+                intersect = test_roles.intersection(other_roles)
+                # if no overlap of roles - skip
+                if len(intersect)==0:
+                    continue
+
+            if filter_func and not filter_func(other_go):
+                continue
+            
+            test = 0
+            if test < max_dist:
+                ret.append(CloseData(other_id, other_go, test))
+
+            ret.append(CloseData(other_id, other_go, test))
+            continue
+
+            
+
+        return ret
+
+def grid_closest(grid_obj, sim, roles=None, max_dist=None, filter_func=None) -> CloseData:
+    """ Finds the closest object matching the criteria
+
+    :param sim: The simulation
+    :type sim: Artemis Cosmos simulation
+    :param roles: Roles to looks for can also be class name
+    :type roles: str or List[str] 
+    :param max_dist: Max distance to search (faster)
+    :type max_dist: float
+    :param filter_func: Called to test each object to filter out non matches
+    :type filter_func: function that takes ID
+    :return: A list of close object
+    :rtype: GridCloseData
+    """
+    close = grid_obj.find_close_list(sim, roles, max_dist, filter_func)
+    # Maybe not the most efficient
+    functools.reduce(lambda a, b: a if a.distance < b.distance else b, close)
+
+def grid_target_closest(grid_obj, sim, roles=None, max_dist=None, filter_func=None):
+    """ Find and target the closest object matching the criteria
+
+    :param sim: The simulation
+    :type sim: Artemis Cosmos simulation
+    :param roles: Roles to looks for can also be class name
+    :type roles: str or List[str] 
+    :param max_dist: Max distance to search (faster)
+    :type max_dist: float
+    :param filter_func: Called to test each object to filter out non matches
+    :type filter_func: function
+    :param shoot: if the target should be shot at
+    :type shoot: bool
+    :return: A list of close object
+    :rtype: GridCloseData
+    """
+    close = grid_obj.find_closest(sim, roles, max_dist, filter_func)
+    if close.id is not None:
+        grid_obj.target(sim, close.id)
+    return close
+
+def grid_target(grid_obj, sim, other_id: int):
+    """ Set the item to target
+
+    :param sim: The simulation
+    :type sim: Artemis Cosmos simulation
+    :param other_id: the id of the object to target
+    :type other_id: int
+    :param shoot: if the object should be shot at
+    :type shoot: bool
+    """
+    this = sim.get_grid_object(grid_obj.id)
+    other = sim.get_grid_object(other_id)
+    if other:
+        x = blob.get("pathx", 0)
+        y = blob.get("pathy", 0)
+
+        blob = this.data_set
+        blob.set("pathx", x, 0)
+        blob.set("pathy", y, 0)
+
+def grid_target_pos(grid_obj, sim, x:float, y:float):
+    """ Set the item to target
+
+    :param sim: The simulation
+    :type sim: Artemis Cosmos simulation
+    :param other_id: the id of the object to target
+    :type other_id: int
+    :param shoot: if the object should be shot at
+    :type shoot: bool
+    """
+    go = grid_obj.grid_object(sim)
+    blob = go.data_set
+    blob.set("pathx", x, 0)
+    blob.set("pathy", y, 0)
+
+def grid_clear_target(grid_obj, sim):
+    """ Clear the target
+
+    :param sim: The simulation
+    :type sim: Artemis Cosmos simulation
+    """
+    go = grid_obj.get_grid_object()
+    blob = go.data_set
+    x= blob.get("curx", x, 0)
+    y=blob.get("curx", x, 0)
+    grid_obj.target_pos(x,y)
+

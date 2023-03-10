@@ -108,7 +108,7 @@ class Listbox(Widget):
             if self.text:
                 text = self.text(item)
             if self.select or self.multi:
-                print(f"{cur} selected {1 if cur in self.selected else 0}")
+                #print(f"{cur} selected {1 if cur in self.selected else 0}")
                 sbs.send_gui_checkbox(
                     CID, text, f"{self.tag_prefix}name:{slot}", 1 if cur in self.selected else 0,
                         left, top, self.right-3.5, top+self.item_height)

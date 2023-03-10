@@ -1,4 +1,4 @@
-import tests/mast/bar.mast
+import bar.mast
 
 shared alisa = "ter #6d8b01 3 0;ter #6d8b01 4 1;ter #6d8b01 4 3;ter #CC9966 8 4 6 -2;ter #fff 13 0 14 -2;ter #fff 3 6;"
 shared frank = "ter #f2efee 0 0;ter #f2efee 2 0;ter #f2efee 0 3;ter #fff 12 1 14 -2;ter #fff 2 6;ter #3d0463 9 0 12 4;"

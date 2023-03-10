@@ -316,6 +316,9 @@ case 50:
         x = x + 1
         count = count - 1
     next y
+    for y while y<5:
+        x = x + 1
+    next y
 
     for y in range(10):
         for z in range(10):
@@ -325,7 +328,7 @@ case 50:
     """)
             assert(len(errors)==0)
             x = runner.active_task.get_value("x", None)
-            assert(x==(252, Scope.NORMAL))
+            assert(x==(257, Scope.NORMAL))
 
     def test_await_condition(self):
         (errors, runner, _) = mast_run( code = """

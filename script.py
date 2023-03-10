@@ -21,7 +21,7 @@ from sbs_utils.mast.mastsbsscheduler import MastSbsScheduler
 
 from sbs_utils.mast.maststory import MastStory
 from sbs_utils.mast.maststoryscheduler import StoryPage, StoryScheduler
-from sbs_utils import fs
+from sbs_utils import fs, query
 import os
 from sbs_utils.gridobject import GridObject
 from random import randrange, choice
@@ -339,12 +339,12 @@ class Mission:
     def face_test(sim):
         t = TickDispatcher.do_interval(sim, Mission.new_face,0)
         t.player = PlayerShip()
-        t.player.spawn(sim, 0,0,0, "Artemis", "tsn", "Battle Cruiser")
+        t.player.spawn(sim, 0,0,0, "Artemis", "tsn", "tsn_battle_cruiser")
         
         t.race = 0
 
     def face_gen(sim):
-        PlayerShip().spawn(sim, 0,0,0, "Artemis", "tsn", "Battle Cruiser")
+        PlayerShip().spawn(sim, 0,0,0, "Artemis", "tsn", "tsn_battle_cruiser")
         Spacedock().spawn(sim, 500,0,500,"tsn")
     
 
@@ -402,7 +402,7 @@ class Mission:
         #bad.spawn(sim,0,0, 1400, "BadGuy", "baddy", "Battle Cruiser", "behav_npcship")
         #bad.target_closest(sim, "PlayerShip")
 
-        player_id = sim.make_new_player("behav_playership", "Battle Cruiser")
+        player_id = sim.make_new_player("behav_playership", "tsn_battle_cruiser")
         sbs.assign_player_ship(player_id)
         player = sim.get_space_object(player_id)
         player.side = "TSN";
@@ -410,7 +410,7 @@ class Mission:
         blob.set("name_tag", "Artemis", 0)
         sim.reposition_space_object(player, 0, 0, 10)
 
-        other_id = sim.make_new_active("behav_npcship", "Battle Cruiser")
+        other_id = sim.make_new_active("behav_npcship", "tsn_battle_cruiser")
         other = sim.get_space_object(other_id)
         other.side = "baddy"
         sim.reposition_space_object(other, 0,0,1400)
@@ -424,15 +424,15 @@ class Mission:
     def start_grid(sim: sbs.simulation):
         Gui.client_start_page_class(ClientSelectPage)
         player = PlayerShip()
-        sd_player = player.spawn(sim, 0,0,0, "Artemis", "tsn", "Battle Cruiser")
+        sd_player = player.spawn(sim, 0,0,0, "Artemis", "tsn", "tsn_battle_cruiser")
         sbs.assign_client_to_ship(0, sd_player.id)
         go1 = GridObject()
         go1.spawn(sim, sd_player.id, "fred", "fred", 9,4, 3, "blue", "flint")
         go2 = GridObject()
         go2.spawn(sim, sd_player.id, "barney", "fred", 8,4, 3, "green", "rubble")
         go2.update_blob(sim, speed=0.01, icon_scale=1.3)
-        go2.target_pos(sim,9,12)
-        GridDispatcher.add_object(go2.id, lambda sim, event: print("Barney Arrived"))
+        query.grid_target_pos(go2, sim, 9,12)
+        #GridDispatcher.add_object(go2.id, lambda sim, event: print("Barney Arrived"))
         
         
 

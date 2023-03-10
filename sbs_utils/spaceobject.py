@@ -61,41 +61,51 @@ class SpaceObject(EngineObject):
 
         return sim.get_space_object(self.id)
 
+    def get_engine_object(self, sim):
+        """ Gets the simulation space object
+
+        :param sim: The simulation
+        :type sim: Artemis Cosmos simulation
+        :return: The simulation space object
+        :rtype: The simulation space_object
+        """
+        return sim.get_space_object(self.id)
+
     
-    def update_engine_data(self, sim, data):
-        this = sim.get_space_object(self.id)
-        if this is None:
-            # Object is destroyed
-            return
-        blob = this.data_set
-        for (key, value) in data.items():
-            if type(value) is tuple:
-                blob.set(key, value[0], value[1])
-            else:
-                blob.set(key, value)
+    # def update_engine_data(self, sim, data):
+    #     this = sim.get_space_object(self.id)
+    #     if this is None:
+    #         # Object is destroyed
+    #         return
+    #     blob = this.data_set
+    #     for (key, value) in data.items():
+    #         if type(value) is tuple:
+    #             blob.set(key, value[0], value[1])
+    #         else:
+    #             blob.set(key, value)
 
-    def get_engine_data(self, sim, key, index=0):
-        this = sim.get_space_object(self.id)
-        if this is None:
-            # Object is destroyed
-            return
-        blob = this.data_set
-        return blob.get(key, index)
+    # def get_engine_data(self, sim, key, index=0):
+    #     this = sim.get_space_object(self.id)
+    #     if this is None:
+    #         # Object is destroyed
+    #         return
+    #     blob = this.data_set
+    #     return blob.get(key, index)
 
-    def set_engine_data(self, sim, key, value, index=0):
-        this = sim.get_space_object(self.id)
-        if this is None:
-            # Object is destroyed
-            return
-        blob = this.data_set
-        blob.set(key, value, index)
+    # def set_engine_data(self, sim, key, value, index=0):
+    #     this = sim.get_space_object(self.id)
+    #     if this is None:
+    #         # Object is destroyed
+    #         return
+    #     blob = this.data_set
+    #     blob.set(key, value, index)
 
-    def get_engine_data_set(self, sim):
-        this = sim.get_space_object(self.id)
-        if this is None:
-            # Object is destroyed
-            return None
-        return this.data_set
+    # def get_engine_data_set(self, sim):
+    #     this = sim.get_space_object(self.id)
+    #     if this is None:
+    #         # Object is destroyed
+    #         return None
+    #     return this.data_set
 
     
 
