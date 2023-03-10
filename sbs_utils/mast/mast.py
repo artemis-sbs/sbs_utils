@@ -79,13 +79,14 @@ class MastNode:
 
 
 class Label(MastNode):
-    rule = re.compile(r'(?P<m>=|\?){2,}\s*(?P<name>\w+)\s*(?P=m){2,}')
+    rule = re.compile(r'(?P<m>=|\?){2,}\s*(?P<replace>replace:)?\s*(?P<name>\w+)\s*(?P=m){2,}')
 
-    def __init__(self, name, m=None, loc=None):
+    def __init__(self, name, replace=None, m=None, loc=None):
         self.name = name
         self.cmds = []
         self.next = None
         self.loc = loc
+        self.replace = replace is not None
 
     def add_child(self, cmd):
         self.cmds.append(cmd)
@@ -881,6 +882,18 @@ class Mast:
 
                     match node_cls.__name__:
                         case "Label":
+                            label_name = data['name']
+                            existing_label = self.labels.get(label_name) 
+                            replace = data.get('replace')
+                            if existing_label and not replace:
+                                parsed = False
+                                errors.append(f"ERROR: duplicate label '{label_name }'. Use 'replace: {data['name']}' if this is intentional.  {line_no} - {line}")
+                                break
+                            elif existing_label and replace:
+                                # Make the pervious version jump to the replacement
+                                # making fall through also work
+                                existing_label.cmds = [Jump(None, None, None, None,label_name,0)]
+                           
                             next = Label(**data)
                             active.next = next
                             active = next

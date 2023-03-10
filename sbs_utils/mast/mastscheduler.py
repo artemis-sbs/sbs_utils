@@ -2,6 +2,7 @@ from enum import IntEnum
 from typing import List
 from .mast import *
 import time
+import traceback
 
 
 class MastRuntimeNode:
@@ -67,6 +68,7 @@ class AssignRuntimeNode(MastRuntimeNode):
         if "." in node.lhs or "[" in node.lhs:
             locals = {"__mast_value": value} | task.get_symbols()
             exec(f"""{node.lhs} = __mast_value""",{"__builtins__": Mast.globals}, locals)
+            
         elif node.scope: 
             task.set_value(node.lhs, value, node.scope)
         else:
@@ -126,63 +128,6 @@ class JumpRuntimeNode(MastRuntimeNode):
         return PollResults.OK_JUMP
 
 
-# class LoopStartRuntimeNode(MastRuntimeNode):
-#     def enter(self, mast, task:MastAsyncTask, node:LoopStart):
-#         scoped_val = task.get_value(node.name, None)
-#         index = scoped_val[0]
-#         scope = scoped_val[1]
-#         scoped_val = task.get_value(node.name+"__iter", None)
-#         _iter = scoped_val[0]
-#         iter_scope  = scoped_val[1]
-#         if index is None:
-#             index = 0
-#             scope = Scope.TEMP
-#             task.set_value(node.name, index, scope)
-#         elif not node.iter:
-#             print(f"it is this {index}")
-#             index+=1
-#             print("no its not")
-#             task.set_value(node.name, index, scope)
-#         self.scope = scope
-
-#         # One time om start create iterator        
-#         if node.code is not None and node.iter is None:
-#             value = task.eval_code(node.code)
-#             try:
-#                 _iter = iter(value)
-#                 node.iter = True
-#             except TypeError:
-#                 node.iter = False
-
-#         # All the time if iterable
-#         if _iter is not None and node.iter:
-#             try:
-#                 index = next(_iter)
-#                 task.set_value(node.name, index, Scope.TEMP)
-#                 task.set_value(node.name+"__iter", _iter, Scope.TEMP)
-#             except StopIteration:
-#                 task.set_value(node.name, None, Scope.TEMP)
-#                 task.set_value(node.name+"__iter", None, Scope.TEMP)
- 
-
-#     def poll(self, mast, task, node:LoopStart):
-#         value = True
-#         if node.iter:
-#             scoped_val = task.get_value(node.name, None)
-#             index = scoped_val[0]
-#             if index is None:
-#                 value = False
-#                 node.iter = None
-#         elif node.code:
-#             value = task.eval_code(node.code)
-#         if value == False:
-#             inline_label = f"{task.active_label}:{node.name}"
-#             # End loop clear value
-#             task.set_value(node.name, None, self.scope)
-#             task.jump(task.active_label, node.end.loc+1)
-#             #task.jump_inline_end(inline_label, False)
-#             return PollResults.OK_JUMP
-#         return PollResults.OK_ADVANCE_TRUE
 
 class LoopStartRuntimeNode(MastRuntimeNode):
     def enter(self, mast, task:MastAsyncTask, node:LoopStart):
@@ -202,8 +147,6 @@ class LoopStartRuntimeNode(MastRuntimeNode):
                     task.set_value(node.name+"__iter", _iter, Scope.TEMP)
                 except TypeError:
                     task.set_value(node.name+"__iter", False, Scope.TEMP)
-
- 
 
     def poll(self, mast, task, node:LoopStart):
         # All the time if iterable
@@ -678,7 +621,7 @@ class MastAsyncTask:
             allowed = self.get_symbols()
             value = eval(code, {"__builtins__": Mast.globals}, allowed)
         except:
-            self.runtime_error("")
+            self.runtime_error(traceback.format_exc())
             self.done = True
         finally:
             pass
@@ -689,7 +632,7 @@ class MastAsyncTask:
             allowed = self.get_symbols()
             eval(code, {"__builtins__": Mast.globals}, allowed)
         except:
-            self.runtime_error("")
+            self.runtime_error(traceback.format_exc())
             self.done = True
         finally:
             pass

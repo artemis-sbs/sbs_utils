@@ -796,10 +796,12 @@ class StoryPage(Page):
         else:
             if len(self.story_scheduler.errors) > 0:
                 #errors = self.errors.reverse()
-                message = "Compile errors\n".join(self.story_scheduler.errors)
+                message = ''.join([str(elem) for elem in self.story_scheduler.errors])
+                message = message.replace(chr(94), "")
+                #print(message)
                 sbs.send_gui_clear(event.client_id)
                 sbs.send_client_widget_list(event.client_id, "", "")
-                sbs.send_gui_text(event.client_id, message, "error", 0,20,100,100)
+                sbs.send_gui_text(event.client_id, message, "error", 0,0,99,99)
                 self.gui_state = "errors"
                 return
 
@@ -816,7 +818,7 @@ class StoryPage(Page):
             message = "Compile errors\n".join(self.errors)
             sbs.send_gui_clear(event.client_id)
             sbs.send_client_widget_list(event.client_id, "", "")
-            sbs.send_gui_text(event.client_id, message, "error", 0,20,100,100)
+            sbs.send_gui_text(event.client_id, message, "error", 0,0,100,100)
             self.gui_state = "errors"
             return
         

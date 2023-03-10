@@ -61,10 +61,10 @@ def closest_list(source: int | CloseData | SpawnData | EngineObject, the_set, ma
     return ret
 
 
-def closest(self, the_set, max_dist=None, filter_func=None) -> CloseData:
+def closest(the_ship, the_set, max_dist=None, filter_func=None) -> CloseData:
     test = max_dist
     ret = None
-    source_id = EngineObject.resolve_id(self)
+    source_id = EngineObject.resolve_id(the_ship)
     the_set = to_set(the_set)
 
     for other_id in the_set:
@@ -89,8 +89,8 @@ def closest(self, the_set, max_dist=None, filter_func=None) -> CloseData:
     return ret
 
 
-def closest_object(self, the_set, max_dist=None, filter_func=None) -> EngineObject:
-    ret = closest(self, the_set, max_dist, filter_func)
+def closest_object(the_ship, the_set, max_dist=None, filter_func=None) -> EngineObject:
+    ret = closest(the_ship, the_set, max_dist, filter_func)
     if ret:
         return ret.py_object
 
@@ -174,9 +174,12 @@ def clear_target(sim, chasers: set | int | CloseData|SpawnData):
             })
 
 def to_object_list(the_set):
-    return [EngineObject.resolve_py_object(x) for x in list(the_set)]
+    the_list = to_list(the_set)
+    return [EngineObject.resolve_py_object(x) for x in the_list]
+
 def to_id_list(the_set):
-    return [EngineObject.resolve_id(x) for x in list(the_set)]
+    the_list = to_list(the_set)
+    return [EngineObject.resolve_id(x) for x in the_list]
 
 def to_list(other: EngineObject | CloseData | int):
     if isinstance(other, set):
@@ -262,9 +265,9 @@ def get_inventory_value(so, link):
     return so.get_inventory_value(link)
             
 def set_inventory_value(so, link, to):
-    so = to_object(so)
-    to = to_id(to)
-    so.set_inventory_value(link, to)
+    obj_list = to_object_list(so)
+    for obj in obj_list:
+        obj.set_inventory_value(link, to)
 
 
 def unlink(set_holder, link, set_to):
@@ -276,8 +279,15 @@ def unlink(set_holder, link, set_to):
 
 def object_exists(sim, so_id):
     so_id = to_id(so_id)
-    eo = sim.get_space_object(so_id)
+    eo = sim.space_object_exists(so_id)
     return eo is not None
+
+def all_objects_exists(sim, the_set):
+    so_ids = to_id_list(the_set)
+    for so_id in so_ids:
+        if not sim.space_object_exists(so_id):
+            return False
+    return True
 
 
 def grid_objects(sim, so_id):
@@ -302,6 +312,19 @@ def get_engine_data(id_or_obj, sim, key, index=0):
         return object.get_engine_data(sim, key, index)
     return None
 
+def get_data_set_value(data_set, key, index=0):
+    return data_set.get(key, index)
+def set_data_set_value(data_set, key, value, index=0):
+    return data_set.set(key, value, index)
+
+
+def get_engine_data_set(id_or_obj, sim):
+    object = to_object(id_or_obj)
+    if object is not None:
+        return object.get_engine_data_set(sim)
+    return None
+
+
 
 def set_engine_data(to_update, sim, key, value, index=0):
     objects = to_object_list(to_set(to_update))
@@ -314,7 +337,7 @@ def set_engine_data(to_update, sim, key, value, index=0):
 ##########################################
 ####### TODO: Update for sets
 
-def grid_close_list(grid_obj, sim, roles=None, max_dist=None, filter_func=None) -> list[CloseData]:
+def grid_close_list(grid_obj, sim, the_set, max_dist=None, filter_func=None) -> list[CloseData]:
     """ Finds a list of matching objects
     :param sim: The simulation
     :type sim: Artemis Cosmos simulation
@@ -328,39 +351,27 @@ def grid_close_list(grid_obj, sim, roles=None, max_dist=None, filter_func=None) 
     :rtype: List[GridCloseData]
     """
     ret = []
-    test_roles = None
-    if roles is not None:
-        test_roles = set(roles)
-    hullMap = sim.get_hull_map(grid_obj.host_id)
-    if hullMap != None:
-        num_units = hullMap.get_grid_object_count()
-        for x in range(num_units):
-            other = hullMap.get_grid_object_by_index(x)
-            other_id = other.unique_ID
-            other_go = EngineObject.get(other_id)
-            # skip this one
-            if other_id == grid_obj.id:
-                continue
-            if test_roles:
-                other_roles = set(other_go.get_roles())
-                intersect = test_roles.intersection(other_roles)
-                # if no overlap of roles - skip
-                if len(intersect)==0:
-                    continue
-
-            if filter_func and not filter_func(other_go):
-                continue
-            
-            test = 0
-            if test < max_dist:
-                ret.append(CloseData(other_id, other_go, test))
-
-            ret.append(CloseData(other_id, other_go, test))
+    grid_obj=to_object(grid_obj)
+    if the_set is None:
+        test_roles = to_object_list(grid_objects(sim,grid_obj.host_id))
+    else:
+        test_roles = to_set(the_set)
+    for other in test_roles:
+        # skip this one
+        if other.id == grid_obj.id:
             continue
 
-            
+        if filter_func and not filter_func(other):
+            continue
+        
+        test = 0
+        if test < max_dist:
+            ret.append(CloseData(other.id, other, test))
 
-        return ret
+        ret.append(CloseData(other.id, other, test))
+        continue
+
+    return ret
 
 def grid_closest(grid_obj, sim, roles=None, max_dist=None, filter_func=None) -> CloseData:
     """ Finds the closest object matching the criteria
@@ -376,11 +387,11 @@ def grid_closest(grid_obj, sim, roles=None, max_dist=None, filter_func=None) -> 
     :return: A list of close object
     :rtype: GridCloseData
     """
-    close = grid_obj.find_close_list(sim, roles, max_dist, filter_func)
+    close = grid_close_list(grid_obj, sim, roles, max_dist, filter_func)
     # Maybe not the most efficient
     functools.reduce(lambda a, b: a if a.distance < b.distance else b, close)
 
-def grid_target_closest(grid_obj, sim, roles=None, max_dist=None, filter_func=None):
+def grid_target_closest(grid_obj_or_set, sim, roles=None, max_dist=None, filter_func=None):
     """ Find and target the closest object matching the criteria
 
     :param sim: The simulation
@@ -396,12 +407,15 @@ def grid_target_closest(grid_obj, sim, roles=None, max_dist=None, filter_func=No
     :return: A list of close object
     :rtype: GridCloseData
     """
-    close = grid_obj.find_closest(sim, roles, max_dist, filter_func)
-    if close.id is not None:
-        grid_obj.target(sim, close.id)
-    return close
+    grid_objs= to_object_list(grid_obj_or_set)
+    for grid_obj in grid_objs:
+        grid_obj=to_object(grid_obj)
+        close = grid_closest(grid_obj,sim, roles, max_dist, filter_func)
+        if close.id is not None:
+            grid_obj.target(sim, close.id)
+        return close
 
-def grid_target(grid_obj, sim, other_id: int):
+def grid_target(grid_obj_or_set, sim, target_id: int):
     """ Set the item to target
 
     :param sim: The simulation
@@ -411,40 +425,44 @@ def grid_target(grid_obj, sim, other_id: int):
     :param shoot: if the object should be shot at
     :type shoot: bool
     """
-    this = sim.get_grid_object(grid_obj.id)
-    other = sim.get_grid_object(other_id)
-    if other:
-        x = blob.get("pathx", 0)
-        y = blob.get("pathy", 0)
+    grid_objs= to_object_list(grid_obj_or_set)
+    for grid_obj in grid_objs:
+        this_blob = get_engine_data_set(sim, grid_obj.id)
+        other_blob = get_engine_data_set(sim, target_id)
+        if other_blob and this_blob:
+            x = other_blob.get("pathx", 0)
+            y = other_blob.get("pathy", 0)
 
-        blob = this.data_set
+            
+            this_blob.set("pathx", x, 0)
+            this_blob.set("pathy", y, 0)
+
+def grid_target_pos(grid_obj_or_set, sim, x:float, y:float):
+    """ Set the item to target
+
+    :param sim: The simulation
+    :type sim: Artemis Cosmos simulation
+    :param other_id: the id of the object to target
+    :type other_id: int
+    :param shoot: if the object should be shot at
+    :type shoot: bool
+    """
+    grid_objs= to_object_list(grid_obj_or_set)
+    for grid_obj in grid_objs:
+        blob = get_engine_data_set(sim, grid_obj.id)
         blob.set("pathx", x, 0)
         blob.set("pathy", y, 0)
 
-def grid_target_pos(grid_obj, sim, x:float, y:float):
-    """ Set the item to target
-
-    :param sim: The simulation
-    :type sim: Artemis Cosmos simulation
-    :param other_id: the id of the object to target
-    :type other_id: int
-    :param shoot: if the object should be shot at
-    :type shoot: bool
-    """
-    go = grid_obj.grid_object(sim)
-    blob = go.data_set
-    blob.set("pathx", x, 0)
-    blob.set("pathy", y, 0)
-
-def grid_clear_target(grid_obj, sim):
+def grid_clear_target(grid_obj_or_set, sim):
     """ Clear the target
 
     :param sim: The simulation
     :type sim: Artemis Cosmos simulation
     """
-    go = grid_obj.get_grid_object()
-    blob = go.data_set
-    x= blob.get("curx", x, 0)
-    y=blob.get("curx", x, 0)
-    grid_obj.target_pos(x,y)
+    grid_objs= to_object_list(grid_obj_or_set)
+    for grid_obj in grid_objs:
+        blob = get_engine_data_set(sim, grid_obj.id)
+        x= blob.get("curx", x, 0)
+        y=blob.get("curx", x, 0)
+        grid_target_pos(grid_obj_or_set, sim, x,y)
 

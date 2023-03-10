@@ -86,6 +86,28 @@ next x
 """)
         assert(len(errors)==0)
 
+    def test_label_compile_err(self):
+        (errors, mast) = mast_compile( code = """
+
+    ====== test ======
+    log "Hello"
+    ==== test ====
+    log "good bye"
+
+""")
+        assert(len(errors)==1)
+        assert("duplicate label 'test'" in errors[0])
+
+    def test_replace_label_compile(self):
+        (errors, mast) = mast_compile( code = """
+
+    ====== test ======
+    log "Hello"
+    ==== replace: test ====
+    log "good bye"
+
+""")
+        assert(len(errors)==0)
 
 
     def test_jumps_compile_err(self):
@@ -329,6 +351,27 @@ case 50:
             assert(len(errors)==0)
             x = runner.active_task.get_value("x", None)
             assert(x==(257, Scope.NORMAL))
+    
+    def test_replace_label(self):
+            (errors, runner, _) = mast_run( code = """
+    logger string output
+    -> test
+    ======= test ======
+    log "NO1"
+    ==== replace: test ====
+    log "YES1"
+    ====== fred ===== 
+    log "NO2"
+    ==== replace: fred ====
+    log "YES2"
+    """)
+            assert(len(errors)==0)
+            output = runner.get_value("output", None)
+            assert(output is not None)
+            st = output[0]
+            #st.seek(0)
+            value = st.getvalue()
+            assert(value =="""YES1\nYES2\n""")
 
     def test_await_condition(self):
         (errors, runner, _) = mast_run( code = """
