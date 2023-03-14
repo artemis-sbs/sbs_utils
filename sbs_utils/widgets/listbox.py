@@ -70,6 +70,9 @@ class Listbox(Widget):
         if self.gui_state == "presenting":
             return
         
+        if len(self.items)==0:
+            return
+        
         if self.items is None:
             sbs.send_gui_text(
                     CID, f"Error {self.test}", f"{self.tag_prefix}error", self.left, self.top, self.right, self.top+5)
@@ -80,10 +83,10 @@ class Listbox(Widget):
         cur = self.cur
         max_slot = (self.bottom-self.top)/self.item_height
         slot_count = len(self.items)-max_slot
-
-        sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", -slot_count,  0, -self.cur,
-                    self.right-3, self.top,
-                    self.right, self.bottom)
+        if slot_count > 0:
+            sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", -(slot_count+0.5),  0, -self.cur,
+                        self.right-3, self.top,
+                        self.right, self.bottom)
         slot= 0
         self.slots =[]
         
@@ -177,3 +180,12 @@ class Listbox(Widget):
         for item in self.selected:
             ret.append(self.items[item])
         return ret
+    
+    def get_value(self):
+        return self.get_selected()
+
+
+def list_box_control(items, text=None, face=None, ship=None, select=False, multi=False, item_height=5):
+    return Listbox(0, 0, "mast", items, text, face, ship, select, multi, item_height)
+
+#list_box_control(ships, text=lambda ship: ship.comms_id, ship=lambda ship: ship.art_id)

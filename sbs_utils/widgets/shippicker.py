@@ -12,7 +12,7 @@ def filter_ship(ship):
 class ShipPicker(Widget):
     """ A widget to select a ship"""
 
-    def __init__(self, left, top, tag_prefix, title_prefix="Ship:") -> None:
+    def __init__(self, left, top, tag_prefix, title_prefix="Ship:", cur=None) -> None:
         """ Ship Picker widget
 
         A widget the combines a title, ship viewer, next and previous buttons for selecting ships
@@ -40,7 +40,15 @@ class ShipPicker(Widget):
             self.ships = None
         else:
             self.test = data
-            self.ships = [ a for a in filter(filter_ship, data["#ship-list"] )]
+            self.ships = []
+            i = 0
+            for a in filter(filter_ship, data["#ship-list"] ):
+                self.ships.append(a)
+                if cur and a == cur:
+                    self.cur = i
+                elif cur and a["key"] == cur:
+                    self.cur = i
+                i+=1
 
             if self.ships is None:
                 self.ships = None
@@ -123,6 +131,8 @@ class ShipPicker(Widget):
                     return True
         return False
                 
+    def get_value(self):
+        return self.get_selected()
 
     def get_selected(self):
         """ get selected
@@ -145,3 +155,7 @@ class ShipPicker(Widget):
         if "name" in ship:
             return ship["name"]
         return None
+
+
+def ship_picker_control(title_prefix="Ship:", cur=None):
+    return ShipPicker(0, 0, "mast", title_prefix, cur)

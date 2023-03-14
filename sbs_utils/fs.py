@@ -30,9 +30,6 @@ def get_artemis_dir():
     data = os.path.dirname(missions)
     return os.path.dirname(data)
 
-
-def get_ship_data():
-    return get_json_data( os.path.join(get_artemis_data_dir(), "shipData.json"))
         
 
 
@@ -49,3 +46,6 @@ def get_json_data(file):
     except Exception as e:
         return str(e)
 
+ship_data_cache = get_json_data( os.path.join(get_artemis_data_dir(), "shipData.json"))
+def get_ship_data():
+    return ship_data_cache

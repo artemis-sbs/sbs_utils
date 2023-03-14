@@ -174,10 +174,14 @@ def clear_target(sim, chasers: set | int | CloseData|SpawnData):
             })
 
 def to_object_list(the_set):
+    if the_set is None:
+        return []
     the_list = to_list(the_set)
     return [EngineObject.resolve_py_object(x) for x in the_list]
 
 def to_id_list(the_set):
+    if the_set is None:
+        return []
     the_list = to_list(the_set)
     return [EngineObject.resolve_id(x) for x in the_list]
 
@@ -187,7 +191,7 @@ def to_list(other: EngineObject | CloseData | int):
     elif isinstance(other, list):
         return other
     elif other is None:
-        return []
+        return None
     return [other]
 
 def to_set(other: EngineObject | CloseData | int):
@@ -196,7 +200,7 @@ def to_set(other: EngineObject | CloseData | int):
     elif isinstance(other, set):
         return other
     elif other is None:
-        return {}
+        return None
     return {to_id(other)}
 
 
@@ -279,8 +283,8 @@ def unlink(set_holder, link, set_to):
 
 def object_exists(sim, so_id):
     so_id = to_id(so_id)
-    eo = sim.space_object_exists(so_id)
-    return eo is not None
+    return sim.space_object_exists(so_id)
+    #return eo is not None
 
 def all_objects_exists(sim, the_set):
     so_ids = to_id_list(the_set)

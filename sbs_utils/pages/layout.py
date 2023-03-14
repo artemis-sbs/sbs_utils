@@ -242,31 +242,31 @@ class Ship(Column):
             self.ship, self.tag, 
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
 
-class PickShip(Column):
-    def __init__(self, ship, tag) -> None:
+class GuiControl(Column):
+    def __init__(self, content, tag) -> None:
         super().__init__()
-        self.ship = ship
         self.tag = tag
-        self.picker = ShipPicker(25,25, f"pick{tag}:", "Your ship:")
+        self.content = content
+        self.content.tag_prefix = tag
         self.value=""
 
     def present(self, sim, event):
-        self.picker.present(sim, event)
+        self.content.present(sim, event)
         #sbs.send_gui_3dship(event.client_id, 
         #    self.ship, self.tag, 
         #    self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
     def on_message(self, sim, event):
-        self.picker.on_message(sim,event)
-        self.value = self.picker.get_selected()
+        self.content.on_message(sim,event)
+        self.value = self.content.get_value()
         #return super().on_message(sim, event)
 
     def set_bounds(self, bounds) -> None:
         super().set_bounds(bounds)
-        self.picker.left = self.bounds.left
-        self.picker.top = self.bounds.top
-        self.picker.right = self.bounds.right
-        self.picker.bottom = self.bounds.bottom
-        self.picker.gui_state = ""
+        self.content.left = self.bounds.left
+        self.content.top = self.bounds.top
+        self.content.right = self.bounds.right
+        self.content.bottom = self.bounds.bottom
+        self.content.gui_state = ""
 
 
 

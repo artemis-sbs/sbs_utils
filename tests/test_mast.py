@@ -262,7 +262,56 @@ end_if
 
     """)
         assert(len(errors)==0)
-      
+
+
+    def test_assign(self):
+        (errors, runner, _) = mast_run( code = """
+x = 52
+x += 10
+y = 43
+y-= 10
+a = 23
+a *= 2
+b = 53
+b %= 10
+c = 53
+c /= 10
+d = 53
+d //= 10
+    """)
+        assert(len(errors)==0)
+        task = runner.active_task
+        while runner.is_running():
+            runner.tick()
+        x = task.get_value("x", None)
+        y = task.get_value("y", None)
+        a = task.get_value("a", None)
+        b = task.get_value("b", None)
+        c = task.get_value("c", None)
+        d = task.get_value("d", None)
+        assert(x==(62, Scope.NORMAL))
+        assert(y==(33, Scope.NORMAL))
+        assert(a==(46, Scope.NORMAL))
+        assert(b==(3, Scope.NORMAL))
+        assert(c==(5.3, Scope.NORMAL))
+        assert(d==(5, Scope.NORMAL))
+
+
+    def test_end_task(self):
+        (errors, runner, _) = mast_run( code = """
+        shared x = 0
+        => task
+        ->END
+        ==== task ====
+        x += 1
+        ->END
+    """)
+        assert(len(errors)==0)
+        task = runner.active_task
+        while runner.is_running():
+            runner.tick()
+        x = task.get_value("x", None)
+        assert(x==(1, Scope.SHARED))
      
     def test_if(self):
         (errors, runner, _) = mast_run( code = """

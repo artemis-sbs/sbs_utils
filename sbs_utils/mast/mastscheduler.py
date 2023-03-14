@@ -65,6 +65,24 @@ class AssignRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task:MastAsyncTask, node:Assign):
         #try:
         value = task.eval_code(node.code)
+        start = task.get_variable(node.lhs) 
+        match node.oper:
+            case Assign.EQUALS:
+                pass
+            case Assign.INC:
+                value = start + value
+            case Assign.DEC:
+                value = start - value
+            case Assign.MUL:
+                value = start * value
+            case Assign.MOD:
+                value = start % value
+            case Assign.DIV:
+                value = start / value
+            case Assign.INT_DIV:
+                value = start // value
+
+
         if "." in node.lhs or "[" in node.lhs:
             locals = {"__mast_value": value} | task.get_symbols()
             exec(f"""{node.lhs} = __mast_value""",{"__builtins__": Mast.globals}, locals)

@@ -114,9 +114,12 @@ for v in spawn_points:
     enemy = enemy + 1
     for player in to_object_list(role("__PLAYER__")):
         do raider.start_task("NPC_Comms", {"player": player})
-        do to_object(player).start_task("player_docking")
     next player
 next v
+
+for player in to_object_list(role("__PLAYER__")):
+    do to_object(player).start_task("player_docking")
+next player
 
 # make a few random clusters of nebula
 spawn_points = scatter_sphere(random.randint(2,7), 0,0,0, 1000, 4000, ring=True)
@@ -129,13 +132,14 @@ next v
 
 # make a few random clusters of Asteroids
 spawn_points = scatter_sphere(random.randint(10,20), 0,0,0, 1000, 4000, ring=True)
+asteroid_types = names_asteroid_keys()
 for v in spawn_points:
     cluster_spawn_points = scatter_sphere(random.randint(10,20), v.x, 0,v.z, 100, 1000, ring=False)
     for v2 in cluster_spawn_points:
         #keep value between -500 and 500??
         v2.y = abs(v2.y) % 500 * (v2.y/abs(v2.y))
-        a_type = f"Asteroid {random.randint(1,11)}"
-        a_type = "asteroid_crystal_blue"
+        a_type = random.choice(asteroid_types)
+        #a_type = "asteroid_crystal_blue"
         do terrain_spawn(v2.x, v2.y, v2.z,None, None, a_type, "behav_asteroid")
     next v2
 next v

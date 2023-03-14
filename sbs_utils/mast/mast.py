@@ -286,14 +286,23 @@ class MastDataObject(object):
         return repr(vars(self))
 
 class Assign(MastNode):
-    # '|'+STRING_REGEX+
+    EQUALS = 1
+    INC=2
+    DEC = 3
+    MUL = 4
+    MOD = 5
+    DIV=6
+    INT_DIV = 7
+    oper_map = {"=": EQUALS, "+=": INC,  "-=": DEC, "*=": MUL, "%=": MOD, "/=": DIV, "//=":INT_DIV }
+    # '|'+STRING_REGEX+ddd
     rule = re.compile(
-        r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*=\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|.*))')
+        r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|.*))')
 
     """ Not this doesn't support destructuring. To do so isn't worth the effort"""
-    def __init__(self, scope, lhs, exp, quote=None, py=None, loc=None):
+    def __init__(self, scope, lhs, oper, exp, quote=None, py=None, loc=None):
         self.lhs = lhs
         self.loc = loc
+        self.oper = Assign.oper_map.get(oper)
         self.scope = None if scope is None else Scope[scope.strip(
         ).upper()]
         
@@ -510,7 +519,7 @@ class Cancel(MastNode):
 
 
 class End(MastNode):
-    rule = re.compile(r'->\s*END\s*'+IF_EXP_REGEX)
+    rule = re.compile(r'->\s*END'+IF_EXP_REGEX)
     def __init__(self,  if_exp=None, loc=None):
         self.loc = loc
         if if_exp:

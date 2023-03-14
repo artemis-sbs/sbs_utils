@@ -9,10 +9,12 @@ from ..pages import layout
 from ..tickdispatcher import TickDispatcher
 
 from .errorpage import ErrorPage
-from .maststory import AppendText, ButtonControl, MastStory, Choose, Text, Blank, Ship, PickShip, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, Hole, RadioControl, Console
+from .maststory import AppendText, ButtonControl, MastStory, Choose, Text, Blank, Ship, GuiContent, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, Hole, RadioControl, Console
 import traceback
 from .mastsbsscheduler import MastSbsScheduler, Button
 from .parsers import LayoutAreaParser
+import sbs_utils.widgets.shippicker
+import sbs_utils.widgets.listbox
 
 class StoryRuntimeNode(MastRuntimeNode):
     def on_message(self, sim, event):
@@ -95,13 +97,15 @@ class ShipRuntimeNode(StoryRuntimeNode):
         if node.style_def is not None:
             self.apply_style_def(node.style_def, item, task)
 
-class PickShipRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: PickShip):
+class GuiContentRuntimeNode(StoryRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: GuiContent):
         tag = task.main.page.get_tag()
-        item = layout.PickShip(node.ship, tag)
+        # gui control ShipPicker(0,0,"mast", "Your Ship")
+        content = task.eval_code(node.code)
+        item = layout.GuiControl(content, tag)
         task.set_value_keep_scope(node.var, item)
         task.main.page.add_content(item, self)
-        self.apply_style_name(".pickship", item, task)
+        #self.apply_style_name(".pickship", item, task)
         if node.style_def is not None:
             self.apply_style_def(node.style_def, item, task)
 
@@ -557,6 +561,10 @@ class ImageControlRuntimeNode(StoryRuntimeNode):
         self.layout = layout.Image(file, node.color, tag)
         task.main.page.add_content(self.layout, self)
 
+######################
+## MAst extensions
+Mast.import_python_module('sbs_utils.widgets.shippicker')
+Mast.import_python_module('sbs_utils.widgets.listbox')
 
 over =     {
     "Row": RowRuntimeNode,
@@ -564,7 +572,7 @@ over =     {
     "AppendText": AppendTextRuntimeNode,
     "Face": FaceRuntimeNode,
     "Ship": ShipRuntimeNode,
-    "PickShip": PickShipRuntimeNode,
+    "GuiContent": GuiContentRuntimeNode,
     "ButtonControl": ButtonControlRuntimeNode,
     "SliderControl": SliderControlRuntimeNode,
     "CheckboxControl": CheckboxControlRuntimeNode,
@@ -604,7 +612,7 @@ class StoryScheduler(MastSbsScheduler):
         self.vars['client_id'] = client_id
         self.vars['IS_SERVER'] = client_id==0
         self.vars['IS_CLIENT'] = client_id!=0
-        self.vars['page'] = page
+        self.vars['STORY_PAGE'] = page
         super().start_task( label, inputs)
 
     def story_tick_tasks(self, sim, client_id):
