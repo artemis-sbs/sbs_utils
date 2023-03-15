@@ -57,6 +57,12 @@ class Face(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
+class GuiContent(MastNode):
+    """class GuiContent"""
+    def __init__ (self, gui=None, var=None, exp=None, py=None, style_name=None, style=None, style_q=None, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
 class Hole(MastNode):
     """class Hole"""
     def __init__ (self, loc=None):

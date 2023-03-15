@@ -1,14 +1,16 @@
 from sbs_utils.gui import Widget
-def filter_ship (ship):
+def list_box_control (items, text=None, face=None, ship=None, select=False, multi=False, item_height=5):
     ...
-def ship_picker_control (title_prefix='Ship:', cur=None):
-    ...
-class ShipPicker(Widget):
-    """A widget to select a ship"""
-    def __init__ (self, left, top, tag_prefix, title_prefix='Ship:', cur=None) -> None:
-        """Ship Picker widget
+class Listbox(Widget):
+    """A widget to list things passing function/lamdas to get the data needed for option display of
+    - face
+    - ship
+    - icon
+    - text"""
+    def __init__ (self, left, top, tag_prefix, items, text=None, face=None, ship=None, select=False, multi=False, item_height=5) -> None:
+        """Listbox
         
-        A widget the combines a title, ship viewer, next and previous buttons for selecting ships
+        A widget Shows a list of things
         
         :param left: left coordinate
         :type left: float
@@ -17,15 +19,7 @@ class ShipPicker(Widget):
         :param tag_prefix: Prefix to use in message tags to mak this component unique
         :type tag_prefix: str"""
     def get_selected (self):
-        """get selected
-        
-        :return: None or string of ship selected
-        :rtype: None or string of ship selected"""
-    def get_selected_name (self):
-        """get selected
-        
-        :return: None or string of ship selected
-        :rtype: None or string of ship selected"""
+        ...
     def get_value (self):
         ...
     def on_message (self, sim, event):

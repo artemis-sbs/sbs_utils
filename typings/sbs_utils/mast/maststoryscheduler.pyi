@@ -7,6 +7,7 @@ from sbs_utils.mast.maststory import Choose
 from sbs_utils.mast.maststory import Console
 from sbs_utils.mast.maststory import DropdownControl
 from sbs_utils.mast.maststory import Face
+from sbs_utils.mast.maststory import GuiContent
 from sbs_utils.mast.maststory import Hole
 from sbs_utils.mast.maststory import ImageControl
 from sbs_utils.mast.maststory import MastStory
@@ -93,6 +94,10 @@ class FaceRuntimeNode(StoryRuntimeNode):
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.Face):
         ...
     def poll (self, mast, task, node: sbs_utils.mast.maststory.Face):
+        ...
+class GuiContentRuntimeNode(StoryRuntimeNode):
+    """class GuiContentRuntimeNode"""
+    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.GuiContent):
         ...
 class HoleRuntimeNode(StoryRuntimeNode):
     """class HoleRuntimeNode"""

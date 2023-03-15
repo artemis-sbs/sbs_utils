@@ -1,4 +1,5 @@
 from sbs_utils.gui import Page
+from sbs_utils.widgets.shippicker import ShipPicker
 class Blank(Column):
     """class Blank"""
     def __init__ (self) -> None:
@@ -31,6 +32,8 @@ class Column(object):
     """class Column"""
     def __init__ (self, left=0, top=0, right=0, bottom=0) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def on_message (self, sim, event):
+        ...
     def set_bounds (self, bounds) -> None:
         ...
     def set_col_width (self, width):
@@ -50,6 +53,16 @@ class Face(Column):
     def __init__ (self, face, tag) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
     def present (self, sim, event):
+        ...
+class GuiControl(Column):
+    """class GuiControl"""
+    def __init__ (self, content, tag) -> None:
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def on_message (self, sim, event):
+        ...
+    def present (self, sim, event):
+        ...
+    def set_bounds (self, bounds) -> None:
         ...
 class Hole(Column):
     """class Hole"""
@@ -72,6 +85,8 @@ class Layout(object):
     def add (self, row: sbs_utils.pages.layout.Row):
         ...
     def calc (self):
+        ...
+    def on_message (self, sim, event):
         ...
     def present (self, sim, event):
         ...
@@ -96,6 +111,8 @@ class Row(object):
     def add (self, col):
         ...
     def clear (self):
+        ...
+    def on_message (self, sim, event):
         ...
     def present (self, sim, event):
         ...

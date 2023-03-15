@@ -26,9 +26,9 @@ from sbs_utils.mast.mastobjects import Terrain
 from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.tickdispatcher import TickDispatcher
 def func(*argv):
-    """distance_id(arg0: int, arg1: int) -> float
+    """assign_client_to_ship(arg0: int, arg1: int) -> None
     
-    returns the distance between two space objects; arguments are two IDs"""
+    Tells a client computer which ship it should control."""
 class BroadcastRuntimeNode(MastRuntimeNode):
     """class BroadcastRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Broadcast):
@@ -79,17 +79,17 @@ class MastSbsScheduler(MastScheduler):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def get_seconds (self, clock):
         """Gets time for a given clock default is just system """
+    def npc_spawn (self, x, y, z, name, side, art_id, behave_id):
+        ...
+    def player_spawn (self, x, y, z, name, side, art_id):
+        ...
     def run (self, sim, label='main', inputs=None):
         ...
     def runtime_error (self, message):
         ...
     def sbs_tick_tasks (self, sim):
         ...
-    def spawn_npc (self, x, y, z, name, side, art_id, behave_id):
-        ...
-    def spawn_player (self, x, y, z, name, side, art_id):
-        ...
-    def spawn_terrain (self, x, y, z, name, side, art_id, behave_id):
+    def terrain_spawn (self, x, y, z, name, side, art_id, behave_id):
         ...
 class NearRuntimeNode(MastRuntimeNode):
     """class NearRuntimeNode"""

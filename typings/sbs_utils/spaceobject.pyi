@@ -149,6 +149,9 @@ class SpaceObject(EngineObject):
         ...
     def _remove (id):
         ...
+    @property
+    def art_id (self: 'SpaceObject') -> 'str':
+        """str, cached version of art_id"""
     def clear ():
         ...
     @property
@@ -175,10 +178,13 @@ class SpaceObject(EngineObject):
         ...
     def get_as (id, as_cls):
         ...
-    def get_engine_data (self, sim, key, index=0):
-        ...
-    def get_engine_data_set (self, sim):
-        ...
+    def get_engine_object (self, sim):
+        """Gets the simulation space object
+        
+        :param sim: The simulation
+        :type sim: Artemis Cosmos simulation
+        :return: The simulation space object
+        :rtype: The simulation space_object"""
     def get_objects_from_set (the_set):
         ...
     def get_role_object (link_name):
@@ -226,8 +232,13 @@ class SpaceObject(EngineObject):
         ...
     def resolve_py_object (other: 'EngineObject | CloseData | int'):
         ...
-    def set_engine_data (self, sim, key, value, index=0):
-        ...
+    def set_art_id (self, sim, art_id):
+        """Get the name of the object
+        
+        :param sim: The simulation
+        :type sim: Artemis Cosmos simulation
+        :return: name
+        :rtype: str"""
     def set_name (self, sim, name):
         """Get the name of the object
         
@@ -256,8 +267,6 @@ class SpaceObject(EngineObject):
         """Updates the comms ID when the name or side has changed
         :return: this is name or name(side)
         :rtype: str"""
-    def update_engine_data (self, sim, data):
-        ...
 class TickType(IntEnum):
     """int([x]) -> integer
     int(x, base=10) -> integer

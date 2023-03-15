@@ -7,9 +7,13 @@ def first_non_newline_index (s):
     ...
 def first_non_space_index (s):
     ...
+def getmembers (object, predicate=None):
+    ...
+def isfunction (object):
+    ...
 class Assign(MastNode):
     """class Assign"""
-    def __init__ (self, scope, lhs, exp, quote=None, py=None, loc=None):
+    def __init__ (self, scope, lhs, oper, exp, quote=None, py=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -104,7 +108,7 @@ class Jump(MastNode):
         ...
 class Label(MastNode):
     """class Label"""
-    def __init__ (self, name, m=None, loc=None):
+    def __init__ (self, name, replace=None, m=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def add_child (self, cmd):
         ...
@@ -136,7 +140,7 @@ class LoopEnd(MastNode):
         ...
 class LoopStart(MastNode):
     """class LoopStart"""
-    def __init__ (self, if_exp=None, name=None, loc=None):
+    def __init__ (self, while_in=None, cond=None, name=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -166,6 +170,8 @@ class Mast(object):
     def from_file (self, file_name, lib_name=None):
         """Docstring"""
     def import_content (self, filename, lib_file):
+        ...
+    def import_python_module (mod_name, prepend=None):
         ...
     def make_global (func):
         ...
