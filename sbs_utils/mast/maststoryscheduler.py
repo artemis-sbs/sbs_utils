@@ -808,7 +808,8 @@ class StoryPage(Page):
                 message = message.replace(chr(94), "")
                 #print(message)
                 sbs.send_gui_clear(event.client_id)
-                sbs.send_client_widget_list(event.client_id, "", "")
+                if event.client_id != 0:
+                    sbs.send_client_widget_list(event.client_id, "", "")
                 sbs.send_gui_text(event.client_id, message, "error", 0,0,99,99)
                 self.gui_state = "errors"
                 return
@@ -825,7 +826,8 @@ class StoryPage(Page):
         if len(self.errors) > 0:
             message = "Compile errors\n".join(self.errors)
             sbs.send_gui_clear(event.client_id)
-            sbs.send_client_widget_list(event.client_id, "", "")
+            if event.client_id != 0:
+                sbs.send_client_widget_list(event.client_id, "", "")
             sbs.send_gui_text(event.client_id, message, "error", 0,0,100,100)
             self.gui_state = "errors"
             return
@@ -845,7 +847,8 @@ class StoryPage(Page):
         match self.gui_state:
             case  "repaint":
                 sbs.send_gui_clear(event.client_id)
-                sbs.send_client_widget_list(event.client_id, self.console, self.widgets)
+                if event.client_id != 0:
+                    sbs.send_client_widget_list(event.client_id, self.console, self.widgets)
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
 

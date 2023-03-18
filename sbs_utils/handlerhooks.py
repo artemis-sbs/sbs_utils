@@ -117,6 +117,7 @@ def cosmos_event_handler(sim, event):
         sbs.pause_sim()
 
         text_err = traceback.format_exc()
+        text_err = text_err.replace(chr(94), "")
         Gui.push(sim, 0, ErrorPage(text_err))
 
 

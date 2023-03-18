@@ -1,6 +1,48 @@
 import unittest
 from sbs_utils import names
 import sys
+from sbs_utils.asyncstory import AsyncStory
+
+
+def example_loose(self):
+    print("Loose label")
+    yield self.pop()
+
+
+class ExampleStory(AsyncStory):
+
+    def start(self):
+        self.count = 0
+        print("start")
+        yield self.delay(3)
+        print("start 2")
+        yield self.push("one")
+        yield self.push(example_loose)
+        print("END")
+
+
+    
+    def one(self):
+        print("one")
+        yield self.delay(5)
+        yield self.jump("two")
+        
+
+    def two(self):
+        print(f"two {self.count}")
+        self.count += 1
+        if self.count < 4:
+            yield self.delay(5)
+            yield self.jump("two")
+        yield self.pop()
+        
+    
+class FakeSim:
+    def __init__(self) -> None:
+        self.time_tick_counter = 0
+    def tick(self):
+        self.time_tick_counter +=30
+
 
 class TestNames(unittest.TestCase):
 
@@ -12,12 +54,12 @@ class TestNames(unittest.TestCase):
         self.assertEqual(3, 3)
 
     def test_something(self):
-        test = set()
-        # for i,id in enumerate(id_pool["kralien_cruiser"]):
-        #     name = kralien_name(id)
-        #     sys.stdout.write(name)
-        #     sys.stdout.write("   ")
-        #     if (i % 6)==5:
-        #         print()
-        #     test.add(name)
-        print(len(test))
+        sim = FakeSim()
+        story = ExampleStory()
+        story.enable(sim)
+
+
+        for x in range(1000):
+            story(sim)
+            sim.tick()
+        print()

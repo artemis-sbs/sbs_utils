@@ -114,30 +114,30 @@ class ConsoleDispatcher:
             return
         ConsoleDispatcher.do_select(sim, event, console)
 
-        handled = False
-        cb = ConsoleDispatcher._dispatch_select.get((event.origin_id, console))
-        if cb is not None:
-            cb(sim, event.selected_id, event)
-            handled = True
-            
-        # Allow to route to the selected ship too
-        cb = ConsoleDispatcher._dispatch_select.get((event.selected_id, console))
-        if cb is not None:
-            cb(sim, event.origin_id, event)
-            handled = True
-
+        #handled = False
         cb = ConsoleDispatcher._dispatch_select.get((event.origin_id, event.selected_id, console))
         if cb is not None:
             cb(sim, event.selected_id, event)
-            handled = True
+            return True
             
         # Allow to route to the selected ship too
         cb = ConsoleDispatcher._dispatch_select.get((event.selected_id, event.origin_id, console))
         if cb is not None:
             cb(sim, event.origin_id, event)
-            handled = True
+            return True
 
-        return handled
+        cb = ConsoleDispatcher._dispatch_select.get((event.origin_id, console))
+        if cb is not None:
+            cb(sim, event.selected_id, event)
+            return True
+            
+        # Allow to route to the selected ship too
+        cb = ConsoleDispatcher._dispatch_select.get((event.selected_id, console))
+        if cb is not None:
+            cb(sim, event.origin_id, event)
+            return True
+
+        return False
 
 
     def dispatch_message(sim, event, console):
@@ -154,25 +154,29 @@ class ConsoleDispatcher:
         :param other_id: A non player ship ID player
         :type other_id: int
         """
-
-        cb = ConsoleDispatcher._dispatch_messages.get((event.origin_id, console))
-        if cb is not None:
-            cb(sim, event.sub_tag, event.selected_id, event)
-
-        cb = ConsoleDispatcher._dispatch_messages.get((event.selected_id, console))
-        # Allow the target to process
-        if cb is not None:
-            cb(sim, event.sub_tag, event.origin_id, event)
-
         cb = ConsoleDispatcher._dispatch_messages.get((event.origin_id, event.selected_id, console))
         if cb is not None:
             cb(sim, event.sub_tag, event.selected_id, event)
+            return
 
         cb = ConsoleDispatcher._dispatch_messages.get((event.selected_id, event.origin_id, console))
         # Allow the target to process
         if cb is not None:
             cb(sim, event.sub_tag, event.origin_id, event)
+            return
 
+        cb = ConsoleDispatcher._dispatch_messages.get((event.origin_id, console))
+        if cb is not None:
+            cb(sim, event.sub_tag, event.selected_id, event)
+            return
+
+        cb = ConsoleDispatcher._dispatch_messages.get((event.selected_id, console))
+        # Allow the target to process
+        if cb is not None:
+            cb(sim, event.sub_tag, event.origin_id, event)
+            return
+
+        
     def convert(sim, event):
         if "weap" in event.sub_tag:
             return "weapon_target_UID"
