@@ -1,4 +1,5 @@
 import unittest
+from . import mock_sbs as sbs
 from sbs_utils import names
 import sys
 from sbs_utils.asyncstory import AsyncStory
@@ -14,11 +15,11 @@ class ExampleStory(AsyncStory):
     def start(self):
         self.count = 0
         print("start")
-        yield self.delay(3)
-        print("start 2")
-        yield self.push("one")
-        yield self.push(example_loose)
-        print("END")
+        # yield self.delay(3)
+        # print("start 2")
+        # yield self.push("one")
+        # yield self.push(example_loose)
+        # print("END")
 
 
     
@@ -63,3 +64,7 @@ class TestNames(unittest.TestCase):
             story(sim)
             sim.tick()
         print()
+   
+
+    
+

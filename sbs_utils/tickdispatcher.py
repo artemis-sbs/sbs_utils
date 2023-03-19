@@ -61,6 +61,7 @@ class TickDispatcher:
     """
     _dispatch_tick = set()
     _new_this_tick = set()
+    completed = set()
     current = 0
     # ticks per second
     tps = 30
