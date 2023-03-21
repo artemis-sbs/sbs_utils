@@ -5,19 +5,24 @@ from ..pages import layout
 from . import PollResults
 from .pymastscheduler import PyMastScheduler
 import traceback
+from .. import query
 
 class CodePusher:
-    def __init__(self, story, func_or_tuple, end_await=True) -> None:
+    def __init__(self, page, func_or_tuple, end_await=True) -> None:
         self.func_or_tuple = func_or_tuple
-        self.story = story
         self.end_await = end_await
+        self.page = page
+
 
     def on_message(self, sim, event):
+        if event.client_id != self.page.client_id:
+            return
         data = None
         button_func = self.func_or_tuple
         if isinstance(self.func_or_tuple, tuple):
             data = self.func_or_tuple[1]
             button_func = self.func_or_tuple[0]
+        
         def pusher(story):
             if data is not None:
                 gen = button_func(data)
@@ -26,12 +31,12 @@ class CodePusher:
             if gen is not None:
                 for res in gen:
                     yield res
-            story.pop()
+            self.page.task.pop()
 
-            if story.scheduler.page is not None and self.end_await:
-                story.scheduler.page.end_await = True 
+            if self.page is not None and self.end_await:
+                self.page.end_await = True 
 
-        self.story.push(pusher)
+        self.page.task.push(pusher)
 
 
 
@@ -60,6 +65,9 @@ class PyMastStoryPage(Page):
         self.end_await = False
 
     def run(self, time_out):
+        self.present(self.story.sim, None)
+        # ?? Change task??
+        self.task = self.story.task
         def pusher(story):
             return self._run(time_out)
         self.story.push(pusher)
@@ -67,6 +75,7 @@ class PyMastStoryPage(Page):
     def _run(self, time_out):    
         self.end_await = False
         while self.end_await == False:
+            self.present(self.story.sim, None)
             yield PollResults.OK_RUN_AGAIN
         self.story.pop()
       
@@ -152,7 +161,7 @@ class PyMastStoryPage(Page):
         for button, value in buttons.items():
             the_button = layout.Button(button, self.get_tag())
             layout_row.add(the_button)
-            self.add_tag(the_button, CodePusher(self.story, value))
+            self.add_tag(the_button, CodePusher(self, value))
         button_layout.add(layout_row)
         self.set_button_layout(button_layout)
 
@@ -172,6 +181,14 @@ class PyMastStoryPage(Page):
         self.swap_layout()
 
     def present(self, sim, event):
+        do_tick = True
+        if event is None:
+            class Fake(object):
+                pass
+            event = Fake()
+            event.client_id = self.client_id
+            do_tick = False
+
         """ Present the gui """
         if self.client_id is None:
             self.client_id = event.client_id
@@ -183,18 +200,17 @@ class PyMastStoryPage(Page):
                 label = "start_server" if self.client_id ==0 else "start_client"
                 self.story_scheduler = self.story.add_scheduler(sim, label)
                 self.story_scheduler.page = self
-
-        # if self.story_scheduler.paint_refresh:
-        #     if self.gui_state != "repaint":  
-        #         self.gui_state = "refresh"
-        #     self.story_scheduler.paint_refresh = False
-        try:
-            self.story_scheduler.tick(sim)
-        except BaseException as err:
-            sbs.pause_sim()
-            text_err = traceback.format_exc()
-            text_err = text_err.replace(chr(94), "")
-            self.errors.append(text_err)
+                self.task = self.story_scheduler.task
+        if do_tick:
+            try:
+                self.story.scheduler = self.story_scheduler
+                self.story.task = self.task
+                self.task.tick(sim)
+            except BaseException as err:
+                sbs.pause_sim()
+                text_err = traceback.format_exc()
+                text_err = text_err.replace(chr(94), "")
+                self.errors.append(text_err)
             
 
 
@@ -259,9 +275,34 @@ class PyMastStoryPage(Page):
 
 
     def on_event(self, sim, event):
-        if self.story_scheduler is None:
+        if self.task is None:
             return
-        self.story_scheduler.on_event(sim, event)
+        self.task.on_event(sim, event)
+
+    def assign_player_ship(self, player):
+        if player is None:
+            id = None
+            ids = query.to_list(query.role('__PLAYER__'))
+            if len(ids)>0:
+                id = ids[0]
+                sbs.assign_client_to_ship(self.client_id, id)
+            return
+        elif isinstance(player, str):
+            id = None
+            for player_obj in query.to_object_list(query.role('__PLAYER__')):
+                id = player_obj.id
+                if player_obj.name == player:
+                    break
+                if player_obj.comms_id == player:
+                    break
+            if id is not None:
+                print(f"assigned to {id}")
+                sbs.assign_client_to_ship(self.client_id, id)
+            return
+        else:
+            id = query.to_id(player)
+            sbs.assign_client_to_ship(self.client_id, id)
+
 
     def apply_style_name(self, style_name, layout_item):
         style_def = StyleDefinition.styles.get(style_name)

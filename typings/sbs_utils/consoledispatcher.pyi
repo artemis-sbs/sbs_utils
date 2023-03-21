@@ -66,7 +66,7 @@ class ConsoleDispatcher(object):
         :type other_id: int"""
     def do_select (sim, event, console):
         ...
-    def remove_message (an_id: int, console: str):
+    def remove_message (an_id: int, console: str, cb=None):
         """remove a target for console messages
         
         :param an_id: A ships ID player or non-player
@@ -80,7 +80,7 @@ class ConsoleDispatcher(object):
         :type an_id: int
         :param console: The consoles unique ID
         :type console: string"""
-    def remove_select (an_id: int, console: str):
+    def remove_select (an_id: int, console: str, cb=None):
         """remove a target for console selection
         
         :param an_id: A ships ID player or non-player

@@ -20,6 +20,7 @@ class PyMastTask:
         self.story = story
         self.pending_jump = label
         self.await_gen = None
+        self.events = {}
         #self.jump(label)
         
         self.last_poll_result = None
@@ -119,13 +120,18 @@ class PyMastTask:
     def await_gui(self, buttons, timeout):
         self.await_gen = self.run_comms( buttons, timeout)
         return PollResults.OK_RUN_AGAIN
+    
+    def watch_event(self, event_tag, label):
+        self.events[event_tag] = label
 
-    def run_gui(self, buttons, timeout):
-        gui = PyMastGui(self, buttons)
-        delay_time = self.sim.time_tick_counter + 30 * timeout
-        while gui.done == False:
-            if delay_time > self.sim.time_tick_counter:
-                break
-            yield PollResults.OK_RUN_AGAIN
-        self.await_gen = None
+    def on_event(self, sim, event):
+        #
+        # It could be confusing this may need to be a push?
+        #
+        label = self.events.get(event.tag)
+        if label is not None:
+            self.jump(label)
+
+        
+
 

@@ -213,10 +213,18 @@ class PyMastStory:
         if style is not None:
             page.apply_style_def(style,  control)
         return control
-    def gui_radio(self, message, label, style=None):
-        layout.
-        # layout.Text(message, self.tag)
-        pass
+    def gui_radio(self, message, value, vertical=False, style=None):
+        if self.scheduler.page is None:
+            return
+        page = self.scheduler.page
+        tag = page.get_tag()
+        radio =layout.RadioButtonGroup(message, value, True, tag)
+        page.apply_style_name(".radio", radio)
+        if style is not None:
+            page.apply_style_def(style, radio)
+        page.add_content(radio, None)
+        return radio
+        
     def gui_text_input(self, val, label_message, label, style=None):
         if self.scheduler.page is None:
             return
@@ -227,13 +235,54 @@ class PyMastStory:
         if style is not None:
             page.apply_style_def(style,  control)
         return control
-    def gui_console(self, message, label, style=None):
-        # layout.Text(message, self.tag)
-        pass
+    
 
-    def gui_console_widget_list(self, message, label, style=None):
-        # layout.Text(message, self.tag)
-        pass
+    def gui_console(self, console, style=None):
+        if self.scheduler.page is None:
+            return
+        page = self.scheduler.page
+        match console.lower():
+            case "helm":
+                console =  "normal_helm"
+                widgets = "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+            case "weapons":
+                console =  "normal_weap"
+                widgets = "2dview^weapon_control^ship_data^shield_control^text_waterfall^main_screen_control"
+            case "science":
+                console =  "normal_sci"
+                widgets = "science_2d_view^ship_data^text_waterfall^science_data^object_sorted_list"
+            case "engineering":
+                console =  "normal_engi"
+                widgets = "ship_internal_view^grid_object_list^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
+            case "comms":
+                console =  "normal_comm"
+                widgets = "text_waterfall^comms_waterfall^comms_control^comms_face^object_sorted_list^ship_data"
+            case "mainscreen":
+                console =  "normal_main"
+                widgets = "3dview^ship_data^text_waterfall"
+            case "clear":
+                console = ""
+                widgets = ""
+            case _:
+                # use variable name as console name
+                # variable value is widgets
+                console = ""
+                widgets = ""
+        print(f"console {console} {widgets}")
+        page.set_widget_list(console, widgets)
+
+
+    def gui_console_widget_list(self, console, widgets, style=None):
+        if self.scheduler.page is None:
+            return
+        page = self.scheduler.page
+        page.set_widget_list(console, widgets)
+
+    def assign_player_ship(self, player):
+        if self.scheduler.page is None:
+            return
+        self.scheduler.page.assign_player_ship(player)
+        
     def gui_image(self, file, color, label, style=None):
         if self.scheduler.page is None:
             return
@@ -241,4 +290,9 @@ class PyMastStory:
         control = layout.Image(file, color, page.get_tag())
         page.add_content(control, label)
         return control
+    
+    def watch_event(self, event_tag, label):
+        self.task.watch_event(event_tag, label)
+
+
     

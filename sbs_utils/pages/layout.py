@@ -182,6 +182,39 @@ class Checkbox(Column):
     def value(self, v):
         self._value= v
 
+class RadioButton(Column):
+    def __init__(self, group, message, tag, value=False) -> None:
+        super().__init__()
+        self.message = message
+        self.tag = tag
+        self._value = value
+        self.group = group
+        
+    def present(self, sim, event):
+        sbs.send_gui_checkbox(event.client_id, 
+            self.message, self.tag, 
+            1 if self._value else 0,
+            self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+    
+    def on_message(self, sim, event):
+        if event.sub_tag != self.tag:
+            return
+        self.value = 1
+        for e in self.group:
+            if e != self:
+                e.value = 0
+            e.present(sim, event)
+
+    @property
+    def value(self):
+         return self._value
+    
+       
+    @value.setter
+    def value(self, v):
+        self._value= v
+
+
 class Image(Column):
     def __init__(self, file, color, tag) -> None:
         super().__init__()
@@ -456,7 +489,7 @@ class Layout:
                     bounds.bottom = top+row_height
                     if col.square:
                         bounds.right = bounds.left + square_width
-                        print(f"SW {square_width} SH {square_height}")
+                        #print(f"SW {square_width} SH {square_height}")
                         bounds.bottom = top+square_height
                         # Square ignores holes?
                         hole_size = 0
@@ -480,6 +513,50 @@ class Layout:
         for row in self.rows:
             row.on_message(sim,event)
         
+class RadioButtonGroup(Column):
+    def __init__(self, buttons, value, vertical, tag) -> None:
+        super().__init__()
+        buttons = buttons.split(",")
+        group = []
+        self.group = group
+        self.group_layout = Layout()
+        row = Row()
+        i=0
+        for button in buttons:
+            button = button.strip()
+            radio =RadioButton(group, button, f"{tag}:{i}", value==button)
+            group.append(radio)
+            row.add(radio)
+            i+=1
+            if vertical:
+                self.group_layout.add(row)
+                row = Row()
+        self.group_layout.add(row)
+
+    def set_bounds(self, bounds) -> None:
+        self.group_layout.set_bounds(bounds)
+        self.group_layout.calc()
+
+    def present(self, sim, event):
+        self.group_layout.present(sim,event)
+    
+    def on_message(self, sim, event):
+        self.group_layout.on_message(sim,event)
+
+    @property
+    def value(self):
+        for item in self.group:
+            if item.value:
+                return item.message 
+        return ""
+       
+    @value.setter
+    def value(self, v):
+        for item in self.group:
+            if item.message == v:
+                item.value = 1
+            else:
+                item.value = 0
 
 
 class LayoutPage(Page):

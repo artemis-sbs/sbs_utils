@@ -14,10 +14,10 @@ class PyMastScheduler:
         self.scheduler = self #Alais for scoping
         self.shared = story
         self.story = story
-        self.task = None
+        self.task = PyMastTask(story, self, label)
         self.page = None
         # Initial tasks
-        self.tasks.append(PyMastTask(story, self, label))
+        self.tasks.append(self.task)
 
     def schedule_task(self, label):
         self.schedule_a_task(PyMastTask(self.story, self, label))
@@ -28,9 +28,10 @@ class PyMastScheduler:
         return PollResults.OK_RUN_AGAIN
 
     def tick(self, sim):
-        self.story.scheduler = self.scheduler
         for task in self.tasks:
             self.story.task = task
+            self.story.scheduler = self
+            self.scheduler = self
             self.task = task            
             task.tick(sim)
             if task.last_poll_result == PollResults.OK_END:
@@ -40,6 +41,4 @@ class PyMastScheduler:
         self.remove_tasks.clear()
         self.tasks.extend(self.new_tasks)
 
-    def on_event(self, sim, event):
-        pass
-
+   
