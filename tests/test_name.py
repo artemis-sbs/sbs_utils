@@ -2,7 +2,7 @@ import unittest
 from . import mock_sbs as sbs
 from sbs_utils import names
 import sys
-from sbs_utils.asyncstory import AsyncStory
+from sbs_utils.pymast import PyMastStory
 
 
 def example_loose(self):
@@ -10,7 +10,7 @@ def example_loose(self):
     yield self.pop()
 
 
-class ExampleStory(AsyncStory):
+class ExampleStory(PyMastStory):
 
     def start(self):
         self.count = 0

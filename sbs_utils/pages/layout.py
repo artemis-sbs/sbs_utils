@@ -83,6 +83,14 @@ class Column:
 
     def on_message(self, sim, event):
         pass
+    @property
+    def value(self):
+         return None
+       
+    @value.setter
+    def value(self, a):
+        pass
+        
 
 
     
@@ -97,6 +105,14 @@ class Text(Column):
         sbs.send_gui_text(event.client_id, 
             self.message, self.tag, 
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+    @property
+    def value(self):
+         return self.message
+       
+    @value.setter
+    def value(self, v):
+        self.message = v
+    
 
 class Button(Column):
     def __init__(self, message, tag) -> None:
@@ -109,33 +125,62 @@ class Button(Column):
         sbs.send_gui_button(event.client_id, 
             self.message, self.tag, 
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+    @property
+    def value(self):
+         return self.message
+       
+    @value.setter
+    def value(self, v):
+        self.message = v
 
 class Slider(Column):
     def __init__(self,  value=0.5, low=0.0, high=1.0, tag=None) -> None:
         super().__init__()
         self.tag = tag
-        self.value = value
+        self._value = value
         self.low = low
         self.high = high
 
     def present(self, sim, event):
         sbs.send_gui_slider(event.client_id, 
             self.tag, 
-            self.low, self.high, self.value,
+            self.low, self.high, self._value,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+        
+    def on_message(self, sim, event):
+        self.value = event.sub_float
+    @property
+    def value(self):
+         return self._value
+       
+    @value.setter
+    def value(self, v):
+        self._value = v
 
 class Checkbox(Column):
     def __init__(self, message, tag, value=False) -> None:
         super().__init__()
         self.message = message
         self.tag = tag
-        self.value = value
+        self._value = value
         
     def present(self, sim, event):
         sbs.send_gui_checkbox(event.client_id, 
             self.message, self.tag, 
-            1 if self.value else 0,
+            1 if self._value else 0,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+    
+    def on_message(self, sim, event):
+        self.value = int(event.sub_float)
+
+    @property
+    def value(self):
+         return self._value
+    
+       
+    @value.setter
+    def value(self, v):
+        self._value= v
 
 class Image(Column):
     def __init__(self, file, color, tag) -> None:
@@ -177,30 +222,58 @@ class Image(Column):
         except Exception:
             self.width = -1
             self.height = -1
+    @property
+    def value(self):
+         return self._value
+       
+    @value.setter
+    def value(self, v):
+        self._value= v
 
 class Dropdown(Column):
     def __init__(self, value, values, tag) -> None:
         super().__init__()
-        self.value = value
+        self._value = value
         self.values = values
         self.tag = tag
         
     def present(self, sim, event):
         sbs.send_gui_dropdown(event.client_id, 
-            self.value, self.tag, self.values,
+            self._value, self.tag, self.values,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+        
+    def on_message(self, sim, event):
+        self.value = event.value_tag
+    @property
+    def value(self):
+         return self._value
+       
+    @value.setter
+    def value(self, v):
+        self._value= v
 
 class TextInput(Column):
     def __init__(self, value, label, tag) -> None:
         super().__init__()
-        self.value = value
+        self._value = value
         self.tag = tag
         self.label = label
         
     def present(self, sim, event):
         sbs.send_gui_typein(event.client_id, 
-            self.value, self.label,self.tag,
+            self._value, self.label,self.tag,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+        
+    def on_message(self, sim, event):
+        self.value = event.value_tag
+        
+    @property
+    def value(self):
+         return self._value
+       
+    @value.setter
+    def value(self, v):
+        self._value= v
 
 
 class Blank(Column):
@@ -229,6 +302,13 @@ class Face(Column):
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
             #self.left, self.top, self.left+(self.right-self.left)*.60, 100)
             #self.left, self.top, self.left+w, self.top+w)
+    @property
+    def value(self):
+         return self.face
+       
+    @value.setter
+    def value(self, v):
+        self.face= v
 
 class Ship(Column):
     def __init__(self, ship, tag) -> None:
@@ -241,6 +321,13 @@ class Ship(Column):
         sbs.send_gui_3dship(event.client_id, 
             self.ship, self.tag, 
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+    @property
+    def value(self):
+         return self.ship
+       
+    @value.setter
+    def value(self, v):
+        self.ship= v
 
 class GuiControl(Column):
     def __init__(self, content, tag) -> None:
@@ -248,7 +335,7 @@ class GuiControl(Column):
         self.tag = tag
         self.content = content
         self.content.tag_prefix = tag
-        self.value=""
+        self._value=""
 
     def present(self, sim, event):
         self.content.present(sim, event)
@@ -257,7 +344,7 @@ class GuiControl(Column):
         #    self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
     def on_message(self, sim, event):
         self.content.on_message(sim,event)
-        self.value = self.content.get_value()
+        self._value = self.content.get_value()
         #return super().on_message(sim, event)
 
     def set_bounds(self, bounds) -> None:
@@ -267,6 +354,14 @@ class GuiControl(Column):
         self.content.right = self.bounds.right
         self.content.bottom = self.bounds.bottom
         self.content.gui_state = ""
+
+    @property
+    def value(self):
+         return self._value
+       
+    @value.setter
+    def value(self, v):
+        self._value= v
 
 
 

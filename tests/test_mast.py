@@ -502,6 +502,25 @@ shared var2 = var2 + 100
         var2 = task.get_value("var2", None)
         assert(var1 == (800,Scope.NORMAL))
         assert(var2 == (1500,Scope.SHARED))
+
+    def test_task_pass_data_run_no_err(self):
+        (errors, runner, _) = mast_run( code = """
+logger string output
+await => Spawn {"var1": 99} # var1 still 500 on this 
+
+=== Spawn ===
+log "{var1}"
+->END
+
+    """)
+        assert(len(errors)==0)
+        # run again, shared data should NOT reset
+        output = runner.active_task.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        #st.seek(0)
+        value = st.getvalue()
+        assert(value == "99\n")
         
 
     def test_comments_run_no_err(self):
