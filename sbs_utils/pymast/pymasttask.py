@@ -28,6 +28,12 @@ class PyMastTask:
         
         self.last_poll_result = None
         self.last_popped_poll_result = None
+        self.done = False
+
+
+    def end(self):
+        self.last_poll_result = PollResults.OK_END
+        self.done = True
             
 
     def tick(self, sim):
@@ -37,7 +43,7 @@ class PyMastTask:
         # Keep running until told to defer or you've jump 100 time
         # Arbitrary number
         throttle = 0
-        while throttle < 100:
+        while not self.done and throttle < 100:
             throttle += 1
             if self.pending_jump:
                 self.do_jump()
@@ -156,15 +162,21 @@ class PyMastTask:
             yield PollResults.OK_RUN_AGAIN
         self.await_gen = None
 
-    def await_gui(self, buttons, timeout, on_message=None):
+    def await_gui(self, buttons, timeout, on_message=None, test_refresh=None, test_end_await = None, on_disconnect=None):
         if self.page is None:
             return
         page = self.page
         page.on_message_cb = on_message
+        page.test_refresh_cb = test_refresh
+        page.test_end_await_cb = test_end_await
+        page.disconnect_cb = on_disconnect
         page.set_buttons(buttons)
-        page.present(self.story.sim, None)
+        # page.present(self.story.sim, None)
+        # self.await_gen = self.run_gui()
+        #return PollResults.OK_RUN_AGAIN
         page.run(timeout)
         return PollResults.OK_JUMP
+    
     
     def watch_event(self, event_tag, label):
         self.events[event_tag] = label

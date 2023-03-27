@@ -121,8 +121,8 @@ class PyMastStory:
     def get_page(self):
         return self.task.page
     
-    def await_gui(self, buttons= None, timeout=None, on_message=None):
-        return self.task.await_gui(buttons, timeout, on_message)
+    def await_gui(self, buttons= None, timeout=None, on_message=None, test_refresh=None,  test_end_await=None, on_disconnect=None):
+        return self.task.await_gui(buttons, timeout, on_message, test_refresh, test_end_await, on_disconnect)
     
     def gui_face(self, face, style=None):
         if self.get_page() is None:

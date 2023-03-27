@@ -63,8 +63,12 @@ class PyMastStoryPage(Page):
         #self.tag = 0
         self.errors = []
         self.on_message_cb = None
-        self.end_await = False
+        self.test_end_await_cb = None
+        self.test_refresh_cb = None
+        self.disconnect_cb = None
+        self.end_await = True
         self.task = None
+        self.disconnected = False
 
     def run(self, time_out):
         self.present(self.story.sim, None)
@@ -72,15 +76,14 @@ class PyMastStoryPage(Page):
         self.task = self.story.task
         def pusher(story):
             return self._run(time_out)
-        self.story.push(pusher)
-
+        self.task.push(pusher)
+    
     def _run(self, time_out):    
         self.end_await = False
         while self.end_await == False:
             self.present(self.story.sim, None)
             yield PollResults.OK_RUN_AGAIN
-        yield self.story.pop()
-        #yield PollResults.OK_ADVANCE_TRUE
+        yield self.task.pop()        
       
 
     def swap_layout(self):
@@ -198,33 +201,33 @@ class PyMastStoryPage(Page):
         if self.gui_state == "errors":
             return
         
+
+        
         if self.story_scheduler is None:
             if self.story is not None:
                 label = "start_server" if self.client_id ==0 else "start_client"
+                print(f"Spawning task {label}")
                 self.story_scheduler = self.story.add_scheduler(sim, label)
                 #self.story_scheduler.page = self
                 self.task = self.story_scheduler.task
                 self.task.page = self
-                
+        # This should not occur???
+        if self.client_id != event.client_id:
+            return
+        self.story.scheduler = self.story_scheduler
+        self.story.task = self.task
+
+
+        if self.test_end_await_cb is not None:
+            self.end_await = self.test_end_await_cb()
+
         if do_tick:
-            try:
-                self.story.scheduler = self.story_scheduler
-                self.story.task = self.task
-                self.task.tick(sim)
-            except BaseException as err:
-                sbs.pause_sim()
-                text_err = traceback.format_exc()
-                text_err = text_err.replace(chr(94), "")
-                self.errors.append(text_err)
-            
+            self.do_tick(sim)
 
+        if self.test_refresh_cb is not None:
+            if self.test_refresh_cb():
+                self.gui_state = 'refresh'
 
-        # if not self.story_scheduler.tick(sim):
-        #     #self.story_runtime_node.mast.remove_runtime_node(self)
-        #     Gui.pop(sim, event.client_id)
-        #     # This should present "END OF Content mesage instead"
-        #     return
-        
 
         if len(self.errors) > 0:
             message = "PyMast errors\n".join(self.errors)
@@ -262,16 +265,46 @@ class PyMastStoryPage(Page):
                     layout.present(sim,event)
                 self.gui_state = "presenting"
 
+    def do_tick(self, sim):
+        try:
+            self.story.scheduler = self.story_scheduler
+            self.story.task = self.task
+            if self.disconnected:
+                self.task.end()
+                return
+
+            self.task.tick(sim)
+        except BaseException as err:
+            sbs.pause_sim()
+            text_err = traceback.format_exc()
+            text_err = text_err.replace(chr(94), "")
+            print(text_err)
+            self.errors.append(text_err)
+
 
     def on_message(self, sim, event):
         message_tag = event.sub_tag
+        # This should not occur???
+        if self.client_id != event.client_id:
+            return
+        self.story.scheduler = self.story_scheduler
+        self.story.task = self.task
+        if self.disconnect_cb and message_tag == "mast:client_disconnect":
+            self.disconnected = False
+            self.disconnect_cb()
+
         refresh = False        
         call_label = self.tag_map.get(message_tag)
         if call_label:
-            if inspect.isfunction:
+            if isinstance(call_label, CodePusher):
+                call_label.on_message(sim, event)
+                refresh=True
+            elif inspect.isfunction:
                 call_label(sim, event)
+                refresh=True
             else:
                 call_label.on_message(sim, event)
+                refresh=True
                 
         # else:
         for layout in self.layouts:
@@ -286,6 +319,17 @@ class PyMastStoryPage(Page):
     def on_event(self, sim, event):
         if self.task is None:
             return
+        
+        # This should not occur???
+        if self.client_id != event.client_id:
+            return
+        self.story.scheduler = self.story_scheduler
+        self.story.task = self.task
+        if event.tag == "mast:client_disconnect":
+            self.disconnected = True
+            if self.disconnect_cb:
+                self.disconnect_cb()
+
         self.task.on_event(sim, event)
 
     def assign_player_ship(self, player):
