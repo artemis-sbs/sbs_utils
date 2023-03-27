@@ -210,7 +210,7 @@ class Ship(Column):
         ...
 class Slider(Column):
     """class Slider"""
-    def __init__ (self, value=0.5, low=0.0, high=1.0, tag=None) -> None:
+    def __init__ (self, value=0.5, low=0.0, high=1.0, show_number=True, tag=None) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
     def on_message (self, sim, event):
         ...

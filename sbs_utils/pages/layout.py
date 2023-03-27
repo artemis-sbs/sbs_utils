@@ -134,18 +134,21 @@ class Button(Column):
         self.message = v
 
 class Slider(Column):
-    def __init__(self,  value=0.5, low=0.0, high=1.0, tag=None) -> None:
+    def __init__(self,  value=0.5, low=0.0, high=1.0, show_number=True, tag=None) -> None:
         super().__init__()
         self.tag = tag
         self._value = value
         self.low = low
         self.high = high
+        self.show_number = show_number
 
     def present(self, sim, event):
         sbs.send_gui_slider(event.client_id, 
             self.tag, 
             self.low, self.high, self._value,
-            self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+            self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom,
+            self.show_number
+            )
         
     def on_message(self, sim, event):
         self.value = event.sub_float

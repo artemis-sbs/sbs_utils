@@ -25,6 +25,9 @@ from sbs_utils import fs, query
 import os
 from sbs_utils.gridobject import GridObject
 from random import randrange, choice
+# Need this for StubGen to work????
+from sbs_utils.pymast.pymaststory import PyMastStory
+from sbs_utils.pymast.pymaststorypage import PyMastStoryPage
 
 
 Mast.enable_logging()

@@ -2,13 +2,13 @@
 from ..consoledispatcher import ConsoleDispatcher
 import sbs
 import inspect
-from . import PollResults
+from .pollresults import PollResults
 from ..engineobject import EngineObject
 from .. import faces
 
 
 class PyMastComms:
-    def __init__(self, task, player_id, npc_id_or_filter, buttons ) -> None:
+    def __init__(self, task, player_id, npc_id_or_filter, buttons, continuous ) -> None:
         self.buttons = buttons
         # if the npc is None or a filter function it is a more general scan
         if inspect.isfunction(npc_id_or_filter) or inspect.ismethod(npc_id_or_filter) or npc_id_or_filter is None:
@@ -21,6 +21,7 @@ class PyMastComms:
         self.task = task
         self.event = None
         self.done = False
+        self.continuous = continuous
 
         
     def selected(self, sim, _ , event):
@@ -63,8 +64,8 @@ class PyMastComms:
                         if gen is not None:
                             for res in gen:
                                 yield res
-                        story.pop()
-                    self.story.push(pusher)
+                        self.task.pop()
+                    self.task.push(pusher)
                 elif inspect.ismethod(button_func):
                     ##############
                     ## This is some wild code
@@ -75,9 +76,9 @@ class PyMastComms:
                         if gen is not None:
                             for res in gen:
                                 yield res
-                        story.pop()
+                        self.task.pop()
                     self.task.story.push(pusher)
-        self.done = True
+        self.done = not self.continuous
 
     def have_other_tell_player(self, text, color=None, face=None, comms_id=None):
         # Messge from NPC
@@ -107,9 +108,13 @@ class PyMastComms:
             return EngineObject.get(self.event.origin_id)
     def get_other(self):
             return EngineObject.get(self.event.origin_id)
+    def stop(self):
+        self.continuous = False
+        self.done = True
 
 
     def run(self):    
         while self.done == False:
+            
             yield PollResults.OK_RUN_AGAIN
         

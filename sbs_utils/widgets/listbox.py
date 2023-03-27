@@ -86,7 +86,7 @@ class Listbox(Widget):
         if slot_count > 0:
             sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", -(slot_count+0.5),  0, -self.cur,
                         self.right-3, self.top,
-                        self.right, self.bottom)
+                        self.right, self.bottom, False)
         slot= 0
         self.slots =[]
         

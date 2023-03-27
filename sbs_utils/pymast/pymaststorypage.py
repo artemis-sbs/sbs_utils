@@ -2,10 +2,11 @@ import sbs
 from ..mast.parsers import StyleDefinition, LayoutAreaParser
 from ..gui import Page, Gui
 from ..pages import layout
-from . import PollResults
+from .pollresults import PollResults
 from .pymastscheduler import PyMastScheduler
 import traceback
 from .. import query
+import inspect
 
 class CodePusher:
     def __init__(self, page, func_or_tuple, end_await=True) -> None:
@@ -63,6 +64,7 @@ class PyMastStoryPage(Page):
         self.errors = []
         self.on_message_cb = None
         self.end_await = False
+        self.task = None
 
     def run(self, time_out):
         self.present(self.story.sim, None)
@@ -77,7 +79,8 @@ class PyMastStoryPage(Page):
         while self.end_await == False:
             self.present(self.story.sim, None)
             yield PollResults.OK_RUN_AGAIN
-        self.story.pop()
+        yield self.story.pop()
+        #yield PollResults.OK_ADVANCE_TRUE
       
 
     def swap_layout(self):
@@ -199,8 +202,10 @@ class PyMastStoryPage(Page):
             if self.story is not None:
                 label = "start_server" if self.client_id ==0 else "start_client"
                 self.story_scheduler = self.story.add_scheduler(sim, label)
-                self.story_scheduler.page = self
+                #self.story_scheduler.page = self
                 self.task = self.story_scheduler.task
+                self.task.page = self
+                
         if do_tick:
             try:
                 self.story.scheduler = self.story_scheduler
@@ -263,7 +268,11 @@ class PyMastStoryPage(Page):
         refresh = False        
         call_label = self.tag_map.get(message_tag)
         if call_label:
-            call_label.on_message(sim, event)
+            if inspect.isfunction:
+                call_label(sim, event)
+            else:
+                call_label.on_message(sim, event)
+                
         # else:
         for layout in self.layouts:
             layout.on_message(sim,event)

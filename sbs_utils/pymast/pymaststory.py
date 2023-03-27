@@ -6,7 +6,7 @@ from sbs_utils import faces
 from ..pages import layout
 import sbs
 import inspect
-from . import PollResults
+from .pollresults import PollResults
 from .pymastscience import PyMastScience
 from .pymastcomms import PyMastComms
 from .pymasttask import PyMastTask, DataHolder
@@ -93,110 +93,122 @@ class PyMastStory:
         return self.scheduler.schedule_a_task(task)
 
     def await_comms(self, player, npc, buttons):
-        return self.task.await_comms(player, npc, buttons)
+        return self.task.await_comms(player, npc, buttons, False)
     
     def schedule_comms(self, player, npc, buttons):
         task = PyMastTask(self,self.scheduler, None)
-        comms = PyMastComms(task, player, npc, buttons)
+        comms = PyMastComms(task, player, npc, buttons, True)
         task.current_gen = comms.run()
         return self.scheduler.schedule_a_task(task)
+    
+    ###################
+    ## Behavior stuff
+    def behave_until(self, poll_result, label):
+        return self.task.behave_until(poll_result, label)
+    
+    def behave_invert(self, label):
+        return self.task.behave_invert(label)
+    
+    def behave_seq(self,*labels):
+        return self.task.behave_seq(*labels)
+    
+    def behave_sel(self,*labels):
+        return self.task.behave_sel(*labels)
+
 
     ###############
     ## GUI STUFF
+    def get_page(self):
+        return self.task.page
+    
     def await_gui(self, buttons= None, timeout=None, on_message=None):
-        if self.scheduler.page is None:
-            return
-        page = self.scheduler.page
-        page.on_message_cb = on_message
-        page.set_buttons(buttons)
-        page.run(timeout)
-        return PollResults.OK_RUN_AGAIN
+        return self.task.await_gui(buttons, timeout, on_message)
     
     def gui_face(self, face, style=None):
-        if self.scheduler.page is None:
+        if self.get_page() is None:
             return
-        page = self.scheduler.page
+        page = self.get_page()
         control = layout.Face(face, page.get_tag())
-        page.apply_style_name(".face", self.layout_item)
+        page.apply_style_name(".face", control)
         if style is not None:
             self.apply_style_def(style,  control)
         page.add_content(control, None)
         return control
     def gui_ship(self, ship, style=None):
-        if self.scheduler.page is None:
+        if self.get_page() is None:
             return
-        page = self.scheduler.page
+        page = self.get_page()
         control = layout.Ship(ship, page.get_tag())
         page.add_content(control, None)
         return control
     # Widgets
     def gui_content(self, content, label, style=None):
-        if self.scheduler.page is None:
+        if self.get_page() is None:
             return
-        page = self.scheduler.page
+        page = self.get_page()
         control = layout.GuiControl(content, page.get_tag())
         page.add_content(control, label, style=None)
         return control
     def gui_text(self, message, style=None):
-        if self.scheduler.page is None:
+        if self.get_page() is None:
             return
-        page = self.scheduler.page
+        page = self.get_page()
         control = layout.Text(message, page.get_tag())
         page.add_content(control, None)
         return control
     def gui_button(self, message, label, style=None):
-        if self.scheduler.page is None:
+        if self.get_page() is None:
             return
-        page = self.scheduler.page
+        page = self.get_page()
         control = layout.Button(message, page.get_tag())
         page.add_content(control, label)
         return control
     def gui_row(self, style=None):
-        if self.scheduler.page is None:
+        if self.get_page() is None:
             return
-        page = self.scheduler.page
+        page = self.get_page()
         page.add_row()
 
     def gui_blank(self, style=None):
-        if self.scheduler.page is None:
+        if self.get_page() is None:
             return
-        page = self.scheduler.page
+        page = self.get_page()
         control = layout.Blank()
         
         page.add_content(control, None)
         return control
 
     def gui_hole(self, style=None):
-        if self.scheduler.page is None:
+        if self.get_page() is None:
             return
-        page = self.scheduler.page
+        page = self.get_page()
         control = layout.Hole()
         page.add_content(control, None)
         return control
     def gui_section(self, style=None):
-        if self.scheduler.page is None:
+        if self.get_page() is None:
             return
-        page = self.scheduler.page
+        page = self.get_page()
         control = page.add_section()
 
         page.apply_style_name(".section", control)
         if style is not None:
             page.apply_style_def(style,  control)
         return control
-    def gui_slider(self, val, low, high, label, style=None):
-        if self.scheduler.page is None:
+    def gui_slider(self, val, low, high, show_number=True, label=None, style=None):
+        if self.get_page() is None:
             return
-        page = self.scheduler.page
-        control = layout.Slider(val, low, high, page.get_tag())
+        page = self.get_page()
+        control = layout.Slider(val, low, high, show_number, page.get_tag())
         page.add_content(control, label)
         page.apply_style_name(".slider", control)
         if style is not None:
             page.apply_style_def(style,  control)
         return control
     def gui_checkbox(self, message, value, style=None):
-        if self.scheduler.page is None:
+        if self.get_page() is None:
             return
-        page = self.scheduler.page
+        page = self.get_page()
         control = layout.Checkbox(message,page.get_tag(), value)
         page.add_content(control, None)
         page.apply_style_name(".checkbox", control)
@@ -204,9 +216,9 @@ class PyMastStory:
             page.apply_style_def(style,  control)
         return control
     def gui_drop_down(self, value, values, style=None):
-        if self.scheduler.page is None:
+        if self.get_page() is None:
             return
-        page = self.scheduler.page
+        page = self.get_page()
         control = layout.Dropdown(value, values, page.get_tag())
         page.add_content(control, None)
         page.apply_style_name(".dropdown", control)
@@ -214,9 +226,9 @@ class PyMastStory:
             page.apply_style_def(style,  control)
         return control
     def gui_radio(self, message, value, vertical=False, style=None):
-        if self.scheduler.page is None:
+        if self.get_page() is None:
             return
-        page = self.scheduler.page
+        page = self.get_page()
         tag = page.get_tag()
         radio =layout.RadioButtonGroup(message, value, True, tag)
         page.apply_style_name(".radio", radio)
@@ -226,9 +238,9 @@ class PyMastStory:
         return radio
         
     def gui_text_input(self, val, label_message, label, style=None):
-        if self.scheduler.page is None:
+        if self.get_page() is None:
             return
-        page = self.scheduler.page
+        page = self.get_page()
         control = layout.TextInput(val, label_message, page.get_tag())
         page.add_content(control, label)
         page.apply_style_name(".textinput", control)
@@ -238,9 +250,9 @@ class PyMastStory:
     
 
     def gui_console(self, console, style=None):
-        if self.scheduler.page is None:
+        if self.get_page() is None:
             return
-        page = self.scheduler.page
+        page = self.get_page()
         match console.lower():
             case "helm":
                 console =  "normal_helm"
@@ -250,13 +262,13 @@ class PyMastStory:
                 widgets = "2dview^weapon_control^ship_data^shield_control^text_waterfall^main_screen_control"
             case "science":
                 console =  "normal_sci"
-                widgets = "science_2d_view^ship_data^text_waterfall^science_data^object_sorted_list"
+                widgets = "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list"
             case "engineering":
                 console =  "normal_engi"
                 widgets = "ship_internal_view^grid_object_list^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
             case "comms":
                 console =  "normal_comm"
-                widgets = "text_waterfall^comms_waterfall^comms_control^comms_face^object_sorted_list^ship_data"
+                widgets = "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data"
             case "mainscreen":
                 console =  "normal_main"
                 widgets = "3dview^ship_data^text_waterfall"
@@ -273,20 +285,20 @@ class PyMastStory:
 
 
     def gui_console_widget_list(self, console, widgets, style=None):
-        if self.scheduler.page is None:
+        if self.get_page() is None:
             return
-        page = self.scheduler.page
+        page = self.get_page()
         page.set_widget_list(console, widgets)
 
     def assign_player_ship(self, player):
-        if self.scheduler.page is None:
+        if self.get_page() is None:
             return
-        self.scheduler.page.assign_player_ship(player)
+        self.get_page().assign_player_ship(player)
         
     def gui_image(self, file, color, label, style=None):
-        if self.scheduler.page is None:
+        if self.get_page() is None:
             return
-        page = self.scheduler.page
+        page = self.get_page()
         control = layout.Image(file, color, page.get_tag())
         page.add_content(control, label)
         return control

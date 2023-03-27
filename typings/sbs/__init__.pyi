@@ -58,16 +58,20 @@ def send_gui_checkbox(arg0: int, arg1: str, arg2: str, arg3: int, arg4: float, a
     """Creates a checkbox GUI element, on the targeted client (0 = server screen)"""
 def send_gui_clear(arg0: int) -> None:
     """Clears all GUI elements from screen, on the targeted client (0 = server screen)"""
+def send_gui_clickregion(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
+    """Creates a click-region GUI element, on the targeted client (0 = server screen)"""
 def send_gui_dropdown(arg0: int, arg1: str, arg2: str, arg3: str, arg4: float, arg5: float, arg6: float, arg7: float) -> None:
     """Creates a dropdown GUI element, on the targeted client (0 = server screen)"""
 def send_gui_face(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
     """Creates a face box GUI element, on the targeted client (0 = server screen)"""
 def send_gui_icon(arg0: int, arg1: str, arg2: str, arg3: int, arg4: float, arg5: float, arg6: float) -> None:
     """Creates an icon art GUI element, on the targeted client (0 = server screen)"""
+def send_gui_iconbutton(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
+    """Creates a icon-button GUI element, on the targeted client (0 = server screen)"""
 def send_gui_image(arg0: int, arg1: str, arg2: str, arg3: str, arg4: float, arg5: float, arg6: float, arg7: float, arg8: float, arg9: float, arg10: float, arg11: float) -> None:
-    """Creates an icon art GUI element, on the targeted client (0 = server screen)"""
-def send_gui_slider(arg0: int, arg1: str, arg2: float, arg3: float, arg4: float, arg5: float, arg6: float, arg7: float, arg8: float) -> None:
-    """Creates a slider bar GUI element, on the targeted client (0 = server screen) (long clientID, std::string tag, float low, float high, float current, float left, float top, float right, float bottom)"""
+    """Creates a 2d art image GUI element, on the targeted client (0 = server screen)"""
+def send_gui_slider(arg0: int, arg1: str, arg2: float, arg3: float, arg4: float, arg5: float, arg6: float, arg7: float, arg8: float, arg9: bool) -> None:
+    """Creates a slider bar GUI element, on the targeted client (0 = server screen) (long clientID, std::string tag, float low, float high, float current, float left, float top, float right, float bottom, bool showNumberFlag)"""
 def send_gui_text(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
     """Creates a text box GUI element, on the targeted client (0 = server screen)"""
 def send_gui_typein(arg0: int, arg1: str, arg2: str, arg3: str, arg4: float, arg5: float, arg6: float, arg7: float) -> None:

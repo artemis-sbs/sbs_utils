@@ -356,13 +356,13 @@ class Console(MastNode):
                 widgets = "2dview^weapon_control^ship_data^shield_control^text_waterfall^main_screen_control"
             case "science":
                 console =  "normal_sci"
-                widgets = "science_2d_view^ship_data^text_waterfall^science_data^object_sorted_list"
+                widgets = "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list"
             case "engineering":
                 console =  "normal_engi"
                 widgets = "ship_internal_view^grid_object_list^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
             case "comms":
                 console =  "normal_comm"
-                widgets = "text_waterfall^comms_waterfall^comms_control^comms_face^object_sorted_list^ship_data"
+                widgets = "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data"
             case "mainscreen":
                 console =  "normal_main"
                 widgets = "3dview^ship_data^text_waterfall"

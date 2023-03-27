@@ -1,7 +1,7 @@
 from ..consoledispatcher import ConsoleDispatcher
 import sbs
 import inspect
-from . import PollResults
+from .pollresults import PollResults
 
 class PyMastScience:
     def __init__(self, task, player_id, npc_id_or_filter, scans ) -> None:

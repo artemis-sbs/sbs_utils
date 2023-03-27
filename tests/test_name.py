@@ -2,7 +2,7 @@ import unittest
 from . import mock_sbs as sbs
 from sbs_utils import names
 import sys
-from sbs_utils.pymast import PyMastStory
+from sbs_utils.pymast.pymaststory import PyMastStory
 
 
 def example_loose(self):

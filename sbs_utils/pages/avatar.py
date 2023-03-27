@@ -107,13 +107,13 @@ class AvatarEditor(Page):
                     #enable = 0
                     sbs.send_gui_checkbox(CID, label, f"op:{v}", enable, *loc)
                     if enable and widget["max"]>0:
-                        sbs.send_gui_slider(CID, f"{v}",  widget["min"],widget["max"],self.cur[v], *next(l2))
+                        sbs.send_gui_slider(CID, f"{v}",  widget["min"],widget["max"],self.cur[v], *next(l2), True)
                     else:
                         next(l2)
 
                 else:
                     sbs.send_gui_text(CID, label, f"lab:{label}", *loc)
-                    sbs.send_gui_slider(CID, f"{v}",  widget["min"],widget["max"],self.cur[v], *next(l2))
+                    sbs.send_gui_slider(CID, f"{v}",  widget["min"],widget["max"],self.cur[v], *next(l2), True)
 
                 
                 v+=1
