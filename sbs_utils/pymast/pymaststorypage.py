@@ -34,10 +34,13 @@ class CodePusher:
                     yield res
             self.page.task.pop()
 
-            if self.page is not None and self.end_await:
+        # Skip if Already
+            if self.page is not None and not self.end_await:
                 self.page.end_await = True 
 
         self.page.task.push(pusher)
+        # Tick the page task to get things running faster if needed
+        self.page.do_tick(self.page.sim)
 
 
 
@@ -82,6 +85,9 @@ class PyMastStoryPage(Page):
         self.end_await = False
         while self.end_await == False:
             self.present(self.story.sim, None)
+            # Get out faster if ended
+            if self.end_await:
+                break
             yield PollResults.OK_RUN_AGAIN
         yield self.task.pop()        
       
