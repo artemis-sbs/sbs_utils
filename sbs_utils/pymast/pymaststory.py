@@ -15,7 +15,8 @@ from .pymastscheduler import PyMastScheduler
 
 
 class PyMastStory:
-    def __init__(self) -> None:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs) # This style of init makes it more mixin friendly
         self.schedulers = []
         self.remove_scheduler = []
         self.shared = self #Alias for scoping
