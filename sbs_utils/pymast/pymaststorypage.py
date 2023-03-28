@@ -40,7 +40,7 @@ class CodePusher:
 
         self.page.task.push(pusher)
         # Tick the page task to get things running faster if needed
-        self.page.do_tick(self.page.sim)
+        self.page.do_tick(sim)
 
 
 
@@ -200,14 +200,13 @@ class PyMastStoryPage(Page):
             event = Fake()
             event.client_id = self.client_id
             do_tick = False
-
+        
         """ Present the gui """
         if self.client_id is None:
             self.client_id = event.client_id
         if self.gui_state == "errors":
             return
         
-
         
         if self.story_scheduler is None:
             if self.story is not None:
@@ -272,6 +271,8 @@ class PyMastStoryPage(Page):
                 self.gui_state = "presenting"
 
     def do_tick(self, sim):
+        # if sim is None:
+        #     return
         try:
             self.story.scheduler = self.story_scheduler
             self.story.task = self.task
