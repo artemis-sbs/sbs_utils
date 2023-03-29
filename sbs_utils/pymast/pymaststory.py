@@ -58,6 +58,9 @@ class PyMastStory:
             self.tick_task.stop()
             self.tick_task = None
 
+    def is_running(self):
+        return len(self.schedulers)!=0
+
     def __call__(self, sim, sched=None):
         self.sim = sim
         for sched in self.schedulers:

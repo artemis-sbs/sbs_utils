@@ -24,6 +24,7 @@ class PyMastTask:
         self.await_gen = None
         self.events = {}
         self.page = None
+        self.pop_on_jump = 0
         #self.jump(label)
         
         self.last_poll_result = None
@@ -118,17 +119,28 @@ class PyMastTask:
         return (gen, res)
     
     def jump(self, label):
+        while self.pop_on_jump>0:
+            print(f"I popped {label.__name__}")
+            self.pop()
         self.pending_jump = label
         return PollResults.OK_JUMP
 
     def push(self, label):
         self.stack.append(self.current_gen)
         return self.jump(label)
+    
+    def push_jump_pop(self, label):
+        self.stack.append(self.current_gen)
+        self.pending_jump = label
+        self.pop_on_jump += 1
+        return PollResults.OK_JUMP
 
     def pop(self):
         self.last_popped_poll_result = self.last_poll_result
         #pickup where you left off
         if len(self.stack) > 0:
+            if self.pop_on_jump >0:
+                self.pop_on_jump-=1
             self.pending_pop = self.stack.pop()
             return PollResults.OK_JUMP
         return PollResults.FAIL_END
@@ -187,11 +199,24 @@ class PyMastTask:
 
     def on_event(self, sim, event):
         #
-        # It could be confusing this may need to be a push?
-        #
+        # This is another push_jump_pop
+        # So if a jump occurs in unwinds the push stack for all push_jump_pop:s
         label = self.events.get(event.tag)
-        if label is not None:
-            self.jump(label)
+        if label is None:
+            return
+        def pusher(story):
+            return self._run_event(label, sim, event)
+        self.task.push_jump_pop(pusher)
+    
+    def _run_event(self, label, sim, event):    
+        gen, res = self.task.get_gen(label)
+        if gen is not None:
+            for this_res in gen:
+                res = this_res
+                yield res
+        self.last_poll_result = res
+        return self.pop()
+
 
 
     def quick_push(self, func):

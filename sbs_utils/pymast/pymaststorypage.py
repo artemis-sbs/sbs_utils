@@ -38,7 +38,7 @@ class CodePusher:
             if self.page is not None and not self.end_await:
                 self.page.end_await = True 
 
-        self.page.task.push(pusher)
+        self.page.task.push_jump_pop(pusher)
         # Tick the page task to get things running faster if needed
         self.page.do_tick(sim)
 
@@ -76,14 +76,16 @@ class PyMastStoryPage(Page):
     def run(self, time_out):
         self.present(self.story.sim, None)
         # ?? Change task??
-        self.task = self.story.task
+        #self.task = self.story.task
+        self.end_await = False
         def pusher(story):
             return self._run(time_out)
-        self.task.push(pusher)
+        self.task.push_jump_pop(pusher)
     
     def _run(self, time_out):    
         self.end_await = False
         while self.end_await == False:
+            print(f"running {self.story.sim}")
             self.present(self.story.sim, None)
             # Get out faster if ended
             if self.end_await:
@@ -327,17 +329,24 @@ class PyMastStoryPage(Page):
         if self.task is None:
             return
         
-        # This should not occur???
-        if self.client_id != event.client_id:
-            return
-        self.story.scheduler = self.story_scheduler
-        self.story.task = self.task
-        if event.tag == "mast:client_disconnect":
-            self.disconnected = True
-            if self.disconnect_cb:
-                self.disconnect_cb()
+        try:
+            # This should not occur???
+            if self.client_id != event.client_id:
+                return
+            self.story.scheduler = self.story_scheduler
+            self.story.task = self.task
+            if event.tag == "mast:client_disconnect":
+                self.disconnected = True
+                if self.disconnect_cb:
+                    self.disconnect_cb()
 
-        self.task.on_event(sim, event)
+            self.task.on_event(sim, event)
+        except BaseException as err:
+            sbs.pause_sim()
+            text_err = traceback.format_exc()
+            text_err = text_err.replace(chr(94), "")
+            print(text_err)
+            self.errors.append(text_err)
 
     def assign_player_ship(self, player):
         if player is None:

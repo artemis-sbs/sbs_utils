@@ -507,7 +507,7 @@ class simulation(object): ### from pybind
         self.grid_objects = {}
         self.nav_points = {}
         self.hull_map_objects = {}
-        self._time_tick = 0 # increment by 30
+        self._time_tick_counter = 0 # increment by 30
         self.tractor_connections = {}
 
     """class simulation"""
