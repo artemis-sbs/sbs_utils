@@ -324,6 +324,19 @@ class Hole(Column):
     def present(self, sim, client_id):
         pass
 
+# Allows the layout of a enginer widget
+class ConsoleWidget(Column):
+    def __init__(self, widget) -> None:
+        super().__init__()
+        self.widget = widget
+
+    def present(self, sim, event):
+        sbs.send_client_widget_rects(event.client_id, 
+                                     self.widget, 
+                                     self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom, 
+                                     self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom) 
+
+
 
 class Face(Column):
     def __init__(self, face, tag) -> None:
@@ -375,9 +388,6 @@ class GuiControl(Column):
 
     def present(self, sim, event):
         self.content.present(sim, event)
-        #sbs.send_gui_3dship(event.client_id, 
-        #    self.ship, self.tag, 
-        #    self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
     def on_message(self, sim, event):
         self.content.on_message(sim,event)
         self._value = self.content.get_value()

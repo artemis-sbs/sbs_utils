@@ -2,6 +2,7 @@ from .pollresults import PollResults
 import inspect
 from .pymastscience import PyMastScience
 from .pymastcomms import PyMastComms
+from functools import partial
 
 
 class DataHolder(object):
@@ -51,9 +52,11 @@ class PyMastTask:
         while not self.done and throttle < 100:
             throttle += 1
             if self.pending_jump:
+                #print(f"jump to {self.pending_jump}")
                 self.do_jump()
-
-            if self.pending_pop:
+            elif self.pending_pop:
+                # Pending jump trumps pending pop
+                #print(f"pending pop to {self.pending_pop.__name__}")
                 self.current_gen = self.pending_pop
                 self.pending_pop = None
             
@@ -120,7 +123,7 @@ class PyMastTask:
     
     def jump(self, label):
         while self.pop_on_jump>0:
-            print(f"I popped {label.__name__}")
+            #print(f"I popped {label.__name__}")
             self.pop()
         self.pending_jump = label
         return PollResults.OK_JUMP
@@ -209,13 +212,20 @@ class PyMastTask:
         self.task.push_jump_pop(pusher)
     
     def _run_event(self, label, sim, event):    
-        gen, res = self.task.get_gen(label)
+        gen = None
+        res = PollResults.FAIL_END
+        if inspect.isfunction(label):
+            gen = label(self.story, sim, event)
+            res = PollResults.OK_JUMP
+        elif inspect.ismethod(label):
+            gen = label(sim,event)
+            res = PollResults.OK_JUMP
         if gen is not None:
             for this_res in gen:
                 res = this_res
                 yield res
         self.last_poll_result = res
-        return self.pop()
+        yield self.pop()
 
 
 

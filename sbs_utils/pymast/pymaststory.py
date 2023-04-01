@@ -135,7 +135,7 @@ class PyMastStory:
         control = layout.Face(face, page.get_tag())
         page.apply_style_name(".face", control)
         if style is not None:
-            self.apply_style_def(style,  control)
+            page.apply_style_def(style,  control)
         page.add_content(control, None)
         return control
     def gui_ship(self, ship, style=None):
@@ -151,8 +151,9 @@ class PyMastStory:
             return
         page = self.get_page()
         control = layout.GuiControl(content, page.get_tag())
-        page.add_content(control, label, style=None)
+        page.add_content(control, label)
         return control
+    
     def gui_text(self, message, style=None):
         if self.get_page() is None:
             return
@@ -171,7 +172,13 @@ class PyMastStory:
         if self.get_page() is None:
             return
         page = self.get_page()
-        page.add_row()
+        row = page.add_row()
+        page.apply_style_name(".row", row)
+        if style is not None:
+            page.apply_style_def(style,  row)
+        
+        
+        
 
     def gui_blank(self, style=None):
         if self.get_page() is None:
@@ -252,40 +259,17 @@ class PyMastStory:
             page.apply_style_def(style,  control)
         return control
     
+    def gui_activate_console(self, console):
+        if self.get_page() is None:
+            return
+        page = self.get_page()
+        page.activate_console(console)
 
     def gui_console(self, console, style=None):
         if self.get_page() is None:
             return
         page = self.get_page()
-        match console.lower():
-            case "helm":
-                console =  "normal_helm"
-                widgets = "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
-            case "weapons":
-                console =  "normal_weap"
-                widgets = "2dview^weapon_control^ship_data^shield_control^text_waterfall^main_screen_control"
-            case "science":
-                console =  "normal_sci"
-                widgets = "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list"
-            case "engineering":
-                console =  "normal_engi"
-                widgets = "ship_internal_view^grid_object_list^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
-            case "comms":
-                console =  "normal_comm"
-                widgets = "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data"
-            case "mainscreen":
-                console =  "normal_main"
-                widgets = "3dview^ship_data^text_waterfall"
-            case "clear":
-                console = ""
-                widgets = ""
-            case _:
-                # use variable name as console name
-                # variable value is widgets
-                console = ""
-                widgets = ""
-        print(f"console {console} {widgets}")
-        page.set_widget_list(console, widgets)
+        page.activate_console_widgets(console.lower())
 
 
     def gui_console_widget_list(self, console, widgets, style=None):
@@ -293,6 +277,18 @@ class PyMastStory:
             return
         page = self.get_page()
         page.set_widget_list(console, widgets)
+
+    def gui_console_widget(self, widget, style=None):
+        if self.get_page() is None:
+            return
+        page = self.get_page()
+        page.add_console_widget(widget)
+        control = layout.ConsoleWidget(widget)
+        if style is not None:
+            page.apply_style_def(style,  control)
+        page.add_content(control, None)
+        return control
+    
 
     def assign_player_ship(self, player):
         if self.get_page() is None:

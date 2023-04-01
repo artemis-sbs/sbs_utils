@@ -62,6 +62,12 @@ class Column(object):
     @value.setter
     def value (self, a):
         ...
+class ConsoleWidget(Column):
+    """class ConsoleWidget"""
+    def __init__ (self, widget) -> None:
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def present (self, sim, event):
+        ...
 class Dropdown(Column):
     """class Dropdown"""
     def __init__ (self, value, values, tag) -> None:

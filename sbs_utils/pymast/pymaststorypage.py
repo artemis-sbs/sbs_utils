@@ -85,7 +85,7 @@ class PyMastStoryPage(Page):
     def _run(self, time_out):    
         self.end_await = False
         while self.end_await == False:
-            print(f"running {self.story.sim}")
+            #print(f"running {self.story.sim}")
             self.present(self.story.sim, None)
             # Get out faster if ended
             if self.end_await:
@@ -111,7 +111,7 @@ class PyMastStoryPage(Page):
             self.pending_tag_map = {}
             self.pending_console = ""
             self.pending_widgets = ""
-        
+
         self.gui_state = 'repaint'
 
     def get_tag(self):
@@ -127,6 +127,7 @@ class PyMastStoryPage(Page):
         if self.pending_tag_map is None:
             self.pending_tag_map = {}
         self.pending_row = layout.Row()
+        return self.pending_row
 
     def add_tag(self, layout_item, runtime_node):
         if self.pending_tag_map is None:
@@ -145,7 +146,57 @@ class PyMastStoryPage(Page):
     def set_widget_list(self, console,widgets):
         self.pending_console = console
         self.pending_widgets = widgets
+
+    def activate_console_widgets(self, console):
+
+        match console.lower():
+            case "helm":
+                console =  "normal_helm"
+                widgets = "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+            case "weapons":
+                console =  "normal_weap"
+                widgets = "2dview^weapon_control^ship_data^shield_control^text_waterfall^main_screen_control"
+            case "science":
+                console =  "normal_sci"
+                widgets = "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list"
+            case "engineering":
+                console =  "normal_engi"
+                widgets = "ship_internal_view^grid_object_list^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
+            case "comms":
+                console =  "normal_comm"
+                widgets = "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data"
+            case "mainscreen":
+                console =  "normal_main"
+        self.set_widget_list(console,widgets)
+          
     
+    def activate_console(self, console):
+        match console.lower():
+            case "helm":
+                console =  "normal_helm"
+            case "weapons":
+                console =  "normal_weap"
+            case "science":
+                console =  "normal_sci"
+            case "engineering":
+                console =  "normal_engi"
+            case "comms":
+                console =  "normal_comm"
+            case "mainscreen":
+                console =  "normal_main"
+        self.pending_console = console
+        
+
+    def add_console_widget(self, widget):
+        if self.pending_widgets == "":
+            self.pending_widgets = widget
+        # BUG? 3dview needs to be first???
+        elif widget=="3dview":
+            self.pending_widgets = widget + "^" + self.pending_widgets 
+        else:
+            self.pending_widgets += "^"+widget
+        
+
     def add_section(self):
         if not self.pending_layouts:
             self.pending_layouts = [layout.Layout(None, 0,0, 100, 90)]
@@ -213,11 +264,13 @@ class PyMastStoryPage(Page):
         if self.story_scheduler is None:
             if self.story is not None:
                 label = "start_server" if self.client_id ==0 else "start_client"
-                print(f"Spawning task {label}")
+                #print(f"Spawning task {label}")
+                self.story.sim = sim
                 self.story_scheduler = self.story.add_scheduler(sim, label)
                 #self.story_scheduler.page = self
                 self.task = self.story_scheduler.task
                 self.task.page = self
+                
         # This should not occur???
         if self.client_id != event.client_id:
             return
@@ -228,7 +281,7 @@ class PyMastStoryPage(Page):
         if self.test_end_await_cb is not None:
             self.end_await = self.test_end_await_cb()
 
-        if do_tick:
+        if do_tick and sim is not None:
             self.do_tick(sim)
 
         if self.test_refresh_cb is not None:
@@ -365,7 +418,7 @@ class PyMastStoryPage(Page):
                 if player_obj.comms_id == player:
                     break
             if id is not None:
-                print(f"assigned to {id}")
+                #print(f"assigned to {id}")
                 sbs.assign_client_to_ship(self.client_id, id)
             return
         else:
