@@ -322,7 +322,7 @@ def set_data_set_value(data_set, key, value, index=0):
     return data_set.set(key, value, index)
 
 
-def get_engine_data_set(id_or_obj, sim):
+def get_engine_data_set(sim, id_or_obj):
     object = to_object(id_or_obj)
     if object is not None:
         return object.get_engine_data_set(sim)

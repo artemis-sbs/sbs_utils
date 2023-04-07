@@ -1,22 +1,21 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Console Dispatcher &mdash; SBS Utils 1.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/graphviz.css" type="text/css" />
+      <link rel="stylesheet" href="_static/tabs.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -29,11 +28,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> SBS Utils
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            SBS Utils
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -42,6 +45,22 @@
               <ul>
 <li class="toctree-l1"><a class="reference internal" href="index_desc.html">Utilities for Artemis Cosmos</a></li>
 <li class="toctree-l1"><a class="reference internal" href="index_contrib.html">Contribution</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Mast and PyMast:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="mastoverview.html">What is Mast</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mastsyntax.html">Language Basics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mastsbssyntax.html">Engine Interactions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="maststorysyntax.html">Story Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mastextending.html">TBD</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/setup.html">Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/entry.html">Entry Points, events, and handlers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/gui.html">Adding Gui pages and using the Gui System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/mast.html">Adding MAST to you mission</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
 <ul>
@@ -63,27 +82,36 @@
 <li class="toctree-l2"><a class="reference internal" href="#example-sending-comms-buttons">Example: Sending comms buttons</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#example-handling-comms-button-messages">Example: handling comms button messages</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#non-class-console-handling">non class console handling</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.consoledispatcher">API consoledispatcher module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.consoledispatcher">API consoledispatcher module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher"><code class="docutils literal notranslate"><span class="pre">ConsoleDispatcher</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.add_message"><code class="docutils literal notranslate"><span class="pre">ConsoleDispatcher.add_message()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.add_message_pair"><code class="docutils literal notranslate"><span class="pre">ConsoleDispatcher.add_message_pair()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.add_select"><code class="docutils literal notranslate"><span class="pre">ConsoleDispatcher.add_select()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.add_select_pair"><code class="docutils literal notranslate"><span class="pre">ConsoleDispatcher.add_select_pair()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.convert"><code class="docutils literal notranslate"><span class="pre">ConsoleDispatcher.convert()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.convert_to_console_id"><code class="docutils literal notranslate"><span class="pre">ConsoleDispatcher.convert_to_console_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_message"><code class="docutils literal notranslate"><span class="pre">ConsoleDispatcher.dispatch_message()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_select"><code class="docutils literal notranslate"><span class="pre">ConsoleDispatcher.dispatch_select()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.do_select"><code class="docutils literal notranslate"><span class="pre">ConsoleDispatcher.do_select()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.remove_message"><code class="docutils literal notranslate"><span class="pre">ConsoleDispatcher.remove_message()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.remove_message_pair"><code class="docutils literal notranslate"><span class="pre">ConsoleDispatcher.remove_message_pair()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.remove_select"><code class="docutils literal notranslate"><span class="pre">ConsoleDispatcher.remove_select()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.remove_select_pair"><code class="docutils literal notranslate"><span class="pre">ConsoleDispatcher.remove_select_pair()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.consoledispatcher.MCommunications"><code class="docutils literal notranslate"><span class="pre">MCommunications</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.consoledispatcher.MCommunications.comms_message"><code class="docutils literal notranslate"><span class="pre">MCommunications.comms_message()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.consoledispatcher.MCommunications.comms_selected"><code class="docutils literal notranslate"><span class="pre">MCommunications.comms_selected()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.consoledispatcher.MCommunications.enable_comms"><code class="docutils literal notranslate"><span class="pre">MCommunications.enable_comms()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">The Mast Language:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="mastsyntax.html">Language Basics</a></li>
-<li class="toctree-l1"><a class="reference internal" href="mastsbssyntax.html">Engine Interactions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="maststorysyntax.html">Story Components</a></li>
-<li class="toctree-l1"><a class="reference internal" href="mastextending.html">TBD</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/overview.html">Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/setup.html">Setup</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/entry.html">Entry Points, events, and handlers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/gui.html">Adding Gui pages and using the Gui System</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/mast.html">Adding MAST to you mission</a></li>
 </ul>
 
         </div>
@@ -99,8 +127,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Console Dispatcher</li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Console Dispatcher</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/consoledispatcher.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -246,7 +274,7 @@ The message is the button_tag.</p>
              <span class="bp">self</span><span class="o">.</span><span class="n">send_comms</span><span class="p">(</span><span class="s1">&#39;Gathering replicator fuel&#39;</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="n">player_id</span><span class="p">)</span>
              <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">HarvesterState</span><span class="o">.</span><span class="n">HARVESTING</span>
              <span class="bp">self</span><span class="o">.</span><span class="n">find_target</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
-         <span class="k">case</span> <span class="s1">&#39;</span><span class="k">_</span><span class="s1">&#39;:</span>
+         <span class="k">case</span><span class="w"> </span><span class="s1">&#39;</span><span class="k">_</span><span class="s1">&#39;:</span>
              <span class="k">return</span>
 
      <span class="c1"># Clear buttons?</span>
@@ -282,11 +310,11 @@ The message is the button_tag.</p>
 <span class="sig-name descname"><span class="pre">add_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.add_message" title="Permalink to this definition"></a></dt>
 <dd><p>add a target for console message</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
 <li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
-<li><p><strong>cb</strong> (<em>should have arguments of other sim</em><em>, </em><em>message and object's id</em>) – call back function</p></li>
+<li><p><strong>cb</strong> (<em>should have arguments</em><em> of </em><em>other sim</em><em>, </em><em>message and object's id</em>) – call back function</p></li>
 </ul>
 </dd>
 </dl>
@@ -297,11 +325,11 @@ The message is the button_tag.</p>
 <span class="sig-name descname"><span class="pre">add_message_pair</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">another</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.add_message_pair" title="Permalink to this definition"></a></dt>
 <dd><p>add a target for console message</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
 <li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
-<li><p><strong>cb</strong> (<em>should have arguments of other sim</em><em>, </em><em>message and object's id</em>) – call back function</p></li>
+<li><p><strong>cb</strong> (<em>should have arguments</em><em> of </em><em>other sim</em><em>, </em><em>message and object's id</em>) – call back function</p></li>
 </ul>
 </dd>
 </dl>
@@ -312,11 +340,11 @@ The message is the button_tag.</p>
 <span class="sig-name descname"><span class="pre">add_select</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.add_select" title="Permalink to this definition"></a></dt>
 <dd><p>add a target for console selection</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
 <li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
-<li><p><strong>cb</strong> (<em>should have arguments of other sim and object's id</em>) – call back function</p></li>
+<li><p><strong>cb</strong> (<em>should have arguments</em><em> of </em><em>other sim and object's id</em>) – call back function</p></li>
 </ul>
 </dd>
 </dl>
@@ -327,11 +355,11 @@ The message is the button_tag.</p>
 <span class="sig-name descname"><span class="pre">add_select_pair</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">another_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.add_select_pair" title="Permalink to this definition"></a></dt>
 <dd><p>add a target for console selection</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
 <li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
-<li><p><strong>cb</strong> (<em>should have arguments of other sim and object's id</em>) – call back function</p></li>
+<li><p><strong>cb</strong> (<em>should have arguments</em><em> of </em><em>other sim and object's id</em>) – call back function</p></li>
 </ul>
 </dd>
 </dl>
@@ -352,7 +380,7 @@ The message is the button_tag.</p>
 <span class="sig-name descname"><span class="pre">dispatch_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_message" title="Permalink to this definition"></a></dt>
 <dd><p>dispatches a console message</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Simulation</em>) – The simulation</p></li>
 <li><p><strong>message_tag</strong> (<em>string</em>) – The message</p></li>
@@ -369,7 +397,7 @@ The message is the button_tag.</p>
 <span class="sig-name descname"><span class="pre">dispatch_select</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_select" title="Permalink to this definition"></a></dt>
 <dd><p>dispatches a console selection</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Simulation</em>) – The simulation</p></li>
 <li><p><strong>player_id</strong> (<em>int</em>) – A player ship ID</p></li>
@@ -387,10 +415,10 @@ The message is the button_tag.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.remove_message">
-<span class="sig-name descname"><span class="pre">remove_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.remove_message" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">remove_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.remove_message" title="Permalink to this definition"></a></dt>
 <dd><p>remove a target for console messages</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
 <li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
@@ -404,7 +432,7 @@ The message is the button_tag.</p>
 <span class="sig-name descname"><span class="pre">remove_message_pair</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">another_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.remove_message_pair" title="Permalink to this definition"></a></dt>
 <dd><p>remove a target for console messages</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
 <li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
@@ -415,10 +443,10 @@ The message is the button_tag.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.ConsoleDispatcher.remove_select">
-<span class="sig-name descname"><span class="pre">remove_select</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.remove_select" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">remove_select</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.remove_select" title="Permalink to this definition"></a></dt>
 <dd><p>remove a target for console selection</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
 <li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
@@ -432,7 +460,7 @@ The message is the button_tag.</p>
 <span class="sig-name descname"><span class="pre">remove_select_pair</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">another_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.ConsoleDispatcher.remove_select_pair" title="Permalink to this definition"></a></dt>
 <dd><p>remove a target for console selection</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
 <li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
@@ -452,7 +480,7 @@ The message is the button_tag.</p>
 <span class="sig-name descname"><span class="pre">comms_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">an_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.MCommunications.comms_message" title="Permalink to this definition"></a></dt>
 <dd><p>handle a comms message</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Simulation</em>) – The simulation</p></li>
 <li><p><strong>message_tag</strong> (<em>string</em>) – The message</p></li>
@@ -467,7 +495,7 @@ The message is the button_tag.</p>
 <span class="sig-name descname"><span class="pre">comms_selected</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">an_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.MCommunications.comms_selected" title="Permalink to this definition"></a></dt>
 <dd><p>handle a comms selection</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Simulation</em>) – The simulation</p></li>
 <li><p><strong>an_id</strong> (<em>int</em>) – The other ship involved</p></li>
@@ -481,7 +509,7 @@ The message is the button_tag.</p>
 <span class="sig-name descname"><span class="pre">enable_comms</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face_desc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.MCommunications.enable_comms" title="Permalink to this definition"></a></dt>
 <dd><p>includes in ConsoleDispatch system</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>face_desc</strong> (<em>string</em>) – Face Description</p>
 </dd>
 </dl>

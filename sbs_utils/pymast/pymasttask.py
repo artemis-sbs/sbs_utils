@@ -7,6 +7,15 @@ from functools import partial
 
 class DataHolder(object):
     pass
+
+# defining a decorator that can take anything
+def label(*dargs, **dkwargs):
+    def dec(func):
+        def inner(*args, **kwargs):
+            return func(*args, **kwargs)
+        return inner
+    return dec
+         
 ###
 ##
 ## Runs a set of generator functions

@@ -372,7 +372,7 @@ class PyMastStoryPage(Page):
         for layout in self.layouts:
             layout.on_message(sim,event)
         if self.on_message_cb is not None:
-            refresh = self.on_message_cb(self.story, sim, event)
+            refresh = self.on_message_cb(sim, event)
         if refresh:
             self.gui_state = "refresh"
             self.present(sim, event)

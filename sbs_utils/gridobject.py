@@ -3,6 +3,7 @@ import sbs
 import functools
 from .engineobject import EngineObject, SpawnData, CloseData, Stuff
 
+  
 
 class GridObject(EngineObject):
     # roles : Stuff = Stuff()
@@ -122,6 +123,7 @@ class GridObject(EngineObject):
         go : sbs.grid_object
         go   = hullMap.create_grid_object(name, tag, go_type)
         self.id = go.unique_ID
+        self.add()
         self.add_role(go_type)
         self.add_role(self.__class__.__name__)
 

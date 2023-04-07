@@ -13,7 +13,9 @@ class Listbox(Widget):
       - text
     """
 
-    def __init__(self, left, top, tag_prefix, items, text=None, face=None, ship=None, select=False, multi=False, item_height=5) -> None:
+    def __init__(self, left, top, tag_prefix, items, 
+                 text=None, face=None, ship=None, icon=None, image=None,
+                 select=False, multi=False, item_height=5) -> None:
         """ Listbox
 
         A widget Shows a list of things
@@ -34,6 +36,8 @@ class Listbox(Widget):
         self.text = text
         self.face = face
         self.ship = ship
+        self.image = image
+        self.icon = icon
         self.select = select
         self.multi= multi
         self.cur = 0 
@@ -41,6 +45,7 @@ class Listbox(Widget):
         self.square_width_percent = 0
         self.slots =[]
         self.selected = set()
+
 
     def present(self, sim, event):
         """ present
@@ -95,9 +100,22 @@ class Listbox(Widget):
             item = self.items[cur]
             # track what item is in what slot
             self.slots.append(cur)
+            if self.icon is not None:
+                icon_to_display = self.icon(item)
+                sbs.send_gui_icon(CID, icon_to_display, f"{self.tag_prefix}icon:{slot}", 
+                    left, top,
+                    left+square_width_percent, top+square_height_percent )
+                left += square_width_percent
+            if self.image is not None:
+                icon_to_display = self.image(item)
+                sbs.send_gui_icon(CID, icon_to_display, f"{self.tag_prefix}icon:{slot}", 
+                    10, 
+                    left, top,
+                    left+square_width_percent, top+square_height_percent )
+                left += square_width_percent
             if self.ship: 
-                ship_to_diplay = self.ship(item)
-                sbs.send_gui_3dship(CID, ship_to_diplay, f"{self.tag_prefix}ship:{slot}", 
+                ship_to_display = self.ship(item)
+                sbs.send_gui_3dship(CID, ship_to_display, f"{self.tag_prefix}ship:{slot}", 
                     left, top,
                     left+square_width_percent, top+square_height_percent )
                 left += square_width_percent
@@ -185,7 +203,9 @@ class Listbox(Widget):
         return self.get_selected()
 
 
-def list_box_control(items, text=None, face=None, ship=None, select=False, multi=False, item_height=5):
-    return Listbox(0, 0, "mast", items, text, face, ship, select, multi, item_height)
+def list_box_control(items, text=None, face=None, ship=None, icon=None, image=None, select=False, multi=False, item_height=5):
+    return Listbox(0, 0, "mast", items, text=text, face=face, ship=ship, 
+                   icon = icon, image = image,
+                   select=select, multi=multi, item_height=item_height)
 
 #list_box_control(ships, text=lambda ship: ship.comms_id, ship=lambda ship: ship.art_id)

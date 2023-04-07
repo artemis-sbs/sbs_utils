@@ -34,7 +34,8 @@ release = '1.0'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    'sphinx.ext.graphviz'
+    'sphinx.ext.graphviz',
+    'sphinx_tabs.tabs'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -59,3 +60,27 @@ html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 
 graphviz_dot="F:\\t\\graphviz\\bin\\dot.exe"
+
+from pygments.lexer import RegexLexer
+from pygments.token import *
+
+class MastLexer(RegexLexer):
+    name = 'Mast'
+    aliases = ['mast']
+    filenames = ['*.mast']
+
+    tokens = {
+        'root': [
+            (r' .*\n', Text),
+            (r'\+.*\n', Generic.Inserted),
+            (r'-.*\n', Generic.Deleted),
+            (r'@.*\n', Generic.Subheading),
+            (r'Index.*\n', Generic.Heading),
+            (r'=.*\n', Generic.Heading),
+            (r'.*\n', Text),
+        ]
+    }
+
+
+def setup(app):
+   app.add_lexer('mast', MastLexer)

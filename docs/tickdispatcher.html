@@ -1,22 +1,21 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TickDispatcher &mdash; SBS Utils 1.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/graphviz.css" type="text/css" />
+      <link rel="stylesheet" href="_static/tabs.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -29,11 +28,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> SBS Utils
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            SBS Utils
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -42,6 +45,22 @@
               <ul>
 <li class="toctree-l1"><a class="reference internal" href="index_desc.html">Utilities for Artemis Cosmos</a></li>
 <li class="toctree-l1"><a class="reference internal" href="index_contrib.html">Contribution</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Mast and PyMast:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="mastoverview.html">What is Mast</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mastsyntax.html">Language Basics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mastsbssyntax.html">Engine Interactions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="maststorysyntax.html">Story Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mastextending.html">TBD</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/setup.html">Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/entry.html">Entry Points, events, and handlers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/gui.html">Adding Gui pages and using the Gui System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/mast.html">Adding MAST to you mission</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
 <ul>
@@ -64,25 +83,26 @@
 <li class="toctree-l2"><a class="reference internal" href="#example-run-continuously">Example: run continuously</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#example-stopping-a-task">Example: Stopping a task</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#example-passing-data">Example: passing data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.tickdispatcher">API: tickdispatcher module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.tickdispatcher">API: tickdispatcher module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.tickdispatcher.TickDispatcher"><code class="docutils literal notranslate"><span class="pre">TickDispatcher</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.tickdispatcher.TickDispatcher.completed"><code class="docutils literal notranslate"><span class="pre">TickDispatcher.completed</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.tickdispatcher.TickDispatcher.current"><code class="docutils literal notranslate"><span class="pre">TickDispatcher.current</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.tickdispatcher.TickDispatcher.dispatch_tick"><code class="docutils literal notranslate"><span class="pre">TickDispatcher.dispatch_tick()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.tickdispatcher.TickDispatcher.do_interval"><code class="docutils literal notranslate"><span class="pre">TickDispatcher.do_interval()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.tickdispatcher.TickDispatcher.do_once"><code class="docutils literal notranslate"><span class="pre">TickDispatcher.do_once()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.tickdispatcher.TickDispatcher.tps"><code class="docutils literal notranslate"><span class="pre">TickDispatcher.tps</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.tickdispatcher.TickTask"><code class="docutils literal notranslate"><span class="pre">TickTask</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.tickdispatcher.TickTask.done"><code class="docutils literal notranslate"><span class="pre">TickTask.done</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.tickdispatcher.TickTask.stop"><code class="docutils literal notranslate"><span class="pre">TickTask.stop()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">The Mast Language:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="mastsyntax.html">Language Basics</a></li>
-<li class="toctree-l1"><a class="reference internal" href="mastsbssyntax.html">Engine Interactions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="maststorysyntax.html">Story Components</a></li>
-<li class="toctree-l1"><a class="reference internal" href="mastextending.html">TBD</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/overview.html">Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/setup.html">Setup</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/entry.html">Entry Points, events, and handlers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/gui.html">Adding Gui pages and using the Gui System</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/mast.html">Adding MAST to you mission</a></li>
 </ul>
 
         </div>
@@ -98,8 +118,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>TickDispatcher</li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">TickDispatcher</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/tickdispatcher.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -269,6 +289,11 @@ This one show using self.</p>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>The Tick Dispatcher is used to manager timed items via the HandleSimulationTick</p>
 <dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.tickdispatcher.TickDispatcher.completed">
+<span class="sig-name descname"><span class="pre">completed</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#sbs_utils.tickdispatcher.TickDispatcher.completed" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
 <dt class="sig sig-object py" id="sbs_utils.tickdispatcher.TickDispatcher.current">
 <span class="sig-name descname"><span class="pre">current</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sbs_utils.tickdispatcher.TickDispatcher.current" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
@@ -283,10 +308,10 @@ and if it is completed</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.tickdispatcher.TickDispatcher.do_interval">
-<span class="sig-name descname"><span class="pre">do_interval</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">callable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">count</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.tickdispatcher.TickDispatcher.do_interval" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">do_interval</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">callable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">count</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.tickdispatcher.TickDispatcher.do_interval" title="Permalink to this definition"></a></dt>
 <dd><p>Create and return a task that executes more than once</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> – The Artemis Cosmos simulation</p></li>
 <li><p><strong>cb</strong> – call back function</p></li>
@@ -294,10 +319,10 @@ and if it is completed</p>
 <li><p><strong>count</strong> (<em>int</em><em> or </em><em>None</em>) – The number of times to run None mean infinite</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>The task is returned and can be used to attach data for future use.</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>TickFTask</p>
 </dd>
 </dl>
@@ -319,17 +344,17 @@ and if it is completed</p>
 <span class="sig-name descname"><span class="pre">do_once</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">callable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.tickdispatcher.TickDispatcher.do_once" title="Permalink to this definition"></a></dt>
 <dd><p>Create and return a task that executes once</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> – The Artemis Cosmos simulation</p></li>
 <li><p><strong>cb</strong> – call back function</p></li>
 <li><p><strong>delay</strong> (<em>int</em>) – the time in seconds for the task to delay</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>The task is returned and can be used to attach data for future use.</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#sbs_utils.tickdispatcher.TickTask" title="sbs_utils.tickdispatcher.TickTask">TickTask</a></p>
 </dd>
 </dl>

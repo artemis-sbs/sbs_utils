@@ -1,22 +1,21 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>The Faces module &mdash; SBS Utils 1.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/graphviz.css" type="text/css" />
+      <link rel="stylesheet" href="_static/tabs.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -29,11 +28,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> SBS Utils
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            SBS Utils
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -43,31 +46,9 @@
 <li class="toctree-l1"><a class="reference internal" href="index_desc.html">Utilities for Artemis Cosmos</a></li>
 <li class="toctree-l1"><a class="reference internal" href="index_contrib.html">Contribution</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
-<ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="spaceobject.html">Space Object</a></li>
-<li class="toctree-l1"><a class="reference internal" href="roles.html">The roles system</a></li>
-<li class="toctree-l1"><a class="reference internal" href="targeting.html">The targeting system</a></li>
-<li class="toctree-l1"><a class="reference internal" href="vec.html">The vector class</a></li>
-<li class="toctree-l1"><a class="reference internal" href="scatter.html">The Scatter modules</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">The Faces module</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#face-generation-functions">Face generation functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#character-faces">Character Faces</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#the-faces-string-syntax">The faces string syntax</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.faces">API: faces module</a></li>
-</ul>
-</li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">Systems:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Mast and PyMast:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="gui.html">GUI system</a></li>
-<li class="toctree-l1"><a class="reference internal" href="consoledispatcher.html">Console Dispatcher</a></li>
-<li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
-<li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">The Mast Language:</span></p>
-<ul>
+<li class="toctree-l1"><a class="reference internal" href="mastoverview.html">What is Mast</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mastsyntax.html">Language Basics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mastsbssyntax.html">Engine Interactions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="maststorysyntax.html">Story Components</a></li>
@@ -80,6 +61,54 @@
 <li class="toctree-l1"><a class="reference internal" href="tutorials/entry.html">Entry Points, events, and handlers</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/gui.html">Adding Gui pages and using the Gui System</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/mast.html">Adding MAST to you mission</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="spaceobject.html">Space Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="roles.html">The roles system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="targeting.html">The targeting system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="vec.html">The vector class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scatter.html">The Scatter modules</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">The Faces module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#face-generation-functions">Face generation functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#character-faces">Character Faces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-faces-string-syntax">The faces string syntax</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.faces">API: faces module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.Characters"><code class="docutils literal notranslate"><span class="pre">Characters</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.faces.Characters.URSULA"><code class="docutils literal notranslate"><span class="pre">Characters.URSULA</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.arvonian"><code class="docutils literal notranslate"><span class="pre">arvonian()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.clear_face"><code class="docutils literal notranslate"><span class="pre">clear_face()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.get_face"><code class="docutils literal notranslate"><span class="pre">get_face()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.kralien"><code class="docutils literal notranslate"><span class="pre">kralien()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.probably"><code class="docutils literal notranslate"><span class="pre">probably()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.random_arvonian"><code class="docutils literal notranslate"><span class="pre">random_arvonian()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.random_kralien"><code class="docutils literal notranslate"><span class="pre">random_kralien()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.random_skaraan"><code class="docutils literal notranslate"><span class="pre">random_skaraan()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.random_terran"><code class="docutils literal notranslate"><span class="pre">random_terran()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.random_terran_female"><code class="docutils literal notranslate"><span class="pre">random_terran_female()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.random_terran_fluid"><code class="docutils literal notranslate"><span class="pre">random_terran_fluid()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.random_terran_male"><code class="docutils literal notranslate"><span class="pre">random_terran_male()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.random_torgoth"><code class="docutils literal notranslate"><span class="pre">random_torgoth()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.random_ximni"><code class="docutils literal notranslate"><span class="pre">random_ximni()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.set_face"><code class="docutils literal notranslate"><span class="pre">set_face()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.skaraan"><code class="docutils literal notranslate"><span class="pre">skaraan()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.terran"><code class="docutils literal notranslate"><span class="pre">terran()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.torgoth"><code class="docutils literal notranslate"><span class="pre">torgoth()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.faces.ximni"><code class="docutils literal notranslate"><span class="pre">ximni()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Systems:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="gui.html">GUI system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="consoledispatcher.html">Console Dispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
 </ul>
 
         </div>
@@ -95,8 +124,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>The Faces module</li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">The Faces module</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/faces.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -186,7 +215,7 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">arvonian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eye_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mouth_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crown_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">collar_i</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.arvonian" title="Permalink to this definition"></a></dt>
 <dd><p>Create an arvonian face</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>face_i</strong> (<em>int</em>) – The index of the face 0</p></li>
 <li><p><strong>eye_id</strong> – The index of the eyes 0-4</p></li>
@@ -195,10 +224,10 @@ The first layer is the lowest layer.</p>
 <li><p><strong>collar_id</strong> – The index of the collar 0-4 or None</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>A Face string</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>string</p>
 </dd>
 </dl>
@@ -209,7 +238,7 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">clear_face</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ship_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.clear_face" title="Permalink to this definition"></a></dt>
 <dd><p>Removes a face string for a specified ID</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>ship_id</strong> (<em>int</em>) – The id of the ship/object</p>
 </dd>
 </dl>
@@ -220,13 +249,13 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">get_face</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ship_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.get_face" title="Permalink to this definition"></a></dt>
 <dd><p>returns a face string for a specified ID</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>ship_id</strong> (<em>int</em>) – The id of the ship/object</p>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>A Face string</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>string</p>
 </dd>
 </dl>
@@ -237,7 +266,7 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">kralien</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eye_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mouth_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scalp_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra_i</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.kralien" title="Permalink to this definition"></a></dt>
 <dd><p>Create an kralien face</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>face_i</strong> (<em>int</em>) – The index of the face 0</p></li>
 <li><p><strong>eye_id</strong> – The index of the eyes 0-4</p></li>
@@ -246,10 +275,10 @@ The first layer is the lowest layer.</p>
 <li><p><strong>extra_id</strong> – The index of the extra 0-4 or None</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>A Face string</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>string</p>
 </dd>
 </dl>
@@ -265,10 +294,10 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_arvonian</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_arvonian" title="Permalink to this definition"></a></dt>
 <dd><p>Create a random arvonian face</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>A Face string</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>string</p>
 </dd>
 </dl>
@@ -279,10 +308,10 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_kralien</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_kralien" title="Permalink to this definition"></a></dt>
 <dd><p>Create a random kralien face</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>A Face string</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>string</p>
 </dd>
 </dl>
@@ -293,10 +322,10 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_skaraan</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_skaraan" title="Permalink to this definition"></a></dt>
 <dd><p>Create a random skaraan face</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>A Face string</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>string</p>
 </dd>
 </dl>
@@ -307,16 +336,16 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_terran</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">civilian</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_terran" title="Permalink to this definition"></a></dt>
 <dd><p>Create a random terran face</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>face</strong> (<em>int</em><em> or </em><em>None</em>) – The index of the hair 0=male,1=female,2=fluid male, 3=fluid female or None= random</p></li>
 <li><p><strong>civilian</strong> (<em>boolean</em><em> or </em><em>None</em>) – The force this to be a civilian=True, For non-civilian=False or None= random</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>A Face string</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>string</p>
 </dd>
 </dl>
@@ -327,16 +356,16 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_terran_female</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">civilian</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_terran_female" title="Permalink to this definition"></a></dt>
 <dd><p>Create a random terran female face</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>face</strong> (<em>int</em><em> or </em><em>None</em>) – The index of the hair 0=male,1=female,2=fluid male, 3=fluid female or None= random</p></li>
 <li><p><strong>civilian</strong> (<em>boolean</em><em> or </em><em>None</em>) – The force this to be a civilian=True, For non-civilian=False or None= random</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>A Face string</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>string</p>
 </dd>
 </dl>
@@ -347,13 +376,13 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_terran_fluid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">civilian</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_terran_fluid" title="Permalink to this definition"></a></dt>
 <dd><p>Create a random fluid terran face i.e. may have male or female features</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>civilian</strong> (<em>boolean</em><em> or </em><em>None</em>) – The force this to be a civilian=True, For non-civilian=False or None= random</p>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>A Face string</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>string</p>
 </dd>
 </dl>
@@ -364,13 +393,13 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_terran_male</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">civilian</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_terran_male" title="Permalink to this definition"></a></dt>
 <dd><p>Create a random terran male face</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>civilian</strong> (<em>boolean</em><em> or </em><em>None</em>) – The force this to be a civilian=True, For non-civilian=False or None= random</p>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>A Face string</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>string</p>
 </dd>
 </dl>
@@ -381,10 +410,10 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_torgoth</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_torgoth" title="Permalink to this definition"></a></dt>
 <dd><p>Create a random torgoth face</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>A Face string</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>string</p>
 </dd>
 </dl>
@@ -395,10 +424,10 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">random_ximni</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.random_ximni" title="Permalink to this definition"></a></dt>
 <dd><p>Create a random ximni face</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>A Face string</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>string</p>
 </dd>
 </dl>
@@ -409,7 +438,7 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">set_face</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ship_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">face</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.set_face" title="Permalink to this definition"></a></dt>
 <dd><p>sets a face string for a specified ID</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>ship_id</strong> (<em>int</em>) – The id of the ship/object</p></li>
 <li><p><strong>face</strong> (<em>string</em>) – A Face string</p></li>
@@ -423,7 +452,7 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">skaraan</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eye_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mouth_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horn_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hat_i</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.skaraan" title="Permalink to this definition"></a></dt>
 <dd><p>Create a skaraan face</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>face_i</strong> (<em>int</em>) – The index of the face 0</p></li>
 <li><p><strong>eye_id</strong> – The index of the eyes 0-4</p></li>
@@ -432,10 +461,10 @@ The first layer is the lowest layer.</p>
 <li><p><strong>hat_id</strong> – The index of the hat 0-4 or None</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>A Face string</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>string</p>
 </dd>
 </dl>
@@ -446,7 +475,7 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">terran</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eye_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mouth_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hair_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">longhair_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">facial_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uniform_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skintone</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hairtone</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.terran" title="Permalink to this definition"></a></dt>
 <dd><p>Create an terran face</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>face_i</strong> (<em>int</em><em> or </em><em>None</em>) – The index of the face 0=male, 1=female, 2=fluid_male, 3=fluid_female</p></li>
 <li><p><strong>eye_i</strong> (<em>int</em><em> or </em><em>None</em>) – The index of the eyes 0-9</p></li>
@@ -460,10 +489,10 @@ The first layer is the lowest layer.</p>
 <li><p><strong>hairtone_i</strong> (<em>int</em><em>, </em><em>str</em><em> or </em><em>None</em>) – The index of the skintone 0-??, string = color string  or None.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>A Face string</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>string</p>
 </dd>
 </dl>
@@ -474,7 +503,7 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">torgoth</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eye_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mouth_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hair_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hat_i</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.torgoth" title="Permalink to this definition"></a></dt>
 <dd><p>Create a torgoth face</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>face_i</strong> (<em>int</em>) – The index of the face 0</p></li>
 <li><p><strong>eye_id</strong> – The index of the eyes 0-4</p></li>
@@ -484,10 +513,10 @@ The first layer is the lowest layer.</p>
 <li><p><strong>hat_id</strong> – The index of the hat 0 or None</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>A Face string</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>string</p>
 </dd>
 </dl>
@@ -498,7 +527,7 @@ The first layer is the lowest layer.</p>
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.faces.</span></span><span class="sig-name descname"><span class="pre">ximni</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eye_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mouth_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horns_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">collar_i</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.faces.ximni" title="Permalink to this definition"></a></dt>
 <dd><p>Create an ximni face</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>face_i</strong> (<em>int</em>) – The index of the face 0</p></li>
 <li><p><strong>eye_id</strong> – The index of the eyes 0-4</p></li>
@@ -508,10 +537,10 @@ The first layer is the lowest layer.</p>
 <li><p><strong>collar_id</strong> – The index of the collar 0 or None</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>A Face string</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>string</p>
 </dd>
 </dl>

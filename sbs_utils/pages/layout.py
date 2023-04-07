@@ -378,6 +378,58 @@ class Ship(Column):
     def value(self, v):
         self.ship= v
 
+class Icon(Column):
+    def __init__(self, icon, color, tag) -> None:
+        super().__init__()
+        self.color = color
+        self.icon = icon
+        self.tag = tag
+        self.square = True
+
+    def present(self, sim, event):
+        aspect_ratio = sbs.get_screen_size()
+        sbs.send_gui_icon(event.client_id, self.color, self.tag,
+                    self.icon,
+                    self.bounds.left+(self.bounds.right-self.bounds.left)/2,
+                    self.bounds.top+(self.bounds.bottom-self.bounds.top)/2, 
+                    ((aspect_ratio.x/100) * (self.bounds.right-self.bounds.left)/2))
+    @property
+    def value(self):
+         return self.icon
+       
+    @value.setter
+    def value(self, v):
+        self.icon= v
+
+class IconButton(Column):
+    def __init__(self, icon, color, tag) -> None:
+        super().__init__()
+        self.icon = icon
+        self.tag = tag
+        self.color = color
+
+    def present(self, sim, event):
+        aspect_ratio = sbs.get_screen_size()
+        sbs.send_gui_iconbutton(event.client_id, 
+            self.color, self.tag, 
+            #self.icon, 
+            10, 90, 30, 0)
+            #100, 40, 50 )
+            # self.bounds.left+(self.bounds.right-self.bounds.left)/2,
+            # self.bounds.top+(self.bounds.bottom-self.bounds.top)/2, 
+            # ((aspect_ratio.x/100) * (self.bounds.right-self.bounds.left)/2))
+            # self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+    @property
+    def value(self):
+         return self.message
+       
+    @value.setter
+    def value(self, v):
+        self.message = v
+
+
+
+        
 class GuiControl(Column):
     def __init__(self, content, tag) -> None:
         super().__init__()
@@ -530,6 +582,7 @@ class RadioButtonGroup(Column):
     def __init__(self, buttons, value, vertical, tag) -> None:
         super().__init__()
         buttons = buttons.split(",")
+        self.tag = tag
         group = []
         self.group = group
         self.group_layout = Layout()

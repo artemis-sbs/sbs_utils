@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Setup &mdash; SBS Utils 1.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/graphviz.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/tabs.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-        <script src="../_static/jquery.js"></script>
-        <script src="../_static/underscore.js"></script>
-        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+        <script src="../_static/tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -29,11 +29,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../index.html" class="icon icon-home"> SBS Utils
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            SBS Utils
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -42,6 +46,33 @@
               <ul>
 <li class="toctree-l1"><a class="reference internal" href="../index_desc.html">Utilities for Artemis Cosmos</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../index_contrib.html">Contribution</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Mast and PyMast:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../mastoverview.html">What is Mast</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mastsyntax.html">Language Basics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mastsbssyntax.html">Engine Interactions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../maststorysyntax.html">Story Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mastextending.html">TBD</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Setup</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#create-the-fast-way">Create the fast way</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#create-each-file">Create each file</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#create-mission-folder">Create mission folder</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#create-a-story">Create a story</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#create-script-py">Create script.py</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#create-description-txt">Create description.txt</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#create-sbslib-txt">Create sbslib.txt</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="entry.html">Entry Points, events, and handlers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gui.html">Adding Gui pages and using the Gui System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mast.html">Adding MAST to you mission</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
 <ul>
@@ -60,37 +91,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../tickdispatcher.html">TickDispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../hookhandlers.html">The hook Handlers</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">The Mast Language:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../mastsyntax.html">Language Basics</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../mastsbssyntax.html">Engine Interactions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../maststorysyntax.html">Story Components</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../mastextending.html">TBD</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
-<ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Setup</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#one-time-setup">One time Setup</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#install-artemis-cosmos">Install artemis cosmos</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#install-git-for-windows">Install git for windows</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#install-command-line-tools">Install command line tools</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="#setting-up-a-mission-to-use-library">Setting up a mission to use library</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#create-the-fast-way">Create the fast way</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#create-mission-folder">Create mission folder</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#create-script-py">Create script.py</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#create-requirements-txt">Create requirements.txt</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#run-pip-install">Run pip Install</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="entry.html">Entry Points, events, and handlers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="gui.html">Adding Gui pages and using the Gui System</a></li>
-<li class="toctree-l1"><a class="reference internal" href="mast.html">Adding MAST to you mission</a></li>
-</ul>
 
         </div>
       </div>
@@ -105,8 +105,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Setup</li>
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Setup</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/tutorials/setup.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -119,117 +119,142 @@
   <section id="setup">
 <h1>Setup<a class="headerlink" href="#setup" title="Permalink to this heading"></a></h1>
 <p>Setup includes step that you need to do once, and the steps when creating a new mission.</p>
-<p><strong>One time Setup</strong></p>
-<ol class="arabic simple">
-<li><p>Install Artemis Cosmos</p></li>
-<li><p>Install git for windows</p></li>
-<li><p>Install command line tools fetch and pip-install</p></li>
-</ol>
-<p><strong>Each new mission Setup</strong></p>
-<ol class="arabic simple">
-<li><p>create a Mission folder</p></li>
-<li><p>create a script.py</p></li>
-<li><p>create a requirements.txt</p></li>
-<li><p>run pip_install.bat</p></li>
-</ol>
-<section id="one-time-setup">
-<h2>One time Setup<a class="headerlink" href="#one-time-setup" title="Permalink to this heading"></a></h2>
-<p>These step are only need to need to be setup on a new PC setup.</p>
-<p>These are only needed on a server machine.</p>
-<section id="install-artemis-cosmos">
-<h3>Install artemis cosmos<a class="headerlink" href="#install-artemis-cosmos" title="Permalink to this heading"></a></h3>
-<p>Install Artemis Cosmos as one would.</p>
-</section>
-<section id="install-git-for-windows">
-<h3>Install git for windows<a class="headerlink" href="#install-git-for-windows" title="Permalink to this heading"></a></h3>
-<p>git is a free open source version control system used by many systems to manage code source files and libraries of source code.</p>
-<p>git can be <a class="reference external" href="https://git-scm.com/download/win">Downloaded here</a></p>
-<p>git is used by the python pip install process to install dependencies. It is also a useful tool to manage your code versions.</p>
-<p>Many missions and libraries will be store using git, and leveraging github. It may be worth learning about both git and github if you plan on doing mission development.</p>
-</section>
-<section id="install-command-line-tools">
-<h3>Install command line tools<a class="headerlink" href="#install-command-line-tools" title="Permalink to this heading"></a></h3>
-<p>A couple of batch files were created to help in loading missions as DLC (downloadable content).</p>
-<p>They are stored on <a class="reference external" href="https://github.com/artemis-sbs/commandline_tools">Github</a> and can be retrieved there. Or a direct <a class="reference external" href="https://github.com/artemis-sbs/commandline_tools/archive/refs/heads/main.zip">Download as a zip</a></p>
-<p>Place the files fetch.bat and pip_install.bat in your data\missions folder of Artemis Cosmos.</p>
-<p>fetch.bat is used to fetch missions stored on github and install them into the mission directory.
-pip_install.bat is used by fetch of by itself to install libraries of code used by a mission script.</p>
-<p>A demonstration of this will be to install the sbs_utils library for a new missions script follows.</p>
-</section>
-</section>
-<section id="setting-up-a-mission-to-use-library">
-<h2>Setting up a mission to use library<a class="headerlink" href="#setting-up-a-mission-to-use-library" title="Permalink to this heading"></a></h2>
-<p>The following steps you can do to create a new mission.</p>
-<p>You cn create it the ‘fast way’ by copying a boiler plate mission.
-Also the step-by-step method is described.</p>
 <section id="create-the-fast-way">
-<h3>Create the fast way<a class="headerlink" href="#create-the-fast-way" title="Permalink to this heading"></a></h3>
-<p>The fastest way to create a new mission that use the sbs_utils library is to use the fetch batch files that was described above.</p>
-<p>in the Artemis Cosmos directory run:</p>
-<div class="highlight-PowerShell notranslate"><div class="highlight"><pre><span></span><span class="p">.\\</span><span class="n">fetch</span> <span class="n">artemis-sbs</span> <span class="n">sbs_example</span> <span class="n">my-new-mission</span>
+<h2>Create the fast way<a class="headerlink" href="#create-the-fast-way" title="Permalink to this heading"></a></h2>
+<p>The fastest way to create a new mission that use the sbs_utils library is to use the fetch batch.</p>
+<p>in the Artemis Cosmos missions directory run:</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-0-bWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-bWFzdA==" name="bWFzdA==" role="tab" tabindex="0">mast</button><button aria-controls="panel-0-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-0-bWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-0-bWFzdA==" name="bWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>.<span class="se">\\</span>fetch<span class="w"> </span>artemis-sbs<span class="w"> </span>mast_starter<span class="w"> </span>my-new-mission
 </pre></div>
 </div>
-<p>Running this should retrieve the boilerplate mission sbs_example and place it in the my-new-mission folder</p>
+</div><div aria-labelledby="tab-0-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-0-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>.<span class="se">\\</span>fetch<span class="w"> </span>artemis-sbs<span class="w"> </span>pymast_starter<span class="w"> </span>my-new-mission
+</pre></div>
+</div>
+</div></div>
+<p>Running this should retrieve the boilerplate mission and place it in the my-new-mission folder</p>
 <p>Replacing my-new-mission with the name you desire for your mission.</p>
-<p>That should be it. Open my-new-mission\script.py in your editor and go.</p>
+<p>That should be it. Open my-new-mission\script.py in your editor and go.
+You may need to also edit description.txt to reflect your mission name etc.</p>
 </section>
+<section id="create-each-file">
+<h2>Create each file<a class="headerlink" href="#create-each-file" title="Permalink to this heading"></a></h2>
+<p>The slower way is to create all the files one ny one.</p>
+<ol class="arabic simple">
+<li><p>create a Mission folder</p></li>
+<li><p>create a story file</p></li>
+<li><p>create a script.py</p></li>
+<li><p>create a description.txt</p></li>
+<li><p>create a sbslib.txt</p></li>
+<li><p>run all_libs.bat</p></li>
+</ol>
 <section id="create-mission-folder">
 <h3>Create mission folder<a class="headerlink" href="#create-mission-folder" title="Permalink to this heading"></a></h3>
 <p>To create a mission from scratch, the first step is to create a mission folder.</p>
 <p>in the Artemis Cosmos data\missions folder create a new folder.</p>
-<div class="highlight-PowerShell notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>mkdir
 </pre></div>
 </div>
+</section>
+<section id="create-a-story">
+<h3>Create a story<a class="headerlink" href="#create-a-story" title="Permalink to this heading"></a></h3>
+<p>Mast and PyMast use a story. create a file for the story.</p>
+<ul class="simple">
+<li><p>For Mast create “story.mast”.</p></li>
+<li><p>For pyMast create “story.py”</p></li>
+</ul>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-1-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-1-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-1-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-1-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">==== start_server ====</span>
+&quot;&quot;&quot;Mast Mission&quot;&quot;&quot;
+
+await choice:
+<span class="gi">+ &quot;Start Mission&quot;:</span>
+  -&gt; start
+end_await
+
+<span class="gh">===== start ======</span>
+simulation create
+# Create your content
+simulation resume
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-1-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-1-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sbslibs</span>
+<span class="kn">import</span> <span class="nn">sbs</span>
+<span class="kn">from</span> <span class="nn">sbs_utils.pymast.pymaststory</span> <span class="kn">import</span> <span class="n">PyMastStory</span>
+
+<span class="k">class</span> <span class="nc">Story</span><span class="p">(</span><span class="n">PyMastStory</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">start_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gui_text</span><span class="p">(</span><span class="s2">&quot;PyMast Mission`&quot;</span><span class="p">)</span>
+
+        <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">await_gui</span><span class="p">({</span>
+            <span class="s2">&quot;Start Mission&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span>
+        <span class="p">})</span>
+
+    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">sbs</span><span class="o">.</span><span class="n">create_new_sim</span><span class="p">()</span>
+        <span class="c1"># Create your world</span>
+        <span class="n">sbs</span><span class="o">.</span><span class="n">resume_sim</span><span class="p">()</span>
+</pre></div>
+</div>
+</div></div>
 </section>
 <section id="create-script-py">
 <h3>Create script.py<a class="headerlink" href="#create-script-py" title="Permalink to this heading"></a></h3>
 <p>The next step is to create a script.py in the mission folder you created.</p>
 <p>This can be empty at the start or the library code to allow the script to run without error can be placed in it.
 This code will not run until the library is added by following the next steps.</p>
-<div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">lib.sbs_utils.handlerhooks</span> <span class="kn">import</span> <span class="o">*</span>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-2-bWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-2-bWFzdA==" name="bWFzdA==" role="tab" tabindex="0">mast</button><button aria-controls="panel-2-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-2-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-2-bWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-2-bWFzdA==" name="bWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sbslibs</span>
+<span class="kn">from</span>  <span class="nn">sbs_utils.handlerhooks</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">sbs_utils.gui</span> <span class="kn">import</span> <span class="n">Gui</span>
+<span class="kn">from</span> <span class="nn">sbs_utils.mast.maststoryscheduler</span> <span class="kn">import</span> <span class="n">StoryPage</span>
+
+
+<span class="k">class</span> <span class="nc">MyStoryPage</span><span class="p">(</span><span class="n">StoryPage</span><span class="p">):</span>
+    <span class="n">story_file</span> <span class="o">=</span> <span class="s2">&quot;story.mast&quot;</span>
+
+<span class="n">Gui</span><span class="o">.</span><span class="n">server_start_page_class</span><span class="p">(</span><span class="n">MyStoryPage</span><span class="p">)</span>
+<span class="n">Gui</span><span class="o">.</span><span class="n">client_start_page_class</span><span class="p">(</span><span class="n">MyStoryPage</span><span class="p">)</span>
 </pre></div>
 </div>
+</div><div aria-labelledby="tab-2-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-2-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sbslibs</span>
+<span class="kn">import</span> <span class="nn">sbs</span>
+<span class="kn">from</span> <span class="nn">sbs_utils.handlerhooks</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">sbs_utils.gui</span> <span class="kn">import</span> <span class="n">Gui</span>
+<span class="kn">from</span> <span class="nn">sbs_utils.pymast.pymaststorypage</span> <span class="kn">import</span> <span class="n">PyMastStoryPage</span>
+<span class="kn">from</span> <span class="nn">.story</span> <span class="kn">import</span> <span class="n">Story</span>
+
+<span class="k">class</span> <span class="nc">StoryPage</span><span class="p">(</span><span class="n">PyMastStoryPage</span><span class="p">):</span>
+    <span class="n">story</span> <span class="o">=</span> <span class="n">Story</span><span class="p">()</span>
+
+<span class="n">Gui</span><span class="o">.</span><span class="n">server_start_page_class</span><span class="p">(</span><span class="n">StoryPage</span><span class="p">)</span>
+<span class="n">Gui</span><span class="o">.</span><span class="n">client_start_page_class</span><span class="p">(</span><span class="n">StoryPage</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
 <p>This code will add functions that have default behavior for all the handler functions Artemis Cosmos calls.</p>
 </section>
-<section id="create-requirements-txt">
-<h3>Create requirements.txt<a class="headerlink" href="#create-requirements-txt" title="Permalink to this heading"></a></h3>
-<p>The file requirements.txt is a python standard way to list libraries a project (i.e. mission) has.</p>
-<p>For more information on requirements.txt <a href="#id1"><span class="problematic" id="id2">`</span></a>visit &lt;<a class="reference external" href="https://pip.pypa.io/en/stable/reference/requirements-file-format/">https://pip.pypa.io/en/stable/reference/requirements-file-format/</a>&gt;`pip_install</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span><span class="o">+</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">artemis</span><span class="o">-</span><span class="n">sbs</span><span class="o">/</span><span class="n">sbs_utils</span><span class="o">.</span><span class="n">git</span><span class="nd">@master</span><span class="c1">#egg=sbs_utils</span>
-</pre></div>
-</div>
-<p>Adding the above will reference the main branch of sbs_utils on github. A arguably better method is to point to a specific version of the library’s releases.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sbs_utils</span> <span class="o">@</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">artemis</span><span class="o">-</span><span class="n">sbs</span><span class="o">/</span><span class="n">sbs_example</span><span class="o">/</span><span class="n">archive</span><span class="o">/</span><span class="n">refs</span><span class="o">/</span><span class="n">tags</span><span class="o">/</span><span class="n">v0</span><span class="mf">.1</span><span class="o">.</span><span class="n">zip</span>
-</pre></div>
-</div>
-<p>This version still leverages github, but it specifies a version <strong>0.1</strong></p>
-<p>Using the version that the script is developed with is a good practice that may assure the script will ot break when new versions are released.</p>
-<p>To see what versions exist <a class="reference external" href="https://github.com/artemis-sbs/sbs_example/releases">go here</a></p>
-<p>You can add other python libraries as well.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">numpy</span>
-<span class="n">pytest</span>
-<span class="n">sphinx</span>
+<section id="create-description-txt">
+<h3>Create description.txt<a class="headerlink" href="#create-description-txt" title="Permalink to this heading"></a></h3>
+<p>The description.txt file is used by Artemis Cosmos.</p>
+<ul class="simple">
+<li><p>The first line is a category</p></li>
+<li><p>The second line is the description</p></li>
+<li><p>remaining lines are an Icon and a color for the icon</p></li>
+</ul>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Learning
+Basic Siege in MAST
+58 #48f
 </pre></div>
 </div>
 </section>
-<section id="run-pip-install">
-<h3>Run pip Install<a class="headerlink" href="#run-pip-install" title="Permalink to this heading"></a></h3>
-<p>PIP is the standard way to install packages/libraries for python.</p>
-<p>Artemis Cosmos does not ship with PIP.</p>
-<p>the pip_install.bat files does two things.</p>
-<ol class="arabic simple">
-<li><p>Install pip if needed</p></li>
-<li><p>Install the packages in requirement.txt into the lib folder of the mission</p></li>
-</ol>
-<p>If pip is not found in Artemis Cosmos it will download and install it.
-It will only do this this first time. if pip is already there it does not install it again.</p>
-<p>If you change requirements.txt you can run pip_install from the data\missions folder</p>
-<div class="highlight-PowerShell notranslate"><div class="highlight"><pre><span></span><span class="n">pip_install</span> <span class="n">my-new-mission</span>
+<section id="create-sbslib-txt">
+<h3>Create sbslib.txt<a class="headerlink" href="#create-sbslib-txt" title="Permalink to this heading"></a></h3>
+<p>The file sbslib.txt is a way to list libraries a project (i.e. mission) has.</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>artemis-sbs sbs_utils v0.6.7
 </pre></div>
 </div>
-<p>after this the sbs_utils module should be installed in the lib folder of the new mission.</p>
-<p>If there are additional packages listed in requirements.txt, then they will also be installed.</p>
-<p>The new mission should now be ready to use sbs_utils from script.py</p>
+<p>Adding the above will reference a release of sbs_utils on github.
+Check for the most relevant: <a class="reference external" href="https://github.com/artemis-sbs/sbs_utils/releases">https://github.com/artemis-sbs/sbs_utils/releases</a></p>
 </section>
 </section>
 </section>

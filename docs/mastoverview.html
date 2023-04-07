@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Language Basics &mdash; SBS Utils 1.0 documentation</title>
+  <title>What is Mast &mdash; SBS Utils 1.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/graphviz.css" type="text/css" />
@@ -20,8 +20,8 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Engine Interactions" href="mastsbssyntax.html" />
-    <link rel="prev" title="What is Mast" href="mastoverview.html" /> 
+    <link rel="next" title="Language Basics" href="mastsyntax.html" />
+    <link rel="prev" title="Contribution" href="index_contrib.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -49,9 +49,13 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Mast and PyMast:</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="mastoverview.html">What is Mast</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Language Basics</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#language-high-level-concepts">Language high level concepts</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">What is Mast</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#mast-execution-flow">Mast execution flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mast-and-pymast">Mast and PyMast</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mast-and-pausing-the-flow">Mast and pausing the flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#sub-plots-aka-tasks">Sub plots aka Tasks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#schedulers">Schedulers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mast-object-model">Mast Object Model</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#basic-language">Basic Language</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#data">Data</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#simple-assignment">Simple assignment</a></li>
@@ -66,7 +70,6 @@
 <li class="toctree-l3"><a class="reference internal" href="#state-flow-changes-jump-push-pop">State/Flow changes: Jump, Push, Pop</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#jump">Jump</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#push-pop">Push/Pop</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#pop-n-jump">Pop n’ Jump</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#jump-to-end">Jump to End</a></li>
 </ul>
 </li>
@@ -87,8 +90,6 @@
 <li class="toctree-l3"><a class="reference internal" href="#comments-and-markers">Comments and Markers</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#comments">Comments</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#multi-line-comments-aka-block-comments">Multi line Comments aka block comments</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#named-block-comments">Named block comments</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#markers">Markers</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#importing">Importing</a></li>
@@ -98,6 +99,7 @@
 </li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="mastsyntax.html">Language Basics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mastsbssyntax.html">Engine Interactions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="maststorysyntax.html">Story Components</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mastextending.html">TBD</a></li>
@@ -142,9 +144,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Language Basics</li>
+      <li class="breadcrumb-item active">What is Mast</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="_sources/mastsyntax.rst.txt" rel="nofollow"> View page source</a>
+            <a href="_sources/mastoverview.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -152,45 +154,200 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="language-basics">
-<h1>Language Basics<a class="headerlink" href="#language-basics" title="Permalink to this heading"></a></h1>
-<p>Mast is an abbreviation for Multiple Actor/Audience Story Telling. So, it is for writing Multiplayer choose your own adventure types of stories.</p>
-<p>Mast is a interpreted scripting Language for adding interactivity, narrative, quest etc.</p>
-<p>The  Mast technology can be used in many various systems. What may be different is the actors, tasks and events that are in the system.</p>
-<p>Mast in Artemis Cosmos the multiple actors are the players, the ships and various characters that can be on ships, etc.</p>
-<p>Task and events that are specific  for Artemis Cosmos are things like ship comms, targeting, the startup screen, client console screens.</p>
-<section id="language-high-level-concepts">
-<h2>Language high level concepts<a class="headerlink" href="#language-high-level-concepts" title="Permalink to this heading"></a></h2>
-<p>This section will present terms of how Mast works and how mast code is organized.</p>
-<ul class="simple">
-<li><p>story aka mast</p></li>
-<li><p>data</p></li>
-<li><p>tasks</p></li>
-<li><p>scheduler</p></li>
-<li><p>labels and states</p></li>
-</ul>
-<p>The language itself is for describing a mast Story. A story consists of a sets of data, Tasks and events.</p>
-<p>Data is values and can be things like Ship, Characters, Inventories of objects etc.</p>
-<p>A Tasks a set of steps or states that run.</p>
-<p>A Task is scheduled (using a scheduler)</p>
-<p>A scheduler manages the running of multiple Tasks. Typically the scheduler is sort of the wizard behind the curtain.</p>
-<p>Tasks can be organized into sections called labels.</p>
-<p>Labels also are points that the task can transition to i.e. within a task you can jump around from one label to another.</p>
-<p>Therefore, a Label can represent changing a Task from one state, to another.</p>
-<p>Typically, a task runs sequentially but not necessarily synchronously. It stays on a line of code, until that line is completed.
-So it can stay on the same line of code for quite some time. e.g. telling it to wait until a ship is near another ship:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">await</span> <span class="n">tsn01</span> <span class="n">near</span> <span class="n">ds91</span> <span class="mi">700</span> <span class="n">timeout</span> <span class="mi">4</span><span class="n">m</span><span class="p">:</span>
-    <span class="o">-&gt;</span> <span class="n">ReachedStation</span>
-<span class="n">timeout</span><span class="p">:</span>
-    <span class="o">-&gt;</span> <span class="n">DidNotReachInTime</span>
-<span class="n">end_await</span>
+  <section id="what-is-mast">
+<h1>What is Mast<a class="headerlink" href="#what-is-mast" title="Permalink to this heading"></a></h1>
+<p>Mast is an abbreviation for Multiple Agent Story Telling. It is for writing in a narrative flow that tells a ‘story’. The stroy has multiple agents: players, non-player characters, etc. Each of these agents have their own story and those stories can have multiple side plots.</p>
+<p>Stories have a forward moving flow. There is a begining, a middle and an end. Mast has a programming flow that keep the story moving forward. Mast also allows for interactive narrative this allows for choice and branching of the story, revisiting aspects of the story etc. With this it still flows the story on a single path.</p>
+<p>Mast in Artemis Cosmos the multiple agents are the player consoles, the ships and various characters that can be on ships, etc. Artemis cosmos has the ability to add much more charatecters to the game. For example there can be multiple chracters on a space stations that you may interact with. The Damage Control teams can have richer stories and each can be unique.</p>
+<section id="mast-execution-flow">
+<h2>Mast execution flow<a class="headerlink" href="#mast-execution-flow" title="Permalink to this heading"></a></h2>
+<p>The goal of Mast is to enable non-programmers to be productive in creating interactive narratives.</p>
+<p>The Mast language is a programming language that strips many of the programming language concepts that make writing interactive narratives difficult as well a simplified syntax.</p>
+<p>The intent is to be approachable to non-programmers. It is not intended to be ‘structured’ programming language like C++ or Python.</p>
+<p>The flow of mast is similar to the original BASIC programming langauge. The code executes moving forward, it can branch by jumping to new locations (labels). This can be called ‘unstructured’ programming. Mast was also influenced by choice script, Inkle’s Ink, and others.</p>
+<div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">========= start =======</span>
+log &quot;Hello, world&quot;
+<span class="gd">-&gt; goodbye</span>
+<span class="gh">====== not_here =======</span>
+log &quot;I get jumped over&quot;
+<span class="gh">======= goodbye =======</span>
+log &quot;Goodbye&quot;
 </pre></div>
 </div>
-<p>The example, waits for the event when the ships tsn01 is 700 away from ds91.
-If it gets there within 4 minutes, it jumps to the label ReachedStation changing to that state.
-If it doesn’t reach it in time, it changes to the state DidNotReachInTime.</p>
-<p>It is import to understand, while it is waiting on the line of code it is not preventing the game or other tasks from running.</p>
-<p>Synchronous vs. Asynchronous programming can be highly complicated. Mast tries to simplify this greatly.</p>
+<p>This is the expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Hello</span><span class="p">,</span> <span class="n">world</span>
+<span class="n">Goodbye</span>
+</pre></div>
+</div>
+</section>
+<section id="mast-and-pymast">
+<h2>Mast and PyMast<a class="headerlink" href="#mast-and-pymast" title="Permalink to this heading"></a></h2>
+<p>Mast is a standalone language running inside of the python system provided by Artemis Cosmos.</p>
+<p>PyMast is python code that runs using the Mast execution flow. This gives python programmers the benefits of Mast’s simple flow while enabling greater access to the native python.</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-0-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-0-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-0-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-0-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">========= start =======</span>
+log &quot;Hello, world&quot;
+<span class="gd">-&gt; goodbye</span>
+<span class="gh">====== not_here =======</span>
+log &quot;I get jumped over&quot;
+<span class="gh">======= goodbye =======</span>
+log &quot;Goodbye&quot;
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-0-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-0-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Story</span><span class="p">(</span><span class="n">PyMastStory</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="nd">@label</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hello, world&quot;</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">jump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">goodbye</span><span class="p">)</span>
+
+    <span class="nd">@label</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">not_here</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;I get jumped over&quot;</span><span class="p">)</span>
+
+    <span class="nd">@label</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">goodbye</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Goodbye&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+<p>This is the expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Hello</span><span class="p">,</span> <span class="n">world</span>
+<span class="n">Goodbye</span>
+</pre></div>
+</div>
+</section>
+<section id="mast-and-pausing-the-flow">
+<h2>Mast and pausing the flow<a class="headerlink" href="#mast-and-pausing-the-flow" title="Permalink to this heading"></a></h2>
+<p>Mast is running as part of a game engine. The engine only give Mast a small amount of time to run. If Mast ran unconditionally it would not allow the engine to run and stall the game. However, there are times a story cannot continue until conditions are met. e.g. A comms button is press, a science scan it started etc.</p>
+<p>Mast can “pause” execution and yield control back to the engine. The engine keeps calling MAst and it yields until the condition is met teh the flow can continue.</p>
+<p>This example prints “Hello, world” and five seconds later it prints “Goodbye”. During that five seonds the engine is able to run because Mast yields control back since it cannot move forward.</p>
+<p>This ability to yield control back to the engine is a reason that Mast flow can be enable users to focus on the flow of the story and not how to get the programming lanuage to deal with this.</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-1-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-1-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-1-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-1-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">========= start =======</span>
+log &quot;Hello, world&quot;
+delay gui 5s
+log &quot;Goodbye&quot;
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-1-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-1-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Story</span><span class="p">(</span><span class="n">PyMastStory</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="nd">@label</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hello, world&quot;</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">delay</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Goodbye&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+<p>Yielding control is handled by Mast. If there ever is a time you need to force a yield you can us the Mast ‘yeild’ command. In PyMast the python keyword yield is used, however you must specify how to yield by providing a PollResults.OK_RUN_AGAIN. There are other types of yields in PyMast. This is not the time to detail those uses.</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-2-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-2-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-2-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-2-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-2-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-2-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">========= start =======</span>
+log &quot;Hello, world&quot;
+yield
+log &quot;Goodbye&quot;
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-2-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-2-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Story</span><span class="p">(</span><span class="n">PyMastStory</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="nd">@label</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hello, world&quot;</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">PollResults</span><span class="o">.</span><span class="n">OK_RUN_AGAIN</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Goodbye&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+<p>In future topics there will be other times descibed when Mast yields. Typically this is when MAst is waiting for something to occur. For example:</p>
+<ul class="simple">
+<li><p>time (e.g. the delay used in the examples)</p></li>
+<li><p>awaiting a choice to be made in the gui</p></li>
+<li><p>awaiting a comms button to be selected</p></li>
+<li><p>awaiting a science scan</p></li>
+</ul>
+</section>
+<section id="sub-plots-aka-tasks">
+<h2>Sub plots aka Tasks<a class="headerlink" href="#sub-plots-aka-tasks" title="Permalink to this heading"></a></h2>
+<p>Mast is MULTI Agent Story Telling so each agent has their own story or event stories.</p>
+<p>Mast allows multiple storylines to run in “parallel”.</p>
+<p>Mast in Artemis Cosmos is inherently a single thread of execution. These storylines do not run exactly in parallel, but you can run multiple things and make sure they run. These are called Tasks, and tasks can be scheduled so that multiple task can run.</p>
+<p>For example a Player Ship can run a Task for handling Comms messages, another for Science scan. This player ship could in fact run multiple tasks for handling comms with different sets of ships.</p>
+<p>These tasks themselves act as small side stories, They run as long as needed.</p>
+<p>In mast tasks are scheduled in mast with a parallel jump, and in PyMast with a schedule_task</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-3-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-3-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-3-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-3-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-3-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-3-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">===== start ====</span>
+# Run another task
+<span class="gh">=&gt; count_to_ten</span>
+delay gui 15s
+log &quot;done&quot;
+
+<span class="gh">===== count_to_ten ======</span>
+for x in range(10):
+    log &quot;{x}&quot;
+    yield
+next x
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-3-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-3-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Story</span><span class="p">(</span><span class="n">PyMastStory</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="nd">@label</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">schedule_task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">count_to_ten</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">delay</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
+
+    <span class="nd">@label</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">count_to_ten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="k">yield</span> <span class="n">PollResults</span><span class="o">.</span><span class="n">OK_RUN_AGAIN</span>
+</pre></div>
+</div>
+</div></div>
+<p>Expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">1</span>
+<span class="mi">2</span>
+<span class="mi">3</span>
+<span class="mi">4</span>
+<span class="mi">5</span>
+<span class="mi">6</span>
+<span class="mi">7</span>
+<span class="mi">8</span>
+<span class="mi">9</span>
+<span class="mi">10</span>
+<span class="n">done</span>
+</pre></div>
+</div>
+</section>
+<section id="schedulers">
+<h2>Schedulers<a class="headerlink" href="#schedulers" title="Permalink to this heading"></a></h2>
+<p>Mast and PyMast run all the tasks using schedulers. This process is mostly hidden to the writer of Mast and PyMast code.</p>
+<p>Tasks are run on ‘Schedulers’ and to put it simply for now, the server and each Console has a scheduler. Additional scheduler can be created but typically the schedulers run associated with a console with the server running a large number of the tasks.</p>
+<p>For example, the server runs a scheduler it may have a task for presenting its User Interface/GUI, and maybe have other task to manage the world creation, handing comms, science etc. Consoles typically have a scheduler an mostly as single task for the User Interface/GUI.</p>
+<p>The more complex the script, the more tasks that will run. And if the complexity warrants more schedulers can be created. e.g. schedulers for each player ships etc.</p>
+<p>When Artemis Cosmos calls the scripting engine, Mast/PyMast will run al the Schedulers and each scheduler runs all of its Tasks.</p>
+<p>As tasks are finished, they are removed. If a scheduler runs and no longer has tasks it is removed.</p>
+</section>
+<section id="mast-object-model">
+<h2>Mast Object Model<a class="headerlink" href="#mast-object-model" title="Permalink to this heading"></a></h2>
+<p>Mast needs participants in the story. In stories Artemis Cosmos these participants are:</p>
+<ul class="simple">
+<li><p>The Story itself (aka the server, the game, the engine or the world)</p></li>
+<li><p>Bridge Crew (The player consoles)</p></li>
+<li><p>The Player ships (Ships control by the Bridge Crew)</p></li>
+<li><p>Non-Player ships Starbases, Enemy Ships, Friendly Ships (Things controled by script)</p></li>
+<li><p>The terrain element asteroids, pickups, nebula etc.</p></li>
+<li><p>Non-Player Crew and Characters (Seen as faces in engineering, Comms etc.)</p></li>
+<li><p>Internals ship location (Rooms and other things)</p></li>
+</ul>
+<p>These agents/participants are the things in the Artemis Cosmos world. Each of this agents can have stories and tasks associated with them.</p>
 </section>
 <section id="basic-language">
 <h2>Basic Language<a class="headerlink" href="#basic-language" title="Permalink to this heading"></a></h2>
@@ -201,50 +358,6 @@ If it doesn’t reach it in time, it changes to the state DidNotReachInTime.</p>
 <li><p>Loops</p></li>
 <li><p>Scheduling Tasks</p></li>
 </ul>
-<div class="sphinx-tabs docutils container">
-<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-0-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-0-UHl0aG9u" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-UHl0aG9u" name="UHl0aG9u" role="tab" tabindex="-1">Python</button></div><div aria-labelledby="tab-0-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-0-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">========== StartMenu ===============</span>
-
-section style=&quot;area: 50, 10, 99, 90;&quot;
-&quot;&quot;&quot;&quot;&quot;Basic Siege written in Mast&quot;&quot;&quot;&quot;&quot;
-
-section style=&quot;area: 60, 75, 99, 89;&quot;
-
-intslider enemy_count 1.0 50.0 5.0
-row
-&quot;&quot;&quot; Enemies: {int(enemy_count)} &quot;&quot;&quot;
-
-
-await choice:
-<span class="gi">+ &quot;Start Mission&quot;:</span>
-   simulation create
-   simulation resume
-   -&gt; start
-end_await
-<span class="gd">-&gt; StartMenu</span>
-</pre></div>
-</div>
-</div><div aria-labelledby="tab-0-UHl0aG9u" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-0-UHl0aG9u" name="UHl0aG9u" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">start_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-   <span class="bp">self</span><span class="o">.</span><span class="n">gui_section</span><span class="p">(</span><span class="s2">&quot;area: 0, 10, 99, 90;&quot;</span><span class="p">)</span>
-   <span class="bp">self</span><span class="o">.</span><span class="n">gui_text</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start_text</span><span class="p">)</span>
-   <span class="bp">self</span><span class="o">.</span><span class="n">gui_section</span><span class="p">(</span><span class="s2">&quot;area: 60, 75, 99, 89;row-height: 30px&quot;</span><span class="p">)</span>
-   <span class="n">slider</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_slider</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enemy_count</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-   <span class="bp">self</span><span class="o">.</span><span class="n">gui_row</span><span class="p">()</span>
-   <span class="n">text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_text</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Enemy count: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">enemy_count</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-   <span class="k">def</span> <span class="nf">on_message</span><span class="p">(</span><span class="n">_</span><span class="p">,</span><span class="n">__</span><span class="p">,</span><span class="n">event</span> <span class="p">):</span>
-         <span class="k">if</span> <span class="n">event</span><span class="o">.</span><span class="n">sub_tag</span><span class="o">==</span><span class="n">slider</span><span class="o">.</span><span class="n">tag</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">enemy_count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">slider</span><span class="o">.</span><span class="n">value</span><span class="o">+</span><span class="mf">0.4</span><span class="p">)</span>
-            <span class="n">text</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Enemy count: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">enemy_count</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="n">slider</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">enemy_count</span>
-            <span class="k">return</span> <span class="kc">True</span>
-         <span class="k">return</span> <span class="kc">False</span>
-
-   <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">await_gui</span><span class="p">({</span>
-         <span class="s2">&quot;Start Mission&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span>
-   <span class="p">},</span> <span class="n">on_message</span><span class="o">=</span><span class="n">on_message</span><span class="p">)</span>
-</pre></div>
-</div>
-</div></div>
 <section id="data">
 <h3>Data<a class="headerlink" href="#data" title="Permalink to this heading"></a></h3>
 <p>You can create data that is any valid python type.
@@ -384,44 +497,28 @@ This is done by redirecting the flow to a label.</p>
 </pre></div>
 </div>
 </section>
-<section id="pop-n-jump">
-<h4>Pop n’ Jump<a class="headerlink" href="#pop-n-jump" title="Permalink to this heading"></a></h4>
-<p>There are some admittedly rare occasions where you do not want to return to the pop location.
-The push need to be cleared before you can jump to a different location.</p>
-<p>The Pop and Jump allows this odd case.</p>
-<p>Pop and Jump returns back to the previous location then immediately jumps to another location.
-Pop and jump is a backwards thin double arrow, a name and the two more arrow heads.</p>
-<p>It may seem odd, but the Pop needs to occur. Otherwise its is waisting memory remembering the push location.</p>
-<p>For example:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">log</span> <span class="s2">&quot;See you later&quot;</span>
-<span class="o">-&gt;&gt;</span> <span class="n">PushHere</span>
-<span class="n">log</span> <span class="s2">&quot;and we&#39;re back&quot;</span>
-
-<span class="o">========</span> <span class="n">PushHere</span> <span class="o">=====</span>
-<span class="n">log</span> <span class="s2">&quot;Going places!&quot;</span>
-<span class="o">&lt;&lt;-</span><span class="n">NewPlace</span><span class="o">&lt;&lt;</span>
-
-<span class="o">========</span> <span class="n">HereInstead</span> <span class="o">=====</span>
-<span class="n">log</span> <span class="s2">&quot;New place&quot;</span>
-</pre></div>
-</div>
-<p>The expected output:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>See you later
-Going places!
-New place
-</pre></div>
-</div>
-</section>
 <section id="jump-to-end">
 <h4>Jump to End<a class="headerlink" href="#jump-to-end" title="Permalink to this heading"></a></h4>
 <p>To immediately end a task you can use a Jump to End.</p>
-<p>Jump to end looks like a Jump with a thin arrow and the label “END”:</p>
-<p>For example:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">log</span> <span class="s2">&quot;See you later&quot;</span>
-<span class="o">-&gt;</span><span class="n">END</span>
-<span class="n">log</span> <span class="s2">&quot;Never gets here&quot;</span>
+<p>Jump to end looks like a Jump with a thin arrow and the label “END”</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-4-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-4-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-4-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-4-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-4-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-4-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">===== start ====</span>
+log &quot;See you later&quot;
+<span class="gd">-&gt;END</span>
+log &quot;Never gets here&quot;
 </pre></div>
 </div>
+</div><div aria-labelledby="tab-4-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-4-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Story</span><span class="p">(</span><span class="n">PyMastStory</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="nd">@label</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;See you later&quot;</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">PollResults</span><span class="o">.</span><span class="n">OK_END</span>
+</pre></div>
+</div>
+</div></div>
 <p>The expected output:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">See</span> <span class="n">you</span> <span class="n">later</span>
 </pre></div>
@@ -561,24 +658,42 @@ And you can await for all tasks to finish.</p>
 </section>
 <section id="conditional-statements">
 <h3>Conditional Statements<a class="headerlink" href="#conditional-statements" title="Permalink to this heading"></a></h3>
-<p>Mast supports both a if and match statements similar to python’s.</p>
+<p>Mast supports both a if and match statements similar to python’s.
+PyMast simply uses the python statements.</p>
 <section id="if-statements">
 <h4>If statements<a class="headerlink" href="#if-statements" title="Permalink to this heading"></a></h4>
 <p>Mast supports if statements similar to python with if, elif, and else.
 Mast is not a whitespace language so you need to close an if with and end_if</p>
 <p>If conditionals can be nested as well.</p>
-<p>Example if:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">value</span> <span class="o">=</span> <span class="mi">300</span>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-5-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-5-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-5-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-5-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-5-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-5-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">===== start ====</span>
+value = 300
 
-<span class="k">if</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="mi">300</span><span class="p">:</span>
-    <span class="n">log</span> <span class="s2">&quot;less&quot;</span>
-<span class="k">elif</span> <span class="n">value</span> <span class="o">&gt;</span> <span class="mi">300</span><span class="p">:</span>
-   <span class="n">log</span> <span class="s2">&quot;more&quot;</span>
-<span class="k">else</span><span class="p">:</span>
-    <span class="n">log</span> <span class="s2">&quot;equal&quot;</span>
-<span class="n">end_if</span>
+if value &lt; 300:
+    log &quot;less&quot;
+elif value &gt; 300:
+log &quot;more&quot;
+else:
+    log &quot;equal&quot;
+end_if
 </pre></div>
 </div>
+</div><div aria-labelledby="tab-5-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-5-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Story</span><span class="p">(</span><span class="n">PyMastStory</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="nd">@label</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="mi">300</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="mi">300</span><span class="p">:</span>
+            <span class="n">log</span> <span class="s2">&quot;less&quot;</span>
+        <span class="k">elif</span> <span class="n">value</span> <span class="o">&gt;</span> <span class="mi">300</span><span class="p">:</span>
+            <span class="n">log</span> <span class="s2">&quot;more&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log</span> <span class="s2">&quot;equal&quot;</span>
+</pre></div>
+</div>
+</div></div>
 <p>Expected output:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">equal</span>
 </pre></div>
@@ -588,19 +703,37 @@ Mast is not a whitespace language so you need to close an if with and end_if</p>
 <h4>Match statements<a class="headerlink" href="#match-statements" title="Permalink to this heading"></a></h4>
 <p>Mast supports match statements similar to python with match, case.
 Mast is not a whitespace language so you need to close an if with and end_match</p>
-<p>Example match:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">value</span> <span class="o">=</span> <span class="mi">300</span>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-6-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-6-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-6-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-6-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-6-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-6-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">===== start ====</span>
+value = 300
 
-<span class="k">match</span> <span class="n">value</span><span class="p">:</span>
-    <span class="k">case</span> <span class="mi">200</span><span class="p">:</span>
-        <span class="n">log</span> <span class="s2">&quot;200&quot;</span>
-    <span class="k">case</span> <span class="mi">300</span><span class="p">:</span>
-        <span class="n">log</span> <span class="s2">&quot;300&quot;</span>
-    <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
-        <span class="n">log</span> <span class="s2">&quot;something else&quot;</span>
-<span class="n">end_match</span>
+match value:
+    case 200:
+        log &quot;200&quot;
+    case 300:
+        log &quot;300&quot;
+    case _:
+        log &quot;something else&quot;
+end_match
 </pre></div>
 </div>
+</div><div aria-labelledby="tab-6-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-6-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Story</span><span class="p">(</span><span class="n">PyMastStory</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="nd">@label</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="mi">300</span>
+        <span class="k">match</span> <span class="n">value</span><span class="p">:</span>
+            <span class="k">case</span> <span class="mi">200</span><span class="p">:</span>
+                <span class="n">log</span> <span class="s2">&quot;200&quot;</span>
+            <span class="k">case</span> <span class="mi">300</span><span class="p">:</span>
+                <span class="n">log</span> <span class="s2">&quot;300&quot;</span>
+            <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+                <span class="n">log</span> <span class="s2">&quot;something else&quot;</span>
+</pre></div>
+</div>
+</div></div>
 <p>Expected output:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">300</span>
 </pre></div>
@@ -610,19 +743,32 @@ Mast is not a whitespace language so you need to close an if with and end_match<
 <h4>For loops<a class="headerlink" href="#for-loops" title="Permalink to this heading"></a></h4>
 <p>Mast supports for loop similar to python with for, break, continue .
 Mast is not a whitespace language so you need to close an if with and next.</p>
+<p>PyMast uses the standard python for or while loop.</p>
 <p>However, mast support a for … in loop and a for .. while loop.</p>
-<p>Example for:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
-    <span class="n">log</span> <span class="s2">&quot;</span><span class="si">{x}</span><span class="s2">&quot;</span>
-<span class="nb">next</span> <span class="n">x</span>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-7-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-7-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-7-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-7-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-7-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-7-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>for x in range(3):
+    log &quot;{x}&quot;
+next x
 
-<span class="n">y</span> <span class="o">=</span> <span class="mi">10</span>
-<span class="k">for</span> <span class="n">z</span> <span class="k">while</span> <span class="n">y</span> <span class="o">&lt;</span> <span class="mi">30</span><span class="p">:</span>
-    <span class="n">log</span> <span class="s2">&quot;</span><span class="si">{z}</span><span class="s2"> </span><span class="si">{y}</span><span class="s2">&quot;</span>
-    <span class="n">y</span> <span class="o">=</span> <span class="n">y</span> <span class="o">+</span> <span class="mi">10</span>
-<span class="nb">next</span> <span class="n">z</span>
+y = 10
+for z while y &lt; 30:
+    log &quot;{z} {y}&quot;
+    y += 10
+next z
 </pre></div>
 </div>
+</div><div aria-labelledby="tab-7-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-7-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+    <span class="n">log</span> <span class="s2">&quot;</span><span class="si">{x}</span><span class="s2">&quot;</span>
+
+<span class="n">y</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">z</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">while</span> <span class="n">y</span> <span class="o">&lt;</span> <span class="mi">30</span><span class="p">:</span>
+    <span class="n">log</span> <span class="s2">&quot;</span><span class="si">{z}</span><span class="s2"> </span><span class="si">{y}</span><span class="s2">&quot;</span>
+    <span class="n">y</span> <span class="o">+=</span> <span class="mi">10</span>
+    <span class="n">z</span> <span class="o">+=</span> <span class="mi">1</span>
+</pre></div>
+</div>
+</div></div>
 <p>Expected output:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">1</span>
 <span class="mi">2</span>
@@ -656,44 +802,6 @@ Mast is not a whitespace language so you need to close an if with and next.</p>
 </pre></div>
 </div>
 <p>Using block comments to ‘disable’ code it can quickly get confusing. Therefore, an additional block comment is supported.</p>
-</section>
-<section id="named-block-comments">
-<h4>Named block comments<a class="headerlink" href="#named-block-comments" title="Permalink to this heading"></a></h4>
-<p>You can have a named block comment enclosing the name in using 3 or more !.
-You must explicitly end the comment with the name as well:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>!!!! skipthis !!!!!!!!!
-beer = 0
-vodka = 0
-!!!! end skipthis !!!!!
-</pre></div>
-</div>
-<p>This allows for nested block comments as well:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>!!!! skipthis !!!!!!!!!
-beer = 0
-vodka = 0
-!!!! skipthistoo !!!!!!!!!
-wine = 0
-!!!! end skipthistoo !!!!!
-something = 12
-!!!! end skipthis !!!!!
-</pre></div>
-</div>
-</section>
-<section id="markers">
-<h4>Markers<a class="headerlink" href="#markers" title="Permalink to this heading"></a></h4>
-<p>Markers are repeating characters used to imply make text stand out as you scroll.
-Marker are simply removed when they are seen.
-The markers are any time you have 3 or of the same marker character.
-Marker characters are dash(-), plus(+) or asterisk(*)</p>
-<blockquote>
-<div><dl class="simple">
-<dt><strong>********if beer == 0***********</strong></dt><dd><p>vodka = 0</p>
-</dd>
-</dl>
-<p><strong>*******end_if **********</strong></p>
-</div></blockquote>
-<p>Again they are simply to make some code to stand out and ideal help scanning code.
-You don’t need to use them.</p>
 </section>
 </section>
 <section id="importing">
@@ -757,6 +865,25 @@ If you want to delay 10s of game time use sim.</p>
 <span class="n">delay</span> <span class="n">sim</span> <span class="mi">10</span><span class="n">m</span>
 </pre></div>
 </div>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-8-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-8-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-8-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-8-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-8-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-8-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>for x in range(3):
+    log &quot;{x}&quot;
+    delay gui 1s
+next x
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-8-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-8-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+    <span class="n">log</span> <span class="s2">&quot;</span><span class="si">{x}</span><span class="s2">&quot;</span>
+    <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">delay</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+<p>Expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">1</span>
+<span class="mi">2</span>
+<span class="mi">3</span>
+</pre></div>
+</div>
 </section>
 </section>
 </section>
@@ -765,8 +892,8 @@ If you want to delay 10s of game time use sim.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="mastoverview.html" class="btn btn-neutral float-left" title="What is Mast" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="mastsbssyntax.html" class="btn btn-neutral float-right" title="Engine Interactions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="index_contrib.html" class="btn btn-neutral float-left" title="Contribution" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="mastsyntax.html" class="btn btn-neutral float-right" title="Language Basics" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

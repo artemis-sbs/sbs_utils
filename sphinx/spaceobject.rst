@@ -81,7 +81,7 @@ Space Object typically derives from PlayerShip, Npc, or Terrain.
       pass
 
 Spawning a derived SpaceObject
-----------------------
+-------------------------------
 The Station can be spawned with one line of code.
 
 .. code-block:: python

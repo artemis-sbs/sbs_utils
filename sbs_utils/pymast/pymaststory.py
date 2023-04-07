@@ -11,6 +11,7 @@ from .pymastscience import PyMastScience
 from .pymastcomms import PyMastComms
 from .pymasttask import PyMastTask, DataHolder
 from .pymastscheduler import PyMastScheduler
+from .pymaststorypage import CodePusher
 
 
 
@@ -161,13 +162,31 @@ class PyMastStory:
         control = layout.Text(message, page.get_tag())
         page.add_content(control, None)
         return control
+    
     def gui_button(self, message, label, style=None):
         if self.get_page() is None:
             return
         page = self.get_page()
         control = layout.Button(message, page.get_tag())
-        page.add_content(control, label)
+        # CodePusher(self, value)
+        page.add_content(control, CodePusher(page, label))
+        page.apply_style_name(".button", control)
+        if style is not None:
+            page.apply_style_def(style,  control)
         return control
+    
+    def gui_icon_button(self, message, label, style=None):
+        if self.get_page() is None:
+            return
+        page = self.get_page()
+        control = layout.IconButton(message, page.get_tag())
+        page.add_content(control, label)
+        page.apply_style_name(".iconbutton", control)
+        if style is not None:
+            page.apply_style_def(style,  control)
+    
+        return control
+    
     def gui_row(self, style=None):
         if self.get_page() is None:
             return
@@ -236,6 +255,7 @@ class PyMastStory:
         if style is not None:
             page.apply_style_def(style,  control)
         return control
+    
     def gui_radio(self, message, value, vertical=False, style=None):
         if self.get_page() is None:
             return
@@ -255,6 +275,28 @@ class PyMastStory:
         control = layout.TextInput(val, label_message, page.get_tag())
         page.add_content(control, label)
         page.apply_style_name(".textinput", control)
+        if style is not None:
+            page.apply_style_def(style,  control)
+        return control
+    
+    def gui_icon(self, icon, color, style=None):
+        if self.get_page() is None:
+            return
+        page = self.get_page()
+        control = layout.Icon(icon, color, page.get_tag())
+        page.add_content(control, None)
+        page.apply_style_name(".icon", control)
+        if style is not None:
+            page.apply_style_def(style,  control)
+        return control
+    
+    def gui_iconbutton(self, icon, color, style=None):
+        if self.get_page() is None:
+            return
+        page = self.get_page()
+        control = layout.IconButton(icon, color, page.get_tag())
+        page.add_content(control, None)
+        page.apply_style_name(".iconbutton", control)
         if style is not None:
             page.apply_style_def(style,  control)
         return control

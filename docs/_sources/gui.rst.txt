@@ -255,7 +255,7 @@ Currently the layout module supports the 'wrap' layout. which will build a table
             loc = layout.wrap(25, b, 15, 4,col=4, h_gutter = 1)
             for widget in widgets:
                sbs.send_gui_text(CID, widget.label, f"lab:{widget.label}", *next(loc))
-               sbs.send_gui_slider(CID, f"value:{widget.label}",  widget["min"],widget["max"],self.cur[v], *next(loc))
+               sbs.send_gui_slider(CID, f"value:{widget.label}",  widget["min"],widget["max"],self.cur[v], *next(loc), True)
 
 .. graphviz::
 

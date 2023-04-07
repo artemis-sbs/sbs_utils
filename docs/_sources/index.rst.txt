@@ -6,11 +6,36 @@
 Welcome to SBS Utils's documentation!
 =====================================
 
+
+      
+
 .. toctree::
    :maxdepth: 2
 
    index_desc
    index_contrib
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Mast and PyMast:
+
+   mastoverview
+   mastsyntax
+   mastsbssyntax
+   maststorysyntax
+   mastextending
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Tutorials
+
+   
+   tutorials/overview
+   tutorials/setup
+   tutorials/entry
+   tutorials/gui
+   tutorials/mast
+
 
 
 .. toctree::
@@ -36,26 +61,8 @@ Welcome to SBS Utils's documentation!
    tickdispatcher
    hookhandlers
 
-.. toctree::
-   :maxdepth: 2
-   :caption: The Mast Language:
+  
 
-   mastsyntax
-   mastsbssyntax
-   maststorysyntax
-   mastextending
-   
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Tutorials
-
-   
-   tutorials/overview
-   tutorials/setup
-   tutorials/entry
-   tutorials/gui
-   tutorials/mast
    
 
 

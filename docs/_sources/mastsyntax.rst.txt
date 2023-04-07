@@ -69,6 +69,53 @@ Basic Language
 - Loops 
 - Scheduling Tasks
 
+.. tabs::
+   .. code-tab:: mast
+      
+         ========== StartMenu ===============
+
+         section style="area: 50, 10, 99, 90;"
+         """""Basic Siege written in Mast"""""
+
+         section style="area: 60, 75, 99, 89;"
+
+         intslider enemy_count 1.0 50.0 5.0
+         row
+         """ Enemies: {int(enemy_count)} """
+
+
+         await choice:
+         + "Start Mission":
+            simulation create
+            simulation resume
+            -> start
+         end_await
+         -> StartMenu
+
+
+   .. code-tab:: py
+
+         def start_server(self):
+            self.gui_section("area: 0, 10, 99, 90;")
+            self.gui_text(self.start_text)
+            self.gui_section("area: 60, 75, 99, 89;row-height: 30px")
+            slider = self.gui_slider(self.enemy_count, 0, 20, False, None)
+            self.gui_row()
+            text = self.gui_text(f"Enemy count: {self.enemy_count}")
+            
+            def on_message(_,__,event ):
+                  if event.sub_tag==slider.tag:
+                     self.enemy_count = int(slider.value+0.4)
+                     text.value = f"Enemy count: {self.enemy_count}"
+                     slider.value = self.enemy_count
+                     return True
+                  return False
+
+            yield self.await_gui({
+                  "Start Mission": self.start
+            }, on_message=on_message)
+               
+      
 
 
 
