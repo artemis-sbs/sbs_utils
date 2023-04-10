@@ -20,7 +20,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Entry Points, events, and handlers" href="entry.html" />
+    <link rel="next" title="Tutorial: Creating Basic Siege" href="siege.html" />
     <link rel="prev" title="Overview" href="overview.html" /> 
 </head>
 
@@ -51,8 +51,10 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../mastoverview.html">What is Mast</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mastsyntax.html">Language Basics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mastobjectmodel.html">Mast Object Model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mastsbssyntax.html">Engine Interactions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../maststorysyntax.html">Story Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../maststorysyntax.html">Gui Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mastbehavior.html">Behavior Components</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mastextending.html">TBD</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
@@ -70,9 +72,7 @@
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="entry.html">Entry Points, events, and handlers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="gui.html">Adding Gui pages and using the Gui System</a></li>
-<li class="toctree-l1"><a class="reference internal" href="mast.html">Adding MAST to you mission</a></li>
+<li class="toctree-l1"><a class="reference internal" href="siege.html">Tutorial: Creating Basic Siege</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
 <ul>
@@ -90,6 +90,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../damagedispatcher.html">The Damage Dispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tickdispatcher.html">TickDispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../hookhandlers.html">The hook Handlers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../systems/entry.html">Entry Points, events, and handlers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../systems/gui.html">Adding Gui pages and using the Gui System</a></li>
 </ul>
 
         </div>
@@ -124,10 +126,10 @@
 <p>The fastest way to create a new mission that use the sbs_utils library is to use the fetch batch.</p>
 <p>in the Artemis Cosmos missions directory run:</p>
 <div class="sphinx-tabs docutils container">
-<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-0-bWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-bWFzdA==" name="bWFzdA==" role="tab" tabindex="0">mast</button><button aria-controls="panel-0-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-0-bWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-0-bWFzdA==" name="bWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>.<span class="se">\\</span>fetch<span class="w"> </span>artemis-sbs<span class="w"> </span>mast_starter<span class="w"> </span>my-new-mission
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-0-bWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-bWFzdA==" name="bWFzdA==" role="tab" tabindex="0">mast</button><button aria-controls="panel-0-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-0-bWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-0-bWFzdA==" name="bWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>.<span class="se">\f</span>etch<span class="w"> </span>artemis-sbs<span class="w"> </span>mast_starter<span class="w"> </span>my-new-mission
 </pre></div>
 </div>
-</div><div aria-labelledby="tab-0-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-0-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>.<span class="se">\\</span>fetch<span class="w"> </span>artemis-sbs<span class="w"> </span>pymast_starter<span class="w"> </span>my-new-mission
+</div><div aria-labelledby="tab-0-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-0-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>.<span class="se">\f</span>etch<span class="w"> </span>artemis-sbs<span class="w"> </span>pymast_starter<span class="w"> </span>my-new-mission
 </pre></div>
 </div>
 </div></div>
@@ -264,7 +266,7 @@ Check for the most relevant: <a class="reference external" href="https://github.
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="overview.html" class="btn btn-neutral float-left" title="Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="entry.html" class="btn btn-neutral float-right" title="Entry Points, events, and handlers" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="siege.html" class="btn btn-neutral float-right" title="Tutorial: Creating Basic Siege" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

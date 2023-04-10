@@ -1,7 +1,10 @@
 import unittest
-from . import mock_sbs as sbs
 import sys
-from sbs_utils.pymast.pymaststory import PyMastStory, PollResults
+sys.path.append("..")
+from mock import mock_sbs as sbs
+import sys
+from sbs_utils.pymast.pymaststory import PyMastStory
+from sbs_utils.pymast.pollresults import PollResults
 from io import StringIO
 import logging
 
@@ -155,6 +158,7 @@ After
 
             def two(self):
                 yield PollResults.FAIL_END
+
 
         sim = FakeSim()
         story = ExampleStory()

@@ -13,12 +13,12 @@ in the Artemis Cosmos missions directory run:
 .. tabs::
    .. code-tab:: shell mast
 
-    .\\fetch artemis-sbs mast_starter my-new-mission    
+    .\fetch artemis-sbs mast_starter my-new-mission    
 
 
    .. code-tab:: shell PyMast
     
-    .\\fetch artemis-sbs pymast_starter my-new-mission    
+    .\fetch artemis-sbs pymast_starter my-new-mission    
 
 
 

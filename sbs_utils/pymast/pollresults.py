@@ -5,4 +5,6 @@ class PollResults(IntEnum):
     OK_ADVANCE_FALSE=3
     OK_JUMP= 4
     OK_END = 99
+    BT_SUCCESS = 99
     FAIL_END = 100
+    BT_FAIL = 100

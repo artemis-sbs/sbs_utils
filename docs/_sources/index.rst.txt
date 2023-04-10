@@ -21,8 +21,10 @@ Welcome to SBS Utils's documentation!
 
    mastoverview
    mastsyntax
+   mastobjectmodel
    mastsbssyntax
    maststorysyntax
+   mastbehavior
    mastextending
 
 .. toctree::
@@ -32,9 +34,7 @@ Welcome to SBS Utils's documentation!
    
    tutorials/overview
    tutorials/setup
-   tutorials/entry
-   tutorials/gui
-   tutorials/mast
+   tutorials/siege
 
 
 
@@ -60,6 +60,9 @@ Welcome to SBS Utils's documentation!
    damagedispatcher
    tickdispatcher
    hookhandlers
+   systems/entry
+   systems/gui
+
 
   
 

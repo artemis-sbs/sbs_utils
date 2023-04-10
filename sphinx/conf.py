@@ -14,7 +14,8 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 # to get around sbs import errors
-sys.path.insert(0, os.path.abspath('../mock'))
+#sys.path.insert(0, os.path.abspath('../mock'))
+from mock import mock_sbs as sbs
 
 
 # -- Project information -----------------------------------------------------

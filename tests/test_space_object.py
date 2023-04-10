@@ -1,5 +1,7 @@
 import unittest
-from . import mock_sbs as sbs
+import sys
+sys.path.append("..")
+from mock import mock_sbs as sbs
 
 from sbs_utils.spaceobject import SpaceObject, TickType
 from sbs_utils.query import role, linked_to, closest_list, closest, broad_test, to_py_object_list

@@ -2,120 +2,13 @@
 Language Basics
 ##################
 
-Mast is an abbreviation for Multiple Actor/Audience Story Telling. So, it is for writing Multiplayer choose your own adventure types of stories.
 
-Mast is a interpreted scripting Language for adding interactivity, narrative, quest etc.
+* Data
+* Task flow
+* Conditional
+* Loops 
+* Scheduling Tasks
 
-The  Mast technology can be used in many various systems. What may be different is the actors, tasks and events that are in the system.
-
-Mast in Artemis Cosmos the multiple actors are the players, the ships and various characters that can be on ships, etc.
-
-Task and events that are specific  for Artemis Cosmos are things like ship comms, targeting, the startup screen, client console screens.
-
-
-*****************************
-Language high level concepts
-*****************************
-This section will present terms of how Mast works and how mast code is organized.
-
-- story aka mast
-- data
-- tasks
-- scheduler
-- labels and states
-
-The language itself is for describing a mast Story. A story consists of a sets of data, Tasks and events.
-
-Data is values and can be things like Ship, Characters, Inventories of objects etc.
-
-A Tasks a set of steps or states that run.
-
-A Task is scheduled (using a scheduler)
-
-A scheduler manages the running of multiple Tasks. Typically the scheduler is sort of the wizard behind the curtain.
-
-Tasks can be organized into sections called labels.
-
-Labels also are points that the task can transition to i.e. within a task you can jump around from one label to another.
-
-Therefore, a Label can represent changing a Task from one state, to another.
-
-
-Typically, a task runs sequentially but not necessarily synchronously. It stays on a line of code, until that line is completed.
-So it can stay on the same line of code for quite some time. e.g. telling it to wait until a ship is near another ship::
-
-    await tsn01 near ds91 700 timeout 4m:
-        -> ReachedStation
-    timeout:
-        -> DidNotReachInTime
-    end_await
-
-The example, waits for the event when the ships tsn01 is 700 away from ds91.
-If it gets there within 4 minutes, it jumps to the label ReachedStation changing to that state.
-If it doesn't reach it in time, it changes to the state DidNotReachInTime.
-
-It is import to understand, while it is waiting on the line of code it is not preventing the game or other tasks from running.
-
-Synchronous vs. Asynchronous programming can be highly complicated. Mast tries to simplify this greatly.
-
-
-***************
-Basic Language
-***************
-
-- Data
-- Task flow
-- Conditional
-- Loops 
-- Scheduling Tasks
-
-.. tabs::
-   .. code-tab:: mast
-      
-         ========== StartMenu ===============
-
-         section style="area: 50, 10, 99, 90;"
-         """""Basic Siege written in Mast"""""
-
-         section style="area: 60, 75, 99, 89;"
-
-         intslider enemy_count 1.0 50.0 5.0
-         row
-         """ Enemies: {int(enemy_count)} """
-
-
-         await choice:
-         + "Start Mission":
-            simulation create
-            simulation resume
-            -> start
-         end_await
-         -> StartMenu
-
-
-   .. code-tab:: py
-
-         def start_server(self):
-            self.gui_section("area: 0, 10, 99, 90;")
-            self.gui_text(self.start_text)
-            self.gui_section("area: 60, 75, 99, 89;row-height: 30px")
-            slider = self.gui_slider(self.enemy_count, 0, 20, False, None)
-            self.gui_row()
-            text = self.gui_text(f"Enemy count: {self.enemy_count}")
-            
-            def on_message(_,__,event ):
-                  if event.sub_tag==slider.tag:
-                     self.enemy_count = int(slider.value+0.4)
-                     text.value = f"Enemy count: {self.enemy_count}"
-                     slider.value = self.enemy_count
-                     return True
-                  return False
-
-            yield self.await_gui({
-                  "Start Mission": self.start
-            }, on_message=on_message)
-               
-      
 
 
 
@@ -269,55 +162,40 @@ The expected output::
     and we're back
 
 
-Pop n' Jump
--------------
-
-There are some admittedly rare occasions where you do not want to return to the pop location.
-The push need to be cleared before you can jump to a different location.
-
-The Pop and Jump allows this odd case.
-
-Pop and Jump returns back to the previous location then immediately jumps to another location.
-Pop and jump is a backwards thin double arrow, a name and the two more arrow heads.
-
-It may seem odd, but the Pop needs to occur. Otherwise its is waisting memory remembering the push location.
-
-For example::
-
-    log "See you later"
-    ->> PushHere
-    log "and we're back"
-    
-    ======== PushHere =====
-    log "Going places!"
-    <<-NewPlace<<
-
-    ======== HereInstead =====
-    log "New place"
-
-The expected output::
-
-    See you later
-    Going places!
-    New place
 
 Jump to End
 -------------
 To immediately end a task you can use a Jump to End.
 
-Jump to end looks like a Jump with a thin arrow and the label "END"::
+Jump to end looks like a Jump with a thin arrow and the label "END"
 
-For example::
 
-    log "See you later"
-    ->END
-    log "Never gets here"
+.. tabs::
+   .. code-tab:: mast
+
+        ===== start ====
+        log "See you later"
+        ->END
+        log "Never gets here"
+
+
+   .. code-tab:: py PyMast
+
+        class Story(PyMastStory):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                
+            @label()
+            def start(self):
+                print("See you later")
+                yield PollResults.OK_END
 
 The expected output::
 
     See you later
 
 Jump to End ends the task. If that task the only task, the whole story ends.
+
 
 Scheduling tasks and waiting for them to complete
 ==================================================
@@ -468,6 +346,7 @@ Conditional Statements
 =========================
 
 Mast supports both a if and match statements similar to python's.
+PyMast simply uses the python statements.
 
 If statements
 ----------------
@@ -477,18 +356,38 @@ Mast is not a whitespace language so you need to close an if with and end_if
 
 If conditionals can be nested as well.
 
-Example if::
+.. tabs::
+   .. code-tab:: mast
+      
+        ===== start ====
+        value = 300
 
-    value = 300
+        if value < 300:
+            log "less"
+        elif value > 300:
+        log "more"
+        else:
+            log "equal"
+        end_if
 
-    if value < 300:
-        log "less"
-    elif value > 300:
-       log "more"
-    else:
-        log "equal"
-    end_if
 
+   .. code-tab:: py PyMast
+
+        class Story(PyMastStory):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                
+            @label()
+            def start(self):
+                value = 300
+                if value < 300:
+                    log "less"
+                elif value > 300:
+                    log "more"
+                else:
+                    log "equal"
+                
+    
 Expected output::
 
     equal
@@ -500,18 +399,39 @@ Match statements
 Mast supports match statements similar to python with match, case.
 Mast is not a whitespace language so you need to close an if with and end_match
 
-Example match::
+.. tabs::
+   .. code-tab:: mast
+      
+        ===== start ====
+        value = 300
 
-    value = 300
+        match value:
+            case 200:
+                log "200"
+            case 300:
+                log "300"
+            case _:
+                log "something else"
+        end_match
 
-    match value:
-        case 200:
-            log "200"
-        case 300:
-            log "300"
-        case _:
-            log "something else"
-    end_match
+
+   .. code-tab:: py PyMast
+
+        class Story(PyMastStory):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                
+            @label()
+            def start(self):
+                value = 300
+                match value:
+                    case 200:
+                        log "200"
+                    case 300:
+                        log "300"
+                    case _:
+                        log "something else"
+
 
 Expected output::
     
@@ -524,20 +444,36 @@ For loops
 Mast supports for loop similar to python with for, break, continue .
 Mast is not a whitespace language so you need to close an if with and next.
 
+PyMast uses the standard python for or while loop.
+
 However, mast support a for ... in loop and a for .. while loop.
 
-Example for::
+.. tabs::
+    .. code-tab:: mast
 
-    for x in range(3):
-        log "{x}"
-    next x
+        for x in range(3):
+            log "{x}"
+        next x
 
-    y = 10
-    for z while y < 30:
-        log "{z} {y}"
-        y = y + 10
-    next z
-    
+        y = 10
+        for z while y < 30:
+            log "{z} {y}"
+            y += 10
+        next z
+
+    .. code-tab:: py PyMast
+
+        for x in range(3):
+            log "{x}"
+
+        y = 10
+        z = 0
+        while y < 30:
+            log "{z} {y}"
+            y += 10
+            z += 1
+
+
     
 Expected output::
 
@@ -579,44 +515,6 @@ You can have a c style block comment::
 
 Using block comments to 'disable' code it can quickly get confusing. Therefore, an additional block comment is supported.
 
-
-Named block comments
-----------------------
-
-You can have a named block comment enclosing the name in using 3 or more !.
-You must explicitly end the comment with the name as well::
-
-    !!!! skipthis !!!!!!!!!
-    beer = 0
-    vodka = 0
-    !!!! end skipthis !!!!!
-
-This allows for nested block comments as well::
-
-    !!!! skipthis !!!!!!!!!
-    beer = 0
-    vodka = 0
-    !!!! skipthistoo !!!!!!!!!
-    wine = 0
-    !!!! end skipthistoo !!!!!
-    something = 12
-    !!!! end skipthis !!!!!
-
-
-Markers
----------
-
-Markers are repeating characters used to imply make text stand out as you scroll.
-Marker are simply removed when they are seen.
-The markers are any time you have 3 or of the same marker character.
-Marker characters are dash(-), plus(+) or asterisk(*)
-
-    **********if beer == 0*************
-        vodka = 0
-    *********end_if ************
-
-Again they are simply to make some code to stand out and ideal help scanning code.
-You don't need to use them.
 
 Importing
 ==================
@@ -692,6 +590,26 @@ Delay can specify minutes and seconds. Some examples::
     delay gui 1m 5s
     delay sim 10m
 
+.. tabs::
+    .. code-tab:: mast
+
+        for x in range(3):
+            log "{x}"
+            delay gui 1s
+        next x
+
+    .. code-tab:: py PyMast
+
+        for x in range(3):
+            log "{x}"
+            yield self.delay(5)
+
+    
+Expected output::
+
+ 1
+ 2
+ 3
 
 
 

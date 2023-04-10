@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Behavior Components &mdash; SBS Utils 1.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="_static/graphviz.css" type="text/css" />
+      <link rel="stylesheet" href="_static/tabs.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+        <script src="_static/tabs.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="TBD" href="mastextending.html" />
+    <link rel="prev" title="Gui Components" href="maststorysyntax.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            SBS Utils
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="index_desc.html">Utilities for Artemis Cosmos</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index_contrib.html">Contribution</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Mast and PyMast:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="mastoverview.html">What is Mast</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mastsyntax.html">Language Basics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mastobjectmodel.html">Mast Object Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mastsbssyntax.html">Engine Interactions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="maststorysyntax.html">Gui Components</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Behavior Components</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#sequence">Sequence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#select">Select</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#until">Until</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#invert">Invert</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#yield">yield</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mastextending.html">TBD</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/setup.html">Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/siege.html">Tutorial: Creating Basic Siege</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="spaceobject.html">Space Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="roles.html">The roles system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="targeting.html">The targeting system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="vec.html">The vector class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scatter.html">The Scatter modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faces.html">The Faces module</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Systems:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="gui.html">GUI system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="consoledispatcher.html">Console Dispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="systems/entry.html">Entry Points, events, and handlers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="systems/gui.html">Adding Gui pages and using the Gui System</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SBS Utils</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Behavior Components</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/mastbehavior.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="behavior-components">
+<h1>Behavior Components<a class="headerlink" href="#behavior-components" title="Permalink to this heading"></a></h1>
+<section id="sequence">
+<h2>Sequence<a class="headerlink" href="#sequence" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-0-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-0-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-0-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-0-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>bt seq label1 &amp; label2
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-0-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-0-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">behave_seq</span> <span class="p">(</span><span class="n">label1</span><span class="p">,</span> <span class="n">label2</span><span class="p">):</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="select">
+<h2>Select<a class="headerlink" href="#select" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-1-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-1-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-1-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-1-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>bt  sel label1 | label2
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-1-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-1-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">behave_seq</span> <span class="p">(</span><span class="n">label1</span><span class="p">,</span> <span class="n">label2</span><span class="p">):</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="until">
+<h2>Until<a class="headerlink" href="#until" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-2-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-2-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-2-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-2-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-2-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-2-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>bt until my_label
+bt until fail my_label
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-2-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-2-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">behave_until</span> <span class="p">(</span><span class="n">my_label</span><span class="p">)</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">behave_until</span> <span class="p">(</span><span class="n">my_label</span><span class="p">,</span> <span class="n">PollResults</span><span class="o">.</span><span class="n">OK_END</span><span class="p">)</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">behave_until</span> <span class="p">(</span><span class="n">my_label</span><span class="p">,</span> <span class="n">PollResults</span><span class="o">.</span><span class="n">OK_FAIL</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="invert">
+<h2>Invert<a class="headerlink" href="#invert" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-3-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-3-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-3-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-3-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-3-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-3-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>bt invert my_label
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-3-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-3-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">behave_invert</span> <span class="p">(</span><span class="n">my_label</span><span class="p">):</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="yield">
+<h2>yield<a class="headerlink" href="#yield" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-4-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-4-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-4-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-4-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-4-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-4-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>yield FAIL
+yield SUCCESS
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-4-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-4-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">yield</span> <span class="n">PollResults</span><span class="o">.</span><span class="n">BT_FAIL</span>
+<span class="k">yield</span> <span class="n">PollResults</span><span class="o">.</span><span class="n">BT_SUCCESS</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="maststorysyntax.html" class="btn btn-neutral float-left" title="Gui Components" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="mastextending.html" class="btn btn-neutral float-right" title="TBD" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Doug Reichard.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

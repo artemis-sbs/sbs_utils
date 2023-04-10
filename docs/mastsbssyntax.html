@@ -16,11 +16,12 @@
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/sphinx_highlight.js"></script>
+        <script src="_static/tabs.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Story Components" href="maststorysyntax.html" />
-    <link rel="prev" title="Language Basics" href="mastsyntax.html" /> 
+    <link rel="next" title="Gui Components" href="maststorysyntax.html" />
+    <link rel="prev" title="Mast Object Model" href="mastobjectmodel.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -50,17 +51,21 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="mastoverview.html">What is Mast</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mastsyntax.html">Language Basics</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Engine Interactions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="maststorysyntax.html">Story Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mastobjectmodel.html">Mast Object Model</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Engine Interactions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#await-comms">Await Comms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#await-science">Await Science</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="maststorysyntax.html">Gui Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mastbehavior.html">Behavior Components</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mastextending.html">TBD</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/overview.html">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/setup.html">Setup</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/entry.html">Entry Points, events, and handlers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/gui.html">Adding Gui pages and using the Gui System</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/mast.html">Adding MAST to you mission</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/siege.html">Tutorial: Creating Basic Siege</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
 <ul>
@@ -78,6 +83,8 @@
 <li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="systems/entry.html">Entry Points, events, and handlers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="systems/gui.html">Adding Gui pages and using the Gui System</a></li>
 </ul>
 
         </div>
@@ -111,14 +118,71 @@ Tell,
 Broadcast,
 Comms,
 Near,</p>
+<section id="await-comms">
+<h2>Await Comms<a class="headerlink" href="#await-comms" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-0-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-0-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-0-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-0-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>await self comms player:
+    + &quot;Hail&quot;:
+        have self tell player &quot;{comms_id}! We will destroy you, disgusting Terran scum!&quot;
+    + &quot;You&#39;re Ugly&quot;:
+        have self tell player  &quot;&quot;&quot;You are a foolish Terran, {comms_id}.  We know that the taunt functionality is not currently implemented.^&quot;&quot;&quot;
+    + &quot;Surrender now&quot;:
+        have self tell player &quot;&quot;&quot;OK we give up, {comms_id}.&quot;&quot;&quot;
+end_await
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-0-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-0-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">schedule_comms</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="k">lambda</span> <span class="nb">id</span><span class="p">:</span> <span class="n">query</span><span class="o">.</span><span class="n">has_role</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="s2">&quot;Station&quot;</span><span class="p">),</span> <span class="p">{</span>
+    <span class="s2">&quot;Hail&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms_station_hail</span><span class="p">,</span>
+    <span class="s2">&quot;Build Homing&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms_build_homing</span><span class="p">,</span>
+    <span class="s2">&quot;Build Nuke&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms_build_nuke</span><span class="p">,</span>
+    <span class="s2">&quot;Build EMP&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms_build_emp</span><span class="p">,</span>
+    <span class="s2">&quot;Build Mine&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms_build_mine</span><span class="p">,</span>
+<span class="p">})</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="await-science">
+<h2>Await Science<a class="headerlink" href="#await-science" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-1-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-1-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-1-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-1-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>await self scan station:
+    scan tab &quot;scan&quot;:
+        scan results &quot;Scan&quot;
+    scan tab &quot;bio&quot;:
+        scan results &quot;Bio&quot;
+end_await
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-1-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-1-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span>      <span class="bp">self</span><span class="o">.</span><span class="n">schedule_science</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">{</span>
+        <span class="s2">&quot;scan&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scan_default</span><span class="p">,</span>
+        <span class="s2">&quot;bio&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scan_bio</span><span class="p">,</span>
+        <span class="s2">&quot;intel&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scan_intel</span><span class="p">,</span>
+        <span class="s2">&quot;signl&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scan_signl</span>
+    <span class="p">})</span>
+
+
+<span class="k">def</span> <span class="nf">scan_default</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s2">&quot;This space object is now scanned, in the most general way. This text was generated by the script.&quot;</span>
+
+<span class="k">def</span> <span class="nf">scan_intel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s2">&quot;This space object is detailed in the ship&#39;s computer banks. This text was generated by the script.&quot;</span>
+
+<span class="k">def</span> <span class="nf">scan_bio</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s2">&quot;This space object has indeterminate life signs. This text was generated by the script.&quot;</span>
+<span class="k">def</span> <span class="nf">scan_signl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s2">&quot;This space object radiating signals. This text was generated by the script.&quot;</span>
+</pre></div>
+</div>
+</div></div>
+</section>
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="mastsyntax.html" class="btn btn-neutral float-left" title="Language Basics" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="maststorysyntax.html" class="btn btn-neutral float-right" title="Story Components" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="mastobjectmodel.html" class="btn btn-neutral float-left" title="Mast Object Model" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="maststorysyntax.html" class="btn btn-neutral float-right" title="Gui Components" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

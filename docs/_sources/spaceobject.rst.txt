@@ -52,6 +52,7 @@ spawn takes a position, a Name (can be None) a side (can be None), the art id an
 This single function does all the setup for the space object.
 
  .. code-block:: python
+   
    Npc().spawn(sim, -500, 0, 400,
                       "DS 1", "TSN", "Starbase", "behav_station")
    PlayerShip().spawn(sim,0,0,0, "Artemis", "TSN", "Battle Cruiser")

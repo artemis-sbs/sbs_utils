@@ -20,7 +20,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="The roles system" href="roles.html" />
-    <link rel="prev" title="Adding MAST to you mission" href="tutorials/mast.html" /> 
+    <link rel="prev" title="Tutorial: Creating Basic Siege" href="tutorials/siege.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -50,17 +50,17 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="mastoverview.html">What is Mast</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mastsyntax.html">Language Basics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mastobjectmodel.html">Mast Object Model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mastsbssyntax.html">Engine Interactions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="maststorysyntax.html">Story Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="maststorysyntax.html">Gui Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mastbehavior.html">Behavior Components</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mastextending.html">TBD</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/overview.html">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/setup.html">Setup</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/entry.html">Entry Points, events, and handlers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/gui.html">Adding Gui pages and using the Gui System</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/mast.html">Adding MAST to you mission</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/siege.html">Tutorial: Creating Basic Siege</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
 <ul class="current">
@@ -75,7 +75,65 @@
 <li class="toctree-l2"><a class="reference internal" href="#playership">PlayerShip</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#customizing-playership">Customizing PlayerShip</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#id1">What Spawn returns</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#api-spaceobject-module">API: spaceobject module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.spaceobject">API: spaceobject module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.spaceobject.MSpawn"><code class="docutils literal notranslate"><span class="pre">MSpawn</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.MSpawn.spawn_common"><code class="docutils literal notranslate"><span class="pre">MSpawn.spawn_common()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnActive"><code class="docutils literal notranslate"><span class="pre">MSpawnActive</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnActive.spawn"><code class="docutils literal notranslate"><span class="pre">MSpawnActive.spawn()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnActive.spawn_v"><code class="docutils literal notranslate"><span class="pre">MSpawnActive.spawn_v()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPassive"><code class="docutils literal notranslate"><span class="pre">MSpawnPassive</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPassive.spawn"><code class="docutils literal notranslate"><span class="pre">MSpawnPassive.spawn()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPassive.spawn_v"><code class="docutils literal notranslate"><span class="pre">MSpawnPassive.spawn_v()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPlayer"><code class="docutils literal notranslate"><span class="pre">MSpawnPlayer</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPlayer.spawn"><code class="docutils literal notranslate"><span class="pre">MSpawnPlayer.spawn()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPlayer.spawn_v"><code class="docutils literal notranslate"><span class="pre">MSpawnPlayer.spawn_v()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject"><code class="docutils literal notranslate"><span class="pre">SpaceObject</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.art_id"><code class="docutils literal notranslate"><span class="pre">SpaceObject.art_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.comms_id"><code class="docutils literal notranslate"><span class="pre">SpaceObject.comms_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.debug_mark_loc"><code class="docutils literal notranslate"><span class="pre">SpaceObject.debug_mark_loc()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.debug_remove_mark_loc"><code class="docutils literal notranslate"><span class="pre">SpaceObject.debug_remove_mark_loc()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.get_engine_object"><code class="docutils literal notranslate"><span class="pre">SpaceObject.get_engine_object()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.get_space_object"><code class="docutils literal notranslate"><span class="pre">SpaceObject.get_space_object()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.is_active"><code class="docutils literal notranslate"><span class="pre">SpaceObject.is_active</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.is_npc"><code class="docutils literal notranslate"><span class="pre">SpaceObject.is_npc</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.is_passive"><code class="docutils literal notranslate"><span class="pre">SpaceObject.is_passive</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.is_player"><code class="docutils literal notranslate"><span class="pre">SpaceObject.is_player</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.is_terrain"><code class="docutils literal notranslate"><span class="pre">SpaceObject.is_terrain</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.log"><code class="docutils literal notranslate"><span class="pre">SpaceObject.log()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.name"><code class="docutils literal notranslate"><span class="pre">SpaceObject.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.set_art_id"><code class="docutils literal notranslate"><span class="pre">SpaceObject.set_art_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.set_name"><code class="docutils literal notranslate"><span class="pre">SpaceObject.set_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.set_side"><code class="docutils literal notranslate"><span class="pre">SpaceObject.set_side()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.side"><code class="docutils literal notranslate"><span class="pre">SpaceObject.side</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.space_object"><code class="docutils literal notranslate"><span class="pre">SpaceObject.space_object()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject.update_comms_id"><code class="docutils literal notranslate"><span class="pre">SpaceObject.update_comms_id()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.spaceobject.TickType"><code class="docutils literal notranslate"><span class="pre">TickType</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.TickType.ACTIVE"><code class="docutils literal notranslate"><span class="pre">TickType.ACTIVE</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.TickType.ALL"><code class="docutils literal notranslate"><span class="pre">TickType.ALL</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.TickType.NPC"><code class="docutils literal notranslate"><span class="pre">TickType.NPC</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.TickType.PASSIVE"><code class="docutils literal notranslate"><span class="pre">TickType.PASSIVE</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.TickType.PLAYER"><code class="docutils literal notranslate"><span class="pre">TickType.PLAYER</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.TickType.TERRAIN"><code class="docutils literal notranslate"><span class="pre">TickType.TERRAIN</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.spaceobject.TickType.UNKNOWN"><code class="docutils literal notranslate"><span class="pre">TickType.UNKNOWN</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.objects.Active"><code class="docutils literal notranslate"><span class="pre">Active</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.objects.Npc"><code class="docutils literal notranslate"><span class="pre">Npc</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.objects.Passive"><code class="docutils literal notranslate"><span class="pre">Passive</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.objects.PlayerShip"><code class="docutils literal notranslate"><span class="pre">PlayerShip</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.objects.Terrain"><code class="docutils literal notranslate"><span class="pre">Terrain</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="roles.html">The roles system</a></li>
@@ -91,6 +149,8 @@
 <li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="systems/entry.html">Entry Points, events, and handlers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="systems/gui.html">Adding Gui pages and using the Gui System</a></li>
 </ul>
 
         </div>
@@ -136,18 +196,18 @@
 </section>
 <section id="creating-space-objects-using-sbs-utils">
 <h2>Creating Space Objects using sbs_utils<a class="headerlink" href="#creating-space-objects-using-sbs-utils" title="Permalink to this heading"></a></h2>
-<p>The SBS Utils library has the <code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code> class to wrap things related to space objects easier to code.</p>
+<p>The SBS Utils library has the <a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code></a> class to wrap things related to space objects easier to code.</p>
 <p>Additionally, has the library has these classes to create space objects:</p>
 <ul class="simple">
-<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">PlayerShip</span></code></p></li>
-<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Npc</span></code></p></li>
-<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Active</span></code></p></li>
-<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Terrain</span></code></p></li>
-<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Passive</span></code></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.objects.PlayerShip" title="sbs_utils.objects.PlayerShip"><code class="xref py py-class docutils literal notranslate"><span class="pre">PlayerShip</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.objects.Npc" title="sbs_utils.objects.Npc"><code class="xref py py-class docutils literal notranslate"><span class="pre">Npc</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.objects.Active" title="sbs_utils.objects.Active"><code class="xref py py-class docutils literal notranslate"><span class="pre">Active</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.objects.Terrain" title="sbs_utils.objects.Terrain"><code class="xref py py-class docutils literal notranslate"><span class="pre">Terrain</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.objects.Passive" title="sbs_utils.objects.Passive"><code class="xref py py-class docutils literal notranslate"><span class="pre">Passive</span></code></a></p></li>
 </ul>
-<p><code class="xref py py-class docutils literal notranslate"><span class="pre">PlayerShip</span></code> is used to create player ships.</p>
-<p><code class="xref py py-class docutils literal notranslate"><span class="pre">Npc</span></code> and <code class="xref py py-class docutils literal notranslate"><span class="pre">Active</span></code> are similar and are for creating non-player ships.</p>
-<p><code class="xref py py-class docutils literal notranslate"><span class="pre">Terrain</span></code> and <code class="xref py py-class docutils literal notranslate"><span class="pre">Passive</span></code> are similar and are for creating world item that are not ships.</p>
+<p><a class="reference internal" href="#sbs_utils.objects.PlayerShip" title="sbs_utils.objects.PlayerShip"><code class="xref py py-class docutils literal notranslate"><span class="pre">PlayerShip</span></code></a> is used to create player ships.</p>
+<p><a class="reference internal" href="#sbs_utils.objects.Npc" title="sbs_utils.objects.Npc"><code class="xref py py-class docutils literal notranslate"><span class="pre">Npc</span></code></a> and <a class="reference internal" href="#sbs_utils.objects.Active" title="sbs_utils.objects.Active"><code class="xref py py-class docutils literal notranslate"><span class="pre">Active</span></code></a> are similar and are for creating non-player ships.</p>
+<p><a class="reference internal" href="#sbs_utils.objects.Terrain" title="sbs_utils.objects.Terrain"><code class="xref py py-class docutils literal notranslate"><span class="pre">Terrain</span></code></a> and <a class="reference internal" href="#sbs_utils.objects.Passive" title="sbs_utils.objects.Passive"><code class="xref py py-class docutils literal notranslate"><span class="pre">Passive</span></code></a> are similar and are for creating world item that are not ships.</p>
 </section>
 <section id="spawning-spaceobjects">
 <h2>Spawning SpaceObjects<a class="headerlink" href="#spawning-spaceobjects" title="Permalink to this heading"></a></h2>
@@ -155,7 +215,13 @@
 spawn takes a position, a Name (can be None) a side (can be None), the art id and a behavior string.</p>
 <p>This single function does all the setup for the space object.</p>
 <blockquote>
-<div></div></blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">Npc</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="o">-</span><span class="mi">500</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span>
+                   <span class="s2">&quot;DS 1&quot;</span><span class="p">,</span> <span class="s2">&quot;TSN&quot;</span><span class="p">,</span> <span class="s2">&quot;Starbase&quot;</span><span class="p">,</span> <span class="s2">&quot;behav_station&quot;</span><span class="p">)</span>
+<span class="n">PlayerShip</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Artemis&quot;</span><span class="p">,</span> <span class="s2">&quot;TSN&quot;</span><span class="p">,</span> <span class="s2">&quot;Battle Cruiser&quot;</span><span class="p">)</span>
+<span class="n">Terrain</span><span class="p">()</span><span class="o">.</span><span class="n">spawn_v</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1000</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Asteroid 1&quot;</span><span class="p">,</span> <span class="s2">&quot;behav_asteroid&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
 </section>
 <section id="what-spawn-returns">
 <h2>What Spawn returns<a class="headerlink" href="#what-spawn-returns" title="Permalink to this heading"></a></h2>
@@ -263,18 +329,462 @@ This allows it to be further changes as needed easily without needing to retriev
 <p>The following classes are created using Mixin classes for spawning Space Objects.
 They can be used to derive new Space Object classes. However, it is likely the PlayerShip, Npc, and Terrain classes should be sufficient.</p>
 <ul class="simple">
-<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPassive</span></code></p></li>
-<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnActive</span></code></p></li>
-<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPlayer</span></code></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPassive" title="sbs_utils.spaceobject.MSpawnPassive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPassive</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnActive" title="sbs_utils.spaceobject.MSpawnActive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnActive</span></code></a></p></li>
+<li><p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPlayer" title="sbs_utils.spaceobject.MSpawnPlayer"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPlayer</span></code></a></p></li>
 </ul>
-<p><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPassive</span></code> is for Spawning passive objects e.g. asteroids</p>
-<p><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnActive</span></code> is for spawning active object, npx ships, stations etc.</p>
-<p><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPlayer</span></code> if for spawning player ships.</p>
-<p>Each of these add a <code class="xref py py-meth docutils literal notranslate"><span class="pre">spawn()</span></code> and a each add a <code class="xref py py-meth docutils literal notranslate"><span class="pre">spawn_v()</span></code> function. These functions allow spawning an entity with one function rather than several.
+<p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPassive" title="sbs_utils.spaceobject.MSpawnPassive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPassive</span></code></a> is for Spawning passive objects e.g. asteroids</p>
+<p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnActive" title="sbs_utils.spaceobject.MSpawnActive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnActive</span></code></a> is for spawning active object, npx ships, stations etc.</p>
+<p><a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPlayer" title="sbs_utils.spaceobject.MSpawnPlayer"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPlayer</span></code></a> if for spawning player ships.</p>
+<p>Each of these add a <a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPlayer.spawn" title="sbs_utils.spaceobject.MSpawnPlayer.spawn"><code class="xref py py-meth docutils literal notranslate"><span class="pre">spawn()</span></code></a> and a each add a <a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPlayer.spawn_v" title="sbs_utils.spaceobject.MSpawnPlayer.spawn_v"><code class="xref py py-meth docutils literal notranslate"><span class="pre">spawn_v()</span></code></a> function. These functions allow spawning an entity with one function rather than several.
 These will create a entity that has a name, a side, is positioned in space, has the define engine behavior and art work.</p>
 </section>
-<section id="api-spaceobject-module">
-<h2>API: spaceobject module<a class="headerlink" href="#api-spaceobject-module" title="Permalink to this heading"></a></h2>
+<section id="module-sbs_utils.spaceobject">
+<span id="api-spaceobject-module"></span><h2>API: spaceobject module<a class="headerlink" href="#module-sbs_utils.spaceobject" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawn">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.spaceobject.</span></span><span class="sig-name descname"><span class="pre">MSpawn</span></span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawn" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawn.spawn_common">
+<span class="sig-name descname"><span class="pre">spawn_common</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">side</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawn.spawn_common" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnActive">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.spaceobject.</span></span><span class="sig-name descname"><span class="pre">MSpawnActive</span></span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnActive" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.MSpawn" title="sbs_utils.spaceobject.MSpawn"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawn</span></code></a></p>
+<p>Mixin to add Spawn as an Active</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnActive.spawn">
+<span class="sig-name descname"><span class="pre">spawn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">side</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">art_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">behave_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnActive.spawn" title="Permalink to this definition"></a></dt>
+<dd><p>Spawn a new active object e.g. npc, station</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – The simulation</p></li>
+<li><p><strong>x</strong> (<em>float</em>) – x location</p></li>
+<li><p><strong>y</strong> (<em>float</em>) – y location</p></li>
+<li><p><strong>z</strong> (<em>float</em>) – z location</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – name of object</p></li>
+<li><p><strong>side</strong> (<em>str</em>) – name of object</p></li>
+<li><p><strong>art_id</strong> (<em>str</em>) – art id</p></li>
+<li><p><strong>behave_id</strong> (<em>str</em>) – the simulation behavior</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>spawn data</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>SpawnData</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnActive.spawn_v">
+<span class="sig-name descname"><span class="pre">spawn_v</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">side</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">art_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">behave_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnActive.spawn_v" title="Permalink to this definition"></a></dt>
+<dd><p>Spawn a new Active Object e.g. npc, station</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – The simulation</p></li>
+<li><p><strong>v</strong> (<a class="reference internal" href="vec.html#sbs_utils.vec.Vec3" title="sbs_utils.vec.Vec3"><em>Vec3</em></a>) – location</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – name of object</p></li>
+<li><p><strong>side</strong> (<em>str</em>) – name of object</p></li>
+<li><p><strong>art_id</strong> (<em>str</em>) – art id</p></li>
+<li><p><strong>behave_id</strong> (<em>str</em>) – the simulation behavior</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>spawn data</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>SpawnData</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnPassive">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.spaceobject.</span></span><span class="sig-name descname"><span class="pre">MSpawnPassive</span></span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnPassive" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.MSpawn" title="sbs_utils.spaceobject.MSpawn"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawn</span></code></a></p>
+<p>Mixin to add Spawn as an Passive</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnPassive.spawn">
+<span class="sig-name descname"><span class="pre">spawn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">side</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">art_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">behave_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnPassive.spawn" title="Permalink to this definition"></a></dt>
+<dd><p>Spawn a new passive object e.g. Asteroid, etc.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – The simulation</p></li>
+<li><p><strong>x</strong> (<em>float</em>) – x location</p></li>
+<li><p><strong>y</strong> (<em>float</em>) – y location</p></li>
+<li><p><strong>z</strong> (<em>float</em>) – z location</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – name of object</p></li>
+<li><p><strong>side</strong> (<em>str</em>) – name of object</p></li>
+<li><p><strong>art_id</strong> (<em>str</em>) – art id</p></li>
+<li><p><strong>behave_id</strong> (<em>str</em>) – the simulation behavior</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>spawn data</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>SpawnData</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnPassive.spawn_v">
+<span class="sig-name descname"><span class="pre">spawn_v</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">side</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">art_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">behave_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnPassive.spawn_v" title="Permalink to this definition"></a></dt>
+<dd><p>Spawn a new passive object e.g. asteroid, etc.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – The simulation</p></li>
+<li><p><strong>v</strong> (<a class="reference internal" href="vec.html#sbs_utils.vec.Vec3" title="sbs_utils.vec.Vec3"><em>Vec3</em></a>) – location</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – name of object</p></li>
+<li><p><strong>side</strong> (<em>str</em>) – name of object</p></li>
+<li><p><strong>art_id</strong> (<em>str</em>) – art id</p></li>
+<li><p><strong>behave_id</strong> (<em>str</em>) – the simulation behavior</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>spawn data</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>SpawnData</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnPlayer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.spaceobject.</span></span><span class="sig-name descname"><span class="pre">MSpawnPlayer</span></span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnPlayer" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.MSpawn" title="sbs_utils.spaceobject.MSpawn"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawn</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnPlayer.spawn">
+<span class="sig-name descname"><span class="pre">spawn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">side</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">art_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnPlayer.spawn" title="Permalink to this definition"></a></dt>
+<dd><p>Spawn a new player</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – The simulation</p></li>
+<li><p><strong>x</strong> (<em>float</em>) – x location</p></li>
+<li><p><strong>y</strong> (<em>float</em>) – y location</p></li>
+<li><p><strong>z</strong> (<em>float</em>) – z location</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – name of object</p></li>
+<li><p><strong>side</strong> (<em>str</em>) – name of object</p></li>
+<li><p><strong>art_id</strong> (<em>str</em>) – art id</p></li>
+<li><p><strong>behave_id</strong> (<em>str</em>) – the simulation behavior</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>spawn data</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>SpawnData</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.MSpawnPlayer.spawn_v">
+<span class="sig-name descname"><span class="pre">spawn_v</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">side</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">art_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.MSpawnPlayer.spawn_v" title="Permalink to this definition"></a></dt>
+<dd><p>Spawn a new player</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – The simulation</p></li>
+<li><p><strong>v</strong> (<a class="reference internal" href="vec.html#sbs_utils.vec.Vec3" title="sbs_utils.vec.Vec3"><em>Vec3</em></a>) – location</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – name of object</p></li>
+<li><p><strong>side</strong> (<em>str</em>) – name of object</p></li>
+<li><p><strong>art_id</strong> (<em>str</em>) – art id</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>spawn data</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>SpawnData</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.spaceobject.</span></span><span class="sig-name descname"><span class="pre">SpaceObject</span></span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">EngineObject</span></code></p>
+<dl class="py property">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.art_id">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">art_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.art_id" title="Permalink to this definition"></a></dt>
+<dd><p>str, cached version of art_id</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.comms_id">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">comms_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.comms_id" title="Permalink to this definition"></a></dt>
+<dd><p>str, cached version of comms_id</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.debug_mark_loc">
+<span class="sig-name descname"><span class="pre">debug_mark_loc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.debug_mark_loc" title="Permalink to this definition"></a></dt>
+<dd><p>Adds a nav point to the location passed if debug mode is on</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – The simulation</p></li>
+<li><p><strong>x</strong> (<em>float</em>) – x location</p></li>
+<li><p><strong>y</strong> (<em>float</em>) – y location</p></li>
+<li><p><strong>z</strong> (<em>float</em>) – z location</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – name of the navpoint</p></li>
+<li><p><strong>color</strong> (<em>str</em>) – color of the navpoint</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.debug_remove_mark_loc">
+<span class="sig-name descname"><span class="pre">debug_remove_mark_loc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.debug_remove_mark_loc" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.get_engine_object">
+<span class="sig-name descname"><span class="pre">get_engine_object</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.get_engine_object" title="Permalink to this definition"></a></dt>
+<dd><p>Gets the simulation space object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – The simulation</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The simulation space object</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The simulation space_object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.get_space_object">
+<span class="sig-name descname"><span class="pre">get_space_object</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.get_space_object" title="Permalink to this definition"></a></dt>
+<dd><p>Gets the simulation space object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – The simulation</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The simulation space object</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The simulation space_object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.is_active">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_active</span></span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.is_active" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.is_npc">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_npc</span></span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.is_npc" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.is_passive">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_passive</span></span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.is_passive" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.is_player">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_player</span></span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.is_player" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.is_terrain">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_terrain</span></span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.is_terrain" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.log">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.log" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.name" title="Permalink to this definition"></a></dt>
+<dd><p>str, cached version of comms_id</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.set_art_id">
+<span class="sig-name descname"><span class="pre">set_art_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">art_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.set_art_id" title="Permalink to this definition"></a></dt>
+<dd><p>Get the name of the object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – The simulation</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>name</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.set_name">
+<span class="sig-name descname"><span class="pre">set_name</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.set_name" title="Permalink to this definition"></a></dt>
+<dd><p>Get the name of the object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – The simulation</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>name</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.set_side">
+<span class="sig-name descname"><span class="pre">set_side</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">side</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.set_side" title="Permalink to this definition"></a></dt>
+<dd><p>Get the side of the object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – The simulation</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>side</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.side">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">side</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.side" title="Permalink to this definition"></a></dt>
+<dd><p>str, cached version of comms_id</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.space_object">
+<span class="sig-name descname"><span class="pre">space_object</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.space_object" title="Permalink to this definition"></a></dt>
+<dd><p>get the simulation’s space object for the object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – The simulation</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>simulation space object</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>simulation space object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.SpaceObject.update_comms_id">
+<span class="sig-name descname"><span class="pre">update_comms_id</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.SpaceObject.update_comms_id" title="Permalink to this definition"></a></dt>
+<dd><p>Updates the comms ID when the name or side has changed
+:return: this is name or name(side)
+:rtype: str</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.TickType">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.spaceobject.</span></span><span class="sig-name descname"><span class="pre">TickType</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qualname</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boundary</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.spaceobject.TickType" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">IntEnum</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.TickType.ACTIVE">
+<span class="sig-name descname"><span class="pre">ACTIVE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#sbs_utils.spaceobject.TickType.ACTIVE" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.TickType.ALL">
+<span class="sig-name descname"><span class="pre">ALL</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">-1</span></em><a class="headerlink" href="#sbs_utils.spaceobject.TickType.ALL" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.TickType.NPC">
+<span class="sig-name descname"><span class="pre">NPC</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#sbs_utils.spaceobject.TickType.NPC" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.TickType.PASSIVE">
+<span class="sig-name descname"><span class="pre">PASSIVE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sbs_utils.spaceobject.TickType.PASSIVE" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.TickType.PLAYER">
+<span class="sig-name descname"><span class="pre">PLAYER</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#sbs_utils.spaceobject.TickType.PLAYER" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.TickType.TERRAIN">
+<span class="sig-name descname"><span class="pre">TERRAIN</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sbs_utils.spaceobject.TickType.TERRAIN" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sbs_utils.spaceobject.TickType.UNKNOWN">
+<span class="sig-name descname"><span class="pre">UNKNOWN</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">-1</span></em><a class="headerlink" href="#sbs_utils.spaceobject.TickType.UNKNOWN" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<span class="target" id="module-sbs_utils.objects"></span><dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.objects.Active">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.objects.</span></span><span class="sig-name descname"><span class="pre">Active</span></span><a class="headerlink" href="#sbs_utils.objects.Active" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code></a>, <a class="reference internal" href="#sbs_utils.spaceobject.MSpawnActive" title="sbs_utils.spaceobject.MSpawnActive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnActive</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.objects.Npc">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.objects.</span></span><span class="sig-name descname"><span class="pre">Npc</span></span><a class="headerlink" href="#sbs_utils.objects.Npc" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code></a>, <a class="reference internal" href="#sbs_utils.spaceobject.MSpawnActive" title="sbs_utils.spaceobject.MSpawnActive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnActive</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.objects.Passive">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.objects.</span></span><span class="sig-name descname"><span class="pre">Passive</span></span><a class="headerlink" href="#sbs_utils.objects.Passive" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code></a>, <a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPassive" title="sbs_utils.spaceobject.MSpawnPassive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPassive</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.objects.PlayerShip">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.objects.</span></span><span class="sig-name descname"><span class="pre">PlayerShip</span></span><a class="headerlink" href="#sbs_utils.objects.PlayerShip" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code></a>, <a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPlayer" title="sbs_utils.spaceobject.MSpawnPlayer"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPlayer</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.objects.Terrain">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.objects.</span></span><span class="sig-name descname"><span class="pre">Terrain</span></span><a class="headerlink" href="#sbs_utils.objects.Terrain" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code></a>, <a class="reference internal" href="#sbs_utils.spaceobject.MSpawnPassive" title="sbs_utils.spaceobject.MSpawnPassive"><code class="xref py py-class docutils literal notranslate"><span class="pre">MSpawnPassive</span></code></a></p>
+</dd></dl>
+
 </section>
 </section>
 
@@ -282,7 +792,7 @@ These will create a entity that has a name, a side, is positioned in space, has 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="tutorials/mast.html" class="btn btn-neutral float-left" title="Adding MAST to you mission" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="tutorials/siege.html" class="btn btn-neutral float-left" title="Tutorial: Creating Basic Siege" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="roles.html" class="btn btn-neutral float-right" title="The roles system" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

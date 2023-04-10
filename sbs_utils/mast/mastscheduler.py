@@ -32,6 +32,7 @@ class PollResults(IntEnum):
      OK_ADVANCE_TRUE = 2
      OK_ADVANCE_FALSE=3
      OK_RUN_AGAIN = 4
+     OK_YIELD=5 # This will advance, but run again
      FAIL_END = 100
      OK_END = 99
 
@@ -60,6 +61,21 @@ class FailRuntimeNode(MastRuntimeNode):
                 return PollResults.OK_ADVANCE_TRUE
     
         return PollResults.FAIL_END
+    
+class YieldRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task, node:Yield):
+        if node.if_code:
+            value = task.eval_code(node.if_code)
+            if not value:
+                return PollResults.OK_ADVANCE_TRUE
+        if node.result is None:
+            return PollResults.OK_YIELD
+        if node.result.lower() == 'fail':
+            return PollResults.FAIL_END
+        if node.result.lower() == 'success':
+            return PollResults.OK_END
+        return PollResults.OK_RUN_AGAIN
+
 
 class AssignRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task:MastAsyncTask, node:Assign):
@@ -135,10 +151,10 @@ class JumpRuntimeNode(MastRuntimeNode):
             task.push_label(node.label)
         elif node.pop_jump:
             task.pop_label()
-            task.jump(node.pop_jump)
+            task.jump(node.label)
         elif node.pop_push:
             task.pop_label()
-            task.push_label(node.pop_push)
+            task.push_label(node.label)
         elif node.pop:
             task.pop_label()
         else:
@@ -308,16 +324,11 @@ class ParallelRuntimeNode(MastRuntimeNode):
             inputs = task.eval_code(node.code)
             vars = vars | inputs
         if isinstance(node.labels, list):
-            if node.all_any:
-                if node.sequence:
-                    task = task.main.start_all_task(node.labels, vars, task_name=node.name, conditional=node.conditional)
-                elif node.fallback:
-                    task = task.main.start_any_task(node.labels, vars, task_name=node.name, conditional=node.conditional)
-            else:
-                if node.sequence:
-                    task = task.main.start_sequence_task(node.labels, vars, task_name=node.name, conditional=node.conditional)
-                elif node.fallback:
-                    task = task.main.start_fallback_task(node.labels, vars, task_name=node.name, conditional=node.conditional)
+            if node.all:
+                task = task.main.start_all_task(node.labels, vars, task_name=node.name, conditional=None)
+            elif node.any:
+                task = task.main.start_any_task(node.labels, vars, task_name=node.name, conditional=None)
+        
         elif node.await_task and node.name:
             task = task.get_variable(node.name)        
         else:
@@ -330,13 +341,45 @@ class ParallelRuntimeNode(MastRuntimeNode):
         if self.task:
             if not self.task.done:
                 return PollResults.OK_RUN_AGAIN
-            if node.reflect:
-                return self.task.result
             if node.fail_label and self.task.done and self.task.result == PollResults.FAIL_END:
                 task.jump(task.active_label,node.fail_label.loc+1)
         if node.timeout_label and self.timeout < task.main.get_seconds("sim"):
             task.jump(task.active_label,node.timeout_label.loc+1)
 
+
+        return PollResults.OK_ADVANCE_TRUE
+    
+class BehaviorRuntimeNode(MastRuntimeNode):
+    def enter(self, mast, task, node:Behavior):
+        vars = {} | task.vars if node.labels is not None else None
+        if node.code:
+            inputs = task.eval_code(node.code)
+            vars = vars | inputs
+        if isinstance(node.labels, list):
+            if node.sequence:
+                task = task.main.start_sequence_task(node.labels, vars, task_name=node.name, conditional=node.conditional)
+            elif node.fallback:
+                task = task.main.start_fallback_task(node.labels, vars, task_name=node.name, conditional=node.conditional)
+
+        self.task = task # if node.is_await else None
+        self.timeout = task.main.get_seconds("sim") + (node.minutes*60+node.seconds)
+        
+    def poll(self, mast, task: MastAsyncTask, node:Behavior):
+        if self.task:
+            if not self.task.done:
+                return PollResults.OK_RUN_AGAIN
+            if node.is_yield:
+                return self.task.result
+            if node.fail_label and self.task.done and self.task.result == PollResults.FAIL_END:
+                task.jump(task.active_label,node.fail_label.loc+1)
+            elif node.until == "success" and self.task.done:
+                if  self.task.result == PollResults.FAIL_END:
+                    return self.task.rewind()
+            elif node.until == "fail" and self.task.done:
+                if  self.task.result != PollResults.FAIL_END:
+                    return self.task.rewind()
+        if node.timeout_label and self.timeout < task.main.get_seconds("sim"):
+            task.jump(task.active_label,node.timeout_label.loc+1)
 
         return PollResults.OK_ADVANCE_TRUE
 
@@ -481,6 +524,9 @@ class MastAsyncTask:
         self.events = {}
         self.vars["mast_task"] = self
         self.redirect = None
+        self.pop_on_jump = 0
+        self.pending_pop = None
+        self.pending_jump = None
     
     def push_label(self, label, activate_cmd=0, data=None):
         if self.active_label:
@@ -488,6 +534,13 @@ class MastAsyncTask:
             #print(f"PUSH DATA {push_data.label} {push_data.active_cmd}")
             self.label_stack.append(push_data)
         self.jump(label, activate_cmd)
+
+    def push_jump_pop(self, label, activate_cmd=0, data=None):
+        push_data = PushData(self.active_label, self.active_cmd, data)
+        self.label_stack.append(push_data)
+        self.pop_on_jump += 1
+        self.jump(label, activate_cmd)
+
 
     # For button Pushes, and maybe events
     # Like a push, but pop not needed if redirected logic jumps
@@ -514,13 +567,16 @@ class MastAsyncTask:
 
     def pop_label(self, inc_loc=True):
         if len(self.label_stack)>0:
+            if self.pop_on_jump >0:
+                self.pop_on_jump-=1
             push_data: PushData
             push_data = self.label_stack.pop()
             #print(f"POP DATA {push_data.label} {push_data.active_cmd} len {len(self.label_stack)}")
-            if inc_loc:
-                self.jump(push_data.label, push_data.active_cmd+1)
-            else:
-                self.jump(push_data.label, push_data.active_cmd)
+            if self.pending_jump is None:
+                if inc_loc:
+                    self.pending_pop = (push_data.label, push_data.active_cmd+1)
+                else:
+                    self.pending_pop = (push_data.label, push_data.active_cmd)
 
     def add_event(self, event_name, event):
         event_data = PushData(self.active_label, event.loc)
@@ -531,9 +587,19 @@ class MastAsyncTask:
         if ev_data is not None:
             self.redirect_push_label(ev_data.label, ev_data.active_cmd+1,-1, {"event": event})
             self.tick()
-    
+
     def jump(self, label = "main", activate_cmd=0):
-        self.call_leave()
+        self.pending_jump = (label,activate_cmd)
+        while self.pop_on_jump>0:
+            # if this is a jump and there are tested push
+            # get back to the main flow
+            self.pop_on_jump-=1
+            self.label_stack.pop()
+            
+    
+    
+    def do_jump(self, label = "main", activate_cmd=0):
+           
         if label == "END":
             self.active_cmd = 0
             self.runtime_node = None
@@ -669,6 +735,19 @@ class MastAsyncTask:
 
             count = 0
             while not self.done:
+                if self.pending_jump:
+                    jump_data = self.pending_jump
+                    self.pending_jump = None
+                    # Jump takes precedence
+                    self.pending_pop = None
+                    self.do_jump(*jump_data)
+                elif self.pending_pop:
+                    # Pending jump trumps pending pop
+                    #print(f"pending pop to {self.pending_pop.__name__}")
+                    pop_data = self.pending_pop
+                    self.pending_pop = None
+                    self.do_jump(*pop_data)
+
                 count += 1
                 # avoid tight loops
                 if count > 1000:
@@ -686,6 +765,10 @@ class MastAsyncTask:
                         case PollResults.OK_ADVANCE_TRUE:
                             self.result = result
                             self.next()
+                        case PollResults.OK_YIELD:
+                            self.result = result
+                            self.next()
+                            break
                         case PollResults.OK_ADVANCE_FALSE:
                             self.result = result
                             self.next()
@@ -816,6 +899,15 @@ class MastSequenceTask:
     def active_label(self):
         self.task.active_label
 
+    def rewind(self):
+        self.current_label = 0
+        self.done = False
+        label = self.labels[self.current_label]
+        self.task.jump(label)
+        # The task was removed, re-add
+        self.main.tasks.append(self)
+        return PollResults.OK_JUMP
+
     def tick(self) -> PollResults:
         if self.conditional is not None and self.task.get_variable(self.conditional):
             self.done = True
@@ -828,7 +920,9 @@ class MastSequenceTask:
                 return PollResults.OK_END
             # so if this fails as a sequence it reruns the sequence?
             label = self.labels[self.current_label]
-            self.task.jump(label)
+            #TODO: I'm not sure why just jump didn't work
+            self.task.do_jump(label)
+            
             return PollResults.OK_JUMP
         if self.result == PollResults.FAIL_END:
                 self.done = True
@@ -852,6 +946,14 @@ class MastFallbackTask:
     def active_label(self):
         self.task.active_label
 
+    def rewind(self):
+        self.current_selection = 0
+        self.done = False
+        label = self.labels[self.current_selection]
+        self.task.do_jump(label)
+        #self.main.tasks.append(self)
+        return PollResults.OK_JUMP
+
     def tick(self) -> PollResults:
         if self.conditional is not None and  self.task.get_variable(self.conditional):
             self.done = True
@@ -864,7 +966,9 @@ class MastFallbackTask:
                 return PollResults.FAIL_END
             # so if this fails as a sequence it reruns the sequence?
             label = self.labels[self.current_selection]
-            self.task.jump(label)
+            #TODO: I'm not sure why just jump didn't work
+            # 
+            self.task.do_jump(label)
             return PollResults.OK_JUMP
         if self.result == PollResults.OK_END:
             self.done = True
@@ -882,6 +986,7 @@ class MastScheduler:
         "End": EndRuntimeNode,
         "ReturnIf": ReturnIfRuntimeNode,
         "Fail": FailRuntimeNode,
+        "Yield": YieldRuntimeNode,
         "Jump": JumpRuntimeNode,
         "IfStatements": IfStatementsRuntimeNode,
         "MatchStatements": MatchStatementsRuntimeNode,
@@ -891,6 +996,7 @@ class MastScheduler:
         "PyCode": PyCodeRuntimeNode,
         "DoCommand": DoCommandRuntimeNode,
 #        "Await": AwaitRuntimeNode,
+        "Behavior": BehaviorRuntimeNode,
         "Parallel": ParallelRuntimeNode,
         "Cancel": CancelRuntimeNode,
         "Assign": AssignRuntimeNode,

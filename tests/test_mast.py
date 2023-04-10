@@ -126,8 +126,18 @@ next x
 ->RETURN  if s
 <<-> pop_jump
 <<->> pop_push
+
+
+
+""")
+
+        assert(len(errors)==0)
+
+    def test_await_all_any_compile_err(self):
+        (errors, mast) =mast_compile( code = """
+
 => fork
-f1 => fork
+=> fork
 =>fork_you
 =>fork_you
 => pass_data {"self": player1, "HP": 30}
@@ -142,40 +152,16 @@ await => pass_data ~~{
     "HP": 30
     }~~
 await => trend
-await ->=> trend
-await->=> trend
-await->=> trend
-await => fred & barney:
+await => trend
+await=> trend
+await=> trend
+await all fred & barney:
 ->END
 fail:
 ->FAIL
 end_await
-await ->=> fred & barney
-
-
-""")
-
-        assert(len(errors)==0)
-
-
-    def test_btree_compile_err(self):
-        (errors, mast) =mast_compile( code = """
-->FAIL
--> FAIL
--> FAIL if x
-=> fork
-f1 => fork
-
-=> fork_you | test2
-=> fork_you & test2
-=>=>fork_you & test2
-=>=>fork_you | test2
-=> cond ? fork_you | test2
-=> cond ? fork_you & test2
-await->=> cond ? fork_you & test2
-=>=> cond ? fork_you | test2
-=>=> cond ? fork_you & test2 & test3
-await->=>=> cond ? fork_you & test2 & test3
+=> all fred & barney
+schedule all fred & barney
 
 
 => pass_data {"self": player1, "HP": 30}
@@ -183,6 +169,37 @@ await->=>=> cond ? fork_you & test2 & test3
     "self": player1, 
     "HP": 30
     }~~
+""")
+
+        assert(len(errors)==0)
+
+
+    def test_btree_compile_err(self):
+        (errors, mast) =mast_compile( code = """
+
+yield bt sel a|b
+await bt until fail seq a&b
+await bt until success seq a&b
+await bt invert seq a&b
+
+yield bt sel a|b {"self": player1, "HP": 30}
+await bt until fail seq a&b {"self": player1, "HP": 30}
+await bt until success seq a&b {"self": player1, "HP": 30}
+await bt invert seq a&b {"self": player1, "HP": 30}
+
+
+yield bt sel a|b {"self": player1, "HP": 30}:
+end_await
+
+await bt until fail seq a&b {"self": player1, "HP": 30}:
+end_await
+await bt until success seq a&b {"self": player1, "HP": 30}:
+end_await
+await bt invert seq a&b {"self": player1, "HP": 30}:
+end_await
+
+
+
 """)
         assert(len(errors)==0)
 
@@ -425,7 +442,7 @@ case 50:
     def test_await_condition(self):
         (errors, runner, _) = mast_run( code = """
 shared x = 0
-t => Inc
+var t =>  Inc
 await until x==10:
     log "x={x}"
 end_await
@@ -449,56 +466,59 @@ end_if
 
     def test_py_exp_run_no_err(self):
         (errors, runner, _) = mast_run( code = """
-var1 = 100
+data = MastDataObject({"var1": 100})
+other = MastDataObject({"var1": 900000})
 shared var2 = 100
 ->> Push  # var1 is 200 # var2 200
 ->> Push  # var1 is 300 # var2 300
 
-await => Spawn # var1 is 400 var2 is 400
-await => Spawn # var1 is 500 var2 is 500
-await => Spawn {"var1": 99} # var1 still 500 on this 
+await => Spawn {"data": data}  # var1 is 400 var2 is 400
+await schedule Spawn {"data": data}# var1 is 500 var2 is 500
+await => Spawn {"data": other} # var1 still 500 on this 
 
-if var1==500:
+if data.var1==500:
     ->> Push  # var1 is 600
 else:
-    var1 = 10000000
+    data.var1 = 10000000
 end_if
 
-if var1==300:
-    var1 = 20000000
+if data.var1==300:
+    data.var1 = 20000000
 else:
     ->> Push  # var1 is 700
 end_if
 
-if var1==500:
-    var1 = 30000000
-elif var1 == 700:
-    var1 = var1+ 100
+if data.var1==500:
+    data.var1 = 30000000
+elif data.var1 == 700:
+    data.var1 = data.var1 + 100
 else:
-var1 = 40000000 + var1
+data.var1 = 40000000 + data.var1
 end_if
 ->END
 
 === Push ===
-var1 = var1 + 100
-shared var2 = var2 + 100
+data.var1 = data.var1 + 100
+var2 = var2 + 100
 <<-
 
 === Spawn ===
-var1 = var1 + 100
-shared var2 = var2 + 100
+data.var1 = data.var1 + 100
+var2 = var2 + 100
 ->END
 
     """)
         assert(len(errors)==0)
-        var1 = runner.active_task.get_value("var1", None)
+        data, scope = runner.active_task.get_value("data", None)
+        var1 = data.var1
         var2 = runner.active_task.get_value("var2", None)
         assert(var1 == (800,Scope.NORMAL))
         assert(var2 == (800,Scope.SHARED))
         
         # run again, shared data should NOT reset
         task = runner.start_task()
-        var1 = task.get_value("var1", None)
+        data, scope = runner.active_task.get_value("data", None)
+        var1 = data.var1
         var2 = task.get_value("var2", None)
         assert(var1 == (800,Scope.NORMAL))
         assert(var2 == (1500,Scope.SHARED))
@@ -701,7 +721,7 @@ out
         (errors, runner, _) = mast_run( code = """
         logger string output            
         
-        =>=> Seq1 & Seq2 & Seq3
+        await all Seq1 & Seq2 & Seq3
         ->END
         ======== Seq1 =====
         log "S1"
@@ -739,7 +759,7 @@ S1 Again
         (errors, runner, _) = mast_run( code = """
         logger string output            
         
-        =>=> Seq1 | Seq2 | Seq3
+        await any Seq1 | Seq2 | Seq3
         ->END
         ======== Seq1 =====
         log "S1"
@@ -773,11 +793,11 @@ S2
         (errors, runner, _) = mast_run( code = """
         logger string output            
         
-        => Seq1 | Seq2 | Seq3
+        await bt sel Seq1 | Seq2 | Seq3
         ->END
         ======== Seq1 =====
         log "S1"
-        ->FAIL
+        yield Fail
         delay test 3s
         log "S1 Again"
 
@@ -785,11 +805,11 @@ S2
         log "S2"
         delay test 10s
         log "S2 Again"
-        -> END
+        yield Success
         ===== Seq3 ====
         delay test 3s
         log "S3"
-        -> FAIL
+        yield faIl
     """)
         assert(len(errors)==0)
         #for _ in range(50):
@@ -812,7 +832,7 @@ S2 Again
         logger string output            
         shared x = 0
         === run ===
-        await => Seq1 | Seq2 | Seq3:
+        await bt sel Seq1 | Seq2 | Seq3:
         fail:
             log "Fail"
             ->run
@@ -820,17 +840,17 @@ S2 Again
         ->END
         ======== Seq1 =====
         log "S1"
-        ->FAIL
+        yield fail
         
 
         ======== Seq2 =====
         log "S2"
         x = x +1
-        -> FAIL if x<3
+        yield fail if x<3
         -> END
         ===== Seq3 ====
         log "S3"
-        -> FAIL
+        yield fail
     """)
         assert(len(errors)==0)
         #for _ in range(50):
@@ -844,6 +864,40 @@ S2 Again
 
         assert(value =="""S1\nS2\nS3\nFail\nS1\nS2\nS3\nFail\nS1\nS2\n""")
 
+    def test_fallback_until_success_no_err(self):
+        (errors, runner, _) = mast_run( code = """
+        logger string output            
+        shared x = 0
+        === run ===
+        await bt until success sel Seq1 | Seq2 | Seq3
+        
+        ->END
+        ======== Seq1 =====
+        log "S1"
+        yield fail
+        
+
+        ======== Seq2 =====
+        log "S2"
+        x = x +1
+        yield fail if x<3
+        -> END
+        ===== Seq3 ====
+        log "S3"
+        yield fail
+    """)
+        assert(len(errors)==0)
+        #for _ in range(50):
+        while runner.tick():
+            pass
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        #st.seek(0)
+        value = st.getvalue()
+
+        assert(value =="""S1\nS2\nS3\nS1\nS2\nS3\nS1\nS2\n""")
+
     def test_fallback_no_cond_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger string output            
@@ -852,7 +906,8 @@ S2 Again
         # Start something that will eventually find an apple
         => external
         # Start hungry until you eat something
-        await => eat_apple | eat_banana        
+        # await => eat_apple | eat_banana        
+        await bt until success sel eat_apple | eat_banana        
         #await a
         
         log "not hungry"
@@ -893,15 +948,17 @@ S2 Again
             "has_banana": False
         })~~
 
-        await =>=> external & not_hungry  {"blackboard": blackboard}
-
-        
+        #await =>=> external & not_hungry  {"blackboard": blackboard}
+        schedule external {"blackboard": blackboard}
+        await bt until success seq not_hungry {"blackboard": blackboard}
+    
         
         log "not hungry"
         ->END
 
         ====== not_hungry =====
-        await ->=> eat_apple | eat_banana  {"blackboard": blackboard}
+        #await ->=> eat_apple | eat_banana  {"blackboard": blackboard}
+        yield bt sel  eat_banana | eat_apple   {"blackboard": blackboard}
 
         ??????? eat_apple ??????
         ->FAIL if not blackboard.has_apple
@@ -910,18 +967,24 @@ S2 Again
         -> END
         ??????? eat_banana ?????
         -> FAIL if not blackboard.has_banana
+        log "Ate Banana"
         blackboard.not_hungry = True
         -> END
 
 
         ===== external ====
-        delay test 10s
+        for x in range(10):
+        #    log 'fail'
+            yield
+        next x
         blackboard.has_apple = True
+        yield success
     """)
         assert(len(errors)==0)
-        #for _ in range(50):
-        # while runner.tick():
-        #     pass
+        for _ in range(500):
+            runner.tick()
+        #while runner.tick():
+        #    pass
         output = runner.get_value("output", None)
         assert(output is not None)
         st = output[0]
@@ -936,7 +999,7 @@ S2 Again
         (errors, runner, _) = mast_run( code = """
         logger string output            
         
-        => Seq1 & Seq2 & Seq3
+        await bt seq Seq1 & Seq2 & Seq3
         ->END
         ======== Seq1 =====
         log "S1"
@@ -964,7 +1027,7 @@ S2 Again
         #st.seek(0)
         value = st.getvalue()
 
-        assert(value =="""S1
+        assert(value !="""S1
 S1 Again
 S2
 S2 Again

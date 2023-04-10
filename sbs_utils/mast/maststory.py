@@ -220,7 +220,7 @@ class ButtonControl(MastNode):
 FLOAT_VALUE_REGEX = r"[+-]?([0-9]*[.])?[0-9]+"
 
 class SliderControl(MastNode):
-    rule = re.compile(r"""(?P<is_int>intslider|slider)"""+
+    rule = re.compile(r"""(?P<is_int>intslider|slider|scrollbar)"""+
         r"""\s+(?P<var>\w+)"""+
         r"""\s+(?P<low>"""+FLOAT_VALUE_REGEX+
         r""")\s+(?P<high>"""+FLOAT_VALUE_REGEX+
@@ -230,6 +230,7 @@ class SliderControl(MastNode):
         self.loc = loc
         self.var= var
         self.is_int = (is_int=="intslider")
+        self.is_scroll = (is_int=="scrollbar")
         self.low = float(low)
         self.high = float(high)
         self.value = float(value)

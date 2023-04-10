@@ -19,7 +19,6 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Adding MAST to you mission" href="mast.html" />
     <link rel="prev" title="Entry Points, events, and handlers" href="entry.html" /> 
 </head>
 
@@ -50,26 +49,17 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../mastoverview.html">What is Mast</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mastsyntax.html">Language Basics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mastobjectmodel.html">Mast Object Model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mastsbssyntax.html">Engine Interactions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../maststorysyntax.html">Story Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../maststorysyntax.html">Gui Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mastbehavior.html">Behavior Components</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mastextending.html">TBD</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
-<ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="setup.html">Setup</a></li>
-<li class="toctree-l1"><a class="reference internal" href="entry.html">Entry Points, events, and handlers</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Adding Gui pages and using the Gui System</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#sbs-utils-gui-system">sbs_utils GUI system</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#creating-a-page">Creating a Page</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#multiple-pages">Multiple Pages</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#example-multiple-pages">Example Multiple Pages</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#complex-page-hierarchies">Complex page hierarchies</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="mast.html">Adding MAST to you mission</a></li>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/setup.html">Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/siege.html">Tutorial: Creating Basic Siege</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
 <ul>
@@ -81,12 +71,23 @@
 <li class="toctree-l1"><a class="reference internal" href="../faces.html">The Faces module</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Systems:</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../gui.html">GUI system</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../consoledispatcher.html">Console Dispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../damagedispatcher.html">The Damage Dispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tickdispatcher.html">TickDispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../hookhandlers.html">The hook Handlers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="entry.html">Entry Points, events, and handlers</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Adding Gui pages and using the Gui System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#sbs-utils-gui-system">sbs_utils GUI system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#creating-a-page">Creating a Page</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#multiple-pages">Multiple Pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-multiple-pages">Example Multiple Pages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#complex-page-hierarchies">Complex page hierarchies</a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 
         </div>
@@ -105,7 +106,7 @@
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
       <li class="breadcrumb-item active">Adding Gui pages and using the Gui System</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/tutorials/gui.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/systems/gui.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -196,8 +197,8 @@
 <p>Pages can be used present a more complex set of screens. Like a stack of plates, or like apps on a phone a stack of pages can have multiple pages while only displaying the top page.
 Removing the top page, the previous one becomes the top/active page.</p>
 <p>The sbs_utils GUI system provides simple methods to manages multiple pages.</p>
-<p>Call Gui. <code class="xref py py-meth docutils literal notranslate"><span class="pre">push()</span></code> To place a new active Page</p>
-<div class="graphviz"><img src="../_images/graphviz-65ace05a12f9208ad6a74cbc53c8e097bc87505f.png" alt="digraph G {
+<p>Call Gui. <a class="reference internal" href="../gui.html#sbs_utils.gui.Gui.push" title="sbs_utils.gui.Gui.push"><code class="xref py py-meth docutils literal notranslate"><span class="pre">push()</span></code></a> To place a new active Page</p>
+<div class="graphviz"><img src="../_images/graphviz-900eb87b16cabf7c9316aab597216a618e4a207f.png" alt="digraph G {
    node [shape=box, fontname=&quot;Arial&quot;];
    constraint=false;
    rankdir=&quot;LR&quot;;
@@ -209,8 +210,8 @@ Removing the top page, the previous one becomes the top/active page.</p>
 
    sp -&gt; op [label=&quot;push&quot;];
 }" class="graphviz" /></div>
-<p>Call Gui. <code class="xref py py-meth docutils literal notranslate"><span class="pre">pop()</span></code> To deactivate an active Page and activate the previous page.</p>
-<div class="graphviz"><img src="../_images/graphviz-6b2883a00c5541aa633b8b5dccc726e8a835fd24.png" alt="digraph G {
+<p>Call Gui. <a class="reference internal" href="../gui.html#sbs_utils.gui.Gui.pop" title="sbs_utils.gui.Gui.pop"><code class="xref py py-meth docutils literal notranslate"><span class="pre">pop()</span></code></a> To deactivate an active Page and activate the previous page.</p>
+<div class="graphviz"><img src="../_images/graphviz-876d0b7bac53085d0a4d93cb625ab44f53c3764a.png" alt="digraph G {
    node [shape=box, fontname=&quot;Arial&quot;];
    //constraint=false;
    rankdir=&quot;LR&quot;;
@@ -270,7 +271,7 @@ The back button returns to the previous page.</p>
 <h3>Complex page hierarchies<a class="headerlink" href="#complex-page-hierarchies" title="Permalink to this heading"></a></h3>
 <p>The GUI systems’s stack and navigating via push and pop can allow for deep and complex GUI screens.</p>
 <p>For example a main StartPage could navigate to an Option page that can either navigate to a ship picker Page or an Avatar Editor.</p>
-<div class="graphviz"><img src="../_images/graphviz-286e58a0803a34cebbaf2f47ed690c43860264bc.png" alt="digraph G {
+<div class="graphviz"><img src="../_images/graphviz-0f9858603bdf027a3b3b7dd5828f835df6acadd5.png" alt="digraph G {
    node [shape=box, fontname=&quot;Arial&quot;];
    constraint=false;
    rankdir=&quot;LR&quot;;
@@ -315,7 +316,6 @@ The back button returns to the previous page.</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="entry.html" class="btn btn-neutral float-left" title="Entry Points, events, and handlers" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="mast.html" class="btn btn-neutral float-right" title="Adding MAST to you mission" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

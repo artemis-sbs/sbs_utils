@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Story Components &mdash; SBS Utils 1.0 documentation</title>
+  <title>Gui Components &mdash; SBS Utils 1.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/graphviz.css" type="text/css" />
@@ -16,10 +16,11 @@
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/sphinx_highlight.js"></script>
+        <script src="_static/tabs.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="TBD" href="mastextending.html" />
+    <link rel="next" title="Behavior Components" href="mastbehavior.html" />
     <link rel="prev" title="Engine Interactions" href="mastsbssyntax.html" /> 
 </head>
 
@@ -50,17 +51,40 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="mastoverview.html">What is Mast</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mastsyntax.html">Language Basics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mastobjectmodel.html">Mast Object Model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mastsbssyntax.html">Engine Interactions</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Story Components</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Gui Components</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#await-gui-choices">await gui (choices)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#section">Section</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#row">Row</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id1">Row</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#hole">Hole</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#text-and-text-append">Text and Text append</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#text-input">Text Input</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#button">Button</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#checkbox">Checkbox</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#dropdown">Dropdown</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#face">Face</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#slider">Slider</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#radio-buttons">Radio buttons</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ship">Ship</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#image">Image</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#sprite">Sprite</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#full-console">Full console</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#activate-console">Activate console</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#layout-console-widget">Layout console widget</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id2">Layout console widget</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#layout-python-coded-widget">Layout python coded widget</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mastbehavior.html">Behavior Components</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mastextending.html">TBD</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/overview.html">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/setup.html">Setup</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/entry.html">Entry Points, events, and handlers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/gui.html">Adding Gui pages and using the Gui System</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/mast.html">Adding MAST to you mission</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/siege.html">Tutorial: Creating Basic Siege</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
 <ul>
@@ -78,6 +102,8 @@
 <li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="systems/entry.html">Entry Points, events, and handlers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="systems/gui.html">Adding Gui pages and using the Gui System</a></li>
 </ul>
 
         </div>
@@ -94,7 +120,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Story Components</li>
+      <li class="breadcrumb-item active">Gui Components</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/maststorysyntax.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -104,8 +130,8 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="story-components">
-<h1>Story Components<a class="headerlink" href="#story-components" title="Permalink to this heading"></a></h1>
+  <section id="gui-components">
+<h1>Gui Components<a class="headerlink" href="#gui-components" title="Permalink to this heading"></a></h1>
 <p>The MAST Story Components are used to create GUI elements.</p>
 <p>This can be part of a console,</p>
 <ul class="simple">
@@ -113,23 +139,267 @@
 <li><p>Layout components</p></li>
 <li><p>Form Controls</p></li>
 </ul>
-<p>Row,
-Text,
-AppendText,
-Face,
-Ship,
-Blank,
-Section,
-Area,
-Choose,
-ButtonControl,
-SliderControl,
-CheckboxControl,
-DropdownControl,
-ImageControl,
-TextInputControl,
-WidgetList,
-Refresh</p>
+<section id="await-gui-choices">
+<h2>await gui (choices)<a class="headerlink" href="#await-gui-choices" title="Permalink to this heading"></a></h2>
+<dl class="simple">
+<dt>def await_gui (self,</dt><dd><p>buttons=None,
+timeout=None,
+on_message=None,
+test_refresh=None,
+test_end_await=None,
+on_disconnect=None):</p>
+</dd>
+</dl>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-0-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-0-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-0-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-0-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>await gui
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-0-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-0-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">await_gui</span><span class="p">()</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="section">
+<h2>Section<a class="headerlink" href="#section" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-1-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-1-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-1-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-1-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>section style=&quot;&quot;
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-1-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-1-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_section</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="row">
+<h2>Row<a class="headerlink" href="#row" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-2-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-2-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-2-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-2-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-2-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-2-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>row
+row style=&quot;&quot;
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-2-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-2-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_row</span><span class="p">()</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">gui_row</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="id1">
+<h2>Row<a class="headerlink" href="#id1" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-3-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-3-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-3-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-3-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-3-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-3-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>blank
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-3-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-3-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_blank</span><span class="p">()</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="hole">
+<h2>Hole<a class="headerlink" href="#hole" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-4-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-4-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-4-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-4-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-4-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-4-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>hole
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-4-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-4-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_hole</span><span class="p">()</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="text-and-text-append">
+<h2>Text and Text append<a class="headerlink" href="#text-and-text-append" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-5-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-5-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-5-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-5-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-5-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-5-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>&quot;&quot;&quot;TEXT &quot;&quot;&quot;
+
+^^^ Append ^^^
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-5-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-5-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_text</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="text-input">
+<h2>Text Input<a class="headerlink" href="#text-input" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-6-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-6-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-6-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-6-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-6-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-6-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>input message &quot;Make a toast&quot;
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-6-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-6-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_text_input</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;Hint&quot;</span> <span class="n">label</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="button">
+<h2>Button<a class="headerlink" href="#button" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-7-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-7-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-7-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-7-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-7-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-7-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>button &quot;Text&quot;:
+   ... code...
+end_button
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-7-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-7-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_button</span><span class="p">(</span><span class="s2">&quot;Text&quot;</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="checkbox">
+<h2>Checkbox<a class="headerlink" href="#checkbox" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-8-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-8-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-8-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-8-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-8-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-8-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>checkbox var &quot;Text&quot;
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-8-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-8-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_checkbox</span><span class="p">(</span><span class="s2">&quot;Text&quot;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="dropdown">
+<h2>Dropdown<a class="headerlink" href="#dropdown" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-9-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-9-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-9-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-9-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-9-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-9-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>dropdown var &quot;val1,val2&quot;:
+    ... code...
+end_dropdown
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-9-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-9-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_dropdown</span><span class="p">(</span><span class="s2">&quot;val1,val2&quot;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+<span class="c1"># Handle change in on_message</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="face">
+<h2>Face<a class="headerlink" href="#face" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-10-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-10-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-10-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-10-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-10-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-10-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>face var
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-10-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-10-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_face</span><span class="p">(</span><span class="s2">&quot;Face Text&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="slider">
+<h2>Slider<a class="headerlink" href="#slider" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-11-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-11-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-11-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-11-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-11-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-11-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>intslider var low high value
+slider var low high value
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-11-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-11-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">gui_slider</span> <span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="p">,</span> <span class="n">show_number</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">gui_slider</span><span class="p">(</span><span class="s2">&quot;Face Text&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="radio-buttons">
+<h2>Radio buttons<a class="headerlink" href="#radio-buttons" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-12-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-12-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-12-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-12-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-12-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-12-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>radio var &quot;b1, b2, b3&quot;
+vradio var &quot;b1, b2, b3&quot;
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-12-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-12-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_radio</span><span class="p">(</span><span class="s2">&quot;b1, b2, b3&quot;</span><span class="p">)</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">gui_radio</span><span class="p">(</span><span class="s2">&quot;b1, b2, b3&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="ship">
+<h2>Ship<a class="headerlink" href="#ship" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-13-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-13-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-13-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-13-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-13-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-13-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>ship val # this isn&#39;t support when write this
+ship &quot;val&quot;
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-13-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-13-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_ship</span><span class="p">(</span><span class="n">ship</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="image">
+<h2>Image<a class="headerlink" href="#image" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-14-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-14-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-14-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-14-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-14-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-14-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>ship val # this isn&#39;t support when write this
+ship &quot;val&quot;
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-14-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-14-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_image</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">color</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="sprite">
+<h2>Sprite<a class="headerlink" href="#sprite" title="Permalink to this heading"></a></h2>
+<p>This doesn’t exists as I write this</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-15-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-15-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-15-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-15-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-15-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-15-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>sprite val # this isn&#39;t support when write this
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-15-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-15-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_sprite</span><span class="p">(</span><span class="n">ship</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span><span class="n">h</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="full-console">
+<h2>Full console<a class="headerlink" href="#full-console" title="Permalink to this heading"></a></h2>
+<p>For building console widget by widget.
+Call this to specify which console.</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-16-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-16-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-16-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-16-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-16-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-16-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>console &quot;helm&quot;
+console var
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-16-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-16-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_console</span><span class="p">(</span><span class="s2">&quot;helm&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="activate-console">
+<h2>Activate console<a class="headerlink" href="#activate-console" title="Permalink to this heading"></a></h2>
+<p>For building console widget by widget.
+Call this to specify which console.</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-17-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-17-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-17-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-17-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-17-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-17-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>console activate &quot;helm&quot;
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-17-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-17-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_activate_console</span><span class="p">(</span><span class="s2">&quot;helm&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="layout-console-widget">
+<h2>Layout console widget<a class="headerlink" href="#layout-console-widget" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-18-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-18-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-18-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-18-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-18-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-18-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>console widget &quot;2dview&quot;
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-18-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-18-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_console_widget</span><span class="p">(</span><span class="s2">&quot;2dview&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="id2">
+<h2>Layout console widget<a class="headerlink" href="#id2" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-19-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-19-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-19-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-19-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-19-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-19-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>widget_list &quot;norm_helm&quot;  &quot;2dview^throttle&quot;
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-19-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-19-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_console_widget</span><span class="o">+</span><span class="nb">list</span><span class="p">(</span><span class="s2">&quot;norm_helm&quot;</span><span class="p">,</span> <span class="s2">&quot;2dview^throttle&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="layout-python-coded-widget">
+<h2>Layout python coded widget<a class="headerlink" href="#layout-python-coded-widget" title="Permalink to this heading"></a></h2>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-20-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-20-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-20-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-20-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-20-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-20-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>gui control func()
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-20-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-20-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">gui_content</span><span class="p">(</span><span class="n">listbox</span><span class="p">())</span>
+</pre></div>
+</div>
+</div></div>
+</section>
 </section>
 
 
@@ -137,7 +407,7 @@ Refresh</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="mastsbssyntax.html" class="btn btn-neutral float-left" title="Engine Interactions" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="mastextending.html" class="btn btn-neutral float-right" title="TBD" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="mastbehavior.html" class="btn btn-neutral float-right" title="Behavior Components" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

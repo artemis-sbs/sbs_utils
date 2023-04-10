@@ -347,7 +347,7 @@ class PyMastTask:
     def _run_invert(self, label):
         gen, res = self.task.get_gen(label)
         for res in gen:
-            pass
+            yield res
         if res == PollResults.OK_END:
             self.last_poll_result = PollResults.FAIL_END
             return self.pop()

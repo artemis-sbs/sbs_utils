@@ -337,12 +337,12 @@ class PyMastStory:
             return
         self.get_page().assign_player_ship(player)
         
-    def gui_image(self, file, color, label, style=None):
+    def gui_image(self, file, color, style=None):
         if self.get_page() is None:
             return
         page = self.get_page()
         control = layout.Image(file, color, page.get_tag())
-        page.add_content(control, label)
+        page.add_content(control, None)
         return control
     
     def watch_event(self, event_tag, label):

@@ -318,41 +318,29 @@ class Assign(MastNode):
 
 
 class Jump(MastNode):
-    rule = re.compile(r"""((?P<pop><<-((?P<pop_jump_type>>>|>)\s*(?P<pop_jump>\w+))?)|(->(?P<push>>)?\s*(?P<jump>\w+)))""")
+    rule = re.compile(r"""((?P<jump>jump|->|push|->>|popjump|<<->|poppush|<<->>)\s*(?P<jump_name>\w+))|(?P<pop>pop|<<-)""")
 
-    def __init__(self, pop, pop_jump_type, pop_jump, push, jump, loc=None):
+    def __init__(self, pop=None, jump=None, jump_name=None, loc=None):
         self.loc = loc
-        self.label = jump
-        self.push = push == ">"
+        self.label = jump_name
+        self.push = jump == 'push' or jump == "->>"
         self.pop = pop is not None
-        self.pop_jump = None
-        self.pop_push = None
-        if pop_jump_type is not None:
-            if pop_jump_type == ">>":
-                self.pop_push = pop_jump.strip()
-            else:
-                self.pop_jump = pop_jump.strip()
-
+        self.pop_jump = jump == 'popjump'or jump == "<<->"
+        self.pop_push = jump == 'poppush'or jump == "<<->>"
 
 
 class Parallel(MastNode):
     """
     Creates a new 'task' to run in parallel
     """
-    task_name =  re.compile(r"""await\s(?P<name>\w+)""")
-    spawn_rule = re.compile("""((?P<name>\w+)\s*)?\=>(?P<all_any>\=>)?(\s*(?P<conditional>\w+)\s*\?)?\s*(?P<labels>\s*(\w+)((\s*[\|&]\s*)\w+)*)(?P<inputs>\s*"""+ DICT_REGEX+")?")
-    #await_rule = re.compile(r"await\s+")
-    await_return_rule = re.compile(r"await\s*(?P<ret>->)?\s*")
-    block_rule = re.compile(r"\s*:")
 
-    def __init__(self, name=None, is_block=None, await_task=None, reflect=None, all_any=None, conditional=None,  labels=None, inputs=None, loc=None):
+    def __init__(self, name=None, is_block=None, await_task=None, 
+                 any_labels=None, all_labels=None, label=None, inputs=None, loc=None):
         self.loc = loc
         self.name = name
-        self.conditional = conditional
-        self.labels = labels
+        self.labels = label
         self.await_task = await_task
         self.code = None
-        self.reflect = reflect
         self.end_await_node = None
         self.minutes = 0
         self.seconds = 0
@@ -366,27 +354,84 @@ class Parallel(MastNode):
         if await_task and name:
             self.await_task = True
             return
-
+    
+        self.labels = label
+        self.all = False
+        self.any = False
         
-        if '|' in labels and '&' in labels:
-             raise Exception("Mixing sequence (&) and fallback (|) is not allowed")
-        self.sequence =  '&' in labels
-        self.fallback =  '|' in labels
-        self.labels = labels
-        self.all_any = True if all_any is not None else False
-        if self.sequence:
-            self.labels = re.split(r'\s*&\s*', labels)
-        elif self.fallback:
-            self.labels = re.split(r'\s*\|\s*', labels)
+        if all_labels:
+            self.all = True
+            self.labels = re.split(r'\s*&\s*', all_labels)
+        elif any_labels:
+            self.any = True
+            self.labels = re.split(r'\s*\|\s*', any_labels)
 
         if inputs:
             inputs = inputs.lstrip()
             self.code = compile(inputs, "<string>", "eval")
         
+    task_name =  re.compile(r"""(?P<await_task>await)\s+(?P<name>\w+)""")
+    schedule_rule = re.compile(r"""(?P<await_task>await\s*)?(var\s+(?P<name>\w+)\s*)?(schedule|\=>)\s*(?P<label>\w+)(?P<inputs>\s*"""+ DICT_REGEX+")?")
+    any_all_rule = re.compile(r"""await\s*(var\s+(?P<name>\w+)\s*)?(all\s+(?P<all_labels>\s*(\w+)((\s*&\s*)\w+)*)|any\s+(?P<any_labels>\s*(\w+)((\s*\|\s*)\w+)*))""") # (?P<inputs>\s*"""+ DICT_REGEX+")?")
+    schedule_all_rule = re.compile(r"""(schedule\s+|\=\>\s*)all\s+(?P<all_labels>\s*(\w+)((\s*&\s*)\w+)*)(?P<inputs>\s*"""+ DICT_REGEX+")?")
+    #await_rule = re.compile(r"await\s+")
+    #await_return_rule = re.compile(r"await\s*(?P<ret>->)?\s*")
+    block_rule = re.compile(r"\s*:")
 
     @classmethod
     def parse(cls, lines):
-
+        #
+        # schedule any/all
+        #
+        match_any_all_await =  Parallel.schedule_all_rule.match(lines) 
+        if match_any_all_await:
+            span = match_any_all_await.span()
+            data = match_any_all_await.groupdict()
+            data["await_task"] = True
+            end = span[1]
+            block =  Parallel.block_rule.match(lines[end:])
+            
+            if block:
+                end+= block.span()[1]
+                data["is_block"] = True
+           
+            return ParseData(span[0], end, data)
+        
+        #
+        # await / schedule
+        #
+        match_sched_await =  Parallel.schedule_rule.match(lines) 
+        if match_sched_await:
+            span = match_sched_await.span()
+            data = match_sched_await.groupdict()
+            end = span[1]
+            block =  Parallel.block_rule.match(lines[end:])
+            
+            if block:
+                end+= block.span[1]
+                data["is_block"] = True
+           
+            return ParseData(span[0], end, data)
+        #
+        # Await any/all
+        #
+        match_any_all_await =  Parallel.any_all_rule.match(lines) 
+        if match_any_all_await:
+            span = match_any_all_await.span()
+            data = match_any_all_await.groupdict()
+            data["await_task"] = True
+            end = span[1]
+            block =  Parallel.block_rule.match(lines[end:])
+            
+            if block:
+                end+= block.span()[1]
+                data["is_block"] = True
+           
+            return ParseData(span[0], end, data)
+      
+        #
+        # Await an variable
+        #
         match_task_await =  Parallel.task_name.match(lines) 
         if match_task_await:
             span = match_task_await.span()
@@ -396,44 +441,68 @@ class Parallel(MastNode):
             block =  Parallel.block_rule.match(lines[end:])
             
             if block:
-                end+= block.span[1]
+                end+= block.span()[1]
                 data["is_block"] = True
-            
-            
+           
             return ParseData(span[0], end, data)
 
-        match_await =  Parallel.await_return_rule.match(lines)
-        if match_await:
-            await_span = match_await.span()
-            await_len = await_span[1]-await_span[0]
-            reflect_return = match_await.groupdict().get("ret", None)
-            reflect_return = reflect_return  is not None
-            lines = lines[await_span[1]:]
-            spawn =  Parallel.spawn_rule.match(lines)
-            if spawn is not None:
-                span = spawn.span()
-                data = spawn.groupdict()
-                data["await_task"] = True
-                data["reflect"] = reflect_return
-                end = span[1]
-                block =  Parallel.block_rule.match(lines[end:])
-                
-                if block:
-                    span = block.span()
-                    end = end + span[1]
-                    line = lines[end:]
-                    data["is_block"] = True
-                return ParseData(await_span[0], await_len+end, data)
-            else:
-                return None
 
-        mo =  Parallel.spawn_rule.match(lines)
-        if mo:
-            span = mo.span()
-            data = mo.groupdict()
-            return ParseData(span[0], span[1], data)
-        else:
-            return None
+class Behavior(MastNode):
+    """
+    Creates a new 'task' to run in parallel
+    """
+    # yield bt sel a|a   [data]
+    # await bt until fail seq a&b [data] 
+    # await bt until success seq a&b [data]
+    # await bt invert seq a&b [data]
+    # await bt invert seq a&b [data]
+    rule =  re.compile(r"""((?P<yield_await>await|yield)\s+)?bt\s+(((?P<invert>invert)|(until\s+(?P<until>fail|success)))\s+)?((seq\s*(?P<seq_labels>\s*(\w+)((\s*&\s*)\w+)*))|(sel\s*(?P<sel_labels>\s*(\w+)((\s*\|\s*)\w+)*)))"""
+                       + r"""(?P<inputs>\s*"""+ DICT_REGEX+")?"
+                       + r"""(?P<is_block>\s*:)?""")
+    
+    
+
+    # yield success
+    # yield fail 
+    # yield success if cond
+    # yield fail if cond
+
+
+    def __init__(self, yield_await=None, is_block=None, invert=None, until=None, sel_labels=None, seq_labels=None, inputs=None, loc=None):
+        self.loc = loc
+        
+        self.end_await_node = None
+        self.minutes = 0
+        self.seconds = 0
+        self.timeout_label = None
+        self.fail_label = None
+        self.invert = invert is not None
+        self.until = until
+        self.code = None
+        self.name = None
+        self.conditional = None
+        self.is_yield = yield_await=="yield"
+        self.is_await = yield_await=="await"
+        self.end_await_node = None
+
+        if is_block:
+            self.timeout_label = None
+            self.fail_label = None
+            EndAwait.stack.append(self)
+
+        self.sequence =  seq_labels is not None
+        self.fallback =  sel_labels is not None
+        if seq_labels is not None:
+            self.labels = re.split(r'\s*&\s*', seq_labels)
+        elif sel_labels:
+            self.labels = re.split(r'\s*\|\s*', sel_labels)
+
+        if inputs:
+            inputs = inputs.lstrip()
+            self.code = compile(inputs, "<string>", "eval")
+        
+
+    
 
         
 class EndAwait(MastNode):
@@ -549,6 +618,19 @@ class Fail(MastNode):
         else:
             self.if_code = None
 
+class Yield(MastNode):
+    rule = re.compile(r'yield(\s+(?P<res>(?i:fail|success)))?' +IF_EXP_REGEX)
+    def __init__(self, res= None, if_exp=None, loc=None):
+        self.loc = loc
+        self.result = res
+
+        if if_exp:
+            if_exp = if_exp.lstrip()
+            self.if_code = compile(if_exp, "<string>", "eval")
+        else:
+            self.if_code = None
+
+
 class Delay(MastNode):
     clock = r"(\s*(?P<clock>\w+))"
     rule = re.compile(r'delay'+clock+MIN_SECONDS_REGEX)
@@ -581,6 +663,13 @@ def first_non_newline_index(s):
         if c != '\n':
             return idx
     return len(s)
+
+def first_non_whitespace_index(s):
+    for idx, c in enumerate(s):
+        if c != '\n' and c != '\t' and c != ' ':
+            return idx
+    return len(s)
+
 
 
 def first_newline_index(s):
@@ -697,10 +786,13 @@ class Mast:
         Timeout,
         EndAwait,
         AwaitFail,
+        Behavior, # Needs to be in front of parallel
         Parallel,  # needs to be before Assign
+        
         Cancel,
         Assign,
         Fail,
+        Yield,
         End,
         ReturnIf,
         Jump,
@@ -849,14 +941,14 @@ class Mast:
         errors = []
         active = self.labels.get("main")
         while len(lines):
-            mo = first_non_newline_index(lines)
+            mo = first_non_whitespace_index(lines)
             line_no += mo if mo is not None else 0
             #line = lines[:mo]
             lines = lines[mo:]
             parsed = False
-            indent = first_non_space_index(lines)
-            if indent is None:
-                continue
+            # indent = first_non_space_index(lines)
+            # if indent is None:
+            #     continue
             ###########################################
             ### Support indent as meaningful
             ###########################################
@@ -867,9 +959,9 @@ class Mast:
             # while indent < self.indent_stack[-1]:
             #     self.cmd_stack.pop()
             #     self.indent_stack.pop()
-            if indent > 0:
-                # strip spaces
-                lines = lines[indent:]
+            # if indent > 0:
+            #     # strip spaces
+            #     lines = lines[indent:]
             if len(lines)==0:
                 break
 
@@ -901,7 +993,7 @@ class Mast:
                             elif existing_label and replace:
                                 # Make the pervious version jump to the replacement
                                 # making fall through also work
-                                existing_label.cmds = [Jump(None, None, None, None,label_name,0)]
+                                existing_label.cmds = [Jump(jump_name=label_name,loc=0)]
                            
                             next = Label(**data)
                             active.next = next

@@ -187,14 +187,14 @@ class ButtonControlRuntimeNode(StoryRuntimeNode):
     def on_message(self, sim, event):
         if event.sub_tag == self.tag:
             # Jump to the cmds after the button
-            self.task.push_label(self.task.active_label, self.node.loc+1, self.data)
+            self.task.push_jump_pop(self.task.active_label, self.node.loc+1, self.data)
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: ButtonControl):
         if node.is_end:
-            self.task.redirect_pop_label()
+            self.task.pop_label()
             return PollResults.OK_JUMP
         elif node.end_node:
-            self.task.redirect_push_label(self.task.active_label, node.end_node.loc+1)
+            self.task.jump(self.task.active_label, node.end_node.loc+1)
             return PollResults.OK_JUMP
 
 
@@ -372,10 +372,12 @@ class SliderControlRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: SliderControl):
         self.tag = task.main.page.get_tag()
         self.node = node
-        scoped_val = task.get_value(self.node.var, self.node.value)
-        val = scoped_val[0]
-        self.scope = scoped_val[1]
-        self.layout = layout.Slider(val, node.low, node.high, self.tag)
+        val = task.get_variable(self.node.var)
+        if val is None:
+            val = self.node.value
+        if val is None:
+            val = 0
+        self.layout = layout.Slider(val, node.low, node.high, not node.is_scroll, self.tag)
         self.task = task
         self.apply_style_name(".slider", self.layout, task)
         if node.style_def is not None:
@@ -389,7 +391,7 @@ class SliderControlRuntimeNode(StoryRuntimeNode):
                 self.layout.value = int(event.sub_float)
             else:
                 self.layout.value = event.sub_float
-            self.task.set_value(self.node.var, self.layout.value, self.scope)
+            self.task.set_value_keep_scope(self.node.var, self.layout.value)
 
 
 class CheckboxControlRuntimeNode(StoryRuntimeNode):
@@ -487,9 +489,8 @@ class DropdownControlRuntimeNode(StoryRuntimeNode):
         if not node.is_end:
             self.tag = task.main.page.get_tag()
             self.node = node
-            scoped_val = task.get_value(self.node.var, "")
-            val = scoped_val[0]
-            self.scope = scoped_val[1]
+            val = task.get_variable(self.node.var)
+            
             values = task.format_string(node.values)
             self.layout = layout.Dropdown(val, values, self.tag )
             task.main.page.add_content(self.layout, self)
@@ -501,7 +502,7 @@ class DropdownControlRuntimeNode(StoryRuntimeNode):
     def on_message(self, sim, event):
         if event.sub_tag == self.tag:
             self.layout.value = event.value_tag
-            self.task.set_value(self.node.var, self.layout.value, self.scope)
+            self.task.set_value_keep_scope(self.node.var, self.layout.value)
             self.task.push_label(self.label, self.node.loc+1)
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: DropdownControl):
