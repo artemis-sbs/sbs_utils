@@ -190,9 +190,9 @@ Jump to end looks like a Jump with a thin arrow and the label "END"
                 print("See you later")
                 yield PollResults.OK_END
 
-The expected output::
+   .. tab:: Output
 
-    See you later
+        See you later
 
 Jump to End ends the task. If that task the only task, the whole story ends.
 
@@ -212,20 +212,38 @@ Scheduling tasks in mast
 Schedule a task is similar to a Jump, but it uses the Fat arrow.
 The difference is another task begins, and the original task continues on.
 
-Example scheduling a task::
-
-    log "before"
-    => ATask
-    log "after"
-
-    === ATask ===
-    log "in task"
-
-Expected output::
+.. tabs::
     
-    before
-    after
-    in task
+    .. code-tab:: mast
+
+        log "before"
+        #
+        # 
+        #
+        => ATask
+        log "after"
+
+        === ATask ===
+        log "in task"
+
+    .. code-tab:: py PyMast
+        
+        @label()
+        def start(self):
+            self.logger()
+            self.log("before")
+            self.schedule_task(self.a_task)
+            self.log("after")
+
+        @label()
+        def a_task(self):
+            self.log("in task")
+
+    .. tab:: Output
+    
+        before
+        after
+        in task
 
 
 passing data to a task
@@ -233,20 +251,37 @@ passing data to a task
 
 You can pass data to a new task. The data passed is different than the original task.
 
-Example scheduling a task::
+.. tabs::
+    
+    .. code-tab:: mast
 
-    message = "Different"
-    => ATask {"message": "Hello"}
-    log "{message}"
+        message = "Different"
+        schedule ATask {"message": "Hello"}
+        log "{message}"
 
-    === ATask ===
-    log "{message}"
-    message = "Who cares"
+        === ATask ===
+        log "{message}"
+        message = "Who cares"
 
-Expected output::
 
-    different
-    Hello
+    .. code-tab:: py PyMast
+        
+        @label()
+        def start(self):
+            self.logger()
+
+            self.schedule_task(self.a_task, {"message": "Hello"})
+            self.log(f"{self.task.message}")
+
+        @label()
+        def a_task(self):
+            self.log(self.task.message)
+            self.task.message = "Should not change original"
+
+    .. tab:: Output
+
+        different
+        Hello
 
 Named task and waiting for a Task or Tasks
 ------------------------------------------------
@@ -297,6 +332,7 @@ Expected output::
  Task2
  Done
 
+
 Example await any::
 
     log "Start"
@@ -326,15 +362,33 @@ Canceling a task
 
 You can cancel a tasks by name from another task.
 
-Example cancel::
+.. tabs::
+    
+    .. code-tab:: mast
 
-    log "Start"
-    task1 => ATask
-    cancel task1
-    log "Done"
+        log "Start"
+        task1 => ATask
+        cancel task1
+        log "Done"
 
-    === ATask ===
-    log "May not run"
+        === ATask ===
+        log "May not run"
+
+    .. code-tab:: py PyMast
+        
+        @label()
+        def start(self):
+            self.logger()
+            self.log("Start")
+            task1 = self.schedule_task(self.a_task)
+            task1.cancel()
+            self.log("Done")
+
+        @label()
+        def a_task(self):
+            self.log("May not run")
+
+
 
 Expected output::
 
@@ -449,6 +503,7 @@ PyMast uses the standard python for or while loop.
 However, mast support a for ... in loop and a for .. while loop.
 
 .. tabs::
+
     .. code-tab:: mast
 
         for x in range(3):
@@ -487,12 +542,10 @@ Expected output::
 
 
 
-Comments and Markers
+Comments
 ======================
 
 Comments provide code extra information to help make it more understandable.
-
-Mast provides comments, Multi-line comments and markers to help make the code easier to understand and navigate.
 
 Comments
 ----------------------------
@@ -535,42 +588,123 @@ Logging
 
 Mast supports syntax to simplify pythons logging features.
 
+
+logger command
+-----------------
+
 The logger command sets up logging. 
 
 Logging needs to be enabled
 
-Logging can enabled for stdout, to a string stream (stringIO) variable, and a file::
+Logging can enabled for stdout, to a string stream (stringIO) variable, and a file
 
-    # enable logging to stdout
-    logger
-    # enable logging to stdout, and a string
-    logger string my_string_logger
-    # enable logging to stdout, and a file
-    logger file "{mission_dir}/my_log.log"
-    # enable logging to stdout, a string and a file
-    logger string my_string_logger file "{mission_dir}/my_log.log"
+
+.. tabs::
+    .. code-tab:: mast
+
+        # enable logging to stdout
+        logger
+        # enable logging to stdout, and a string
+        logger string my_string_logger
+        # enable logging to stdout, and a file
+        logger file "{mission_dir}/my_log.log"
+        # enable logging to stdout, a string and a file
+        logger string my_string_logger file "{mission_dir}/my_log.log"
+
+    .. code-tab:: py PyMast
+
+        @label
+        def some_label(self):
+            # Logging to stdout
+            self.logger()
+            # Logging to string IO
+            s = self.string_logger()
+            # Logging to file
+            self.file_logger()
+            
+   
+
 
 You can have multiple loggers, each logger can have separate strings, or files.
 
 The default logger does not need to specify the name.
 
-To create a new loggers by using the logger command specifying a name::
+To create a new loggers by using the logger command specifying a name
 
-    logger name tonnage string tonnage
+.. tabs::
 
-The log command is how you send messages to the log::
+    .. code-tab:: mast
 
-    log "Hello, World"
-    log name tonnage "Tonnage score {tonnage}"
+        logger name tonnage
+        logger name tonnage string tonnage
+        logger name tonnage file "{get_mission_dir()}/tonnage.txt"
+        
+    .. code-tab:: py PyMast
 
-The log command can accept levels::
+        # this import is needed for get_mission_dir
+        from sbs_utils.fs import get_mission_dir
 
-    log "Hello, World" info
-    log "Hello, World" debug
-    log "Hello, World" error
+        @label
+        def some_label(self):
+            # Logging to stdout
+            self.logger("tonnage")
+            # Logging to string IO
+            s_log = self.string_logger("tonnage")
+            # to get the string value
+            the_log = s_log.getvalue()
+            # Logging to file
+            self.file_logger("{get_mission_dir()}+/tonnage.txt", "tonnage")
+            
 
-These are visible is the stdout messages.
+log command
+--------------
 
+
+The log command is how you send messages to the log.
+
+
+
+
+.. tabs::
+
+    .. code-tab:: mast
+
+        # no logger name defaults to name "mast"
+        log "Hello, World"
+        # Specify a name to log to a secondary logger
+        log name tonnage "Tonnage score {tonnage}"
+
+        
+    .. code-tab:: py PyMast
+
+        @label
+        def some_label(self):
+            # no logger name defaults to name "pymast"
+            self.log("Hello, World")
+            # pymast the log name can be passed as the second argument
+            self.log(f"Tonnage score {tonnage}", "tonnage")
+            
+
+The log command can accept levels. These are visible is the stdout messages.
+
+
+.. tabs::
+
+    .. code-tab:: mast
+
+        log "Hello, World" info
+        log "Hello, World" debug
+        log "Hello, World" error
+        
+    .. code-tab:: py PyMast
+
+        @label
+        def some_label(self):
+
+            self.log("Hello, World", "info")
+            self.log("Hello, World", "debug")
+            self.log("Hello, World", "error")
+            
 
 Delay command
 ==================
@@ -583,14 +717,29 @@ The gui clock is running continuously (realtime), the sim clock can be paused wh
 For gui and other things use the gui clock.
 If you want to delay 10s of game time use sim.
 
-Delay can specify minutes and seconds. Some examples::
-
-    delay gui 1m
-    delay gui 10s
-    delay gui 1m 5s
-    delay sim 10m
+Delay can specify minutes and seconds.
 
 .. tabs::
+
+    .. code-tab:: mast
+
+        delay gui 1m
+        delay gui 10s
+        delay gui 1m 5s
+        delay sim 10m
+
+    .. code-tab:: py PyMast
+
+        yield self.delay(minutes=1)
+        yield self.delay(seconds=20)
+        # seconds is the first argument, minutes the second
+        yield self.delay(5, 1)
+        # Specify use_sim (third argument) to use simulation time
+        yield self.delay(minutes=10, use_sim=True)
+
+
+.. tabs::
+
     .. code-tab:: mast
 
         for x in range(3):

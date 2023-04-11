@@ -30,7 +30,8 @@ def get_artemis_dir():
     data = os.path.dirname(missions)
     return os.path.dirname(data)
 
-        
+def get_mission_dir_filename(filename):
+    return get_script_dir()+"\\"+filename        
 
 
 def get_json_data(file):

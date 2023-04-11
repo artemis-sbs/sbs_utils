@@ -443,7 +443,7 @@ class LoggerRuntimeNode(MastRuntimeNode):
 
         if node.name is not None:
             name = task.format_string(node.name)
-            handler = logging.FileHandler(f'{name}',mode='w',)
+            handler = logging.FileHandler(name,mode='w')
             handler.setFormatter(logging.Formatter("%(message)s"))
             handler.setLevel(logging.NOTSET)
             logger.addHandler(handler)

@@ -39,8 +39,9 @@ class PyMastStory:
         return sched
 
 
-    def delay(self,  delay):
-        return self.task.delay(delay)
+    def delay(self,  seconds=0, minutes=0, use_sim=False):
+        return self.task.delay(seconds, minutes, use_sim)
+    
     
     def await_science(self, player, npc, scans):
         return self.task.await_science(player, npc, scans)

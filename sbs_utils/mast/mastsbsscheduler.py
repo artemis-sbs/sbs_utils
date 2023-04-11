@@ -518,6 +518,7 @@ for func in [
 from .. import names
 Mast.import_python_module('sbs_utils.query')
 Mast.import_python_module('sbs_utils.faces')
+Mast.import_python_module('sbs_utils.fs')
 Mast.import_python_module('sbs_utils.scatter', 'scatter')
 Mast.import_python_module('sbs_utils.names', 'names')
 Mast.import_python_module('sbs', 'sbs')

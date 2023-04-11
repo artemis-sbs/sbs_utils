@@ -3,6 +3,7 @@ import inspect
 from .pymastscience import PyMastScience
 from .pymastcomms import PyMastComms
 from functools import partial
+import sbs
 
 
 class DataHolder(object):
@@ -157,16 +158,25 @@ class PyMastTask:
             return PollResults.OK_JUMP
         return PollResults.FAIL_END
     
-    def delay(self,  delay):
-        return self.quick_push(lambda _: self._delay(delay))
+    def delay(self,  seconds=0, minutes=0, use_sim=False):
+        return self.quick_push(lambda _: self._delay(seconds, minutes, use_sim))
         # self.stack.append(self.current_gen)
         # self.current_gen = self._delay(delay)
         # return PollResults.OK_RUN_AGAIN
   
-    def _delay(self, delay):
-        delay_time = self.sim.time_tick_counter + 30 * delay
-        while delay_time > self.sim.time_tick_counter:
-            #print ("tick")
+    def _delay(self,  seconds=0, minutes=0, use_sim=False):
+        if use_sim:
+            delay_time = self.sim.time_tick_counter + 30 * (seconds+60*minutes)
+            current_time = self.sim.time_tick_counter
+        else:
+            delay_time = sbs.app_seconds() + seconds+60*minutes
+            current_time = sbs.app_seconds()
+        
+        while delay_time > current_time:
+            if use_sim:
+                current_time = self.sim.time_tick_counter
+            else:
+                current_time = sbs.app_seconds()
             yield PollResults.OK_RUN_AGAIN
         yield self.pop()
 
