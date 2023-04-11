@@ -35,7 +35,8 @@ Welcome to SBS Utils's documentation!
    tutorials/overview
    tutorials/setup
    tutorials/siege
-
+   tutorials/faq_2x.rst
+   
 
 
 .. toctree::
@@ -49,6 +50,8 @@ Welcome to SBS Utils's documentation!
    vec
    scatter
    faces
+
+   query
 
    
 .. toctree::

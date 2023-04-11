@@ -1,7 +1,7 @@
 import unittest
 import sys
 sys.path.append("..")
-from mock import mock_sbs as sbs
+from mock import sbs as sbs
 from sbs_utils import names
 import sys
 from sbs_utils.pymast.pymaststory import PyMastStory

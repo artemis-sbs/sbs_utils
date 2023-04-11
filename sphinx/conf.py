@@ -14,8 +14,8 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 # to get around sbs import errors
-#sys.path.insert(0, os.path.abspath('../mock'))
-from mock import mock_sbs as sbs
+sys.path.insert(0, os.path.abspath('../mock'))
+#from mock import sbs
 
 
 # -- Project information -----------------------------------------------------
@@ -37,7 +37,9 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.graphviz',
     'sphinx_tabs.tabs'
+    #'sphinx_code_tabs'
 ]
+#sphinx_tabs_disable_css_loading = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

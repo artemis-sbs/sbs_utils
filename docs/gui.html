@@ -20,7 +20,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Console Dispatcher" href="consoledispatcher.html" />
-    <link rel="prev" title="The Faces module" href="faces.html" /> 
+    <link rel="prev" title="The query module" href="query.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -61,6 +61,7 @@
 <li class="toctree-l1"><a class="reference internal" href="tutorials/overview.html">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/setup.html">Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/siege.html">Tutorial: Creating Basic Siege</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/faq_2x.html">Frequently asked Questions</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
 <ul>
@@ -70,6 +71,7 @@
 <li class="toctree-l1"><a class="reference internal" href="vec.html">The vector class</a></li>
 <li class="toctree-l1"><a class="reference internal" href="scatter.html">The Scatter modules</a></li>
 <li class="toctree-l1"><a class="reference internal" href="faces.html">The Faces module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="query.html">The query module</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Systems:</span></p>
 <ul class="current">
@@ -551,7 +553,7 @@ handlerhooks.py will call this in HandleEvent</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>event</strong> (<em>event</em>) – The tag name of the control interacted with</p></li>
+<li><p><strong>event</strong> (<a class="reference internal" href="query.html#sbs.event" title="sbs.event"><em>event</em></a>) – The tag name of the control interacted with</p></li>
 </ul>
 </dd>
 </dl>
@@ -566,7 +568,7 @@ handlerhooks.py will call this in HandlePresentGUIMessage</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>event</strong> (<em>event</em>) – The tag name of the control interacted with</p></li>
+<li><p><strong>event</strong> (<a class="reference internal" href="query.html#sbs.event" title="sbs.event"><em>event</em></a>) – The tag name of the control interacted with</p></li>
 </ul>
 </dd>
 </dl>
@@ -619,7 +621,7 @@ handlerhooks.py will call this in HandleEvent</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>event</strong> (<em>event</em>) – The tag name of the control interacted with</p></li>
+<li><p><strong>event</strong> (<a class="reference internal" href="query.html#sbs.event" title="sbs.event"><em>event</em></a>) – The tag name of the control interacted with</p></li>
 </ul>
 </dd>
 </dl>
@@ -653,7 +655,7 @@ this is called once in the script.py</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
+<li><p><strong>event</strong> (<a class="reference internal" href="query.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
 </dl>
@@ -667,7 +669,7 @@ this is called once in the script.py</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
+<li><p><strong>event</strong> (<a class="reference internal" href="query.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
 </dl>
@@ -727,7 +729,7 @@ this is called once in the script.py</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
+<li><p><strong>event</strong> (<a class="reference internal" href="query.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
 </dl>
@@ -741,7 +743,7 @@ this is called once in the script.py</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
+<li><p><strong>event</strong> (<a class="reference internal" href="query.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
 </dl>
@@ -814,7 +816,7 @@ this is called once in the script.py</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
+<li><p><strong>event</strong> (<a class="reference internal" href="query.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
 </dl>
@@ -862,7 +864,7 @@ this is called once in the script.py</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
+<li><p><strong>event</strong> (<a class="reference internal" href="query.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
 </dl>
@@ -898,7 +900,7 @@ this is called once in the script.py</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
+<li><p><strong>event</strong> (<a class="reference internal" href="query.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
 </dl>
@@ -912,7 +914,7 @@ this is called once in the script.py</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
+<li><p><strong>event</strong> (<a class="reference internal" href="query.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
 </dl>
@@ -948,7 +950,7 @@ this is called once in the script.py</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
-<li><p><strong>event</strong> (<em>event</em>) – The event data</p></li>
+<li><p><strong>event</strong> (<a class="reference internal" href="query.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
 </dl>
@@ -1088,7 +1090,7 @@ components owned will have the tag_prefix</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="faces.html" class="btn btn-neutral float-left" title="The Faces module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="query.html" class="btn btn-neutral float-left" title="The query module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="consoledispatcher.html" class="btn btn-neutral float-right" title="Console Dispatcher" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

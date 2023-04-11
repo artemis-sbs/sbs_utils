@@ -951,7 +951,7 @@ class MastFallbackTask:
         self.done = False
         label = self.labels[self.current_selection]
         self.task.do_jump(label)
-        #self.main.tasks.append(self)
+        self.main.tasks.append(self)
         return PollResults.OK_JUMP
 
     def tick(self) -> PollResults:
@@ -969,6 +969,7 @@ class MastFallbackTask:
             #TODO: I'm not sure why just jump didn't work
             # 
             self.task.do_jump(label)
+            #self.result = self.task.tick()
             return PollResults.OK_JUMP
         if self.result == PollResults.OK_END:
             self.done = True

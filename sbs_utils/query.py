@@ -5,25 +5,84 @@ import sbs
 ###################
 # Set functions
 def role(role: str):
+    """ role
+
+        returns a set of all the engine objects with a given role.
+
+        :param role: the role
+        :type role: str
+        
+        :rtype: set of ids 
+    """
     return EngineObject.get_role_set(role)
 
-def has_inventory(role: str):
-    return EngineObject.has_inventory_set(role)
+def has_inventory(key: str):
+    """ has_inventory
+
+        get the object that have a inventory item with the given key
+
+        :param key: The key/name of the inventory item
+        :type key: str
+        :rtype: set of ids
+        """
+    return EngineObject.has_inventory_set(key)
 
 
-def has_link(role: str):
-    return EngineObject.has_links_set(role)
+def has_link(key: str):
+    """ has_link
+
+        get the object that have a link item with the given key
+
+        :param key: The key/name of the inventory item
+        :type key: str
+        :rtype: set of ids
+        """
+    return EngineObject.has_links_set(key)
 
 def inventory_set(link_source, link_name: str):
+    """ inventory_set
+
+        get the set that inventory items with the given key the the link source has
+        this is the way to create a collection in inventory
+
+        :param link_source: The id object to check
+        :type link_source: int / id
+        :param link_name: The key/name of the inventory item
+        :type link_name: str
+        :rtype: set of data
+        """
     link_source = EngineObject.resolve_py_object(link_source)
     return link_source.get_inventory_set(link_name)
 
 def inventory_value(link_source, link_name: str):
+    """ inventory_value
+
+        get the value that inventory items with the given key the the link source has
+        
+        :param link_source: The id object to check
+        :type link_source: int / id
+        :param link_name: The key/name of the inventory item
+        :type link_name: str
+        :rtype: data
+        """
+    
     link_source = EngineObject.resolve_py_object(link_source)
     return link_source.get_inventory_value(link_name)
 
 
 def linked_to(link_source, link_name: str):
+    """ linked_to
+
+        get the set that inventor the source is linked to for the given key
+
+        :param link_source: The id object to check
+        :type link_source: int / id
+        :param link_name: The key/name of the inventory item
+        :type link_name: str
+        :rtype: set of ids
+        """
+  
+
     link_source = EngineObject.resolve_py_object(link_source)
     return link_source.get_link_set(link_name)
 
@@ -31,6 +90,24 @@ def linked_to(link_source, link_name: str):
 
 
 def broad_test(x1: float, z1: float, x2: float, z2: float, broad_type=-1):
+    """ broad_test
+
+        returns a set of ids that are in the target rect
+
+        :param x1: x location (left)
+        :type x1: float
+        :param z1: z location (top)
+        :type z1: float
+        :param x2: x location (right)
+        :type x2: float
+        :param z2: z location (bottom)
+        :type z2: float
+
+        :param broad type:  -1=All, 0=player, 1=Active, 2=Passive
+        :type broad_type: int
+        :rtype: set of ids
+        """
+    
     obj_list = sbs.broad_test(x1, z1, x2, z2, broad_type)
     return {so.unique_ID for so in obj_list}
 
@@ -38,6 +115,21 @@ def broad_test(x1: float, z1: float, x2: float, z2: float, broad_type=-1):
 #######################
 # Set resolvers
 def closest_list(source: int | CloseData | SpawnData | EngineObject, the_set, max_dist=None, filter_func=None) -> list[CloseData]:
+    """ close_list
+
+        get the list of close data that matches the test set, max_dist and optional filter function
+
+        :param source: The id object to check
+        :type source: int / id
+        :param the_set: a set of ids to check against
+        :type the_set: set of ids
+        :param max_dist: The maximum distance to include
+        :type link_name: float
+        :param filter_func: A function to filter the set
+        :type filter_func: func
+        :rtype: list of CloseData
+        """
+  
     ret = []
     test = max_dist
     source_id = EngineObject.resolve_id(source)
@@ -62,6 +154,21 @@ def closest_list(source: int | CloseData | SpawnData | EngineObject, the_set, ma
 
 
 def closest(the_ship, the_set, max_dist=None, filter_func=None) -> CloseData:
+    """ closest
+
+        get the  close data that matches the test set, max_dist and optional filter function
+
+        :param source: The id object to check
+        :type source: int / id
+        :param the_set: a set of ids to check against
+        :type the_set: set of ids
+        :param max_dist: The maximum distance to include
+        :type link_name: float
+        :param filter_func: A function to filter the set
+        :type filter_func: func
+        :rtype: CloseData
+        """
+  
     test = max_dist
     ret = None
     source_id = EngineObject.resolve_id(the_ship)
@@ -90,21 +197,57 @@ def closest(the_ship, the_set, max_dist=None, filter_func=None) -> CloseData:
 
 
 def closest_object(the_ship, the_set, max_dist=None, filter_func=None) -> EngineObject:
+    """ closest_object
+
+        get the object that matches the test set, max_dist and optional filter function
+
+        :param source: The id object to check
+        :type source: int / id
+        :param the_set: a set of ids to check against
+        :type the_set: set of ids
+        :param max_dist: The maximum distance to include
+        :type link_name: float
+        :param filter_func: A function to filter the set
+        :type filter_func: func
+        :rtype: EngineObject
+        """
     ret = closest(the_ship, the_set, max_dist, filter_func)
     if ret:
         return ret.py_object
 
 def random_object(the_set):
+    """ random_object
+
+        get the object from the set provide
+
+        :rtype: EngineObject
+        """
     rand_id = choice(tuple(the_set))
     return EngineObject.get(rand_id)
 
 
 def random_object_list(the_set, count=1):
+    """ random_object_list
+
+        get a list of objects selected randomly from the set provided
+
+        :param the_set: Set of Ids
+        :type the_set: set of ids
+        :param count: The number of objects to pick
+        :type count: int
+        :rtype: list of EngineObject
+        """
     rand_id_list = choices(tuple(the_set), count)
     return [EngineObject.get(x) for x in rand_id_list]
 
 
 def to_py_object_list(the_set):
+    """ to_py_object_list
+
+        converts a set of ids to a set of objects
+
+        :rtype: list EngineObject
+        """
     return [EngineObject.get(id) for id in the_set]
 
 
@@ -174,18 +317,43 @@ def clear_target(sim, chasers: set | int | CloseData|SpawnData):
             })
 
 def to_object_list(the_set):
+    """ to_object_list
+
+        converts a set to a list of objects
+
+        :param the_set: A set of ids
+        :type the_set: set of ids
+        
+        :rtype: list of EngineObject
+        """
     if the_set is None:
         return []
     the_list = to_list(the_set)
     return [EngineObject.resolve_py_object(x) for x in the_list]
 
 def to_id_list(the_set):
+    """ to_id_list
+
+        converts a single object/id, set ot list of things to a set of ids
+
+        :param the_set: The a set of things
+        :type the_set: set, list or single item
+        :rtype: list of ids
+        """
     if the_set is None:
         return []
     the_list = to_list(the_set)
     return [EngineObject.resolve_id(x) for x in the_list]
 
 def to_list(other: EngineObject | CloseData | int):
+    """ to_list
+
+        converts a single object/id, set ot list of things to a list
+
+        :param the_set: The a set of things
+        :type the_set: set, list or single item
+        :rtype: list of things
+        """
     if isinstance(other, set):
         return list(other)
     elif isinstance(other, list):
@@ -195,6 +363,14 @@ def to_list(other: EngineObject | CloseData | int):
     return [other]
 
 def to_set(other: EngineObject | CloseData | int):
+    """ to_set
+
+        converts a single object/id, set ot list of things to a set of ids
+
+        :param the_set: The a set of things
+        :type the_set: set, list or single item
+        :rtype: list of ids
+        """
     if isinstance(other, list):
         return set(other)
     elif isinstance(other, set):

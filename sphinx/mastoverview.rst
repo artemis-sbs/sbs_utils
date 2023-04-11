@@ -28,20 +28,26 @@ The intent is to be approachable to non-programmers. It is not intended to be 's
 
 The flow of mast is similar to the original BASIC programming langauge. The code executes moving forward, it can branch by jumping to new locations (labels). This can be called 'unstructured' programming. Mast was also influenced by choice script, Inkle's Ink, and others.
 
-.. code-block:: mast
 
-    ========= start =======
-    log "Hello, world"
-    -> goodbye
-    ====== not_here =======
-    log "I get jumped over"
-    ======= goodbye =======
-    log "Goodbye"
 
-This is the expected output::
+.. tabs::
+    .. code-tab:: mast
 
-    Hello, world
-    Goodbye
+        ========= start =======
+        log "Hello, world"
+        -> goodbye
+        ====== not_here =======
+        log "I get jumped over"
+        ======= goodbye =======
+        log "Goodbye"
+
+
+    .. tab:: Output
+
+        |    Hello, world
+        |    Goodbye
+
+ 
 
 
 ****************
@@ -54,7 +60,7 @@ PyMast is python code that runs using the Mast execution flow. This gives python
 
 
 .. tabs::
-   .. code-tab:: mast
+    .. code-tab:: mast
       
         ========= start =======
         log "Hello, world"
@@ -65,7 +71,7 @@ PyMast is python code that runs using the Mast execution flow. This gives python
         log "Goodbye"
 
 
-   .. code-tab:: py PyMast
+    .. code-tab:: py PyMast
 
         class Story(PyMastStory):
             def __init__(self, *args, **kwargs):
@@ -83,12 +89,13 @@ PyMast is python code that runs using the Mast execution flow. This gives python
             @label()
             def goodbye(self):
                 print("Goodbye")
+    
 
-This is the expected output::
+    .. tab:: Output
 
-    Hello, world
-    Goodbye
-     
+        |    Hello, world
+        |    Goodbye
+
 
 ***************************
 Mast and pausing the flow
@@ -104,7 +111,7 @@ This ability to yield control back to the engine is a reason that Mast flow can 
 
 
 .. tabs::
-   .. code-tab:: mast
+    .. code-tab:: mast
       
         ========= start =======
         log "Hello, world"
@@ -112,7 +119,7 @@ This ability to yield control back to the engine is a reason that Mast flow can 
         log "Goodbye"
 
 
-   .. code-tab:: py PyMast
+    .. code-tab:: py PyMast
 
         class Story(PyMastStory):
             def __init__(self, *args, **kwargs):
@@ -124,12 +131,17 @@ This ability to yield control back to the engine is a reason that Mast flow can 
                 yield self.delay(5)
                 print("Goodbye")
 
+    .. tab:: Output
+
+        |    Hello, world
+        |    Goodbye
+    
 
 Yielding control is handled by Mast. If there ever is a time you need to force a yield you can us the Mast 'yeild' command. In PyMast the python keyword yield is used, however you must specify how to yield by providing a PollResults.OK_RUN_AGAIN. There are other types of yields in PyMast. This is not the time to detail those uses. 
 
 
 .. tabs::
-   .. code-tab:: mast
+    .. code-tab:: mast
       
         ========= start =======
         log "Hello, world"
@@ -137,7 +149,7 @@ Yielding control is handled by Mast. If there ever is a time you need to force a
         log "Goodbye"
 
 
-   .. code-tab:: py PyMast
+    .. code-tab:: py PyMast
 
         class Story(PyMastStory):
             def __init__(self, *args, **kwargs):
@@ -149,6 +161,10 @@ Yielding control is handled by Mast. If there ever is a time you need to force a
                 yield PollResults.OK_RUN_AGAIN
                 print("Goodbye")
 
+    .. tab:: Output
+
+        |    Hello, world
+        |    Goodbye
 
 In future topics there will be other times descibed when Mast yields. Typically this is when MAst is waiting for something to occur. For example:
 
@@ -173,8 +189,10 @@ These tasks themselves act as small side stories, They run as long as needed.
 
 In mast tasks are scheduled in mast with a parallel jump, and in PyMast with a schedule_task
 
+If you have programmed Artemis 2.x scripts, tasks are similar to the <event> tags. Unlike the <event> tags, task only run when needed. They are scheduled, and when they end they are unscheduled they can also be canceled.
+
 .. tabs::
-   .. code-tab:: mast
+    .. code-tab:: mast
       
         ===== start ====
         # Run another task
@@ -189,7 +207,7 @@ In mast tasks are scheduled in mast with a parallel jump, and in PyMast with a s
         next x
 
 
-   .. code-tab:: py PyMast
+    .. code-tab:: py PyMast
 
         class Story(PyMastStory):
             def __init__(self, *args, **kwargs):
@@ -206,19 +224,21 @@ In mast tasks are scheduled in mast with a parallel jump, and in PyMast with a s
                     print(x)
                     yield PollResults.OK_RUN_AGAIN
 
-Expected output::
 
-    1
-    2
-    3
-    4
-    5
-    6
-    7
-    8
-    9
-    10
-    done
+    .. tab:: Output
+        
+        |    1
+        |    2
+        |    3
+        |    4
+        |    5
+        |    6
+        |    7
+        |    8
+        |    9
+        |    10
+        |    done
+
 
 ******************
 Schedulers
@@ -235,5 +255,253 @@ The more complex the script, the more tasks that will run. And if the complexity
 When Artemis Cosmos calls the scripting engine, Mast/PyMast will run al the Schedulers and each scheduler runs all of its Tasks. 
 
 As tasks are finished, they are removed. If a scheduler runs and no longer has tasks it is removed.
+
+
+XML Events vs label, and tasks
+--------------------------------
+
+If you ever programmed Artemis 2.x, Tasks are similar to events.
+XML is NOT supported, but used as examples for those familiar with Artemis 2.x scripting.
+
+ 
+* XML events 
+    * are always scheduled
+    * and always run
+    * never stop
+
+* Tasks 
+    * need to be scheduled or they don't run
+    * They can end
+    * They can be canceled
+
+ 
+.. tabs::
+
+   .. code-tab:: xml
+
+        <event name="do_some_thing">
+        </event>
+ 
+   .. code-tab:: mast
+      
+        # To schedule the task
+        schedule do_some_thing
+        # To end a task
+        ->END
+
+
+        ==== do_some_thing ====
+        log "Hello"
+                    
+        
+
+   .. code-tab:: py PyMast
+
+        @label()
+        def start(self):
+            self.schedule_task(self.do_some_thing)
+
+        @label()
+        def do_some_thing(self):
+            self.log("Hello")
+
+   
+    
+        
+
+Setting data vs. XML Variable
+--------------------------------
+
+Mast you can set data that is shared by the se:rver, all client consoles and all tasks.
+You can scope data to the task. You can pass data to a task. This allows task to be scheduled multiple times.
+PyMast has the added ability to scope data to a label since it is a function in python.
+
+In contrast to XML event, you could <set_variable> that variable was always shared. Also, event did not have scoped data. Event could not be reused. This meant to schedule events multiple times, you had to copy and paste the event and create new variables. 
+
+
+.. tabs::
+
+   .. code-tab:: xml
+        
+        <event name="do_some_thing">
+            <set_variable name="some_data" value="1"/> 
+            <set_variable name="some_data_one" value="1"/> 
+            <set_variable name="some_data_two" value="1"/> 
+        </event>
+
+   .. code-tab:: mast
+      
+        # create shared data
+        shared say_what = "Hello"
+        local_data = "I'm different"
+
+        # When run outputs Hello, World So Long Goodbye
+        schedule do_some_thing {"passed_data": "World"}
+        # When run outputs Hello, Cosmos So Long Goodbye
+        schedule do_some_thing {"passed_data": "Cosmos"}
+
+        ->END
+
+
+        ==== do_some_thing ====
+        # set a local variable 
+        local_data = "Goodbye"
+
+        log "{say_what}, {passed_data}"
+        log "{local_data}"
+                    
+        
+
+   .. code-tab:: py PyMast
+
+        @label()
+        def start(self):
+            # Shared data is added to the story
+            self.say_what = "Hello"
+
+            # When run out puts Hello, World So Long Goodbye
+            self.schedule_task(self.do_some_thing, {"passed_data": "World"})
+            # When run out puts Hello, Cosmos So Long Goodbye
+            self.schedule_task(self.do_some_thing, {"passed_data": "Cosmos"})
+
+        @label()
+        def do_some_thing(self):
+            # To share with the task
+            # so it can be used in other labels run by this task
+            self.task.local_data = "So Long"
+            # a label is a function in python so it can also have
+            # data local to the function/label
+            label_data = "Goodbye"
+
+            self.task.local_data = "Goodbye"
+            self.log("{say_what}, {passed_data}")
+            self.log("{self.task.local_data}")
+            self.log("{label_data}")
+        
+
+            
+Delaying things and XML Timers
+--------------------------------
+
+There are times that a delay is needed before the next thing happens.
+There are multiple reasons for this:
+
+- pause between steps e.g. showing credits, spawning different waves of enemies
+- delay something to not overwhelm the users, periodically report game state
+
+
+Example one delaying credits.
+
+.. tabs::
+
+   .. code-tab:: xml
+      
+        <start>
+            . . .
+            <set_timer name="credits_timer"/>
+            <set_variable name="credits" comparator="EQUALS" value="0"/>
+        </start>
+
+        <event name="Credits 1">
+            <if_timer_finished name="credits_timer"/>
+            <if_variable name="credits" comparator="EQUALS" value="0"/>
+            <big_message title="This is the first page of credits" subtitle2=""/>
+            <set_variable name="credits" value="1"/>
+        </event>
+        <event name="Credits 2">
+            <if_timer_finished name="credits_timer"/>
+            <if_variable name="credits" comparator="EQUALS" value="1"/>
+            <big_message title="This is the second page of credits" subtitle2=""/>
+            <set_variable name="credits" value="2"/>
+        </event>
+        <event name="Credits 3">
+            <if_timer_finished name="credits_timer"/>
+            <if_variable name="credits" comparator="EQUALS" value="2"/>
+            <big_message title="This is the third page of credits" subtitle2=""/>
+            <set_variable name="credits" value="999"/>
+        </event>
+        
+   .. code-tab:: mast
+        
+        ==== show_credits ====
+        
+        """ This is the first page of credits"""
+        await gui timeout 10s
+        """ This is the second page of credits"""
+        await gui timeout 10s
+        """ This is the third page of credits"""
+        await gui timeout 10s
+                  
+        
+
+   .. code-tab:: py PyMast
+
+        @label()
+        def start(self):
+            self.gui_text("this is the first page of credits")
+            yield self.await_gui(timeout=10)
+            self.gui_text("this is the second page of credits")
+            yield self.await_gui(timeout=10)
+            self.gui_text("this is the third page of credits")
+            yield self.await_gui(timeout=10)
+
+Another use is to spawn enemy waves.
+The XML for this would be very verbose.
+        
+.. tabs::
+
+   .. code-tab:: xml
+                
+        <Skipping/>
+        
+   .. code-tab:: mast
+              
+        ==== spawn_wave ====
+        enemyTypeNameList = ["kralien_dreadnaught","kralien_battleship","skaraan_defiler","cargo_ship","arvonian_carrier","torgoth_behemoth"]
+        enemy_prefix = "KLMNQ"
+
+        # this gets a radom span location just outside the view of the sctor 
+        spawn_points = scatter_sphere(int(enemy_count), 0,0,0, 6000, 6000+250*enemy_count, ring=True)
+
+        for v in spawn_points:
+            r_type = random.choice(enemyTypeNameList)
+            r_name = f"{random.choice(enemy_prefix)}_{enemy}"
+            spawn_data = npc_spawn(v.x, v.y, v.z, r_name, "RAIDER", r_type, "behav_npcship")
+            raider = spawn_data.py_object
+            do set_face(raider.id, random_kralien())
+            do add_role(raider.id, "Raider")
+            enemy = enemy + 1
+        next v
+
+        delay sim 8m
+                  
+        
+
+   .. code-tab:: py PyMast
+
+        @label()
+        def spawn_wave(self):
+            enemyTypeNameList = ["kralien_dreadnaught","kralien_battleship","skaraan_defiler","cargo_ship","arvonian_carrier","torgoth_behemoth"]
+            enemy_prefix = "KLMNQ"
+
+            # this gets a radom span location just outside the view of the sctor 
+            spawn_points = scatter_sphere(int(enemy_count), 0,0,0, 6000, 6000+250*enemy_count, ring=True)
+
+            for v in spawn_points:
+                r_type = random.choice(enemyTypeNameList)
+                r_name = f"{random.choice(enemy_prefix)}_{enemy}"
+                spawn_data = npc_spawn(v.x, v.y, v.z, r_name, "RAIDER", r_type, "behav_npcship")
+                raider = spawn_data.py_object
+                set_face(raider.id, random_kralien())
+                add_role(raider.id, "Raider")
+                enemy = enemy + 1
+            yield self.delay(8*60)
+
+        
+                  
+
+        
+
+            
 
 

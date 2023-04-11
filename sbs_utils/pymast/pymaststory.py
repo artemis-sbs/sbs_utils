@@ -12,6 +12,9 @@ from .pymastcomms import PyMastComms
 from .pymasttask import PyMastTask, DataHolder
 from .pymastscheduler import PyMastScheduler
 from .pymaststorypage import CodePusher
+import logging
+from io import StringIO
+
 
 
 
@@ -348,5 +351,47 @@ class PyMastStory:
     def watch_event(self, event_tag, label):
         self.task.watch_event(event_tag, label)
 
+    def log(self, message, logger_name="pytmast", level="info"):
+        logger = logging.getLogger(logger_name)
+        match level:
+            case "info":
+                logger.info(message)
+            case "debug":
+                logger.debug(message)
+            case "warning":
+                logger.warning(message)
+            case "error":
+                logger.error(message)
+            case "critical":
+                logger.critical(message)
+            case _:
+                logger.debug(message)
 
+    def logger(self, logger_name="pymast"):
+        logger = logging.getLogger(logger_name)
+        logging.basicConfig(level=logging.NOTSET)
+        logger.setLevel(logging.NOTSET)
+
+    def string_logger(self, logger_name="pymast"):
+        logger = logging.getLogger(logger_name)
+        logging.basicConfig(level=logging.NOTSET)
+        logger.setLevel(logging.NOTSET)
+   
+        streamer = StringIO()
+        handler = logging.StreamHandler(stream=streamer)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        handler.setLevel(logging.NOTSET)
+        logger.addHandler(handler)
+        return streamer
     
+    def file_logger(self, filename, logger_name="pymast"):
+        logger = logging.getLogger(logger_name)
+        logging.basicConfig(level=logging.NOTSET)
+        logger.setLevel(logging.NOTSET)
+       
+        handler = logging.FileHandler(filename,mode='w',)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        handler.setLevel(logging.NOTSET)
+        logger.addHandler(handler)
+
+

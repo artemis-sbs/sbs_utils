@@ -84,12 +84,19 @@ class PyMastStoryPage(Page):
     
     def _run(self, time_out):    
         self.end_await = False
+        # Assume time_out for gui is app seconds
+        if time_out is not None:
+            end_timeout = sbs.app_seconds()+ time_out
         while self.end_await == False:
             #print(f"running {self.story.sim}")
             self.present(self.story.sim, None)
             # Get out faster if ended
             if self.end_await:
                 break
+            if time_out is not None:
+                if sbs.app_seconds() > end_timeout:
+                    break
+
             yield PollResults.OK_RUN_AGAIN
         yield self.task.pop()        
       

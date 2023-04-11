@@ -926,6 +926,7 @@ S2 Again
     """)
         assert(len(errors)==0)
         #for _ in range(50):
+        #    runner.tick()
         while runner.tick():
             pass
         output = runner.get_value("output", None)
@@ -1027,7 +1028,7 @@ S2 Again
         #st.seek(0)
         value = st.getvalue()
 
-        assert(value !="""S1
+        assert(value =="""S1
 S1 Again
 S2
 S2 Again
