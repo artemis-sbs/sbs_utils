@@ -7,7 +7,6 @@
   <title>GUI system &mdash; SBS Utils 1.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="_static/graphviz.css" type="text/css" />
       <link rel="stylesheet" href="_static/tabs.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
@@ -314,18 +313,7 @@ and the previous page can be returned to by ‘popping’ the current page off t
 </div>
 <p>When the options button is pressed a Options page instances is ‘pushed’ on to the stack and it becomes the GUI that is presented.
 The StartPage instance still exists, and is below the Options page on the stack.</p>
-<div class="graphviz"><img src="_images/graphviz-4af3516b7e4ac98caa6ce196941eba2bc91bc8b9.png" alt="digraph G {
-   node [shape=box, fontname=&quot;Arial&quot;];
-   constraint=false;
-   rankdir=&quot;LR&quot;;
-   //splines=&quot;ortho&quot;;
-
-   sp [label=&quot;StartPage&quot;];
-   op [label=&quot;Options&quot;];
-
-
-   sp -&gt; op [label=&quot;push&quot;];
-}" class="graphviz" /></div>
+<img alt="_images/gui-push.png" src="_images/gui-push.png" />
 </section>
 <section id="popping-pages">
 <h3>Popping pages<a class="headerlink" href="#popping-pages" title="Permalink to this heading"></a></h3>
@@ -342,60 +330,13 @@ The StartPage instance still exists, and is below the Options page on the stack.
 </pre></div>
 </div>
 <p>When the back button is pressed, the Option page is removed from the stack and the StartPage is then presented.</p>
-<div class="graphviz"><img src="_images/graphviz-36caa55980a14c804564771b7c9643bd4f456d1b.png" alt="digraph G {
-   node [shape=box, fontname=&quot;Arial&quot;];
-   //constraint=false;
-   rankdir=&quot;LR&quot;;
-   ordering=in;
-   splines=&quot;ortho&quot;;
-
-   sp [label=&quot;StartPage&quot;];
-   op [label=&quot;Options&quot;  style=dashed];
-
-   sp -&gt; op [weight=10;style=invis]
-   op -&gt; sp [label=&quot;pop&quot;];
-}" class="graphviz" /></div>
+<img alt="_images/gui-pop.png" src="_images/gui-pop.png" />
 </section>
 <section id="complex-page-hierarchies">
 <h3>Complex page hierarchies<a class="headerlink" href="#complex-page-hierarchies" title="Permalink to this heading"></a></h3>
 <p>The GUI systems’s stack and navigating via push and pop can allow for deep and complex GUI screens.</p>
 <p>For example a main StartPage could navigate to an Option page that can either navigate to a ship picker Page or an Avatar Editor.</p>
-<div class="graphviz"><img src="_images/graphviz-3ccb5e60e6d152f882712df6fa1a84cc99452104.png" alt="digraph G {
-   node [shape=box, fontname=&quot;Arial&quot;];
-   constraint=false;
-   rankdir=&quot;LR&quot;;
-   //splines=&quot;ortho&quot;;
-
-   subgraph cluster_main {
-      label=&quot;Main pages&quot;
-      sp;
-      op;
-   }
-   subgraph cluster_pages {
-      label=&quot;option sub pages&quot;;
-      pick;
-      av;
-   }
-
-
-
-   sp [label=&quot;StartPage&quot;];
-   op [label=&quot;Options&quot;];
-   av [label=&quot;Avatar Editor&quot;];
-   pick [label=&quot;ShipPicker&quot;];
-
-
-   sp -&gt; op [label=&quot;push&quot;];
-   op -&gt; sp [label=&quot;pop&quot;];
-
-   op -&gt; pick [label=&quot;push&quot;];
-   pick -&gt; op [label=&quot;pop&quot;];
-
-
-
-   av -&gt; op [label=&quot;pop&quot;];
-   op -&gt; av [label=&quot;push&quot;];
-}" class="graphviz" /></div>
+<img alt="_images/gui-complex.png" src="_images/gui-complex.png" />
 </section>
 </section>
 <section id="reusable-pages">
@@ -421,73 +362,7 @@ The StartPage instance still exists, and is below the Options page on the stack.
          <span class="n">sbs</span><span class="o">.</span><span class="n">send_gui_slider</span><span class="p">(</span><span class="n">CID</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;value:</span><span class="si">{</span><span class="n">widget</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>  <span class="n">widget</span><span class="p">[</span><span class="s2">&quot;min&quot;</span><span class="p">],</span><span class="n">widget</span><span class="p">[</span><span class="s2">&quot;max&quot;</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">cur</span><span class="p">[</span><span class="n">v</span><span class="p">],</span> <span class="o">*</span><span class="nb">next</span><span class="p">(</span><span class="n">loc</span><span class="p">),</span> <span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="graphviz"><img src="_images/graphviz-c135739ab9fb2088901c90c872298d281b7de363.png" alt="digraph G {
-   node [shape=box, fontname=&quot;Arial&quot;];
-   //constraint=false;
-   rankdir=&quot;LR&quot;;
-   //splines=&quot;ortho&quot;;
-
-   subgraph cluster_tHREE {
-      label=&quot;row3&quot;
-      a2;
-      b2;
-      c2;
-      d2;
-   }
-
-   subgraph cluster_two {
-      label=&quot;row2&quot;
-      a1;
-      b1;
-      c1;
-      d1;
-   }
-   subgraph cluster_main {
-      label=&quot;row1&quot;
-      a;
-      b;
-      c;
-      d;
-   }
-
-
-
-
-
-   a [label=label];
-   b [label=slider];
-   c [label=label];
-   d [label=slider];
-
-
-   a -&gt; b [style=invis];
-   b -&gt; c [style=invis];
-   c -&gt; d [style=invis];
-
-   a1 [label=label];
-   b1 [label=slider];
-   c1 [label=label];
-   d1 [label=slider];
-
-
-   a1 -&gt; b1 [style=invis];
-   b1 -&gt; c1 [style=invis];
-   c1 -&gt; d1 [style=invis];
-
-   a2 [label=label];
-   b2 [label=slider];
-   c2 [label=label];
-   d2 [label=slider];
-
-
-   a2 -&gt; b2 [style=invis];
-   b2 -&gt; c2 [style=invis];
-   c2 -&gt; d2 [style=invis];
-
-
-
-}" class="graphviz" /></div>
-</section>
+<video controls autostart loop width="640" height="480" src="_static/gui_layout.mp4"></video></section>
 <section id="widgets">
 <h2>Widgets<a class="headerlink" href="#widgets" title="Permalink to this heading"></a></h2>
 <p>Widgets provide a method to combine multiple components into a single reusable element.</p>

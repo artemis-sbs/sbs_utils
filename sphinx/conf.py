@@ -35,7 +35,6 @@ release = '1.0'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    'sphinx.ext.graphviz',
     'sphinx_tabs.tabs'
     #'sphinx_code_tabs'
 ]
@@ -62,7 +61,6 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-graphviz_dot="F:\\t\\graphviz\\bin\\dot.exe"
 
 from pygments.lexer import RegexLexer
 from pygments.token import *

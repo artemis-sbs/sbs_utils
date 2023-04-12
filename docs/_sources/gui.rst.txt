@@ -9,6 +9,7 @@ Artemis Cosmos calls the script function HandlePresentGUI when a console is in '
 
 Artemis Cosmos calls the script function HandlePresentGUIMessage when change occur due to interacting with the GUI.
 
+
 sbs_utils GUI system
 ----------------------
 
@@ -124,21 +125,7 @@ For example, the start page can navigate to an Options page by pushing the optio
 When the options button is pressed a Options page instances is 'pushed' on to the stack and it becomes the GUI that is presented.
 The StartPage instance still exists, and is below the Options page on the stack.
 
-.. graphviz::
-
-      digraph G {
-         node [shape=box, fontname="Arial"];
-         constraint=false;
-         rankdir="LR";
-         //splines="ortho";
-         
-         sp [label="StartPage"];
-         op [label="Options"];
-         
-
-         sp -> op [label="push"];
-      }
-
+.. image:: media/d/gui-push.png
 
 Popping pages
 ^^^^^^^^^^^^^^
@@ -160,21 +147,7 @@ Popping pages
 When the back button is pressed, the Option page is removed from the stack and the StartPage is then presented.
 
 
-.. graphviz::
-
-      digraph G {
-         node [shape=box, fontname="Arial"];
-         //constraint=false;
-         rankdir="LR";
-         ordering=in;
-         splines="ortho";
-         
-         sp [label="StartPage"];
-         op [label="Options"  style=dashed];
-         
-         sp -> op [weight=10;style=invis]
-         op -> sp [label="pop"];
-      }
+.. image:: media/d/gui-pop.png
 
 
 Complex page hierarchies
@@ -186,44 +159,7 @@ For example a main StartPage could navigate to an Option page that can either na
 
 
 
-.. graphviz::
-
-      digraph G {
-         node [shape=box, fontname="Arial"];
-         constraint=false;
-         rankdir="LR";
-         //splines="ortho";
-
-         subgraph cluster_main {
-            label="Main pages"
-            sp;
-            op;
-         }
-         subgraph cluster_pages {
-            label="option sub pages";
-            pick;
-            av;
-         }
-         
-
-         
-         sp [label="StartPage"];
-         op [label="Options"];
-         av [label="Avatar Editor"];
-         pick [label="ShipPicker"];
-         
-
-         sp -> op [label="push"];
-         op -> sp [label="pop"];
-
-         op -> pick [label="push"];
-         pick -> op [label="pop"];
-         
-         
-         
-         av -> op [label="pop"];
-         op -> av [label="push"];
-      }
+.. image:: media/d/gui-complex.png
 
 Reusable pages
 ---------------
@@ -257,74 +193,10 @@ Currently the layout module supports the 'wrap' layout. which will build a table
                sbs.send_gui_text(CID, widget.label, f"lab:{widget.label}", *next(loc))
                sbs.send_gui_slider(CID, f"value:{widget.label}",  widget["min"],widget["max"],self.cur[v], *next(loc), True)
 
-.. graphviz::
 
-      digraph G {
-         node [shape=box, fontname="Arial"];
-         //constraint=false;
-         rankdir="LR";
-         //splines="ortho";
-         
-         subgraph cluster_tHREE {
-            label="row3"
-            a2;
-            b2;
-            c2;
-            d2;
-         }
+.. raw:: html
 
-         subgraph cluster_two {
-            label="row2"
-            a1;
-            b1;
-            c1;
-            d1;
-         }
-         subgraph cluster_main {
-            label="row1"
-            a;
-            b;
-            c;
-            d;
-         }
-         
-         
-         
-
-         
-         a [label=label];
-         b [label=slider];
-         c [label=label];
-         d [label=slider];
-         
-
-         a -> b [style=invis];
-         b -> c [style=invis];
-         c -> d [style=invis];
-         
-         a1 [label=label];
-         b1 [label=slider];
-         c1 [label=label];
-         d1 [label=slider];
-         
-
-         a1 -> b1 [style=invis];
-         b1 -> c1 [style=invis];
-         c1 -> d1 [style=invis];
-         
-         a2 [label=label];
-         b2 [label=slider];
-         c2 [label=label];
-         d2 [label=slider];
-         
-
-         a2 -> b2 [style=invis];
-         b2 -> c2 [style=invis];
-         c2 -> d2 [style=invis];
-         
-
-         
-      }
+   <video controls autostart loop width="640" height="480" src="_static/gui_layout.mp4"></video>
 
 
 

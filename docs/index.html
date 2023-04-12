@@ -7,7 +7,6 @@
   <title>Welcome to SBS Utils’s documentation! &mdash; SBS Utils 1.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="_static/graphviz.css" type="text/css" />
       <link rel="stylesheet" href="_static/tabs.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
@@ -74,13 +73,12 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Systems:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="gui.html">GUI system</a></li>
 <li class="toctree-l1"><a class="reference internal" href="consoledispatcher.html">Console Dispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="damagedispatcher.html">The Damage Dispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tickdispatcher.html">TickDispatcher</a></li>
 <li class="toctree-l1"><a class="reference internal" href="hookhandlers.html">The hook Handlers</a></li>
 <li class="toctree-l1"><a class="reference internal" href="systems/entry.html">Entry Points, events, and handlers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="systems/gui.html">Adding Gui pages and using the Gui System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="systems/gui.html">GUI system</a></li>
 </ul>
 
         </div>
@@ -256,21 +254,6 @@
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Systems:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="gui.html">GUI system</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="gui.html#artemis-cosmos-gui-system">Artemis Cosmos gui system</a></li>
-<li class="toctree-l2"><a class="reference internal" href="gui.html#sbs-utils-gui-system">sbs_utils GUI system</a></li>
-<li class="toctree-l2"><a class="reference internal" href="gui.html#creating-a-gui-page">Creating a GUI page</a></li>
-<li class="toctree-l2"><a class="reference internal" href="gui.html#setting-the-start-pages">Setting the start pages</a></li>
-<li class="toctree-l2"><a class="reference internal" href="gui.html#navigating-pages">Navigating pages</a></li>
-<li class="toctree-l2"><a class="reference internal" href="gui.html#reusable-pages">Reusable pages</a></li>
-<li class="toctree-l2"><a class="reference internal" href="gui.html#page-layout-helpers">Page layout helpers</a></li>
-<li class="toctree-l2"><a class="reference internal" href="gui.html#widgets">Widgets</a></li>
-<li class="toctree-l2"><a class="reference internal" href="gui.html#module-sbs_utils.gui">API: gui module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="gui.html#module-sbs_utils.pages.avatar">API: pages</a></li>
-<li class="toctree-l2"><a class="reference internal" href="gui.html#module-sbs_utils.layout">API: layout module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="gui.html#module-sbs_utils.widgets.shippicker">API: widgets</a></li>
-</ul>
-</li>
 <li class="toctree-l1"><a class="reference internal" href="consoledispatcher.html">Console Dispatcher</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="consoledispatcher.html#artemis-cosmos-console-system">Artemis Cosmos console system</a></li>
 <li class="toctree-l2"><a class="reference internal" href="consoledispatcher.html#sbs-utils-console-system">sbs_utils console system</a></li>
@@ -309,11 +292,20 @@
 <li class="toctree-l2"><a class="reference internal" href="systems/entry.html#sbs-utils-systems-and-default-handlers">sbs_utils systems and default handlers</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="systems/gui.html">Adding Gui pages and using the Gui System</a><ul>
+<li class="toctree-l1"><a class="reference internal" href="systems/gui.html">GUI system</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="systems/gui.html#artemis-cosmos-gui-system">Artemis Cosmos gui system</a></li>
 <li class="toctree-l2"><a class="reference internal" href="systems/gui.html#sbs-utils-gui-system">sbs_utils GUI system</a></li>
-<li class="toctree-l2"><a class="reference internal" href="systems/gui.html#creating-a-page">Creating a Page</a></li>
-<li class="toctree-l2"><a class="reference internal" href="systems/gui.html#multiple-pages">Multiple Pages</a></li>
-<li class="toctree-l2"><a class="reference internal" href="systems/gui.html#example-multiple-pages">Example Multiple Pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="systems/gui.html#creating-a-gui-page">Creating a GUI page</a></li>
+<li class="toctree-l2"><a class="reference internal" href="systems/gui.html#creating-a-hello-world-page">Creating a hello, world Page</a></li>
+<li class="toctree-l2"><a class="reference internal" href="systems/gui.html#setting-the-start-pages">Setting the start pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="systems/gui.html#navigating-pages">Navigating pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="systems/gui.html#reusable-pages">Reusable pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="systems/gui.html#page-layout-helpers">Page layout helpers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="systems/gui.html#widgets">Widgets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="systems/gui.html#module-sbs_utils.gui">API: gui module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="systems/gui.html#module-sbs_utils.pages.avatar">API: pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="systems/gui.html#module-sbs_utils.layout">API: layout module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="systems/gui.html#module-sbs_utils.widgets.shippicker">API: widgets</a></li>
 </ul>
 </li>
 </ul>

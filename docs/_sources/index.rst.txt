@@ -58,7 +58,6 @@ Welcome to SBS Utils's documentation!
    :maxdepth: 2
    :caption: Systems:
 
-   gui
    consoledispatcher
    damagedispatcher
    tickdispatcher
