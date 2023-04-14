@@ -10,6 +10,13 @@ This can be part of a console,
 - Layout components
 - Form Controls
 
+Gui Layout
+================================
+
+.. raw:: html
+
+   <video controls autostart loop width="640" height="480" src="_static/gui_layout.mp4"></video>
+
 
 await gui (choices)
 =================================

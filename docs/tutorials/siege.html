@@ -50,7 +50,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../mastoverview.html">What is Mast</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mastsyntax.html">Language Basics</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../mastobjectmodel.html">Mast Object Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mastobjectmodel.html">SBS Utils Object Model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mastsbssyntax.html">Engine Interactions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../maststorysyntax.html">Gui Components</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mastbehavior.html">Behavior Components</a></li>
@@ -68,6 +68,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#id1">section</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#id2">Sub section</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#client-console">Client Console</a></li>
 </ul>
 </li>
 </ul>
@@ -78,6 +79,7 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../sbs.html">The sbs module</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../spaceobject.html">Space Object</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../roles.html">The roles system</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../targeting.html">The targeting system</a></li>
@@ -194,7 +196,8 @@ end_await
 <span class="gd">-&gt; start_server</span>
 </pre></div>
 </div>
-</div><div aria-labelledby="tab-3-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-3-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">start_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</div><div aria-labelledby="tab-3-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-3-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span> <span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">start_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">gui_section</span><span class="p">(</span><span class="s2">&quot;area: 0, 10, 99, 90;&quot;</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">gui_text</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start_text</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">gui_section</span><span class="p">(</span><span class="s2">&quot;area: 60, 75, 99, 89;row-height: 30px&quot;</span><span class="p">)</span>
@@ -213,6 +216,795 @@ end_await
     <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">await_gui</span><span class="p">({</span>
         <span class="s2">&quot;Start Mission&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span>
     <span class="p">},</span> <span class="n">on_message</span><span class="o">=</span><span class="n">on_message</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="client-console">
+<h4>Client Console<a class="headerlink" href="#client-console" title="Permalink to this heading"></a></h4>
+<p>Probably need to break each step out</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-4-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-4-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-4-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-4-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-4-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-4-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span> ========= client_main ==========
+event change_console:
+     -&gt;select_console
+end_event
+console = &quot;helm&quot;
+ship = &quot;artemis&quot;
+
+<span class="gh">========== select_console ==========</span>
+
+ship_list = &quot;&quot;
+for player_ship in to_object_list(role(&quot;__PLAYER__&quot;)):
+     if len(ship_list) &gt;0:
+          ship_list = ship_list + &quot;,&quot;
+     end_if
+     ship_list = ship_list + player_ship.name
+next player_ship
+
+
+section style=&quot;area: 60,50, 75,90;&quot;
+vradio ship &quot;{ship_list}&quot;
+
+section style=&quot;area: 85,50, 99,90;&quot;
+vradio console_select &quot;helm,weapons, comms,science,engineering&quot;
+blank
+row
+button &quot;accept&quot;:
+     -&gt;console_selected
+end_button
+
+await gui
+
+<span class="gd">-&gt;END</span>
+
+<span class="gh">====== console_selected ====</span>
+
+for player_ship in to_object_list(role(&quot;__PLAYER__&quot;)):
+if player_ship.name == ship:
+     do sbs.assign_client_to_ship(client_id, player_ship.id)
+end_if
+next player_ship
+
+console console_select
+await gui
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-4-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-4-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">start_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+     <span class="bp">self</span><span class="o">.</span><span class="n">watch_event</span><span class="p">(</span><span class="s2">&quot;client_change&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_change</span><span class="p">)</span>
+     <span class="n">players</span> <span class="o">=</span> <span class="p">[]</span>
+     <span class="n">pick_player</span> <span class="o">=</span> <span class="kc">None</span>
+     <span class="k">for</span> <span class="n">player</span> <span class="ow">in</span> <span class="n">query</span><span class="o">.</span><span class="n">to_object_list</span><span class="p">(</span><span class="n">query</span><span class="o">.</span><span class="n">role</span><span class="p">(</span><span class="s2">&quot;__PLAYER__&quot;</span><span class="p">)):</span>
+          <span class="n">players</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">player</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">player_count</span> <span class="o">!=</span> <span class="n">players</span><span class="p">:</span>
+          <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">players</span><span class="p">):</span>
+               <span class="n">player</span> <span class="o">=</span> <span class="n">players</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+               <span class="n">players</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">players</span><span class="p">)</span>
+               <span class="bp">self</span><span class="o">.</span><span class="n">gui_section</span><span class="p">(</span><span class="s2">&quot;area: 25, 65, 39, 90;row-height: 45px;&quot;</span><span class="p">)</span>
+               <span class="n">pick_player</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_radio</span><span class="p">(</span><span class="n">players</span><span class="p">,</span> <span class="n">player</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+     <span class="bp">self</span><span class="o">.</span><span class="n">gui_section</span><span class="p">(</span><span class="s2">&quot;area: 75, 65, 99, 90;&quot;</span><span class="p">)</span>
+     <span class="n">console</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_radio</span><span class="p">(</span><span class="s2">&quot;Helm, Weapons, Comms, Engineering, Science&quot;</span><span class="p">,</span> <span class="s2">&quot;Helm&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+     <span class="k">def</span> <span class="nf">console_selected</span><span class="p">():</span>
+          <span class="k">pass</span>
+
+     <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">await_gui</span><span class="p">({</span>
+          <span class="s2">&quot;Accept&quot;</span><span class="p">:</span> <span class="n">console_selected</span>
+     <span class="p">})</span>
+
+     <span class="k">if</span> <span class="n">pick_player</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">jump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start_client</span><span class="p">)</span>
+
+     <span class="n">player_name</span> <span class="o">=</span> <span class="n">pick_player</span><span class="o">.</span><span class="n">value</span>
+     <span class="n">console_sel</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+     <span class="c1"># Keep running the console</span>
+     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">assign_player_ship</span><span class="p">(</span><span class="n">player_name</span><span class="p">)</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">gui_console</span><span class="p">(</span><span class="n">console_sel</span><span class="p">)</span>
+
+          <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">await_gui</span><span class="p">({</span>
+               <span class="s2">&quot;Accept&quot;</span><span class="p">:</span> <span class="n">console_selected</span>
+          <span class="p">})</span>
+</pre></div>
+</div>
+</div></div>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-5-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-5-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-5-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-5-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-5-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-5-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">================= build_world ===================</span>
+
+  player_ships =  ~~[ (500,0,0, &quot;Artemis&quot;, &quot;tsn&quot;, &quot;tsn_battle_cruiser&quot;),
+                 (200,0,0, &quot;Hera&quot;, &quot;tsn&quot;, &quot;tsn_missile_cruiser&quot;),
+                 ( 900,0,0, &quot;Atlas&quot;, &quot;tsn&quot;, &quot;tsn_missile_cruiser&quot;)
+  ]~~
+
+  first = True
+  for player_args in player_ships:
+  player_ship = to_id(player_spawn(*player_args))
+  do set_face(player_ship, random_terran())
+  if first:
+       do assign_client_to_ship(0,player_ship)
+       first = False
+  end_if
+  next player_args
+
+  stations = [(0,0,0, &quot;Alpha&quot;),(2400,0,100, &quot;Beta&quot;)]
+  for station in stations:
+  ds = to_id(npc_spawn(*station, &quot;tsn&quot;, &quot;starbase_command&quot;, &quot;behav_station&quot;))
+  do add_role(ds, &quot;Station&quot;)
+  do set_face(ds, random_terran(civilian=True))
+  next station
+
+
+  enemyTypeNameList = [&quot;kralien_dreadnaught&quot;,&quot;kralien_battleship&quot;,&quot;skaraan_defiler&quot;,&quot;cargo_ship&quot;,&quot;arvonian_carrier&quot;,&quot;torgoth_behemoth&quot;]
+  enemy_prefix = &quot;KLMNQ&quot;
+
+
+  enemy = 0
+  spawn_points = scatter_sphere(int(enemy_count), 0,0,0, 6000, 6000+250*enemy_count, ring=True)
+
+  for v in spawn_points:
+  r_type = random.choice(enemyTypeNameList)
+  r_name = f&quot;{random.choice(enemy_prefix)}_{enemy}&quot;
+  spawn_data = npc_spawn(v.x, v.y, v.z, r_name, &quot;RAIDER&quot;, r_type, &quot;behav_npcship&quot;)
+  raider = spawn_data.py_object
+  do set_face(raider.id, random_kralien())
+  do add_role(raider.id, &quot;Raider&quot;)
+  enemy = enemy + 1
+  next v
+
+
+  # make a few random clusters of nebula
+  spawn_points = scatter_sphere(random.randint(2,7), 0,0,0, 1000, 4000, ring=True)
+  for v in spawn_points:
+  cluster_spawn_points = scatter_sphere(random.randint(10,20), v.x, 0,v.z, 100, 1000, ring=True)
+  for v2 in cluster_spawn_points:
+       do terrain_spawn(v2.x, v2.y, v2.z,None, None, &quot;nebula&quot;, &quot;behav_nebula&quot;)
+  next v2
+  next v
+
+  # make a few random clusters of Asteroids
+  spawn_points = scatter_sphere(random.randint(10,20), 0,0,0, 1000, 4000, ring=True)
+  asteroid_types = names_asteroid_keys()
+  for v in spawn_points:
+  cluster_spawn_points = scatter_sphere(random.randint(10,20), v.x, 0,v.z, 100, 1000, ring=False)
+  for v2 in cluster_spawn_points:
+       #keep value between -500 and 500??
+       v2.y = abs(v2.y) % 500 * (v2.y/abs(v2.y))
+       a_type = random.choice(asteroid_types)
+       #a_type = &quot;asteroid_crystal_blue&quot;
+       do terrain_spawn(v2.x, v2.y, v2.z,None, None, a_type, &quot;behav_asteroid&quot;)
+  next v2
+  next v
+
+  # I want candy
+  spawn_points = scatter_sphere(random.randint(5,12), 0,0,0, 1000, 4000, ring=True)
+  for v in spawn_points:
+  cluster_spawn_points = scatter.sphere(random.randrange(10,20), v.x, 0,v.z, 100, 1000, ring=False)
+  # Random type, but same for cluster
+  a_type = f&quot;danger_{random.randint(1,5)}{random.choice(&#39;abc&#39;)}&quot;
+  for v2 in cluster_spawn_points:
+       #keep value between -500 and 500??
+       v2.y = abs(v2.y) % 500 * (v2.y/abs(v2.y))
+       do terrain_spawn(v2.x, v2.y, v2.z,None, None, a_type, &quot;behav_mine&quot;)
+  next v2
+  next v
+  &lt;&lt;-
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-5-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-5-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span>  <span class="nf">build_world</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+     <span class="n">sim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span>
+     <span class="c1">## Create the player ship</span>
+     <span class="c1">## Returns a spawn_data so you have easy access to all data to set values</span>
+     <span class="c1"># class SpawnData:</span>
+     <span class="c1">#        id: int</span>
+     <span class="c1">#        engine_object: any</span>
+     <span class="c1">#        blob: any</span>
+     <span class="c1">#        py_object: EngineObject</span>
+     <span class="n">player_ship</span> <span class="o">=</span> <span class="n">PlayerShip</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span><span class="mi">1200</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">200</span><span class="p">,</span> <span class="s2">&quot;Artemis&quot;</span><span class="p">,</span> <span class="s2">&quot;tsn&quot;</span><span class="p">,</span> <span class="s2">&quot;tsn_battle_cruiser&quot;</span><span class="p">)</span>
+     <span class="n">faces</span><span class="o">.</span><span class="n">set_face</span><span class="p">(</span><span class="n">player_ship</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">faces</span><span class="o">.</span><span class="n">random_terran</span><span class="p">())</span>
+     <span class="n">sbs</span><span class="o">.</span><span class="n">assign_client_to_ship</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">player_ship</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+     <span class="c1"># Mark this as a player that does basic docking</span>
+     <span class="n">player_ship</span><span class="o">.</span><span class="n">py_object</span><span class="o">.</span><span class="n">add_role</span><span class="p">(</span><span class="s2">&quot;basic_docking&quot;</span><span class="p">)</span>
+
+
+     <span class="n">stations</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Alpha&quot;</span><span class="p">),(</span><span class="mi">2400</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">100</span><span class="p">,</span> <span class="s2">&quot;Beta&quot;</span><span class="p">)]</span>
+     <span class="k">for</span> <span class="n">station</span> <span class="ow">in</span> <span class="n">stations</span><span class="p">:</span>
+          <span class="n">ds</span> <span class="o">=</span> <span class="n">Npc</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="o">*</span><span class="n">station</span><span class="p">,</span> <span class="s2">&quot;tsn&quot;</span><span class="p">,</span> <span class="s2">&quot;starbase_command&quot;</span><span class="p">,</span> <span class="s2">&quot;behav_station&quot;</span><span class="p">)</span>
+          <span class="n">ds</span><span class="o">.</span><span class="n">py_object</span><span class="o">.</span><span class="n">add_role</span><span class="p">(</span><span class="s2">&quot;Station&quot;</span><span class="p">)</span>
+          <span class="c1"># Mark this as a station that does builing</span>
+          <span class="n">ds</span><span class="o">.</span><span class="n">py_object</span><span class="o">.</span><span class="n">add_role</span><span class="p">(</span><span class="s2">&quot;station_builder&quot;</span><span class="p">)</span>
+          <span class="n">faces</span><span class="o">.</span><span class="n">set_face</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">faces</span><span class="o">.</span><span class="n">random_terran</span><span class="p">(</span><span class="n">civilian</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+
+
+
+     <span class="n">enemyTypeNameList</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;kralien_dreadnaught&quot;</span><span class="p">,</span><span class="s2">&quot;kralien_battleship&quot;</span><span class="p">,</span><span class="s2">&quot;skaraan_defiler&quot;</span><span class="p">,</span><span class="s2">&quot;cargo_ship&quot;</span><span class="p">,</span><span class="s2">&quot;arvonian_carrier&quot;</span><span class="p">,</span><span class="s2">&quot;torgoth_behemoth&quot;</span><span class="p">]</span>
+     <span class="n">enemy_prefix</span> <span class="o">=</span> <span class="s2">&quot;KLMNQ&quot;</span>
+
+     <span class="n">enemy</span> <span class="o">=</span> <span class="mi">0</span>
+     <span class="n">enemy_count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">enemy_count</span>
+     <span class="k">if</span> <span class="n">enemy_count</span> <span class="o">&lt;</span><span class="mi">1</span><span class="p">:</span>
+          <span class="n">enemy_count</span> <span class="o">=</span> <span class="mi">1</span>
+
+     <span class="n">spawn_points</span> <span class="o">=</span> <span class="n">scatter</span><span class="o">.</span><span class="n">sphere</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">enemy_count</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span> <span class="mi">6000</span><span class="p">,</span> <span class="mi">6000</span><span class="o">+</span><span class="mi">250</span><span class="o">*</span><span class="n">enemy_count</span><span class="p">,</span> <span class="n">ring</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+     <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">spawn_points</span><span class="p">:</span>
+          <span class="n">r_type</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">enemyTypeNameList</span><span class="p">)</span>
+          <span class="n">r_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">enemy_prefix</span><span class="p">)</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">enemy</span><span class="si">}</span><span class="s2">&quot;</span>
+          <span class="n">spawn_data</span> <span class="o">=</span> <span class="n">Npc</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">v</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">v</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">v</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="n">r_name</span><span class="p">,</span> <span class="s2">&quot;RAIDER&quot;</span><span class="p">,</span> <span class="n">r_type</span><span class="p">,</span> <span class="s2">&quot;behav_npcship&quot;</span><span class="p">)</span>
+          <span class="n">raider</span> <span class="o">=</span> <span class="n">spawn_data</span><span class="o">.</span><span class="n">py_object</span>
+          <span class="n">faces</span><span class="o">.</span><span class="n">set_face</span><span class="p">(</span><span class="n">raider</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">faces</span><span class="o">.</span><span class="n">random_kralien</span><span class="p">())</span>
+          <span class="n">raider</span><span class="o">.</span><span class="n">add_role</span><span class="p">(</span><span class="s2">&quot;Raider&quot;</span><span class="p">)</span>
+          <span class="n">enemy</span> <span class="o">=</span> <span class="n">enemy</span> <span class="o">+</span> <span class="mi">1</span>
+          <span class="c1"># for player in to_object_list(role(&quot;__PLAYER__&quot;)):</span>
+          <span class="c1">#   do raider.start_task(&quot;NPC_Comms&quot;, {&quot;player&quot;: player})</span>
+          <span class="c1"># next player</span>
+
+     <span class="c1">####################</span>
+     <span class="c1"># MAP TERRAIN</span>
+     <span class="c1"># make a few random clusters of nebula</span>
+     <span class="n">spawn_points</span> <span class="o">=</span> <span class="n">scatter</span><span class="o">.</span><span class="n">sphere</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">7</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">4000</span><span class="p">,</span> <span class="n">ring</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+     <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">spawn_points</span><span class="p">:</span>
+          <span class="n">cluster_spawn_points</span> <span class="o">=</span> <span class="n">scatter</span><span class="o">.</span><span class="n">sphere</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">20</span><span class="p">),</span> <span class="n">v</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span><span class="n">v</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">ring</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+          <span class="k">for</span> <span class="n">v2</span> <span class="ow">in</span> <span class="n">cluster_spawn_points</span><span class="p">:</span>
+               <span class="n">Terrain</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">v2</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">v2</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">v2</span><span class="o">.</span><span class="n">z</span><span class="p">,</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;nebula&quot;</span><span class="p">,</span> <span class="s2">&quot;behav_nebula&quot;</span><span class="p">)</span>
+
+     <span class="c1"># make a few random clusters of Asteroids</span>
+     <span class="n">spawn_points</span> <span class="o">=</span> <span class="n">scatter</span><span class="o">.</span><span class="n">sphere</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">20</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">4000</span><span class="p">,</span> <span class="n">ring</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+     <span class="n">asteroid_types</span> <span class="o">=</span> <span class="n">names</span><span class="o">.</span><span class="n">asteroid_keys</span><span class="p">()</span>
+     <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">spawn_points</span><span class="p">:</span>
+          <span class="n">cluster_spawn_points</span> <span class="o">=</span> <span class="n">scatter</span><span class="o">.</span><span class="n">sphere</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">20</span><span class="p">),</span> <span class="n">v</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span><span class="n">v</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">ring</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+          <span class="k">for</span> <span class="n">v2</span> <span class="ow">in</span> <span class="n">cluster_spawn_points</span><span class="p">:</span>
+               <span class="c1">#keep value between -500 and 500??</span>
+               <span class="n">v2</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">v2</span><span class="o">.</span><span class="n">y</span><span class="p">)</span> <span class="o">%</span> <span class="mi">500</span> <span class="o">*</span> <span class="p">(</span><span class="n">v2</span><span class="o">.</span><span class="n">y</span><span class="o">/</span><span class="nb">abs</span><span class="p">(</span><span class="n">v2</span><span class="o">.</span><span class="n">y</span><span class="p">))</span>
+               <span class="n">a_type</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">asteroid_types</span><span class="p">)</span>
+               <span class="n">Terrain</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">v2</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">v2</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">v2</span><span class="o">.</span><span class="n">z</span><span class="p">,</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">a_type</span><span class="p">,</span> <span class="s2">&quot;behav_asteroid&quot;</span><span class="p">)</span>
+
+     <span class="c1"># I want candy</span>
+     <span class="n">spawn_points</span> <span class="o">=</span> <span class="n">scatter</span><span class="o">.</span><span class="n">sphere</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="mi">12</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">4000</span><span class="p">,</span> <span class="n">ring</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+     <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">spawn_points</span><span class="p">:</span>
+          <span class="n">cluster_spawn_points</span> <span class="o">=</span> <span class="n">scatter</span><span class="o">.</span><span class="n">sphere</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randrange</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">20</span><span class="p">),</span> <span class="n">v</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span><span class="n">v</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">ring</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+          <span class="c1"># Random type, but same for cluster</span>
+          <span class="n">a_type</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;danger_</span><span class="si">{</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">5</span><span class="p">)</span><span class="si">}{</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="s1">&#39;abc&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+          <span class="k">for</span> <span class="n">v2</span> <span class="ow">in</span> <span class="n">cluster_spawn_points</span><span class="p">:</span>
+               <span class="c1">#keep value between -500 and 500??</span>
+               <span class="n">v2</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">v2</span><span class="o">.</span><span class="n">y</span><span class="p">)</span> <span class="o">%</span> <span class="mi">500</span> <span class="o">*</span> <span class="p">(</span><span class="n">v2</span><span class="o">.</span><span class="n">y</span><span class="o">/</span><span class="nb">abs</span><span class="p">(</span><span class="n">v2</span><span class="o">.</span><span class="n">y</span><span class="p">))</span>
+               <span class="n">Terrain</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">v2</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">v2</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">v2</span><span class="o">.</span><span class="n">z</span><span class="p">,</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">a_type</span><span class="p">,</span> <span class="s2">&quot;behav_mine&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-6-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-6-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-6-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-6-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-6-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-6-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">===== start ======</span>
+# Build the world
+<span class="gd">-&gt;&gt; build_world</span>
+
+log &quot;comms&quot;
+
+<span class="gh">=&gt; task_player_docking</span>
+#### Handled different handled in station comms
+# =&gt; task_station_building
+# Start task to watch state
+<span class="gh">=&gt; task_end_game</span>
+<span class="gh">=&gt; task_npc_targeting</span>
+<span class="gh">=&gt; task_comms</span>
+
+# This tasks ends
+<span class="gd">-&gt;END</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-6-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-6-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+     <span class="n">sbs</span><span class="o">.</span><span class="n">create_new_sim</span><span class="p">()</span>
+     <span class="bp">self</span><span class="o">.</span><span class="n">build_world</span><span class="p">()</span>
+     <span class="n">sbs</span><span class="o">.</span><span class="n">resume_sim</span><span class="p">()</span>
+
+     <span class="c1"># Example story functions define inside the story</span>
+     <span class="bp">self</span><span class="o">.</span><span class="n">schedule_task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">task_end_game</span><span class="p">)</span>
+     <span class="bp">self</span><span class="o">.</span><span class="n">schedule_task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">task_npc_targeting</span><span class="p">)</span>
+     <span class="bp">self</span><span class="o">.</span><span class="n">schedule_task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">task_science_scan</span><span class="p">)</span>
+     <span class="bp">self</span><span class="o">.</span><span class="n">schedule_task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">task_comms</span><span class="p">)</span>
+
+     <span class="c1"># Example story functions define outside the story</span>
+     <span class="bp">self</span><span class="o">.</span><span class="n">schedule_task</span><span class="p">(</span><span class="n">task_station_building</span><span class="p">)</span>
+     <span class="bp">self</span><span class="o">.</span><span class="n">schedule_task</span><span class="p">(</span><span class="n">task_player_docking</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-7-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-7-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-7-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-7-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-7-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-7-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">============ task_end_game =======</span>
+players = role(&#39;PlayerShip&#39;)
+if len(players)==0:
+     start_text = &quot;Mission is lost!  All yer base are belong to us, dammit.&quot;
+     -&gt; start_server
+end_if
+
+raiders = role(&#39;Raider&#39;)
+if len(raiders)==0:
+     start_text = &quot;Mission is won!  All the enemies have been destroyed.&quot;
+     -&gt; start_server
+end_if
+
+delay sim 4s
+<span class="gd">-&gt; task_end_game</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-7-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-7-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">task_end_game</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+     <span class="c1">#print(self.__class__)</span>
+     <span class="c1">#-------------------------------------------------------------------------------</span>
+     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">query</span><span class="o">.</span><span class="n">role</span><span class="p">(</span><span class="s2">&quot;Raider&quot;</span><span class="p">))</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="c1"># no enemy ships left in list!</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">start_text</span> <span class="o">=</span> <span class="s2">&quot;You have won!^All enemies have been destroyed.&quot;</span>
+          <span class="n">sbs</span><span class="o">.</span><span class="n">pause_sim</span><span class="p">()</span>
+          <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">jump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start_server</span><span class="p">)</span>
+          <span class="k">return</span>
+
+     <span class="c1">#-------------------------------------------------------------------------------</span>
+     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">query</span><span class="o">.</span><span class="n">role</span><span class="p">(</span><span class="s2">&quot;__PLAYER__&quot;</span><span class="p">))</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">start_text</span> <span class="o">=</span> <span class="s2">&quot;All your base are belong to us. All PLayer ships have been lost!&quot;</span>
+          <span class="n">sbs</span><span class="o">.</span><span class="n">pause_sim</span><span class="p">()</span>
+          <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">jump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start_server</span><span class="p">)</span>
+          <span class="k">return</span>
+
+
+     <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">delay</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+     <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">jump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">task_end_game</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-8-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-8-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-8-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-8-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-8-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-8-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">========== task_npc_targeting ===</span>
+for raider in role(&#39;Raider&#39;):
+     the_target = closest(raider, role(&quot;PlayerShip&quot;), 2000)
+     if the_target is None:
+          the_target = closest(raider, role(&quot;Station&quot;))
+     end_if
+     if the_target is not None:
+          do target(sim, raider, the_target, True)
+     end_if
+next raider
+
+delay sim 5s
+<span class="gd">-&gt; task_npc_targeting</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-8-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-8-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">task_npc_targeting</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="n">raiders</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">role</span><span class="p">(</span><span class="s1">&#39;Raider&#39;</span><span class="p">)</span>
+<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">raiders</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+     <span class="k">return</span>
+
+<span class="k">for</span> <span class="n">raider</span> <span class="ow">in</span> <span class="n">raiders</span><span class="p">:</span>
+     <span class="n">the_target</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">closest</span><span class="p">(</span><span class="n">raider</span><span class="p">,</span> <span class="n">query</span><span class="o">.</span><span class="n">role</span><span class="p">(</span><span class="s2">&quot;__PLAYER__&quot;</span><span class="p">),</span> <span class="mi">2000</span><span class="p">)</span>
+     <span class="k">if</span> <span class="n">the_target</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="n">the_target</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">closest</span><span class="p">(</span><span class="n">raider</span><span class="p">,</span> <span class="n">query</span><span class="o">.</span><span class="n">role</span><span class="p">(</span><span class="s2">&quot;Station&quot;</span><span class="p">))</span>
+     <span class="k">if</span> <span class="n">the_target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="n">query</span><span class="o">.</span><span class="n">target</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">,</span> <span class="n">raider</span><span class="p">,</span> <span class="n">the_target</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+<span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">delay</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+<span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">jump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">task_npc_targeting</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-9-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-9-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-9-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-9-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-9-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-9-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">=========== task_comms  ========</span>
+# start the comms for the players and stations
+# Each ship will have its of thread for comms
+# this enables them to have a unique path
+for player in to_object_list(role(&#39;PlayerShip&#39;)):
+     for ds in to_object_list(role(&#39;Station&#39;)):
+          =&gt; station_comms {&quot;self&quot;: ds, &quot;player&quot;: player, &quot;torpedo_build_type&quot;: &quot;nothing&quot;}
+     next ds
+     for raider in to_object_list(role(&quot;Raider&quot;)):
+          =&gt; npc_comms {&quot;self&quot;: raider, &quot;player&quot;: player}
+     next raider
+next player
+<span class="gd">-&gt;END</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-9-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-9-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">task_comms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+     <span class="c1">#task, player_id, npc_id_or_filter, scans ) -&gt; None:</span>
+     <span class="n">players</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">role</span><span class="p">(</span><span class="s1">&#39;__PLAYER__&#39;</span><span class="p">)</span>
+     <span class="k">for</span> <span class="n">player</span> <span class="ow">in</span> <span class="n">players</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">schedule_comms</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="k">lambda</span> <span class="nb">id</span><span class="p">:</span> <span class="n">query</span><span class="o">.</span><span class="n">has_role</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="s2">&quot;Station&quot;</span><span class="p">),</span> <span class="p">{</span>
+               <span class="s2">&quot;Hail&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms_station_hail</span><span class="p">,</span>
+               <span class="s2">&quot;Build Homing&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms_build_homing</span><span class="p">,</span>
+               <span class="s2">&quot;Build Nuke&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms_build_nuke</span><span class="p">,</span>
+               <span class="s2">&quot;Build EMP&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms_build_emp</span><span class="p">,</span>
+               <span class="s2">&quot;Build Mine&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms_build_mine</span><span class="p">,</span>
+          <span class="p">})</span>
+
+          <span class="bp">self</span><span class="o">.</span><span class="n">schedule_comms</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="k">lambda</span> <span class="nb">id</span><span class="p">:</span> <span class="n">query</span><span class="o">.</span><span class="n">has_role</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="s2">&quot;Raider&quot;</span><span class="p">),</span> <span class="p">{</span>
+               <span class="s2">&quot;Hail&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms_raider_hail</span><span class="p">,</span>
+               <span class="s2">&quot;Taunt&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms_raider_taunt</span><span class="p">),</span>
+               <span class="s2">&quot;Surrender&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;yellow&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms_raider_surrender</span><span class="p">),</span>
+          <span class="p">})</span>
+</pre></div>
+</div>
+</div></div>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-10-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-10-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-10-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-10-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-10-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-10-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">================ npc_comms ==================</span>
+comms_id = player.comms_id #(sim)
+await self comms player:
+     + &quot;Hail&quot;:
+          have self tell player &quot;{comms_id}! We will destroy you, disgusting Terran scum!&quot;
+     + &quot;You&#39;re Ugly&quot;:
+          have self tell player  &quot;&quot;&quot;You are a foolish Terran, {comms_id}.  We know that the taunt functionality is not currently implemented.^&quot;&quot;&quot;
+     + &quot;Surrender now&quot;:
+          have self tell player &quot;&quot;&quot;OK we give up, {comms_id}.&quot;&quot;&quot;
+end_await
+<span class="gd">-&gt; npc_comms</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-10-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-10-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">comms_raider_hail</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">comms</span><span class="p">):</span>
+     <span class="n">comms</span><span class="o">.</span><span class="n">have_other_tell_player</span><span class="p">(</span><span class="s2">&quot;We will destroy you, disgusting Terran scum!&quot;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">comms_raider_taunt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">comms</span><span class="p">):</span>
+     <span class="n">player</span> <span class="o">=</span> <span class="n">comms</span><span class="o">.</span><span class="n">get_player</span><span class="p">()</span>
+     <span class="k">if</span> <span class="n">player</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="k">return</span>
+     <span class="n">text_line</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;You are a foolish Terran, </span><span class="si">{</span><span class="w"> </span><span class="n">player</span><span class="o">.</span><span class="n">comms_id</span><span class="si">}</span><span class="s2">.  We know that the taunt functionality is not currently implemented.^&quot;</span>
+     <span class="n">comms</span><span class="o">.</span><span class="n">have_other_tell_player</span><span class="p">(</span><span class="n">text_line</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">comms_raider_surrender</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">comms</span><span class="p">):</span>
+     <span class="n">comms</span><span class="o">.</span><span class="n">have_other_tell_player</span><span class="p">(</span><span class="s2">&quot;We will never surrender, disgusting Terran scum!&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-11-PT09PT09PT09PT09PT09IHN0YXRpb25fY29tbXMgPT09PT09PT09PT09PT09CmNvbW1zX2lkID0gcGxheWVyLmNvbW1zX2lk" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-11-PT09PT09PT09PT09PT09IHN0YXRpb25fY29tbXMgPT09PT09PT09PT09PT09CmNvbW1zX2lkID0gcGxheWVyLmNvbW1zX2lk" name="PT09PT09PT09PT09PT09IHN0YXRpb25fY29tbXMgPT09PT09PT09PT09PT09CmNvbW1zX2lkID0gcGxheWVyLmNvbW1zX2lk" role="tab" tabindex="0">=============== station_comms ===============
+comms_id = player.comms_id</button><button aria-controls="panel-11-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-11-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-11-PT09PT09PT09PT09PT09IHN0YXRpb25fY29tbXMgPT09PT09PT09PT09PT09CmNvbW1zX2lkID0gcGxheWVyLmNvbW1zX2lk" class="sphinx-tabs-panel code-tab group-tab" id="panel-11-PT09PT09PT09PT09PT09IHN0YXRpb25fY29tbXMgPT09PT09PT09PT09PT09CmNvbW1zX2lkID0gcGxheWVyLmNvbW1zX2lk" name="PT09PT09PT09PT09PT09IHN0YXRpb25fY29tbXMgPT09PT09PT09PT09PT09CmNvbW1zX2lkID0gcGxheWVyLmNvbW1zX2lk" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span>await self comms player:
+     + &quot;Hail&quot;:
+          homing = self.get_engine_data(sim, &quot;torpedo_count&quot;, sbs.TORPEDO.HOMING)
+          nuke = self.get_engine_data(sim, &quot;torpedo_count&quot;, sbs.TORPEDO.NUKE)
+          emp = self.get_engine_data(sim, &quot;torpedo_count&quot;, sbs.TORPEDO.EMP)
+          mine = self.get_engine_data(sim, &quot;torpedo_count&quot;, sbs.TORPEDO.MINE)
+          have self tell player &quot;&quot;&quot;
+     Hello, {comms_id}.  We stand ready to assist.
+     You have full docking privileges.
+     {homing} Homing ready
+     {nuke} Nuke ready
+     {emp} EMP ready
+     {mine} Mine ready
+     {torpedo_build_type} in production.
+     &quot;&quot;&quot;
+     + &quot;Now Docking&quot;:
+          have self tell player  &quot;&quot;&quot;We read you, {comms_id}.  We&#39;re standing by for expedited docking.^&quot;&quot;&quot;
+
+     + &quot;Hello, world&quot;:
+          have self tell player  &quot;&quot;&quot;Hello, World&quot;&quot;&quot;
+
+     + &quot;Build Homing&quot;:
+          have self tell player  &quot;&quot;&quot;We read you, {comms_id}.  We will focus on homing production.^&quot;&quot;&quot;
+          torpedo_build_type = sbs.TORPEDO.HOMING
+          cancel build_task
+          build_task =&gt; task_station_building
+
+     + &quot;Build Nuke&quot;:
+          have self tell player  &quot;&quot;&quot;We read you, {comms_id}.  We will focus on nuke production.^&quot;&quot;&quot;
+          torpedo_build_type= sbs.TORPEDO.NUKE
+          cancel build_task
+          build_task =&gt; task_station_building
+
+     + &quot;Build Emp&quot;:
+          have self tell player  &quot;&quot;&quot;We read you, {comms_id}.  We will focus on EMP production.^&quot;&quot;&quot;
+          torpedo_build_type= sbs.TORPEDO.EMP
+          cancel build_task
+          build_task =&gt; task_station_building
+     + &quot;Build Mine&quot;:
+          have self tell player  &quot;&quot;&quot;We read you, {comms_id}.  We will focus on MINE production.^&quot;&quot;&quot;
+          torpedo_build_type = sbs.TORPEDO.MINE
+          cancel build_task
+          build_task =&gt; task_station_building
+end_await
+
+<span class="gd">-&gt; station_comms</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-11-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-11-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">comms_station_hail</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">comms</span><span class="p">):</span>
+     <span class="n">player</span> <span class="o">=</span> <span class="n">comms</span><span class="o">.</span><span class="n">get_player</span><span class="p">()</span>
+     <span class="n">other</span> <span class="o">=</span> <span class="n">comms</span><span class="o">.</span><span class="n">get_other</span><span class="p">()</span>
+     <span class="n">torpedo_type_text_name</span> <span class="o">=</span> <span class="p">[</span> <span class="s2">&quot;HOMING&quot;</span><span class="p">,</span>     <span class="s2">&quot;NUKE&quot;</span><span class="p">,</span> <span class="s2">&quot;EMP&quot;</span><span class="p">,</span>  <span class="s2">&quot;MINE&quot;</span> <span class="p">]</span>
+     <span class="k">if</span> <span class="n">player</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">other</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="k">return</span>
+     <span class="n">blob2</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">get_engine_data_set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">)</span>
+     <span class="n">text_line</span> <span class="o">=</span> <span class="s2">&quot;Hello, &quot;</span> <span class="o">+</span> <span class="n">player</span><span class="o">.</span><span class="n">comms_id</span> <span class="o">+</span> <span class="s2">&quot;.  We stand ready to assist.^&quot;</span>
+     <span class="n">text_line</span> <span class="o">+=</span> <span class="s2">&quot;You have full docking priviledges.^&quot;</span>
+     <span class="n">text_line</span> <span class="o">+=</span> <span class="s2">&quot;   </span><span class="si">{}</span><span class="s2"> Homing ready^&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">blob2</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;torpedo_count&quot;</span><span class="p">,</span> <span class="n">sbs</span><span class="o">.</span><span class="n">TORPEDO</span><span class="o">.</span><span class="n">HOMING</span><span class="p">))</span>
+     <span class="n">text_line</span> <span class="o">+=</span> <span class="s2">&quot;   </span><span class="si">{}</span><span class="s2"> Nuclear ready^&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">blob2</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;torpedo_count&quot;</span><span class="p">,</span> <span class="n">sbs</span><span class="o">.</span><span class="n">TORPEDO</span><span class="o">.</span><span class="n">NUKE</span><span class="p">))</span>
+     <span class="n">text_line</span> <span class="o">+=</span> <span class="s2">&quot;   </span><span class="si">{}</span><span class="s2"> EMP ready^&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">blob2</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;torpedo_count&quot;</span><span class="p">,</span> <span class="n">sbs</span><span class="o">.</span><span class="n">TORPEDO</span><span class="o">.</span><span class="n">EMP</span><span class="p">))</span>
+     <span class="n">text_line</span> <span class="o">+=</span> <span class="s2">&quot;   </span><span class="si">{}</span><span class="s2"> Mine ready^&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">blob2</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;torpedo_count&quot;</span><span class="p">,</span> <span class="n">sbs</span><span class="o">.</span><span class="n">TORPEDO</span><span class="o">.</span><span class="n">MINE</span><span class="p">))</span>
+
+     <span class="n">torp_type</span> <span class="o">=</span> <span class="n">blob2</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;torpedo_build_type&quot;</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+     <span class="k">if</span> <span class="n">torp_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="n">text_line</span> <span class="o">+=</span> <span class="s2">&quot;We have nothing in production^&quot;</span>
+     <span class="k">else</span><span class="p">:</span>
+          <span class="n">text_line</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> in production^&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">torpedo_type_text_name</span><span class="p">[</span><span class="n">torp_type</span><span class="p">])</span>
+
+     <span class="n">comms</span><span class="o">.</span><span class="n">have_other_tell_player</span><span class="p">(</span><span class="n">text_line</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">comms_build_homing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">comms</span><span class="p">):</span>
+     <span class="n">player</span> <span class="o">=</span> <span class="n">comms</span><span class="o">.</span><span class="n">get_player</span><span class="p">()</span>
+     <span class="n">other</span> <span class="o">=</span> <span class="n">comms</span><span class="o">.</span><span class="n">get_other</span><span class="p">()</span>
+     <span class="k">if</span> <span class="n">player</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">other</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="k">return</span>
+     <span class="n">blob2</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">get_engine_data_set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">)</span>
+
+     <span class="n">text_line</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;We read you, </span><span class="si">{</span><span class="n">player</span><span class="o">.</span><span class="n">comms_id</span><span class="si">}</span><span class="s2">.  We will focus on homing production.^&quot;</span>
+     <span class="n">blob2</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;torpedo_build_type&quot;</span><span class="p">,</span><span class="n">sbs</span><span class="o">.</span><span class="n">TORPEDO</span><span class="o">.</span><span class="n">HOMING</span><span class="p">)</span>
+     <span class="n">comms</span><span class="o">.</span><span class="n">have_other_tell_player</span><span class="p">(</span><span class="n">text_line</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">comms_build_nuke</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">comms</span><span class="p">):</span>
+     <span class="n">player</span> <span class="o">=</span> <span class="n">comms</span><span class="o">.</span><span class="n">get_player</span><span class="p">()</span>
+     <span class="n">other</span> <span class="o">=</span> <span class="n">comms</span><span class="o">.</span><span class="n">get_other</span><span class="p">()</span>
+     <span class="k">if</span> <span class="n">player</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">other</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="k">return</span>
+     <span class="n">blob2</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">get_engine_data_set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">)</span>
+
+     <span class="n">text_line</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;We read you, </span><span class="si">{</span><span class="n">player</span><span class="o">.</span><span class="n">comms_id</span><span class="si">}</span><span class="s2">.  We will focus on nuke production.^&quot;</span>
+     <span class="n">blob2</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;torpedo_build_type&quot;</span><span class="p">,</span><span class="n">sbs</span><span class="o">.</span><span class="n">TORPEDO</span><span class="o">.</span><span class="n">NUKE</span><span class="p">)</span>
+     <span class="n">comms</span><span class="o">.</span><span class="n">have_other_tell_player</span><span class="p">(</span><span class="n">text_line</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">comms_build_emp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">comms</span><span class="p">):</span>
+     <span class="n">player</span> <span class="o">=</span> <span class="n">comms</span><span class="o">.</span><span class="n">get_player</span><span class="p">()</span>
+     <span class="n">other</span> <span class="o">=</span> <span class="n">comms</span><span class="o">.</span><span class="n">get_other</span><span class="p">()</span>
+     <span class="k">if</span> <span class="n">player</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">other</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="k">return</span>
+     <span class="n">blob2</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">get_engine_data_set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">)</span>
+
+     <span class="n">text_line</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;We read you, </span><span class="si">{</span><span class="n">player</span><span class="o">.</span><span class="n">comms_id</span><span class="si">}</span><span class="s2">.  We will focus on EMP production.^&quot;</span>
+     <span class="n">blob2</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;torpedo_build_type&quot;</span><span class="p">,</span><span class="n">sbs</span><span class="o">.</span><span class="n">TORPEDO</span><span class="o">.</span><span class="n">EMP</span><span class="p">)</span>
+     <span class="n">comms</span><span class="o">.</span><span class="n">have_other_tell_player</span><span class="p">(</span><span class="n">text_line</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">comms_build_mine</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">comms</span><span class="p">):</span>
+     <span class="n">player</span> <span class="o">=</span> <span class="n">comms</span><span class="o">.</span><span class="n">get_player</span><span class="p">()</span>
+     <span class="n">other</span> <span class="o">=</span> <span class="n">comms</span><span class="o">.</span><span class="n">get_other</span><span class="p">()</span>
+     <span class="k">if</span> <span class="n">player</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">other</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="k">return</span>
+     <span class="n">blob2</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">get_engine_data_set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">)</span>
+
+     <span class="n">text_line</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;We read you, </span><span class="si">{</span><span class="n">player</span><span class="o">.</span><span class="n">comms_id</span><span class="si">}</span><span class="s2">.  We will focus on mine production.^&quot;</span>
+     <span class="n">blob2</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;torpedo_build_type&quot;</span><span class="p">,</span><span class="n">sbs</span><span class="o">.</span><span class="n">TORPEDO</span><span class="o">.</span><span class="n">MINE</span><span class="p">)</span>
+     <span class="n">comms</span><span class="o">.</span><span class="n">have_other_tell_player</span><span class="p">(</span><span class="n">text_line</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-12-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-12-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-12-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-12-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-12-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-12-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">=== task_station_building ===</span>
+delay sim 10s
+~~
+cur_count = self.get_engine_data(sim, &quot;torpedo_count&quot;, torpedo_build_type)
+self.set_engine_data(sim, &quot;torpedo_count&quot;, cur_count+1, torpedo_build_type)
+~~
+have self tell player  &quot;&quot;&quot;{comms_id}. {torpedo_build_type} Production complete.&quot;&quot;&quot;
+<span class="gd">-&gt;task_station_building</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-12-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-12-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">task_station_building</span><span class="p">(</span><span class="n">story</span><span class="p">):</span>
+     <span class="n">torpedo_type_name_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Homing&quot;</span><span class="p">,</span><span class="s2">&quot;Nuclear&quot;</span><span class="p">,</span><span class="s2">&quot;EMP&quot;</span><span class="p">,</span><span class="s2">&quot;Mine&quot;</span><span class="p">]</span>
+     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+          <span class="n">delay_time</span> <span class="o">=</span> <span class="mi">5</span>
+          <span class="n">stations</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">role</span><span class="p">(</span><span class="s2">&quot;station_builder&quot;</span><span class="p">)</span>
+          <span class="c1"># Unschedule task if no more stations</span>
+          <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">stations</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+               <span class="k">break</span>
+          <span class="c1">#print(&quot;Station building&quot;)</span>
+          <span class="k">for</span> <span class="n">station_id</span> <span class="ow">in</span> <span class="n">stations</span><span class="p">:</span>
+               <span class="n">blob</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">get_engine_data_set</span><span class="p">(</span><span class="n">story</span><span class="o">.</span><span class="n">sim</span><span class="p">,</span> <span class="n">station_id</span><span class="p">)</span>
+               <span class="k">if</span> <span class="n">blob</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+               <span class="n">station_name</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name_tag&quot;</span><span class="p">,</span><span class="mi">0</span><span class="p">);</span>
+
+               <span class="c1"># check and set timer for building the current torpedo</span>
+               <span class="n">torp_build_time</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;torp_build_ready_time&quot;</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+               <span class="k">if</span> <span class="kc">None</span> <span class="o">==</span> <span class="n">torp_build_time</span><span class="p">:</span> <span class="c1"># never built a torp before</span>
+                    <span class="n">torp_build_time</span> <span class="o">=</span> <span class="n">story</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">time_tick_counter</span> <span class="o">+</span> <span class="mi">30</span> <span class="o">*</span> <span class="mi">10</span> <span class="c1"># 10 seconds?</span>
+                    <span class="n">blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;torp_build_ready_time&quot;</span><span class="p">,</span><span class="n">torp_build_time</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+
+               <span class="k">if</span> <span class="n">torp_build_time</span> <span class="o">&lt;=</span> <span class="n">story</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">time_tick_counter</span><span class="p">:</span> <span class="c1"># done building!</span>
+                    <span class="n">torp_type</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;torpedo_build_type&quot;</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+                    <span class="n">cur_count</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;torpedo_count&quot;</span><span class="p">,</span> <span class="n">torp_type</span><span class="p">)</span>
+                    <span class="n">blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;torpedo_count&quot;</span><span class="p">,</span> <span class="n">cur_count</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">torp_type</span><span class="p">)</span>
+
+                    <span class="n">face_desc</span> <span class="o">=</span><span class="n">faces</span><span class="o">.</span><span class="n">get_face</span><span class="p">(</span><span class="n">station_id</span><span class="p">)</span>
+
+                    <span class="n">text_line</span> <span class="o">=</span> <span class="s2">&quot;We have produced another &quot;</span> <span class="o">+</span> <span class="n">torpedo_type_name_list</span><span class="p">[</span><span class="n">torp_type</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot; torpedo.  We will begin work on another.&quot;</span>
+                    <span class="n">sbs</span><span class="o">.</span><span class="n">send_comms_message_to_player_ship</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">station_id</span><span class="p">,</span> <span class="s2">&quot;green&quot;</span><span class="p">,</span> <span class="n">face_desc</span><span class="p">,</span>
+                         <span class="n">station_name</span><span class="p">,</span>  <span class="n">text_line</span><span class="p">)</span>
+
+                    <span class="n">torp_build_time</span> <span class="o">=</span> <span class="n">story</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">time_tick_counter</span> <span class="o">+</span> <span class="mi">30</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">4</span> <span class="c1">#-------------  4 minutes</span>
+                    <span class="n">blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;torp_build_ready_time&quot;</span><span class="p">,</span><span class="n">torp_build_time</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+          <span class="k">yield</span> <span class="n">story</span><span class="o">.</span><span class="n">delay</span><span class="p">(</span><span class="n">delay_time</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-13-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-13-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button></div><div aria-labelledby="tab-13-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-13-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">========== task_player_docking ===============</span>
+for player in to_object_list(role(&quot;__PLAYER__&quot;)):
+     do to_object(player).start_task(&quot;player_docking&quot;)
+next player
+<span class="gd">-&gt;END</span>
+</pre></div>
+</div>
+</div></div>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-14-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-14-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-14-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-14-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-14-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-14-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">======== player_docking  ===================</span>
+
+if not object_exists(sim, self):
+     log &quot;Docking ship died&quot;
+     -&gt;END
+end_if
+# log &quot;Docking ship {self.id}&quot;
+
+player_blob = get_engine_data_set(sim, self)
+dock_state_string = get_data_set_value(player_blob,&quot;dock_state&quot;, 0)
+
+if &quot;undocked&quot; == dock_state_string:
+     ~~set_data_set_value(player_blob, &quot;dock_base_id&quot;, 0)~~
+     dock_rng = 600
+     station = closest(self, role(&quot;Station&quot;), 600)
+     if station is not None:
+          ~~set_data_set_value(player_blob, &quot;dock_base_id&quot;, to_id(station))~~
+     end_if
+end_if
+
+dock_stationID = get_data_set_value(player_blob, &quot;dock_base_id&quot;, 0)
+dock_station = to_object(dock_stationID)
+if dock_station is not None:
+     if &quot;docking&quot; == dock_state_string:
+
+          # check to see if the player ship is close enough to be docked
+          distanceValue = ~~sbs.distance_id(dock_station.id, self.id)~~
+          closeEnough = ~~dock_station.get_space_object(sim).exclusion_radius + self.get_space_object(sim).exclusion_radius~~
+          closeEnough = closeEnough * 1.1
+          if distanceValue &lt;= closeEnough:
+               ~~set_data_set_value(player_blob, &quot;dock_state&quot;, &quot;docked&quot;)~~
+          end_if
+     end_if
+end_if
+
+
+if &quot;docked&quot; == dock_state_string:
+     dock_station_blob = get_engine_data_set(sim, dock_station)
+     # refuel
+     fuel_value = get_data_set_value(player_blob, &quot;energy&quot;,0)
+     fuel_value = fuel_value + 20
+     if fuel_value &gt; 1000:
+          fuel_value = 1000
+     end_if
+     ~~set_data_set_value(player_blob, &quot;energy&quot;, int(fuel_value))~~
+
+     # resupply torps
+     for torps in range(sbs.TORPEDO.MINE):
+          tLeft = ~~ get_data_set_value(dock_station_blob,&quot;torpedo_count&quot;, torps)~~
+          if tLeft &gt; 0:
+               torp_max = get_data_set_value(player_blob,&quot;torpedo_max&quot;, torps)
+               torp_now = get_data_set_value(player_blob,&quot;torpedo_count&quot;, torps)
+               if torp_now &lt; torp_max:
+                    torp_now = torp_now + 1
+                    ~~set_data_set_value(player_blob,&quot;torpedo_count&quot;, torp_now,torps)~~
+                    ~~set_data_set_value(dock_station_blob,&quot;torpedo_count&quot;, tLeft-1, torps)~~
+               end_if
+          end_if
+     next torps
+
+
+     #repair shields (more than normal)
+     shieldCoeff = ~~get_data_set_value(player_blob,&quot;repair_rate_shields&quot;,0)~~
+     systemCoeff = ~~get_data_set_value(player_blob,&quot;repair_rate_systems&quot;,0)~~
+
+     sCount = get_data_set_value(player_blob,&quot;shield_count&quot;,0)
+     for shield in range(sCount-1):
+          sVal = get_data_set_value(player_blob,&quot;shield_val&quot;, shield)
+          sValMax = get_data_set_value(player_blob,&quot;shield_max_val&quot;, shield)
+          changed = (sVal &lt; sValMax)
+          sVal = max(0.0, min(sVal + shieldCoeff, sValMax)) # clamp the value
+          if changed:
+               ~~set_data_set_value(player_blob,&quot;shield_val&quot;, sVal, shield)~~
+          end_if
+     next shield
+     #repair systems (more than normal)
+     for system in range(sbs.SHPSYS.SHIELDS):
+          damage = get_data_set_value(player_blob,&quot;system_damage&quot;, system)
+          maxDamage = get_data_set_value(player_blob,&quot;system_max_damage&quot;, system)
+          changed = (damage &gt; 0.0)
+          damage = max(0.0, min(damage - systemCoeff, maxDamage)) # clamp the value
+          if changed:
+               ~~set_data_set_value(player_blob,&quot;system_damage&quot;, damage, system)~~
+          end_if
+     next system
+end_if
+delay sim 5s
+<span class="gd">-&gt; player_docking</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-14-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-14-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">task_player_docking</span><span class="p">(</span><span class="n">story</span><span class="p">):</span>
+     <span class="c1"># self is the async story</span>
+     <span class="n">task_delay</span> <span class="o">=</span> <span class="mi">5</span>
+     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+          <span class="k">yield</span> <span class="n">story</span><span class="o">.</span><span class="n">delay</span><span class="p">(</span><span class="n">task_delay</span><span class="p">)</span>
+          <span class="n">player_ships</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">role</span><span class="p">(</span><span class="s2">&quot;basic_docking&quot;</span><span class="p">)</span>
+          <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">player_ships</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+               <span class="k">return</span> <span class="n">PollResults</span><span class="o">.</span><span class="n">OK_END</span>
+
+          <span class="k">for</span> <span class="n">player_ship_id</span> <span class="ow">in</span> <span class="n">player_ships</span><span class="p">:</span>
+               <span class="k">if</span> <span class="n">story</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">space_object_exists</span><span class="p">(</span><span class="n">player_ship_id</span><span class="p">):</span>
+
+                    <span class="n">player</span> <span class="o">=</span> <span class="n">story</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">get_space_object</span><span class="p">(</span><span class="n">player_ship_id</span><span class="p">)</span>
+                    <span class="n">blob</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">get_engine_data_set</span><span class="p">(</span><span class="n">story</span><span class="o">.</span><span class="n">sim</span><span class="p">,</span> <span class="n">player_ship_id</span><span class="p">)</span>
+
+                    <span class="n">dock_state_string</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;dock_state&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="s2">&quot;undocked&quot;</span> <span class="o">==</span> <span class="n">dock_state_string</span><span class="p">:</span>
+                         <span class="c1">#####################################</span>
+                         <span class="c1">## Have task run slower</span>
+
+                         <span class="n">blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;dock_base_id&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="c1"># clear the dock-able id</span>
+
+                         <span class="n">dock_rng</span> <span class="o">=</span> <span class="mi">600</span>
+
+                         <span class="n">closest</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">closest</span><span class="p">(</span><span class="n">player_ship_id</span><span class="p">,</span> <span class="n">query</span><span class="o">.</span><span class="n">role</span><span class="p">(</span><span class="s2">&quot;Station&quot;</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">query</span><span class="o">.</span><span class="n">broad_test</span><span class="p">(</span><span class="o">-</span><span class="n">dock_rng</span> <span class="o">+</span> <span class="n">player</span><span class="o">.</span><span class="n">pos</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="o">-</span><span class="n">dock_rng</span> <span class="o">+</span> <span class="n">player</span><span class="o">.</span><span class="n">pos</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="n">dock_rng</span> <span class="o">+</span> <span class="n">player</span><span class="o">.</span><span class="n">pos</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">dock_rng</span> <span class="o">+</span> <span class="n">player</span><span class="o">.</span><span class="n">pos</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+                         <span class="k">if</span> <span class="n">closest</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                         <span class="n">blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;dock_base_id&quot;</span><span class="p">,</span> <span class="n">query</span><span class="o">.</span><span class="n">to_id</span><span class="p">(</span><span class="n">closest</span><span class="p">))</span> <span class="c1"># set the dock-able id of the player to this station</span>
+
+                    <span class="n">dock_station_id</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;dock_base_id&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">story</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">space_object_exists</span><span class="p">(</span><span class="n">dock_station_id</span><span class="p">):</span>
+                         <span class="n">dock_station</span> <span class="o">=</span> <span class="n">story</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">get_space_object</span><span class="p">(</span><span class="n">dock_station_id</span><span class="p">)</span>
+                         <span class="n">station_blob</span> <span class="o">=</span> <span class="n">dock_station</span><span class="o">.</span><span class="n">data_set</span>
+
+                         <span class="k">if</span> <span class="s2">&quot;docking&quot;</span> <span class="o">==</span> <span class="n">dock_state_string</span><span class="p">:</span>
+                              <span class="c1"># check to see if the player ship is close enough to be docked</span>
+                              <span class="n">distance_value</span> <span class="o">=</span> <span class="n">sbs</span><span class="o">.</span><span class="n">distance</span><span class="p">(</span><span class="n">dock_station</span><span class="p">,</span> <span class="n">player</span><span class="p">)</span>
+                              <span class="n">close_enough</span> <span class="o">=</span> <span class="n">dock_station</span><span class="o">.</span><span class="n">exclusion_radius</span> <span class="o">+</span> <span class="n">player</span><span class="o">.</span><span class="n">exclusion_radius</span>
+                              <span class="n">close_enough</span> <span class="o">*=</span> <span class="mf">1.1</span>
+                              <span class="k">if</span> <span class="n">distance_value</span> <span class="o">&lt;=</span> <span class="n">close_enough</span><span class="p">:</span>
+                                   <span class="n">blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;dock_state&quot;</span><span class="p">,</span> <span class="s2">&quot;docked&quot;</span><span class="p">)</span>
+                              <span class="k">else</span><span class="p">:</span>
+                                   <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Docking dist: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">distance_value</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;,       close_enough: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">close_enough</span><span class="p">))</span>
+
+
+                         <span class="k">if</span> <span class="s2">&quot;docked&quot;</span> <span class="o">==</span> <span class="n">dock_state_string</span><span class="p">:</span>
+                              <span class="c1">################</span>
+                              <span class="c1">## Make task faster</span>
+                              <span class="n">task_delay</span> <span class="o">=</span> <span class="mi">1</span>
+                              <span class="c1"># refuel</span>
+                              <span class="n">fuel_value</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;energy&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                              <span class="n">fuel_value</span> <span class="o">+=</span> <span class="mi">20</span>
+                              <span class="k">if</span> <span class="n">fuel_value</span> <span class="o">&gt;</span> <span class="mi">1000</span><span class="p">:</span>
+                                   <span class="n">fuel_value</span> <span class="o">=</span> <span class="mi">1000</span>
+                              <span class="n">blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;energy&quot;</span><span class="p">,</span> <span class="n">fuel_value</span><span class="p">)</span>
+
+                         <span class="c1"># resupply torps</span>
+                         <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">sbs</span><span class="o">.</span><span class="n">TORPEDO</span><span class="o">.</span><span class="n">MINE</span><span class="p">):</span>
+                              <span class="n">tLeft</span> <span class="o">=</span> <span class="n">station_blob</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;torpedo_count&quot;</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span>
+                              <span class="k">if</span> <span class="n">tLeft</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                                   <span class="n">torp_max</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;torpedo_max&quot;</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span>
+                                   <span class="n">torp_now</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;torpedo_count&quot;</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span>
+                                   <span class="k">if</span> <span class="n">torp_now</span> <span class="o">&lt;</span> <span class="n">torp_max</span><span class="p">:</span>
+                                        <span class="n">torp_now</span> <span class="o">=</span> <span class="n">torp_now</span> <span class="o">+</span> <span class="mi">1</span>
+                                        <span class="n">blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;torpedo_count&quot;</span><span class="p">,</span> <span class="n">torp_now</span><span class="p">,</span><span class="n">g</span><span class="p">)</span>
+                                        <span class="n">station_blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;torpedo_count&quot;</span><span class="p">,</span> <span class="n">tLeft</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span>
+
+
+                         <span class="c1">#repair shields (more than normal)</span>
+                         <span class="n">shield_coeff</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;repair_rate_shields&quot;</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+                         <span class="n">system_coeff</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;repair_rate_systems&quot;</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+
+                         <span class="n">s_count</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;shield_count&quot;</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+                         <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">s_count</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+                              <span class="n">s_val</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;shield_val&quot;</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span>
+                              <span class="n">s_val_max</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;shield_max_val&quot;</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span>
+                              <span class="n">changed</span> <span class="o">=</span> <span class="p">(</span><span class="n">s_val</span> <span class="o">&lt;</span> <span class="n">s_val_max</span><span class="p">)</span>
+                              <span class="n">s_val</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">s_val</span> <span class="o">+</span> <span class="n">shield_coeff</span><span class="p">,</span> <span class="n">s_val_max</span><span class="p">))</span> <span class="c1"># clamp the value</span>
+                              <span class="k">if</span> <span class="n">changed</span><span class="p">:</span>
+                                   <span class="n">blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;shield_val&quot;</span><span class="p">,</span> <span class="n">s_val</span><span class="p">,</span> <span class="n">g</span><span class="p">);</span>
+
+                         <span class="c1">#repair systems (more than normal)</span>
+                         <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">sbs</span><span class="o">.</span><span class="n">SHPSYS</span><span class="o">.</span><span class="n">SHIELDS</span><span class="p">):</span>
+                              <span class="n">damage</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;system_damage&quot;</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span>
+                              <span class="n">max_damage</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;system_max_damage&quot;</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span>
+                              <span class="n">changed</span> <span class="o">=</span> <span class="p">(</span><span class="n">damage</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">)</span>
+                              <span class="n">damage</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">damage</span> <span class="o">-</span> <span class="n">system_coeff</span><span class="p">,</span> <span class="n">max_damage</span><span class="p">))</span> <span class="c1"># clamp the value</span>
+                              <span class="k">if</span> <span class="n">changed</span><span class="p">:</span>
+                                   <span class="n">blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;system_damage&quot;</span><span class="p">,</span> <span class="n">damage</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span>
+          <span class="k">yield</span> <span class="n">PollResults</span><span class="o">.</span><span class="n">OK_RUN_AGAIN</span>
 </pre></div>
 </div>
 </div></div>

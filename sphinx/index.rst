@@ -42,7 +42,8 @@ Welcome to SBS Utils's documentation!
 .. toctree::
    :maxdepth: 2
    :caption: Entity Creation:
-   
+
+   sbs   
    spaceobject
    roles
    targeting

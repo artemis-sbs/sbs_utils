@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mast Object Model &mdash; SBS Utils 1.0 documentation</title>
+  <title>SBS Utils Object Model &mdash; SBS Utils 1.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/tabs.css" type="text/css" />
@@ -15,6 +15,7 @@
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/sphinx_highlight.js"></script>
+        <script src="_static/tabs.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -49,7 +50,23 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="mastoverview.html">What is Mast</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mastsyntax.html">Language Basics</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Mast Object Model</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">SBS Utils Object Model</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#engine-script-and-persisted">Engine, script and persisted</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#engine-data">Engine data</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#engine-object">Engine object</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#script-data">Script data</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#role">role</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#links">Links</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#inventory">Inventory</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#persisted-data">Persisted data</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="mastsbssyntax.html">Engine Interactions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="maststorysyntax.html">Gui Components</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mastbehavior.html">Behavior Components</a></li>
@@ -64,6 +81,7 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Entity Creation:</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="sbs.html">The sbs module</a></li>
 <li class="toctree-l1"><a class="reference internal" href="spaceobject.html">Space Object</a></li>
 <li class="toctree-l1"><a class="reference internal" href="roles.html">The roles system</a></li>
 <li class="toctree-l1"><a class="reference internal" href="targeting.html">The targeting system</a></li>
@@ -96,7 +114,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Mast Object Model</li>
+      <li class="breadcrumb-item active">SBS Utils Object Model</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/mastobjectmodel.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -106,8 +124,9 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="mast-object-model">
-<h1>Mast Object Model<a class="headerlink" href="#mast-object-model" title="Permalink to this heading"></a></h1>
+  <section id="sbs-utils-object-model">
+<h1>SBS Utils Object Model<a class="headerlink" href="#sbs-utils-object-model" title="Permalink to this heading"></a></h1>
+<p>Sbs Utils creates an oObject model. This Object Model is used by Mast and PyMast.</p>
 <p>Mast needs participants in the story. In stories Artemis Cosmos these participants are:</p>
 <ul class="simple">
 <li><p>The Story itself (aka the server, the game, the engine or the world)</p></li>
@@ -120,11 +139,183 @@
 </ul>
 <p>These agents/participants are the things in the Artemis Cosmos world. Each of this agents can have stories and tasks associated with them.</p>
 <ul class="simple">
-<li><p>Engine objects</p></li>
+<li><dl class="simple">
+<dt>Engine objects</dt><dd><ul>
+<li><p>engine data set</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Script Objects</dt><dd><ul>
 <li><p>roles</p></li>
 <li><p>Inventory</p></li>
 <li><p>Linked</p></li>
 </ul>
+</dd>
+</dl>
+</li>
+</ul>
+<section id="engine-script-and-persisted">
+<h2>Engine, script and persisted<a class="headerlink" href="#engine-script-and-persisted" title="Permalink to this heading"></a></h2>
+<p>The object model is designed to work with three sets of the model data:</p>
+<ul class="simple">
+<li><p>Engine</p></li>
+<li><p>Script</p></li>
+<li><p>Persisted</p></li>
+</ul>
+<section id="engine-data">
+<h3>Engine data<a class="headerlink" href="#engine-data" title="Permalink to this heading"></a></h3>
+<p>Engine data are in memory objects that the engine manages.</p>
+<p>Engine data is the data the the Artemis Cosmos game engine deals with. This the data that get ships, etc drawn on screen and the engine manages low level behavior (e.g. moving a ship from a pont a to point b)</p>
+<p>Engine data has:</p>
+<ul class="simple">
+<li><p>The object its self</p></li>
+<li><p>A engine type (Player, Active, Passive)</p></li>
+<li><p>data tag</p></li>
+<li><p>tick type / behavior</p></li>
+<li><p>A data set</p></li>
+</ul>
+<section id="engine-object">
+<h4>Engine object<a class="headerlink" href="#engine-object" title="Permalink to this heading"></a></h4>
+<p>The engine object provides the raw object in the engine.</p>
+<p>There are two types of engine objects</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="sbs.html#sbs.space_object" title="sbs.space_object"><code class="xref py py-class docutils literal notranslate"><span class="pre">space_object</span></code></a></p></li>
+<li><p><a class="reference internal" href="sbs.html#sbs.grid_object" title="sbs.grid_object"><code class="xref py py-class docutils literal notranslate"><span class="pre">grid_object</span></code></a></p></li>
+</ul>
+<blockquote>
+<div><p>It has data the is common to all engine objects.</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>side</p></li>
+<li><p>position</p></li>
+<li><p>steering properties</p></li>
+</ul>
+<p>An engine data has a ‘data set’ this is data that can be different for space objects. e.g. a player ship data set may have ship systems, while an asteroid does not.</p>
+<p>The engine ‘type’ is the high level behavior type of player, active, and passive.</p>
+<ul class="simple">
+<li><p>player are player ships.</p></li>
+<li><p>Active are npc, space docks, friendly and enemy ships etc.</p></li>
+<li><p>Passive are terrain e.g. nebula, asteroids etc.</p></li>
+</ul>
+<p>The data tag relates to the artwork and other properties that are assigned to the object. The values are defined in ship_dat.json. The values are used by the engine, and some of these values are available in the data set.</p>
+<p>The tick type is a engine level behavior setting. For example specifying the object is a player ship, npc ship, vs. a space dock.</p>
+<p>that script can get and set data that the engine uses. Scripts can change this data and see those change reflected in the engine (e.g. Add torpedoes to a ship.)</p>
+</section>
+</section>
+<section id="script-data">
+<h3>Script data<a class="headerlink" href="#script-data" title="Permalink to this heading"></a></h3>
+<p>Script data are python object in memory that script manages.</p>
+<p>Script data is a reflection of the Engine Data, and can also be used to synchronize with a persisted model.</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="spaceobject.html#sbs_utils.spaceobject.SpaceObject" title="sbs_utils.spaceobject.SpaceObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpaceObject</span></code></a></p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">GridObject</span></code></p></li>
+</ul>
+<ul class="simple">
+<li><p><a class="reference internal" href="spaceobject.html#sbs_utils.objects.PlayerShip" title="sbs_utils.objects.PlayerShip"><code class="xref py py-class docutils literal notranslate"><span class="pre">PlayerShip</span></code></a></p></li>
+<li><p><a class="reference internal" href="spaceobject.html#sbs_utils.objects.Npc" title="sbs_utils.objects.Npc"><code class="xref py py-class docutils literal notranslate"><span class="pre">Npc</span></code></a></p></li>
+<li><p><a class="reference internal" href="spaceobject.html#sbs_utils.objects.Active" title="sbs_utils.objects.Active"><code class="xref py py-class docutils literal notranslate"><span class="pre">Active</span></code></a></p></li>
+<li><p><a class="reference internal" href="spaceobject.html#sbs_utils.objects.Terrain" title="sbs_utils.objects.Terrain"><code class="xref py py-class docutils literal notranslate"><span class="pre">Terrain</span></code></a></p></li>
+<li><p><a class="reference internal" href="spaceobject.html#sbs_utils.objects.Passive" title="sbs_utils.objects.Passive"><code class="xref py py-class docutils literal notranslate"><span class="pre">Passive</span></code></a></p></li>
+</ul>
+<section id="role">
+<h4>role<a class="headerlink" href="#role" title="Permalink to this heading"></a></h4>
+<p>Script object can have multiple “roles”. Roles are similar to ‘hashtags’ in social media apps. You can tag script objects with a role.</p>
+</section>
+<section id="links">
+<h4>Links<a class="headerlink" href="#links" title="Permalink to this heading"></a></h4>
+<p>Links are named relationship between two objects.</p>
+</section>
+<section id="inventory">
+<h4>Inventory<a class="headerlink" href="#inventory" title="Permalink to this heading"></a></h4>
+<p>Inventory is data that can be added to any object.</p>
+</section>
+</section>
+<section id="persisted-data">
+<h3>Persisted data<a class="headerlink" href="#persisted-data" title="Permalink to this heading"></a></h3>
+<p>NOTE: This is speculative of how the persisted data will work in the future.
+NOTE: This is just really notes on what is hoped to accomplish</p>
+<p>Persistence will persist:</p>
+<ul class="simple">
+<li><p>Engine Objects</p></li>
+<li><p>roles</p></li>
+<li><p>Links</p></li>
+<li><p>Inventory</p></li>
+</ul>
+<p>There should be a db_query that has similar functions to the query module.
+e.g. so that you can retrieve from the data base using similar set operation</p>
+<p>sector_objects = db_query.broadtest(100000, 100000, 150000, 150000, -1)
+db_query.spawn(sector_objects)</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-0-U3FsTGl0ZQ==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-U3FsTGl0ZQ==" name="U3FsTGl0ZQ==" role="tab" tabindex="0">SqlLite</button><button aria-controls="panel-0-RmlyZWJhc2U=" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-RmlyZWJhc2U=" name="RmlyZWJhc2U=" role="tab" tabindex="-1">Firebase</button></div><div aria-labelledby="tab-0-U3FsTGl0ZQ==" class="sphinx-tabs-panel code-tab group-tab" id="panel-0-U3FsTGl0ZQ==" name="U3FsTGl0ZQ==" role="tabpanel" tabindex="0"><div class="highlight-sqlite3 notranslate"><div class="highlight"><pre><span></span><span class="go">CREATE TABLE engine_object (</span>
+<span class="go">    db_id INTEGER NOT NULL PRIMARY KEY,</span>
+<span class="go">    data JSON NOT NULL</span>
+<span class="go">    -- What else</span>
+<span class="go">);</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-0-RmlyZWJhc2U=" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-0-RmlyZWJhc2U=" name="RmlyZWJhc2U=" role="tabpanel" tabindex="0"><div class="highlight-json notranslate"><div class="highlight"><pre><span></span>&quot;engine_objects&quot;: {
+   &quot;&lt;db_id&gt;&quot;: {
+       &quot;data&quot;: { . . .}
+   }
+}
+</pre></div>
+</div>
+</div></div>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-1-U3FsTGl0ZQ==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-U3FsTGl0ZQ==" name="U3FsTGl0ZQ==" role="tab" tabindex="0">SqlLite</button><button aria-controls="panel-1-RmlyZWJhc2U=" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-RmlyZWJhc2U=" name="RmlyZWJhc2U=" role="tab" tabindex="-1">Firebase</button></div><div aria-labelledby="tab-1-U3FsTGl0ZQ==" class="sphinx-tabs-panel code-tab group-tab" id="panel-1-U3FsTGl0ZQ==" name="U3FsTGl0ZQ==" role="tabpanel" tabindex="0"><div class="highlight-sqlite3 notranslate"><div class="highlight"><pre><span></span><span class="go">CREATE TABLE role (</span>
+<span class="go">role TEXT NOT NULL,</span>
+<span class="go">FOREIGN KEY (db_id) REFERENCES engine_object (db_id)</span>
+<span class="go">            ON DELETE CASCADE ON UPDATE NO ACTION,</span>
+<span class="go">PRIMARY KEY(role, db_id)</span>
+<span class="go">);</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-1-RmlyZWJhc2U=" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-1-RmlyZWJhc2U=" name="RmlyZWJhc2U=" role="tabpanel" tabindex="0"><div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">&quot;roles&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;&lt;role&gt;&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,}</span>
+<span class="w"> </span><span class="p">}</span>
+</pre></div>
+</div>
+</div></div>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-2-U3FsTGl0ZQ==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-2-U3FsTGl0ZQ==" name="U3FsTGl0ZQ==" role="tab" tabindex="0">SqlLite</button><button aria-controls="panel-2-RmlyZWJhc2U=" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-2-RmlyZWJhc2U=" name="RmlyZWJhc2U=" role="tab" tabindex="-1">Firebase</button></div><div aria-labelledby="tab-2-U3FsTGl0ZQ==" class="sphinx-tabs-panel code-tab group-tab" id="panel-2-U3FsTGl0ZQ==" name="U3FsTGl0ZQ==" role="tabpanel" tabindex="0"><div class="highlight-sqlite3 notranslate"><div class="highlight"><pre><span></span><span class="go">CREATE TABLE link (</span>
+<span class="go">link TEXT NOT NULL,</span>
+<span class="go">FOREIGN KEY (from_db_id) REFERENCES engine_object (db_id)</span>
+<span class="go">            ON DELETE CASCADE ON UPDATE NO ACTION,</span>
+<span class="go">FOREIGN KEY (to_db_id) REFERENCES engine_object (db_id)</span>
+<span class="go">            ON DELETE CASCADE ON UPDATE NO ACTION,</span>
+<span class="go">PRIMARY KEY(role, from_db_id, to_db_id)</span>
+<span class="go">);</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-2-RmlyZWJhc2U=" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-2-RmlyZWJhc2U=" name="RmlyZWJhc2U=" role="tabpanel" tabindex="0"><div class="highlight-json notranslate"><div class="highlight"><pre><span></span>&quot;links&quot;:{
+    &quot;&lt;link&gt;&quot;:  {(1,9), (2,7) , (3,8)}
+}
+</pre></div>
+</div>
+</div></div>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-3-U3FsTGl0ZQ==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-3-U3FsTGl0ZQ==" name="U3FsTGl0ZQ==" role="tab" tabindex="0">SqlLite</button><button aria-controls="panel-3-RmlyZWJhc2U=" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-3-RmlyZWJhc2U=" name="RmlyZWJhc2U=" role="tab" tabindex="-1">Firebase</button></div><div aria-labelledby="tab-3-U3FsTGl0ZQ==" class="sphinx-tabs-panel code-tab group-tab" id="panel-3-U3FsTGl0ZQ==" name="U3FsTGl0ZQ==" role="tabpanel" tabindex="0"><div class="highlight-sqlite3 notranslate"><div class="highlight"><pre><span></span><span class="go">CREATE TABLE inventory (</span>
+<span class="go">name TEXT NOT NULL,</span>
+<span class="go">FOREIGN KEY (db_id) REFERENCES engine_object (db_id)</span>
+<span class="go">            ON DELETE CASCADE ON UPDATE NO ACTION,</span>
+<span class="go">value JSON NOT NULL,</span>
+<span class="go">PRIMARY KEY(role, db_id, value)</span>
+<span class="go">);</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-3-RmlyZWJhc2U=" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-3-RmlyZWJhc2U=" name="RmlyZWJhc2U=" role="tabpanel" tabindex="0"><div class="highlight-json notranslate"><div class="highlight"><pre><span></span>// Not sure this one is right
+&quot;inventory&quot;:{
+    &quot;&lt;key&gt;&quot;:  {
+        &quot;&lt;db_id&gt;&quot;: &lt;value&gt;
+    }
+}
+</pre></div>
+</div>
+</div></div>
+</section>
+</section>
 </section>
 
 
