@@ -34,6 +34,12 @@ Welcome to SBS Utils's documentation!
    
    tutorials/overview
    tutorials/setup
+   tutorials/simple_ai
+   tutorials/simple_science
+   tutorials/simple_comms
+   tutorials/simple_gui
+   tutorials/complex_ai
+   tutorials/complex_comms
    tutorials/siege
    tutorials/faq_2x.rst
    

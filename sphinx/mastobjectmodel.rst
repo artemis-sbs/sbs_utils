@@ -158,7 +158,7 @@ db_query.spawn(sector_objects)
             -- What else 
         );
 
-   .. code-tab:: json Firebase
+   .. code-tab:: js Firebase
 
      "engine_objects": {
         "<db_id>": {
@@ -179,7 +179,7 @@ db_query.spawn(sector_objects)
         PRIMARY KEY(role, db_id)
         );
 
-   .. code-tab:: json Firebase
+   .. code-tab:: js Firebase
 
         "roles": {
             "<role>": {1,2,3,}
@@ -198,7 +198,7 @@ db_query.spawn(sector_objects)
         PRIMARY KEY(role, from_db_id, to_db_id)
         );
 
-   .. code-tab:: json Firebase
+   .. code-tab:: js Firebase
 
         "links":{
             "<link>":  {(1,9), (2,7) , (3,8)}
@@ -217,7 +217,7 @@ db_query.spawn(sector_objects)
         PRIMARY KEY(role, db_id, value)
         );
 
-   .. code-tab:: json Firebase
+   .. code-tab:: js Firebase
 
     // Not sure this one is right
     "inventory":{

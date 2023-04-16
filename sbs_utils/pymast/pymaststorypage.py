@@ -74,6 +74,7 @@ class PyMastStoryPage(Page):
         self.disconnected = False
 
     def run(self, time_out):
+        self.gui_state = 'repaint'
         self.present(self.story.sim, None)
         # ?? Change task??
         #self.task = self.story.task
@@ -254,12 +255,20 @@ class PyMastStoryPage(Page):
 
     def present(self, sim, event):
         do_tick = True
+            
         if event is None:
             class Fake(object):
                 pass
             event = Fake()
             event.client_id = self.client_id
             do_tick = False
+            self.gui_state = 'repaint'
+        else:
+            if event.tag == "gui_push":
+                self.gui_state = 'repaint'
+        
+
+        
         
         """ Present the gui """
         if self.client_id is None:

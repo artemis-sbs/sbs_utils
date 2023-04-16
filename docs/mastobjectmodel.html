@@ -76,6 +76,12 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/overview.html">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/setup.html">Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/simple_ai.html">Tutorial: Simple AI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/simple_science.html">Tutorial: Simple Science</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/simple_comms.html">Tutorial: Simple Comms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/simple_gui.html">Tutorial: Simple Gui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/complex_ai.html">Tutorial: Complex AI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/complex_comms.html">Tutorial: Complex Comms</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/siege.html">Tutorial: Creating Basic Siege</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/faq_2x.html">Frequently asked Questions</a></li>
 </ul>
@@ -255,11 +261,11 @@ db_query.spawn(sector_objects)</p>
 <span class="go">);</span>
 </pre></div>
 </div>
-</div><div aria-labelledby="tab-0-RmlyZWJhc2U=" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-0-RmlyZWJhc2U=" name="RmlyZWJhc2U=" role="tabpanel" tabindex="0"><div class="highlight-json notranslate"><div class="highlight"><pre><span></span>&quot;engine_objects&quot;: {
-   &quot;&lt;db_id&gt;&quot;: {
-       &quot;data&quot;: { . . .}
-   }
-}
+</div><div aria-labelledby="tab-0-RmlyZWJhc2U=" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-0-RmlyZWJhc2U=" name="RmlyZWJhc2U=" role="tabpanel" tabindex="0"><div class="highlight-js notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;engine_objects&quot;</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">   </span><span class="s2">&quot;&lt;db_id&gt;&quot;</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">       </span><span class="s2">&quot;data&quot;</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">.</span><span class="w"> </span><span class="p">.</span><span class="w"> </span><span class="p">.}</span>
+<span class="w">   </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 </div></div>
@@ -272,8 +278,8 @@ db_query.spawn(sector_objects)</p>
 <span class="go">);</span>
 </pre></div>
 </div>
-</div><div aria-labelledby="tab-1-RmlyZWJhc2U=" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-1-RmlyZWJhc2U=" name="RmlyZWJhc2U=" role="tabpanel" tabindex="0"><div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">&quot;roles&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">&quot;&lt;role&gt;&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,}</span>
+</div><div aria-labelledby="tab-1-RmlyZWJhc2U=" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-1-RmlyZWJhc2U=" name="RmlyZWJhc2U=" role="tabpanel" tabindex="0"><div class="highlight-js notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;roles&quot;</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="s2">&quot;&lt;role&gt;&quot;</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="mf">1</span><span class="p">,</span><span class="mf">2</span><span class="p">,</span><span class="mf">3</span><span class="p">,}</span>
 <span class="w"> </span><span class="p">}</span>
 </pre></div>
 </div>
@@ -289,9 +295,9 @@ db_query.spawn(sector_objects)</p>
 <span class="go">);</span>
 </pre></div>
 </div>
-</div><div aria-labelledby="tab-2-RmlyZWJhc2U=" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-2-RmlyZWJhc2U=" name="RmlyZWJhc2U=" role="tabpanel" tabindex="0"><div class="highlight-json notranslate"><div class="highlight"><pre><span></span>&quot;links&quot;:{
-    &quot;&lt;link&gt;&quot;:  {(1,9), (2,7) , (3,8)}
-}
+</div><div aria-labelledby="tab-2-RmlyZWJhc2U=" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-2-RmlyZWJhc2U=" name="RmlyZWJhc2U=" role="tabpanel" tabindex="0"><div class="highlight-js notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;links&quot;</span><span class="o">:</span><span class="p">{</span>
+<span class="w">    </span><span class="s2">&quot;&lt;link&gt;&quot;</span><span class="o">:</span><span class="w">  </span><span class="p">{(</span><span class="mf">1</span><span class="p">,</span><span class="mf">9</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="mf">2</span><span class="p">,</span><span class="mf">7</span><span class="p">)</span><span class="w"> </span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="mf">3</span><span class="p">,</span><span class="mf">8</span><span class="p">)}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 </div></div>
@@ -305,12 +311,12 @@ db_query.spawn(sector_objects)</p>
 <span class="go">);</span>
 </pre></div>
 </div>
-</div><div aria-labelledby="tab-3-RmlyZWJhc2U=" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-3-RmlyZWJhc2U=" name="RmlyZWJhc2U=" role="tabpanel" tabindex="0"><div class="highlight-json notranslate"><div class="highlight"><pre><span></span>// Not sure this one is right
-&quot;inventory&quot;:{
-    &quot;&lt;key&gt;&quot;:  {
-        &quot;&lt;db_id&gt;&quot;: &lt;value&gt;
-    }
-}
+</div><div aria-labelledby="tab-3-RmlyZWJhc2U=" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-3-RmlyZWJhc2U=" name="RmlyZWJhc2U=" role="tabpanel" tabindex="0"><div class="highlight-js notranslate"><div class="highlight"><pre><span></span><span class="c1">// Not sure this one is right</span>
+<span class="s2">&quot;inventory&quot;</span><span class="o">:</span><span class="p">{</span>
+<span class="w">    </span><span class="s2">&quot;&lt;key&gt;&quot;</span><span class="o">:</span><span class="w">  </span><span class="p">{</span>
+<span class="w">        </span><span class="s2">&quot;&lt;db_id&gt;&quot;</span><span class="o">:</span><span class="w"> </span><span class="o">&lt;</span><span class="nx">value</span><span class="o">&gt;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 </div></div>
