@@ -31,8 +31,6 @@ class Hole(MastNode):
 
 
 class Text(MastNode):
-    #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
-    #(\s+color\s*["'](?P<color>[ \t\S]+)["'])?
     rule = re.compile(r"""((['"]{3,})(\n)?(?P<message>[\s\S]+?)(\n)?(['"]{3,}))"""+STYLE_REF_RULE+IF_EXP_REGEX)
     def __init__(self, message, if_exp, style_name=None, style=None, style_q=None, loc=None):
         self.loc = loc
@@ -49,11 +47,10 @@ class Text(MastNode):
             self.style_def = StyleDefinition.styles.get(style_name)
 
 class AppendText(MastNode):
-    #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
-    #(\s+color\s*["'](?P<color>[ \t\S]+)["'])?
     rule = re.compile(r"""(([\^]{3,})(\n)?(?P<message>[\s\S]+?)(\n)?([\^]{3,}))"""+IF_EXP_REGEX)
     def __init__(self, message, if_exp, loc=None):
         self.loc = loc
+        #TODO: This needs to be smart with the 'text: ' stuff
         self.message = self.compile_formatted_string(message)
         if if_exp is not None:
             if_exp = if_exp.lstrip()
@@ -313,12 +310,11 @@ class DropdownControl(MastNode):
             self.style_def = StyleDefinition.styles.get(style_name)
 
 class ImageControl(MastNode):
-    rule = re.compile(r"""image\s*(?P<q>['"]{3}|["'])(?P<file>[\s\S]+?)(?P=q)"""+OPT_COLOR+STYLE_REF_RULE)
-    def __init__(self, file, q, color, style_name=None, style=None, style_q=None, loc=None):
+    rule = re.compile(r"""image\s*(?P<q>['"]{3}|["'])(?P<file>[\s\S]+?)(?P=q)"""+STYLE_REF_RULE)
+    def __init__(self, file, q, style_name=None, style=None, style_q=None, loc=None):
         self.loc = loc
         self.file = self.compile_formatted_string(file)
-        self.color = color if color is not None else "#fff"
-
+        
         self.style_def = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)

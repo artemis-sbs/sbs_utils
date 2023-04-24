@@ -16,9 +16,9 @@ class StartPage(Page):
 
         sbs.send_gui_clear(CID)
         sbs.send_gui_text(
-                    CID, self.desc, "text", 25, 30, 99, 90)
+                    CID,  "text", self.desc, 25, 30, 99, 90)
         
-        sbs.send_gui_button(CID, "Start", "start", 80,90, 99,99)
+        sbs.send_gui_button(CID, "start", "text: Start", 80,90, 99,99)
         
 
     def on_message(self, sim, event):
@@ -50,7 +50,7 @@ class ClientSelectPage(Page):
             sbs.send_client_widget_list(event.client_id, "","")
             i = 0
             for console in ["Helm", "Weapons", "Science", "Engineering", "Comms", "Main Screen"]:
-                sbs.send_gui_checkbox(CID, console, console, int(console==self.console), 80,75-i*5, 99,79-i*5)
+                sbs.send_gui_checkbox(CID, console, f"text: {console};state:{'on' if console==self.console else 'off'}", 80,75-i*5, 99,79-i*5)
                 i+=1
 
             i = 0
@@ -58,11 +58,11 @@ class ClientSelectPage(Page):
                 name = player.name
                 if self.player_id is None:
                     self.player_id = player.id
-                sbs.send_gui_checkbox(CID, name, str(player.id), int(self.player_id == player.id), 20,75-i*5, 39,79-i*5)
+                sbs.send_gui_checkbox(CID, str(player.id), f"text:{name};state:{'on' if self.player_id == player.id else 'off'}", 20,75-i*5, 39,79-i*5)
                 i+=1
 
             if self.player_id is not None:
-                sbs.send_gui_button(CID, "Select", "select", 80,95-i*5, 99,99-i*5)
+                sbs.send_gui_button(CID, "select", "text:Select", 80,95-i*5, 99,99-i*5)
             self.state = "skip"
             
         
@@ -73,7 +73,7 @@ class ClientSelectPage(Page):
             case "Helm":
                 self.console_name = "normal_helm" 
                 self.console = event.sub_tag
-                self.widget_list =  "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+                self.widget_list =  "2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
             case "Weapons":
                 self.console_name = "normal_weap"
                 self.console = event.sub_tag
@@ -81,15 +81,15 @@ class ClientSelectPage(Page):
             case "Science":
                 self.console_name = "normal_sci" 
                 self.console = event.sub_tag
-                self.widget_list = "science_2d_view^ship_data^text_waterfall^science_data^object_sorted_list"
+                self.widget_list = "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list"
             case "Engineering":
                 self.console_name = "normal_engi" 
                 self.console = event.sub_tag
-                self.widget_list = "ship_internal_view^grid_object_list^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
+                self.widget_list = "ship_internal_view^grid_object_list^grid_face^grid_control^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
             case "Comms":
                 self.console_name = "normal_comm" 
                 self.console = event.sub_tag
-                self.widget_list = "text_waterfall^comms_waterfall^comms_control^comms_face^object_sorted_list^ship_data"
+                self.widget_list = "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data"
             case "Main Screen":
                 self.console_name = "normal_main" 
                 self.console = event.sub_tag

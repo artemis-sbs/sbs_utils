@@ -73,7 +73,7 @@ class FaceRuntimeNode(StoryRuntimeNode):
         if node.code:
             face = task.eval_code(node.code)
         if face is not None:
-            self.layout_item = layout.Face(face, tag)
+            self.layout_item = layout.Face(tag,face)
             task.main.page.add_content(self.layout_item, self)
             self.apply_style_name(".face", self.layout_item, task)
             if node.style_def is not None:
@@ -91,7 +91,7 @@ class ShipRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Ship):
         tag = task.main.page.get_tag()
         ship = task.format_string(node.ship)
-        item = layout.Ship(ship, tag)
+        item = layout.Ship(tag, ship)
         task.main.page.add_content(item, self)
         self.apply_style_name(".ship", item, task)
         if node.style_def is not None:
@@ -102,7 +102,7 @@ class GuiContentRuntimeNode(StoryRuntimeNode):
         tag = task.main.page.get_tag()
         # gui control ShipPicker(0,0,"mast", "Your Ship")
         content = task.eval_code(node.code)
-        item = layout.GuiControl(content, tag)
+        item = layout.GuiControl(tag, content)
         task.set_value_keep_scope(node.var, item)
         task.main.page.add_content(item, self)
         #self.apply_style_name(".pickship", item, task)
@@ -124,7 +124,7 @@ class TextRuntimeNode(StoryRuntimeNode):
             value = task.eval_code(node.code)
         if value:
             msg = task.format_string(node.message)
-            self.layout_text = layout.Text(msg, self.tag)
+            self.layout_text = layout.Text(self.tag, msg)
             TextRuntimeNode.current = self
             task.main.page.add_content(self.layout_text, self)
             self.apply_style_name(".text", self.layout_text, task)
@@ -172,7 +172,7 @@ class ButtonControlRuntimeNode(StoryRuntimeNode):
                 value = self.task.eval_code(node.code)
             if value:
                 msg = task.format_string(node.message)
-                layout_button = layout.Button(msg, self.tag)
+                layout_button = layout.Button(self.tag, msg)
                 task.main.page.add_content(layout_button, self)
                 self.apply_style_name(".button", layout_button, task)
                 if node.style_def is not None:
@@ -191,7 +191,7 @@ class ButtonControlRuntimeNode(StoryRuntimeNode):
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: ButtonControl):
         if node.is_end:
-            self.task.pop_label()
+            self.task.pop_label(False)
             return PollResults.OK_JUMP
         elif node.end_node:
             self.task.jump(self.task.active_label, node.end_node.loc+1)
@@ -257,7 +257,7 @@ class ChooseRuntimeNode(StoryRuntimeNode):
 
         # ast = LayoutAreaParser.parse_e(LayoutAreaParser.lex("100-30px"))
         # top = LayoutAreaParser.compute(ast, {}, task.main.page.aspect_ratio.y)
-        button_layout = layout.Layout(None, 0,top,100,100)
+        button_layout = layout.Layout(None, None, 0,top,100,100)
 
         active = 0
         index = 0
@@ -285,7 +285,7 @@ class ChooseRuntimeNode(StoryRuntimeNode):
                         runtime_node = ChoiceButtonRuntimeNode(self, index, task.main.page.get_tag(), button)
                         #runtime_node.enter(mast, task, button)
                         msg = task.format_string(button.message)
-                        layout_button = layout.Button(msg, runtime_node.tag)
+                        layout_button = layout.Button(runtime_node.tag, msg)
                         layout_row.add(layout_button)
                         task.main.page.add_tag(layout_button, runtime_node)
                         self.apply_style_name(".choice", layout_button, task)
@@ -338,7 +338,7 @@ class ChooseRuntimeNode(StoryRuntimeNode):
 
             self.button = None
             #print(f"CHOICE {button.loc+1} {node.end_await_node.loc}")
-            task.redirect_push_label(task.active_label,button.loc+1, node.end_await_node.loc)
+            task.push_jump_pop(task.active_label,button.loc+1)
             return PollResults.OK_JUMP
 
         if self.timeout is not None:
@@ -377,7 +377,7 @@ class SliderControlRuntimeNode(StoryRuntimeNode):
             val = self.node.value
         if val is None:
             val = 0
-        self.layout = layout.Slider(val, node.low, node.high, not node.is_scroll, self.tag)
+        self.layout = layout.Slider(self.tag, val, f"low: {node.low}; high:{node.high};show_number: {not node.is_scroll}")
         self.task = task
         self.apply_style_name(".slider", self.layout, task)
         if node.style_def is not None:
@@ -395,14 +395,14 @@ class SliderControlRuntimeNode(StoryRuntimeNode):
 
 
 class CheckboxControlRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: SliderControl):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: CheckboxControl):
         self.tag = task.main.page.get_tag()
         self.node = node
         scoped_val = task.get_value(self.node.var, False)
         val = scoped_val[0]
         self.scope = scoped_val[1]
         msg = task.format_string(node.message)
-        self.layout = layout.Checkbox(msg, self.tag, val)
+        self.layout = layout.Checkbox(self.tag, msg, val)
         self.task = task
         task.main.page.add_content(self.layout, self)
         self.apply_style_name(".checkbox", self.layout, task)
@@ -430,7 +430,7 @@ class RadioControlRuntimeNode(StoryRuntimeNode):
         for button in buttons:
             button = button.strip()
             self.buttons.append(button)
-            radio =layout.Checkbox(button, f"{self.tag}:{button}", val==button)
+            radio =layout.Checkbox(f"{self.tag}:{button}", button, val==button)
             self.apply_style_name(".radio", radio, task)
             if node.style_def is not None:
                 self.apply_style_def(node.style_def, radio, task)
@@ -465,7 +465,7 @@ class TextInputControlRuntimeNode(StoryRuntimeNode):
         scoped_val = task.get_value(self.node.var, "")
         val = scoped_val[0]
         self.scope = scoped_val[1]
-        self.layout = layout.TextInput(val, label, self.tag)
+        self.layout = layout.TextInput(self.tag, f"text:{val};desc:{label}")
         self.task = task
         task.main.page.add_content(self.layout, self)
 
@@ -492,7 +492,7 @@ class DropdownControlRuntimeNode(StoryRuntimeNode):
             val = task.get_variable(self.node.var)
             
             values = task.format_string(node.values)
-            self.layout = layout.Dropdown(val, values, self.tag )
+            self.layout = layout.Dropdown(self.tag, values )
             task.main.page.add_content(self.layout, self)
             self.apply_style_name(".dropdown", self.layout, task)
             if node.style_def is not None:
@@ -503,7 +503,7 @@ class DropdownControlRuntimeNode(StoryRuntimeNode):
         if event.sub_tag == self.tag:
             self.layout.value = event.value_tag
             self.task.set_value_keep_scope(self.node.var, self.layout.value)
-            self.task.push_label(self.label, self.node.loc+1)
+            self.task.push_jump_pop(self.label, self.node.loc+1)
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: DropdownControl):
         if node.is_end:
@@ -559,7 +559,9 @@ class ImageControlRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: ImageControl):
         tag = task.main.page.get_tag()
         file = task.format_string(node.file)
-        self.layout = layout.Image(file, node.color, tag)
+        if "image:" not in file:
+            file = "image:"+file
+        self.layout = layout.Image(tag, file )
         task.main.page.add_content(self.layout, self)
 
 ######################
@@ -667,7 +669,7 @@ class StoryPage(Page):
         self.gui_state = 'repaint'
         self.story_scheduler = None
         self.layouts = []
-        self.pending_layouts = self.pending_layouts = [layout.Layout(None, 0,0, 100, 90)]
+        self.pending_layouts = self.pending_layouts = [layout.Layout(None, None, 0,0, 100, 90)]
         self.pending_row = self.pending_row = layout.Row()
         self.pending_tag_map = {}
         self.tag_map = {}
@@ -722,7 +724,7 @@ class StoryPage(Page):
             for layout_obj in self.layouts:
                 layout_obj.calc()
             
-            self.pending_layouts = self.pending_layouts = [layout.Layout(None, 0,0, 100, 90)]
+            self.pending_layouts = self.pending_layouts = [layout.Layout(None, None, 0,0, 100, 90)]
             self.pending_row = self.pending_row = layout.Row()
             self.pending_tag_map = {}
             self.pending_console = ""
@@ -737,7 +739,7 @@ class StoryPage(Page):
 
     def add_row(self):
         if not self.pending_layouts:
-            self.pending_layouts = [layout.Layout(None, 20,10, 100, 90)]
+            self.pending_layouts = [layout.Layout(None, None, 20,10, 100, 90)]
         if self.pending_row:
             if len(self.pending_row.columns):
                 self.pending_layouts[-1].add(self.pending_row)
@@ -765,10 +767,10 @@ class StoryPage(Page):
     
     def add_section(self):
         if not self.pending_layouts:
-            self.pending_layouts = [layout.Layout(None, 0,0, 100, 90)]
+            self.pending_layouts = [layout.Layout(None, None, 0,0, 100, 90)]
         else:
             self.add_row()
-            self.pending_layouts.append(layout.Layout(None, 0,0, 100, 90))
+            self.pending_layouts.append(layout.Layout(None, None, 0,0, 100, 90))
 
     def get_pending_layout(self):
         if not self.pending_layouts:
@@ -806,12 +808,14 @@ class StoryPage(Page):
             if len(self.story_scheduler.errors) > 0:
                 #errors = self.errors.reverse()
                 message = ''.join([str(elem) for elem in self.story_scheduler.errors])
-                message = message.replace(chr(94), "")
-                #print(message)
+                message = message.replace(chr(94), "-")
+                message = message.replace(chr(44), "`")
+                message = "text:"+message
+                print(message)
                 sbs.send_gui_clear(event.client_id)
                 if event.client_id != 0:
                     sbs.send_client_widget_list(event.client_id, "", "")
-                sbs.send_gui_text(event.client_id, message, "error", 0,0,99,99)
+                sbs.send_gui_text(event.client_id, "error",  message, 0,0,99,99)
                 self.gui_state = "errors"
                 return
 
@@ -825,11 +829,13 @@ class StoryPage(Page):
                 Gui.pop(sim, event.client_id)
                 return
         if len(self.errors) > 0:
-            message = "Compile errors\n".join(self.errors)
+            message = "".join(self.errors)
+            message = message.replace(";", "~")
+            message = "text: Compiler Errors" + message.replace(",", ".")
             sbs.send_gui_clear(event.client_id)
             if event.client_id != 0:
                 sbs.send_client_widget_list(event.client_id, "", "")
-            sbs.send_gui_text(event.client_id, message, "error", 0,0,100,100)
+            sbs.send_gui_text(event.client_id, "error", message,  0,0,100,100)
             self.gui_state = "errors"
             return
         
@@ -855,12 +861,18 @@ class StoryPage(Page):
 
                 for layout in self.layouts:
                     layout.present(sim,event)
-                
-                self.gui_state = "presenting"
+                if sim is None or len(self.layouts)==0:
+                    self.gui_state = "repaint"
+                else:
+                    self.gui_state = "presenting"
             case  "refresh":
                 for layout in self.layouts:
                     layout.present(sim,event)
-                self.gui_state = "presenting"
+                if sim is None or len(self.layouts)==0:
+                    self.gui_state = "repaint"
+                else:
+                    self.gui_state = "presenting"
+                
 
 
     def on_message(self, sim, event):

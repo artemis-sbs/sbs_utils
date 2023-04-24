@@ -1,5 +1,5 @@
 from sbs_utils.gui import Widget
-def list_box_control (items, text=None, face=None, ship=None, select=False, multi=False, item_height=5):
+def list_box_control (items, text=None, face=None, ship=None, icon=None, image=None, select=False, multi=False, item_height=5):
     ...
 class Listbox(Widget):
     """A widget to list things passing function/lamdas to get the data needed for option display of
@@ -7,7 +7,7 @@ class Listbox(Widget):
     - ship
     - icon
     - text"""
-    def __init__ (self, left, top, tag_prefix, items, text=None, face=None, ship=None, select=False, multi=False, item_height=5) -> None:
+    def __init__ (self, left, top, tag_prefix, items, text=None, face=None, ship=None, icon=None, image=None, select=False, multi=False, item_height=5) -> None:
         """Listbox
         
         A widget Shows a list of things
@@ -18,6 +18,8 @@ class Listbox(Widget):
         :type top: float
         :param tag_prefix: Prefix to use in message tags to mak this component unique
         :type tag_prefix: str"""
+    def get_image_size (self, file):
+        ...
     def get_selected (self):
         ...
     def get_value (self):

@@ -13,7 +13,7 @@ def get_script_dir():
         else:
             script_dir =sys.path[0]
 
-    return script_dir
+    return script_dir.replace("/", "\\")
 
 def get_mission_dir():
     return get_script_dir()
@@ -22,6 +22,12 @@ def get_artemis_data_dir():
     mission = get_script_dir()
     missions = os.path.dirname(mission)
     return os.path.dirname(missions)
+
+def get_artemis_graphics_dir():
+    mission = get_script_dir()
+    missions = os.path.dirname(mission)
+    data = os.path.dirname(missions)
+    return data+"\\graphics"        
 
 
 def get_artemis_dir():

@@ -1,7 +1,9 @@
 from ..gui import Widget
-from .. import layout as layout
+from ..pages import layout as layout
 import sbs
-from .. import faces
+import struct # for images sizes
+import os
+from .. import fs
 
 
 class Listbox(Widget):
@@ -72,9 +74,14 @@ class Listbox(Widget):
             self.gui_state = "redraw"
             self.square_width_percent = square_width_percent
 
-        if self.gui_state == "presenting":
-            return
-        
+        # Not sure this is needed, 
+        # Plus we don't know when the gui was cleared
+        # if this is needed then a bigger solution in general is needed
+        # that resets this state when the page state is reset
+        #
+        # if self.gui_state == "presenting":
+        #    return
+           
         if len(self.items)==0:
             return
         
@@ -89,9 +96,9 @@ class Listbox(Widget):
         max_slot = (self.bottom-self.top)/self.item_height
         slot_count = len(self.items)-max_slot
         if slot_count > 0:
-            sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", -(slot_count+0.5),  0, -self.cur,
+            sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", self.cur, f"low:{-(slot_count+0.5)}; high: 0.0; show_number:no",
                         self.right-3, self.top,
-                        self.right, self.bottom, False)
+                        self.right, self.bottom)
         slot= 0
         self.slots =[]
         
@@ -102,40 +109,51 @@ class Listbox(Widget):
             self.slots.append(cur)
             if self.icon is not None:
                 icon_to_display = self.icon(item)
-                sbs.send_gui_icon(CID, icon_to_display, f"{self.tag_prefix}icon:{slot}", 
+                sbs.send_gui_icon(CID,  f"{self.tag_prefix}icon:{slot}", icon_to_display,
                     left, top,
                     left+square_width_percent, top+square_height_percent )
                 left += square_width_percent
             if self.image is not None:
-                icon_to_display = self.image(item)
-                sbs.send_gui_icon(CID, icon_to_display, f"{self.tag_prefix}icon:{slot}", 
-                    10, 
-                    left, top,
-                    left+square_width_percent, top+square_height_percent )
-                left += square_width_percent
+                image_to_display = self.image(item)
+                if image_to_display is not None:
+                    props = layout.split_props(image_to_display, "image")
+                    rel_file = os.path.relpath(props["image"].strip(), fs.get_artemis_data_dir()+"\graphics")
+                    props["image"] = rel_file
+                    image_to_display = layout.merge_props(props)
+                    
+                    sbs.send_gui_image(CID,f"{self.tag_prefix}image:{slot}", image_to_display, 
+                        # cell_left, cell_top, cell_right, cell_bottom,
+                        left, top, self.left+square_width_percent,  top+square_height_percent
+                    )
+                    left += square_width_percent
             if self.ship: 
                 ship_to_display = self.ship(item)
-                sbs.send_gui_3dship(CID, ship_to_display, f"{self.tag_prefix}ship:{slot}", 
+                if "hull_tag:" not in ship_to_display:
+                    ship_to_display = "hull_tag:"+ship_to_display
+
+                sbs.send_gui_3dship(CID,  f"{self.tag_prefix}ship:{slot}", ship_to_display,
                     left, top,
                     left+square_width_percent, top+square_height_percent )
                 left += square_width_percent
             if self.face: 
                 face = self.face(item)
-                sbs.send_gui_face(CID, face, f"{self.tag_prefix}face:{slot}", 
+                sbs.send_gui_face(CID, f"{self.tag_prefix}face:{slot}",  face,
                     left, top,
                     left+square_width_percent, top+square_height_percent )
                 left += square_width_percent
             text = ""
             if self.text:
                 text = self.text(item)
+                if "text:" not in text:
+                    text = f"text: {text}"
             if self.select or self.multi:
                 #print(f"{cur} selected {1 if cur in self.selected else 0}")
                 sbs.send_gui_checkbox(
-                    CID, text, f"{self.tag_prefix}name:{slot}", 1 if cur in self.selected else 0,
+                    CID, f"{self.tag_prefix}name:{slot}", f"state: {'on' if cur in self.selected else 'off'}; {text}",
                         left, top, self.right-3.5, top+self.item_height)
             else:
                 sbs.send_gui_text(
-                    CID, text, f"{self.tag_prefix}name:{slot}", 
+                    CID, f"{self.tag_prefix}name:{slot}", text,
                         left, top, self.right, top+self.item_height)
             top += self.item_height
             cur += 1
@@ -146,7 +164,16 @@ class Listbox(Widget):
         
         self.gui_state = "presenting"
 
-
+    def get_image_size(self, file):
+        try:
+            with open(file+".png", 'rb') as f:
+                data = f.read(26)
+                # Chck if is png
+                #if (data[:8] == '\211PNG\r\n\032\n'and (data[12:16] == 'IHDR')):
+                w, h = struct.unpack('>LL', data[16:24])
+                return w,h
+        except Exception:
+            return 0,0
     def on_message(self, sim, event):
         """ on_message
 

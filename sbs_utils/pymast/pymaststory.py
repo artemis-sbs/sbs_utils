@@ -22,7 +22,7 @@ class PyMastStory:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs) # This style of init makes it more mixin friendly
         self.schedulers = []
-        self.remove_scheduler = []
+        self.remove_scheduler = set()
         self.shared = self #Alias for scoping
         self.tick_task = None
         self.vars = DataHolder()
@@ -72,7 +72,7 @@ class PyMastStory:
             self.scheduler = sched
             sched.tick(sim)
             if len(sched.tasks) == 0:
-                self.remove_scheduler.append(sched)
+                self.remove_scheduler.add(sched)
         for finished in self.remove_scheduler:
             self.schedulers.remove(finished)
         self.remove_scheduler.clear()
@@ -82,7 +82,8 @@ class PyMastStory:
 
 
     def END(self):
-        self.remove_tasks.add(self.task)
+        if self.task is not None:
+            self.task.end()
 
     def start(self):
         pass
@@ -133,11 +134,12 @@ class PyMastStory:
     def await_gui(self, buttons= None, timeout=None, on_message=None, test_refresh=None,  test_end_await=None, on_disconnect=None):
         return self.task.await_gui(buttons, timeout, on_message, test_refresh, test_end_await, on_disconnect)
     
+
     def gui_face(self, face, style=None):
         if self.get_page() is None:
             return
         page = self.get_page()
-        control = layout.Face(face, page.get_tag())
+        control = layout.Face(page.get_tag(), face)
         page.apply_style_name(".face", control)
         if style is not None:
             page.apply_style_def(style,  control)
@@ -147,7 +149,7 @@ class PyMastStory:
         if self.get_page() is None:
             return
         page = self.get_page()
-        control = layout.Ship(ship, page.get_tag())
+        control = layout.Ship(page.get_tag(),ship)
         page.add_content(control, None)
         return control
     # Widgets
@@ -155,23 +157,44 @@ class PyMastStory:
         if self.get_page() is None:
             return
         page = self.get_page()
-        control = layout.GuiControl(content, page.get_tag())
+        control = layout.GuiControl(page.get_tag(), content)
         page.add_content(control, label)
         return control
     
-    def gui_text(self, message, style=None):
+    def gui_text(self, props, style=None):
+        """ Gets the simulation space object
+
+        valid properties 
+           text
+           color
+           font
+
+
+        :param props: property string 
+        :type props: str
+        :param layout: property string 
+        :type layout: str
+        """
         if self.get_page() is None:
             return
+        if style is None: 
+            style = ""
         page = self.get_page()
-        control = layout.Text(message, page.get_tag())
+        control = layout.Text(page.get_tag(), props)
+        page.apply_style_name(".button", control)
+        if style is not None:
+            page.apply_style_def(style,  control)
         page.add_content(control, None)
         return control
     
     def gui_button(self, message, label, style=None):
         if self.get_page() is None:
             return
+        if style is None: 
+            style = ""
+
         page = self.get_page()
-        control = layout.Button(message, page.get_tag())
+        control = layout.Button(page.get_tag(), message)
         # CodePusher(self, value)
         page.add_content(control, CodePusher(page, label))
         page.apply_style_name(".button", control)
@@ -183,7 +206,7 @@ class PyMastStory:
         if self.get_page() is None:
             return
         page = self.get_page()
-        control = layout.IconButton(message, page.get_tag())
+        control = layout.IconButton(page.get_tag(), message)
         page.add_content(control, label)
         page.apply_style_name(".iconbutton", control)
         if style is not None:
@@ -219,21 +242,21 @@ class PyMastStory:
         control = layout.Hole()
         page.add_content(control, None)
         return control
-    def gui_section(self, style=None):
+    def gui_section(self, style=None, click_props=None):
         if self.get_page() is None:
             return
         page = self.get_page()
-        control = page.add_section()
+        control = page.add_section(click_props)
 
         page.apply_style_name(".section", control)
         if style is not None:
             page.apply_style_def(style,  control)
         return control
-    def gui_slider(self, val, low, high, show_number=True, label=None, style=None):
+    def gui_slider(self, val, props, label=None, style=None):
         if self.get_page() is None:
             return
         page = self.get_page()
-        control = layout.Slider(val, low, high, show_number, page.get_tag())
+        control = layout.Slider(page.get_tag(), val, props)
         page.add_content(control, label)
         page.apply_style_name(".slider", control)
         if style is not None:
@@ -243,17 +266,17 @@ class PyMastStory:
         if self.get_page() is None:
             return
         page = self.get_page()
-        control = layout.Checkbox(message,page.get_tag(), value)
+        control = layout.Checkbox(page.get_tag(), message, value)
         page.add_content(control, None)
         page.apply_style_name(".checkbox", control)
         if style is not None:
             page.apply_style_def(style,  control)
         return control
-    def gui_drop_down(self, value, values, style=None):
+    def gui_drop_down(self, props, style=None):
         if self.get_page() is None:
             return
         page = self.get_page()
-        control = layout.Dropdown(value, values, page.get_tag())
+        control = layout.Dropdown(page.get_tag(),  props)
         page.add_content(control, None)
         page.apply_style_name(".dropdown", control)
         if style is not None:
@@ -265,18 +288,18 @@ class PyMastStory:
             return
         page = self.get_page()
         tag = page.get_tag()
-        radio =layout.RadioButtonGroup(message, value, True, tag)
+        radio =layout.RadioButtonGroup(tag, message, value, vertical)
         page.apply_style_name(".radio", radio)
         if style is not None:
             page.apply_style_def(style, radio)
         page.add_content(radio, None)
         return radio
         
-    def gui_text_input(self, val, label_message, label, style=None):
+    def gui_text_input(self, props, label, style=None):
         if self.get_page() is None:
             return
         page = self.get_page()
-        control = layout.TextInput(val, label_message, page.get_tag())
+        control = layout.TextInput(page.get_tag(), props )
         page.add_content(control, label)
         page.apply_style_name(".textinput", control)
         if style is not None:
@@ -287,7 +310,7 @@ class PyMastStory:
         if self.get_page() is None:
             return
         page = self.get_page()
-        control = layout.Icon(icon, color, page.get_tag())
+        control = layout.Icon(page.get_tag(), icon, color)
         page.add_content(control, None)
         page.apply_style_name(".icon", control)
         if style is not None:
@@ -298,7 +321,7 @@ class PyMastStory:
         if self.get_page() is None:
             return
         page = self.get_page()
-        control = layout.IconButton(icon, color, page.get_tag())
+        control = layout.IconButton(page.get_tag(), icon, color)
         page.add_content(control, None)
         page.apply_style_name(".iconbutton", control)
         if style is not None:
@@ -345,7 +368,7 @@ class PyMastStory:
         if self.get_page() is None:
             return
         page = self.get_page()
-        control = layout.Image(file, color, page.get_tag())
+        control = layout.Image(page.get_tag(), file, color)
         page.add_content(control, None)
         return control
     

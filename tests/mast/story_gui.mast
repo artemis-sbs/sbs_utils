@@ -176,7 +176,7 @@ row
 
 input text_in
 
-slider slider_value 0.0 1.0 0.5
+#slider slider_value 0.0 1.0 0.5
 checkbox wilma "Yaba"
 
 await choice:
@@ -211,21 +211,21 @@ else:
 end_if
 
 
-dropdown ship_select "Artemis^Hera^Atlas":   #ddd
+dropdown ship_select "text: ship;list:Artemis,Hera,Atlas":   #ddd
 <<->>PickedShip
 end_dropdown
 
-dropdown console "Helm^Weapons^Science^Engineering^Comms^Medical^Main Screen": 
+dropdown console "text: console;list:Helm,Weapons,Science,Engineering,Comms,Medical,Main Screen": 
 view = "Main"
-<<->>PickedView
+->>PickedView
 end_dropdown
 
-dropdown view "Main^Auxiliary^Crafting^Quarters^P.A.D.D.^Broadcast^Bar":
-<<->>PickedView
+dropdown view "text: view;list:Main,Auxiliary,Crafting,Quarters,P.A.D.D.,Broadcast,Bar":
+->>PickedView
 end_dropdown
 
-dropdown mast_view "Variables^Debug^restart":
-<<->>PickedMast
+dropdown mast_view "text: Mast;list:Variables,Debug,restart":
+->>PickedMast
 end_dropdown
 
 section style="area: 0, 30px, 100, 100-30px;"

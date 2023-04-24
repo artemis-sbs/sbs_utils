@@ -49,9 +49,8 @@ class PyMastTask:
             
 
     def tick(self, sim):
-        # if sim is None:
-        #     self.last_poll_result = PollResults.OK_RUN_AGAIN
-        #     return
+        if sim is None:
+            print("sim is NONE")
         
         self.sim = sim
         self.story.sim = sim

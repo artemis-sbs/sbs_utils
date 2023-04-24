@@ -26,10 +26,11 @@ class ErrorPage(Page):
                 # keeps the existing GUI displayed
                 self.gui_state = "presenting"
                 print(self.message)
+                self.message = self.message.replace(",", ".")
                 sbs.send_gui_text(
-                    event.client_id, f"scripting error^{self.message}", "text", 0, 0, 80, 95)
-                sbs.send_gui_button(event.client_id, "back", "back", 80, 90, 99, 94)
-                sbs.send_gui_button(event.client_id, "Resume Mission", "resume", 80, 95, 99, 99)
+                    event.client_id, "text", f"text:scripting error^{self.message}", 0, 0, 80, 95)
+                sbs.send_gui_button(event.client_id, "back", "text:back", 80, 90, 99, 94)
+                sbs.send_gui_button(event.client_id, "resume", "text:Resume Mission", 80, 95, 99, 99)
 
     def on_message(self, sim, event):
         match event.sub_tag:

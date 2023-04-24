@@ -70,19 +70,19 @@ class ShipPicker(Widget):
             return
         if self.ships is None:
             sbs.send_gui_text(
-                    CID, f"Error {self.test}", f"{self.tag_prefix}error", self.left, self.top, self.right, self.top+5)
+                    CID,  f"{self.tag_prefix}error", f"text:Error {self.test}", self.left, self.top, self.right, self.top+5)
             return
 
         ship = self.ships[self.cur]
 
         sbs.send_gui_text(
-                    CID, f"{self.title_prefix} {ship['name']}", f"{self.tag_prefix}title", self.left, self.top, self.right, self.top+5)
+                    CID, f"{self.tag_prefix}title", f"text: {self.title_prefix} {ship['name']}",  self.left, self.top, self.right, self.top+5)
         #l1 = layout.wrap(self.left, self.bottom, , 4,col=2)
         half = (self.right-self.left)/2
         
-        sbs.send_gui_button(CID, "prev", f"{self.tag_prefix}prev", self.left, self.bottom-5, self.left+half, self.bottom)
-        sbs.send_gui_button(CID, "next", f"{self.tag_prefix}next", self.right-half, self.bottom-5, self.right, self.bottom)
-        sbs.send_gui_3dship(CID, ship['key'], f"{self.tag_prefix}ship", 
+        sbs.send_gui_button(CID,f"{self.tag_prefix}prev", "text:prev", self.left, self.bottom-5, self.left+half, self.bottom)
+        sbs.send_gui_button(CID, f"{self.tag_prefix}next", "text:next", self.right-half, self.bottom-5, self.right, self.bottom)
+        sbs.send_gui_3dship(CID,  f"{self.tag_prefix}ship", f"hull_tag:{ship['key']}",
             self.left+5, self.top+5,
             self.right-5, self.bottom-5 )
      

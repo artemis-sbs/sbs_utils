@@ -7,6 +7,7 @@ from .pymastscheduler import PyMastScheduler
 import traceback
 from .. import query
 import inspect
+import logging
 
 class CodePusher:
     def __init__(self, page, func_or_tuple, end_await=True) -> None:
@@ -23,6 +24,10 @@ class CodePusher:
         if isinstance(self.func_or_tuple, tuple):
             data = self.func_or_tuple[1]
             button_func = self.func_or_tuple[0]
+
+        if button_func is None:
+            return
+            
         
         def pusher(story):
             if data is not None:
@@ -52,7 +57,7 @@ class PyMastStoryPage(Page):
         self.gui_state = 'repaint'
         self.story_scheduler = None
         self.layouts = []
-        self.pending_layouts = self.pending_layouts = [layout.Layout(None, 0,0, 100, 90)]
+        self.pending_layouts = self.pending_layouts = [layout.Layout(None, None, 0,0, 100, 90)]
         self.pending_row = self.pending_row = layout.Row()
         self.pending_tag_map = {}
         self.tag_map = {}
@@ -114,13 +119,14 @@ class PyMastStoryPage(Page):
             for layout_obj in self.layouts:
                 layout_obj.calc()
             
-            self.pending_layouts = self.pending_layouts = [layout.Layout(None, 0,0, 100, 90)]
+            self.pending_layouts = self.pending_layouts = [layout.Layout(None, None, 0,0, 100, 90)]
             self.pending_row = self.pending_row = layout.Row()
             self.pending_tag_map = {}
             self.pending_console = ""
             self.pending_widgets = ""
 
         self.gui_state = 'repaint'
+        
 
     def get_tag(self):
         self.tag += 1
@@ -128,7 +134,7 @@ class PyMastStoryPage(Page):
 
     def add_row(self):
         if not self.pending_layouts:
-            self.pending_layouts = [layout.Layout(None, 20,10, 100, 90)]
+            self.pending_layouts = [layout.Layout(None, None, 20,10, 100, 90)]
         if self.pending_row:
             if len(self.pending_row.columns):
                 self.pending_layouts[-1].add(self.pending_row)
@@ -205,12 +211,12 @@ class PyMastStoryPage(Page):
             self.pending_widgets += "^"+widget
         
 
-    def add_section(self):
+    def add_section(self, click_props):
         if not self.pending_layouts:
-            self.pending_layouts = [layout.Layout(None, 0,0, 100, 90)]
+            self.pending_layouts = [layout.Layout(click_props, None, 0,0, 100, 90)]
         else:
             self.add_row()
-            self.pending_layouts.append(layout.Layout(None, 0,0, 100, 90))
+            self.pending_layouts.append(layout.Layout(click_props,None, 0,0, 100, 90))
         return self.pending_layouts[-1]
 
     def get_pending_layout(self):
@@ -229,10 +235,10 @@ class PyMastStoryPage(Page):
             self.set_button_layout(None)
             return
         top = ((self.aspect_ratio.y - 30)/self.aspect_ratio.y)*100
-        button_layout = layout.Layout(None, 0,top,100,100)
+        button_layout = layout.Layout(None, None, 0,top,100,100)
         layout_row = layout.Row()
         for button, value in buttons.items():
-            the_button = layout.Button(button, self.get_tag())
+            the_button = layout.Button(self.get_tag(), button)
             layout_row.add(the_button)
             self.add_tag(the_button, CodePusher(self, value))
         button_layout.add(layout_row)
@@ -255,14 +261,16 @@ class PyMastStoryPage(Page):
 
     def present(self, sim, event):
         do_tick = True
-            
+        #print(f"**{self.gui_state}**")
+        
+        # This is called via run if event is None
         if event is None:
             class Fake(object):
                 pass
             event = Fake()
             event.client_id = self.client_id
             do_tick = False
-            self.gui_state = 'repaint'
+            #self.gui_state = 'repaint'
         else:
             if event.tag == "gui_push":
                 self.gui_state = 'repaint'
@@ -286,6 +294,7 @@ class PyMastStoryPage(Page):
                 #self.story_scheduler.page = self
                 self.task = self.story_scheduler.task
                 self.task.page = self
+                self.gui_state = "repaint"
                 
         # This should not occur???
         if self.client_id != event.client_id:
@@ -306,26 +315,29 @@ class PyMastStoryPage(Page):
 
 
         if len(self.errors) > 0:
-            message = "PyMast errors\n".join(self.errors)
+            #message = "PyMast errors\n".join(self.errors)
+            message = "".join(self.errors)
+            #TODO: Commas should be legal chars
+            message = message.replace(",", " ")
+            
             sbs.send_gui_clear(event.client_id)
             if event.client_id != 0:
                 sbs.send_client_widget_list(event.client_id, "", "")
-            sbs.send_gui_text(event.client_id, message, "error", 0,0,100,100)
+            sbs.send_gui_text(event.client_id, "error", f"text:{message}", 0,6,100,100)
             self.gui_state = "errors"
             return
         
-        sz = sbs.get_screen_size()
-        if sz is not None and sz.y != 0:
-            aspect_ratio = sz
-            if (self.aspect_ratio.x != aspect_ratio.x or 
-                self.aspect_ratio.y != aspect_ratio.y):
-                self.aspect_ratio = sz
-                for layout in self.layouts:
-                    layout.aspect_ratio = aspect_ratio
-                    layout.calc()
-                self.gui_state = 'repaint'
+        # sz = sbs.get_screen_size()
+        # if sz is not None and sz.y != 0:
+        #     aspect_ratio = sz
+        #     if (self.aspect_ratio.x != aspect_ratio.x or 
+        #         self.aspect_ratio.y != aspect_ratio.y):
+        #         self.aspect_ratio = sz
+        #         for layout in self.layouts:
+        #             layout.aspect_ratio = aspect_ratio
+        #             layout.calc()
+        #         self.gui_state = 'repaint'
 
-        
         match self.gui_state:
             case  "repaint":
                 sbs.send_gui_clear(event.client_id)
@@ -335,15 +347,22 @@ class PyMastStoryPage(Page):
                 # keeps the existing GUI displayed
                 for layout in self.layouts:
                     layout.present(sim,event)
-                self.gui_state = "presenting"
+                if sim is None or len(self.layouts)==0:
+                    self.gui_state = "repaint"
+                else:
+                    self.gui_state = "presenting"
             case  "refresh":
                 for layout in self.layouts:
                     layout.present(sim,event)
-                self.gui_state = "presenting"
+                if sim is None or len(self.layouts)==0:
+                    self.gui_state = "repaint"
+                else:
+                    self.gui_state = "presenting"
 
     def do_tick(self, sim):
-        # if sim is None:
-        #     return
+        if sim is None:
+            print("sim is NONE")
+       
         try:
             self.story.scheduler = self.story_scheduler
             self.story.task = self.task
@@ -355,8 +374,10 @@ class PyMastStoryPage(Page):
         except BaseException as err:
             sbs.pause_sim()
             text_err = traceback.format_exc()
-            text_err = text_err.replace(chr(94), "")
-            print(text_err)
+            text_err = text_err.replace(chr(94), " ")
+            #text_err = text_err.replace('', "")
+            logger = logging.getLogger("pymast.runtime")
+            logger.info(text_err)
             self.errors.append(text_err)
 
 
@@ -377,7 +398,7 @@ class PyMastStoryPage(Page):
             if isinstance(call_label, CodePusher):
                 call_label.on_message(sim, event)
                 refresh=True
-            elif inspect.isfunction:
+            elif inspect.isfunction(call_label):
                 call_label(sim, event)
                 refresh=True
             else:
@@ -408,13 +429,27 @@ class PyMastStoryPage(Page):
                 self.disconnected = True
                 if self.disconnect_cb:
                     self.disconnect_cb()
+            if event.tag == "screen_size":
+                if event.source_point.x!=0 and event.source_point.y != 0:
+                    if (self.aspect_ratio.x != event.source_point.x or 
+                        self.aspect_ratio.y != event.source_point.y):
+                        self.aspect_ratio.x = event.source_point.x
+                        self.aspect_ratio.y = event.source_point.y
+
+                        for layout in self.layouts:
+                            layout.aspect_ratio.x = self.aspect_ratio.x
+                            layout.aspect_ratio.y = self.aspect_ratio.y
+                            layout.calc()
+                        self.gui_state = 'repaint'
+
 
             self.task.on_event(sim, event)
         except BaseException as err:
             sbs.pause_sim()
             text_err = traceback.format_exc()
             text_err = text_err.replace(chr(94), "")
-            print(text_err)
+            logger = logging.getLogger("pymast.runtime")
+            logger.info(text_err)
             self.errors.append(text_err)
 
     def assign_player_ship(self, player):

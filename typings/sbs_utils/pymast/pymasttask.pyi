@@ -2,13 +2,15 @@ from sbs_utils.pymast.pollresults import PollResults
 from sbs_utils.pymast.pymastcomms import PyMastComms
 from sbs_utils.pymast.pymastscience import PyMastScience
 from functools import partial
+def label (*dargs, **dkwargs):
+    ...
 class DataHolder(object):
     """class DataHolder"""
 class PyMastTask(object):
     """class PyMastTask"""
     def __init__ (self, story, scheduler, label) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def _delay (self, delay):
+    def _delay (self, seconds=0, minutes=0, use_sim=False):
         ...
     def _run_event (self, label, sim, event):
         ...
@@ -34,7 +36,7 @@ class PyMastTask(object):
         ...
     def behave_until (self, poll_result, label):
         ...
-    def delay (self, delay):
+    def delay (self, seconds=0, minutes=0, use_sim=False):
         ...
     def do_jump (self):
         ...

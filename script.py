@@ -82,7 +82,7 @@ class ShipListDemo(Page):
         self.picker2.present(sim, event)
         self.picker3.present(sim, event)
         self.picker4.present(sim, event)
-        sbs.send_gui_button(CID, "Back", "back", 85,95, 99,99)
+        sbs.send_gui_button(CID, "back", "text: back", 85,95, 99,99)
 
         self.gui_state = "presenting"
 
@@ -109,11 +109,11 @@ class GuiPage(Page):
     def present(self, sim, event):
         sbs.send_gui_clear(event.client_id)
         sbs.send_gui_text(
-                    event.client_id, f"Page: {self.pageid}", "text", 25, 30, 99, 90)
+                    event.client_id, "text", f"text:Page: {self.pageid}",25, 30, 99, 90)
         w = layout.wrap(99,99, 19, 4,col=1, v_dir=-1, h_dir=-1)
         
-        sbs.send_gui_button(event.client_id, "Back", "back", *next(w))
-        sbs.send_gui_button(event.client_id, "Another", "again", *next(w))
+        sbs.send_gui_button(event.client_id, "back", "text: Back", *next(w))
+        sbs.send_gui_button(event.client_id, "again", "text: Another", *next(w))
         
 
     def on_message(self, sim, event):
@@ -131,22 +131,18 @@ class TestLayoutPage(LayoutPage):
         self.layout.width = 70
         self.layout.height = 70
 
-        text = " l;k;lk; k;lk ;lk;k;k; jhkj  kjhhkjh kjhh jkh k kjh jh  jljlk j lk j kj lkj kjlk lkjlk jllk  kjkjl  jhjhkh kh k iojiopipi rrrwqrrq"
+        text = "  jhkj  kjhhkjh kjhh jkh k kjh jh  jljlk j lk j kj lkj kjlk lkjlk jllk  kjkjl  jhjhkh kh k iojiopipi rrrwqrrq"
         self.layout.add(
             Row()
-                .add(Face(faces.random_terran(),
-                    "tag_two"))
-                .add(Text(text,
-                    "tag_one"))
+                .add(Face("tag_two", faces.random_terran()))
+                .add(Text("tag_one",text))
         )
         self.layout.add(
             Row()
                 #.add(Ship("Battle Cruiser",
                 #    "tag_three"))
-                .add(Text(text,
-                    "tag_four"))
-                .add(Face(faces.random_terran(),
-                    "tag_five"))
+                .add(Text("tag_four", text))
+                .add( Face("tag_five", faces.random_terran()))
         )
         
         self.layout.calc()
@@ -188,27 +184,27 @@ class GuiMain(Page):
     def present(self, sim, event):
         sbs.send_gui_clear(event.client_id)
         sbs.send_gui_text(
-            event.client_id, "Mission: SBS_Utils unit test.^^This is a unit test for the SBS_Utils library", "text", 25, 30, 99, 90)
+            event.client_id, "text", "text: Mission: SBS_Utils unit test.^^This is a unit test for the SBS_Utils library", 25, 30, 99, 90)
 
 
         w = layout.wrap(99,99, 19, 4,col=1, v_dir=-1, h_dir=-1)
         
 
-        sbs.send_gui_button(event.client_id, "Start Mission", "start", *next(w))
-        sbs.send_gui_button(event.client_id, "smoke test", "smoke", *next(w))
-        sbs.send_gui_button(event.client_id, "Vec3 tests", "vec_unit", *next(w))
-        sbs.send_gui_button(event.client_id, "face test", "face", *next(w))
-        sbs.send_gui_button(event.client_id, "face gen", "face_gen", *next(w))
-        sbs.send_gui_button(event.client_id, "Gui Pages", "again", *next(w))
-        sbs.send_gui_button(event.client_id, "Avatar Editor", "avatar", *next(w))
-        sbs.send_gui_button(event.client_id, "Ship Picker", "ship", *next(w))
-        sbs.send_gui_button(event.client_id, "Ship Lists", "shiplist", *next(w))
-        sbs.send_gui_button(event.client_id, "StubGen", "stub", *next(w))
-        sbs.send_gui_button(event.client_id, "Layout", "layout", *next(w))
-        sbs.send_gui_button(event.client_id, "Mast bar", "story", *next(w))
-        sbs.send_gui_button(event.client_id, "Mast ttt", "story_ttt", *next(w))
-        sbs.send_gui_button(event.client_id, "GridItems", "grid", *next(w))
-        sbs.send_gui_button(event.client_id, "Mast Siege", "siege", *next(w))
+        sbs.send_gui_button(event.client_id, "start", "text: Start Mission", *next(w))
+        sbs.send_gui_button(event.client_id, "smoke", "text: smoke test", *next(w))
+        sbs.send_gui_button(event.client_id, "vec_unit", "text: Vec3 tests", *next(w))
+        sbs.send_gui_button(event.client_id, "face", "text: face test", *next(w))
+        sbs.send_gui_button(event.client_id, "face_gen", "text: face gen", *next(w))
+        sbs.send_gui_button(event.client_id, "again", "text: Gui Pages", *next(w))
+        sbs.send_gui_button(event.client_id, "avatar", "text: Avatar Editor", *next(w))
+        sbs.send_gui_button(event.client_id, "ship", "text: Ship Picker", *next(w))
+        sbs.send_gui_button(event.client_id, "shiplist", "text: Ship Lists", *next(w))
+        sbs.send_gui_button(event.client_id, "stub", "text: StubGen", *next(w))
+        sbs.send_gui_button(event.client_id, "layout", "text: Layout", *next(w))
+        sbs.send_gui_button(event.client_id, "story", "text: Mast bar", *next(w))
+        sbs.send_gui_button(event.client_id, "story_ttt", "text: Mast ttt", *next(w))
+        sbs.send_gui_button(event.client_id, "grid", "text: GridItems", *next(w))
+        sbs.send_gui_button(event.client_id, "siege", "text: Mast Siege", *next(w))
 
     def on_message(self, sim, event):
         Gui.client_start_page_class(ClientSelectPage)

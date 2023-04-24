@@ -504,10 +504,11 @@ class AwaitConditionRuntimeNode(MastRuntimeNode):
 #    pass
 
 class PushData:
-    def __init__(self, label, active_cmd, data=None):
+    def __init__(self, label, active_cmd, data=None, resume_node=None):
         self.label = label
         self.active_cmd = active_cmd
         self.data = data
+        self.runtime_node = resume_node
 
 
 class MastAsyncTask:
@@ -527,19 +528,27 @@ class MastAsyncTask:
         self.pop_on_jump = 0
         self.pending_pop = None
         self.pending_jump = None
+        self.pending_push = None
     
     def push_label(self, label, activate_cmd=0, data=None):
+        print("PUSH")
         if self.active_label:
-            push_data = PushData(self.active_label, self.active_cmd, data)
-            #print(f"PUSH DATA {push_data.label} {push_data.active_cmd}")
-            self.label_stack.append(push_data)
+            self.pending_push = PushData(self.active_label, self.active_cmd, data)
         self.jump(label, activate_cmd)
 
     def push_jump_pop(self, label, activate_cmd=0, data=None):
-        push_data = PushData(self.active_label, self.active_cmd, data)
+        #
+        # This type of push resumes running the same runtime node 
+        # that was active when the push occurred
+        # This done by Buttons, Dropdown and event
+        #
+        print("PUSH JUMP POP")
+        push_data = PushData(self.active_label, self.active_cmd, data, self.runtime_node)
         self.label_stack.append(push_data)
         self.pop_on_jump += 1
-        self.jump(label, activate_cmd)
+        self.pending_jump = (label,activate_cmd)
+        #print(f"PUSH: {label}")
+        #self.jump(label, activate_cmd)
 
 
     # For button Pushes, and maybe events
@@ -567,16 +576,23 @@ class MastAsyncTask:
 
     def pop_label(self, inc_loc=True):
         if len(self.label_stack)>0:
+            # Pop was called in an inline block
             if self.pop_on_jump >0:
                 self.pop_on_jump-=1
+                push_data: PushData
+                push_data = self.label_stack.pop()
+                return
             push_data: PushData
             push_data = self.label_stack.pop()
+            #print(f"POP: {push_data.label}")
             #print(f"POP DATA {push_data.label} {push_data.active_cmd} len {len(self.label_stack)}")
             if self.pending_jump is None:
                 if inc_loc:
-                    self.pending_pop = (push_data.label, push_data.active_cmd+1)
+                    print(f"I inc'd {push_data.runtime_node}")
+                    self.pending_pop = (push_data.label, push_data.active_cmd+1, push_data.runtime_node)
                 else:
-                    self.pending_pop = (push_data.label, push_data.active_cmd)
+                    print(f"I DID NOT inc {push_data.runtime_node}")
+                    self.pending_pop = (push_data.label, push_data.active_cmd, push_data.runtime_node)
 
     def add_event(self, event_name, event):
         event_data = PushData(self.active_label, event.loc)
@@ -585,7 +601,7 @@ class MastAsyncTask:
     def run_event(self, event_name, event):
         ev_data = self.events.get(event_name)
         if ev_data is not None:
-            self.redirect_push_label(ev_data.label, ev_data.active_cmd+1,-1, {"event": event})
+            self.push_jump_pop(ev_data.label, ev_data.active_cmd+1,{"event": event})
             self.tick()
 
     def jump(self, label = "main", activate_cmd=0):
@@ -594,8 +610,8 @@ class MastAsyncTask:
             # if this is a jump and there are tested push
             # get back to the main flow
             self.pop_on_jump-=1
-            self.label_stack.pop()
-            
+            push_data = self.label_stack.pop()
+            #print(f"POP: {push_data.label}")
     
     
     def do_jump(self, label = "main", activate_cmd=0):
@@ -621,6 +637,20 @@ class MastAsyncTask:
                 self.active_cmd = 0
                 self.runtime_node = None
                 self.done = True
+
+    def do_resume(self, label, activate_cmd, runtime_node):
+        label_runtime_node = self.main.mast.labels.get(label)
+        if label_runtime_node is not None:
+            self.cmds = self.main.mast.labels[label].cmds
+            self.active_label = label
+            self.active_cmd = activate_cmd
+            self.runtime_node = runtime_node
+            self.done = False
+        else:
+            self.runtime_error(f"""Jump to label "{label}" not found""")
+            self.active_cmd = 0
+            self.runtime_node = None
+            self.done = True
 
     def get_symbols(self):
         m1 = self.main.mast.vars | self.main.vars
@@ -696,6 +726,10 @@ class MastAsyncTask:
         if isinstance(message, str):
             return message
         allowed = self.get_symbols()
+        # logger = logging.getLogger("mast.story")
+        # for k,v in allowed.items():
+        #     if k == "myslot":
+        #         logger.info(f"{k}: {v}")
         value = eval(message, {"__builtins__": Mast.globals}, allowed)
         return value
 
@@ -743,10 +777,16 @@ class MastAsyncTask:
                     self.do_jump(*jump_data)
                 elif self.pending_pop:
                     # Pending jump trumps pending pop
-                    #print(f"pending pop to {self.pending_pop.__name__}")
                     pop_data = self.pending_pop
                     self.pending_pop = None
-                    self.do_jump(*pop_data)
+                    if pop_data[2] is not None:
+                        print("Hey look I resumed")
+                        self.do_resume(*pop_data)
+                    else:    
+                        self.do_jump(*pop_data)
+                if self.pending_push:
+                    self.label_stack.append(self.pending_push)
+                    self.pending_push = None
 
                 count += 1
                 # avoid tight loops
@@ -795,12 +835,12 @@ class MastAsyncTask:
         cmd = None
         logger = logging.getLogger("mast.runtime")
         logger.error(s)
-        s = "mast SCRIPT ERROR\n"+ s
+        s = "mast SCRIPT ERROR\n"
         if self.runtime_node:
             cmd = self.cmds[self.active_cmd]
-        s += f"\nlabel: {self.active_label}"
+        s += f"\n   mast label: {self.active_label}"
         if cmd is not None:
-            s += f"\ncmd: {cmd.__class__.__name__} loc {cmd.loc}"
+            s += f"\n      cmd: {cmd.__class__.__name__}\n       loc: {cmd.loc}\n\n"
         logger = logging.getLogger("mast.runtime")
         logger.error(s)
 

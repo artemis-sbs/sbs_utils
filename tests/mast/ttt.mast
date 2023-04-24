@@ -37,7 +37,6 @@ winning_loc = []
 <<-
 
 ============ check_winner  ==========
-
 draw = grid[0]
 
 end_game = END_UNKNOWN
@@ -90,7 +89,7 @@ await choice:
         ###
         ### This needs to pop then jump to play
         ### This is a bit complex, can this be made easier?
-        <<->play
+        ->play
 end_await
 
 =========== play ================

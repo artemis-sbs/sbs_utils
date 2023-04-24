@@ -95,15 +95,16 @@ class Column:
 
     
 class Text(Column):
-    def __init__(self, message, tag) -> None:
+    def __init__(self, tag, message) -> None:
         super().__init__()
+        if "text:" not in message:
+            message = f"text:{message}"
         self.message = message
         self.tag = tag
-        #self.color = color
 
     def present(self, sim, event):
         sbs.send_gui_text(event.client_id, 
-            self.message, self.tag, 
+            self.tag, self.message,  
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
     @property
     def value(self):
@@ -111,19 +112,25 @@ class Text(Column):
        
     @value.setter
     def value(self, v):
+        if "text:" not in v:
+            v = f"text:{v}"
+
         self.message = v
     
 
 class Button(Column):
-    def __init__(self, message, tag) -> None:
+    def __init__(self, tag, message) -> None:
         super().__init__()
-        self.message = message
+        
         self.tag = tag
-        #self.color = color
+        if "text:" not in message:
+            self.message = f"text:{message}"
+        else:
+            self.message = message
 
     def present(self, sim, event):
         sbs.send_gui_button(event.client_id, 
-            self.message, self.tag, 
+            self.tag, self.message, 
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
     @property
     def value(self):
@@ -131,23 +138,24 @@ class Button(Column):
        
     @value.setter
     def value(self, v):
+        if "text:" not in v:
+            v = f"text:{v}"
+
         self.message = v
 
 class Slider(Column):
-    def __init__(self,  value=0.5, low=0.0, high=1.0, show_number=True, tag=None) -> None:
+    def __init__(self,  tag, value, props) -> None:
         super().__init__()
         self.tag = tag
         self._value = value
-        self.low = low
-        self.high = high
-        self.show_number = show_number
+        self.props = props
+        
 
     def present(self, sim, event):
         sbs.send_gui_slider(event.client_id, 
             self.tag, 
-            self.low, self.high, self._value,
+            self._value, self.props,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom,
-            self.show_number
             )
         
     def on_message(self, sim, event):
@@ -161,16 +169,19 @@ class Slider(Column):
         self._value = v
 
 class Checkbox(Column):
-    def __init__(self, message, tag, value=False) -> None:
+    def __init__(self, tag, message, value=False) -> None:
         super().__init__()
+        if "text:" not in message:
+            message = f"text:{message}"
         self.message = message
         self.tag = tag
         self._value = value
         
     def present(self, sim, event):
+        message = f"{self.message};state:{'on' if self._value else 'off'}"
         sbs.send_gui_checkbox(event.client_id, 
-            self.message, self.tag, 
-            1 if self._value else 0,
+            self.tag, message, 
+            # 1 if self._value else 0,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
     
     def on_message(self, sim, event):
@@ -185,47 +196,52 @@ class Checkbox(Column):
     def value(self, v):
         self._value= v
 
-class RadioButton(Column):
-    def __init__(self, group, message, tag, value=False) -> None:
-        super().__init__()
-        self.message = message
-        self.tag = tag
-        self._value = value
-        self.group = group
-        
-    def present(self, sim, event):
-        sbs.send_gui_checkbox(event.client_id, 
-            self.message, self.tag, 
-            1 if self._value else 0,
-            self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
-    
-    def on_message(self, sim, event):
-        if event.sub_tag != self.tag:
-            return
-        self.value = 1
-        for e in self.group:
-            if e != self:
-                e.value = 0
-            e.present(sim, event)
 
-    @property
-    def value(self):
-         return self._value
-    
-       
-    @value.setter
-    def value(self, v):
-        self._value= v
+def split_props(s, def_key):
+    ret = {}
+
+    # get key
+    start = 0
+    key = -1
+    end = -1
+    while start < len(s):
+        key = s.find(":", start)
+        if key == -1:
+            ret[def_key] = s
+            return ret
+        s_key = s[start:key]
+        key += 1
+        end = s.find(";", key)
+        if end ==-1:
+            s_value = s[key:]
+            start = len(s)
+        else:
+            s_value = s[key:end]
+            start = end+1
+        ret[s_key] = s_value
+    return ret
+        
+def merge_props(d):
+    s=""
+    for k,v in d.items():
+        s += f"{k}:{v};"
+    return s  
+
 
 
 class Image(Column):
-    def __init__(self, file, color, tag) -> None:
+    #"image:icon-bad-bang; color:blue; sub_rect: 0,0,etc"
+    def __init__(self, tag, file) -> None:
         super().__init__()
         fs.get_artemis_data_dir()
-        self.file = os.path.abspath(file)
-        self.rel_file = os.path.relpath(file, fs.get_artemis_data_dir()+"\graphics")
-        print(f"{self.file} >> {self.rel_file}")
-        self.color = color
+        props = split_props(file, "image")
+        # to get size get absolute path
+        self.file = os.path.abspath(props["image"].strip())
+        # Make the file relative to artemis dir
+        rel_file = os.path.relpath(props["image"].strip(), fs.get_artemis_data_dir()+"\graphics")
+        props["image"] = rel_file
+        self.props = merge_props(props)
+        #print(f"{self.file} \n>>\n{rel_file}\nPROPS: {self.props} ")
         self.tag = tag
         self.width = -1
         self.height = -1
@@ -233,14 +249,13 @@ class Image(Column):
         
     def present(self, sim, event):
         if self.width == -1:
-            message = f"IMAGE NOT FOUND: {self.file}"
+            message = f"text: IMAGE NOT FOUND {self.file}"
             sbs.send_gui_text(event.client_id, 
-                message, self.tag, 
+                self.tag, message,
                 self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
         else:
             sbs.send_gui_image(event.client_id, 
-                self.rel_file, self.color, self.tag, 
-                0,0,self.width, self.height,
+                self.tag, self.props,
                 self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
 
     # Get image width and height of image
@@ -248,13 +263,13 @@ class Image(Column):
         try:
             with open(self.file+".png", 'rb') as f:
                 data = f.read(26)
-                print("Opened")
+                #print("Opened")
                 # Chck if is png
                 #if (data[:8] == '\211PNG\r\n\032\n'and (data[12:16] == 'IHDR')):
                 w, h = struct.unpack('>LL', data[16:24])
                 self.width = int(w)
                 self.height = int(h)
-                print(f"Images size {w} {h}")
+                #print(f"Images size {w} {h}")
         except Exception:
             self.width = -1
             self.height = -1
@@ -267,15 +282,16 @@ class Image(Column):
         self._value= v
 
 class Dropdown(Column):
-    def __init__(self, value, values, tag) -> None:
+    def __init__(self, tag, props) -> None:
         super().__init__()
-        self._value = value
-        self.values = values
+        self.values = props
         self.tag = tag
+        #TODO: Prase out default ?
+        self._value = ""
         
     def present(self, sim, event):
         sbs.send_gui_dropdown(event.client_id, 
-            self._value, self.tag, self.values,
+            self.tag, self.values,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
         
     def on_message(self, sim, event):
@@ -289,15 +305,18 @@ class Dropdown(Column):
         self._value= v
 
 class TextInput(Column):
-    def __init__(self, value, label, tag) -> None:
+    def __init__(self, tag, props) -> None:
         super().__init__()
-        self._value = value
+        if "text:" in props:
+            #TODO: Need to parse out value    
+            pass
+        self._value = props
         self.tag = tag
-        self.label = label
+        self.props = props
         
     def present(self, sim, event):
         sbs.send_gui_typein(event.client_id, 
-            self._value, self.label,self.tag,
+            self.tag, self.props,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
         
     def on_message(self, sim, event):
@@ -339,7 +358,7 @@ class ConsoleWidget(Column):
 
 
 class Face(Column):
-    def __init__(self, face, tag) -> None:
+    def __init__(self, tag, face) -> None:
         super().__init__()
         self.face = face
         self.tag = tag
@@ -347,7 +366,7 @@ class Face(Column):
 
     def present(self, sim, event):
         sbs.send_gui_face(event.client_id, 
-            self.face, self.tag,
+            self.tag, self.face,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
             #self.left, self.top, self.left+(self.right-self.left)*.60, 100)
             #self.left, self.top, self.left+w, self.top+w)
@@ -360,15 +379,18 @@ class Face(Column):
         self.face= v
 
 class Ship(Column):
-    def __init__(self, ship, tag) -> None:
+    def __init__(self, tag, ship) -> None:
         super().__init__()
+        if "hull_tag:" not in ship:
+            ship = f"hull_tag:{ship}"
+
         self.ship = ship
         self.tag = tag
         #self.square = False
 
     def present(self, sim, event):
         sbs.send_gui_3dship(event.client_id, 
-            self.ship, self.tag, 
+            self.tag, self.ship,  
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
     @property
     def value(self):
@@ -379,20 +401,17 @@ class Ship(Column):
         self.ship= v
 
 class Icon(Column):
-    def __init__(self, icon, color, tag) -> None:
+    def __init__(self, tag, props) -> None:
         super().__init__()
-        self.color = color
-        self.icon = icon
+        self.props = props
         self.tag = tag
         self.square = True
 
     def present(self, sim, event):
         aspect_ratio = sbs.get_screen_size()
-        sbs.send_gui_icon(event.client_id, self.color, self.tag,
-                    self.icon,
-                    self.bounds.left+(self.bounds.right-self.bounds.left)/2,
-                    self.bounds.top+(self.bounds.bottom-self.bounds.top)/2, 
-                    ((aspect_ratio.x/100) * (self.bounds.right-self.bounds.left)/2))
+        sbs.send_gui_icon(event.client_id, self.tag,self.props, 
+                    self.bounds.left,self.bounds.top, self.right, self.bottom)
+
     @property
     def value(self):
          return self.icon
@@ -402,36 +421,28 @@ class Icon(Column):
         self.icon= v
 
 class IconButton(Column):
-    def __init__(self, icon, color, tag) -> None:
+    def __init__(self, tag, props) -> None:
         super().__init__()
-        self.icon = icon
         self.tag = tag
-        self.color = color
+        self.props = props
 
     def present(self, sim, event):
-        aspect_ratio = sbs.get_screen_size()
         sbs.send_gui_iconbutton(event.client_id, 
-            self.color, self.tag, 
-            #self.icon, 
-            10, 90, 30, 0)
-            #100, 40, 50 )
-            # self.bounds.left+(self.bounds.right-self.bounds.left)/2,
-            # self.bounds.top+(self.bounds.bottom-self.bounds.top)/2, 
-            # ((aspect_ratio.x/100) * (self.bounds.right-self.bounds.left)/2))
-            # self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+            self.tag, self.props, 
+            self.bounds.left,self.bounds.top, self.right, self.bottom)
     @property
     def value(self):
-         return self.message
+         return self.props
        
     @value.setter
     def value(self, v):
-        self.message = v
+        self.props = v
 
 
 
         
 class GuiControl(Column):
-    def __init__(self, content, tag) -> None:
+    def __init__(self,  tag,content) -> None:
         super().__init__()
         self.tag = tag
         self.content = content
@@ -464,11 +475,11 @@ class GuiControl(Column):
 
 
 class Layout:
-    def __init__(self, rows = None, 
+    def __init__(self, click_props=None, rows = None, 
                 left=0, top=0, right=100, bottom=100,
                 left_pixels=False, top_pixels=False, right_pixels=False, bottom_pixels=False) -> None:
         self.rows = rows if rows else []
-        self.aspect_ratio = sbs.get_screen_size()
+        self.aspect_ratio = sbs.vec2(1920,1071)
         self.set_bounds(Bounds(left,top,right,bottom))
         self.default_height = None
         self.default_width = None
@@ -488,7 +499,8 @@ class Layout:
         self.rows.append(row)
 
     def calc(self):
-        
+        # remove empty
+        #self.rows = [x for x in self.rows if len(x.columns)>0]
         if len(self.rows):
             if self.default_height is not None:
                 layout_row_height = self.default_height
@@ -577,9 +589,44 @@ class Layout:
         row:Row
         for row in self.rows:
             row.on_message(sim,event)
+
+class RadioButton(Column):
+    def __init__(self, tag,  message, group, value=False) -> None:
+        super().__init__()
+        self.message = message
+        self.tag = tag
+        self._value = value
+        self.group = group
+        
+    def present(self, sim, event):
+        props = f"text:{self.message};state:{'on' if self._value else 'off'}"
+        sbs.send_gui_checkbox(event.client_id, 
+            self.tag, props,
+            # 1 if self._value else 0,
+            self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+    
+    def on_message(self, sim, event):
+        if event.sub_tag != self.tag:
+            return
+        self.value = 1
+        for e in self.group:
+            if e != self:
+                e.value = 0
+            e.present(sim, event)
+
+    @property
+    def value(self):
+         return self._value
+    
+       
+    @value.setter
+    def value(self, v):
+        self._value= v
+
+
         
 class RadioButtonGroup(Column):
-    def __init__(self, buttons, value, vertical, tag) -> None:
+    def __init__(self, tag, buttons, value, vertical) -> None:
         super().__init__()
         buttons = buttons.split(",")
         self.tag = tag
@@ -590,7 +637,7 @@ class RadioButtonGroup(Column):
         i=0
         for button in buttons:
             button = button.strip()
-            radio =RadioButton(group, button, f"{tag}:{i}", value==button)
+            radio =RadioButton(f"{tag}:{i}", button, group,  value==button)
             group.append(radio)
             row.add(radio)
             i+=1

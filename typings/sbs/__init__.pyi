@@ -50,34 +50,40 @@ def send_comms_message_to_player_ship(playerID: int, sourceID: int, colorDesc: s
     """sends a complex message to the comms console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
 def send_comms_selection_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
     """sends a complex message to the comms console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
+def send_grid_button_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
+    """sends a complex message to the engineering console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
+def send_grid_selection_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
+    """sends a complex message to the engineering console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
 def send_gui_3dship(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
     """Creates a 3D ship box GUI element, on the targeted client (0 = server screen)"""
-def send_gui_button(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
+def send_gui_button(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a button GUI element, on the targeted client (0 = server screen)"""
-def send_gui_checkbox(arg0: int, arg1: str, arg2: str, arg3: int, arg4: float, arg5: float, arg6: float, arg7: float) -> None:
+def send_gui_checkbox(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
     """Creates a checkbox GUI element, on the targeted client (0 = server screen)"""
 def send_gui_clear(arg0: int) -> None:
     """Clears all GUI elements from screen, on the targeted client (0 = server screen)"""
 def send_gui_clickregion(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
     """Creates a click-region GUI element, on the targeted client (0 = server screen)"""
-def send_gui_dropdown(arg0: int, arg1: str, arg2: str, arg3: str, arg4: float, arg5: float, arg6: float, arg7: float) -> None:
+def send_gui_dropdown(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
     """Creates a dropdown GUI element, on the targeted client (0 = server screen)"""
 def send_gui_face(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
     """Creates a face box GUI element, on the targeted client (0 = server screen)"""
-def send_gui_icon(arg0: int, arg1: str, arg2: str, arg3: int, arg4: float, arg5: float, arg6: float) -> None:
+def send_gui_icon(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
     """Creates an icon art GUI element, on the targeted client (0 = server screen)"""
 def send_gui_iconbutton(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
     """Creates a icon-button GUI element, on the targeted client (0 = server screen)"""
-def send_gui_image(arg0: int, arg1: str, arg2: str, arg3: str, arg4: float, arg5: float, arg6: float, arg7: float, arg8: float, arg9: float, arg10: float, arg11: float) -> None:
+def send_gui_image(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
     """Creates a 2d art image GUI element, on the targeted client (0 = server screen)"""
-def send_gui_slider(arg0: int, arg1: str, arg2: float, arg3: float, arg4: float, arg5: float, arg6: float, arg7: float, arg8: float, arg9: bool) -> None:
+def send_gui_slider(arg0: int, arg1: str, arg2: float, arg3: str, arg4: float, arg5: float, arg6: float, arg7: float) -> None:
     """Creates a slider bar GUI element, on the targeted client (0 = server screen) (long clientID, std::string tag, float low, float high, float current, float left, float top, float right, float bottom, bool showNumberFlag)"""
 def send_gui_text(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
     """Creates a text box GUI element, on the targeted client (0 = server screen)"""
-def send_gui_typein(arg0: int, arg1: str, arg2: str, arg3: str, arg4: float, arg5: float, arg6: float, arg7: float) -> None:
+def send_gui_typein(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
     """Creates a text entry GUI element, on the targeted client (0 = server screen)"""
-def send_message_to_player_ship(arg0: int, arg1: str, arg2: str) -> None:
-    """sends a text message to the text box, on every client for a certain ship. args:  uint32_t playerID (0 = all ships), std::string color, std::string text"""
+def send_message_to_client(clientID: int, colorDesc: str, text: str) -> None:
+    """sends a text message to the text box, for the specific client. args:  uint64 clientID (0 = server screen), std::string color, std::string text"""
+def send_message_to_player_ship(playerID: int, colorDesc: str, text: str) -> None:
+    """sends a text message to the text box, on every client for a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string text"""
 def send_story_dialog(arg0: int, arg1: str, arg2: str, arg3: str, arg4: str) -> None:
     """sends a story dialog to the targeted client (0 = server screen)"""
 def set_dmx_channel(arg0: int, arg1: int, arg2: int, arg3: int, arg4: int, arg5: int) -> None:
@@ -207,19 +213,13 @@ class hullmap(object): ### from pybind
     def desc (self: sbs.hullmap, arg0: str) -> None:
         """string, description text"""
     def get_grid_object_by_id(self: sbs.hullmap, arg0: int) -> sbs.grid_object:
-        """returns a gridobject, by int32 ID"""
+        """returns a gridobject, by uint64 ID"""
     def get_grid_object_by_index(self: sbs.hullmap, arg0: int) -> sbs.grid_object:
         """returns a gridobject, by position in the list"""
-    def get_grid_object_by_name(*args, **kwargs):
-        """Overloaded function.
-        
-        1. get_grid_object_by_name(self: sbs.hullmap, arg0: str) -> sbs.grid_object
-        
-        returns a gridobject, by name
-        
-        2. get_grid_object_by_name(self: sbs.hullmap, arg0: str) -> sbs.grid_object
-        
-        returns a gridobject, by text tag"""
+    def get_grid_object_by_name(self: sbs.hullmap, arg0: str) -> sbs.grid_object:
+        """returns a gridobject, by name"""
+    def get_grid_object_by_tag(self: sbs.hullmap, arg0: str) -> sbs.grid_object:
+        """returns a gridobject, by text tag"""
     def get_grid_object_count(self: sbs.hullmap) -> int:
         """get the number of grid objects in the list, within this hullmap"""
     @property
@@ -276,6 +276,18 @@ class navpoint(object): ### from pybind
     @text.setter
     def text (self: sbs.navpoint, arg0: str) -> None:
         """string, text label"""
+    @property
+    def visibleToShip (self: sbs.navpoint) -> int:
+        """uint64, id of the only space object that can see this navpoint (0 = all)"""
+    @visibleToShip.setter
+    def visibleToShip (self: sbs.navpoint, arg0: int) -> None:
+        """uint64, id of the only space object that can see this navpoint (0 = all)"""
+    @property
+    def visibleToSide (self: sbs.navpoint) -> str:
+        """string, text side name of side that can see this navpoint"""
+    @visibleToSide.setter
+    def visibleToSide (self: sbs.navpoint, arg0: str) -> None:
+        """string, text side name of side that can see this navpoint"""
 class object_data_set(object): ### from pybind
     """class object_data_set"""
     def get(*args, **kwargs):
@@ -382,20 +394,24 @@ class simulation(object): ### from pybind
         """deletes navpoint by its name"""
     def delete_navpoint_by_reference(self: sbs.simulation, arg0: sbs.navpoint) -> None:
         """deletes navpoint by its reference"""
-    def get_hull_map(self: sbs.simulation, arg0: int) -> sbs.hullmap:
+    def get_hull_map(self: sbs.simulation, shipUID: int) -> sbs.hullmap:
         """gets the hull map object for this space object"""
     def get_navpoint_by_name(self: sbs.simulation, arg0: str) -> sbs.navpoint:
         """takes a string name, returns the associated Navpoint object"""
+    def get_navpoint_by_reference(self: sbs.simulation, arg0: sbs.navpoint) -> sbs.navpoint:
+        """takes a navpoint reference, returns the ref if it's valid"""
     def get_space_object(self: sbs.simulation, arg0: int) -> sbs.space_object:
         """returns the refence to a spaceobject, by ID"""
-    def make_new_active(self: sbs.simulation, arg0: str, arg1: str) -> int:
+    def make_new_active(self: sbs.simulation, aiTag: str, dataTag: str) -> int:
         """creates a new spaceobject"""
-    def make_new_passive(self: sbs.simulation, arg0: str, arg1: str) -> int:
-        """creates a new spaceobject"""
-    def make_new_player(self: sbs.simulation, arg0: str, arg1: str) -> int:
-        """creates a new spaceobject"""
+    def make_new_passive(self: sbs.simulation, aiTag: str, dataTag: str) -> int:
+        """creates a new spaceobject.  This object will be treated (by the code) like an asteroid or nebula; something without movement or AI"""
+    def make_new_player(self: sbs.simulation, aiTag: str, dataTag: str) -> int:
+        """creates a new spaceobject, with all the extra code afforded to something intended to be operated by players"""
     def navpoint_exists(self: sbs.simulation, arg0: str) -> bool:
         """returns true if the navpoint exists, by name"""
+    def navpoint_exists_ref(self: sbs.simulation, arg0: sbs.navpoint) -> bool:
+        """returns true if the navpoint reference exists"""
     def reposition_space_object(self: sbs.simulation, arg0: sbs.space_object, arg1: float, arg2: float, arg3: float) -> None:
         """immedaitely changes the position of a spaceobject"""
     def space_object_exists(self: sbs.simulation, arg0: int) -> bool:

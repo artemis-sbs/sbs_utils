@@ -71,7 +71,7 @@ class Hole(MastNode):
         ...
 class ImageControl(MastNode):
     """class ImageControl"""
-    def __init__ (self, file, q, color, style_name=None, style=None, style_q=None, loc=None):
+    def __init__ (self, file, q, style_name=None, style=None, style_q=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...

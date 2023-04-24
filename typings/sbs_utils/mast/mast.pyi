@@ -7,6 +7,8 @@ def first_non_newline_index (s):
     ...
 def first_non_space_index (s):
     ...
+def first_non_whitespace_index (s):
+    ...
 def getmembers (object, predicate=None):
     ...
 def isfunction (object):
@@ -27,6 +29,12 @@ class AwaitCondition(MastNode):
 class AwaitFail(MastNode):
     """class AwaitFail"""
     def __init__ (self, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
+class Behavior(MastNode):
+    """Creates a new 'task' to run in parallel"""
+    def __init__ (self, yield_await=None, is_block=None, invert=None, until=None, sel_labels=None, seq_labels=None, inputs=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -102,7 +110,7 @@ class Input(MastNode):
         ...
 class Jump(MastNode):
     """class Jump"""
-    def __init__ (self, pop, pop_jump_type, pop_jump, push, jump, loc=None):
+    def __init__ (self, pop=None, jump=None, jump_name=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -211,7 +219,7 @@ class MatchStatements(MastNode):
         ...
 class Parallel(MastNode):
     """Creates a new 'task' to run in parallel"""
-    def __init__ (self, name=None, is_block=None, await_task=None, reflect=None, all_any=None, conditional=None, labels=None, inputs=None, loc=None):
+    def __init__ (self, name=None, is_block=None, await_task=None, any_labels=None, all_labels=None, label=None, inputs=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -244,6 +252,12 @@ class Scope(Enum):
 class Timeout(MastNode):
     """class Timeout"""
     def __init__ (self, minutes, seconds, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
+class Yield(MastNode):
+    """class Yield"""
+    def __init__ (self, res=None, if_exp=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
