@@ -50,7 +50,7 @@ class ReturnIfRuntimeNode(MastRuntimeNode):
             value = task.eval_code(node.if_code)
             if not value:
                 return PollResults.OK_ADVANCE_TRUE
-        task.redirect_pop_label()
+        task.pop_label(False, False)
         return PollResults.OK_JUMP
 
 class FailRuntimeNode(MastRuntimeNode):
@@ -150,13 +150,13 @@ class JumpRuntimeNode(MastRuntimeNode):
         if node.push:
             task.push_label(node.label)
         elif node.pop_jump:
-            task.pop_label()
+            task.pop_label(True,True)
             task.jump(node.label)
         elif node.pop_push:
-            task.pop_label()
+            task.pop_label(True,True)
             task.push_label(node.label)
         elif node.pop:
-            task.pop_label()
+            task.pop_label(True,True)
         else:
             task.jump(node.label)
         return PollResults.OK_JUMP
@@ -472,7 +472,7 @@ class EventRuntimeNode(MastRuntimeNode):
             task.jump(task.active_label,node.end.loc+1)
             return PollResults.OK_JUMP
         else:
-            task.redirect_pop_label()
+            task.pop_label(False,False)
             return PollResults.OK_JUMP
 
 
@@ -524,7 +524,7 @@ class MastAsyncTask:
         self.active_label = None
         self.events = {}
         self.vars["mast_task"] = self
-        self.redirect = None
+        #self.redirect = None
         self.pop_on_jump = 0
         self.pending_pop = None
         self.pending_jump = None
@@ -551,37 +551,46 @@ class MastAsyncTask:
         #self.jump(label, activate_cmd)
 
 
-    # For button Pushes, and maybe events
-    # Like a push, but pop not needed if redirected logic jumps
-    # the end_button, end_event will return back if it is reached
-    def redirect_push_label(self, label, activate_cmd=0, return_loc=-1, data=None):
-        if self.active_label:
-            loc = return_loc if return_loc>=0 else self.active_cmd
-            push_data = PushData(self.active_label, loc, data)
-            self.redirect = push_data
-            #print(f"REDIRECT PUSH DATA {push_data.label} {push_data.active_cmd}")
-        self.jump(label, activate_cmd)
+    # # For button Pushes, and maybe events
+    # # Like a push, but pop not needed if redirected logic jumps
+    # # the end_button, end_event will return back if it is reached
+    # def redirect_push_label(self, label, activate_cmd=0, return_loc=-1, data=None):
+    #     if self.active_label:
+    #         loc = return_loc if return_loc>=0 else self.active_cmd
+    #         push_data = PushData(self.active_label, loc, data)
+    #         self.redirect = push_data
+    #         #print(f"REDIRECT PUSH DATA {push_data.label} {push_data.active_cmd}")
+    #     self.jump(label, activate_cmd)
 
-    def redirect_pop_label(self, inc_loc=True):
-        if self.redirect == None:
-            self.active_cmd+1
-            return
-        push_data = self.redirect
-        #print(f"redirect POP DATA {push_data.label} {push_data.active_cmd}")
-        self.redirect = None
-        if inc_loc:
-            self.jump(push_data.label, push_data.active_cmd+1)
-        else:
-            self.jump(push_data.label, push_data.active_cmd)
+    # def redirect_pop_label(self, inc_loc=True):
+    #     if self.redirect == None:
+    #         self.active_cmd+1
+    #         return
+    #     push_data = self.redirect
+    #     #print(f"redirect POP DATA {push_data.label} {push_data.active_cmd}")
+    #     self.redirect = None
+    #     if inc_loc:
+    #         self.jump(push_data.label, push_data.active_cmd+1)
+    #     else:
+    #         self.jump(push_data.label, push_data.active_cmd)
 
-    def pop_label(self, inc_loc=True):
+    def pop_label(self, inc_loc=True, true_pop=False):
         if len(self.label_stack)>0:
-            # Pop was called in an inline block
-            if self.pop_on_jump >0:
+            #
+            # Actual Pop was called in an inline block
+            # So unwind the inline_blocks
+            #
+            if true_pop:
+                while self.pop_on_jump>0:
+                    # if this is a jump and there are tested push
+                    # get back to the main flow
+                    self.pop_on_jump-=1
+                    push_data = self.label_stack.pop()
+            elif self.pop_on_jump >0:
                 self.pop_on_jump-=1
-                push_data: PushData
-                push_data = self.label_stack.pop()
-                return
+                # push_data: PushData
+                # push_data = self.label_stack.pop()
+                # return
             push_data: PushData
             push_data = self.label_stack.pop()
             #print(f"POP: {push_data.label}")
@@ -659,8 +668,8 @@ class MastAsyncTask:
             data = st.data
             if data is not None:
                 m1 =  data | m1
-        if self.redirect and self.redirect.data:
-            m1 = self.redirect.data | m1
+        # if self.redirect and self.redirect.data:
+        #     m1 = self.redirect.data | m1
         return m1
 
     def set_value(self, key, value, scope):
@@ -682,8 +691,8 @@ class MastAsyncTask:
 
     def get_value(self, key, defa):
         data = None
-        if self.redirect:
-            data = self.redirect.data
+        # if self.redirect:
+        #     data = self.redirect.data
         if len(self.label_stack) > 0:
             data = self.label_stack[-1].data
         if data is not None:
@@ -700,8 +709,8 @@ class MastAsyncTask:
             return self.main.get_value(key, defa)
         if scope == Scope.TEMP:
             data = None
-            if self.redirect:
-                data = self.redirect.data
+            # if self.redirect:
+            #     data = self.redirect.data
             if len(self.label_stack) > 0:
                 data = self.label_stack[-1].data
             if data is not None:
