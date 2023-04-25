@@ -1,5 +1,5 @@
 from .mast import Mast, Scope
-from .mastsbs import Role, Simulation, Target, Tell, Comms, Button, ButtonSet, Near,Broadcast, ScanTab,ScanResult, Load
+from .mastsbs import Role, Simulation, Target, Tell, Comms, Button, Near,Broadcast, ScanTab,ScanResult, Load
 from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask
 import sbs
 from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain
@@ -29,42 +29,7 @@ class ButtonRuntimeNode(MastRuntimeNode):
             
         return PollResults.OK_ADVANCE_TRUE
 
-class ButtonSetRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: ButtonSet):
-        if node.use is not None:
-            return
-        # the end node needs to format all the buttons at runtime
-        if node.append:
-            main_node = task.get_variable(node.name)
-            # if main_node is None:
-            #     task.set_value_keep_scope(node.name, node)    
-            #     main_node = node
-            for button in node.buttons:
-                proxy = button.clone()
-                # For append we calculate message inline
-                proxy.message=task.format_string(button.message)
-                main_node.buttons.append(proxy)
-        elif node.clear:
-            proxy = ButtonSet(clear=True)
-            proxy.loc = node.loc
-            proxy.buttons = []
-            proxy.use = None
-            proxy.end = node.end
-            self.name = node.name
-            task.set_value_keep_scope(node.name, proxy)
-        elif node.name is not None:
-            task.set_value_keep_scope(node.name, node)
        
-    def poll(self, mast:Mast, task:MastAsyncTask, node: ButtonSet):
-        if node.end == node:
-            #print("End_Button_Set")
-            task.redirect_pop_label(True)
-            return PollResults.OK_JUMP
-        elif node.end:
-            task.jump(task.active_label,node.end.loc+1)
-            return PollResults.OK_JUMP
-        return PollResults.OK_ADVANCE_TRUE
-
 
 class TellRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Tell):
@@ -496,7 +461,6 @@ over =     {
       "Near": NearRuntimeNode,
       "Target": TargetRuntimeNode,
       "Button": ButtonRuntimeNode,
-      "ButtonSet": ButtonSetRuntimeNode,
       "Simulation": SimulationRuntimeNode,
       "Scan": ScanRuntimeNode,
       "Load": LoadRuntimeNode,

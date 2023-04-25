@@ -160,6 +160,8 @@ class MastAsyncTask(object):
         ...
     def do_jump (self, label='main', activate_cmd=0):
         ...
+    def do_resume (self, label, activate_cmd, runtime_node):
+        ...
     def eval_code (self, code):
         ...
     def exec_code (self, code):
@@ -180,7 +182,7 @@ class MastAsyncTask(object):
         ...
     def pop_label (self, inc_loc=True):
         ...
-    def push_jump_pop (self, label, activate_cmd=0, data=None):
+    def push_inline_block (self, label, activate_cmd=0, data=None):
         ...
     def push_label (self, label, activate_cmd=0, data=None):
         ...
@@ -306,7 +308,7 @@ class PollResults(IntEnum):
     OK_YIELD : 5
 class PushData(object):
     """class PushData"""
-    def __init__ (self, label, active_cmd, data=None):
+    def __init__ (self, label, active_cmd, data=None, resume_node=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
 class PyCodeRuntimeNode(MastRuntimeNode):
     """class PyCodeRuntimeNode"""

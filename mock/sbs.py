@@ -21,6 +21,7 @@ def app_minutes() -> int:
     return seconds / 60
 
 def app_seconds() -> int:
+    global seconds
     seconds += 1
     return seconds
     ...

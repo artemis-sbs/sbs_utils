@@ -1,6 +1,5 @@
 from sbs_utils.mast.mastsbs import Broadcast
 from sbs_utils.mast.mastsbs import Button
-from sbs_utils.mast.mastsbs import ButtonSet
 from sbs_utils.mast.mastsbs import Comms
 from sbs_utils.mast.mastsbs import Load
 from sbs_utils.mast.mastsbs import Near
@@ -38,12 +37,6 @@ class BroadcastRuntimeNode(MastRuntimeNode):
 class ButtonRuntimeNode(MastRuntimeNode):
     """class ButtonRuntimeNode"""
     def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Button):
-        ...
-class ButtonSetRuntimeNode(MastRuntimeNode):
-    """class ButtonSetRuntimeNode"""
-    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.ButtonSet):
-        ...
-    def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.ButtonSet):
         ...
 class CommsRuntimeNode(MastRuntimeNode):
     """class CommsRuntimeNode"""

@@ -25,13 +25,17 @@ class TestLayoutParser(unittest.TestCase):
     def test_compute(self):
         self.do_compute("20,20,30,40px", [20,20,30,(40/500)*100])
         self.do_compute("100-400px,20,30,40px", [100-(400/500)*100,20,30,(40/500)*100])
+
+        self.do_compute("2*x,2*x,3*x,x*40px", [10,10,15,5*(40/500)*100], {"x": 5})
         
 
-    def do_compute(self, source, expected):
+    def do_compute(self, source, expected, vars=None):
+        if vars is None:
+            vars = {}
         tokens = LayoutAreaParser.lex(source)
         asts = LayoutAreaParser.parse_list(tokens)
         for i, ast in enumerate(asts):
-            test = LayoutAreaParser.compute(ast, {}, 500)
+            test = LayoutAreaParser.compute(ast, vars, 500)
             expect = expected[i]
             assert(test == expect)
         

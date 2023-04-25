@@ -9,7 +9,6 @@ Mast.enable_logging()
     Tell,
     Comms,
     Button,
-    ButtonSet,
     Near,
     Simulation
 """
@@ -211,65 +210,6 @@ delay 10s
         assert(len(errors) == 0)
 
 
-    def test_button_set_compile_no_err_2(self):
-        (errors, mast) = mast_sbs_compile( code ="""
-
-button_set fred:
-    + "Test":
-
-end_button_set
-
-button_set barney:
-    + "Test":
-end_button_set
-
-button_set clear pebbles
-
-button_set append pebbles:
-    + "Test":
-     log "well shit"
-end_button_set
-
-button_set clear doug
-for x in range(3):
-button_set append doug:
-    + "{x}":
-    log "well shit"
-end_button_set
-next x
-
-
-await self comms player timeout 5s:
-    button_set use fred
-    button_set use barney
-end_await
-
-""")
-        if len(errors)>0:
-            for err in errors:
-                print(err)
-        assert(len(errors) == 0)
-        
-    def test_button_set_compile_no_err_3(self):
-        (errors, mast) = mast_sbs_compile( code ="""
-=========== server_main =====
-button_set clear doug
-for x in range(3):
-button_set append doug:
-    + "w":
-        log "well shit"
-end_button_set
-next x
-
-
-->END
-
-
-""")
-        if len(errors)>0:
-            for err in errors:
-                print(err)
-        assert(len(errors) == 0)
 
     def test_scan_compile_no_err(self):
         (errors, mast) = mast_sbs_compile( code ="""

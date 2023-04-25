@@ -64,9 +64,16 @@ style barney="area: 1,2,3-1px,4;"
 style wilma="area:1,2,3,4;row-height:10px;"
 
 section style="area:1,2,3,4;"
+
 section style="area: 1,2,3-1px,4;"
+
 section style="area:1,2,3,4;row-height:10px;"
+
 section style=fred
+
+section style="area:1,2,3,4;" clickable "color:red; text:Click here!; font:smallest":
+end_clickable
+
 
 radio var "helm,weapons,science"
 vradio var "helm,weapons,science"
@@ -112,10 +119,10 @@ section style="area:2,20,18,35;"
 
 button "Speak":
     log "{fred}"
-    <<->server_main
+    ->server_main
 end_button
 row
-slider fred 0 10 5
+slider fred "low:0;high:5"
 
 
 await choice:

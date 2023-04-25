@@ -39,6 +39,14 @@ class Choose(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
+class Clickable(MastNode):
+    """class Clickable"""
+    def __init__ (self, message, q, data=None, py=None, end=None, style_name=None, style=None, style_q=None, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def dd_parse (lines):
+        ...
+    def parse (lines):
+        ...
 class Console(MastNode):
     """class Console"""
     def __init__ (self, console, loc=None):
@@ -109,7 +117,7 @@ class Ship(MastNode):
         ...
 class SliderControl(MastNode):
     """class SliderControl"""
-    def __init__ (self, is_int=None, var=None, low=0.0, high=1.0, value=0.5, style_name=None, style=None, style_q=None, loc=None):
+    def __init__ (self, is_int=None, var=None, q=None, props=None, style_name=None, style=None, style_q=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...

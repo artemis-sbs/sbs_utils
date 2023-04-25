@@ -113,7 +113,9 @@ class LayoutAreaParser:
             case "pixels":
                 return (float(node.value[:-2])/aspect_ratio)*100
             case "id":
-                return 12 #node.value
+                if node.value in vars:
+                    return vars[node.value]
+                return 1  #node.value
 
         left_result = LayoutAreaParser.compute(node.children[0], vars, aspect_ratio)
         right_result = LayoutAreaParser.compute(node.children[1], vars, aspect_ratio)

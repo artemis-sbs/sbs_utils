@@ -160,7 +160,7 @@ class Image(Column):
         ...
 class Layout(object):
     """class Layout"""
-    def __init__ (self, click_props=None, rows=None, left=0, top=0, right=100, bottom=100, left_pixels=False, top_pixels=False, right_pixels=False, bottom_pixels=False) -> None:
+    def __init__ (self, clickable_tag=None, click_props=None, rows=None, left=0, top=0, right=100, bottom=100, left_pixels=False, top_pixels=False, right_pixels=False, bottom_pixels=False) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
     def add (self, row: sbs_utils.pages.layout.Row):
         ...

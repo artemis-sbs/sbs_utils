@@ -531,18 +531,18 @@ class MastAsyncTask:
         self.pending_push = None
     
     def push_label(self, label, activate_cmd=0, data=None):
-        print("PUSH")
+        #print("PUSH")
         if self.active_label:
             self.pending_push = PushData(self.active_label, self.active_cmd, data)
         self.jump(label, activate_cmd)
 
-    def push_jump_pop(self, label, activate_cmd=0, data=None):
+    def push_inline_block(self, label, activate_cmd=0, data=None):
         #
         # This type of push resumes running the same runtime node 
         # that was active when the push occurred
         # This done by Buttons, Dropdown and event
         #
-        print("PUSH JUMP POP")
+        #print("PUSH JUMP POP")
         push_data = PushData(self.active_label, self.active_cmd, data, self.runtime_node)
         self.label_stack.append(push_data)
         self.pop_on_jump += 1
@@ -588,10 +588,10 @@ class MastAsyncTask:
             #print(f"POP DATA {push_data.label} {push_data.active_cmd} len {len(self.label_stack)}")
             if self.pending_jump is None:
                 if inc_loc:
-                    print(f"I inc'd {push_data.runtime_node}")
+                    #print(f"I inc'd {push_data.runtime_node}")
                     self.pending_pop = (push_data.label, push_data.active_cmd+1, push_data.runtime_node)
                 else:
-                    print(f"I DID NOT inc {push_data.runtime_node}")
+                    #print(f"I DID NOT inc {push_data.runtime_node}")
                     self.pending_pop = (push_data.label, push_data.active_cmd, push_data.runtime_node)
 
     def add_event(self, event_name, event):
@@ -601,7 +601,7 @@ class MastAsyncTask:
     def run_event(self, event_name, event):
         ev_data = self.events.get(event_name)
         if ev_data is not None:
-            self.push_jump_pop(ev_data.label, ev_data.active_cmd+1,{"event": event})
+            self.push_inline_block(ev_data.label, ev_data.active_cmd+1,{"event": event})
             self.tick()
 
     def jump(self, label = "main", activate_cmd=0):
@@ -780,10 +780,9 @@ class MastAsyncTask:
                     pop_data = self.pending_pop
                     self.pending_pop = None
                     if pop_data[2] is not None:
-                        print("Hey look I resumed")
                         self.do_resume(*pop_data)
                     else:    
-                        self.do_jump(*pop_data)
+                        self.do_jump(pop_data[0], pop_data[1])
                 if self.pending_push:
                     self.label_stack.append(self.pending_push)
                     self.pending_push = None

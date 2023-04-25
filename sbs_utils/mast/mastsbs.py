@@ -180,30 +180,6 @@ class Button(MastNode):
 
 
 
-class ButtonSet(MastNode):
-    rule = re.compile(r"""(button_set\s+use\s+(?P<use>\w+))|(button_set\s+clear\s+(?P<clear>\w+))|(button_set\s+((?P<append>append)\s+)?(?P<name>\w+)"""+BLOCK_START+r""")|(end_button_set)""")
-    def __init__(self, use=None, name=None, clear=None, append=None, loc=None):
-        self.loc = loc
-        self.buttons = []
-        self.use = use
-        self.append = append is not None
-        self.end = None
-        self.name = name
-        self.clear = False
-        if clear:
-            self.name = clear
-            self.clear = True
-            return
-        elif use is not None:
-            EndAwait.stack[-1].buttons.append(self)
-        elif name is None:
-            EndAwait.stack[-1].end = self
-            self.end = self
-            EndAwait.stack.pop(-1)
-        else:
-            EndAwait.stack.append(self)
-    
-
 
 
 class Near(MastNode):
@@ -292,7 +268,6 @@ class MastSbs(Mast):
         Load,
         Broadcast,
         Comms,
-        ButtonSet,
         Button,
         Near,
         Simulation,

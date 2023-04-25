@@ -26,7 +26,7 @@ import sys
 #
 LIST_REGEX = r"""(\[[\s\S]+?\])"""
 DICT_REGEX = r"""(\{[\s\S]+?\})"""
-PY_EXP_REGEX = r"""((?P<py>~~)[\s\S]+?(?P=py))"""
+PY_EXP_REGEX = r"""((?P<py>~~)[\s\S]*?(?P=py))"""
 STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[ \t\S]*(?P=quote))"""
 
 OPT_COLOR = r"""(\s*color\s*["'](?P<color>[ \t\S]+)["'])?"""
@@ -56,6 +56,8 @@ class MastNode:
         pass
 
     def compile_formatted_string(self, message):
+        if message is None:
+            return message
         if "{" in message:
             message = f'''f"""{message}"""'''
             code = compile(message, "<string>", "eval")

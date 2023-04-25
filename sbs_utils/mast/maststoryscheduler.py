@@ -9,7 +9,7 @@ from ..pages import layout
 from ..tickdispatcher import TickDispatcher
 
 from .errorpage import ErrorPage
-from .maststory import AppendText, ButtonControl, MastStory, Choose, Text, Blank, Ship, GuiContent, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, Hole, RadioControl, Console
+from .maststory import AppendText,Clickable, ButtonControl, MastStory, Choose, Text, Blank, Ship, GuiContent, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, Hole, RadioControl, Console
 import traceback
 from .mastsbsscheduler import MastSbsScheduler, Button
 from .parsers import LayoutAreaParser
@@ -187,9 +187,49 @@ class ButtonControlRuntimeNode(StoryRuntimeNode):
     def on_message(self, sim, event):
         if event.sub_tag == self.tag:
             # Jump to the cmds after the button
-            self.task.push_jump_pop(self.task.active_label, self.node.loc+1, self.data)
+            self.task.push_inline_block(self.task.active_label, self.node.loc+1, self.data)
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: ButtonControl):
+        if node.is_end:
+            self.task.pop_label(False)
+            return PollResults.OK_JUMP
+        elif node.end_node:
+            self.task.jump(self.task.active_label, node.end_node.loc+1)
+            return PollResults.OK_JUMP
+
+class ClickableRuntimeNode(StoryRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: Clickable):
+        self.data = None
+        self.node = node
+        self.task = task
+
+        if node.is_end == False:
+            self.tag = task.main.page.get_tag()
+            msg = task.format_string(node.message)
+            
+
+            task.main.page.add_section(self.tag, msg)
+            # Add this so messages are passed
+            task.main.page.add_tag_by_value(self.tag, self)
+
+            self.apply_style_name(".clickable", task.main.page.get_pending_layout(), task)
+
+            if node.data_code is not None:
+                self.data = task.eval_code(node.data_code)
+                print(self.data)
+
+            if node.style_def is not None:
+                self.apply_style_def(node.style_def, task.main.page.get_pending_layout(), task)
+
+        
+    def on_message(self, sim, event):
+        if event.sub_tag == self.tag:
+            print(self.tag)
+            print(self.data)
+            # Jump to the cmds after the button
+            self.task.push_inline_block(self.task.active_label, self.node.loc+1, self.data)
+
+    def poll(self, mast:Mast, task:MastAsyncTask, node: Clickable):
         if node.is_end:
             self.task.pop_label(False)
             return PollResults.OK_JUMP
@@ -257,7 +297,7 @@ class ChooseRuntimeNode(StoryRuntimeNode):
 
         # ast = LayoutAreaParser.parse_e(LayoutAreaParser.lex("100-30px"))
         # top = LayoutAreaParser.compute(ast, {}, task.main.page.aspect_ratio.y)
-        button_layout = layout.Layout(None, None, 0,top,100,100)
+        button_layout = layout.Layout(None, None, None, 0,top,100,100)
 
         active = 0
         index = 0
@@ -338,7 +378,7 @@ class ChooseRuntimeNode(StoryRuntimeNode):
 
             self.button = None
             #print(f"CHOICE {button.loc+1} {node.end_await_node.loc}")
-            task.push_jump_pop(task.active_label,button.loc+1)
+            task.push_inline_block(task.active_label,button.loc+1)
             return PollResults.OK_JUMP
 
         if self.timeout is not None:
@@ -377,7 +417,8 @@ class SliderControlRuntimeNode(StoryRuntimeNode):
             val = self.node.value
         if val is None:
             val = 0
-        self.layout = layout.Slider(self.tag, val, f"low: {node.low}; high:{node.high};show_number: {not node.is_scroll}")
+        props = task.format_string(node.props)
+        self.layout = layout.Slider(self.tag, val, props)
         self.task = task
         self.apply_style_name(".slider", self.layout, task)
         if node.style_def is not None:
@@ -456,6 +497,7 @@ class TextInputControlRuntimeNode(StoryRuntimeNode):
         self.tag = task.main.page.get_tag()
         self.node = node
         label = ""
+        
         if node.label is not None:
             #print(f"node {node.label}")
             label = task.format_string(node.label)
@@ -464,8 +506,11 @@ class TextInputControlRuntimeNode(StoryRuntimeNode):
                 label=""
         scoped_val = task.get_value(self.node.var, "")
         val = scoped_val[0]
+        if "text:" not in label:
+            label = f"text:{val};{label}"
         self.scope = scoped_val[1]
-        self.layout = layout.TextInput(self.tag, f"text:{val};desc:{label}")
+        #print("LABEL:" + label)
+        self.layout = layout.TextInput(self.tag, label)
         self.task = task
         task.main.page.add_content(self.layout, self)
 
@@ -475,10 +520,7 @@ class TextInputControlRuntimeNode(StoryRuntimeNode):
 
     def on_message(self, sim, event):
         if event.sub_tag == self.tag:
-            self.layout.value = event.value_tag
             self.task.set_value(self.node.var, self.layout.value, self.scope)
-            self.task.main.paint_refresh = True
-            self.layout.present(sim, event)
 
 class DropdownControlRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: DropdownControl):
@@ -503,7 +545,7 @@ class DropdownControlRuntimeNode(StoryRuntimeNode):
         if event.sub_tag == self.tag:
             self.layout.value = event.value_tag
             self.task.set_value_keep_scope(self.node.var, self.layout.value)
-            self.task.push_jump_pop(self.label, self.node.loc+1)
+            self.task.push_inline_block(self.label, self.node.loc+1)
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: DropdownControl):
         if node.is_end:
@@ -589,6 +631,7 @@ over =     {
     "Hole": HoleRuntimeNode,
     "AwaitGui": AwaitGuiRuntimeNode,
     "Choose": ChooseRuntimeNode,
+    "Clickable": ClickableRuntimeNode,
     "Section": SectionRuntimeNode,
 #    "Style": StyleRuntimeNode,
     "Refresh": RefreshRuntimeNode
@@ -669,7 +712,7 @@ class StoryPage(Page):
         self.gui_state = 'repaint'
         self.story_scheduler = None
         self.layouts = []
-        self.pending_layouts = self.pending_layouts = [layout.Layout(None, None, 0,0, 100, 90)]
+        self.pending_layouts = self.pending_layouts = [layout.Layout(None, None, None, 0,0, 100, 90)]
         self.pending_row = self.pending_row = layout.Row()
         self.pending_tag_map = {}
         self.tag_map = {}
@@ -724,7 +767,7 @@ class StoryPage(Page):
             for layout_obj in self.layouts:
                 layout_obj.calc()
             
-            self.pending_layouts = self.pending_layouts = [layout.Layout(None, None, 0,0, 100, 90)]
+            self.pending_layouts = self.pending_layouts = [layout.Layout(None, None, None, 0,0, 100, 90)]
             self.pending_row = self.pending_row = layout.Row()
             self.pending_tag_map = {}
             self.pending_console = ""
@@ -739,7 +782,7 @@ class StoryPage(Page):
 
     def add_row(self):
         if not self.pending_layouts:
-            self.pending_layouts = [layout.Layout(None, None, 20,10, 100, 90)]
+            self.pending_layouts = [layout.Layout(None, None, None, 20,10, 100, 90)]
         if self.pending_row:
             if len(self.pending_row.columns):
                 self.pending_layouts[-1].add(self.pending_row)
@@ -753,6 +796,12 @@ class StoryPage(Page):
         if hasattr(layout_item, 'tag'):
             self.pending_tag_map[layout_item.tag] = runtime_node
 
+    def add_tag_by_value(self, tag, runtime_node):
+        if self.pending_tag_map is None:
+            self.pending_tag_map = {}
+        self.pending_tag_map[tag] = runtime_node
+
+
     def add_content(self, layout_item, runtime_node):
         if self.pending_layouts is None:
             self.add_row()
@@ -765,12 +814,12 @@ class StoryPage(Page):
         self.pending_console = console
         self.pending_widgets = widgets
     
-    def add_section(self):
+    def add_section(self, clickable_tag= None, clickable=None):
         if not self.pending_layouts:
-            self.pending_layouts = [layout.Layout(None, None, 0,0, 100, 90)]
+            self.pending_layouts = [layout.Layout(clickable_tag, clickable, None, 0,0, 100, 90)]
         else:
             self.add_row()
-            self.pending_layouts.append(layout.Layout(None, None, 0,0, 100, 90))
+            self.pending_layouts.append(layout.Layout(clickable_tag, clickable, None, 0,0, 100, 90))
 
     def get_pending_layout(self):
         if not self.pending_layouts:

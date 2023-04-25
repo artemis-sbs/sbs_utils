@@ -163,7 +163,8 @@ class Slider(Column):
     @property
     def value(self):
          return self._value
-       
+    
+    
     @value.setter
     def value(self, v):
         self._value = v
@@ -475,7 +476,7 @@ class GuiControl(Column):
 
 
 class Layout:
-    def __init__(self, click_props=None, rows = None, 
+    def __init__(self, clickable_tag=None, click_props=None, rows = None, 
                 left=0, top=0, right=100, bottom=100,
                 left_pixels=False, top_pixels=False, right_pixels=False, bottom_pixels=False) -> None:
         self.rows = rows if rows else []
@@ -484,6 +485,8 @@ class Layout:
         self.default_height = None
         self.default_width = None
         self.padding = None
+        self.click_props = click_props
+        self.tag = clickable_tag
 
     def set_bounds(self, bounds):
         self.bounds = bounds
@@ -584,11 +587,15 @@ class Layout:
         row:Row
         for row in self.rows:
             row.present(sim,event)
+        if self.click_props is not None:
+            sbs.send_gui_clickregion(event.client_id, self.tag, self.click_props,
+                                     self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
     
     def on_message(self, sim, event):
         row:Row
         for row in self.rows:
             row.on_message(sim,event)
+    
 
 class RadioButton(Column):
     def __init__(self, tag,  message, group, value=False) -> None:

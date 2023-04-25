@@ -242,16 +242,24 @@ class PyMastStory:
         control = layout.Hole()
         page.add_content(control, None)
         return control
-    def gui_section(self, style=None, click_props=None):
+    def gui_section(self, style=None, click_props=None, label=None):
         if self.get_page() is None:
             return
         page = self.get_page()
-        control = page.add_section(click_props)
+        tag = None
+        if click_props:
+            tag = page.get_tag()
+        
+        control = page.add_section(tag, click_props)
+        if label:
+            # Don't add content, just register the tag for callback
+            page.add_tag(control, CodePusher(page, label))
 
         page.apply_style_name(".section", control)
         if style is not None:
             page.apply_style_def(style,  control)
         return control
+    
     def gui_slider(self, val, props, label=None, style=None):
         if self.get_page() is None:
             return
