@@ -8,6 +8,16 @@ class ConsoleDispatcher:
     # tick dispatch
     convert_to_console_id = None
     
+    def add_default_select(console: str, cb: typing.Callable):
+        """ add a target for console selection
+       
+        :param console: The consoles unique ID
+        :type console: string
+        :param cb: call back function
+        :type cb:  should have arguments of other sim and object's id
+        """
+        ConsoleDispatcher.add_select(0, console, cb)
+
     def add_select(an_id: int, console: str, cb: typing.Callable):
         """ add a target for console selection
         
@@ -34,6 +44,16 @@ class ConsoleDispatcher:
         :type cb:  should have arguments of other sim and object's id
         """
         ConsoleDispatcher._dispatch_select[(an_id, another_id, console)] = cb
+
+    def add_default_message(console: str, cb: typing.Callable):
+        """ add a target for console message
+        
+        :param console: The consoles unique ID
+        :type console: string
+        :param cb: call back function
+        :type cb:  should have arguments of other sim, message and object's id
+        """
+        ConsoleDispatcher.add_message(0, console, cb)
 
     def add_message(an_id: int, console: str, cb: typing.Callable):
         """ add a target for console message
@@ -167,6 +187,13 @@ class ConsoleDispatcher:
             for cb in cb_set:
                 cb(sim, event.origin_id, event)
             return True
+        
+        # Allow to route to defaults too
+        cb_set = ConsoleDispatcher._dispatch_select.get((0, console))
+        if cb_set is not None:
+            for cb in cb_set:
+                cb(sim, event.origin_id, event)
+            return True
 
         return False
 
@@ -204,6 +231,13 @@ class ConsoleDispatcher:
             
         # Allow to route to the selected ship too
         cb_set = ConsoleDispatcher._dispatch_messages.get((event.selected_id, console))
+        if cb_set is not None:
+            for cb in cb_set:
+                cb(sim, event.sub_tag, event.origin_id, event)
+            return True
+        
+        # Allow to route to the default too
+        cb_set = ConsoleDispatcher._dispatch_messages.get((0, console))
         if cb_set is not None:
             for cb in cb_set:
                 cb(sim, event.sub_tag, event.origin_id, event)

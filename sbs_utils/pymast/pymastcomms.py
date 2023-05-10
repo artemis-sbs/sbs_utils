@@ -8,7 +8,7 @@ from .. import faces
 
 
 class PyMastComms:
-    def __init__(self, task, player_id, npc_id_or_filter, buttons, continuous ) -> None:
+    def __init__(self, task, buttons, player_id, npc_id_or_filter, continuous ) -> None:
         self.buttons = buttons
         # if the npc is None or a filter function it is a more general scan
         if inspect.isfunction(npc_id_or_filter) or inspect.ismethod(npc_id_or_filter) or npc_id_or_filter is None:
@@ -80,7 +80,7 @@ class PyMastComms:
                     self.task.story.push(pusher)
         self.done = not self.continuous
 
-    def have_other_tell_player(self, text, color=None, face=None, comms_id=None):
+    def receive(self, text, color=None, face=None, comms_id=None):
         # Messge from NPC
         if face is None:
             face = faces.get_face(self.event.selected_id)
@@ -92,8 +92,8 @@ class PyMastComms:
         sbs.send_comms_message_to_player_ship(self.event.origin_id, self.event.selected_id, color, face, 
                 comms_id,  text)
         
-    def have_player_tell_other(self, text, color=None, face=None, comms_id=None):
-        # Messge from player
+    def transmit(self, text, color=None, face=None, comms_id=None):
+        # Message from player
         if face is None:
             face = faces.get_face(self.event.origin_id)
         if comms_id is None:

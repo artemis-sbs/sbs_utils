@@ -21,7 +21,7 @@ def get_ship_name(key):
     return f'unknown {key}'
 
 
-def filter_ship_data_by_side(key, sides, is_ship=False, ret_key_only=False):
+def filter_ship_data_by_side(test_key, sides, is_ship=False, ret_key_only=False):
     data = fs.get_ship_data()
 
     ret = []
@@ -37,9 +37,9 @@ def filter_ship_data_by_side(key, sides, is_ship=False, ret_key_only=False):
         if len(key)==0:
             ship["artfileroot"]
 
-        key_met = key is None 
-        if key is not None:
-            key_met =  key in ship["key"]
+        key_met = test_key is None 
+        if test_key is not None:
+            key_met =  test_key in ship["key"]
         
         side_met = sides is None
         if sides is not None:
@@ -56,6 +56,15 @@ def filter_ship_data_by_side(key, sides, is_ship=False, ret_key_only=False):
 asteroid_keys_cache= filter_ship_data_by_side(None, "asteroid", False, True)
 def asteroid_keys():
     return asteroid_keys_cache
+
+crystal_asteroid_keys_cache= filter_ship_data_by_side("crystal", "asteroid", False, True)
+def crystal_asteroid_keys():
+    return crystal_asteroid_keys_cache
+
+plain_asteroid_keys_cache= filter_ship_data_by_side("plain", "asteroid", False, True)
+def plain_asteroid_keys():
+    return plain_asteroid_keys_cache
+
     
 danger_keys_cache =  filter_ship_data_by_side("danger", "pickup", False, True)
 def danger_keys():

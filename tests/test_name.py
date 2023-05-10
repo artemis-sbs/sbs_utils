@@ -68,5 +68,12 @@ class TestNames(unittest.TestCase):
         print()
    
 
-    
+
+    def test_filter_ship_data(self):
+        ast = names.asteroid_keys()
+        self.assertEqual(len(ast), 11)
+        cast = names.crystal_asteroid_keys()
+        self.assertEqual(len(cast), 5)
+        past = names.plain_asteroid_keys()
+        self.assertEqual(len(past), 6)
 

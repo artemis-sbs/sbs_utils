@@ -179,22 +179,22 @@ class PyMastTask:
             yield PollResults.OK_RUN_AGAIN
         yield self.pop()
 
-    def await_science(self, player, npc, scans):
-        self.await_gen = self.run_science(player, npc, scans)
+    def await_science(self, scans, player, npc):
+        self.await_gen = self.run_science(scans, player, npc)
         return PollResults.OK_RUN_AGAIN
 
-    def run_science(self, player, npc, scans):
-        science = PyMastScience(self, player, npc, scans)
+    def run_science(self, scans, player, npc):
+        science = PyMastScience(self, scans, player, npc)
         while science.done == False:
             yield PollResults.OK_RUN_AGAIN
         self.await_gen = None
 
-    def await_comms(self, player, npc, buttons):
-        self.await_gen = self.run_comms(player, npc, buttons)
+    def await_comms(self, buttons, player, npc):
+        self.await_gen = self.run_comms(buttons, player, npc)
         return PollResults.OK_RUN_AGAIN
 
-    def run_comms(self, player, npc, buttons):
-        comms = PyMastComms(self, player, npc, buttons, False)
+    def run_comms(self, buttons, player, npc):
+        comms = PyMastComms(self, buttons, player, npc, False)
         while comms.done == False:
             yield PollResults.OK_RUN_AGAIN
         self.await_gen = None

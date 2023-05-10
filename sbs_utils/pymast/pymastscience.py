@@ -4,7 +4,7 @@ import inspect
 from .pollresults import PollResults
 
 class PyMastScience:
-    def __init__(self, task, player_id, npc_id_or_filter, scans ) -> None:
+    def __init__(self, task, scans, player_id, npc_id_or_filter ) -> None:
         self.scans = scans
         # if the npc is None or a filter function it is a more general scan
         if inspect.isfunction(npc_id_or_filter) or inspect.ismethod(npc_id_or_filter) or npc_id_or_filter is None:
