@@ -1,40 +1,156 @@
 Frequently asked Questions
 ==================================
 
+.. tabs::
+   .. code-tab:: mast mast
+      :emphasize-lines: 3
+      
+      # Create a space station
+      ds1 = npc_spawn(1000,0,1000, "DS1", "tsn", "starbase_command", "behav_station")
+      ds2 = npc_spawn(1000,0,-1000, "DS2", "tsn", "starbase_command", "behav_station")
+
+
+
+
+   .. code-tab:: py PyMast
+      :emphasize-lines: 3
+
+      # Create a space station
+      ds1 = Npc().spawn(self.sim, 1000,0,1000, "DS1", "tsn", "starbase_command", "behav_station")
+      ds2 = Npc().spawn(self.sim, -1000,0,1000, "DS2", "tsn", "starbase_command", "behav_station")
+      
+
 
 
 
 Artemis 2.x scripting 
-
 ----------------------------------------------------------------------------------------------------
 
-
-
+create (the command that creates named objects in the game)
 <create type ="enemy" hullID="4001" x="50000" y="0" z="40000" angle="45" name="TB1"/>
 
+It is Important that there is no AI in the engine or behavior string. It is all done in script by setting data in the engine data set.
+e.g. 
+
+.. tabs::
+   .. code-tab:: mast mast
+      :emphasize-lines: 3
+
+      player1 = player_spawn(1000,0,1000, "Artemis", "tsn", "battle_cruiser") # behav_player is provided in spawn
+	  # this next example shows how to do 'generic' objects which can be any object in cosmos
+	  # mork_egg is a key in your extraShipData.json in your mission folder
+	  # that points to the appropriate art files
+	  # and that can be done with any of the spawns
+	  player1 = player_spawn(1000,0,1000, "Artemis", "tsn", "mork_egg") 
+      # Create a space station
+      ds1 = npc_spawn(1000,0,1000, "DS1", "tsn", "starbase_command", "behav_station")
+	  # Create an enemy
+      bad_guy = npc_spawn(1000,0,-1000, "bad guy", "raider", "skaraan_enforcer", "behav_npcship")
+
+
+
+   .. code-tab:: py PyMast
+      :emphasize-lines: 3
+
+	  player1 = Player().spawn(1000,0,1000, "Artemis", "tsn", "battle_cruiser") # behav_player is provided in spawn
+      # Create a space station
+      ds1 = Npc().spawn(self.sim, 1000,0,1000, "DS1", "tsn", "starbase_command", "behav_station")
+	  # Create an enemy
+      ds2 = Npc().spawn(self.sim, -1000,0,1000, "DS2", "tsn", "starbase_command", "behav_station")
+
+
 ----------------------------------------------------------------------------------------------------
 
-COMMAND: create (the command that creates named objects in the game)
+create (the command that creates UNnamed objects in the game)
+
+Create Asteroid, Nebula, mines etc.
 
 ----------------------------------------------------------------------------------------------------
 
-COMMAND: create (the command that creates UNnamed objects in the game)
+destroy (the command that removes named objects from the game)
+
+.. tabs::
+   .. code-tab:: mast mast
+      :emphasize-lines: 3
+
+	  # Create an shuttle
+      shuttle = npc_spawn(1000,0,-1000, "galileo", "tsn", "cargo_ship", "behav_npcship")
+      
+	  # delete_object removes items by id
+	  # delete using variable shuttle, convert it to the
+	  sbs.delete_object(to_id(shuttle))
+
+
+   .. code-tab:: py PyMast
+      :emphasize-lines: 3
+
+      sbs.delete_object(to_id(some_object))
+
+
 
 ----------------------------------------------------------------------------------------------------
 
-COMMAND: destroy (the command that removes something named from the game)
+destroy_near (the command that removes unnamed objects from the game, if near a point)
 
-----------------------------------------------------------------------------------------------------
+.. tabs::
+   .. code-tab:: mast mast
+      :emphasize-lines: 3
+      
+	  id_set = broad_test(100,200,300, 400)
+      for id in id_set:
+	  	sbs.delete_object(id)
+	  next id
 
-COMMAND: destroy_near (the command that removes unnamed objects from the game, if near a point)
+	  # use roles remove only certain types
+	  id_set = broad_test(100,200,300, 400) & role("Asteroid")
+      for id in id_set:
+	  	sbs.delete_object(id)
+	  next id
+
+	  # or use if statements
+	  id_set = broad_test(100,200,300, 400)
+      for id in id_set:
+	    obj = to_object(id)
+		if object.name == "Artemis":
+	  		sbs.delete_object(id)
+		end_if
+	  next id
+
+   .. code-tab:: py PyMast
+      :emphasize-lines: 3
+
+      id_set = broad_test(100,200,300, 400)
+      for id in id_set:
+	  	sbs.delete_object(id)
+
+	  # use roles remove only certain types
+	  id_set = broad_test(100,200,300, 400) & role("Asteroid")
+      for id in id_set:
+	  	sbs.delete_object(id)
+
+	  # or use if statements
+	  id_set = broad_test(100,200,300, 400)
+      for id in id_set:
+	    obj = to_object(id)
+		if object.name == "Artemis":
+	  		sbs.delete_object(id)
 
 ----------------------------------------------------------------------------------------------------
 
 COMMAND: add_ai (the command that adds an AI decision to a neutral or enemy's brain stack, OR a monster's monster-brain stack)
 
+NO equivalent AI is done in scripting
+
+This should point to behavior trees etc. 
+
+
+
 ----------------------------------------------------------------------------------------------------
 
 COMMAND: clear_ai (removes all AI decision blocks from a neutral or enemy's brain stack)
+
+NO equivalent AI is done in scripting
+
 
 ----------------------------------------------------------------------------------------------------
 
@@ -42,41 +158,202 @@ COMMAND: direct (the command that tells a non-player ship to go somewhere or fig
                 (also tells generics where to go)
                 (this command can no longer work with ANYTHING except non-player shielded ships and generics)
 
+NO equivalent AI is done in scripting
+
+This should point to behavior trees etc. 
+
+
 ----------------------------------------------------------------------------------------------------
 
 COMMAND: set_variable (makes or sets a named value)
+
+Use python / mast variables
 
 ----------------------------------------------------------------------------------------------------
 
 COMMAND: set_timer (makes or sets a named timer)
 
+Use delay
+
+.. tabs::
+   .. code-tab:: mast mast
+      :emphasize-lines: 3
+      
+	  	# delay 10 seconds in simulation time before doing the next command
+		delay sim 10s
+
+
+		# delay 10 seconds in gui time before doing the next command
+		delay gui 10s
+
+
+
+   .. code-tab:: py PyMast
+      :emphasize-lines: 3
+
+        # delay 10 seconds in simulation time before doing the next command
+		yield delay(seconds=10, sim=True)
+		# delay 10 seconds in gui time before doing the next command
+		yield delay(seconds=10)
+
+      
+
+
+----------------------------------------------------------------------------------------------------
+incoming_message (creates a Comms button to play a media file on the main screen)
+
+
+Route comms to a label that eventually calls await comms
+
+use an await comms command.
+
+.. tabs::
+   .. code-tab:: mast mast
+      :emphasize-lines: 3
+
+
+
+		comms_id = COMMS_ORIGIN.comms_id
+		await comms:
+			+ "Hail":
+				sbs.play_music_file(arg0: str, arg1: int, arg2: int) -> None:
+    	end_await
+		
+
+
+
+   .. code-tab:: py PyMast
+      :emphasize-lines: 3
+
+		TBD
+
+
+
+
+
+
+big_message (creates a chapter title on main screen(s))
+------------------------------------------------------------------
+
+Use a gui or a send_story_dialog
+
+.. tabs::
+   .. code-tab:: mast mast
+      :emphasize-lines: 3
+      
+      section style="area: 10,10,90,90;"
+
+	  """This is the text to display"""
+
+	  await choice:
+	  	+ "Start":
+	       jump start
+	  end_await
+
+	  # or a story dialog
+	  sbs.send_story_dialog(client_id, "Admiral", "Ready...", face, "#333")
+	  
+
+
+   .. code-tab:: py PyMast
+      :emphasize-lines: 3
+
+		self.gui_section("area: 10, 10, 90, 90;")
+        self.gui_text("This is the text to display")
+
+        yield self.await_gui({
+            "Start Mission": self.start
+        })
+
+		# or a story dialog
+	    sbs.send_story_dialog(client_id, "Admiral", "Ready...", face, "#333")
+
+      
+      
+
+
+
+
 ----------------------------------------------------------------------------------------------------
 
-COMMAND: incoming_message (creates a Comms button to play a media file on the main screen)
+end_mission (stops the mission)
 
 
-
-----------------------------------------------------------------------------------------------------
-
-COMMAND: big_message (creates a chapter title on main screen(s))
-
-
-----------------------------------------------------------------------------------------------------
-
-COMMAND: end_mission (stops the mission)
-
-
+gui jump present_game_screen
 
 
 ----------------------------------------------------------------------------------------------------
 
 COMMAND: incoming_comms_text (sends a block of text to the Comms station)
 
+.. tabs::
+   .. code-tab:: mast mast
+      :emphasize-lines: 3
+      
+		transmit "A Message" 
+		receive  "A Message"
+
+		# to override the face shown add a face argument
+		transmit "A Message" face "..." color="white" comms_id="..."
+		receive  "A Message" face "..."
+
+
+		have some_object tell another_object "Message"
+
+
+
+   .. code-tab:: py PyMast
+      :emphasize-lines: 3
+
+         def my_button(story, comms):
+		     comms.transmit("A message ")
+			 comms.receive("A message ")
+
+		 
+		 self.comms_message(id1, id2, "Message")
+
+
+
+
+
 
 ----------------------------------------------------------------------------------------------------
 
 COMMAND: log (sends text to the mission's log file)
-			
+
+
+.. tabs::
+   .. code-tab:: mast mast
+      :emphasize-lines: 3
+      
+		logger
+		logger string variable_name
+		logger file "Filename"
+
+		logger name another
+		logger name another string variable_name
+		logger name another file "filename"
+
+		log "Stuff to log"
+		log name another "Stuff to log"
+
+
+
+   .. code-tab:: py PyMast
+      :emphasize-lines: 3
+
+         self.logger()
+		 variable_name = self.string_logger()
+		 self.file_logger("filename")
+
+		 self.logger("another")
+		 variable_name = self.string_logger("another")
+		 self.file_logger("filename", "another")
+
+		 self.log("Stuff to log")
+		 self.log("Stuff to log", "another")
+
+
 			
 
 ----------------------------------------------------------------------------------------------------
@@ -178,6 +455,35 @@ COMMAND: set_gm_button (adds a button to the current GM console)
 ----------------------------------------------------------------------------------------------------
 
 COMMAND: set_comms_button (adds a button to all relavent comms consoles)
+
+Route comms to a label that eventually calls await comms
+
+use an await comms command.
+
+.. tabs::
+   .. code-tab:: mast mast
+      :emphasize-lines: 3
+
+
+
+		comms_id = COMMS_ORIGIN.comms_id
+		await comms:
+			+ "Hail":
+				receive "{comms_id}! We will destroy you, disgusting Terran scum!"
+			+ "You're Ugly":
+				receive  """You are a foolish Terran, {comms_id}.  We know that the taunt functionality is not currently implemented.^"""
+			+ "Surrender now":
+				receive """OK we give up, {comms_id}."""
+		end_await
+
+
+
+   .. code-tab:: py PyMast
+      :emphasize-lines: 3
+
+		TBD
+
+
 
 
 ----------------------------------------------------------------------------------------------------
