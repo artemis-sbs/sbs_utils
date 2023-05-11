@@ -64,7 +64,12 @@
 <li class="toctree-l1"><a class="reference internal" href="simple_science.html">Tutorial: Simple Science</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial: Simple Comms</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#create-mission">Create mission</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#add-more-enemies">Add more enemies</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#add-more-stations">Add more stations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#add-role">Add role</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#add-a-router-for-comms">Add a router for comms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#add-router-label-and-logic">Add router label and logic</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="simple_gui.html">Tutorial: Simple Gui</a></li>
@@ -132,13 +137,143 @@
 </div>
 </div></div>
 </section>
-<section id="add-more-enemies">
-<h2>Add more enemies<a class="headerlink" href="#add-more-enemies" title="Permalink to this heading"></a></h2>
+</section>
+<section id="add-more-stations">
+<h1>Add more stations<a class="headerlink" href="#add-more-stations" title="Permalink to this heading"></a></h1>
 <div class="sphinx-tabs docutils container">
-<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-1-bWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-bWFzdA==" name="bWFzdA==" role="tab" tabindex="0">mast</button><button aria-controls="panel-1-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-1-bWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-1-bWFzdA==" name="bWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="c1">#TODO</span>
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-1-bWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-bWFzdA==" name="bWFzdA==" role="tab" tabindex="0">mast</button><button aria-controls="panel-1-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-1-bWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-1-bWFzdA==" name="bWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span># Create a space station
+ds1 = npc_spawn(1000,0,1000, &quot;DS1&quot;, &quot;tsn&quot;, &quot;starbase_command&quot;, &quot;behav_station&quot;)
+<span class="hll">ds2 = npc_spawn(1000,0,-1000, &quot;DS2&quot;, &quot;tsn&quot;, &quot;starbase_command&quot;, &quot;behav_station&quot;)
+</span></pre></div>
+</div>
+</div><div aria-labelledby="tab-1-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-1-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a space station</span>
+<span class="n">ds1</span> <span class="o">=</span> <span class="n">Npc</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1000</span><span class="p">,</span> <span class="s2">&quot;DS1&quot;</span><span class="p">,</span> <span class="s2">&quot;tsn&quot;</span><span class="p">,</span> <span class="s2">&quot;starbase_command&quot;</span><span class="p">,</span> <span class="s2">&quot;behav_station&quot;</span><span class="p">)</span>
+<span class="hll"><span class="n">ds2</span> <span class="o">=</span> <span class="n">Npc</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">,</span> <span class="o">-</span><span class="mi">1000</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1000</span><span class="p">,</span> <span class="s2">&quot;DS2&quot;</span><span class="p">,</span> <span class="s2">&quot;tsn&quot;</span><span class="p">,</span> <span class="s2">&quot;starbase_command&quot;</span><span class="p">,</span> <span class="s2">&quot;behav_station&quot;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</div></div>
+</section>
+<section id="add-role">
+<h1>Add role<a class="headerlink" href="#add-role" title="Permalink to this heading"></a></h1>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-2-bWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-2-bWFzdA==" name="bWFzdA==" role="tab" tabindex="0">mast</button><button aria-controls="panel-2-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-2-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-2-bWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-2-bWFzdA==" name="bWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span># Create a space station
+ds1 = npc_spawn(1000,0,1000, &quot;DS1&quot;, &quot;tsn&quot;, &quot;starbase_command&quot;, &quot;behav_station&quot;)
+ds2 = npc_spawn(1000,0,-1000, &quot;DS2&quot;, &quot;tsn&quot;, &quot;starbase_command&quot;, &quot;behav_station&quot;)
+<span class="hll">do add_role({ds1.id, ds2.id}, &quot;Station&quot;)
+</span></pre></div>
+</div>
+</div><div aria-labelledby="tab-2-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-2-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a space station</span>
+<span class="n">ds1</span> <span class="o">=</span> <span class="n">Npc</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1000</span><span class="p">,</span> <span class="s2">&quot;DS1&quot;</span><span class="p">,</span> <span class="s2">&quot;tsn&quot;</span><span class="p">,</span> <span class="s2">&quot;starbase_command&quot;</span><span class="p">,</span> <span class="s2">&quot;behav_station&quot;</span><span class="p">)</span>
+<span class="n">ds2</span> <span class="o">=</span> <span class="n">Npc</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="o">-</span><span class="mi">1000</span><span class="p">,</span> <span class="s2">&quot;DS2&quot;</span><span class="p">,</span> <span class="s2">&quot;tsn&quot;</span><span class="p">,</span> <span class="s2">&quot;starbase_command&quot;</span><span class="p">,</span> <span class="s2">&quot;behav_station&quot;</span><span class="p">)</span>
+<span class="hll"><span class="n">query</span><span class="o">.</span><span class="n">add_role</span><span class="p">({</span><span class="n">ds1</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">ds2</span><span class="o">.</span><span class="n">id</span><span class="p">},</span> <span class="s2">&quot;Station&quot;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</div></div>
+<section id="add-a-router-for-comms">
+<h2>Add a router for comms<a class="headerlink" href="#add-a-router-for-comms" title="Permalink to this heading"></a></h2>
+<p>Routers create tasks automatically a needed and starts running at a specific label.
+That label that uses logic to route to other labels based on certain conditions.</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-3-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-3-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-3-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-3-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-3-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-3-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span># at the top of the mast file add
+# Configure the label where comms routing occurs
+route comms comms_route
 </pre></div>
 </div>
-</div><div aria-labelledby="tab-1-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-1-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="c1">#TODO</span>
+</div><div aria-labelledby="tab-3-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-3-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="c1"># in the __init__ of the story add</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">route_comms</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">comms_route</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="add-router-label-and-logic">
+<h2>Add router label and logic<a class="headerlink" href="#add-router-label-and-logic" title="Permalink to this heading"></a></h2>
+<p>This label is called for a player ship (COMMS_ORIGIN_ID)
+and the COMMS_SELECTED_ID ship has not been communicated with
+this is used to resolve where to START the conversation with the TO ship
+COMMS_SELECTED_ID is the id of the target</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-4-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-4-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-4-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-4-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-4-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-4-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">================ comms_route ==================</span>
+if has_role(COMMS_SELECTED_ID, &#39;Station&#39;):
+   jump comms_station
+elif has_role(COMMS_SELECTED_ID, &#39;raider&#39;):
+   jump npc_comms
+end_if
+
+# Anything else has no comms buttons
+# and static as the id
+comms_info &quot;static&quot;
+
+<span class="gd">-&gt;END</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-4-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-4-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">comms_route</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+   <span class="k">if</span> <span class="n">has_role</span><span class="p">(</span><span class="n">COMMS_SELECTED_ID</span><span class="p">,</span> <span class="s1">&#39;Station&#39;</span><span class="p">):</span>
+      <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">jump</span><span class="p">(</span><span class="n">comms_station</span><span class="p">)</span>
+   <span class="k">elif</span> <span class="n">has_role</span><span class="p">(</span><span class="n">COMMS_SELECTED_ID</span><span class="p">,</span> <span class="s1">&#39;raider&#39;</span><span class="p">):</span>
+      <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">jump</span><span class="p">(</span><span class="n">npc_comms</span><span class="p">)</span>
+
+   <span class="c1"># Anything else has no comms buttons</span>
+   <span class="c1"># and static as the id</span>
+   <span class="bp">self</span><span class="o">.</span><span class="n">comms_info</span><span class="p">(</span><span class="s2">&quot;static&quot;</span><span class="p">)</span>
+   <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
+</pre></div>
+</div>
+</div></div>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-5-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-5-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-5-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-5-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-5-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-5-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">================ npc_comms ==================</span>
+
+await comms:
+   + &quot;Hail&quot;:
+      receive &quot;We will destroy you, disgusting Terran scum!&quot;
+   + &quot;Surrender now&quot;:
+      receive  &quot;&quot;&quot;OK we give up&quot;&quot;&quot;
+end_await
+jump npc_comms
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-5-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-5-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">npc_comms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+   <span class="k">def</span> <span class="nf">button_hail</span><span class="p">(</span><span class="n">story</span><span class="p">,</span> <span class="n">comms</span><span class="p">):</span>
+      <span class="n">comms</span><span class="o">.</span><span class="n">receive</span><span class="p">(</span><span class="s2">&quot;We will destroy you, disgusting Terran scum!&quot;</span><span class="p">)</span>
+
+   <span class="k">def</span> <span class="nf">button_surrender</span><span class="p">(</span><span class="n">story</span><span class="p">,</span> <span class="n">comms</span><span class="p">):</span>
+      <span class="n">comms</span><span class="o">.</span><span class="n">receive</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;OK we give up&quot;&quot;&quot;</span><span class="p">)</span>
+
+   <span class="bp">self</span><span class="o">.</span><span class="n">await_comms</span><span class="p">{{</span>
+      <span class="s2">&quot;Hail&quot;</span><span class="p">:</span> <span class="n">button_hail</span><span class="p">,</span>
+      <span class="s2">&quot;Surrender now&quot;</span><span class="p">:</span> <span class="n">button_surrender</span>
+      <span class="p">})</span>
+      <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">jump</span><span class="p">(</span><span class="n">npc_comms</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-6-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-6-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-6-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-6-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-6-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-6-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">======== comms_station ======</span>
+
+await comms:
+   + &quot;Hail&quot;:
+      transmit &quot;Hello&quot;
+      receive &quot;Yo&quot;
+
+end_await
+jump comms_station
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-6-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-6-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">comms_station</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+   <span class="k">def</span> <span class="nf">button_hail</span><span class="p">(</span><span class="n">story</span><span class="p">,</span> <span class="n">comms</span><span class="p">):</span>
+      <span class="c1"># Message to station</span>
+      <span class="n">comms</span><span class="o">.</span><span class="n">transmit</span><span class="p">(</span><span class="s2">&quot;Hello&quot;</span><span class="p">)</span>
+      <span class="c1">#message from station</span>
+      <span class="n">comms</span><span class="o">.</span><span class="n">receive</span><span class="p">(</span><span class="s2">&quot;Yo&quot;</span><span class="p">)</span>
+
+   <span class="bp">self</span><span class="o">.</span><span class="n">await_comms</span><span class="p">{{</span>
+      <span class="s2">&quot;Hail&quot;</span><span class="p">:</span> <span class="n">button_hail</span><span class="p">,</span>
+      <span class="p">})</span>
+      <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">jump</span><span class="p">(</span><span class="n">comms_station</span><span class="p">)</span>
 </pre></div>
 </div>
 </div></div>
