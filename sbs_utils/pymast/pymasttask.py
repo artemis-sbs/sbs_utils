@@ -32,11 +32,13 @@ class PyMastTask:
         self.task = self
         self.pending_jump = label
         self.pending_pop = None
-        self.await_gen = None
         self.events = {}
         self.page = None
         self.pop_on_jump = 0
         #self.jump(label)
+
+        self.COMMS_ORIGIN_ID = None
+        self.COMMS_SELECTED_ID = None
         
         self.last_poll_result = None
         self.last_popped_poll_result = None
@@ -55,6 +57,7 @@ class PyMastTask:
         self.sim = sim
         self.story.sim = sim
         self.scheduler.sim = sim
+        self.story.task = self
         # Keep running until told to defer or you've jump 100 time
         # Arbitrary number
         throttle = 0
@@ -69,7 +72,7 @@ class PyMastTask:
                 self.current_gen = self.pending_pop
                 self.pending_pop = None
             
-            gen = self.await_gen if self.await_gen else self.current_gen
+            gen = self.current_gen
             # It is possible that the label
             # did not Yield, which is OK just End 
             if gen is None:
@@ -88,9 +91,6 @@ class PyMastTask:
             if gen_done:
                 if len(self.stack)>0:
                     return self.pop()
-                elif self.await_gen:
-                    self.await_gen = None
-                    return
                 else:
                     self.current_gen = self.pending_pop
                     if self.current_gen is None:
@@ -180,24 +180,40 @@ class PyMastTask:
         yield self.pop()
 
     def await_science(self, scans, player, npc):
-        self.await_gen = self.run_science(scans, player, npc)
-        return PollResults.OK_RUN_AGAIN
-
-    def run_science(self, scans, player, npc):
+        # Then Await for it to finish
         science = PyMastScience(self, scans, player, npc)
+        def pusher(story):
+            return self.run_science(science)
+        self.task.push_jump_pop(pusher)
+        return PollResults.OK_JUMP
+
+    def run_science(self, science):
         while science.done == False:
             yield PollResults.OK_RUN_AGAIN
-        self.await_gen = None
+        self.pop()
 
-    def await_comms(self, buttons, player, npc):
-        self.await_gen = self.run_comms(buttons, player, npc)
-        return PollResults.OK_RUN_AGAIN
 
-    def run_comms(self, buttons, player, npc):
-        comms = PyMastComms(self, buttons, player, npc, False)
+    def await_comms(self, buttons, player=None, npc=None):
+        if player is None:
+            player = self.COMMS_ORIGIN_ID
+        if npc is None:
+            npc = self.COMMS_SELECTED_ID
+
+
+        # Create this here so the comms is updated NOW
+        comms = PyMastComms(self, buttons, player, npc)
+        # Then Await for it to finish
+        def pusher(story):
+            return self.run_comms(comms)
+        self.task.push_jump_pop(pusher)
+        return PollResults.OK_JUMP
+
+    def run_comms(self, comms):
         while comms.done == False:
             yield PollResults.OK_RUN_AGAIN
-        self.await_gen = None
+        print("COMMS DONE")
+        self.pop()
+
 
     def await_gui(self, buttons, timeout, on_message=None, test_refresh=None, test_end_await = None, on_disconnect=None):
         if self.page is None:

@@ -94,6 +94,37 @@ class PyMastStory:
     def start_client(self):
         pass
 
+    #
+    # Routing
+    #
+
+
+    def route_comms(self, label):
+        """
+        route_comms
+
+        define a label to use with a new task if the comms is not handled
+        """
+        story = self
+        def handle_dispatch(sim, an_id, event):
+            # I it reaches this, there are no pending comms handler
+            # Create a new task and jump to the routing label
+            task = story.schedule_task(label)
+            task.COMMS_ORIGIN_ID = event.origin_id
+            task.COMMS_SELECTED_ID = event.selected_id
+            #
+            # Kick the tick
+            #
+            task.tick(sim)
+            #
+            #
+        ConsoleDispatcher.add_default_select("comms_target_UID", handle_dispatch)
+            
+
+
+
+
+
     ###########
     # SBS Strory
     def schedule_science(self, player, npc, scans):
@@ -102,14 +133,14 @@ class PyMastStory:
         task.current_gen = science.run()
         return self.scheduler.schedule_a_task(task)
 
-    def await_comms(self, player, npc, buttons):
-        return self.task.await_comms(player, npc, buttons, False)
+    def await_comms(self, buttons, player=None, npc=None):
+        return self.task.await_comms(buttons, player, npc)
     
-    def schedule_comms(self, player, npc, buttons):
-        task = PyMastTask(self,self.scheduler, None)
-        comms = PyMastComms(task, player, npc, buttons, True)
-        task.current_gen = comms.run()
-        return self.scheduler.schedule_a_task(task)
+    # def schedule_comms(self, player, npc, buttons):
+    #     task = PyMastTask(self,self.scheduler, None)
+    #     comms = PyMastComms(task, player, npc, buttons, True)
+    #     task.current_gen = comms.run()
+    #     return self.scheduler.schedule_a_task(task)
     
     ###################
     ## Behavior stuff

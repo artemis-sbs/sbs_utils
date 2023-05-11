@@ -19,8 +19,9 @@ class PyMastScheduler:
         self.tasks.append(self.task)
 
     def schedule_task(self, label):
-        self.schedule_a_task(PyMastTask(self.story, self, label))
-        return PollResults.OK_ADVANCE_TRUE
+        task = PyMastTask(self.story, self, label)
+        self.schedule_a_task(task)
+        return task
     
     def schedule_a_task(self, task):
         self.new_tasks.add(task)

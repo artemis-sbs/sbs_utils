@@ -2,18 +2,34 @@ from .mast import IF_EXP_REGEX, TIMEOUT_REGEX, OPT_COLOR, Mast, MastNode, EndAwa
 import re
 
 
-class Target(MastNode):
+class Route(MastNode):
     """
-    Creates a new 'task' to run in parallel
+    Route unhandled things comms, science, events
     """
-    rule = re.compile(r"""have\s*(?P<from_tag>[\w\.\[\]]+)\s*(?P<cmd>target|approach)(\s*(?P<to_tag>[\w\.\[\]]+))?""")
-    def __init__(self, cmd=None, from_tag=None, to_tag=None, loc=None):
+    rule = re.compile(r"""route\s+(?P<route>comms|science|console)\s+(?P<name>\w+)""")
+    def __init__(self, route, name, loc=None):
         self.loc = loc
-        self.from_tag = from_tag
-        self.to_tag = to_tag
-        self.approach = cmd=="approach"
+        self.route = route
+        self.label = name
 
-        
+
+class TransmitReceive(MastNode):
+    #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
+    rule = re.compile(r"""(?P<tr>receive|transmit)\s+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)"""+OPT_COLOR)
+    def __init__(self, tr, message, q=None, color=None, loc=None):
+        self.loc = loc
+        self.transmit = tr == "transmit"
+        self.message = self.compile_formatted_string(message)
+        self.color = color if color is not None else "#fff"
+
+class CommsInfo(MastNode):
+    rule = re.compile(r"""comms_info(\s+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q))?"""+OPT_COLOR)
+    def __init__(self, message, q=None, color=None, loc=None):
+        self.loc = loc
+        self.message = self.compile_formatted_string(message)
+        self.color = color if color is not None else "#fff"
+
+
 class Tell(MastNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
     rule = re.compile(r"""have\s*(?P<from_tag>\*?\w+)\s+tell\s+(?P<to_tag>\*?\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)\4)"""+OPT_COLOR)
@@ -35,8 +51,8 @@ class Broadcast(MastNode):
 
 
 class Comms(MastNode):
-    rule = re.compile(r"""await\s*(?P<from_tag>\w+)\s*comms\s*(?P<to_tag>\w+)(\s*set\s*(?P<assign>\w+))?(\s+color\s*["'](?P<color>[ \t\S]+)["'])?"""+TIMEOUT_REGEX+'\s*'+BLOCK_START)
-    def __init__(self, to_tag, from_tag, assign=None, minutes=None, seconds=None, time_pop=None,time_push="", time_jump="", color="white", loc=None):
+    rule = re.compile(r"""await\s*((?P<from_tag>\w+)\s*)?comms(\s*(?P<to_tag>\w+))?(\s*set\s*(?P<assign>\w+))?(\s+color\s*["'](?P<color>[ \t\S]+)["'])?"""+TIMEOUT_REGEX+'\s*'+BLOCK_START)
+    def __init__(self, to_tag=None, from_tag=None, assign=None, minutes=None, seconds=None, time_pop=None,time_push="", time_jump="", color="white", loc=None):
         self.loc = loc
         self.to_tag = to_tag
         self.from_tag = from_tag
@@ -208,48 +224,6 @@ class Simulation(MastNode):
         self.loc = loc
         self.cmd = cmd
 
-class Role(MastNode):
-    """
-    Handle commands to the simulation
-    """
-    rule = re.compile(r"""have\s+(?P<name>\w+)\s+(?P<cmd>add|remove)\s+(role|roles)\s*(?P<q>["'])(?P<roles>.+?)(?P=q)""")
-    def __init__(self, name, roles, cmd=None, q=None, loc=None):
-        self.loc = loc
-        self.cmd = cmd
-        self.name = name
-        self.roles = [x.strip() for x in roles.split(',')]
-
-class Find(MastNode):
-    """
-    
-    """
-    """ships = find all "Station" near artemis by 700  filter(lambda score: score >= 70)"""
-    rule = re.compile(r"""(?P<assign>\w+)\s*=\s*all\s*(?P<q>["'])(?P<role>.+?)(?P=q)(\s*near\s+(?P<name>\w+)(\s+by\s+(?P<max>\d+))?)?(\s+filter\s*\((?P<the_filter>.*\)))?(\s*include\s+(?P<inc_dist>distance))?""")
-    def __init__(self, assign, name, role,max, the_filter, inc_dist, q=None, loc=None):
-        self.loc = loc
-        self.all = all is not None
-        self.name = name
-        self.assign = assign
-        self.role = role.strip()
-        self.max = None if max is None else int(max)
-        self.the_filter = the_filter
-        self.inc_dist = inc_dist
-
-class Closest(MastNode):
-    """
-    
-    """
-    """ships = find all "Station" near artemis by 700  filter(lambda score: score >= 70)"""
-    rule = re.compile(r"""(?P<assign>\w+)\s*=\s*closest\s*(?P<q>["'])(?P<role>.+?)(?P=q)(\s*near\s+(?P<name>\w+)(\s+by\s+(?P<max>\d+))?)?(\s+filter\s*\((?P<the_filter>.*\)))?""")
-    def __init__(self, assign, name, role,max, the_filter, q=None, loc=None):
-        self.loc = loc
-        self.all = all is not None
-        self.name = name
-        self.assign = assign
-        self.role = role.strip()
-        self.max = None if max is None else int(max)
-        self.the_filter = the_filter
-
 
 class Load(MastNode):
     rule = re.compile(r'(from\s+(?P<lib>[\w\.\\\/-]+)\s+)?load\s+(?P<format>json|map)\s+(?P<name>[\w\.\\\/-]+)')
@@ -263,17 +237,15 @@ class Load(MastNode):
 class MastSbs(Mast):
     nodes =  [
         # sbs specific
-        Target,
+        Route,
+        TransmitReceive,
         Tell,
         Load,
         Broadcast,
         Comms,
+        CommsInfo,
         Button,
-        Near,
         Simulation,
-        Role,
-        Find,
-        Closest,
         Scan,
         ScanTab,
         ScanResult

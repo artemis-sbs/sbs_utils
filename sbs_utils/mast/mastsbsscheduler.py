@@ -1,5 +1,5 @@
 from .mast import Mast, Scope
-from .mastsbs import Role, Simulation, Target, Tell, Comms, Button, Near,Broadcast, ScanTab,ScanResult, Load
+from .mastsbs import Simulation, Route, TransmitReceive, Tell, Comms, Button, Broadcast, ScanTab,ScanResult, Load
 from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask
 import sbs
 from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain
@@ -13,6 +13,8 @@ import sys
 import json
 from .. import query
 from .. import scatter
+
+from functools import partial
 
 
 import traceback
@@ -29,7 +31,50 @@ class ButtonRuntimeNode(MastRuntimeNode):
             
         return PollResults.OK_ADVANCE_TRUE
 
-       
+
+class TransmitReceiveRuntimeNode(MastRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: TransmitReceive):
+        self.face = ""
+        self.title = ""
+        if node.transmit:
+            to_so:SpaceObject = query.to_object(task.get_variable("COMMS_SELECTED_ID"))
+            from_so:SpaceObject = query.to_object(task.get_variable("COMMS_ORIGIN_ID"))
+        else:
+            from_so:SpaceObject = query.to_object(task.get_variable("COMMS_SELECTED_ID"))
+            to_so:SpaceObject = query.to_object(task.get_variable("COMMS_ORIGIN_ID"))
+
+        if to_so is None or from_so is None:
+            return
+        # From face should be used
+        self.title = from_so.comms_id +">"+to_so.comms_id
+        self.face = faces.get_face(from_so.get_id())
+        # Just in case swap if from is not a player
+        if not from_so.is_player:
+            swap = to_so
+            to_so = from_so
+            from_so = swap
+
+        self.to_id = to_so.get_id()
+        self.from_id = from_so.get_id()
+    
+        if self.face is None:
+            self.face = ""
+
+    def poll(self, mast:Mast, task:MastAsyncTask, node: Tell):
+
+        if self.to_id and self.from_id:
+            msg = task.format_string(node.message)
+            #print(f"{self.from_id} {self.from_id} {node.color} {self.face} {self.title} {msg}")
+            sbs.send_comms_message_to_player_ship(
+                self.from_id,
+                self.to_id,
+                node.color,
+                self.face, 
+                self.title, 
+                msg)
+            return PollResults.OK_ADVANCE_TRUE
+        else:
+            PollResults.OK_ADVANCE_FALSE       
 
 class TellRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Tell):
@@ -98,6 +143,28 @@ class BroadcastRuntimeNode(MastRuntimeNode):
 
         return PollResults.OK_ADVANCE_TRUE
 
+class CommsInfoRuntimeNode(MastRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: Comms):
+        color = node.color if node.color else "white"
+        to_so:SpaceObject = query.to_object(task.get_variable("COMMS_SELECTED_ID"))
+        from_so:SpaceObject = query.to_object(task.get_variable("COMMS_ORIGIN_ID"))
+
+        if to_so is None or from_so is None:
+            return
+        # Just in case swap if from is not a player
+        if not from_so.is_player:
+            swap = to_so
+            to_so = from_so
+            from_so = swap
+
+        comms_id = to_so.comms_id
+        if node.message:
+            comms_id = task.format_string(node.message)
+        face = faces.get_face(to_so.id) 
+   
+        sbs.send_comms_selection_info(from_so.id, face, color, comms_id)
+
+
 class CommsRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Comms):
         seconds = (node.minutes*60+node.seconds)
@@ -123,8 +190,17 @@ class CommsRuntimeNode(MastRuntimeNode):
         self.buttons = buttons
 
 
-        to_so:SpaceObject = task.get_variable(node.to_tag)
-        from_so:SpaceObject = task.get_variable(node.from_tag)
+
+        if node.to_tag:
+            to_so:SpaceObject = query.to_object(task.get_variable(node.to_tag))
+        else:
+            to_so:SpaceObject = query.to_object(task.get_variable("COMMS_SELECTED_ID"))
+
+        if node.from_tag:
+            from_so:SpaceObject = query.to_object(task.get_variable(node.from_tag))
+        else:
+            from_so:SpaceObject = query.to_object(task.get_variable("COMMS_ORIGIN_ID"))
+
         if to_so is None or from_so is None:
             return
         # Just in case swap if from is not a player
@@ -349,58 +425,27 @@ class ScanResultRuntimeNode(MastRuntimeNode):
         return PollResults.OK_RUN_AGAIN
 
 
-class TargetRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Target):
-        to_so:SpaceObject = task.get_variable(node.to_tag)
-        self.to_id = to_so.get_id() if to_so else None
-        from_so:SpaceObject = task.get_variable(node.from_tag)
-        self.from_id = from_so.get_id() if from_so else None
 
-
-
-    def poll(self, mast, task, node:Target):
-        if self.to_id:
-            obj:SpaceObject = SpaceObject.get(self.from_id)
-            query.target(task.main.sim, obj, self.to_id, not node.approach)
-        else:
-            obj:SpaceObject = SpaceObject.get(self.from_id)
-            query.clear_target(task.main.sim, obj)
+class RouteRuntimeNode(MastRuntimeNode):
+    def poll(self, mast:Mast, task:MastAsyncTask, node: Route):
+        def handle_dispatch(task, sim, an_id, event):
+            # I it reaches this, there are no pending comms handler
+            # Create a new task and jump to the routing label
+            task = task.start_task(node.label, {
+                    "COMMS_ORIGIN_ID": event.origin_id,
+                    "COMMS_SELECTED_ID": event.selected_id
+            })
+        match node.route:
+            case "comms":
+                ConsoleDispatcher.add_default_select("comms_target_UID", partial(handle_dispatch, task))
+            
+            case "science":
+                pass
+            case "resume":
+                pass
 
         return PollResults.OK_ADVANCE_TRUE
 
-
-class NearRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Near):
-        seconds = (node.minutes*60+node.seconds)
-        if seconds == 0:
-            self.timeout = None
-        else:
-            self.timeout = task.main.get_seconds("sim")+ (node.minutes*60+node.seconds)
-
-        self.tag = None
-
-        to_so:SpaceObject = task.get_variable(node.to_tag)
-        if to_so:
-            self.to_id = to_so.get_id()
-        from_so:SpaceObject = task.get_variable(node.from_tag)
-        if from_so:
-            self.from_id = from_so.get_id()
-
-    def poll(self, mast:Mast, task:MastAsyncTask, node: Near):
-        # Need to check the distance
-        dist = sbs.distance_id(self.to_id, self.from_id)
-        if dist <= node.distance:
-            return PollResults.OK_ADVANCE_TRUE
-
-        if self.timeout is not None and self.timeout <= task.main.get_seconds("sim"):
-            if node.timeout_label:
-                task.jump(task.active_label,node.timeout_label.loc+1)
-                return PollResults.OK_JUMP
-            elif node.end_await_node:
-                task.jump(task.active_label,node.end_await_node.loc+1)
-                return PollResults.OK_JUMP
-
-        return PollResults.OK_RUN_AGAIN
 
 
 class SimulationRuntimeNode(MastRuntimeNode):
@@ -415,21 +460,6 @@ class SimulationRuntimeNode(MastRuntimeNode):
 
         return PollResults.OK_ADVANCE_TRUE
 
-class RoleRuntimeNode(MastRuntimeNode):
-    def poll(self, mast:Mast, task:MastAsyncTask, node: Role):
-        py_object = task.get_variable(node.name)
-        if py_object is None:
-            return
-        match node.cmd:
-            case "add":
-                for role in node.roles:
-                    py_object.add_role(role)
-            case "remove":
-                for role in node.roles:
-                    py_object.remove_role(role)
-            
-
-        return PollResults.OK_ADVANCE_TRUE
 
 
 class LoadRuntimeNode(MastRuntimeNode):
@@ -455,11 +485,12 @@ class LoadRuntimeNode(MastRuntimeNode):
         
 
 over =     {
+      "Route": RouteRuntimeNode,
       "Comms": CommsRuntimeNode,
+      "CommsInfo": CommsInfoRuntimeNode,
+      "TransmitReceive": TransmitReceiveRuntimeNode,
       "Tell": TellRuntimeNode,
       "Broadcast": BroadcastRuntimeNode,
-      "Near": NearRuntimeNode,
-      "Target": TargetRuntimeNode,
       "Button": ButtonRuntimeNode,
       "Simulation": SimulationRuntimeNode,
       "Scan": ScanRuntimeNode,

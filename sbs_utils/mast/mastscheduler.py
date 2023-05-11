@@ -1163,12 +1163,11 @@ class MastScheduler:
 
     def start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:
         t = self._start_task(label, inputs, task_name)
+        if task_name is not None:
+            t.set_value(task_name, t, Scope.NORMAL)
         t.jump(label)
         self.tasks.append(t)
         self.on_start_task(t)
-        
-        if task_name is not None:
-            self.active_task.set_value(task_name, t, Scope.NORMAL)
         return t
 
     def on_start_task(self, t):

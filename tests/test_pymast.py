@@ -228,8 +228,8 @@ After
                 self.count = 0
                 logging.info("Before")
                 
-                yield self.schedule_task(self.find_food)
-                yield self.schedule_task(self.behave)
+                self.schedule_task(self.find_food)
+                self.schedule_task(self.behave)
                 
                 # Make sure it returns to the original flow
                 logging.info("After")
