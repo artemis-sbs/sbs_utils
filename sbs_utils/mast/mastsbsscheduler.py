@@ -308,8 +308,20 @@ class ScanRuntimeNode(MastRuntimeNode):
                 buttons.extend(self.expand(button, task))
         self.buttons = buttons
 
-        to_so:SpaceObject = task.get_variable(node.to_tag)
-        from_so:SpaceObject = task.get_variable(node.from_tag)
+        # Check if this was caused by a routed select
+        routed = task.get_variable("SCIENCE_ROUTED")
+        if routed is not None:
+            task.set_value_keep_scope("SCIENCE_ROUTED", False)
+        if node.to_tag:
+            to_so:SpaceObject = query.to_object(task.get_variable(node.to_tag))
+        else:
+            to_so:SpaceObject = query.to_object(task.get_variable("SCIENCE_SELECTED_ID"))
+
+        if node.from_tag:    
+            from_so:SpaceObject = query.to_object(task.get_variable(node.from_tag))
+        else:
+            from_so:SpaceObject = query.to_object(task.get_variable("SCIENCE_ORIGIN_ID"))
+
         if to_so is None or from_so is None:
             return
         # Just in case swap if from is not a player
@@ -340,18 +352,23 @@ class ScanRuntimeNode(MastRuntimeNode):
         ConsoleDispatcher.add_message_pair(self.from_id, self.to_id,  'science_target_UID', self.science_message)
         #self.set_buttons(self.to_id, self.from_id)
         # from_so.face_desc
+        if routed:
+            self.start_scan(task.main.sim, from_so.id, to_so.id, "scan")
 
     def science_selected(self, sim, an_id, event):
-        # to_id = event.origin_id
-        # from_id = event.selected_id
-        # #self.set_buttons(from_id, to_id)
-        #print("Science Select")
-        so = query.to_object(self.from_id)
+        self.start_scan(sim, event.origin_id, event.selected_id, event.extra_tag)
+
+    def start_scan(self, sim, origin_id, selected_id, extra_tag):
+        so = query.to_object(origin_id)
+        so_sel = query.to_object(selected_id)
+        percent = 0.0
+        if so.side == so_sel.side:
+            percent = 0.90
         if so:
             so.update_engine_data(sim, {
-                "cur_scan_ID": self.to_id,
-                "cur_scan_type": event.extra_tag,
-                "cur_scan_percent":0.0
+                "cur_scan_ID": selected_id,
+                "cur_scan_type": extra_tag,
+                "cur_scan_percent": percent
             })
 
     # def set_buttons(self, from_id, to_id):
@@ -428,19 +445,25 @@ class ScanResultRuntimeNode(MastRuntimeNode):
 
 class RouteRuntimeNode(MastRuntimeNode):
     def poll(self, mast:Mast, task:MastAsyncTask, node: Route):
-        def handle_dispatch(task, sim, an_id, event):
+        def handle_dispatch(task, console, sim, an_id, event):
             # I it reaches this, there are no pending comms handler
             # Create a new task and jump to the routing label
             task = task.start_task(node.label, {
-                    "COMMS_ORIGIN_ID": event.origin_id,
-                    "COMMS_SELECTED_ID": event.selected_id
+                    f"{console}_ORIGIN_ID": event.origin_id,
+                    f"{console}_SELECTED_ID": event.selected_id,
+                    f"{console}_ROUTED": True
             })
+        
         match node.route:
             case "comms":
-                ConsoleDispatcher.add_default_select("comms_target_UID", partial(handle_dispatch, task))
+                ConsoleDispatcher.add_default_select("comms_target_UID", partial(handle_dispatch, task, "COMMS"))
             
             case "science":
-                pass
+                ConsoleDispatcher.add_default_select("science_target_UID", partial(handle_dispatch, task, "SCIENCE"))
+
+            case "engineer":
+                ConsoleDispatcher.add_default_select("comms_target_UID", partial(handle_dispatch, task, "SCIENCE"))
+
             case "resume":
                 pass
 

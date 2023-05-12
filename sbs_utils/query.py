@@ -436,7 +436,9 @@ def set_dedicated_link(so, link, to):
 
 def has_role(so, role):
     so = to_object(so)
-    return so.has_role(role)
+    if so:
+        return so.has_role(role)
+    return False
 
 
 

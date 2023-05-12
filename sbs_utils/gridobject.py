@@ -118,14 +118,24 @@ class GridObject(EngineObject):
         hullMap = sim.get_hull_map(self.host_id)
         if go_type is None:
             go_type = self.__class__.__name__
+        if isinstance(go_type, str):
+            roles = go_type.split(",")
+            go_type = roles[0].strip()
+        else:
+            roles = go_type
+            go_type = roles[0].strip()
+
         self._name = name
         self._tag = tag
         go : sbs.grid_object
         go   = hullMap.create_grid_object(name, tag, go_type)
         self.id = go.unique_ID
         self.add()
-        self.add_role(go_type)
+        for role in roles:
+            self.add_role(role)
         self.add_role(self.__class__.__name__)
+        self.add_role("__grid_spawned__")
+        self.add_role("__GRID_OBJECT__")
 
         blob = go.data_set
         blob.set("curx", x, 0)

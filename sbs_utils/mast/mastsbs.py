@@ -68,7 +68,7 @@ class Comms(MastNode):
         EndAwait.stack.append(self)
 
 class Scan(MastNode):
-    rule = re.compile(r"""await\s*(?P<from_tag>\w+)\s*scan\s*(?P<to_tag>\w+)"""+BLOCK_START)
+    rule = re.compile(r"""await(\s+(?P<from_tag>\w+))?\s+scan(\s+(?P<to_tag>\w+))?"""+BLOCK_START)
     def __init__(self, to_tag, from_tag, loc=None):
         self.loc = loc
         self.to_tag = to_tag

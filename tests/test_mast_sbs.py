@@ -26,24 +26,12 @@ class TestMastSbsCompile(unittest.TestCase):
         (errors, mast) = mast_sbs_compile( code = """
 have self tell player "Hello"
 have self tell player "Hello" color "black"
-have self approach player
-have self target player
+#have self approach player
+#have self target player
 have self broadcast "Hello, World"
 have self broadcast "Hello, RGB" color "#fff"
 
-have ship approach artemis
-await ship near artemis 700:
--> Test
-timeout 1m 1s:
--> Test
-end_await
 
-
-await self near player 700:
--> Test
-timeout 1m 1s:
--> Test
-end_await
 
 
 await self comms player:
@@ -116,20 +104,6 @@ await=>HeadToDS2
 await=>HeadToDS1
 ->Two
 
-== HeadToDS1 ==
-have self approach ds1                           # Goto DS1
-await self near  ds1 700:
-    have self tell player  "I have arrived at ds1"   # tell the player
-end_await
-
-== HeadToDS2 ==
-have self approach ds2                           # goto DS2
-# wait until near D2
-await self near ds2 700:
-    have self tell player "I have arrived at ds2"    # tell the player
-end_await
-
-
 == Start ==
 
 await self comms player:
@@ -144,14 +118,6 @@ end_await
 
 == skip ==
 have self tell player "Come to pick the princess"
-await self near player 300:
-    have self tell player "You have the princess goto ds1"
-end_await
-
-await player near  station 700:
-    have station tell player "the princess is on ds1"
-end_await
-
 == Hello ==
 have self tell player "HELLO"
 

@@ -226,12 +226,21 @@ class MSpawn:
         sim.reposition_space_object(obj, x, y, z)
         self.add()
         self.add_role(self.__class__.__name__)
+        self.add_role("__space_spawn__")
+        self.add_role("__SPACE_OBJECT__")
+
         blob = obj.data_set
         if side is not None:
+            if isinstance(side, str):
+                roles = side.split(",")
+            else:
+                roles = side
+            side = roles[0].strip()
             self._comms_id = f"{name}({side})" if name is not None else f"{side}{self.id}"
             obj.side = side
             self._side = side
-            self.add_role(side)
+            for role in roles:
+                self.add_role(role)
         else:
             self._comms_id = name if name is not None else f""
         if name is not None:

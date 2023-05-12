@@ -381,18 +381,19 @@ class TestSpaceObject(unittest.TestCase):
 
         collections = artemis.get_inventory_in(mccoy)
         assert(len(collections)==2)
-        assert("Passengers" in collections)
-        assert("Doctor" in collections)
+        # role, links, etc. are all lower now
+        assert("passengers" in collections)
+        assert("doctor" in collections)
 
         artemis.remove_inventory("Passengers", mccoy)
         collections = artemis.get_inventory_in(mccoy)
         assert(len(collections)==1)
-        assert("Doctor" in collections)
+        assert("doctor" in collections)
 
 
         collections = artemis.get_inventory_in(spock)
         assert(len(collections)==1)
-        assert("Passengers" in collections)
+        assert("passengers" in collections)
 
         passengers = artemis.get_inventory_set("Passengers")
         assert(len(passengers)==2)
