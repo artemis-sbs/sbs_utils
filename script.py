@@ -428,7 +428,7 @@ class Mission:
         go1 = GridObject()
         go1.spawn(sim, sd_player.id, "fred", "fred", 9,4, 3, "blue", "flint")
         go2 = GridObject()
-        go2.spawn(sim, sd_player.id, "barney", "fred", 8,4, 3, "green", "rubble")
+        go2.spawn(sim, sd_player.id, "barney", "barney", 8,4, 3, "green", "rubble")
         go2.update_blob(sim, speed=0.01, icon_scale=1.3)
         query.grid_target_pos(go2, sim, 9,12)
         #GridDispatcher.add_object(go2.id, lambda sim, event: print("Barney Arrived"))

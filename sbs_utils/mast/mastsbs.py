@@ -6,7 +6,7 @@ class Route(MastNode):
     """
     Route unhandled things comms, science, events
     """
-    rule = re.compile(r"""route\s+(?P<route>comms|science|console)\s+(?P<name>\w+)""")
+    rule = re.compile(r"""route\s+(?P<route>destroy|spawn|damage|comms\s+select|science\s+select|grid\s+select|grid\s+spawn|change\s*console)\s+(?P<name>\w+)""")
     def __init__(self, route, name, loc=None):
         self.loc = loc
         self.route = route
@@ -15,12 +15,22 @@ class Route(MastNode):
 
 class TransmitReceive(MastNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
-    rule = re.compile(r"""(?P<tr>receive|transmit)\s+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)"""+OPT_COLOR)
-    def __init__(self, tr, message, q=None, color=None, loc=None):
+    OPT_FACE = r"""(\s*face((\s*(?P<faceq>['"]{3}|["'])(?P<face_string>[ \t\S]+?)(?P=faceq))|(\s+(?P<face_var>\w+))))?"""
+    OPT_COMMS_ID = r"""(\s*title((\s*(?P<comq>['"]{3}|["'])(?P<comms_string>[ \t\S]+?)(?P=comq))|(\s+(?P<comms_var>\w+))))?"""
+    rule = re.compile(r"""(?P<tr>receive|transmit)\s*(?P<q>['"]{3}|["'])(?P<message>.+?)(?P=q)"""+OPT_COMMS_ID+OPT_FACE+OPT_COLOR)
+    def __init__(self, tr, message, 
+                 face_string=None, face_var=None, faceq=None,
+                 comms_string=None, comms_var=None, comq=None,
+                 q=None, color=None, loc=None):
         self.loc = loc
         self.transmit = tr == "transmit"
         self.message = self.compile_formatted_string(message)
         self.color = color if color is not None else "#fff"
+        self.face_string = self.compile_formatted_string(face_string)
+        self.face_var = face_var
+        self.comms_string = self.compile_formatted_string(comms_string)
+        self.comms_var = comms_var
+
 
 class CommsInfo(MastNode):
     rule = re.compile(r"""comms_info(\s+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q))?"""+OPT_COLOR)
@@ -51,11 +61,12 @@ class Broadcast(MastNode):
 
 
 class Comms(MastNode):
-    rule = re.compile(r"""await\s*((?P<from_tag>\w+)\s*)?comms(\s*(?P<to_tag>\w+))?(\s*set\s*(?P<assign>\w+))?(\s+color\s*["'](?P<color>[ \t\S]+)["'])?"""+TIMEOUT_REGEX+'\s*'+BLOCK_START)
-    def __init__(self, to_tag=None, from_tag=None, assign=None, minutes=None, seconds=None, time_pop=None,time_push="", time_jump="", color="white", loc=None):
+    rule = re.compile(r"""await\s*((?P<origin_tag>\w+)\s*)?comms(\s*(?P<selected_tag>\w+))?(\s*set\s*(?P<assign>\w+))?(\s+color\s*["'](?P<color>[ \t\S]+)["'])?"""+TIMEOUT_REGEX+'\s*'+BLOCK_START)
+    def __init__(self, selected_tag=None, origin_tag=None, assign=None, minutes=None, seconds=None, time_pop=None,time_push="", time_jump="", color="white", loc=None):
         self.loc = loc
-        self.to_tag = to_tag
-        self.from_tag = from_tag
+        # Origin is the player ship, selected is NPC/GridObject
+        self.selected_tag = selected_tag
+        self.origin_tag = origin_tag
         self.assign = assign
         self.buttons = []
         self.seconds = 0 if  seconds is None else int(seconds)
@@ -196,23 +207,6 @@ class Button(MastNode):
 
 
 
-
-
-class Near(MastNode):
-    rule = re.compile(r'await\s*(?P<from_tag>\w+)\s+near\s+(?P<to_tag>\w+)\s*(?P<distance>\d+)'+TIMEOUT_REGEX+"\s*"+BLOCK_START)
-    def __init__(self, to_tag, from_tag, distance, minutes=None, seconds=None, loc=None):
-        self.loc = loc
-        self.to_tag = to_tag
-        self.from_tag = from_tag
-        self.distance = 0 if distance is None else int(distance)
-        
-        self.seconds = 0 if  seconds is None else int(seconds)
-        self.minutes = 0 if  minutes is None else int(minutes)
-
-        self.timeout_label = None
-        self.fail_label = None
-        self.end_await_node = None
-        EndAwait.stack.append(self)
     
 
 class Simulation(MastNode):

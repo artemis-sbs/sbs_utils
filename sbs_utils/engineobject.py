@@ -122,6 +122,31 @@ class EngineObject():
         self.links = Stuff()
         self.inventory = Stuff()
 
+    @property
+    def is_player(self):
+        return False
+
+    @property
+    def is_npc(self):
+        return False
+
+    @property
+    def is_terrain(self):
+        return False
+
+    @property
+    def is_active(self):
+        return False
+
+    @property
+    def is_passive(self):
+        return False
+    
+    @property
+    def is_grid_object(self):
+        return False
+
+
 
     @classmethod
     def clear(cls):
@@ -465,4 +490,6 @@ class EngineObject():
     def get_engine_object(self, sim):
         # Needs to be implemented by Grid and Space Object
         return None
+    
+
 

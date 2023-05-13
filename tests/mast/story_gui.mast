@@ -291,7 +291,7 @@ match console:
     case "Science":
         widget_list "normal_sci" "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list"
     case "Engineering":
-        widget_list "normal_engi" "ship_internal_view^grid_object_list^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
+        widget_list "normal_engi" "ship_internal_view^grid_object_list^grid_face_grid_control^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
     case "Comms":
         widget_list "normal_comm" "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data"
     case "Main Screen":

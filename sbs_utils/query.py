@@ -440,6 +440,14 @@ def has_role(so, role):
         return so.has_role(role)
     return False
 
+def has_roles(so, roles):
+    so = to_object(so)
+    if so:
+        roles = roles.split(",")
+        for role in roles:
+            if not so.has_role(role):
+                return False
+    return True
 
 
 def get_inventory_value(so, link):

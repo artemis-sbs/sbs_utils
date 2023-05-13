@@ -2,6 +2,8 @@ from .griddispatcher import GridDispatcher
 from .damagedispatcher import DamageDispatcher
 from .consoledispatcher import ConsoleDispatcher
 from .tickdispatcher import TickDispatcher
+from .lifetimedispatcher import LifetimeDispatcher
+
 from .gui import Gui, Page
 import sbs
 import traceback
@@ -48,9 +50,6 @@ def cosmos_event_handler(sim, event):
         Gui.on_event(sim, event)
 
         match(event.tag):
-
-
-
             #	value_tag"
             #	source_point"
             #	event_time"
@@ -64,9 +63,11 @@ def cosmos_event_handler(sim, event):
             
             case "mission_tick":
                 TickDispatcher.dispatch_tick(sim)
+                LifetimeDispatcher.dispatch_spawn(sim)
  
             case "damage":
                 DamageDispatcher.dispatch_damage(sim,event)
+                LifetimeDispatcher.dispatch_damage(sim, event)
 
             case "client_connect":
                 Gui.add_client(sim, event)
@@ -101,7 +102,10 @@ def cosmos_event_handler(sim, event):
             case "grid_object":
                 GridDispatcher.dispatch_grid_event(sim,event)
             case "grid_object_selection":
-                GridDispatcher.dispatch_grid_event(sim,event)
+                ConsoleDispatcher.dispatch_select(sim, event)
+            case "press_grid_button":
+                ConsoleDispatcher.dispatch_message(sim, event, "grid_selected_UID")
+                
 
             case "grid_point_selection":
                 GridDispatcher.dispatch_grid_event(sim,event)

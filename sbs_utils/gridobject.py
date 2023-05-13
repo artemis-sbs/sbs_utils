@@ -16,7 +16,11 @@ class GridObject(EngineObject):
         super().__init__()
         self._name = ""
         self._tag =""
-        self._gotype = ""
+        self._go_type = ""
+
+    @property
+    def is_grid_object(self):
+        return True
 
 
     def grid_object(self, sim):
@@ -72,14 +76,14 @@ class GridObject(EngineObject):
         return self._tag
     
     @property
-    def gotype(self: GridObject) -> str:
+    def go_type(self: GridObject) -> str:
         """str, cached version of type"""
-        return self._gotype
+        return self._go_type
 
     @property
     def comms_id(self: GridObject) -> str:
         """str, cached version of comms_id"""
-        return f"{self._name}({self._gotype})"
+        return f"{self._name}({self._go_type})"
 
     def update_blob(self, sim:sbs.simulation, speed=None, icon_index=None, icon_scale=None, color=None):
         go = self.grid_object(sim)
@@ -130,6 +134,8 @@ class GridObject(EngineObject):
         go : sbs.grid_object
         go   = hullMap.create_grid_object(name, tag, go_type)
         self.id = go.unique_ID
+        self._go_type = go_type
+
         self.add()
         for role in roles:
             self.add_role(role)
@@ -147,4 +153,6 @@ class GridObject(EngineObject):
         blob.set("icon_index", icon_index, 0)
         blob.set("icon_scale", 1.0, 0)
         blob.set("icon_color", color , 0)
+
+        return SpawnData(self.id, go, blob, self)
 

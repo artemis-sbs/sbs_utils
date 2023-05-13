@@ -251,6 +251,8 @@ class ConsoleDispatcher:
             return "science_target_UID"
         if "comm" in event.sub_tag:
             return "comms_target_UID"
+        if "engi" in event.sub_tag:
+            return "grid_selected_UID"
         return None
 
 
@@ -258,6 +260,9 @@ class ConsoleDispatcher:
         my_ship  = sim.get_space_object(event.origin_id)
         blob = my_ship.data_set
         blob.set(console, event.selected_id,0)
+        if "grid" in console:
+            #print(f"It is doing it {console} {event.origin_id} {event.parent_id}")
+            blob.set("grid_selected_ship_UID", event.parent_id,0)
 
 ############
 ### Set the initial 

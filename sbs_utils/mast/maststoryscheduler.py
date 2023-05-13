@@ -577,7 +577,7 @@ class ConsoleRuntimeNode(MastRuntimeNode):
                     widgets = "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list"
                 case "engineering":
                     console =  "normal_engi"
-                    widgets = "ship_internal_view^grid_object_list^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
+                    widgets = "ship_internal_view^grid_object_list^grid_face^grid_control^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
                 case "comms":
                     console =  "normal_comm"
                     widgets = "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data"
@@ -659,7 +659,7 @@ class StoryScheduler(MastSbsScheduler):
         self.vars['IS_SERVER'] = client_id==0
         self.vars['IS_CLIENT'] = client_id!=0
         self.vars['STORY_PAGE'] = page
-        super().start_task( label, inputs)
+        return super().start_task( label, inputs)
 
     def story_tick_tasks(self, sim, client_id):
         self.sim = sim
@@ -692,10 +692,10 @@ class StoryScheduler(MastSbsScheduler):
                     self.page.present(sim,event)
             elif event.tag == "client_change":
                 if event.sub_tag == "change_console":
-                    for task in self.tasks:
-                        #print(f"{event.tag} [] {event.sub_tag}")
-                        task.run_event(event.sub_tag, event)
-                        self.page.present(sim,event)
+                    if self.page.gui_task is not None and not self.page.gui_task.done:
+                        if self.page.change_console_label:
+                            self.page.gui_task.jump(self.page.change_console_label)
+                            self.page.present(sim,event)
             elif event.tag == "damage":
                 for task in self.tasks:
                     task.run_event(event.tag,  event)
@@ -723,6 +723,8 @@ class StoryPage(Page):
         self.widgets = ""
         self.pending_console = ""
         self.pending_widgets = ""
+        self.gui_task = None
+        self.change_console_label = None
         #self.tag = 0
         self.errors = []
         cls = self.__class__
@@ -740,10 +742,7 @@ class StoryPage(Page):
         self.client_id == client_id
         if len(self.errors)==0:
             self.story_scheduler = StoryScheduler(cls.story)
-            if cls.inputs:
-                self.story_scheduler.run(sim, client_id, self, inputs=cls.inputs)
-            else:
-                self.story_scheduler.run(sim, client_id, self)
+            self.gui_task = self.story_scheduler.run(sim, client_id, self, inputs=cls.inputs)
             TickDispatcher.do_interval(sim, self.tick_mast, 0)
 
     def tick_mast(self, sim, t):

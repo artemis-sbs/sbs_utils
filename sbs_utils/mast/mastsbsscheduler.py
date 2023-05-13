@@ -2,15 +2,17 @@ from .mast import Mast, Scope
 from .mastsbs import Simulation, Route, TransmitReceive, Tell, Comms, Button, Broadcast, ScanTab,ScanResult, Load
 from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask
 import sbs
-from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain
+from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain, GridObject
 
 from ..consoledispatcher import ConsoleDispatcher
+from ..lifetimedispatcher import LifetimeDispatcher
 from ..gui import Gui
 from .errorpage import ErrorPage
 from .. import faces
 from ..tickdispatcher import TickDispatcher
 import sys
 import json
+import re
 from .. import query
 from .. import scatter
 
@@ -34,8 +36,8 @@ class ButtonRuntimeNode(MastRuntimeNode):
 
 class TransmitReceiveRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: TransmitReceive):
-        self.face = ""
-        self.title = ""
+        face = ""
+        title = ""
         if node.transmit:
             to_so:SpaceObject = query.to_object(task.get_variable("COMMS_SELECTED_ID"))
             from_so:SpaceObject = query.to_object(task.get_variable("COMMS_ORIGIN_ID"))
@@ -45,36 +47,47 @@ class TransmitReceiveRuntimeNode(MastRuntimeNode):
 
         if to_so is None or from_so is None:
             return
+        
+        to_id = to_so.get_id()
+        from_id = from_so.get_id()
+
         # From face should be used
-        self.title = from_so.comms_id +">"+to_so.comms_id
-        self.face = faces.get_face(from_so.get_id())
+        if node.comms_string:
+            title = task.format_string(node.comms_string)
+        elif node.comms_var:
+            title = task.get_variable(node.comms_var)
+        else:
+            title = from_so.comms_id +"dd>"+to_so.comms_id
+
+        if node.face_string:
+            face = task.format_string(node.face_string)
+        elif node.face_var:
+            face = task.get_variable(node.face_var)
+        else:
+            face = faces.get_face(from_so.get_id())
+        
         # Just in case swap if from is not a player
         if not from_so.is_player:
             swap = to_so
             to_so = from_so
             from_so = swap
 
-        self.to_id = to_so.get_id()
-        self.from_id = from_so.get_id()
     
-        if self.face is None:
-            self.face = ""
+        if face is None:
+            face = ""
 
-    def poll(self, mast:Mast, task:MastAsyncTask, node: Tell):
-
-        if self.to_id and self.from_id:
+        if to_id and from_id:
             msg = task.format_string(node.message)
             #print(f"{self.from_id} {self.from_id} {node.color} {self.face} {self.title} {msg}")
             sbs.send_comms_message_to_player_ship(
-                self.from_id,
-                self.to_id,
+                from_id,
+                to_id,
                 node.color,
-                self.face, 
-                self.title, 
+                face, 
+                title, 
                 msg)
-            return PollResults.OK_ADVANCE_TRUE
-        else:
-            PollResults.OK_ADVANCE_FALSE       
+
+
 
 class TellRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Tell):
@@ -119,25 +132,23 @@ class TellRuntimeNode(MastRuntimeNode):
 class BroadcastRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Broadcast):
         self.to_ids = None
-        if node.to_tag.startswith('*'):
-            role = node.to_tag[1:]
-            self.to_ids = SpaceObject.get_objects_with_role(role)
-        elif node.to_tag=="SERVER":
+        # 
+        if node.to_tag=="SERVER":
             self.to_ids = [0]
         else:
-            to_so= task.get_variable(node.to_tag)
-            if to_so:
-                self.to_ids = [to_so.get_id()]
+            ship_id= query.to_id_list(task.get_variable(node.to_tag))
+            if ship_id:
+                self.to_ids = ship_id
             else:
                 task.runtime_error(f"Broadcast has invalid TO {node.to_tag}")            
     
     def poll(self, mast:Mast, task:MastAsyncTask, node: Broadcast):
         if self.to_ids:
             for id in self.to_ids:
-                print(f"Broadcasting id {id}")
+                #print(f"Broadcasting id {id}")
                 obj = SpaceObject.get(id)
                 if obj is not None:
-                    task.set_value("broadcast_target", obj)
+                    #task.set_value("broadcast_target", obj)
                     msg = task.format_string(node.message)
                     sbs.send_message_to_player_ship(id, node.color, msg)
 
@@ -176,6 +187,7 @@ class CommsRuntimeNode(MastRuntimeNode):
         self.tag = None
         self.button = None
         self.task = task
+        self.is_running = False
         self.color = node.color if node.color else "white"
 
         buttons = []
@@ -190,52 +202,67 @@ class CommsRuntimeNode(MastRuntimeNode):
         self.buttons = buttons
 
 
-
-        if node.to_tag:
-            to_so:SpaceObject = query.to_object(task.get_variable(node.to_tag))
+        # Origin is the player ship, selected is NPC/GridObject
+        if node.selected_tag:
+            selected_so:SpaceObject = query.to_object(task.get_variable(node.selected_tag))
         else:
-            to_so:SpaceObject = query.to_object(task.get_variable("COMMS_SELECTED_ID"))
+            selected_so:SpaceObject = query.to_object(task.get_variable("COMMS_SELECTED_ID"))
 
-        if node.from_tag:
-            from_so:SpaceObject = query.to_object(task.get_variable(node.from_tag))
+        if node.origin_tag:
+            origin_so:SpaceObject = query.to_object(task.get_variable(node.origin_tag))
         else:
-            from_so:SpaceObject = query.to_object(task.get_variable("COMMS_ORIGIN_ID"))
+            origin_so:SpaceObject = query.to_object(task.get_variable("COMMS_ORIGIN_ID"))
 
-        if to_so is None or from_so is None:
+
+        if selected_so is None or origin_so is None:
             return
         # Just in case swap if from is not a player
-        if not from_so.is_player:
-            swap = to_so
-            to_so = from_so
-            from_so = swap
+        if not origin_so.is_player:
+            swap = selected_so
+            selected_so = origin_so
+            origin_so = swap
 
-        self.to_id = to_so.get_id()
-        self.from_id = from_so.get_id()
-        self.comms_id = to_so.comms_id
-        self.face = faces.get_face(to_so.id) 
-        
-        ConsoleDispatcher.add_select_pair(self.from_id, self.to_id, 'comms_target_UID', self.comms_selected)
-        ConsoleDispatcher.add_message_pair(self.from_id, self.to_id,  'comms_target_UID', self.comms_message)
-        self.set_buttons(self.to_id, self.from_id)
+        self.is_grid_comms = selected_so.is_grid_object
+        self.selected_id = selected_so.get_id()
+        self.origin_id = origin_so.get_id()
+        self.comms_id = selected_so.comms_id
+        self.face = faces.get_face(selected_so.id)
+
+        if self.is_grid_comms:        
+            ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'grid_selected_UID', self.comms_selected)
+            ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'grid_selected_UID', self.comms_message)
+        else:
+            ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'comms_target_UID', self.comms_selected)
+            ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'comms_target_UID', self.comms_message)
+        self.set_buttons(self.origin_id, self.selected_id)
         # from_so.face_desc
 
     def comms_selected(self, sim, an_id, event):
-        to_id = event.origin_id
-        from_id = event.selected_id
-        self.set_buttons(from_id, to_id)
+        # If the button block is running do not set the buttons
+        if not self.is_running:
+            origin_id = event.origin_id
+            selected_id = event.selected_id
+            self.set_buttons(origin_id, selected_id)
 
-    def set_buttons(self, from_id, to_id):
+    def set_buttons(self, origin_id, selected_id):
+        
         # check to see if the from ship still exists
-        if from_id is not None:
-            sbs.send_comms_selection_info(to_id, self.face, self.color, self.comms_id)
+        if origin_id is not None:
+            if self.is_grid_comms:
+                sbs.send_grid_selection_info(origin_id, self.face, self.color, self.comms_id)
+            else:
+                sbs.send_comms_selection_info(origin_id, self.face, self.color, self.comms_id)
             for i, button in enumerate(self.buttons):
                 value = True
                 color = "blue" if button.color is None else button.color
                 if button.code is not None:
                     value = self.task.eval_code(button.code)
-                if value and button.should_present((from_id, to_id)):
+                if value and button.should_present((origin_id, selected_id)):
                     msg = self.task.format_string(button.message)
-                    sbs.send_comms_button_info(to_id, color, msg, f"{i}")
+                    if self.is_grid_comms:
+                        sbs.send_grid_button_info(origin_id, color, msg, f"{i}")
+                    else:
+                        sbs.send_comms_button_info(origin_id, color, msg, f"{i}")
 
     def expand(self, button: Button, task: MastAsyncTask):
         buttons = []
@@ -253,18 +280,30 @@ class CommsRuntimeNode(MastRuntimeNode):
 
     def comms_message(self, sim, message, an_id, event):
         ### These are opposite from selected??
-        from_id =self.from_id
-        to_id = self.to_id
+        origin_id =self.origin_id
+        selected_id = self.selected_id
         self.button = int(event.sub_tag)
         this_button: Button = self.buttons[self.button]
-        this_button.visit((from_id, to_id))
+        this_button.visit((origin_id, selected_id))
+        self.clear()
         self.task.tick()
 
 
+    def clear(self):
+        if self.is_grid_comms:
+            sbs.send_grid_selection_info(self.origin_id, self.face, self.color, self.comms_id)
+        else:
+            sbs.send_comms_selection_info(self.origin_id, self.face, self.color, self.comms_id)
+
     def leave(self, mast:Mast, task:MastAsyncTask, node: Comms):
-        ConsoleDispatcher.remove_select_pair(self.from_id, self.to_id, 'comms_target_UID')
-        ConsoleDispatcher.remove_message_pair(self.from_id, self.to_id, 'comms_target_UID')
-        sbs.send_comms_selection_info(self.from_id, self.face, self.color, self.comms_id)
+        self.clear()
+        if self.is_grid_comms:
+            ConsoleDispatcher.remove_select_pair(self.origin_id, self.selected_id, 'grid_selected_UID')
+            ConsoleDispatcher.remove_message_pair(self.origin_id, self.selected_id, 'grid_selected_UID')
+        else:
+            ConsoleDispatcher.remove_select_pair(self.origin_id, self.selected_id, 'comms_target_UID')
+            ConsoleDispatcher.remove_message_pair(self.origin_id, self.selected_id, 'comms_target_UID')
+
         if node.assign is not None:
             task.set_value_keep_scope(node.assign, self.button)
         
@@ -275,16 +314,15 @@ class CommsRuntimeNode(MastRuntimeNode):
             return PollResults.OK_ADVANCE_TRUE
 
         if self.button is not None:
-            print("CHOOSE selection")
             button = self.buttons[self.button] 
             self.button = None
+            self.is_running = True
             if button.for_name:
                 task.set_value(button.for_name, button.data, Scope.TEMP)
             task.jump(task.active_label,button.loc+1)
             return PollResults.OK_JUMP
 
         if self.timeout is not None and self.timeout <= task.main.get_seconds("sim"):
-            print("CHOOSE timeout")
             if node.timeout_label:
                 task.jump(task.active_label,node.timeout_label.loc+1)
                 return PollResults.OK_JUMP
@@ -409,7 +447,7 @@ class ScanRuntimeNode(MastRuntimeNode):
             for i, button in enumerate(self.buttons):
                  if task.format_string(button.message) == self.tab:
                     self.button = i
-                    print(f"science scanned {i}")
+                    #print(f"science scanned {i}")
             so_player = query.to_object(self.from_id)
             if so_player:
                 self.tab = so_player.side+self.tab
@@ -430,7 +468,7 @@ class ScanResultRuntimeNode(MastRuntimeNode):
             return
         
         msg = task.format_string(node.message)
-        print(f"{scan.tab} scan {msg}")
+        #print(f"{scan.tab} scan {msg}")
         so = query.to_object(scan.to_id)
         if so:
             so.update_engine_data(task.main.sim, {
@@ -441,7 +479,9 @@ class ScanResultRuntimeNode(MastRuntimeNode):
                 return PollResults.OK_JUMP
         return PollResults.OK_RUN_AGAIN
 
-
+class RegexEqual(str):
+    def __eq__(self, pattern):
+        return bool(re.search(pattern, self))
 
 class RouteRuntimeNode(MastRuntimeNode):
     def poll(self, mast:Mast, task:MastAsyncTask, node: Route):
@@ -453,19 +493,38 @@ class RouteRuntimeNode(MastRuntimeNode):
                     f"{console}_SELECTED_ID": event.selected_id,
                     f"{console}_ROUTED": True
             })
+
+        def handle_spawn(sim, so):
+            task.start_task(node.label, {
+                    f"SPAWNED_ID": so.id,
+                    f"SPAWNED_ROUTED": True
+            })
+
+
+        def handle_spawn_grid(sim, so):
+            task.start_task(node.label, {
+                    f"SPAWNED_ID": so.id,
+                    f"SPAWNED_ROUTED": True
+            })
         
-        match node.route:
-            case "comms":
+        match RegexEqual(node.route):
+            case "comms\s+select":
                 ConsoleDispatcher.add_default_select("comms_target_UID", partial(handle_dispatch, task, "COMMS"))
             
-            case "science":
+            case "science\s+select":
                 ConsoleDispatcher.add_default_select("science_target_UID", partial(handle_dispatch, task, "SCIENCE"))
 
-            case "engineer":
-                ConsoleDispatcher.add_default_select("comms_target_UID", partial(handle_dispatch, task, "SCIENCE"))
+            case "grid\s+select":
+                ConsoleDispatcher.add_default_select("grid_selected_UID", partial(handle_dispatch, task, "COMMS"))
 
-            case "resume":
-                pass
+            case "change\s+console":
+                task.main.page.change_console_label = node.label
+
+            case "grid\s+spawn":
+                LifetimeDispatcher.add_spawn_grid(handle_spawn_grid)
+
+            case "spawn":
+                LifetimeDispatcher.add_spawn(handle_spawn)
 
         return PollResults.OK_ADVANCE_TRUE
 
@@ -553,6 +612,7 @@ class MastSbsScheduler(MastScheduler):
         self.vars["npc_spawn"] = self.npc_spawn
         self.vars["terrain_spawn"] = self.terrain_spawn
         self.vars["player_spawn"] = self.player_spawn
+        self.vars["grid_spawn"] = self.grid_spawn
 
 
     def Npc(self):
@@ -572,6 +632,11 @@ class MastSbsScheduler(MastScheduler):
     def terrain_spawn(self, x,y,z,name, side, art_id, behave_id):
         so = Terrain(self)
         return so.spawn(self.sim, x,y,z,name, side, art_id, behave_id)
+    
+    def grid_spawn(self, id, name, tag, x,y, icon, color, roles):
+        so = GridObject(self)
+        
+        return so.spawn(self.sim, id, name, tag, x,y, icon, color, roles)
 
     def run(self, sim, label="main", inputs=None):
         self.sim = sim
