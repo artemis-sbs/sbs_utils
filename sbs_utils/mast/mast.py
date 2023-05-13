@@ -699,6 +699,7 @@ class Mast:
         "len": len,
         "reversed": reversed,
         "int": int,
+        "hex": hex,
         "min": min,
         "max": max,
         "abs": abs,

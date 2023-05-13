@@ -16,7 +16,7 @@ Routing types:
     * GridComms
     * Science
     * ChangeConsole
-    Spawn (Setup state+Start AI)
+    * Spawn (Setup state+Start AI)
     Damage
     Destroy?
-    
+    Gui?

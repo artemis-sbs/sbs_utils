@@ -656,3 +656,10 @@ def grid_clear_target(grid_obj_or_set, sim):
         y=blob.get("curx", x, 0)
         grid_target_pos(grid_obj_or_set, sim, x,y)
 
+
+def is_client_id(id):
+     return (id & 0x8000000000000000)!=0
+def is_space_object_id(id):
+     return (id & 0x4000000000000000)!=0
+def is_grid_object_id(id):
+     return (id & 0x2000000000000000)!=0

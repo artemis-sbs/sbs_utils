@@ -38,26 +38,26 @@ class TransmitReceiveRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: TransmitReceive):
         face = ""
         title = ""
+        selected_id = task.get_variable("COMMS_SELECTED_ID")
+        origin_id = task.get_variable("COMMS_ORIGIN_ID")
         if node.transmit:
-            to_so:SpaceObject = query.to_object(task.get_variable("COMMS_SELECTED_ID"))
-            from_so:SpaceObject = query.to_object(task.get_variable("COMMS_ORIGIN_ID"))
+            to_so:SpaceObject = query.to_object(selected_id)
+            from_so:SpaceObject = query.to_object(origin_id)
         else:
-            from_so:SpaceObject = query.to_object(task.get_variable("COMMS_SELECTED_ID"))
-            to_so:SpaceObject = query.to_object(task.get_variable("COMMS_ORIGIN_ID"))
+            to_so:SpaceObject = query.to_object(origin_id)
+            from_so:SpaceObject = query.to_object(selected_id)
+            
 
         if to_so is None or from_so is None:
             return
         
-        to_id = to_so.get_id()
-        from_id = from_so.get_id()
-
         # From face should be used
         if node.comms_string:
             title = task.format_string(node.comms_string)
         elif node.comms_var:
             title = task.get_variable(node.comms_var)
         else:
-            title = from_so.comms_id +"dd>"+to_so.comms_id
+            title = from_so.comms_id +">"+to_so.comms_id
 
         if node.face_string:
             face = task.format_string(node.face_string)
@@ -65,27 +65,19 @@ class TransmitReceiveRuntimeNode(MastRuntimeNode):
             face = task.get_variable(node.face_var)
         else:
             face = faces.get_face(from_so.get_id())
-        
-        # Just in case swap if from is not a player
-        if not from_so.is_player:
-            swap = to_so
-            to_so = from_so
-            from_so = swap
-
     
         if face is None:
             face = ""
-
-        if to_id and from_id:
-            msg = task.format_string(node.message)
-            #print(f"{self.from_id} {self.from_id} {node.color} {self.face} {self.title} {msg}")
-            sbs.send_comms_message_to_player_ship(
-                from_id,
-                to_id,
-                node.color,
-                face, 
-                title, 
-                msg)
+    
+        msg = task.format_string(node.message)
+        #print(f"{self.from_id} {self.from_id} {node.color} {self.face} {self.title} {msg}")
+        sbs.send_comms_message_to_player_ship(
+            origin_id,
+            selected_id,
+            node.color,
+            face, 
+            title, 
+            msg)
 
 
 
@@ -146,11 +138,15 @@ class BroadcastRuntimeNode(MastRuntimeNode):
         if self.to_ids:
             for id in self.to_ids:
                 #print(f"Broadcasting id {id}")
-                obj = SpaceObject.get(id)
-                if obj is not None:
-                    #task.set_value("broadcast_target", obj)
-                    msg = task.format_string(node.message)
-                    sbs.send_message_to_player_ship(id, node.color, msg)
+                #task.set_value("broadcast_target", obj)
+                msg = task.format_string(node.message)
+                if query.is_client_id(id):
+                    sbs.send_message_to_client(id, node.color, msg)
+                else:
+                    # Just verify the id
+                    obj = SpaceObject.get(id)
+                    if obj is not None or id==0:
+                        sbs.send_message_to_player_ship(id, node.color, msg)
 
         return PollResults.OK_ADVANCE_TRUE
 
