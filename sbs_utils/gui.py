@@ -1,4 +1,13 @@
 import sbs
+
+class Context:
+    def __init__(self, sim, _sbs, aspect_ratio):
+        self.sim = sim
+        self.sbs = _sbs
+        self.aspect_ratio = aspect_ratio
+        if self.aspect_ratio is None:
+            sbs.get_screen_size()
+
 class Widget:
     """ A interface class for creating GUI widgets i.e. composite components.
 

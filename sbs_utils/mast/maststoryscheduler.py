@@ -2,7 +2,7 @@ import logging
 from .mastscheduler import PollResults, MastRuntimeNode, MastAsyncTask
 from .mast import Mast, Scope
 import sbs
-from ..gui import Gui, Page, FakeEvent
+from ..gui import Gui, Page, FakeEvent, Context
 from .parsers import StyleDefinition
 
 from ..pages import layout
@@ -450,11 +450,11 @@ class CheckboxControlRuntimeNode(StoryRuntimeNode):
         if node.style_def is not None:
             self.apply_style_def(node.style_def,  self.layout, task)
 
-    def on_message(self, sim, event):
+    def on_message(self, ctx, event):
         if event.sub_tag == self.tag:
             self.layout.value = not self.layout.value
             self.task.set_value(self.node.var, self.layout.value, self.scope)
-            self.layout.present(sim, event)
+            self.layout.present(ctx, event)
 
 class RadioControlRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: RadioControl):
@@ -750,7 +750,7 @@ class StoryPage(Page):
             self.story_scheduler.story_tick_tasks(sim, self.client_id)
         if self.gui_state == 'repaint':
             event = FakeEvent(self.client_id, "gui_represent")
-            self.present(sim, event)
+            self.present(Context(sim, sbs, self.aspect_ratio), event)
 
    
 
@@ -908,14 +908,14 @@ class StoryPage(Page):
                 # keeps the existing GUI displayed
 
                 for layout in self.layouts:
-                    layout.present(sim,event)
+                    layout.present(Context(sim, sbs, self.aspect_ratio),event)
                 if sim is None or len(self.layouts)==0:
                     self.gui_state = "repaint"
                 else:
                     self.gui_state = "presenting"
             case  "refresh":
                 for layout in self.layouts:
-                    layout.present(sim,event)
+                    layout.present(Context(sim, sbs, self.aspect_ratio),event)
                 if sim is None or len(self.layouts)==0:
                     self.gui_state = "repaint"
                 else:
@@ -929,7 +929,7 @@ class StoryPage(Page):
         
         runtime_node = self.tag_map.get(message_tag)
         if runtime_node:
-            runtime_node.on_message(sim, event)
+            runtime_node.on_message(Context(sim, sbs, self.aspect_ratio), event)
             refresh = False
             for node in self.tag_map.values():
                 if node != runtime_node:
@@ -940,7 +940,7 @@ class StoryPage(Page):
             self.present(sim, event)
         # else:
         for layout in self.layouts:
-            layout.on_message(sim,event)
+            layout.on_message(Context(sim, sbs, self.aspect_ratio),event)
 
     def on_event(self, sim, event):
         #print (f"Story event {event.client_id} {event.tag} {event.sub_tag}")

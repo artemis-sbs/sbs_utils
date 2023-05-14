@@ -1,6 +1,6 @@
 import sbs
 from ..mast.parsers import StyleDefinition, LayoutAreaParser
-from ..gui import Page, Gui
+from ..gui import Page, Context
 from ..pages import layout
 from .pollresults import PollResults
 from .pymastscheduler import PyMastScheduler
@@ -80,6 +80,8 @@ class PyMastStoryPage(Page):
 
     def run(self, time_out):
         self.gui_state = 'repaint'
+        
+        #self.present(Context(self.story.sim, sbs, self.aspect_ratio), None)
         self.present(self.story.sim, None)
         # ?? Change task??
         #self.task = self.story.task
@@ -346,14 +348,14 @@ class PyMastStoryPage(Page):
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
                 for layout in self.layouts:
-                    layout.present(sim,event)
+                    layout.present(Context(self.story.sim, sbs, self.aspect_ratio),event)
                 if sim is None or len(self.layouts)==0:
                     self.gui_state = "repaint"
                 else:
                     self.gui_state = "presenting"
             case  "refresh":
                 for layout in self.layouts:
-                    layout.present(sim,event)
+                    layout.present(Context(self.story.sim, sbs, self.aspect_ratio),event)
                 if sim is None or len(self.layouts)==0:
                     self.gui_state = "repaint"
                 else:
@@ -407,7 +409,7 @@ class PyMastStoryPage(Page):
                 
         # else:
         for layout in self.layouts:
-            layout.on_message(sim,event)
+            layout.on_message(Context(self.story.sim, sbs, self.aspect_ratio),event)
         if self.on_message_cb is not None:
             refresh = self.on_message_cb(sim, event)
         if refresh:
