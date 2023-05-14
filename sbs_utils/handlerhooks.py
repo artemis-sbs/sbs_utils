@@ -4,7 +4,7 @@ from .consoledispatcher import ConsoleDispatcher
 from .tickdispatcher import TickDispatcher
 from .lifetimedispatcher import LifetimeDispatcher
 
-from .gui import Gui, Page
+from .gui import Gui, Page, Context
 import sbs
 import traceback
 from . import faces
@@ -16,38 +16,38 @@ class ErrorPage(Page):
         self.gui_state = 'show'
         self.message = msg
 
-    def present(self, sim, event):
+    def present(self, ctx, event):
         match self.gui_state:
             case  "sim_on":
                 self.gui_state = "blank"
-                sbs.send_gui_clear(event.client_id)
+                ctx.sbs.send_gui_clear(event.client_id)
 
             case  "show":
-                sbs.send_gui_clear(event.client_id)
+                ctx.sbs.send_gui_clear(event.client_id)
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
                 self.gui_state = "presenting"
                 print(self.message)
                 self.message = self.message.replace(",", ".")
-                sbs.send_gui_text(
+                ctx.sbs.send_gui_text(
                     event.client_id, "text", f"text:scripting error^{self.message}", 0, 0, 80, 95)
-                sbs.send_gui_button(event.client_id, "back", "text:back", 80, 90, 99, 94)
-                sbs.send_gui_button(event.client_id, "resume", "text:Resume Mission", 80, 95, 99, 99)
+                ctx.sbs.send_gui_button(event.client_id, "back", "text:back", 80, 90, 99, 94)
+                ctx.sbs.send_gui_button(event.client_id, "resume", "text:Resume Mission", 80, 95, 99, 99)
 
-    def on_message(self, sim, event):
+    def on_message(self, ctx, event):
         match event.sub_tag:
             case "back":
-                Gui.pop(sim, event.client_id)
+                Gui.pop(ctx, event.client_id)
 
             case "resume":
-                Gui.pop(sim, event.client_id)
-                sbs.resume_sim()
+                Gui.pop(ctx, event.client_id)
+                ctx.sbs.resume_sim()
 
 def cosmos_event_handler(sim, event):
     try:
         # Allow guis more direct access to events
         # e.g. Mast Story Page, Clients change
-        Gui.on_event(sim, event)
+        Gui.on_event(Context(sim, sbs, None), event)
 
         match(event.tag):
             #	value_tag"
@@ -59,7 +59,7 @@ def cosmos_event_handler(sim, event):
             #     print(f"{event.sub_tag}")
             #     print(f"{event.sub_float}")
             case "present_gui":
-                Gui.present(sim, event)
+                Gui.present(Context(sim, sbs, None), event)
             
             case "mission_tick":
                 TickDispatcher.dispatch_tick(sim)
@@ -70,7 +70,7 @@ def cosmos_event_handler(sim, event):
                 LifetimeDispatcher.dispatch_damage(sim, event)
 
             case "client_connect":
-                Gui.add_client(sim, event)
+                Gui.add_client(Context(sim, sbs, None), event)
 
             case "select_space_object":
                 # print(f"{event.parent_id}")
@@ -97,7 +97,7 @@ def cosmos_event_handler(sim, event):
                 ConsoleDispatcher.dispatch_message(sim, event, "science_target_UID")
 
             case "gui_message":
-                Gui.on_message(sim, event)
+                Gui.on_message(Context(sim, sbs, None), event)
 
             case "grid_object":
                 GridDispatcher.dispatch_grid_event(sim,event)
@@ -111,9 +111,9 @@ def cosmos_event_handler(sim, event):
                 GridDispatcher.dispatch_grid_event(sim,event)
 
             case "sim_paused":
-                Gui.send_custom_event(sim, "x_sim_paused")
+                Gui.send_custom_event(Context(sim, sbs, None), "x_sim_paused")
             case "sim_unpaused":
-                Gui.send_custom_event(sim, "x_sim_resume")
+                Gui.send_custom_event(Context(sim, sbs, None), "x_sim_resume")
         
             case _:
                 print (f"Unhandled event {event.client_id} {event.tag} {event.sub_tag}")
@@ -123,7 +123,7 @@ def cosmos_event_handler(sim, event):
 
         text_err = traceback.format_exc()
         text_err = text_err.replace(chr(94), "")
-        Gui.push(sim, 0, ErrorPage(text_err))
+        Gui.push(Context(sim, sbs, None), 0, ErrorPage(text_err))
 
 
 #	client_id"

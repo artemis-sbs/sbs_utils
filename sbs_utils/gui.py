@@ -28,23 +28,23 @@ class Widget:
         self.left= left
         self.top = top
 
-    def present(self, sim, event):
+    def present(self, ctx, event):
         """ present
 
         Called to have the page create and update the gui content it is presenting
 
-        :param sim: 
-        :type sim: Artemis Cosmos simulation
+        :param ctx: 
+        :type ctx: Artemis Cosmos simulation
         """
         pass
 
-    def on_message(self, sim, event):
+    def on_message(self, ctx, event):
         """ on_message
 
         Called when a control on the page has been interacted with
 
-        :param sim: 
-        :type sim: Artemis Cosmos simulation
+        :param ctx: 
+        :type ctx: Artemis Cosmos simulation
         :param message_tag: The tag name of the control interacted with
         :type message_tag: str
         :param clientID: The client ID that had the interaction
@@ -59,37 +59,37 @@ class Page:
 
     """
 
-    def present(self, sim, event):
+    def present(self, ctx, event):
         """ present
 
         Called to have the page create and update the gui content it is presenting
 
-        :param sim: 
-        :type sim: Artemis Cosmos simulation
+        :param ctx: 
+        :type ctx: Artemis Cosmos simulation
         """
         pass
 
-    def on_pop(self, sim):
+    def on_pop(self, ctx):
         pass
 
-    def on_message(self, sim, event):
+    def on_message(self, ctx, event):
         """ on_message
 
         Called when the option pages page has been interacted with
 
-        :param sim: 
-        :type sim: Artemis Cosmos simulation
+        :param ctx: 
+        :type ctx: Artemis Cosmos simulation
         :param event: The event data
         :type event: event
         """
         pass
-    def on_event(self, sim, event):
+    def on_event(self, ctx, event):
         """ on_event
 
         Called when the option pages page has been interacted with
 
-        :param sim: 
-        :type sim: Artemis Cosmos simulation
+        :param ctx: 
+        :type ctx: Artemis Cosmos simulation
         :param event: The event data
         :type event: event
         """
@@ -104,82 +104,82 @@ class GuiClient:
         self.page_stack = []
         self.client_id = client_id
 
-    def push(self, sim, page):
+    def push(self, ctx, page):
         """ push
 
         Presents the new Page by pushing it on the stack. 
 
-        :param sim: 
-        :type sim: Artemis Cosmos simulation
+        :param ctx: 
+        :type ctx: Artemis Cosmos simulation
         :param page: 
         :type Page: A GUI Page
         """
         event = FakeEvent(self.client_id, "gui_push")
         self.page_stack.append(page)
-        self.present(sim, event)
+        self.present(ctx, event)
 
-    def pop(self, sim):
+    def pop(self, ctx):
         """ pop
 
         Stops presenting the current page and return to the previous one
 
-        :param sim: 
-        :type sim: Artemis Cosmos simulation
+        :param ctx: 
+        :type ctx: Artemis Cosmos simulation
         """
         ret = None
-        sbs.send_gui_clear(self.client_id)
+        ctx.sbs.send_gui_clear(self.client_id)
         if len(self.page_stack) > 0:
             ret = self.page_stack.pop()
             if len(self.page_stack) > 0:
-                self.page_stack[-1].on_pop(sim)
+                self.page_stack[-1].on_pop(ctx)
 
 
 
         event = FakeEvent(self.client_id, "gui_pop")
-        self.present(sim, event)
+        self.present(ctx, event)
         return ret
 
-    def present(self, sim,  event):
+    def present(self, ctx,  event):
         """ present
 
         Presents the top Page for the specified clientID by calling present on that page
 
-        :param sim: 
-        :type sim: Artemis Cosmos simulation
+        :param ctx: 
+        :type ctx: Artemis Cosmos simulation
         :param CID: Client ID
         :type int: A client ID
         """
         if len(self.page_stack) > 0:
-            self.page_stack[-1].present(sim, event)
+            self.page_stack[-1].present(ctx, event)
 
   
-    def on_message(self, sim, event):
+    def on_message(self, ctx, event):
         """ on_message
 
         Calls the on_message on the top page of the specified client by calling on_message
 
-        :param sim: 
-        :type sim: Artemis Cosmos simulation
+        :param ctx: 
+        :type ctx: Artemis Cosmos simulation
         :param event: The event data
         :type event: event
         
         """
         if len(self.page_stack) > 0:
-            self.page_stack[-1].on_message(sim, event)
+            self.page_stack[-1].on_message(ctx, event)
 
-    def on_event(self, sim, event):
+    def on_event(self, ctx, event):
         """ on_event
 
         Calls the on_event on the top page of the specified client by calling on_event
 
-        :param sim: 
+        :param ctx: 
         :type sim: Artemis Cosmos simulation
         :param event: The event data
         :type event: event
         
         """
         if len(self.page_stack) > 0:
-            self.page_stack[-1].on_event(sim, event)
+            self.page_stack[-1].on_event(ctx, event)
 
 class FakeEvent:
     def __init__(self, client_id, tag, sub_tag=""):
@@ -223,7 +223,7 @@ class Gui:
         Gui._client_start_page = cls_page
 
     @staticmethod
-    def add_client(sim, event):
+    def add_client(ctx, event):
         """ add_client
 
         Call when a new client connects.
@@ -233,16 +233,16 @@ class Gui:
         :type int: client id from the engine
         """
         if Gui._client_start_page is not None:
-            Gui.push(sim, event.client_id, Gui._client_start_page())
+            Gui.push(ctx, event.client_id, Gui._client_start_page())
 
     @staticmethod
-    def push(sim, client_id, page):
+    def push(ctx, client_id, page):
         """ push
 
         Presents the new Page on the specified client by pushing it on the stack. 
 
-        :param sim: 
-        :type sim: Artemis Cosmos simulation
+        :param ctx: 
+        :type ctx: Artemis Cosmos simulation
         :param clientID: called to add a new client
         :type int: client id from the engine
         :param page: 
@@ -251,56 +251,56 @@ class Gui:
         """
         gui = Gui.clients.get(client_id)
         if gui is not None:
-            gui.push(sim, page)
+            gui.push(ctx, page)
         else:
             gui = GuiClient(client_id)
             Gui.clients[client_id] = gui
-            gui.push(sim, page)
+            gui.push(ctx, page)
 
     @staticmethod
-    def pop(sim, client_id):
+    def pop(ctx, client_id):
         gui = Gui.clients.get(client_id)
         if gui is not None:
-            return gui.pop(sim)
+            return gui.pop(ctx)
             
         return None
 
     @staticmethod
-    def present(sim, event):
+    def present(ctx, event):
         """ present
 
         calls present on all clients
         handlerhooks.py will call this in HandlePresentGUI
 
-        :param sim: 
-        :type sim: Artemis Cosmos simulation
+        :param ctx: 
+        :type ctx: Artemis Cosmos simulation
         """
-        client_list = sbs.get_client_ID_list()
+        client_list = ctx.sbs.get_client_ID_list()
         disconnect = []
         Gui.represent = set()
         Gui.represent_throttle = 0
         for client_id, gui in Gui.clients.items():
             if client_id == 0 or client_id in client_list:
                 event = FakeEvent(client_id, "gui_present")
-                gui.present(sim, event)
+                gui.present(ctx, event)
             else:
                 disconnect.append(client_id)
         for cid in disconnect:
             gui = Gui.clients.get(cid)
             if gui is not None:
                 event = FakeEvent(cid,"mast:client_disconnect")
-                gui.on_event(sim, event)
+                gui.on_event(ctx, event)
 
             Gui.clients.pop(cid)
         # Try to repaint things we can this round
-        Gui.present_dirty(sim)
+        Gui.present_dirty(ctx)
 
     @staticmethod
     def dirty(client_id):
         Gui.represent.add(client_id)
 
     @staticmethod
-    def present_dirty(sim):
+    def present_dirty(ctx):
         if len(Gui.represent) <1:
             return
 
@@ -318,60 +318,60 @@ class Gui:
             # Gui could have disconnected
             if gui:
                 event = FakeEvent(client_id, "gui_represent")
-                gui.present(sim, event)
+                gui.present(ctx, event)
         #Gui.present_dirty()
 
         
 
     @staticmethod
-    def on_message(sim, event):
+    def on_message(ctx, event):
         """ on_message
 
         Forward to the appropriate GuiClient/Page
         handlerhooks.py will call this in HandlePresentGUIMessage
 
-        :param sim: 
-        :type sim: Artemis Cosmos simulation
+        :param ctx: 
+        :type ctx: Artemis Cosmos simulation
         :param event: The tag name of the control interacted with
         :type event: event
         """
         # message_tag, clientID, data
         gui = Gui.clients.get(event.client_id)
         if gui is not None:
-            gui.on_message(sim, event)
+            gui.on_message(ctx, event)
 
     @staticmethod
-    def on_event(sim, event):
+    def on_event(ctx, event):
         """ on_event
 
         Forward to the appropriate GuiClient/Page
         handlerhooks.py will call this in HandleEvent
 
-        :param sim: 
-        :type sim: Artemis Cosmos simulation
+        :param ctx: 
+        :type ctx: Artemis Cosmos simulation
         :param event: The tag name of the control interacted with
         :type event: event
         """
         # message_tag, clientID, data
         gui = Gui.clients.get(event.client_id)
         if gui is not None:
-            gui.on_event(sim, event)
+            gui.on_event(ctx, event)
 
     @staticmethod
-    def send_custom_event(sim, tag, sub_tag=""):
+    def send_custom_event(ctx, tag, sub_tag=""):
         """ on_event
 
         Forward to the appropriate GuiClient/Page
         handlerhooks.py will call this in HandleEvent
 
-        :param sim: 
-        :type sim: Artemis Cosmos simulation
+        :param ctx: 
+        :type ctx: Artemis Cosmos simulation
         :param event: The tag name of the control interacted with
         :type event: event
         """
         # message_tag, clientID, data
         for client_id, gui in Gui.clients.items():
             event = FakeEvent(client_id, tag, sub_tag)
-            gui.on_event(sim, event)
+            gui.on_event(ctx, event)
 
             

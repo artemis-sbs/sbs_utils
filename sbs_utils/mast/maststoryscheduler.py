@@ -682,20 +682,20 @@ class StoryScheduler(MastSbsScheduler):
             message += str(err)
             self.errors = [message]
 
-    def on_event(self, sim, event):
+    def on_event(self, ctx, event):
         if event.client_id == self.client_id:
             event_name = event.tag
             if event_name == "mast:client_disconnect":
                 event_name = "disconnect"
                 for task in self.tasks:
                     task.run_event(event_name, event)
-                    self.page.present(sim,event)
+                    self.page.present(ctx,event)
             elif event.tag == "client_change":
                 if event.sub_tag == "change_console":
                     if self.page.gui_task is not None and not self.page.gui_task.done:
                         if self.page.change_console_label:
                             self.page.gui_task.jump(self.page.change_console_label)
-                            self.page.present(sim,event)
+                            self.page.present(ctx,event)
             elif event.tag == "damage":
                 for task in self.tasks:
                     task.run_event(event.tag,  event)
@@ -844,14 +844,17 @@ class StoryPage(Page):
         
         self.swap_layout()
     
-    def present(self, sim, event):
+    def present(self, ctx, event):
         """ Present the gui """
         if self.client_id is None:
             self.client_id = event.client_id
         if self.gui_state == "errors":
             return
+        if ctx is None:
+            return
+        
         if self.story_scheduler is None:
-            self.start_story(sim, event.client_id)
+            self.start_story(ctx.sim, event.client_id)
         else:
             if len(self.story_scheduler.errors) > 0:
                 #errors = self.errors.reverse()
@@ -860,10 +863,10 @@ class StoryPage(Page):
                 message = message.replace(chr(44), "`")
                 message = "text:"+message
                 print(message)
-                sbs.send_gui_clear(event.client_id)
+                ctx.sbs.send_gui_clear(event.client_id)
                 if event.client_id != 0:
-                    sbs.send_client_widget_list(event.client_id, "", "")
-                sbs.send_gui_text(event.client_id, "error",  message, 0,0,99,99)
+                    ctx.sbs.send_client_widget_list(event.client_id, "", "")
+                ctx.sbs.send_gui_text(event.client_id, "error",  message, 0,0,99,99)
                 self.gui_state = "errors"
                 return
 
@@ -872,22 +875,22 @@ class StoryPage(Page):
                     self.gui_state = "refresh"
                 self.story_scheduler.paint_refresh = False
             
-            if not self.story_scheduler.story_tick_tasks(sim, event.client_id):
+            if not self.story_scheduler.story_tick_tasks(ctx.sim, event.client_id):
                 #self.story_runtime_node.mast.remove_runtime_node(self)
-                Gui.pop(sim, event.client_id)
+                Gui.pop(ctx, event.client_id)
                 return
         if len(self.errors) > 0:
             message = "".join(self.errors)
             message = message.replace(";", "~")
             message = "text: Compiler Errors" + message.replace(",", ".")
-            sbs.send_gui_clear(event.client_id)
+            ctx.sbs.send_gui_clear(event.client_id)
             if event.client_id != 0:
-                sbs.send_client_widget_list(event.client_id, "", "")
-            sbs.send_gui_text(event.client_id, "error", message,  0,0,100,100)
+                ctx.sbs.send_client_widget_list(event.client_id, "", "")
+            ctx.sbs.send_gui_text(event.client_id, "error", message,  0,0,100,100)
             self.gui_state = "errors"
             return
         
-        sz = sbs.get_screen_size()
+        sz = ctx.aspect_ratio if ctx else None
         if sz is not None and sz.y != 0:
             aspect_ratio = sz
             if (self.aspect_ratio.x != aspect_ratio.x or 
@@ -901,35 +904,35 @@ class StoryPage(Page):
         
         match self.gui_state:
             case  "repaint":
-                sbs.send_gui_clear(event.client_id)
+                ctx.sbs.send_gui_clear(event.client_id)
                 if event.client_id != 0:
-                    sbs.send_client_widget_list(event.client_id, self.console, self.widgets)
+                    ctx.sbs.send_client_widget_list(event.client_id, self.console, self.widgets)
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
 
                 for layout in self.layouts:
-                    layout.present(Context(sim, sbs, self.aspect_ratio),event)
-                if sim is None or len(self.layouts)==0:
+                    layout.present(Context(ctx.sim, ctx.sbs, self.aspect_ratio),event)
+                if ctx.sim is None or len(self.layouts)==0:
                     self.gui_state = "repaint"
                 else:
                     self.gui_state = "presenting"
             case  "refresh":
                 for layout in self.layouts:
-                    layout.present(Context(sim, sbs, self.aspect_ratio),event)
-                if sim is None or len(self.layouts)==0:
+                    layout.present(Context(ctx.sim, ctx.sbs, self.aspect_ratio),event)
+                if ctx.sim is None or len(self.layouts)==0:
                     self.gui_state = "repaint"
                 else:
                     self.gui_state = "presenting"
                 
 
 
-    def on_message(self, sim, event):
+    def on_message(self, ctx, event):
         
         message_tag = event.sub_tag
         
         runtime_node = self.tag_map.get(message_tag)
         if runtime_node:
-            runtime_node.on_message(Context(sim, sbs, self.aspect_ratio), event)
+            runtime_node.on_message(Context(ctx.sim, ctx.sbs, self.aspect_ratio), event)
             refresh = False
             for node in self.tag_map.values():
                 if node != runtime_node:
@@ -937,16 +940,16 @@ class StoryPage(Page):
                     refresh = bound or refresh
             if refresh:
                 self.gui_state = "refresh"
-            self.present(sim, event)
+            self.present(ctx, event)
         # else:
         for layout in self.layouts:
-            layout.on_message(Context(sim, sbs, self.aspect_ratio),event)
+            layout.on_message(Context(ctx.sim, ctx.sbs, self.aspect_ratio),event)
 
-    def on_event(self, sim, event):
+    def on_event(self, ctx, event):
         #print (f"Story event {event.client_id} {event.tag} {event.sub_tag}")
         if self.story_scheduler is None:
             return
-        self.story_scheduler.on_event(sim, event)
+        self.story_scheduler.on_event(ctx.sim, event)
         
 
     

@@ -72,29 +72,29 @@ class ShipListDemo(Page):
         self.picker3.right = 95
 
 
-    def present(self, sim, event):
+    def present(self, ctx, event):
         CID = event.client_id
         if self.gui_state == "presenting":
             return
 
         sbs.send_gui_clear(CID)
-        self.picker1.present(sim, event)
-        self.picker2.present(sim, event)
-        self.picker3.present(sim, event)
-        self.picker4.present(sim, event)
+        self.picker1.present(ctx, event)
+        self.picker2.present(ctx, event)
+        self.picker3.present(ctx, event)
+        self.picker4.present(ctx, event)
         sbs.send_gui_button(CID, "back", "text: back", 85,95, 99,99)
 
         self.gui_state = "presenting"
 
 
-    def on_message(self, sim, event):
+    def on_message(self, ctx, event):
         if event.sub_tag == 'back':
-            Gui.pop(sim, event.client_id)
+            Gui.pop(ctx, event.client_id)
         else:
-            self.picker1.on_message(sim,event)
-            self.picker2.on_message(sim,event)
-            self.picker3.on_message(sim,event)
-            self.picker4.on_message(sim,event)
+            self.picker1.on_message(ctx,event)
+            self.picker2.on_message(ctx,event)
+            self.picker3.on_message(ctx,event)
+            self.picker4.on_message(ctx,event)
 
  
 
@@ -106,7 +106,7 @@ class GuiPage(Page):
         self.pageid = GuiPage.count 
         GuiPage.count += 1
 
-    def present(self, sim, event):
+    def present(self, ctx, event):
         sbs.send_gui_clear(event.client_id)
         sbs.send_gui_text(
                     event.client_id, "text", f"text:Page: {self.pageid}",25, 30, 99, 90)
@@ -116,11 +116,11 @@ class GuiPage(Page):
         sbs.send_gui_button(event.client_id, "again", "text: Another", *next(w))
         
 
-    def on_message(self, sim, event):
+    def on_message(self, ctx, event):
         if event.sub_tag == 'back':
-            Gui.pop(sim,event.client_id)
+            Gui.pop(ctx,event.client_id)
         if event.sub_tag == 'again':
-            Gui.push(sim,event.client_id, GuiPage())
+            Gui.push(ctx,event.client_id, GuiPage())
 
 
 class TestLayoutPage(LayoutPage):
@@ -181,7 +181,7 @@ class GuiMain(Page):
     def on_pop(self, sim):
         return super().on_pop(sim)
 
-    def present(self, sim, event):
+    def present(self, ctx, event):
         sbs.send_gui_clear(event.client_id)
         sbs.send_gui_text(
             event.client_id, "text", "text: Mission: SBS_Utils unit test.^^This is a unit test for the SBS_Utils library", 25, 30, 99, 90)
@@ -206,23 +206,23 @@ class GuiMain(Page):
         sbs.send_gui_button(event.client_id, "grid", "text: GridItems", *next(w))
         sbs.send_gui_button(event.client_id, "siege", "text: Mast Siege", *next(w))
 
-    def on_message(self, sim, event):
+    def on_message(self, ctx, event):
         Gui.client_start_page_class(ClientSelectPage)
         match event.sub_tag:
             case 'again':
                 # reset state here?
-                Gui.push(sim,event.client_id, GuiPage())
+                Gui.push(ctx,event.client_id, GuiPage())
 
             case 'avatar':
                 # reset state here?
-                Gui.push(sim,event.client_id, AvatarEditor())
+                Gui.push(ctx,event.client_id, AvatarEditor())
 
             case 'stub':
                 self.stub_gen()
 
             case 'ship':
                 # reset state here?
-                Gui.push(sim,event.client_id, ShipPicker())
+                Gui.push(ctx,event.client_id, ShipPicker())
 
             case 'shiplist':
                 # reset state here?
@@ -236,11 +236,11 @@ class GuiMain(Page):
                     ship_art = choice(enemy_ships)
 
                     npc = Npc()
-                    npc.spawn(sim, 500+ship*200,0,500,marker, "raider", ship_art, "behav_npcship")
+                    npc.spawn(ctx.sim, 500+ship*200,0,500,marker, "raider", ship_art, "behav_npcship")
                     face = faces.random_terran()
                     faces.set_face(npc.id, face)
                     ships.append(npc)
-                Gui.push(sim,event.client_id, ShipListDemo(ships))
+                Gui.push(ctx,event.client_id, ShipListDemo(ships))
                 Gui.client_start_page_class(lambda: ShipListDemo(ships))
 
             case "continue":
@@ -257,52 +257,52 @@ class GuiMain(Page):
             case "face":
                 sbs.create_new_sim()
                 sbs.resume_sim()
-                Mission.face_test(sim)
+                Mission.face_test(ctx.sim)
 
             case "layout":
-                Gui.push(sim,event.client_id, TestLayoutPage())
+                Gui.push(ctx,event.client_id, TestLayoutPage())
 
             case "story":
                 page = GuiStory()
                 #page.run(sim , story_script)        
                 Gui.client_start_page_class(GuiStory)        
-                Gui.push(sim,event.client_id, page)
+                Gui.push(ctx,event.client_id, page)
 
             case "siege":
                 page = SiegeStory()
                 #page.run(sim , story_script)        
                 Gui.client_start_page_class(SiegeStory)        
-                Gui.push(sim,event.client_id, page)
+                Gui.push(ctx,event.client_id, page)
                 
             case "story_ttt":
                 page = TttStory()
                 #page.run(sim , story_script)                
-                Gui.push(sim,event.client_id, page)
+                Gui.push(ctx,event.client_id, page)
 
             case "face_gen":
                 sbs.create_new_sim()
                 sbs.resume_sim()
-                Mission.face_gen(sim)
+                Mission.face_gen(ctx.sim)
 
             case "start":
                 sbs.create_new_sim()
                 sbs.resume_sim()
-                Mission.start(sim)
+                Mission.start(ctx.sim)
 
             case "grid":
                 sbs.create_new_sim()
                 sbs.resume_sim()
-                Mission.start_grid(sim)
+                Mission.start_grid(ctx.sim)
 
             case "mast":
                 sbs.create_new_sim()
                 sbs.resume_sim()
-                Mission.mast(sim)
+                Mission.mast(ctx.sim)
 
             case "target":
                 sbs.create_new_sim()
                 sbs.resume_sim()
-                Mission.target_bug(sim)
+                Mission.target_bug(ctx.sim)
 
 
     def stub_gen(self):
