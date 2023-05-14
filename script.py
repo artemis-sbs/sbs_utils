@@ -287,7 +287,7 @@ class GuiMain(Page):
             case "start":
                 sbs.create_new_sim()
                 sbs.resume_sim()
-                Mission.start(ctx.sim)
+                Mission.start(ctx)
 
             case "grid":
                 sbs.create_new_sim()
@@ -330,10 +330,10 @@ class Mission:
         else:
             print("timer test failed")
 
-    def start(sim):
-        TickDispatcher.do_once(sim, Mission.once, 5)
-        TickDispatcher.do_interval(sim, Mission.many, 5, 4)
-        TickDispatcher.do_once(sim, Mission.test, 30)
+    def start(ctx):
+        TickDispatcher.do_once(ctx, Mission.once, 5)
+        TickDispatcher.do_interval(ctx, Mission.many, 5, 4)
+        TickDispatcher.do_once(ctx, Mission.test, 30)
 
     def face_test(sim):
         t = TickDispatcher.do_interval(sim, Mission.new_face,0)

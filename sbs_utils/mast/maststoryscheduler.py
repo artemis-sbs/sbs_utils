@@ -649,29 +649,32 @@ class StoryScheduler(MastSbsScheduler):
         self.errors = []
         self.client_id = None
 
-    def run(self, sim, client_id, page, label="main", inputs=None):
-        self.sim = sim
+    def run(self, ctx, client_id, page, label="main", inputs=None):
+        self.sim = ctx.sim
+        self.ctx = ctx
         self.page = page
         self.client_id = client_id
         inputs = inputs if inputs else {}
-        self.vars['sim'] = sim
+        self.vars['sim'] = ctx
         self.vars['client_id'] = client_id
         self.vars['IS_SERVER'] = client_id==0
         self.vars['IS_CLIENT'] = client_id!=0
         self.vars['STORY_PAGE'] = page
         return super().start_task( label, inputs)
 
-    def story_tick_tasks(self, sim, client_id):
-        self.sim = sim
-        self.vars['sim'] = sim
+    def story_tick_tasks(self, ctx, client_id):
+        self.sim = ctx.sim
+        self.ctx = ctx
+        self.vars['sim'] = ctx.sim
+        self.vars['ctx'] = ctx
         self.client_id = client_id
-        return super().sbs_tick_tasks(sim)
+        return super().sbs_tick_tasks(ctx)
 
     def refresh(self, label):
         for task in self.tasks:
             if label == task.active_label:
                 task.jump(task.active_label)
-                self.story_tick_tasks(self.sim, self.client_id)
+                self.story_tick_tasks(self.ctx, self.client_id)
                 Gui.dirty(self.client_id)
 
     def runtime_error(self, message):
@@ -719,6 +722,7 @@ class StoryPage(Page):
         self.aspect_ratio = sbs.vec2(1920,1071)
         self.client_id = None
         self.sim = None
+        self.ctx = None
         self.console = ""
         self.widgets = ""
         self.pending_console = ""
@@ -735,22 +739,22 @@ class StoryPage(Page):
                 self.errors =  cls.story.from_file(cls.story_file)
         
 
-    def start_story(self, sim, client_id):
+    def start_story(self, ctx, client_id):
         if self.story_scheduler is not None:
             return
         cls = self.__class__
         self.client_id == client_id
         if len(self.errors)==0:
             self.story_scheduler = StoryScheduler(cls.story)
-            self.gui_task = self.story_scheduler.run(sim, client_id, self, inputs=cls.inputs)
-            TickDispatcher.do_interval(sim, self.tick_mast, 0)
+            self.gui_task = self.story_scheduler.run(ctx, client_id, self, inputs=cls.inputs)
+            TickDispatcher.do_interval(ctx, self.tick_mast, 0)
 
-    def tick_mast(self, sim, t):
+    def tick_mast(self, ctx, t):
         if self.story_scheduler:
-            self.story_scheduler.story_tick_tasks(sim, self.client_id)
+            self.story_scheduler.story_tick_tasks(ctx, self.client_id)
         if self.gui_state == 'repaint':
             event = FakeEvent(self.client_id, "gui_represent")
-            self.present(Context(sim, sbs, self.aspect_ratio), event)
+            self.present(Context(ctx.sim, ctx.sbs, self.aspect_ratio), event)
 
    
 
@@ -854,7 +858,7 @@ class StoryPage(Page):
             return
         
         if self.story_scheduler is None:
-            self.start_story(ctx.sim, event.client_id)
+            self.start_story(ctx, event.client_id)
         else:
             if len(self.story_scheduler.errors) > 0:
                 #errors = self.errors.reverse()
@@ -875,7 +879,7 @@ class StoryPage(Page):
                     self.gui_state = "refresh"
                 self.story_scheduler.paint_refresh = False
             
-            if not self.story_scheduler.story_tick_tasks(ctx.sim, event.client_id):
+            if not self.story_scheduler.story_tick_tasks(ctx, event.client_id):
                 #self.story_runtime_node.mast.remove_runtime_node(self)
                 Gui.pop(ctx, event.client_id)
                 return
@@ -949,7 +953,7 @@ class StoryPage(Page):
         #print (f"Story event {event.client_id} {event.tag} {event.sub_tag}")
         if self.story_scheduler is None:
             return
-        self.story_scheduler.on_event(ctx.sim, event)
+        self.story_scheduler.on_event(ctx, event)
         
 
     

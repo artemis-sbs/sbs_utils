@@ -62,12 +62,12 @@ def cosmos_event_handler(sim, event):
                 Gui.present(Context(sim, sbs, None), event)
             
             case "mission_tick":
-                TickDispatcher.dispatch_tick(sim)
-                LifetimeDispatcher.dispatch_spawn(sim)
+                TickDispatcher.dispatch_tick(Context(sim, sbs, None))
+                LifetimeDispatcher.dispatch_spawn(Context(sim, sbs, None))
  
             case "damage":
-                DamageDispatcher.dispatch_damage(sim,event)
-                LifetimeDispatcher.dispatch_damage(sim, event)
+                DamageDispatcher.dispatch_damage(Context(sim, sbs, None),event)
+                LifetimeDispatcher.dispatch_damage(Context(sim, sbs, None), event)
 
             case "client_connect":
                 Gui.add_client(Context(sim, sbs, None), event)
@@ -81,7 +81,7 @@ def cosmos_event_handler(sim, event):
                 # print(f"{event.value_tag}")
                 
 
-                handled = ConsoleDispatcher.dispatch_select(sim, event)
+                handled = ConsoleDispatcher.dispatch_select(Context(sim, sbs, None), event)
                 if not handled and "comm" in event.sub_tag:
                     face = faces.get_face(event.selected_id)
                     so = SpaceObject.get(event.selected_id)
@@ -91,24 +91,24 @@ def cosmos_event_handler(sim, event):
                     sbs.send_comms_selection_info(event.origin_id, face, "green", comms_id)
 
             case "press_comms_button":
-                ConsoleDispatcher.dispatch_message(sim, event, "comms_target_UID")
+                ConsoleDispatcher.dispatch_message(Context(sim, sbs, None), event, "comms_target_UID")
 
             case "science_scan_complete":
-                ConsoleDispatcher.dispatch_message(sim, event, "science_target_UID")
+                ConsoleDispatcher.dispatch_message(Context(sim, sbs, None), event, "science_target_UID")
 
             case "gui_message":
                 Gui.on_message(Context(sim, sbs, None), event)
 
             case "grid_object":
-                GridDispatcher.dispatch_grid_event(sim,event)
+                GridDispatcher.dispatch_grid_event(Context(sim, sbs, None),event)
             case "grid_object_selection":
-                ConsoleDispatcher.dispatch_select(sim, event)
+                ConsoleDispatcher.dispatch_select(Context(sim, sbs, None), event)
             case "press_grid_button":
-                ConsoleDispatcher.dispatch_message(sim, event, "grid_selected_UID")
+                ConsoleDispatcher.dispatch_message(Context(sim, sbs, None), event, "grid_selected_UID")
                 
 
             case "grid_point_selection":
-                GridDispatcher.dispatch_grid_event(sim,event)
+                GridDispatcher.dispatch_grid_event(Context(sim, sbs, None),event)
 
             case "sim_paused":
                 Gui.send_custom_event(Context(sim, sbs, None), "x_sim_paused")

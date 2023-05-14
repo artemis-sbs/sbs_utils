@@ -292,7 +292,7 @@ class PyMastStoryPage(Page):
                 label = "start_server" if self.client_id ==0 else "start_client"
                 #print(f"Spawning task {label}")
                 self.story.sim = ctx.sim if ctx else None
-                self.story_scheduler = self.story.add_scheduler(self.story.sim, label)
+                self.story_scheduler = self.story.add_scheduler(ctx, label)
                 #self.story_scheduler.page = self
                 self.task = self.story_scheduler.task
                 self.task.page = self
@@ -375,9 +375,9 @@ class PyMastStoryPage(Page):
                 return
 
             if hasattr(ctx,"sim"): 
-                self.task.tick(ctx.sim)
-            else:
                 self.task.tick(ctx)
+            # else:
+            #     self.task.tick(ctx)
         except BaseException as err:
             sbs.pause_sim()
             text_err = traceback.format_exc()

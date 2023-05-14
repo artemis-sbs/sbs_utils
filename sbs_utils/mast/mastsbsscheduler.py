@@ -634,13 +634,15 @@ class MastSbsScheduler(MastScheduler):
         
         return so.spawn(self.sim, id, name, tag, x,y, icon, color, roles)
 
-    def run(self, sim, label="main", inputs=None):
-        self.sim = sim
+    def run(self, ctx, label="main", inputs=None):
+        self.sim = ctx.sim
+        self.ctx = ctx
         inputs = inputs if inputs else {}
         super().start_task( label, inputs)
 
-    def sbs_tick_tasks(self, sim):
-        self.sim = sim
+    def sbs_tick_tasks(self, ctx):
+        self.sim = ctx.sim
+        self.ctx = ctx
         return super().tick()
 
     def get_seconds(self, clock):

@@ -28,12 +28,12 @@ class PyMastStory:
         self.vars = DataHolder()
 
 
-    def enable(self, sim, delay=0, count=None):
+    def enable(self, ctx, delay=0, count=None):
         if self.tick_task is None:
-            self.tick_task = TickDispatcher.do_interval(sim, self, delay, count)
+            self.tick_task = TickDispatcher.do_interval(ctx, self, delay, count)
 
-    def add_scheduler(self, sim, label):
-        self.enable(sim)
+    def add_scheduler(self, ctx, label):
+        self.enable(ctx)
         sched = PyMastScheduler(self, label)
         self.schedulers.append(sched)
         return sched
@@ -66,11 +66,12 @@ class PyMastStory:
     def is_running(self):
         return len(self.schedulers)!=0
 
-    def __call__(self, sim, sched=None):
-        self.sim = sim
+    def __call__(self, ctx, sched=None):
+        self.sim = ctx.sim
+        self.ctx = ctx
         for sched in self.schedulers:
             self.scheduler = sched
-            sched.tick(sim)
+            sched.tick(ctx)
             if len(sched.tasks) == 0:
                 self.remove_scheduler.add(sched)
         for finished in self.remove_scheduler:
@@ -79,6 +80,7 @@ class PyMastStory:
         if len(self.schedulers)==0:
             self.disable()
         self.sim = None
+        self.ctx = None
 
 
     def END(self):
@@ -106,7 +108,7 @@ class PyMastStory:
         define a label to use with a new task if the comms is not handled
         """
         story = self
-        def handle_dispatch(sim, an_id, event):
+        def handle_dispatch(ctx, an_id, event):
             # I it reaches this, there are no pending comms handler
             # Create a new task and jump to the routing label
             task = story.schedule_task(label)
@@ -115,7 +117,7 @@ class PyMastStory:
             #
             # Kick the tick
             #
-            task.tick(sim)
+            task.tick(ctx)
             #
             #
         ConsoleDispatcher.add_default_select("comms_target_UID", handle_dispatch)

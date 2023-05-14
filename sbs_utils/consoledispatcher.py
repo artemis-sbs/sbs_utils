@@ -14,7 +14,7 @@ class ConsoleDispatcher:
         :param console: The consoles unique ID
         :type console: string
         :param cb: call back function
-        :type cb:  should have arguments of other sim and object's id
+        :type cb:  should have arguments of other ctx and object's id
         """
         ConsoleDispatcher.add_select(0, console, cb)
 
@@ -26,7 +26,7 @@ class ConsoleDispatcher:
         :param console: The consoles unique ID
         :type console: string
         :param cb: call back function
-        :type cb:  should have arguments of other sim and object's id
+        :type cb:  should have arguments of other ctx and object's id
         """
         key = (an_id, console)
         collection = ConsoleDispatcher._dispatch_select.get(key, set())
@@ -41,7 +41,7 @@ class ConsoleDispatcher:
         :param console: The consoles unique ID
         :type console: string
         :param cb: call back function
-        :type cb:  should have arguments of other sim and object's id
+        :type cb:  should have arguments of other ctx and object's id
         """
         ConsoleDispatcher._dispatch_select[(an_id, another_id, console)] = cb
 
@@ -51,7 +51,7 @@ class ConsoleDispatcher:
         :param console: The consoles unique ID
         :type console: string
         :param cb: call back function
-        :type cb:  should have arguments of other sim, message and object's id
+        :type cb:  should have arguments of other ctx, message and object's id
         """
         ConsoleDispatcher.add_message(0, console, cb)
 
@@ -63,7 +63,7 @@ class ConsoleDispatcher:
         :param console: The consoles unique ID
         :type console: string
         :param cb: call back function
-        :type cb:  should have arguments of other sim, message and object's id
+        :type cb:  should have arguments of other ctx, message and object's id
         """
         key = (an_id, console)
         collection = ConsoleDispatcher._dispatch_messages.get(key, set())
@@ -79,7 +79,7 @@ class ConsoleDispatcher:
         :param console: The consoles unique ID
         :type console: string
         :param cb: call back function
-        :type cb:  should have arguments of other sim, message and object's id
+        :type cb:  should have arguments of other ctx, message and object's id
         """
         ConsoleDispatcher._dispatch_messages[(an_id, another, console)] = cb
 
@@ -146,11 +146,11 @@ class ConsoleDispatcher:
         """
         ConsoleDispatcher._dispatch_messages.pop((an_id, another_id, console))
 
-    def dispatch_select(sim, event):
+    def dispatch_select(ctx, event):
         """ dispatches a console selection
         
-        :param sim: The simulation
-        :type sim: Artemis Simulation
+        :param ctx: The Context
+        :type ctx: Artemis Context
         :param player_id: A player ship ID
         :type player_id: int
         :param console: The consoles unique ID
@@ -158,51 +158,51 @@ class ConsoleDispatcher:
         :param other_id: A non player ship ID player
         :type other_id: int
         """
-        console = ConsoleDispatcher.convert_to_console_id(sim,event)
+        console = ConsoleDispatcher.convert_to_console_id(ctx,event)
         if console is None:
             return
-        ConsoleDispatcher.do_select(sim, event, console)
+        ConsoleDispatcher.do_select(ctx, event, console)
 
         #handled = False
         cb = ConsoleDispatcher._dispatch_select.get((event.origin_id, event.selected_id, console))
         if cb is not None:
-            cb(sim, event.selected_id, event)
+            cb(ctx, event.selected_id, event)
             return True
             
         # Allow to route to the selected ship too
         cb = ConsoleDispatcher._dispatch_select.get((event.selected_id, event.origin_id, console))
         if cb is not None:
-            cb(sim, event.origin_id, event)
+            cb(ctx, event.origin_id, event)
             return True
 
         cb_set = ConsoleDispatcher._dispatch_select.get((event.origin_id, console))
         if cb_set is not None:
             for cb in cb_set:
-                cb(sim, event.selected_id, event)
+                cb(ctx, event.selected_id, event)
             return True
             
         # Allow to route to the selected ship too
         cb_set = ConsoleDispatcher._dispatch_select.get((event.selected_id, console))
         if cb_set is not None:
             for cb in cb_set:
-                cb(sim, event.origin_id, event)
+                cb(ctx, event.origin_id, event)
             return True
         
         # Allow to route to defaults too
         cb_set = ConsoleDispatcher._dispatch_select.get((0, console))
         if cb_set is not None:
             for cb in cb_set:
-                cb(sim, event.origin_id, event)
+                cb(ctx, event.origin_id, event)
             return True
 
         return False
 
 
-    def dispatch_message(sim, event, console):
+    def dispatch_message(ctx, event, console):
         """ dispatches a console message
         
-        :param sim: The simulation
-        :type sim: Artemis Simulation
+        :param ctx: The Context
+        :type ctx: Artemis Context
         :param message_tag: The message
         :type message_tag: string
         :param player_id: A player ship ID
@@ -214,37 +214,37 @@ class ConsoleDispatcher:
         """
         cb = ConsoleDispatcher._dispatch_messages.get((event.origin_id, event.selected_id, console))
         if cb is not None:
-            cb(sim, event.sub_tag, event.selected_id, event)
+            cb(ctx, event.sub_tag, event.selected_id, event)
             return
 
         cb = ConsoleDispatcher._dispatch_messages.get((event.selected_id, event.origin_id, console))
         # Allow the target to process
         if cb is not None:
-            cb(sim, event.sub_tag, event.origin_id, event)
+            cb(ctx, event.sub_tag, event.origin_id, event)
             return
 
         cb_set = ConsoleDispatcher._dispatch_messages.get((event.origin_id, console))
         if cb_set is not None:
             for cb in cb_set:
-                cb(sim, event.sub_tag, event.selected_id, event)
+                cb(ctx, event.sub_tag, event.selected_id, event)
             return True
             
         # Allow to route to the selected ship too
         cb_set = ConsoleDispatcher._dispatch_messages.get((event.selected_id, console))
         if cb_set is not None:
             for cb in cb_set:
-                cb(sim, event.sub_tag, event.origin_id, event)
+                cb(ctx, event.sub_tag, event.origin_id, event)
             return True
         
         # Allow to route to the default too
         cb_set = ConsoleDispatcher._dispatch_messages.get((0, console))
         if cb_set is not None:
             for cb in cb_set:
-                cb(sim, event.sub_tag, event.origin_id, event)
+                cb(ctx, event.sub_tag, event.origin_id, event)
             return True
 
         
-    def convert(sim, event):
+    def convert(ctx, event):
         if "weap" in event.sub_tag:
             return "weapon_target_UID"
         if "sci" in event.sub_tag:
@@ -256,8 +256,8 @@ class ConsoleDispatcher:
         return None
 
 
-    def do_select(sim, event, console):
-        my_ship  = sim.get_space_object(event.origin_id)
+    def do_select(ctx, event, console):
+        my_ship  = ctx.sim.get_space_object(event.origin_id)
         blob = my_ship.data_set
         blob.set(console, event.selected_id,0)
         if "grid" in console:
@@ -281,21 +281,21 @@ class MCommunications:
         ConsoleDispatcher.add_select(self.id, 'comms_target_UID', self.comms_selected)
         ConsoleDispatcher.add_message(self.id, 'comms_target_UID', self.comms_message)
 
-    def comms_selected(self, sim, an_id, event):
+    def comms_selected(self, ctx, an_id, event):
         """ handle a comms selection
         
-        :param sim: The simulation
-        :type sim: Artemis Simulation
+        :param ctx: The Context
+        :type ctx: Artemis Context
         :param an_id: The other ship involved
         :type an_id: int
         """
         pass
 
-    def comms_message(self, sim, message, an_id, event):
+    def comms_message(self, ctx, message, an_id, event):
         """ handle a comms message
         
-        :param sim: The simulation
-        :type sim: Artemis Simulation
+        :param ctx: The Context
+        :type ctx: Artemis Context
         :param message_tag: The message
         :type message_tag: string
         :param an_id: The other ship involved

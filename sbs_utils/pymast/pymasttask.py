@@ -56,13 +56,16 @@ class PyMastTask:
         self.done = True
             
 
-    def tick(self, sim):
-        if sim is None:
+    def tick(self, ctx):
+        if ctx is None:
             print("sim is NONE")
         
-        self.sim = sim
-        self.story.sim = sim
-        self.scheduler.sim = sim
+        self.sim = ctx.sim
+        self.story.sim = ctx.sim
+        self.scheduler.sim = ctx.sim
+        self.ctx = ctx
+        self.story.ctx = ctx
+        self.scheduler.ctx = ctx
         self.story.task = self
         # Keep running until told to defer or you've jump 100 time
         # Arbitrary number
@@ -250,7 +253,7 @@ class PyMastTask:
     def watch_event(self, event_tag, label):
         self.events[event_tag] = label
 
-    def on_event(self, sim, event):
+    def on_event(self, ctx, event):
         #
         # This is another push_jump_pop
         # So if a jump occurs in unwinds the push stack for all push_jump_pop:s
@@ -258,17 +261,17 @@ class PyMastTask:
         if label is None:
             return
         def pusher(story):
-            return self._run_event(label, sim, event)
+            return self._run_event(label, ctx, event)
         self.task.push_jump_pop(pusher)
     
-    def _run_event(self, label, sim, event):    
+    def _run_event(self, label, ctx, event):    
         gen = None
         res = PollResults.FAIL_END
         if inspect.isfunction(label):
-            gen = label(self.story, sim, event)
+            gen = label(self.story, ctx, event)
             res = PollResults.OK_JUMP
         elif inspect.ismethod(label):
-            gen = label(sim,event)
+            gen = label(ctx,event)
             res = PollResults.OK_JUMP
         if gen is not None:
             for this_res in gen:

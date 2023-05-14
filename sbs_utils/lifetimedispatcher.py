@@ -29,27 +29,27 @@ class LifetimeDispatcher:
         LifetimeDispatcher._dispatch_destroy.discard(cb)
 
 
-    def dispatch_spawn(sim):
+    def dispatch_spawn(ctx):
         objects = EngineObject.get_role_objects("__space_spawn__")
         for so in objects:
             for func in LifetimeDispatcher._dispatch_spawn:
-                func(sim, so)
+                func(ctx, so)
             so.remove_role("__space_spawn__")
 
         objects = EngineObject.get_role_objects("__grid_spawn__")
         for so in objects:
             for func in LifetimeDispatcher._dispatch_spawn_grid:
-                func(sim, so)
+                func(ctx, so)
             so.remove_role("__grid_spawn__")
 
 
 
-    def dispatch_damage(sim, damage_event):
+    def dispatch_damage(ctx, damage_event):
         if damage_event.sub_tag == 'destroyed':
             so:EngineObject = EngineObject.get(damage_event.selected_id)
             if so is not None:
                 for func in LifetimeDispatcher._dispatch_destroy:
-                    func(sim, so)
+                    func(ctx, so)
                 so.destroyed()
             
           
