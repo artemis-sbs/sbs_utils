@@ -18,8 +18,15 @@ class PyMastScheduler:
         # Initial tasks
         self.tasks.append(self.task)
 
+    @property
+    def client_id(self):
+        if self.task and self.task.page:
+            return self.task.page.client_id
+        return 0
+
     def schedule_task(self, label):
         task = PyMastTask(self.story, self, label)
+        task.page = self.task.page
         self.schedule_a_task(task)
         return task
     

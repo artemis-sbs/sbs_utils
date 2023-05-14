@@ -99,7 +99,7 @@ class PyMastStory:
     #
 
 
-    def route_comms(self, label):
+    def route_comms_select(self, label):
         """
         route_comms
 
@@ -120,7 +120,26 @@ class PyMastStory:
             #
         ConsoleDispatcher.add_default_select("comms_target_UID", handle_dispatch)
             
+    def route_grid_select(self, label):
+        """
+        route_comms
 
+        define a label to use with a new task if the comms is not handled
+        """
+        story = self
+        def handle_dispatch(sim, an_id, event):
+            # I it reaches this, there are no pending comms handler
+            # Create a new task and jump to the routing label
+            task = story.schedule_task(label)
+            task.COMMS_ORIGIN_ID = event.origin_id
+            task.COMMS_SELECTED_ID = event.selected_id
+            #
+            # Kick the tick
+            #
+            task.tick(sim)
+            #
+            #
+        ConsoleDispatcher.add_default_select("grid_selected_UID", handle_dispatch)
 
 
 
@@ -161,6 +180,12 @@ class PyMastStory:
     ## GUI STUFF
     def get_page(self):
         return self.task.page
+    
+    @property
+    def client_id(self):
+        if self.task and self.task.page:
+            return self.task.page.client_id
+        return 0
     
     def await_gui(self, buttons= None, timeout=None, on_message=None, test_refresh=None,  test_end_await=None, on_disconnect=None):
         return self.task.await_gui(buttons, timeout, on_message, test_refresh, test_end_await, on_disconnect)

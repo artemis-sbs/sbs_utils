@@ -45,6 +45,12 @@ class PyMastTask:
         self.done = False
 
 
+    @property
+    def client_id(self):
+        if self.page:
+            return self.page.client_id
+        return 0
+
     def end(self):
         self.last_poll_result = PollResults.OK_END
         self.done = True
@@ -81,6 +87,10 @@ class PyMastTask:
                 return self.last_poll_result
             gen_done = True
             for res in gen:
+                if res is None:
+                    print("Label yielded None")
+                    gen_done = True
+                    break
                 gen_done = False                
                 self.last_poll_result = res
                 if res == PollResults.OK_RUN_AGAIN:
@@ -88,7 +98,13 @@ class PyMastTask:
                     return
                 if res == PollResults.OK_JUMP:
                     break
+                
             if gen_done:
+
+                #
+                # Is this needed?
+                # or this may bew when label truely yields None?
+                # 
                 if len(self.stack)>0:
                     return self.pop()
                 else:
