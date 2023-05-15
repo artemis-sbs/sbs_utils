@@ -134,124 +134,99 @@ Schedule the task
         yield self.jump(self.end_game)
 
 
+Add a router for ai
+*************************
 
 
-
-Add a task to run AI
-======================
-
-
-.. tabs::
-   .. code-tab:: mast mast
-      :emphasize-lines: 2-5
-
-      ========== task_npc_targeting =========
-      raiders = role('raider')
-      if len(raiders)==0:
-         ->END
-      end_if
-
-
-
-   .. code-tab:: py PyMast
-    :emphasize-lines: 3-5
-
-      @label()
-      def task_npc_targeting(self):
-        raiders = query.role('raider')
-        if len(raiders)==0:
-            return
-
-
-
-Add a task to run AI
-======================
+Routers create tasks automatically a needed and starts running at a specific label.
+That label that uses logic to route to other labels based on certain conditions.
 
 
 .. tabs::
-   .. code-tab:: mast mast
-      :emphasize-lines: 7-14
+   .. code-tab:: mast Mast
 
-      ========== task_npc_targeting =========
-      raiders = role('raider')
-      if len(raiders)==0:
-         ->END
-      end_if
-
-      for raider in raiders:
-         the_target = closest(raider, role("__PLAYER__"), 2000)
-         if the_target is None:
-            the_target = closest(raider, role("Station"))
-         end_if
-         if the_target is not None:
-            do target(sim, raider, the_target, True)
-         end_if
-      next raider
-
-      delay sim 5s
-      jump task_npc_targeting
-
+         # at the top of the mast file add 
+         # Configure the label where comms routing occurs
+         route spawn route_ai
 
    .. code-tab:: py PyMast
-    :emphasize-lines: 7-12
 
-      @label()
-      def task_npc_targeting(self):
-        raiders = query.role('raider')
-        if len(raiders)==0:
-            return
-
-        for raider in raiders:
-            the_target = query.closest(raider, query.role("__PLAYER__"), 2000)
-            if the_target is None:
-                the_target = query.closest(raider, query.role("Station"))
-            if the_target is not None:
-                query.target(self.sim, raider, the_target, True)
-
-
-
-Have task run again
-======================
-
-.. tabs::
-   .. code-tab:: mast mast
-      :emphasize-lines: 17-18
-
-      ========== task_npc_targeting =========
-      raiders = role('raider')
-      if len(raiders)==0:
-         ->END
-      end_if
-
-      for raider in raiders:
-         the_target = closest(raider, role("__PLAYER__"), 2000)
-         if the_target is None:
-            the_target = closest(raider, role("Station"))
-         end_if
-         if the_target is not None:
-            do target(sim, raider, the_target, True)
-         end_if
-      next raider
-
-      delay sim 5s
-      jump task_npc_targeting
-
-
-   .. code-tab:: py PyMast
-      :emphasize-lines: 14-15
+       # in the __init__ of the story add 
+       self.route_spawn(self.route_ai)
     
-      @label()
-      def task_npc_targeting(self):
-        raiders = query.role('raider')
-        if len(raiders)==0:
-            return
 
-        for raider in raiders:
-            the_target = query.closest(raider, query.role("__PLAYER__"), 2000)
-            if the_target is None:
-                the_target = query.closest(raider, query.role("Station"))
-            if the_target is not None:
-                query.target(self.sim, raider, the_target, True)
 
-        yield self.delay(5)
-        yield self.jump(self.task_npc_targeting)
+
+
+Add a task to route AI
+========================
+
+
+.. tabs::
+   .. code-tab:: mast mast
+     
+      ========== route_ai =========
+      #
+      # SPAWNED_ID is a special value of the ID of the thing spawned
+      #
+      if has_role(SPAWNED_ID, "raider"):
+         jump npc_targeting_ai
+      end_if
+      #if not a raider end the task
+      ->END
+
+
+
+
+   .. code-tab:: py PyMast
+
+      @label()    
+      def route_ai(self):
+         #
+         # SPAWNED_ID is a special value of the ID of the thing spawned
+         #
+         if query.has_role(self.task.SPAWNED_ID, "raider"):
+               yield self.jump(self.npc_targeting_ai)
+         
+
+
+
+Add a task to do np targeting AI
+===================================
+
+
+.. tabs::
+   .. code-tab:: mast mast
+ 
+      =====  npc_targeting_ai   =========
+
+      the_target = closest(SPAWNED_ID, role("__PLAYER__"), 2000)
+      if the_target is None:
+         the_target = closest(SPAWNED_ID, role("Station"))
+      end_if
+      if the_target is not None:
+         do target(sim, SPAWNED_ID, the_target, True)
+      end_if
+
+      delay sim 5s
+      jump npc_targeting_ai
+
+
+
+   .. code-tab:: py PyMast
+   
+
+      @label()    
+      def npc_targeting_ai(self):
+         the_target = query.closest(self.task.SPAWNED_ID, query.role("__PLAYER__"), 2000)
+         if the_target is None:
+               the_target = query.closest(self.task.SPAWNED_ID, query.role("Station"))
+         if the_target is not None:
+               query.target(self.sim, self.task.SPAWNED_ID, the_target, True)
+
+         yield self.delay(5)
+         yield self.jump(self.npc_targeting_ai)
+
+
+
+

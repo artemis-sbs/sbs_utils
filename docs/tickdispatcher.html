@@ -324,7 +324,7 @@ and if it is completed</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> – The Artemis Cosmos simulation</p></li>
+<li><p><strong>ctx</strong> – The Artemis Cosmos simulation</p></li>
 <li><p><strong>cb</strong> – call back function</p></li>
 <li><p><strong>delay</strong> (<em>int</em>) – the time in seconds for the task to delay</p></li>
 <li><p><strong>count</strong> (<em>int</em><em> or </em><em>None</em>) – The number of times to run None mean infinite</p></li>
@@ -338,11 +338,11 @@ and if it is completed</p>
 </dd>
 </dl>
 <p>example:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">some_use</span><span class="p">(</span><span class="n">sim</span><span class="p">):</span>
-    <span class="n">t</span> <span class="o">=</span> <span class="n">TickDispatcher</span><span class="o">.</span><span class="n">do_interval</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">the_callback</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">some_use</span><span class="p">(</span><span class="n">ctx</span><span class="p">):</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">TickDispatcher</span><span class="o">.</span><span class="n">do_interval</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">the_callback</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
     <span class="n">t</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">some_data</span>
 
-<span class="k">def</span> <span class="nf">the_callback</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">the_callback</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
     <span class="nb">print</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">some_data</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">some_data</span><span class="o">.</span><span class="n">some_condition</span><span class="p">:</span>
         <span class="n">t</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
@@ -357,7 +357,7 @@ and if it is completed</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> – The Artemis Cosmos simulation</p></li>
+<li><p><strong>ctx</strong> – The Artemis Cosmos simulation</p></li>
 <li><p><strong>cb</strong> – call back function</p></li>
 <li><p><strong>delay</strong> (<em>int</em>) – the time in seconds for the task to delay</p></li>
 </ul>
@@ -371,10 +371,10 @@ and if it is completed</p>
 </dl>
 <dl class="simple">
 <dt>example:</dt><dd><dl class="simple">
-<dt>def some_use(sim):</dt><dd><p>t = TickDispatcher.do_once(sim, the_callback, 5)
+<dt>def some_use(ctx):</dt><dd><p>t = TickDispatcher.do_once(ctx, the_callback, 5)
 t.data = some_data</p>
 </dd>
-<dt>def the_callback(sim, t):</dt><dd><p>print(t.some_data)</p>
+<dt>def the_callback(ctx, t):</dt><dd><p>print(t.some_data)</p>
 </dd>
 </dl>
 </dd>
@@ -390,7 +390,7 @@ t.data = some_data</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="sbs_utils.tickdispatcher.TickTask">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.tickdispatcher.</span></span><span class="sig-name descname"><span class="pre">TickTask</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">count</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.tickdispatcher.TickTask" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.tickdispatcher.</span></span><span class="sig-name descname"><span class="pre">TickTask</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">count</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.tickdispatcher.TickTask" title="Permalink to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>A task that is managed by the TickDispatcher</p>
 <dl class="py property">

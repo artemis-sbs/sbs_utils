@@ -6,7 +6,7 @@ Target,
 Tell,
 Broadcast,
 Comms,
-Near,
+
 
 
 
@@ -18,7 +18,7 @@ Await Comms
 .. tabs::
     .. code-tab:: mast
         
-        await self comms player:
+        await comms:
             + "Hail":
                 have self tell player "{comms_id}! We will destroy you, disgusting Terran scum!"
             + "You're Ugly":
@@ -31,7 +31,7 @@ Await Comms
 
     .. code-tab:: py PyMast
         
-            self.schedule_comms(player, lambda id: query.has_role(id, "Station"), {
+            self.await_comms({
                 "Hail": self.comms_station_hail,
                 "Build Homing": self.comms_build_homing,
                 "Build Nuke": self.comms_build_nuke,
@@ -49,19 +49,18 @@ Await Science
 .. tabs::
     .. code-tab:: mast
         
-        await self scan station:
+        await scan:
             scan tab "scan":
                 scan results "Scan"
             scan tab "bio":
                 scan results "Bio"
         end_await
         
-
         
 
     .. code-tab:: py PyMast
         
-              self.schedule_science(player, None, {
+              self.await_science({
                 "scan": self.scan_default,
                 "bio": self.scan_bio,
                 "intel": self.scan_intel,

@@ -1,5 +1,6 @@
 from ..tickdispatcher import TickDispatcher
 from ..consoledispatcher import ConsoleDispatcher
+from ..lifetimedispatcher import LifetimeDispatcher
 from ..engineobject import EngineObject
 from ..gui import Page, Gui
 from sbs_utils import faces
@@ -135,6 +136,29 @@ class PyMastStory:
             task = story.schedule_task(label)
             task.COMMS_ORIGIN_ID = event.origin_id
             task.COMMS_SELECTED_ID = event.selected_id
+            task.COMMS_ROUTED = True
+            #
+            # Kick the tick
+            #
+            task.tick(sim)
+            #
+            #
+        ConsoleDispatcher.add_default_select("grid_selected_UID", handle_dispatch)
+
+    def route_grid_select(self, label):
+        """
+        route_comms
+
+        define a label to use with a new task if the comms is not handled
+        """
+        story = self
+        def handle_dispatch(sim, an_id, event):
+            # I it reaches this, there are no pending comms handler
+            # Create a new task and jump to the routing label
+            task = story.schedule_task(label)
+            task.COMMS_ORIGIN_ID = event.origin_id
+            task.COMMS_SELECTED_ID = event.selected_id
+            task.COMMS_ROUTED = True
             #
             # Kick the tick
             #
@@ -144,6 +168,69 @@ class PyMastStory:
         ConsoleDispatcher.add_default_select("grid_selected_UID", handle_dispatch)
 
 
+    def route_science_select(self, label):
+        """
+        route_comms
+
+        define a label to use with a new task if the comms is not handled
+        """
+        story = self
+        def handle_dispatch(sim, an_id, event):
+            # I it reaches this, there are no pending comms handler
+            # Create a new task and jump to the routing label
+            task = story.schedule_task(label)
+            task.SCIENCE_ORIGIN_ID = event.origin_id
+            task.SCIENCE_SELECTED_ID = event.selected_id
+            task.SCIENCE_ROUTED = True
+            #
+            # Kick the tick
+            #
+            task.tick(sim)
+            #
+            #
+        ConsoleDispatcher.add_default_select("science_target_UID", handle_dispatch)
+
+    def route_spawn(self, label):
+        """
+        route_spawn
+
+        define a label to use with a new task items are spawned
+        """
+        story = self
+        def handle_dispatch(ctx, so):
+            # I it reaches this, there are no pending comms handler
+            # Create a new task and jump to the routing label
+            task = story.schedule_task(label)
+            task.SPAWNED_ID = so.id
+            task.SPAWNED_ROUTED = True
+            #
+            # Kick the tick
+            #
+            task.tick(ctx)
+            #
+            #
+        LifetimeDispatcher.add_spawn(handle_dispatch)
+
+    def route_grid_spawn(self, label):
+        """
+        route_spawn
+
+        define a label to use with a new task items are spawned
+        """
+        story = self
+        def handle_dispatch(ctx, so):
+            # I it reaches this, there are no pending comms handler
+            # Create a new task and jump to the routing label
+            task = story.schedule_task(label)
+            task.SPAWNED_ID = so.id
+            task.SPAWNED_ROUTED = True
+            #
+            # Kick the tick
+            #
+            task.tick(ctx)
+            #
+            #
+        LifetimeDispatcher.add_spawn_grid(handle_dispatch)
 
 
     ###########

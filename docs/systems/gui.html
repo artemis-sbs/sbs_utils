@@ -103,6 +103,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#page-layout-helpers">Page layout helpers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#widgets">Widgets</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.gui">API: gui module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.gui.Context"><code class="docutils literal notranslate"><span class="pre">Context</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.gui.FakeEvent"><code class="docutils literal notranslate"><span class="pre">FakeEvent</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.gui.Gui"><code class="docutils literal notranslate"><span class="pre">Gui</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#sbs_utils.gui.Gui.add_client"><code class="docutils literal notranslate"><span class="pre">Gui.add_client()</span></code></a></li>
@@ -446,6 +447,12 @@ The StartPage instance still exists, and is below the Options page on the stack.
 <section id="module-sbs_utils.gui">
 <span id="api-gui-module"></span><h2>API: gui module<a class="headerlink" href="#module-sbs_utils.gui" title="Permalink to this heading"></a></h2>
 <dl class="py class">
+<dt class="sig sig-object py" id="sbs_utils.gui.Context">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.gui.</span></span><span class="sig-name descname"><span class="pre">Context</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_sbs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aspect_ratio</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Context" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+</dd></dl>
+
+<dl class="py class">
 <dt class="sig sig-object py" id="sbs_utils.gui.FakeEvent">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.gui.</span></span><span class="sig-name descname"><span class="pre">FakeEvent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sub_tag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.FakeEvent" title="Permalink to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
@@ -459,7 +466,7 @@ The StartPage instance still exists, and is below the Options page on the stack.
 Manages the GUI pages for all clients</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Gui.add_client">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">add_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.add_client" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">add_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.add_client" title="Permalink to this definition"></a></dt>
 <dd><p>Call when a new client connects.
 handlerhooks.py will call this in HandleClientConnect</p>
 <dl class="field-list simple">
@@ -494,13 +501,13 @@ this is called once in the script.py</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Gui.on_event">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">on_event</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.on_event" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">on_event</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.on_event" title="Permalink to this definition"></a></dt>
 <dd><p>Forward to the appropriate GuiClient/Page
 handlerhooks.py will call this in HandleEvent</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
 <li><p><strong>event</strong> (<a class="reference internal" href="../sbs.html#sbs.event" title="sbs.event"><em>event</em></a>) – The tag name of the control interacted with</p></li>
 </ul>
 </dd>
@@ -509,13 +516,13 @@ handlerhooks.py will call this in HandleEvent</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Gui.on_message">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.on_message" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.on_message" title="Permalink to this definition"></a></dt>
 <dd><p>Forward to the appropriate GuiClient/Page
 handlerhooks.py will call this in HandlePresentGUIMessage</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
 <li><p><strong>event</strong> (<a class="reference internal" href="../sbs.html#sbs.event" title="sbs.event"><em>event</em></a>) – The tag name of the control interacted with</p></li>
 </ul>
 </dd>
@@ -524,34 +531,34 @@ handlerhooks.py will call this in HandlePresentGUIMessage</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Gui.pop">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">pop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">client_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.pop" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">pop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">client_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.pop" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Gui.present">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.present" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.present" title="Permalink to this definition"></a></dt>
 <dd><p>calls present on all clients
 handlerhooks.py will call this in HandlePresentGUI</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+<dd class="field-odd"><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Gui.present_dirty">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">present_dirty</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.present_dirty" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">present_dirty</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.present_dirty" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Gui.push">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">push</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">client_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">page</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.push" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">push</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">client_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">page</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.push" title="Permalink to this definition"></a></dt>
 <dd><p>Presents the new Page on the specified client by pushing it on the stack.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
 <li><p><strong>clientID</strong> – called to add a new client</p></li>
 <li><p><strong>page</strong> – </p></li>
 </ul>
@@ -561,14 +568,14 @@ handlerhooks.py will call this in HandlePresentGUI</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Gui.send_custom_event">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">send_custom_event</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sub_tag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.send_custom_event" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">send_custom_event</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sub_tag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Gui.send_custom_event" title="Permalink to this definition"></a></dt>
 <dd><p>on_event</p>
 <p>Forward to the appropriate GuiClient/Page
 handlerhooks.py will call this in HandleEvent</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
 <li><p><strong>event</strong> (<a class="reference internal" href="../sbs.html#sbs.event" title="sbs.event"><em>event</em></a>) – The tag name of the control interacted with</p></li>
 </ul>
 </dd>
@@ -597,12 +604,12 @@ this is called once in the script.py</p>
 <p>Manages the pages for a client</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.GuiClient.on_event">
-<span class="sig-name descname"><span class="pre">on_event</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.on_event" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">on_event</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.on_event" title="Permalink to this definition"></a></dt>
 <dd><p>Calls the on_event on the top page of the specified client by calling on_event</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>ctx</strong> – </p></li>
 <li><p><strong>event</strong> (<a class="reference internal" href="../sbs.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
@@ -611,12 +618,12 @@ this is called once in the script.py</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.GuiClient.on_message">
-<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.on_message" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.on_message" title="Permalink to this definition"></a></dt>
 <dd><p>Calls the on_message on the top page of the specified client by calling on_message</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
 <li><p><strong>event</strong> (<a class="reference internal" href="../sbs.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
@@ -625,23 +632,23 @@ this is called once in the script.py</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.GuiClient.pop">
-<span class="sig-name descname"><span class="pre">pop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.pop" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">pop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.pop" title="Permalink to this definition"></a></dt>
 <dd><p>Stops presenting the current page and return to the previous one</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+<dd class="field-odd"><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.GuiClient.present">
-<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.present" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.present" title="Permalink to this definition"></a></dt>
 <dd><p>Presents the top Page for the specified clientID by calling present on that page</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
 <li><p><strong>CID</strong> – Client ID</p></li>
 </ul>
 </dd>
@@ -650,12 +657,12 @@ this is called once in the script.py</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.GuiClient.push">
-<span class="sig-name descname"><span class="pre">push</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">page</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.push" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">push</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">page</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.push" title="Permalink to this definition"></a></dt>
 <dd><p>Presents the new Page by pushing it on the stack.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
 <li><p><strong>page</strong> – </p></li>
 </ul>
 </dd>
@@ -671,12 +678,12 @@ this is called once in the script.py</p>
 <p>A interface class for creating GUI pages</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Page.on_event">
-<span class="sig-name descname"><span class="pre">on_event</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.on_event" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">on_event</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.on_event" title="Permalink to this definition"></a></dt>
 <dd><p>Called when the option pages page has been interacted with</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
 <li><p><strong>event</strong> (<a class="reference internal" href="../sbs.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
@@ -685,12 +692,12 @@ this is called once in the script.py</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Page.on_message">
-<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.on_message" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.on_message" title="Permalink to this definition"></a></dt>
 <dd><p>Called when the option pages page has been interacted with</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
 <li><p><strong>event</strong> (<a class="reference internal" href="../sbs.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
@@ -699,16 +706,16 @@ this is called once in the script.py</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Page.on_pop">
-<span class="sig-name descname"><span class="pre">on_pop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.on_pop" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">on_pop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.on_pop" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Page.present">
-<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.present" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.present" title="Permalink to this definition"></a></dt>
 <dd><p>Called to have the page create and update the gui content it is presenting</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+<dd class="field-odd"><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p>
 </dd>
 </dl>
 </dd></dl>
@@ -722,12 +729,12 @@ this is called once in the script.py</p>
 <p>A interface class for creating GUI widgets i.e. composite components.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Widget.on_message">
-<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Widget.on_message" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">on_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Widget.on_message" title="Permalink to this definition"></a></dt>
 <dd><p>Called when a control on the page has been interacted with</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
 <li><p><strong>message_tag</strong> (<em>str</em>) – The tag name of the control interacted with</p></li>
 <li><p><strong>clientID</strong> (<em>None</em><em> or </em><em>str</em><em> or </em><em>float</em>) – The client ID that had the interaction</p></li>
 <li><p><strong>data</strong> – Any data associated with the control e.g. slider float value of current value</p></li>
@@ -738,11 +745,11 @@ this is called once in the script.py</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.Widget.present">
-<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Widget.present" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Widget.present" title="Permalink to this definition"></a></dt>
 <dd><p>Called to have the page create and update the gui content it is presenting</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+<dd class="field-odd"><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p>
 </dd>
 </dl>
 </dd></dl>
@@ -763,7 +770,7 @@ this is called once in the script.py</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
 <li><p><strong>event</strong> (<a class="reference internal" href="../sbs.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
@@ -776,7 +783,7 @@ this is called once in the script.py</p>
 <dd><p>Called to have the page create and update the gui content it is presenting</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+<dd class="field-odd"><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p>
 </dd>
 </dl>
 </dd></dl>
@@ -811,7 +818,7 @@ this is called once in the script.py</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
 <li><p><strong>event</strong> (<a class="reference internal" href="../sbs.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
@@ -824,7 +831,7 @@ this is called once in the script.py</p>
 <dd><p>Called to have the page create and update the gui content it is presenting</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+<dd class="field-odd"><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p>
 </dd>
 </dl>
 </dd></dl>
@@ -847,7 +854,7 @@ this is called once in the script.py</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
 <li><p><strong>event</strong> (<a class="reference internal" href="../sbs.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
@@ -861,7 +868,7 @@ this is called once in the script.py</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
 <li><p><strong>event</strong> (<a class="reference internal" href="../sbs.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
@@ -874,7 +881,7 @@ this is called once in the script.py</p>
 <dd><p>Called to have the page create and update the gui content it is presenting</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+<dd class="field-odd"><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p>
 </dd>
 </dl>
 </dd></dl>
@@ -897,7 +904,7 @@ this is called once in the script.py</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
 <li><p><strong>event</strong> (<a class="reference internal" href="../sbs.html#sbs.event" title="sbs.event"><em>event</em></a>) – The event data</p></li>
 </ul>
 </dd>
@@ -910,7 +917,7 @@ this is called once in the script.py</p>
 <dd><p>Called to have the page create and update the gui content it is presenting</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>sim</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+<dd class="field-odd"><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p>
 </dd>
 </dl>
 </dd></dl>

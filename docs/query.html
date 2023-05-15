@@ -104,8 +104,12 @@
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.has_inventory"><code class="docutils literal notranslate"><span class="pre">has_inventory()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.has_link"><code class="docutils literal notranslate"><span class="pre">has_link()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.has_role"><code class="docutils literal notranslate"><span class="pre">has_role()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.has_roles"><code class="docutils literal notranslate"><span class="pre">has_roles()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.inventory_set"><code class="docutils literal notranslate"><span class="pre">inventory_set()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.inventory_value"><code class="docutils literal notranslate"><span class="pre">inventory_value()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.is_client_id"><code class="docutils literal notranslate"><span class="pre">is_client_id()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.is_grid_object_id"><code class="docutils literal notranslate"><span class="pre">is_grid_object_id()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.is_space_object_id"><code class="docutils literal notranslate"><span class="pre">is_space_object_id()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.link"><code class="docutils literal notranslate"><span class="pre">link()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.linked_to"><code class="docutils literal notranslate"><span class="pre">linked_to()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.object_exists"><code class="docutils literal notranslate"><span class="pre">object_exists()</span></code></a></li>
@@ -439,6 +443,11 @@
 <dd></dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.query.has_roles">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.query.</span></span><span class="sig-name descname"><span class="pre">has_roles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">so</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roles</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.query.has_roles" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="sbs_utils.query.inventory_set">
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.query.</span></span><span class="sig-name descname"><span class="pre">inventory_set</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">link_source</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">link_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.query.inventory_set" title="Permalink to this definition"></a></dt>
 <dd><p>get the set that inventory items with the given key the the link source has
@@ -472,6 +481,21 @@ this is the way to create a collection in inventory</p>
 </dd>
 </dl>
 </dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.query.is_client_id">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.query.</span></span><span class="sig-name descname"><span class="pre">is_client_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.query.is_client_id" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.query.is_grid_object_id">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.query.</span></span><span class="sig-name descname"><span class="pre">is_grid_object_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.query.is_grid_object_id" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.query.is_space_object_id">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.query.</span></span><span class="sig-name descname"><span class="pre">is_space_object_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.query.is_space_object_id" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="sbs_utils.query.link">

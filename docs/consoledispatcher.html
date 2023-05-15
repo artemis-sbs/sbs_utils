@@ -326,7 +326,7 @@ The message is the button_tag.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
-<li><p><strong>cb</strong> (<em>should have arguments</em><em> of </em><em>other sim</em><em>, </em><em>message and object's id</em>) – call back function</p></li>
+<li><p><strong>cb</strong> (<em>should have arguments</em><em> of </em><em>other ctx</em><em>, </em><em>message and object's id</em>) – call back function</p></li>
 </ul>
 </dd>
 </dl>
@@ -340,7 +340,7 @@ The message is the button_tag.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
-<li><p><strong>cb</strong> (<em>should have arguments</em><em> of </em><em>other sim and object's id</em>) – call back function</p></li>
+<li><p><strong>cb</strong> (<em>should have arguments</em><em> of </em><em>other ctx and object's id</em>) – call back function</p></li>
 </ul>
 </dd>
 </dl>
@@ -355,7 +355,7 @@ The message is the button_tag.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
 <li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
-<li><p><strong>cb</strong> (<em>should have arguments</em><em> of </em><em>other sim</em><em>, </em><em>message and object's id</em>) – call back function</p></li>
+<li><p><strong>cb</strong> (<em>should have arguments</em><em> of </em><em>other ctx</em><em>, </em><em>message and object's id</em>) – call back function</p></li>
 </ul>
 </dd>
 </dl>
@@ -370,7 +370,7 @@ The message is the button_tag.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
 <li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
-<li><p><strong>cb</strong> (<em>should have arguments</em><em> of </em><em>other sim</em><em>, </em><em>message and object's id</em>) – call back function</p></li>
+<li><p><strong>cb</strong> (<em>should have arguments</em><em> of </em><em>other ctx</em><em>, </em><em>message and object's id</em>) – call back function</p></li>
 </ul>
 </dd>
 </dl>
@@ -385,7 +385,7 @@ The message is the button_tag.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
 <li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
-<li><p><strong>cb</strong> (<em>should have arguments</em><em> of </em><em>other sim and object's id</em>) – call back function</p></li>
+<li><p><strong>cb</strong> (<em>should have arguments</em><em> of </em><em>other ctx and object's id</em>) – call back function</p></li>
 </ul>
 </dd>
 </dl>
@@ -400,7 +400,7 @@ The message is the button_tag.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>an_id</strong> (<em>int</em>) – A ships ID player or non-player</p></li>
 <li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
-<li><p><strong>cb</strong> (<em>should have arguments</em><em> of </em><em>other sim and object's id</em>) – call back function</p></li>
+<li><p><strong>cb</strong> (<em>should have arguments</em><em> of </em><em>other ctx and object's id</em>) – call back function</p></li>
 </ul>
 </dd>
 </dl>
@@ -423,7 +423,7 @@ The message is the button_tag.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Simulation</em>) – The simulation</p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Context</em>) – The Context</p></li>
 <li><p><strong>message_tag</strong> (<em>string</em>) – The message</p></li>
 <li><p><strong>player_id</strong> (<em>int</em>) – A player ship ID</p></li>
 <li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
@@ -440,7 +440,7 @@ The message is the button_tag.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Simulation</em>) – The simulation</p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Context</em>) – The Context</p></li>
 <li><p><strong>player_id</strong> (<em>int</em>) – A player ship ID</p></li>
 <li><p><strong>console</strong> (<em>string</em>) – The consoles unique ID</p></li>
 <li><p><strong>other_id</strong> (<em>int</em>) – A non player ship ID player</p></li>
@@ -518,12 +518,12 @@ The message is the button_tag.</p>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.MCommunications.comms_message">
-<span class="sig-name descname"><span class="pre">comms_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">an_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.MCommunications.comms_message" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">comms_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">an_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.MCommunications.comms_message" title="Permalink to this definition"></a></dt>
 <dd><p>handle a comms message</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Simulation</em>) – The simulation</p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Context</em>) – The Context</p></li>
 <li><p><strong>message_tag</strong> (<em>string</em>) – The message</p></li>
 <li><p><strong>an_id</strong> (<em>int</em>) – The other ship involved</p></li>
 </ul>
@@ -533,12 +533,12 @@ The message is the button_tag.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.consoledispatcher.MCommunications.comms_selected">
-<span class="sig-name descname"><span class="pre">comms_selected</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">an_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.MCommunications.comms_selected" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">comms_selected</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">an_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.consoledispatcher.MCommunications.comms_selected" title="Permalink to this definition"></a></dt>
 <dd><p>handle a comms selection</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>sim</strong> (<em>Artemis Simulation</em>) – The simulation</p></li>
+<li><p><strong>ctx</strong> (<em>Artemis Context</em>) – The Context</p></li>
 <li><p><strong>an_id</strong> (<em>int</em>) – The other ship involved</p></li>
 </ul>
 </dd>
