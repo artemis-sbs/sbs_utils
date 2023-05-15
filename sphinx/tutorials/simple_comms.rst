@@ -248,8 +248,7 @@ Add logic for internal comms
 
 .. tabs::
    .. code-tab:: mast Mast
-         :emphasize-lines: 3-8
-      
+            
         ================ internal_comms ==================
          #
          # Setup faces for the departments
@@ -287,8 +286,7 @@ Add logic for internal comms
 
 
    .. code-tab:: py PyMast
-         :emphasize-lines: 3-7
-
+      
          #================ internal_comms ==================
          @label()
          def internal_comms(self):

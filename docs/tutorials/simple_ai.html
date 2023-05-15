@@ -63,9 +63,7 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial: Simple AI</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#create-mission">Create mission</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#add-more-stations">Add more stations</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#add-role">Add role</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#add-a-task-to-run-ai">Add a task to run AI</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#schedule-the-task">Schedule the task</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#add-role">Add role</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#add-a-router-for-ai">Add a router for ai</a></li>
 </ul>
 </li>
@@ -173,71 +171,17 @@ ds2 = npc_spawn(1000,0,-1000, &quot;DS2&quot;, &quot;tsn&quot;, &quot;starbase_c
 </span></pre></div>
 </div>
 </div></div>
-</section>
-<section id="add-a-task-to-run-ai">
-<h2>Add a task to run AI<a class="headerlink" href="#add-a-task-to-run-ai" title="Permalink to this heading"></a></h2>
-<div class="sphinx-tabs docutils container">
-<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-3-bWFzdAogICAgOmVtcGhhc2l6ZS1saW5lczogMQ==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-3-bWFzdAogICAgOmVtcGhhc2l6ZS1saW5lczogMQ==" name="bWFzdAogICAgOmVtcGhhc2l6ZS1saW5lczogMQ==" role="tab" tabindex="0">mast
-    :emphasize-lines: 1</button><button aria-controls="panel-3-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-3-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-3-bWFzdAogICAgOmVtcGhhc2l6ZS1saW5lczogMQ==" class="sphinx-tabs-panel code-tab group-tab" id="panel-3-bWFzdAogICAgOmVtcGhhc2l6ZS1saW5lczogMQ==" name="bWFzdAogICAgOmVtcGhhc2l6ZS1saW5lczogMQ==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">========== task_npc_targeting =========</span>
-</pre></div>
-</div>
-</div><div aria-labelledby="tab-3-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-3-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="hll">  <span class="nd">@label</span><span class="p">()</span>
-</span><span class="hll">  <span class="k">def</span> <span class="nf">task_npc_targeting</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span class="hll">     <span class="k">pass</span>
-</span></pre></div>
-</div>
-</div></div>
-</section>
-<section id="schedule-the-task">
-<h2>Schedule the task<a class="headerlink" href="#schedule-the-task" title="Permalink to this heading"></a></h2>
-<div class="sphinx-tabs docutils container">
-<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-4-bWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-4-bWFzdA==" name="bWFzdA==" role="tab" tabindex="0">mast</button><button aria-controls="panel-4-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-4-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-4-bWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-4-bWFzdA==" name="bWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">======== start ======</span>
-simulation resume
-# Create the world here
-
-# Create a space station
-ds1 = npc_spawn(1000,0,1000, &quot;DS1&quot;, &quot;tsn&quot;, &quot;starbase_command&quot;, &quot;behav_station&quot;)
-ds2 = npc_spawn(1000,0,-1000, &quot;DS2&quot;, &quot;tsn&quot;, &quot;starbase_command&quot;, &quot;behav_station&quot;)
-do add_role({ds1.id, ds2.id}, &quot;Station&quot;)
-
-# Create an enemy
-k001 = npc_spawn(-1000,0,1000, &quot;K001&quot;, &quot;raider&quot;, &quot;kralien_dreadnaught&quot;, &quot;behav_npcship&quot;)
-
-<span class="hll">schedule task_npc_targeting
-</span>
-&lt;&lt;-
-</pre></div>
-</div>
-</div><div aria-labelledby="tab-4-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-4-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span>  <span class="nd">@label</span><span class="p">()</span>
-  <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="c1"># Create the world here</span>
-
-    <span class="c1"># Create a space station</span>
-    <span class="n">ds1</span> <span class="o">=</span> <span class="n">Npc</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1000</span><span class="p">,</span> <span class="s2">&quot;DS1&quot;</span><span class="p">,</span> <span class="s2">&quot;tsn&quot;</span><span class="p">,</span> <span class="s2">&quot;starbase_command&quot;</span><span class="p">,</span> <span class="s2">&quot;behav_station&quot;</span><span class="p">)</span>
-    <span class="n">ds2</span> <span class="o">=</span> <span class="n">Npc</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="o">-</span><span class="mi">1000</span><span class="p">,</span> <span class="s2">&quot;DS2&quot;</span><span class="p">,</span> <span class="s2">&quot;tsn&quot;</span><span class="p">,</span> <span class="s2">&quot;starbase_command&quot;</span><span class="p">,</span> <span class="s2">&quot;behav_station&quot;</span><span class="p">)</span>
-    <span class="n">query</span><span class="o">.</span><span class="n">add_role</span><span class="p">({</span><span class="n">ds1</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">ds2</span><span class="o">.</span><span class="n">id</span><span class="p">},</span> <span class="s2">&quot;Station&quot;</span><span class="p">)</span>
-
-    <span class="c1"># Create an enemy</span>
-    <span class="n">k001</span> <span class="o">=</span> <span class="n">Npc</span><span class="p">()</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">,</span> <span class="o">-</span><span class="mi">1000</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1000</span><span class="p">,</span> <span class="s2">&quot;K001&quot;</span><span class="p">,</span> <span class="s2">&quot;raider&quot;</span><span class="p">,</span> <span class="s2">&quot;kralien_dreadnaught&quot;</span><span class="p">,</span> <span class="s2">&quot;behav_npcship&quot;</span><span class="p">)</span>
-
-<span class="hll">    <span class="bp">self</span><span class="o">.</span><span class="n">schedule_task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">task_npc_targeting</span><span class="p">)</span>
-</span>
-    <span class="n">sbs</span><span class="o">.</span><span class="n">resume_sim</span><span class="p">()</span>
-    <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">jump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end_game</span><span class="p">)</span>
-</pre></div>
-</div>
-</div></div>
 <section id="add-a-router-for-ai">
 <h3>Add a router for ai<a class="headerlink" href="#add-a-router-for-ai" title="Permalink to this heading"></a></h3>
 <p>Routers create tasks automatically a needed and starts running at a specific label.
 That label that uses logic to route to other labels based on certain conditions.</p>
 <div class="sphinx-tabs docutils container">
-<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-5-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-5-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-5-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-5-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-5-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-5-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span># at the top of the mast file add
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-3-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-3-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-3-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-3-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-3-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-3-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span># at the top of the mast file add
 # Configure the label where comms routing occurs
 route spawn route_ai
 </pre></div>
 </div>
-</div><div aria-labelledby="tab-5-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-5-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="c1"># in the __init__ of the story add</span>
+</div><div aria-labelledby="tab-3-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-3-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="c1"># in the __init__ of the story add</span>
 <span class="bp">self</span><span class="o">.</span><span class="n">route_spawn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">route_ai</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -247,7 +191,7 @@ route spawn route_ai
 <section id="add-a-task-to-route-ai">
 <h2>Add a task to route AI<a class="headerlink" href="#add-a-task-to-route-ai" title="Permalink to this heading"></a></h2>
 <div class="sphinx-tabs docutils container">
-<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-6-bWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-6-bWFzdA==" name="bWFzdA==" role="tab" tabindex="0">mast</button><button aria-controls="panel-6-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-6-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-6-bWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-6-bWFzdA==" name="bWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">========== route_ai =========</span>
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-4-bWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-4-bWFzdA==" name="bWFzdA==" role="tab" tabindex="0">mast</button><button aria-controls="panel-4-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-4-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-4-bWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-4-bWFzdA==" name="bWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">========== route_ai =========</span>
 #
 # SPAWNED_ID is a special value of the ID of the thing spawned
 #
@@ -258,7 +202,7 @@ end_if
 <span class="gd">-&gt;END</span>
 </pre></div>
 </div>
-</div><div aria-labelledby="tab-6-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-6-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="nd">@label</span><span class="p">()</span>
+</div><div aria-labelledby="tab-4-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-4-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="nd">@label</span><span class="p">()</span>
 <span class="k">def</span> <span class="nf">route_ai</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
    <span class="c1">#</span>
    <span class="c1"># SPAWNED_ID is a special value of the ID of the thing spawned</span>
@@ -272,7 +216,7 @@ end_if
 <section id="add-a-task-to-do-np-targeting-ai">
 <h2>Add a task to do np targeting AI<a class="headerlink" href="#add-a-task-to-do-np-targeting-ai" title="Permalink to this heading"></a></h2>
 <div class="sphinx-tabs docutils container">
-<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-7-bWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-7-bWFzdA==" name="bWFzdA==" role="tab" tabindex="0">mast</button><button aria-controls="panel-7-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-7-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-7-bWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-7-bWFzdA==" name="bWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">=====  npc_targeting_ai   =========</span>
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-5-bWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-5-bWFzdA==" name="bWFzdA==" role="tab" tabindex="0">mast</button><button aria-controls="panel-5-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-5-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-5-bWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-5-bWFzdA==" name="bWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">=====  npc_targeting_ai   =========</span>
 
 the_target = closest(SPAWNED_ID, role(&quot;__PLAYER__&quot;), 2000)
 if the_target is None:
@@ -286,7 +230,7 @@ delay sim 5s
 jump npc_targeting_ai
 </pre></div>
 </div>
-</div><div aria-labelledby="tab-7-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-7-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="nd">@label</span><span class="p">()</span>
+</div><div aria-labelledby="tab-5-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-5-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="nd">@label</span><span class="p">()</span>
 <span class="k">def</span> <span class="nf">npc_targeting_ai</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
    <span class="n">the_target</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">closest</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="o">.</span><span class="n">SPAWNED_ID</span><span class="p">,</span> <span class="n">query</span><span class="o">.</span><span class="n">role</span><span class="p">(</span><span class="s2">&quot;__PLAYER__&quot;</span><span class="p">),</span> <span class="mi">2000</span><span class="p">)</span>
    <span class="k">if</span> <span class="n">the_target</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>

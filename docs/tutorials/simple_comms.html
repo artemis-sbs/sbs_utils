@@ -330,8 +330,7 @@ comms_info &quot;static&quot;
 <section id="add-logic-for-internal-comms">
 <h2>Add logic for internal comms<a class="headerlink" href="#add-logic-for-internal-comms" title="Permalink to this heading"></a></h2>
 <div class="sphinx-tabs docutils container">
-<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-8-TWFzdAogOmVtcGhhc2l6ZS1saW5lczogMy04" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-8-TWFzdAogOmVtcGhhc2l6ZS1saW5lczogMy04" name="TWFzdAogOmVtcGhhc2l6ZS1saW5lczogMy04" role="tab" tabindex="0">Mast
- :emphasize-lines: 3-8</button><button aria-controls="panel-8-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-8-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-8-TWFzdAogOmVtcGhhc2l6ZS1saW5lczogMy04" class="sphinx-tabs-panel code-tab group-tab" id="panel-8-TWFzdAogOmVtcGhhc2l6ZS1saW5lczogMy04" name="TWFzdAogOmVtcGhhc2l6ZS1saW5lczogMy04" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">================ internal_comms ==================</span>
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-8-TWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-8-TWFzdA==" name="TWFzdA==" role="tab" tabindex="0">Mast</button><button aria-controls="panel-8-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-8-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-8-TWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-8-TWFzdA==" name="TWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span><span class="gh">================ internal_comms ==================</span>
  #
  # Setup faces for the departments
  #
@@ -367,12 +366,12 @@ comms_info &quot;static&quot;
 </div>
 </div><div aria-labelledby="tab-8-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-8-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="c1">#================ internal_comms ==================</span>
 <span class="nd">@label</span><span class="p">()</span>
-<span class="hll"><span class="k">def</span> <span class="nf">internal_comms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span class="hll">   <span class="c1">#</span>
-</span><span class="hll">   <span class="c1"># Setup faces for the departments</span>
-</span><span class="hll">   <span class="c1">#</span>
-</span><span class="hll">   <span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="o">.</span><span class="n">doctor</span> <span class="o">=</span> <span class="n">faces</span><span class="o">.</span><span class="n">random_terran</span><span class="p">()</span>
-</span>   <span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="o">.</span><span class="n">biologist</span> <span class="o">=</span> <span class="n">faces</span><span class="o">.</span><span class="n">random_terran</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">internal_comms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+   <span class="c1">#</span>
+   <span class="c1"># Setup faces for the departments</span>
+   <span class="c1">#</span>
+   <span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="o">.</span><span class="n">doctor</span> <span class="o">=</span> <span class="n">faces</span><span class="o">.</span><span class="n">random_terran</span><span class="p">()</span>
+   <span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="o">.</span><span class="n">biologist</span> <span class="o">=</span> <span class="n">faces</span><span class="o">.</span><span class="n">random_terran</span><span class="p">()</span>
    <span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="o">.</span><span class="n">counselor</span> <span class="o">=</span> <span class="n">faces</span><span class="o">.</span><span class="n">random_terran</span><span class="p">()</span>
    <span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="o">.</span><span class="n">major</span> <span class="o">=</span> <span class="n">faces</span><span class="o">.</span><span class="n">random_terran</span><span class="p">()</span>
    <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">jump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">internal_comms_loop</span><span class="p">)</span>
