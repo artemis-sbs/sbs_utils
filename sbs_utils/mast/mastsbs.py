@@ -17,7 +17,7 @@ class TransmitReceive(MastNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
     OPT_FACE = r"""(\s*face((\s*(?P<faceq>['"]{3}|["'])(?P<face_string>[ \t\S]+?)(?P=faceq))|(\s+(?P<face_var>\w+))))?"""
     OPT_COMMS_ID = r"""(\s*title((\s*(?P<comq>['"]{3}|["'])(?P<comms_string>[ \t\S]+?)(?P=comq))|(\s+(?P<comms_var>\w+))))?"""
-    rule = re.compile(r"""(?P<tr>receive|transmit)\s*(?P<q>['"]{3}|["'])(?P<message>.+?)(?P=q)"""+OPT_COMMS_ID+OPT_FACE+OPT_COLOR)
+    rule = re.compile(r"""(?P<tr>receive|transmit)\s*(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)"""+OPT_COMMS_ID+OPT_FACE+OPT_COLOR)
     def __init__(self, tr, message, 
                  face_string=None, face_var=None, faceq=None,
                  comms_string=None, comms_var=None, comq=None,

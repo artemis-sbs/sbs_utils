@@ -86,6 +86,8 @@ class TellRuntimeNode(MastRuntimeNode):
         to_so= task.get_variable(node.to_tag)
         self.face = ""
         self.title = ""
+        self.to_id = None
+        self.from_id = None
         to_so:SpaceObject = task.get_variable(node.to_tag)
         from_so:SpaceObject = task.get_variable(node.from_tag)
         if to_so is None or from_so is None:
