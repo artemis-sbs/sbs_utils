@@ -122,7 +122,7 @@ Add a task to route AI
 
 
 
-Add a task to do np targeting AI
+Add a task to do npc targeting AI
 ===================================
 
 

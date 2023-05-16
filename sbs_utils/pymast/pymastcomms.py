@@ -78,6 +78,7 @@ class PyMastComms:
             if isinstance(button_func, tuple):
                 button_func = button_func[1]
             if button_func:
+                self.selected_info(event.origin_id, event.selected_id)
                 if inspect.isfunction(button_func):
                     def pusher(story):
                         print(f"BUTTON {button_func}")
@@ -87,7 +88,7 @@ class PyMastComms:
                                 yield res
                         self.stop()
                         yield self.task.pop()
-                    self.task.push(pusher)
+                    self.task.push_jump_pop(pusher)
                 elif inspect.ismethod(button_func):
                     ##############
                     ## This is some wild code
@@ -100,7 +101,7 @@ class PyMastComms:
                                 yield res
                         self.stop()
                         yield self.task.pop()
-                    self.task.push(pusher)
+                    self.task.push_jump_pop(pusher)
 
 
 

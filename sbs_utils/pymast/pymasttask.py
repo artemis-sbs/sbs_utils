@@ -2,7 +2,7 @@ from .pollresults import PollResults
 import inspect
 from .pymastscience import PyMastScience
 from .pymastcomms import PyMastComms
-from functools import partial
+from functools import partial, partialmethod
 import sbs
 
 
@@ -74,17 +74,19 @@ class PyMastTask:
             throttle += 1
             if self.pending_jump:
                 #print(f"jump to {self.pending_jump}")
-                self.do_jump()
+                res = self.do_jump()
             elif self.pending_pop:
                 # Pending jump trumps pending pop
                 #print(f"pending pop to {self.pending_pop.__name__}")
                 self.current_gen = self.pending_pop
                 self.pending_pop = None
+
             
             gen = self.current_gen
             # It is possible that the label
             # did not Yield, which is OK just End 
             if gen is None:
+                print("Gen None")
                 self.last_poll_result = PollResults.OK_END
                 self.sim = None
                 return self.last_poll_result
@@ -98,12 +100,12 @@ class PyMastTask:
                 self.last_poll_result = res
                 if res == PollResults.OK_RUN_AGAIN:
                     self.sim = None
-                    return
+                    return self.last_poll_result
                 if res == PollResults.OK_JUMP:
                     break
                 
             if gen_done:
-
+                print("Gen Done")
                 #
                 # Is this needed?
                 # or this may bew when label truely yields None?
@@ -118,10 +120,6 @@ class PyMastTask:
                         self.last_poll_result = PollResults.OK_JUMP
                     self.sim = None
                     return self.last_poll_result
-                    
-
-
-          
         # don't hold pointer
         self.sim = None
         return self.last_poll_result
@@ -130,8 +128,9 @@ class PyMastTask:
         label = self.pending_jump
         self.pending_jump = None
         gen, res = self.get_gen(label)
-        if res == PollResults.OK_JUMP:
-            self.current_gen = gen
+        self.current_gen = gen
+        if gen is None:
+            print("Get_gen failed?")
         return res
 
     def get_gen(self, label):
@@ -147,6 +146,8 @@ class PyMastTask:
         elif inspect.ismethod(label):
             gen = label()
             res = PollResults.OK_JUMP
+        else:
+            print("Partial?")
         return (gen, res)
     
     def jump(self, label):
@@ -159,6 +160,14 @@ class PyMastTask:
     def push(self, label):
         self.stack.append(self.current_gen)
         return self.jump(label)
+    
+    def quick_push(self, func):
+        # The function proviced is expected to pop
+        self.stack.append(self.current_gen)
+        #gen, res = self.get_gen(func)
+        self.pending_jump = func 
+        return PollResults.OK_JUMP
+
     
     def push_jump_pop(self, label):
         self.stack.append(self.current_gen)
@@ -177,7 +186,8 @@ class PyMastTask:
         return PollResults.FAIL_END
     
     def delay(self,  seconds=0, minutes=0, use_sim=False):
-        return self.quick_push(lambda _: self._delay(seconds, minutes, use_sim))
+        return self.push_jump_pop(lambda _: self._delay(seconds, minutes, use_sim))
+        #return self.push_jump_pop(partialmethod(self._delay,seconds, minutes, use_sim))
         # self.stack.append(self.current_gen)
         # self.current_gen = self._delay(delay)
         # return PollResults.OK_RUN_AGAIN
@@ -281,14 +291,7 @@ class PyMastTask:
         yield self.pop()
 
 
-
-    def quick_push(self, func):
-        # The function proviced is expected to pop
-        self.stack.append(self.current_gen)
-        #gen, res = self.get_gen(func)
-        self.pending_jump = func 
-        return PollResults.OK_JUMP
-
+  
     def behave_sel(self,*labels):
         return self.quick_push(lambda _: self._run_sel(labels))
 
