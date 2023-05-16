@@ -12,16 +12,16 @@ Create the mission from using a starter mission.
 .. tabs::
    .. code-tab:: shell mast
 
-    .\fetch artemis-sbs mast_starter simple_ai    
+    .\fetch artemis-sbs mast_starter simple_comms
 
 
    .. code-tab:: shell PyMast
     
-    .\fetch artemis-sbs pymast_starter simple_ai
+    .\fetch artemis-sbs pymast_starter simple_comms
 
 
 Add more stations
-======================
+*********************
 
 
 .. tabs::
@@ -42,7 +42,7 @@ Add more stations
       
 
 Add role
-===============
+*********************
 
 .. tabs::
    .. code-tab:: mast mast

@@ -64,10 +64,8 @@
 <li class="toctree-l1"><a class="reference internal" href="simple_science.html">Tutorial: Simple Science</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial: Simple Comms</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#create-mission">Create mission</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="#add-more-stations">Add more stations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#add-role">Add role</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#add-more-stations">Add more stations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#add-role">Add role</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#add-a-router-for-comms">Add a router for comms</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#add-router-label-and-logic">Add router label and logic</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#update-router-for-internal-comms">Update router for internal comms</a></li>
@@ -135,17 +133,16 @@
 <h2>Create mission<a class="headerlink" href="#create-mission" title="Permalink to this heading"></a></h2>
 <p>Create the mission from using a starter mission.</p>
 <div class="sphinx-tabs docutils container">
-<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-0-bWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-bWFzdA==" name="bWFzdA==" role="tab" tabindex="0">mast</button><button aria-controls="panel-0-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-0-bWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-0-bWFzdA==" name="bWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>.<span class="se">\f</span>etch<span class="w"> </span>artemis-sbs<span class="w"> </span>mast_starter<span class="w"> </span>simple_ai
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-0-bWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-bWFzdA==" name="bWFzdA==" role="tab" tabindex="0">mast</button><button aria-controls="panel-0-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-0-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-0-bWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-0-bWFzdA==" name="bWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>.<span class="se">\f</span>etch<span class="w"> </span>artemis-sbs<span class="w"> </span>mast_starter<span class="w"> </span>simple_comms
 </pre></div>
 </div>
-</div><div aria-labelledby="tab-0-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-0-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>.<span class="se">\f</span>etch<span class="w"> </span>artemis-sbs<span class="w"> </span>pymast_starter<span class="w"> </span>simple_ai
+</div><div aria-labelledby="tab-0-UHlNYXN0" class="sphinx-tabs-panel code-tab group-tab" hidden="true" id="panel-0-UHlNYXN0" name="UHlNYXN0" role="tabpanel" tabindex="0"><div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>.<span class="se">\f</span>etch<span class="w"> </span>artemis-sbs<span class="w"> </span>pymast_starter<span class="w"> </span>simple_comms
 </pre></div>
 </div>
 </div></div>
 </section>
-</section>
 <section id="add-more-stations">
-<h1>Add more stations<a class="headerlink" href="#add-more-stations" title="Permalink to this heading"></a></h1>
+<h2>Add more stations<a class="headerlink" href="#add-more-stations" title="Permalink to this heading"></a></h2>
 <div class="sphinx-tabs docutils container">
 <div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-1-bWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-bWFzdA==" name="bWFzdA==" role="tab" tabindex="0">mast</button><button aria-controls="panel-1-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-1-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-1-bWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-1-bWFzdA==" name="bWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span># Create a space station
 ds1 = npc_spawn(1000,0,1000, &quot;DS1&quot;, &quot;tsn&quot;, &quot;starbase_command&quot;, &quot;behav_station&quot;)
@@ -160,7 +157,7 @@ ds1 = npc_spawn(1000,0,1000, &quot;DS1&quot;, &quot;tsn&quot;, &quot;starbase_co
 </div></div>
 </section>
 <section id="add-role">
-<h1>Add role<a class="headerlink" href="#add-role" title="Permalink to this heading"></a></h1>
+<h2>Add role<a class="headerlink" href="#add-role" title="Permalink to this heading"></a></h2>
 <div class="sphinx-tabs docutils container">
 <div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-2-bWFzdA==" aria-selected="true" class="sphinx-tabs-tab code-tab group-tab" id="tab-2-bWFzdA==" name="bWFzdA==" role="tab" tabindex="0">mast</button><button aria-controls="panel-2-UHlNYXN0" aria-selected="false" class="sphinx-tabs-tab code-tab group-tab" id="tab-2-UHlNYXN0" name="UHlNYXN0" role="tab" tabindex="-1">PyMast</button></div><div aria-labelledby="tab-2-bWFzdA==" class="sphinx-tabs-panel code-tab group-tab" id="panel-2-bWFzdA==" name="bWFzdA==" role="tabpanel" tabindex="0"><div class="highlight-mast notranslate"><div class="highlight"><pre><span></span># Create a space station
 ds1 = npc_spawn(1000,0,1000, &quot;DS1&quot;, &quot;tsn&quot;, &quot;starbase_command&quot;, &quot;behav_station&quot;)
@@ -175,6 +172,7 @@ ds2 = npc_spawn(1000,0,-1000, &quot;DS2&quot;, &quot;tsn&quot;, &quot;starbase_c
 </span></pre></div>
 </div>
 </div></div>
+</section>
 <section id="add-a-router-for-comms">
 <h2>Add a router for comms<a class="headerlink" href="#add-a-router-for-comms" title="Permalink to this heading"></a></h2>
 <p>Routers create tasks automatically a needed and starts running at a specific label.
