@@ -14,6 +14,7 @@ class PyMastScheduler:
         self.scheduler = self #Alais for scoping
         self.shared = story
         self.story = story
+        self.page = None
         self.task = PyMastTask(story, self, label)
         # Initial tasks
         self.tasks.append(self.task)
@@ -49,4 +50,4 @@ class PyMastScheduler:
         self.tasks.extend(self.new_tasks)
         self.new_tasks.clear()
 
-   
+    

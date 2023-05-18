@@ -5,6 +5,7 @@ from mock import sbs as sbs
 from sbs_utils import names
 import sys
 from sbs_utils.pymast.pymaststory import PyMastStory
+from sbs_utils.gui import Context
 
 
 def example_loose(self):
@@ -57,14 +58,15 @@ class TestNames(unittest.TestCase):
         self.assertEqual(3, 3)
 
     def test_something(self):
-        sim = FakeSim()
+        ctx = Context(FakeSim(), sbs, None)
         story = ExampleStory()
-        story.enable(sim)
+        story.enable(ctx)
+        story.add_scheduler(ctx, story.start)
 
 
         for x in range(1000):
-            story(sim)
-            sim.tick()
+            story(ctx)
+            ctx.sim.tick()
         print()
    
 

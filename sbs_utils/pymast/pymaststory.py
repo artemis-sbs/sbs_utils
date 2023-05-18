@@ -100,7 +100,9 @@ class PyMastStory:
     #
     # Routing
     #
-
+    def route_change_console(self, label):
+        if self.task and self.task.page:
+            self.task.page.change_console_label = label
 
     def route_comms_select(self, label):
         """

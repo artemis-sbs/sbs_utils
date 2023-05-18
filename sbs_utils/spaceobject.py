@@ -27,6 +27,7 @@ class SpaceObject(EngineObject):
         self._name = ""
         self._side = ""
         self._art_id = ""
+        self.spawn_pos = sbs.vec3(0,0,0)
         self.tick_type = TickType.UNKNOWN
     
     @property
@@ -72,41 +73,6 @@ class SpaceObject(EngineObject):
         return sim.get_space_object(self.id)
 
     
-    # def update_engine_data(self, sim, data):
-    #     this = sim.get_space_object(self.id)
-    #     if this is None:
-    #         # Object is destroyed
-    #         return
-    #     blob = this.data_set
-    #     for (key, value) in data.items():
-    #         if type(value) is tuple:
-    #             blob.set(key, value[0], value[1])
-    #         else:
-    #             blob.set(key, value)
-
-    # def get_engine_data(self, sim, key, index=0):
-    #     this = sim.get_space_object(self.id)
-    #     if this is None:
-    #         # Object is destroyed
-    #         return
-    #     blob = this.data_set
-    #     return blob.get(key, index)
-
-    # def set_engine_data(self, sim, key, value, index=0):
-    #     this = sim.get_space_object(self.id)
-    #     if this is None:
-    #         # Object is destroyed
-    #         return
-    #     blob = this.data_set
-    #     blob.set(key, value, index)
-
-    # def get_engine_data_set(self, sim):
-    #     this = sim.get_space_object(self.id)
-    #     if this is None:
-    #         # Object is destroyed
-    #         return None
-    #     return this.data_set
-
     
 
     def debug_mark_loc(sim,  x: float, y: float, z: float, name: str, color: str):
@@ -188,6 +154,7 @@ class SpaceObject(EngineObject):
         """
         so = self.space_object(sim)
         so.data_tag = art_id
+        self._art_id = art_id
 
     def update_comms_id(self):
         """ Updates the comms ID when the name or side has changed
@@ -223,6 +190,7 @@ class SpaceObject(EngineObject):
 
 class MSpawn:
     def spawn_common(self, sim, obj, x, y, z, name, side):
+        self.spawn_pos = sbs.vec3(x,y,z)
         sim.reposition_space_object(obj, x, y, z)
         self.add()
         self.add_role(self.__class__.__name__)

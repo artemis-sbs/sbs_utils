@@ -6,6 +6,7 @@ from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain,
 
 from ..consoledispatcher import ConsoleDispatcher
 from ..lifetimedispatcher import LifetimeDispatcher
+from ..damagedispatcher import DamageDispatcher
 from ..gui import Gui
 from .errorpage import ErrorPage
 from .. import faces
@@ -391,8 +392,8 @@ class ScanRuntimeNode(MastRuntimeNode):
         if routed:
             self.start_scan(task.main.sim, from_so.id, to_so.id, "scan")
 
-    def science_selected(self, sim, an_id, event):
-        self.start_scan(sim, event.origin_id, event.selected_id, event.extra_tag)
+    def science_selected(self, ctx, an_id, event):
+        self.start_scan(ctx.sim, event.origin_id, event.selected_id, event.extra_tag)
 
     def start_scan(self, sim, origin_id, selected_id, extra_tag):
         so = query.to_object(origin_id)
@@ -481,30 +482,72 @@ class RegexEqual(str):
     def __eq__(self, pattern):
         return bool(re.search(pattern, self))
 
+#
+#
+#
+
+def handle_purge_tasks(ctx, so):
+    """
+    This will clear out all tasks related to the destroyed item
+    """
+    MastAsyncTask.stop_for_dependency(so.id)
+
+LifetimeDispatcher.add_destroy(handle_purge_tasks)
+
 class RouteRuntimeNode(MastRuntimeNode):
     def poll(self, mast:Mast, task:MastAsyncTask, node: Route):
         def handle_dispatch(task, console, sim, an_id, event):
             # I it reaches this, there are no pending comms handler
             # Create a new task and jump to the routing label
-            task = task.start_task(node.label, {
+            t = task.start_task(node.label, {
                     f"{console}_ORIGIN_ID": event.origin_id,
                     f"{console}_SELECTED_ID": event.selected_id,
+                    f"EVENT": event,
                     f"{console}_ROUTED": True
             })
+            MastAsyncTask.add_dependency(event.origin_id,t)
+            MastAsyncTask.add_dependency(event.selected_id,t)
 
         def handle_spawn(sim, so):
-            task.start_task(node.label, {
+            t = task.start_task(node.label, {
                     f"SPAWNED_ID": so.id,
                     f"SPAWNED_ROUTED": True
             })
+            MastAsyncTask.add_dependency(so.id,t)
 
 
         def handle_spawn_grid(sim, so):
-            task.start_task(node.label, {
+            t = task.start_task(node.label, {
                     f"SPAWNED_ID": so.id,
                     f"SPAWNED_ROUTED": True
             })
+            MastAsyncTask.add_dependency(so.id,t)
+
+        def handle_damage(ctx, event):
+            # Need point? amount
+            t = task.start_task(node.label, {
+                    f"DAMAGE_SOURCE_ID": event.origin_id,
+                    f"DAMAGE_TARGET_ID": event.selected_id,
+                    f"DAMAGE_ORIGIN_ID": event.origin_id,
+                    f"DAMAGE_SELECTED_ID": event.selected_id,
+                    f"EVENT": event,
+                    f"DAMAGE_ROUTED": True
+            })
+            MastAsyncTask.add_dependency(event.origin_id,t)
+            MastAsyncTask.add_dependency(event.selected_id,t)
         
+        def handle_damage_internal(ctx, event):
+            # Need point? amount
+            t= task.start_task(node.label, {
+                    f"DAMAGE_SOURCE_ID": event.origin_id,
+                    f"DAMAGE_TARGET_ID": event.origin_id,
+                    f"DAMAGE_ORIGIN_ID": event.origin_id,
+                    f"EVENT": event,
+                    f"DAMAGE_ROUTED": True
+            })
+            MastAsyncTask.add_dependency(event.origin_id,t)
+            MastAsyncTask.add_dependency(event.selected_id,t)
+
         match RegexEqual(node.route):
             case "comms\s+select":
                 ConsoleDispatcher.add_default_select("comms_target_UID", partial(handle_dispatch, task, "COMMS"))
@@ -520,6 +563,15 @@ class RouteRuntimeNode(MastRuntimeNode):
 
             case "grid\s+spawn":
                 LifetimeDispatcher.add_spawn_grid(handle_spawn_grid)
+
+            case "damage\s*source":
+                DamageDispatcher.add_source(handle_damage)
+
+            case "damage\s*target":
+                DamageDispatcher.add_target(handle_damage)
+
+            case "damage\s*internal":
+                DamageDispatcher.add_any_internal(handle_damage_internal)
 
             case "spawn":
                 LifetimeDispatcher.add_spawn(handle_spawn)

@@ -513,6 +513,7 @@ class PushData:
 
 class MastAsyncTask:
     main: 'MastScheduler'
+    dependent_tasks = {}
     
     def __init__(self, main: 'MastScheduler', inputs=None, conditional= None):
         self.done = False
@@ -879,6 +880,20 @@ class MastAsyncTask:
         #print(f"RUNNER {self.runtime_node.__class__.__name__}")
         self.runtime_node.enter(self.main.mast, self, cmd)
         return True
+    
+    @classmethod
+    def add_dependency(cls, id, task):
+        the_set = MastAsyncTask.dependent_tasks.get(id, set())
+        the_set.add(task)
+        MastAsyncTask.dependent_tasks[id]=the_set
+
+    @classmethod
+    def stop_for_dependency(cls, id):
+        the_set = MastAsyncTask.dependent_tasks.get(id, set())
+        for task in the_set:
+            task.done = True
+        MastAsyncTask.dependent_tasks.pop(id, None)
+
 
 class MastAllTask:
     def __init__(self, main) -> None:

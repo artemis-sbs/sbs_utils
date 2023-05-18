@@ -1,10 +1,12 @@
 import unittest
 import sys
+
 sys.path.append("..")
 from mock import sbs
 import sys
 from sbs_utils.pymast.pymaststory import PyMastStory
 from sbs_utils.pymast.pollresults import PollResults
+from sbs_utils.gui import Context
 from io import StringIO
 import logging
 
@@ -60,15 +62,15 @@ class TestPymast(unittest.TestCase):
                     yield self.jump("two")
                 yield self.pop()
 
-        sim = FakeSim()
+        ctx = Context(FakeSim(), sbs, None)
         story = ExampleStory()
-        story.enable(sim)
-        story.add_scheduler(sim, story.start)
+        story.enable(ctx)
+        story.add_scheduler(ctx, story.start)
 
 
         for x in range(1000):
-            story(sim)
-            sim.tick()
+            story(ctx)
+            ctx.sim.tick()
         v = log_stream.getvalue()
         t = """start
 one
@@ -115,15 +117,15 @@ end
                 yield self.delay(5)
                 yield PollResults.OK_END
 
-        sim = FakeSim()
+        ctx = Context(FakeSim(), sbs, None)
         story = ExampleStory()
-        story.enable(sim)
-        story.add_scheduler(sim, story.start)
+        story.enable(ctx)
+        story.add_scheduler(ctx, story.start)
 
 
         for x in range(1000):
-            story(sim)
-            sim.tick()
+            story(ctx)
+            ctx.sim.tick()
         v = log_stream.getvalue()
         t = """Before
 one 0
@@ -160,15 +162,15 @@ After
                 yield PollResults.FAIL_END
 
 
-        sim = FakeSim()
+        ctx = Context(FakeSim(), sbs, None)
         story = ExampleStory()
-        story.enable(sim)
-        story.add_scheduler(sim, story.start)
+        story.enable(ctx)
+        story.add_scheduler(ctx, story.start)
 
 
         for x in range(1000):
-            story(sim)
-            sim.tick()
+            story(ctx)
+            ctx.sim.tick()
         v = log_stream.getvalue()
         t = """Before
 After
@@ -198,15 +200,15 @@ After
                 logging.info(f"nope")
 
 
-        sim = FakeSim()
+        ctx = Context(FakeSim(), sbs, None)
         story = ExampleStory()
-        story.enable(sim)
-        story.add_scheduler(sim, story.start)
+        story.enable(ctx)
+        story.add_scheduler(ctx, story.start)
 
 
         for x in range(1000):
-            story(sim)
-            sim.tick()
+            story(ctx)
+            ctx.sim.tick()
         v = log_stream.getvalue()
         t = """Before
 one 0
@@ -261,15 +263,15 @@ After
                 self.have_apple = True
                 
 
-        sim = FakeSim()
+        ctx = Context(FakeSim(), sbs, None)
         story = ExampleStory()
-        story.enable(sim)
-        story.add_scheduler(sim, story.start)
+        story.enable(ctx)
+        story.add_scheduler(ctx, story.start)
 
 
         for x in range(1000):
-            story(sim)
-            sim.tick()
+            story(ctx)
+            ctx.sim.tick()
         v = log_stream.getvalue()
         t = """Before
 After

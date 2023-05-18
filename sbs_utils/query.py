@@ -658,8 +658,32 @@ def grid_clear_target(grid_obj_or_set, sim):
 
 
 def is_client_id(id):
+     if id is None:
+         return False
      return (id & 0x8000000000000000)!=0
 def is_space_object_id(id):
+     if id is None:
+         return False
      return (id & 0x4000000000000000)!=0
 def is_grid_object_id(id):
+     if id is None:
+         return False
      return (id & 0x2000000000000000)!=0
+
+def get_pos(sim, id_or_obj):
+    object = to_object(id_or_obj)
+    if object is not None:
+        eo = object.get_engine_object(sim)
+        if eo:
+            return eo.pos
+    return None
+
+def set_pos(sim, id_or_obj, x, y, z):
+    ids = to_set(id_or_obj)
+    for id in ids:
+        object = to_object(id_or_obj)
+    if object is not None:
+        eo = object.get_engine_object(sim)
+        if eo:
+            return sim.reposition_space_object(eo, x, y, z)
+        

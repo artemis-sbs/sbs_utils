@@ -69,6 +69,10 @@ def cosmos_event_handler(sim, event):
                 DamageDispatcher.dispatch_damage(Context(sim, sbs, None),event)
                 LifetimeDispatcher.dispatch_damage(Context(sim, sbs, None), event)
 
+            case "player_internal_damage":
+                DamageDispatcher.dispatch_internal(Context(sim, sbs, None),event)
+                
+
             case "client_connect":
                 Gui.add_client(Context(sim, sbs, None), event)
 
@@ -79,8 +83,6 @@ def cosmos_event_handler(sim, event):
                 # print(f"{event.sub_tag}")
                 # print(f"{event.sub_float}")
                 # print(f"{event.value_tag}")
-                
-
                 handled = ConsoleDispatcher.dispatch_select(Context(sim, sbs, None), event)
                 if not handled and "comm" in event.sub_tag:
                     face = faces.get_face(event.selected_id)
@@ -136,31 +138,4 @@ def cosmos_event_handler(sim, event):
 #	source_point"
 #	event_time"
 #	sub_float"
-
-# paused = True
-# def HandlePresentGUI(sim):
-#     global paused
-#     try:
-#         if not paused:
-#             Gui.send_custom_event(sim, "x_sim_paused")
-#             paused = True
-#         Gui.present(sim, None)
-#     except BaseException as err:
-#         sbs.pause_sim()
-#         text_err = traceback.format_exc()
-#         Gui.push(sim, 0, ErrorPage(text_err))
-
-# def  HandleSimulationTick(sim):
-#     global paused
-#     try:
-#         if paused:
-#             paused = False
-#             Gui.send_custom_event(sim, "x_sim_resume")
-#         TickDispatcher.dispatch_tick(sim)
-#     except BaseException as err:
-#         sbs.pause_sim()
-#         text_err = traceback.format_exc()
-#         Gui.push(sim, 0, ErrorPage(text_err))
-
-
 

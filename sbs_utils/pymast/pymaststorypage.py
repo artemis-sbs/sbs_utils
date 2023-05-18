@@ -77,6 +77,7 @@ class PyMastStoryPage(Page):
         self.end_await = True
         self.task = None
         self.disconnected = False
+        self.change_console_label = None
 
     def run(self, time_out):
         self.gui_state = 'repaint'
@@ -329,17 +330,7 @@ class PyMastStoryPage(Page):
             self.gui_state = "errors"
             return
         
-        # sz = sbs.get_screen_size()
-        # if sz is not None and sz.y != 0:
-        #     aspect_ratio = sz
-        #     if (self.aspect_ratio.x != aspect_ratio.x or 
-        #         self.aspect_ratio.y != aspect_ratio.y):
-        #         self.aspect_ratio = sz
-        #         for layout in self.layouts:
-        #             layout.aspect_ratio = aspect_ratio
-        #             layout.calc()
-        #         self.gui_state = 'repaint'
-
+     
         if ctx is None:
             return
         match self.gui_state:
@@ -436,7 +427,15 @@ class PyMastStoryPage(Page):
                 self.disconnected = True
                 if self.disconnect_cb:
                     self.disconnect_cb()
-            if event.tag == "screen_size":
+
+            if event.tag == "client_change":
+                if event.sub_tag == "change_console":
+                    if self.change_console_label:
+                        # Remember it is awaiting gui already
+                        self.task.jump(self.change_console_label)
+                        #self.present(ctx,event)
+
+            elif event.tag == "screen_size":
                 if event.source_point.x!=0 and event.source_point.y != 0:
                     if (self.aspect_ratio.x != event.source_point.x or 
                         self.aspect_ratio.y != event.source_point.y):
