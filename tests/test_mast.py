@@ -571,18 +571,18 @@ var2 = var2 + 100
 
     """)
         assert(len(errors)==0)
-        data, scope = runner.active_task.get_value("data", None)
+        data, scope = runner.tasks[0].get_value("data", None)
         var1 = data.var1
         var2 = runner.active_task.get_value("var2", None)
-        assert(var1 == (800,Scope.NORMAL))
+        assert(var1 == 800)
         assert(var2 == (800,Scope.SHARED))
         
         # run again, shared data should NOT reset
         task = runner.start_task()
-        data, scope = runner.active_task.get_value("data", None)
+        data, scope = runner.tasks[0].get_value("data", None)
         var1 = data.var1
         var2 = task.get_value("var2", None)
-        assert(var1 == (800,Scope.NORMAL))
+        assert(var1 == 800)
         assert(var2 == (1500,Scope.SHARED))
 
     def test_task_pass_data_run_no_err(self):
@@ -752,6 +752,13 @@ Done
         x = 2
         if x >3:
             do print(x)
+        end_if
+
+        if x >3:
+            do print(x)
+
+        if x < 5:
+            do print(x)
 
         === test == 
     
@@ -765,8 +772,12 @@ Done
         s = "Hello"
         match s:
             case "Hello": 
-            
+
         === test == 
+
+        match s:
+            case "Hello": 
+
     
             """)
                 assert(len(errors)==2)
@@ -783,9 +794,9 @@ Done
         === test == 
     
             """)
-                assert(len(errors)==2)
+                assert(len(errors)==1)
                 assert("Missing end_await" in errors[0])
-                assert("Missing end_await" in errors[1])
+
 
 
     def test_dangle_loop_compile_err(self):
@@ -793,6 +804,8 @@ Done
         
         for y in range(10):
             x = y + 1
+            for z in range(3):
+                x = x + z
               
 
         === test == 

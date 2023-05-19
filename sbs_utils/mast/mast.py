@@ -944,6 +944,7 @@ class Mast:
         line_no = 0
         errors = []
         active = self.labels.get("main")
+        active_name = "main"
         while len(lines):
             mo = first_non_whitespace_index(lines)
             line_no += mo if mo is not None else 0
@@ -1001,14 +1002,18 @@ class Mast:
 
                             #####
                             # Dangling if, for, end_await
-                            if len(EndAwait.stack)!=0:
-                                errors.append(f"ERROR: Missing end_await prior to label'{label_name }'. {line_no} - {line}")
-                            if len(LoopStart.loop_stack)!=0:
-                                errors.append(f"ERROR: Missing next of loop prior to label'{label_name }'. {line_no} - {line}")
-                            if len(IfStatements.if_chains)!=0:
-                                errors.append(f"ERROR: Missing end_if prior to label'{label_name }'. {line_no} - {line}")
-                            if len(MatchStatements.chains)!=0:
-                                errors.append(f"ERROR: Missing end_match prior to label'{label_name }'. {line_no} - {line}")
+                            for node in EndAwait.stack:
+                                errors.append(f"ERROR: Missing end_await prior to label '{active_name}'cmd {node.loc}")
+                            EndAwait.stack.clear()
+                            for node in LoopStart.loop_stack:
+                                errors.append(f"ERROR: Missing next of loop prior to label''{active_name}'cmd {node.loc}")
+                            LoopStart.loop_stack.clear()
+                            for node in IfStatements.if_chains:
+                                errors.append(f"ERROR: Missing end_if prior to label '{active_name}'cmd {node.loc}")
+                            IfStatements.if_chains.clear()
+                            for node in MatchStatements.chains:
+                                errors.append(f"ERROR: Missing end_match prior to label '{active_name}'cmd {node.loc}")
+                            MatchStatements.chains.clear()
 
                                 
 
@@ -1016,6 +1021,7 @@ class Mast:
                             next = Label(**data)
                             active.next = next
                             active = next
+                            active_name = label_name
                             self.labels[data['name']] = active
                             self.cmd_stack.pop()
                             self.cmd_stack.append(active)
@@ -1070,18 +1076,18 @@ class Mast:
 
                     errors.append(f"ERROR: {line_no} - {lines[0:mo]}")
                     lines = lines[mo+1:]
-        if len(EndAwait.stack)!=0:
-            errors.append(f"ERROR: Missing end_await prior to end of file")
-            EndAwait.stack.clear()
-        if len(LoopStart.loop_stack)!=0:
-            errors.append(f"ERROR: Missing next of loop prior to end of file")
-            LoopStart.loop_stack.clear()
-        if len(IfStatements.if_chains)!=0:
-            errors.append(f"ERROR: Missing end_if prior to end of file")
-            IfStatements.if_chains.clear()
-        if len(MatchStatements.chains)!=0:
-            errors.append(f"ERROR: Missing end_match prior to label end of file")
-            MatchStatements.chains.clear()
+        for node in EndAwait.stack:
+            errors.append(f"ERROR: Missing end_await prior to label '{active_name}'cmd {node.loc}")
+        EndAwait.stack.clear()
+        for node in LoopStart.loop_stack:
+            errors.append(f"ERROR: Missing next of loop prior to label''{active_name}'cmd {node.loc}")
+        LoopStart.loop_stack.clear()
+        for node in IfStatements.if_chains:
+            errors.append(f"ERROR: Missing end_if prior to label '{active_name}'cmd {node.loc}")
+        IfStatements.if_chains.clear()
+        for node in MatchStatements.chains:
+            errors.append(f"ERROR: Missing end_match prior to label '{active_name}'cmd {node.loc}")
+        MatchStatements.chains.clear()
 
 
         return errors
