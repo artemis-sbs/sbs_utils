@@ -230,7 +230,7 @@ class LoopEndRuntimeNode(MastRuntimeNode):
 
 class LoopBreakRuntimeNode(MastRuntimeNode):
     def enter(self, mast, task:MastAsyncTask, node:LoopBreak):
-        scoped_val = task.get_value(node.name, None)
+        scoped_val = task.get_value(node.start.name, None)
         index = scoped_val[0]
         scope = scoped_val[1]
         if index is None:
@@ -240,9 +240,11 @@ class LoopBreakRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:LoopBreak):
         if node.op == 'break':
             #task.jump_inline_end(inline_label, True)
+            task.set_value(node.start.name, None, self.scope)
+            task.set_value(node.start.name+"__iter", None, Scope.TEMP)
             task.jump(task.active_label, node.start.end.loc+1)
             # End loop clear value
-            task.set_value(node.name, None, self.scope)
+            
             return PollResults.OK_JUMP
         elif node.op == 'continue':
             task.jump(task.active_label, node.start.loc)

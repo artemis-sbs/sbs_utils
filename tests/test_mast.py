@@ -390,33 +390,95 @@ case 50:
 
     def test_loops(self):
             (errors, runner, _) = mast_run( code = """
+    logger string output
     x = 52
+    log "{x}"
+    # 62
     for y in range(10):
         x = x + 1
     next y
+    log "{x}"
+
+    #72
     x = x + 20
+    log "{x}"
+    #122
     x = x + 50
+    log "{x}"
+
+    #132
     for y in range(10):
         x = x + 1
     next y
+    log "{x}"
+    
+
+    #142
     count = 10
     for y while count>0:
         x = x + 1
         count = count - 1
     next y
+    log "{x}"
+
+    #147
     for y while y<5:
         x = x + 1
     next y
+    log "{x}"
 
+    #257
     for y in range(10):
         for z in range(10):
             x = x + 1
         next z
     next y
+    log "{x}"
+
+    #757
+    for y in range(10):
+        x = x + 500
+        break
+    next y
+    log "{x}"
+
+    # 757 (no adds)
+    for y in range(10):
+    if y > 50:
+        x = x + 10000
+        break
+    end_if
+    next y
+    log "{x}"
+
+    #777
+    for y in range(10):
+    x = x + 20
+    if y < 5:
+        break
+    end_if
+    next y
+    log "{x}"
+
+    #877
+    for y in range(10):
+    # log "877 - {y}"
+    if y > 50:
+        break
+    end_if
+    x = x + 10
+    next y
+    log "{x}"
+
+
     """)
             assert(len(errors)==0)
             x = runner.active_task.get_value("x", None)
-            assert(x==(257, Scope.NORMAL))
+            output = runner.get_value("output", None)
+            assert(output is not None)
+            st = output[0]
+            value = st.getvalue()
+            assert(x==(877, Scope.NORMAL))
     
     def test_replace_label(self):
             (errors, runner, _) = mast_run( code = """
@@ -554,6 +616,8 @@ shared var2 = 100
 ->> Push  # var1 is 300 # var2 300
 */
 
+var2 += 100
+
 !!!  test !!!!!!!!
 await => Spawn # var1 is 400 var2 is 400
 await => Spawn # var1 is 500 var2 is 500
@@ -581,6 +645,15 @@ var1 = "Don't get here"
 end_if
 !!!!!  end  test      !!!!!!!!!!!!!!
 
+var2 += 100
+
+/*
+->> Push  # var1 is 300 # var2 300
+*/
+
+var2 += 100
+
+
 ->END
 === Push ===
 var1 = var1 + 100
@@ -597,7 +670,7 @@ shared var2 = var2 + 100
         var1 = runner.active_task.get_value("var1", None)
         var2 = runner.active_task.get_value("var2", None)
         assert(var1 == (300,Scope.NORMAL))
-        assert(var2 == (300,Scope.SHARED))
+        assert(var2 == (600,Scope.SHARED))
 
     def test_log_run_no_err(self):
                 (errors, runner, _) = mast_run( code = """
@@ -673,6 +746,101 @@ Done
     log "Can never reach"        
             """)
                 assert(len(errors)==0)
+
+    def test_dangle_if_compile_err(self):
+                (errors, _) = mast_compile( code = """
+        x = 2
+        if x >3:
+            do print(x)
+
+        === test == 
+    
+            """)
+                assert(len(errors)==2)
+                assert("Missing end_if" in errors[0])
+                assert("Missing end_if" in errors[1])
+
+    def test_dangle_match_compile_err(self):
+                (errors, _) = mast_compile( code = """
+        s = "Hello"
+        match s:
+            case "Hello": 
+            
+        === test == 
+    
+            """)
+                assert(len(errors)==2)
+                assert("Missing end_match" in errors[0])
+                assert("Missing end_match" in errors[1])
+
+    def test_dangle_await_compile_err(self):
+                (errors, _) = mast_compile( code = """
+        
+        await my_task:
+            
+              
+
+        === test == 
+    
+            """)
+                assert(len(errors)==2)
+                assert("Missing end_await" in errors[0])
+                assert("Missing end_await" in errors[1])
+
+
+    def test_dangle_loop_compile_err(self):
+                (errors, _) = mast_compile( code = """
+        
+        for y in range(10):
+            x = y + 1
+              
+
+        === test == 
+    
+            """)
+                assert(len(errors)==2)
+                assert("Missing next" in errors[0])
+                assert("Missing next" in errors[1])
+
+    def test_dangle_if2_compile_err(self):
+                (errors, _) = mast_compile( code = """
+        x = 2
+        if x >3:
+            do print(x)
+
+            """)
+                assert(len(errors)==1)
+                assert("Missing end_if" in errors[0])
+
+    def test_dangle_match2_compile_err(self):
+                (errors, _) = mast_compile( code = """
+        s = "Hello"
+        match s:
+            case "Hello": 
+    
+            """)
+                assert(len(errors)==1)
+                assert("Missing end_match" in errors[0])
+
+    def test_dangle_await2_compile_err(self):
+                (errors, _) = mast_compile( code = """
+        
+        await my_task:
+            """)
+                assert(len(errors)==1)
+                assert("Missing end_await" in errors[0])
+
+
+    def test_dangle_loop2_compile_err(self):
+                (errors, _) = mast_compile( code = """
+        
+        for y in range(10):
+            x = y + 1
+              
+            """)
+                assert(len(errors)==1)
+                assert("Missing next" in errors[0])
+
 
     def test_push_pop_run_no_err(self):
                 (errors, runner, _) = mast_run( code = """

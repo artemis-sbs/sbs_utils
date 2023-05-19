@@ -132,7 +132,8 @@ class LoopStart(MastNode):
 
 
 class LoopBreak(MastNode):
-    rule = re.compile(r'(?P<op>break|continue)\s*(?P<name>\w+)')
+    #rule = re.compile(r'(?P<op>break|continue)\s*(?P<name>\w+)')
+    rule = re.compile(r'(?P<op>break|continue)')
     def __init__(self, op=None, name=None, loc=None):
         self.name = name
         self.op = op
@@ -261,7 +262,7 @@ class Import(MastNode):
 
 class Comment(MastNode):
     #rule = re.compile(r'(#[ \t\S]*)|((?P<com>[!]{3,})[\s\S]+(?P=com))')
-    rule = re.compile(r'(#[ \t\S]*)|(\/\*[\s\S]+\*\/)|([!]{3,}\s*(?P<com>\w+)\s*[!]{3,}[\s\S]+[!]{3,}\s*end\s+(?P=com)\s*[!]{3,})')
+    rule = re.compile(r'(#[ \t\S]*)|(/\*[^*]*\*+(?:[^/*][^*]*\*+)*/)|([!]{3,}\s*(?P<com>\w+)\s*[!]{3,}[\s\S]+[!]{3,}\s*end\s+(?P=com)\s*[!]{3,})')
 
     def __init__(self, com=None, loc=None):
         self.loc = loc
@@ -997,6 +998,20 @@ class Mast:
                                 # Make the pervious version jump to the replacement
                                 # making fall through also work
                                 existing_label.cmds = [Jump(jump_name=label_name,loc=0)]
+
+                            #####
+                            # Dangling if, for, end_await
+                            if len(EndAwait.stack)!=0:
+                                errors.append(f"ERROR: Missing end_await prior to label'{label_name }'. {line_no} - {line}")
+                            if len(LoopStart.loop_stack)!=0:
+                                errors.append(f"ERROR: Missing next of loop prior to label'{label_name }'. {line_no} - {line}")
+                            if len(IfStatements.if_chains)!=0:
+                                errors.append(f"ERROR: Missing end_if prior to label'{label_name }'. {line_no} - {line}")
+                            if len(MatchStatements.chains)!=0:
+                                errors.append(f"ERROR: Missing end_match prior to label'{label_name }'. {line_no} - {line}")
+
+                                
+
                            
                             next = Label(**data)
                             active.next = next
@@ -1055,6 +1070,20 @@ class Mast:
 
                     errors.append(f"ERROR: {line_no} - {lines[0:mo]}")
                     lines = lines[mo+1:]
+        if len(EndAwait.stack)!=0:
+            errors.append(f"ERROR: Missing end_await prior to end of file")
+            EndAwait.stack.clear()
+        if len(LoopStart.loop_stack)!=0:
+            errors.append(f"ERROR: Missing next of loop prior to end of file")
+            LoopStart.loop_stack.clear()
+        if len(IfStatements.if_chains)!=0:
+            errors.append(f"ERROR: Missing end_if prior to end of file")
+            IfStatements.if_chains.clear()
+        if len(MatchStatements.chains)!=0:
+            errors.append(f"ERROR: Missing end_match prior to label end of file")
+            MatchStatements.chains.clear()
+
+
         return errors
 
     def enable_logging():
