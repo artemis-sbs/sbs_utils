@@ -272,10 +272,10 @@ def target(sim, set_or_object, target_id, shoot: bool = True):
         }
         if shoot:
             data["target_id"] = target_engine.unique_ID
-    all = to_list(set_or_object)
-    for chaser in all:
-        chaser = EngineObject.resolve_py_object(chaser)
-        chaser.update_engine_data(sim, data)
+        all = to_list(set_or_object)
+        for chaser in all:
+            chaser = EngineObject.resolve_py_object(chaser)
+            chaser.update_engine_data(sim, data)
 
 
 def target_pos(sim, chasers: set | int | CloseData|SpawnData, x: float, y: float, z: float):
@@ -687,3 +687,13 @@ def set_pos(sim, id_or_obj, x, y, z):
         if eo:
             return sim.reposition_space_object(eo, x, y, z)
         
+def get_open_grid_points(sim, id_or_obj):
+    the_set = []
+    hull_map = sim.get_hull_map(to_id(id_or_obj))
+    if hull_map is not None:
+        for x in range(hull_map.w):
+            for y in range(hull_map.w):
+                if hull_map.is_grid_point_open(x,y) != 0:
+                    the_set.append((x,y))
+    return the_set
+    

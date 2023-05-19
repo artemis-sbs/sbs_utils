@@ -496,6 +496,11 @@ LifetimeDispatcher.add_destroy(handle_purge_tasks)
 
 class RouteRuntimeNode(MastRuntimeNode):
     def poll(self, mast:Mast, task:MastAsyncTask, node: Route):
+        #
+        #  most Only route on the server
+        #   Except change console
+
+        
         def handle_dispatch(task, console, sim, an_id, event):
             # I it reaches this, there are no pending comms handler
             # Create a new task and jump to the routing label
@@ -550,30 +555,46 @@ class RouteRuntimeNode(MastRuntimeNode):
 
         match RegexEqual(node.route):
             case "comms\s+select":
+                if task.main.client_id != 0:
+                    return PollResults.OK_ADVANCE_TRUE
                 ConsoleDispatcher.add_default_select("comms_target_UID", partial(handle_dispatch, task, "COMMS"))
             
             case "science\s+select":
+                if task.main.client_id != 0:
+                    return PollResults.OK_ADVANCE_TRUE
                 ConsoleDispatcher.add_default_select("science_target_UID", partial(handle_dispatch, task, "SCIENCE"))
 
             case "grid\s+select":
+                if task.main.client_id != 0:
+                    return PollResults.OK_ADVANCE_TRUE
                 ConsoleDispatcher.add_default_select("grid_selected_UID", partial(handle_dispatch, task, "COMMS"))
 
             case "change\s+console":
                 task.main.page.change_console_label = node.label
 
             case "grid\s+spawn":
+                if task.main.client_id != 0:
+                    return PollResults.OK_ADVANCE_TRUE
                 LifetimeDispatcher.add_spawn_grid(handle_spawn_grid)
 
             case "damage\s*source":
+                if task.main.client_id != 0:
+                    return PollResults.OK_ADVANCE_TRUE
                 DamageDispatcher.add_source(handle_damage)
 
             case "damage\s*target":
+                if task.main.client_id != 0:
+                    return PollResults.OK_ADVANCE_TRUE
                 DamageDispatcher.add_target(handle_damage)
 
             case "damage\s*internal":
+                if task.main.client_id != 0:
+                    return PollResults.OK_ADVANCE_TRUE
                 DamageDispatcher.add_any_internal(handle_damage_internal)
 
             case "spawn":
+                if task.main.client_id != 0:
+                    return PollResults.OK_ADVANCE_TRUE
                 LifetimeDispatcher.add_spawn(handle_spawn)
 
         return PollResults.OK_ADVANCE_TRUE

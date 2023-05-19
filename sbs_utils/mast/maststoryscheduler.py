@@ -606,12 +606,49 @@ class ImageControlRuntimeNode(StoryRuntimeNode):
         self.layout = layout.Image(tag, file )
         task.main.page.add_content(self.layout, self)
 
+
+class RerouteGuiRuntimeNode(StoryRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: ImageControl):
+        #
+        page = None
+        if node.gui == "server":
+            client = Gui.clients.get(0, None)
+            if client is not None:
+                page = client.page_stack[-1]
+                if page is None: 
+                    return
+
+        elif node.gui == "clients":
+            for id, client in Gui.clients.items():
+                if id != 0 and client is None:
+                    page = client.page_stack[-1]
+                    if page is None: 
+                        return
+
+        elif node.var:
+            val = task.get_variable(self.node.var)
+            if val is not None:
+                client = Gui.clients.get(val, None)
+                if client is None:
+                    page = client.page_stack[-1]
+                    if page is None: 
+                        return
+                    
+        if page is not None and page.gui_task:
+            page.gui_task.jump(node.label)
+
+
+        
+        
+
+
 ######################
 ## MAst extensions
 Mast.import_python_module('sbs_utils.widgets.shippicker')
 Mast.import_python_module('sbs_utils.widgets.listbox')
 
 over =     {
+    "RerouteGui": RerouteGuiRuntimeNode,
     "Row": RowRuntimeNode,
     "Text": TextRuntimeNode,
     "AppendText": AppendTextRuntimeNode,
@@ -655,7 +692,7 @@ class StoryScheduler(MastSbsScheduler):
         self.page = page
         self.client_id = client_id
         inputs = inputs if inputs else {}
-        self.vars['sim'] = ctx
+        self.vars['sim'] = ctx.sim
         self.vars['client_id'] = client_id
         self.vars['IS_SERVER'] = client_id==0
         self.vars['IS_CLIENT'] = client_id!=0

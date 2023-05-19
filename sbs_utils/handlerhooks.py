@@ -9,6 +9,7 @@ import sbs
 import traceback
 from . import faces
 from .spaceobject import SpaceObject
+import time
 
 
 class ErrorPage(Page):
@@ -45,6 +46,7 @@ class ErrorPage(Page):
 
 def cosmos_event_handler(sim, event):
     try:
+        #t = time.process_time()
         # Allow guis more direct access to events
         # e.g. Mast Story Page, Clients change
         Gui.on_event(Context(sim, sbs, None), event)
@@ -126,6 +128,8 @@ def cosmos_event_handler(sim, event):
         text_err = traceback.format_exc()
         text_err = text_err.replace(chr(94), "")
         Gui.push(Context(sim, sbs, None), 0, ErrorPage(text_err))
+    #et = time.process_time() - t
+    #print(f"Elapsed time: {et}")
 
 
 #	client_id"

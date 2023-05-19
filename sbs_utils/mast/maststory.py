@@ -309,6 +309,16 @@ class RadioControl(MastNode):
             self.style_def = StyleDefinition.styles.get(style_name)
 
 
+class RerouteGui(MastNode):
+    rule = re.compile(r"""reroute(\s+((?P<gui>server|clients)|(client\s+(?P<var>[_\w][\w]*))))?\s+(?P<label>[_\w][\w]*)""")
+    def __init__(self, gui, var=None, label=None, loc=None):
+        self.loc = loc
+        self.gui = gui
+        self.var = var
+        self.label = label
+
+        
+
 class TextInputControl(MastNode):
     
     rule = re.compile(r"""input\s+(?P<var>[_\w][\w]*)(\s+(?P<q>['"]{3}|["'])(?P<label>[\s\S]+?)(?P=q))?"""+OPT_STYLE_REF_RULE)
@@ -432,7 +442,7 @@ class MastStory(MastSbs):
         Choose,
         AwaitGui,
         ButtonControl,
-        
+        RerouteGui,
         SliderControl,
         CheckboxControl,
         RadioControl,
