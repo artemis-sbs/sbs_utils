@@ -14,8 +14,8 @@ class ShipPicker(Page):
         
         Called when the option pages page has been interacted with
         
-        :param sim:
-        :type sim: Artemis Cosmos simulation
+        :param ctx:
+        :type ctx: Artemis Cosmos simulation
         :param event: The event data
         :type event: event"""
     def present (self, sim, event):
@@ -23,5 +23,5 @@ class ShipPicker(Page):
         
         Called to have the page create and update the gui content it is presenting
         
-        :param sim:
-        :type sim: Artemis Cosmos simulation"""
+        :param ctx:
+        :type ctx: Artemis Cosmos simulation"""

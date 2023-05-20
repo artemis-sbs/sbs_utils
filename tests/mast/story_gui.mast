@@ -287,7 +287,7 @@ match console:
     case "Helm":
         widget_list "normal_helm" "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
     case "Weapons":
-        widget_list "normal_weap" "2dview^weapon_control^ship_data^shield_control^text_waterfall^main_screen_control"
+        widget_list "normal_weap" "2dview^weapon_control^weap_beam_freq^ship_data^shield_control^text_waterfall^main_screen_control"
     case "Science":
         widget_list "normal_sci" "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list"
     case "Engineering":

@@ -520,6 +520,13 @@ class RouteRuntimeNode(MastRuntimeNode):
             })
             MastAsyncTask.add_dependency(so.id,t)
 
+        def handle_destroyed(sim, so):
+            t = task.start_task(node.label, {
+                    f"DESTROYED_ID": so.id,
+                    f"DESTROYED_ROUTED": True
+            })
+            MastAsyncTask.add_dependency(so.id,t)
+
 
         def handle_spawn_grid(sim, so):
             t = task.start_task(node.label, {
@@ -596,6 +603,14 @@ class RouteRuntimeNode(MastRuntimeNode):
                 if task.main.client_id != 0:
                     return PollResults.OK_ADVANCE_TRUE
                 LifetimeDispatcher.add_spawn(handle_spawn)
+
+            case "destroy":
+                if task.main.client_id != 0:
+                    return PollResults.OK_ADVANCE_TRUE
+                LifetimeDispatcher.add_destroy(handle_destroyed)
+
+            case _:
+                print("GOT HERE but should not have")
 
         return PollResults.OK_ADVANCE_TRUE
 

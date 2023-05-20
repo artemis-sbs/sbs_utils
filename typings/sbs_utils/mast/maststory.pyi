@@ -97,6 +97,12 @@ class Refresh(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
+class RerouteGui(MastNode):
+    """class RerouteGui"""
+    def __init__ (self, gui, var=None, label=None, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
 class Row(MastNode):
     """class Row"""
     def __init__ (self, style_name=None, style=None, style_q=None, loc=None):

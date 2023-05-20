@@ -542,19 +542,33 @@ def grid_close_list(grid_obj, sim, the_set, max_dist=None, filter_func=None) -> 
     """
     ret = []
     grid_obj=to_object(grid_obj)
+    blob = get_engine_data_set(sim, grid_obj.id)
+    this_x= blob.get("curx", 0)
+    this_y=blob.get("cury",  0)
+    if max_dist is None:
+        max_dist = 1000
+
     if the_set is None:
         test_roles = to_object_list(grid_objects(sim,grid_obj.host_id))
     else:
         test_roles = to_set(the_set)
-    for other in test_roles:
+    for other_id in test_roles:
+        other = to_object(other_id)
         # skip this one
-        if other.id == grid_obj.id:
+        if other_id == grid_obj.id:
             continue
 
         if filter_func and not filter_func(other):
             continue
         
-        test = 0
+        # curx, cury
+        other_blob = get_engine_data_set(sim, other_id)
+        other_x= other_blob.get("curx", 0)
+        other_y= other_blob.get("cury",  0)
+
+
+
+        test = abs(this_x-other_x) + abs(this_y-other_y)
         if test < max_dist:
             ret.append(CloseData(other.id, other, test))
 
@@ -579,7 +593,12 @@ def grid_closest(grid_obj, sim, roles=None, max_dist=None, filter_func=None) -> 
     """
     close = grid_close_list(grid_obj, sim, roles, max_dist, filter_func)
     # Maybe not the most efficient
-    functools.reduce(lambda a, b: a if a.distance < b.distance else b, close)
+    if len(close)==1:
+        return close[0]
+    elif len(close)>0:
+        return functools.reduce(lambda a, b: a if a.distance < b.distance else b, close)
+    
+    return None
 
 def grid_target_closest(grid_obj_or_set, sim, roles=None, max_dist=None, filter_func=None):
     """ Find and target the closest object matching the criteria
@@ -605,7 +624,7 @@ def grid_target_closest(grid_obj_or_set, sim, roles=None, max_dist=None, filter_
             grid_obj.target(sim, close.id)
         return close
 
-def grid_target(grid_obj_or_set, sim, target_id: int):
+def grid_target(grid_obj_or_set, sim, target_id: int, speed=0.01):
     """ Set the item to target
 
     :param sim: The simulation
@@ -620,12 +639,12 @@ def grid_target(grid_obj_or_set, sim, target_id: int):
         this_blob = get_engine_data_set(sim, grid_obj.id)
         other_blob = get_engine_data_set(sim, target_id)
         if other_blob and this_blob:
-            x = other_blob.get("pathx", 0)
-            y = other_blob.get("pathy", 0)
-
+            x = other_blob.get("curx", 0)
+            y = other_blob.get("cury", 0)
             
             this_blob.set("pathx", x, 0)
             this_blob.set("pathy", y, 0)
+            this_blob.set("move_speed", speed, 0)
 
 def grid_target_pos(grid_obj_or_set, sim, x:float, y:float):
     """ Set the item to target
@@ -652,8 +671,8 @@ def grid_clear_target(grid_obj_or_set, sim):
     grid_objs= to_object_list(grid_obj_or_set)
     for grid_obj in grid_objs:
         blob = get_engine_data_set(sim, grid_obj.id)
-        x= blob.get("curx", x, 0)
-        y=blob.get("curx", x, 0)
+        x= blob.get("curx", 0)
+        y=blob.get("cury",  0)
         grid_target_pos(grid_obj_or_set, sim, x,y)
 
 

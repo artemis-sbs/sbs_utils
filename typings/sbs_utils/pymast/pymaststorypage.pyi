@@ -1,4 +1,4 @@
-from sbs_utils.gui import Gui
+from sbs_utils.gui import Context
 from sbs_utils.gui import Page
 from sbs_utils.mast.parsers import LayoutAreaParser
 from sbs_utils.mast.parsers import StyleDefinition
@@ -8,7 +8,7 @@ class CodePusher(object):
     """class CodePusher"""
     def __init__ (self, page, func_or_tuple, end_await=True) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def on_message (self, sim, event):
+    def on_message (self, ctx, event):
         ...
 class PyMastStoryPage(Page):
     """A interface class for creating GUI pages
@@ -38,7 +38,7 @@ class PyMastStoryPage(Page):
         ...
     def assign_player_ship (self, player):
         ...
-    def do_tick (self, sim):
+    def do_tick (self, ctx):
         ...
     def get_pending_layout (self):
         ...
@@ -46,31 +46,31 @@ class PyMastStoryPage(Page):
         ...
     def get_tag (self):
         ...
-    def on_event (self, sim, event):
+    def on_event (self, ctx, event):
         """on_event
         
         Called when the option pages page has been interacted with
         
-        :param sim:
-        :type sim: Artemis Cosmos simulation
+        :param ctx:
+        :type ctx: Artemis Cosmos simulation
         :param event: The event data
         :type event: event"""
-    def on_message (self, sim, event):
+    def on_message (self, ctx, event):
         """on_message
         
         Called when the option pages page has been interacted with
         
-        :param sim:
-        :type sim: Artemis Cosmos simulation
+        :param ctx:
+        :type ctx: Artemis Cosmos simulation
         :param event: The event data
         :type event: event"""
-    def present (self, sim, event):
+    def present (self, ctx, event):
         """present
         
         Called to have the page create and update the gui content it is presenting
         
-        :param sim:
-        :type sim: Artemis Cosmos simulation"""
+        :param ctx:
+        :type ctx: Artemis Cosmos simulation"""
     def run (self, time_out):
         ...
     def set_button_layout (self, layout):

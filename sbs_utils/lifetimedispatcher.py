@@ -24,7 +24,7 @@ class LifetimeDispatcher:
         # Callback should have arguments of other object's id, message
         LifetimeDispatcher._dispatch_spawn_grid.discard(cb)
 
-    def remove_target(cb: typing.Callable):
+    def remove_destroy(cb: typing.Callable):
         # Callback should have arguments of other object's id, message
         LifetimeDispatcher._dispatch_destroy.discard(cb)
 
@@ -38,6 +38,7 @@ class LifetimeDispatcher:
 
         objects = EngineObject.get_role_objects("__grid_spawn__")
         for so in objects:
+            print("A grid object spawned")
             for func in LifetimeDispatcher._dispatch_spawn_grid:
                 func(ctx, so)
             so.remove_role("__grid_spawn__")

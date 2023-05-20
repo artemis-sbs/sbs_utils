@@ -35,7 +35,7 @@ class GridObject(EngineObject):
     def get_role_set (role):
         ...
     @property
-    def gotype (self: 'GridObject') -> 'str':
+    def go_type (self: 'GridObject') -> 'str':
         """str, cached version of type"""
     def grid_object (self, sim):
         """get the simulation's space object for the object
@@ -51,6 +51,9 @@ class GridObject(EngineObject):
     def has_links_list (collection_name):
         ...
     def has_links_set (collection_name):
+        ...
+    @property
+    def is_grid_object (self):
         ...
     @property
     def name (self: 'GridObject') -> 'str':

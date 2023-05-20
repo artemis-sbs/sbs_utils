@@ -1,5 +1,7 @@
 def add_client_tag() -> None:
-    """return a list of client ids, for the computers that are currently connected to this server."""
+    """stub; does nothing yet."""
+def add_particle_emittor(spaceObject: sbs.space_object, lifeSpan: int, descriptorString: str) -> int:
+    """creates a complex particle emittor and attaches it to a space object."""
 def app_milliseconds() -> int:
     ...
 def app_minutes() -> int:
@@ -11,13 +13,15 @@ def assign_client_to_ship(arg0: int, arg1: int) -> None:
 def broad_test(arg0: float, arg1: float, arg2: float, arg3: float, arg4: int) -> List[sbs.space_object]:
     """return a list of space objects that are currently inside an x/z 2d rect  ARGS: 2D bounding rect, and type value (0, 1, or 2, -1 = all)"""
 def clear_client_tags() -> None:
-    """return a list of client ids, for the computers that are currently connected to this server."""
+    """stub; does nothing yet."""
 def create_new_sim() -> None:
     """all space objects are deleted; a blank slate is born."""
 def create_transient(arg0: int, arg1: int, arg2: int, arg3: int, arg4: float, arg5: float, arg6: float, arg7: str) -> None:
     """Generates a temporary graphical object, like an explosion."""
 def delete_object(arg0: int) -> None:
     """deletes a space object by its ID"""
+def delete_particle_emittor(emittorID: int) -> None:
+    """deletes a particle emittor by ID."""
 def distance(arg0: sbs.space_object, arg1: sbs.space_object) -> float:
     """returns the distance between two space objects; arguments are two spaceObjects"""
 def distance_between_navpoints(arg0: str, arg1: str) -> float:
@@ -32,12 +36,20 @@ def get_client_ID_list() -> List[int]:
     """return a list of client ids, for the computers that are currently connected to this server."""
 def get_screen_size() -> sbs.vec2:
     """returns a VEC2, with the width and height of the display in pixels"""
+def particle_at(position: sbs.vec3, descriptorString: str) -> None:
+    """emit some particles in space."""
+def particle_emittor_exists(emittorID: int) -> bool:
+    """checks for the existance of a particle emittor."""
+def particle_on(spaceObject: sbs.space_object, descriptorString: str) -> None:
+    """emit some particles in space from a space object."""
 def pause_sim() -> None:
     """the sim will now pause; HandlePresentGUI() and HandlePresentGUIMessage() are called."""
-def play_music_file(arg0: str, arg1: int, arg2: int) -> None:
-    """Plays a music file now, for the specified ship."""
+def play_audio_file(clientID: int, filename: str, volume: float, pitch: float) -> None:
+    """Plays a WAV audio file now, for just the specified client, OR zero for server."""
+def play_music_file(ID: int, filename: str) -> None:
+    """Plays a music file now; ID is ship, OR client, OR zero for server."""
 def query_client_tags() -> None:
-    """return a list of client ids, for the computers that are currently connected to this server."""
+    """stub; does nothing yet."""
 def resume_sim() -> None:
     """the sim will now run; HandleStartMission() and HandleTickMission() are called."""
 def send_client_widget_list(arg0: int, arg1: str, arg2: str) -> None:
@@ -54,44 +66,44 @@ def send_grid_button_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
     """sends a complex message to the engineering console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
 def send_grid_selection_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
     """sends a complex message to the engineering console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
-def send_gui_3dship(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
+def send_gui_3dship(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a 3D ship box GUI element, on the targeted client (0 = server screen)"""
 def send_gui_button(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a button GUI element, on the targeted client (0 = server screen)"""
-def send_gui_checkbox(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
+def send_gui_checkbox(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a checkbox GUI element, on the targeted client (0 = server screen)"""
 def send_gui_clear(arg0: int) -> None:
     """Clears all GUI elements from screen, on the targeted client (0 = server screen)"""
-def send_gui_clickregion(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
+def send_gui_clickregion(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a click-region GUI element, on the targeted client (0 = server screen)"""
-def send_gui_dropdown(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
+def send_gui_dropdown(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a dropdown GUI element, on the targeted client (0 = server screen)"""
-def send_gui_face(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
+def send_gui_face(clientID: int, tag: str, face_string: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a face box GUI element, on the targeted client (0 = server screen)"""
-def send_gui_icon(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
+def send_gui_icon(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates an icon art GUI element, on the targeted client (0 = server screen)"""
-def send_gui_iconbutton(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
+def send_gui_iconbutton(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a icon-button GUI element, on the targeted client (0 = server screen)"""
-def send_gui_image(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
+def send_gui_image(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a 2d art image GUI element, on the targeted client (0 = server screen)"""
-def send_gui_slider(arg0: int, arg1: str, arg2: float, arg3: str, arg4: float, arg5: float, arg6: float, arg7: float) -> None:
+def send_gui_slider(clientID: int, tag: str, current: float, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a slider bar GUI element, on the targeted client (0 = server screen) (long clientID, std::string tag, float low, float high, float current, float left, float top, float right, float bottom, bool showNumberFlag)"""
-def send_gui_text(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
+def send_gui_text(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a text box GUI element, on the targeted client (0 = server screen)"""
-def send_gui_typein(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
+def send_gui_typein(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a text entry GUI element, on the targeted client (0 = server screen)"""
 def send_message_to_client(clientID: int, colorDesc: str, text: str) -> None:
     """sends a text message to the text box, for the specific client. args:  uint64 clientID (0 = server screen), std::string color, std::string text"""
 def send_message_to_player_ship(playerID: int, colorDesc: str, text: str) -> None:
     """sends a text message to the text box, on every client for a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string text"""
-def send_story_dialog(arg0: int, arg1: str, arg2: str, arg3: str, arg4: str) -> None:
+def send_story_dialog(clientID: int, title: str, text: str, face: str, color: str) -> None:
     """sends a story dialog to the targeted client (0 = server screen)"""
 def set_dmx_channel(arg0: int, arg1: int, arg2: int, arg3: int, arg4: int, arg5: int) -> None:
     """set a color channel of dmx."""
-def set_music_folder(arg0: str, arg1: int, arg2: int) -> None:
-    """Sets the folder from which music is streamed, for the specified ship."""
-def set_music_tension(arg0: float, arg1: int, arg2: int) -> None:
-    """Sets the tension value of ambient music (0-100), for the specified ship."""
+def set_music_folder(ID: int, filename: str) -> None:
+    """Sets the folder from which music is streamed; ID is ship, OR client, OR zero for server."""
+def set_music_tension(ID: int, tensionValue: float) -> None:
+    """Sets the tension value of ambient music (0-100); ID is ship, OR client, OR zero for server."""
 class SHPSYS(object): ### from pybind
     """One of four ship systems to track damage
     
@@ -103,8 +115,11 @@ class SHPSYS(object): ### from pybind
     
       SENSORS : the sensors index for *system_damage*
     
-      SHIELDS : the shields index for *system_damage*"""
+      SHIELDS : the shields index for *system_damage*
+    
+      MAX : the total number of types of *system_damage*"""
     ENGINES : 1
+    MAX : 4
     SENSORS : 2
     SHIELDS : 3
     WEAPONS : 0
@@ -222,6 +237,8 @@ class hullmap(object): ### from pybind
         """returns a gridobject, by text tag"""
     def get_grid_object_count(self: sbs.hullmap) -> int:
         """get the number of grid objects in the list, within this hullmap"""
+    def get_objects_at_point(self: sbs.hullmap, x: int, y: int) -> List[int]:
+        """returns a list of grid object IDs that are currently at the x/y point."""
     @property
     def grid_scale (self: sbs.hullmap) -> float:
         """float, space between grid points"""

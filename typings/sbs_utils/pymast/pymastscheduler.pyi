@@ -5,6 +5,9 @@ class PyMastScheduler(object):
     """class PyMastScheduler"""
     def __init__ (self, story, label) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    @property
+    def client_id (self):
+        ...
     def schedule_a_task (self, task):
         ...
     def schedule_task (self, label):

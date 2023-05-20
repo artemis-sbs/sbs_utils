@@ -8,7 +8,7 @@ class Blank(Column):
     """class Blank"""
     def __init__ (self) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def present (self, sim, client_id):
+    def present (self, ctx, client_id):
         ...
 class Bounds(object):
     """class Bounds"""
@@ -24,7 +24,7 @@ class Button(Column):
     """class Button"""
     def __init__ (self, tag, message) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def present (self, sim, event):
+    def present (self, ctx, event):
         ...
     @property
     def value (self):
@@ -36,9 +36,9 @@ class Checkbox(Column):
     """class Checkbox"""
     def __init__ (self, tag, message, value=False) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def on_message (self, sim, event):
+    def on_message (self, ctx, event):
         ...
-    def present (self, sim, event):
+    def present (self, ctx, event):
         ...
     @property
     def value (self):
@@ -50,7 +50,7 @@ class Column(object):
     """class Column"""
     def __init__ (self, left=0, top=0, right=0, bottom=0) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def on_message (self, sim, event):
+    def on_message (self, ctx, event):
         ...
     def set_bounds (self, bounds) -> None:
         ...
@@ -70,15 +70,15 @@ class ConsoleWidget(Column):
     """class ConsoleWidget"""
     def __init__ (self, widget) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def present (self, sim, event):
+    def present (self, ctx, event):
         ...
 class Dropdown(Column):
     """class Dropdown"""
     def __init__ (self, tag, props) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def on_message (self, sim, event):
+    def on_message (self, ctx, event):
         ...
-    def present (self, sim, event):
+    def present (self, ctx, event):
         ...
     @property
     def value (self):
@@ -90,7 +90,7 @@ class Face(Column):
     """class Face"""
     def __init__ (self, tag, face) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def present (self, sim, event):
+    def present (self, ctx, event):
         ...
     @property
     def value (self):
@@ -102,9 +102,9 @@ class GuiControl(Column):
     """class GuiControl"""
     def __init__ (self, tag, content) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def on_message (self, sim, event):
+    def on_message (self, ctx, event):
         ...
-    def present (self, sim, event):
+    def present (self, ctx, event):
         ...
     def set_bounds (self, bounds) -> None:
         ...
@@ -118,13 +118,13 @@ class Hole(Column):
     """class Hole"""
     def __init__ (self) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def present (self, sim, client_id):
+    def present (self, ctx, client_id):
         ...
 class Icon(Column):
     """class Icon"""
     def __init__ (self, tag, props) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def present (self, sim, event):
+    def present (self, ctx, event):
         ...
     @property
     def value (self):
@@ -136,7 +136,7 @@ class IconButton(Column):
     """class IconButton"""
     def __init__ (self, tag, props) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def present (self, sim, event):
+    def present (self, ctx, event):
         ...
     @property
     def value (self):
@@ -150,7 +150,7 @@ class Image(Column):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def get_image_size (self):
         ...
-    def present (self, sim, event):
+    def present (self, ctx, event):
         ...
     @property
     def value (self):
@@ -166,9 +166,9 @@ class Layout(object):
         ...
     def calc (self):
         ...
-    def on_message (self, sim, event):
+    def on_message (self, ctx, event):
         ...
-    def present (self, sim, event):
+    def present (self, ctx, event):
         ...
     def set_bounds (self, bounds):
         ...
@@ -182,15 +182,15 @@ class LayoutPage(Page):
         """
     def __init__ (self) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def present (self, sim, event):
+    def present (self, ctx, event):
         """Present the gui """
 class RadioButton(Column):
     """class RadioButton"""
     def __init__ (self, tag, message, group, value=False) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def on_message (self, sim, event):
+    def on_message (self, ctx, event):
         ...
-    def present (self, sim, event):
+    def present (self, ctx, event):
         ...
     @property
     def value (self):
@@ -202,9 +202,9 @@ class RadioButtonGroup(Column):
     """class RadioButtonGroup"""
     def __init__ (self, tag, buttons, value, vertical) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def on_message (self, sim, event):
+    def on_message (self, ctx, event):
         ...
-    def present (self, sim, event):
+    def present (self, ctx, event):
         ...
     def set_bounds (self, bounds) -> None:
         ...
@@ -222,9 +222,9 @@ class Row(object):
         ...
     def clear (self):
         ...
-    def on_message (self, sim, event):
+    def on_message (self, ctx, event):
         ...
-    def present (self, sim, event):
+    def present (self, ctx, event):
         ...
     def set_col_width (self, width):
         ...
@@ -234,7 +234,7 @@ class Ship(Column):
     """class Ship"""
     def __init__ (self, tag, ship) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def present (self, sim, event):
+    def present (self, ctx, event):
         ...
     @property
     def value (self):
@@ -246,9 +246,9 @@ class Slider(Column):
     """class Slider"""
     def __init__ (self, tag, value, props) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def on_message (self, sim, event):
+    def on_message (self, ctx, event):
         ...
-    def present (self, sim, event):
+    def present (self, ctx, event):
         ...
     @property
     def value (self):
@@ -260,7 +260,7 @@ class Text(Column):
     """class Text"""
     def __init__ (self, tag, message) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def present (self, sim, event):
+    def present (self, ctx, event):
         ...
     @property
     def value (self):
@@ -272,9 +272,9 @@ class TextInput(Column):
     """class TextInput"""
     def __init__ (self, tag, props) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def on_message (self, sim, event):
+    def on_message (self, ctx, event):
         ...
-    def present (self, sim, event):
+    def present (self, ctx, event):
         ...
     @property
     def value (self):

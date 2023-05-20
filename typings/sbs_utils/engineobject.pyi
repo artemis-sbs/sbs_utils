@@ -111,6 +111,24 @@ class EngineObject(object):
         :type id: str
         :return: If the object has the role
         :rtype: bool"""
+    @property
+    def is_active (self):
+        ...
+    @property
+    def is_grid_object (self):
+        ...
+    @property
+    def is_npc (self):
+        ...
+    @property
+    def is_passive (self):
+        ...
+    @property
+    def is_player (self):
+        ...
+    @property
+    def is_terrain (self):
+        ...
     def py_class ():
         ...
     def remove (self):

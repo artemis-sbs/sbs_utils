@@ -77,7 +77,7 @@ class ClientSelectPage(Page):
             case "Weapons":
                 self.console_name = "normal_weap"
                 self.console = event.sub_tag
-                self.widget_list = "2dview^weapon_control^ship_data^shield_control^text_waterfall^main_screen_control"
+                self.widget_list = "2dview^weapon_control^weap_beam_freq^ship_data^shield_control^text_waterfall^main_screen_control"
             case "Science":
                 self.console_name = "normal_sci" 
                 self.console = event.sub_tag

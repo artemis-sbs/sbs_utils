@@ -140,7 +140,7 @@ class GridObject(EngineObject):
         for role in roles:
             self.add_role(role)
         self.add_role(self.__class__.__name__)
-        self.add_role("__grid_spawned__")
+        self.add_role("__grid_spawn__")
         self.add_role("__GRID_OBJECT__")
 
         blob = go.data_set

@@ -5,6 +5,7 @@ from sbs_utils.pymast.pymasttask import PyMastTask
 from sbs_utils.engineobject import EngineObject
 from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
+from sbs_utils.lifetimedispatcher import LifetimeDispatcher
 from sbs_utils.pymast.pollresults import PollResults
 from sbs_utils.pymast.pymastcomms import PyMastComms
 from sbs_utils.pymast.pymastscheduler import PyMastScheduler
@@ -14,15 +15,15 @@ class PyMastStory(object):
     """class PyMastStory"""
     def END (self):
         ...
-    def __call__ (self, sim, sched=None):
+    def __call__ (self, ctx, sched=None):
         """Call self as a function."""
     def __init__ (self, *args, **kwargs):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def add_scheduler (self, sim, label):
+    def add_scheduler (self, ctx, label):
         ...
     def assign_player_ship (self, player):
         ...
-    def await_comms (self, player, npc, buttons):
+    def await_comms (self, buttons, player=None, npc=None):
         ...
     def await_gui (self, buttons=None, timeout=None, on_message=None, test_refresh=None, test_end_await=None, on_disconnect=None):
         ...
@@ -36,11 +37,14 @@ class PyMastStory(object):
         ...
     def behave_until (self, poll_result, label):
         ...
+    @property
+    def client_id (self):
+        ...
     def delay (self, seconds=0, minutes=0, use_sim=False):
         ...
     def disable (self):
         ...
-    def enable (self, sim, delay=0, count=None):
+    def enable (self, ctx, delay=0, count=None):
         ...
     def file_logger (self, filename, logger_name='pymast'):
         ...
@@ -113,8 +117,28 @@ class PyMastStory(object):
         ...
     def push (self, label):
         ...
-    def schedule_comms (self, player, npc, buttons):
+    def route_change_console (self, label):
         ...
+    def route_comms_select (self, label):
+        """route_comms
+        
+        define a label to use with a new task if the comms is not handled"""
+    def route_grid_select (self, label):
+        """route_comms
+        
+        define a label to use with a new task if the comms is not handled"""
+    def route_grid_spawn (self, label):
+        """route_spawn
+        
+        define a label to use with a new task items are spawned"""
+    def route_science_select (self, label):
+        """route_comms
+        
+        define a label to use with a new task if the comms is not handled"""
+    def route_spawn (self, label):
+        """route_spawn
+        
+        define a label to use with a new task items are spawned"""
     def schedule_science (self, player, npc, scans):
         ...
     def schedule_task (self, label):

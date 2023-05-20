@@ -23,21 +23,15 @@ class Button(MastNode):
         ...
     def visit (self, id_tuple):
         ...
-class Closest(MastNode):
-    ...
-    def __init__ (self, assign, name, role, max, the_filter, q=None, loc=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
-        ...
 class Comms(MastNode):
     """class Comms"""
-    def __init__ (self, to_tag, from_tag, assign=None, minutes=None, seconds=None, time_pop=None, time_push='', time_jump='', color='white', loc=None):
+    def __init__ (self, selected_tag=None, origin_tag=None, assign=None, minutes=None, seconds=None, time_pop=None, time_push='', time_jump='', color='white', loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
-class Find(MastNode):
-    ...
-    def __init__ (self, assign, name, role, max, the_filter, inc_dist, q=None, loc=None):
+class CommsInfo(MastNode):
+    """class CommsInfo"""
+    def __init__ (self, message, q=None, color=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -49,15 +43,9 @@ class Load(MastNode):
         ...
 class MastSbs(Mast):
     """class MastSbs"""
-class Near(MastNode):
-    """class Near"""
-    def __init__ (self, to_tag, from_tag, distance, minutes=None, seconds=None, loc=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
-        ...
-class Role(MastNode):
-    """Handle commands to the simulation"""
-    def __init__ (self, name, roles, cmd=None, q=None, loc=None):
+class Route(MastNode):
+    """Route unhandled things comms, science, events"""
+    def __init__ (self, route, name, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -89,15 +77,15 @@ class Simulation(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
-class Target(MastNode):
-    """Creates a new 'task' to run in parallel"""
-    def __init__ (self, cmd=None, from_tag=None, to_tag=None, loc=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
-        ...
 class Tell(MastNode):
     """class Tell"""
     def __init__ (self, to_tag, from_tag, message, color=None, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
+class TransmitReceive(MastNode):
+    """class TransmitReceive"""
+    def __init__ (self, tr, message, face_string=None, face_var=None, faceq=None, comms_string=None, comms_var=None, comq=None, q=None, color=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...

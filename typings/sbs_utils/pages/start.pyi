@@ -12,8 +12,8 @@ class ClientSelectPage(Page):
         
         Called when the option pages page has been interacted with
         
-        :param sim:
-        :type sim: Artemis Cosmos simulation
+        :param ctx:
+        :type ctx: Artemis Cosmos simulation
         :param event: The event data
         :type event: event"""
     def on_message (self, sim, event):
@@ -21,8 +21,8 @@ class ClientSelectPage(Page):
         
         Called when the option pages page has been interacted with
         
-        :param sim:
-        :type sim: Artemis Cosmos simulation
+        :param ctx:
+        :type ctx: Artemis Cosmos simulation
         :param event: The event data
         :type event: event"""
     def present (self, sim, event):
@@ -30,8 +30,8 @@ class ClientSelectPage(Page):
         
         Called to have the page create and update the gui content it is presenting
         
-        :param sim:
-        :type sim: Artemis Cosmos simulation"""
+        :param ctx:
+        :type ctx: Artemis Cosmos simulation"""
 class StartPage(Page):
     """A interface class for creating GUI pages
     
@@ -43,8 +43,8 @@ class StartPage(Page):
         
         Called when the option pages page has been interacted with
         
-        :param sim:
-        :type sim: Artemis Cosmos simulation
+        :param ctx:
+        :type ctx: Artemis Cosmos simulation
         :param event: The event data
         :type event: event"""
     def present (self, sim, event):
@@ -52,5 +52,5 @@ class StartPage(Page):
         
         Called to have the page create and update the gui content it is presenting
         
-        :param sim:
-        :type sim: Artemis Cosmos simulation"""
+        :param ctx:
+        :type ctx: Artemis Cosmos simulation"""

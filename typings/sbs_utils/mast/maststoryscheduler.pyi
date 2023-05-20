@@ -23,10 +23,11 @@ from sbs_utils.mast.maststory import Text
 from sbs_utils.mast.maststory import TextInputControl
 from sbs_utils.mast.maststory import WidgetList
 from sbs_utils.mast.mastsbs import Button
-from sbs_utils.mast.errorpage import ErrorPage
+from sbs_utils.gui import Context
 from sbs_utils.gui import FakeEvent
 from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
+from sbs_utils.mast.errorpage import ErrorPage
 from sbs_utils.mast.parsers import LayoutAreaParser
 from sbs_utils.mast.parsers import StyleDefinition
 from sbs_utils.mast.mast import Mast
@@ -62,7 +63,7 @@ class CheckboxControlRuntimeNode(StoryRuntimeNode):
     """class CheckboxControlRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.CheckboxControl):
         ...
-    def on_message (self, sim, event):
+    def on_message (self, ctx, event):
         ...
 class ChoiceButtonRuntimeNode(StoryRuntimeNode):
     """class ChoiceButtonRuntimeNode"""
@@ -126,6 +127,10 @@ class RefreshRuntimeNode(StoryRuntimeNode):
     """class RefreshRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.Refresh):
         ...
+class RerouteGuiRuntimeNode(StoryRuntimeNode):
+    """class RerouteGuiRuntimeNode"""
+    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.ImageControl):
+        ...
 class RowRuntimeNode(StoryRuntimeNode):
     """class RowRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.Row):
@@ -166,35 +171,35 @@ class StoryPage(Page):
         ...
     def get_tag (self):
         ...
-    def on_event (self, sim, event):
+    def on_event (self, ctx, event):
         """on_event
         
         Called when the option pages page has been interacted with
         
-        :param sim:
-        :type sim: Artemis Cosmos simulation
+        :param ctx:
+        :type ctx: Artemis Cosmos simulation
         :param event: The event data
         :type event: event"""
-    def on_message (self, sim, event):
+    def on_message (self, ctx, event):
         """on_message
         
         Called when the option pages page has been interacted with
         
-        :param sim:
-        :type sim: Artemis Cosmos simulation
+        :param ctx:
+        :type ctx: Artemis Cosmos simulation
         :param event: The event data
         :type event: event"""
-    def present (self, sim, event):
+    def present (self, ctx, event):
         """Present the gui """
     def set_button_layout (self, layout):
         ...
     def set_widget_list (self, console, widgets):
         ...
-    def start_story (self, sim, client_id):
+    def start_story (self, ctx, client_id):
         ...
     def swap_layout (self):
         ...
-    def tick_mast (self, sim, t):
+    def tick_mast (self, ctx, t):
         ...
 class StoryRuntimeNode(MastRuntimeNode):
     """class StoryRuntimeNode"""
@@ -210,15 +215,15 @@ class StoryScheduler(MastSbsScheduler):
     """class StoryScheduler"""
     def __init__ (self, mast: sbs_utils.mast.mast.Mast, overrides=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def on_event (self, sim, event):
+    def on_event (self, ctx, event):
         ...
     def refresh (self, label):
         ...
-    def run (self, sim, client_id, page, label='main', inputs=None):
+    def run (self, ctx, client_id, page, label='main', inputs=None):
         ...
     def runtime_error (self, message):
         ...
-    def story_tick_tasks (self, sim, client_id):
+    def story_tick_tasks (self, ctx, client_id):
         ...
 class TextInputControlRuntimeNode(StoryRuntimeNode):
     """class TextInputControlRuntimeNode"""
