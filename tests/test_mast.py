@@ -126,12 +126,61 @@ next x
 ->RETURN  if s
 <<-> pop_jump
 <<->> pop_push
+jump fred if x==2
+jump barney
+if x==2:
+   jump betty
+end_if
 
+if x==2:
+   jump betty if x==2
+end_if
 
 
 """)
 
         assert(len(errors)==0)
+
+    def test_jumps_run(self):
+        (errors, runner, mast) =mast_run( code = """
+logger string output
+x = 45
+
+jump fred if x==2
+log "yes-1"
+jump barney if x > 40
+log "no-1"
+->END
+
+==== fred ===
+log "no-1"
+->END
+
+==== barney === 
+
+if x==2:
+    log "no-1"
+   jump betty
+end_if
+log "yes-2"
+
+if x==2:
+   jump betty if x==45
+end_if
+log "yes-3"
+->END
+
+==== betty === 
+log "no-1"
+
+""")
+
+        assert(len(errors)==0)
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        value = st.getvalue()
+        assert(value=="yes-1\nyes-2\nyes-3\n")
 
     def test_await_all_any_compile_err(self):
         (errors, mast) =mast_compile( code = """

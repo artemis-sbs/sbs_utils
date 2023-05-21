@@ -147,6 +147,11 @@ class DoCommandRuntimeNode(MastRuntimeNode):
 
 class JumpRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:Jump):
+        if node.if_code:
+            value = task.eval_code(node.if_code)
+            if not value:
+                return PollResults.OK_ADVANCE_TRUE
+            
         if node.push:
             task.push_label(node.label)
         elif node.pop_jump:

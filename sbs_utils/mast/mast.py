@@ -29,9 +29,9 @@ DICT_REGEX = r"""(\{[\s\S]+?\})"""
 PY_EXP_REGEX = r"""((?P<py>~~)[\s\S]*?(?P=py))"""
 STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[ \t\S]*(?P=quote))"""
 
-OPT_COLOR = r"""(\s*color\s*["'](?P<color>[ \t\S]+)["'])?"""
-IF_EXP_REGEX = r"""(\s+if(?P<if_exp>.+))?"""
-BLOCK_START = r":[ |\t]*(?=\r\n|\n|\#)"
+OPT_COLOR = r"""([ \t]*color[ \t]*["'](?P<color>[ \t\S]+)["'])?"""
+IF_EXP_REGEX = r"""([ \t]+if(?P<if_exp>[^\n\r\f]+))?"""
+BLOCK_START = r":[ \t]*(?=\r\n|\n|\#)"
 
 
 class MastCompilerError:
@@ -81,7 +81,7 @@ class MastNode:
 
 
 class Label(MastNode):
-    rule = re.compile(r'(?P<m>=|\?){2,}\s*(?P<replace>replace:)?\s*(?P<name>\w+)\s*(?P=m){2,}')
+    rule = re.compile(r'(?P<m>=|\?){2,}\s*(?P<replace>replace:)?[ \t]*(?P<name>\w+)[ \t]*(?P=m){2,}')
 
     def __init__(self, name, replace=None, m=None, loc=None):
         self.name = name
@@ -96,7 +96,7 @@ class Label(MastNode):
 
 
 class Log(MastNode):
-    rule = re.compile(r"""log\s+(name\s+(?P<logger>[\w\.]*)\s+)?(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)(\s+(?P<level>debug|info|warning|error|critical))?""")
+    rule = re.compile(r"""log[ \t]+(name[ \t]+(?P<logger>[\w\.]*)[ \t]+)?(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)([ \t]+(?P<level>debug|info|warning|error|critical))?""")
     
     def __init__(self, message, logger=None, level=None, q=None, loc=None):
         self.message = self.compile_formatted_string(message)
@@ -105,7 +105,7 @@ class Log(MastNode):
         self.loc = loc
 
 class Logger(MastNode):
-    rule = re.compile(r"""logger(\s+name\s+(?P<logger>[\w\.]*))?(\s+string\s+(?P<var>\w*))?(\s+file\s*(?P<q>['"]{3}|["'])(?P<name>[\s\S]+?)(?P=q))?""")
+    rule = re.compile(r"""logger([ \t]+name[ \t]+(?P<logger>[\w\.]*))?([ \t]+string[ \t]+(?P<var>\w*))?([ \t]+file[ \t]*(?P<q>['"]{3}|["'])(?P<name>[\s\S]+?)(?P=q))?""")
 
     def __init__(self, logger=None, var=None, name=None, q=None, loc=None):
         self.var = var
@@ -116,7 +116,7 @@ class Logger(MastNode):
         self.loc = loc
 
 class LoopStart(MastNode):
-    rule = re.compile(r'(for\s*(?P<name>\w+)\s*)(?P<while_in>in|while)((?P<cond>[\s\S]+?))'+BLOCK_START)
+    rule = re.compile(r'(for[ \t]*(?P<name>\w+)[ \t]*)(?P<while_in>in|while)((?P<cond>[\s\S]+?))'+BLOCK_START)
     loop_stack = []
     def __init__(self, while_in=None, cond=None, name=None, loc=None):
         if cond:
@@ -141,7 +141,7 @@ class LoopBreak(MastNode):
         self.loc = loc
 
 class LoopEnd(MastNode):
-    rule = re.compile(r'((?P<loop>next)\s*(?P<name>\w+))')
+    rule = re.compile(r'((?P<loop>next)[ \t]*(?P<name>\w+))')
     def __init__(self, loop=None, name=None, loc=None):
         self.loop = True if loop is not None and 'next' in loop else False
         self.name = name
@@ -151,7 +151,7 @@ class LoopEnd(MastNode):
 
 
 class IfStatements(MastNode):
-    rule = re.compile(r'((?P<end>else:|end_if)|(((?P<if_op>if|elif)\s+?(?P<if_exp>[\s\S]+?)'+BLOCK_START+')))')
+    rule = re.compile(r'((?P<end>else:|end_if)|(((?P<if_op>if|elif)[ \t]+?(?P<if_exp>[ \t\S]+?)'+BLOCK_START+')))')
 
     if_chains = []
 
@@ -185,7 +185,7 @@ class IfStatements(MastNode):
             IfStatements.if_chains.append(self)
 
 class MatchStatements(MastNode):
-    rule = re.compile(r'((?P<end>case\s*_:|end_match)|(((?P<op>match|case)\s+?(?P<exp>[\s\S]+?)'+BLOCK_START+')))')
+    rule = re.compile(r'((?P<end>case[ \t]*_:|end_match)|(((?P<op>match|case)[ \t]+?(?P<exp>[\s\S]+?)'+BLOCK_START+')))')
     chains = []
     def __init__(self, end=None, op=None, exp=None, loc=None):
         self.loc = loc
@@ -234,7 +234,7 @@ class PyCode(MastNode):
             self.code = compile(py_cmds, "<string>", "exec")
 
 class DoCommand(MastNode):
-    rule = re.compile(r'do\s+(?P<py_cmds>.+)')
+    rule = re.compile(r'do[ \t]+(?P<py_cmds>.+)')
     def __init__(self, py_cmds=None, loc=None):
         self.loc = loc
         if py_cmds:
@@ -245,14 +245,14 @@ class DoCommand(MastNode):
 
 
 class Input(MastNode):
-    rule = re.compile(r'input\s+(?P<name>\w+)')
+    rule = re.compile(r'input[ \t]+(?P<name>\w+)')
 
     def __init__(self, name, loc=None):
         self.loc = loc
         self.name = name
 
 class Import(MastNode):
-    rule = re.compile(r'(from\s+(?P<lib>[\w\.\\\/-]+)\s+)?import\s+(?P<name>[\w\.\\\/-]+)')
+    rule = re.compile(r'(from[ \t]+(?P<lib>[\w\.\\\/-]+)[ \t]+)?import\s+(?P<name>[\w\.\\\/-]+)')
 
     def __init__(self, name, lib=None, loc=None):
         self.loc = loc
@@ -321,15 +321,20 @@ class Assign(MastNode):
 
 
 class Jump(MastNode):
-    rule = re.compile(r"""((?P<jump>jump|->|push|->>|popjump|<<->|poppush|<<->>)\s*(?P<jump_name>\w+))|(?P<pop>pop|<<-)""")
+    rule = re.compile(r"""(((?P<jump>jump|->|push|->>|popjump|<<->|poppush|<<->>)[ \t]*(?P<jump_name>\w+))|(?P<pop>pop|<<-))"""+IF_EXP_REGEX)
 
-    def __init__(self, pop=None, jump=None, jump_name=None, loc=None):
+    def __init__(self, pop=None, jump=None, jump_name=None, if_exp=None, loc=None):
         self.loc = loc
         self.label = jump_name
         self.push = jump == 'push' or jump == "->>"
         self.pop = pop is not None
         self.pop_jump = jump == 'popjump'or jump == "<<->"
         self.pop_push = jump == 'poppush'or jump == "<<->>"
+        if if_exp:
+            if_exp = if_exp.lstrip()
+            self.if_code = compile(if_exp, "<string>", "eval")
+        else:
+            self.if_code = None
 
 
 class Parallel(MastNode):
@@ -373,13 +378,13 @@ class Parallel(MastNode):
             inputs = inputs.lstrip()
             self.code = compile(inputs, "<string>", "eval")
         
-    task_name =  re.compile(r"""(?P<await_task>await)\s+(?P<name>\w+)""")
-    schedule_rule = re.compile(r"""(?P<await_task>await\s*)?(var\s+(?P<name>\w+)\s*)?(schedule|\=>)\s*(?P<label>\w+)(?P<inputs>\s*"""+ DICT_REGEX+")?")
-    any_all_rule = re.compile(r"""await\s*(var\s+(?P<name>\w+)\s*)?(all\s+(?P<all_labels>\s*(\w+)((\s*&\s*)\w+)*)|any\s+(?P<any_labels>\s*(\w+)((\s*\|\s*)\w+)*))""") # (?P<inputs>\s*"""+ DICT_REGEX+")?")
-    schedule_all_rule = re.compile(r"""(schedule\s+|\=\>\s*)all\s+(?P<all_labels>\s*(\w+)((\s*&\s*)\w+)*)(?P<inputs>\s*"""+ DICT_REGEX+")?")
+    task_name =  re.compile(r"""(?P<await_task>await)[ \t]+(?P<name>\w+)""")
+    schedule_rule = re.compile(r"""(?P<await_task>await[ \t]*)?(var[ \t]+(?P<name>\w+)[ \t]*)?(schedule|\=>)[ \t]*(?P<label>\w+)(?P<inputs>[ \t]*"""+ DICT_REGEX+")?")
+    any_all_rule = re.compile(r"""await[ \t]*(var[ \t]+(?P<name>\w+)[ \t]*)?(all[ \t]+(?P<all_labels>[ \t]*(\w+)(([ \t]*&[ \t]*)\w+)*)|any[ \t]+(?P<any_labels>[ \t]*(\w+)(([ \t]*\|[ \t]*)\w+)*))""") # (?P<inputs>\s*"""+ DICT_REGEX+")?")
+    schedule_all_rule = re.compile(r"""(schedule[ \t]+|\=\>[ \t]*)all[ \t]+(?P<all_labels>[ \t]*(\w+)(([ \t]*&[ \t]*)\w+)*)(?P<inputs>[ \t]*"""+ DICT_REGEX+")?")
     #await_rule = re.compile(r"await\s+")
     #await_return_rule = re.compile(r"await\s*(?P<ret>->)?\s*")
-    block_rule = re.compile(r"\s*:")
+    block_rule = re.compile(r"[ \t]*:")
 
     @classmethod
     def parse(cls, lines):
@@ -459,9 +464,9 @@ class Behavior(MastNode):
     # await bt until success seq a&b [data]
     # await bt invert seq a&b [data]
     # await bt invert seq a&b [data]
-    rule =  re.compile(r"""((?P<yield_await>await|yield)\s+)?bt\s+(((?P<invert>invert)|(until\s+(?P<until>fail|success)))\s+)?((seq\s*(?P<seq_labels>\s*(\w+)((\s*&\s*)\w+)*))|(sel\s*(?P<sel_labels>\s*(\w+)((\s*\|\s*)\w+)*)))"""
-                       + r"""(?P<inputs>\s*"""+ DICT_REGEX+")?"
-                       + r"""(?P<is_block>\s*:)?""")
+    rule =  re.compile(r"""((?P<yield_await>await|yield)[ \t]+)?bt[ \t]+(((?P<invert>invert)|(until\s+(?P<until>fail|success)))[ \t]+)?((seq[ \t]*(?P<seq_labels>[ \t]*(\w+)(([ \t]*&[ \t]*)\w+)*))|(sel[ \t]*(?P<sel_labels>[ \t]*(\w+)(([ \t]*\|[ \t]*)\w+)*)))"""
+                       + r"""(?P<inputs>[ \t]*"""+ DICT_REGEX+")?"
+                       + r"""(?P<is_block>[ \t]*:)?""")
     
     
 
@@ -518,7 +523,7 @@ class EndAwait(MastNode):
 
 
 class Event(MastNode):
-    rule = re.compile(r'(event\s+(?P<event>[\w|_]+)'+BLOCK_START+')|(end_event)')
+    rule = re.compile(r'(event[ \t]+(?P<event>[\w|_]+)'+BLOCK_START+')|(end_event)')
     stack = []
     def __init__(self, event=None, loc=None):
         self.loc = loc
@@ -530,10 +535,10 @@ class Event(MastNode):
         else:
             Event.stack.append(self)
 
-MIN_SECONDS_REGEX = r"""(\s*((?P<minutes>\d+))m)?(\s*((?P<seconds>\d+)s))?"""
-TIMEOUT_REGEX = r"(\s*timeout"+MIN_SECONDS_REGEX + r")?"
+MIN_SECONDS_REGEX = r"""([ \t]*((?P<minutes>\d+))m)?([ \t]*((?P<seconds>\d+)s))?"""
+TIMEOUT_REGEX = r"([ \t]*timeout"+MIN_SECONDS_REGEX + r")?"
 class Timeout(MastNode):
-    rule = re.compile(r'timeout(\s*((?P<minutes>\d+))m)?(\s*((?P<seconds>\d+)s))?:')
+    rule = re.compile(r'timeout([ \t]*((?P<minutes>\d+))m)?([ \t]*((?P<seconds>\d+)s))?:')
     def __init__(self, minutes, seconds, loc=None):
         self.loc = loc
         
@@ -558,7 +563,7 @@ class AwaitCondition(MastNode):
     waits for an existing or a new 'task' to run in parallel
     this needs to be a rule before Parallel
     """
-    rule = re.compile(r"""await\s+until\s+(?P<if_exp>[^:]+)"""+BLOCK_START)
+    rule = re.compile(r"""await[ \t]+until[ \t]+(?P<if_exp>[^:]+)"""+BLOCK_START)
                       
     def __init__(self, minutes=None, seconds=None, if_exp=None, loc=None):
         self.loc = loc
@@ -583,7 +588,7 @@ class Cancel(MastNode):
     """
     Cancels a new 'task' to run in parallel
     """
-    rule = re.compile(r"""cancel\s*(?P<name>[\w\.\[\]]+)""")
+    rule = re.compile(r"""cancel[ \t]*(?P<name>[\w\.\[\]]+)""")
 
     def __init__(self, lhs=None, name=None, loc=None):
         self.loc = loc
@@ -591,7 +596,7 @@ class Cancel(MastNode):
 
 
 class End(MastNode):
-    rule = re.compile(r'->\s*END'+IF_EXP_REGEX)
+    rule = re.compile(r'->[ \t]*END'+IF_EXP_REGEX)
     def __init__(self,  if_exp=None, loc=None):
         self.loc = loc
         if if_exp:
@@ -601,7 +606,7 @@ class End(MastNode):
             self.if_code = None
 
 class ReturnIf(MastNode):
-    rule = re.compile(r'->\s*RETURN'+IF_EXP_REGEX)
+    rule = re.compile(r'->[ \t]*RETURN'+IF_EXP_REGEX)
     def __init__(self, if_exp=None,  loc=None):
         self.loc = loc
         if if_exp:
@@ -612,7 +617,7 @@ class ReturnIf(MastNode):
 
 
 class Fail(MastNode):
-    rule = re.compile(r'->\s*FAIL'+IF_EXP_REGEX)
+    rule = re.compile(r'->[ \t]*FAIL'+IF_EXP_REGEX)
     def __init__(self, if_exp=None, loc=None):
         self.loc = loc
         if if_exp:
@@ -622,7 +627,7 @@ class Fail(MastNode):
             self.if_code = None
 
 class Yield(MastNode):
-    rule = re.compile(r'yield(\s+(?P<res>(?i:fail|success)))?' +IF_EXP_REGEX)
+    rule = re.compile(r'yield([ \t]+(?P<res>(?i:fail|success)))?' +IF_EXP_REGEX)
     def __init__(self, res= None, if_exp=None, loc=None):
         self.loc = loc
         self.result = res
@@ -635,7 +640,7 @@ class Yield(MastNode):
 
 
 class Delay(MastNode):
-    clock = r"(\s*(?P<clock>\w+))"
+    clock = r"([ \t]*(?P<clock>\w+))"
     rule = re.compile(r'delay'+clock+MIN_SECONDS_REGEX)
 
     def __init__(self, clock, seconds=None, minutes=None, loc=None):

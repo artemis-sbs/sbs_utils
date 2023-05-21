@@ -6,7 +6,7 @@ class Route(MastNode):
     """
     Route unhandled things comms, science, events
     """
-    rule = re.compile(r"""route\s+(?P<route>destroy|spawn|damage\s*target|damage\s*source|damage\s*internal|comms\s+select|science\s+select|grid\s+select|grid\s+spawn|change\s*console)\s+(?P<name>\w+)""")
+    rule = re.compile(r"""route[ \t]+(?P<route>destroy|spawn|damage[ \t]*target|damage[ \t]*source|damage[ \t]*internal|comms[ \t]+select|science[ \t]+select|grid[ \t]+select|grid[ \t]+spawn|change[ \t]*console)[ \t]+(?P<name>\w+)""")
     def __init__(self, route, name, loc=None):
         self.loc = loc
         self.route = route
@@ -15,9 +15,9 @@ class Route(MastNode):
 
 class TransmitReceive(MastNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
-    OPT_FACE = r"""(\s*face((\s*(?P<faceq>['"]{3}|["'])(?P<face_string>[ \t\S]+?)(?P=faceq))|(\s+(?P<face_var>\w+))))?"""
-    OPT_COMMS_ID = r"""(\s*title((\s*(?P<comq>['"]{3}|["'])(?P<comms_string>[ \t\S]+?)(?P=comq))|(\s+(?P<comms_var>\w+))))?"""
-    rule = re.compile(r"""(?P<tr>receive|transmit)\s*(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)"""+OPT_COMMS_ID+OPT_FACE+OPT_COLOR)
+    OPT_FACE = r"""([ \t]*face(([ \t]*(?P<faceq>['"]{3}|["'])(?P<face_string>[ \t\S]+?)(?P=faceq))|([ \t]+(?P<face_var>\w+))))?"""
+    OPT_COMMS_ID = r"""([ \t]*title(([ \t]*(?P<comq>['"]{3}|["'])(?P<comms_string>[ \t\S]+?)(?P=comq))|([ \t]+(?P<comms_var>\w+))))?"""
+    rule = re.compile(r"""(?P<tr>receive|transmit)[ \t]*(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)"""+OPT_COMMS_ID+OPT_FACE+OPT_COLOR)
     def __init__(self, tr, message, 
                  face_string=None, face_var=None, faceq=None,
                  comms_string=None, comms_var=None, comq=None,
@@ -33,7 +33,7 @@ class TransmitReceive(MastNode):
 
 
 class CommsInfo(MastNode):
-    rule = re.compile(r"""comms_info(\s+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q))?"""+OPT_COLOR)
+    rule = re.compile(r"""comms_info([ \t]+(?P<q>['"]{3}|["'])(?P<message>[ \t\S]+?)(?P=q))?"""+OPT_COLOR)
     def __init__(self, message, q=None, color=None, loc=None):
         self.loc = loc
         self.message = self.compile_formatted_string(message)
@@ -42,7 +42,7 @@ class CommsInfo(MastNode):
 
 class Tell(MastNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
-    rule = re.compile(r"""have\s*(?P<from_tag>\*?\w+)\s+tell\s+(?P<to_tag>\*?\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)\4)"""+OPT_COLOR)
+    rule = re.compile(r"""have[ \t]*(?P<from_tag>\*?\w+)[ \t]+tell[ \t]+(?P<to_tag>\*?\w+)[ \t]+((['"]{3}|["'])(?P<message>[ \t\S]+?)\4)"""+OPT_COLOR)
     def __init__(self, to_tag, from_tag, message, color=None, loc=None):
         self.loc = loc
         self.to_tag = to_tag
@@ -52,7 +52,7 @@ class Tell(MastNode):
 
 class Broadcast(MastNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
-    rule = re.compile(r"""have\s*(?P<to_tag>\*?\w+)\s+broadcast\s+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)"""+OPT_COLOR)
+    rule = re.compile(r"""have[ \t]*(?P<to_tag>\*?\w+)[ \t]+broadcast[ \t]+(?P<q>['"]{3}|["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_COLOR)
     def __init__(self, to_tag, message, color=None, q=None,loc=None):
         self.to_tag = to_tag
         self.loc = loc
@@ -61,7 +61,7 @@ class Broadcast(MastNode):
 
 
 class Comms(MastNode):
-    rule = re.compile(r"""await\s*((?P<origin_tag>\w+)\s*)?comms(\s*(?P<selected_tag>\w+))?(\s*set\s*(?P<assign>\w+))?(\s+color\s*["'](?P<color>[ \t\S]+)["'])?"""+TIMEOUT_REGEX+'\s*'+BLOCK_START)
+    rule = re.compile(r"""await[ \t]*((?P<origin_tag>\w+)[ \t]*)?comms([ \t]*(?P<selected_tag>\w+))?([ \t]*set\s*(?P<assign>\w+))?([ \t]+color[ \t]*["'](?P<color>[ \t\S]+)["'])?"""+TIMEOUT_REGEX+r'[ \t]*'+BLOCK_START)
     def __init__(self, selected_tag=None, origin_tag=None, assign=None, minutes=None, seconds=None, time_pop=None,time_push="", time_jump="", color="white", loc=None):
         self.loc = loc
         # Origin is the player ship, selected is NPC/GridObject
@@ -79,7 +79,7 @@ class Comms(MastNode):
         EndAwait.stack.append(self)
 
 class Scan(MastNode):
-    rule = re.compile(r"""await(\s+(?P<from_tag>\w+))?\s+scan(\s+(?P<to_tag>\w+))?"""+BLOCK_START)
+    rule = re.compile(r"""await([ \t]+(?P<from_tag>\w+))?[ \t]+scan([ \t]+(?P<to_tag>\w+))?"""+BLOCK_START)
     def __init__(self, to_tag, from_tag, loc=None):
         self.loc = loc
         self.to_tag = to_tag
@@ -90,14 +90,14 @@ class Scan(MastNode):
         EndAwait.stack.append(self)
 
 class ScanResult(MastNode):
-    rule = re.compile(r"""scan\s*results\s*((['"]{3}|["'])(?P<message>[\s\S]+?)\2)""")
+    rule = re.compile(r"""scan[ \t]*results[ \t]*((['"]{3}|["'])(?P<message>[ \t\S]+?)\2)""")
     def __init__(self, message=None, loc=None):
         self.loc = loc
         self.message = self.compile_formatted_string(message)
 
-FOR_RULE = r'(\s+for\s+(?P<for_name>\w+)\s+in\s+(?P<for_exp>[\s\S]+?))?'
+FOR_RULE = r'([ \t]+for[ \t]+(?P<for_name>\w+)[ \t]+in[ \t]+(?P<for_exp>[ \t\S]+?))?'
 class ScanTab(MastNode):
-    rule = re.compile(r"""scan\s*tab\s+(?P<q>["'])(?P<message>.+?)(?P=q)"""+FOR_RULE+IF_EXP_REGEX+r"\s*"+BLOCK_START)
+    rule = re.compile(r"""scan[ \t]*tab[ \t]+(?P<q>["'])(?P<message>.+?)(?P=q)"""+FOR_RULE+IF_EXP_REGEX+r"[ \t]*"+BLOCK_START)
     def __init__(self, message=None, button=None,  
                  if_exp=None, 
                  for_name=None, for_exp=None, 
@@ -141,10 +141,10 @@ class ScanTab(MastNode):
 
 
 
-FOR_RULE = r'(\s+for\s+(?P<for_name>\w+)\s+in\s+(?P<for_exp>[\s\S]+?))?'
+FOR_RULE = r'([ \t]+for[ \t]+(?P<for_name>\w+)[ \t]+in[ \t]+(?P<for_exp>[ \t\S]+?))?'
 class Button(MastNode):
     
-    rule = re.compile(r"""(?P<button>\*|\+)\s+(?P<q>["'])(?P<message>.+?)(?P=q)"""+OPT_COLOR+FOR_RULE+IF_EXP_REGEX+r"\s*"+BLOCK_START)
+    rule = re.compile(r"""(?P<button>\*|\+)[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_COLOR+FOR_RULE+IF_EXP_REGEX+r"[ \t]*"+BLOCK_START)
     def __init__(self, message=None, button=None,  
                  color=None, if_exp=None, 
                  for_name=None, for_exp=None, 
@@ -213,14 +213,14 @@ class Simulation(MastNode):
     """
     Handle commands to the simulation
     """
-    rule = re.compile(r"""simulation\s+(?P<cmd>pause|create|resume)""")
+    rule = re.compile(r"""simulation[ \t]+(?P<cmd>pause|create|resume)""")
     def __init__(self, cmd=None, loc=None):
         self.loc = loc
         self.cmd = cmd
 
 
 class Load(MastNode):
-    rule = re.compile(r'(from\s+(?P<lib>[\w\.\\\/-]+)\s+)?load\s+(?P<format>json|map)\s+(?P<name>[\w\.\\\/-]+)')
+    rule = re.compile(r'(from[ \t]+(?P<lib>[\w\.\\\/-]+)[ \t]+)?load\s+(?P<format>json|map)[ \t]+(?P<name>[\w\.\\\/-]+)')
 
     def __init__(self, name, lib=None, format=None, loc=None):
         self.loc = loc
