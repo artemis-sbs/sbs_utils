@@ -301,7 +301,7 @@ class Assign(MastNode):
     rule = re.compile(
         r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|.*))')
 
-    """ Not this doesn't support destructuring. To do so isn't worth the effort"""
+    """ Note this doesn't support destructuring. To do so isn't worth the effort"""
     def __init__(self, scope, lhs, oper, exp, quote=None, py=None, loc=None):
         self.lhs = lhs
         self.loc = loc
@@ -317,6 +317,9 @@ class Assign(MastNode):
             exp = exp[2:-2]
             exp = exp.strip()
         self.code = compile(exp, "<string>", "eval")
+
+        if lhs in Mast.globals:
+            raise Exception(f"Variable assignment to a keyword {lhs}")
 
 
 
@@ -693,6 +696,8 @@ class InlineData:
 
 
 class Mast:
+    include_code = False
+
     globals = {
         "math": math, 
         "faces": faces,
@@ -709,6 +714,7 @@ class Mast:
         "min": min,
         "max": max,
         "abs": abs,
+        "sim": None,
         "map": map,
         "filter": filter,
         "list": list,
@@ -721,6 +727,7 @@ class Mast:
         "__name__":__name__ # needed to define classes?
     }
     inline_count = 0
+
     def __init__(self, cmds=None):
         self.lib_name = None
         self.basedir = None
@@ -729,8 +736,8 @@ class Mast:
             return
         if isinstance(cmds, str):
             cmds = self.compile(cmds)
-        else:
-            self.build(cmds)
+        # else:
+        #     self.build(cmds)
 
     def make_global(func):
         add_to = Mast.globals
@@ -751,27 +758,27 @@ class Mast:
                 elif isinstance(prepend, str):
                     Mast.globals[f"{prepend}_{name}"] = func
 
-    def build(self, cmds):
-        """
-        Used to build via code not a script file
-        should just process level things e.g. Input, Label, Var
-        """
-        self.clear()
-        active = self.labels["main"]
+    # def build(self, cmds):
+    #     """
+    #     Used to build via code not a script file
+    #     should just process level things e.g. Input, Label, Var
+    #     """
+    #     self.clear()
+    #     active = self.labels["main"]
 
-        for cmd in cmds:
-            match cmd.__class__.__name__:
-                case "Input":
-                    self.inputs[cmd.name] = cmd
-                case "Label":
-                    self.labels[cmd.name] = cmd
-                    active.next = cmd
-                    active = cmd
-                case "Var":
-                    self.vars[cmd.name] = cmd
-                    active = cmd
-                case _:
-                    active.cmds.append(cmd)
+    #     for cmd in cmds:
+    #         match cmd.__class__.__name__:
+    #             case "Input":
+    #                 self.inputs[cmd.name] = cmd
+    #             case "Label":
+    #                 self.labels[cmd.name] = cmd
+    #                 active.next = cmd
+    #                 active = cmd
+    #             case "Var":
+    #                 self.vars[cmd.name] = cmd
+    #                 active = cmd
+    #             case _:
+    #                 active.cmds.append(cmd)
 
 
     nodes = [
@@ -883,24 +890,7 @@ class Mast:
 
         return errors
         
-
-    # def from_lib_file(self, file_name, lib_name):
-    #     lib_name = os.path.join(fs.get_mission_dir(), lib_name)
-    #     content = None
-
-    #     errors = []
-    #     try:
-    #         with ZipFile(lib_name) as lib_file:
-    #             with lib_file.open(file_name) as f:
-    #                 content = f.read().decode('UTF-8')
-    #                 self.lib_name = lib_name
-    #                 return self.process_file_content(content, file_name)
-    #     except:
-    #         message = f"File load error\nCannot load file {file_name}"
-    #         print(message)
-    #         errors.append(message)
-    #     return errors
-        
+       
 
     def content_from_lib_or_file(self, file_name, lib_name):
         try:
@@ -947,14 +937,19 @@ class Mast:
     def compile(self, lines):
         self.clear()
         line_no = 0
+        total_length = len(lines)
         errors = []
         active = self.labels.get("main")
         active_name = "main"
+
         while len(lines):
             mo = first_non_whitespace_index(lines)
             line_no += mo if mo is not None else 0
             #line = lines[:mo]
             lines = lines[mo:]
+            # Keep location in file
+           
+
             parsed = False
             # indent = first_non_space_index(lines)
             # if indent is None:
@@ -984,7 +979,10 @@ class Mast:
 
                     line = lines[mo.start:mo.end]
                     lines = lines[mo.end:]
+
                     line_no += line.count('\n')
+                    
+
                     parsed = True
                 
                     
@@ -1019,10 +1017,6 @@ class Mast:
                             for node in MatchStatements.chains:
                                 errors.append(f"ERROR: Missing end_match prior to label '{active_name}'cmd {node.loc}")
                             MatchStatements.chains.clear()
-
-                                
-
-                           
                             next = Label(**data)
                             active.next = next
                             active = next
@@ -1062,7 +1056,10 @@ class Mast:
                                 errors.append(f"Exception: {e}")
                                 return errors # return with first errors
 
-                            obj.line_no = line_no
+                            obj.line = line if Mast.include_code else None
+                            
+                            
+
                             self.cmd_stack[-1].add_child(obj)
                     break
             if not parsed:
@@ -1078,9 +1075,9 @@ class Mast:
 
                     logger = logging.getLogger("mast.compile")
                     logger.error(f"ERROR: {line_no} - {lines[0:mo]}")
-
                     errors.append(f"ERROR: {line_no} - {lines[0:mo]}")
                     lines = lines[mo+1:]
+
         for node in EndAwait.stack:
             errors.append(f"ERROR: Missing end_await prior to label '{active_name}'cmd {node.loc}")
         EndAwait.stack.clear()

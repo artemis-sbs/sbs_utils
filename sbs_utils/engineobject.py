@@ -245,7 +245,7 @@ class EngineObject():
         id = EngineObject.resolve_id(other)
         self.links.remove_from_collection(link_name,id)
         # Remove any empty from has links
-        collections = collection.split(",")
+        collections = link_name.split(",")
         for collection in collections:
             collection = collection.strip().lower()
             the_set = the_set = self.links.collections.get(collection)

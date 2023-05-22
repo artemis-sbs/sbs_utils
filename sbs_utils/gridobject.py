@@ -17,6 +17,7 @@ class GridObject(EngineObject):
         self._name = ""
         self._tag =""
         self._go_type = ""
+        self.spawn_pos = sbs.vec2()
 
     @property
     def is_grid_object(self):
@@ -135,6 +136,8 @@ class GridObject(EngineObject):
         go   = hullMap.create_grid_object(name, tag, go_type)
         self.id = go.unique_ID
         self._go_type = go_type
+        self.spawn_pos.x = x
+        self.spawn_pos.y = y
 
         self.add()
         for role in roles:

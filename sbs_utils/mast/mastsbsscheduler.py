@@ -669,6 +669,7 @@ over =     {
 
 Mast.globals["SpaceObject"] =MastSpaceObject
 Mast.globals["script"] = sys.modules['script']
+Mast.globals["sbs"] = sbs
 for func in [
         ############################
         ## sbs
@@ -693,7 +694,6 @@ class MastSbsScheduler(MastScheduler):
         else:
             super().__init__(mast,  over)
         self.sim = None
-        self.vars["sbs"] = sbs
         # Create schedulable space objects
         self.vars["npc_spawn"] = self.npc_spawn
         self.vars["terrain_spawn"] = self.terrain_spawn

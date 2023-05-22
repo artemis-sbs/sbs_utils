@@ -646,7 +646,7 @@ def grid_target(grid_obj_or_set, sim, target_id: int, speed=0.01):
             this_blob.set("pathy", y, 0)
             this_blob.set("move_speed", speed, 0)
 
-def grid_target_pos(grid_obj_or_set, sim, x:float, y:float):
+def grid_target_pos(grid_obj_or_set, sim, x:float, y:float, speed=0.01):
     """ Set the item to target
 
     :param sim: The simulation
@@ -659,8 +659,14 @@ def grid_target_pos(grid_obj_or_set, sim, x:float, y:float):
     grid_objs= to_object_list(grid_obj_or_set)
     for grid_obj in grid_objs:
         blob = get_engine_data_set(sim, grid_obj.id)
-        blob.set("pathx", x, 0)
-        blob.set("pathy", y, 0)
+        curx= blob.get("curx", 0)
+        cury=blob.get("cury",  0)
+        if curx!=x or cury != y:
+            blob.set("pathx", x, 0)
+            blob.set("pathy", y, 0)
+            blob.set("move_speed", speed, 0)
+        else:
+            blob.set("move_speed", 0, 0)
 
 def grid_clear_target(grid_obj_or_set, sim):
     """ Clear the target

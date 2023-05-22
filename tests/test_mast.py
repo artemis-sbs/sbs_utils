@@ -362,6 +362,14 @@ d //= 10
         assert(c==(5.3, Scope.NORMAL))
         assert(d==(5, Scope.NORMAL))
 
+    def test_assign_expect_error(self):
+        (errors,  _) = mast_compile( code = """
+    max = 12
+
+    """)
+        assert(len(errors)==2)
+        
+
 
     def test_end_task(self):
         (errors, runner, _) = mast_run( code = """
@@ -381,34 +389,74 @@ d //= 10
      
     def test_if(self):
         (errors, runner, _) = mast_run( code = """
+        logger string output
 x = 52
-if x<50:
+if x>50:
+log "if-case1"
 x=100
 end_if
 
 if x<50:
+log "if-case2"
+x=100
+else:
+log "else-case2"
+x=100000
+end_if
+
+if x>50:
+log "if-case3"
+x=100
+else:
+log "else-case3"
+x=100000
+end_if
+
+if x<50:
+log "if-case4"
 x=9999
 elif x>50:
+log "elif-case4"
 x=200
 else:
+log "else-case4"
 x=300
 end_if
 
 if x<50:
+log "if-case5"
 x=9999
 elif x>250:
+log "elif-case5"
 x=200
 else:
+log "else-case5"
 x=300
 end_if
+x = 52
+
+if x > 50:
+    log "if-case6"
+    if x <50:
+        log "inner-if-case6"
+    else:
+         log "inner-else-case6"
+    end_if
+else:
+    log "else-case6"
+end_if
+
 
     """)
         assert(len(errors)==0)
         task = runner.active_task
         while runner.is_running():
             runner.tick()
-        x = task.get_value("x", None)
-        assert(x==(300, Scope.NORMAL))
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        value = st.getvalue()
+        assert(value=="if-case1\nelse-case2\nif-case3\nelif-case4\nelse-case5\nif-case6\ninner-else-case6\n")
 
     def test_match(self):
         (errors, runner, _) = mast_run( code = """

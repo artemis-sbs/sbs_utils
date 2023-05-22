@@ -856,7 +856,12 @@ class MastAsyncTask:
             cmd = self.cmds[self.active_cmd]
         s += f"\n   mast label: {self.active_label}"
         if cmd is not None:
-            s += f"\n      cmd: {cmd.__class__.__name__}\n       loc: {cmd.loc}\n\n"
+            s += f"\n      cmd: {cmd.__class__.__name__}\n       loc: {cmd.loc}"
+            if cmd.line:
+                s += f"\n      code: {cmd.line}\n\n"
+            else:
+                s += "\nNOTE: to see code Set Mast.include_code to True is script.py only during development.\n\n"
+
         logger = logging.getLogger("mast.runtime")
         logger.error(s)
 
