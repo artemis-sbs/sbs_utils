@@ -369,20 +369,37 @@ class ScanRuntimeNode(MastRuntimeNode):
 
         self.to_id = to_so.get_id()
         self.from_id = from_so.get_id()
-                ###############
-        scan_tabs = ""
+        ###############
+        # If this is the first scan only have the scan button
+        # Otherwise have them all
+        self.scan_is_done = False
         if to_so is not None:
-            for button in self.buttons:
-                value = True
-                if button.code is not None:
-                    value = task.eval_code(button.code)
-                if value:
-                    msg = self.task.format_string(button.message).strip()
-                    if msg != "scan":
-                        if len(scan_tabs):
-                            scan_tabs += " "
-                        scan_tabs += msg
-            to_so.update_engine_data(task.main.sim, {"scan_type_list":scan_tabs})
+            scan_tab = from_so.side+"scan"
+            has_scan = to_so.get_engine_data(task.main.sim, scan_tab)
+            if has_scan is None:
+                scan_tabs = "scan"
+                self.scan_is_done = False
+            else:
+                scan_tabs = ""
+                scanned_tabs = 0
+                button_count = 0
+                for button in self.buttons:
+                    value = True
+                    if button.code is not None:
+                        value = task.eval_code(button.code)
+                    if value:
+                        button_count += 1
+                        msg = self.task.format_string(button.message).strip()
+                        if msg != "scan":
+                            if len(scan_tabs):
+                                scan_tabs += " "
+                            scan_tabs += msg
+                        # Check if this has been scanned
+                        has_scan = to_so.get_engine_data(task.main.sim, from_so.side+msg)
+                        if has_scan:
+                            scanned_tabs += 1
+                self.scan_is_done = scanned_tabs == button_count
+                to_so.update_engine_data(task.main.sim, {"scan_type_list":scan_tabs})
 
         
         ConsoleDispatcher.add_select_pair(self.from_id, self.to_id, 'science_target_UID', self.science_selected)
@@ -441,6 +458,12 @@ class ScanRuntimeNode(MastRuntimeNode):
         if len(node.buttons)==0:
             # clear the comms buttons
             return PollResults.OK_ADVANCE_TRUE
+        
+
+        if self.scan_is_done:
+            task.jump(task.active_label,node.end_await_node.loc+1)
+            return PollResults.OK_JUMP
+
 
         if self.tab is not None:
             for i, button in enumerate(self.buttons):
@@ -473,9 +496,11 @@ class ScanResultRuntimeNode(MastRuntimeNode):
             so.update_engine_data(task.main.sim, {
                 scan.tab: msg,
             })
-        if scan.node.end_await_node:
-                task.jump(task.active_label,scan.node.end_await_node.loc+1)
-                return PollResults.OK_JUMP
+
+        # Rerun the scan (until all scans are done)
+        if scan.node:
+            task.jump(task.active_label,scan.node.loc)
+            return PollResults.OK_JUMP
         return PollResults.OK_RUN_AGAIN
 
 class RegexEqual(str):

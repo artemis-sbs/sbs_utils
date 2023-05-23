@@ -33,6 +33,10 @@ class Row:
     def set_row_height(self, height):
         self.default_height = height
 
+    def set_padding(self, padding):
+        self.padding = padding
+
+
     def set_col_width(self, width):
         self.default_width = width
 
@@ -66,11 +70,7 @@ class Column:
             self.bounds.top=bounds.top
             self.bounds.right=bounds.right
             self.bounds.bottom=bounds.bottom
-        else:
-            self.bounds.left=bounds.left+self.padding.left
-            self.bounds.top=bounds.top+self.padding.top
-            self.bounds.right=bounds.right-self.padding.right
-            self.bounds.bottom=bounds.bottom-self.padding.bottom
+        
 
     def set_row_height(self, height):
         self.default_height = height
@@ -492,6 +492,9 @@ class Layout:
     def set_bounds(self, bounds):
         self.bounds = bounds
 
+    def set_padding(self, padding):
+        self.padding = padding
+
        
     def set_row_height(self, height):
         self.default_height = height
@@ -506,6 +509,8 @@ class Layout:
         # remove empty
         #self.rows = [x for x in self.rows if len(x.columns)>0]
         if len(self.rows):
+            padding = self.padding if self.padding else Bounds()
+            
             if self.default_height is not None:
                 layout_row_height = self.default_height
             else:
@@ -520,6 +525,13 @@ class Layout:
             left = self.bounds.left
             top = self.bounds.top
             for row in self.rows:
+                # Cascading padding
+                if row.padding:
+                    padding.left += row.padding.left
+                    padding.right+= row.padding.right
+                    padding.top += row.padding.top
+                    padding.bottom += row.padding.bottom
+
                 if row.default_height is not None:
                     row_height = row.default_height
                 else:
@@ -565,6 +577,12 @@ class Layout:
                 col_left = left
                 hole_size = 0
                 for col in row.columns:
+                    if col.padding is not None:
+                        padding.left += col.padding.left
+                        padding.right+= col.padding.right
+                        padding.top += col.padding.top
+                        padding.bottom += col.padding.bottom
+
                     bounds = Bounds(col_left,0,0,0)
                     bounds.top = top
                     bounds.bottom = top+row_height
@@ -581,6 +599,14 @@ class Layout:
                         bounds.right = bounds.left+rect_col_width + hole_size
                         hole_size = 0
                     col_left = bounds.right
+
+                    # Add padding 
+                    
+                    bounds.left=bounds.left+padding.left
+                    bounds.top=bounds.top+padding.top
+                    bounds.right=bounds.right-padding.right
+                    bounds.bottom=bounds.bottom-padding.bottom
+
                     col.set_bounds(bounds)
                 top += row_height
 
