@@ -9,7 +9,7 @@ from ..pages import layout
 from ..tickdispatcher import TickDispatcher
 
 from .errorpage import ErrorPage
-from .maststory import AppendText,Clickable, ButtonControl, MastStory, Choose, Text, Blank, Ship, GuiContent, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, Hole, RadioControl, Console
+from .maststory import AppendText,Clickable, ButtonControl, MastStory, Choose, Text, Blank, Ship, GuiContent, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, Hole, RadioControl, Console, BuildaConsole, OnChange
 import traceback
 from .mastsbsscheduler import MastSbsScheduler, Button
 from .parsers import LayoutAreaParser
@@ -426,12 +426,13 @@ class SliderControlRuntimeNode(StoryRuntimeNode):
 
         task.main.page.add_content(self.layout, self)
 
-    def on_message(self, sim, event):
+    def on_message(self, ctx, event):
         if event.sub_tag == self.tag:
             if self.node.is_int:
                 self.layout.value = int(event.sub_float)
             else:
                 self.layout.value = event.sub_float
+            self.layout.present(ctx, event)
             self.task.set_value_keep_scope(self.node.var, self.layout.value)
 
 
@@ -561,6 +562,21 @@ class WidgetListRuntimeNode(MastRuntimeNode):
     def enter(self, mast, task: MastAsyncTask, node:WidgetList):
         task.main.page.set_widget_list(node.console, node.widgets)
 
+class BuildaConsoleRuntimeNode(MastRuntimeNode):
+    """ Lower level console building command to allow layout"""
+    def enter(self, mast, task: MastAsyncTask, node:BuildaConsole):
+        if node.console:
+            task.main.page.activate_console(node.console)
+        elif node.widget:
+            page = task.main.page
+            page.add_console_widget(node.widget)
+            control = layout.ConsoleWidget(node.widget)
+            # if style is not None:
+            #     page.apply_style_def(style,  control)
+            page.add_content(control, None)
+
+
+
 class ConsoleRuntimeNode(MastRuntimeNode):
     def enter(self, mast, task: MastAsyncTask, node:Console):
         if node.var:
@@ -606,26 +622,43 @@ class ImageControlRuntimeNode(StoryRuntimeNode):
         self.layout = layout.Image(tag, file )
         task.main.page.add_content(self.layout, self)
 
+class OnChangeRuntimeNode(StoryRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: ImageControl):
+        self.task = task
+        self.node = node
+        if not node.is_end:
+            self.value = task.eval_code(node.value) 
+            task.main.page.add_on_change(self)
+
+    def test(self):
+        prev = self.value
+        self.value = self.task.eval_code(self.node.value) 
+        return prev!=self.value
+        
+
+    def poll(self, mast:Mast, task:MastAsyncTask, node: OnChange):
+        if node.is_end:
+            task.pop()
+            return PollResults.OK_JUMP
+        if node.end_node:
+            self.task.jump(self.task.active_label, node.end_node.loc+1)
+            return PollResults.OK_JUMP
+
+
 
 class RerouteGuiRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: ImageControl):
         #
         page = None
         if node.gui == "server":
+            """ This is directly routing the server screen """
             client = Gui.clients.get(0, None)
             if client is not None:
                 page = client.page_stack[-1]
                 if page is None: 
                     return
-
-        elif node.gui == "clients":
-            for id, client in Gui.clients.items():
-                if id != 0 and client is None:
-                    page = client.page_stack[-1]
-                    if page is None: 
-                        return
-
         elif node.var:
+            """ This is directly routing a specific client by ID"""
             val = task.get_variable(self.node.var)
             if val is not None:
                 client = Gui.clients.get(val, None)
@@ -633,17 +666,19 @@ class RerouteGuiRuntimeNode(StoryRuntimeNode):
                     page = client.page_stack[-1]
                     if page is None: 
                         return
-                    
+        elif node.gui == "clients":
+            """Walk all the clients (not server) and send them to a new flow"""
+            for id, client in Gui.clients.items():
+                if id != 0 and client is not None:
+                    client_page = client.page_stack[-1]
+                    if client_page is not None and client_page.gui_task:
+                        client_page.gui_task.jump(node.label)
         if page is not None and page.gui_task:
             page.gui_task.jump(node.label)
 
 
-        
-        
-
-
 ######################
-## MAst extensions
+## Mast extensions
 Mast.import_python_module('sbs_utils.widgets.shippicker')
 Mast.import_python_module('sbs_utils.widgets.listbox')
 
@@ -664,8 +699,10 @@ over =     {
     "TextInputControl": TextInputControlRuntimeNode,
     "WidgetList":WidgetListRuntimeNode,
     "Console":ConsoleRuntimeNode,
+    "BuildaConsole":BuildaConsoleRuntimeNode,
     "Blank": BlankRuntimeNode,
     "Hole": HoleRuntimeNode,
+    "OnChange": OnChangeRuntimeNode,
     "AwaitGui": AwaitGuiRuntimeNode,
     "Choose": ChooseRuntimeNode,
     "Clickable": ClickableRuntimeNode,
@@ -764,6 +801,8 @@ class StoryPage(Page):
         self.widgets = ""
         self.pending_console = ""
         self.pending_widgets = ""
+        self.pending_on_change_items= []
+        self.on_change_items= []
         self.gui_task = None
         self.change_console_label = None
         #self.tag = 0
@@ -793,9 +832,10 @@ class StoryPage(Page):
             event = FakeEvent(self.client_id, "gui_represent")
             self.present(Context(ctx.sim, ctx.sbs, self.aspect_ratio), event)
 
-   
 
     def swap_layout(self):
+        self.on_change_items= self.pending_on_change_items
+        self.pending_on_change_items = []
         self.layouts = self.pending_layouts
         self.tag_map = self.pending_tag_map
         self.console = self.pending_console
@@ -850,9 +890,21 @@ class StoryPage(Page):
 
         self.pending_row.add(layout_item)
 
+    def add_on_change(self, runtime_node):
+        self.pending_on_change_items.append(runtime_node)
+
     def set_widget_list(self, console,widgets):
         self.pending_console = console
         self.pending_widgets = widgets
+
+    def activate_console(self, console):
+        self.pending_console = console
+
+    def add_console_widget(self, widget):
+        if  self.pending_widgets=="":
+            self.pending_widgets = widget
+        else:
+            self.pending_widgets += "^"+widget
     
     def add_section(self, clickable_tag= None, clickable=None):
         if not self.pending_layouts:
@@ -964,6 +1016,11 @@ class StoryPage(Page):
                     self.gui_state = "repaint"
                 else:
                     self.gui_state = "presenting"
+            case _:
+                for change in self.on_change_items:
+                    if change.test():
+                        self.gui_task.push_inline_block(self.gui_task.active_label, change.node.loc+1)
+                        break
                 
 
 
@@ -972,19 +1029,27 @@ class StoryPage(Page):
         message_tag = event.sub_tag
         
         runtime_node = self.tag_map.get(message_tag)
+        refresh = False
         if runtime_node:
             runtime_node.on_message(Context(ctx.sim, ctx.sbs, self.aspect_ratio), event)
-            refresh = False
             for node in self.tag_map.values():
                 if node != runtime_node:
                     bound = node.databind()
                     refresh = bound or refresh
-            if refresh:
-                self.gui_state = "refresh"
-            self.present(ctx, event)
         # else:
         for layout in self.layouts:
             layout.on_message(Context(ctx.sim, ctx.sbs, self.aspect_ratio),event)
+
+        for change in self.on_change_items:
+            if change.test():
+                self.gui_task.push_inline_block(self.gui_task.active_label, change.node.loc+1)
+                return
+            
+        if refresh:
+            self.gui_state = "refresh"
+            self.present(ctx, event)
+
+        
 
     def on_event(self, ctx, event):
         #print (f"Story event {event.client_id} {event.tag} {event.sub_tag}")

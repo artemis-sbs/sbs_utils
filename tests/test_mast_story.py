@@ -17,8 +17,27 @@ def mast_story_compile_file(code=None):
 
 
 
-class TestMastStoryCompile(unittest.TestCase):
+
     
+    
+
+class TestMastStoryCompile(unittest.TestCase):
+    def test_compile_on_change_no_err(self):
+        (errors, mast)= mast_story_compile( code = """
+on change enemy_count:
+   jump label
+end_on
+ 
+on change len(role(players)):
+   jump label
+end_on
+""")
+        if len(errors)>0:
+            for err in errors:
+                print(err)
+        assert(len(errors) == 0)
+
+
     def test_compile_no_err(self):
         (errors, mast)= mast_story_compile( code = """
 await gui

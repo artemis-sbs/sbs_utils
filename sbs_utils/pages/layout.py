@@ -85,8 +85,7 @@ class Column:
         pass
     @property
     def value(self):
-         return None
-       
+        return None
     @value.setter
     def value(self, a):
         pass
@@ -134,8 +133,8 @@ class Button(Column):
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
     @property
     def value(self):
-         return self.message
-       
+        return self.message
+
     @value.setter
     def value(self, v):
         if "text:" not in v:
@@ -144,14 +143,17 @@ class Button(Column):
         self.message = v
 
 class Slider(Column):
-    def __init__(self,  tag, value, props) -> None:
+    def __init__(self,  tag, value, props, is_int=False) -> None:
         super().__init__()
         self.tag = tag
         self._value = value
         self.props = props
+        self.is_int = is_int
         
 
     def present(self, ctx, event):
+        if self.is_int:
+            self._value = int(self._value)
         ctx.sbs.send_gui_slider(event.client_id, 
             self.tag, 
             self._value, self.props,
@@ -162,7 +164,7 @@ class Slider(Column):
         self.value = event.sub_float
     @property
     def value(self):
-         return self._value
+        return self._value
     
     
     @value.setter
@@ -352,9 +354,9 @@ class ConsoleWidget(Column):
 
     def present(self, ctx, event):
         ctx.sbs.send_client_widget_rects(event.client_id, 
-                                     self.widget, 
-                                     self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom, 
-                                     self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom) 
+                                    self.widget, 
+                                    self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom, 
+                                    self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom) 
 
 
 

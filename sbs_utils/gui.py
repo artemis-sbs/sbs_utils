@@ -275,12 +275,13 @@ class Gui:
         :param ctx: 
         :type ctx: Artemis Cosmos simulation
         """
-        client_list = ctx.sbs.get_client_ID_list()
+        client_list = set(ctx.sbs.get_client_ID_list())
         disconnect = []
         Gui.represent = set()
         Gui.represent_throttle = 0
         for client_id, gui in Gui.clients.items():
             if client_id == 0 or client_id in client_list:
+                client_list.discard(client_id)
                 event = FakeEvent(client_id, "gui_present")
                 gui.present(ctx, event)
             else:
@@ -290,8 +291,15 @@ class Gui:
             if gui is not None:
                 event = FakeEvent(cid,"mast:client_disconnect")
                 gui.on_event(ctx, event)
-
             Gui.clients.pop(cid)
+
+        # Anything left is a client not connected to the script
+        # So we start the client as if it connected
+        for cid in client_list:
+            if Gui._client_start_page is not None:
+                Gui.push(ctx, cid, Gui._client_start_page())
+
+            
         # Try to repaint things we can this round
         Gui.present_dirty(ctx)
 

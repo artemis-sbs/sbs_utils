@@ -181,6 +181,25 @@ class Style(MastNode):
         style_def = StyleDefinition.parse(style)
         StyleDefinition.styles[name] = style_def
 
+class OnChange(MastNode):
+    rule = re.compile(r"(?P<end>end_on)|(on[ \t]+change[ \t]+(?P<val>[^:]+)"+BLOCK_START+")")
+    stack = []
+    def __init__(self, end=None, val=None, loc=None):
+        self.value = val
+        self.loc = loc
+        self.is_end = False
+        if val:
+            self.value = compile(val, "<string>", "eval")
+        self.end_node = None
+
+        if end is not None:
+            Clickable.stack[-1].end_node = self
+            self.is_end = True
+            Clickable.stack.pop()
+        else:
+            Clickable.stack.append(self)
+
+
 class AwaitGui(MastNode):
     rule = re.compile(r"await[ \t]+gui"+TIMEOUT_REGEX)
     def __init__(self, assign=None,minutes=None, seconds=None, loc=None):
@@ -388,6 +407,14 @@ class WidgetList(MastNode):
             self.console = console
             self.widgets = widgets
 
+class BuildaConsole(MastNode):
+    rule = re.compile(r"""(activate[ \t]+console[ \t]+(?P<console>\w+))|(layout[ \t]+widget[ \t]+['"](?P<widget>\w+)['"])""")
+    def __init__(self, console, widget, loc=None):
+        self.loc = loc
+        self.console = console
+        self.widget = widget
+
+
 class Console(MastNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
     #(\s+color\s*["'](?P<color>[ \t\S]+)["'])?
@@ -440,6 +467,7 @@ class MastStory(MastSbs):
             Section,
             Style,
         Choose,
+        OnChange,
         AwaitGui,
         ButtonControl,
         RerouteGui,
@@ -451,5 +479,6 @@ class MastStory(MastSbs):
         TextInputControl,
         WidgetList,
         Console,
+        BuildaConsole,
         Refresh
     ] + MastSbs.nodes 
