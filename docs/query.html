@@ -92,6 +92,8 @@
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.get_engine_data"><code class="docutils literal notranslate"><span class="pre">get_engine_data()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.get_engine_data_set"><code class="docutils literal notranslate"><span class="pre">get_engine_data_set()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.get_inventory_value"><code class="docutils literal notranslate"><span class="pre">get_inventory_value()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.get_open_grid_points"><code class="docutils literal notranslate"><span class="pre">get_open_grid_points()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.get_pos"><code class="docutils literal notranslate"><span class="pre">get_pos()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.grid_clear_target"><code class="docutils literal notranslate"><span class="pre">grid_clear_target()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.grid_close_list"><code class="docutils literal notranslate"><span class="pre">grid_close_list()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.grid_closest"><code class="docutils literal notranslate"><span class="pre">grid_closest()</span></code></a></li>
@@ -119,6 +121,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.set_dedicated_link"><code class="docutils literal notranslate"><span class="pre">set_dedicated_link()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.set_engine_data"><code class="docutils literal notranslate"><span class="pre">set_engine_data()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.set_inventory_value"><code class="docutils literal notranslate"><span class="pre">set_inventory_value()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.set_pos"><code class="docutils literal notranslate"><span class="pre">set_pos()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.target"><code class="docutils literal notranslate"><span class="pre">target()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.target_pos"><code class="docutils literal notranslate"><span class="pre">target_pos()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.query.to_id"><code class="docutils literal notranslate"><span class="pre">to_id()</span></code></a></li>
@@ -301,6 +304,16 @@
 <dd></dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.query.get_open_grid_points">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.query.</span></span><span class="sig-name descname"><span class="pre">get_open_grid_points</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id_or_obj</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.query.get_open_grid_points" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.query.get_pos">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.query.</span></span><span class="sig-name descname"><span class="pre">get_pos</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id_or_obj</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.query.get_pos" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="sbs_utils.query.grid_clear_target">
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.query.</span></span><span class="sig-name descname"><span class="pre">grid_clear_target</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grid_obj_or_set</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.query.grid_clear_target" title="Permalink to this definition"></a></dt>
 <dd><p>Clear the target</p>
@@ -356,7 +369,7 @@
 
 <dl class="py function">
 <dt class="sig sig-object py" id="sbs_utils.query.grid_target">
-<span class="sig-prename descclassname"><span class="pre">sbs_utils.query.</span></span><span class="sig-name descname"><span class="pre">grid_target</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grid_obj_or_set</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.query.grid_target" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.query.</span></span><span class="sig-name descname"><span class="pre">grid_target</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grid_obj_or_set</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">speed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.query.grid_target" title="Permalink to this definition"></a></dt>
 <dd><p>Set the item to target</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -394,7 +407,7 @@
 
 <dl class="py function">
 <dt class="sig sig-object py" id="sbs_utils.query.grid_target_pos">
-<span class="sig-prename descclassname"><span class="pre">sbs_utils.query.</span></span><span class="sig-name descname"><span class="pre">grid_target_pos</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grid_obj_or_set</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.query.grid_target_pos" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.query.</span></span><span class="sig-name descname"><span class="pre">grid_target_pos</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grid_obj_or_set</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">speed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.query.grid_target_pos" title="Permalink to this definition"></a></dt>
 <dd><p>Set the item to target</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -587,6 +600,11 @@ this is the way to create a collection in inventory</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="sbs_utils.query.set_inventory_value">
 <span class="sig-prename descclassname"><span class="pre">sbs_utils.query.</span></span><span class="sig-name descname"><span class="pre">set_inventory_value</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">so</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">link</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.query.set_inventory_value" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sbs_utils.query.set_pos">
+<span class="sig-prename descclassname"><span class="pre">sbs_utils.query.</span></span><span class="sig-name descname"><span class="pre">set_pos</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id_or_obj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.query.set_pos" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py function">

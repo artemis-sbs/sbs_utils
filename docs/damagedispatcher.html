@@ -93,10 +93,15 @@
 <li class="toctree-l2"><a class="reference internal" href="#module-sbs_utils.damagedispatcher">API: damagedispatcher module</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.damagedispatcher.DamageDispatcher"><code class="docutils literal notranslate"><span class="pre">DamageDispatcher</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#sbs_utils.damagedispatcher.DamageDispatcher.add_any"><code class="docutils literal notranslate"><span class="pre">DamageDispatcher.add_any()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.damagedispatcher.DamageDispatcher.add_any_internal"><code class="docutils literal notranslate"><span class="pre">DamageDispatcher.add_any_internal()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.damagedispatcher.DamageDispatcher.add_internal"><code class="docutils literal notranslate"><span class="pre">DamageDispatcher.add_internal()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#sbs_utils.damagedispatcher.DamageDispatcher.add_source"><code class="docutils literal notranslate"><span class="pre">DamageDispatcher.add_source()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#sbs_utils.damagedispatcher.DamageDispatcher.add_target"><code class="docutils literal notranslate"><span class="pre">DamageDispatcher.add_target()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#sbs_utils.damagedispatcher.DamageDispatcher.dispatch_damage"><code class="docutils literal notranslate"><span class="pre">DamageDispatcher.dispatch_damage()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.damagedispatcher.DamageDispatcher.dispatch_internal"><code class="docutils literal notranslate"><span class="pre">DamageDispatcher.dispatch_internal()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#sbs_utils.damagedispatcher.DamageDispatcher.remove_any"><code class="docutils literal notranslate"><span class="pre">DamageDispatcher.remove_any()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.damagedispatcher.DamageDispatcher.remove_any_internal"><code class="docutils literal notranslate"><span class="pre">DamageDispatcher.remove_any_internal()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.damagedispatcher.DamageDispatcher.remove_internal"><code class="docutils literal notranslate"><span class="pre">DamageDispatcher.remove_internal()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#sbs_utils.damagedispatcher.DamageDispatcher.remove_source"><code class="docutils literal notranslate"><span class="pre">DamageDispatcher.remove_source()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#sbs_utils.damagedispatcher.DamageDispatcher.remove_target"><code class="docutils literal notranslate"><span class="pre">DamageDispatcher.remove_target()</span></code></a></li>
 </ul>
@@ -212,6 +217,16 @@ target_id: int, ID of unit that suffered the damage</p>
 <dd></dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.damagedispatcher.DamageDispatcher.add_any_internal">
+<span class="sig-name descname"><span class="pre">add_any_internal</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.damagedispatcher.DamageDispatcher.add_any_internal" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.damagedispatcher.DamageDispatcher.add_internal">
+<span class="sig-name descname"><span class="pre">add_internal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.damagedispatcher.DamageDispatcher.add_internal" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.damagedispatcher.DamageDispatcher.add_source">
 <span class="sig-name descname"><span class="pre">add_source</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.damagedispatcher.DamageDispatcher.add_source" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
@@ -227,8 +242,23 @@ target_id: int, ID of unit that suffered the damage</p>
 <dd></dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.damagedispatcher.DamageDispatcher.dispatch_internal">
+<span class="sig-name descname"><span class="pre">dispatch_internal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">damage_event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.damagedispatcher.DamageDispatcher.dispatch_internal" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.damagedispatcher.DamageDispatcher.remove_any">
 <span class="sig-name descname"><span class="pre">remove_any</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.damagedispatcher.DamageDispatcher.remove_any" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.damagedispatcher.DamageDispatcher.remove_any_internal">
+<span class="sig-name descname"><span class="pre">remove_any_internal</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.damagedispatcher.DamageDispatcher.remove_any_internal" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.damagedispatcher.DamageDispatcher.remove_internal">
+<span class="sig-name descname"><span class="pre">remove_internal</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.damagedispatcher.DamageDispatcher.remove_internal" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
