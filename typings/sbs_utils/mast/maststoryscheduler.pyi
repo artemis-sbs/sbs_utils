@@ -1,6 +1,7 @@
 from sbs_utils.mast.maststory import AppendText
 from sbs_utils.mast.maststory import AwaitGui
 from sbs_utils.mast.maststory import Blank
+from sbs_utils.mast.maststory import BuildaConsole
 from sbs_utils.mast.maststory import ButtonControl
 from sbs_utils.mast.maststory import CheckboxControl
 from sbs_utils.mast.maststory import Choose
@@ -12,6 +13,7 @@ from sbs_utils.mast.maststory import GuiContent
 from sbs_utils.mast.maststory import Hole
 from sbs_utils.mast.maststory import ImageControl
 from sbs_utils.mast.maststory import MastStory
+from sbs_utils.mast.maststory import OnChange
 from sbs_utils.mast.maststory import RadioControl
 from sbs_utils.mast.maststory import Refresh
 from sbs_utils.mast.maststory import Row
@@ -50,6 +52,10 @@ class AwaitGuiRuntimeNode(StoryRuntimeNode):
 class BlankRuntimeNode(StoryRuntimeNode):
     """class BlankRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.Blank):
+        ...
+class BuildaConsoleRuntimeNode(MastRuntimeNode):
+    """Lower level console building command to allow layout"""
+    def enter (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.BuildaConsole):
         ...
 class ButtonControlRuntimeNode(StoryRuntimeNode):
     """class ButtonControlRuntimeNode"""
@@ -117,6 +123,14 @@ class ImageControlRuntimeNode(StoryRuntimeNode):
     """class ImageControlRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.ImageControl):
         ...
+class OnChangeRuntimeNode(StoryRuntimeNode):
+    """class OnChangeRuntimeNode"""
+    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.ImageControl):
+        ...
+    def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.OnChange):
+        ...
+    def test (self):
+        ...
 class RadioControlRuntimeNode(StoryRuntimeNode):
     """class RadioControlRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.RadioControl):
@@ -147,7 +161,7 @@ class SliderControlRuntimeNode(StoryRuntimeNode):
     """class SliderControlRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.SliderControl):
         ...
-    def on_message (self, sim, event):
+    def on_message (self, ctx, event):
         ...
 class StoryPage(Page):
     """A interface class for creating GUI pages
@@ -155,7 +169,13 @@ class StoryPage(Page):
         """
     def __init__ (self) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def activate_console (self, console):
+        ...
+    def add_console_widget (self, widget):
+        ...
     def add_content (self, layout_item, runtime_node):
+        ...
+    def add_on_change (self, runtime_node):
         ...
     def add_row (self):
         ...

@@ -4,28 +4,29 @@ import inspect
 from .pollresults import PollResults
 
 class PyMastScience:
-    def __init__(self, task, scans, player_id, npc_id_or_filter ) -> None:
+    def __init__(self, task, scans, origin_id, selected_id ) -> None:
         self.scans = scans
         # if the npc is None or a filter function it is a more general scan
-        if inspect.isfunction(npc_id_or_filter) or inspect.ismethod(npc_id_or_filter) or npc_id_or_filter is None:
-            self.filter_npc = npc_id_or_filter
-            ConsoleDispatcher.add_select(player_id, "science_target_UID", self.selected)
-            ConsoleDispatcher.add_message(player_id, "science_target_UID", self.message)
+        if  selected_id is None:
+            ConsoleDispatcher.add_select(origin_id, "science_target_UID", self.selected)
+            ConsoleDispatcher.add_message(origin_id, "science_target_UID", self.message)
         else:
-            ConsoleDispatcher.add_select_pair(player_id, npc_id_or_filter, "science_target_UID", self.selected)
-            ConsoleDispatcher.add_message(player_id, npc_id_or_filter, "science_target_UID", self.message)
+            ConsoleDispatcher.add_select_pair(origin_id, selected_id, "science_target_UID", self.selected)
+            ConsoleDispatcher.add_message_pair(origin_id, selected_id, "science_target_UID", self.message)
         self.task = task
         self.done = False
+        self.event = None
+        
 
+    def selected(self, ctx, origin_id, event):
+        self.event = event
+        self.handle_selected(ctx.sim, event.origin_id, event.selected_id, event.extra_tag)
+        self.event = None
+
+    def handle_selected(self, sim, origin_id, selected_id, scan_type):
         
-    def selected(self, sim, player_id, event):
-        # If there is a fliter function use it to filter out 
-        # what is passed here
-        if self.filter_npc and not self.filter_npc(event.selected_id):
-            return
-        
-        selected_obj = sim.get_space_object(event.selected_id)
-        my_ship  = sim.get_space_object(event.origin_id)
+        selected_obj = sim.get_space_object(selected_id)
+        my_ship  = sim.get_space_object(origin_id)
         if selected_obj is None or my_ship is None:
             return
         blob = my_ship.data_set
@@ -34,7 +35,7 @@ class PyMastScience:
         # print (f"science_target_UID now:  {event.selected_id}  {temp_id}")
 
         #what type of scan is it?
-        scan_type = event.extra_tag
+        
         side_tag = my_ship.side
         scan_string = side_tag + scan_type
 
@@ -44,15 +45,17 @@ class PyMastScience:
         if None == last_scan_string:
             # unscanned, so let's scan it now!
             # cur_scan_speed_coeff is normally already set 
-            blob.set("cur_scan_ID",event.selected_id,0)
-            blob.set("cur_scan_type",event.extra_tag,0)
+            blob.set("cur_scan_ID",selected_id,0)
+            blob.set("cur_scan_type",scan_type,0)
             blob.set("cur_scan_percent",0.0,0)
 
             if my_ship.side == selected_obj.side: # if this target is already on my side
                 blob.set("cur_scan_percent",0.999,0)
 
-    def message(self, sim, message, player_id, event):
-        # This event is sent from the c++ code, once, when a space object scan is completed
+    def message(self, ctx, message, player_id, event):
+        sim = ctx.sim
+        # This event is sent from the c++ code, once, 
+        # when a space object scan is completed
         selected = sim.get_space_object(event.selected_id)
         my_ship  = sim.get_space_object(event.origin_id)
         if selected == None or my_ship == None:
@@ -66,17 +69,28 @@ class PyMastScience:
         #change the text of the side/scan for the target
         target_blob = selected.data_set
         scan_tabs = ""
+        scans_needed = 0
+        scans_completed = 0
         for scan in self.scans:
+            # Check to see if things have been scanned
+            scans_needed += 1
+            test_scan_string = side_tag + scan
+            has_text = target_blob.get(test_scan_string,0)
+            if has_text is not None:
+                scans_completed += 1
             if scan != "scan":
                 scan_tabs += f"{scan} "
             if scan == scan_type:
                 scan_func = self.scans.get(scan)
+                self.event = event
                 if inspect.isfunction(scan_func):
-                    scan_text = scan_func(self.task.story, event)
+                    scan_text = scan_func(self.task.story, self)
                 elif inspect.ismethod(scan_func):
-                    scan_text = scan_func(event)
+                    scan_text = scan_func(self)
+                self.event = None
                 target_blob.set(scan_string,scan_text,0)
-            
+                scans_completed += 1
+        self.done = scans_needed == scans_completed
 
         target_blob.set("scan_type_list",scan_tabs, 0)
 

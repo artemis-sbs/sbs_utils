@@ -34,6 +34,8 @@ def distance_to_navpoint(arg0: str, arg1: int) -> float:
     """returns the distance between a nav point and a space object; navpoint name, then object ID"""
 def get_client_ID_list() -> List[int]:
     """return a list of client ids, for the computers that are currently connected to this server."""
+def get_game_version() -> str:
+    """returns the version of the game EXE currently operating this script, as a string."""
 def get_screen_size() -> sbs.vec2:
     """returns a VEC2, with the width and height of the display in pixels"""
 def particle_at(position: sbs.vec3, descriptorString: str) -> None:
@@ -100,10 +102,16 @@ def send_story_dialog(clientID: int, title: str, text: str, face: str, color: st
     """sends a story dialog to the targeted client (0 = server screen)"""
 def set_dmx_channel(arg0: int, arg1: int, arg2: int, arg3: int, arg4: int, arg5: int) -> None:
     """set a color channel of dmx."""
+def set_main_view_modes(clientID: int, main_screen_view: str, cam_angle: str, cam_mode: str) -> None:
+    """sets the three modes of the main screen view for the specified client.  main_screen_view = (3d_view, info);  cam_angle = (front, back, left, right); cam_mode = (first_person, chase, tracking)"""
 def set_music_folder(ID: int, filename: str) -> None:
     """Sets the folder from which music is streamed; ID is ship, OR client, OR zero for server."""
 def set_music_tension(ID: int, tensionValue: float) -> None:
     """Sets the tension value of ambient music (0-100); ID is ship, OR client, OR zero for server."""
+def set_sky_box(clientID: int, artFileName: str) -> None:
+    """sets the skybox art for a clientID (0 = server)."""
+def set_sky_box_all(artFileName: str) -> None:
+    """sets the skybox art for all connected computers."""
 class SHPSYS(object): ### from pybind
     """One of four ship systems to track damage
     

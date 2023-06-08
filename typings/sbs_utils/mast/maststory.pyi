@@ -21,6 +21,12 @@ class Blank(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
+class BuildaConsole(MastNode):
+    """class BuildaConsole"""
+    def __init__ (self, console, widget, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
 class ButtonControl(MastNode):
     """class ButtonControl"""
     def __init__ (self, message, q, data=None, py=None, if_exp=None, end=None, style_name=None, style=None, style_q=None, loc=None):
@@ -85,6 +91,12 @@ class ImageControl(MastNode):
         ...
 class MastStory(MastSbs):
     """class MastStory"""
+class OnChange(MastNode):
+    """class OnChange"""
+    def __init__ (self, end=None, val=None, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
 class RadioControl(MastNode):
     """class RadioControl"""
     def __init__ (self, radio, var=None, message=None, q=None, style_name=None, style=None, style_q=None, loc=None):

@@ -110,7 +110,7 @@ class Input(MastNode):
         ...
 class Jump(MastNode):
     """class Jump"""
-    def __init__ (self, pop=None, jump=None, jump_name=None, loc=None):
+    def __init__ (self, pop=None, jump=None, jump_name=None, if_exp=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -164,9 +164,6 @@ class Mast(object):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def add_scheduler (self, scheduler):
         ...
-    def build (self, cmds):
-        """Used to build via code not a script file
-        should just process level things e.g. Input, Label, Var"""
     def clear (self):
         ...
     def compile (self, lines):

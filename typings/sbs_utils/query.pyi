@@ -115,7 +115,7 @@ def grid_closest (grid_obj, sim, roles=None, max_dist=None, filter_func=None) ->
     :rtype: GridCloseData"""
 def grid_objects (sim, so_id):
     ...
-def grid_target (grid_obj_or_set, sim, target_id: int):
+def grid_target (grid_obj_or_set, sim, target_id: int, speed=0.01):
     """Set the item to target
     
     :param sim: The simulation
@@ -139,7 +139,7 @@ def grid_target_closest (grid_obj_or_set, sim, roles=None, max_dist=None, filter
     :type shoot: bool
     :return: A list of close object
     :rtype: GridCloseData"""
-def grid_target_pos (grid_obj_or_set, sim, x: float, y: float):
+def grid_target_pos (grid_obj_or_set, sim, x: float, y: float, speed=0.01):
     """Set the item to target
     
     :param sim: The simulation

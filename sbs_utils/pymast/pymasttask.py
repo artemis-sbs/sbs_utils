@@ -191,7 +191,7 @@ class PyMastTask:
         # self.stack.append(self.current_gen)
         # self.current_gen = self._delay(delay)
         # return PollResults.OK_RUN_AGAIN
-  
+
     def _delay(self,  seconds=0, minutes=0, use_sim=False):
         if use_sim:
             delay_time = self.sim.time_tick_counter + 30 * (seconds+60*minutes)
@@ -208,9 +208,15 @@ class PyMastTask:
             yield PollResults.OK_RUN_AGAIN
         yield self.pop()
 
-    def await_science(self, scans, player, npc):
+    def await_science(self, scans, player=None, npc=None):
+        if player is None:
+            player = self.SCIENCE_ORIGIN_ID
+        if npc is None:
+            npc = self.SCIENCE_SELECTED_ID
+
         # Then Await for it to finish
         science = PyMastScience(self, scans, player, npc)
+        science.handle_selected(self.sim, player, npc, "scan")
         def pusher(story):
             return self.run_science(science)
         self.task.push_jump_pop(pusher)
