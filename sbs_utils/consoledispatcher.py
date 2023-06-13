@@ -10,7 +10,6 @@ class ConsoleDispatcher:
     
     def add_default_select(console: str, cb: typing.Callable):
         """ add a target for console selection
-       
         :param console: The consoles unique ID
         :type console: string
         :param cb: call back function
@@ -29,8 +28,13 @@ class ConsoleDispatcher:
         :type cb:  should have arguments of other ctx and object's id
         """
         key = (an_id, console)
-        collection = ConsoleDispatcher._dispatch_select.get(key, set())
-        collection.add(cb)
+        collection = ConsoleDispatcher._dispatch_select.get(key, list())
+        # Using a list in a set like fashion, but so there is a known order
+        if cb in collection:
+            # Make sure it is in only once
+            # but allow it to move to the front 
+            collection.remove(cb)
+        collection.insert(0,cb)
         ConsoleDispatcher._dispatch_select[key] = collection
 
     def add_select_pair(an_id: int, another_id: int, console: str, cb: typing.Callable):
@@ -66,8 +70,12 @@ class ConsoleDispatcher:
         :type cb:  should have arguments of other ctx, message and object's id
         """
         key = (an_id, console)
-        collection = ConsoleDispatcher._dispatch_messages.get(key, set())
-        collection.add(cb)
+        collection = ConsoleDispatcher._dispatch_messages.get(key, list())
+        if cb in collection:
+            # Make sure it is in only once
+            # but allow it to move to the front 
+            collection.remove(cb)
+        collection.insert(0,cb)
         ConsoleDispatcher._dispatch_messages[key] = collection
         
 
@@ -302,3 +310,5 @@ class MCommunications:
         :type an_id: int
         """
         pass
+
+

@@ -28,6 +28,7 @@ class PyMastScience:
         selected_obj = sim.get_space_object(selected_id)
         my_ship  = sim.get_space_object(origin_id)
         if selected_obj is None or my_ship is None:
+            self.done = True
             return
         blob = my_ship.data_set
         # blob.set("science_target_UID", event.selected_id,0)
@@ -59,7 +60,8 @@ class PyMastScience:
         selected = sim.get_space_object(event.selected_id)
         my_ship  = sim.get_space_object(event.origin_id)
         if selected == None or my_ship == None:
-            # self.done = True
+            print("Science: Missing id")
+            self.done = True
             return
         # concentate the scanner's side and the scan type
         scan_type = event.extra_tag
@@ -76,7 +78,7 @@ class PyMastScience:
             scans_needed += 1
             test_scan_string = side_tag + scan
             has_text = target_blob.get(test_scan_string,0)
-            if has_text is not None:
+            if has_text is not None and len(has_text)>0:
                 scans_completed += 1
             if scan != "scan":
                 scan_tabs += f"{scan} "
@@ -91,6 +93,8 @@ class PyMastScience:
                 target_blob.set(scan_string,scan_text,0)
                 scans_completed += 1
         self.done = scans_needed == scans_completed
+        if self.done:
+            print(f"scans finished?{scans_needed} == {scans_completed}")
 
         target_blob.set("scan_type_list",scan_tabs, 0)
 

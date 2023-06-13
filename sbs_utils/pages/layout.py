@@ -161,7 +161,8 @@ class Slider(Column):
             )
         
     def on_message(self, ctx, event):
-        self.value = event.sub_float
+        if event.sub_tag == self.tag:
+            self.value = event.sub_float
     @property
     def value(self):
         return self._value
@@ -188,13 +189,13 @@ class Checkbox(Column):
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
     
     def on_message(self, ctx, event):
-        self.value = int(event.sub_float)
+        if event.sub_tag == self.tag:
+            self.value = int(event.sub_float)
 
     @property
     def value(self):
-         return self._value
+        return self._value
     
-       
     @value.setter
     def value(self, v):
         self._value= v
@@ -298,10 +299,11 @@ class Dropdown(Column):
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
         
     def on_message(self, ctx, event):
-        self.value = event.value_tag
+        if event.sub_tag == self.tag:
+            self.value = event.value_tag
     @property
     def value(self):
-         return self._value
+        return self._value
        
     @value.setter
     def value(self, v):
@@ -323,7 +325,8 @@ class TextInput(Column):
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
         
     def on_message(self, ctx, event):
-        self.value = event.value_tag
+        if event.sub_tag == self.tag:
+            self.value = event.value_tag
         
     @property
     def value(self):

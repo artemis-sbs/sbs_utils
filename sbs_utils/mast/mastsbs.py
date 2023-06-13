@@ -12,6 +12,17 @@ class Route(MastNode):
         self.route = route
         self.label = name
 
+class FollowRoute(MastNode):
+    """
+    Route unhandled things comms, science, events
+    """
+    rule = re.compile(r"""follow[ \t]+route[ \t]+(?P<route>comms[ \t]+select|science[ \t]+select|grid[ \t]+select)[ \t]+(?P<origin_tag>\*?\w+)[ \t]+(?P<selected_tag>\*?\w+)""")
+    def __init__(self, route, origin_tag, selected_tag, loc=None):
+        self.loc = loc
+        self.route = route
+        self.origin_tag = origin_tag
+        self.selected_tag = selected_tag
+
 
 class TransmitReceive(MastNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
@@ -19,9 +30,9 @@ class TransmitReceive(MastNode):
     OPT_COMMS_ID = r"""([ \t]*title(([ \t]*(?P<comq>['"]{3}|["'])(?P<comms_string>[ \t\S]+?)(?P=comq))|([ \t]+(?P<comms_var>\w+))))?"""
     rule = re.compile(r"""(?P<tr>receive|transmit)[ \t]*(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)"""+OPT_COMMS_ID+OPT_FACE+OPT_COLOR)
     def __init__(self, tr, message, 
-                 face_string=None, face_var=None, faceq=None,
-                 comms_string=None, comms_var=None, comq=None,
-                 q=None, color=None, loc=None):
+                face_string=None, face_var=None, faceq=None,
+                comms_string=None, comms_var=None, comq=None,
+                q=None, color=None, loc=None):
         self.loc = loc
         self.transmit = tr == "transmit"
         self.message = self.compile_formatted_string(message)
@@ -79,11 +90,12 @@ class Comms(MastNode):
         EndAwait.stack.append(self)
 
 class Scan(MastNode):
-    rule = re.compile(r"""await([ \t]+(?P<from_tag>\w+))?[ \t]+scan([ \t]+(?P<to_tag>\w+))?"""+BLOCK_START)
-    def __init__(self, to_tag, from_tag, loc=None):
+    rule = re.compile(r"""await([ \t]+(?P<from_tag>\w+))?[ \t]+scan([ \t]+(?P<to_tag>\w+))?(\s+fog\s+(P?<fog>\d+))?"""+BLOCK_START)
+    def __init__(self, to_tag=None, from_tag=None, fog = None, loc=None):
         self.loc = loc
         self.to_tag = to_tag
         self.from_tag = from_tag
+        self.fog = int(fog) if fog is not None else 3000
         self.buttons = []
 
         self.end_await_node = None
@@ -99,9 +111,9 @@ FOR_RULE = r'([ \t]+for[ \t]+(?P<for_name>\w+)[ \t]+in[ \t]+(?P<for_exp>[ \t\S]+
 class ScanTab(MastNode):
     rule = re.compile(r"""scan[ \t]*tab[ \t]+(?P<q>["'])(?P<message>.+?)(?P=q)"""+FOR_RULE+IF_EXP_REGEX+r"[ \t]*"+BLOCK_START)
     def __init__(self, message=None, button=None,  
-                 if_exp=None, 
-                 for_name=None, for_exp=None, 
-                 clone=False, q=None, loc=None):
+                if_exp=None, 
+                for_name=None, for_exp=None, 
+                clone=False, q=None, loc=None):
         if clone:
             return
         self.message = self.compile_formatted_string(message)
@@ -146,9 +158,9 @@ class Button(MastNode):
     
     rule = re.compile(r"""(?P<button>\*|\+)[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_COLOR+FOR_RULE+IF_EXP_REGEX+r"[ \t]*"+BLOCK_START)
     def __init__(self, message=None, button=None,  
-                 color=None, if_exp=None, 
-                 for_name=None, for_exp=None, 
-                 clone=False, q=None, loc=None):
+                color=None, if_exp=None, 
+                for_name=None, for_exp=None, 
+                clone=False, q=None, loc=None):
         if clone:
             return
         self.message = self.compile_formatted_string(message)
@@ -232,6 +244,7 @@ class MastSbs(Mast):
     nodes =  [
         # sbs specific
         Route,
+        FollowRoute,
         TransmitReceive,
         Tell,
         Load,

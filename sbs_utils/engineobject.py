@@ -278,7 +278,7 @@ class EngineObject():
 
     def get_in_links(self, other: EngineObject | CloseData | int):
         id = self.resolve_id(other)
-        return self.inventory.get_collections_in(id)
+        return self.links.get_collections_in(id)
         
     def get_link_objects(self, link_name):
         link_name = link_name.strip().lower()

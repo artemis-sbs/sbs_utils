@@ -81,7 +81,6 @@ class PyMastStoryPage(Page):
 
     def run(self, time_out):
         self.gui_state = 'repaint'
-        
         self.present(Context(self.story.sim, sbs, self.aspect_ratio), None)
         #self.present(self.story.sim, None)
         # ?? Change task??
@@ -101,14 +100,37 @@ class PyMastStoryPage(Page):
             self.present(Context(self.story.sim, sbs, self.aspect_ratio), None)
             # Get out faster if ended
             if self.end_await:
+                self.gui_clear()
                 break
             if time_out is not None:
                 if sbs.app_seconds() > end_timeout:
                     break
 
             yield PollResults.OK_RUN_AGAIN
-        yield self.task.pop()        
-      
+        # clear gui, until the next gui await
+        # show clear screen in case tasks ends unexpectedly
+        self.gui_clear()
+        yield self.task.pop()
+
+    def gui_clear(self):
+        self.swap_layout()
+        control = layout.Text(self.get_tag(), "text: Empty content. Did task end?")
+        self.add_content(control, None)
+        self.set_button_layout(None)
+        self.present(Context(self.story.sim, sbs, self.aspect_ratio), None)
+
+    def reroute_gui(self, label):
+        if self.task: 
+            if not self.task.done:
+                self.task.jump(label)
+            else:
+                ## Task ended start another
+                self.task = self.task.scheduler.schedule_task(label)
+                self.task.page = self
+                # is this needed?
+                self.gui_state = "repaint"
+                self.present(Context(self.story.sim, sbs, self.aspect_ratio), None)
+
 
     def swap_layout(self):
         self.layouts = self.pending_layouts
@@ -185,7 +207,7 @@ class PyMastStoryPage(Page):
             case "mainscreen":
                 console =  "normal_main"
         self.set_widget_list(console,widgets)
-          
+
     
     def activate_console(self, console):
         match console.lower():
@@ -237,7 +259,7 @@ class PyMastStoryPage(Page):
         if buttons is None:
             self.set_button_layout(None)
             return
-        top = ((self.aspect_ratio.y - 30)/self.aspect_ratio.y)*100
+        top = ((self.aspect_ratio.y - 50)/self.aspect_ratio.y)*100
         button_layout = layout.Layout(None, None, None, 0,top,100,100)
         layout_row = layout.Row()
         for button, value in buttons.items():
@@ -290,8 +312,8 @@ class PyMastStoryPage(Page):
         
         if self.story_scheduler is None:
             if self.story is not None:
-                label = "start_server" if self.client_id ==0 else "start_client"
-                #print(f"Spawning task {label}")
+                label = self.story.start_server if self.client_id ==0 else self.story.start_client
+                print(f"Spawning task {label}")
                 self.story.sim = ctx.sim if ctx else None
                 self.story_scheduler = self.story.add_scheduler(ctx, label)
                 #self.story_scheduler.page = self
@@ -357,16 +379,24 @@ class PyMastStoryPage(Page):
     def do_tick(self, ctx):
         if ctx is None:
             print("Context is NONE")
-       
+            return
+        
+        if self.task is None:
+            return
+
         try:
             self.story.scheduler = self.story_scheduler
             self.story.task = self.task
             if self.disconnected:
                 self.task.end()
                 return
-
-            if hasattr(ctx,"sim"): 
+            if self.task.done:
+                self.gui_clear()
+            elif hasattr(ctx,"sim"): 
                 self.task.tick(ctx)
+                if self.task.done:
+                    self.gui_clear()
+
             # else:
             #     self.task.tick(ctx)
         except BaseException as err:

@@ -81,10 +81,26 @@ def linked_to(link_source, link_name: str):
         :type link_name: str
         :rtype: set of ids
         """
-  
+
 
     link_source = EngineObject.resolve_py_object(link_source)
     return link_source.get_link_set(link_name)
+
+def has_link_to(link_source, link_name: str, link_target):
+    """ has_linked_to
+
+        check if target and source are linked to for the given key
+
+        :param link_source: The id object to check
+        :type link_source: int / id
+        :param link_name: The key/name of the inventory item
+        :type link_name: str
+        :rtype: set of ids
+        """
+
+
+    link_source = EngineObject.resolve_py_object(link_source)
+    return  link_source.has_link_to(link_name,link_target)
 
 # Get the set of IDS of a broad test
 
@@ -275,7 +291,8 @@ def target(sim, set_or_object, target_id, shoot: bool = True):
         all = to_list(set_or_object)
         for chaser in all:
             chaser = EngineObject.resolve_py_object(chaser)
-            chaser.update_engine_data(sim, data)
+            if chaser is not None:
+                chaser.update_engine_data(sim, data)
 
 
 def target_pos(sim, chasers: set | int | CloseData|SpawnData, x: float, y: float, z: float):

@@ -3,6 +3,7 @@ import inspect
 from .pymastscience import PyMastScience
 from .pymastcomms import PyMastComms
 from functools import partial, partialmethod
+import types
 import sbs
 
 
@@ -14,9 +15,10 @@ def label(*dargs, **dkwargs):
     def dec(func):
         def inner(*args, **kwargs):
             return func(*args, **kwargs)
+        inner.__name__ = func.__name__
         return inner
     return dec
-         
+
 ###
 ##
 ## Runs a set of generator functions
@@ -35,13 +37,13 @@ class PyMastTask:
         self.events = {}
         self.page = None
         self.pop_on_jump = 0
+        self.current_gen = None
         #self.jump(label)
 
         self.COMMS_ORIGIN_ID = None
         self.COMMS_SELECTED_ID = None
         
         self.last_poll_result = None
-        self.last_popped_poll_result = None
         self.done = False
 
 
@@ -58,7 +60,7 @@ class PyMastTask:
 
     def tick(self, ctx):
         if ctx is None:
-            print("sim is NONE")
+            print("ctx is NONE")
         
         self.sim = ctx.sim
         self.story.sim = ctx.sim
@@ -70,11 +72,15 @@ class PyMastTask:
         # Keep running until told to defer or you've jump 100 time
         # Arbitrary number
         throttle = 0
+        is_new_jump = False
         while not self.done and throttle < 100:
             throttle += 1
+            self.last_poll_result = None
             if self.pending_jump:
                 #print(f"jump to {self.pending_jump}")
                 res = self.do_jump()
+                self.pending_pop = None
+                is_new_jump = True
             elif self.pending_pop:
                 # Pending jump trumps pending pop
                 #print(f"pending pop to {self.pending_pop.__name__}")
@@ -86,14 +92,16 @@ class PyMastTask:
             # It is possible that the label
             # did not Yield, which is OK just End 
             if gen is None:
-                print("Gen None")
-                self.last_poll_result = PollResults.OK_END
+                #print("Gen None")
+                #self.last_poll_result = PollResults.OK_END
+                self.end()
                 self.sim = None
                 return self.last_poll_result
             gen_done = True
             for res in gen:
+                is_new_jump = False
                 if res is None:
-                    print("Label yielded None")
+                    #print("Label yielded None")
                     gen_done = True
                     break
                 gen_done = False                
@@ -104,17 +112,31 @@ class PyMastTask:
                 if res == PollResults.OK_JUMP:
                     break
                 
+            if self.last_poll_result == PollResults.OK_JUMP:
+                continue
+            
             if gen_done:
-                print("Gen Done")
                 #
-                # Is this needed?
-                # or this may bew when label truely yields None?
-                # 
-                if len(self.stack)>0:
-                    return self.pop()
+                # The generator finished without jumping or popping
+                #
+                #
+                # This could be because the handler did not yield
+                #
+                # If there is a pending Jump DON't pop
+                #
+                if self.pending_jump is not None:
+                #
+                # jump was called and the generate just never yielded
+                    pass
+                elif len(self.stack)>0:
+                    # if there things on the stack treat this as a pop
+                    # Pop wasn't called
+                    # assuming it should pop
+                    self.last_poll_result = self.pop()
                 else:
                     self.current_gen = self.pending_pop
                     if self.current_gen is None:
+                        self.end()
                         self.last_poll_result = PollResults.OK_END
                     else:
                         self.last_poll_result = PollResults.OK_JUMP
@@ -129,55 +151,59 @@ class PyMastTask:
         self.pending_jump = None
         gen, res = self.get_gen(label)
         self.current_gen = gen
-        if gen is None:
-            print("Get_gen failed?")
+        # if gen is None:
+        #     print("Get_gen failed?")
         return res
 
     def get_gen(self, label):
         gen = None
         res = PollResults.FAIL_END
-        if isinstance(label, str):
-            if getattr(self.story, label):
-                gen = getattr(self.story, label)()
-                res= PollResults.OK_JUMP
-        elif inspect.isfunction(label):
+        if inspect.isfunction(label):
             gen = label(self.story)
             res = PollResults.OK_JUMP
+            #print(f"IS func {label.__name__}")
         elif inspect.ismethod(label):
             gen = label()
             res = PollResults.OK_JUMP
+            #print(f"IS method {label.__name__} {gen}")
         else:
             print("Partial?")
+        
         return (gen, res)
     
     def jump(self, label):
         while self.pop_on_jump>0:
             #print(f"I popped {label.__name__}")
+            #self.pop_on_jump -= 1
+            #self.stack.pop()
             self.pop()
         self.pending_jump = label
+        # jump cancels out pops
+        self.pending_pop = None
         return PollResults.OK_JUMP
 
     def push(self, label):
-        self.stack.append(self.current_gen)
+        if self.current_gen is not None:
+            self.stack.append(self.current_gen)
         return self.jump(label)
     
     def quick_push(self, func):
         # The function proviced is expected to pop
-        self.stack.append(self.current_gen)
+        if self.current_gen is not None:
+            self.stack.append(self.current_gen)
         #gen, res = self.get_gen(func)
         self.pending_jump = func 
         return PollResults.OK_JUMP
 
     
     def push_jump_pop(self, label):
-        self.stack.append(self.current_gen)
+        if self.current_gen is not None:
+            self.stack.append(self.current_gen)
         self.pending_jump = label
         self.pop_on_jump += 1
         return PollResults.OK_JUMP
 
     def pop(self):
-        self.last_popped_poll_result = self.last_poll_result
-        #pickup where you left off
         if len(self.stack) > 0:
             if self.pop_on_jump >0:
                 self.pop_on_jump-=1
@@ -246,7 +272,7 @@ class PyMastTask:
     def run_comms(self, comms):
         while comms.done == False:
             yield PollResults.OK_RUN_AGAIN
-        print("COMMS DONE")
+        #print("COMMS DONE")
         self.pop()
 
 
@@ -297,7 +323,7 @@ class PyMastTask:
         yield self.pop()
 
 
-  
+
     def behave_sel(self,*labels):
         return self.quick_push(lambda _: self._run_sel(labels))
 

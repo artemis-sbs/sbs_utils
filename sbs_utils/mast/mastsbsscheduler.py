@@ -1,5 +1,5 @@
 from .mast import Mast, Scope
-from .mastsbs import Simulation, Route, TransmitReceive, Tell, Comms, Button, Broadcast, ScanTab,ScanResult, Load
+from .mastsbs import Simulation, Route,  FollowRoute,TransmitReceive, Tell, Comms, Button, Broadcast, ScanTab,ScanResult, Load
 from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask
 import sbs
 from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain, GridObject
@@ -7,7 +7,7 @@ from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain,
 from ..consoledispatcher import ConsoleDispatcher
 from ..lifetimedispatcher import LifetimeDispatcher
 from ..damagedispatcher import DamageDispatcher
-from ..gui import Gui
+from ..gui import Gui, Context
 from .errorpage import ErrorPage
 from .. import faces
 from ..tickdispatcher import TickDispatcher
@@ -27,10 +27,10 @@ class ButtonRuntimeNode(MastRuntimeNode):
         #task.redirect_pop_label(True)
         #return PollResults.OK_JUMP
         if node.await_node and node.await_node.end_await_node:
-             #print(f"Button return {task.active_label} {node.await_node.end_await_node.loc+1}")
+            #print(f"Button return {task.active_label} {node.await_node.end_await_node.loc+1}")
 
-             task.jump(task.active_label,node.await_node.end_await_node.loc+1)
-             return PollResults.OK_JUMP
+            task.jump(task.active_label,node.await_node.end_await_node.loc+1)
+            return PollResults.OK_JUMP
             
         return PollResults.OK_ADVANCE_TRUE
 
@@ -171,7 +171,7 @@ class CommsInfoRuntimeNode(MastRuntimeNode):
         if node.message:
             comms_id = task.format_string(node.message)
         face = faces.get_face(to_so.id) 
-   
+
         sbs.send_comms_selection_info(from_so.id, face, color, comms_id)
 
 
@@ -464,16 +464,30 @@ class ScanRuntimeNode(MastRuntimeNode):
             task.jump(task.active_label,node.end_await_node.loc+1)
             return PollResults.OK_JUMP
 
+        #
+        # Check if the first scan should atuo trigger
+        #
+        if self.tab is None:        
+            so = query.to_object(self.to_id)
+            so_player = query.to_object(self.from_id)
+            if so and so_player:
+                tab = so_player.side+"scan"
+                scan_tab = so.get_engine_data(task.main.sim, tab)
+                if scan_tab is None:
+                    dist = sbs.distance_id(self.from_id, self.to_id)
+                    if dist < node.fog:
+                        self.tab = "scan"
+
 
         if self.tab is not None:
             for i, button in enumerate(self.buttons):
-                 if task.format_string(button.message) == self.tab:
+                if task.format_string(button.message) == self.tab:
                     self.button = i
                     #print(f"science scanned {i}")
             so_player = query.to_object(self.from_id)
             if so_player:
                 self.tab = so_player.side+self.tab
-   
+
             task.set_value("__SCAN_TAB__", self,  Scope.TEMP)
             if self.button is not None:
                 button = self.buttons[self.button] 
@@ -519,6 +533,49 @@ def handle_purge_tasks(ctx, so):
 
 LifetimeDispatcher.add_destroy(handle_purge_tasks)
 
+
+class FollowRouteRuntimeNode(MastRuntimeNode):
+    def poll(self, mast:Mast, task:MastAsyncTask, node: FollowRoute):
+        if node.origin_tag is None or node.selected_tag is None:
+            return PollResults.OK_ADVANCE_TRUE
+        origin = task.get_variable(node.origin_tag)
+        selected = task.get_variable(node.selected_tag)
+        if origin is None or selected is None:
+            return PollResults.OK_ADVANCE_TRUE
+        origin_id = query.to_id(origin)
+        selected_id = query.to_id(selected)
+        class FakeEvent:
+            def __init__(self, sub_tag, origin_id, selected_id):
+                self.sub_tag = sub_tag
+                self.origin_id = origin_id
+                self.selected_id = selected_id
+
+        match RegexEqual(node.route):
+            case "comms\s+select":
+                console = "comms_target_UID"
+            
+            case "science\s+select":
+                console = "science_target_UID"
+
+            case "grid\s+select":
+                console = "grid_selected_UID"
+
+            case _:
+                print("GOT HERE but should not have")
+        ctx = task.get_variable('ctx')
+        event = FakeEvent(console, origin_id, selected_id)
+        #
+        # A bit of a hack directly using dispatchers data
+        # forcing the default handlers
+        #
+        cb_set = ConsoleDispatcher._dispatch_select.get((0, console))
+        if cb_set is not None:
+            for cb in cb_set:
+                cb(ctx, origin_id, event)
+        
+        return PollResults.OK_ADVANCE_TRUE
+
+
 class RouteRuntimeNode(MastRuntimeNode):
     def poll(self, mast:Mast, task:MastAsyncTask, node: Route):
         #
@@ -527,6 +584,13 @@ class RouteRuntimeNode(MastRuntimeNode):
 
         
         def handle_dispatch(task, console, sim, an_id, event):
+            # 
+            # Avoid scheduling this multiple times
+            #
+            if query.has_link_to(event.origin_id, f"__route{console}", event.selected_id):
+                return
+            
+
             # I it reaches this, there are no pending comms handler
             # Create a new task and jump to the routing label
             t = task.start_task(node.label, {
@@ -535,22 +599,26 @@ class RouteRuntimeNode(MastRuntimeNode):
                     f"EVENT": event,
                     f"{console}_ROUTED": True
             })
-            MastAsyncTask.add_dependency(event.origin_id,t)
-            MastAsyncTask.add_dependency(event.selected_id,t)
+            if not t.done:
+                query.link(event.origin_id, f"__route{console}", event.selected_id)
+                MastAsyncTask.add_dependency(event.origin_id,t)
+                MastAsyncTask.add_dependency(event.selected_id,t)
 
         def handle_spawn(sim, so):
             t = task.start_task(node.label, {
                     f"SPAWNED_ID": so.id,
                     f"SPAWNED_ROUTED": True
             })
-            MastAsyncTask.add_dependency(so.id,t)
+            if not t.done:
+                MastAsyncTask.add_dependency(so.id,t)
 
         def handle_destroyed(sim, so):
             t = task.start_task(node.label, {
                     f"DESTROYED_ID": so.id,
                     f"DESTROYED_ROUTED": True
             })
-            MastAsyncTask.add_dependency(so.id,t)
+            if not t.done:
+                MastAsyncTask.add_dependency(so.id,t)
 
 
         def handle_spawn_grid(sim, so):
@@ -558,7 +626,8 @@ class RouteRuntimeNode(MastRuntimeNode):
                     f"SPAWNED_ID": so.id,
                     f"SPAWNED_ROUTED": True
             })
-            MastAsyncTask.add_dependency(so.id,t)
+            if not t.done:
+                MastAsyncTask.add_dependency(so.id,t)
 
         def handle_damage(ctx, event):
             # Need point? amount
@@ -570,8 +639,9 @@ class RouteRuntimeNode(MastRuntimeNode):
                     f"EVENT": event,
                     f"DAMAGE_ROUTED": True
             })
-            MastAsyncTask.add_dependency(event.origin_id,t)
-            MastAsyncTask.add_dependency(event.selected_id,t)
+            if not t.done:
+                MastAsyncTask.add_dependency(event.origin_id,t)
+                MastAsyncTask.add_dependency(event.selected_id,t)
         
         def handle_damage_internal(ctx, event):
             # Need point? amount
@@ -582,8 +652,9 @@ class RouteRuntimeNode(MastRuntimeNode):
                     f"EVENT": event,
                     f"DAMAGE_ROUTED": True
             })
-            MastAsyncTask.add_dependency(event.origin_id,t)
-            MastAsyncTask.add_dependency(event.selected_id,t)
+            if not t.done:
+                MastAsyncTask.add_dependency(event.origin_id,t)
+                MastAsyncTask.add_dependency(event.selected_id,t)
 
         match RegexEqual(node.route):
             case "comms\s+select":
@@ -678,18 +749,19 @@ class LoadRuntimeNode(MastRuntimeNode):
         
 
 over =     {
-      "Route": RouteRuntimeNode,
-      "Comms": CommsRuntimeNode,
-      "CommsInfo": CommsInfoRuntimeNode,
-      "TransmitReceive": TransmitReceiveRuntimeNode,
-      "Tell": TellRuntimeNode,
-      "Broadcast": BroadcastRuntimeNode,
-      "Button": ButtonRuntimeNode,
-      "Simulation": SimulationRuntimeNode,
-      "Scan": ScanRuntimeNode,
-      "Load": LoadRuntimeNode,
-      "ScanResult": ScanResultRuntimeNode
-    }
+    "Route": RouteRuntimeNode,
+    "FollowRoute": FollowRouteRuntimeNode,
+    "Comms": CommsRuntimeNode,
+    "CommsInfo": CommsInfoRuntimeNode,
+    "TransmitReceive": TransmitReceiveRuntimeNode,
+    "Tell": TellRuntimeNode,
+    "Broadcast": BroadcastRuntimeNode,
+    "Button": ButtonRuntimeNode,
+    "Simulation": SimulationRuntimeNode,
+    "Scan": ScanRuntimeNode,
+    "Load": LoadRuntimeNode,
+    "ScanResult": ScanResultRuntimeNode
+}
 
 
 Mast.globals["SpaceObject"] =MastSpaceObject

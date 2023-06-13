@@ -1,10 +1,12 @@
 from ..tickdispatcher import TickDispatcher
 from ..consoledispatcher import ConsoleDispatcher
 from ..lifetimedispatcher import LifetimeDispatcher
+from ..damagedispatcher import DamageDispatcher
 from ..engineobject import EngineObject
 from ..gui import Page, Gui
 from sbs_utils import faces
 from ..pages import layout
+from .. import query
 import sbs
 import inspect
 from .pollresults import PollResults
@@ -87,15 +89,16 @@ class PyMastStory:
     def END(self):
         if self.task is not None:
             self.task.end()
-
-    def start(self):
-        pass
-
-    def start_server(self):
-        pass
-
-    def start_client(self):
-        pass
+            
+    # Having this confused mixins
+    # def start(self):
+    #     pass
+    # Having this confused mixins
+    # def start_server(self):
+    #     pass
+    # Having this confused mixins
+    # def start_client(self):
+    #     pass
 
     #
     # Routing
@@ -110,8 +113,13 @@ class PyMastStory:
 
         define a label to use with a new task if the comms is not handled
         """
+
         story = self
         def handle_dispatch(ctx, an_id, event):
+            console = "comms_target_UID"
+            if query.has_link_to(event.origin_id, f"__route{console}", event.selected_id):
+                return
+
             # I it reaches this, there are no pending comms handler
             # Create a new task and jump to the routing label
             task = story.schedule_task(label)
@@ -121,6 +129,8 @@ class PyMastStory:
             # Kick the tick
             #
             task.tick(ctx)
+            if not task.done:
+                query.link(event.origin_id, f"__route{console}", event.selected_id)
             #
             #
         ConsoleDispatcher.add_default_select("comms_target_UID", handle_dispatch)
@@ -133,6 +143,9 @@ class PyMastStory:
         """
         story = self
         def handle_dispatch(sim, an_id, event):
+            console = "grid_target_UID"
+            if query.has_link_to(event.origin_id, f"__route{console}", event.selected_id):
+                return
             # I it reaches this, there are no pending comms handler
             # Create a new task and jump to the routing label
             task = story.schedule_task(label)
@@ -145,6 +158,9 @@ class PyMastStory:
             task.tick(sim)
             #
             #
+            if not task.done:
+                query.link(event.origin_id, f"__route{console}", event.selected_id)
+
         ConsoleDispatcher.add_default_select("grid_selected_UID", handle_dispatch)
 
     def route_science_select(self, label):
@@ -155,6 +171,9 @@ class PyMastStory:
         """
         story = self
         def handle_dispatch(sim, an_id, event):
+            console = "science_target_UID"
+            if query.has_link_to(event.origin_id, f"__route{console}", event.selected_id):
+                return
             # I it reaches this, there are no pending comms handler
             # Create a new task and jump to the routing label
             task = story.schedule_task(label)
@@ -167,6 +186,8 @@ class PyMastStory:
             task.tick(sim)
             #
             #
+            if not task.done:
+                query.link(event.origin_id, f"__route{console}", event.selected_id)
         ConsoleDispatcher.add_default_select("science_target_UID", handle_dispatch)
 
     def route_spawn(self, label):
@@ -211,6 +232,106 @@ class PyMastStory:
             #
         LifetimeDispatcher.add_spawn_grid(handle_dispatch)
 
+    def route_damage_source(self, label):
+        """
+        route_damage_source
+
+        define a label to use with a new task items are spawned
+        """
+        story = self
+        
+        def handle_damage(ctx, event):
+            # Need point? amount
+            task = story.schedule_task(label)
+            task.DAMAGE_SOURCE_ID = event.origin_id
+            task.DAMAGE_TARGET_ID = event.selected_id
+            task.DAMAGE_ORIGIN_ID = event.origin_id
+            task.DAMAGE_SELECTED_ID = event.selected_id
+            task.EVENT = event
+            task.DAMAGE_ROUTED = True
+            
+            #
+            # Kick the tick
+            #
+            task.tick(ctx)
+            #
+            #
+        DamageDispatcher.add_source(handle_damage)
+
+
+    def route_damage_target(self, label):
+        """
+        route_damage_source
+
+        define a label to use with a new task items are spawned
+        """
+        story = self
+        
+        def handle_damage(ctx, event):
+            # Need point? amount
+            task = story.schedule_task(label)
+            task.DAMAGE_SOURCE_ID = event.origin_id
+            task.DAMAGE_TARGET_ID = event.selected_id
+            task.DAMAGE_ORIGIN_ID = event.origin_id
+            task.DAMAGE_SELECTED_ID = event.selected_id
+            task.EVENT = event
+            task.DAMAGE_ROUTED = True
+            
+            #
+            # Kick the tick
+            #
+            task.tick(ctx)
+            #
+            #
+        DamageDispatcher.add_target(handle_damage)
+
+    def route_damage_internal(self, label):
+        """
+        route_damage_source
+
+        define a label to use with a new task items are spawned
+        """
+        story = self
+        
+        def handle_damage(ctx, event):
+            # Need point? amount
+            task = story.schedule_task(label)
+            task.DAMAGE_SOURCE_ID = event.origin_id
+            task.DAMAGE_TARGET_ID = event.selected_id
+            task.DAMAGE_ORIGIN_ID = event.origin_id
+            task.DAMAGE_SELECTED_ID = event.selected_id
+            task.EVENT = event
+            task.DAMAGE_ROUTED = True
+            
+            #
+            # Kick the tick
+            #
+            task.tick(ctx)
+            #
+            #
+        DamageDispatcher.add_any_internal(handle_damage)
+
+    def route_destroyed(self, label):
+        """
+        route_damage_source
+
+        define a label to use with a new task items are spawned
+        """
+        story = self
+        
+        def handle_destroyed(ctx, so):
+            # Need point? amount
+            task = story.schedule_task(label)
+            task.DESTROYED_ID = so.id
+            task.DESTROYED_ROUTED = True
+            #
+            # Kick the tick
+            #
+            task.tick(ctx)
+            #
+            #
+        LifetimeDispatcher.add_destroy(handle_destroyed)
+
 
     ###########
     # SBS Strory
@@ -250,6 +371,32 @@ class PyMastStory:
     
     def await_gui(self, buttons= None, timeout=None, on_message=None, test_refresh=None,  test_end_await=None, on_disconnect=None):
         return self.task.await_gui(buttons, timeout, on_message, test_refresh, test_end_await, on_disconnect)
+    
+    def reroute_gui_server(self, label):
+        self.reroute_gui_client(0, label)
+        return PollResults.OK_ADVANCE_TRUE
+    
+    def reroute_gui_clients(self, label):
+        for id, client in Gui.clients.items():
+            if id != 0 and client is not None:
+                client_page = client.page_stack[-1]
+                if client_page:
+                    client_page.reroute_gui(label)
+        return PollResults.OK_ADVANCE_TRUE
+
+    def reroute_gui_all(self, label):
+        for client in Gui.clients.values():
+            if  client is not None:
+                client_page = client.page_stack[-1]
+                if client_page:
+                    client_page.reroute_gui(label)
+        return PollResults.OK_ADVANCE_TRUE
+
+
+    def reroute_gui_client(self, client_id, label):
+        page = Gui.clients.get(client_id)
+        if page:
+            page.reroute_gui(label)
     
 
     def gui_face(self, face, style=None):
