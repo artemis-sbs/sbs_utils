@@ -6,6 +6,7 @@ import os
 from .. import fs
 from zipfile import ZipFile
 from .. import faces, scatter
+from ..engineobject import EngineObject, get_story_id
 import math
 import itertools
 import logging
@@ -695,7 +696,7 @@ class InlineData:
         self.end = end
 
 
-class Mast:
+class Mast(EngineObject):
     include_code = False
 
     globals = {
@@ -729,8 +730,12 @@ class Mast:
     inline_count = 0
 
     def __init__(self, cmds=None):
+        super().__init__()
+
         self.lib_name = None
         self.basedir = None
+        self.id = get_story_id()
+        self.add()
 
         if cmds is None:
             return
@@ -819,7 +824,8 @@ class Mast:
 
     def clear(self):
         self.inputs = {}
-        self.vars = {"mast": self}
+        self.set_inventory_value("mast", self)
+        # self.vars = {"mast": self}
         self.labels = {}
         self.inline_labels = {}
         self.labels["main"] = Label("main")

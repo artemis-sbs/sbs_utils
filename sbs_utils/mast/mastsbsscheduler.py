@@ -227,6 +227,7 @@ class CommsRuntimeNode(MastRuntimeNode):
         self.comms_id = selected_so.comms_id
         self.face = faces.get_face(selected_so.id)
 
+
         if self.is_grid_comms:        
             ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'grid_selected_UID', self.comms_selected)
             ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'grid_selected_UID', self.comms_message)
@@ -281,6 +282,10 @@ class CommsRuntimeNode(MastRuntimeNode):
         ### These are opposite from selected??
         origin_id =self.origin_id
         selected_id = self.selected_id
+        #
+        # Set the client so it knows the selected console
+        #
+        query.set_inventory_value(event.client_id, "COMMS_SELECTED_ID", event.selected_id)
         self.button = int(event.sub_tag)
         this_button: Button = self.buttons[self.button]
         this_button.visit((origin_id, selected_id))
@@ -596,9 +601,12 @@ class RouteRuntimeNode(MastRuntimeNode):
             t = task.start_task(node.label, {
                     f"{console}_ORIGIN_ID": event.origin_id,
                     f"{console}_SELECTED_ID": event.selected_id,
+                    f"client_id": event.client_id,
                     f"EVENT": event,
                     f"{console}_ROUTED": True
-            })
+            }
+                
+            )
             if not t.done:
                 query.link(event.origin_id, f"__route{console}", event.selected_id)
                 MastAsyncTask.add_dependency(event.origin_id,t)

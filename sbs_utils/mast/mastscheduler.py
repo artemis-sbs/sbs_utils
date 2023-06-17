@@ -3,6 +3,7 @@ from typing import List
 from .mast import *
 import time
 import traceback
+from ..engineobject import EngineObject, get_task_id
 
 
 class MastRuntimeNode:
@@ -446,7 +447,8 @@ class LoggerRuntimeNode(MastRuntimeNode):
             handler.setLevel(logging.NOTSET)
             logger.addHandler(handler)
             
-            mast.vars[node.var] = streamer
+            #mast.vars[node.var] = streamer
+            mast.set_inventory_value(node.var, streamer)
 
         if node.name is not None:
             name = task.format_string(node.name)
@@ -518,11 +520,12 @@ class PushData:
         self.runtime_node = resume_node
 
 
-class MastAsyncTask:
+class MastAsyncTask(EngineObject):
     main: 'MastScheduler'
     dependent_tasks = {}
     
     def __init__(self, main: 'MastScheduler', inputs=None, conditional= None):
+        super().__init__()
         self.done = False
         self.runtime_node = None
         self.main= main
@@ -537,6 +540,8 @@ class MastAsyncTask:
         self.pending_pop = None
         self.pending_jump = None
         self.pending_push = None
+        self.id = get_task_id()
+        self.add()
     
     def push_label(self, label, activate_cmd=0, data=None):
         #print("PUSH")
@@ -670,7 +675,9 @@ class MastAsyncTask:
             self.done = True
 
     def get_symbols(self):
-        m1 = self.main.mast.vars | self.main.vars
+        # m1 = self.main.mast.vars | self.main.vars
+        mast_inv = self.main.mast.inventory.collections
+        m1 = mast_inv | self.main.vars
         m1 =  self.vars | m1
         for st in self.label_stack:
             data = st.data
@@ -682,7 +689,8 @@ class MastAsyncTask:
 
     def set_value(self, key, value, scope):
         if scope == Scope.SHARED:
-            self.main.mast.vars[key] = value
+            # self.main.mast.vars[key] = value
+            self.main.mast.set_inventory_value(key, value)
         elif scope == Scope.TEMP:
             self.vars[key] = value
         else:
@@ -924,6 +932,7 @@ class MastAllTask:
             self.result = t.tick()
             if self.result == PollResults.OK_END:
                 self.tasks.remove(t)
+                t.destroyed()
         if len(self.tasks):
             return PollResults.OK_RUN_AGAIN
         self.done = True
@@ -1215,7 +1224,8 @@ class MastScheduler:
         val = Mast.globals.get(key, None)
         if val is not None:
             return (val, Scope.SHARED)
-        val = self.mast.vars.get(key, None)
+        #val = self.mast.vars.get(key, None)
+        val = self.mast.get_inventory_value(key, None)
         if val is not None:
             return (val, Scope.SHARED)
         val = self.vars.get(key, defa)

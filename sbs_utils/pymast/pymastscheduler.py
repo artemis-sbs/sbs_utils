@@ -46,6 +46,7 @@ class PyMastScheduler:
                 self.remove_tasks.add(task)
         for finished in self.remove_tasks:
             self.tasks.remove(finished)
+            task.destroyed()
         self.remove_tasks.clear()
         self.tasks.extend(self.new_tasks)
         self.new_tasks.clear()

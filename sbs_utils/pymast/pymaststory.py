@@ -17,11 +17,11 @@ from .pymastscheduler import PyMastScheduler
 from .pymaststorypage import CodePusher
 import logging
 from io import StringIO
+from ..engineobject import EngineObject, get_story_id
 
 
 
-
-class PyMastStory:
+class PyMastStory(EngineObject):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs) # This style of init makes it more mixin friendly
         self.schedulers = []
@@ -29,6 +29,8 @@ class PyMastStory:
         self.shared = self #Alias for scoping
         self.tick_task = None
         self.vars = DataHolder()
+        self.id = get_story_id()
+        self.add()
 
 
     def enable(self, ctx, delay=0, count=None):

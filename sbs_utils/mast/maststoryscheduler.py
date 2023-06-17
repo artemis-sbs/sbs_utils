@@ -659,10 +659,10 @@ class RerouteGuiRuntimeNode(StoryRuntimeNode):
                     return
         elif node.var:
             """ This is directly routing a specific client by ID"""
-            val = task.get_variable(self.node.var)
+            val = task.get_variable(node.var)
             if val is not None:
                 client = Gui.clients.get(val, None)
-                if client is None:
+                if client is not None:
                     page = client.page_stack[-1]
                     if page is None: 
                         return

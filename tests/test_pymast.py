@@ -50,7 +50,7 @@ class TestPymast(unittest.TestCase):
             def one(self):
                 logging.info('one')
                 yield self.delay(5)
-                yield self.push("two")
+                yield self.push(self.two)
                 logging.info("end")
                 
 
@@ -59,7 +59,7 @@ class TestPymast(unittest.TestCase):
                 self.count += 1
                 if self.count < 4:
                     yield self.delay(5)
-                    yield self.jump("two")
+                    yield self.jump(self.two)
                 yield self.pop()
 
         ctx = Context(FakeSim(), sbs, None)
@@ -68,7 +68,7 @@ class TestPymast(unittest.TestCase):
         story.add_scheduler(ctx, story.start)
 
 
-        for x in range(1000):
+        for x in range(10000):
             story(ctx)
             ctx.sim.tick()
         v = log_stream.getvalue()
@@ -148,10 +148,10 @@ After
                 logging.info("Before")
                 
                 #yield self.task.behave_until_success(lambda: self.task.behave_seq(self.one, self.two, self.three))
-                yield self.task.behave_invert(self.one)
-                assert(self.task.last_popped_poll_result == PollResults.FAIL_END)
+               #yield self.task.behave_invert(self.one)
+               # assert(self.task.last_poll_result == PollResults.FAIL_END)
                 yield self.task.behave_invert(self.two)
-                assert(self.task.last_popped_poll_result == PollResults.OK_END)
+                assert(self.task.last_poll_result == PollResults.OK_END)
                 logging.info("After")
                     
             

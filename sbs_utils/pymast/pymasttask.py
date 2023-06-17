@@ -5,7 +5,7 @@ from .pymastcomms import PyMastComms
 from functools import partial, partialmethod
 import types
 import sbs
-
+from ..engineobject import EngineObject, get_task_id
 
 class DataHolder(object):
     pass
@@ -23,7 +23,7 @@ def label(*dargs, **dkwargs):
 ##
 ## Runs a set of generator functions
 ##
-class PyMastTask:
+class PyMastTask(EngineObject):
     def __init__(self, story, scheduler, label) -> None:
         super().__init__()
         self.vars = DataHolder()
@@ -38,6 +38,8 @@ class PyMastTask:
         self.page = None
         self.pop_on_jump = 0
         self.current_gen = None
+        self.id = get_task_id()
+        self.add()
         #self.jump(label)
 
         self.COMMS_ORIGIN_ID = None
@@ -75,7 +77,6 @@ class PyMastTask:
         is_new_jump = False
         while not self.done and throttle < 100:
             throttle += 1
-            self.last_poll_result = None
             if self.pending_jump:
                 #print(f"jump to {self.pending_jump}")
                 res = self.do_jump()
@@ -97,6 +98,8 @@ class PyMastTask:
                 self.end()
                 self.sim = None
                 return self.last_poll_result
+            
+            #self.last_poll_result = None
             gen_done = True
             for res in gen:
                 is_new_jump = False
@@ -104,8 +107,9 @@ class PyMastTask:
                     #print("Label yielded None")
                     gen_done = True
                     break
-                gen_done = False                
-                self.last_poll_result = res
+                gen_done = False
+                if res is not None:
+                    self.last_poll_result = res
                 if res == PollResults.OK_RUN_AGAIN:
                     self.sim = None
                     return self.last_poll_result

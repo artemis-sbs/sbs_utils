@@ -1,5 +1,18 @@
 from __future__ import annotations
 
+task_ids = 0x0080000000000000
+def get_task_id():
+    global task_ids
+    task_ids += 1
+    return task_ids
+    
+story_ids = 0x0040000000000000
+def get_story_id():
+    global story_ids
+    story_ids += 1
+    return story_ids
+
+
 class Stuff:
     """ A Common class for Role, Links and Inventory"""
     def __init__(self):
@@ -408,9 +421,9 @@ class EngineObject():
         collection_name = collection_name.strip().lower()
         return self.inventory.collection_list(collection_name)
 
-    def get_inventory_value(self, collection_name):
+    def get_inventory_value(self, collection_name, default=None):
         collection_name = collection_name.strip().lower()
-        return self.inventory.collections.get(collection_name)
+        return self.inventory.collections.get(collection_name, default)
 
     def set_inventory_value(self, collection_name, value):
         collection_name = collection_name.strip().lower()

@@ -1,4 +1,5 @@
 import sbs
+from .engineobject import EngineObject
 
 class Context:
     def __init__(self, sim, _sbs, aspect_ratio):
@@ -96,13 +97,17 @@ class Page:
         pass
 
 
-class GuiClient:
+class GuiClient(EngineObject):
     """ Manages the pages for a client
 
     """
     def __init__(self, client_id):
+        super().__init__()
+
         self.page_stack = []
         self.client_id = client_id
+        self.id = client_id
+        self.add()
 
     def push(self, ctx, page):
         """ push
@@ -291,6 +296,7 @@ class Gui:
             if gui is not None:
                 event = FakeEvent(cid,"mast:client_disconnect")
                 gui.on_event(ctx, event)
+                gui.destroyed()
             Gui.clients.pop(cid)
 
         # Anything left is a client not connected to the script

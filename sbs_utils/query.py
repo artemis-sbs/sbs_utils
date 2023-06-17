@@ -54,7 +54,7 @@ def inventory_set(link_source, link_name: str):
     link_source = EngineObject.resolve_py_object(link_source)
     return link_source.get_inventory_set(link_name)
 
-def inventory_value(link_source, link_name: str):
+def inventory_value(link_source, link_name: str, default=None):
     """ inventory_value
 
         get the value that inventory items with the given key the the link source has
@@ -67,7 +67,7 @@ def inventory_value(link_source, link_name: str):
         """
     
     link_source = EngineObject.resolve_py_object(link_source)
-    return link_source.get_inventory_value(link_name)
+    return link_source.get_inventory_value(link_name, default)
 
 
 def linked_to(link_source, link_name: str):
@@ -467,9 +467,9 @@ def has_roles(so, roles):
     return True
 
 
-def get_inventory_value(so, link):
+def get_inventory_value(so, link, default=None):
     so = to_object(so)
-    return so.get_inventory_value(link)
+    return so.get_inventory_value(link, default)
             
 def set_inventory_value(so, link, to):
     obj_list = to_object_list(so)
@@ -700,17 +700,28 @@ def grid_clear_target(grid_obj_or_set, sim):
 
 
 def is_client_id(id):
-     if id is None:
-         return False
-     return (id & 0x8000000000000000)!=0
+    if id is None:
+        return False
+    return (id & 0x8000000000000000)!=0
 def is_space_object_id(id):
-     if id is None:
-         return False
-     return (id & 0x4000000000000000)!=0
+    if id is None:
+        return False
+    return (id & 0x4000000000000000)!=0
 def is_grid_object_id(id):
-     if id is None:
-         return False
-     return (id & 0x2000000000000000)!=0
+    if id is None:
+        return False
+    return (id & 0x2000000000000000)!=0
+
+def is_task_id(id):
+    if id is None:
+        return False
+    return (id & 0x0080000000000000)!=0
+
+def is_story_id(id):
+    if id is None:
+        return False
+    return (id & 0x0040000000000000)!=0
+
 
 def get_pos(sim, id_or_obj):
     object = to_object(id_or_obj)
