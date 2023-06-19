@@ -341,6 +341,10 @@ class ScanRuntimeNode(MastRuntimeNode):
         self.task = task
         self.tab = None
         self.node = node
+        ###############
+        # If this is the first scan only have the scan button
+        # Otherwise have them all
+        self.scan_is_done = False
         buttons = []
         # Expand all the 'for' buttons
         for button in node.buttons:
@@ -374,10 +378,7 @@ class ScanRuntimeNode(MastRuntimeNode):
 
         self.to_id = to_so.get_id()
         self.from_id = from_so.get_id()
-        ###############
-        # If this is the first scan only have the scan button
-        # Otherwise have them all
-        self.scan_is_done = False
+
         if to_so is not None:
             scan_tab = from_so.side+"scan"
             has_scan = to_so.get_engine_data(task.main.sim, scan_tab)
@@ -552,6 +553,7 @@ class FollowRouteRuntimeNode(MastRuntimeNode):
         class FakeEvent:
             def __init__(self, sub_tag, origin_id, selected_id):
                 self.sub_tag = sub_tag
+                self.client_id = None
                 self.origin_id = origin_id
                 self.selected_id = selected_id
 
@@ -674,6 +676,11 @@ class RouteRuntimeNode(MastRuntimeNode):
                 if task.main.client_id != 0:
                     return PollResults.OK_ADVANCE_TRUE
                 ConsoleDispatcher.add_default_select("science_target_UID", partial(handle_dispatch, task, "SCIENCE"))
+
+            case "weapons\s+select":
+                if task.main.client_id != 0:
+                    return PollResults.OK_ADVANCE_TRUE
+                ConsoleDispatcher.add_default_select("weapon_target_UID", partial(handle_dispatch, task, "WEAPONS"))
 
             case "grid\s+select":
                 if task.main.client_id != 0:

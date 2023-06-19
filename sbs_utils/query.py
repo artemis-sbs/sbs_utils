@@ -267,7 +267,7 @@ def to_py_object_list(the_set):
     return [EngineObject.get(id) for id in the_set]
 
 
-def target(sim, set_or_object, target_id, shoot: bool = True):
+def target(sim, set_or_object, target_id, shoot: bool = True, throttle: float = 1.0):
     """ Set the item to target
     :param sim: The simulation
     :type sim: Artemis Cosmos simulation
@@ -284,7 +284,8 @@ def target(sim, set_or_object, target_id, shoot: bool = True):
             "target_pos_x": target_engine.pos.x,
             "target_pos_y": target_engine.pos.y,
             "target_pos_z": target_engine.pos.z,
-            "target_id": 0
+            "target_id": 0,
+            "throttle": throttle
         }
         if shoot:
             data["target_id"] = target_engine.unique_ID
@@ -295,7 +296,7 @@ def target(sim, set_or_object, target_id, shoot: bool = True):
                 chaser.update_engine_data(sim, data)
 
 
-def target_pos(sim, chasers: set | int | CloseData|SpawnData, x: float, y: float, z: float):
+def target_pos(sim, chasers: set | int | CloseData|SpawnData, x: float, y: float, z: float, throttle: float = 1.0):
     """ Set the item to target
 
     :param sim: The simulation
@@ -309,7 +310,8 @@ def target_pos(sim, chasers: set | int | CloseData|SpawnData, x: float, y: float
         "target_pos_x": x,
         "target_pos_y": y,
         "target_pos_z": z,
-        "target_id": 0
+        "target_id": 0,
+        "throttle": throttle
     }
     all = to_list(chasers)
     for chaser in all:

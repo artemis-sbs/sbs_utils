@@ -9,9 +9,10 @@ from ..pages import layout
 from ..tickdispatcher import TickDispatcher
 
 from .errorpage import ErrorPage
-from .maststory import AppendText,Clickable, ButtonControl, MastStory, Choose, Text, Blank, Ship, GuiContent, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, Hole, RadioControl, Console, BuildaConsole, OnChange
+from .maststory import AppendText,Clickable, ButtonControl, MastStory, Choose, Text, Blank, Ship, GuiContent, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, AwaitSelect, Hole, RadioControl, Console, BuildaConsole, OnChange
 import traceback
 from .mastsbsscheduler import MastSbsScheduler, Button
+from ..consoledispatcher import ConsoleDispatcher
 from .parsers import LayoutAreaParser
 import sbs_utils.widgets.shippicker
 import sbs_utils.widgets.listbox
@@ -28,6 +29,11 @@ class StoryRuntimeNode(MastRuntimeNode):
         if style_def is None:
             return
         aspect_ratio = task.main.page.aspect_ratio
+        if aspect_ratio.x == 0:
+            aspect_ratio.x = 1
+        if aspect_ratio.y == 0:
+            aspect_ratio.y = 1
+
         area = style_def.get("area")
         if area is not None:
             i = 1
@@ -38,6 +44,8 @@ class StoryRuntimeNode(MastRuntimeNode):
                 else:
                     ratio =  aspect_ratio.y
                 i=-i
+                if ratio == 0:
+                    ratio = 1
                 values.append(LayoutAreaParser.compute(ast, task.get_symbols(),ratio))
             layout_item.set_bounds(layout.Bounds(*values))
 
@@ -282,6 +290,61 @@ class AwaitGuiRuntimeNode(StoryRuntimeNode):
         if self.timeout:
             if self.timeout <= sbs.app_seconds():
                 return PollResults.OK_ADVANCE_TRUE
+        return PollResults.OK_RUN_AGAIN
+
+class AwaitSelectRuntimeNode(StoryRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: AwaitSelect):
+        seconds = (node.minutes*60+node.seconds)
+        if seconds == 0:
+            self.timeout = None
+        else:
+            self.timeout = sbs.app_seconds()+ (node.minutes*60+node.seconds)
+        self.origin_id = None
+        
+        event = task.get_variable("EVENT")
+        self.task = task
+        self.node = node
+        if event is not None:
+            self.selected(None, None, event)
+        #Must be called after we call the initial selected
+        self.done = False
+
+        if node.console=="comms":
+            self.origin_id = task.get_variable("COMMS_ORIGIN_ID")
+            ConsoleDispatcher.add_select(self.origin_id, 'comms_target_UID', self.selected)
+        elif node.console=="science":
+            self.origin_id = task.get_variable("SCIENCE_ORIGIN_ID")
+            ConsoleDispatcher.add_select(self.origin_id, 'science_target_UID', self.selected)
+        elif node.console=="weapons":
+            self.origin_id = task.get_variable("WEAPONS_ORIGIN_ID")
+            ConsoleDispatcher.add_select(self.origin_id, 'weapon_target_UID', self.selected)
+        
+            
+    def selected(self, _, __, event):
+        self.done = True
+        console = self.node.console.upper()
+        point = sbs.vec3()
+        point.x = event.source_point.x
+        point.y = event.source_point.y
+        point.z = event.source_point.z
+        if event.selected_id != 0:
+            self.task.set_value(f"{console}_SELECTED_ID", event.selected_id, Scope.NORMAL)
+            self.task.set_value(f"{console}_SELECTED_POINT", None, Scope.NORMAL)
+        else:
+            self.task.set_value(f"{console}_SELECTED_ID", None, Scope.NORMAL)
+            self.task.set_value(f"{console}_SELECTED_POINT", point, Scope.NORMAL)
+
+    def poll(self, mast:Mast, task:MastAsyncTask, node: AwaitGui):
+        if self.timeout:
+            if self.timeout <= sbs.app_seconds():
+                return PollResults.OK_ADVANCE_TRUE
+        if self.origin_id is None:
+            # This is garbage get out
+            return PollResults.OK_END
+        
+        if self.done:
+            return PollResults.OK_ADVANCE_TRUE
+            
         return PollResults.OK_RUN_AGAIN
 
 
@@ -704,6 +767,7 @@ over =     {
     "Hole": HoleRuntimeNode,
     "OnChange": OnChangeRuntimeNode,
     "AwaitGui": AwaitGuiRuntimeNode,
+    "AwaitSelect": AwaitSelectRuntimeNode,
     "Choose": ChooseRuntimeNode,
     "Clickable": ClickableRuntimeNode,
     "Section": SectionRuntimeNode,
@@ -793,7 +857,7 @@ class StoryPage(Page):
         self.pending_row = self.pending_row = layout.Row()
         self.pending_tag_map = {}
         self.tag_map = {}
-        self.aspect_ratio = sbs.vec2(1920,1071)
+        self.aspect_ratio = sbs.vec2(1024,768)
         self.client_id = None
         self.sim = None
         self.ctx = None
@@ -988,7 +1052,9 @@ class StoryPage(Page):
             aspect_ratio = sz
             if (self.aspect_ratio.x != aspect_ratio.x or 
                 self.aspect_ratio.y != aspect_ratio.y):
-                self.aspect_ratio = sz
+                self.aspect_ratio.x = sz.x
+                self.aspect_ratio.y = sz.y
+                print(f"Aspect Change {self.aspect_ratio.x} {self.aspect_ratio .y}")
                 for layout in self.layouts:
                     layout.aspect_ratio = aspect_ratio
                     layout.calc()
@@ -1052,9 +1118,27 @@ class StoryPage(Page):
         
 
     def on_event(self, ctx, event):
+        if event.client_id != self.client_id:
+            return
+        
         #print (f"Story event {event.client_id} {event.tag} {event.sub_tag}")
         if self.story_scheduler is None:
             return
+        
+        if event.tag == "screen_size":
+            sz = event.source_point
+            if sz is not None and sz.y != 0:
+                aspect_ratio = sz
+                if (self.aspect_ratio.x != aspect_ratio.x or 
+                    self.aspect_ratio.y != aspect_ratio.y):
+                    self.aspect_ratio.x = sz.x
+                    self.aspect_ratio.y = sz.y
+                    print(f"Aspect Change {self.aspect_ratio.x} {self.aspect_ratio .y}")
+                    for layout in self.layouts:
+                        layout.aspect_ratio = aspect_ratio
+                        layout.calc()
+                    self.gui_state = 'repaint'
+
         self.story_scheduler.on_event(ctx, event)
         
 

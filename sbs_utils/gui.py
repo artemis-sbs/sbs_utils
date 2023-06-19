@@ -6,8 +6,7 @@ class Context:
         self.sim = sim
         self.sbs = _sbs
         self.aspect_ratio = aspect_ratio
-        if self.aspect_ratio is None:
-            sbs.get_screen_size()
+        
 
 class Widget:
     """ A interface class for creating GUI widgets i.e. composite components.
@@ -108,6 +107,7 @@ class GuiClient(EngineObject):
         self.client_id = client_id
         self.id = client_id
         self.add()
+        self.aspect_ratio = sbs.vec3()
 
     def push(self, ctx, page):
         """ push
@@ -280,12 +280,19 @@ class Gui:
         :param ctx: 
         :type ctx: Artemis Cosmos simulation
         """
+        #
+        # This is a list of what the engine thinks are clients
         client_list = set(ctx.sbs.get_client_ID_list())
         disconnect = []
         Gui.represent = set()
         Gui.represent_throttle = 0
+        #
+        # Present GUI needs to tell all clients to present
+        #
         for client_id, gui in Gui.clients.items():
             if client_id == 0 or client_id in client_list:
+                # Remove this from the client list/set
+                # since we know about it
                 client_list.discard(client_id)
                 event = FakeEvent(client_id, "gui_present")
                 gui.present(ctx, event)

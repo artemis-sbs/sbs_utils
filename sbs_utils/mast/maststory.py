@@ -212,7 +212,21 @@ class AwaitGui(MastNode):
         self.active = False
         self.nothing = False
         # just await gui
-   
+
+class AwaitSelect(MastNode):
+    rule = re.compile(r"await[ \t]+select[ \t](?P<console>comms|weapons|science)"+TIMEOUT_REGEX)
+    def __init__(self, console=None,minutes=None, seconds=None, loc=None):
+        self.loc = loc
+        self.console = console
+        self.seconds = 0 if  seconds is None else int(seconds)
+        self.minutes = 0 if  minutes is None else int(minutes)
+                
+        self.buttons = []
+        self.active = False
+        self.nothing = False
+        # just await gui
+
+
 class Choose(MastNode):
     #d=r"(\s*timeout"+MIN_SECONDS_REGEX + r")?"
     #test = r"""await gui((((\s*(?P<choice>choice)(\s*set\s*(?P<assign>\w+))?)?):)?"""
@@ -469,6 +483,7 @@ class MastStory(MastSbs):
         Choose,
         OnChange,
         AwaitGui,
+        AwaitSelect,
         ButtonControl,
         RerouteGui,
         SliderControl,

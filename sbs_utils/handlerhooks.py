@@ -62,6 +62,15 @@ def cosmos_event_handler(sim, event):
             #     print(f"{event.sub_float}")
             case "present_gui":
                 Gui.present(Context(sim, sbs, None), event)
+
+            case "screen_size":
+                # print(f"{event.client_id}")
+                # #print(f"Point {event.source_point.x}  {event.source_point.y} {event.source_point.z}")
+                # gui = Gui.clients.get(event.client_id)
+                # if gui is not None:
+                #     gui.present(Context(sim, sbs, None), event)
+                pass # handled in on_event
+                
             
             case "mission_tick":
                 TickDispatcher.dispatch_tick(Context(sim, sbs, None))
@@ -79,12 +88,14 @@ def cosmos_event_handler(sim, event):
                 Gui.add_client(Context(sim, sbs, None), event)
 
             case "select_space_object":
-                # print(f"{event.parent_id}")
-                # print(f"{event.origin_id}")
-                # print(f"{event.selected_id}")
-                # print(f"{event.sub_tag}")
-                # print(f"{event.sub_float}")
-                # print(f"{event.value_tag}")
+                # print(f"Parent ID{event.parent_id}")
+                # print(f"Origin ID {event.origin_id}")
+                # print(f"Selected ID {event.selected_id}")
+                # print(f"Sub Tag {event.sub_tag}")
+                # print(f"Sub Float {event.sub_float}")
+                # print(f"Value Tag {event.value_tag}")
+                # print(f"Point {event.source_point.x}  {event.source_point.y} {event.source_point.z}")
+
                 handled = ConsoleDispatcher.dispatch_select(Context(sim, sbs, None), event)
                 if not handled and "comm" in event.sub_tag:
                     face = faces.get_face(event.selected_id)
