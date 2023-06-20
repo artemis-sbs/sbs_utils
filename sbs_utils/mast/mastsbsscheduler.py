@@ -186,6 +186,7 @@ class CommsRuntimeNode(MastRuntimeNode):
         self.tag = None
         self.button = None
         self.task = task
+        self.event = None
         self.is_running = False
         self.color = node.color if node.color else "white"
 
@@ -287,6 +288,7 @@ class CommsRuntimeNode(MastRuntimeNode):
         #
         query.set_inventory_value(event.client_id, "COMMS_SELECTED_ID", event.selected_id)
         self.button = int(event.sub_tag)
+        self.event = event
         this_button: Button = self.buttons[self.button]
         this_button.visit((origin_id, selected_id))
         self.clear()
@@ -323,6 +325,7 @@ class CommsRuntimeNode(MastRuntimeNode):
             self.is_running = True
             if button.for_name:
                 task.set_value(button.for_name, button.data, Scope.TEMP)
+            task.set_value("EVENT", self.event, Scope.TEMP)
             task.jump(task.active_label,button.loc+1)
             return PollResults.OK_JUMP
 
@@ -341,6 +344,7 @@ class ScanRuntimeNode(MastRuntimeNode):
         self.task = task
         self.tab = None
         self.node = node
+        self.event = None
         ###############
         # If this is the first scan only have the scan button
         # Otherwise have them all
@@ -451,6 +455,7 @@ class ScanRuntimeNode(MastRuntimeNode):
     def science_message(self, sim, message, an_id, event):
         ### These are opposite from selected??
         self.tab = event.extra_tag
+        self.event = event
         #print(f"science scanned {self.tab}")
         self.task.tick()
 
@@ -499,6 +504,7 @@ class ScanRuntimeNode(MastRuntimeNode):
                 button = self.buttons[self.button] 
                 self.button = None
                 task.set_value(button.for_name, button.data, Scope.TEMP)
+                task.set_value("EVENT", self.event, Scope.TEMP)
                 task.jump(task.active_label,button.loc+1)
             return PollResults.OK_JUMP
         return PollResults.OK_RUN_AGAIN
