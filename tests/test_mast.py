@@ -33,6 +33,18 @@ x = ~~[
 [2,3,4],
 [4,5,6]
 ]~~
+
+
+s = ~~ ''' dfd
+fsfsf
+dsdds
+'''~~
+
+s = ''' dfd
+fsfsf
+dsdds
+'''
+
 """)
         for e in errors:
             print(e)

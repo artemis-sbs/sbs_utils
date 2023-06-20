@@ -665,6 +665,22 @@ def random_terran_fluid(civilian=None):
     """
     return random_terran(randrange(0, 10)%2+2, civilian)
 
+
+def random_face(race):
+    if "kralien" in race:
+        return random_kralien()
+    if "arvonian" in race:
+        return random_arvonian()
+    if "skaraan" in race:
+        return random_skaraan()
+    if "torgoth" in race:
+        return random_torgoth()
+    if "ximni" in race:
+        return random_ximni()
+    elif "xim" in race:
+        return random_ximni()
+    return random_terran()
+
 #class Characters(StrEnum): # Python 3.11 will have StrEnum
 class Characters:
     """

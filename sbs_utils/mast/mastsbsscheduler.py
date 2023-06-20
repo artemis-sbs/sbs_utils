@@ -89,8 +89,8 @@ class TellRuntimeNode(MastRuntimeNode):
         self.title = ""
         self.to_id = None
         self.from_id = None
-        to_so:SpaceObject = task.get_variable(node.to_tag)
-        from_so:SpaceObject = task.get_variable(node.from_tag)
+        to_so:SpaceObject = query.to_object(task.get_variable(node.to_tag))
+        from_so:SpaceObject = query.to_object(task.get_variable(node.from_tag))
         if to_so is None or from_so is None:
             return
         # From face should be used
@@ -227,6 +227,8 @@ class CommsRuntimeNode(MastRuntimeNode):
         self.origin_id = origin_so.get_id()
         self.comms_id = selected_so.comms_id
         self.face = faces.get_face(selected_so.id)
+        # If this is the same ship it is known
+        self.is_unknown = self.origin_id == self.selected_id
 
 
         if self.is_grid_comms:        
@@ -240,6 +242,7 @@ class CommsRuntimeNode(MastRuntimeNode):
 
     def comms_selected(self, sim, an_id, event):
         # If the button block is running do not set the buttons
+        
         if not self.is_running:
             origin_id = event.origin_id
             selected_id = event.selected_id
@@ -252,7 +255,21 @@ class CommsRuntimeNode(MastRuntimeNode):
             if self.is_grid_comms:
                 sbs.send_grid_selection_info(origin_id, self.face, self.color, self.comms_id)
             else:
-                sbs.send_comms_selection_info(origin_id, self.face, self.color, self.comms_id)
+                #
+                # Check for unknown 
+                #
+                oo = query.to_object(origin_id)
+                so = query.to_object(selected_id)
+                scan_name = oo.side+"scan"
+                initial_scan = so.get_engine_data(self.task.main.sim, scan_name)
+                
+                if initial_scan is None or initial_scan =="":
+                    sbs.send_comms_selection_info(origin_id, "", "white", "unknown")
+                    self.is_unknown = True
+                    return
+                else:
+                    sbs.send_comms_selection_info(origin_id, self.face, self.color, self.comms_id)
+
             for i, button in enumerate(self.buttons):
                 value = True
                 color = "blue" if button.color is None else button.color
@@ -315,6 +332,21 @@ class CommsRuntimeNode(MastRuntimeNode):
         
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: Comms):
+        #
+        # If the ship was unknown, but know is known
+        #
+        if self.is_unknown:
+            oo = query.to_object(self.origin_id)
+            so = query.to_object(self.selected_id)
+            scan_name = oo.side+"scan"
+            initial_scan = so.get_engine_data(self.task.main.sim, scan_name)
+            self.is_unknown = (initial_scan is None or initial_scan == "")
+            # It is now known
+            #
+            if not self.is_unknown:
+                self.set_buttons(self.origin_id, self.selected_id)
+            return PollResults.OK_RUN_AGAIN
+
         if len(node.buttons)==0:
             # clear the comms buttons
             return PollResults.OK_ADVANCE_TRUE
@@ -336,6 +368,8 @@ class CommsRuntimeNode(MastRuntimeNode):
             elif node.end_await_node:
                 task.jump(task.active_label,node.end_await_node.loc+1)
                 return PollResults.OK_JUMP
+            
+        
         return PollResults.OK_RUN_AGAIN
     
 class ScanRuntimeNode(MastRuntimeNode):
