@@ -484,7 +484,8 @@ def unlink(set_holder, link, set_to):
     ids = to_id_list(to_set(set_to))
     for so in linkers:
         for target in ids:
-            so.remove_link(link, target)
+            if so is not None and target is not None:
+                so.remove_link(link, target)
 
 def object_exists(sim, so_id):
     so_id = to_id(so_id)

@@ -46,7 +46,7 @@ class ErrorPage(Page):
 
 def cosmos_event_handler(sim, event):
     try:
-        #t = time.process_time()
+        t = time.process_time()
         # Allow guis more direct access to events
         # e.g. Mast Story Page, Clients change
         Gui.on_event(Context(sim, sbs, None), event)
@@ -73,6 +73,8 @@ def cosmos_event_handler(sim, event):
                 
             
             case "mission_tick":
+                # Run Guis
+                Gui.present(Context(sim, sbs, None), event)
                 TickDispatcher.dispatch_tick(Context(sim, sbs, None))
                 LifetimeDispatcher.dispatch_spawn(Context(sim, sbs, None))
  
@@ -89,11 +91,11 @@ def cosmos_event_handler(sim, event):
 
             case "select_space_object":
                 # print(f"Parent ID{event.parent_id}")
-                # print(f"Origin ID {event.origin_id}")
-                # print(f"Selected ID {event.selected_id}")
-                # print(f"Sub Tag {event.sub_tag}")
+                #print(f"Origin ID {event.origin_id}")
+                #print(f"Selected ID {event.selected_id}")
+                #print(f"Sub Tag {event.sub_tag}")
                 # print(f"Sub Float {event.sub_float}")
-                # print(f"Value Tag {event.value_tag}")
+                #print(f"Value Tag {event.value_tag}")
                 # print(f"Point {event.source_point.x}  {event.source_point.y} {event.source_point.z}")
 
                 handled = ConsoleDispatcher.dispatch_select(Context(sim, sbs, None), event)
@@ -132,15 +134,16 @@ def cosmos_event_handler(sim, event):
         
             case _:
                 print (f"Unhandled event {event.client_id} {event.tag} {event.sub_tag}")
-  
+
     except BaseException as err:
         sbs.pause_sim()
 
         text_err = traceback.format_exc()
         text_err = text_err.replace(chr(94), "")
         Gui.push(Context(sim, sbs, None), 0, ErrorPage(text_err))
-    #et = time.process_time() - t
-    #print(f"Elapsed time: {et}")
+    et = time.process_time() - t
+    if et > 0.03:
+        print(f"Elapsed time: {et} {event.tag}-{event.sub_tag}")
 
 
 #	client_id"

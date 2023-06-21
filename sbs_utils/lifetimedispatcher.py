@@ -38,7 +38,7 @@ class LifetimeDispatcher:
 
         objects = EngineObject.get_role_objects("__grid_spawn__")
         for so in objects:
-            print("A grid object spawned")
+            #print("A grid object spawned")
             for func in LifetimeDispatcher._dispatch_spawn_grid:
                 func(ctx, so)
             so.remove_role("__grid_spawn__")

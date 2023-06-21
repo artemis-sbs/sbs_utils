@@ -95,7 +95,7 @@ class Scan(MastNode):
         self.loc = loc
         self.to_tag = to_tag
         self.from_tag = from_tag
-        self.fog = int(fog) if fog is not None else 3000
+        self.fog = int(fog) if fog is not None else 5000
         self.buttons = []
 
         self.end_await_node = None

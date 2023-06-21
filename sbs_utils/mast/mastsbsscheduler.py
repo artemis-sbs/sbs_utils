@@ -1,5 +1,5 @@
 from .mast import Mast, Scope
-from .mastsbs import Simulation, Route,  FollowRoute,TransmitReceive, Tell, Comms, Button, Broadcast, ScanTab,ScanResult, Load
+from .mastsbs import Simulation, Route,  FollowRoute,TransmitReceive, Tell, Comms, Button, Broadcast, Scan, ScanTab,ScanResult, Load
 from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask
 import sbs
 from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain, GridObject
@@ -228,7 +228,7 @@ class CommsRuntimeNode(MastRuntimeNode):
         self.comms_id = selected_so.comms_id
         self.face = faces.get_face(selected_so.id)
         # If this is the same ship it is known
-        self.is_unknown = self.origin_id == self.selected_id
+        self.is_unknown = False
 
 
         if self.is_grid_comms:        
@@ -241,8 +241,14 @@ class CommsRuntimeNode(MastRuntimeNode):
         # from_so.face_desc
 
     def comms_selected(self, sim, an_id, event):
+        #
+        # Check to see if this was intended for us
+        #
+        if self.selected_id != event.selected_id or \
+            self.origin_id != event.origin_id:
+            return
+
         # If the button block is running do not set the buttons
-        
         if not self.is_running:
             origin_id = event.origin_id
             selected_id = event.selected_id
@@ -254,6 +260,8 @@ class CommsRuntimeNode(MastRuntimeNode):
         if origin_id is not None:
             if self.is_grid_comms:
                 sbs.send_grid_selection_info(origin_id, self.face, self.color, self.comms_id)
+            if origin_id == selected_id:
+                sbs.send_comms_selection_info(origin_id, self.face, self.color, self.comms_id)
             else:
                 #
                 # Check for unknown 
@@ -269,7 +277,7 @@ class CommsRuntimeNode(MastRuntimeNode):
                     return
                 else:
                     sbs.send_comms_selection_info(origin_id, self.face, self.color, self.comms_id)
-
+            
             for i, button in enumerate(self.buttons):
                 value = True
                 color = "blue" if button.color is None else button.color
@@ -297,9 +305,13 @@ class CommsRuntimeNode(MastRuntimeNode):
 
 
     def comms_message(self, sim, message, an_id, event):
-        ### These are opposite from selected??
-        origin_id =self.origin_id
-        selected_id = self.selected_id
+        #
+        # Check to see if this was intended for us
+        #
+        if self.selected_id != event.selected_id or \
+            self.origin_id != event.origin_id:
+            return
+
         #
         # Set the client so it knows the selected console
         #
@@ -307,7 +319,7 @@ class CommsRuntimeNode(MastRuntimeNode):
         self.button = int(event.sub_tag)
         self.event = event
         this_button: Button = self.buttons[self.button]
-        this_button.visit((origin_id, selected_id))
+        this_button.visit((self.origin_id, self.selected_id))
         self.clear()
         self.task.tick()
 
@@ -344,7 +356,10 @@ class CommsRuntimeNode(MastRuntimeNode):
             # It is now known
             #
             if not self.is_unknown:
-                self.set_buttons(self.origin_id, self.selected_id)
+                # if selected update buttons
+                player_current_select = oo.get_engine_data(self.task.main.sim, "comms_target_UID")
+                if player_current_select == self.selected_id:
+                    self.set_buttons(self.origin_id, self.selected_id)
             return PollResults.OK_RUN_AGAIN
 
         if len(node.buttons)==0:
@@ -357,6 +372,7 @@ class CommsRuntimeNode(MastRuntimeNode):
             self.is_running = True
             if button.for_name:
                 task.set_value(button.for_name, button.data, Scope.TEMP)
+                self.clear()
             task.set_value("EVENT", self.event, Scope.TEMP)
             task.jump(task.active_label,button.loc+1)
             return PollResults.OK_JUMP
@@ -373,7 +389,7 @@ class CommsRuntimeNode(MastRuntimeNode):
         return PollResults.OK_RUN_AGAIN
     
 class ScanRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Comms):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: Scan):
         self.button = None
         self.task = task
         self.tab = None
@@ -394,8 +410,9 @@ class ScanRuntimeNode(MastRuntimeNode):
 
         # Check if this was caused by a routed select
         routed = task.get_variable("SCIENCE_ROUTED")
-        if routed is not None:
-            task.set_value_keep_scope("SCIENCE_ROUTED", False)
+        # if routed is None:
+        # Only roue once
+        task.set_value_keep_scope("SCIENCE_ROUTED", False)
         if node.to_tag:
             to_so:SpaceObject = query.to_object(task.get_variable(node.to_tag))
         else:
@@ -414,8 +431,8 @@ class ScanRuntimeNode(MastRuntimeNode):
             to_so = from_so
             from_so = swap
 
-        self.to_id = to_so.get_id()
-        self.from_id = from_so.get_id()
+        self.selected_id = to_so.get_id()
+        self.origin_id = from_so.get_id()
 
         if to_so is not None:
             scan_tab = from_so.side+"scan"
@@ -446,20 +463,34 @@ class ScanRuntimeNode(MastRuntimeNode):
                 to_so.update_engine_data(task.main.sim, {"scan_type_list":scan_tabs})
 
         
-        ConsoleDispatcher.add_select_pair(self.from_id, self.to_id, 'science_target_UID', self.science_selected)
-        ConsoleDispatcher.add_message_pair(self.from_id, self.to_id,  'science_target_UID', self.science_message)
+        ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'science_target_UID', self.science_selected)
+        ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'science_target_UID', self.science_message)
         #self.set_buttons(self.to_id, self.from_id)
         # from_so.face_desc
         if routed:
-            self.start_scan(task.main.sim, from_so.id, to_so.id, "scan")
+            self.start_scan(task.main.sim, from_so.id, to_so.id, "__init__")
 
     def science_selected(self, ctx, an_id, event):
+        #
+        # avoid if this isn't for us
+        #
+        if self.origin_id != event.origin_id or \
+            self.selected_id != event.selected_id:
+            return
+        
         self.start_scan(ctx.sim, event.origin_id, event.selected_id, event.extra_tag)
 
     def start_scan(self, sim, origin_id, selected_id, extra_tag):
+        #
+        # Check if this was initiated by a "Follow route"
+        #
+        if extra_tag == "__init__":
+            self.tab = extra_tag
+            return
         so = query.to_object(origin_id)
         so_sel = query.to_object(selected_id)
         percent = 0.0
+
         if so.side == so_sel.side:
             percent = 0.90
         if so:
@@ -487,7 +518,9 @@ class ScanRuntimeNode(MastRuntimeNode):
 
 
     def science_message(self, sim, message, an_id, event):
-        ### These are opposite from selected??
+        # makes sure this was for us
+        if event.selected_id != self.selected_id or self.origin_id != event.origin_id:
+            return
         self.tab = event.extra_tag
         self.event = event
         #print(f"science scanned {self.tab}")
@@ -495,33 +528,33 @@ class ScanRuntimeNode(MastRuntimeNode):
 
 
     def leave(self, mast:Mast, task:MastAsyncTask, node: Comms):
-        ConsoleDispatcher.remove_select_pair(self.from_id, self.to_id, 'science_target_UID')
-        ConsoleDispatcher.remove_message_pair(self.from_id, self.to_id, 'science_target_UID')
+        ConsoleDispatcher.remove_select_pair(self.origin_id, self.selected_id, 'science_target_UID')
+        ConsoleDispatcher.remove_message_pair(self.origin_id, self.selected_id, 'science_target_UID')
         
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: Comms):
         if len(node.buttons)==0:
-            # clear the comms buttons
+            self.scan_is_done = True
             return PollResults.OK_ADVANCE_TRUE
-        
 
         if self.scan_is_done:
             task.jump(task.active_label,node.end_await_node.loc+1)
             return PollResults.OK_JUMP
 
         #
-        # Check if the first scan should atuo trigger
+        # Check if the first scan should auto trigger
         #
-        if self.tab is None:        
-            so = query.to_object(self.to_id)
-            so_player = query.to_object(self.from_id)
+        if self.tab == "__init__":        
+            so = query.to_object(self.selected_id)
+            so_player = query.to_object(self.origin_id)
             if so and so_player:
                 tab = so_player.side+"scan"
                 scan_tab = so.get_engine_data(task.main.sim, tab)
                 if scan_tab is None:
-                    dist = sbs.distance_id(self.from_id, self.to_id)
+                    dist = sbs.distance_id(self.origin_id, self.selected_id)
                     if dist < node.fog:
                         self.tab = "scan"
+                        #fall through
 
 
         if self.tab is not None:
@@ -529,7 +562,7 @@ class ScanRuntimeNode(MastRuntimeNode):
                 if task.format_string(button.message) == self.tab:
                     self.button = i
                     #print(f"science scanned {i}")
-            so_player = query.to_object(self.from_id)
+            so_player = query.to_object(self.origin_id)
             if so_player:
                 self.tab = so_player.side+self.tab
 
@@ -551,11 +584,12 @@ class ScanResultRuntimeNode(MastRuntimeNode):
         
         msg = task.format_string(node.message)
         #print(f"{scan.tab} scan {msg}")
-        so = query.to_object(scan.to_id)
+        so = query.to_object(scan.selected_id)
         if so:
             so.update_engine_data(task.main.sim, {
                 scan.tab: msg,
             })
+            query.set_inventory_value(scan.selected_id, "SCANNED", True)
 
         # Rerun the scan (until all scans are done)
         if scan.node:
@@ -591,34 +625,38 @@ class FollowRouteRuntimeNode(MastRuntimeNode):
         origin_id = query.to_id(origin)
         selected_id = query.to_id(selected)
         class FakeEvent:
-            def __init__(self, sub_tag, origin_id, selected_id):
+            def __init__(self, sub_tag, origin_id, selected_id, extra_tag):
                 self.sub_tag = sub_tag
                 self.client_id = None
                 self.origin_id = origin_id
+                self.extra_tag = extra_tag
                 self.selected_id = selected_id
-
+        console = None
+        extra_tag = ""
         match RegexEqual(node.route):
             case "comms\s+select":
                 console = "comms_target_UID"
+                extra_tag = ""
             
             case "science\s+select":
                 console = "science_target_UID"
+                extra_tag = "__init__"
 
             case "grid\s+select":
                 console = "grid_selected_UID"
+                extra_tag = ""
 
             case _:
                 print("GOT HERE but should not have")
-        ctx = task.get_variable('ctx')
-        event = FakeEvent(console, origin_id, selected_id)
-        #
-        # A bit of a hack directly using dispatchers data
-        # forcing the default handlers
-        #
-        cb_set = ConsoleDispatcher._dispatch_select.get((0, console))
-        if cb_set is not None:
-            for cb in cb_set:
-                cb(ctx, origin_id, event)
+
+        if console is not None:
+            ctx = task.get_variable('ctx')
+            event = FakeEvent(console, origin_id, selected_id, extra_tag)
+            #
+            # A bit of a hack directly using dispatchers data
+            # forcing the default handlers
+            #
+            ConsoleDispatcher.dispatch_select(ctx, event)
         
         return PollResults.OK_ADVANCE_TRUE
 
@@ -643,7 +681,6 @@ class RouteRuntimeNode(MastRuntimeNode):
             t = task.start_task(node.label, {
                     f"{console}_ORIGIN_ID": event.origin_id,
                     f"{console}_SELECTED_ID": event.selected_id,
-                    f"client_id": event.client_id,
                     f"EVENT": event,
                     f"{console}_ROUTED": True
             }

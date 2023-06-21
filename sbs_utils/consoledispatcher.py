@@ -265,6 +265,11 @@ class ConsoleDispatcher:
 
 
     def do_select(ctx, event, console):
+        #
+        # This was from a follow route, don't select
+        #
+        if event.extra_tag=="__init__":
+            return
         my_ship  = ctx.sim.get_space_object(event.origin_id)
         blob = my_ship.data_set
         blob.set(console, event.selected_id,0)

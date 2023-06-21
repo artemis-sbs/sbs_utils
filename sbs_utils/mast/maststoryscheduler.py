@@ -887,14 +887,14 @@ class StoryPage(Page):
         if len(self.errors)==0:
             self.story_scheduler = StoryScheduler(cls.story)
             self.gui_task = self.story_scheduler.run(ctx, client_id, self, inputs=cls.inputs)
-            TickDispatcher.do_interval(ctx, self.tick_mast, 0)
 
-    def tick_mast(self, ctx, t):
+
+    def tick_gui_task(self, ctx):
+        #
+        # Called by gui right before present
+        #
         if self.story_scheduler:
             self.story_scheduler.story_tick_tasks(ctx, self.client_id)
-        if self.gui_state == 'repaint':
-            event = FakeEvent(self.client_id, "gui_represent")
-            self.present(Context(ctx.sim, ctx.sbs, self.aspect_ratio), event)
 
 
     def swap_layout(self):
@@ -1087,8 +1087,6 @@ class StoryPage(Page):
                     if change.test():
                         self.gui_task.push_inline_block(self.gui_task.active_label, change.node.loc+1)
                         break
-                
-
 
     def on_message(self, ctx, event):
         
@@ -1124,6 +1122,10 @@ class StoryPage(Page):
         #print (f"Story event {event.client_id} {event.tag} {event.sub_tag}")
         if self.story_scheduler is None:
             return
+        
+        # if event.tag =="mast:client_disconnect":
+        #     print("Disconnected GUI")
+            
         
         if event.tag == "screen_size":
             sz = event.source_point

@@ -69,6 +69,16 @@ class Page:
         """
         pass
 
+    def tick_gui_task(self, ctx):
+        """ tick_gui_task
+
+        Called to have the page run any tasks they have prior to present
+
+        :param ctx: 
+        :type ctx: Artemis Cosmos simulation
+        """
+        pass
+
     def on_pop(self, ctx):
         pass
 
@@ -156,6 +166,19 @@ class GuiClient(EngineObject):
         """
         if len(self.page_stack) > 0:
             self.page_stack[-1].present(ctx, event)
+
+    def tick_gui_task(self, ctx):
+        """ present
+
+        Presents the top Page for the specified clientID by calling present on that page
+
+        :param ctx: 
+        :type ctx: Artemis Cosmos simulation
+        :param CID: Client ID
+        :type int: A client ID
+        """
+        if len(self.page_stack) > 0:
+            self.page_stack[-1].tick_gui_task(ctx)
 
   
     def on_message(self, ctx, event):
@@ -295,6 +318,7 @@ class Gui:
                 # since we know about it
                 client_list.discard(client_id)
                 event = FakeEvent(client_id, "gui_present")
+                gui.tick_gui_task(ctx)
                 gui.present(ctx, event)
             else:
                 disconnect.append(client_id)
@@ -304,7 +328,7 @@ class Gui:
                 event = FakeEvent(cid,"mast:client_disconnect")
                 gui.on_event(ctx, event)
                 gui.destroyed()
-            Gui.clients.pop(cid)
+                Gui.clients.pop(cid)
 
         # Anything left is a client not connected to the script
         # So we start the client as if it connected
