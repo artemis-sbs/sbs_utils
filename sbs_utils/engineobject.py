@@ -180,7 +180,7 @@ class EngineObject():
 
     @classmethod
     def _remove(cls, id):
-        EngineObject.all.pop(id)
+        EngineObject.all.pop(id, None) #Allow remove if not added
         return EngineObject.roles.remove_every_collection(id)
 
     ########## ROLES ########################

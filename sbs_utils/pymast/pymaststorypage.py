@@ -45,7 +45,7 @@ class CodePusher:
 
         self.page.task.push_jump_pop(pusher)
         # Tick the page task to get things running faster if needed
-        self.page.do_tick(ctx)
+        self.page.tick_gui_task(ctx)
 
 
 
@@ -78,17 +78,18 @@ class PyMastStoryPage(Page):
         self.task = None
         self.disconnected = False
         self.change_console_label = None
+        self.gui_popped = False
 
     def run(self, time_out):
         self.gui_state = 'repaint'
-        self.present(Context(self.story.sim, sbs, self.aspect_ratio), None)
+        #self.present(Context(self.story.sim, sbs, self.aspect_ratio), None)
         #self.present(self.story.sim, None)
         # ?? Change task??
         #self.task = self.story.task
         self.end_await = False
         def pusher(story):
             return self._run(time_out)
-        self.task.push_jump_pop(pusher)
+        return self.task.push_jump_pop(pusher)
     
     def _run(self, time_out):    
         self.end_await = False
@@ -96,28 +97,19 @@ class PyMastStoryPage(Page):
         if time_out is not None:
             end_timeout = sbs.app_seconds()+ time_out
         while self.end_await == False:
-            #print(f"running {self.story.sim}")
+            #print(f"running ")
             self.present(Context(self.story.sim, sbs, self.aspect_ratio), None)
             # Get out faster if ended
             if self.end_await:
-                self.gui_clear()
                 break
             if time_out is not None:
                 if sbs.app_seconds() > end_timeout:
                     break
 
             yield PollResults.OK_RUN_AGAIN
-        # clear gui, until the next gui await
-        # show clear screen in case tasks ends unexpectedly
-        self.gui_clear()
+        self.present(Context(self.story.sim, sbs, self.aspect_ratio), None)
         yield self.task.pop()
 
-    def gui_clear(self):
-        self.swap_layout()
-        control = layout.Text(self.get_tag(), "text: Empty content. Did task end?")
-        self.add_content(control, None)
-        self.set_button_layout(None)
-        self.present(Context(self.story.sim, sbs, self.aspect_ratio), None)
 
     def reroute_gui(self, label):
         if self.task: 
@@ -285,8 +277,11 @@ class PyMastStoryPage(Page):
         self.swap_layout()
 
     def present(self, ctx, event):
-        do_tick = True
-        #print(f"**{self.gui_state}**")
+        #do_tick = True
+        #print(f"**{self.gui_state} {self.task.id & 0xFFFFFFFFF if self.task else 99}**")
+        if self.gui_popped:
+            return
+
         
         # This is called via run if event is None
         if event is None:
@@ -294,13 +289,11 @@ class PyMastStoryPage(Page):
                 pass
             event = Fake()
             event.client_id = self.client_id
-            do_tick = False
+         #   do_tick = False
             #self.gui_state = 'repaint'
         else:
             if event.tag == "gui_push":
                 self.gui_state = 'repaint'
-        
-
         
         
         """ Present the gui """
@@ -309,31 +302,56 @@ class PyMastStoryPage(Page):
         if self.gui_state == "errors":
             return
         
-        
+        if self.gui_state == "task_ended":
+            sbs.send_gui_clear(event.client_id)
+            sbs.send_gui_text(event.client_id, "error", f"text: Empty content. Did task end? Or did you forget to use yield?", 0,96,100,100)
+            self.gui_state = "errors"
+            return
+
+
+
         if self.story_scheduler is None:
             if self.story is not None:
                 label = self.story.start_server if self.client_id ==0 else self.story.start_client
-                print(f"Spawning task {label}")
+                # print(f"Spawning task {label}")
                 self.story.sim = ctx.sim if ctx else None
                 self.story_scheduler = self.story.add_scheduler(ctx, label)
                 #self.story_scheduler.page = self
                 self.task = self.story_scheduler.task
+                #print(f"Task Started {self.task.id & 0xFFFFFFFFF}")
+                #
+                # Initial kick
+                #
                 self.task.page = self
+                self.story_scheduler.page = self 
+                self.story.page = self
+
+                self.tick_gui_task(ctx)
+                    
                 self.gui_state = "repaint"
                 
         # This should not occur???
         if self.client_id != event.client_id:
             return
-        self.story.scheduler = self.story_scheduler
-        self.story.task = self.task
+        
+        if self.task and self.task.done:
+            # Delay this by one cycle
+            # to let truly ending guis to purge
+            sbs.send_gui_clear(event.client_id)
+            cls_name = self.__class__.__name__
+            #print(f"Task Done {self.task.id & 0xFFFFFFFFF}")
+            sbs.send_gui_text(event.client_id, "error", f"text: {cls_name} Empty content. Did task end? Or did you forget to use yield?", 0,96,100,100)
+            self.gui_state = "task_ended"
+            return
+
 
 
         if self.test_end_await_cb is not None:
             self.end_await = self.test_end_await_cb()
 
-        if do_tick and ctx is not None:
-            self.do_tick(ctx)
-
+        # clear gui, until the next gui await
+        # show clear screen in case tasks ends unexpectedly
+        
         if self.test_refresh_cb is not None:
             if self.test_refresh_cb():
                 self.gui_state = 'refresh'
@@ -352,7 +370,7 @@ class PyMastStoryPage(Page):
             self.gui_state = "errors"
             return
         
-     
+
         if ctx is None:
             return
         match self.gui_state:
@@ -376,37 +394,36 @@ class PyMastStoryPage(Page):
                 else:
                     self.gui_state = "presenting"
 
-    def do_tick(self, ctx):
+    def tick_gui_task(self, ctx):
         if ctx is None:
-            print("Context is NONE")
+            #print("Context is NONE")
             return
         
         if self.task is None:
+            #print("gui task is None")
             return
 
         try:
-            self.story.scheduler = self.story_scheduler
-            self.story.task = self.task
+            #self.story.scheduler.tick()# = self.story_scheduler
+            #self.story.task = self.task
             if self.disconnected:
                 self.task.end()
                 return
-            if self.task.done:
-                self.gui_clear()
-            elif hasattr(ctx,"sim"): 
-                self.task.tick(ctx)
-                if self.task.done:
-                    self.gui_clear()
-
-            # else:
-            #     self.task.tick(ctx)
+            self.story_scheduler.tick(ctx)# = self.story_scheduler
         except BaseException as err:
             sbs.pause_sim()
             text_err = traceback.format_exc()
+            print(text_err)
             text_err = text_err.replace(chr(94), " ")
             #text_err = text_err.replace('', "")
             logger = logging.getLogger("pymast.runtime")
             logger.info(text_err)
             self.errors.append(text_err)
+
+    def on_pop(self, ctx):
+        #print(f"On Gui Pop {self.__class__.__name__}")
+        self.gui_popped = True
+        self.story_scheduler.stop_all()
 
 
     def on_message(self, ctx, event):
@@ -414,12 +431,19 @@ class PyMastStoryPage(Page):
         # This should not occur???
         if self.client_id != event.client_id:
             return
+        #
+        # Not sure why this cannot be higher in the function
+        # but without this a popped gui was refreshing
+        #
+        if self.task.done or self.gui_popped:
+            return
+        
         self.story.scheduler = self.story_scheduler
         self.story.task = self.task
         if self.disconnect_cb and message_tag == "mast:client_disconnect":
             self.disconnected = False
             self.disconnect_cb()
-
+        
         refresh = False        
         call_label = self.tag_map.get(message_tag)
         if call_label:
@@ -438,6 +462,9 @@ class PyMastStoryPage(Page):
             layout.on_message(Context(ctx.sim, ctx.sbs, self.aspect_ratio),event)
         if self.on_message_cb is not None:
             refresh = self.on_message_cb(ctx, event)
+
+        
+        
         if refresh:
             self.gui_state = "refresh"
             self.present(ctx, event)
@@ -483,6 +510,7 @@ class PyMastStoryPage(Page):
         except BaseException as err:
             sbs.pause_sim()
             text_err = traceback.format_exc()
+            print(text_err)
             text_err = text_err.replace(chr(94), "")
             logger = logging.getLogger("pymast.runtime")
             logger.info(text_err)

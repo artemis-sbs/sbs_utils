@@ -720,6 +720,7 @@ class RouteRuntimeNode(MastRuntimeNode):
             # Need point? amount
             t = task.start_task(node.label, {
                     f"DAMAGE_SOURCE_ID": event.origin_id,
+                    f"DAMAGE_PARENT_ID": event.parent_id,
                     f"DAMAGE_TARGET_ID": event.selected_id,
                     f"DAMAGE_ORIGIN_ID": event.origin_id,
                     f"DAMAGE_SELECTED_ID": event.selected_id,
@@ -735,6 +736,7 @@ class RouteRuntimeNode(MastRuntimeNode):
             t= task.start_task(node.label, {
                     f"DAMAGE_SOURCE_ID": event.origin_id,
                     f"DAMAGE_TARGET_ID": event.origin_id,
+                    f"DAMAGE_PARENT_ID": event.parent_id,
                     f"DAMAGE_ORIGIN_ID": event.origin_id,
                     f"EVENT": event,
                     f"DAMAGE_ROUTED": True

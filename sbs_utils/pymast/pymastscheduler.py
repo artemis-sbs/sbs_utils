@@ -8,13 +8,13 @@ class PyMastScheduler:
         self.tick_task = None
         #self.current_gen = self.start()
         self.vars = DataHolder()
-        self.tasks = []
         self.remove_tasks = set()
         self.new_tasks = set()
         self.scheduler = self #Alais for scoping
         self.shared = story
         self.story = story
         self.page = None
+        self.tasks = []
         self.task = PyMastTask(story, self, label)
         # Initial tasks
         self.tasks.append(self.task)
@@ -35,13 +35,13 @@ class PyMastScheduler:
         self.new_tasks.add(task)
         return PollResults.OK_ADVANCE_TRUE
 
-    def tick(self, sim):
+    def tick(self, ctx):
         for task in self.tasks:
             self.story.task = task
             self.story.scheduler = self
             self.scheduler = self
             self.task = task            
-            task.tick(sim)
+            task.tick(ctx)
             if task.last_poll_result == PollResults.OK_END:
                 self.remove_tasks.add(task)
         for finished in self.remove_tasks:
@@ -50,5 +50,11 @@ class PyMastScheduler:
         self.remove_tasks.clear()
         self.tasks.extend(self.new_tasks)
         self.new_tasks.clear()
+
+    def stop_all(self):
+        for task in self.tasks:
+            task.done = True
+        self.tasks.clear()
+
 
     

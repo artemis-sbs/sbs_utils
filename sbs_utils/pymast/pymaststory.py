@@ -41,6 +41,8 @@ class PyMastStory(EngineObject):
         self.enable(ctx)
         sched = PyMastScheduler(self, label)
         self.schedulers.append(sched)
+        # if ctx:
+        #     sched.tick(ctx)
         return sched
 
 

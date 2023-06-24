@@ -9,7 +9,7 @@ from ..pages import layout
 from ..tickdispatcher import TickDispatcher
 
 from .errorpage import ErrorPage
-from .maststory import AppendText,Clickable, ButtonControl, MastStory, Choose, Text, Blank, Ship, GuiContent, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, AwaitSelect, Hole, RadioControl, Console, BuildaConsole, OnChange
+from .maststory import AppendText,Clickable, ButtonControl, MastStory, Choose, Disconnect, RerouteGui, Text, Blank, Ship, GuiContent, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, AwaitSelect, Hole, RadioControl, Console, BuildaConsole, OnChange
 import traceback
 from .mastsbsscheduler import MastSbsScheduler, Button
 from ..consoledispatcher import ConsoleDispatcher
@@ -347,6 +347,10 @@ class AwaitSelectRuntimeNode(StoryRuntimeNode):
             
         return PollResults.OK_RUN_AGAIN
 
+class DisconnectRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task: MastAsyncTask, node:Disconnect):
+        if node.end_await_node:
+            task.jump(task.active_label,node.end_await_node.loc+1)
 
 class ChooseRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Choose):
@@ -425,6 +429,12 @@ class ChooseRuntimeNode(StoryRuntimeNode):
 
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: Choose):
+        if node.disconnect_label is not None:
+            page = task.main.page
+            if page is not None and page.disconnected:
+                task.push_inline_block(task.active_label,node.disconnect_label.loc+1)
+                return PollResults.OK_JUMP
+        
         if self.active==0 and self.timeout is None:
             return PollResults.OK_ADVANCE_TRUE
 
@@ -686,7 +696,7 @@ class ImageControlRuntimeNode(StoryRuntimeNode):
         task.main.page.add_content(self.layout, self)
 
 class OnChangeRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: ImageControl):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: OnChange):
         self.task = task
         self.node = node
         if not node.is_end:
@@ -701,7 +711,7 @@ class OnChangeRuntimeNode(StoryRuntimeNode):
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: OnChange):
         if node.is_end:
-            task.pop()
+            self.task.pop_label(False)
             return PollResults.OK_JUMP
         if node.end_node:
             self.task.jump(self.task.active_label, node.end_node.loc+1)
@@ -710,7 +720,27 @@ class OnChangeRuntimeNode(StoryRuntimeNode):
 
 
 class RerouteGuiRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: ImageControl):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: RerouteGui):
+        #
+        # RerouteGui in main defers to the end of main
+        #
+        if task.active_label=="main":
+            client_id = task.get_variable("client_id")
+            if client_id is None:
+                return
+            if node.gui == "server" and client_id!= 0:
+                return
+            if node.gui == "clients" and client_id== 0:
+                return
+            #
+            # A jump in main set the label's next
+            # label so it runs at the end of main
+            #
+            print(f"{client_id}")
+            main_label_obj = task.main.mast.labels.get("main")
+            jump_label_obj = task.main.mast.labels.get(node.label)
+            main_label_obj.next = jump_label_obj
+            return
         #
         page = None
         if node.gui == "server":
@@ -823,24 +853,24 @@ class StoryScheduler(MastSbsScheduler):
             message += str(err)
             self.errors = [message]
 
-    def on_event(self, ctx, event):
-        if event.client_id == self.client_id:
-            event_name = event.tag
-            if event_name == "mast:client_disconnect":
-                event_name = "disconnect"
-                for task in self.tasks:
-                    task.run_event(event_name, event)
-                    self.page.present(ctx,event)
-            elif event.tag == "client_change":
-                if event.sub_tag == "change_console":
-                    if self.page.gui_task is not None and not self.page.gui_task.done:
-                        if self.page.change_console_label:
-                            self.page.gui_task.jump(self.page.change_console_label)
-                            self.page.present(ctx,event)
-            elif event.tag == "damage":
-                for task in self.tasks:
-                    task.run_event(event.tag,  event)
-                    #self.page.present(sim,event)
+    # def on_event(self, ctx, event):
+    #     if event.client_id == self.client_id:
+    #         event_name = event.tag
+    #         if event_name == "mast:client_disconnect":
+    #             event_name = "disconnect"
+    #             for task in self.tasks:
+    #                 task.run_event(event_name, event)
+    #                 self.page.present(ctx,event)
+    #         elif event.tag == "client_change":
+    #             if event.sub_tag == "change_console":
+    #                 if self.page.gui_task is not None and not self.page.gui_task.done:
+    #                     if self.page.change_console_label:
+    #                         self.page.gui_task.jump(self.page.change_console_label)
+    #                         self.page.present(ctx,event)
+    #         elif event.tag == "damage":
+    #             for task in self.tasks:
+    #                 task.run_event(event.tag,  event)
+    #                 #self.page.present(sim,event)
 
             
 
@@ -869,6 +899,7 @@ class StoryPage(Page):
         self.on_change_items= []
         self.gui_task = None
         self.change_console_label = None
+        self.disconnected = False
         #self.tag = 0
         self.errors = []
         cls = self.__class__
@@ -1007,8 +1038,18 @@ class StoryPage(Page):
             self.client_id = event.client_id
         if self.gui_state == "errors":
             return
+        if self.disconnected:
+            return
+        
         if ctx is None:
             return
+        
+        for change in self.on_change_items:
+            if change.test():
+                self.gui_task.push_inline_block(self.gui_task.active_label, change.node.loc+1)
+                self.tick_gui_task()
+                return
+
         
         if self.story_scheduler is None:
             self.start_story(ctx, event.client_id)
@@ -1123,11 +1164,11 @@ class StoryPage(Page):
         if self.story_scheduler is None:
             return
         
-        # if event.tag =="mast:client_disconnect":
-        #     print("Disconnected GUI")
-            
-        
-        if event.tag == "screen_size":
+        if event.tag =="mast:client_disconnect":
+            print("event discon")
+            self.disconnected = True
+            self.tick_gui_task(ctx)
+        elif event.tag == "screen_size":
             sz = event.source_point
             if sz is not None and sz.y != 0:
                 aspect_ratio = sz
@@ -1140,8 +1181,13 @@ class StoryPage(Page):
                         layout.aspect_ratio = aspect_ratio
                         layout.calc()
                     self.gui_state = 'repaint'
+        elif event.tag == "client_change":
+            if event.sub_tag == "change_console":
+                if self.gui_task is not None and not self.gui_task.done:
+                    if self.change_console_label:
+                        self.gui_task.jump(self.change_console_label)
+                        self.present(ctx,event)
 
-        self.story_scheduler.on_event(ctx, event)
         
 
     

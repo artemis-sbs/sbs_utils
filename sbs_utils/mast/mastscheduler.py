@@ -1,3 +1,4 @@
+from __future__ import annotations
 from enum import IntEnum
 from typing import List
 from .mast import *
@@ -24,8 +25,8 @@ class MastRuntimeError:
         self.line_no = line_no
 
 
-class MastAsyncTask:
-    pass
+# class MastAsyncTask:
+#     pass
 
 # Using enum.IntEnum 
 class PollResults(IntEnum):
@@ -147,7 +148,7 @@ class DoCommandRuntimeNode(MastRuntimeNode):
         return PollResults.OK_ADVANCE_TRUE
 
 class JumpRuntimeNode(MastRuntimeNode):
-    def poll(self, mast, task, node:Jump):
+    def poll(self, mast:Mast, task:MastAsyncTask, node:Jump):
         if node.if_code:
             value = task.eval_code(node.if_code)
             if not value:
@@ -471,18 +472,18 @@ class DelayRuntimeNode(MastRuntimeNode):
 
         return PollResults.OK_RUN_AGAIN
 
-class EventRuntimeNode(MastRuntimeNode):
-    def enter(self, mast, task:MastAsyncTask, node):
-        if node.end is not None:
-            task.add_event(node.event, node)
+# class EventRuntimeNode(MastRuntimeNode):
+#     def enter(self, mast, task:MastAsyncTask, node):
+#         if node.end is not None:
+#             task.add_event(node.event, node)
 
-    def poll(self, mast, task:MastAsyncTask, node):
-        if node.end is not None:
-            task.jump(task.active_label,node.end.loc+1)
-            return PollResults.OK_JUMP
-        else:
-            task.pop_label(False,False)
-            return PollResults.OK_JUMP
+#     def poll(self, mast, task:MastAsyncTask, node):
+#         if node.end is not None:
+#             task.jump(task.active_label,node.end.loc+1)
+#             return PollResults.OK_JUMP
+#         else:
+#             task.pop_label(False,False)
+#             return PollResults.OK_JUMP
 
 
 
@@ -1089,7 +1090,6 @@ class MastScheduler:
         "AwaitFail": AwaitFailRuntimeNode,
         "Timeout": TimeoutRuntimeNode,
         "EndAwait": EndAwaitRuntimeNode,
-        "Event": EventRuntimeNode,
         "Delay": DelayRuntimeNode,
         "Log": LogRuntimeNode,
         "Logger": LoggerRuntimeNode,

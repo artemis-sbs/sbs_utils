@@ -130,8 +130,10 @@ class GuiClient(EngineObject):
         :type Page: A GUI Page
         """
         event = FakeEvent(self.client_id, "gui_push")
+        #print(f"Pushing {self.client_id}")
         self.page_stack.append(page)
         self.present(ctx, event)
+        #print(f"After Pushing {self.client_id} {page.task.done}")
 
     def pop(self, ctx):
         """ pop
@@ -142,15 +144,19 @@ class GuiClient(EngineObject):
         :type ctx: Artemis Cosmos simulation
         """
         ret = None
-        ctx.sbs.send_gui_clear(self.client_id)
+        if ctx is None:
+            sbs.send_gui_clear(self.client_id)
+        else:
+            ctx.sbs.send_gui_clear(self.client_id)
         if len(self.page_stack) > 0:
             ret = self.page_stack.pop()
-            if len(self.page_stack) > 0:
-                self.page_stack[-1].on_pop(ctx)
+            if ret:
+                ret.on_pop(ctx)
 
 
 
         event = FakeEvent(self.client_id, "gui_pop")
+        #print(f"popping {self.client_id}")
         self.present(ctx, event)
         return ret
 
@@ -221,7 +227,7 @@ class Gui:
     """ class GUI
     Manages the GUI pages for all clients
     """
-    clients = {0: GuiClient(0)}
+    clients = {}
     _server_start_page = None
     _client_start_page = None
 
@@ -236,7 +242,6 @@ class Gui:
         :type class: A python class typically a Page
         """
         Gui._server_start_page = cls_page
-        Gui.push(None, 0, cls_page())
 
     @staticmethod
     def client_start_page_class(cls_page):
@@ -309,6 +314,13 @@ class Gui:
         disconnect = []
         Gui.represent = set()
         Gui.represent_throttle = 0
+
+        #
+        # Create server if needed
+        #
+        if event.client_id==0 and len(Gui.clients)==0:
+            Gui.push(ctx, 0, Gui._server_start_page ())
+
         #
         # Present GUI needs to tell all clients to present
         #

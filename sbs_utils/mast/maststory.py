@@ -226,6 +226,14 @@ class AwaitSelect(MastNode):
         self.nothing = False
         # just await gui
 
+class Disconnect(MastNode):
+    rule = re.compile(r'disconnect:')
+    def __init__(self, loc=None):
+        self.loc = loc
+        self.await_node = EndAwait.stack[-1]
+        if self.await_node is not None:
+            self.await_node.disconnect_label = self
+
 
 class Choose(MastNode):
     #d=r"(\s*timeout"+MIN_SECONDS_REGEX + r")?"
@@ -240,6 +248,7 @@ class Choose(MastNode):
         self.buttons = []
         self.active = False
 
+        self.disconnect_label = None
         self.timeout_label = None
         self.fail_label = None
         self.end_await_node = None
@@ -481,6 +490,7 @@ class MastStory(MastSbs):
             Section,
             Style,
         Choose,
+        Disconnect,
         OnChange,
         AwaitGui,
         AwaitSelect,

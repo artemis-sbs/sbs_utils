@@ -516,7 +516,7 @@ def update_engine_data(sim, to_update, data):
     for object in objects:
         object.update_engine_data(sim, data)
 
-def get_engine_data(id_or_obj, sim, key, index=0):
+def get_engine_data(sim, id_or_obj, key, index=0):
     object = to_object(id_or_obj)
     if object is not None:
         return object.get_engine_data(sim, key, index)
@@ -536,7 +536,7 @@ def get_engine_data_set(sim, id_or_obj):
 
 
 
-def set_engine_data(to_update, sim, key, value, index=0):
+def set_engine_data(sim, to_update, key, value, index=0):
     objects = to_object_list(to_set(to_update))
     for object in objects:
         object.set_engine_data(sim, key, value, index=0)
@@ -547,7 +547,7 @@ def set_engine_data(to_update, sim, key, value, index=0):
 ##########################################
 ####### TODO: Update for sets
 
-def grid_close_list(grid_obj, sim, the_set, max_dist=None, filter_func=None) -> list[CloseData]:
+def grid_close_list(sim, grid_obj, the_set, max_dist=None, filter_func=None) -> list[CloseData]:
     """ Finds a list of matching objects
     :param sim: The simulation
     :type sim: Artemis Cosmos simulation
@@ -597,7 +597,7 @@ def grid_close_list(grid_obj, sim, the_set, max_dist=None, filter_func=None) -> 
 
     return ret
 
-def grid_closest(grid_obj, sim, roles=None, max_dist=None, filter_func=None) -> CloseData:
+def grid_closest(sim, grid_obj, roles=None, max_dist=None, filter_func=None) -> CloseData:
     """ Finds the closest object matching the criteria
 
     :param sim: The simulation
@@ -611,7 +611,7 @@ def grid_closest(grid_obj, sim, roles=None, max_dist=None, filter_func=None) -> 
     :return: A list of close object
     :rtype: GridCloseData
     """
-    close = grid_close_list(grid_obj, sim, roles, max_dist, filter_func)
+    close = grid_close_list(sim, grid_obj, roles, max_dist, filter_func)
     # Maybe not the most efficient
     if len(close)==1:
         return close[0]
@@ -620,7 +620,7 @@ def grid_closest(grid_obj, sim, roles=None, max_dist=None, filter_func=None) -> 
     
     return None
 
-def grid_target_closest(grid_obj_or_set, sim, roles=None, max_dist=None, filter_func=None):
+def grid_target_closest(sim, grid_obj_or_set, roles=None, max_dist=None, filter_func=None):
     """ Find and target the closest object matching the criteria
 
     :param sim: The simulation
@@ -644,7 +644,7 @@ def grid_target_closest(grid_obj_or_set, sim, roles=None, max_dist=None, filter_
             grid_obj.target(sim, close.id)
         return close
 
-def grid_target(grid_obj_or_set, sim, target_id: int, speed=0.01):
+def grid_target(sim, grid_obj_or_set, target_id: int, speed=0.01):
     """ Set the item to target
 
     :param sim: The simulation
@@ -666,7 +666,7 @@ def grid_target(grid_obj_or_set, sim, target_id: int, speed=0.01):
             this_blob.set("pathy", y, 0)
             this_blob.set("move_speed", speed, 0)
 
-def grid_target_pos(grid_obj_or_set, sim, x:float, y:float, speed=0.01):
+def grid_target_pos(sim, grid_obj_or_set, x:float, y:float, speed=0.01):
     """ Set the item to target
 
     :param sim: The simulation
@@ -688,7 +688,7 @@ def grid_target_pos(grid_obj_or_set, sim, x:float, y:float, speed=0.01):
         else:
             blob.set("move_speed", 0, 0)
 
-def grid_clear_target(grid_obj_or_set, sim):
+def grid_clear_target(sim, grid_obj_or_set):
     """ Clear the target
 
     :param sim: The simulation
@@ -699,7 +699,7 @@ def grid_clear_target(grid_obj_or_set, sim):
         blob = get_engine_data_set(sim, grid_obj.id)
         x= blob.get("curx", 0)
         y=blob.get("cury",  0)
-        grid_target_pos(grid_obj_or_set, sim, x,y)
+        grid_target_pos(sim, grid_obj_or_set, x,y)
 
 
 def is_client_id(id):

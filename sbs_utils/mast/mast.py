@@ -525,19 +525,21 @@ class EndAwait(MastNode):
         EndAwait.stack[-1].end_await_node = self
         EndAwait.stack.pop()
 
-
-class Event(MastNode):
-    rule = re.compile(r'(event[ \t]+(?P<event>[\w|_]+)'+BLOCK_START+')|(end_event)')
-    stack = []
-    def __init__(self, event=None, loc=None):
-        self.loc = loc
-        self.end = None
-        self.event = event
-        if event is None:
-            Event.stack[-1].end = self
-            Event.stack.pop()
-        else:
-            Event.stack.append(self)
+#
+# Deprecated
+#
+# class Event(MastNode):
+#     rule = re.compile(r'(event[ \t]+(?P<event>[\w|_]+)'+BLOCK_START+')|(end_event)')
+#     stack = []
+#     def __init__(self, event=None, loc=None):
+#         self.loc = loc
+#         self.end = None
+#         self.event = event
+#         if event is None:
+#             Event.stack[-1].end = self
+#             Event.stack.pop()
+#         else:
+#             Event.stack.append(self)
 
 MIN_SECONDS_REGEX = r"""([ \t]*((?P<minutes>\d+))m)?([ \t]*((?P<seconds>\d+)s))?"""
 TIMEOUT_REGEX = r"([ \t]*timeout"+MIN_SECONDS_REGEX + r")?"
@@ -799,7 +801,6 @@ class Mast(EngineObject):
         Log,
         Logger,
         Input,
-        Event,
         #        Var,
         Import,
         AwaitCondition,
@@ -954,7 +955,7 @@ class Mast(EngineObject):
             #line = lines[:mo]
             lines = lines[mo:]
             # Keep location in file
-           
+
 
             parsed = False
             # indent = first_non_space_index(lines)

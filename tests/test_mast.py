@@ -601,6 +601,8 @@ case 50:
     log "NO2"
     ==== replace: fred ====
     log "YES2"
+    ==== append: fred ====
+    log "YES3"
     """)
             assert(len(errors)==0)
             output = runner.get_value("output", None)
@@ -608,7 +610,7 @@ case 50:
             st = output[0]
             #st.seek(0)
             value = st.getvalue()
-            assert(value =="""YES1\nYES2\n""")
+            assert(value =="""YES1\nYES2\nYESY3\n""")
 
     def test_await_condition(self):
         (errors, runner, _) = mast_run( code = """
