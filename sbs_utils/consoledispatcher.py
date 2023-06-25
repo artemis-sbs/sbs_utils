@@ -170,7 +170,7 @@ class ConsoleDispatcher:
         """
         console = ConsoleDispatcher.convert_to_console_id(ctx,event)
         if console is None:
-            return
+            return False
         ConsoleDispatcher.do_select(ctx, event, console)
 
         #handled = False

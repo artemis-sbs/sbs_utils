@@ -352,7 +352,7 @@ class PyMastStory(EngineObject):
             #
         DamageDispatcher.add_any_internal(handle_damage)
 
-    def route_destroyed(self, label):
+    def route_destroy(self, label):
         """
         route_damage_source
 
