@@ -520,11 +520,18 @@ class PyMastStoryPage(Page):
         if player is None:
             id = None
             ids = query.to_list(query.role('__PLAYER__'))
+            #
+            # If none was sent, assign it to the first ship found
+            #
             if len(ids)>0:
                 id = ids[0]
                 sbs.assign_client_to_ship(self.client_id, id)
+                query.set_inventory_value(self.client_id, "assigned_ship", id)
             return
         elif isinstance(player, str):
+            #
+            # If a name is sent try to find it
+            #
             id = None
             for player_obj in query.to_object_list(query.role('__PLAYER__')):
                 id = player_obj.id
@@ -535,10 +542,12 @@ class PyMastStoryPage(Page):
             if id is not None:
                 #print(f"assigned to {id}")
                 sbs.assign_client_to_ship(self.client_id, id)
+                query.set_inventory_value(self.client_id, "assigned_ship", id)
             return
         else:
             id = query.to_id(player)
             sbs.assign_client_to_ship(self.client_id, id)
+            query.set_inventory_value(self.client_id, "assigned_ship", id)
 
 
     def apply_style_name(self, style_name, layout_item):

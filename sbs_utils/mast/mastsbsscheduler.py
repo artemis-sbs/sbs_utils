@@ -1,5 +1,5 @@
 from .mast import Mast, Scope
-from .mastsbs import Simulation, Route,  FollowRoute,TransmitReceive, Tell, Comms, Button, Broadcast, Scan, ScanTab,ScanResult, Load
+from .mastsbs import Simulation, Route,  FollowRoute,TransmitReceive, Comms, Button, Broadcast, Scan, ScanTab,ScanResult, Load
 from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask
 import sbs
 from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain, GridObject
@@ -39,8 +39,19 @@ class TransmitReceiveRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: TransmitReceive):
         face = ""
         title = ""
-        selected_id = task.get_variable("COMMS_SELECTED_ID")
-        origin_id = task.get_variable("COMMS_ORIGIN_ID")
+        if node.origin is not None and node.selected is not None:
+            selected_id = task.get_variable(node.selected)
+            origin_id = task.get_variable(node.origin)
+            #
+            # Make sure player is origin
+            #
+            if not query.has_role(origin_id, "__PLAYER__"):
+                t = origin_id
+                origin_id = selected_id
+                selected_id = t
+        else:
+            selected_id = task.get_variable("COMMS_SELECTED_ID")
+            origin_id = task.get_variable("COMMS_ORIGIN_ID")
         if node.transmit:
             to_so:SpaceObject = query.to_object(selected_id)
             from_so:SpaceObject = query.to_object(origin_id)
@@ -82,47 +93,47 @@ class TransmitReceiveRuntimeNode(MastRuntimeNode):
 
 
 
-class TellRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Tell):
-        to_so= task.get_variable(node.to_tag)
-        self.face = ""
-        self.title = ""
-        self.to_id = None
-        self.from_id = None
-        to_so:SpaceObject = query.to_object(task.get_variable(node.to_tag))
-        from_so:SpaceObject = query.to_object(task.get_variable(node.from_tag))
-        if to_so is None or from_so is None:
-            return
-        # From face should be used
-        self.title = from_so.comms_id +">"+to_so.comms_id
-        self.face = faces.get_face(from_so.get_id())
-        # Just in case swap if from is not a player
-        if not from_so.is_player:
-            swap = to_so
-            to_so = from_so
-            from_so = swap
+# class TellRuntimeNode(MastRuntimeNode):
+#     def enter(self, mast:Mast, task:MastAsyncTask, node: Tell):
+#         to_so= task.get_variable(node.to_tag)
+#         self.face = ""
+#         self.title = ""
+#         self.to_id = None
+#         self.from_id = None
+#         to_so:SpaceObject = query.to_object(task.get_variable(node.to_tag))
+#         from_so:SpaceObject = query.to_object(task.get_variable(node.from_tag))
+#         if to_so is None or from_so is None:
+#             return
+#         # From face should be used
+#         self.title = from_so.comms_id +">"+to_so.comms_id
+#         self.face = faces.get_face(from_so.get_id())
+#         # Just in case swap if from is not a player
+#         if not from_so.is_player:
+#             swap = to_so
+#             to_so = from_so
+#             from_so = swap
 
-        self.to_id = to_so.get_id()
-        self.from_id = from_so.get_id()
+#         self.to_id = to_so.get_id()
+#         self.from_id = from_so.get_id()
     
-        if self.face is None:
-            self.face = ""
+#         if self.face is None:
+#             self.face = ""
 
-    def poll(self, mast:Mast, task:MastAsyncTask, node: Tell):
+#     def poll(self, mast:Mast, task:MastAsyncTask, node: Tell):
 
-        if self.to_id and self.from_id:
-            msg = task.format_string(node.message)
-            #print(f"{self.from_id} {self.from_id} {node.color} {self.face} {self.title} {msg}")
-            sbs.send_comms_message_to_player_ship(
-                self.from_id,
-                self.to_id,
-                node.color,
-                self.face, 
-                self.title, 
-                msg)
-            return PollResults.OK_ADVANCE_TRUE
-        else:
-            PollResults.OK_ADVANCE_FALSE
+#         if self.to_id and self.from_id:
+#             msg = task.format_string(node.message)
+#             #print(f"{self.from_id} {self.from_id} {node.color} {self.face} {self.title} {msg}")
+#             sbs.send_comms_message_to_player_ship(
+#                 self.from_id,
+#                 self.to_id,
+#                 node.color,
+#                 self.face, 
+#                 self.title, 
+#                 msg)
+#             return PollResults.OK_ADVANCE_TRUE
+#         else:
+#             PollResults.OK_ADVANCE_FALSE
 
 class BroadcastRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Broadcast):
@@ -255,6 +266,9 @@ class CommsRuntimeNode(MastRuntimeNode):
             self.set_buttons(origin_id, selected_id)
 
     def set_buttons(self, origin_id, selected_id):
+        if self.selected_id != selected_id or \
+            self.origin_id != origin_id:
+            return
         
         # check to see if the from ship still exists
         if origin_id is not None:
@@ -315,7 +329,6 @@ class CommsRuntimeNode(MastRuntimeNode):
         #
         # Set the client so it knows the selected console
         #
-        query.set_inventory_value(event.client_id, "COMMS_SELECTED_ID", event.selected_id)
         self.button = int(event.sub_tag)
         self.event = event
         this_button: Button = self.buttons[self.button]
@@ -484,6 +497,9 @@ class ScanRuntimeNode(MastRuntimeNode):
         #
         # Check if this was initiated by a "Follow route"
         #
+        if self.selected_id != selected_id or \
+            self.origin_id != origin_id:
+            return
         if extra_tag == "__init__":
             self.tab = extra_tag
             return
@@ -547,6 +563,8 @@ class ScanRuntimeNode(MastRuntimeNode):
         if self.tab == "__init__":        
             so = query.to_object(self.selected_id)
             so_player = query.to_object(self.origin_id)
+            # Clear tab it maybe set below
+            self.tab = None
             if so and so_player:
                 tab = so_player.side+"scan"
                 scan_tab = so.get_engine_data(task.main.sim, tab)
@@ -848,7 +866,6 @@ over =     {
     "Comms": CommsRuntimeNode,
     "CommsInfo": CommsInfoRuntimeNode,
     "TransmitReceive": TransmitReceiveRuntimeNode,
-    "Tell": TellRuntimeNode,
     "Broadcast": BroadcastRuntimeNode,
     "Button": ButtonRuntimeNode,
     "Simulation": SimulationRuntimeNode,

@@ -1,5 +1,7 @@
 
 import typing
+# using EngineObject since it is lighter weight than query??
+from .engineobject import EngineObject
 
 
 class ConsoleDispatcher:
@@ -271,11 +273,20 @@ class ConsoleDispatcher:
         if event.extra_tag=="__init__":
             return
         my_ship  = ctx.sim.get_space_object(event.origin_id)
+        
         blob = my_ship.data_set
         blob.set(console, event.selected_id,0)
+            
+        co = EngineObject.get(event.client_id)
+        # Set the selection as inventory
+        if co:
+            co.set_inventory_value(console.upper(), event.selected_id)
         if "grid" in console:
-            #print(f"It is doing it {console} {event.origin_id} {event.parent_id}")
             blob.set("grid_selected_ship_UID", event.parent_id,0)
+            if co:
+                co.set_inventory_value("grid_selected_ship_UID".upper(), event.parent_id)
+
+        
 
 ############
 ### Set the initial 

@@ -67,7 +67,9 @@ def inventory_value(link_source, link_name: str, default=None):
         """
     
     link_source = EngineObject.resolve_py_object(link_source)
-    return link_source.get_inventory_value(link_name, default)
+    if link_source is not None:
+        return link_source.get_inventory_value(link_name, default)
+    return None
 
 
 def linked_to(link_source, link_name: str):

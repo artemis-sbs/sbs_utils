@@ -269,15 +269,15 @@ class PyMastTask(EngineObject):
         comms = PyMastComms(self, buttons, player, npc)
         # Then Await for it to finish
         def pusher(story):
-            return self.run_comms(comms)
+            return comms.run()
         self.task.push_jump_pop(pusher)
         return PollResults.OK_JUMP
 
-    def run_comms(self, comms):
-        while comms.done == False:
-            yield PollResults.OK_RUN_AGAIN
-        #print("COMMS DONE")
-        self.pop()
+    # def run_comms(self, comms):
+    #     while comms.done == False:
+    #         yield PollResults.OK_RUN_AGAIN
+    #     #print("COMMS DONE")
+    #     self.pop()
 
 
     def await_gui(self, buttons, timeout, on_message=None, test_refresh=None, test_end_await = None, on_disconnect=None):

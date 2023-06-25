@@ -224,7 +224,7 @@ class ClickableRuntimeNode(StoryRuntimeNode):
 
             if node.data_code is not None:
                 self.data = task.eval_code(node.data_code)
-                print(self.data)
+                #print(self.data)
 
             if node.style_def is not None:
                 self.apply_style_def(node.style_def, task.main.page.get_pending_layout(), task)
@@ -232,8 +232,8 @@ class ClickableRuntimeNode(StoryRuntimeNode):
         
     def on_message(self, sim, event):
         if event.sub_tag == self.tag:
-            print(self.tag)
-            print(self.data)
+            #print(self.tag)
+            #print(self.data)
             # Jump to the cmds after the button
             self.task.push_inline_block(self.task.active_label, self.node.loc+1, self.data)
 
@@ -736,7 +736,6 @@ class RerouteGuiRuntimeNode(StoryRuntimeNode):
             # A jump in main set the label's next
             # label so it runs at the end of main
             #
-            print(f"{client_id}")
             main_label_obj = task.main.mast.labels.get("main")
             jump_label_obj = task.main.mast.labels.get(node.label)
             main_label_obj.next = jump_label_obj
@@ -1095,7 +1094,7 @@ class StoryPage(Page):
                 self.aspect_ratio.y != aspect_ratio.y):
                 self.aspect_ratio.x = sz.x
                 self.aspect_ratio.y = sz.y
-                print(f"Aspect Change {self.aspect_ratio.x} {self.aspect_ratio .y}")
+                #print(f"Aspect Change {self.aspect_ratio.x} {self.aspect_ratio .y}")
                 for layout in self.layouts:
                     layout.aspect_ratio = aspect_ratio
                     layout.calc()
@@ -1165,7 +1164,7 @@ class StoryPage(Page):
             return
         
         if event.tag =="mast:client_disconnect":
-            print("event discon")
+            #print("event discon")
             self.disconnected = True
             self.tick_gui_task(ctx)
         elif event.tag == "screen_size":
@@ -1176,7 +1175,7 @@ class StoryPage(Page):
                     self.aspect_ratio.y != aspect_ratio.y):
                     self.aspect_ratio.x = sz.x
                     self.aspect_ratio.y = sz.y
-                    print(f"Aspect Change {self.aspect_ratio.x} {self.aspect_ratio .y}")
+                    #print(f"Aspect Change {self.aspect_ratio.x} {self.aspect_ratio .y}")
                     for layout in self.layouts:
                         layout.aspect_ratio = aspect_ratio
                         layout.calc()

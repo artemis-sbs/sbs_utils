@@ -19,6 +19,10 @@ class PyMastScience:
         
 
     def selected(self, ctx, origin_id, event):
+        if self.selected_id != event.selected_id or \
+            self.origin_id != event.origin_id:
+            return
+        
         self.event = event
         self.handle_selected(ctx.sim, event.origin_id, event.selected_id, event.extra_tag)
         self.event = None
@@ -54,6 +58,9 @@ class PyMastScience:
                 blob.set("cur_scan_percent",0.999,0)
 
     def message(self, ctx, message, player_id, event):
+        if self.selected_id != event.selected_id or \
+            self.origin_id != event.origin_id:
+            return
         sim = ctx.sim
         # This event is sent from the c++ code, once, 
         # when a space object scan is completed

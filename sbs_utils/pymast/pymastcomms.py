@@ -8,6 +8,43 @@ from .. import query
 from .. import faces
 
 
+
+
+def transmit(text, origin_id, selected_id, color=None, face=None, title=None):
+    # Message from player
+    if face is None:
+        face = faces.get_face(origin_id)
+    if title is None:
+        origin_so = EngineObject.get(origin_id)
+        npc_so = EngineObject.get(selected_id)
+        if origin_so is not None and npc_so is not None:
+            title = f"{origin_so.comms_id}>{npc_so.comms_id}"
+        else:
+            title = "unknown"
+    if color is None:
+        color = "gray"
+    sbs.send_comms_message_to_player_ship(origin_id, selected_id, 
+            color, face, 
+            title,  text)
+        
+    
+def receive(text, origin_id, selected_id, color=None, face=None, title=None):
+    # Message from NPC
+    if face is None:
+        face = faces.get_face(selected_id)
+    if title is None:
+        origin_so = EngineObject.get(origin_id)
+        npc_so = EngineObject.get(selected_id)
+        if origin_so is not None and npc_so is not None:
+            title = f"{npc_so.comms_id}>{origin_so.comms_id}"
+        else:
+            title = "unknown"
+    if color is None:
+        color = "gray"
+    sbs.send_comms_message_to_player_ship(origin_id, selected_id, color, face, 
+            title,  text)
+
+
 class PyMastComms:
     def __init__(self, task, buttons, origin_id, selected_id) -> None:
         self.buttons = buttons
@@ -21,8 +58,7 @@ class PyMastComms:
         ConsoleDispatcher.add_message_pair(origin_id, selected_id, console, self.message)
         # this initializes the buttons
         self.handled_selected(origin_id, selected_id)
-        self.selected_id =  selected_id
-
+        
     def stop(self):
         console = "comms_target_UID" if query.is_space_object_id(self.selected_id) else "grid_selected_UID"
         ConsoleDispatcher.remove_select_pair(self.origin_id, self.selected_id, console)
@@ -32,6 +68,11 @@ class PyMastComms:
 
     
     def selected(self, sim, _ , event):
+        if self.selected_id != event.selected_id or \
+            self.origin_id != event.origin_id:
+            return
+
+        self.task.EVENT = event
         self.handled_selected(event.origin_id, event.selected_id)
         
     def handled_selected(self, origin_id, selected_id):
@@ -66,7 +107,8 @@ class PyMastComms:
             sbs.send_grid_selection_info(origin_id, face_text, "white", npc_comms_id)
     
     def message(self, sim, message, player_id, event):
-        if event.origin_id != self.origin_id:
+        if self.selected_id != event.selected_id or \
+            self.origin_id != event.origin_id:
             return
         
         if not message.startswith("comms:") or len(message)<7:
@@ -79,6 +121,7 @@ class PyMastComms:
                 button_func = button_func[1]
             if button_func:
                 self.selected_info(event.origin_id, event.selected_id)
+                self.task.EVENT = event
                 if inspect.isfunction(button_func):
                     def pusher(story):
                         print(f"BUTTON {button_func}")
@@ -106,38 +149,11 @@ class PyMastComms:
 
 
     def receive(self, text, color=None, face=None, title=None):
-        # Message from NPC
-        if face is None:
-            face = faces.get_face(self.selected_id)
-        if title is None:
-            origin_so = EngineObject.get(self.origin_id)
-            npc_so = EngineObject.get(self.selected_id)
-            if origin_so is not None and npc_so is not None:
-                title = f"{npc_so.comms_id}>{origin_so.comms_id}"
-            else:
-                title = "unknown"
-        if color is None:
-            color = "gray"
-        sbs.send_comms_message_to_player_ship(self.origin_id, self.selected_id, color, face, 
-                title,  text)
+        receive(text, self.origin_id, self.selected_id, color, face, title)
         
     def transmit(self, text, color=None, face=None, title=None):
-        # Message from player
-        if face is None:
-            face = faces.get_face(self.origin_id)
-        if title is None:
-            origin_so = EngineObject.get(self.origin_id)
-            npc_so = EngineObject.get(self.selected_id)
-            if origin_so is not None and npc_so is not None:
-                title = f"{origin_so.comms_id}>{npc_so.comms_id}"
-            else:
-                title = "unknown"
-        if color is None:
-            color = "gray"
-        sbs.send_comms_message_to_player_ship(self.origin_id, self.selected_id, 
-                color, face, 
-                title,  text)
-
+        transmit(text, self.origin_id, self.selected_id, color, face, title)
+        
     @classmethod        
     def broadcast(self_cls, id, text, color=None):
         # Message from player
@@ -148,6 +164,7 @@ class PyMastComms:
         else:
             sbs.send_message_to_player_ship(id, color,  text)
 
+        
 
     def get_origin(self):
             return EngineObject.get(self.origin_id)
@@ -162,5 +179,6 @@ class PyMastComms:
 
     def run(self):    
         while self.done == False:
-           yield PollResults.OK_RUN_AGAIN
+            yield PollResults.OK_RUN_AGAIN
+        yield PollResults.OK_ADVANCE_TRUE
         

@@ -117,6 +117,7 @@ class PyMastStory(EngineObject):
 
         define a label to use with a new task if the comms is not handled
         """
+        
 
         story = self
         def handle_dispatch(ctx, an_id, event):
@@ -129,6 +130,9 @@ class PyMastStory(EngineObject):
             task = story.schedule_task(label)
             task.COMMS_ORIGIN_ID = event.origin_id
             task.COMMS_SELECTED_ID = event.selected_id
+            task.COMMS_ROUTED = True
+            task.EVENT = event
+
             #
             # Kick the tick
             #
@@ -147,7 +151,7 @@ class PyMastStory(EngineObject):
         """
         story = self
         def handle_dispatch(sim, an_id, event):
-            console = "grid_target_UID"
+            console = "grid_selected_UID"
             if query.has_link_to(event.origin_id, f"__route{console}", event.selected_id):
                 return
             # I it reaches this, there are no pending comms handler
@@ -156,6 +160,7 @@ class PyMastStory(EngineObject):
             task.COMMS_ORIGIN_ID = event.origin_id
             task.COMMS_SELECTED_ID = event.selected_id
             task.COMMS_ROUTED = True
+            task.EVENT = event
             #
             # Kick the tick
             #
@@ -183,6 +188,7 @@ class PyMastStory(EngineObject):
             task = story.schedule_task(label)
             task.SCIENCE_ORIGIN_ID = event.origin_id
             task.SCIENCE_SELECTED_ID = event.selected_id
+            task.EVENT = event
             task.SCIENCE_ROUTED = True
             #
             # Kick the tick
@@ -194,6 +200,35 @@ class PyMastStory(EngineObject):
                 query.link(event.origin_id, f"__route{console}", event.selected_id)
         ConsoleDispatcher.add_default_select("science_target_UID", handle_dispatch)
 
+    def route_weapons_select(self, label):
+        """
+        route_weapons
+
+        define a label to use with a new task if the comms is not handled
+        """
+        story = self
+        def handle_dispatch(sim, an_id, event):
+            console = "weapon_target_UID"
+            if query.has_link_to(event.origin_id, f"__route{console}", event.selected_id):
+                return
+            # I it reaches this, there are no pending comms handler
+            # Create a new task and jump to the routing label
+            task = story.schedule_task(label)
+            task.WEAPONS_ORIGIN_ID = event.origin_id
+            task.WEAPONS_SELECTED_ID = event.selected_id
+            task.EVENT = event
+            task.WEAPONS_ROUTED = True
+            #
+            # Kick the tick
+            #
+            task.tick(sim)
+            #
+            #
+            if not task.done:
+                query.link(event.origin_id, f"__route{console}", event.selected_id)
+        ConsoleDispatcher.add_default_select("weapon_target_UID", handle_dispatch)
+
+    
     def route_spawn(self, label):
         """
         route_spawn
@@ -206,6 +241,7 @@ class PyMastStory(EngineObject):
             # Create a new task and jump to the routing label
             task = story.schedule_task(label)
             task.SPAWNED_ID = so.id
+            #task.EVENT = event
             task.SPAWNED_ROUTED = True
             #
             # Kick the tick
@@ -227,6 +263,7 @@ class PyMastStory(EngineObject):
             # Create a new task and jump to the routing label
             task = story.schedule_task(label)
             task.SPAWNED_ID = so.id
+            #task.EVENT = event
             task.SPAWNED_ROUTED = True
             #
             # Kick the tick
@@ -327,6 +364,7 @@ class PyMastStory(EngineObject):
             # Need point? amount
             task = story.schedule_task(label)
             task.DESTROYED_ID = so.id
+            #task.EVENT = event
             task.DESTROYED_ROUTED = True
             #
             # Kick the tick
@@ -398,10 +436,12 @@ class PyMastStory(EngineObject):
 
 
     def reroute_gui_client(self, client_id, label):
-        page = Gui.clients.get(client_id)
-        if page:
-            page.reroute_gui(label)
-    
+        client = Gui.clients.get(client_id)
+        if  client is not None:
+            client_page = client.page_stack[-1]
+            if client_page:
+                client_page.reroute_gui(label)
+
 
     def gui_face(self, face, style=None):
         if self.get_page() is None:
@@ -636,9 +676,10 @@ class PyMastStory(EngineObject):
     
 
     def assign_player_ship(self, player):
-        if self.get_page() is None:
+        page = self.get_page()
+        if page is None:
             return
-        self.get_page().assign_player_ship(player)
+        page.assign_player_ship(player)
         
     def gui_image(self, file, color, style=None):
         if self.get_page() is None:

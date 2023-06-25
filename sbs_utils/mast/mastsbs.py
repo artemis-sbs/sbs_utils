@@ -28,8 +28,8 @@ class TransmitReceive(MastNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
     OPT_FACE = r"""([ \t]*face(([ \t]*(?P<faceq>['"]{3}|["'])(?P<face_string>[ \t\S]+?)(?P=faceq))|([ \t]+(?P<face_var>\w+))))?"""
     OPT_COMMS_ID = r"""([ \t]*title(([ \t]*(?P<comq>['"]{3}|["'])(?P<comms_string>[ \t\S]+?)(?P=comq))|([ \t]+(?P<comms_var>\w+))))?"""
-    rule = re.compile(r"""(?P<tr>receive|transmit)[ \t]*(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)"""+OPT_COMMS_ID+OPT_FACE+OPT_COLOR)
-    def __init__(self, tr, message, 
+    rule = re.compile(r"""(?P<tr>receive|transmit)([ \t]+(?P<origin>\w+)[ \t]+(?P<selected>\w+))?[ \t]+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)"""+OPT_COMMS_ID+OPT_FACE+OPT_COLOR)
+    def __init__(self, tr, message, origin, selected,
                 face_string=None, face_var=None, faceq=None,
                 comms_string=None, comms_var=None, comq=None,
                 q=None, color=None, loc=None):
@@ -41,6 +41,8 @@ class TransmitReceive(MastNode):
         self.face_var = face_var
         self.comms_string = self.compile_formatted_string(comms_string)
         self.comms_var = comms_var
+        self.origin = origin
+        self.selected = selected
 
 
 class CommsInfo(MastNode):
@@ -51,15 +53,15 @@ class CommsInfo(MastNode):
         self.color = color if color is not None else "#fff"
 
 
-class Tell(MastNode):
-    #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
-    rule = re.compile(r"""have[ \t]*(?P<from_tag>\*?\w+)[ \t]+tell[ \t]+(?P<to_tag>\*?\w+)[ \t]+((['"]{3}|["'])(?P<message>[ \t\S]+?)\4)"""+OPT_COLOR)
-    def __init__(self, to_tag, from_tag, message, color=None, loc=None):
-        self.loc = loc
-        self.to_tag = to_tag
-        self.from_tag = from_tag
-        self.message = self.compile_formatted_string(message)
-        self.color = color if color is not None else "#fff"
+# class Tell(MastNode):
+#     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
+#     rule = re.compile(r"""have[ \t]*(?P<from_tag>\*?\w+)[ \t]+tell[ \t]+(?P<to_tag>\*?\w+)[ \t]+((['"]{3}|["'])(?P<message>[ \t\S]+?)\4)"""+OPT_COLOR)
+#     def __init__(self, to_tag, from_tag, message, color=None, loc=None):
+#         self.loc = loc
+#         self.to_tag = to_tag
+#         self.from_tag = from_tag
+#         self.message = self.compile_formatted_string(message)
+#         self.color = color if color is not None else "#fff"
 
 class Broadcast(MastNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
@@ -246,7 +248,6 @@ class MastSbs(Mast):
         Route,
         FollowRoute,
         TransmitReceive,
-        Tell,
         Load,
         Broadcast,
         Comms,
