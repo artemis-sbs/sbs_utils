@@ -1,6 +1,10 @@
 from sbs_utils.consoledispatcher import ConsoleDispatcher
 from sbs_utils.engineobject import EngineObject
 from sbs_utils.pymast.pollresults import PollResults
+def receive (text, origin_id, selected_id, color=None, face=None, title=None):
+    ...
+def transmit (text, origin_id, selected_id, color=None, face=None, title=None):
+    ...
 class PyMastComms(object):
     """class PyMastComms"""
     def __init__ (self, task, buttons, origin_id, selected_id) -> None:

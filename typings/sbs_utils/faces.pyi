@@ -50,6 +50,8 @@ def random_arvonian ():
     
     :return: A Face string
     :rtype: string"""
+def random_face (race):
+    ...
 def random_kralien ():
     """Create a random kralien face
     

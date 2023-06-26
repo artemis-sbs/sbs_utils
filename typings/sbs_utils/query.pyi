@@ -73,22 +73,22 @@ def get_data_set_value (data_set, key, index=0):
     ...
 def get_dedicated_link (so, link):
     ...
-def get_engine_data (id_or_obj, sim, key, index=0):
+def get_engine_data (sim, id_or_obj, key, index=0):
     ...
 def get_engine_data_set (sim, id_or_obj):
     ...
-def get_inventory_value (so, link):
+def get_inventory_value (so, link, default=None):
     ...
 def get_open_grid_points (sim, id_or_obj):
     ...
 def get_pos (sim, id_or_obj):
     ...
-def grid_clear_target (grid_obj_or_set, sim):
+def grid_clear_target (sim, grid_obj_or_set):
     """Clear the target
     
     :param sim: The simulation
     :type sim: Artemis Cosmos simulation"""
-def grid_close_list (grid_obj, sim, the_set, max_dist=None, filter_func=None) -> list[sbs_utils.engineobject.CloseData]:
+def grid_close_list (sim, grid_obj, the_set, max_dist=None, filter_func=None) -> list[sbs_utils.engineobject.CloseData]:
     """Finds a list of matching objects
     :param sim: The simulation
     :type sim: Artemis Cosmos simulation
@@ -100,7 +100,7 @@ def grid_close_list (grid_obj, sim, the_set, max_dist=None, filter_func=None) ->
     :type filter_func:
     :return: A list of close object
     :rtype: List[GridCloseData]"""
-def grid_closest (grid_obj, sim, roles=None, max_dist=None, filter_func=None) -> sbs_utils.engineobject.CloseData:
+def grid_closest (sim, grid_obj, roles=None, max_dist=None, filter_func=None) -> sbs_utils.engineobject.CloseData:
     """Finds the closest object matching the criteria
     
     :param sim: The simulation
@@ -115,7 +115,7 @@ def grid_closest (grid_obj, sim, roles=None, max_dist=None, filter_func=None) ->
     :rtype: GridCloseData"""
 def grid_objects (sim, so_id):
     ...
-def grid_target (grid_obj_or_set, sim, target_id: int, speed=0.01):
+def grid_target (sim, grid_obj_or_set, target_id: int, speed=0.01):
     """Set the item to target
     
     :param sim: The simulation
@@ -124,7 +124,7 @@ def grid_target (grid_obj_or_set, sim, target_id: int, speed=0.01):
     :type other_id: int
     :param shoot: if the object should be shot at
     :type shoot: bool"""
-def grid_target_closest (grid_obj_or_set, sim, roles=None, max_dist=None, filter_func=None):
+def grid_target_closest (sim, grid_obj_or_set, roles=None, max_dist=None, filter_func=None):
     """Find and target the closest object matching the criteria
     
     :param sim: The simulation
@@ -139,7 +139,7 @@ def grid_target_closest (grid_obj_or_set, sim, roles=None, max_dist=None, filter
     :type shoot: bool
     :return: A list of close object
     :rtype: GridCloseData"""
-def grid_target_pos (grid_obj_or_set, sim, x: float, y: float, speed=0.01):
+def grid_target_pos (sim, grid_obj_or_set, x: float, y: float, speed=0.01):
     """Set the item to target
     
     :param sim: The simulation
@@ -164,6 +164,16 @@ def has_link (key: str):
     :param key: The key/name of the inventory item
     :type key: str
     :rtype: set of ids"""
+def has_link_to (link_source, link_name: str, link_target):
+    """has_linked_to
+    
+    check if target and source are linked to for the given key
+    
+    :param link_source: The id object to check
+    :type link_source: int / id
+    :param link_name: The key/name of the inventory item
+    :type link_name: str
+    :rtype: set of ids"""
 def has_role (so, role):
     ...
 def has_roles (so, roles):
@@ -179,7 +189,7 @@ def inventory_set (link_source, link_name: str):
     :param link_name: The key/name of the inventory item
     :type link_name: str
     :rtype: set of data"""
-def inventory_value (link_source, link_name: str):
+def inventory_value (link_source, link_name: str, default=None):
     """inventory_value
     
     get the value that inventory items with the given key the the link source has
@@ -194,6 +204,10 @@ def is_client_id (id):
 def is_grid_object_id (id):
     ...
 def is_space_object_id (id):
+    ...
+def is_story_id (id):
+    ...
+def is_task_id (id):
     ...
 def link (set_holder, link, set_to):
     ...
@@ -240,13 +254,13 @@ def set_data_set_value (data_set, key, value, index=0):
     ...
 def set_dedicated_link (so, link, to):
     ...
-def set_engine_data (to_update, sim, key, value, index=0):
+def set_engine_data (sim, to_update, key, value, index=0):
     ...
 def set_inventory_value (so, link, to):
     ...
 def set_pos (sim, id_or_obj, x, y, z):
     ...
-def target (sim, set_or_object, target_id, shoot: bool = True):
+def target (sim, set_or_object, target_id, shoot: bool = True, throttle: float = 1.0):
     """Set the item to target
     :param sim: The simulation
     :type sim: Artemis Cosmos simulation
@@ -254,7 +268,7 @@ def target (sim, set_or_object, target_id, shoot: bool = True):
     :type other_id: int
     :param shoot: if the object should be shot at
     :type shoot: bool"""
-def target_pos (sim, chasers: set | int | sbs_utils.engineobject.CloseData | sbs_utils.engineobject.SpawnData, x: float, y: float, z: float):
+def target_pos (sim, chasers: set | int | sbs_utils.engineobject.CloseData | sbs_utils.engineobject.SpawnData, x: float, y: float, z: float, throttle: float = 1.0):
     """Set the item to target
     
     :param sim: The simulation

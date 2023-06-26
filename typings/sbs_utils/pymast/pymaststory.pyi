@@ -1,5 +1,6 @@
 from sbs_utils.pymast.pymaststorypage import CodePusher
 from sbs_utils.consoledispatcher import ConsoleDispatcher
+from sbs_utils.damagedispatcher import DamageDispatcher
 from sbs_utils.pymast.pymasttask import DataHolder
 from sbs_utils.pymast.pymasttask import PyMastTask
 from sbs_utils.engineobject import EngineObject
@@ -11,7 +12,9 @@ from sbs_utils.pymast.pymastcomms import PyMastComms
 from sbs_utils.pymast.pymastscheduler import PyMastScheduler
 from sbs_utils.pymast.pymastscience import PyMastScience
 from sbs_utils.tickdispatcher import TickDispatcher
-class PyMastStory(object):
+def get_story_id ():
+    ...
+class PyMastStory(EngineObject):
     """class PyMastStory"""
     def END (self):
         ...
@@ -19,6 +22,10 @@ class PyMastStory(object):
         """Call self as a function."""
     def __init__ (self, *args, **kwargs):
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def _add (id, obj):
+        ...
+    def _remove (id):
+        ...
     def add_scheduler (self, ctx, label):
         ...
     def assign_player_ship (self, player):
@@ -37,6 +44,8 @@ class PyMastStory(object):
         ...
     def behave_until (self, poll_result, label):
         ...
+    def clear ():
+        ...
     @property
     def client_id (self):
         ...
@@ -48,7 +57,19 @@ class PyMastStory(object):
         ...
     def file_logger (self, filename, logger_name='pymast'):
         ...
+    def get (id):
+        ...
+    def get_as (id, as_cls):
+        ...
+    def get_objects_from_set (the_set):
+        ...
     def get_page (self):
+        ...
+    def get_role_object (link_name):
+        ...
+    def get_role_objects (role):
+        ...
+    def get_role_set (role):
         ...
     def gui_activate_console (self, console):
         ...
@@ -105,6 +126,14 @@ class PyMastStory(object):
         :type layout: str"""
     def gui_text_input (self, props, label, style=None):
         ...
+    def has_inventory_list (collection_name):
+        ...
+    def has_inventory_set (collection_name):
+        ...
+    def has_links_list (collection_name):
+        ...
+    def has_links_set (collection_name):
+        ...
     def is_running (self):
         ...
     def jump (self, label):
@@ -117,12 +146,40 @@ class PyMastStory(object):
         ...
     def push (self, label):
         ...
+    def reroute_gui_all (self, label):
+        ...
+    def reroute_gui_client (self, client_id, label):
+        ...
+    def reroute_gui_clients (self, label):
+        ...
+    def reroute_gui_server (self, label):
+        ...
+    def resolve_id (other: 'EngineObject | CloseData | int'):
+        ...
+    def resolve_py_object (other: 'EngineObject | CloseData | int'):
+        ...
     def route_change_console (self, label):
         ...
     def route_comms_select (self, label):
         """route_comms
         
         define a label to use with a new task if the comms is not handled"""
+    def route_damage_internal (self, label):
+        """route_damage_source
+        
+        define a label to use with a new task items are spawned"""
+    def route_damage_source (self, label):
+        """route_damage_source
+        
+        define a label to use with a new task items are spawned"""
+    def route_damage_target (self, label):
+        """route_damage_source
+        
+        define a label to use with a new task items are spawned"""
+    def route_destroy (self, label):
+        """route_damage_source
+        
+        define a label to use with a new task items are spawned"""
     def route_grid_select (self, label):
         """route_comms
         
@@ -139,13 +196,11 @@ class PyMastStory(object):
         """route_spawn
         
         define a label to use with a new task items are spawned"""
+    def route_weapons_select (self, label):
+        """route_weapons
+        
+        define a label to use with a new task if the comms is not handled"""
     def schedule_task (self, label):
-        ...
-    def start (self):
-        ...
-    def start_client (self):
-        ...
-    def start_server (self):
         ...
     def string_logger (self, logger_name='pymast'):
         ...

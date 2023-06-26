@@ -8,7 +8,6 @@ from sbs_utils.mast.mast import Delay
 from sbs_utils.mast.mast import DoCommand
 from sbs_utils.mast.mast import End
 from sbs_utils.mast.mast import EndAwait
-from sbs_utils.mast.mast import Event
 from sbs_utils.mast.mast import Fail
 from sbs_utils.mast.mast import IfStatements
 from sbs_utils.mast.mast import Import
@@ -35,6 +34,7 @@ from sbs_utils.mast.mast import Rule
 from sbs_utils.mast.mast import Scope
 from sbs_utils.mast.mast import Timeout
 from sbs_utils.mast.mast import Yield
+from sbs_utils.engineobject import EngineObject
 from enum import Enum
 from enum import IntEnum
 from zipfile import ZipFile
@@ -46,33 +46,37 @@ def first_non_space_index (s):
     ...
 def first_non_whitespace_index (s):
     ...
+def get_story_id ():
+    ...
+def get_task_id ():
+    ...
 def getmembers (object, predicate=None):
     ...
 def isfunction (object):
     ...
 class AssignRuntimeNode(MastRuntimeNode):
     """class AssignRuntimeNode"""
-    def poll (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.Assign):
+    def poll (self, mast, task: 'MastAsyncTask', node: 'Assign'):
         ...
 class AwaitConditionRuntimeNode(MastRuntimeNode):
     """class AwaitConditionRuntimeNode"""
-    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.AwaitCondition):
+    def enter (self, mast: 'Mast', task: 'MastAsyncTask', node: 'AwaitCondition'):
         ...
-    def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.AwaitCondition):
+    def poll (self, mast: 'Mast', task: 'MastAsyncTask', node: 'AwaitCondition'):
         ...
 class AwaitFailRuntimeNode(MastRuntimeNode):
     """class AwaitFailRuntimeNode"""
-    def poll (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.AwaitFail):
+    def poll (self, mast, task: 'MastAsyncTask', node: 'AwaitFail'):
         ...
 class BehaviorRuntimeNode(MastRuntimeNode):
     """class BehaviorRuntimeNode"""
-    def enter (self, mast, task, node: sbs_utils.mast.mast.Behavior):
+    def enter (self, mast, task, node: 'Behavior'):
         ...
-    def poll (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.Behavior):
+    def poll (self, mast, task: 'MastAsyncTask', node: 'Behavior'):
         ...
 class CancelRuntimeNode(MastRuntimeNode):
     """class CancelRuntimeNode"""
-    def poll (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.Cancel):
+    def poll (self, mast, task: 'MastAsyncTask', node: 'Cancel'):
         ...
 class DelayRuntimeNode(MastRuntimeNode):
     """class DelayRuntimeNode"""
@@ -82,83 +86,83 @@ class DelayRuntimeNode(MastRuntimeNode):
         ...
 class DoCommandRuntimeNode(MastRuntimeNode):
     """class DoCommandRuntimeNode"""
-    def poll (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.DoCommand):
+    def poll (self, mast, task: 'MastAsyncTask', node: 'DoCommand'):
         ...
 class EndAwaitRuntimeNode(MastRuntimeNode):
     """class EndAwaitRuntimeNode"""
 class EndRuntimeNode(MastRuntimeNode):
     """class EndRuntimeNode"""
-    def poll (self, mast, task, node: sbs_utils.mast.mast.End):
-        ...
-class EventRuntimeNode(MastRuntimeNode):
-    """class EventRuntimeNode"""
-    def enter (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node):
-        ...
-    def poll (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node):
+    def poll (self, mast, task, node: 'End'):
         ...
 class FailRuntimeNode(MastRuntimeNode):
     """class FailRuntimeNode"""
-    def poll (self, mast, task, node: sbs_utils.mast.mast.Fail):
+    def poll (self, mast, task, node: 'Fail'):
         ...
 class IfStatementsRuntimeNode(MastRuntimeNode):
     """class IfStatementsRuntimeNode"""
-    def first_true (self, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.IfStatements):
+    def first_true (self, task: 'MastAsyncTask', node: 'IfStatements'):
         ...
-    def poll (self, mast, task, node: sbs_utils.mast.mast.IfStatements):
+    def poll (self, mast, task, node: 'IfStatements'):
         ...
 class JumpRuntimeNode(MastRuntimeNode):
     """class JumpRuntimeNode"""
-    def poll (self, mast, task, node: sbs_utils.mast.mast.Jump):
+    def poll (self, mast: 'Mast', task: 'MastAsyncTask', node: 'Jump'):
         ...
 class LogRuntimeNode(MastRuntimeNode):
     """class LogRuntimeNode"""
-    def enter (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.Log):
+    def enter (self, mast, task: 'MastAsyncTask', node: 'Log'):
         ...
 class LoggerRuntimeNode(MastRuntimeNode):
     """class LoggerRuntimeNode"""
-    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.Logger):
+    def enter (self, mast: 'Mast', task: 'MastAsyncTask', node: 'Logger'):
         ...
 class LoopBreakRuntimeNode(MastRuntimeNode):
     """class LoopBreakRuntimeNode"""
-    def enter (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.LoopBreak):
+    def enter (self, mast, task: 'MastAsyncTask', node: 'LoopBreak'):
         ...
-    def poll (self, mast, task, node: sbs_utils.mast.mast.LoopBreak):
+    def poll (self, mast, task, node: 'LoopBreak'):
         ...
 class LoopEndRuntimeNode(MastRuntimeNode):
     """class LoopEndRuntimeNode"""
-    def poll (self, mast, task, node: sbs_utils.mast.mast.LoopEnd):
+    def poll (self, mast, task, node: 'LoopEnd'):
         ...
 class LoopStartRuntimeNode(MastRuntimeNode):
     """class LoopStartRuntimeNode"""
-    def enter (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.LoopStart):
+    def enter (self, mast, task: 'MastAsyncTask', node: 'LoopStart'):
         ...
-    def poll (self, mast, task, node: sbs_utils.mast.mast.LoopStart):
+    def poll (self, mast, task, node: 'LoopStart'):
         ...
 class MastAllTask(object):
     """class MastAllTask"""
-    def __init__ (self, main) -> None:
+    def __init__ (self, main) -> 'None':
         """Initialize self.  See help(type(self)) for accurate signature."""
     def run_event (self, event_name, event):
         ...
-    def tick (self) -> sbs_utils.mast.mastscheduler.PollResults:
+    def tick (self) -> 'PollResults':
         ...
 class MastAnyTask(object):
     """class MastAnyTask"""
-    def __init__ (self, main) -> None:
+    def __init__ (self, main) -> 'None':
         """Initialize self.  See help(type(self)) for accurate signature."""
     def run_event (self, event_name, event):
         ...
-    def tick (self) -> sbs_utils.mast.mastscheduler.PollResults:
+    def tick (self) -> 'PollResults':
         ...
-class MastAsyncTask(object):
+class MastAsyncTask(EngineObject):
     """class MastAsyncTask"""
-    def __init__ (self, main: 'MastScheduler', inputs=None, conditional=None):
+    def __init__ (self, main: "'MastScheduler'", inputs=None, conditional=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def _add (id, obj):
+        ...
+    def _remove (id):
+        ...
     def add_dependency (id, task):
         ...
     def add_event (self, event_name, event):
         ...
     def call_leave (self):
+        ...
+    def clear ():
         ...
     def do_jump (self, label='main', activate_cmd=0):
         ...
@@ -170,6 +174,18 @@ class MastAsyncTask(object):
         ...
     def format_string (self, message):
         ...
+    def get (id):
+        ...
+    def get_as (id, as_cls):
+        ...
+    def get_objects_from_set (the_set):
+        ...
+    def get_role_object (link_name):
+        ...
+    def get_role_objects (role):
+        ...
+    def get_role_set (role):
+        ...
     def get_scoped_value (self, key, defa, scope):
         ...
     def get_symbols (self):
@@ -177,6 +193,14 @@ class MastAsyncTask(object):
     def get_value (self, key, defa):
         ...
     def get_variable (self, key):
+        ...
+    def has_inventory_list (collection_name):
+        ...
+    def has_inventory_set (collection_name):
+        ...
+    def has_links_list (collection_name):
+        ...
+    def has_links_set (collection_name):
         ...
     def jump (self, label='main', activate_cmd=0):
         ...
@@ -188,6 +212,10 @@ class MastAsyncTask(object):
         ...
     def push_label (self, label, activate_cmd=0, data=None):
         ...
+    def resolve_id (other: 'EngineObject | CloseData | int'):
+        ...
+    def resolve_py_object (other: 'EngineObject | CloseData | int'):
+        ...
     def run_event (self, event_name, event):
         ...
     def runtime_error (self, s):
@@ -196,7 +224,7 @@ class MastAsyncTask(object):
         ...
     def set_value_keep_scope (self, key, value):
         ...
-    def start_task (self, label='main', inputs=None, task_name=None) -> sbs_utils.mast.mastscheduler.MastAsyncTask:
+    def start_task (self, label='main', inputs=None, task_name=None) -> 'MastAsyncTask':
         ...
     def stop_for_dependency (id):
         ...
@@ -204,7 +232,7 @@ class MastAsyncTask(object):
         ...
 class MastFallbackTask(object):
     """class MastFallbackTask"""
-    def __init__ (self, main, labels, conditional) -> None:
+    def __init__ (self, main, labels, conditional) -> 'None':
         """Initialize self.  See help(type(self)) for accurate signature."""
     @property
     def active_label (self):
@@ -213,7 +241,7 @@ class MastFallbackTask(object):
         ...
     def run_event (self, event_name, event):
         ...
-    def tick (self) -> sbs_utils.mast.mastscheduler.PollResults:
+    def tick (self) -> 'PollResults':
         ...
 class MastRuntimeError(object):
     """class MastRuntimeError"""
@@ -229,9 +257,9 @@ class MastRuntimeNode(object):
         ...
 class MastScheduler(object):
     """class MastScheduler"""
-    def __init__ (self, mast: sbs_utils.mast.mast.Mast, overrides=None):
+    def __init__ (self, mast: 'Mast', overrides=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def _start_task (self, label='main', inputs=None, task_name=None) -> sbs_utils.mast.mastscheduler.MastAsyncTask:
+    def _start_task (self, label='main', inputs=None, task_name=None) -> 'MastAsyncTask':
         ...
     def cancel_task (self, name):
         ...
@@ -247,21 +275,21 @@ class MastScheduler(object):
         ...
     def runtime_error (self, message):
         ...
-    def start_all_task (self, labels='main', inputs=None, task_name=None, conditional=None) -> sbs_utils.mast.mastscheduler.MastAllTask:
+    def start_all_task (self, labels='main', inputs=None, task_name=None, conditional=None) -> 'MastAllTask':
         ...
-    def start_any_task (self, labels='main', inputs=None, task_name=None, conditional=None) -> sbs_utils.mast.mastscheduler.MastAnyTask:
+    def start_any_task (self, labels='main', inputs=None, task_name=None, conditional=None) -> 'MastAnyTask':
         ...
-    def start_fallback_task (self, labels='main', inputs=None, task_name=None, conditional=None) -> sbs_utils.mast.mastscheduler.MastFallbackTask:
+    def start_fallback_task (self, labels='main', inputs=None, task_name=None, conditional=None) -> 'MastFallbackTask':
         ...
-    def start_sequence_task (self, labels='main', inputs=None, task_name=None, conditional=None) -> sbs_utils.mast.mastscheduler.MastSequenceTask:
+    def start_sequence_task (self, labels='main', inputs=None, task_name=None, conditional=None) -> 'MastSequenceTask':
         ...
-    def start_task (self, label='main', inputs=None, task_name=None) -> sbs_utils.mast.mastscheduler.MastAsyncTask:
+    def start_task (self, label='main', inputs=None, task_name=None) -> 'MastAsyncTask':
         ...
     def tick (self):
         ...
 class MastSequenceTask(object):
     """class MastSequenceTask"""
-    def __init__ (self, main, labels, conditional) -> None:
+    def __init__ (self, main, labels, conditional) -> 'None':
         """Initialize self.  See help(type(self)) for accurate signature."""
     @property
     def active_label (self):
@@ -270,19 +298,19 @@ class MastSequenceTask(object):
         ...
     def run_event (self, event_name, event):
         ...
-    def tick (self) -> sbs_utils.mast.mastscheduler.PollResults:
+    def tick (self) -> 'PollResults':
         ...
 class MatchStatementsRuntimeNode(MastRuntimeNode):
     """class MatchStatementsRuntimeNode"""
-    def first_true (self, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.MatchStatements):
+    def first_true (self, task: 'MastAsyncTask', node: 'MatchStatements'):
         ...
-    def poll (self, mast, task, node: sbs_utils.mast.mast.MatchStatements):
+    def poll (self, mast, task, node: 'MatchStatements'):
         ...
 class ParallelRuntimeNode(MastRuntimeNode):
     """class ParallelRuntimeNode"""
-    def enter (self, mast, task, node: sbs_utils.mast.mast.Parallel):
+    def enter (self, mast, task, node: 'Parallel'):
         ...
-    def poll (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.Parallel):
+    def poll (self, mast, task: 'MastAsyncTask', node: 'Parallel'):
         ...
 class PollResults(IntEnum):
     """int([x]) -> integer
@@ -312,17 +340,17 @@ class PushData(object):
         """Initialize self.  See help(type(self)) for accurate signature."""
 class PyCodeRuntimeNode(MastRuntimeNode):
     """class PyCodeRuntimeNode"""
-    def poll (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.PyCode):
+    def poll (self, mast, task: 'MastAsyncTask', node: 'PyCode'):
         ...
 class ReturnIfRuntimeNode(MastRuntimeNode):
     """class ReturnIfRuntimeNode"""
-    def poll (self, mast, task, node: sbs_utils.mast.mast.ReturnIf):
+    def poll (self, mast, task, node: 'ReturnIf'):
         ...
 class TimeoutRuntimeNode(MastRuntimeNode):
     """class TimeoutRuntimeNode"""
-    def poll (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mast.Timeout):
+    def poll (self, mast, task: 'MastAsyncTask', node: 'Timeout'):
         ...
 class YieldRuntimeNode(MastRuntimeNode):
     """class YieldRuntimeNode"""
-    def poll (self, mast, task, node: sbs_utils.mast.mast.Yield):
+    def poll (self, mast, task, node: 'Yield'):
         ...

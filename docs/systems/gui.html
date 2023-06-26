@@ -124,6 +124,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#sbs_utils.gui.GuiClient.pop"><code class="docutils literal notranslate"><span class="pre">GuiClient.pop()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#sbs_utils.gui.GuiClient.present"><code class="docutils literal notranslate"><span class="pre">GuiClient.present()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#sbs_utils.gui.GuiClient.push"><code class="docutils literal notranslate"><span class="pre">GuiClient.push()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.gui.GuiClient.tick_gui_task"><code class="docutils literal notranslate"><span class="pre">GuiClient.tick_gui_task()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.gui.Page"><code class="docutils literal notranslate"><span class="pre">Page</span></code></a><ul>
@@ -131,6 +132,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#sbs_utils.gui.Page.on_message"><code class="docutils literal notranslate"><span class="pre">Page.on_message()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#sbs_utils.gui.Page.on_pop"><code class="docutils literal notranslate"><span class="pre">Page.on_pop()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#sbs_utils.gui.Page.present"><code class="docutils literal notranslate"><span class="pre">Page.present()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sbs_utils.gui.Page.tick_gui_task"><code class="docutils literal notranslate"><span class="pre">Page.tick_gui_task()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#sbs_utils.gui.Widget"><code class="docutils literal notranslate"><span class="pre">Widget</span></code></a><ul>
@@ -489,7 +491,7 @@ this is called once in the script.py</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="sbs_utils.gui.Gui.clients">
-<span class="sig-name descname"><span class="pre">clients</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{0:</span> <span class="pre">&lt;sbs_utils.gui.GuiClient</span> <span class="pre">object&gt;}</span></em><a class="headerlink" href="#sbs_utils.gui.Gui.clients" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">clients</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#sbs_utils.gui.Gui.clients" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
@@ -598,7 +600,7 @@ this is called once in the script.py</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="sbs_utils.gui.GuiClient">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sbs_utils.gui.</span></span><span class="sig-name descname"><span class="pre">GuiClient</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient" title="Permalink to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">EngineObject</span></code></p>
 <p>Manages the pages for a client</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="sbs_utils.gui.GuiClient.on_event">
@@ -667,6 +669,21 @@ this is called once in the script.py</p>
 </dl>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.GuiClient.tick_gui_task">
+<span class="sig-name descname"><span class="pre">tick_gui_task</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.GuiClient.tick_gui_task" title="Permalink to this definition"></a></dt>
+<dd><p>present</p>
+<p>Presents the top Page for the specified clientID by calling present on that page</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p></li>
+<li><p><strong>CID</strong> – Client ID</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="py class">
@@ -711,6 +728,17 @@ this is called once in the script.py</p>
 <dt class="sig sig-object py" id="sbs_utils.gui.Page.present">
 <span class="sig-name descname"><span class="pre">present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.present" title="Permalink to this definition"></a></dt>
 <dd><p>Called to have the page create and update the gui content it is presenting</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sbs_utils.gui.Page.tick_gui_task">
+<span class="sig-name descname"><span class="pre">tick_gui_task</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sbs_utils.gui.Page.tick_gui_task" title="Permalink to this definition"></a></dt>
+<dd><p>Called to have the page run any tasks they have prior to present</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>ctx</strong> (<em>Artemis Cosmos simulation</em>) – </p>

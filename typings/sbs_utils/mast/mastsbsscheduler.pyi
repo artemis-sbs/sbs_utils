@@ -1,14 +1,17 @@
 from sbs_utils.mast.mastsbs import Broadcast
 from sbs_utils.mast.mastsbs import Button
 from sbs_utils.mast.mastsbs import Comms
+from sbs_utils.mast.mastsbs import FollowRoute
 from sbs_utils.mast.mastsbs import Load
 from sbs_utils.mast.mastsbs import Route
+from sbs_utils.mast.mastsbs import Scan
 from sbs_utils.mast.mastsbs import ScanResult
 from sbs_utils.mast.mastsbs import ScanTab
 from sbs_utils.mast.mastsbs import Simulation
-from sbs_utils.mast.mastsbs import Tell
 from sbs_utils.mast.mastsbs import TransmitReceive
 from sbs_utils.consoledispatcher import ConsoleDispatcher
+from sbs_utils.gui import Context
+from sbs_utils.gui import Gui
 from sbs_utils.damagedispatcher import DamageDispatcher
 from sbs_utils.mast.errorpage import ErrorPage
 from sbs_utils.mast.mastobjects import GridObject
@@ -16,7 +19,6 @@ from sbs_utils.mast.mastobjects import MastSpaceObject
 from sbs_utils.mast.mastobjects import Npc
 from sbs_utils.mast.mastobjects import PlayerShip
 from sbs_utils.mast.mastobjects import Terrain
-from sbs_utils.gui import Gui
 from sbs_utils.lifetimedispatcher import LifetimeDispatcher
 from sbs_utils.mast.mast import Mast
 from sbs_utils.mast.mast import Scope
@@ -64,6 +66,10 @@ class CommsRuntimeNode(MastRuntimeNode):
     def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Comms):
         ...
     def set_buttons (self, origin_id, selected_id):
+        ...
+class FollowRouteRuntimeNode(MastRuntimeNode):
+    """class FollowRouteRuntimeNode"""
+    def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.FollowRoute):
         ...
 class LoadRuntimeNode(MastRuntimeNode):
     """class LoadRuntimeNode"""
@@ -120,7 +126,7 @@ class ScanResultRuntimeNode(MastRuntimeNode):
         ...
 class ScanRuntimeNode(MastRuntimeNode):
     """class ScanRuntimeNode"""
-    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Comms):
+    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Scan):
         ...
     def expand (self, button: sbs_utils.mast.mastsbs.ScanTab, task: sbs_utils.mast.mastscheduler.MastAsyncTask):
         ...
@@ -137,12 +143,6 @@ class ScanRuntimeNode(MastRuntimeNode):
 class SimulationRuntimeNode(MastRuntimeNode):
     """class SimulationRuntimeNode"""
     def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Simulation):
-        ...
-class TellRuntimeNode(MastRuntimeNode):
-    """class TellRuntimeNode"""
-    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Tell):
-        ...
-    def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Tell):
         ...
 class TransmitReceiveRuntimeNode(MastRuntimeNode):
     """class TransmitReceiveRuntimeNode"""

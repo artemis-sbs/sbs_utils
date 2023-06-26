@@ -38,8 +38,6 @@ class PyMastStoryPage(Page):
         ...
     def assign_player_ship (self, player):
         ...
-    def do_tick (self, ctx):
-        ...
     def get_pending_layout (self):
         ...
     def get_pending_row (self):
@@ -64,6 +62,8 @@ class PyMastStoryPage(Page):
         :type ctx: Artemis Cosmos simulation
         :param event: The event data
         :type event: event"""
+    def on_pop (self, ctx):
+        ...
     def present (self, ctx, event):
         """present
         
@@ -71,6 +71,8 @@ class PyMastStoryPage(Page):
         
         :param ctx:
         :type ctx: Artemis Cosmos simulation"""
+    def reroute_gui (self, label):
+        ...
     def run (self, time_out):
         ...
     def set_button_layout (self, layout):
@@ -81,3 +83,10 @@ class PyMastStoryPage(Page):
         ...
     def swap_layout (self):
         ...
+    def tick_gui_task (self, ctx):
+        """tick_gui_task
+        
+        Called to have the page run any tasks they have prior to present
+        
+        :param ctx:
+        :type ctx: Artemis Cosmos simulation"""

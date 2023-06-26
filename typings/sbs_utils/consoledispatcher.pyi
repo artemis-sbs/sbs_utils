@@ -1,3 +1,4 @@
+from sbs_utils.engineobject import EngineObject
 class ConsoleDispatcher(object):
     """class ConsoleDispatcher"""
     def add_default_message (console: str, cb: callable):
@@ -9,7 +10,6 @@ class ConsoleDispatcher(object):
         :type cb:  should have arguments of other ctx, message and object's id"""
     def add_default_select (console: str, cb: callable):
         """add a target for console selection
-        
         :param console: The consoles unique ID
         :type console: string
         :param cb: call back function

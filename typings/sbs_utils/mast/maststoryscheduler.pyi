@@ -1,5 +1,6 @@
 from sbs_utils.mast.maststory import AppendText
 from sbs_utils.mast.maststory import AwaitGui
+from sbs_utils.mast.maststory import AwaitSelect
 from sbs_utils.mast.maststory import Blank
 from sbs_utils.mast.maststory import BuildaConsole
 from sbs_utils.mast.maststory import ButtonControl
@@ -7,6 +8,7 @@ from sbs_utils.mast.maststory import CheckboxControl
 from sbs_utils.mast.maststory import Choose
 from sbs_utils.mast.maststory import Clickable
 from sbs_utils.mast.maststory import Console
+from sbs_utils.mast.maststory import Disconnect
 from sbs_utils.mast.maststory import DropdownControl
 from sbs_utils.mast.maststory import Face
 from sbs_utils.mast.maststory import GuiContent
@@ -16,6 +18,7 @@ from sbs_utils.mast.maststory import MastStory
 from sbs_utils.mast.maststory import OnChange
 from sbs_utils.mast.maststory import RadioControl
 from sbs_utils.mast.maststory import Refresh
+from sbs_utils.mast.maststory import RerouteGui
 from sbs_utils.mast.maststory import Row
 from sbs_utils.mast.maststory import Section
 from sbs_utils.mast.maststory import Ship
@@ -25,6 +28,7 @@ from sbs_utils.mast.maststory import Text
 from sbs_utils.mast.maststory import TextInputControl
 from sbs_utils.mast.maststory import WidgetList
 from sbs_utils.mast.mastsbs import Button
+from sbs_utils.consoledispatcher import ConsoleDispatcher
 from sbs_utils.gui import Context
 from sbs_utils.gui import FakeEvent
 from sbs_utils.gui import Gui
@@ -48,6 +52,14 @@ class AwaitGuiRuntimeNode(StoryRuntimeNode):
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.AwaitGui):
         ...
     def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.AwaitGui):
+        ...
+class AwaitSelectRuntimeNode(StoryRuntimeNode):
+    """class AwaitSelectRuntimeNode"""
+    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.AwaitSelect):
+        ...
+    def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.AwaitGui):
+        ...
+    def selected (self, _, __, event):
         ...
 class BlankRuntimeNode(StoryRuntimeNode):
     """class BlankRuntimeNode"""
@@ -97,6 +109,10 @@ class ConsoleRuntimeNode(MastRuntimeNode):
     """class ConsoleRuntimeNode"""
     def enter (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.Console):
         ...
+class DisconnectRuntimeNode(MastRuntimeNode):
+    """class DisconnectRuntimeNode"""
+    def poll (self, mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.Disconnect):
+        ...
 class DropdownControlRuntimeNode(StoryRuntimeNode):
     """class DropdownControlRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.DropdownControl):
@@ -125,7 +141,7 @@ class ImageControlRuntimeNode(StoryRuntimeNode):
         ...
 class OnChangeRuntimeNode(StoryRuntimeNode):
     """class OnChangeRuntimeNode"""
-    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.ImageControl):
+    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.OnChange):
         ...
     def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.OnChange):
         ...
@@ -143,7 +159,7 @@ class RefreshRuntimeNode(StoryRuntimeNode):
         ...
 class RerouteGuiRuntimeNode(StoryRuntimeNode):
     """class RerouteGuiRuntimeNode"""
-    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.ImageControl):
+    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.RerouteGui):
         ...
 class RowRuntimeNode(StoryRuntimeNode):
     """class RowRuntimeNode"""
@@ -219,8 +235,13 @@ class StoryPage(Page):
         ...
     def swap_layout (self):
         ...
-    def tick_mast (self, ctx, t):
-        ...
+    def tick_gui_task (self, ctx):
+        """tick_gui_task
+        
+        Called to have the page run any tasks they have prior to present
+        
+        :param ctx:
+        :type ctx: Artemis Cosmos simulation"""
 class StoryRuntimeNode(MastRuntimeNode):
     """class StoryRuntimeNode"""
     def apply_style_def (self, style_def, layout_item, task):
@@ -235,8 +256,6 @@ class StoryScheduler(MastSbsScheduler):
     """class StoryScheduler"""
     def __init__ (self, mast: sbs_utils.mast.mast.Mast, overrides=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def on_event (self, ctx, event):
-        ...
     def refresh (self, label):
         ...
     def run (self, ctx, client_id, page, label='main', inputs=None):

@@ -1,3 +1,4 @@
+from sbs_utils.engineobject import EngineObject
 class Context(object):
     """class Context"""
     def __init__ (self, sim, _sbs, aspect_ratio):
@@ -88,12 +89,38 @@ class Gui(object):
         
         :param cls_page:  The class of the page to create
         :type class: A python class typically a Page"""
-class GuiClient(object):
+class GuiClient(EngineObject):
     """Manages the pages for a client
     
         """
     def __init__ (self, client_id):
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def _add (id, obj):
+        ...
+    def _remove (id):
+        ...
+    def clear ():
+        ...
+    def get (id):
+        ...
+    def get_as (id, as_cls):
+        ...
+    def get_objects_from_set (the_set):
+        ...
+    def get_role_object (link_name):
+        ...
+    def get_role_objects (role):
+        ...
+    def get_role_set (role):
+        ...
+    def has_inventory_list (collection_name):
+        ...
+    def has_inventory_set (collection_name):
+        ...
+    def has_links_list (collection_name):
+        ...
+    def has_links_set (collection_name):
+        ...
     def on_event (self, ctx, event):
         """on_event
         
@@ -137,6 +164,19 @@ class GuiClient(object):
         :type ctx: Artemis Cosmos simulation
         :param page:
         :type Page: A GUI Page"""
+    def resolve_id (other: 'EngineObject | CloseData | int'):
+        ...
+    def resolve_py_object (other: 'EngineObject | CloseData | int'):
+        ...
+    def tick_gui_task (self, ctx):
+        """present
+        
+        Presents the top Page for the specified clientID by calling present on that page
+        
+        :param ctx:
+        :type ctx: Artemis Cosmos simulation
+        :param CID: Client ID
+        :type int: A client ID"""
 class Page(object):
     """A interface class for creating GUI pages
     
@@ -165,6 +205,13 @@ class Page(object):
         """present
         
         Called to have the page create and update the gui content it is presenting
+        
+        :param ctx:
+        :type ctx: Artemis Cosmos simulation"""
+    def tick_gui_task (self, ctx):
+        """tick_gui_task
+        
+        Called to have the page run any tasks they have prior to present
         
         :param ctx:
         :type ctx: Artemis Cosmos simulation"""

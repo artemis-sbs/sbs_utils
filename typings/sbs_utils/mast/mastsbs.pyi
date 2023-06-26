@@ -35,6 +35,12 @@ class CommsInfo(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
+class FollowRoute(MastNode):
+    """Route unhandled things comms, science, events"""
+    def __init__ (self, route, origin_tag, selected_tag, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
 class Load(MastNode):
     """class Load"""
     def __init__ (self, name, lib=None, format=None, loc=None):
@@ -43,6 +49,34 @@ class Load(MastNode):
         ...
 class MastSbs(Mast):
     """class MastSbs"""
+    def _add (id, obj):
+        ...
+    def _remove (id):
+        ...
+    def get (id):
+        ...
+    def get_as (id, as_cls):
+        ...
+    def get_objects_from_set (the_set):
+        ...
+    def get_role_object (link_name):
+        ...
+    def get_role_objects (role):
+        ...
+    def get_role_set (role):
+        ...
+    def has_inventory_list (collection_name):
+        ...
+    def has_inventory_set (collection_name):
+        ...
+    def has_links_list (collection_name):
+        ...
+    def has_links_set (collection_name):
+        ...
+    def resolve_id (other: 'EngineObject | CloseData | int'):
+        ...
+    def resolve_py_object (other: 'EngineObject | CloseData | int'):
+        ...
 class Route(MastNode):
     """Route unhandled things comms, science, events"""
     def __init__ (self, route, name, loc=None):
@@ -51,7 +85,7 @@ class Route(MastNode):
         ...
 class Scan(MastNode):
     """class Scan"""
-    def __init__ (self, to_tag, from_tag, loc=None):
+    def __init__ (self, to_tag=None, from_tag=None, fog=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -77,15 +111,9 @@ class Simulation(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
-class Tell(MastNode):
-    """class Tell"""
-    def __init__ (self, to_tag, from_tag, message, color=None, loc=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
-        ...
 class TransmitReceive(MastNode):
     """class TransmitReceive"""
-    def __init__ (self, tr, message, face_string=None, face_var=None, faceq=None, comms_string=None, comms_var=None, comq=None, q=None, color=None, loc=None):
+    def __init__ (self, tr, message, origin, selected, face_string=None, face_var=None, faceq=None, comms_string=None, comms_var=None, comq=None, q=None, color=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
