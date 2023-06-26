@@ -754,4 +754,4 @@ def get_open_grid_points(sim, id_or_obj):
                 if hull_map.is_grid_point_open(x,y) != 0:
                     the_set.append((x,y))
     return the_set
-    
+

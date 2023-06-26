@@ -40,7 +40,7 @@ def get_mission_dir_filename(filename):
     return get_script_dir()+"\\"+filename        
 
 
-def get_json_data(file):
+def load_json_data(file):
     try:
         with open(file, 'r') as f:
             # remove comments
@@ -48,11 +48,18 @@ def get_json_data(file):
             
             # remove trailing commas
             contents = re.sub(r',(\s*(?=[]}]|$))|("(?:[^\\"]|\\.)*"|[^"])', r'\1\2', contents)
-           
             return json.loads(contents)
+    except Exception as e:
+        return None
+    
+def save_json_data(file):
+    try:
+        with open(file, 'w') as f:
+            return json.dump(f)
     except Exception as e:
         return str(e)
 
-ship_data_cache = get_json_data( os.path.join(get_artemis_data_dir(), "shipData.json"))
+
+ship_data_cache = load_json_data( os.path.join(get_artemis_data_dir(), "shipData.json"))
 def get_ship_data():
     return ship_data_cache

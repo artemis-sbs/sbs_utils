@@ -54,7 +54,7 @@ class PyMastScience:
             # cur_scan_speed_coeff is normally already set 
             blob.set("cur_scan_ID",selected_id,0)
             blob.set("cur_scan_type",scan_type,0)
-            blob.set("cur_scan_percent",0.0,0)
+            blob.set("cur_scan_percent",0.99,0)
 
             if my_ship.side == selected_obj.side: # if this target is already on my side
                 blob.set("cur_scan_percent",0.999,0)

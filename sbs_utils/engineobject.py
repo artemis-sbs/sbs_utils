@@ -261,8 +261,8 @@ class EngineObject():
         collections = link_name.split(",")
         for collection in collections:
             collection = collection.strip().lower()
-            the_set = the_set = self.links.collections.get(collection)
-            if len(the_set)<1:
+            the_set = self.links.collections.get(collection)
+            if the_set is not None and len(the_set)<1:
                 self.has_links.remove_from_collection(collection, self.id)
 
     def remove_link_all(self, link_name: str):

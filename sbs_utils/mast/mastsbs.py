@@ -232,23 +232,12 @@ class Simulation(MastNode):
         self.loc = loc
         self.cmd = cmd
 
-
-class Load(MastNode):
-    rule = re.compile(r'(from[ \t]+(?P<lib>[\w\.\\\/-]+)[ \t]+)?load\s+(?P<format>json|map)[ \t]+(?P<name>[\w\.\\\/-]+)')
-
-    def __init__(self, name, lib=None, format=None, loc=None):
-        self.loc = loc
-        self.name = name
-        self.lib = lib
-        self.format = format
-
 class MastSbs(Mast):
     nodes =  [
         # sbs specific
         Route,
         FollowRoute,
         TransmitReceive,
-        Load,
         Broadcast,
         Comms,
         CommsInfo,

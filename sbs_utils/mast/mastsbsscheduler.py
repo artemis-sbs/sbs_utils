@@ -1,5 +1,5 @@
 from .mast import Mast, Scope
-from .mastsbs import Simulation, Route,  FollowRoute,TransmitReceive, Comms, Button, Broadcast, Scan, ScanTab,ScanResult, Load
+from .mastsbs import Simulation, Route,  FollowRoute,TransmitReceive, Comms, Button, Broadcast, Scan, ScanTab,ScanResult
 from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask
 import sbs
 from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain, GridObject
@@ -80,8 +80,19 @@ class TransmitReceiveRuntimeNode(MastRuntimeNode):
     
         if face is None:
             face = ""
-    
+
         msg = task.format_string(node.message)
+        # Format indirection, Is this slow?
+        # limit to 10 attempts
+        indirect = 0
+        test = node.compile_formatted_string(msg)
+        while test != msg and indirect<10:
+            msg = task.format_string(test)
+            test = node.compile_formatted_string(msg)
+            indirect+=1
+        
+        
+        
         #print(f"{self.from_id} {self.from_id} {node.color} {self.face} {self.title} {msg}")
         sbs.send_comms_message_to_player_ship(
             origin_id,
@@ -93,47 +104,6 @@ class TransmitReceiveRuntimeNode(MastRuntimeNode):
 
 
 
-# class TellRuntimeNode(MastRuntimeNode):
-#     def enter(self, mast:Mast, task:MastAsyncTask, node: Tell):
-#         to_so= task.get_variable(node.to_tag)
-#         self.face = ""
-#         self.title = ""
-#         self.to_id = None
-#         self.from_id = None
-#         to_so:SpaceObject = query.to_object(task.get_variable(node.to_tag))
-#         from_so:SpaceObject = query.to_object(task.get_variable(node.from_tag))
-#         if to_so is None or from_so is None:
-#             return
-#         # From face should be used
-#         self.title = from_so.comms_id +">"+to_so.comms_id
-#         self.face = faces.get_face(from_so.get_id())
-#         # Just in case swap if from is not a player
-#         if not from_so.is_player:
-#             swap = to_so
-#             to_so = from_so
-#             from_so = swap
-
-#         self.to_id = to_so.get_id()
-#         self.from_id = from_so.get_id()
-    
-#         if self.face is None:
-#             self.face = ""
-
-#     def poll(self, mast:Mast, task:MastAsyncTask, node: Tell):
-
-#         if self.to_id and self.from_id:
-#             msg = task.format_string(node.message)
-#             #print(f"{self.from_id} {self.from_id} {node.color} {self.face} {self.title} {msg}")
-#             sbs.send_comms_message_to_player_ship(
-#                 self.from_id,
-#                 self.to_id,
-#                 node.color,
-#                 self.face, 
-#                 self.title, 
-#                 msg)
-#             return PollResults.OK_ADVANCE_TRUE
-#         else:
-#             PollResults.OK_ADVANCE_FALSE
 
 class BroadcastRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Broadcast):
@@ -200,6 +170,8 @@ class CommsRuntimeNode(MastRuntimeNode):
         self.event = None
         self.is_running = False
         self.color = node.color if node.color else "white"
+        # If this is the same ship it is known
+        self.is_unknown = False
 
         buttons = []
         # Expand all the 'for' buttons
@@ -238,8 +210,7 @@ class CommsRuntimeNode(MastRuntimeNode):
         self.origin_id = origin_so.get_id()
         self.comms_id = selected_so.comms_id
         self.face = faces.get_face(selected_so.id)
-        # If this is the same ship it is known
-        self.is_unknown = False
+        
 
 
         if self.is_grid_comms:        
@@ -837,29 +808,6 @@ class SimulationRuntimeNode(MastRuntimeNode):
         return PollResults.OK_ADVANCE_TRUE
 
 
-
-class LoadRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Load):
-        content, errors = mast.content_from_lib_or_file(node.name, node.lib)
-        if content is None:
-            return
-        
-        match node.format:
-            case "data":
-                content = json.loads(content)
-                self.process_data(content)
-            case "map":
-                content = json.loads(content)
-                self.process_map(content)
-
-    def process_data(self, content):
-        pass
-
-    def process_data(self, content):
-        pass
-
-        
-
 over =     {
     "Route": RouteRuntimeNode,
     "FollowRoute": FollowRouteRuntimeNode,
@@ -870,7 +818,6 @@ over =     {
     "Button": ButtonRuntimeNode,
     "Simulation": SimulationRuntimeNode,
     "Scan": ScanRuntimeNode,
-    "Load": LoadRuntimeNode,
     "ScanResult": ScanResultRuntimeNode
 }
 
