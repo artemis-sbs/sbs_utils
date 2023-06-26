@@ -6,6 +6,8 @@ from .pollresults import PollResults
 class PyMastScience:
     def __init__(self, task, scans, origin_id, selected_id ) -> None:
         self.scans = scans
+        self.selected_id = selected_id
+        self.origin_id = origin_id
         # if the npc is None or a filter function it is a more general scan
         if  selected_id is None:
             ConsoleDispatcher.add_select(origin_id, "science_target_UID", self.selected)
