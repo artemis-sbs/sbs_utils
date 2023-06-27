@@ -28,7 +28,7 @@ from sbs_utils.mast.mastscheduler import MastScheduler
 from sbs_utils.mast.mastscheduler import PollResults
 from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.tickdispatcher import TickDispatcher
-from functools import partial
+
 def func(*argv):
     """assign_client_to_ship(arg0: int, arg1: int) -> None
     

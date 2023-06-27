@@ -10,6 +10,7 @@ from .. import faces
 
 
 
+
 def transmit(text, origin_id, selected_id, color=None, face=None, title=None):
     # Message from player
     if face is None:
@@ -124,7 +125,7 @@ class PyMastComms:
                 self.task.EVENT = event
                 if inspect.isfunction(button_func):
                     def pusher(story):
-                        print(f"BUTTON {button_func}")
+                        # print(f"BUTTON {button_func}")
                         gen = button_func(self.task.story, self)
                         if gen is not None:
                             for res in gen:
@@ -145,6 +146,7 @@ class PyMastComms:
                         self.stop()
                         yield self.task.pop()
                     self.task.push_jump_pop(pusher)
+
 
 
 

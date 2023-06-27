@@ -2,7 +2,7 @@ from .pollresults import PollResults
 import inspect
 from .pymastscience import PyMastScience
 from .pymastcomms import PyMastComms
-from functools import partial, partialmethod
+from functools import partial
 import types
 import sbs
 from ..engineobject import EngineObject, get_task_id
@@ -170,8 +170,11 @@ class PyMastTask(EngineObject):
             gen = label()
             res = PollResults.OK_JUMP
             #print(f"IS method {label.__name__} {gen}")
+        elif isinstance(label, partial):
+            gen = label()
+            res = PollResults.OK_JUMP
         else:
-            print("Partial?")
+            print("Unexpected label type: not function, method or partial")
         
         return (gen, res)
     

@@ -2,8 +2,7 @@ from sbs_utils.engineobject import EngineObject
 from sbs_utils.pymast.pollresults import PollResults
 from sbs_utils.pymast.pymastcomms import PyMastComms
 from sbs_utils.pymast.pymastscience import PyMastScience
-from functools import partial
-from functools import partialmethod
+
 def get_task_id ():
     ...
 def label (*dargs, **dkwargs):
