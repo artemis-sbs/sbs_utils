@@ -452,7 +452,11 @@ class ScanRuntimeNode(MastRuntimeNode):
         #self.set_buttons(self.to_id, self.from_id)
         # from_so.face_desc
         if routed:
-            self.start_scan(task.main.sim, from_so.id, to_so.id, "__init__")
+            event = task.get_variable("EVENT")
+            if event is not None:
+                self.start_scan(task.main.sim, from_so.id, to_so.id, event.extra_tag)
+            else:
+                self.start_scan(task.main.sim, from_so.id, to_so.id, "__init__")
 
     def science_selected(self, ctx, an_id, event):
         #

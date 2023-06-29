@@ -163,7 +163,9 @@ def ring(ca, cr, x,y,z, outer_r, inner_r=0, start=0.0, end=90.0, random=False):
     a_start = -math.radians(start)
     a_end = -math.radians(end)
     a_diff = (a_end-a_start)
-    r_diff = (outer_r - inner_r) / (cr-1)
+    r_diff = 0
+    if cr>1:
+        r_diff  = (outer_r - inner_r) / (cr-1)
     for r in range(0, cr):
         dist = inner_r + (r* r_diff)
         for i in range(0,ca):
@@ -199,7 +201,9 @@ def ring_density(counts, x,y,z,  outer_r, inner_r=0, start=0.0, end=90.0, random
     a_start = -math.radians(start)
     a_end = -math.radians(end)
     a_diff = (a_end-a_start)
-    r_diff = (outer_r - inner_r) / (len(counts)-1)
+    r_diff = 0
+    if len(counts)>1:
+        r_diff = (outer_r - inner_r) / (len(counts)-1)
     for r in range(0, len(counts)):
         dist = inner_r + (r* r_diff)
         ca = counts[r]
