@@ -227,7 +227,7 @@ class GuiMain(Page):
             case 'shiplist':
                 # reset state here?
                 sbs.create_new_sim()
-                enemy_ships = ["skaraan_defiler", "skaraan_enforcer","kralien_battleship", "kralien_dreadnaught", "torgoth_goliath", "torgoth_leviathan", "torgoth_behemoth"]
+                enemy_ships = ["skaraan_defiler", "skaraan_enforcer","kralien_battleship", "kralien_cruiser", "torgoth_goliath", "torgoth_leviathan", "torgoth_behemoth"]
                 ships = []
                 markers = "QKWR"
 
