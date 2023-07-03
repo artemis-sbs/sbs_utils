@@ -544,9 +544,12 @@ class ScanRuntimeNode(MastRuntimeNode):
                 tab = so_player.side+"scan"
                 scan_tab = so.get_engine_data(task.main.sim, tab)
                 if scan_tab is None:
-                    dist = sbs.distance_id(self.origin_id, self.selected_id)
-                    if dist < node.fog:
+                    if node.fog == 0:
                         self.tab = "scan"
+                    else:
+                        dist = sbs.distance_id(self.origin_id, self.selected_id)
+                        if dist < node.fog:
+                            self.tab = "scan"
                         #fall through
 
 
