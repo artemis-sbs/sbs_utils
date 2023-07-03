@@ -293,7 +293,7 @@ match console:
     case "Engineering":
         widget_list "normal_engi" "ship_internal_view^grid_object_list^grid_face_grid_control^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
     case "Comms":
-        widget_list "normal_comm" "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data"
+        widget_list "normal_comm" "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
     case "Main Screen":
         widget_list "normal_main" "3dview^ship_data^text_waterfall"
     case _:

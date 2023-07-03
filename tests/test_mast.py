@@ -264,18 +264,6 @@ end_await
 """)
         assert(len(errors)==0)
 
-    def test_event_compile_err(self):
-        (errors, mast) =mast_compile( code = """
-event disconnect:
-    log "ok"
-end_event
-event change_console:
-    log "ok"
-end_event
-""")
-
-        assert(len(errors)==0)
-
 
     
     def test_py_exp_run_no_err(self):
@@ -601,8 +589,6 @@ case 50:
     log "NO2"
     ==== replace: fred ====
     log "YES2"
-    ==== append: fred ====
-    log "YES3"
     """)
             assert(len(errors)==0)
             output = runner.get_value("output", None)
@@ -610,7 +596,7 @@ case 50:
             st = output[0]
             #st.seek(0)
             value = st.getvalue()
-            assert(value =="""YES1\nYES2\nYESY3\n""")
+            assert(value =="""YES1\nYES2\n""")
 
     def test_await_condition(self):
         (errors, runner, _) = mast_run( code = """

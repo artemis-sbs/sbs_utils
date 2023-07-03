@@ -89,7 +89,7 @@ class ClientSelectPage(Page):
             case "Comms":
                 self.console_name = "normal_comm" 
                 self.console = event.sub_tag
-                self.widget_list = "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data"
+                self.widget_list = "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
             case "Main Screen":
                 self.console_name = "normal_main" 
                 self.console = event.sub_tag

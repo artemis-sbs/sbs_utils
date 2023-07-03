@@ -715,13 +715,13 @@ class RouteRuntimeNode(MastRuntimeNode):
         def handle_damage(ctx, event):
             # Need point? amount
             t = task.start_task(node.label, {
-                    f"DAMAGE_SOURCE_ID": event.origin_id,
-                    f"DAMAGE_PARENT_ID": event.parent_id,
-                    f"DAMAGE_TARGET_ID": event.selected_id,
-                    f"DAMAGE_ORIGIN_ID": event.origin_id,
-                    f"DAMAGE_SELECTED_ID": event.selected_id,
-                    f"EVENT": event,
-                    f"DAMAGE_ROUTED": True
+                    "DAMAGE_SOURCE_ID": event.origin_id,
+                    "DAMAGE_PARENT_ID": event.parent_id,
+                    "DAMAGE_TARGET_ID": event.selected_id,
+                    "DAMAGE_ORIGIN_ID": event.origin_id,
+                    "DAMAGE_SELECTED_ID": event.selected_id,
+                    #"EVENT": event,
+                    "DAMAGE_ROUTED": True
             })
             if not t.done:
                 MastAsyncTask.add_dependency(event.origin_id,t)
@@ -730,12 +730,12 @@ class RouteRuntimeNode(MastRuntimeNode):
         def handle_damage_internal(ctx, event):
             # Need point? amount
             t= task.start_task(node.label, {
-                    f"DAMAGE_SOURCE_ID": event.origin_id,
-                    f"DAMAGE_TARGET_ID": event.origin_id,
-                    f"DAMAGE_PARENT_ID": event.parent_id,
-                    f"DAMAGE_ORIGIN_ID": event.origin_id,
-                    f"EVENT": event,
-                    f"DAMAGE_ROUTED": True
+                    "DAMAGE_SOURCE_ID": event.origin_id,
+                    "DAMAGE_TARGET_ID": event.origin_id,
+                    "DAMAGE_PARENT_ID": event.parent_id,
+                    "DAMAGE_ORIGIN_ID": event.origin_id,
+                    "EVENT": event,
+                    "DAMAGE_ROUTED": True
             })
             if not t.done:
                 MastAsyncTask.add_dependency(event.origin_id,t)
@@ -770,15 +770,10 @@ class RouteRuntimeNode(MastRuntimeNode):
                     return PollResults.OK_ADVANCE_TRUE
                 LifetimeDispatcher.add_spawn_grid(handle_spawn_grid)
 
-            case "damage\s*source":
+            case "damage[ \t]+object":
                 if task.main.client_id != 0:
                     return PollResults.OK_ADVANCE_TRUE
-                DamageDispatcher.add_source(handle_damage)
-
-            case "damage\s*target":
-                if task.main.client_id != 0:
-                    return PollResults.OK_ADVANCE_TRUE
-                DamageDispatcher.add_target(handle_damage)
+                DamageDispatcher.add_any(handle_damage)
 
             case "damage\s*internal":
                 if task.main.client_id != 0:

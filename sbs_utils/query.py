@@ -350,7 +350,7 @@ def to_object_list(the_set):
     if the_set is None:
         return []
     the_list = to_list(the_set)
-    return [EngineObject.resolve_py_object(x) for x in the_list]
+    return [y for x in the_list if (y := EngineObject.resolve_py_object(x)) is not None]
 
 def to_id_list(the_set):
     """ to_id_list
@@ -364,7 +364,7 @@ def to_id_list(the_set):
     if the_set is None:
         return []
     the_list = to_list(the_set)
-    return [EngineObject.resolve_id(x) for x in the_list]
+    return [y for x in the_list if (y:=EngineObject.resolve_id(x)) is not None]
 
 def to_list(other: EngineObject | CloseData | int):
     """ to_list
@@ -473,12 +473,15 @@ def has_roles(so, roles):
 
 def get_inventory_value(so, link, default=None):
     so = to_object(so)
-    return so.get_inventory_value(link, default)
+    if so is not None:
+        return so.get_inventory_value(link, default)
+    return default
             
 def set_inventory_value(so, link, to):
     obj_list = to_object_list(so)
     for obj in obj_list:
-        obj.set_inventory_value(link, to)
+        if obj is not None:
+            obj.set_inventory_value(link, to)
 
 
 def unlink(set_holder, link, set_to):

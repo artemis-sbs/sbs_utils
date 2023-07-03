@@ -669,7 +669,7 @@ class ConsoleRuntimeNode(MastRuntimeNode):
                     widgets = "ship_internal_view^grid_object_list^grid_face^grid_control^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
                 case "comms":
                     console =  "normal_comm"
-                    widgets = "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data"
+                    widgets = "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
                 case "mainscreen":
                     console =  "normal_main"
                     widgets = "3dview^ship_data^text_waterfall"

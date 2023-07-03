@@ -47,7 +47,10 @@ def line(count, start_x,start_y,start_z, end_x,end_y,end_z, random=False):
     d = v.length()
     u = v.divide(d)
    
-    delta = u * (d/(count-1))
+    delta = 0
+    if count >1:
+        delta = u * (d/(count-1))
+    
     for i in range(0,count):
         if random:
             yield v1 + (delta * uniform(0,count))

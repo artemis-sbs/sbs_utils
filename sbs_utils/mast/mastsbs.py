@@ -6,7 +6,7 @@ class Route(MastNode):
     """
     Route unhandled things comms, science, events
     """
-    rule = re.compile(r"""route[ \t]+(?P<route>destroy|spawn|damage[ \t]*target|damage[ \t]*source|damage[ \t]*internal|comms[ \t]+select|science[ \t]+select|weapons[ \t]+select|grid[ \t]+select|grid[ \t]+spawn|change[ \t]*console)[ \t]+(?P<name>\w+)""")
+    rule = re.compile(r"""route[ \t]+(?P<route>destroy|spawn|damage[ \t]+internal|damage[ \t]+object|comms[ \t]+select|science[ \t]+select|weapons[ \t]+select|grid[ \t]+select|grid[ \t]+spawn|change[ \t]*console)[ \t]+(?P<name>\w+)""")
     def __init__(self, route, name, loc=None):
         self.loc = loc
         self.route = route

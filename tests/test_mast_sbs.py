@@ -24,10 +24,9 @@ class TestMastSbsCompile(unittest.TestCase):
     
     def test_compile_no_err(self):
         (errors, mast) = mast_sbs_compile( code = """
-have self tell player "Hello"
-have self tell player "Hello" color "black"
-#have self approach player
-#have self target player
+transmit player self "Hello"
+receive  player self "Hello" 
+
 have self broadcast "Hello, World"
 have self broadcast "Hello, RGB" color "#fff"
 
@@ -117,9 +116,9 @@ end_await
 
 
 == skip ==
-have self tell player "Come to pick the princess"
+receive player self "Come to pick the princess"
 == Hello ==
-have self tell player "HELLO"
+transmit self player  "HELLO"
 
 await self comms player:
 + "Say Blue":
@@ -132,12 +131,12 @@ end_await
 
 
 == Hi ==
-have self tell player  "Hi"
+receive self player  "Hi"
 delay 10s
 -> Start
 
 == Chat ==
-have self tell player "Blah, Blah"
+receive self player  "Blah, Blah"
 delay 2s
 -> Chat
 
@@ -145,17 +144,17 @@ delay 2s
 cancel chat
 
 == Blue ==
-have self tell player "Blue"
+receive self player  "Blue"
 delay 10s
 -> Start
 
 == Yellow ==
-have self tell player "Yellow"
+receive self player  "Yellow"
 delay 10s
 -> Start
 
 == Cyan ==
-have self tell player "Cyan"
+receive self player  "Cyan"
 await self comms player timeout 5s:
 + "Say main":
     -> main
@@ -165,7 +164,7 @@ end_await
 
 
 == TooSlow ==
-have self tell player "Woh too slow"
+receive self player  "Woh too slow"
 delay 10s
 -> Start
 
