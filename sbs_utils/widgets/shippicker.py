@@ -4,7 +4,7 @@ import sbs
 from .. import fs
 
 def filter_ship(ship):
-    if "hullpoints" in ship:
+    if "hull_port_sets" in ship:
         return True
     else:
         return False

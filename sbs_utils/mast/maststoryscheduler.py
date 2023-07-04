@@ -526,7 +526,7 @@ class CheckboxControlRuntimeNode(StoryRuntimeNode):
 
     def on_message(self, ctx, event):
         if event.sub_tag == self.tag:
-            self.layout.value = not self.layout.value
+            #self.layout.value = not self.layout.value
             self.task.set_value(self.node.var, self.layout.value, self.scope)
             self.layout.present(ctx, event)
 
@@ -899,7 +899,7 @@ class StoryPage(Page):
         self.gui_task = None
         self.change_console_label = None
         self.disconnected = False
-        #self.tag = 0
+        self.tag = 10000
         self.errors = []
         cls = self.__class__
         
@@ -1131,19 +1131,19 @@ class StoryPage(Page):
     def on_message(self, ctx, event):
         
         message_tag = event.sub_tag
-        
+        # Process layout first
+        for layout in self.layouts:
+            layout.on_message(Context(ctx.sim, ctx.sbs, self.aspect_ratio),event)
+
         runtime_node = self.tag_map.get(message_tag)
         refresh = False
         if runtime_node:
             runtime_node.on_message(Context(ctx.sim, ctx.sbs, self.aspect_ratio), event)
-            for node in self.tag_map.values():
-                if node != runtime_node:
-                    bound = node.databind()
-                    refresh = bound or refresh
-        # else:
-        for layout in self.layouts:
-            layout.on_message(Context(ctx.sim, ctx.sbs, self.aspect_ratio),event)
-
+            # for node in self.tag_map.values():
+            #     if node != runtime_node:
+            #         bound = node.databind()
+            #         refresh = bound or refresh
+        
         for change in self.on_change_items:
             if change.test():
                 self.gui_task.push_inline_block(self.gui_task.active_label, change.node.loc+1)

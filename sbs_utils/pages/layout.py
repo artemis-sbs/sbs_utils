@@ -4,6 +4,7 @@ import struct # for images sizes
 from .. import fs
 from ..widgets.shippicker import ShipPicker
 import os
+import json
 
 class Bounds:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
@@ -182,7 +183,8 @@ class Checkbox(Column):
         self._value = value
         
     def present(self, ctx, event):
-        message = f"{self.message};state:{'on' if self._value else 'off'}"
+        message = f"{self.message};state: {self._value}"
+        #print(f"{self.tag} {message}")
         ctx.sbs.send_gui_checkbox(event.client_id, 
             self.tag, message, 
             # 1 if self._value else 0,
@@ -190,7 +192,8 @@ class Checkbox(Column):
     
     def on_message(self, ctx, event):
         if event.sub_tag == self.tag:
-            self.value = int(event.sub_float)
+            self._value= not self._value
+            #self.value = int(event.sub_float)
 
     @property
     def value(self):
