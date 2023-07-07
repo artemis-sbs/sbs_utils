@@ -30,7 +30,7 @@ def filter_ship_data_by_side(test_key, sides, is_ship=False, ret_key_only=False)
             sides = {sides}
     
     for ship in data["#ship-list"]:
-        if is_ship and not "hullpoints" in ship:
+        if is_ship and not "hull_port_sets" in ship:
             continue
 
         key = ship["key"]

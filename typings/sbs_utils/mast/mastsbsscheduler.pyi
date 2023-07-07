@@ -2,7 +2,6 @@ from sbs_utils.mast.mastsbs import Broadcast
 from sbs_utils.mast.mastsbs import Button
 from sbs_utils.mast.mastsbs import Comms
 from sbs_utils.mast.mastsbs import FollowRoute
-from sbs_utils.mast.mastsbs import Load
 from sbs_utils.mast.mastsbs import Route
 from sbs_utils.mast.mastsbs import Scan
 from sbs_utils.mast.mastsbs import ScanResult
@@ -28,7 +27,7 @@ from sbs_utils.mast.mastscheduler import MastScheduler
 from sbs_utils.mast.mastscheduler import PollResults
 from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.tickdispatcher import TickDispatcher
-
+from functools import partial
 def func(*argv):
     """assign_client_to_ship(arg0: int, arg1: int) -> None
     
@@ -70,12 +69,6 @@ class CommsRuntimeNode(MastRuntimeNode):
 class FollowRouteRuntimeNode(MastRuntimeNode):
     """class FollowRouteRuntimeNode"""
     def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.FollowRoute):
-        ...
-class LoadRuntimeNode(MastRuntimeNode):
-    """class LoadRuntimeNode"""
-    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Load):
-        ...
-    def process_data (self, content):
         ...
 class MastSbsScheduler(MastScheduler):
     """class MastSbsScheduler"""

@@ -253,6 +253,9 @@ class CommsRuntimeNode(MastRuntimeNode):
                 #
                 oo = query.to_object(origin_id)
                 so = query.to_object(selected_id)
+                
+                if oo is None or so is None:
+                    return
                 scan_name = oo.side+"scan"
                 initial_scan = so.get_engine_data(self.task.main.sim, scan_name)
                 
@@ -334,6 +337,9 @@ class CommsRuntimeNode(MastRuntimeNode):
         if self.is_unknown:
             oo = query.to_object(self.origin_id)
             so = query.to_object(self.selected_id)
+            # Should the END?
+            if oo is None or so is None:
+                return PollResults.OK_ADVANCE_TRUE
             scan_name = oo.side+"scan"
             initial_scan = so.get_engine_data(self.task.main.sim, scan_name)
             self.is_unknown = (initial_scan is None or initial_scan == "")

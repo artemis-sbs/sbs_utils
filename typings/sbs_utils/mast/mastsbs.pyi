@@ -41,12 +41,6 @@ class FollowRoute(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
-class Load(MastNode):
-    """class Load"""
-    def __init__ (self, name, lib=None, format=None, loc=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
-        ...
 class MastSbs(Mast):
     """class MastSbs"""
     def _add (id, obj):

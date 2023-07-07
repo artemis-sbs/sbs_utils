@@ -16,8 +16,8 @@ def clear_client_tags() -> None:
     """stub; does nothing yet."""
 def create_new_sim() -> None:
     """all space objects are deleted; a blank slate is born."""
-def create_transient(arg0: int, arg1: int, arg2: int, arg3: int, arg4: float, arg5: float, arg6: float, arg7: str) -> None:
-    """Generates a temporary graphical object, like an explosion."""
+def create_transient(type: int, subtype: int, sourceID: int, targetID: int, parentID: int, x: float, y: float, z: float, sideTag: str) -> None:
+    """Generates a temporary graphical object, usually an explosion."""
 def delete_object(arg0: int) -> None:
     """deletes a space object by its ID"""
 def delete_particle_emittor(emittorID: int) -> None:
@@ -100,6 +100,8 @@ def send_message_to_player_ship(playerID: int, colorDesc: str, text: str) -> Non
     """sends a text message to the text box, on every client for a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string text"""
 def send_story_dialog(clientID: int, title: str, text: str, face: str, color: str) -> None:
     """sends a story dialog to the targeted client (0 = server screen)"""
+def set_beam_damages(clientID: int, playerBeamDamage: float, npcBeamDamage: float) -> None:
+    """sets the values for player base beam damage, and npc base beam damage.  Per client, or all clients + server (if ID = 0)."""
 def set_dmx_channel(arg0: int, arg1: int, arg2: int, arg3: int, arg4: int, arg5: int) -> None:
     """set a color channel of dmx."""
 def set_main_view_modes(clientID: int, main_screen_view: str, cam_angle: str, cam_mode: str) -> None:
@@ -225,23 +227,21 @@ class hullmap(object): ### from pybind
     @art_file_root.setter
     def art_file_root (self: sbs.hullmap, arg0: str) -> None:
         """string, file name, used to get top-down image from disk"""
-    def create_grid_object(self: sbs.hullmap, arg0: str, arg1: str, arg2: str) -> sbs.grid_object:
+    def create_grid_object(self: sbs.hullmap, name: str, tag: str, type: str) -> sbs.grid_object:
         """returns a gridobject, after creating it"""
-    def delete_grid_object(self: sbs.hullmap, arg0: sbs.grid_object) -> bool:
-        """deletes the grid object, returns true if deletion actually occured"""
     @property
     def desc (self: sbs.hullmap) -> str:
         """string, description text"""
     @desc.setter
     def desc (self: sbs.hullmap, arg0: str) -> None:
         """string, description text"""
-    def get_grid_object_by_id(self: sbs.hullmap, arg0: int) -> sbs.grid_object:
+    def get_grid_object_by_id(self: sbs.hullmap, id: int) -> sbs.grid_object:
         """returns a gridobject, by uint64 ID"""
-    def get_grid_object_by_index(self: sbs.hullmap, arg0: int) -> sbs.grid_object:
+    def get_grid_object_by_index(self: sbs.hullmap, index: int) -> sbs.grid_object:
         """returns a gridobject, by position in the list"""
-    def get_grid_object_by_name(self: sbs.hullmap, arg0: str) -> sbs.grid_object:
+    def get_grid_object_by_name(self: sbs.hullmap, name: str) -> sbs.grid_object:
         """returns a gridobject, by name"""
-    def get_grid_object_by_tag(self: sbs.hullmap, arg0: str) -> sbs.grid_object:
+    def get_grid_object_by_tag(self: sbs.hullmap, tag: str) -> sbs.grid_object:
         """returns a gridobject, by text tag"""
     def get_grid_object_count(self: sbs.hullmap) -> int:
         """get the number of grid objects in the list, within this hullmap"""
