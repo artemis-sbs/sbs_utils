@@ -2,7 +2,8 @@ from __future__ import annotations
 from typing import Callable
 import sbs
 from enum import IntEnum
-from .engineobject import Stuff, EngineObject, SpawnData, CloseData
+from .engineobject import EngineObject, SpawnData
+from . import names
 
 
 class TickType(IntEnum):
@@ -189,13 +190,22 @@ class SpaceObject(EngineObject):
 
 
 class MSpawn:
-    def spawn_common(self, sim, obj, x, y, z, name, side):
+    def spawn_common(self, sim, obj, x, y, z, name, side, art_id):
         self.spawn_pos = sbs.vec3(x,y,z)
         sim.reposition_space_object(obj, x, y, z)
         self.add()
         self.add_role(self.__class__.__name__)
         self.add_role("__space_spawn__")
         self.add_role("__SPACE_OBJECT__")
+        #
+        # Add default roles
+        #
+        ship_data = names.get_ship_data(art_id)
+        if ship_data:
+            roles = ship_data.get("roles", None)
+            if roles:
+                self.add_role(roles)
+
 
         blob = obj.data_set
         if side is not None:
@@ -227,7 +237,7 @@ class MSpawnPlayer(MSpawn):
     def _spawn(self, sim, x, y, z, name, side, art_id):
         # playerID will be a NUMBER, a unique value for every space object that you create.
         ship = self._make_new_player(sim, "behav_playership", art_id)
-        blob = self.spawn_common(sim, ship, x, y, z, name, side)
+        blob = self.spawn_common(sim, ship, x, y, z, name, side, art_id)
         self.add_role("__PLAYER__")
         self._art_id = art_id
         return SpawnData(self.id, ship, blob, self)
@@ -288,7 +298,7 @@ class MSpawnActive(MSpawn):
 
     def _spawn(self, sim, x, y, z, name, side, art_id, behave_id):
         ship = self._make_new_active(sim, behave_id, art_id)
-        blob = self.spawn_common(sim, ship, x, y, z, name, side)
+        blob = self.spawn_common(sim, ship, x, y, z, name, side, art_id)
         self._art_id = art_id
         self.add_role("__NPC__")
         return SpawnData(self.id, ship, blob, self)
@@ -352,7 +362,7 @@ class MSpawnPassive(MSpawn):
 
     def _spawn(self, sim, x, y, z, name, side, art_id, behave_id):
         ship = self._make_new_passive(sim, behave_id, art_id)
-        blob = self.spawn_common(sim, ship, x, y, z, name, side)
+        blob = self.spawn_common(sim, ship, x, y, z, name, side, art_id)
         self._art_id = art_id
         self.add_role("__TERRAIN__")
         return SpawnData(self.id, ship, blob, self)

@@ -386,6 +386,7 @@ class PyMastStoryPage(Page):
                     self.gui_state = "repaint"
                 else:
                     self.gui_state = "presenting"
+                ctx.sbs.send_gui_complete(event.client_id)
             case  "refresh":
                 for layout in self.layouts:
                     layout.present(Context(ctx.sim, ctx.sbs, self.aspect_ratio),event)

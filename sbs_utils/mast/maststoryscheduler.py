@@ -1065,6 +1065,7 @@ class StoryPage(Page):
                     ctx.sbs.send_client_widget_list(event.client_id, "", "")
                 ctx.sbs.send_gui_text(event.client_id, "error",  message, 0,0,99,99)
                 self.gui_state = "errors"
+                ctx.sbs.send_gui_complete(event.client_id)
                 return
 
             if self.story_scheduler.paint_refresh:
@@ -1085,6 +1086,7 @@ class StoryPage(Page):
                 ctx.sbs.send_client_widget_list(event.client_id, "", "")
             ctx.sbs.send_gui_text(event.client_id, "error", message,  0,0,100,100)
             self.gui_state = "errors"
+            ctx.sbs.send_gui_complete(event.client_id)
             return
         
         sz = ctx.aspect_ratio if ctx else None
@@ -1115,6 +1117,7 @@ class StoryPage(Page):
                     self.gui_state = "repaint"
                 else:
                     self.gui_state = "presenting"
+                ctx.sbs.send_gui_complete(event.client_id)
             case  "refresh":
                 for layout in self.layouts:
                     layout.present(Context(ctx.sim, ctx.sbs, self.aspect_ratio),event)

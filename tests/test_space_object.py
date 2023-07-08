@@ -81,16 +81,17 @@ class TestSpaceObject(unittest.TestCase):
 
         names = ["Artemis", "Hera", "Atlas", "Juno", "Zeus", "Jupiter"]
         for name in names:
-            test_obj.append(PlayerShip().spawn(sim, 0,0,0, name, "tsn", "Battle Cruiser").py_object)
+            test_obj.append(PlayerShip().spawn(sim, 0,0,0, name, "tsn, test_side_role", "tsn_battle_cruiser").py_object)
         
         for station in range(5):
-            station = Npc().spawn(sim, 0,0,0, f"DS{station}", "tsn", "Starbase", "behav_spaceport").py_object
+            station = Npc().spawn(sim, 0,0,0, f"DS{station}", "tsn, test_side_role", "starbase_command", "behav_spaceport").py_object
             test_obj.append(station)
             station.add_role("Station")
 
         # Test is they all have side as a role
         for obj in test_obj:
             assert(obj.has_role("tsn"))
+            assert(obj.has_role("test_side_role"))
 
         players_a = len(SpaceObject.get_role_objects("__PLAYER__"))
         players_b = len(SpaceObject.get_role_objects("PlayerShip"))
@@ -101,6 +102,13 @@ class TestSpaceObject(unittest.TestCase):
         assert(players_a==players_b)
         assert(players_a == len(names))
         assert(stations==5)
+
+        #
+        # test default values
+        #
+        for obj in SpaceObject.get_role_objects("__PLAYER__"):
+            assert(obj.has_role("ship"))
+        
 
         ###test remove role
         stations = SpaceObject.get_role_objects("Station")

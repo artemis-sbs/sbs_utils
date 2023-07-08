@@ -22,6 +22,7 @@ class ErrorPage(Page):
             case  "sim_on":
                 self.gui_state = "blank"
                 ctx.sbs.send_gui_clear(event.client_id)
+                ctx.sbs.send_gui_complete(event.client_id)
 
             case  "show":
                 ctx.sbs.send_gui_clear(event.client_id)
@@ -34,6 +35,7 @@ class ErrorPage(Page):
                     event.client_id, "text", f"text:scripting error^{self.message}", 0, 0, 80, 95)
                 ctx.sbs.send_gui_button(event.client_id, "back", "text:back", 80, 90, 99, 94)
                 ctx.sbs.send_gui_button(event.client_id, "resume", "text:Resume Mission", 80, 95, 99, 99)
+                ctx.sbs.send_gui_complete(event.client_id)
 
     def on_message(self, ctx, event):
         match event.sub_tag:

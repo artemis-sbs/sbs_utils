@@ -740,6 +740,7 @@ class LayoutPage(Page):
                 # keeps the existing GUI displayed
                 self.gui_state = "presenting"
                 self.layout.present(ctx,event)
+                ctx.sbs.send_gui_complete(event.client_id)
                 
 
 
