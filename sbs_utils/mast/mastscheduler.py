@@ -102,8 +102,7 @@ class AssignRuntimeNode(MastRuntimeNode):
 
 
         if "." in node.lhs or "[" in node.lhs:
-            locals = {"__mast_value": value} | task.get_symbols()
-            exec(f"""{node.lhs} = __mast_value""",{"__builtins__": Mast.globals}, locals)
+            task.exec_code(f"""{node.lhs} = __mast_value""",{"__mast_value": value} )
             
         elif node.scope: 
             task.set_value(node.lhs, value, node.scope)
@@ -131,20 +130,12 @@ class PyCodeRuntimeNode(MastRuntimeNode):
             else:
                 task.main.vars[name] = value
 
-        locals = {"export": export, "export_var": export_var} | task.get_symbols()
-        #try:
-        exec(node.code,{"__builtins__": Mast.globals}, locals)
-       #except:
-       #     task.runtime_error(f"""Embedded python failed""")
+        task.exec_code(node.code,{"export": export, "export_var": export_var} )
         return PollResults.OK_ADVANCE_TRUE
 
 class DoCommandRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task:MastAsyncTask, node:DoCommand):
-        locals = task.get_symbols()
-        try:
-            exec(node.code,{"__builtins__": Mast.globals}, locals)
-        except:
-            task.runtime_error(f"""Do Command failed""")
+        task.exec_code(node.code, None)
         return PollResults.OK_ADVANCE_TRUE
 
 class JumpRuntimeNode(MastRuntimeNode):
@@ -771,10 +762,13 @@ class MastAsyncTask(EngineObject):
             pass
         return value
 
-    def exec_code(self, code):
+    def exec_code(self, code, vars):
         try:
-            allowed = self.get_symbols()
-            eval(code, {"__builtins__": Mast.globals}, allowed)
+            if vars is not None:
+                allowed = vars | self.get_symbols()
+            else:                
+                allowed = self.get_symbols()
+            exec(code, {"__builtins__": Mast.globals}, allowed)
         except:
             self.runtime_error(traceback.format_exc())
             self.done = True
