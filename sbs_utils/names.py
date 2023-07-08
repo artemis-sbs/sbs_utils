@@ -18,20 +18,31 @@ def get_ship_name(key):
     ship = ship_index.get(key)
     if ship:
         return ship['name']
-    return f'unknown {key}'
+    return None
+
+def get_ship_data(key):
+    return ship_index.get(key)
 
 
-def filter_ship_data_by_side(test_key, sides, is_ship=False, ret_key_only=False):
+def filter_ship_data_by_side(test_key, sides, role=None, ret_key_only=False):
     data = fs.get_ship_data()
 
     ret = []
     if sides is not None:
         if isinstance(sides, str):
+            sides=sides.lower()
             sides = {sides}
     
     for ship in data["#ship-list"]:
-        if is_ship and not "hull_port_sets" in ship:
-            continue
+        if role:
+            roles = ship.get("roles", None)
+            if roles is None:
+                continue
+            roles = roles.lower()
+            roles = set(roles.split(","))
+            role = role.lower()
+            if not (role in roles):
+                continue
 
         key = ship["key"]
         if len(key)==0:
@@ -43,7 +54,7 @@ def filter_ship_data_by_side(test_key, sides, is_ship=False, ret_key_only=False)
         
         side_met = sides is None
         if sides is not None:
-            side_met = ship["side"] in sides
+            side_met = ship["side"].lower() in sides
 
         if key_met and side_met:
             if ret_key_only:
@@ -53,84 +64,84 @@ def filter_ship_data_by_side(test_key, sides, is_ship=False, ret_key_only=False)
     return ret
 
 
-asteroid_keys_cache= filter_ship_data_by_side(None, "asteroid", False, True)
+asteroid_keys_cache= filter_ship_data_by_side(None, "asteroid", None, True)
 def asteroid_keys():
     return asteroid_keys_cache
 
-crystal_asteroid_keys_cache= filter_ship_data_by_side("crystal", "asteroid", False, True)
+crystal_asteroid_keys_cache= filter_ship_data_by_side("crystal", "asteroid", None, True)
 def crystal_asteroid_keys():
     return crystal_asteroid_keys_cache
 
-plain_asteroid_keys_cache= filter_ship_data_by_side("plain", "asteroid", False, True)
+plain_asteroid_keys_cache= filter_ship_data_by_side("plain", "asteroid", None, True)
 def plain_asteroid_keys():
     return plain_asteroid_keys_cache
 
     
-danger_keys_cache =  filter_ship_data_by_side("danger", "pickup", False, True)
+danger_keys_cache =  filter_ship_data_by_side("danger", "pickup", None, True)
 def danger_keys():
     return danger_keys_cache
 
-container_keys_cache =  filter_ship_data_by_side("container", "pickup", False, True)
+container_keys_cache =  filter_ship_data_by_side("container", "pickup", None, True)
 def container_keys():
     return container_keys_cache
 
-alien_keys_cache =  filter_ship_data_by_side("alien", "pickup", False, True)
+alien_keys_cache =  filter_ship_data_by_side("alien", "pickup", None, True)
 def alien_keys():
     return alien_keys_cache
 
-terran_starbase_keys_cache =  filter_ship_data_by_side(None, "port", False, True)
+terran_starbase_keys_cache =  filter_ship_data_by_side(None, "port", "station", True)
 def terran_starbase_keys():
     return terran_starbase_keys_cache
 
-terran_ship_keys_cache =  filter_ship_data_by_side(None, "TSN", True, True)
+terran_ship_keys_cache =  filter_ship_data_by_side(None, "TSN", "ship", True)
 def terran_ship_keys():
     return terran_ship_keys_cache
 
-pirate_starbase_keys_cache =  filter_ship_data_by_side(None, "port", False, True)
+pirate_starbase_keys_cache =  filter_ship_data_by_side(None, "port", None, True)
 def pirate_starbase_keys():
     return pirate_starbase_keys_cache
 
-pirate_ship_keys_cache =  filter_ship_data_by_side(None, "pirate", True, True)
+pirate_ship_keys_cache =  filter_ship_data_by_side(None, "pirate", "ship", True)
 def pirate_ship_keys():
     return pirate_ship_keys_cache
 
-ximni_starbase_keys_cache =  filter_ship_data_by_side(None, "port", False, True)
+ximni_starbase_keys_cache =  filter_ship_data_by_side(None, "ximni", "station", True)
 def ximni_starbase_keys():
     return ximni_starbase_keys_cache
 
-ximni_ship_keys_cache =  filter_ship_data_by_side(None, "Ximni", True, True)
+ximni_ship_keys_cache =  filter_ship_data_by_side(None, "Ximni", "ship", True)
 def ximni_ship_keys():
     return ximni_ship_keys_cache
 
-arvonian_starbase_keys_cache =  filter_ship_data_by_side("starbase", "arvonian", False, True)
+arvonian_starbase_keys_cache =  filter_ship_data_by_side(None, "arvonian", "station", True)
 def arvonian_starbase_keys():
     return arvonian_starbase_keys_cache
 
-arvonian_ship_keys_cache =  filter_ship_data_by_side(None, "Arvonian", True, True)
+arvonian_ship_keys_cache =  filter_ship_data_by_side(None, "Arvonian", "ship", True)
 def arvonian_ship_keys():
     return arvonian_ship_keys_cache
 
-skaraan_starbase_keys_cache = filter_ship_data_by_side("starbase", "skaraan", False, True)
+skaraan_starbase_keys_cache = filter_ship_data_by_side(None, "skaraan", "station", True)
 def skaraan_starbase_keys():
     return skaraan_starbase_keys_cache
 
-skaraan_ship_keys_cache =  filter_ship_data_by_side(None, "Skaraan", True, True)
+skaraan_ship_keys_cache =  filter_ship_data_by_side(None, "Skaraan", "ship", True)
 def skaraan_ship_keys():
     return skaraan_ship_keys_cache
 
-kralien_starbase_keys_cache =  filter_ship_data_by_side("starbase", "kralien", False, True)
+kralien_starbase_keys_cache =  filter_ship_data_by_side(None, "kralien", "station", True)
 def kralien_starbase_keys():
     return kralien_starbase_keys_cache
 
-kralien_ship_keys_cache =  filter_ship_data_by_side(None, "Kralien", True, True)
+kralien_ship_keys_cache =  filter_ship_data_by_side(None, "Kralien", "ship", True)
 def kralien_ship_keys():
     return kralien_ship_keys_cache
 
-torgoth_starbase_keys_cache =  filter_ship_data_by_side("starbase", "torgoth", False, True)
+torgoth_starbase_keys_cache =  filter_ship_data_by_side(None, "torgoth", "station", True)
 def torgoth_starbase_keys():
     return torgoth_starbase_keys_cache
 
-torgoth_ship_keys_cache =  filter_ship_data_by_side(None, "Torgoth", True, True)
+torgoth_ship_keys_cache =  filter_ship_data_by_side(None, "Torgoth", "ship", True)
 def torgoth_ship_keys():
     return torgoth_ship_keys_cache
 
@@ -265,8 +276,9 @@ def kralien_name(id):
 def canonical_kralien_comms_id(id, key:str):
     key = key.lower()
     length = 4
-    ship_name = ship_name = get_ship_name(key)
-
+    ship_name = get_ship_name(key)
+    if ship_name is None:
+        return f"unknown {key}"
         
     trim1 = id % 6
     trim2 = ((id//6) % 6) 

@@ -78,4 +78,21 @@ class TestNames(unittest.TestCase):
         self.assertEqual(len(cast), 5)
         past = names.plain_asteroid_keys()
         self.assertEqual(len(past), 6)
+        ships = names.terran_ship_keys()
+        self.assertGreater(len(ships), 0)
+        ships = names.pirate_ship_keys()
+        self.assertGreater(len(ships), 0)
+
+        
+        ships = names.arvonian_ship_keys()
+        self.assertGreater(len(ships), 0)
+        ships = names.skaraan_ship_keys()
+        self.assertGreater(len(ships), 0)
+        ships = names.kralien_ship_keys()
+        self.assertGreater(len(ships), 0)
+        ships = names.torgoth_ship_keys()
+        self.assertGreater(len(ships), 0)
+        ships = names.ximni_ship_keys()
+        self.assertGreater(len(ships), 0)
+        
 
