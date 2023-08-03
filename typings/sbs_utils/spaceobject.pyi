@@ -1,11 +1,9 @@
-from sbs_utils.engineobject import CloseData
 from sbs_utils.engineobject import EngineObject
 from sbs_utils.engineobject import SpawnData
-from sbs_utils.engineobject import Stuff
 from enum import IntEnum
 class MSpawn(object):
     """class MSpawn"""
-    def spawn_common (self, sim, obj, x, y, z, name, side):
+    def spawn_common (self, sim, obj, x, y, z, name, side, art_id):
         ...
 class MSpawnActive(MSpawn):
     """Mixin to add Spawn as an Active"""

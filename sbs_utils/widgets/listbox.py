@@ -42,7 +42,7 @@ class Listbox(Widget):
         self.icon = icon
         self.select = select
         self.multi= multi
-        self.cur = 0 
+        self.slot_count = 0
         self.item_height = item_height # in percent
         self.square_width_percent = 0
         self.slots =[]
@@ -92,11 +92,13 @@ class Listbox(Widget):
 
         left = self.left
         top = self.top
+        
         cur = self.cur
         max_slot = (self.bottom-self.top)/self.item_height
         slot_count = len(self.items)-max_slot
         if slot_count > 0:
-            sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", self.cur, f"low:{-(slot_count+0.5)}; high: 0.0; show_number:no",
+            self.slot_count = slot_count
+            sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", int(slot_count-self.cur +0.5), f"low:0.0; high: {(slot_count+0.5)}; show_number:no",
                         self.right-3, self.top,
                         self.right, self.bottom)
         slot= 0
@@ -197,7 +199,7 @@ class Listbox(Widget):
 
         message_tag = message_tag[len(self.tag_prefix):] 
         if message_tag == "cur":
-                value = int(-event.sub_float)
+                value = int(-event.sub_float+self.slot_count+0.5)
                 if value != self.cur:
                     self.cur = value
                     self.gui_state = "redraw"

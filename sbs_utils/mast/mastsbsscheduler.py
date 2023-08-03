@@ -7,6 +7,7 @@ from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain,
 from ..consoledispatcher import ConsoleDispatcher
 from ..lifetimedispatcher import LifetimeDispatcher
 from ..damagedispatcher import DamageDispatcher
+from ..griddispatcher import GridDispatcher
 from ..gui import Gui, Context
 from .errorpage import ErrorPage
 from .. import faces
@@ -245,7 +246,7 @@ class CommsRuntimeNode(MastRuntimeNode):
         if origin_id is not None:
             if self.is_grid_comms:
                 sbs.send_grid_selection_info(origin_id, self.face, self.color, self.comms_id)
-            if origin_id == selected_id:
+            elif origin_id == selected_id:
                 sbs.send_comms_selection_info(origin_id, self.face, self.color, self.comms_id)
             else:
                 #
@@ -265,7 +266,7 @@ class CommsRuntimeNode(MastRuntimeNode):
                     return
                 else:
                     sbs.send_comms_selection_info(origin_id, self.face, self.color, self.comms_id)
-            
+
             for i, button in enumerate(self.buttons):
                 value = True
                 color = "blue" if button.color is None else button.color
@@ -747,6 +748,19 @@ class RouteRuntimeNode(MastRuntimeNode):
                 MastAsyncTask.add_dependency(event.origin_id,t)
                 MastAsyncTask.add_dependency(event.selected_id,t)
 
+        def handle_grid_event(ctx, event):
+            # Need point? amount
+            t= task.start_task(node.label, {
+                    "GRID_PARENT_ID": event.parent_id,
+                    "GRID_ORIGIN_ID": event.origin_id,
+                    "GRID_SELECTED_ID": event.selected_id,
+                    "EVENT": event,
+                    "GRID_ROUTED": True
+            })
+            if not t.done:
+                MastAsyncTask.add_dependency(event.origin_id,t)
+                MastAsyncTask.add_dependency(event.selected_id,t)
+
         match RegexEqual(node.route):
             case "comms\s+select":
                 if task.main.client_id != 0:
@@ -767,6 +781,17 @@ class RouteRuntimeNode(MastRuntimeNode):
                 if task.main.client_id != 0:
                     return PollResults.OK_ADVANCE_TRUE
                 ConsoleDispatcher.add_default_select("grid_selected_UID", partial(handle_dispatch, task, "COMMS"))
+
+            case "grid\s+point":
+                if task.main.client_id != 0:
+                    return PollResults.OK_ADVANCE_TRUE
+                GridDispatcher.add_any_point(handle_grid_event)
+
+            case "grid\s+object":
+                if task.main.client_id != 0:
+                    return PollResults.OK_ADVANCE_TRUE
+                GridDispatcher.add_any_object(handle_grid_event)
+
 
             case "change\s+console":
                 task.main.page.change_console_label = node.label

@@ -66,6 +66,21 @@ class GridObject(EngineObject):
         self._tag = tag
         go.tag = tag
 
+    def set_go_type(self, sim, go_type):
+        """ Set the name of the object
+
+        :param sim: The simulation
+        :type sim: Artemis Cosmos simulation
+        :param name: The object name
+        :type str: The object name
+        """
+        go : sbs.grid_object
+        go = self.grid_object(sim)
+        if go is None:
+            return ""
+        self._go_type = go_type
+        go.type= go_type
+
     @property
     def name(self: GridObject) -> str:
         """str, cached version of name"""

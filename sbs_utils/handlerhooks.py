@@ -129,7 +129,6 @@ def cosmos_event_handler(sim, event):
             case "press_grid_button":
                 ConsoleDispatcher.dispatch_message(ctx, event, "grid_selected_UID")
                 
-
             case "grid_point_selection":
                 GridDispatcher.dispatch_grid_event(ctx,event)
 

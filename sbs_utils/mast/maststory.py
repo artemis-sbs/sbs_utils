@@ -214,7 +214,7 @@ class AwaitGui(MastNode):
         # just await gui
 
 class AwaitSelect(MastNode):
-    rule = re.compile(r"await[ \t]+select[ \t](?P<console>comms|weapons|science)"+TIMEOUT_REGEX)
+    rule = re.compile(r"await[ \t]+select[ \t](?P<console>comms|weapons|grid|science)"+TIMEOUT_REGEX)
     def __init__(self, console=None,minutes=None, seconds=None, loc=None):
         self.loc = loc
         self.console = console
@@ -381,7 +381,7 @@ class TextInputControl(MastNode):
 
 class DropdownControl(MastNode):
     
-    rule = re.compile(r"""(dropdown[ \t]+(?P<var>[ \t\S]+)[ \t]+(?P<q>['"]{3}|["'])(?P<values>[\s\S]+?)(?P=q)"""+BLOCK_START+""")|(?P<end>end_dropdown)"""+OPT_STYLE_REF_RULE)
+    rule = re.compile(r"""(dropdown[ \t]+(?P<var>[ \t\S]+)[ \t]+(?P<q>['"]{3}|["'])(?P<values>[\s\S]+?)(?P=q)"""+OPT_STYLE_REF_RULE+BLOCK_START+""")|(?P<end>end_dropdown)""")
     stack = []
     def __init__(self, var=None, values=None, q=None,end=None, style_name=None, style=None, style_q=None, loc=None):
         self.loc = loc

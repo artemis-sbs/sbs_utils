@@ -18,6 +18,8 @@ def create_new_sim() -> None:
     """all space objects are deleted; a blank slate is born."""
 def create_transient(type: int, subtype: int, sourceID: int, targetID: int, parentID: int, x: float, y: float, z: float, sideTag: str) -> None:
     """Generates a temporary graphical object, usually an explosion."""
+def delete_grid_object(spaceObjectID: int, gridObjID: int) -> None:
+    """deletes the grid object, and sends the deletion message to all clients"""
 def delete_object(arg0: int) -> None:
     """deletes a space object by its ID"""
 def delete_particle_emittor(emittorID: int) -> None:
@@ -74,10 +76,12 @@ def send_gui_button(clientID: int, tag: str, style: str, left: float, top: float
     """Creates a button GUI element, on the targeted client (0 = server screen)"""
 def send_gui_checkbox(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a checkbox GUI element, on the targeted client (0 = server screen)"""
-def send_gui_clear(arg0: int) -> None:
-    """Clears all GUI elements from screen, on the targeted client (0 = server screen)"""
+def send_gui_clear(clientID: int) -> None:
+    """Clears all GUI elements from screen, on the targeted client (0 = server screen).  remember to use send_gui_complete after adding widgets."""
 def send_gui_clickregion(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a click-region GUI element, on the targeted client (0 = server screen)"""
+def send_gui_complete(clientID: int) -> None:
+    """Flips double-buffered GUI display list, on the targeted client (0 = server screen).  Use after a send_gui_clear() and some send_gui* calls"""
 def send_gui_dropdown(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a dropdown GUI element, on the targeted client (0 = server screen)"""
 def send_gui_face(clientID: int, tag: str, face_string: str, left: float, top: float, right: float, bottom: float) -> None:

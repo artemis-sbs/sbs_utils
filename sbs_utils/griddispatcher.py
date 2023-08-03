@@ -4,6 +4,8 @@ class GridDispatcher:
     _dispatch_object = {}
     #_dispatch_object_select = {}
     _dispatch_point = {}
+    _dispatch_any_point = set()
+    _dispatch_any_object = set()
     
     def add_object(id: int, cb: typing.Callable):
         GridDispatcher._dispatch_object[id] = cb
@@ -26,11 +28,28 @@ class GridDispatcher:
         # Callback should have arguments of other object's id, message
         GridDispatcher._dispatch_point.pop(id)
 
+    def add_any_point(cb: typing.Callable):
+        GridDispatcher._dispatch_any_point.add(cb)
+
+    def add_any_object(cb: typing.Callable):
+        GridDispatcher._dispatch_any_object.add(cb)
+
+    def remove_any_point(cb: typing.Callable):
+        GridDispatcher._dispatch_any_point.discard(cb)
+
+    def remove_any_object(cb: typing.Callable):
+        GridDispatcher._dispatch_any_object.discard(cb)
+
+
     def dispatch_grid_event(ctx, event):
         if event.tag == 'grid_object':
             object = GridDispatcher._dispatch_object.get(event.selected_id)
             if object:
                 object(ctx, event)
+            else:
+                for func in GridDispatcher._dispatch_any_object:
+                    func(ctx, event)
+     
 
         ############### MOved to console
         # elif event.tag == "grid_object_selection":
@@ -41,4 +60,8 @@ class GridDispatcher:
             point = GridDispatcher._dispatch_point.get(event.origin_id)
             if point:
                 point(ctx, event)
+            else:
+                for func in GridDispatcher._dispatch_any_point:
+                    func(ctx, event)
+     
 

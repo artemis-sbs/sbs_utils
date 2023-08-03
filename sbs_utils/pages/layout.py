@@ -457,7 +457,7 @@ class GuiControl(Column):
         self.tag = tag
         self.content = content
         self.content.tag_prefix = tag
-        self._value=""
+        self._value=self.content.get_value()
 
     def present(self, ctx, event):
         self.content.present(ctx, event)

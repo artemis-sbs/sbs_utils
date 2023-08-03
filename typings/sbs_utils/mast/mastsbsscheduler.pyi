@@ -13,6 +13,7 @@ from sbs_utils.gui import Context
 from sbs_utils.gui import Gui
 from sbs_utils.damagedispatcher import DamageDispatcher
 from sbs_utils.mast.errorpage import ErrorPage
+from sbs_utils.griddispatcher import GridDispatcher
 from sbs_utils.mast.mastobjects import GridObject
 from sbs_utils.mast.mastobjects import MastSpaceObject
 from sbs_utils.mast.mastobjects import Npc

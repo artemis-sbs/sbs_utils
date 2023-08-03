@@ -19,6 +19,15 @@ class ConsoleDispatcher:
         """
         ConsoleDispatcher.add_select(0, console, cb)
 
+    def add_always_select(console: str, cb: typing.Callable):
+        """ add a target for console selection
+        :param console: The consoles unique ID
+        :type console: string
+        :param cb: call back function
+        :type cb:  should have arguments of other ctx and object's id
+        """
+        ConsoleDispatcher.add_select(None, console, cb)
+
     def add_select(an_id: int, console: str, cb: typing.Callable):
         """ add a target for console selection
         
@@ -172,6 +181,14 @@ class ConsoleDispatcher:
         if console is None:
             return False
         ConsoleDispatcher.do_select(ctx, event, console)
+
+        #
+        # Allow to route to always
+        #
+        cb_set = ConsoleDispatcher._dispatch_select.get((None, console))
+        if cb_set is not None:
+            for cb in cb_set:
+                cb(ctx, event.origin_id, event)
 
         #handled = False
         cb = ConsoleDispatcher._dispatch_select.get((event.origin_id, event.selected_id, console))

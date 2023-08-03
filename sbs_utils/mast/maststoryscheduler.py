@@ -299,8 +299,7 @@ class AwaitSelectRuntimeNode(StoryRuntimeNode):
             self.timeout = None
         else:
             self.timeout = sbs.app_seconds()+ (node.minutes*60+node.seconds)
-        self.origin_id = None
-        
+
         event = task.get_variable("EVENT")
         self.task = task
         self.node = node
@@ -310,14 +309,21 @@ class AwaitSelectRuntimeNode(StoryRuntimeNode):
         self.done = False
 
         if node.console=="comms":
-            self.origin_id = task.get_variable("COMMS_ORIGIN_ID")
-            ConsoleDispatcher.add_select(self.origin_id, 'comms_target_UID', self.selected)
+            ConsoleDispatcher.add_always_select( 'comms_target_UID', self.selected)
         elif node.console=="science":
-            self.origin_id = task.get_variable("SCIENCE_ORIGIN_ID")
-            ConsoleDispatcher.add_select(self.origin_id, 'science_target_UID', self.selected)
+            ConsoleDispatcher.add_always_select('science_target_UID', self.selected)
         elif node.console=="weapons":
-            self.origin_id = task.get_variable("WEAPONS_ORIGIN_ID")
-            ConsoleDispatcher.add_select(self.origin_id, 'weapon_target_UID', self.selected)
+            ConsoleDispatcher.add_always_select( 'weapon_target_UID', self.selected)
+        elif node.console=="grid":
+            ConsoleDispatcher.add_always_select('grid_selected_UID', self.selected)
+
+        # Clear variable if we reenter    
+        console = self.node.console.upper()
+        self.task.set_value(f"{console}_ORIGIN_ID", None, Scope.NORMAL)
+        self.task.set_value(f"EVENT", None, Scope.NORMAL)
+        self.task.set_value(f"{console}_SELECTED_ID", None, Scope.NORMAL)
+        self.task.set_value(f"{console}_SELECTED_POINT", None, Scope.NORMAL)
+
         
             
     def selected(self, _, __, event):
@@ -327,6 +333,9 @@ class AwaitSelectRuntimeNode(StoryRuntimeNode):
         point.x = event.source_point.x
         point.y = event.source_point.y
         point.z = event.source_point.z
+
+        self.task.set_value(f"{console}_ORIGIN_ID", event.origin_id, Scope.NORMAL)
+        self.task.set_value(f"EVENT", event, Scope.NORMAL)
         if event.selected_id != 0:
             self.task.set_value(f"{console}_SELECTED_ID", event.selected_id, Scope.NORMAL)
             self.task.set_value(f"{console}_SELECTED_POINT", None, Scope.NORMAL)
@@ -338,9 +347,6 @@ class AwaitSelectRuntimeNode(StoryRuntimeNode):
         if self.timeout:
             if self.timeout <= sbs.app_seconds():
                 return PollResults.OK_ADVANCE_TRUE
-        if self.origin_id is None:
-            # This is garbage get out
-            return PollResults.OK_END
         
         if self.done:
             return PollResults.OK_ADVANCE_TRUE

@@ -205,6 +205,7 @@ class GuiMain(Page):
         sbs.send_gui_button(event.client_id, "story_ttt", "text: Mast ttt", *next(w))
         sbs.send_gui_button(event.client_id, "grid", "text: GridItems", *next(w))
         sbs.send_gui_button(event.client_id, "siege", "text: Mast Siege", *next(w))
+        sbs.send_gui_complete(event.client_id)
 
     def on_message(self, ctx, event):
         Gui.client_start_page_class(ClientSelectPage)

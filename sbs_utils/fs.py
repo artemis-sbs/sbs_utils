@@ -52,12 +52,21 @@ def load_json_data(file):
     except Exception as e:
         return None
     
-def save_json_data(file):
-    try:
-        with open(file, 'w') as f:
-            return json.dump(f)
-    except Exception as e:
-        return str(e)
+def save_json_data(file, data):
+    with open(file, 'w') as f:
+        #f.write(json.dumps(data).replace("},", "},\n"))
+        #f.write(json.dumps(data, indent=1).replace(r',[ \t]*[\n\r]+"', ',"'))
+        j = json.dumps(data, indent=1)
+        # Make more human readable
+        j = re.sub(r',\n\s+"', ',"', j)
+        j = re.sub(r'{\n\s+"', '{"', j )
+        j = re.sub(r'\n\s+\},', '},', j)
+        j = re.sub(r'\n\s+\}', '}', j)
+        j = re.sub(r': {', ':\n {', j)
+        j = re.sub(r'},"', '},\n"', j)
+        #j = re.sub(r',[\n\r]+[ \t]*"', ',"', j )
+        #j = re.sub(r'\n[\s]+},\n[\s]+', '},', j )
+        f.write(j)
 
 
 ship_data_cache = load_json_data( os.path.join(get_artemis_data_dir(), "shipData.json"))
