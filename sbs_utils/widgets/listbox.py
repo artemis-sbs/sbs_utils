@@ -99,7 +99,7 @@ class Listbox(Widget):
         if slot_count > 0:
             self.slot_count = slot_count
             sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", int(slot_count-self.cur +0.5), f"low:0.0; high: {(slot_count+0.5)}; show_number:no",
-                        self.right-3, self.top,
+                        (self.right-1), self.top,
                         self.right, self.bottom)
         slot= 0
         self.slots =[]
@@ -152,7 +152,7 @@ class Listbox(Widget):
                 #print(f"{cur} selected {1 if cur in self.selected else 0}")
                 sbs.send_gui_checkbox(
                     CID, f"{self.tag_prefix}name:{slot}", f"state: {'on' if cur in self.selected else 'off'}; {text}",
-                        left, top, self.right-3.5, top+self.item_height)
+                        left, top, self.right-1.5, top+self.item_height)
             else:
                 sbs.send_gui_text(
                     CID, f"{self.tag_prefix}name:{slot}", text,
