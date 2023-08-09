@@ -723,6 +723,7 @@ class Mast(EngineObject):
         "list": list,
         "set": set,
         "iter": iter,
+        "sorted": sorted,
         "mission_dir": fs.get_mission_dir(),
         "data_dir": fs.get_artemis_data_dir(),
         "MastDataObject": MastDataObject,

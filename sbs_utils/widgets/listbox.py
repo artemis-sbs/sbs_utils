@@ -49,7 +49,7 @@ class Listbox(Widget):
         self.selected = set()
 
 
-    def present(self, sim, event):
+    def present(self, ctx, event):
         """ present
 
         builds/manages the content of the widget
@@ -60,13 +60,16 @@ class Listbox(Widget):
         :type CID: int
         """
         CID = event.client_id
-        screen_size = sbs.get_screen_size()
-        aspect_ratio = screen_size.y /  screen_size.x
-        # square_ratio = aspect_ratio_y
-        # if screen_size.x < screen_size.y:
-        #square_ratio = aspect_ratio
+        
+        aspect_ratio = ctx.aspect_ratio 
+        if aspect_ratio.x == 0 or aspect_ratio.y == 1:
+            square_ratio = 1.0
+        elif aspect_ratio.x > aspect_ratio.y:
+            square_ratio = aspect_ratio.y / aspect_ratio.x
+        else:
+            square_ratio = aspect_ratio.x / aspect_ratio.y
         # One percent in pixels
-        square_width_percent = aspect_ratio * self.item_height
+        square_width_percent = square_ratio * self.item_height
         square_height_percent = self.item_height
         
         # force redraw of on size change

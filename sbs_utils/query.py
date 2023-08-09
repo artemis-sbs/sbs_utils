@@ -534,6 +534,8 @@ def set_data_set_value(data_set, key, value, index=0):
 
 
 def get_engine_data_set(sim, id_or_obj):
+    if isinstance(id_or_obj, SpawnData):
+        return id_or_obj.blob
     object = to_object(id_or_obj)
     if object is not None:
         return object.get_engine_data_set(sim)
@@ -546,7 +548,12 @@ def set_engine_data(sim, to_update, key, value, index=0):
     for object in objects:
         object.set_engine_data(sim, key, value, index=0)
 
+# easier to remember function names
+def to_blob(sim, id_or_obj):
+    return get_engine_data_set(sim, id_or_obj)
 
+def to_data_set(sim, id_or_obj):
+    return get_engine_data_set(sim, id_or_obj)
 
 ################################
 ##########################################
