@@ -757,7 +757,7 @@ def set_pos(sim, id_or_obj, x, y, z):
         
 def get_open_grid_points(sim, id_or_obj):
     the_set = []
-    hull_map = sim.get_hull_map(to_id(id_or_obj))
+    hull_map = sbs.get_hull_map(to_id(id_or_obj))
     if hull_map is not None:
         for x in range(hull_map.w):
             for y in range(hull_map.w):

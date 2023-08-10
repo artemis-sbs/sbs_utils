@@ -277,6 +277,10 @@ def target_pos (sim, chasers: set | int | sbs_utils.engineobject.CloseData | sbs
     :type other_id: int
     :param shoot: if the object should be shot at
     :type shoot: bool"""
+def to_blob (sim, id_or_obj):
+    ...
+def to_data_set (sim, id_or_obj):
+    ...
 def to_id (other: sbs_utils.engineobject.EngineObject | sbs_utils.engineobject.CloseData | int):
     ...
 def to_id_list (the_set):

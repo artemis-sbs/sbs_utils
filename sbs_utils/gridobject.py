@@ -33,7 +33,7 @@ class GridObject(EngineObject):
         :rtype: simulation space object
         """
         hullMap: sbs.hullmap
-        hullMap = sim.get_hull_map(self.host_id)
+        hullMap = sbs.get_hull_map(self.host_id)
         return  hullMap.get_grid_object_by_id(self.id)
         
     def set_name(self, sim, name):
@@ -135,7 +135,7 @@ class GridObject(EngineObject):
     def spawn(self, sim:sbs.simulation, host_id, name, tag, x, y, icon_index, color,  go_type=None):
         self.host_id = host_id
         hullMap: sbs.hullmap
-        hullMap = sim.get_hull_map(self.host_id)
+        hullMap = sbs.get_hull_map(self.host_id)
         if go_type is None:
             go_type = self.__class__.__name__
         if isinstance(go_type, str):

@@ -62,6 +62,13 @@ class GridObject(EngineObject):
         ...
     def resolve_py_object (other: 'EngineObject | CloseData | int'):
         ...
+    def set_go_type (self, sim, go_type):
+        """Set the name of the object
+        
+        :param sim: The simulation
+        :type sim: Artemis Cosmos simulation
+        :param name: The object name
+        :type str: The object name"""
     def set_name (self, sim, name):
         """Set the name of the object
         
