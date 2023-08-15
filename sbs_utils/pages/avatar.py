@@ -118,7 +118,7 @@ class AvatarEditor(Page):
 
                 
                 v+=1
-
+        sbs.send_gui_complete(CID)
         self.gui_state = "presenting"
 
     def reset_values(self):

@@ -177,7 +177,42 @@ end_await
                 print(err)
         assert(len(errors) == 0)
 
+    def test_weird(self):
+        (errors,  _) = mast_story_compile( code = """
+#import grid_editor.mast
 
+reroute server server_start
+reroute clients client_start_once
+
+
+===== add_menu =====
+
+section style="area:10, 0, 30, 45px;"
+dropdown menu "text: Editor; list:grid,character;"
+
+on change menu.value:
+#    sel = menu.value
+    #
+    if menu == "grid":
+            jump grid_editor_client_start
+#        case "character":
+#            jump character_editor_client_start
+    end_if
+end_on 
+
+<<-
+
+
+==== character_editor_client_start ====
+push add_menu
+section style="area:10, 30, 30, 45;"
+''' Under construction '''
+
+await gui
+""")
+        assert(len(errors)==0)
+        x = runner.active_task.get_value("x", None)
+        assert(x==(600, Scope.NORMAL))
 
 if __name__ == '__main__':
     try:

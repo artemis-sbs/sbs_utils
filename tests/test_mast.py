@@ -1332,7 +1332,7 @@ log "Three"
                 value = st.getvalue()
                 assert(value =="""One\nTwo\nThree\n""")
 
-
+    
 
 if __name__ == '__main__':
     try:
@@ -1358,3 +1358,5 @@ Cancel,
     Jump,
     Delay,
 """
+
+

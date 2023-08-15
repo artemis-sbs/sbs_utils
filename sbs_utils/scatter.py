@@ -123,18 +123,14 @@ def box_fill(cw, ch, cd, x, y, z, w, h, d, random=False):
     else: 
         d_diff = 1
     for layer in range(0,ch):
-        if random:
-            _y =  bottom + uniform(0,ch) * h_diff
-        else:
-            _y =  bottom + layer * h_diff
+        _y =  bottom + layer * h_diff
         for row in range(0,cd):
-            if random:
-                _z =  front + uniform(0,cd) * d_diff
-            else:
-                _z = front + row * d_diff
+            _z = front + row * d_diff
             for col in range(0,cw):
                 if random:
+                    _y =  bottom + uniform(0,ch) * h_diff
                     _x =  left + uniform(0,cw) * w_diff
+                    _z =  front + uniform(0,cd) * d_diff
                 else:
                     _x = left + col * w_diff
                 yield Vec3(_x,_y,_z)
