@@ -339,3 +339,30 @@ class Vec3:
             ret = ret.multiply(r)
 
         return ret
+    
+    def rotate_around(self, o, ax, ay, az, degrees=True):
+        px = self.x - o.x
+        py = self.y - o.y
+        pz = self.z - o.z
+        # rotation on x, y, z
+        tx = ax if not degrees else math.radians(ax)
+        ty = ay if not degrees else math.radians(ay)
+        tz = az if not degrees else math.radians(az)
+        # The transformation matrices.
+        rx = [1, 0, 0, 0, math.cos(tx), -math.sin(tx), 0, math.sin(tx), math.cos(tx)]
+        ry = [math.cos(ty), 0, math.sin(ty), 0, 1, 0, -math.sin(ty), 0, math.cos(ty)]
+        rz = [math.cos(tz), -math.sin(tz), 0, math.sin(tz), math.cos(tz), 0, 0, 0, 1]
+        # Matrix multiplication
+        rotatedX = [(rx[0] * px + rx[1] * py + rx[2] * pz), (rx[3] * px + rx[4] * py + rx[5] * pz), (rx[6] * px + rx[7] * py + rx[8] * pz)]
+        px = rotatedX[0]
+        py = rotatedX[1]
+        pz = rotatedX[2]
+        rotatedY = [(ry[0] * px + ry[1] * py + ry[2] * pz), (ry[3] * px + ry[4] * py + ry[5] * pz), (ry[6] * px + ry[7] * py + ry[8] * pz)]
+        px = rotatedY[0]
+        py = rotatedY[1]
+        pz = rotatedY[2]
+        rotatedZ = [(rz[0] * px + rz[1] * py + rz[2] * pz), (rz[3] * px + rz[4] * py + rz[5] * pz), (rz[6] * px + rz[7] * py + rz[8] * pz)]
+        px = rotatedZ[0]
+        py = rotatedZ[1]
+        pz = rotatedZ[2]
+        return Vec3(px + o.x, py + o.y, pz + o.z)
