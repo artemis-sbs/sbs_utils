@@ -86,13 +86,18 @@ class FaceRuntimeNode(StoryRuntimeNode):
             self.apply_style_name(".face", self.layout_item, task)
             if node.style_def is not None:
                 self.apply_style_def(node.style_def,  self.layout_item, task)
+            if node.style_name is not None:
+                self.apply_style_name(node.style_name, self.layout, task)
 
     def poll(self, mast, task, node:Face):
         return PollResults.OK_ADVANCE_TRUE
 
 class RefreshRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Refresh):
-        task.main.mast.refresh_schedulers(task.main, node.label)
+        if node.label is None:
+            task.main.refresh(node.label)
+        else:
+            task.main.mast.refresh_schedulers(task.main, node.label)
         
 
 class ShipRuntimeNode(StoryRuntimeNode):
@@ -104,6 +109,8 @@ class ShipRuntimeNode(StoryRuntimeNode):
         self.apply_style_name(".ship", item, task)
         if node.style_def is not None:
             self.apply_style_def(node.style_def, item, task)
+        if node.style_name is not None:
+            self.apply_style_name(node.style_name, self.layout, task)
 
 class GuiContentRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: GuiContent):
@@ -116,6 +123,8 @@ class GuiContentRuntimeNode(StoryRuntimeNode):
         #self.apply_style_name(".pickship", item, task)
         if node.style_def is not None:
             self.apply_style_def(node.style_def, item, task)
+        if node.style_name is not None:
+            self.apply_style_name(node.style_name, self.layout, task)
 
         
         
@@ -138,6 +147,8 @@ class TextRuntimeNode(StoryRuntimeNode):
             self.apply_style_name(".text", self.layout_text, task)
             if node.style_def is not None:
                 self.apply_style_def(node.style_def, self.layout_text, task)
+            if node.style_name is not None:
+                self.apply_style_name(node.style_name, self.layout, task)
 
     def databind(self):
         if True:
@@ -185,6 +196,8 @@ class ButtonControlRuntimeNode(StoryRuntimeNode):
                 self.apply_style_name(".button", layout_button, task)
                 if node.style_def is not None:
                     self.apply_style_def(node.style_def,  layout_button, task)
+                if node.style_name is not None:
+                    self.apply_style_name(node.style_name, layout_button, task)
             if node.data_code is not None:
                 self.data = task.eval_code(node.data_code)
                 
@@ -228,6 +241,8 @@ class ClickableRuntimeNode(StoryRuntimeNode):
 
             if node.style_def is not None:
                 self.apply_style_def(node.style_def, task.main.page.get_pending_layout(), task)
+            if node.style_name is not None:
+                self.apply_style_name(node.style_name, task.main.page.get_pending_layout(), task)
 
         
     def on_message(self, sim, event):
@@ -253,6 +268,8 @@ class RowRuntimeNode(StoryRuntimeNode):
         self.apply_style_name(".row", item, task)
         if node.style_def is not None:
             self.apply_style_def(node.style_def, item, task)
+        if node.style_name is not None:
+            self.apply_style_name(node.style_name, item, task)
         
 
 class BlankRuntimeNode(StoryRuntimeNode):
@@ -262,6 +279,8 @@ class BlankRuntimeNode(StoryRuntimeNode):
         self.apply_style_name(".blank", item, task)
         if node.style_def is not None:
             self.apply_style_def(node.style_def, item, task)
+        if node.style_name is not None:
+            self.apply_style_name(node.style_name, item, task)
         
 class HoleRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Hole):
@@ -271,9 +290,10 @@ class SectionRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Section):
         task.main.page.add_section()
         self.apply_style_name(".section", task.main.page.get_pending_layout(), task)
-        if node.style_def is None:
-            return
-        self.apply_style_def(node.style_def, task.main.page.get_pending_layout(), task)
+        if node.style_def is not None:
+            self.apply_style_def(node.style_def, task.main.page.get_pending_layout(), task)
+        if node.style_name is not None:
+            self.apply_style_name(node.style_name, task.main.page.get_pending_layout(), task)
 
 
 
@@ -404,6 +424,8 @@ class ChooseRuntimeNode(StoryRuntimeNode):
                         self.apply_style_name(".choice", layout_button, task)
                         if node.style_def is not None:
                             self.apply_style_def(node.style_def,  layout_button, task)
+                        if node.style_name is not None:
+                            self.apply_style_name(node.style_name, layout_button, task)
                         active += 1
                 case "Separator":
                     # Handle face expression
@@ -502,6 +524,8 @@ class SliderControlRuntimeNode(StoryRuntimeNode):
         self.apply_style_name(".slider", self.layout, task)
         if node.style_def is not None:
             self.apply_style_def(node.style_def,  self.layout, task)
+        if node.style_name is not None:
+            self.apply_style_name(node.style_name, self.layout, task)
 
         task.main.page.add_content(self.layout, self)
 
@@ -529,6 +553,8 @@ class CheckboxControlRuntimeNode(StoryRuntimeNode):
         self.apply_style_name(".checkbox", self.layout, task)
         if node.style_def is not None:
             self.apply_style_def(node.style_def,  self.layout, task)
+        if node.style_name is not None:
+            self.apply_style_name(node.style_name, self.layout, task)
 
     def on_message(self, ctx, event):
         if event.sub_tag == self.tag:
@@ -555,6 +581,8 @@ class RadioControlRuntimeNode(StoryRuntimeNode):
             self.apply_style_name(".radio", radio, task)
             if node.style_def is not None:
                 self.apply_style_def(node.style_def, radio, task)
+            if node.style_name is not None:
+                self.apply_style_name(node.style_name, self.layout, task)
             self.layouts.append(radio)
             task.main.page.add_content(radio, self)
             if node.vertical:
@@ -597,6 +625,8 @@ class TextInputControlRuntimeNode(StoryRuntimeNode):
         self.apply_style_name(".input", self.layout, task)
         if node.style_def is not None:
             self.apply_style_def(node.style_def,  self.layout, task)
+        if node.style_name is not None:
+            self.apply_style_name(node.style_name, self.layout, task)
 
     def on_message(self, sim, event):
         if event.sub_tag == self.tag:
@@ -619,6 +649,8 @@ class DropdownControlRuntimeNode(StoryRuntimeNode):
             self.apply_style_name(".dropdown", self.layout, task)
             if node.style_def is not None:
                 self.apply_style_def(node.style_def,  self.layout, task)
+            if node.style_name is not None:
+                self.apply_style_name(node.style_name, self.layout, task)
 
 
     def on_message(self, sim, event):
@@ -849,6 +881,15 @@ class StoryScheduler(MastSbsScheduler):
                 task.jump(task.active_label)
                 self.story_tick_tasks(self.ctx, self.client_id)
                 Gui.dirty(self.client_id)
+            if label == None:
+                # On change or element requested refresh?
+                #task.jump(task.active_label)
+                print("I was told to refresh")
+                self.story_tick_tasks(self.ctx, self.client_id)
+                self.page.gui_state = "repaint"
+                event = FakeEvent(self.client_id, "gui_represent")
+                self.page.present(self.ctx, event)
+
 
     def runtime_error(self, message):
         if self.sim:
@@ -1110,6 +1151,7 @@ class StoryPage(Page):
 
         
         match self.gui_state:
+            
             case  "repaint":
                 ctx.sbs.send_gui_clear(event.client_id)
                 if event.client_id != 0:

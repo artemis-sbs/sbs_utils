@@ -183,7 +183,7 @@ class Checkbox(Column):
         self._value = value
         
     def present(self, ctx, event):
-        message = f"{self.message};state: {self._value}"
+        message = f"state: {self._value};{self.message}"
         #print(f"{self.tag} {message}")
         ctx.sbs.send_gui_checkbox(event.client_id, 
             self.tag, message, 
@@ -193,6 +193,7 @@ class Checkbox(Column):
     def on_message(self, ctx, event):
         if event.sub_tag == self.tag:
             self._value= not self._value
+            self.present(ctx, event)
             #self.value = int(event.sub_float)
 
     @property
@@ -609,14 +610,26 @@ class Layout:
                     col_left = bounds.right
 
                     # Add padding 
-                    
                     bounds.left=bounds.left+padding.left
                     bounds.top=bounds.top+padding.top
                     bounds.right=bounds.right-padding.right
                     bounds.bottom=bounds.bottom-padding.bottom
 
                     col.set_bounds(bounds)
+                    # remove column padding
+                    if col.padding is not None:
+                        padding.left -= col.padding.left
+                        padding.right-= col.padding.right
+                        padding.top -= col.padding.top
+                        padding.bottom -= col.padding.bottom
                 top += row_height
+                # remove the row's padding
+                if row.padding:
+                    padding.left -= row.padding.left
+                    padding.right-= row.padding.right
+                    padding.top -= row.padding.top
+                    padding.bottom -= row.padding.bottom
+
 
     def present(self, ctx, event):
         row:Row
@@ -641,7 +654,7 @@ class RadioButton(Column):
         self.group = group
         
     def present(self, ctx, event):
-        props = f"text:{self.message};state:{'on' if self._value else 'off'}"
+        props = f"state:{self._value};text:{self.message};"
         ctx.sbs.send_gui_checkbox(event.client_id, 
             self.tag, props,
             # 1 if self._value else 0,

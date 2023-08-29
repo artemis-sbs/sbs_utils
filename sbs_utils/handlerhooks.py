@@ -1,5 +1,5 @@
 from .griddispatcher import GridDispatcher
-from .damagedispatcher import DamageDispatcher
+from .damagedispatcher import DamageDispatcher, CollisionDispatcher
 from .consoledispatcher import ConsoleDispatcher
 from .tickdispatcher import TickDispatcher
 from .lifetimedispatcher import LifetimeDispatcher
@@ -90,7 +90,9 @@ def cosmos_event_handler(sim, event):
 
             case "player_internal_damage":
                 DamageDispatcher.dispatch_internal(ctx,event)
-                
+
+            case "passive_collision":
+                CollisionDispatcher.dispatch_collision(ctx,event)
 
             case "client_connect":
                 Gui.add_client(ctx, event)

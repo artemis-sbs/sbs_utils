@@ -5,9 +5,9 @@ from random import uniform
 
 @dataclass
 class Vec3:
-    x: float
-    y: float
-    z: float
+    x: float = 0
+    y: float = 0
+    z: float = 0
 
     @property
     def xyz(self):

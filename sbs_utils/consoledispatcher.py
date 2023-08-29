@@ -272,13 +272,13 @@ class ConsoleDispatcher:
 
         
     def convert(ctx, event):
-        if "weap" in event.sub_tag:
+        if "weap" in event.sub_tag or event.sub_tag == "weapon_target_UID":
             return "weapon_target_UID"
-        if "sci" in event.sub_tag:
+        if "sci" in event.sub_tag or event.sub_tag == "science_target_UID":
             return "science_target_UID"
-        if "comm" in event.sub_tag:
+        if "comm" in event.sub_tag or event.sub_tag == "comms_target_UID":
             return "comms_target_UID"
-        if "engi" in event.sub_tag:
+        if "engi" in event.sub_tag or event.sub_tag == "grid_selected_UID":
             return "grid_selected_UID"
         return None
 

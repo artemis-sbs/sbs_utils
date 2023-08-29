@@ -713,6 +713,7 @@ class Mast(EngineObject):
         "len": len,
         "reversed": reversed,
         "int": int,
+        "str": str,
         "hex": hex,
         "min": min,
         "max": max,

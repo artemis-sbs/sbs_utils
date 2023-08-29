@@ -13,13 +13,14 @@ class Row(MastNode):
     def __init__(self, style_name=None, style=None, style_q=None, loc=None):
         self.loc = loc
         self.style_def = None
+        self.style_name = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
-            self.style_def = StyleDefinition.styles.get(style_name)
+            self.style_name = style_name
     
 class Refresh(MastNode):
-    rule = re.compile(r"""refresh[ \t]*(?P<label>\w+)""")
+    rule = re.compile(r"""refresh[ \t]*(?P<label>\w+)?""")
     def __init__(self, label, loc=None):
         self.loc = loc
         self.label = label
@@ -42,10 +43,11 @@ class Text(MastNode):
         else:
             self.code = None
         self.style_def = None
+        self.style_name = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
-            self.style_def = StyleDefinition.styles.get(style_name)
+            self.style_name = style_name
 
 class AppendText(MastNode):
     rule = re.compile(r"""(([\^]{3,})(\n)?(?P<message>[\s\S]+?)(\n)?([\^]{3,}))"""+IF_EXP_REGEX)
@@ -71,10 +73,11 @@ class Face(MastNode):
         else:
             self.code = None
         self.style_def = None
+        self.style_name = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
-            self.style_def = StyleDefinition.styles.get(style_name)
+            self.style_name = style_name
 
 class Ship(MastNode):
     rule = re.compile(r"""ship[ \t]+(?P<q>['"]{3}|["'])(?P<ship>[\s\S]+?)(?P=q)"""+OPT_STYLE_REF_RULE)
@@ -82,10 +85,11 @@ class Ship(MastNode):
         self.loc = loc
         self.ship= self.compile_formatted_string(ship)
         self.style_def = None
+        self.style_name = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
-            self.style_def = StyleDefinition.styles.get(style_name)
+            self.style_name = style_name
 
 class GuiContent(MastNode):
     rule = re.compile(r"""gui[ \t]+(?P<gui>page|control)[ \t]+(?P<var>\w+)[ \t]+(?P<exp>("""+PY_EXP_REGEX+'|.*))'+OPT_STYLE_REF_RULE)
@@ -99,10 +103,11 @@ class GuiContent(MastNode):
             exp = exp.strip()
         self.code = compile(exp, "<string>", "eval")
         self.style_def = None
+        self.style_name = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
-            self.style_def = StyleDefinition.styles.get(style_name)
+            self.style_name = style_name
 
 
 class Blank(MastNode):
@@ -110,10 +115,11 @@ class Blank(MastNode):
     def __init__(self, style_name=None, style=None, style_q=None, loc=None):
         self.loc = loc
         self.style_def = None
+        self.style_name = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
-            self.style_def = StyleDefinition.styles.get(style_name)
+            self.style_name = style_name
 
 
 
@@ -123,10 +129,11 @@ class Section(MastNode):
     def __init__(self, style_name=None, style=None, style_q=None, loc=None):
         self.loc = loc
         self.style_def = None
+        self.style_name = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
-            self.style_def = StyleDefinition.styles.get(style_name)
+            self.style_name = style_name
 
 class Clickable(MastNode):
     rule = re.compile(r"((section"+STYLE_REF_RULE+r"""[ \t]*clickable[ \t]*(?P<q>['"]{3}|["'])(?P<message>.*?)(?P=q)([ \t]*data[ \t]*=[ \t]*(?P<data>"""+PY_EXP_REGEX+r"""))?)[ \t]*"""+BLOCK_START+r")|(?P<end>end_clickable)")
@@ -157,10 +164,11 @@ class Clickable(MastNode):
 
         
         self.style_def = None
+        self.style_name = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
-            self.style_def = StyleDefinition.styles.get(style_name)
+            self.style_name = style_name
         
     @classmethod
     def dd_parse(cls, lines):
@@ -179,6 +187,7 @@ class Style(MastNode):
     def __init__(self, name, style=None, q=None,loc=None):
         self.loc = loc
         style_def = StyleDefinition.parse(style)
+        
         StyleDefinition.styles[name] = style_def
 
 class OnChange(MastNode):
@@ -255,10 +264,11 @@ class Choose(MastNode):
         EndAwait.stack.append(self)
 
         self.style_def = None
+        self.style_name = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
-            self.style_def = StyleDefinition.styles.get(style_name)
+            self.style_name = style_name
 
 class ButtonControl(MastNode):
     rule = re.compile(r"""((button[ \t]+(?P<q>['"]{3}|["'])(?P<message>[ \t\S]+?)(?P=q))([ \t]*data[ \t]*=[ \t]*(?P<data>"""+PY_EXP_REGEX+r"""))?"""+OPT_STYLE_REF_RULE+IF_EXP_REGEX+r"[ \t]*"+BLOCK_START+")|(?P<end>end_button)")
@@ -295,10 +305,11 @@ class ButtonControl(MastNode):
             ButtonControl.stack.append(self)
 
         self.style_def = None
+        self.style_name = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
-            self.style_def = StyleDefinition.styles.get(style_name)
+            self.style_name = style_name
 
 
 
@@ -317,10 +328,11 @@ class SliderControl(MastNode):
         self.props = self.compile_formatted_string(props)
         
         self.style_def = None
+        self.style_name = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
-            self.style_def = StyleDefinition.styles.get(style_name)
+            self.style_name = style_name
     
 class CheckboxControl(MastNode):
     rule = re.compile(r"""checkbox[ \t]+(?P<var>[ \t\S]+)[ \t]+(?P<q>['"]{3}|["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_STYLE_REF_RULE)
@@ -331,10 +343,11 @@ class CheckboxControl(MastNode):
         self.message = self.compile_formatted_string(message)
 
         self.style_def = None
+        self.style_name = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
-            self.style_def = StyleDefinition.styles.get(style_name)
+            self.style_name = style_name
 
 class RadioControl(MastNode):
     rule = re.compile(r"""(?P<radio>radio|vradio)[ \t]+(?P<var>[ \t\S]+)[ \t]+(?P<q>['"]{3}|["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_STYLE_REF_RULE)
@@ -345,10 +358,11 @@ class RadioControl(MastNode):
         self.message = self.compile_formatted_string(message)
 
         self.style_def = None
+        self.style_name = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
-            self.style_def = StyleDefinition.styles.get(style_name)
+            self.style_name = style_name
 
 
 class RerouteGui(MastNode):
@@ -372,10 +386,11 @@ class TextInputControl(MastNode):
         #print(f"self label {self.label}")
 
         self.style_def = None
+        self.style_name = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
-            self.style_def = StyleDefinition.styles.get(style_name)
+            self.style_name = style_name
 
 
 
@@ -398,10 +413,11 @@ class DropdownControl(MastNode):
             self.values = self.compile_formatted_string(values)
         
         self.style_def = None
+        self.style_name = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
-            self.style_def = StyleDefinition.styles.get(style_name)
+            self.style_name = style_name
 
 class ImageControl(MastNode):
     rule = re.compile(r"""image[ \t]*(?P<q>['"]{3}|["'])(?P<file>[ \t\S]+?)(?P=q)"""+OPT_STYLE_REF_RULE)
@@ -410,10 +426,11 @@ class ImageControl(MastNode):
         self.file = self.compile_formatted_string(file)
         
         self.style_def = None
+        self.style_name = None
         if style is not None:
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
-            self.style_def = StyleDefinition.styles.get(style_name)
+            self.style_name = style_name
 
 
 

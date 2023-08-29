@@ -1,6 +1,5 @@
 
 import typing
-from  .spaceobject import SpaceObject
 
 class DamageDispatcher:
     _dispatch_source = {}
@@ -65,5 +64,70 @@ class DamageDispatcher:
             source(ctx, damage_event)
         if target is not None:
             target(ctx, damage_event)
+        
+
+class CollisionDispatcher:
+    _dispatch_source = {}
+    _dispatch_target = {}
+    _dispatch_internal = {}
+    _dispatch_any = set()
+    _dispatch_any_internal = set()
+    
+    def add_source(id: int, cb: typing.Callable):
+        CollisionDispatcher._dispatch_source[id] = cb
+
+    def add_target(id: int, cb: typing.Callable):
+        CollisionDispatcher._dispatch_target[id] = cb
+
+    def add_internal(id: int, cb: typing.Callable):
+        CollisionDispatcher._dispatch_internal[id] = cb
+
+    def add_any(cb: typing.Callable):
+        CollisionDispatcher._dispatch_any.add(cb)
+
+    def add_any_internal(cb: typing.Callable):
+        CollisionDispatcher._dispatch_any_internal.add(cb)
+
+    def remove_source(id: int):
+        # Callback should have arguments of other object's id, message
+        CollisionDispatcher._dispatch_source.pop(id)
+
+    def remove_target(id: int):
+        # Callback should have arguments of other object's id, message
+        CollisionDispatcher._dispatch_target.pop(id)
+
+    def remove_internal(id: int):
+        # Callback should have arguments of other object's id, message
+        CollisionDispatcher._dispatch_internal.pop(id)
+
+    def remove_any(cb: typing.Callable):
+        CollisionDispatcher._dispatch_any.discard(cb)
+
+    def remove_any_internal(cb: typing.Callable):
+        CollisionDispatcher._dispatch_any_internal.discard(cb)
+
+    def dispatch_internal(ctx, collision_event):
+        internal = CollisionDispatcher._dispatch_internal.get(collision_event.origin_id)
+        if  internal is not None:
+            internal(ctx, collision_event)
+
+        for func in CollisionDispatcher._dispatch_any_internal:
+            func(ctx, collision_event)
+
+    def dispatch_collision(ctx, collision_event):
+        parent = CollisionDispatcher._dispatch_source.get(collision_event.parent_id)
+        source = CollisionDispatcher._dispatch_source.get(collision_event.origin_id)
+        target = CollisionDispatcher._dispatch_target.get(collision_event.selected_id)
+
+        for func in CollisionDispatcher._dispatch_any:
+            func(ctx, collision_event)
+            
+
+        if parent is not None:
+            parent(ctx, collision_event)
+        if source is not None:
+            source(ctx, collision_event)
+        if target is not None:
+            target(ctx, collision_event)
         
 

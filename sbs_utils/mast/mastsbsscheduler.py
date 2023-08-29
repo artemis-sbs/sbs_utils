@@ -6,7 +6,7 @@ from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain,
 
 from ..consoledispatcher import ConsoleDispatcher
 from ..lifetimedispatcher import LifetimeDispatcher
-from ..damagedispatcher import DamageDispatcher
+from ..damagedispatcher import DamageDispatcher, CollisionDispatcher
 from ..griddispatcher import GridDispatcher
 from ..gui import Gui, Context
 from .errorpage import ErrorPage
@@ -17,6 +17,7 @@ import json
 import re
 from .. import query
 from .. import scatter
+from .. vec import Vec3
 
 from functools import partial
 
@@ -631,9 +632,11 @@ class FollowRouteRuntimeNode(MastRuntimeNode):
             def __init__(self, sub_tag, origin_id, selected_id, extra_tag):
                 self.sub_tag = sub_tag
                 self.client_id = None
+                self.parent_id = 0
                 self.origin_id = origin_id
                 self.extra_tag = extra_tag
                 self.selected_id = selected_id
+                self.source_point = Vec3()
         console = None
         extra_tag = ""
         match RegexEqual(node.route):
@@ -733,6 +736,21 @@ class RouteRuntimeNode(MastRuntimeNode):
             if not t.done:
                 MastAsyncTask.add_dependency(event.origin_id,t)
                 MastAsyncTask.add_dependency(event.selected_id,t)
+
+        def handle_collision(ctx, event):
+            # Need point? amount
+            t = task.start_task(node.label, {
+                    "COLLISION_SOURCE_ID": event.origin_id,
+                    "COLLISION_PARENT_ID": event.parent_id,
+                    "COLLISION_TARGET_ID": event.selected_id,
+                    "COLLISION_ORIGIN_ID": event.origin_id,
+                    "COLLISION_SELECTED_ID": event.selected_id,
+                    #"EVENT": event,
+                    "COLLISION_ROUTED": True
+            })
+            if not t.done:
+                MastAsyncTask.add_dependency(event.origin_id,t)
+                MastAsyncTask.add_dependency(event.selected_id,t)
         
         def handle_damage_internal(ctx, event):
             # Need point? amount
@@ -805,6 +823,11 @@ class RouteRuntimeNode(MastRuntimeNode):
                 if task.main.client_id != 0:
                     return PollResults.OK_ADVANCE_TRUE
                 DamageDispatcher.add_any(handle_damage)
+
+            case "collision[ \t]+object":
+                if task.main.client_id != 0:
+                    return PollResults.OK_ADVANCE_TRUE
+                CollisionDispatcher.add_any(handle_collision)
 
             case "damage\s*internal":
                 if task.main.client_id != 0:
