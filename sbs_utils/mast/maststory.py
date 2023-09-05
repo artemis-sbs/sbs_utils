@@ -192,7 +192,7 @@ class Style(MastNode):
 
 class OnChange(MastNode):
     rule = re.compile(r"(?P<end>end_on)|(on[ \t]+change[ \t]+(?P<val>[^:]+)"+BLOCK_START+")")
-    stack = []
+    #stack = []
     def __init__(self, end=None, val=None, loc=None):
         self.value = val
         self.loc = loc
@@ -208,6 +208,22 @@ class OnChange(MastNode):
         else:
             Clickable.stack.append(self)
 
+
+class OnClick(MastNode):
+    rule = re.compile(r"(?P<end>end_on)|(on[ \t]+click([ \t]+(?P<name>\w+))?"+BLOCK_START+")")
+    # stack = []
+    def __init__(self, end=None, name=None, loc=None):
+        self.name = name
+        self.loc = loc
+        self.is_end = False
+        self.end_node = None
+
+        if end is not None:
+            Clickable.stack[-1].end_node = self
+            self.is_end = True
+            Clickable.stack.pop()
+        else:
+            Clickable.stack.append(self)
 
 class AwaitGui(MastNode):
     rule = re.compile(r"await[ \t]+gui"+TIMEOUT_REGEX)
@@ -348,6 +364,20 @@ class CheckboxControl(MastNode):
             self.style_def = StyleDefinition.parse(style)
         elif style_name is not None:
             self.style_name = style_name
+
+class Icon(MastNode):
+    rule = re.compile(r"""icon[ \t]+(?P<q>['\"]{3}|[\"'])(?P<props>[ \t\S]+?)(?P=q)"""+OPT_STYLE_REF_RULE)
+    def __init__(self, props=None, q=None, style_name=None, style=None, style_q=None, loc=None):
+        self.loc = loc
+        self.props = self.compile_formatted_string(props)
+
+        self.style_def = None
+        self.style_name = None
+        if style is not None:
+            self.style_def = StyleDefinition.parse(style)
+        elif style_name is not None:
+            self.style_name = style_name
+
 
 class RadioControl(MastNode):
     rule = re.compile(r"""(?P<radio>radio|vradio)[ \t]+(?P<var>[ \t\S]+)[ \t]+(?P<q>['"]{3}|["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_STYLE_REF_RULE)
@@ -500,6 +530,7 @@ class MastStory(MastSbs):
             AppendText,
             Face,
             Ship,
+            Icon,
             GuiContent,
             Blank,
             Hole,
@@ -509,6 +540,7 @@ class MastStory(MastSbs):
         Choose,
         Disconnect,
         OnChange,
+        OnClick,
         AwaitGui,
         AwaitSelect,
         ButtonControl,

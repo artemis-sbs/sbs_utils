@@ -507,7 +507,7 @@ def all_objects_exists(sim, the_set):
 
 def grid_objects(sim, so_id):
     gos = set()
-    hm = sbs.get_hull_map(sim, to_id(so_id))
+    hm = sbs.get_hull_map(to_id(so_id))
     if hm is None:
         return gos
     count = hm.get_grid_object_count()
@@ -515,6 +515,14 @@ def grid_objects(sim, so_id):
         go = hm.get_grid_object_by_index(i)
         gos.add(go.unique_ID)
     return gos
+
+def grid_objects_at(so_id, x,y):
+    gos = set()
+    hm = sbs.get_hull_map(to_id(so_id))
+    if hm is None:
+        return gos
+    return to_set(hm.get_objects_at_point(x,y))
+
 
 def update_engine_data(sim, to_update, data):
     objects = to_object_list(to_set(to_update))

@@ -9,19 +9,27 @@ from ..pages import layout
 from ..tickdispatcher import TickDispatcher
 
 from .errorpage import ErrorPage
-from .maststory import AppendText,Clickable, ButtonControl, MastStory, Choose, Disconnect, RerouteGui, Text, Blank, Ship, GuiContent, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, AwaitSelect, Hole, RadioControl, Console, BuildaConsole, OnChange
+from .maststory import AppendText,Clickable, ButtonControl, MastStory, Choose, Disconnect, RerouteGui, Text, Blank, Ship, GuiContent, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, AwaitSelect, Hole, RadioControl, Console, BuildaConsole, OnChange, OnClick, Icon
 import traceback
 from .mastsbsscheduler import MastSbsScheduler, Button
 from ..consoledispatcher import ConsoleDispatcher
 from .parsers import LayoutAreaParser
-import sbs_utils.widgets.shippicker
-import sbs_utils.widgets.listbox
 
 class StoryRuntimeNode(MastRuntimeNode):
     def on_message(self, sim, event):
         pass
     def databind(self):
         return False
+    def compile_formatted_string(self, message):
+        if message is None:
+            return message
+        if "{" in message:
+            message = f'''f"""{message}"""'''
+            code = compile(message, "<string>", "eval")
+            return code
+        else:
+            return message
+
     def apply_style_name(self, style_name, layout_item, task):
         style_def = StyleDefinition.styles.get(style_name)
         self.apply_style_def(style_def, layout_item, task)
@@ -72,6 +80,30 @@ class StoryRuntimeNode(MastRuntimeNode):
             while len(values)<4:
                 values.append(0.0)
             layout_item.set_padding(layout.Bounds(*values))
+        background = style_def.get("background")
+        if background is not None:
+            background = self.compile_formatted_string(background)
+            layout_item.background = task.format_string(background)
+
+        click_text = style_def.get("click_text")
+        if click_text is not None:
+            click_text = self.compile_formatted_string(click_text)
+            layout_item.click_text = task.format_string(click_text)
+
+        click_font = style_def.get("click_font")
+        if click_font is not None:
+            click_font = self.compile_formatted_string(click_font)
+            layout_item.click_font = task.format_string(click_font)
+
+        click_color = style_def.get("click_color")
+        if click_color is not None:
+            click_color = self.compile_formatted_string(click_color)
+            layout_item.click_color = task.format_string(click_color)
+
+        click_tag = style_def.get("click_tag")
+        if click_tag is not None:
+            click_tag = self.compile_formatted_string(click_tag)
+            layout_item.click_tag = task.format_string(click_tag).strip()
 
 
 class FaceRuntimeNode(StoryRuntimeNode):
@@ -88,6 +120,21 @@ class FaceRuntimeNode(StoryRuntimeNode):
                 self.apply_style_def(node.style_def,  self.layout_item, task)
             if node.style_name is not None:
                 self.apply_style_name(node.style_name, self.layout, task)
+
+    def poll(self, mast, task, node:Face):
+        return PollResults.OK_ADVANCE_TRUE
+    
+class IconRuntimeNode(StoryRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: Icon):
+        tag = task.main.page.get_tag()
+        props = task.format_string(node.props)
+        self.layout_item = layout.Icon(tag, props)
+        task.main.page.add_content(self.layout_item, self)
+        self.apply_style_name(".icon", self.layout_item, task)
+        if node.style_def is not None:
+            self.apply_style_def(node.style_def,  self.layout_item, task)
+        if node.style_name is not None:
+            self.apply_style_name(node.style_name, self.layout, task)
 
     def poll(self, mast, task, node:Face):
         return PollResults.OK_ADVANCE_TRUE
@@ -223,7 +270,7 @@ class ClickableRuntimeNode(StoryRuntimeNode):
         self.data = None
         self.node = node
         self.task = task
-
+        self.client_id = task.main.page.client_id
         if node.is_end == False:
             self.tag = task.main.page.get_tag()
             msg = task.format_string(node.message)
@@ -246,7 +293,7 @@ class ClickableRuntimeNode(StoryRuntimeNode):
 
         
     def on_message(self, sim, event):
-        if event.sub_tag == self.tag:
+        if event.sub_tag == self.tag: # and event.client_id == self.client_id:
             #print(self.tag)
             #print(self.data)
             # Jump to the cmds after the button
@@ -265,6 +312,7 @@ class RowRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Row):
         task.main.page.add_row()
         item = task.main.page.get_pending_row()
+
         self.apply_style_name(".row", item, task)
         if node.style_def is not None:
             self.apply_style_def(node.style_def, item, task)
@@ -391,11 +439,14 @@ class ChooseRuntimeNode(StoryRuntimeNode):
         # ast = LayoutAreaParser.parse_e(LayoutAreaParser.lex("100-30px"))
         # top = LayoutAreaParser.compute(ast, {}, task.main.page.aspect_ratio.y)
         button_layout = layout.Layout(None, None, None, 0,top,100,100)
+        button_layout.tag = task.main.page.get_tag()
 
         active = 0
         index = 0
         layout_row: Row
         layout_row = layout.Row()
+        layout_row.tag = task.main.page.get_tag()
+
         buttons = []
 
         # Expand all the 'for' buttons
@@ -561,6 +612,7 @@ class CheckboxControlRuntimeNode(StoryRuntimeNode):
             #self.layout.value = not self.layout.value
             self.task.set_value(self.node.var, self.layout.value, self.scope)
             self.layout.present(ctx, event)
+
 
 class RadioControlRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: RadioControl):
@@ -755,6 +807,28 @@ class OnChangeRuntimeNode(StoryRuntimeNode):
             self.task.jump(self.task.active_label, node.end_node.loc+1)
             return PollResults.OK_JUMP
 
+class OnClickRuntimeNode(StoryRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: OnClick):
+        self.task = task
+        self.node = node
+        if not node.is_end:
+            task.main.page.add_on_click(self)
+
+    def test(self, click_tag):
+        if self.node.name is not None:
+            if self.node.name!= click_tag:
+                return False
+        self.task.set_value("__CLICKED__", click_tag, Scope.TEMP)
+        return True
+        
+
+    def poll(self, mast:Mast, task:MastAsyncTask, node: OnClick):
+        if node.is_end:
+            self.task.pop_label(False)
+            return PollResults.OK_JUMP
+        if node.end_node:
+            self.task.jump(self.task.active_label, node.end_node.loc+1)
+            return PollResults.OK_JUMP
 
 
 class RerouteGuiRuntimeNode(StoryRuntimeNode):
@@ -818,6 +892,7 @@ over =     {
     "Text": TextRuntimeNode,
     "AppendText": AppendTextRuntimeNode,
     "Face": FaceRuntimeNode,
+    "Icon": IconRuntimeNode,
     "Ship": ShipRuntimeNode,
     "GuiContent": GuiContentRuntimeNode,
     "ButtonControl": ButtonControlRuntimeNode,
@@ -833,6 +908,7 @@ over =     {
     "Blank": BlankRuntimeNode,
     "Hole": HoleRuntimeNode,
     "OnChange": OnChangeRuntimeNode,
+    "OnClick": OnClickRuntimeNode,
     "AwaitGui": AwaitGuiRuntimeNode,
     "AwaitSelect": AwaitSelectRuntimeNode,
     "Choose": ChooseRuntimeNode,
@@ -929,8 +1005,12 @@ class StoryPage(Page):
         self.gui_state = 'repaint'
         self.story_scheduler = None
         self.layouts = []
-        self.pending_layouts = self.pending_layouts = [layout.Layout(None, None, None, 0,0, 100, 90)]
+        self.tag = 10000
+        section = layout.Layout(None, None, None, 0,0, 100, 90)
+        section.tag = self.get_tag()
+        self.pending_layouts = self.pending_layouts = []
         self.pending_row = self.pending_row = layout.Row()
+        self.pending_row.tag = self.get_tag()
         self.pending_tag_map = {}
         self.tag_map = {}
         self.aspect_ratio = sbs.vec2(1024,768)
@@ -943,10 +1023,12 @@ class StoryPage(Page):
         self.pending_widgets = ""
         self.pending_on_change_items= []
         self.on_change_items= []
+        self.pending_on_click = []
+        self.on_click = []
         self.gui_task = None
         self.change_console_label = None
         self.disconnected = False
-        self.tag = 10000
+        
         self.errors = []
         cls = self.__class__
         
@@ -977,6 +1059,8 @@ class StoryPage(Page):
     def swap_layout(self):
         self.on_change_items= self.pending_on_change_items
         self.pending_on_change_items = []
+        self.on_click = self.pending_on_click
+        self.pending_on_click = []
         self.layouts = self.pending_layouts
         self.tag_map = self.pending_tag_map
         self.console = self.pending_console
@@ -988,8 +1072,11 @@ class StoryPage(Page):
             for layout_obj in self.layouts:
                 layout_obj.calc()
             
-            self.pending_layouts = self.pending_layouts = [layout.Layout(None, None, None, 0,0, 100, 90)]
+            section = layout.Layout(None, None, None, 0,0, 100, 90)
+            section.tag = self.get_tag()
+            self.pending_layouts = self.pending_layouts = [section]
             self.pending_row = self.pending_row = layout.Row()
+            self.pending_row.tag = self.get_tag()
             self.pending_tag_map = {}
             self.pending_console = ""
             self.pending_widgets = ""
@@ -1010,6 +1097,8 @@ class StoryPage(Page):
         if self.pending_tag_map is None:
             self.pending_tag_map = {}
         self.pending_row = layout.Row()
+        # Rows have tags for background and/or clickable
+        self.pending_row.tag = self.get_tag()
 
     def add_tag(self, layout_item, runtime_node):
         if self.pending_tag_map is None:
@@ -1034,6 +1123,9 @@ class StoryPage(Page):
     def add_on_change(self, runtime_node):
         self.pending_on_change_items.append(runtime_node)
 
+    def add_on_click(self, runtime_node):
+        self.pending_on_click.append(runtime_node)
+
     def set_widget_list(self, console,widgets):
         self.pending_console = console
         self.pending_widgets = widgets
@@ -1048,11 +1140,13 @@ class StoryPage(Page):
             self.pending_widgets += "^"+widget
     
     def add_section(self, clickable_tag= None, clickable=None):
+        section = layout.Layout(clickable_tag, clickable, None, 0,0, 100, 90)
+        section.tag = self.get_tag()
         if not self.pending_layouts:
-            self.pending_layouts = [layout.Layout(clickable_tag, clickable, None, 0,0, 100, 90)]
+            self.pending_layouts = [section]
         else:
             self.add_row()
-            self.pending_layouts.append(layout.Layout(clickable_tag, clickable, None, 0,0, 100, 90))
+            self.pending_layouts.append(section)
 
     def get_pending_layout(self):
         if not self.pending_layouts:
@@ -1180,11 +1274,17 @@ class StoryPage(Page):
                         break
 
     def on_message(self, ctx, event):
+        if event.client_id != self.client_id:
+            return
         
         message_tag = event.sub_tag
+        
+
+        clicked = None
         # Process layout first
-        for layout in self.layouts:
-            layout.on_message(Context(ctx.sim, ctx.sbs, self.aspect_ratio),event)
+        for section in self.layouts:
+            section.on_message(Context(ctx.sim, ctx.sbs, self.aspect_ratio),event)
+        clicked = layout.Layout.clicked.get(self.client_id)
 
         runtime_node = self.tag_map.get(message_tag)
         refresh = False
@@ -1199,6 +1299,13 @@ class StoryPage(Page):
             if change.test():
                 self.gui_task.push_inline_block(self.gui_task.active_label, change.node.loc+1)
                 return
+            
+        if clicked is not None:
+            for click in self.on_click:
+                if click.test(clicked.click_tag):
+                    self.gui_task.push_inline_block(self.gui_task.active_label, click.node.loc+1)
+                    return
+            layout.Layout.clicked[self.client_id] = None
             
         if refresh:
             self.gui_state = "refresh"

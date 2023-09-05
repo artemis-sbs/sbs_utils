@@ -53,7 +53,7 @@ def cosmos_event_handler(sim, event):
         # e.g. Mast Story Page, Clients change
         ctx = Context(sim, sbs, None)
         
-
+        #print(f"{event.sub_tag}")
         match(event.tag):
             #	value_tag"
             #	source_point"

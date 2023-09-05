@@ -57,8 +57,13 @@ class PyMastStoryPage(Page):
         self.gui_state = 'repaint'
         self.story_scheduler = None
         self.layouts = []
-        self.pending_layouts = self.pending_layouts = [layout.Layout(None, None, None, 0,0, 100, 90)]
-        self.pending_row = self.pending_row = layout.Row()
+        self.tag = 10000
+        section = layout.Layout(None, None, None, 0,0, 100, 90)
+        section.tag = self.get_tag()
+        self.pending_layouts = self.pending_layouts = []
+        self.pending_row = layout.Row()
+        self.pending_row.tag = self.get_tag() 
+        
         self.pending_tag_map = {}
         self.tag_map = {}
         self.aspect_ratio = sbs.vec2(1920,1071)
@@ -136,8 +141,11 @@ class PyMastStoryPage(Page):
             for layout_obj in self.layouts:
                 layout_obj.calc()
             
-            self.pending_layouts = self.pending_layouts = [layout.Layout(None, None, None, 0,0, 100, 90)]
-            self.pending_row = self.pending_row = layout.Row()
+            section = layout.Layout(None, None, None, 0,0, 100, 90)
+            section.tag = self.get_tag()
+            self.pending_layouts = self.pending_layouts = [section]
+            self.pending_row = layout.Row()
+            self.pending_row.tag = self.get_tag()
             self.pending_tag_map = {}
             self.pending_console = ""
             self.pending_widgets = ""
@@ -158,7 +166,9 @@ class PyMastStoryPage(Page):
         if self.pending_tag_map is None:
             self.pending_tag_map = {}
         self.pending_row = layout.Row()
+        self.pending_row.tag = self.get_tag()
         return self.pending_row
+    
 
     def add_tag(self, layout_item, runtime_node):
         if self.pending_tag_map is None:
@@ -229,11 +239,13 @@ class PyMastStoryPage(Page):
         
 
     def add_section(self, click_tag, click_props):
+        section = layout.Layout(click_tag, click_props, None, 0,0, 100, 90)
+        section.tag = self.get_tag()
         if not self.pending_layouts:
-            self.pending_layouts = [layout.Layout(click_tag, click_props, None, 0,0, 100, 90)]
+            self.pending_layouts = [section]
         else:
             self.add_row()
-            self.pending_layouts.append(layout.Layout(click_tag, click_props,None, 0,0, 100, 90))
+            self.pending_layouts.append(section)
         return self.pending_layouts[-1]
 
     def get_pending_layout(self):
@@ -253,7 +265,9 @@ class PyMastStoryPage(Page):
             return
         top = ((self.aspect_ratio.y - 50)/self.aspect_ratio.y)*100
         button_layout = layout.Layout(None, None, None, 0,top,100,100)
+        button_layout.tag = self.get_tag()
         layout_row = layout.Row()
+        layout_row.tag = self.get_tag()
         for button, value in buttons.items():
             the_button = layout.Button(self.get_tag(), button)
             layout_row.add(the_button)
