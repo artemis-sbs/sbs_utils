@@ -95,6 +95,12 @@ class Hole(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
+class Icon(MastNode):
+    """class Icon"""
+    def __init__ (self, props=None, q=None, style_name=None, style=None, style_q=None, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
 class ImageControl(MastNode):
     """class ImageControl"""
     def __init__ (self, file, q, style_name=None, style=None, style_q=None, loc=None):
@@ -134,6 +140,12 @@ class MastStory(MastSbs):
 class OnChange(MastNode):
     """class OnChange"""
     def __init__ (self, end=None, val=None, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
+class OnClick(MastNode):
+    """class OnClick"""
+    def __init__ (self, end=None, name=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...

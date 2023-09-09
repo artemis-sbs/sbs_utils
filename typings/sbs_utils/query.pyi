@@ -115,6 +115,8 @@ def grid_closest (sim, grid_obj, roles=None, max_dist=None, filter_func=None) ->
     :rtype: GridCloseData"""
 def grid_objects (sim, so_id):
     ...
+def grid_objects_at (so_id, x, y):
+    ...
 def grid_target (sim, grid_obj_or_set, target_id: int, speed=0.01):
     """Set the item to target
     

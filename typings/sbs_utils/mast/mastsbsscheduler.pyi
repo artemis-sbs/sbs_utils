@@ -8,10 +8,11 @@ from sbs_utils.mast.mastsbs import ScanResult
 from sbs_utils.mast.mastsbs import ScanTab
 from sbs_utils.mast.mastsbs import Simulation
 from sbs_utils.mast.mastsbs import TransmitReceive
+from sbs_utils.damagedispatcher import CollisionDispatcher
+from sbs_utils.damagedispatcher import DamageDispatcher
 from sbs_utils.consoledispatcher import ConsoleDispatcher
 from sbs_utils.gui import Context
 from sbs_utils.gui import Gui
-from sbs_utils.damagedispatcher import DamageDispatcher
 from sbs_utils.mast.errorpage import ErrorPage
 from sbs_utils.griddispatcher import GridDispatcher
 from sbs_utils.mast.mastobjects import GridObject
@@ -28,6 +29,7 @@ from sbs_utils.mast.mastscheduler import MastScheduler
 from sbs_utils.mast.mastscheduler import PollResults
 from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.tickdispatcher import TickDispatcher
+from sbs_utils.vec import Vec3
 from functools import partial
 def func(*argv):
     """assign_client_to_ship(arg0: int, arg1: int) -> None

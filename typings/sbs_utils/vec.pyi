@@ -1,5 +1,5 @@
 class Vec3(object):
-    """Vec3(x: float, y: float, z: float)"""
+    """Vec3(x: float = 0, y: float = 0, z: float = 0)"""
     def __add__ (self, v):
         """operator add immutable
         
@@ -28,7 +28,7 @@ class Vec3(object):
         :type v: Vec3 or number
         :return: new vector
         :rtype: Vec3"""
-    def __init__ (self, x: float, y: float, z: float) -> None:
+    def __init__ (self, x: float = 0, y: float = 0, z: float = 0) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
     def __isub__ (self, v):
         """operator inline subtract mutable
@@ -173,6 +173,8 @@ class Vec3(object):
         :type ring: bool
         :return: A randomly offset vector within the sphere/ring
         :rtype: Vec3"""
+    def rotate_around (self, o, ax, ay, az, degrees=True):
+        ...
     def subtract (self, v):
         """subtract immutable
         

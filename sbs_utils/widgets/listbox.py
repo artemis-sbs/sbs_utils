@@ -7,13 +7,7 @@ from .. import fs
 
 
 
-"""
-table [name]
-    
-end_table
-"""
-
-class Table(Widget):
+class Listbox(Widget):
     """
       A widget to list things passing function/lamdas to get the data needed for option display of
       - face
