@@ -2,7 +2,6 @@ from ..gui import Page
 import sbs
 import struct # for images sizes
 from .. import fs
-from ..widgets.shippicker import ShipPicker
 import os
 import json
 

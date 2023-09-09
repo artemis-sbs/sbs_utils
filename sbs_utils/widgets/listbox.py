@@ -236,9 +236,11 @@ class Listbox(Widget):
         return self.get_selected()
 
 
+#list_box_control(ships, text=lambda ship: ship.comms_id, ship=lambda ship: ship.art_id)
+
+
+
 def list_box_control(items, text=None, face=None, ship=None, icon=None, image=None, select=False, multi=False, item_height=5):
     return Listbox(0, 0, "mast", items, text=text, face=face, ship=ship, 
                    icon = icon, image = image,
                    select=select, multi=multi, item_height=item_height)
-
-#list_box_control(ships, text=lambda ship: ship.comms_id, ship=lambda ship: ship.art_id)

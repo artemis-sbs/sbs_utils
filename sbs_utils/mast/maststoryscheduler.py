@@ -881,6 +881,12 @@ class RerouteGuiRuntimeNode(StoryRuntimeNode):
             page.gui_task.jump(node.label)
 
 
+#
+# These are needed so the import later works, domn't remove
+#
+from sbs_utils.widgets.listbox import Listbox
+from sbs_utils.widgets.shippicker import ShipPicker
+
 ######################
 ## Mast extensions
 Mast.import_python_module('sbs_utils.widgets.shippicker')

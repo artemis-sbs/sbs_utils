@@ -758,15 +758,19 @@ class Mast(EngineObject):
         Mast.globals[name] = value
         
     def import_python_module(mod_name, prepend=None):
+        #print(f"{mod_name}")
         sca = sys.modules.get(mod_name)
         if sca:
             for (name, func) in getmembers(sca,isfunction):
+                #print(f"IMPORT {name}")
                 if prepend == None:
                     Mast.globals[name] = func
                 elif prepend == True:
                     Mast.globals[f"{mod_name}_{name}"] = func
                 elif isinstance(prepend, str):
                     Mast.globals[f"{prepend}_{name}"] = func
+       # else:
+       #     print("import failed")
 
     # def build(self, cmds):
     #     """
