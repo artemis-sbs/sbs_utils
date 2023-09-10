@@ -156,6 +156,8 @@ class StyleDefinition:
                     ret[key]=value
                 case "click_tag":
                     ret[key]=value
+                case "tag":
+                    ret[key]=value
         return ret
 
     def parse_area(area):

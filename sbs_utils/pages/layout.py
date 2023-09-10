@@ -165,6 +165,8 @@ class Column:
         if event.sub_tag == self.click_tag:
             Layout.clicked[event.client_id] = self
 
+    def update(self, props):
+        pass
 
     @property
     def value(self):
@@ -188,6 +190,14 @@ class Text(Column):
         ctx.sbs.send_gui_text(event.client_id, 
             self.tag, self.message,  
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+
+    def update(self, message):
+        print(f"{message}")
+        if "text:" not in message:
+            message = f"text:{message}"
+        self.message = message
+
+    
     @property
     def value(self):
          return self.message
@@ -213,6 +223,14 @@ class Button(Column):
         ctx.sbs.send_gui_button(event.client_id, 
             self.tag, self.message, 
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+        
+
+    def update(self, message):
+        if "text:" not in message:
+            message = f"text:{message}"
+        self.message = message
+
+
     @property
     def value(self):
         return self.message
@@ -248,6 +266,10 @@ class Slider(Column):
         else:
             super().on_message(ctx,event)
 
+    def update(self, props):
+        self.props = props
+
+
     @property
     def value(self):
         return self._value
@@ -281,6 +303,12 @@ class Checkbox(Column):
         else:
             super().on_message(ctx,event)
             #self.value = int(event.sub_float)
+
+    def update(self, message):
+        if "text:" not in message:
+            message = f"text:{message}"
+        self.message = message
+
 
     @property
     def value(self):
@@ -327,6 +355,10 @@ class Image(Column):
     #"image:icon-bad-bang; color:blue; sub_rect: 0,0,etc"
     def __init__(self, tag, file) -> None:
         super().__init__()
+        self.tag = tag
+        self.update(file)
+
+    def update(self, file):
         fs.get_artemis_data_dir()
         props = split_props(file, "image")
         # to get size get absolute path
@@ -336,7 +368,7 @@ class Image(Column):
         props["image"] = rel_file
         self.props = merge_props(props)
         #print(f"{self.file} \n>>\n{rel_file}\nPROPS: {self.props} ")
-        self.tag = tag
+
         self.width = -1
         self.height = -1
         self.get_image_size()
@@ -393,6 +425,10 @@ class Dropdown(Column):
             self.value = event.value_tag
         else:
             super().on_message(ctx,event)
+
+    def update(self, props):
+        self.props = props
+
     @property
     def value(self):
         return self._value
@@ -470,6 +506,10 @@ class Face(Column):
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
             #self.left, self.top, self.left+(self.right-self.left)*.60, 100)
             #self.left, self.top, self.left+w, self.top+w)
+
+    def update(self, face):
+        self.face = face
+
     @property
     def value(self):
          return self.face
@@ -500,6 +540,10 @@ class Ship(Column):
     def value(self, v):
         self.ship= v
 
+    def update(self, ship):
+        self.ship = ship
+
+
 class Icon(Column):
     def __init__(self, tag, props) -> None:
         super().__init__()
@@ -521,6 +565,10 @@ class Icon(Column):
     def value(self, v):
         self.icon= v
 
+    def update(self, props):
+        self.props = props
+
+
 class IconButton(Column):
     def __init__(self, tag, props) -> None:
         super().__init__()
@@ -538,6 +586,8 @@ class IconButton(Column):
     @value.setter
     def value(self, v):
         self.props = v
+    def update(self, props):
+        self.props = props
 
 
 
@@ -579,7 +629,7 @@ class GuiControl(Column):
 class Layout:
     clicked = {}
     
-    def __init__(self, clickable_tag=None, click_props=None, rows = None, 
+    def __init__(self, tag=None,  rows = None, 
                 left=0, top=0, right=100, bottom=100,
                 left_pixels=False, top_pixels=False, right_pixels=False, bottom_pixels=False) -> None:
         self.rows = rows if rows else []
@@ -588,9 +638,13 @@ class Layout:
         self.default_height = None
         self.default_width = None
         self.padding = None
-        self.click_props = click_props
-        self.tag = clickable_tag
         self.background = None
+        self.tag = None
+        self.click_text  = None
+        self.click_tag  = None
+        self.click_font  = None
+        self.click_color  = None
+        
         
 
     def set_bounds(self, bounds):
@@ -728,19 +782,38 @@ class Layout:
 
 
     def present(self, ctx, event):
-        row:Row
+        
         if self.background is not None:
             props = f"image:smallWhite; color:{self.background};" # sub_rect: 0,0,etc"
             ctx.sbs.send_gui_image(event.client_id, 
                     "__section-bg:"+self.tag, props,
                     self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+        row:Row
         for row in self.rows:
             row.present(ctx,event)
-        if self.click_props is not None:
-            ctx.sbs.send_gui_clickregion(event.client_id, self.tag, self.click_props,
-                                     self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
-    
+
+        self._post_present(ctx, event)
+
+    def _post_present(self, ctx, event):
+        if self.click_text is not None:
+            click_props = f"text:{self.click_text};"
+            if self.click_color is not None:
+                click_props += f"color: {self.click_color};"
+            if self.click_font is not None:
+                click_props += f"font: {self.click_font};"
+            if self.click_tag is None:
+                self.click_tag = f"click:{self.tag}:{self.click_text}"
+            
+            ctx.sbs.send_gui_clickregion(event.client_id, 
+                self.click_tag, click_props,
+                self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+
     def on_message(self, ctx, event):
+        # If this is clickable handle it
+        if event.sub_tag == self.click_tag:
+            Layout.clicked[event.client_id] = self
+
+        # Else propagate messages
         row:Row
         for row in self.rows:
             row.on_message(ctx,event)

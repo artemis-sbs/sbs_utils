@@ -866,6 +866,12 @@ class Mast(EngineObject):
                 continue
             scheduler.refresh(label)
 
+    def update_shared_props_by_tag(self, tag, props):
+        for scheduler in self.schedulers:
+            if scheduler.page is not None:
+                scheduler.page.update_props_by_tag(tag, props)
+
+
     def remove_scheduler(self, scheduler):
         self.schedulers.remove(scheduler)
 
