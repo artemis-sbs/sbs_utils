@@ -205,11 +205,18 @@ class OnChange(MastNode):
     rule = re.compile(r"(?P<end>end_on)|(on[ \t]+change[ \t]+(?P<val>[^:]+)"+BLOCK_START+")")
     stack = []
     def __init__(self, end=None, val=None, loc=None):
-        self.value = val
         self.loc = loc
-        self.is_end = False
+        self.value = val
         if val:
             self.value = compile(val, "<string>", "eval")
+
+        self.is_end = False
+        #
+        # Check to see if this is embedded in an await
+        #
+        self.await_node = None
+        if len(EndAwait.stack) >0:
+            self.await_node = EndAwait.stack[-1]
         self.end_node = None
 
         if end is not None:

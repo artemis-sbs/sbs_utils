@@ -1,6 +1,6 @@
 from .mast import Mast, Scope
 from .mastsbs import Simulation, Route,  FollowRoute,TransmitReceive, Comms, Button, Broadcast, Scan, ScanTab,ScanResult
-from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask
+from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask, ChangeRuntimeNode
 import sbs
 from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain, GridObject
 
@@ -138,7 +138,7 @@ class BroadcastRuntimeNode(MastRuntimeNode):
 
 class CommsInfoRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Comms):
-        color = node.color if node.color else "white"
+        color = node.color if task.format_string(node.color) else "white"
         to_so:SpaceObject = query.to_object(task.get_variable("COMMS_SELECTED_ID"))
         from_so:SpaceObject = query.to_object(task.get_variable("COMMS_ORIGIN_ID"))
 
@@ -166,6 +166,19 @@ class CommsRuntimeNode(MastRuntimeNode):
         else:
             self.timeout = task.main.get_seconds("sim")+ (node.minutes*60+node.seconds)
 
+        #
+        # Check for on change nodes
+        #
+        self.on_change = None
+        if node.on_change is not None:
+            self.on_change=[]
+            # create proxies of the runtime node to test
+            for change in node.on_change:
+                rt = ChangeRuntimeNode()
+                rt.enter(mast, task, change)
+                self.on_change.append(rt)
+
+
         self.tag = None
         self.button = None
         self.task = task
@@ -174,7 +187,8 @@ class CommsRuntimeNode(MastRuntimeNode):
         self.color = node.color if node.color else "white"
         # If this is the same ship it is known
         self.is_unknown = False
-
+        
+        
         buttons = []
         # Expand all the 'for' buttons
         for button in node.buttons:
@@ -270,7 +284,7 @@ class CommsRuntimeNode(MastRuntimeNode):
 
             for i, button in enumerate(self.buttons):
                 value = True
-                color = "blue" if button.color is None else button.color
+                color = "white" if button.color is None else button.color
                 if button.code is not None:
                     value = self.task.eval_code(button.code)
                 if value and button.should_present((origin_id, selected_id)):
@@ -289,6 +303,8 @@ class CommsRuntimeNode(MastRuntimeNode):
                 clone = button.clone()
                 clone.data = data
                 clone.message = task.format_string(clone.message)
+                if clone.color is not None:
+                    clone.color = task.format_string(clone.color)
                 buttons.append(clone)
 
         return buttons
@@ -354,9 +370,6 @@ class CommsRuntimeNode(MastRuntimeNode):
                     self.set_buttons(self.origin_id, self.selected_id)
             return PollResults.OK_RUN_AGAIN
 
-        if len(node.buttons)==0:
-            # clear the comms buttons
-            return PollResults.OK_ADVANCE_TRUE
 
         if self.button is not None:
             button = self.buttons[self.button] 
@@ -376,8 +389,18 @@ class CommsRuntimeNode(MastRuntimeNode):
             elif node.end_await_node:
                 task.jump(task.active_label,node.end_await_node.loc+1)
                 return PollResults.OK_JUMP
-            
-        
+
+        if self.on_change:
+            for change in self.on_change:
+                if change.test():
+                    task.jump(task.active_label,change.node.loc+1)
+                    return PollResults.OK_JUMP
+
+
+        if len(node.buttons)==0:
+            # clear the comms buttons
+            return PollResults.OK_ADVANCE_TRUE
+
         return PollResults.OK_RUN_AGAIN
     
 class ScanRuntimeNode(MastRuntimeNode):
@@ -756,9 +779,25 @@ class RouteRuntimeNode(MastRuntimeNode):
             # Need point? amount
             t= task.start_task(node.label, {
                     "DAMAGE_SOURCE_ID": event.origin_id,
-                    "DAMAGE_TARGET_ID": event.origin_id,
+                    "DAMAGE_TARGET_ID": event.selected_id,
                     "DAMAGE_PARENT_ID": event.parent_id,
                     "DAMAGE_ORIGIN_ID": event.origin_id,
+                    "DAMAGE_SELECTED_ID": event.selected_id,
+                    "EVENT": event,
+                    "DAMAGE_ROUTED": True
+            })
+            if not t.done:
+                MastAsyncTask.add_dependency(event.origin_id,t)
+                MastAsyncTask.add_dependency(event.selected_id,t)
+
+        def handle_damage_heat(ctx, event):
+            # Need point? amount
+            t= task.start_task(node.label, {
+                    "DAMAGE_SOURCE_ID": event.origin_id,
+                    "DAMAGE_TARGET_ID": event.selected_id,
+                    "DAMAGE_PARENT_ID": event.parent_id,
+                    "DAMAGE_ORIGIN_ID": event.origin_id,
+                    "DAMAGE_SELECTED_ID": event.selected_id,
                     "EVENT": event,
                     "DAMAGE_ROUTED": True
             })
@@ -833,6 +872,11 @@ class RouteRuntimeNode(MastRuntimeNode):
                 if task.main.client_id != 0:
                     return PollResults.OK_ADVANCE_TRUE
                 DamageDispatcher.add_any_internal(handle_damage_internal)
+
+            case "damage\s*heat":
+                if task.main.client_id != 0:
+                    return PollResults.OK_ADVANCE_TRUE
+                DamageDispatcher.add_any_heat(handle_damage_heat)
 
             case "spawn":
                 if task.main.client_id != 0:

@@ -12,6 +12,28 @@ from .spaceobject import SpaceObject
 import time
 
 
+#	client_id"
+#	parent_id"
+#	origin_id"
+#	selected_id"
+#	tag"
+#	sub_tag"
+#	value_tag"
+#	source_point"
+#	event_time"
+#	sub_float"
+def print_event(event):
+    print(f"client ID {event.client_id}")
+    print(f"Parent ID {event.parent_id}")
+    print(f"Origin ID {event.origin_id}")
+    print(f"Selected ID {event.selected_id}")
+    print(f"Tag {event.tag}")
+    print(f"Sub Tag {event.sub_tag}")
+    print(f"Sub Float {event.sub_float}")
+    print(f"Value Tag {event.value_tag}")
+    print(f"Point {event.source_point.x}  {event.source_point.y} {event.source_point.z}")
+
+
 class ErrorPage(Page):
     def __init__(self, msg) -> None:
         self.gui_state = 'show'
@@ -91,6 +113,10 @@ def cosmos_event_handler(sim, event):
             case "player_internal_damage":
                 DamageDispatcher.dispatch_internal(ctx,event)
 
+            case "heat_critical_damage":
+                #print_event(event)
+                DamageDispatcher.dispatch_heat(ctx,event)
+
             case "passive_collision":
                 CollisionDispatcher.dispatch_collision(ctx,event)
 
@@ -98,14 +124,7 @@ def cosmos_event_handler(sim, event):
                 Gui.add_client(ctx, event)
 
             case "select_space_object":
-                # print(f"Parent ID{event.parent_id}")
-                #print(f"Origin ID {event.origin_id}")
-                #print(f"Selected ID {event.selected_id}")
-                #print(f"Sub Tag {event.sub_tag}")
-                # print(f"Sub Float {event.sub_float}")
-                #print(f"Value Tag {event.value_tag}")
-                # print(f"Point {event.source_point.x}  {event.source_point.y} {event.source_point.z}")
-
+                #print_event(event)
                 handled = ConsoleDispatcher.dispatch_select(ctx, event)
                 if not handled and "comm" in event.sub_tag:
                     face = faces.get_face(event.selected_id)
@@ -152,15 +171,4 @@ def cosmos_event_handler(sim, event):
     if et > 0.03:
         print(f"Elapsed time: {et} {event.tag}-{event.sub_tag}")
 
-
-#	client_id"
-#	parent_id"
-#	origin_id"
-#	selected_id"
-#	tag"
-#	sub_tag"
-#	value_tag"
-#	source_point"
-#	event_time"
-#	sub_float"
 

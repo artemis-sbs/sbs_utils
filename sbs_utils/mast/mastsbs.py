@@ -6,7 +6,7 @@ class Route(MastNode):
     """
     Route unhandled things comms, science, events
     """
-    rule = re.compile(r"""route[ \t]+(?P<route>destroy|spawn|damage[ \t]+internal|damage[ \t]+object|collision[ \t]+object|comms[ \t]+select|science[ \t]+select|weapons[ \t]+select|grid[ \t]+select|grid[ \t]+point|grid[ \t]+object|grid[ \t]+spawn|change[ \t]*console)[ \t]+(?P<name>\w+)""")
+    rule = re.compile(r"""route[ \t]+(?P<route>destroy|spawn|damage[ \t]+heat|damage[ \t]+internal|damage[ \t]+object|collision[ \t]+object|comms[ \t]+select|science[ \t]+select|weapons[ \t]+select|grid[ \t]+select|grid[ \t]+point|grid[ \t]+object|grid[ \t]+spawn|change[ \t]*console)[ \t]+(?P<name>\w+)""")
     def __init__(self, route, name, loc=None):
         self.loc = loc
         self.route = route
@@ -53,15 +53,7 @@ class CommsInfo(MastNode):
         self.color = color if color is not None else "#fff"
 
 
-# class Tell(MastNode):
-#     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
-#     rule = re.compile(r"""have[ \t]*(?P<from_tag>\*?\w+)[ \t]+tell[ \t]+(?P<to_tag>\*?\w+)[ \t]+((['"]{3}|["'])(?P<message>[ \t\S]+?)\4)"""+OPT_COLOR)
-#     def __init__(self, to_tag, from_tag, message, color=None, loc=None):
-#         self.loc = loc
-#         self.to_tag = to_tag
-#         self.from_tag = from_tag
-#         self.message = self.compile_formatted_string(message)
-#         self.color = color if color is not None else "#fff"
+
 
 class Broadcast(MastNode):
     #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
@@ -85,11 +77,16 @@ class Comms(MastNode):
         self.seconds = 0 if  seconds is None else int(seconds)
         self.minutes = 0 if  minutes is None else int(minutes)
         self.color = color
+        if color is not None:
+            self.color = self.compile_formatted_string(color)
 
         self.timeout_label = None
+        self.on_change = None
         self.fail_label = None
         self.end_await_node = None
         EndAwait.stack.append(self)
+
+
 
 class Scan(MastNode):
     rule = re.compile(r"""await([ \t]+(?P<from_tag>\w+))?[ \t]+scan([ \t]+(?P<to_tag>\w+))?(\s+fog\s+(?P<fog>\d+))?"""+BLOCK_START)
@@ -99,6 +96,7 @@ class Scan(MastNode):
         self.from_tag = from_tag
         self.fog = int(fog) if fog is not None else 5000
         self.buttons = []
+        self.on_change = None
 
         self.end_await_node = None
         EndAwait.stack.append(self)
@@ -168,6 +166,8 @@ class Button(MastNode):
         self.message = self.compile_formatted_string(message)
         self.sticky = (button == '+' or button=="button")
         self.color = color
+        if color is not None:
+            self.color = self.compile_formatted_string(color)
         self.visited = set() if not self.sticky else None
         self.loc = loc
         self.await_node = EndAwait.stack[-1]

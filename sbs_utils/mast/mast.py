@@ -77,8 +77,6 @@ class MastNode:
         else:
             return None
 
-        
-
 
 
 class Label(MastNode):
@@ -357,6 +355,7 @@ class Parallel(MastNode):
         self.minutes = 0
         self.seconds = 0
         self.timeout_label = None
+        self.on_change = None
         self.fail_label = None
         if is_block:
             self.timeout_label = None
@@ -487,6 +486,7 @@ class Behavior(MastNode):
         self.minutes = 0
         self.seconds = 0
         self.timeout_label = None
+        self.on_change = None
         self.fail_label = None
         self.invert = invert is not None
         self.until = until
@@ -554,6 +554,30 @@ class Timeout(MastNode):
         self.await_node.minutes = 0 if  minutes is None else int(minutes)
 
 
+
+#
+# Allow a state change to be handled in await
+#
+class Change(MastNode):
+    rule = re.compile(r"change[ \t]+(?P<val>[^:]+)"+BLOCK_START)
+    def __init__(self, end=None, val=None, loc=None):
+        self.loc = loc
+        self.value = val
+        if val:
+            self.value = compile(val, "<string>", "eval")
+        #
+        # Check to see if this is embedded in an await
+        #
+        self.await_node = None
+        if len(EndAwait.stack) >0:
+            self.await_node = EndAwait.stack[-1]
+            # Only add on change if we need them
+            if self.await_node.on_change  is None:
+                self.await_node.on_change  = []
+            self.await_node.on_change.append(self)
+
+
+
 class AwaitFail(MastNode):
     rule = re.compile(r'fail:')
     def __init__(self, loc=None):
@@ -574,6 +598,7 @@ class AwaitCondition(MastNode):
     def __init__(self, minutes=None, seconds=None, if_exp=None, loc=None):
         self.loc = loc
         self.timeout_label = None
+        self.on_change = None
         self.end_await_node = None
         self.fail_label = None
 
@@ -813,6 +838,7 @@ class Mast(EngineObject):
         AwaitCondition,
 #        Await,  # needs to be before Parallel
         Timeout,
+        Change,
         EndAwait,
         AwaitFail,
         Behavior, # Needs to be in front of parallel

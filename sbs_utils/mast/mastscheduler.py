@@ -12,7 +12,7 @@ class MastRuntimeNode:
         pass
     def leave(self, mast, scheduler, node):
         pass
-
+    
     def poll(self, mast, scheduler, node):
         return PollResults.OK_ADVANCE_TRUE
 
@@ -77,6 +77,26 @@ class YieldRuntimeNode(MastRuntimeNode):
         if node.result.lower() == 'success':
             return PollResults.OK_END
         return PollResults.OK_RUN_AGAIN
+    
+class ChangeRuntimeNode(MastRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: Change):
+        self.task = task
+        self.node = node
+        self.value = task.eval_code(node.value) 
+
+    def test(self):
+        prev = self.value
+        self.value = self.task.eval_code(self.node.value) 
+        return prev!=self.value
+        
+
+    def poll(self, mast:Mast, task:MastAsyncTask, node: Change):
+        if node.await_node and node.await_node.end_await_node:
+            task.jump(task.active_label,node.await_node.end_await_node.loc+1)
+            return PollResults.OK_JUMP
+        return PollResults.OK_RUN_AGAIN
+
+
 
 
 class AssignRuntimeNode(MastRuntimeNode):
@@ -887,13 +907,16 @@ class MastAsyncTask(EngineObject):
                 return False
             return self.jump(next.name)
             
+        try:
+            cmd = self.cmds[self.active_cmd]
+            runtime_node_cls = self.main.nodes.get(cmd.__class__.__name__, MastRuntimeNode)
+            
+            self.runtime_node = runtime_node_cls()
+            #print(f"RUNNER {self.runtime_node.__class__.__name__}")
+            self.runtime_node.enter(self.main.mast, self, cmd)
+        except BaseException as err:
+            self.main.runtime_error(str(err))
         
-        cmd = self.cmds[self.active_cmd]
-        runtime_node_cls = self.main.nodes.get(cmd.__class__.__name__, MastRuntimeNode)
-        
-        self.runtime_node = runtime_node_cls()
-        #print(f"RUNNER {self.runtime_node.__class__.__name__}")
-        self.runtime_node.enter(self.main.mast, self, cmd)
         return True
     
     @classmethod
@@ -1082,6 +1105,7 @@ class MastScheduler:
         "Assign": AssignRuntimeNode,
         "AwaitCondition": AwaitConditionRuntimeNode,
         "AwaitFail": AwaitFailRuntimeNode,
+        "Change": ChangeRuntimeNode,
         "Timeout": TimeoutRuntimeNode,
         "EndAwait": EndAwaitRuntimeNode,
         "Delay": DelayRuntimeNode,
@@ -1105,6 +1129,7 @@ class MastScheduler:
         
 
     def runtime_error(self, message):
+        print("mast level runtime error:\n {message}")
         pass
 
     def get_seconds(self, clock):

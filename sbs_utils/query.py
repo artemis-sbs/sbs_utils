@@ -595,6 +595,10 @@ def grid_close_list(sim, grid_obj, the_set, max_dist=None, filter_func=None) -> 
     for other_id in test_roles:
         other = to_object(other_id)
         # skip this one
+        # if no longer around
+        if other is None:
+            continue
+        # if this is the same object
         if other_id == grid_obj.id:
             continue
 
@@ -603,6 +607,9 @@ def grid_close_list(sim, grid_obj, the_set, max_dist=None, filter_func=None) -> 
         
         # curx, cury
         other_blob = get_engine_data_set(sim, other_id)
+        # if this is gone and we missed that fact ealier
+        if other_blob is None:
+            continue
         other_x= other_blob.get("curx", 0)
         other_y= other_blob.get("cury",  0)
 
