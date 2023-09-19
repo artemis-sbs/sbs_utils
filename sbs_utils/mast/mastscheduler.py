@@ -5,6 +5,7 @@ from .mast import *
 import time
 import traceback
 from ..engineobject import EngineObject, get_task_id
+import inspect
 
 
 class MastRuntimeNode:
@@ -122,7 +123,7 @@ class AssignRuntimeNode(MastRuntimeNode):
 
 
         if "." in node.lhs or "[" in node.lhs:
-            task.exec_code(f"""{node.lhs} = __mast_value""",{"__mast_value": value} )
+            task.exec_code(f"""{node.lhs} = __mast_value""",{"__mast_value": value}, None )
             
         elif node.scope: 
             task.set_value(node.lhs, value, node.scope)
@@ -137,11 +138,14 @@ class AssignRuntimeNode(MastRuntimeNode):
 
 class PyCodeRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task:MastAsyncTask, node:PyCode):
-        def export():
+        def export(cls):
             add_to = task.main.vars
-            def decorator(cls):
-                add_to[cls.__name__] = cls
-                return cls
+            def decorator(*args, **kwargs):
+                # if 'task' in inspect.signature(cls).parameters:
+                #     kwargs['task'] = task
+                #add_to[cls.__name__] = cls
+                return cls(*args, **kwargs)
+            add_to[cls.__name__] = decorator
             return decorator
 
         def export_var(name, value, shared=False):
@@ -150,12 +154,26 @@ class PyCodeRuntimeNode(MastRuntimeNode):
             else:
                 task.main.vars[name] = value
 
-        task.exec_code(node.code,{"export": export, "export_var": export_var} )
+
+        glbls = {}
+        glbls["npc_spawn"] = task.main.vars.get("npc_spawn")
+        glbls["terrain_spawn"] = task.main.vars.get("terrain_spawn")
+        glbls["player_spawn"] = task.main.vars.get("player_spawn")
+        glbls["grid_spawn"] = task.main.vars.get("grid_spawn")
+
+
+        task.exec_code(node.code,{"export": export, "export_var": export_var}, glbls )
         return PollResults.OK_ADVANCE_TRUE
 
 class DoCommandRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task:MastAsyncTask, node:DoCommand):
-        task.exec_code(node.code, None)
+        glbls = {}
+        glbls["npc_spawn"] = task.main.vars.get("npc_spawn")
+        glbls["terrain_spawn"] = task.main.vars.get("terrain_spawn")
+        glbls["player_spawn"] = task.main.vars.get("player_spawn")
+        glbls["grid_spawn"] = task.main.vars.get("grid_spawn")
+
+        task.exec_code(node.code, None, glbls)
         return PollResults.OK_ADVANCE_TRUE
 
 class JumpRuntimeNode(MastRuntimeNode):
@@ -256,6 +274,11 @@ class LoopBreakRuntimeNode(MastRuntimeNode):
         self.scope = scope
 
     def poll(self, mast, task, node:LoopBreak):
+        if node.if_code:
+            value = task.eval_code(node.if_code)
+            if not value:
+                return PollResults.OK_ADVANCE_TRUE
+            
         if node.op == 'break':
             #task.jump_inline_end(inline_label, True)
             task.set_value(node.start.name, None, self.scope)
@@ -782,13 +805,17 @@ class MastAsyncTask(EngineObject):
             pass
         return value
 
-    def exec_code(self, code, vars):
+    def exec_code(self, code, vars, gbls):
         try:
             if vars is not None:
                 allowed = vars | self.get_symbols()
             else:                
                 allowed = self.get_symbols()
-            exec(code, {"__builtins__": Mast.globals}, allowed)
+            if gbls is not None:
+                g = Mast.globals | gbls
+            else:
+                g = Mast.globals
+            exec(code, {"__builtins__": g}, allowed)
         except:
             self.runtime_error(traceback.format_exc())
             self.done = True

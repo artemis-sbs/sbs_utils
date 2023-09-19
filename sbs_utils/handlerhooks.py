@@ -126,7 +126,7 @@ def cosmos_event_handler(sim, event):
             case "select_space_object":
                 #print_event(event)
                 handled = ConsoleDispatcher.dispatch_select(ctx, event)
-                if not handled and "comm" in event.sub_tag:
+                if not handled and "comms_sorted_list" == event.value_tag:
                     face = faces.get_face(event.selected_id)
                     so = SpaceObject.get(event.selected_id)
                     comms_id = "static"
@@ -146,11 +146,13 @@ def cosmos_event_handler(sim, event):
             case "grid_object":
                 GridDispatcher.dispatch_grid_event(ctx,event)
             case "grid_object_selection":
+                #print_event(event)
                 ConsoleDispatcher.dispatch_select(ctx, event)
             case "press_grid_button":
                 ConsoleDispatcher.dispatch_message(ctx, event, "grid_selected_UID")
                 
             case "grid_point_selection":
+                #print_event(event)
                 GridDispatcher.dispatch_grid_event(ctx,event)
 
             case "sim_paused":

@@ -780,3 +780,26 @@ def get_open_grid_points(sim, id_or_obj):
                     the_set.append((x,y))
     return the_set
 
+def get_comms_selection(sim, id_or_not):
+    blob = to_blob(sim, id_or_not)
+    if blob is not None:
+        return blob.get("comms_target_UID",0)
+    return None
+
+def get_science_selection(sim, id_or_not):
+    blob = to_blob(sim, id_or_not)
+    if blob is not None:
+        return blob.get("science_target_UID",0)
+    return None
+
+def get_grid_selection(sim, id_or_not):
+    blob = to_blob(sim, id_or_not)
+    if blob is not None:
+        return blob.get("grid_selected_UID",0)
+    return None
+
+def get_weapons_selection(sim, id_or_not):
+    blob = to_blob(sim, id_or_not)
+    if blob is not None:
+        return blob.get("weapon_target_UID",0)
+    return None

@@ -90,8 +90,6 @@ section style="area:1,2,3,4;row-height:10px;"
 
 section style=fred
 
-section style="area:1,2,3,4;" clickable "color:red; text:Click here!; font:smallest":
-end_clickable
 
 
 radio var "helm,weapons,science"

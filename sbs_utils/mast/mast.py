@@ -132,12 +132,17 @@ class LoopStart(MastNode):
 
 class LoopBreak(MastNode):
     #rule = re.compile(r'(?P<op>break|continue)\s*(?P<name>\w+)')
-    rule = re.compile(r'(?P<op>break|continue)')
-    def __init__(self, op=None, name=None, loc=None):
+    rule = re.compile(r'(?P<op>break|continue)'+IF_EXP_REGEX)
+    def __init__(self, op=None, name=None, if_exp=None, loc=None):
         self.name = name
         self.op = op
         self.start = LoopStart.loop_stack[-1]
         self.loc = loc
+        if if_exp:
+            if_exp = if_exp.lstrip()
+            self.if_code = compile(if_exp, "<string>", "eval")
+        else:
+            self.if_code = None
 
 class LoopEnd(MastNode):
     rule = re.compile(r'((?P<loop>next)[ \t]*(?P<name>\w+))')

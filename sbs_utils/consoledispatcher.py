@@ -272,14 +272,19 @@ class ConsoleDispatcher:
 
         
     def convert(ctx, event):
+        if "science_sorted_list" in event.value_tag or event.sub_tag == "science_target_UID":
+            return "science_target_UID"
+        if "comms_sorted_list" == event.value_tag or event.sub_tag == "comms_target_UID":
+            return "comms_target_UID"
+        if "grid_object_list" == event.value_tag or event.sub_tag == "grid_selected_UID":
+            return "grid_selected_UID"
+        
+        # Catch the 2dview
         if "weap" in event.sub_tag or event.sub_tag == "weapon_target_UID":
             return "weapon_target_UID"
         if "sci" in event.sub_tag or event.sub_tag == "science_target_UID":
             return "science_target_UID"
-        if "comm" in event.sub_tag or event.sub_tag == "comms_target_UID":
-            return "comms_target_UID"
-        if "engi" in event.sub_tag or event.sub_tag == "grid_selected_UID":
-            return "grid_selected_UID"
+        
         return None
 
 

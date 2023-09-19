@@ -155,7 +155,11 @@ class CommsInfoRuntimeNode(MastRuntimeNode):
             comms_id = task.format_string(node.message)
         face = faces.get_face(to_so.id) 
 
-        sbs.send_comms_selection_info(from_so.id, face, color, comms_id)
+        if to_so.is_grid_object:
+            sbs.send_grid_selection_info(from_so.id, face, color, comms_id)
+        else:
+            sbs.send_comms_selection_info(from_so.id, face, color, comms_id)
+        
 
 
 class CommsRuntimeNode(MastRuntimeNode):
@@ -228,14 +232,18 @@ class CommsRuntimeNode(MastRuntimeNode):
         self.face = faces.get_face(selected_so.id)
         
 
-
+        selection = None
         if self.is_grid_comms:        
             ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'grid_selected_UID', self.comms_selected)
             ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'grid_selected_UID', self.comms_message)
+            selection = query.get_grid_selection(task.main.sim, self.origin_id)
         else:
             ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'comms_target_UID', self.comms_selected)
             ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'comms_target_UID', self.comms_message)
-        self.set_buttons(self.origin_id, self.selected_id)
+            selection = query.get_comms_selection(task.main.sim, self.origin_id)
+
+        if selection == self.selected_id:
+            self.set_buttons(self.origin_id, selection)
         # from_so.face_desc
 
     def comms_selected(self, sim, an_id, event):
@@ -652,35 +660,40 @@ class FollowRouteRuntimeNode(MastRuntimeNode):
         origin_id = query.to_id(origin)
         selected_id = query.to_id(selected)
         class FakeEvent:
-            def __init__(self, sub_tag, origin_id, selected_id, extra_tag):
+            def __init__(self, sub_tag, origin_id, selected_id, extra_tag, value_tag):
                 self.sub_tag = sub_tag
                 self.client_id = None
                 self.parent_id = 0
                 self.origin_id = origin_id
                 self.extra_tag = extra_tag
+                self.value_tag = value_tag
                 self.selected_id = selected_id
                 self.source_point = Vec3()
         console = None
         extra_tag = ""
+        value_tag = ""
         match RegexEqual(node.route):
             case "comms\s+select":
                 console = "comms_target_UID"
                 extra_tag = ""
+                value_tag = "comms_sorted_list"
             
             case "science\s+select":
                 console = "science_target_UID"
                 extra_tag = "__init__"
+                value_tag = "science_sorted_list"
 
             case "grid\s+select":
                 console = "grid_selected_UID"
                 extra_tag = ""
+                value_tag = "grid_object_list"
 
             case _:
                 print("GOT HERE but should not have")
 
         if console is not None:
             ctx = task.get_variable('ctx')
-            event = FakeEvent(console, origin_id, selected_id, extra_tag)
+            event = FakeEvent(console, origin_id, selected_id, extra_tag, value_tag)
             #
             # A bit of a hack directly using dispatchers data
             # forcing the default handlers
