@@ -2,7 +2,8 @@ import logging
 from .mastscheduler import PollResults, MastRuntimeNode, MastAsyncTask
 from .mast import Mast, Scope
 import sbs
-from ..gui import Gui, Page, FakeEvent, Context
+from ..gui import Gui, Page, Context
+from ..helpers import FakeEvent
 from .parsers import StyleDefinition
 
 from ..pages import layout

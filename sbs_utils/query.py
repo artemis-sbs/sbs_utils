@@ -1,6 +1,7 @@
 import functools
 from random import randrange, choice, choices
 from .engineobject import EngineObject, CloseData, SpawnData
+from .helpers import FrameContext
 import sbs
 ###################
 # Set functions
@@ -269,7 +270,7 @@ def to_py_object_list(the_set):
     return [EngineObject.get(id) for id in the_set]
 
 
-def target(sim, set_or_object, target_id, shoot: bool = True, throttle: float = 1.0):
+def target(set_or_object, target_id, shoot: bool = True, throttle: float = 1.0):
     """ Set the item to target
     :param sim: The simulation
     :type sim: Artemis Cosmos simulation
@@ -279,7 +280,7 @@ def target(sim, set_or_object, target_id, shoot: bool = True, throttle: float = 
     :type shoot: bool
     """
     target_id = EngineObject.resolve_id(target_id)
-    target_engine = sim.get_space_object(target_id)
+    target_engine = FrameContext.context.sim.get_space_object(target_id)
 
     if target_engine:
         data = {
@@ -295,10 +296,10 @@ def target(sim, set_or_object, target_id, shoot: bool = True, throttle: float = 
         for chaser in all:
             chaser = EngineObject.resolve_py_object(chaser)
             if chaser is not None:
-                chaser.update_engine_data(sim, data)
+                chaser.update_engine_data(FrameContext.context.sim, data)
 
 
-def target_pos(sim, chasers: set | int | CloseData|SpawnData, x: float, y: float, z: float, throttle: float = 1.0):
+def target_pos(chasers: set | int | CloseData|SpawnData, x: float, y: float, z: float, throttle: float = 1.0):
     """ Set the item to target
 
     :param sim: The simulation
@@ -318,9 +319,9 @@ def target_pos(sim, chasers: set | int | CloseData|SpawnData, x: float, y: float
     all = to_list(chasers)
     for chaser in all:
         chaser = EngineObject.resolve_py_object(chaser)
-        chaser.update_engine_data(sim, data)
+        chaser.update_engine_data(FrameContext.context.sim, data)
 
-def clear_target(sim, chasers: set | int | CloseData|SpawnData):
+def clear_target(chasers: set | int | CloseData|SpawnData):
         """ Clear the target
 
         :param sim: The simulation
@@ -329,8 +330,8 @@ def clear_target(sim, chasers: set | int | CloseData|SpawnData):
         all = to_list(chasers)
         for chaser in all:
             chaser = EngineObject.resolve_py_object(chaser)
-            this = sim.get_space_object(chaser.id)
-            chaser.update_engine_data(sim, {
+            this = FrameContext.context.sim.get_space_object(chaser.id)
+            chaser.update_engine_data(FrameContext.context.sim, {
                 "target_pos_x": this.pos.x,
                 "target_pos_y": this.pos.y,
                 "target_pos_z": this.pos.z,
@@ -477,11 +478,11 @@ def get_inventory_value(so, link, default=None):
         return so.get_inventory_value(link, default)
     return default
             
-def set_inventory_value(so, link, to):
+def set_inventory_value(so, name, value):
     obj_list = to_object_list(so)
     for obj in obj_list:
         if obj is not None:
-            obj.set_inventory_value(link, to)
+            obj.set_inventory_value(name, value)
 
 
 def unlink(set_holder, link, set_to):
@@ -492,20 +493,20 @@ def unlink(set_holder, link, set_to):
             if so is not None and target is not None:
                 so.remove_link(link, target)
 
-def object_exists(sim, so_id):
+def object_exists(so_id):
     so_id = to_id(so_id)
-    return sim.space_object_exists(so_id)
+    return FrameContext.context.sim.space_object_exists(so_id)
     #return eo is not None
 
-def all_objects_exists(sim, the_set):
+def all_objects_exists(the_set):
     so_ids = to_id_list(the_set)
     for so_id in so_ids:
-        if not sim.space_object_exists(so_id):
+        if not FrameContext.context.sim.space_object_exists(so_id):
             return False
     return True
 
 
-def grid_objects(sim, so_id):
+def grid_objects(so_id):
     gos = set()
     hm = sbs.get_hull_map(to_id(so_id))
     if hm is None:
@@ -524,15 +525,15 @@ def grid_objects_at(so_id, x,y):
     return to_set(hm.get_objects_at_point(x,y))
 
 
-def update_engine_data(sim, to_update, data):
+def update_engine_data(to_update, data):
     objects = to_object_list(to_set(to_update))
     for object in objects:
-        object.update_engine_data(sim, data)
+        object.update_engine_data(FrameContext.context.sim, data)
 
-def get_engine_data(sim, id_or_obj, key, index=0):
+def get_engine_data(id_or_obj, key, index=0):
     object = to_object(id_or_obj)
     if object is not None:
-        return object.get_engine_data(sim, key, index)
+        return object.get_engine_data(FrameContext.context.sim, key, index)
     return None
 
 def get_data_set_value(data_set, key, index=0):
@@ -541,33 +542,33 @@ def set_data_set_value(data_set, key, value, index=0):
     return data_set.set(key, value, index)
 
 
-def get_engine_data_set(sim, id_or_obj):
+def get_engine_data_set(id_or_obj):
     if isinstance(id_or_obj, SpawnData):
         return id_or_obj.blob
     object = to_object(id_or_obj)
     if object is not None:
-        return object.get_engine_data_set(sim)
+        return object.get_engine_data_set(FrameContext.context.sim)
     return None
 
 
 
-def set_engine_data(sim, to_update, key, value, index=0):
+def set_engine_data(to_update, key, value, index=0):
     objects = to_object_list(to_set(to_update))
     for object in objects:
-        object.set_engine_data(sim, key, value, index=0)
+        object.set_engine_data(FrameContext.context.sim, key, value, index=0)
 
 # easier to remember function names
-def to_blob(sim, id_or_obj):
-    return get_engine_data_set(sim, id_or_obj)
+def to_blob(id_or_obj):
+    return get_engine_data_set(id_or_obj)
 
-def to_data_set(sim, id_or_obj):
-    return get_engine_data_set(sim, id_or_obj)
+def to_data_set(id_or_obj):
+    return get_engine_data_set(id_or_obj)
 
 ################################
 ##########################################
 ####### TODO: Update for sets
 
-def grid_close_list(sim, grid_obj, the_set, max_dist=None, filter_func=None) -> list[CloseData]:
+def grid_close_list(grid_obj, the_set, max_dist=None, filter_func=None) -> list[CloseData]:
     """ Finds a list of matching objects
     :param sim: The simulation
     :type sim: Artemis Cosmos simulation
@@ -582,14 +583,14 @@ def grid_close_list(sim, grid_obj, the_set, max_dist=None, filter_func=None) -> 
     """
     ret = []
     grid_obj=to_object(grid_obj)
-    blob = get_engine_data_set(sim, grid_obj.id)
+    blob = to_blob(grid_obj.id)
     this_x= blob.get("curx", 0)
     this_y=blob.get("cury",  0)
     if max_dist is None:
         max_dist = 1000
 
     if the_set is None:
-        test_roles = to_object_list(grid_objects(sim,grid_obj.host_id))
+        test_roles = to_object_list(grid_objects(FrameContext.context.sim,grid_obj.host_id))
     else:
         test_roles = to_set(the_set)
     for other_id in test_roles:
@@ -606,7 +607,7 @@ def grid_close_list(sim, grid_obj, the_set, max_dist=None, filter_func=None) -> 
             continue
         
         # curx, cury
-        other_blob = get_engine_data_set(sim, other_id)
+        other_blob = to_blob(other_id)
         # if this is gone and we missed that fact ealier
         if other_blob is None:
             continue
@@ -624,7 +625,7 @@ def grid_close_list(sim, grid_obj, the_set, max_dist=None, filter_func=None) -> 
 
     return ret
 
-def grid_closest(sim, grid_obj, roles=None, max_dist=None, filter_func=None) -> CloseData:
+def grid_closest(grid_obj, roles=None, max_dist=None, filter_func=None) -> CloseData:
     """ Finds the closest object matching the criteria
 
     :param sim: The simulation
@@ -638,7 +639,7 @@ def grid_closest(sim, grid_obj, roles=None, max_dist=None, filter_func=None) -> 
     :return: A list of close object
     :rtype: GridCloseData
     """
-    close = grid_close_list(sim, grid_obj, roles, max_dist, filter_func)
+    close = grid_close_list(grid_obj, roles, max_dist, filter_func)
     # Maybe not the most efficient
     if len(close)==1:
         return close[0]
@@ -647,7 +648,7 @@ def grid_closest(sim, grid_obj, roles=None, max_dist=None, filter_func=None) -> 
     
     return None
 
-def grid_target_closest(sim, grid_obj_or_set, roles=None, max_dist=None, filter_func=None):
+def grid_target_closest(grid_obj_or_set, roles=None, max_dist=None, filter_func=None):
     """ Find and target the closest object matching the criteria
 
     :param sim: The simulation
@@ -668,10 +669,10 @@ def grid_target_closest(sim, grid_obj_or_set, roles=None, max_dist=None, filter_
         grid_obj=to_object(grid_obj)
         close = grid_closest(grid_obj,sim, roles, max_dist, filter_func)
         if close.id is not None:
-            grid_obj.target(sim, close.id)
+            grid_obj.target(FrameContext.context.sim, close.id)
         return close
 
-def grid_target(sim, grid_obj_or_set, target_id: int, speed=0.01):
+def grid_target(grid_obj_or_set, target_id: int, speed=0.01):
     """ Set the item to target
 
     :param sim: The simulation
@@ -683,8 +684,8 @@ def grid_target(sim, grid_obj_or_set, target_id: int, speed=0.01):
     """
     grid_objs= to_object_list(grid_obj_or_set)
     for grid_obj in grid_objs:
-        this_blob = get_engine_data_set(sim, grid_obj.id)
-        other_blob = get_engine_data_set(sim, target_id)
+        this_blob = to_blob(grid_obj.id)
+        other_blob = to_blob(target_id)
         if other_blob and this_blob:
             x = other_blob.get("curx", 0)
             y = other_blob.get("cury", 0)
@@ -693,7 +694,7 @@ def grid_target(sim, grid_obj_or_set, target_id: int, speed=0.01):
             this_blob.set("pathy", y, 0)
             this_blob.set("move_speed", speed, 0)
 
-def grid_target_pos(sim, grid_obj_or_set, x:float, y:float, speed=0.01):
+def grid_target_pos(grid_obj_or_set, x:float, y:float, speed=0.01):
     """ Set the item to target
 
     :param sim: The simulation
@@ -705,7 +706,7 @@ def grid_target_pos(sim, grid_obj_or_set, x:float, y:float, speed=0.01):
     """
     grid_objs= to_object_list(grid_obj_or_set)
     for grid_obj in grid_objs:
-        blob = get_engine_data_set(sim, grid_obj.id)
+        blob = to_blob(grid_obj.id)
         curx= blob.get("curx", 0)
         cury=blob.get("cury",  0)
         if curx!=x or cury != y:
@@ -715,7 +716,7 @@ def grid_target_pos(sim, grid_obj_or_set, x:float, y:float, speed=0.01):
         else:
             blob.set("move_speed", 0, 0)
 
-def grid_clear_target(sim, grid_obj_or_set):
+def grid_clear_target(grid_obj_or_set):
     """ Clear the target
 
     :param sim: The simulation
@@ -723,10 +724,10 @@ def grid_clear_target(sim, grid_obj_or_set):
     """
     grid_objs= to_object_list(grid_obj_or_set)
     for grid_obj in grid_objs:
-        blob = get_engine_data_set(sim, grid_obj.id)
+        blob = to_blob(grid_obj.id)
         x= blob.get("curx", 0)
         y=blob.get("cury",  0)
-        grid_target_pos(sim, grid_obj_or_set, x,y)
+        grid_target_pos(grid_obj_or_set, x,y)
 
 
 def is_client_id(id):
@@ -753,24 +754,24 @@ def is_story_id(id):
     return (id & 0x0040000000000000)!=0
 
 
-def get_pos(sim, id_or_obj):
+def get_pos(id_or_obj):
     object = to_object(id_or_obj)
     if object is not None:
-        eo = object.get_engine_object(sim)
+        eo = object.get_engine_object(FrameContext.context.sim)
         if eo:
             return eo.pos
     return None
 
-def set_pos(sim, id_or_obj, x, y, z):
+def set_pos(id_or_obj, x, y, z):
     ids = to_set(id_or_obj)
     for id in ids:
         object = to_object(id_or_obj)
     if object is not None:
-        eo = object.get_engine_object(sim)
+        eo = object.get_engine_object(FrameContext.context.sim)
         if eo:
-            return sim.reposition_space_object(eo, x, y, z)
+            return FrameContext.context.sim.reposition_space_object(eo, x, y, z)
         
-def get_open_grid_points(sim, id_or_obj):
+def get_open_grid_points(id_or_obj):
     the_set = []
     hull_map = sbs.get_hull_map(to_id(id_or_obj))
     if hull_map is not None:
@@ -780,26 +781,60 @@ def get_open_grid_points(sim, id_or_obj):
                     the_set.append((x,y))
     return the_set
 
-def get_comms_selection(sim, id_or_not):
-    blob = to_blob(sim, id_or_not)
+def get_comms_selection(id_or_not):
+    blob = to_blob(id_or_not)
     if blob is not None:
         return blob.get("comms_target_UID",0)
     return None
 
-def get_science_selection(sim, id_or_not):
-    blob = to_blob(sim, id_or_not)
+def get_science_selection(id_or_not):
+    blob = to_blob(id_or_not)
     if blob is not None:
         return blob.get("science_target_UID",0)
     return None
 
-def get_grid_selection(sim, id_or_not):
-    blob = to_blob(sim, id_or_not)
+def get_grid_selection(id_or_not):
+    blob = to_blob(id_or_not)
     if blob is not None:
         return blob.get("grid_selected_UID",0)
     return None
 
-def get_weapons_selection(sim, id_or_not):
-    blob = to_blob(sim, id_or_not)
+def get_weapons_selection(id_or_not):
+    blob = to_blob(id_or_not)
     if blob is not None:
         return blob.get("weapon_target_UID",0)
     return None
+
+TICK_PER_SECONDS = 30
+def set_timer(id_or_obj, name, seconds=0, minutes =0):
+    seconds += minutes*60* TICK_PER_SECONDS
+    seconds += FrameContext.context.sim.time_tick_counter
+    set_inventory_value(id_or_obj, f"__timer__{name}", seconds)
+
+def is_timer_finished(id_or_obj, name):
+    target = get_inventory_value(id_or_obj, f"__timer__{name}")
+    if target is None or target == 0:
+        return True
+    now = FrameContext.context.sim.time_tick_counter
+    if now > target:
+        return True
+    return False
+
+def clear_timer(id_or_obj, name):
+    set_inventory_value(id_or_obj, f"__timer__{name}", None)
+
+
+def start_counter(id_or_obj, name):
+    set_inventory_value(id_or_obj, f"__counter__{name}", FrameContext.context.sim.time_tick_counter)
+
+def get_counter_elapsed_seconds(id_or_obj, name):
+    start = get_inventory_value(id_or_obj, f"__counter__{name}")
+    now =  FrameContext.context.sim.time_tick_counter
+    if start is None:
+        return None
+    return int((now-start) / TICK_PER_SECONDS)
+    
+
+def clear_counter(id_or_obj, name):
+    set_inventory_value(id_or_obj, f"__counter__{name}", None)
+

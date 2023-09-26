@@ -1,5 +1,6 @@
 import sbs
 from .engineobject import EngineObject
+from .helpers import FakeEvent
 
 class Context:
     def __init__(self, sim, _sbs, aspect_ratio):
@@ -215,11 +216,6 @@ class GuiClient(EngineObject):
         if len(self.page_stack) > 0:
             self.page_stack[-1].on_event(ctx, event)
 
-class FakeEvent:
-    def __init__(self, client_id, tag, sub_tag=""):
-        self.client_id = client_id
-        self.tag = tag
-        self.sub_tag = sub_tag
 
 
 

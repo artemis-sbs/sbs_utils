@@ -8,7 +8,8 @@ from .gui import Gui, Page, Context
 import sbs
 import traceback
 from . import faces
-from .spaceobject import SpaceObject
+from .engineobject import EngineObject
+from .helpers import FrameContext
 import time
 
 
@@ -74,6 +75,7 @@ def cosmos_event_handler(sim, event):
         # Allow guis more direct access to events
         # e.g. Mast Story Page, Clients change
         ctx = Context(sim, sbs, None)
+        FrameContext.context = ctx
         
         #print(f"{event.sub_tag}")
         match(event.tag):
@@ -128,7 +130,7 @@ def cosmos_event_handler(sim, event):
                 handled = ConsoleDispatcher.dispatch_select(ctx, event)
                 if not handled and "comms_sorted_list" == event.value_tag:
                     face = faces.get_face(event.selected_id)
-                    so = SpaceObject.get(event.selected_id)
+                    so = EngineObject.get(event.selected_id)
                     comms_id = "static"
                     if so:
                         comms_id = so.comms_id#(sim)
@@ -169,6 +171,8 @@ def cosmos_event_handler(sim, event):
         text_err = traceback.format_exc()
         text_err = text_err.replace(chr(94), "")
         Gui.push(ctx, 0, ErrorPage(text_err))
+    
+    EngineObject.context = None
     et = time.process_time() - t
     if et > 0.03:
         print(f"Elapsed time: {et} {event.tag}-{event.sub_tag}")

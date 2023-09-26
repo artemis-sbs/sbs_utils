@@ -12,6 +12,7 @@ from ..gui import Gui, Context
 from .errorpage import ErrorPage
 from .. import faces
 from ..tickdispatcher import TickDispatcher
+from ..helpers import FakeEvent
 import sys
 import json
 import re
@@ -236,11 +237,11 @@ class CommsRuntimeNode(MastRuntimeNode):
         if self.is_grid_comms:        
             ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'grid_selected_UID', self.comms_selected)
             ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'grid_selected_UID', self.comms_message)
-            selection = query.get_grid_selection(task.main.sim, self.origin_id)
+            selection = query.get_grid_selection(self.origin_id)
         else:
             ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'comms_target_UID', self.comms_selected)
             ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'comms_target_UID', self.comms_message)
-            selection = query.get_comms_selection(task.main.sim, self.origin_id)
+            selection = query.get_comms_selection(self.origin_id)
 
         if selection == self.selected_id:
             self.set_buttons(self.origin_id, selection)
@@ -659,16 +660,7 @@ class FollowRouteRuntimeNode(MastRuntimeNode):
             return PollResults.OK_ADVANCE_TRUE
         origin_id = query.to_id(origin)
         selected_id = query.to_id(selected)
-        class FakeEvent:
-            def __init__(self, sub_tag, origin_id, selected_id, extra_tag, value_tag):
-                self.sub_tag = sub_tag
-                self.client_id = None
-                self.parent_id = 0
-                self.origin_id = origin_id
-                self.extra_tag = extra_tag
-                self.value_tag = value_tag
-                self.selected_id = selected_id
-                self.source_point = Vec3()
+        
         console = None
         extra_tag = ""
         value_tag = ""
@@ -693,7 +685,7 @@ class FollowRouteRuntimeNode(MastRuntimeNode):
 
         if console is not None:
             ctx = task.get_variable('ctx')
-            event = FakeEvent(console, origin_id, selected_id, extra_tag, value_tag)
+            event = FakeEvent(sub_tag=console, origin_id=origin_id, selected_id=selected_id, extra_tag=extra_tag,value_tag=value_tag)
             #
             # A bit of a hack directly using dispatchers data
             # forcing the default handlers
