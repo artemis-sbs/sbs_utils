@@ -237,7 +237,7 @@ class GuiMain(Page):
                     ship_art = choice(enemy_ships)
 
                     npc = Npc()
-                    npc.spawn(ctx.sim, 500+ship*200,0,500,marker, "raider", ship_art, "behav_npcship")
+                    npc.spawn(500+ship*200,0,500,marker, "raider", ship_art, "behav_npcship")
                     face = faces.random_terran()
                     faces.set_face(npc.id, face)
                     ships.append(npc)
@@ -339,13 +339,13 @@ class Mission:
     def face_test(sim):
         t = TickDispatcher.do_interval(sim, Mission.new_face,0)
         t.player = PlayerShip()
-        t.player.spawn(sim, 0,0,0, "Artemis", "tsn", "tsn_battle_cruiser")
+        t.player.spawn(0,0,0, "Artemis", "tsn", "tsn_battle_cruiser")
         
         t.race = 0
 
     def face_gen(sim):
-        PlayerShip().spawn(sim, 0,0,0, "Artemis", "tsn", "tsn_battle_cruiser")
-        Spacedock().spawn(sim, 500,0,500,"tsn")
+        PlayerShip().spawn(0,0,0, "Artemis", "tsn", "tsn_battle_cruiser")
+        Spacedock().spawn(500,0,500,"tsn")
     
 
     def new_face(sim, t):
@@ -424,14 +424,14 @@ class Mission:
     def start_grid(sim: sbs.simulation):
         Gui.client_start_page_class(ClientSelectPage)
         player = PlayerShip()
-        sd_player = player.spawn(sim, 0,0,0, "Artemis", "tsn", "tsn_battle_cruiser")
+        sd_player = player.spawn(0,0,0, "Artemis", "tsn", "tsn_battle_cruiser")
         sbs.assign_client_to_ship(0, sd_player.id)
         go1 = GridObject()
-        go1.spawn(sim, sd_player.id, "fred", "fred", 9,4, 3, "blue", "flint")
+        go1.spawn( sd_player.id, "fred", "fred", 9,4, 3, "blue", "flint")
         go2 = GridObject()
-        go2.spawn(sim, sd_player.id, "barney", "barney", 8,4, 3, "green", "rubble")
-        go2.update_blob(sim, speed=0.01, icon_scale=1.3)
-        query.grid_target_pos(go2, sim, 9,12)
+        go2.spawn(sd_player.id, "barney", "barney", 8,4, 3, "green", "rubble")
+        go2.update_blob( speed=0.01, icon_scale=1.3)
+        query.grid_target_pos(go2, 9,12)
         #GridDispatcher.add_object(go2.id, lambda sim, event: print("Barney Arrived"))
         
         
@@ -449,16 +449,16 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
         self.ds_id = Spacedock.ds_id
         
     
-    def spawn(self, sim, x,y,z, side):
+    def spawn(self, x,y,z, side):
         use_name =  f"DS {self.ds_id}"
-        super().spawn(sim,x,y,z,use_name, side, "starbase_command", "behav_station")
+        super().spawn(x,y,z,use_name, side, "starbase_command", "behav_station")
         self.enable_comms()
         
 
     
     
 
-    def comms_selected(self, sim, player_id, _):
+    def comms_selected(self, ctx, player_id, _):
         # if Empty it is waiting for what to harvest
         sbs.send_comms_selection_info(player_id, self.face_desc, "green", self.comms_id)
 
@@ -481,7 +481,7 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
         cmd=f'echo {self.face_desc}|clip'
         return subprocess.check_call(cmd, shell=True)
 
-    def comms_message(self, sim, message, player_id, e):
+    def comms_message(self, ctx, message, player_id, e):
         
         match message:
             case "copy":
@@ -511,7 +511,7 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
                 self.face_desc = faces.random_ximni()
 
 
-        self.comms_selected(sim, player_id, e)
+        self.comms_selected(ctx, player_id, e)
         #sbs.send_comms_selection_info(player_id, self.face_desc, "green", self.comms_id)
         sbs.send_comms_message_to_player_ship(player_id, self.id, "green", self.face_desc,  "Face Gen", self.face_desc, "face")
 

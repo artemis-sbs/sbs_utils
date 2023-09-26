@@ -473,8 +473,8 @@ class EngineObject():
         """
         self._remove(self.id)
 
-    def update_engine_data(self, sim, data):
-        blob = self.get_engine_data_set(sim)
+    def update_engine_data(self, data):
+        blob = self.get_engine_data_set()
         if blob is not None:
             for (key, value) in data.items():
                 if type(value) is tuple:
@@ -482,25 +482,25 @@ class EngineObject():
                 else:
                     blob.set(key, value)
 
-    def get_engine_data(self, sim, key, index=0):
-        blob = self.get_engine_data_set(sim)
+    def get_engine_data(self, key, index=0):
+        blob = self.get_engine_data_set()
         if blob is not None:
             return blob.get(key, index)
         return None
 
-    def set_engine_data(self, sim, key, value, index=0):
-        blob = self.get_engine_data_set(sim)
+    def set_engine_data(self, key, value, index=0):
+        blob = self.get_engine_data_set()
         if blob is not None:
             blob.set(key, value, index)
 
-    def get_engine_data_set(self, sim):
-        this = self.get_engine_object(sim)
+    def get_engine_data_set(self):
+        this = self.get_engine_object()
         if this is None:
             # Object is destroyed
             return None
         return this.data_set
     
-    def get_engine_object(self, sim):
+    def get_engine_object(self):
         # Needs to be implemented by Grid and Space Object
         return None
     

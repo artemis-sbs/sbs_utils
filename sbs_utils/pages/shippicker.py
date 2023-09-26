@@ -20,6 +20,7 @@ class ShipPicker(Page):
         self.picker1.present(sim, event)
         self.picker2.present(sim, event)
         sbs.send_gui_button(CID, "back", "text:Back", 85,95, 99,99)
+        sbs.send_gui_complete(CID)
 
         self.gui_state = "presenting"
 

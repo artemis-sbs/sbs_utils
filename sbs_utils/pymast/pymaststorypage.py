@@ -58,7 +58,7 @@ class PyMastStoryPage(Page):
         self.story_scheduler = None
         self.layouts = []
         self.tag = 10000
-        section = layout.Layout(None, None, None, 0,0, 100, 90)
+        section = layout.Layout(None,  None, 0,0, 100, 90)
         section.tag = self.get_tag()
         self.pending_layouts = self.pending_layouts = []
         self.pending_row = layout.Row()
@@ -141,7 +141,7 @@ class PyMastStoryPage(Page):
             for layout_obj in self.layouts:
                 layout_obj.calc()
             
-            section = layout.Layout(None, None, None, 0,0, 100, 90)
+            section = layout.Layout(None, None, 0,0, 100, 90)
             section.tag = self.get_tag()
             self.pending_layouts = self.pending_layouts = [section]
             self.pending_row = layout.Row()
@@ -159,7 +159,7 @@ class PyMastStoryPage(Page):
 
     def add_row(self):
         if not self.pending_layouts:
-            self.pending_layouts = [layout.Layout(None, None, None, 20,10, 100, 90)]
+            self.pending_layouts = [layout.Layout(None, None, 20,10, 100, 90)]
         if self.pending_row:
             if len(self.pending_row.columns):
                 self.pending_layouts[-1].add(self.pending_row)
@@ -239,7 +239,7 @@ class PyMastStoryPage(Page):
         
 
     def add_section(self, click_tag, click_props):
-        section = layout.Layout(click_tag, click_props, None, 0,0, 100, 90)
+        section = layout.Layout(None,  None, 0,0, 100, 90)
         section.tag = self.get_tag()
         if not self.pending_layouts:
             self.pending_layouts = [section]
@@ -264,7 +264,7 @@ class PyMastStoryPage(Page):
             self.set_button_layout(None)
             return
         top = ((self.aspect_ratio.y - 50)/self.aspect_ratio.y)*100
-        button_layout = layout.Layout(None, None, None, 0,top,100,100)
+        button_layout = layout.Layout(None, None, 0,top,100,100)
         button_layout.tag = self.get_tag()
         layout_row = layout.Row()
         layout_row.tag = self.get_tag()

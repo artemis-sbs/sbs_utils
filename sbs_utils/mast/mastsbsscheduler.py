@@ -282,7 +282,7 @@ class CommsRuntimeNode(MastRuntimeNode):
                 if oo is None or so is None:
                     return
                 scan_name = oo.side+"scan"
-                initial_scan = so.get_engine_data(self.task.main.sim, scan_name)
+                initial_scan = so.get_engine_data(scan_name)
                 
                 if initial_scan is None or initial_scan =="":
                     sbs.send_comms_selection_info(origin_id, "", "white", "unknown")
@@ -368,13 +368,13 @@ class CommsRuntimeNode(MastRuntimeNode):
             if oo is None or so is None:
                 return PollResults.OK_ADVANCE_TRUE
             scan_name = oo.side+"scan"
-            initial_scan = so.get_engine_data(self.task.main.sim, scan_name)
+            initial_scan = so.get_engine_data(scan_name)
             self.is_unknown = (initial_scan is None or initial_scan == "")
             # It is now known
             #
             if not self.is_unknown:
                 # if selected update buttons
-                player_current_select = oo.get_engine_data(self.task.main.sim, "comms_target_UID")
+                player_current_select = oo.get_engine_data( "comms_target_UID")
                 if player_current_select == self.selected_id:
                     self.set_buttons(self.origin_id, self.selected_id)
             return PollResults.OK_RUN_AGAIN
@@ -460,7 +460,7 @@ class ScanRuntimeNode(MastRuntimeNode):
 
         if to_so is not None:
             scan_tab = from_so.side+"scan"
-            has_scan = to_so.get_engine_data(task.main.sim, scan_tab)
+            has_scan = to_so.get_engine_data(scan_tab)
             if has_scan is None:
                 scan_tabs = "scan"
                 self.scan_is_done = False
@@ -480,11 +480,11 @@ class ScanRuntimeNode(MastRuntimeNode):
                                 scan_tabs += " "
                             scan_tabs += msg
                         # Check if this has been scanned
-                        has_scan = to_so.get_engine_data(task.main.sim, from_so.side+msg)
+                        has_scan = to_so.get_engine_data(from_so.side+msg)
                         if has_scan:
                             scanned_tabs += 1
                 self.scan_is_done = scanned_tabs == button_count
-                to_so.update_engine_data(task.main.sim, {"scan_type_list":scan_tabs})
+                to_so.update_engine_data({"scan_type_list":scan_tabs})
 
         
         ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'science_target_UID', self.science_selected)
@@ -494,9 +494,9 @@ class ScanRuntimeNode(MastRuntimeNode):
         if routed:
             event = task.get_variable("EVENT")
             if event is not None:
-                self.start_scan(task.main.sim, from_so.id, to_so.id, event.extra_tag)
+                self.start_scan(from_so.id, to_so.id, event.extra_tag)
             else:
-                self.start_scan(task.main.sim, from_so.id, to_so.id, "__init__")
+                self.start_scan( from_so.id, to_so.id, "__init__")
 
     def science_selected(self, ctx, an_id, event):
         #
@@ -506,9 +506,9 @@ class ScanRuntimeNode(MastRuntimeNode):
             self.selected_id != event.selected_id:
             return
         
-        self.start_scan(ctx.sim, event.origin_id, event.selected_id, event.extra_tag)
+        self.start_scan(event.origin_id, event.selected_id, event.extra_tag)
 
-    def start_scan(self, sim, origin_id, selected_id, extra_tag):
+    def start_scan(self, origin_id, selected_id, extra_tag):
         #
         # Check if this was initiated by a "Follow route"
         #
@@ -525,7 +525,7 @@ class ScanRuntimeNode(MastRuntimeNode):
         if so.side == so_sel.side:
             percent = 0.90
         if so:
-            so.update_engine_data(sim, {
+            so.update_engine_data({
                 "cur_scan_ID": selected_id,
                 "cur_scan_type": extra_tag,
                 "cur_scan_percent": percent
@@ -582,7 +582,7 @@ class ScanRuntimeNode(MastRuntimeNode):
             self.tab = None
             if so and so_player:
                 tab = so_player.side+"scan"
-                scan_tab = so.get_engine_data(task.main.sim, tab)
+                scan_tab = so.get_engine_data(tab)
                 if scan_tab is None:
                     if node.fog == 0:
                         self.tab = "scan"
@@ -622,7 +622,7 @@ class ScanResultRuntimeNode(MastRuntimeNode):
         #print(f"{scan.tab} scan {msg}")
         so = query.to_object(scan.selected_id)
         if so:
-            so.update_engine_data(task.main.sim, {
+            so.update_engine_data({
                 scan.tab: msg,
             })
             query.set_inventory_value(scan.selected_id, "SCANNED", True)
@@ -970,19 +970,19 @@ class MastSbsScheduler(MastScheduler):
     
     def npc_spawn(self, x,y,z,name, side, art_id, behave_id):
         so = Npc(self)
-        return so.spawn(self.sim, x,y,z,name, side, art_id, behave_id)
+        return so.spawn(x,y,z,name, side, art_id, behave_id)
         
     def player_spawn(self, x,y,z,name, side, art_id):
         so = PlayerShip(self)
-        return so.spawn(self.sim, x,y,z,name, side, art_id)
+        return so.spawn(x,y,z,name, side, art_id)
     def terrain_spawn(self, x,y,z,name, side, art_id, behave_id):
         so = Terrain(self)
-        return so.spawn(self.sim, x,y,z,name, side, art_id, behave_id)
+        return so.spawn(x,y,z,name, side, art_id, behave_id)
     
     def grid_spawn(self, id, name, tag, x,y, icon, color, roles):
         so = GridObject(self)
         
-        return so.spawn(self.sim, id, name, tag, x,y, icon, color, roles)
+        return so.spawn(id, name, tag, x,y, icon, color, roles)
 
     def run(self, ctx, label="main", inputs=None):
         self.sim = ctx.sim

@@ -695,9 +695,9 @@ class Layout:
                 else:
                     row_height = layout_row_height
                 row.height = row_height
-                row.width = self.bounds.width
                 row.left = left
                 row.top = top
+                row.width = self.bounds.width
                 squares = 0
 
                 col: Column
