@@ -2,12 +2,11 @@ import logging
 from .mastscheduler import PollResults, MastRuntimeNode, MastAsyncTask
 from .mast import Mast, Scope
 import sbs
-from ..gui import Gui, Page, Context
-from ..helpers import FakeEvent
+from ..gui import Gui, Page
+from ..helpers import FakeEvent, FrameContext
 from .parsers import StyleDefinition
 
 from ..pages import layout
-from ..tickdispatcher import TickDispatcher
 
 from .maststory import AppendText, ButtonControl, MastStory, Choose, Disconnect, RerouteGui, Text, Blank, Ship, GuiContent, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, AwaitSelect, Hole, RadioControl, Console, BuildaConsole, OnChange, OnClick, Icon, Update
 import traceback
@@ -16,7 +15,7 @@ from ..consoledispatcher import ConsoleDispatcher
 from .parsers import LayoutAreaParser
 
 class StoryRuntimeNode(MastRuntimeNode):
-    def on_message(self, sim, event):
+    def on_message(self, event):
         pass
     def databind(self):
         return False
@@ -280,7 +279,7 @@ class ButtonControlRuntimeNode(StoryRuntimeNode):
         self.task = task
 
         
-    def on_message(self, sim, event):
+    def on_message(self, event):
         if event.sub_tag == self.tag:
             # Jump to the cmds after the button
             self.task.push_inline_block(self.task.active_label, self.node.loc+1, self.data)
@@ -422,7 +421,7 @@ class AwaitSelectRuntimeNode(StoryRuntimeNode):
 
         
             
-    def selected(self, _, __, event):
+    def selected(self, __, event):
         self.done = True
         console = self.node.console.upper()
         point = sbs.vec3()
@@ -582,7 +581,7 @@ class ChoiceButtonRuntimeNode(StoryRuntimeNode):
         self.client_id = None
         self.node = node
         
-    def on_message(self, sim, event):
+    def on_message(self, event):
         if event.sub_tag == self.tag:
             self.choice.button = self
             self.client_id = event.client_id
@@ -610,13 +609,13 @@ class SliderControlRuntimeNode(StoryRuntimeNode):
 
         task.main.page.add_content(self.layout, self)
 
-    def on_message(self, ctx, event):
+    def on_message(self, event):
         if event.sub_tag == self.tag:
             if self.node.is_int:
                 self.layout.value = int(event.sub_float)
             else:
                 self.layout.value = event.sub_float
-            self.layout.present(ctx, event)
+            self.layout.present(event)
             self.task.set_value_keep_scope(self.node.var, self.layout.value)
 
 
@@ -637,11 +636,11 @@ class CheckboxControlRuntimeNode(StoryRuntimeNode):
         if node.style_name is not None:
             self.apply_style_name(node.style_name, self.layout, task)
 
-    def on_message(self, ctx, event):
+    def on_message(self, event):
         if event.sub_tag == self.tag:
             #self.layout.value = not self.layout.value
             self.task.set_value(self.node.var, self.layout.value, self.scope)
-            self.layout.present(ctx, event)
+            self.layout.present(event)
 
 
 class RadioControlRuntimeNode(StoryRuntimeNode):
@@ -672,7 +671,7 @@ class RadioControlRuntimeNode(StoryRuntimeNode):
         self.task = task
         
 
-    def on_message(self, sim, event):
+    def on_message(self, event):
         if event.sub_tag.startswith(self.tag+":"):
             values = event.sub_tag.split(":")
             if len(values) == 2:
@@ -680,7 +679,7 @@ class RadioControlRuntimeNode(StoryRuntimeNode):
                 self.task.set_value(self.node.var, values[1], self.scope)
                 for i, button in enumerate(self.buttons):
                     self.layouts[i].value = button == values[1]
-                    self.layouts[i].present(sim, event)
+                    self.layouts[i].present(event)
 
 class TextInputControlRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: TextInputControl):
@@ -711,7 +710,7 @@ class TextInputControlRuntimeNode(StoryRuntimeNode):
             self.apply_style_name(node.style_name, self.layout, task)
         task.main.page.add_content(self.layout, self)
 
-    def on_message(self, sim, event):
+    def on_message(self, event):
         if event.sub_tag == self.tag:
             self.task.set_value(self.node.var, self.layout.value, self.scope)
 
@@ -736,7 +735,7 @@ class DropdownControlRuntimeNode(StoryRuntimeNode):
                 self.apply_style_name(node.style_name, self.layout, task)
             task.main.page.add_content(self.layout, self)
 
-    def on_message(self, sim, event):
+    def on_message(self, event):
         if event.sub_tag == self.tag:
             self.layout.value = event.value_tag
             self.task.set_value_keep_scope(self.node.var, self.layout.value)
@@ -973,7 +972,8 @@ class StoryScheduler(MastSbsScheduler):
         self.errors = []
         self.client_id = None
 
-    def run(self, ctx, client_id, page, label="main", inputs=None):
+    def run(self, client_id, page, label="main", inputs=None):
+        ctx = FrameContext.context
         self.sim = ctx.sim
         self.ctx = ctx
         self.page = page
@@ -986,7 +986,8 @@ class StoryScheduler(MastSbsScheduler):
         self.vars['STORY_PAGE'] = page
         return super().start_task( label, inputs)
 
-    def story_tick_tasks(self, ctx, client_id):
+    def story_tick_tasks(self, client_id):
+        ctx = FrameContext.context
         self.sim = ctx.sim
         self.ctx = ctx
         self.vars['sim'] = ctx.sim
@@ -998,16 +999,16 @@ class StoryScheduler(MastSbsScheduler):
         for task in self.tasks:
             if label == task.active_label:
                 task.jump(task.active_label)
-                self.story_tick_tasks(self.ctx, self.client_id)
+                self.story_tick_tasks(self.client_id)
                 Gui.dirty(self.client_id)
             if label == None:
                 # On change or element requested refresh?
                 #task.jump(task.active_label)
                 print("I was told to refresh")
-                self.story_tick_tasks(self.ctx, self.client_id)
+                self.story_tick_tasks(self.client_id)
                 self.page.gui_state = "repaint"
                 event = FakeEvent(self.client_id, "gui_represent")
-                self.page.present(self.ctx, event)
+                self.page.present(event)
 
 
     def runtime_error(self, message):
@@ -1060,22 +1061,22 @@ class StoryPage(Page):
                 self.errors =  cls.story.from_file(cls.story_file)
         
 
-    def start_story(self, ctx, client_id):
+    def start_story(self, client_id):
         if self.story_scheduler is not None:
             return
         cls = self.__class__
         self.client_id == client_id
         if len(self.errors)==0:
             self.story_scheduler = StoryScheduler(cls.story)
-            self.gui_task = self.story_scheduler.run(ctx, client_id, self, inputs=cls.inputs)
+            self.gui_task = self.story_scheduler.run(client_id, self, inputs=cls.inputs)
 
 
-    def tick_gui_task(self, ctx):
+    def tick_gui_task(self):
         #
         # Called by gui right before present
         #
         if self.story_scheduler:
-            self.story_scheduler.story_tick_tasks(ctx, self.client_id)
+            self.story_scheduler.story_tick_tasks(self.client_id)
 
 
     def swap_layout(self):
@@ -1208,11 +1209,10 @@ class StoryPage(Page):
         item.update(props)
         # present it
         event = FakeEvent(self.client_id, "", "")
-        ctx = self.ctx 
-        item.present(ctx, event)
+        item.present(event)
 
     
-    def present(self, ctx, event):
+    def present(self, event):
         """ Present the gui """
         if self.client_id is None:
             self.client_id = event.client_id
@@ -1220,27 +1220,23 @@ class StoryPage(Page):
             return
         if self.disconnected:
             return
-        
-        if ctx is None:
-            return
-        self.ctx = ctx
         #
         # Cache sbs this should not change
         # cache will be used in updates they only need sbs, ratio and client_id
         #
-        if self.sbs is None:
-            self.sbs = ctx.sbs
+        my_sbs = FrameContext.context.sbs
+        
             
         
         for change in self.on_change_items:
             if change.test():
                 self.gui_task.push_inline_block(self.gui_task.active_label, change.node.loc+1)
-                self.tick_gui_task(ctx)
+                self.tick_gui_task()
                 return
 
         
         if self.story_scheduler is None:
-            self.start_story(ctx, event.client_id)
+            self.start_story(event.client_id)
         else:
             if len(self.story_scheduler.errors) > 0:
                 #errors = self.errors.reverse()
@@ -1249,12 +1245,12 @@ class StoryPage(Page):
                 message = message.replace(chr(44), "`")
                 message = "text:"+message
                 print(message)
-                ctx.sbs.send_gui_clear(event.client_id)
+                my_sbs.send_gui_clear(event.client_id)
                 if event.client_id != 0:
-                    ctx.sbs.send_client_widget_list(event.client_id, "", "")
-                ctx.sbs.send_gui_text(event.client_id, "error",  message, 0,0,99,99)
+                    my_sbs.send_client_widget_list(event.client_id, "", "")
+                my_sbs.send_gui_text(event.client_id, "error",  message, 0,0,99,99)
                 self.gui_state = "errors"
-                ctx.sbs.send_gui_complete(event.client_id)
+                my_sbs.send_gui_complete(event.client_id)
                 return
 
             if self.story_scheduler.paint_refresh:
@@ -1262,23 +1258,23 @@ class StoryPage(Page):
                     self.gui_state = "refresh"
                 self.story_scheduler.paint_refresh = False
             
-            if not self.story_scheduler.story_tick_tasks(ctx, event.client_id):
+            if not self.story_scheduler.story_tick_tasks(event.client_id):
                 #self.story_runtime_node.mast.remove_runtime_node(self)
-                Gui.pop(ctx, event.client_id)
+                Gui.pop(event.client_id)
                 return
         if len(self.errors) > 0:
             message = "".join(self.errors)
             message = message.replace(";", "~")
             message = "text: Compiler Errors" + message.replace(",", ".")
-            ctx.sbs.send_gui_clear(event.client_id)
+            my_sbs.send_gui_clear(event.client_id)
             if event.client_id != 0:
-                ctx.sbs.send_client_widget_list(event.client_id, "", "")
-            ctx.sbs.send_gui_text(event.client_id, "error", message,  0,0,100,100)
+                my_sbs.send_client_widget_list(event.client_id, "", "")
+            my_sbs.send_gui_text(event.client_id, "error", message,  0,0,100,100)
             self.gui_state = "errors"
-            ctx.sbs.send_gui_complete(event.client_id)
+            my_sbs.send_gui_complete(event.client_id)
             return
         
-        sz = ctx.aspect_ratio if ctx else None
+        sz = FrameContext.aspect_ratio
         if sz is not None and sz.y != 0:
             aspect_ratio = sz
             if (self.aspect_ratio.x != aspect_ratio.x or 
@@ -1287,7 +1283,7 @@ class StoryPage(Page):
                 self.aspect_ratio.y = sz.y
                 #print(f"Aspect Change {self.aspect_ratio.x} {self.aspect_ratio .y}")
                 for layout in self.layouts:
-                    layout.aspect_ratio = aspect_ratio
+                    # layout.aspect_ratio.x = aspect_ratio.x
                     layout.calc()
                 self.gui_state = 'repaint'
 
@@ -1295,23 +1291,23 @@ class StoryPage(Page):
         match self.gui_state:
             
             case  "repaint":
-                ctx.sbs.send_gui_clear(event.client_id)
+                my_sbs.send_gui_clear(event.client_id)
                 if event.client_id != 0:
-                    ctx.sbs.send_client_widget_list(event.client_id, self.console, self.widgets)
+                    my_sbs.send_client_widget_list(event.client_id, self.console, self.widgets)
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
 
                 for layout in self.layouts:
-                    layout.present(Context(ctx.sim, ctx.sbs, self.aspect_ratio),event)
-                if ctx.sim is None or len(self.layouts)==0:
+                    layout.present(event)
+                if len(self.layouts)==0:
                     self.gui_state = "repaint"
                 else:
                     self.gui_state = "presenting"
-                ctx.sbs.send_gui_complete(event.client_id)
+                my_sbs.send_gui_complete(event.client_id)
             case  "refresh":
                 for layout in self.layouts:
-                    layout.present(Context(ctx.sim, ctx.sbs, self.aspect_ratio),event)
-                if ctx.sim is None or len(self.layouts)==0:
+                    layout.present(event)
+                if len(self.layouts)==0:
                     self.gui_state = "repaint"
                 else:
                     self.gui_state = "presenting"
@@ -1321,7 +1317,7 @@ class StoryPage(Page):
                         self.gui_task.push_inline_block(self.gui_task.active_label, change.node.loc+1)
                         break
 
-    def on_message(self, ctx, event):
+    def on_message(self, event):
         if event.client_id != self.client_id:
             return
         
@@ -1331,7 +1327,7 @@ class StoryPage(Page):
         clicked = None
         # Process layout first
         for section in self.layouts:
-            section.on_message(Context(ctx.sim, ctx.sbs, self.aspect_ratio),event)
+            section.on_message(event)
         clicked = layout.Layout.clicked.get(self.client_id)
 
         runtime_node = self.tag_map.get(message_tag)
@@ -1339,7 +1335,8 @@ class StoryPage(Page):
         if runtime_node:
             # tuple layout and runtime node
             runtime_node = runtime_node[1]
-            runtime_node.on_message(Context(ctx.sim, ctx.sbs, self.aspect_ratio), event)
+            FrameContext.context.aspect_ratio = self.aspect_ratio
+            runtime_node.on_message(event)
             # for node in self.tag_map.values():
             #     if node != runtime_node:
             #         bound = node.databind()
@@ -1359,11 +1356,11 @@ class StoryPage(Page):
             
         if refresh:
             self.gui_state = "refresh"
-            self.present(ctx, event)
+            self.present(event)
 
         
 
-    def on_event(self, ctx, event):
+    def on_event(self, event):
         if event.client_id != self.client_id:
             return
         
@@ -1374,26 +1371,28 @@ class StoryPage(Page):
         if event.tag =="mast:client_disconnect":
             #print("event discon")
             self.disconnected = True
-            self.tick_gui_task(ctx)
-        elif event.tag == "screen_size":
-            sz = event.source_point
-            if sz is not None and sz.y != 0:
-                aspect_ratio = sz
-                if (self.aspect_ratio.x != aspect_ratio.x or 
-                    self.aspect_ratio.y != aspect_ratio.y):
-                    self.aspect_ratio.x = sz.x
-                    self.aspect_ratio.y = sz.y
-                    #print(f"Aspect Change {self.aspect_ratio.x} {self.aspect_ratio .y}")
-                    for layout in self.layouts:
-                        layout.aspect_ratio = aspect_ratio
-                        layout.calc()
-                    self.gui_state = 'repaint'
+            self.tick_gui_task()
+        # elif event.tag == "screen_size":
+        #     sz = event.source_point
+        #     if sz is not None and sz.y != 0:
+        #         aspect_ratio = sz
+        #         print(f"MP Aspect New {sz.x} {sz.y}")
+        #         print(f"MP Aspect Current {self.aspect_ratio.x} {self.aspect_ratio.y}")
+        #         if (self.aspect_ratio.x != aspect_ratio.x or 
+        #             self.aspect_ratio.y != aspect_ratio.y):
+        #             self.aspect_ratio.x = sz.x
+        #             self.aspect_ratio.y = sz.y
+        #             print(f"Aspect Change {self.aspect_ratio.x} {self.aspect_ratio .y}")
+        #             for layout in self.layouts:
+        #                 layout.aspect_ratio = aspect_ratio
+        #                 layout.calc()
+        #             self.gui_state = 'repaint'
         elif event.tag == "client_change":
             if event.sub_tag == "change_console":
                 if self.gui_task is not None and not self.gui_task.done:
                     if self.change_console_label:
                         self.gui_task.jump(self.change_console_label)
-                        self.present(ctx,event)
+                        self.present(event)
 
         
 

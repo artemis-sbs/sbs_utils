@@ -1,6 +1,7 @@
 import sbs
 from ..mast.parsers import StyleDefinition, LayoutAreaParser
-from ..gui import Page, Context
+from ..gui import Page
+from ..helpers import FrameContext, Context
 from ..pages import layout
 from .pollresults import PollResults
 from .pymastscheduler import PyMastScheduler
@@ -16,7 +17,7 @@ class CodePusher:
         self.page = page
 
 
-    def on_message(self, ctx, event):
+    def on_message(self, event):
         if event.client_id != self.page.client_id:
             return
         data = None
@@ -45,7 +46,7 @@ class CodePusher:
 
         self.page.task.push_jump_pop(pusher)
         # Tick the page task to get things running faster if needed
-        self.page.tick_gui_task(ctx)
+        self.page.tick_gui_task()
 
 
 
@@ -103,7 +104,7 @@ class PyMastStoryPage(Page):
             end_timeout = sbs.app_seconds()+ time_out
         while self.end_await == False:
             #print(f"running ")
-            self.present(Context(self.story.sim, sbs, self.aspect_ratio), None)
+            self.present(None)
             # Get out faster if ended
             if self.end_await:
                 break
@@ -112,7 +113,7 @@ class PyMastStoryPage(Page):
                     break
 
             yield PollResults.OK_RUN_AGAIN
-        self.present(Context(self.story.sim, sbs, self.aspect_ratio), None)
+        self.present(None)
         yield self.task.pop()
 
 
@@ -126,7 +127,7 @@ class PyMastStoryPage(Page):
                 self.task.page = self
                 # is this needed?
                 self.gui_state = "repaint"
-                self.present(Context(self.story.sim, sbs, self.aspect_ratio), None)
+                self.present(None)
 
 
     def swap_layout(self):
@@ -290,7 +291,7 @@ class PyMastStoryPage(Page):
         self.end_await = False
         self.swap_layout()
 
-    def present(self, ctx, event):
+    def present(self, event):
         #do_tick = True
         #print(f"**{self.gui_state} {self.task.id & 0xFFFFFFFFF if self.task else 99}**")
         if self.gui_popped:
@@ -327,9 +328,10 @@ class PyMastStoryPage(Page):
         if self.story_scheduler is None:
             if self.story is not None:
                 label = self.story.start_server if self.client_id ==0 else self.story.start_client
+                ctx = FrameContext.context
                 # print(f"Spawning task {label}")
                 self.story.sim = ctx.sim if ctx else None
-                self.story_scheduler = self.story.add_scheduler(ctx, label)
+                self.story_scheduler = self.story.add_scheduler(label)
                 #self.story_scheduler.page = self
                 self.task = self.story_scheduler.task
                 #print(f"Task Started {self.task.id & 0xFFFFFFFFF}")
@@ -340,7 +342,7 @@ class PyMastStoryPage(Page):
                 self.story_scheduler.page = self 
                 self.story.page = self
 
-                self.tick_gui_task(ctx)
+                self.tick_gui_task()
                     
                 self.gui_state = "repaint"
                 
@@ -370,6 +372,20 @@ class PyMastStoryPage(Page):
             if self.test_refresh_cb():
                 self.gui_state = 'refresh'
 
+        sz = FrameContext.aspect_ratio
+        if sz is not None and sz.y != 0:
+            aspect_ratio = sz
+            if (self.aspect_ratio.x != aspect_ratio.x or 
+                self.aspect_ratio.y != aspect_ratio.y):
+                self.aspect_ratio.x = sz.x
+                self.aspect_ratio.y = sz.y
+                #print(f"Aspect Change {self.aspect_ratio.x} {self.aspect_ratio .y}")
+                for layout in self.layouts:
+                    layout.aspect_ratio = aspect_ratio
+                    layout.calc()
+                self.gui_state = 'repaint'
+
+
 
         if len(self.errors) > 0:
             #message = "PyMast errors\n".join(self.errors)
@@ -385,35 +401,30 @@ class PyMastStoryPage(Page):
             return
         
 
-        if ctx is None:
-            return
         match self.gui_state:
             case  "repaint":
+                ctx = FrameContext.context
                 ctx.sbs.send_gui_clear(event.client_id)
                 if event.client_id != 0:
                     ctx.sbs.send_client_widget_list(event.client_id, self.console, self.widgets)
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
                 for layout in self.layouts:
-                    layout.present(Context(ctx.sim, ctx.sbs, self.aspect_ratio),event)
-                if ctx is None or len(self.layouts)==0:
+                    layout.present(event)
+                if len(self.layouts)==0:
                     self.gui_state = "repaint"
                 else:
                     self.gui_state = "presenting"
                 ctx.sbs.send_gui_complete(event.client_id)
             case  "refresh":
                 for layout in self.layouts:
-                    layout.present(Context(ctx.sim, ctx.sbs, self.aspect_ratio),event)
-                if ctx is None or len(self.layouts)==0:
+                    layout.present(event)
+                if len(self.layouts)==0:
                     self.gui_state = "repaint"
                 else:
                     self.gui_state = "presenting"
 
-    def tick_gui_task(self, ctx):
-        if ctx is None:
-            #print("Context is NONE")
-            return
-        
+    def tick_gui_task(self):
         if self.task is None:
             #print("gui task is None")
             return
@@ -424,7 +435,7 @@ class PyMastStoryPage(Page):
             if self.disconnected:
                 self.task.end()
                 return
-            self.story_scheduler.tick(ctx)# = self.story_scheduler
+            self.story_scheduler.tick()# = self.story_scheduler
         except BaseException as err:
             sbs.pause_sim()
             text_err = traceback.format_exc()
@@ -435,13 +446,13 @@ class PyMastStoryPage(Page):
             logger.info(text_err)
             self.errors.append(text_err)
 
-    def on_pop(self, ctx):
+    def on_pop(self):
         #print(f"On Gui Pop {self.__class__.__name__}")
         self.gui_popped = True
         self.story_scheduler.stop_all()
 
 
-    def on_message(self, ctx, event):
+    def on_message(self, event):
         message_tag = event.sub_tag
         # This should not occur???
         if self.client_id != event.client_id:
@@ -463,29 +474,29 @@ class PyMastStoryPage(Page):
         call_label = self.tag_map.get(message_tag)
         if call_label:
             if isinstance(call_label, CodePusher):
-                call_label.on_message(ctx, event)
+                call_label.on_message(event)
                 refresh=True
             elif inspect.isfunction(call_label):
-                call_label(ctx, event)
+                call_label(event)
                 refresh=True
             else:
-                call_label.on_message(ctx, event)
+                call_label.on_message(event)
                 refresh=True
                 
         # else:
         for layout in self.layouts:
-            layout.on_message(Context(ctx.sim, ctx.sbs, self.aspect_ratio),event)
+            layout.on_message(event)
         if self.on_message_cb is not None:
-            refresh = self.on_message_cb(ctx, event)
+            refresh = self.on_message_cb(event)
 
         
         
         if refresh:
             self.gui_state = "refresh"
-            self.present(ctx, event)
+            self.present(event)
 
 
-    def on_event(self, ctx, event):
+    def on_event(self, event):
         if self.task is None:
             return
         
@@ -505,23 +516,23 @@ class PyMastStoryPage(Page):
                     if self.change_console_label:
                         # Remember it is awaiting gui already
                         self.task.jump(self.change_console_label)
-                        #self.present(ctx,event)
+                        
 
-            elif event.tag == "screen_size":
-                if event.source_point.x!=0 and event.source_point.y != 0:
-                    if (self.aspect_ratio.x != event.source_point.x or 
-                        self.aspect_ratio.y != event.source_point.y):
-                        self.aspect_ratio.x = event.source_point.x
-                        self.aspect_ratio.y = event.source_point.y
+            # elif event.tag == "screen_size":
+            #     if event.source_point.x!=0 and event.source_point.y != 0:
+            #         if (self.aspect_ratio.x != event.source_point.x or 
+            #             self.aspect_ratio.y != event.source_point.y):
+            #             self.aspect_ratio.x = event.source_point.x
+            #             self.aspect_ratio.y = event.source_point.y
 
-                        for layout in self.layouts:
-                            layout.aspect_ratio.x = self.aspect_ratio.x
-                            layout.aspect_ratio.y = self.aspect_ratio.y
-                            layout.calc()
-                        self.gui_state = 'repaint'
+            #             for layout in self.layouts:
+            #                 layout.aspect_ratio.x = self.aspect_ratio.x
+            #                 layout.aspect_ratio.y = self.aspect_ratio.y
+            #                 layout.calc()
+            #             self.gui_state = 'repaint'
 
 
-            self.task.on_event(ctx, event)
+            #self.task.on_event(event)
         except BaseException as err:
             sbs.pause_sim()
             text_err = traceback.format_exc()

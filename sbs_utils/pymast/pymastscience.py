@@ -2,6 +2,7 @@ from ..consoledispatcher import ConsoleDispatcher
 import sbs
 import inspect
 from .pollresults import PollResults
+from ..helpers import FrameContext
 
 class PyMastScience:
     def __init__(self, task, scans, origin_id, selected_id ) -> None:
@@ -20,19 +21,19 @@ class PyMastScience:
         self.event = None
         
 
-    def selected(self, ctx, origin_id, event):
+    def selected(self, origin_id, event):
         if self.selected_id != event.selected_id or \
             self.origin_id != event.origin_id:
             return
         
         self.event = event
-        self.handle_selected(ctx.sim, event.origin_id, event.selected_id, event.extra_tag)
+        self.handle_selected(event.origin_id, event.selected_id, event.extra_tag)
         self.event = None
 
-    def handle_selected(self, sim, origin_id, selected_id, scan_type):
+    def handle_selected(self, origin_id, selected_id, scan_type):
         
-        selected_obj = sim.get_space_object(selected_id)
-        my_ship  = sim.get_space_object(origin_id)
+        selected_obj = FrameContext.context.sim.get_space_object(selected_id)
+        my_ship  = FrameContext.context.sim.get_space_object(origin_id)
         if selected_obj is None or my_ship is None:
             self.done = True
             return
@@ -59,11 +60,11 @@ class PyMastScience:
             if my_ship.side == selected_obj.side: # if this target is already on my side
                 blob.set("cur_scan_percent",0.999,0)
 
-    def message(self, ctx, message, player_id, event):
+    def message(self, message, player_id, event):
         if self.selected_id != event.selected_id or \
             self.origin_id != event.origin_id:
             return
-        sim = ctx.sim
+        sim = FrameContext.context.sim
         # This event is sent from the c++ code, once, 
         # when a space object scan is completed
         selected = sim.get_space_object(event.selected_id)

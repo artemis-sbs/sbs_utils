@@ -8,7 +8,7 @@ from ..consoledispatcher import ConsoleDispatcher
 from ..lifetimedispatcher import LifetimeDispatcher
 from ..damagedispatcher import DamageDispatcher, CollisionDispatcher
 from ..griddispatcher import GridDispatcher
-from ..gui import Gui, Context
+from ..gui import Gui
 from .errorpage import ErrorPage
 from .. import faces
 from ..tickdispatcher import TickDispatcher
@@ -247,7 +247,7 @@ class CommsRuntimeNode(MastRuntimeNode):
             self.set_buttons(self.origin_id, selection)
         # from_so.face_desc
 
-    def comms_selected(self, sim, an_id, event):
+    def comms_selected(self, an_id, event):
         #
         # Check to see if this was intended for us
         #
@@ -319,7 +319,7 @@ class CommsRuntimeNode(MastRuntimeNode):
         return buttons
 
 
-    def comms_message(self, sim, message, an_id, event):
+    def comms_message(self, message, an_id, event):
         #
         # Check to see if this was intended for us
         #
@@ -498,7 +498,7 @@ class ScanRuntimeNode(MastRuntimeNode):
             else:
                 self.start_scan( from_so.id, to_so.id, "__init__")
 
-    def science_selected(self, ctx, an_id, event):
+    def science_selected(self, an_id, event):
         #
         # avoid if this isn't for us
         #
@@ -548,7 +548,7 @@ class ScanRuntimeNode(MastRuntimeNode):
         return buttons
 
 
-    def science_message(self, sim, message, an_id, event):
+    def science_message(self, message, an_id, event):
         # makes sure this was for us
         if event.selected_id != self.selected_id or self.origin_id != event.origin_id:
             return
@@ -641,7 +641,7 @@ class RegexEqual(str):
 #
 #
 
-def handle_purge_tasks(ctx, so):
+def handle_purge_tasks(so):
     """
     This will clear out all tasks related to the destroyed item
     """
@@ -690,7 +690,7 @@ class FollowRouteRuntimeNode(MastRuntimeNode):
             # A bit of a hack directly using dispatchers data
             # forcing the default handlers
             #
-            ConsoleDispatcher.dispatch_select(ctx, event)
+            ConsoleDispatcher.dispatch_select(event)
         
         return PollResults.OK_ADVANCE_TRUE
 
@@ -702,7 +702,7 @@ class RouteRuntimeNode(MastRuntimeNode):
         #   Except change console
 
         
-        def handle_dispatch(task, console, sim, an_id, event):
+        def handle_dispatch(task, console, an_id, event):
             # 
             # Avoid scheduling this multiple times
             #
@@ -725,7 +725,7 @@ class RouteRuntimeNode(MastRuntimeNode):
                 MastAsyncTask.add_dependency(event.origin_id,t)
                 MastAsyncTask.add_dependency(event.selected_id,t)
 
-        def handle_spawn(sim, so):
+        def handle_spawn(so):
             t = task.start_task(node.label, {
                     f"SPAWNED_ID": so.id,
                     f"SPAWNED_ROUTED": True
@@ -733,7 +733,7 @@ class RouteRuntimeNode(MastRuntimeNode):
             if not t.done:
                 MastAsyncTask.add_dependency(so.id,t)
 
-        def handle_destroyed(sim, so):
+        def handle_destroyed(so):
             t = task.start_task(node.label, {
                     f"DESTROYED_ID": so.id,
                     f"DESTROYED_ROUTED": True
@@ -742,7 +742,7 @@ class RouteRuntimeNode(MastRuntimeNode):
                 MastAsyncTask.add_dependency(so.id,t)
 
 
-        def handle_spawn_grid(sim, so):
+        def handle_spawn_grid(so):
             t = task.start_task(node.label, {
                     f"SPAWNED_ID": so.id,
                     f"SPAWNED_ROUTED": True
@@ -750,7 +750,7 @@ class RouteRuntimeNode(MastRuntimeNode):
             if not t.done:
                 MastAsyncTask.add_dependency(so.id,t)
 
-        def handle_damage(ctx, event):
+        def handle_damage(event):
             # Need point? amount
             t = task.start_task(node.label, {
                     "DAMAGE_SOURCE_ID": event.origin_id,
@@ -765,7 +765,7 @@ class RouteRuntimeNode(MastRuntimeNode):
                 MastAsyncTask.add_dependency(event.origin_id,t)
                 MastAsyncTask.add_dependency(event.selected_id,t)
 
-        def handle_collision(ctx, event):
+        def handle_collision(event):
             # Need point? amount
             t = task.start_task(node.label, {
                     "COLLISION_SOURCE_ID": event.origin_id,
@@ -780,7 +780,7 @@ class RouteRuntimeNode(MastRuntimeNode):
                 MastAsyncTask.add_dependency(event.origin_id,t)
                 MastAsyncTask.add_dependency(event.selected_id,t)
         
-        def handle_damage_internal(ctx, event):
+        def handle_damage_internal(event):
             # Need point? amount
             t= task.start_task(node.label, {
                     "DAMAGE_SOURCE_ID": event.origin_id,
@@ -795,7 +795,7 @@ class RouteRuntimeNode(MastRuntimeNode):
                 MastAsyncTask.add_dependency(event.origin_id,t)
                 MastAsyncTask.add_dependency(event.selected_id,t)
 
-        def handle_damage_heat(ctx, event):
+        def handle_damage_heat(event):
             # Need point? amount
             t= task.start_task(node.label, {
                     "DAMAGE_SOURCE_ID": event.origin_id,
@@ -810,7 +810,7 @@ class RouteRuntimeNode(MastRuntimeNode):
                 MastAsyncTask.add_dependency(event.origin_id,t)
                 MastAsyncTask.add_dependency(event.selected_id,t)
 
-        def handle_grid_event(ctx, event):
+        def handle_grid_event(event):
             # Need point? amount
             t= task.start_task(node.label, {
                     "GRID_PARENT_ID": event.parent_id,

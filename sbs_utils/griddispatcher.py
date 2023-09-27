@@ -41,27 +41,27 @@ class GridDispatcher:
         GridDispatcher._dispatch_any_object.discard(cb)
 
 
-    def dispatch_grid_event(ctx, event):
+    def dispatch_grid_event(event):
         if event.tag == 'grid_object':
-            object = GridDispatcher._dispatch_object.get(event.selected_id)
-            if object:
-                object(ctx, event)
+            go = GridDispatcher._dispatch_object.get(event.selected_id)
+            if go:
+                go(event)
             else:
                 for func in GridDispatcher._dispatch_any_object:
-                    func(ctx, event)
+                    func(event)
      
 
         ############### MOved to console
         # elif event.tag == "grid_object_selection":
         #     object_select = GridDispatcher._dispatch_object_select.get(event.selected_id)
         #     if object_select:
-        #         object_select(ctx, event)
+        #         object_select(event)
         elif event.tag == "grid_point_selection":
             point = GridDispatcher._dispatch_point.get(event.origin_id)
             if point:
-                point(ctx, event)
+                point(event)
             else:
                 for func in GridDispatcher._dispatch_any_point:
-                    func(ctx, event)
+                    func(event)
      
 

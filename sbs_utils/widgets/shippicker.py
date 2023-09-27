@@ -82,7 +82,7 @@ class ShipPicker(Widget):
                 self.ships = None
 
 
-    def present(self, sim, event):
+    def present(self, event):
         """ present
 
         builds/manages the content of the widget
@@ -117,7 +117,7 @@ class ShipPicker(Widget):
         self.gui_state = "presenting"
 
 
-    def on_message(self, sim, event):
+    def on_message(self, event):
         """ on_message
 
         handles messages this will look for components owned by this control and react accordingly
@@ -146,7 +146,7 @@ class ShipPicker(Widget):
                     self.gui_state = "redraw"
                     if self.cur <0:
                         self.cur = len(self.ships)-1
-                    self.present(sim, event)
+                    self.present(event)
                     return True
                 
             case "next":
@@ -155,7 +155,7 @@ class ShipPicker(Widget):
                     self.gui_state = "redraw"
                     if self.cur >= len(self.ships):
                         self.cur = 0
-                    self.present(sim, event)
+                    self.present(event)
                     return True
         return False
                 

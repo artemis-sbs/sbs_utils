@@ -7,6 +7,7 @@ from sbs_utils.spaceobject import SpaceObject, TickType
 from sbs_utils.query import role, linked_to, closest_list, closest, broad_test, to_py_object_list
 from sbs_utils.objects import Npc, Terrain, PlayerShip
 from sbs_utils.gridobject import GridObject
+from sbs_utils.helpers import FrameContext, Context
 
 def get_sim():
     """ Function in case I change how to get the sim"""
@@ -23,9 +24,10 @@ class TestSpaceObject(unittest.TestCase):
     def test_space_object(self):
         """ Test for the basic creation of SpaceObjects"""
         sbs.create_new_sim()
-        sim = get_sim()
+        FrameContext.context = Context(sbs.sim, sbs) 
 
-        artemis = PlayerShip().spawn(sim, 0,0,0, "Artemis", "tsn", "Battle Cruiser")
+
+        artemis = PlayerShip().spawn(0,0,0, "Artemis", "tsn", "Battle Cruiser")
         assert(artemis is not None)
         assert(artemis.py_object is not None)
         assert(artemis.py_object.is_player)
@@ -38,7 +40,7 @@ class TestSpaceObject(unittest.TestCase):
         assert(artemis.py_object.has_role("tsn"))
         assert(artemis.py_object.comms_id == "Artemis(tsn)")
 
-        ds1 = Npc().spawn(sim, 0,0,0, f"DS1", "tsn", "Starbase", "behav_spaceport")
+        ds1 = Npc().spawn(0,0,0, f"DS1", "tsn", "Starbase", "behav_spaceport")
         py_ds1 = ds1.py_object 
         assert(py_ds1 is not None)
         assert(not py_ds1.is_player)
@@ -51,7 +53,7 @@ class TestSpaceObject(unittest.TestCase):
         assert(py_ds1.has_role("tsn"))
         assert(py_ds1.comms_id == "DS1(tsn)")
 
-        ast = Terrain().spawn(sim, 0,0,0, None, None, "Asteroid 1", "behav_asteroid")
+        ast = Terrain().spawn(0,0,0, None, None, "Asteroid 1", "behav_asteroid")
         py_ast = ast.py_object 
         assert(py_ast is not None)
         assert(not py_ast.is_player)
@@ -77,14 +79,14 @@ class TestSpaceObject(unittest.TestCase):
     def test_roles(self):
         test_obj = []
         sbs.create_new_sim()
-        sim = get_sim()
+        FrameContext.context = Context(sbs.sim, sbs) 
 
         names = ["Artemis", "Hera", "Atlas", "Juno", "Zeus", "Jupiter"]
         for name in names:
-            test_obj.append(PlayerShip().spawn(sim, 0,0,0, name, "tsn, test_side_role", "tsn_battle_cruiser").py_object)
+            test_obj.append(PlayerShip().spawn(0,0,0, name, "tsn, test_side_role", "tsn_battle_cruiser").py_object)
         
         for station in range(5):
-            station = Npc().spawn(sim, 0,0,0, f"DS{station}", "tsn, test_side_role", "starbase_command", "behav_spaceport").py_object
+            station = Npc().spawn(0,0,0, f"DS{station}", "tsn, test_side_role", "starbase_command", "behav_spaceport").py_object
             test_obj.append(station)
             station.add_role("Station")
 
@@ -141,16 +143,16 @@ class TestSpaceObject(unittest.TestCase):
         test_obj = []
         names = ["Artemis", "Hera", "Atlas", "Juno", "Zeus", "Jupiter"]
         sbs.create_new_sim()
-        sim = get_sim()
+        FrameContext.context = Context(sbs.sim, sbs) 
 
         for i, name in enumerate(names):
-            test_obj.append(PlayerShip().spawn(sim, i*100,0,0, name, "tsn", "Battle Cruiser").py_object)
+            test_obj.append(PlayerShip().spawn(i*100,0,0, name, "tsn", "Battle Cruiser").py_object)
         
         for station in range(5):
-            station_obj = Npc().spawn(sim, station*100,0,100, f"DS{station}", "tsn", "Starbase", "behav_spaceport").py_object
+            station_obj = Npc().spawn(station*100,0,100, f"DS{station}", "tsn", "Starbase", "behav_spaceport").py_object
             test_obj.append(station_obj)
             station_obj.add_role("Station")
-            eo = station_obj.get_space_object(sim)
+            eo = station_obj.get_space_object()
             assert(eo)
             pos = eo.pos
             assert(pos.x == station*100)
@@ -160,7 +162,7 @@ class TestSpaceObject(unittest.TestCase):
         stations = SpaceObject.get_role_objects("Station")
         players = SpaceObject.get_role_objects("PlayerShip")
         # Make sure mock is return right values
-        dist = sbs.distance(stations[0].get_space_object(sim), stations[1].get_space_object(sim))
+        dist = sbs.distance(stations[0].get_space_object(), stations[1].get_space_object())
         assert(dist == 100)
         dist = sbs.distance_id(stations[0].id, stations[1].id)
         assert(dist == 100)
@@ -179,10 +181,10 @@ class TestSpaceObject(unittest.TestCase):
         test_obj = []
         names = ["Artemis", "Hera", "Atlas", "Juno", "Zeus", "Jupiter"]
         sbs.create_new_sim()
-        sim = get_sim()
+        FrameContext.context = Context(sbs.sim, sbs) 
 
         for i, name in enumerate(names):
-            test_obj.append(PlayerShip().spawn(sim, i*100,0,0, name, "tsn", "Battle Cruiser").py_object)
+            test_obj.append(PlayerShip().spawn(i*100,0,0, name, "tsn", "Battle Cruiser").py_object)
 
         players = role("PlayerShip")
         assert(len(players)==6)
@@ -194,13 +196,13 @@ class TestSpaceObject(unittest.TestCase):
 
         
         for station in range(5):
-            station_obj = Npc().spawn(sim, station*100,0,100, f"DS{station}", "tsn", "Starbase", "behav_spaceport").py_object
+            station_obj = Npc().spawn(station*100,0,100, f"DS{station}", "tsn", "Starbase", "behav_spaceport").py_object
             test_obj.append(station_obj)
             station_obj.add_role("Station")
             # Add there visits to artemis
             if station % 2:
                 player_objs[0].add_link("Visit", station_obj)
-            eo = station_obj.get_space_object(sim)
+            eo = station_obj.get_space_object()
             assert(eo)
             pos = eo.pos
             assert(pos.x == station*100)
@@ -208,13 +210,13 @@ class TestSpaceObject(unittest.TestCase):
             assert(pos.z == 100)
 
         for friendly in range(5):
-            friendly_obj = Npc().spawn(sim, friendly*100,0,100, f"F{friendly}", "tsn", "Light Cruiser", "behav_npcship").py_object
+            friendly_obj = Npc().spawn(friendly*100,0,100, f"F{friendly}", "tsn", "Light Cruiser", "behav_npcship").py_object
             if friendly  % 2:
                 player_objs[0].add_link("Visit", friendly_obj)
 
 
         for raider in range(5):
-            Npc().spawn(sim, station*100,0,100, f"R{raider}", "raider", "Light Cruiser", "behav_npcship").py_object
+            Npc().spawn(station*100,0,100, f"R{raider}", "raider", "Light Cruiser", "behav_npcship").py_object
 
 
         stations = role("Station")
@@ -316,18 +318,18 @@ class TestSpaceObject(unittest.TestCase):
         test_obj = []
         names = ["Artemis", "Hera", "Atlas", "Juno", "Zeus", "Jupiter"]
         sbs.create_new_sim()
-        sim = get_sim()
+        FrameContext.context = Context(sbs.sim, sbs) 
 
         for i, name in enumerate(names):
-            test_obj.append(PlayerShip().spawn(sim, i*100,0,0, name, "tsn", "Battle Cruiser").py_object)
+            test_obj.append(PlayerShip().spawn(i*100,0,0, name, "tsn", "Battle Cruiser").py_object)
 
         for station in range(5):
-            station_obj = Npc().spawn(sim, station*100-5,0,100, f"DS{station}", "tsn", "Starbase", "behav_spaceport").py_object
+            station_obj = Npc().spawn(station*100-5,0,100, f"DS{station}", "tsn", "Starbase", "behav_spaceport").py_object
             test_obj.append(station_obj)
             station_obj.add_role("Station")
 
         for asteroid in range(10):
-            asteroid_obj = Terrain().spawn(sim, asteroid*100-10,0,200, None, None, "Asteroid 1", "behav_asteroid").py_object
+            asteroid_obj = Terrain().spawn(asteroid*100-10,0,200, None, None, "Asteroid 1", "behav_asteroid").py_object
             asteroid_obj.add_role("Asteroid")
         
         test = sbs.broad_test(-50,-50, 50,50, TickType.ALL)
@@ -355,10 +357,10 @@ class TestSpaceObject(unittest.TestCase):
     def test_inventory(self):
         
         sbs.create_new_sim()
-        sim = get_sim()
+        FrameContext.context = Context(sbs.sim, sbs) 
 
         
-        artemis = PlayerShip().spawn(sim, 0,0,0, "Artemis", "tsn", "Battle Cruiser").py_object
+        artemis = PlayerShip().spawn(0,0,0, "Artemis", "tsn", "Battle Cruiser").py_object
         artemis.set_inventory_value("Gold", 5)
         assert(artemis.has_any_inventory("Gold"))
         assert(artemis.get_inventory_value("Gold")==5)

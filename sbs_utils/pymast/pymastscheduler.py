@@ -35,13 +35,13 @@ class PyMastScheduler:
         self.new_tasks.add(task)
         return PollResults.OK_ADVANCE_TRUE
 
-    def tick(self, ctx):
+    def tick(self):
         for task in self.tasks:
             self.story.task = task
             self.story.scheduler = self
             self.scheduler = self
             self.task = task            
-            task.tick(ctx)
+            task.tick()
             if task.last_poll_result == PollResults.OK_END:
                 self.remove_tasks.add(task)
         for finished in self.remove_tasks:

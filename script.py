@@ -38,6 +38,7 @@ class ShipListDemo(Page):
     
     def __init__(self, ships) -> None:
         self.gui_state = "blank"
+        self.aspect_ratio = sbs.vec3(0,0,0)
         self.picker1 = Listbox(5,5, "pick1:", ships, 
                                text=lambda item: item.comms_id,
                                face=lambda item: faces.get_face(item.id), 
@@ -72,30 +73,44 @@ class ShipListDemo(Page):
         self.picker3.right = 95
 
 
-    def present(self, ctx, event):
+    def present(self, event):
         CID = event.client_id
+        
+        if (FrameContext.aspect_ratio.x != self.aspect_ratio.x or  
+                FrameContext.aspect_ratio.y != self.aspect_ratio.y):
+            print(f"AR change list {FrameContext.aspect_ratio.x}")
+            self.gui_state == "repaint"
+            self.aspect_ratio.x = FrameContext.aspect_ratio.x
+            self.aspect_ratio.y = FrameContext.aspect_ratio.y
+        
+
         if self.gui_state == "presenting":
             return
 
         sbs.send_gui_clear(CID)
-        self.picker1.present(ctx, event)
-        self.picker2.present(ctx, event)
-        self.picker3.present(ctx, event)
-        self.picker4.present(ctx, event)
+        self.picker1.present(event)
+        self.picker2.present(event)
+        self.picker3.present(event)
+        self.picker4.present(event)
         sbs.send_gui_button(CID, "back", "text: back", 85,95, 99,99)
 
         self.gui_state = "presenting"
+        sbs.send_gui_complete(CID)
 
 
-    def on_message(self, ctx, event):
+    def on_message(self, event):
         if event.sub_tag == 'back':
-            Gui.pop(ctx, event.client_id)
+            Gui.pop(event.client_id)
         else:
-            self.picker1.on_message(ctx,event)
-            self.picker2.on_message(ctx,event)
-            self.picker3.on_message(ctx,event)
-            self.picker4.on_message(ctx,event)
+            self.picker1.on_message(event)
+            self.picker2.on_message(event)
+            self.picker3.on_message(event)
+            self.picker4.on_message(event)
 
+    def on_event(self, event):
+        if event.tag == "screen_size":
+            self.present(event)
+    
  
 
 
@@ -106,7 +121,7 @@ class GuiPage(Page):
         self.pageid = GuiPage.count 
         GuiPage.count += 1
 
-    def present(self, ctx, event):
+    def present(self, event):
         sbs.send_gui_clear(event.client_id)
         sbs.send_gui_text(
                     event.client_id, "text", f"text:Page: {self.pageid}",25, 30, 99, 90)
@@ -114,13 +129,14 @@ class GuiPage(Page):
         
         sbs.send_gui_button(event.client_id, "back", "text: Back", *next(w))
         sbs.send_gui_button(event.client_id, "again", "text: Another", *next(w))
+        sbs.send_gui_complete(event.client_id)
         
 
-    def on_message(self, ctx, event):
+    def on_message(self, event):
         if event.sub_tag == 'back':
-            Gui.pop(ctx,event.client_id)
+            Gui.pop(event.client_id)
         if event.sub_tag == 'again':
-            Gui.push(ctx,event.client_id, GuiPage())
+            Gui.push(event.client_id, GuiPage())
 
 
 class TestLayoutPage(LayoutPage):
@@ -181,7 +197,7 @@ class GuiMain(Page):
     def on_pop(self, sim):
         return super().on_pop(sim)
 
-    def present(self, ctx, event):
+    def present(self, event):
         sbs.send_gui_clear(event.client_id)
         sbs.send_gui_text(
             event.client_id, "text", "text: Mission: SBS_Utils unit test.^^This is a unit test for the SBS_Utils library", 25, 30, 99, 90)
@@ -207,23 +223,23 @@ class GuiMain(Page):
         sbs.send_gui_button(event.client_id, "siege", "text: Mast Siege", *next(w))
         sbs.send_gui_complete(event.client_id)
 
-    def on_message(self, ctx, event):
+    def on_message(self, event):
         Gui.client_start_page_class(ClientSelectPage)
         match event.sub_tag:
             case 'again':
                 # reset state here?
-                Gui.push(ctx,event.client_id, GuiPage())
+                Gui.push(event.client_id, GuiPage())
 
             case 'avatar':
                 # reset state here?
-                Gui.push(ctx,event.client_id, AvatarEditor())
+                Gui.push(event.client_id, AvatarEditor())
 
             case 'stub':
                 self.stub_gen()
 
             case 'ship':
                 # reset state here?
-                Gui.push(ctx,event.client_id, ShipPicker())
+                Gui.push(event.client_id, ShipPicker())
 
             case 'shiplist':
                 # reset state here?
@@ -241,7 +257,7 @@ class GuiMain(Page):
                     face = faces.random_terran()
                     faces.set_face(npc.id, face)
                     ships.append(npc)
-                Gui.push(ctx,event.client_id, ShipListDemo(ships))
+                Gui.push(event.client_id, ShipListDemo(ships))
                 Gui.client_start_page_class(lambda: ShipListDemo(ships))
 
             case "continue":
@@ -258,52 +274,47 @@ class GuiMain(Page):
             case "face":
                 sbs.create_new_sim()
                 sbs.resume_sim()
-                Mission.face_test(ctx.sim)
+                Mission.face_test()
 
             case "layout":
-                Gui.push(ctx,event.client_id, TestLayoutPage())
+                Gui.push(event.client_id, TestLayoutPage())
 
             case "story":
                 page = GuiStory()
                 #page.run(sim , story_script)        
                 Gui.client_start_page_class(GuiStory)        
-                Gui.push(ctx,event.client_id, page)
+                Gui.push(event.client_id, page)
 
             case "siege":
                 page = SiegeStory()
                 #page.run(sim , story_script)        
                 Gui.client_start_page_class(SiegeStory)        
-                Gui.push(ctx,event.client_id, page)
+                Gui.push(event.client_id, page)
                 
             case "story_ttt":
                 page = TttStory()
                 #page.run(sim , story_script)                
-                Gui.push(ctx,event.client_id, page)
+                Gui.push(event.client_id, page)
 
             case "face_gen":
                 sbs.create_new_sim()
                 sbs.resume_sim()
-                Mission.face_gen(ctx.sim)
+                Mission.face_gen(x.sim)
 
             case "start":
                 sbs.create_new_sim()
                 sbs.resume_sim()
-                Mission.start(ctx)
+                Mission.start()
 
             case "grid":
                 sbs.create_new_sim()
                 sbs.resume_sim()
-                Mission.start_grid(ctx.sim)
-
-            case "mast":
-                sbs.create_new_sim()
-                sbs.resume_sim()
-                Mission.mast(ctx.sim)
+                Mission.start_grid()
 
             case "target":
                 sbs.create_new_sim()
                 sbs.resume_sim()
-                Mission.target_bug(ctx.sim)
+                Mission.target_bug()
 
 
     def stub_gen(self):
@@ -317,39 +328,43 @@ class GuiMain(Page):
 class Mission:
     many_count = 0
 
-    def once(sim,t):
+    def once(t):
         print("timer once")
         Mission.once_ex = True
 
-    def many(sim,t):
+    def many(t):
         Mission.many_count += 1
         print(f"timer many {Mission.many_count}")
 
-    def test(sim,t):
+    def test(t):
         if Mission.once_ex and Mission.many_count == 4:
             print("timer test passed")
         else:
             print("timer test failed")
 
-    def start(ctx):
-        TickDispatcher.do_once(ctx, Mission.once, 5)
-        TickDispatcher.do_interval(ctx, Mission.many, 5, 4)
-        TickDispatcher.do_once(ctx, Mission.test, 30)
+    def start():
+        player = PlayerShip()
+        sd_player = player.spawn(0,0,0, "Artemis", "tsn", "tsn_battle_cruiser")
+        sbs.assign_client_to_ship(0, sd_player.id)
 
-    def face_test(sim):
-        t = TickDispatcher.do_interval(sim, Mission.new_face,0)
+        TickDispatcher.do_once(Mission.once, 5)
+        TickDispatcher.do_interval(Mission.many, 5, 4)
+        TickDispatcher.do_once(Mission.test, 30)
+
+    def face_test():
+        t = TickDispatcher.do_interval(Mission.new_face,21)
         t.player = PlayerShip()
         t.player.spawn(0,0,0, "Artemis", "tsn", "tsn_battle_cruiser")
-        
         t.race = 0
 
-    def face_gen(sim):
+    def face_gen():
         PlayerShip().spawn(0,0,0, "Artemis", "tsn", "tsn_battle_cruiser")
         Spacedock().spawn(500,0,500,"tsn")
     
 
-    def new_face(sim, t):
+    def new_face(t):
         player_id = t.player.id
+
 
         face = ""
         race = ""
@@ -394,13 +409,14 @@ class Mission:
         if t.race >= 9:
             t.race = 0
 
-    def target_bug(sim: sbs.simulation):
+    def target_bug():
 
         #player = PlayerShip()
         #player.spawn(sim, 0,0,0, "Artemis", "tsn", "Battle Cruiser")
         #bad = Npc()
         #bad.spawn(sim,0,0, 1400, "BadGuy", "baddy", "Battle Cruiser", "behav_npcship")
         #bad.target_closest(sim, "PlayerShip")
+        sim = FrameContext.context.sim
 
         player_id = sim.make_new_player("behav_playership", "tsn_battle_cruiser")
         sbs.assign_player_ship(player_id)
@@ -421,7 +437,7 @@ class Mission:
         blob.set("target_pos_z", player.pos.z)
         blob.set("target_id", player.unique_ID)
 
-    def start_grid(sim: sbs.simulation):
+    def start_grid():
         Gui.client_start_page_class(ClientSelectPage)
         player = PlayerShip()
         sd_player = player.spawn(0,0,0, "Artemis", "tsn", "tsn_battle_cruiser")
@@ -458,7 +474,7 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
     
     
 
-    def comms_selected(self, ctx, player_id, _):
+    def comms_selected(self, player_id, _):
         # if Empty it is waiting for what to harvest
         sbs.send_comms_selection_info(player_id, self.face_desc, "green", self.comms_id)
 
@@ -481,7 +497,7 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
         cmd=f'echo {self.face_desc}|clip'
         return subprocess.check_call(cmd, shell=True)
 
-    def comms_message(self, ctx, message, player_id, e):
+    def comms_message(self, message, player_id, e):
         
         match message:
             case "copy":
@@ -511,7 +527,7 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
                 self.face_desc = faces.random_ximni()
 
 
-        self.comms_selected(ctx, player_id, e)
+        self.comms_selected(player_id, e)
         #sbs.send_comms_selection_info(player_id, self.face_desc, "green", self.comms_id)
         sbs.send_comms_message_to_player_ship(player_id, self.id, "green", self.face_desc,  "Face Gen", self.face_desc, "face")
 

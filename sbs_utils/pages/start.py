@@ -1,7 +1,6 @@
 from ..gui import Page
 import sbs
 from ..spaceobject import SpaceObject
-from ..tickdispatcher import TickDispatcher
 
 
 class StartPage(Page):
@@ -11,7 +10,7 @@ class StartPage(Page):
         self.desc = description
         self.callback = callback
 
-    def present(self, sim, event):
+    def present(self, event):
         CID = event.client_id
 
         sbs.send_gui_clear(CID)
@@ -22,9 +21,9 @@ class StartPage(Page):
         sbs.send_gui_complete(CID)
         
 
-    def on_message(self, sim, event):
+    def on_message(self, event):
         if event.sub_tag == 'start':
-            self.callback(sim, event)
+            self.callback(event)
         
 
 class ClientSelectPage(Page):
@@ -37,7 +36,7 @@ class ClientSelectPage(Page):
         self.widget_list =  "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
         self.player_count = 0
 
-    def present(self, sim, event):
+    def present(self, event):
         CID = event.client_id
 
         players = SpaceObject.get_role_objects("__PLAYER__")
@@ -68,7 +67,7 @@ class ClientSelectPage(Page):
             
         
 
-    def on_message(self, sim, event):
+    def on_message(self, event):
 
         match event.sub_tag:
             case "Helm":
@@ -103,7 +102,7 @@ class ClientSelectPage(Page):
                 sbs.send_gui_clear(event.client_id)
                 sbs.send_client_widget_list(event.client_id, self.console_name, self.widget_list)
                 self.state = "main"
-                self.present(sim, event)
+                self.present(event)
                 sbs.assign_client_to_ship(event.client_id, self.player_id)
                 sbs.send_gui_complete(event.client_id)
                 return
@@ -111,15 +110,15 @@ class ClientSelectPage(Page):
                 self.player_id = int(event.sub_tag)
 
         self.state = "choose"
-        self.present(sim, event)
+        self.present(event)
 
-    def on_event(self, sim, event):
+    def on_event(self, event):
         if event.tag == "client_change":
             if event.sub_tag == "change_console":
                 self.state = "choose"
-                self.present(sim, event)
+                self.present(event)
         elif event.tag == "x_sim_resume":
             self.state = "choose"
-            self.present(sim, event)
+            self.present(event)
 
 

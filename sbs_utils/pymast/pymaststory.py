@@ -15,6 +15,7 @@ from .pymastcomms import PyMastComms
 from .pymasttask import PyMastTask, DataHolder
 from .pymastscheduler import PyMastScheduler
 from .pymaststorypage import CodePusher
+from ..helpers import FrameContext
 import logging
 from io import StringIO
 from ..engineobject import EngineObject, get_story_id
@@ -33,16 +34,14 @@ class PyMastStory(EngineObject):
         self.add()
 
 
-    def enable(self, ctx, delay=0, count=None):
+    def enable(self, delay=0, count=None):
         if self.tick_task is None:
-            self.tick_task = TickDispatcher.do_interval(ctx, self, delay, count)
+            self.tick_task = TickDispatcher.do_interval(self, delay, count)
 
-    def add_scheduler(self, ctx, label):
-        self.enable(ctx)
+    def add_scheduler(self, label):
+        self.enable()
         sched = PyMastScheduler(self, label)
         self.schedulers.append(sched)
-        # if ctx:
-        #     sched.tick(ctx)
         return sched
 
 
@@ -73,12 +72,10 @@ class PyMastStory(EngineObject):
     def is_running(self):
         return len(self.schedulers)!=0
 
-    def __call__(self, ctx, sched=None):
-        self.sim = ctx.sim
-        self.ctx = ctx
+    def __call__(self, sched=None):
         for sched in self.schedulers:
             self.scheduler = sched
-            sched.tick(ctx)
+            sched.tick()
             if len(sched.tasks) == 0:
                 self.remove_scheduler.add(sched)
         for finished in self.remove_scheduler:
@@ -86,8 +83,6 @@ class PyMastStory(EngineObject):
         self.remove_scheduler.clear()
         if len(self.schedulers)==0:
             self.disable()
-        self.sim = None
-        self.ctx = None
 
 
     def END(self):
@@ -120,7 +115,7 @@ class PyMastStory(EngineObject):
         
 
         story = self
-        def handle_dispatch(ctx, an_id, event):
+        def handle_dispatch(an_id, event):
             console = "comms_target_UID"
             if query.has_link_to(event.origin_id, f"__route{console}", event.selected_id):
                 return
@@ -136,7 +131,7 @@ class PyMastStory(EngineObject):
             #
             # Kick the tick
             #
-            task.tick(ctx)
+            task.tick()
             if not task.done:
                 query.link(event.origin_id, f"__route{console}", event.selected_id)
             #
@@ -150,7 +145,7 @@ class PyMastStory(EngineObject):
         define a label to use with a new task if the comms is not handled
         """
         story = self
-        def handle_dispatch(sim, an_id, event):
+        def handle_dispatch(an_id, event):
             console = "grid_selected_UID"
             if query.has_link_to(event.origin_id, f"__route{console}", event.selected_id):
                 return
@@ -164,7 +159,7 @@ class PyMastStory(EngineObject):
             #
             # Kick the tick
             #
-            task.tick(sim)
+            task.tick()
             #
             #
             if not task.done:
@@ -179,7 +174,7 @@ class PyMastStory(EngineObject):
         define a label to use with a new task if the comms is not handled
         """
         story = self
-        def handle_dispatch(sim, an_id, event):
+        def handle_dispatch(an_id, event):
             console = "science_target_UID"
             if query.has_link_to(event.origin_id, f"__route{console}", event.selected_id):
                 return
@@ -193,7 +188,7 @@ class PyMastStory(EngineObject):
             #
             # Kick the tick
             #
-            task.tick(sim)
+            task.tick()
             #
             #
             if not task.done:
@@ -207,7 +202,7 @@ class PyMastStory(EngineObject):
         define a label to use with a new task if the comms is not handled
         """
         story = self
-        def handle_dispatch(sim, an_id, event):
+        def handle_dispatch( an_id, event):
             console = "weapon_target_UID"
             if query.has_link_to(event.origin_id, f"__route{console}", event.selected_id):
                 return
@@ -221,7 +216,7 @@ class PyMastStory(EngineObject):
             #
             # Kick the tick
             #
-            task.tick(sim)
+            task.tick()
             #
             #
             if not task.done:
@@ -236,7 +231,7 @@ class PyMastStory(EngineObject):
         define a label to use with a new task items are spawned
         """
         story = self
-        def handle_dispatch(ctx, so):
+        def handle_dispatch(so):
             # I it reaches this, there are no pending comms handler
             # Create a new task and jump to the routing label
             task = story.schedule_task(label)
@@ -246,7 +241,7 @@ class PyMastStory(EngineObject):
             #
             # Kick the tick
             #
-            task.tick(ctx)
+            task.tick()
             #
             #
         LifetimeDispatcher.add_spawn(handle_dispatch)
@@ -258,7 +253,7 @@ class PyMastStory(EngineObject):
         define a label to use with a new task items are spawned
         """
         story = self
-        def handle_dispatch(ctx, so):
+        def handle_dispatch(so):
             # I it reaches this, there are no pending comms handler
             # Create a new task and jump to the routing label
             task = story.schedule_task(label)
@@ -268,7 +263,7 @@ class PyMastStory(EngineObject):
             #
             # Kick the tick
             #
-            task.tick(ctx)
+            task.tick()
             #
             #
         LifetimeDispatcher.add_spawn_grid(handle_dispatch)
@@ -281,7 +276,7 @@ class PyMastStory(EngineObject):
         """
         story = self
         
-        def handle_damage(ctx, event):
+        def handle_damage( event):
             # Need point? amount
             task = story.schedule_task(label)
             task.DAMAGE_SOURCE_ID = event.origin_id
@@ -294,7 +289,7 @@ class PyMastStory(EngineObject):
             #
             # Kick the tick
             #
-            task.tick(ctx)
+            task.tick()
             #
             #
         DamageDispatcher.add_source(handle_damage)
@@ -308,7 +303,7 @@ class PyMastStory(EngineObject):
         """
         story = self
         
-        def handle_damage(ctx, event):
+        def handle_damage(event):
             # Need point? amount
             task = story.schedule_task(label)
             task.DAMAGE_SOURCE_ID = event.origin_id
@@ -321,7 +316,7 @@ class PyMastStory(EngineObject):
             #
             # Kick the tick
             #
-            task.tick(ctx)
+            task.tick()
             #
             #
         DamageDispatcher.add_target(handle_damage)
@@ -334,7 +329,7 @@ class PyMastStory(EngineObject):
         """
         story = self
         
-        def handle_damage(ctx, event):
+        def handle_damage(event):
             # Need point? amount
             task = story.schedule_task(label)
             task.DAMAGE_SOURCE_ID = event.origin_id
@@ -347,7 +342,7 @@ class PyMastStory(EngineObject):
             #
             # Kick the tick
             #
-            task.tick(ctx)
+            task.tick()
             #
             #
         DamageDispatcher.add_any_internal(handle_damage)
@@ -360,7 +355,7 @@ class PyMastStory(EngineObject):
         """
         story = self
         
-        def handle_destroyed(ctx, so):
+        def handle_destroyed(so):
             # Need point? amount
             task = story.schedule_task(label)
             task.DESTROYED_ID = so.id
@@ -369,7 +364,7 @@ class PyMastStory(EngineObject):
             #
             # Kick the tick
             #
-            task.tick(ctx)
+            task.tick()
             #
             #
         LifetimeDispatcher.add_destroy(handle_destroyed)

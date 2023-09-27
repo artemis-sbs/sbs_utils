@@ -59,38 +59,38 @@ class DamageDispatcher:
         DamageDispatcher._dispatch_any_heat.discard(cb)
 
 
-    def dispatch_internal(ctx, damage_event):
+    def dispatch_internal(damage_event):
         internal = DamageDispatcher._dispatch_internal.get(damage_event.origin_id)
         if  internal is not None:
-            internal(ctx, damage_event)
+            internal(damage_event)
 
         for func in DamageDispatcher._dispatch_any_internal:
-            func(ctx, damage_event)
+            func(damage_event)
 
-    def dispatch_heat(ctx, damage_event):
+    def dispatch_heat(damage_event):
         heat_damage = DamageDispatcher._dispatch_heat.get(damage_event.origin_id)
         if  heat_damage is not None:
-            heat_damage(ctx, damage_event)
+            heat_damage(damage_event)
 
         for func in DamageDispatcher._dispatch_any_heat:
-            func(ctx, damage_event)
+            func(damage_event)
 
 
-    def dispatch_damage(ctx, damage_event):
+    def dispatch_damage(damage_event):
         parent = DamageDispatcher._dispatch_source.get(damage_event.parent_id)
         source = DamageDispatcher._dispatch_source.get(damage_event.origin_id)
         target = DamageDispatcher._dispatch_target.get(damage_event.selected_id)
 
         for func in DamageDispatcher._dispatch_any:
-            func(ctx, damage_event)
+            func(damage_event)
             
 
         if parent is not None:
-            parent(ctx, damage_event)
+            parent(damage_event)
         if source is not None:
-            source(ctx, damage_event)
+            source(damage_event)
         if target is not None:
-            target(ctx, damage_event)
+            target(damage_event)
         
 
 class CollisionDispatcher:
@@ -133,28 +133,28 @@ class CollisionDispatcher:
     def remove_any_internal(cb: typing.Callable):
         CollisionDispatcher._dispatch_any_internal.discard(cb)
 
-    def dispatch_internal(ctx, collision_event):
+    def dispatch_internal(collision_event):
         internal = CollisionDispatcher._dispatch_internal.get(collision_event.origin_id)
         if  internal is not None:
-            internal(ctx, collision_event)
+            internal(collision_event)
 
         for func in CollisionDispatcher._dispatch_any_internal:
-            func(ctx, collision_event)
+            func(collision_event)
 
-    def dispatch_collision(ctx, collision_event):
+    def dispatch_collision(collision_event):
         parent = CollisionDispatcher._dispatch_source.get(collision_event.parent_id)
         source = CollisionDispatcher._dispatch_source.get(collision_event.origin_id)
         target = CollisionDispatcher._dispatch_target.get(collision_event.selected_id)
 
         for func in CollisionDispatcher._dispatch_any:
-            func(ctx, collision_event)
+            func(collision_event)
             
 
         if parent is not None:
-            parent(ctx, collision_event)
+            parent(collision_event)
         if source is not None:
-            source(ctx, collision_event)
+            source(collision_event)
         if target is not None:
-            target(ctx, collision_event)
+            target(collision_event)
         
 
