@@ -825,3 +825,10 @@ def get_counter_elapsed_seconds(id_or_obj, name):
 def clear_counter(id_or_obj, name):
     set_inventory_value(id_or_obj, f"__counter__{name}", None)
 
+
+def get_race(id_or_obj):
+    races = ["kralien", "arvonian", "torgoth", "skaraan", "ximni"]
+    for test in races:
+        if has_role(id_or_obj, test):
+            return test
+    return None

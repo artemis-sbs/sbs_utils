@@ -1,15 +1,42 @@
-from sbs_utils.scatter import box
-from sbs_utils.scattervec import box as boxv
-from sbs_utils.vec import Vec3
+from typing import Any
 
-for v in box(10,0,0,0, 5000,5000,5000, True):
-    print(f"{v.x}, {v.y}, {v.z}")
 
-v1 = Vec3(0,0,0)
-v2 = Vec3(5000,5000,5000)
-r = Vec3(45,45,45)
-for v in boxv(10, v1, v2, True):
-    print(f"{v.x}, {v.y}, {v.z}")
+class fake:
+    def __init__(self) -> None:
+        pass
 
-for v in boxv(5, v1, v2, True, r):
-    print(f"{v.x}, {v.y}, {v.z}")
+    def get(self, name, index):
+        return self.__dict__[name]
+
+
+class BlobIndex:
+    def __getattribute__(self, __name: str) -> Any:
+        return self.__dict__[__name]
+
+    def __setattr__(self, __name: str, __value: Any) -> None:
+        pass
+
+    def __getitem__(self, key):
+        return BlobIndex(self, key)
+
+
+class Blob:
+
+    def __getattribute__(self, __name: str) -> Any:
+        return self.__dict__[__name]
+
+    def __setattr__(self, __name: str, __value: Any) -> None:
+        pass
+
+    def __getitem__(self, key):
+        return 3
+    
+    def __class_getitem__(self, key):
+        return 4
+
+
+blob = Blob
+blob.fred = 1
+
+print(blob.fred)
+print(blob[1])
