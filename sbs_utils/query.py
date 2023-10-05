@@ -17,6 +17,43 @@ def role(role: str):
     """
     return EngineObject.get_role_set(role)
 
+def any_role(roles: str):
+    """ role
+
+        returns a set of all the engine objects with a given role.
+
+        :param role: the role
+        :type role: str
+        
+        :rtype: set of ids 
+    """
+    roles = roles.split(",")
+    if len(roles)==0:
+        return set()
+    ret = role(roles[0])
+    for r in roles[1:]:
+        ret = ret | role(r)
+    return ret
+
+def all_roles(roles: str):
+    """ role
+
+        returns a set of all the engine objects with a given role.
+
+        :param role: the role
+        :type role: str
+        
+        :rtype: set of ids 
+    """
+    roles = roles.split(",")
+    if len(roles)==0:
+        return set()
+    ret = role(roles[0])
+    for r in roles[1:]:
+        ret = ret & role(r)
+    return ret
+
+
 def has_inventory(key: str):
     """ has_inventory
 
