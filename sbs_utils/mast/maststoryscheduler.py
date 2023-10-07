@@ -979,19 +979,19 @@ class StoryScheduler(MastSbsScheduler):
         self.page = page
         self.client_id = client_id
         inputs = inputs if inputs else {}
-        self.vars['sim'] = ctx.sim
-        self.vars['client_id'] = client_id
-        self.vars['IS_SERVER'] = client_id==0
-        self.vars['IS_CLIENT'] = client_id!=0
-        self.vars['STORY_PAGE'] = page
+        self.set_inventory_value('sim', ctx.sim)
+        self.set_inventory_value('client_id', client_id)
+        self.set_inventory_value('IS_SERVER', client_id==0)
+        self.set_inventory_value('IS_CLIENT', client_id!=0)
+        self.set_inventory_value('STORY_PAGE', page)
         return super().start_task( label, inputs)
 
     def story_tick_tasks(self, client_id):
         ctx = FrameContext.context
         self.sim = ctx.sim
         self.ctx = ctx
-        self.vars['sim'] = ctx.sim
-        self.vars['ctx'] = ctx
+        self.set_inventory_value('sim', ctx.sim)
+        self.set_inventory_value('ctx', ctx)
         self.client_id = client_id
         return super().sbs_tick_tasks(ctx)
 

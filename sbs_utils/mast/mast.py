@@ -26,7 +26,9 @@ import sys
 #       (\s+if(?P<if>.+))?
 #
 LIST_REGEX = r"""(\[[\s\S]+?\])"""
+
 DICT_REGEX = r"""(\{[\s\S]+?\})"""
+OPT_ARGS_REGEX = r"""(?P<args>([ \t]*\{[^\n\r\f]+\}))?"""
 PY_EXP_REGEX = r"""((?P<py>~~)[\s\S]*?(?P=py))"""
 STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[ \t\S]*(?P=quote))"""
 
@@ -328,20 +330,24 @@ class Assign(MastNode):
 
 
 class Jump(MastNode):
-    rule = re.compile(r"""(((?P<jump>jump|->|push|->>|popjump|<<->|poppush|<<->>)[ \t]*(?P<jump_name>\w+))|(?P<pop>pop|<<-))"""+IF_EXP_REGEX)
+    rule = re.compile(r"""(((?P<jump>jump|->|push|->>|popjump|<<->|poppush|<<->>)[ \t]*(?P<jump_name>\w+))|(?P<pop>pop|<<-))"""+OPT_ARGS_REGEX+IF_EXP_REGEX)
 
-    def __init__(self, pop=None, jump=None, jump_name=None, if_exp=None, loc=None):
+    def __init__(self, pop=None, jump=None, jump_name=None, if_exp=None, args=None, loc=None):
         self.loc = loc
         self.label = jump_name
         self.push = jump == 'push' or jump == "->>"
         self.pop = pop is not None
         self.pop_jump = jump == 'popjump'or jump == "<<->"
         self.pop_push = jump == 'poppush'or jump == "<<->>"
+        self.args = args
         if if_exp:
             if_exp = if_exp.lstrip()
             self.if_code = compile(if_exp, "<string>", "eval")
         else:
             self.if_code = None
+        if args is not None:
+            args = args.lstrip()
+            self.args = compile(args, "<string>", "eval")
 
 
 class Parallel(MastNode):

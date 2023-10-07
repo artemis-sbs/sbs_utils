@@ -606,7 +606,7 @@ class ScanRuntimeNode(MastRuntimeNode):
             if self.button is not None:
                 button = self.buttons[self.button] 
                 self.button = None
-                task.set_value(button.for_name, button.data, Scope.TEMP)
+                #task.set_value(button.for_name, button.data, Scope.TEMP)
                 task.set_value("EVENT", self.event, Scope.TEMP)
                 task.jump(task.active_label,button.loc+1)
             return PollResults.OK_JUMP
@@ -954,35 +954,7 @@ class MastSbsScheduler(MastScheduler):
         else:
             super().__init__(mast,  over)
         self.sim = None
-        # Create schedulable space objects
-        self.vars["npc_spawn"] = self.npc_spawn
-        self.vars["terrain_spawn"] = self.terrain_spawn
-        self.vars["player_spawn"] = self.player_spawn
-        self.vars["grid_spawn"] = self.grid_spawn
-
-
-    def Npc(self):
-        return Npc(self)
-    def PlayerShip(self):
-        return PlayerShip(self)
-    def Terrain(self):
-        return Terrain(self)
     
-    def npc_spawn(self, x,y,z,name, side, art_id, behave_id):
-        so = Npc(self)
-        return so.spawn(x,y,z,name, side, art_id, behave_id)
-        
-    def player_spawn(self, x,y,z,name, side, art_id):
-        so = PlayerShip(self)
-        return so.spawn(x,y,z,name, side, art_id)
-    def terrain_spawn(self, x,y,z,name, side, art_id, behave_id):
-        so = Terrain(self)
-        return so.spawn(x,y,z,name, side, art_id, behave_id)
-    
-    def grid_spawn(self, id, name, tag, x,y, icon, color, roles):
-        so = GridObject(self)
-        
-        return so.spawn(id, name, tag, x,y, icon, color, roles)
 
     def run(self, ctx, label="main", inputs=None):
         self.sim = ctx.sim

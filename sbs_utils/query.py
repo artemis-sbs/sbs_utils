@@ -2,6 +2,8 @@ import functools
 from random import randrange, choice, choices
 from .engineobject import EngineObject, CloseData, SpawnData
 from .helpers import FrameContext
+from .objects import Terrain, PlayerShip, Npc
+from .gridobject import GridObject
 import sbs
 ###################
 # Set functions
@@ -869,3 +871,20 @@ def get_race(id_or_obj):
         if has_role(id_or_obj, test):
             return test
     return None
+
+def npc_spawn(x,y,z,name, side, art_id, behave_id):
+    so = Npc()
+    return so.spawn(x,y,z,name, side, art_id, behave_id)
+    
+def player_spawn(x,y,z,name, side, art_id):
+    so = PlayerShip()
+    return so.spawn(x,y,z,name, side, art_id)
+
+def terrain_spawn(x,y,z,name, side, art_id, behave_id):
+    so = Terrain()
+    return so.spawn(x,y,z,name, side, art_id, behave_id)
+
+def grid_spawn(id, name, tag, x,y, icon, color, roles):
+    so = GridObject()
+    
+    return so.spawn(id, name, tag, x,y, icon, color, roles)

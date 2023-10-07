@@ -139,7 +139,7 @@ class AssignRuntimeNode(MastRuntimeNode):
 class PyCodeRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task:MastAsyncTask, node:PyCode):
         def export(cls):
-            add_to = task.main.vars
+            add_to = task.main.inventory.collections
             def decorator(*args, **kwargs):
                 # if 'task' in inspect.signature(cls).parameters:
                 #     kwargs['task'] = task
@@ -150,28 +150,36 @@ class PyCodeRuntimeNode(MastRuntimeNode):
 
         def export_var(name, value, shared=False):
             if shared:
-                task.main.mast.vars[name] = value
+                #
+                #task.main.mast.vars[name] = value
+                task.mast.set_inventory_value(name, value, None)
             else:
-                task.main.vars[name] = value
+                # task.main.vars[name] = value
+                task.main.set_inventory_value(name, value, None)
+                
 
 
-        glbls = {}
-        glbls["npc_spawn"] = task.main.vars.get("npc_spawn")
-        glbls["terrain_spawn"] = task.main.vars.get("terrain_spawn")
-        glbls["player_spawn"] = task.main.vars.get("player_spawn")
-        glbls["grid_spawn"] = task.main.vars.get("grid_spawn")
+        # glbls = {}
+        # #glbls["npc_spawn"] = task.main.vars.get("npc_spawn")
+        # #glbls["terrain_spawn"] = task.main.vars.get("terrain_spawn")
+        # #glbls["player_spawn"] = task.main.vars.get("player_spawn")
+        # #glbls["grid_spawn"] = task.main.vars.get("grid_spawn")
+        # glbls["npc_spawn"] = task.main.get_inventory_value("npc_spawn")
+        # glbls["terrain_spawn"] = task.main.get_inventory_value("terrain_spawn")
+        # glbls["player_spawn"] = task.main.get_inventory_value("player_spawn")
+        # glbls["grid_spawn"] = task.main.get_inventory_value("grid_spawn")
 
 
-        task.exec_code(node.code,{"export": export, "export_var": export_var}, glbls )
+        task.exec_code(node.code,{"export": export, "export_var": export_var} )
         return PollResults.OK_ADVANCE_TRUE
 
 class DoCommandRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task:MastAsyncTask, node:DoCommand):
         glbls = {}
-        glbls["npc_spawn"] = task.main.vars.get("npc_spawn")
-        glbls["terrain_spawn"] = task.main.vars.get("terrain_spawn")
-        glbls["player_spawn"] = task.main.vars.get("player_spawn")
-        glbls["grid_spawn"] = task.main.vars.get("grid_spawn")
+        # glbls["npc_spawn"] = task.main.get_inventory_value("npc_spawn")
+        # glbls["terrain_spawn"] = task.main.get_inventory_value("terrain_spawn")
+        # glbls["player_spawn"] = task.main.get_inventory_value("player_spawn")
+        # glbls["grid_spawn"] = task.main.get_inventory_value("grid_spawn")
 
         task.exec_code(node.code, None, glbls)
         return PollResults.OK_ADVANCE_TRUE
@@ -184,7 +192,10 @@ class JumpRuntimeNode(MastRuntimeNode):
                 return PollResults.OK_ADVANCE_TRUE
             
         if node.push:
-            task.push_label(node.label)
+            args = node.args
+            if node.args is not None:
+                args = task.eval_code(node.args)
+            task.push_label(node.label, data=args)
         elif node.pop_jump:
             task.pop_label(True,True)
             task.jump(node.label)
@@ -361,8 +372,10 @@ class MatchStatementsRuntimeNode(MastRuntimeNode):
 
 
 class ParallelRuntimeNode(MastRuntimeNode):
-    def enter(self, mast, task, node:Parallel):
-        vars = {} | task.vars if node.labels is not None else None
+    def enter(self, mast, task: MastAsyncTask, node:Parallel):
+        #vars = {} | task.vars if node.labels is not None else None
+        vars = {} | task.inventory.collections
+        
         if node.code:
             inputs = task.eval_code(node.code)
             vars = vars | inputs
@@ -393,8 +406,8 @@ class ParallelRuntimeNode(MastRuntimeNode):
         return PollResults.OK_ADVANCE_TRUE
     
 class BehaviorRuntimeNode(MastRuntimeNode):
-    def enter(self, mast, task, node:Behavior):
-        vars = {} | task.vars if node.labels is not None else None
+    def enter(self, mast, task: MastAsyncTask, node:Behavior):
+        vars = {} | task.inventory.collections if node.labels is not None else None
         if node.code:
             inputs = task.eval_code(node.code)
             vars = vars | inputs
@@ -561,27 +574,32 @@ class MastAsyncTask(EngineObject):
     
     def __init__(self, main: 'MastScheduler', inputs=None, conditional= None):
         super().__init__()
+        self.id = get_task_id()
         self.done = False
         self.runtime_node = None
         self.main= main
-        self.vars= inputs if inputs else {}
+        #self.vars= inputs if inputs else {}
+        if inputs:
+            self.inventory.collections = dict(self.inventory.collections, **inputs)
+            #self.inventory.collections |= inputs
         self.result = None
         self.label_stack = []
         self.active_label = None
         self.events = {}
-        self.vars["mast_task"] = self
+        #self.vars["mast_task"] = self
+        self.set_inventory_value("main_task", self)
         #self.redirect = None
         self.pop_on_jump = 0
         self.pending_pop = None
         self.pending_jump = None
         self.pending_push = None
-        self.id = get_task_id()
         self.add()
     
     def push_label(self, label, activate_cmd=0, data=None):
         #print("PUSH")
         if self.active_label:
             self.pending_push = PushData(self.active_label, self.active_cmd, data)
+            self.label_stack.append(self.pending_push)
         self.jump(label, activate_cmd)
 
     def push_inline_block(self, label, activate_cmd=0, data=None):
@@ -712,12 +730,12 @@ class MastAsyncTask(EngineObject):
     def get_symbols(self):
         # m1 = self.main.mast.vars | self.main.vars
         mast_inv = self.main.mast.inventory.collections
-        m1 = mast_inv | self.main.vars
-        m1 =  self.vars | m1
+        m1 = mast_inv | self.main.inventory.collections
+        m1 =   m1 | self.inventory.collections 
         for st in self.label_stack:
             data = st.data
             if data is not None:
-                m1 =  data | m1
+                m1 =   m1 | data
         # if self.redirect and self.redirect.data:
         #     m1 = self.redirect.data | m1
         return m1
@@ -727,9 +745,11 @@ class MastAsyncTask(EngineObject):
             # self.main.mast.vars[key] = value
             self.main.mast.set_inventory_value(key, value)
         elif scope == Scope.TEMP:
-            self.vars[key] = value
+            self.set_inventory_value(key, value)
+            #self.vars[key] = value
         else:
-            self.vars[key] = value
+            self.set_inventory_value(key, value)
+            #self.vars[key] = value
 
     def set_value_keep_scope(self, key, value):
         scoped_val = self.get_value(key, value)
@@ -750,7 +770,8 @@ class MastAsyncTask(EngineObject):
             val = data.get(key, None)
             if val is not None:
                 return (val, Scope.TEMP)
-        val = self.vars.get(key, None)
+        val = self.get_inventory_value(key, None)
+        #val = self.vars.get(key, None)
         if val is not None:
             return (val, Scope.NORMAL)
         return self.main.get_value(key, defa)
@@ -768,7 +789,7 @@ class MastAsyncTask(EngineObject):
                 val = data.get(key, None)
                 if val is not None:
                     return val
-        val = self.vars.get(key, None)
+        val = self.get_inventory_value(key, None)
         return val
         
 
@@ -824,7 +845,7 @@ class MastAsyncTask(EngineObject):
         
 
     def start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:
-        inputs= self.vars|inputs if inputs else self.vars
+        inputs= self.inventory.collections|inputs if inputs else self.inventory.collections
         return self.main.start_task(label, inputs, task_name)
     
     def tick(self):
@@ -850,9 +871,9 @@ class MastAsyncTask(EngineObject):
                         self.do_resume(*pop_data)
                     else:    
                         self.do_jump(pop_data[0], pop_data[1])
-                if self.pending_push:
-                    self.label_stack.append(self.pending_push)
-                    self.pending_push = None
+#                if self.pending_push:
+#                    self.label_stack.append(self.pending_push)
+#                    self.pending_push = None
 
                 count += 1
                 # avoid tight loops
@@ -959,9 +980,16 @@ class MastAsyncTask(EngineObject):
             task.done = True
         MastAsyncTask.dependent_tasks.pop(id, None)
 
+class MastBehaveTask(EngineObject):
+    def __init__(self):
+        super().__init__()
+        self.id = get_task_id()
+        self.add()
 
-class MastAllTask:
+
+class MastAllTask(MastBehaveTask):
     def __init__(self, main) -> None:
+        super().__init__()
         self.tasks = []
         self.main= main
         self.conditional = None
@@ -988,8 +1016,9 @@ class MastAllTask:
             t.run_event(event_name, event)
             
         
-class MastAnyTask:
+class MastAnyTask(MastBehaveTask):
     def __init__(self, main) -> None:
+        super().__init__()
         self.tasks = []
         self.main= main
         self.conditional = None
@@ -1014,8 +1043,9 @@ class MastAnyTask:
         for t in list(self.tasks):
             t.run_event(event_name, event)
 
-class MastSequenceTask:
+class MastSequenceTask(MastBehaveTask):
     def __init__(self, main, labels, conditional) -> None:
+        super().__init__()
         self.task = None
         self.main= main
         self.labels = labels
@@ -1060,8 +1090,9 @@ class MastSequenceTask:
     def run_event(self, event_name, event):
         self.task.run_event(event_name, event)
 
-class MastFallbackTask:
+class MastFallbackTask(MastBehaveTask):
     def __init__(self, main,  labels, conditional) -> None:
+        super().__init__()
         self.task = None
         self.main= main
         self.labels = labels
@@ -1111,7 +1142,7 @@ class MastFallbackTask:
 
 
 
-class MastScheduler:
+class MastScheduler(EngineObject):
     runtime_nodes = {
         "End": EndRuntimeNode,
         "ReturnIf": ReturnIfRuntimeNode,
@@ -1141,6 +1172,10 @@ class MastScheduler:
     }
 
     def __init__(self, mast: Mast, overrides=None):
+        super().__init__()
+        # Schedulers use task Id
+        self.id = get_task_id()
+        self.add()
         if overrides is None:
             overrides = {}
         self.nodes = MastScheduler.runtime_nodes | overrides
@@ -1148,7 +1183,8 @@ class MastScheduler:
         self.tasks = []
         self.name_tasks = {}
         self.inputs = None
-        self.vars = {"mast_scheduler": self}
+        #self.vars = {"mast_scheduler": self}
+        self.set_inventory_value("mast_scheduler", self)
         self.done = []
         self.mast.add_scheduler(self)
         self.test_clock = 0
@@ -1274,7 +1310,8 @@ class MastScheduler:
         val = self.mast.get_inventory_value(key, None)
         if val is not None:
             return (val, Scope.SHARED)
-        val = self.vars.get(key, defa)
+        #val = self.vars.get(key, defa)
+        val = self.get_inventory_value(key, None)
         return (val, Scope.NORMAL)
 
     def get_variable(self, key):

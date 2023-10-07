@@ -7,7 +7,7 @@ import sys
 from sbs_utils.pymast.pymaststory import PyMastStory
 from sbs_utils.pymast.pollresults import PollResults
 
-from sbs_utils.helpers import FrameContext
+from sbs_utils.helpers import FrameContext, Context
 from io import StringIO
 import logging
 
@@ -63,7 +63,7 @@ class TestPymast(unittest.TestCase):
                     yield self.jump(self.two)
                 yield self.pop()
 
-        FrameContext.context  = Context(FakeSim(), sbs, None)
+        FrameContext.context  = Context(FakeSim(), sbs)
         story = ExampleStory()
         story.enable()
         story.add_scheduler(story.start)
@@ -118,7 +118,7 @@ end
                 yield self.delay(5)
                 yield PollResults.OK_END
 
-        FrameContext.context = Context(FakeSim(), sbs, None)
+        FrameContext.context = Context(FakeSim(), sbs)
         story = ExampleStory()
         story.enable()
         story.add_scheduler(story.start)
@@ -163,7 +163,7 @@ After
                 yield PollResults.FAIL_END
 
 
-        FrameContext.context = Context(FakeSim(), sbs, None)
+        FrameContext.context = Context(FakeSim(), sbs)
         story = ExampleStory()
         story.enable()
         story.add_scheduler(story.start)
@@ -201,7 +201,7 @@ After
                 logging.info(f"nope")
 
 
-        FrameContext.context  = Context(FakeSim(), sbs, None)
+        FrameContext.context  = Context(FakeSim(), sbs)
         story = ExampleStory()
         story.enable()
         story.add_scheduler(story.start)
@@ -264,7 +264,7 @@ After
                 self.have_apple = True
                 
 
-        FrameContext.context  = Context(FakeSim(), sbs, None)
+        FrameContext.context  = Context(FakeSim(), sbs)
         story = ExampleStory()
         story.enable()
         story.add_scheduler(story.start)

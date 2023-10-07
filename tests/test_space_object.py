@@ -391,19 +391,24 @@ class TestSpaceObject(unittest.TestCase):
 
         collections = artemis.get_inventory_in(mccoy)
         assert(len(collections)==2)
-        # role, links, etc. are all lower now
-        assert("passengers" in collections)
-        assert("doctor" in collections)
+        # role, links are all lower now
+        # but inventory is not
+        assert("Passengers" in collections)
+        assert("Doctor" in collections)
+        assert("passengers" not in collections)
+        assert("doctor" not in collections)
 
         artemis.remove_inventory("Passengers", mccoy)
         collections = artemis.get_inventory_in(mccoy)
         assert(len(collections)==1)
-        assert("doctor" in collections)
+        assert("Doctor" in collections)
 
 
         collections = artemis.get_inventory_in(spock)
         assert(len(collections)==1)
-        assert("passengers" in collections)
+        # Inventory is case sensitive
+        assert("Passengers" in collections)
+        
 
         passengers = artemis.get_inventory_set("Passengers")
         assert(len(passengers)==2)
