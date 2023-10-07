@@ -146,52 +146,6 @@ class Section(MastNode):
         elif style_name is not None:
             self.style_name = style_name
 
-# class Clickable(MastNode):
-#     rule = re.compile(r"((section"+STYLE_REF_RULE+r"""[ \t]*clickable[ \t]*(?P<q>['"]{3}|["'])(?P<message>.*?)(?P=q)([ \t]*data[ \t]*=[ \t]*(?P<data>"""+PY_EXP_REGEX+r"""))?)[ \t]*"""+BLOCK_START+r")|(?P<end>end_clickable)")
-#     stack = []
-#     def __init__(self, message, q, data=None, py=None, end=None, style_name=None, style=None, style_q=None, loc=None):
-#         #self.message = message
-#         self.loc = loc
-#         if message: #Message is none for end
-#             self.message = self.compile_formatted_string(message)
-#         self.end_node = None
-#         self.is_end = False
-        
-#         if data:
-#             data = data.lstrip()
-#             if py:
-#                 data = data[2:-2]
-#                 data= data.strip()
-#             self.data_code = compile(data, "<string>", "eval")
-#         else:
-#             self.data_code = None
-
-#         if end is not None:
-#             Clickable.stack[-1].end_node = self
-#             self.is_end = True
-#             Clickable.stack.pop()
-#         else:
-#             Clickable.stack.append(self)
-
-        
-#         self.style_def = None
-#         self.style_name = None
-#         if style is not None:
-#             self.style_def = StyleDefinition.parse(style)
-#         elif style_name is not None:
-#             self.style_name = style_name
-        
-#     @classmethod
-#     def dd_parse(cls, lines):
-#         mo = cls.rule.match(lines)
-
-#         if mo:
-#             span = mo.span()
-#             data = mo.groupdict()
-#             found = lines[span[0]:span[1]]
-#             return Mast.ParseData(span[0], span[1], data)
-#         else:
-#             return None
 
 class Style(MastNode):
     rule = re.compile(r"""style[ \t]+(?P<name>\.?\w+)[ \t]*=[ \t]*(?P<q>['"]{3}|["'])(?P<style>.*?)(?P=q)""")

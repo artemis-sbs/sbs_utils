@@ -159,15 +159,6 @@ class PyCodeRuntimeNode(MastRuntimeNode):
                 
 
 
-        # glbls = {}
-        # #glbls["npc_spawn"] = task.main.vars.get("npc_spawn")
-        # #glbls["terrain_spawn"] = task.main.vars.get("terrain_spawn")
-        # #glbls["player_spawn"] = task.main.vars.get("player_spawn")
-        # #glbls["grid_spawn"] = task.main.vars.get("grid_spawn")
-        # glbls["npc_spawn"] = task.main.get_inventory_value("npc_spawn")
-        # glbls["terrain_spawn"] = task.main.get_inventory_value("terrain_spawn")
-        # glbls["player_spawn"] = task.main.get_inventory_value("player_spawn")
-        # glbls["grid_spawn"] = task.main.get_inventory_value("grid_spawn")
 
 
         task.exec_code(node.code,{"export": export, "export_var": export_var} )
@@ -175,13 +166,7 @@ class PyCodeRuntimeNode(MastRuntimeNode):
 
 class DoCommandRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task:MastAsyncTask, node:DoCommand):
-        glbls = {}
-        # glbls["npc_spawn"] = task.main.get_inventory_value("npc_spawn")
-        # glbls["terrain_spawn"] = task.main.get_inventory_value("terrain_spawn")
-        # glbls["player_spawn"] = task.main.get_inventory_value("player_spawn")
-        # glbls["grid_spawn"] = task.main.get_inventory_value("grid_spawn")
-
-        task.exec_code(node.code, None, glbls)
+        task.exec_code(node.code, None, None)
         return PollResults.OK_ADVANCE_TRUE
 
 class JumpRuntimeNode(MastRuntimeNode):
@@ -483,10 +468,6 @@ class LoggerRuntimeNode(MastRuntimeNode):
         logger = logging.getLogger(node.logger)
         logging.basicConfig(level=logging.NOTSET)
         logger.setLevel(logging.NOTSET)
-        # handler  = logging.StreamHandler()
-        # handler.setFormatter(logging.Formatter("%(levelname)s|%(name)s|%(message)s"))
-        # handler.setLevel(logging.NOTSET)
-        # logger.addHandler(handler)
 
         if node.var is not None:
             streamer = StringIO()
@@ -518,19 +499,6 @@ class DelayRuntimeNode(MastRuntimeNode):
             return PollResults.OK_ADVANCE_TRUE
 
         return PollResults.OK_RUN_AGAIN
-
-# class EventRuntimeNode(MastRuntimeNode):
-#     def enter(self, mast, task:MastAsyncTask, node):
-#         if node.end is not None:
-#             task.add_event(node.event, node)
-
-#     def poll(self, mast, task:MastAsyncTask, node):
-#         if node.end is not None:
-#             task.jump(task.active_label,node.end.loc+1)
-#             return PollResults.OK_JUMP
-#         else:
-#             task.pop_label(False,False)
-#             return PollResults.OK_JUMP
 
 
 
@@ -617,28 +585,6 @@ class MastAsyncTask(EngineObject):
         #self.jump(label, activate_cmd)
 
 
-    # # For button Pushes, and maybe events
-    # # Like a push, but pop not needed if redirected logic jumps
-    # # the end_button, end_event will return back if it is reached
-    # def redirect_push_label(self, label, activate_cmd=0, return_loc=-1, data=None):
-    #     if self.active_label:
-    #         loc = return_loc if return_loc>=0 else self.active_cmd
-    #         push_data = PushData(self.active_label, loc, data)
-    #         self.redirect = push_data
-    #         #print(f"REDIRECT PUSH DATA {push_data.label} {push_data.active_cmd}")
-    #     self.jump(label, activate_cmd)
-
-    # def redirect_pop_label(self, inc_loc=True):
-    #     if self.redirect == None:
-    #         self.active_cmd+1
-    #         return
-    #     push_data = self.redirect
-    #     #print(f"redirect POP DATA {push_data.label} {push_data.active_cmd}")
-    #     self.redirect = None
-    #     if inc_loc:
-    #         self.jump(push_data.label, push_data.active_cmd+1)
-    #     else:
-    #         self.jump(push_data.label, push_data.active_cmd)
 
     def pop_label(self, inc_loc=True, true_pop=False):
         if len(self.label_stack)>0:
@@ -871,9 +817,6 @@ class MastAsyncTask(EngineObject):
                         self.do_resume(*pop_data)
                     else:    
                         self.do_jump(pop_data[0], pop_data[1])
-#                if self.pending_push:
-#                    self.label_stack.append(self.pending_push)
-#                    self.pending_push = None
 
                 count += 1
                 # avoid tight loops

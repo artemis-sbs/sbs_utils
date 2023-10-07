@@ -225,17 +225,6 @@ class TextRuntimeNode(StoryRuntimeNode):
     def databind(self):
         if True:
             return False
-        # value = True
-        # if self.node.code is not None:
-        #     value = self.task.eval_code(self.node.code)
-        # if value:
-        #     print("BEFORE")
-        #     msg = self.task.format_string(self.node.message)
-        #     print(f"DATABIND {msg} {self.layout_text.message}")
-        #     if self.layout_text.message !=msg:
-        #         self.layout_text.message = msg
-        #         return True
-        # return False
         
 
 class AppendTextRuntimeNode(StoryRuntimeNode):
@@ -292,47 +281,6 @@ class ButtonControlRuntimeNode(StoryRuntimeNode):
             self.task.jump(self.task.active_label, node.end_node.loc+1)
             return PollResults.OK_JUMP
 
-# class ClickableRuntimeNode(StoryRuntimeNode):
-#     def enter(self, mast:Mast, task:MastAsyncTask, node: Clickable):
-#         self.data = None
-#         self.node = node
-#         self.task = task
-#         self.client_id = task.main.page.client_id
-#         if node.is_end == False:
-#             self.tag = task.main.page.get_tag()
-#             msg = task.format_string(node.message)
-            
-
-#             task.main.page.add_section(self.tag, msg)
-#             # Add this so messages are passed
-#             task.main.page.add_tag_by_value(self.tag, self)
-
-#             self.apply_style_name(".clickable", task.main.page.get_pending_layout(), task)
-
-#             if node.data_code is not None:
-#                 self.data = task.eval_code(node.data_code)
-#                 #print(self.data)
-
-#             if node.style_def is not None:
-#                 self.apply_style_def(node.style_def, task.main.page.get_pending_layout(), task)
-#             if node.style_name is not None:
-#                 self.apply_style_name(node.style_name, task.main.page.get_pending_layout(), task)
-
-        
-#     def on_message(self, sim, event):
-#         if event.sub_tag == self.tag: # and event.client_id == self.client_id:
-#             #print(self.tag)
-#             #print(self.data)
-#             # Jump to the cmds after the button
-#             self.task.push_inline_block(self.task.active_label, self.node.loc+1, self.data)
-
-#     def poll(self, mast:Mast, task:MastAsyncTask, node: Clickable):
-#         if node.is_end:
-#             self.task.pop_label(False)
-#             return PollResults.OK_JUMP
-#         elif node.end_node:
-#             self.task.jump(self.task.active_label, node.end_node.loc+1)
-#             return PollResults.OK_JUMP
 
 
 class RowRuntimeNode(StoryRuntimeNode):
@@ -1129,11 +1077,6 @@ class StoryPage(Page):
         if hasattr(layout_item, 'tag'):
             self.pending_tag_map[layout_item.tag] = (layout_item, runtime_node)
 
-    # # This is only used by clickable section which is depricated
-    # def add_tag_by_value(self, tag, runtime_node):
-    #     if self.pending_tag_map is None:
-    #         self.pending_tag_map = {}
-    #     self.pending_tag_map[tag] = (None, runtime_node)
 
 
     def add_content(self, layout_item, runtime_node):
@@ -1372,28 +1315,9 @@ class StoryPage(Page):
             #print("event discon")
             self.disconnected = True
             self.tick_gui_task()
-        # elif event.tag == "screen_size":
-        #     sz = event.source_point
-        #     if sz is not None and sz.y != 0:
-        #         aspect_ratio = sz
-        #         print(f"MP Aspect New {sz.x} {sz.y}")
-        #         print(f"MP Aspect Current {self.aspect_ratio.x} {self.aspect_ratio.y}")
-        #         if (self.aspect_ratio.x != aspect_ratio.x or 
-        #             self.aspect_ratio.y != aspect_ratio.y):
-        #             self.aspect_ratio.x = sz.x
-        #             self.aspect_ratio.y = sz.y
-        #             print(f"Aspect Change {self.aspect_ratio.x} {self.aspect_ratio .y}")
-        #             for layout in self.layouts:
-        #                 layout.aspect_ratio = aspect_ratio
-        #                 layout.calc()
-        #             self.gui_state = 'repaint'
         elif event.tag == "client_change":
             if event.sub_tag == "change_console":
                 if self.gui_task is not None and not self.gui_task.done:
                     if self.change_console_label:
                         self.gui_task.jump(self.change_console_label)
                         self.present(event)
-
-        
-
-    
