@@ -17,6 +17,7 @@ class GridObject(EngineObject):
         self._name = ""
         self._tag =""
         self._go_type = ""
+        self._comms_id = ""
         self.spawn_pos = sbs.vec2()
 
     @property
@@ -82,6 +83,12 @@ class GridObject(EngineObject):
         """str, cached version of name"""
         return self._name
     
+    @name.setter
+    def name(self: GridObject, name):
+        """str, cached version of name"""
+        return self.set_name(name)
+    
+    
     @property
     def tag(self: GridObject) -> str:
         """str, cached version of tag"""
@@ -95,7 +102,12 @@ class GridObject(EngineObject):
     @property
     def comms_id(self: GridObject) -> str:
         """str, cached version of comms_id"""
-        return f"{self._name}({self._go_type})"
+        return self._comms_id
+    
+    @comms_id.setter
+    def comms_id(self: GridObject, comms_id):
+        """str, cached version of name"""
+        self._comms_id = comms_id
 
     def update_blob(self,  speed=None, icon_index=None, icon_scale=None, color=None):
         go = self.grid_object()
@@ -147,6 +159,7 @@ class GridObject(EngineObject):
         self._go_type = go_type
         self.spawn_pos.x = x
         self.spawn_pos.y = y
+        self._comms_id = f"{self._name}({self._go_type})"
 
         self.add()
         for role in roles:

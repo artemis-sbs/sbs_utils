@@ -4,7 +4,7 @@ import re
 from .parsers import StyleDefinition
 import logging
 
-STYLE_REF_RULE = r"""([ \t]+style[ \t]*=[ \t]*((?P<style_name>\w+)|((?P<style_q>['"]{3}|["'])(?P<style>.*?)(?P=style_q))))"""
+STYLE_REF_RULE = r"""([ \t]+style[ \t]*=[ \t]*((?P<style_name>\w+)|((?P<style_q>['"]{3}|["'])(?P<style>[^\n\r\f]+)(?P=style_q))))"""
 OPT_STYLE_REF_RULE = STYLE_REF_RULE+"""?"""
 
 
@@ -74,7 +74,7 @@ class AppendText(MastNode):
 
 
 class Face(MastNode):
-    rule = re.compile(r"""face[ \t]*(((['"]{3}|["'])(?P<face>[\s\S]+?)\3)|(?P<face_exp>[ \t\S]+)?)"""+OPT_STYLE_REF_RULE)
+    rule = re.compile(r"""face[ \t]*(((['"]{3}|["'])(?P<face>[^\n\r\f]+)\3)|(?P<face_exp>[ \t\S]+)?)"""+OPT_STYLE_REF_RULE)
     def __init__(self, face=None, face_exp=None, style_name=None, style=None, style_q=None, loc=None):
         self.loc = loc
         self.face = face
@@ -91,7 +91,7 @@ class Face(MastNode):
             self.style_name = style_name
 
 class Ship(MastNode):
-    rule = re.compile(r"""ship[ \t]+(?P<q>['"]{3}|["'])(?P<ship>[\s\S]+?)(?P=q)"""+OPT_STYLE_REF_RULE)
+    rule = re.compile(r"""ship[ \t]+(?P<q>['"]{3}|["'])(?P<ship>[^\n\r\f]+)(?P=q)"""+OPT_STYLE_REF_RULE)
     def __init__(self, ship=None, q=None, style_name=None, style=None, style_q=None, loc=None):
         self.loc = loc
         self.ship= self.compile_formatted_string(ship)
@@ -398,7 +398,7 @@ class TextInputControl(MastNode):
 
 class DropdownControl(MastNode):
     
-    rule = re.compile(r"""(dropdown[ \t]+(?P<var>[ \t\S]+)[ \t]+(?P<q>['"]{3}|["'])(?P<values>[\s\S]+?)(?P=q)"""+OPT_STYLE_REF_RULE+BLOCK_START+""")|(?P<end>end_dropdown)""")
+    rule = re.compile(r"""(dropdown[ \t]+(?P<var>[_\w][\w]*)[ \t]+(?P<q>['\"]{3}|[\"'])(?P<values>[^\n\r\f]+)(?P=q)"""+OPT_STYLE_REF_RULE+BLOCK_START+""")|(?P<end>end_dropdown)""")
     stack = []
     def __init__(self, var=None, values=None, q=None,end=None, style_name=None, style=None, style_q=None, loc=None):
         self.loc = loc
@@ -437,8 +437,6 @@ class ImageControl(MastNode):
 
 
 class WidgetList(MastNode):
-    #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
-    #(\s+color\s*["'](?P<color>[ \t\S]+)["'])?
     rule = re.compile(r"""widget_list[ \t]+((?P<clear>clear)|(?P<console>['"]\w+['"])([ \t]*(?P<q>['"]{3}|["'])(?P<widgets>[ \t\S]+?)(?P=q)))""")
     def __init__(self, clear, console, widgets, q, loc=None):
         self.loc = loc
@@ -458,8 +456,6 @@ class BuildaConsole(MastNode):
 
 
 class Console(MastNode):
-    #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
-    #(\s+color\s*["'](?P<color>[ \t\S]+)["'])?
     rule = re.compile(r"""console[ \t]+(?P<console>\w+)""")
     def __init__(self,  console, loc=None):
         self.loc = loc

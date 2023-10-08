@@ -106,7 +106,7 @@ class Log(MastNode):
         self.loc = loc
 
 class Logger(MastNode):
-    rule = re.compile(r"""logger([ \t]+name[ \t]+(?P<logger>[\w\.]*))?([ \t]+string[ \t]+(?P<var>\w*))?([ \t]+file[ \t]*(?P<q>['"]{3}|["'])(?P<name>[\s\S]+?)(?P=q))?""")
+    rule = re.compile(r"""logger([ \t]+name[ \t]+(?P<logger>[\w\.]*))?([ \t]+string[ \t]+(?P<var>\w*))?([ \t]+file[ \t]*(?P<q>['"]{3}|["'])(?P<name>[^\n\r\f]+)(?P=q))?""")
 
     def __init__(self, logger=None, var=None, name=None, q=None, loc=None):
         self.var = var
@@ -117,7 +117,7 @@ class Logger(MastNode):
         self.loc = loc
 
 class LoopStart(MastNode):
-    rule = re.compile(r'(for[ \t]*(?P<name>\w+)[ \t]*)(?P<while_in>in|while)((?P<cond>[\s\S]+?))'+BLOCK_START)
+    rule = re.compile(r'(for[ \t]*(?P<name>\w+)[ \t]*)(?P<while_in>in|while)((?P<cond>[^\n\r\f]+))'+BLOCK_START)
     loop_stack = []
     def __init__(self, while_in=None, cond=None, name=None, loc=None):
         if cond:
@@ -191,7 +191,7 @@ class IfStatements(MastNode):
             IfStatements.if_chains.append(self)
 
 class MatchStatements(MastNode):
-    rule = re.compile(r'((?P<end>case[ \t]*_:|end_match)|(((?P<op>match|case)[ \t]+?(?P<exp>[\s\S]+?)'+BLOCK_START+')))')
+    rule = re.compile(r'((?P<end>case[ \t]*_:|end_match)|(((?P<op>match|case)[ \t]+?(?P<exp>[^\n\r\f]+)'+BLOCK_START+')))')
     chains = []
     def __init__(self, end=None, op=None, exp=None, loc=None):
         self.loc = loc

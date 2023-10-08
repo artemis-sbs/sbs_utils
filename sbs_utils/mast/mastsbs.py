@@ -25,7 +25,6 @@ class FollowRoute(MastNode):
 
 
 class TransmitReceive(MastNode):
-    #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
     OPT_FACE = r"""([ \t]*face(([ \t]*(?P<faceq>['"]{3}|["'])(?P<face_string>[ \t\S]+?)(?P=faceq))|([ \t]+(?P<face_var>\w+))))?"""
     OPT_COMMS_ID = r"""([ \t]*title(([ \t]*(?P<comq>['"]{3}|["'])(?P<comms_string>[ \t\S]+?)(?P=comq))|([ \t]+(?P<comms_var>\w+))))?"""
     rule = re.compile(r"""(?P<tr>receive|transmit)([ \t]+(?P<origin>\w+)[ \t]+(?P<selected>\w+))?[ \t]+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)"""+OPT_COMMS_ID+OPT_FACE+OPT_COLOR)
@@ -56,7 +55,6 @@ class CommsInfo(MastNode):
 
 
 class Broadcast(MastNode):
-    #rule = re.compile(r'tell\s+(?P<to_tag>\w+)\s+(?P<from_tag>\w+)\s+((['"]{3}|["'])(?P<message>[\s\S]+?)(['"]{3}|["']))')
     rule = re.compile(r"""have[ \t]*(?P<to_tag>\*?\w+)[ \t]+broadcast[ \t]+(?P<q>['"]{3}|["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_COLOR)
     def __init__(self, to_tag, message, color=None, q=None,loc=None):
         self.to_tag = to_tag

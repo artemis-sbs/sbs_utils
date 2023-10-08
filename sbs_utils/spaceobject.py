@@ -115,10 +115,10 @@ class SpaceObject(EngineObject):
         :rtype: str
         """
         so = self.space_object()
-        self.side = side
+        self._side = side
         self.update_comms_id()
         if so is not None:
-            so.side = side
+            so._side = side
 
     def set_name(self, name):
         """ Get the name of the object
@@ -126,7 +126,7 @@ class SpaceObject(EngineObject):
         :rtype: str
         """
         so = self.space_object()
-        self.name = name
+        self._name = name
         self.update_comms_id()
         if so is None:
             return
