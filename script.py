@@ -21,7 +21,8 @@ from sbs_utils.mast.mastsbsscheduler import MastSbsScheduler
 
 from sbs_utils.mast.maststory import MastStory
 from sbs_utils.mast.maststoryscheduler import StoryPage, StoryScheduler
-from sbs_utils import fs, query
+from sbs_utils import fs
+from sbs_utils.procedural import query
 import os
 from sbs_utils.gridobject import GridObject
 from random import randrange, choice

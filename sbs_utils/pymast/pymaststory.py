@@ -6,7 +6,7 @@ from ..engineobject import EngineObject
 from ..gui import Page, Gui
 from sbs_utils import faces
 from ..pages import layout
-from .. import query
+from ..procedural import query
 import sbs
 import inspect
 from .pollresults import PollResults

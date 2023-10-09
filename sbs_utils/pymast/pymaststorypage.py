@@ -6,7 +6,7 @@ from ..pages import layout
 from .pollresults import PollResults
 from .pymastscheduler import PyMastScheduler
 import traceback
-from .. import query
+from ..procedural import query
 import inspect
 import logging
 

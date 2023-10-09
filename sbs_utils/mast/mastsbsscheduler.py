@@ -2,7 +2,7 @@ from .mast import Mast, Scope
 from .mastsbs import Simulation, Route,  FollowRoute,TransmitReceive, Comms, Button, Broadcast, Scan, ScanTab,ScanResult
 from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask, ChangeRuntimeNode
 import sbs
-from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain, GridObject
+from .mastobjects import SpaceObject, MastSpaceObject
 
 from ..consoledispatcher import ConsoleDispatcher
 from ..lifetimedispatcher import LifetimeDispatcher
@@ -14,11 +14,12 @@ from .. import faces
 from ..tickdispatcher import TickDispatcher
 from ..helpers import FakeEvent
 import sys
-import json
+
 import re
-from .. import query
-from .. import scatter
-from .. vec import Vec3
+from ..procedural import query
+from ..procedural import roles
+from ..procedural import links
+from ..procedural import inventory
 
 from functools import partial
 
@@ -48,7 +49,7 @@ class TransmitReceiveRuntimeNode(MastRuntimeNode):
             #
             # Make sure player is origin
             #
-            if not query.has_role(origin_id, "__PLAYER__"):
+            if not roles.has_role(origin_id, "__PLAYER__"):
                 t = origin_id
                 origin_id = selected_id
                 selected_id = t
@@ -625,7 +626,7 @@ class ScanResultRuntimeNode(MastRuntimeNode):
             so.update_engine_data({
                 scan.tab: msg,
             })
-            query.set_inventory_value(scan.selected_id, "SCANNED", True)
+            inventory.set_inventory_value(scan.selected_id, "SCANNED", True)
 
         # Rerun the scan (until all scans are done)
         if scan.node:
@@ -706,7 +707,7 @@ class RouteRuntimeNode(MastRuntimeNode):
             # 
             # Avoid scheduling this multiple times
             #
-            if query.has_link_to(event.origin_id, f"__route{console}", event.selected_id):
+            if links.has_link_to(event.origin_id, f"__route{console}", event.selected_id):
                 return
             
 
@@ -721,7 +722,7 @@ class RouteRuntimeNode(MastRuntimeNode):
                 
             )
             if not t.done:
-                query.link(event.origin_id, f"__route{console}", event.selected_id)
+                links.link(event.origin_id, f"__route{console}", event.selected_id)
                 MastAsyncTask.add_dependency(event.origin_id,t)
                 MastAsyncTask.add_dependency(event.selected_id,t)
 
@@ -939,8 +940,18 @@ for func in [
     Mast.globals[func.__name__] = func
 
 
-from .. import names
-Mast.import_python_module('sbs_utils.query')
+#
+# Expose procedural methods to script
+#
+Mast.import_python_module('sbs_utils.procedural.query')
+Mast.import_python_module('sbs_utils.procedural.spawn')
+Mast.import_python_module('sbs_utils.procedural.timers')
+Mast.import_python_module('sbs_utils.procedural.grid')
+Mast.import_python_module('sbs_utils.procedural.space_objects')
+Mast.import_python_module('sbs_utils.procedural.roles')
+Mast.import_python_module('sbs_utils.procedural.inventory')
+Mast.import_python_module('sbs_utils.procedural.links')
+
 Mast.import_python_module('sbs_utils.faces')
 Mast.import_python_module('sbs_utils.fs')
 Mast.import_python_module('sbs_utils.scatter', 'scatter')

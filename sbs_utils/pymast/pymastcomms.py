@@ -4,7 +4,7 @@ import sbs
 import inspect
 from .pollresults import PollResults
 from ..engineobject import EngineObject
-from .. import query
+from ..procedural import query
 from .. import faces
 
 
