@@ -467,7 +467,7 @@ class Console(MastNode):
                 widgets = "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
             case "weapons":
                 console =  "normal_weap"
-                widgets = "2dview^weapon_control^weap_beam_freq^ship_data^shield_control^text_waterfall^main_screen_control"
+                widgets = "2dview^weapon_control^weap_beam_freq^weap_beam_speed^ship_data^shield_control^text_waterfall^main_screen_control"
             case "science":
                 console =  "normal_sci"
                 widgets = "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list"

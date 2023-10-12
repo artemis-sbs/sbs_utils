@@ -606,7 +606,7 @@ class AwaitCondition(MastNode):
     """
     rule = re.compile(r"""await[ \t]+until[ \t]+(?P<if_exp>[^:]+)"""+BLOCK_START)
                       
-    def __init__(self, minutes=None, seconds=None, if_exp=None, loc=None):
+    def __init__(self, if_exp=None, loc=None):
         self.loc = loc
         self.timeout_label = None
         self.on_change = None
@@ -614,8 +614,8 @@ class AwaitCondition(MastNode):
         self.fail_label = None
 
         # Done int timeout now
-        #self.seconds = 0 if  seconds is None else int(seconds)
-        #self.minutes = 0 if  minutes is None else int(minutes)
+        self.seconds = 0 
+        self.minutes = 0
         
         EndAwait.stack.append(self)
 

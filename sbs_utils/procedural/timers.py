@@ -3,7 +3,8 @@ from ..helpers import FrameContext
 
 TICK_PER_SECONDS = 30
 def set_timer(id_or_obj, name, seconds=0, minutes =0):
-    seconds += minutes*60* TICK_PER_SECONDS
+    seconds += minutes*60
+    seconds *= TICK_PER_SECONDS
     seconds += FrameContext.context.sim.time_tick_counter
     set_inventory_value(id_or_obj, f"__timer__{name}", seconds)
 

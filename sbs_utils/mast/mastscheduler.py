@@ -505,9 +505,8 @@ class DelayRuntimeNode(MastRuntimeNode):
 class AwaitConditionRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: AwaitCondition):
         seconds = (node.minutes*60+node.seconds)
-        if seconds == 0:
-            self.timeout = None
-        else:
+        self.timeout = None
+        if seconds != 0:
             self.timeout = task.main.get_seconds("sim") + (node.minutes*60+node.seconds)
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: AwaitCondition):
