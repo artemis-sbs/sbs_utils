@@ -4,7 +4,7 @@ import sbs
 import inspect
 from .pollresults import PollResults
 from ..engineobject import EngineObject
-from .. import query
+from ..procedural import query
 from .. import faces
 
 
@@ -68,7 +68,7 @@ class PyMastComms:
         self.done = True
 
     
-    def selected(self, sim, _ , event):
+    def selected(self, _ , event):
         if self.selected_id != event.selected_id or \
             self.origin_id != event.origin_id:
             return
@@ -107,7 +107,7 @@ class PyMastComms:
         else:
             sbs.send_grid_selection_info(origin_id, face_text, "white", npc_comms_id)
     
-    def message(self, sim, message, player_id, event):
+    def message(self, message, player_id, event):
         if self.selected_id != event.selected_id or \
             self.origin_id != event.origin_id:
             return

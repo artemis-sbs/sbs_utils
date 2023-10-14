@@ -2,9 +2,9 @@ from ..gui import Page
 import sbs
 import struct # for images sizes
 from .. import fs
-from ..widgets.shippicker import ShipPicker
 import os
 import json
+from ..helpers import FrameContext
 
 class Bounds:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
@@ -18,6 +18,8 @@ class Bounds:
     @property
     def width(self):
         return self.right-self.left
+    def __repr__(self) -> str:
+        return f"{self.left}, {self.top}, {self.right}, {self.bottom}"
 
 
 class Row:
@@ -30,6 +32,13 @@ class Row:
         self.padding = None
         self.default_height = None
         self.default_width = None
+        self.background = None
+        self.tag = None
+        self.click_text  = None
+        self.click_tag  = None
+        self.click_font  = None
+        self.click_color  = None
+        self.clicked = False
 
     def set_row_height(self, height):
         self.default_height = height
@@ -49,28 +58,67 @@ class Row:
         self.columns.append(col)
         return self
 
-    def present(self, ctx, event):
+    def present(self, event):
         col:Column
+        ctx = FrameContext.context
+        if self.background is not None:
+            props = f"image:smallWhite; color:{self.background};" # sub_rect: 0,0,etc"
+            if self.padding:
+                ctx.sbs.send_gui_image(event.client_id, 
+                    "__row-bg:"+self.tag, props,
+                    self.left+self.padding.left, 
+                    self.top+self.padding.top, 
+                    self.left+self.width-self.padding.right, 
+                    self.top+self.height-self.padding.bottom)
+            else:
+                ctx.sbs.send_gui_image(event.client_id, 
+                    "__row-bg:"+self.tag, props,
+                    self.left, self.top, self.left+self.width, self.top+self.height)
         for col in self.columns:
-            col.present(ctx,event)
+            col.present(event)
+        self._post_present(event)
 
-    def on_message(self, ctx, event):
+    def _post_present(self, event):
+        if self.click_text is not None:
+            ctx = FrameContext.context
+            click_props = f"text:{self.click_text};"
+            if self.click_color is not None:
+                click_props += f"color: {self.click_color};"
+            if self.click_font is not None:
+                click_props += f"font: {self.click_font};"
+            if self.click_tag is None:
+                self.click_tag = f"click:{self.tag}:{self.click_text}"
+            
+            ctx.sbs.send_gui_clickregion(event.client_id, 
+                self.click_tag, click_props,
+                self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+
+    def on_message(self, event):
+        if event.sub_tag == self.click_tag:
+            Layout.clicked[event.client_id] = self
+            return
+
         col:Column
         for col in self.columns:
-            col.on_message(ctx,event)
+            col.on_message(event)
 
 class Column:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
         self.bounds = Bounds(left,top,right,bottom)
         self.padding = None
         self.square = False
+        self.background = None
+        self.tag = None
+        self.click_text = None
+        self.click_color = None
+        self.click_font = None
+        self.click_tag = None
 
     def set_bounds(self, bounds) -> None:
-        if self.padding is None:
-            self.bounds.left=bounds.left
-            self.bounds.top=bounds.top
-            self.bounds.right=bounds.right
-            self.bounds.bottom=bounds.bottom
+        self.bounds.left=bounds.left
+        self.bounds.top=bounds.top
+        self.bounds.right=bounds.right
+        self.bounds.bottom=bounds.bottom
         
 
     def set_row_height(self, height):
@@ -82,8 +130,49 @@ class Column:
     def set_padding(self, padding):
         self.padding = padding
 
-    def on_message(self, ctx, event):
+    def present(self, event):
+        self._pre_present(event)
+        self._present(event)
+        self._post_present(event)
+
+    def _present(self, event):
         pass
+
+    def _pre_present(self, event):
+        if self.background is not None:
+            props = f"image:smallWhite; color:{self.background};" # sub_rect: 0,0,etc"
+
+            #
+            # Bounds include padding for column
+            #
+            ctx = FrameContext.context
+            ctx.sbs.send_gui_image(event.client_id, 
+                    "__bg:"+self.tag, props,
+                    self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+
+    def _post_present(self, event):
+        if self.click_text is not None:
+            click_props = f"text:{self.click_text};"
+            if self.click_color:
+                click_props += f"color: {self.click_color};"
+            if self.click_font:
+                click_props += f"font: {self.click_font};"
+            if self.click_tag is None:
+                self.click_tag = f"click:{self.tag}:{self.click_text}"
+
+            ctx = FrameContext.context
+            ctx.sbs.send_gui_clickregion(event.client_id, 
+                self.click_tag, click_props,
+                self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+
+   
+    def on_message(self, event):
+        if event.sub_tag == self.click_tag:
+            Layout.clicked[event.client_id] = self
+
+    def update(self, props):
+        pass
+
     @property
     def value(self):
         return None
@@ -102,10 +191,19 @@ class Text(Column):
         self.message = message
         self.tag = tag
 
-    def present(self, ctx, event):
+    def _present(self, event):
+        ctx = FrameContext.context
         ctx.sbs.send_gui_text(event.client_id, 
             self.tag, self.message,  
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+
+    def update(self, message):
+        print(f"{message}")
+        if "text:" not in message:
+            message = f"text:{message}"
+        self.message = message
+
+    
     @property
     def value(self):
          return self.message
@@ -121,17 +219,25 @@ class Text(Column):
 class Button(Column):
     def __init__(self, tag, message) -> None:
         super().__init__()
-        
         self.tag = tag
         if "text:" not in message:
             self.message = f"text:{message}"
         else:
             self.message = message
 
-    def present(self, ctx, event):
+    def _present(self,  event):
+        ctx = FrameContext.context
         ctx.sbs.send_gui_button(event.client_id, 
             self.tag, self.message, 
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+        
+
+    def update(self, message):
+        if "text:" not in message:
+            message = f"text:{message}"
+        self.message = message
+
+
     @property
     def value(self):
         return self.message
@@ -152,18 +258,26 @@ class Slider(Column):
         self.is_int = is_int
         
 
-    def present(self, ctx, event):
+    def _present(self, event):
         if self.is_int:
             self._value = int(self._value)
+        ctx = FrameContext.context
         ctx.sbs.send_gui_slider(event.client_id, 
             self.tag, 
             self._value, self.props,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom,
             )
         
-    def on_message(self, ctx, event):
+    def on_message(self, event):
         if event.sub_tag == self.tag:
             self.value = event.sub_float
+        else:
+            super().on_message(event)
+
+    def update(self, props):
+        self.props = props
+
+
     @property
     def value(self):
         return self._value
@@ -182,18 +296,28 @@ class Checkbox(Column):
         self.tag = tag
         self._value = value
         
-    def present(self, ctx, event):
-        message = f"{self.message};state: {self._value}"
+    def _present(self, event):
+        message = f"state: {self._value};{self.message}"
         #print(f"{self.tag} {message}")
+        ctx = FrameContext.context
         ctx.sbs.send_gui_checkbox(event.client_id, 
             self.tag, message, 
             # 1 if self._value else 0,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
     
-    def on_message(self, ctx, event):
+    def on_message(self, event):
         if event.sub_tag == self.tag:
             self._value= not self._value
+            self.present(event)
+        else:
+            super().on_message(event)
             #self.value = int(event.sub_float)
+
+    def update(self, message):
+        if "text:" not in message:
+            message = f"text:{message}"
+        self.message = message
+
 
     @property
     def value(self):
@@ -240,6 +364,10 @@ class Image(Column):
     #"image:icon-bad-bang; color:blue; sub_rect: 0,0,etc"
     def __init__(self, tag, file) -> None:
         super().__init__()
+        self.tag = tag
+        self.update(file)
+
+    def update(self, file):
         fs.get_artemis_data_dir()
         props = split_props(file, "image")
         # to get size get absolute path
@@ -249,12 +377,13 @@ class Image(Column):
         props["image"] = rel_file
         self.props = merge_props(props)
         #print(f"{self.file} \n>>\n{rel_file}\nPROPS: {self.props} ")
-        self.tag = tag
+
         self.width = -1
         self.height = -1
         self.get_image_size()
         
-    def present(self, ctx, event):
+    def _present(self, event):
+        ctx = FrameContext.context
         if self.width == -1:
             message = f"text: IMAGE NOT FOUND {self.file}"
             ctx.sbs.send_gui_text(event.client_id, 
@@ -296,14 +425,21 @@ class Dropdown(Column):
         #TODO: Prase out default ?
         self._value = ""
         
-    def present(self, ctx, event):
+    def _present(self, event):
+        ctx = FrameContext.context
         ctx.sbs.send_gui_dropdown(event.client_id, 
             self.tag, self.values,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
         
-    def on_message(self, ctx, event):
+    def on_message(self, event):
         if event.sub_tag == self.tag:
             self.value = event.value_tag
+        else:
+            super().on_message(event)
+
+    def update(self, props):
+        self.props = props
+
     @property
     def value(self):
         return self._value
@@ -322,14 +458,17 @@ class TextInput(Column):
         self.tag = tag
         self.props = props
         
-    def present(self, ctx, event):
+    def _present(self, event):
+        ctx = FrameContext.context
         ctx.sbs.send_gui_typein(event.client_id, 
             self.tag, self.props,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
         
-    def on_message(self, ctx, event):
+    def on_message(self, event):
         if event.sub_tag == self.tag:
             self.value = event.value_tag
+        else:
+            super().on_message(event)
         
     @property
     def value(self):
@@ -343,13 +482,13 @@ class TextInput(Column):
 class Blank(Column):
     def __init__(self) -> None:
         super().__init__()
-    def present(self, ctx, client_id):
+    def _present(self, client_id):
         pass
 
 class Hole(Column):
     def __init__(self) -> None:
         super().__init__()
-    def present(self, ctx, client_id):
+    def _present(self, client_id):
         pass
 
 # Allows the layout of a enginer widget
@@ -358,11 +497,12 @@ class ConsoleWidget(Column):
         super().__init__()
         self.widget = widget
 
-    def present(self, ctx, event):
+    def _present(self, event):
+        ctx = FrameContext.context
         ctx.sbs.send_client_widget_rects(event.client_id, 
-                                    self.widget, 
-                                    self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom, 
-                                    self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom) 
+                self.widget, 
+                self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom, 
+                self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom) 
 
 
 
@@ -373,12 +513,15 @@ class Face(Column):
         self.tag = tag
         self.square = True
 
-    def present(self, ctx, event):
+    def _present(self, event):
+        ctx = FrameContext.context
         ctx.sbs.send_gui_face(event.client_id, 
             self.tag, self.face,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
-            #self.left, self.top, self.left+(self.right-self.left)*.60, 100)
-            #self.left, self.top, self.left+w, self.top+w)
+
+    def update(self, face):
+        self.face = face
+
     @property
     def value(self):
          return self.face
@@ -397,7 +540,8 @@ class Ship(Column):
         self.tag = tag
         #self.square = False
 
-    def present(self, ctx, event):
+    def _present(self, event):
+        ctx = FrameContext.context
         ctx.sbs.send_gui_3dship(event.client_id, 
             self.tag, self.ship,  
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
@@ -409,6 +553,10 @@ class Ship(Column):
     def value(self, v):
         self.ship= v
 
+    def update(self, ship):
+        self.ship = ship
+
+
 class Icon(Column):
     def __init__(self, tag, props) -> None:
         super().__init__()
@@ -416,11 +564,11 @@ class Icon(Column):
         self.tag = tag
         self.square = True
 
-    def present(self, ctx, event):
+    def _present(self, event):
         #TODO: This should be ctx.aspect_ratio
-        aspect_ratio = ctx.aspect_ratio
+        ctx = FrameContext.context
         ctx.sbs.send_gui_icon(event.client_id, self.tag,self.props, 
-                    self.bounds.left,self.bounds.top, self.right, self.bottom)
+                    self.bounds.left,self.bounds.top, self.bounds.right, self.bounds.bottom)
 
     @property
     def value(self):
@@ -430,13 +578,18 @@ class Icon(Column):
     def value(self, v):
         self.icon= v
 
+    def update(self, props):
+        self.props = props
+
+
 class IconButton(Column):
     def __init__(self, tag, props) -> None:
         super().__init__()
         self.tag = tag
         self.props = props
 
-    def present(self, ctx, event):
+    def _present(self,  event):
+        ctx = FrameContext.context
         ctx.sbs.send_gui_iconbutton(event.client_id, 
             self.tag, self.props, 
             self.bounds.left,self.bounds.top, self.right, self.bottom)
@@ -447,6 +600,8 @@ class IconButton(Column):
     @value.setter
     def value(self, v):
         self.props = v
+    def update(self, props):
+        self.props = props
 
 
 
@@ -459,13 +614,12 @@ class GuiControl(Column):
         self.content.tag_prefix = tag
         self._value=self.content.get_value()
 
-    def present(self, ctx, event):
-        self.content.present(ctx, event)
-    def on_message(self, ctx, event):
-        self.content.on_message(ctx,event)
+    def _present(self, event):
+        self.content.present(event)
+    def on_message(self, event):
+        self.content.on_message(event)
         self._value = self.content.get_value()
-        #return super().on_message(sim, event)
-
+  
     def set_bounds(self, bounds) -> None:
         super().set_bounds(bounds)
         self.content.left = self.bounds.left
@@ -485,17 +639,24 @@ class GuiControl(Column):
 
 
 class Layout:
-    def __init__(self, clickable_tag=None, click_props=None, rows = None, 
+    clicked = {}
+    
+    def __init__(self, tag=None,  rows = None, 
                 left=0, top=0, right=100, bottom=100,
                 left_pixels=False, top_pixels=False, right_pixels=False, bottom_pixels=False) -> None:
         self.rows = rows if rows else []
-        self.aspect_ratio = sbs.vec2(1920,1071)
         self.set_bounds(Bounds(left,top,right,bottom))
         self.default_height = None
         self.default_width = None
         self.padding = None
-        self.click_props = click_props
-        self.tag = clickable_tag
+        self.background = None
+        self.tag = None
+        self.click_text  = None
+        self.click_tag  = None
+        self.click_font  = None
+        self.click_color  = None
+        
+        
 
     def set_bounds(self, bounds):
         self.bounds = bounds
@@ -516,6 +677,7 @@ class Layout:
     def calc(self):
         # remove empty
         #self.rows = [x for x in self.rows if len(x.columns)>0]
+        aspect_ratio = FrameContext.aspect_ratio
         if len(self.rows):
             padding = self.padding if self.padding else Bounds()
             
@@ -545,9 +707,9 @@ class Layout:
                 else:
                     row_height = layout_row_height
                 row.height = row_height
-                row.width = self.bounds.width
                 row.left = left
                 row.top = top
+                row.width = self.bounds.width
                 squares = 0
 
                 col: Column
@@ -557,16 +719,16 @@ class Layout:
                 for col in row.columns:
                     squares += 1 if col.square else 0
                 # get the width and the height of a cell in pixels
-                actual_width = row.width/len(row.columns) * self.aspect_ratio.x / 100
-                actual_height =  row.height * self.aspect_ratio.y /100
+                actual_width = row.width/len(row.columns) * aspect_ratio.x / 100
+                actual_height =  row.height * aspect_ratio.y /100
 
                 # get the low of these two as a percentage of the window width
                 if actual_height < actual_width:
-                    square_width = (actual_height/self.aspect_ratio.x) * 100
-                    square_height = (actual_height/self.aspect_ratio.y) * 100
+                    square_width = (actual_height/aspect_ratio.x) * 100
+                    square_height = (actual_height/aspect_ratio.y) * 100
                 else:
-                    square_width = (actual_width/self.aspect_ratio.x) *100
-                    square_height = (actual_width/self.aspect_ratio.y) * 100
+                    square_width = (actual_width/aspect_ratio.x) *100
+                    square_height = (actual_width/aspect_ratio.y) * 100
 
                 # if layout_col_width is not None:
                 #     rect_col_width = layout_col_width
@@ -591,6 +753,7 @@ class Layout:
                         padding.top += col.padding.top
                         padding.bottom += col.padding.bottom
 
+
                     bounds = Bounds(col_left,0,0,0)
                     bounds.top = top
                     bounds.bottom = top+row_height
@@ -609,27 +772,64 @@ class Layout:
                     col_left = bounds.right
 
                     # Add padding 
-                    
                     bounds.left=bounds.left+padding.left
                     bounds.top=bounds.top+padding.top
                     bounds.right=bounds.right-padding.right
                     bounds.bottom=bounds.bottom-padding.bottom
 
                     col.set_bounds(bounds)
+                    # remove column padding
+                    if col.padding is not None:
+                        padding.left -= col.padding.left
+                        padding.right-= col.padding.right
+                        padding.top -= col.padding.top
+                        padding.bottom -= col.padding.bottom
                 top += row_height
+                # remove the row's padding
+                if row.padding:
+                    padding.left -= row.padding.left
+                    padding.right-= row.padding.right
+                    padding.top -= row.padding.top
+                    padding.bottom -= row.padding.bottom
 
-    def present(self, ctx, event):
+
+    def present(self, event):
+        
+        if self.background is not None:
+            ctx = FrameContext.context
+            props = f"image:smallWhite; color:{self.background};" # sub_rect: 0,0,etc"
+            ctx.sbs.send_gui_image(event.client_id, 
+                    "__section-bg:"+self.tag, props,
+                    self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
         row:Row
         for row in self.rows:
-            row.present(ctx,event)
-        if self.click_props is not None:
-            ctx.sbs.send_gui_clickregion(event.client_id, self.tag, self.click_props,
-                                     self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
-    
-    def on_message(self, ctx, event):
+            row.present(event)
+
+        self._post_present(event)
+
+    def _post_present(self, event):
+        if self.click_text is not None:
+            click_props = f"text:{self.click_text};"
+            if self.click_color is not None:
+                click_props += f"color: {self.click_color};"
+            if self.click_font is not None:
+                click_props += f"font: {self.click_font};"
+            if self.click_tag is None:
+                self.click_tag = f"click:{self.tag}:{self.click_text}"
+            ctx = FrameContext.context
+            ctx.sbs.send_gui_clickregion(event.client_id, 
+                self.click_tag, click_props,
+                self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+
+    def on_message(self, event):
+        # If this is clickable handle it
+        if event.sub_tag == self.click_tag:
+            Layout.clicked[event.client_id] = self
+
+        # Else propagate messages
         row:Row
         for row in self.rows:
-            row.on_message(ctx,event)
+            row.on_message(event)
     
 
 class RadioButton(Column):
@@ -640,21 +840,23 @@ class RadioButton(Column):
         self._value = value
         self.group = group
         
-    def present(self, ctx, event):
-        props = f"text:{self.message};state:{'on' if self._value else 'off'}"
+    def _present(self, event):
+        ctx = FrameContext.context
+        props = f"state:{self._value};text:{self.message};"
         ctx.sbs.send_gui_checkbox(event.client_id, 
             self.tag, props,
             # 1 if self._value else 0,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
     
-    def on_message(self, ctx, event):
-        if event.sub_tag != self.tag:
-            return
-        self.value = 1
-        for e in self.group:
-            if e != self:
-                e.value = 0
-            e.present(ctx, event)
+    def on_message(self, event):
+        if event.sub_tag == self.tag:
+            self.value = 1
+            for e in self.group:
+                if e != self:
+                    e.value = 0
+                e.present(event)
+        else:
+            super().on_message(event)
 
     @property
     def value(self):
@@ -692,11 +894,11 @@ class RadioButtonGroup(Column):
         self.group_layout.set_bounds(bounds)
         self.group_layout.calc()
 
-    def present(self, ctx, event):
-        self.group_layout.present(ctx,event)
+    def _present(self, event):
+        self.group_layout.present(event)
     
-    def on_message(self, ctx, event):
-        self.group_layout.on_message(ctx,event)
+    def on_message(self, event):
+        self.group_layout.on_message(event)
 
     @property
     def value(self):
@@ -719,18 +921,18 @@ class LayoutPage(Page):
         super().__init__()
         self.gui_state = 'repaint'
         self.layout = Layout()
+        self.aspect_ratio = sbs.vec3(1024,768,0)
         
 
-    def present(self, ctx, event):
+    def _present(self, event):
         """ Present the gui """
-
+        ctx = FrameContext.context
         sz = ctx.aspect_ratio
-        if sz is not None and sz.y != 0:
-            aspect_ratio = ctx.aspect_ratio
-            if self.layout.aspect_ratio != aspect_ratio:
-                self.layout.aspect_ratio = aspect_ratio
-                self.layout.calc()
-                self.gui_state = 'repaint'
+        if self.aspect_ratio.x != sz.x or self.aspect_ratio.y != sz.y:
+            self.aspect_ratio.x = sz.x
+            self.aspect_ratio.y = sz.y
+            self.layout.calc()
+            self.gui_state = 'repaint'
 
         
         match self.gui_state:
@@ -739,7 +941,7 @@ class LayoutPage(Page):
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
                 self.gui_state = "presenting"
-                self.layout.present(ctx,event)
+                self.layout.present(event)
                 ctx.sbs.send_gui_complete(event.client_id)
                 
 

@@ -6,7 +6,8 @@ from mock import sbs
 import sys
 from sbs_utils.pymast.pymaststory import PyMastStory
 from sbs_utils.pymast.pollresults import PollResults
-from sbs_utils.gui import Context
+
+from sbs_utils.helpers import FrameContext, Context
 from io import StringIO
 import logging
 
@@ -62,15 +63,15 @@ class TestPymast(unittest.TestCase):
                     yield self.jump(self.two)
                 yield self.pop()
 
-        ctx = Context(FakeSim(), sbs, None)
+        FrameContext.context  = Context(FakeSim(), sbs)
         story = ExampleStory()
-        story.enable(ctx)
-        story.add_scheduler(ctx, story.start)
+        story.enable()
+        story.add_scheduler(story.start)
 
 
         for x in range(10000):
-            story(ctx)
-            ctx.sim.tick()
+            story()
+            FrameContext.context.sim.tick()
         v = log_stream.getvalue()
         t = """start
 one
@@ -117,15 +118,15 @@ end
                 yield self.delay(5)
                 yield PollResults.OK_END
 
-        ctx = Context(FakeSim(), sbs, None)
+        FrameContext.context = Context(FakeSim(), sbs)
         story = ExampleStory()
-        story.enable(ctx)
-        story.add_scheduler(ctx, story.start)
+        story.enable()
+        story.add_scheduler(story.start)
 
 
         for x in range(1000):
-            story(ctx)
-            ctx.sim.tick()
+            story()
+            FrameContext.context.sim.tick()
         v = log_stream.getvalue()
         t = """Before
 one 0
@@ -162,15 +163,15 @@ After
                 yield PollResults.FAIL_END
 
 
-        ctx = Context(FakeSim(), sbs, None)
+        FrameContext.context = Context(FakeSim(), sbs)
         story = ExampleStory()
-        story.enable(ctx)
-        story.add_scheduler(ctx, story.start)
+        story.enable()
+        story.add_scheduler(story.start)
 
 
         for x in range(1000):
-            story(ctx)
-            ctx.sim.tick()
+            story()
+            FrameContext.context .sim.tick()
         v = log_stream.getvalue()
         t = """Before
 After
@@ -200,15 +201,15 @@ After
                 logging.info(f"nope")
 
 
-        ctx = Context(FakeSim(), sbs, None)
+        FrameContext.context  = Context(FakeSim(), sbs)
         story = ExampleStory()
-        story.enable(ctx)
-        story.add_scheduler(ctx, story.start)
+        story.enable()
+        story.add_scheduler(story.start)
 
 
         for x in range(1000):
-            story(ctx)
-            ctx.sim.tick()
+            story()
+            FrameContext.context .sim.tick()
         v = log_stream.getvalue()
         t = """Before
 one 0
@@ -263,15 +264,15 @@ After
                 self.have_apple = True
                 
 
-        ctx = Context(FakeSim(), sbs, None)
+        FrameContext.context  = Context(FakeSim(), sbs)
         story = ExampleStory()
-        story.enable(ctx)
-        story.add_scheduler(ctx, story.start)
+        story.enable()
+        story.add_scheduler(story.start)
 
 
         for x in range(1000):
-            story(ctx)
-            ctx.sim.tick()
+            story()
+            FrameContext.context .sim.tick()
         v = log_stream.getvalue()
         t = """Before
 After

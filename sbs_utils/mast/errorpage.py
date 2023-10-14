@@ -6,7 +6,7 @@ class ErrorPage(Page):
         self.gui_state = 'show'
         self.message = msg
 
-    def present(self, sim, event):
+    def present(self, event):
         match self.gui_state:
             case  "sim_on":
                 self.gui_state = "blank"
@@ -22,13 +22,13 @@ class ErrorPage(Page):
                 sbs.send_gui_button(event.client_id, "back", "back", 80, 90, 99, 94)
                 sbs.send_gui_button(event.client_id, "Resume Mission", "resume", 80, 95, 99, 99)
 
-    def on_message(self, sim, event):
+    def on_message(self, event):
         match event.sub_tag:
             case "back":
-                Gui.pop(sim, event.client_id)
+                Gui.pop(event.client_id)
 
             case "resume":
-                Gui.pop(sim, event.client_id)
+                Gui.pop(event.client_id)
                 sbs.resume_sim()
 
 

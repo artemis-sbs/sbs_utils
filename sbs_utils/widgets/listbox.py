@@ -4,6 +4,8 @@ import sbs
 import struct # for images sizes
 import os
 from .. import fs
+from ..helpers import FrameContext
+
 
 
 class Listbox(Widget):
@@ -49,7 +51,7 @@ class Listbox(Widget):
         self.selected = set()
 
 
-    def present(self, ctx, event):
+    def present(self, event):
         """ present
 
         builds/manages the content of the widget
@@ -61,7 +63,7 @@ class Listbox(Widget):
         """
         CID = event.client_id
         
-        aspect_ratio = ctx.aspect_ratio 
+        aspect_ratio = FrameContext.aspect_ratio 
         if aspect_ratio.x == 0 or aspect_ratio.y == 1:
             square_ratio = 1.0
         elif aspect_ratio.x > aspect_ratio.y:
@@ -75,6 +77,7 @@ class Listbox(Widget):
         # force redraw of on size change
         if square_width_percent != self.square_width_percent:
             self.gui_state = "redraw"
+            print("Changed listbox ratio")
             self.square_width_percent = square_width_percent
 
         # Not sure this is needed, 
@@ -179,7 +182,7 @@ class Listbox(Widget):
                 return w,h
         except Exception:
             return 0,0
-    def on_message(self, sim, event):
+    def on_message(self, event):
         """ on_message
 
         handles messages this will look for components owned by this control and react accordingly
@@ -206,7 +209,7 @@ class Listbox(Widget):
                 if value != self.cur:
                     self.cur = value
                     self.gui_state = "redraw"
-                    self.present(sim, event)
+                    self.present(event)
                 return True
         if message_tag.startswith('name:'):
             slot = int(message_tag[5:])
@@ -221,7 +224,7 @@ class Listbox(Widget):
                 self.selected = set()
                 self.selected.add(item)
             self.gui_state = "redraw"
-            self.present(sim, event)
+            self.present(event)
 
                 
         return False
@@ -235,9 +238,11 @@ class Listbox(Widget):
         return self.get_selected()
 
 
+#list_box_control(ships, text=lambda ship: ship.comms_id, ship=lambda ship: ship.art_id)
+
+
+
 def list_box_control(items, text=None, face=None, ship=None, icon=None, image=None, select=False, multi=False, item_height=5):
     return Listbox(0, 0, "mast", items, text=text, face=face, ship=ship, 
                    icon = icon, image = image,
                    select=select, multi=multi, item_height=item_height)
-
-#list_box_control(ships, text=lambda ship: ship.comms_id, ship=lambda ship: ship.art_id)

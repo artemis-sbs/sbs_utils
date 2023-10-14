@@ -146,6 +146,18 @@ class StyleDefinition:
                     ret[key]=StyleDefinition.parse_width(value)
                 case "padding":
                     ret[key]=StyleDefinition.parse_padding(value)
+                case "background":
+                    ret[key]=value
+                case "click_text":
+                    ret[key]=value
+                case "click_color":
+                    ret[key]=value
+                case "click_font":
+                    ret[key]=value
+                case "click_tag":
+                    ret[key]=value
+                case "tag":
+                    ret[key]=value
         return ret
 
     def parse_area(area):

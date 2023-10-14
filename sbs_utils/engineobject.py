@@ -22,11 +22,9 @@ class Stuff:
         self.collections = {}
 
     def remove_collection(self, collection):
-        collection = collection.strip().lower()
         self.collections.pop(collection, None)
 
     def dedicated_collection(self, collection, id):
-        collection = collection.strip().lower()
         if id is None:
             self.remove_collection(collection)
             return
@@ -37,7 +35,6 @@ class Stuff:
     def add_to_collection(self, collection, id):
         collections = collection.split(",")
         for collection in collections:
-            collection = collection.strip().lower()
             if collection not in self.collections:
                 self.collections[collection] = set()
             self.collections[collection].add(id)
@@ -45,7 +42,6 @@ class Stuff:
     def remove_from_collection(self, collection, id):
         collections = collection.split(",")
         for collection in collections:
-            collection = collection.strip().lower()
             the_set = self.collections.get(collection) 
             if the_set is not None:
                 the_set.discard(id)
@@ -57,7 +53,6 @@ class Stuff:
         :return: If the object has the role
         :rtype: bool
         """
-        collection = collection.strip().lower()
         if collection not in self.collections:
             return False
 
@@ -190,6 +185,7 @@ class EngineObject():
         :param role: The role to add e.g. spy, pirate etc.
         :type id: str
         """
+        role = role.strip().lower()
         self.roles.add_to_collection(role, self.id)
 
     def remove_role(self, role: str):
@@ -198,6 +194,7 @@ class EngineObject():
         :param role: The role to add e.g. spy, pirate etc.
         :type id: str
         """
+        role = role.strip().lower()
         self.roles.remove_from_collection(role, self.id)
 
     def has_role(self, role):
@@ -208,6 +205,7 @@ class EngineObject():
         :return: If the object has the role
         :rtype: bool
         """
+        role = role.strip().lower()
         return self.roles.collection_has(role, self.id)
 
     def get_roles(self, id):
@@ -241,10 +239,12 @@ class EngineObject():
         :type id: str
         """
         id = self.resolve_id(other)
+        link_name = link_name.strip().lower()
         self.links.add_to_collection(link_name,id)
         self.has_links.add_to_collection(link_name, self.id)
 
     def set_dedicated_link(self, link_name: str, other: EngineObject | CloseData | int):
+        link_name = link_name.strip().lower()
         self.links.dedicated_collection(link_name, self.resolve_id(other))
         if other is not None:
             self.has_links.add_to_collection(link_name, self.id)
@@ -270,6 +270,7 @@ class EngineObject():
         :param role: The role to add e.g. spy, pirate etc.
         :type id: str
         """
+        link_name = link_name.strip().lower()
         self.links.remove_collection(link_name)
         self.has_links.remove_from_collection(link_name, self.id)
 
@@ -281,6 +282,7 @@ class EngineObject():
         :return: If the object has the role
         :rtype: bool
         """
+        link_name = link_name.strip().lower()
         id = self.resolve_id(other)
         return self.links.collection_has(link_name,id)
 
@@ -380,7 +382,6 @@ class EngineObject():
         # Remove any empty from has links
         collections = collection_name.split(",")
         for collection in collections:
-            collection = collection.strip().lower()
             the_set = self.inventory.collections.get(collection)
             if len(the_set)<1:
                 self._has_inventory.remove_from_collection(collection, self.id)
@@ -396,7 +397,6 @@ class EngineObject():
         :return: If the object has the role
         :rtype: bool
         """
-        link_name = link_name.strip().lower()
         return self.inventory.collection_has(link_name,data)
 
     def _remove_every_inventory(self, data: object):
@@ -406,7 +406,6 @@ class EngineObject():
         return self.inventory.get_collections_in(data)
         
     def get_inventory_objects(self, collection_name):
-        collection_name = collection_name.strip().lower()
         the_set =  self.inventory.collection_set(collection_name)
         if the_set:
             # return a list so you can remove while iterating
@@ -414,19 +413,15 @@ class EngineObject():
         return []
 
     def get_inventory_set(self, collection_name):
-        collection_name = collection_name.strip().lower()
         return self.inventory.collection_set(collection_name)
     
     def get_inventory_list(self, collection_name):
-        collection_name = collection_name.strip().lower()
         return self.inventory.collection_list(collection_name)
 
     def get_inventory_value(self, collection_name, default=None):
-        collection_name = collection_name.strip().lower()
         return self.inventory.collections.get(collection_name, default)
 
     def set_inventory_value(self, collection_name, value):
-        collection_name = collection_name.strip().lower()
         self.inventory.collections[collection_name]=value
         if value is not None:
             self._has_inventory.add_to_collection(collection_name, self.id)
@@ -435,12 +430,10 @@ class EngineObject():
 
     @classmethod
     def has_inventory_set(cls, collection_name):
-        collection_name = collection_name.strip().lower()
         return cls._has_inventory.collection_set(collection_name)
 
     @classmethod
     def has_inventory_list(cls, collection_name):
-        collection_name = collection_name.strip().lower()
         return cls._has_inventory.collection_list(collection_name)
     ###########################################################
 
@@ -473,8 +466,8 @@ class EngineObject():
         """
         self._remove(self.id)
 
-    def update_engine_data(self, sim, data):
-        blob = self.get_engine_data_set(sim)
+    def update_engine_data(self, data):
+        blob = self.get_engine_data_set()
         if blob is not None:
             for (key, value) in data.items():
                 if type(value) is tuple:
@@ -482,25 +475,25 @@ class EngineObject():
                 else:
                     blob.set(key, value)
 
-    def get_engine_data(self, sim, key, index=0):
-        blob = self.get_engine_data_set(sim)
+    def get_engine_data(self, key, index=0):
+        blob = self.get_engine_data_set()
         if blob is not None:
             return blob.get(key, index)
         return None
 
-    def set_engine_data(self, sim, key, value, index=0):
-        blob = self.get_engine_data_set(sim)
+    def set_engine_data(self, key, value, index=0):
+        blob = self.get_engine_data_set()
         if blob is not None:
             blob.set(key, value, index)
 
-    def get_engine_data_set(self, sim):
-        this = self.get_engine_object(sim)
+    def get_engine_data_set(self):
+        this = self.get_engine_object()
         if this is None:
             # Object is destroyed
             return None
         return this.data_set
     
-    def get_engine_object(self, sim):
+    def get_engine_object(self):
         # Needs to be implemented by Grid and Space Object
         return None
     

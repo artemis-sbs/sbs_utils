@@ -26,7 +26,9 @@ import sys
 #       (\s+if(?P<if>.+))?
 #
 LIST_REGEX = r"""(\[[\s\S]+?\])"""
+
 DICT_REGEX = r"""(\{[\s\S]+?\})"""
+OPT_ARGS_REGEX = r"""(?P<args>([ \t]*\{[^\n\r\f]+\}))?"""
 PY_EXP_REGEX = r"""((?P<py>~~)[\s\S]*?(?P=py))"""
 STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[ \t\S]*(?P=quote))"""
 
@@ -77,8 +79,6 @@ class MastNode:
         else:
             return None
 
-        
-
 
 
 class Label(MastNode):
@@ -106,7 +106,7 @@ class Log(MastNode):
         self.loc = loc
 
 class Logger(MastNode):
-    rule = re.compile(r"""logger([ \t]+name[ \t]+(?P<logger>[\w\.]*))?([ \t]+string[ \t]+(?P<var>\w*))?([ \t]+file[ \t]*(?P<q>['"]{3}|["'])(?P<name>[\s\S]+?)(?P=q))?""")
+    rule = re.compile(r"""logger([ \t]+name[ \t]+(?P<logger>[\w\.]*))?([ \t]+string[ \t]+(?P<var>\w*))?([ \t]+file[ \t]*(?P<q>['"]{3}|["'])(?P<name>[^\n\r\f]+)(?P=q))?""")
 
     def __init__(self, logger=None, var=None, name=None, q=None, loc=None):
         self.var = var
@@ -117,7 +117,7 @@ class Logger(MastNode):
         self.loc = loc
 
 class LoopStart(MastNode):
-    rule = re.compile(r'(for[ \t]*(?P<name>\w+)[ \t]*)(?P<while_in>in|while)((?P<cond>[\s\S]+?))'+BLOCK_START)
+    rule = re.compile(r'(for[ \t]*(?P<name>\w+)[ \t]*)(?P<while_in>in|while)((?P<cond>[^\n\r\f]+))'+BLOCK_START)
     loop_stack = []
     def __init__(self, while_in=None, cond=None, name=None, loc=None):
         if cond:
@@ -134,12 +134,17 @@ class LoopStart(MastNode):
 
 class LoopBreak(MastNode):
     #rule = re.compile(r'(?P<op>break|continue)\s*(?P<name>\w+)')
-    rule = re.compile(r'(?P<op>break|continue)')
-    def __init__(self, op=None, name=None, loc=None):
+    rule = re.compile(r'(?P<op>break|continue)'+IF_EXP_REGEX)
+    def __init__(self, op=None, name=None, if_exp=None, loc=None):
         self.name = name
         self.op = op
         self.start = LoopStart.loop_stack[-1]
         self.loc = loc
+        if if_exp:
+            if_exp = if_exp.lstrip()
+            self.if_code = compile(if_exp, "<string>", "eval")
+        else:
+            self.if_code = None
 
 class LoopEnd(MastNode):
     rule = re.compile(r'((?P<loop>next)[ \t]*(?P<name>\w+))')
@@ -186,7 +191,7 @@ class IfStatements(MastNode):
             IfStatements.if_chains.append(self)
 
 class MatchStatements(MastNode):
-    rule = re.compile(r'((?P<end>case[ \t]*_:|end_match)|(((?P<op>match|case)[ \t]+?(?P<exp>[\s\S]+?)'+BLOCK_START+')))')
+    rule = re.compile(r'((?P<end>case[ \t]*_:|end_match)|(((?P<op>match|case)[ \t]+?(?P<exp>[^\n\r\f]+)'+BLOCK_START+')))')
     chains = []
     def __init__(self, end=None, op=None, exp=None, loc=None):
         self.loc = loc
@@ -325,20 +330,24 @@ class Assign(MastNode):
 
 
 class Jump(MastNode):
-    rule = re.compile(r"""(((?P<jump>jump|->|push|->>|popjump|<<->|poppush|<<->>)[ \t]*(?P<jump_name>\w+))|(?P<pop>pop|<<-))"""+IF_EXP_REGEX)
+    rule = re.compile(r"""(((?P<jump>jump|->|push|->>|popjump|<<->|poppush|<<->>)[ \t]*(?P<jump_name>\w+))|(?P<pop>pop|<<-))"""+OPT_ARGS_REGEX+IF_EXP_REGEX)
 
-    def __init__(self, pop=None, jump=None, jump_name=None, if_exp=None, loc=None):
+    def __init__(self, pop=None, jump=None, jump_name=None, if_exp=None, args=None, loc=None):
         self.loc = loc
         self.label = jump_name
         self.push = jump == 'push' or jump == "->>"
         self.pop = pop is not None
         self.pop_jump = jump == 'popjump'or jump == "<<->"
         self.pop_push = jump == 'poppush'or jump == "<<->>"
+        self.args = args
         if if_exp:
             if_exp = if_exp.lstrip()
             self.if_code = compile(if_exp, "<string>", "eval")
         else:
             self.if_code = None
+        if args is not None:
+            args = args.lstrip()
+            self.args = compile(args, "<string>", "eval")
 
 
 class Parallel(MastNode):
@@ -357,6 +366,7 @@ class Parallel(MastNode):
         self.minutes = 0
         self.seconds = 0
         self.timeout_label = None
+        self.on_change = None
         self.fail_label = None
         if is_block:
             self.timeout_label = None
@@ -487,6 +497,7 @@ class Behavior(MastNode):
         self.minutes = 0
         self.seconds = 0
         self.timeout_label = None
+        self.on_change = None
         self.fail_label = None
         self.invert = invert is not None
         self.until = until
@@ -554,6 +565,30 @@ class Timeout(MastNode):
         self.await_node.minutes = 0 if  minutes is None else int(minutes)
 
 
+
+#
+# Allow a state change to be handled in await
+#
+class Change(MastNode):
+    rule = re.compile(r"change[ \t]+(?P<val>[^:]+)"+BLOCK_START)
+    def __init__(self, end=None, val=None, loc=None):
+        self.loc = loc
+        self.value = val
+        if val:
+            self.value = compile(val, "<string>", "eval")
+        #
+        # Check to see if this is embedded in an await
+        #
+        self.await_node = None
+        if len(EndAwait.stack) >0:
+            self.await_node = EndAwait.stack[-1]
+            # Only add on change if we need them
+            if self.await_node.on_change  is None:
+                self.await_node.on_change  = []
+            self.await_node.on_change.append(self)
+
+
+
 class AwaitFail(MastNode):
     rule = re.compile(r'fail:')
     def __init__(self, loc=None):
@@ -571,15 +606,16 @@ class AwaitCondition(MastNode):
     """
     rule = re.compile(r"""await[ \t]+until[ \t]+(?P<if_exp>[^:]+)"""+BLOCK_START)
                       
-    def __init__(self, minutes=None, seconds=None, if_exp=None, loc=None):
+    def __init__(self, if_exp=None, loc=None):
         self.loc = loc
         self.timeout_label = None
+        self.on_change = None
         self.end_await_node = None
         self.fail_label = None
 
         # Done int timeout now
-        #self.seconds = 0 if  seconds is None else int(seconds)
-        #self.minutes = 0 if  minutes is None else int(minutes)
+        self.seconds = 0 
+        self.minutes = 0
         
         EndAwait.stack.append(self)
 
@@ -713,6 +749,7 @@ class Mast(EngineObject):
         "len": len,
         "reversed": reversed,
         "int": int,
+        "str": str,
         "hex": hex,
         "min": min,
         "max": max,
@@ -757,15 +794,19 @@ class Mast(EngineObject):
         Mast.globals[name] = value
         
     def import_python_module(mod_name, prepend=None):
+        #print(f"{mod_name}")
         sca = sys.modules.get(mod_name)
         if sca:
             for (name, func) in getmembers(sca,isfunction):
+                #print(f"IMPORT {name}")
                 if prepend == None:
                     Mast.globals[name] = func
                 elif prepend == True:
                     Mast.globals[f"{mod_name}_{name}"] = func
                 elif isinstance(prepend, str):
                     Mast.globals[f"{prepend}_{name}"] = func
+       # else:
+       #     print("import failed")
 
     # def build(self, cmds):
     #     """
@@ -808,6 +849,7 @@ class Mast(EngineObject):
         AwaitCondition,
 #        Await,  # needs to be before Parallel
         Timeout,
+        Change,
         EndAwait,
         AwaitFail,
         Behavior, # Needs to be in front of parallel
@@ -860,6 +902,12 @@ class Mast(EngineObject):
             if scheduler == source:
                 continue
             scheduler.refresh(label)
+
+    def update_shared_props_by_tag(self, tag, props):
+        for scheduler in self.schedulers:
+            if scheduler.page is not None:
+                scheduler.page.update_props_by_tag(tag, props)
+
 
     def remove_scheduler(self, scheduler):
         self.schedulers.remove(scheduler)

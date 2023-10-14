@@ -70,7 +70,7 @@ class AvatarEditor(Page):
         self.face = faces.Characters.URSULA
         self.cur = [0,0,0,0,0,0, 0,0,0,0,0,0]
 
-    def present(self, sim, event):
+    def present(self, event):
         CID = event.client_id
 
         if self.gui_state == "presenting":
@@ -118,7 +118,7 @@ class AvatarEditor(Page):
 
                 
                 v+=1
-
+        sbs.send_gui_complete(CID)
         self.gui_state = "presenting"
 
     def reset_values(self):
@@ -134,10 +134,10 @@ class AvatarEditor(Page):
             v += 1
 
 
-    def on_message(self, sim, event):
+    def on_message(self, event):
         v = self.cur
         if event.sub_tag == 'back':
-            Gui.pop(sim,event.client_id)
+            Gui.pop(event.client_id)
 
         if event.sub_tag.startswith("op:"):
             
@@ -188,4 +188,4 @@ class AvatarEditor(Page):
                 pass
 
         self.gui_state = self.race
-        self.present(sim, event)
+        self.present(event)

@@ -5,6 +5,7 @@ from .mast import *
 import time
 import traceback
 from ..engineobject import EngineObject, get_task_id
+import inspect
 
 
 class MastRuntimeNode:
@@ -12,7 +13,7 @@ class MastRuntimeNode:
         pass
     def leave(self, mast, scheduler, node):
         pass
-
+    
     def poll(self, mast, scheduler, node):
         return PollResults.OK_ADVANCE_TRUE
 
@@ -77,6 +78,26 @@ class YieldRuntimeNode(MastRuntimeNode):
         if node.result.lower() == 'success':
             return PollResults.OK_END
         return PollResults.OK_RUN_AGAIN
+    
+class ChangeRuntimeNode(MastRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: Change):
+        self.task = task
+        self.node = node
+        self.value = task.eval_code(node.value) 
+
+    def test(self):
+        prev = self.value
+        self.value = self.task.eval_code(self.node.value) 
+        return prev!=self.value
+        
+
+    def poll(self, mast:Mast, task:MastAsyncTask, node: Change):
+        if node.await_node and node.await_node.end_await_node:
+            task.jump(task.active_label,node.await_node.end_await_node.loc+1)
+            return PollResults.OK_JUMP
+        return PollResults.OK_RUN_AGAIN
+
+
 
 
 class AssignRuntimeNode(MastRuntimeNode):
@@ -102,7 +123,7 @@ class AssignRuntimeNode(MastRuntimeNode):
 
 
         if "." in node.lhs or "[" in node.lhs:
-            task.exec_code(f"""{node.lhs} = __mast_value""",{"__mast_value": value} )
+            task.exec_code(f"""{node.lhs} = __mast_value""",{"__mast_value": value}, None )
             
         elif node.scope: 
             task.set_value(node.lhs, value, node.scope)
@@ -117,25 +138,35 @@ class AssignRuntimeNode(MastRuntimeNode):
 
 class PyCodeRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task:MastAsyncTask, node:PyCode):
-        def export():
-            add_to = task.main.vars
-            def decorator(cls):
-                add_to[cls.__name__] = cls
-                return cls
+        def export(cls):
+            add_to = task.main.inventory.collections
+            def decorator(*args, **kwargs):
+                # if 'task' in inspect.signature(cls).parameters:
+                #     kwargs['task'] = task
+                #add_to[cls.__name__] = cls
+                return cls(*args, **kwargs)
+            add_to[cls.__name__] = decorator
             return decorator
 
         def export_var(name, value, shared=False):
             if shared:
-                task.main.mast.vars[name] = value
+                #
+                #task.main.mast.vars[name] = value
+                task.mast.set_inventory_value(name, value, None)
             else:
-                task.main.vars[name] = value
+                # task.main.vars[name] = value
+                task.main.set_inventory_value(name, value, None)
+                
+
+
+
 
         task.exec_code(node.code,{"export": export, "export_var": export_var} )
         return PollResults.OK_ADVANCE_TRUE
 
 class DoCommandRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task:MastAsyncTask, node:DoCommand):
-        task.exec_code(node.code, None)
+        task.exec_code(node.code, None, None)
         return PollResults.OK_ADVANCE_TRUE
 
 class JumpRuntimeNode(MastRuntimeNode):
@@ -146,7 +177,10 @@ class JumpRuntimeNode(MastRuntimeNode):
                 return PollResults.OK_ADVANCE_TRUE
             
         if node.push:
-            task.push_label(node.label)
+            args = node.args
+            if node.args is not None:
+                args = task.eval_code(node.args)
+            task.push_label(node.label, data=args)
         elif node.pop_jump:
             task.pop_label(True,True)
             task.jump(node.label)
@@ -236,6 +270,11 @@ class LoopBreakRuntimeNode(MastRuntimeNode):
         self.scope = scope
 
     def poll(self, mast, task, node:LoopBreak):
+        if node.if_code:
+            value = task.eval_code(node.if_code)
+            if not value:
+                return PollResults.OK_ADVANCE_TRUE
+            
         if node.op == 'break':
             #task.jump_inline_end(inline_label, True)
             task.set_value(node.start.name, None, self.scope)
@@ -318,8 +357,10 @@ class MatchStatementsRuntimeNode(MastRuntimeNode):
 
 
 class ParallelRuntimeNode(MastRuntimeNode):
-    def enter(self, mast, task, node:Parallel):
-        vars = {} | task.vars if node.labels is not None else None
+    def enter(self, mast, task: MastAsyncTask, node:Parallel):
+        #vars = {} | task.vars if node.labels is not None else None
+        vars = {} | task.inventory.collections
+        
         if node.code:
             inputs = task.eval_code(node.code)
             vars = vars | inputs
@@ -350,8 +391,8 @@ class ParallelRuntimeNode(MastRuntimeNode):
         return PollResults.OK_ADVANCE_TRUE
     
 class BehaviorRuntimeNode(MastRuntimeNode):
-    def enter(self, mast, task, node:Behavior):
-        vars = {} | task.vars if node.labels is not None else None
+    def enter(self, mast, task: MastAsyncTask, node:Behavior):
+        vars = {} | task.inventory.collections if node.labels is not None else None
         if node.code:
             inputs = task.eval_code(node.code)
             vars = vars | inputs
@@ -427,10 +468,6 @@ class LoggerRuntimeNode(MastRuntimeNode):
         logger = logging.getLogger(node.logger)
         logging.basicConfig(level=logging.NOTSET)
         logger.setLevel(logging.NOTSET)
-        # handler  = logging.StreamHandler()
-        # handler.setFormatter(logging.Formatter("%(levelname)s|%(name)s|%(message)s"))
-        # handler.setLevel(logging.NOTSET)
-        # logger.addHandler(handler)
 
         if node.var is not None:
             streamer = StringIO()
@@ -463,27 +500,13 @@ class DelayRuntimeNode(MastRuntimeNode):
 
         return PollResults.OK_RUN_AGAIN
 
-# class EventRuntimeNode(MastRuntimeNode):
-#     def enter(self, mast, task:MastAsyncTask, node):
-#         if node.end is not None:
-#             task.add_event(node.event, node)
-
-#     def poll(self, mast, task:MastAsyncTask, node):
-#         if node.end is not None:
-#             task.jump(task.active_label,node.end.loc+1)
-#             return PollResults.OK_JUMP
-#         else:
-#             task.pop_label(False,False)
-#             return PollResults.OK_JUMP
-
 
 
 class AwaitConditionRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: AwaitCondition):
         seconds = (node.minutes*60+node.seconds)
-        if seconds == 0:
-            self.timeout = None
-        else:
+        self.timeout = None
+        if seconds != 0:
             self.timeout = task.main.get_seconds("sim") + (node.minutes*60+node.seconds)
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: AwaitCondition):
@@ -518,27 +541,32 @@ class MastAsyncTask(EngineObject):
     
     def __init__(self, main: 'MastScheduler', inputs=None, conditional= None):
         super().__init__()
+        self.id = get_task_id()
         self.done = False
         self.runtime_node = None
         self.main= main
-        self.vars= inputs if inputs else {}
+        #self.vars= inputs if inputs else {}
+        if inputs:
+            self.inventory.collections = dict(self.inventory.collections, **inputs)
+            #self.inventory.collections |= inputs
         self.result = None
         self.label_stack = []
         self.active_label = None
         self.events = {}
-        self.vars["mast_task"] = self
+        #self.vars["mast_task"] = self
+        self.set_inventory_value("main_task", self)
         #self.redirect = None
         self.pop_on_jump = 0
         self.pending_pop = None
         self.pending_jump = None
         self.pending_push = None
-        self.id = get_task_id()
         self.add()
     
     def push_label(self, label, activate_cmd=0, data=None):
         #print("PUSH")
         if self.active_label:
             self.pending_push = PushData(self.active_label, self.active_cmd, data)
+            self.label_stack.append(self.pending_push)
         self.jump(label, activate_cmd)
 
     def push_inline_block(self, label, activate_cmd=0, data=None):
@@ -556,28 +584,6 @@ class MastAsyncTask(EngineObject):
         #self.jump(label, activate_cmd)
 
 
-    # # For button Pushes, and maybe events
-    # # Like a push, but pop not needed if redirected logic jumps
-    # # the end_button, end_event will return back if it is reached
-    # def redirect_push_label(self, label, activate_cmd=0, return_loc=-1, data=None):
-    #     if self.active_label:
-    #         loc = return_loc if return_loc>=0 else self.active_cmd
-    #         push_data = PushData(self.active_label, loc, data)
-    #         self.redirect = push_data
-    #         #print(f"REDIRECT PUSH DATA {push_data.label} {push_data.active_cmd}")
-    #     self.jump(label, activate_cmd)
-
-    # def redirect_pop_label(self, inc_loc=True):
-    #     if self.redirect == None:
-    #         self.active_cmd+1
-    #         return
-    #     push_data = self.redirect
-    #     #print(f"redirect POP DATA {push_data.label} {push_data.active_cmd}")
-    #     self.redirect = None
-    #     if inc_loc:
-    #         self.jump(push_data.label, push_data.active_cmd+1)
-    #     else:
-    #         self.jump(push_data.label, push_data.active_cmd)
 
     def pop_label(self, inc_loc=True, true_pop=False):
         if len(self.label_stack)>0:
@@ -669,12 +675,12 @@ class MastAsyncTask(EngineObject):
     def get_symbols(self):
         # m1 = self.main.mast.vars | self.main.vars
         mast_inv = self.main.mast.inventory.collections
-        m1 = mast_inv | self.main.vars
-        m1 =  self.vars | m1
+        m1 = mast_inv | self.main.inventory.collections
+        m1 =   m1 | self.inventory.collections 
         for st in self.label_stack:
             data = st.data
             if data is not None:
-                m1 =  data | m1
+                m1 =   m1 | data
         # if self.redirect and self.redirect.data:
         #     m1 = self.redirect.data | m1
         return m1
@@ -684,9 +690,11 @@ class MastAsyncTask(EngineObject):
             # self.main.mast.vars[key] = value
             self.main.mast.set_inventory_value(key, value)
         elif scope == Scope.TEMP:
-            self.vars[key] = value
+            self.set_inventory_value(key, value)
+            #self.vars[key] = value
         else:
-            self.vars[key] = value
+            self.set_inventory_value(key, value)
+            #self.vars[key] = value
 
     def set_value_keep_scope(self, key, value):
         scoped_val = self.get_value(key, value)
@@ -707,7 +715,8 @@ class MastAsyncTask(EngineObject):
             val = data.get(key, None)
             if val is not None:
                 return (val, Scope.TEMP)
-        val = self.vars.get(key, None)
+        val = self.get_inventory_value(key, None)
+        #val = self.vars.get(key, None)
         if val is not None:
             return (val, Scope.NORMAL)
         return self.main.get_value(key, defa)
@@ -725,7 +734,7 @@ class MastAsyncTask(EngineObject):
                 val = data.get(key, None)
                 if val is not None:
                     return val
-        val = self.vars.get(key, None)
+        val = self.get_inventory_value(key, None)
         return val
         
 
@@ -762,13 +771,17 @@ class MastAsyncTask(EngineObject):
             pass
         return value
 
-    def exec_code(self, code, vars):
+    def exec_code(self, code, vars, gbls):
         try:
             if vars is not None:
                 allowed = vars | self.get_symbols()
             else:                
                 allowed = self.get_symbols()
-            exec(code, {"__builtins__": Mast.globals}, allowed)
+            if gbls is not None:
+                g = Mast.globals | gbls
+            else:
+                g = Mast.globals
+            exec(code, {"__builtins__": g}, allowed)
         except:
             self.runtime_error(traceback.format_exc())
             self.done = True
@@ -777,7 +790,7 @@ class MastAsyncTask(EngineObject):
         
 
     def start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:
-        inputs= self.vars|inputs if inputs else self.vars
+        inputs= self.inventory.collections|inputs if inputs else self.inventory.collections
         return self.main.start_task(label, inputs, task_name)
     
     def tick(self):
@@ -803,9 +816,6 @@ class MastAsyncTask(EngineObject):
                         self.do_resume(*pop_data)
                     else:    
                         self.do_jump(pop_data[0], pop_data[1])
-                if self.pending_push:
-                    self.label_stack.append(self.pending_push)
-                    self.pending_push = None
 
                 count += 1
                 # avoid tight loops
@@ -887,13 +897,16 @@ class MastAsyncTask(EngineObject):
                 return False
             return self.jump(next.name)
             
+        try:
+            cmd = self.cmds[self.active_cmd]
+            runtime_node_cls = self.main.nodes.get(cmd.__class__.__name__, MastRuntimeNode)
+            
+            self.runtime_node = runtime_node_cls()
+            #print(f"RUNNER {self.runtime_node.__class__.__name__}")
+            self.runtime_node.enter(self.main.mast, self, cmd)
+        except BaseException as err:
+            self.main.runtime_error(str(err))
         
-        cmd = self.cmds[self.active_cmd]
-        runtime_node_cls = self.main.nodes.get(cmd.__class__.__name__, MastRuntimeNode)
-        
-        self.runtime_node = runtime_node_cls()
-        #print(f"RUNNER {self.runtime_node.__class__.__name__}")
-        self.runtime_node.enter(self.main.mast, self, cmd)
         return True
     
     @classmethod
@@ -909,9 +922,16 @@ class MastAsyncTask(EngineObject):
             task.done = True
         MastAsyncTask.dependent_tasks.pop(id, None)
 
+class MastBehaveTask(EngineObject):
+    def __init__(self):
+        super().__init__()
+        self.id = get_task_id()
+        self.add()
 
-class MastAllTask:
+
+class MastAllTask(MastBehaveTask):
     def __init__(self, main) -> None:
+        super().__init__()
         self.tasks = []
         self.main= main
         self.conditional = None
@@ -938,8 +958,9 @@ class MastAllTask:
             t.run_event(event_name, event)
             
         
-class MastAnyTask:
+class MastAnyTask(MastBehaveTask):
     def __init__(self, main) -> None:
+        super().__init__()
         self.tasks = []
         self.main= main
         self.conditional = None
@@ -964,8 +985,9 @@ class MastAnyTask:
         for t in list(self.tasks):
             t.run_event(event_name, event)
 
-class MastSequenceTask:
+class MastSequenceTask(MastBehaveTask):
     def __init__(self, main, labels, conditional) -> None:
+        super().__init__()
         self.task = None
         self.main= main
         self.labels = labels
@@ -1010,8 +1032,9 @@ class MastSequenceTask:
     def run_event(self, event_name, event):
         self.task.run_event(event_name, event)
 
-class MastFallbackTask:
+class MastFallbackTask(MastBehaveTask):
     def __init__(self, main,  labels, conditional) -> None:
+        super().__init__()
         self.task = None
         self.main= main
         self.labels = labels
@@ -1061,7 +1084,7 @@ class MastFallbackTask:
 
 
 
-class MastScheduler:
+class MastScheduler(EngineObject):
     runtime_nodes = {
         "End": EndRuntimeNode,
         "ReturnIf": ReturnIfRuntimeNode,
@@ -1082,6 +1105,7 @@ class MastScheduler:
         "Assign": AssignRuntimeNode,
         "AwaitCondition": AwaitConditionRuntimeNode,
         "AwaitFail": AwaitFailRuntimeNode,
+        "Change": ChangeRuntimeNode,
         "Timeout": TimeoutRuntimeNode,
         "EndAwait": EndAwaitRuntimeNode,
         "Delay": DelayRuntimeNode,
@@ -1090,6 +1114,10 @@ class MastScheduler:
     }
 
     def __init__(self, mast: Mast, overrides=None):
+        super().__init__()
+        # Schedulers use task Id
+        self.id = get_task_id()
+        self.add()
         if overrides is None:
             overrides = {}
         self.nodes = MastScheduler.runtime_nodes | overrides
@@ -1097,7 +1125,8 @@ class MastScheduler:
         self.tasks = []
         self.name_tasks = {}
         self.inputs = None
-        self.vars = {"mast_scheduler": self}
+        #self.vars = {"mast_scheduler": self}
+        self.set_inventory_value("mast_scheduler", self)
         self.done = []
         self.mast.add_scheduler(self)
         self.test_clock = 0
@@ -1105,6 +1134,7 @@ class MastScheduler:
         
 
     def runtime_error(self, message):
+        print("mast level runtime error:\n {message}")
         pass
 
     def get_seconds(self, clock):
@@ -1222,7 +1252,8 @@ class MastScheduler:
         val = self.mast.get_inventory_value(key, None)
         if val is not None:
             return (val, Scope.SHARED)
-        val = self.vars.get(key, defa)
+        #val = self.vars.get(key, defa)
+        val = self.get_inventory_value(key, None)
         return (val, Scope.NORMAL)
 
     def get_variable(self, key):

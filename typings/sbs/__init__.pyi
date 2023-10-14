@@ -18,9 +18,11 @@ def create_new_sim() -> None:
     """all space objects are deleted; a blank slate is born."""
 def create_transient(type: int, subtype: int, sourceID: int, targetID: int, parentID: int, x: float, y: float, z: float, sideTag: str) -> None:
     """Generates a temporary graphical object, usually an explosion."""
+def delete_all_navpoints() -> None:
+    """deletes all navpoints on server, and notifies all clients of the change"""
 def delete_grid_object(spaceObjectID: int, gridObjID: int) -> None:
     """deletes the grid object, and sends the deletion message to all clients"""
-def delete_object(arg0: int) -> None:
+def delete_object(ID: int) -> None:
     """deletes a space object by its ID"""
 def delete_particle_emittor(emittorID: int) -> None:
     """deletes a particle emittor by ID."""
@@ -34,10 +36,16 @@ def distance_point_line(arg0: sbs.vec3, arg1: sbs.vec3, arg2: sbs.vec3) -> tuple
     """calulates the distance from a point to a line, for checking potential collisions. Returns a tuple, containing: distance to collision pt along line; distance from line start to point; tangent (positive == in front"""
 def distance_to_navpoint(arg0: str, arg1: int) -> float:
     """returns the distance between a nav point and a space object; navpoint name, then object ID"""
+def find_valid_grid_point_for_vector3(spaceObjectID: int, vecPoint: sbs.vec3, randomRadius: int) -> List[int]:
+    """return a list of two integers, the grid x and y that is open and is closest.  The list is empty if the search fails."""
+def find_valid_unoccupied_grid_point_for_vector3(spaceObjectID: int, vecPoint: sbs.vec3, randomRadius: int) -> List[int]:
+    """return a list of two integers, the grid x and y that is open and is closest.  The list is empty if the search fails."""
 def get_client_ID_list() -> List[int]:
     """return a list of client ids, for the computers that are currently connected to this server."""
 def get_game_version() -> str:
     """returns the version of the game EXE currently operating this script, as a string."""
+def get_hull_map(spaceObjectID: int, forceCreate: bool = False) -> sbs.hullmap:
+    """gets the hull map object for this space object; setting forceCreate to True will erase and rebuild the grid (and gridObjects) of this spaceobject"""
 def get_screen_size() -> sbs.vec2:
     """returns a VEC2, with the width and height of the display in pixels"""
 def particle_at(position: sbs.vec3, descriptorString: str) -> None:
@@ -80,6 +88,10 @@ def send_gui_clear(clientID: int) -> None:
     """Clears all GUI elements from screen, on the targeted client (0 = server screen).  remember to use send_gui_complete after adding widgets."""
 def send_gui_clickregion(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a click-region GUI element, on the targeted client (0 = server screen)"""
+def send_gui_colorbutton(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+    """Creates a color button GUI element, on the targeted client (0 = server screen)"""
+def send_gui_colorcheckbox(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+    """Creates a color checkbox GUI element, on the targeted client (0 = server screen)"""
 def send_gui_complete(clientID: int) -> None:
     """Flips double-buffered GUI display list, on the targeted client (0 = server screen).  Use after a send_gui_clear() and some send_gui* calls"""
 def send_gui_dropdown(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
@@ -89,9 +101,13 @@ def send_gui_face(clientID: int, tag: str, face_string: str, left: float, top: f
 def send_gui_icon(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates an icon art GUI element, on the targeted client (0 = server screen)"""
 def send_gui_iconbutton(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
-    """Creates a icon-button GUI element, on the targeted client (0 = server screen)"""
+    """Creates an icon-button GUI element, on the targeted client (0 = server screen)"""
+def send_gui_iconcheckbox(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+    """Creates an icon-checkbox GUI element, on the targeted client (0 = server screen)"""
 def send_gui_image(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a 2d art image GUI element, on the targeted client (0 = server screen)"""
+def send_gui_rawiconbutton(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+    """Creates a simple clickable icon GUI element, on the targeted client (0 = server screen)"""
 def send_gui_slider(clientID: int, tag: str, current: float, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a slider bar GUI element, on the targeted client (0 = server screen) (long clientID, std::string tag, float low, float high, float current, float left, float top, float right, float bottom, bool showNumberFlag)"""
 def send_gui_text(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
@@ -294,6 +310,12 @@ class navpoint(object): ### from pybind
     def color (self: sbs.navpoint, arg0: sbs.vec4) -> None:
         """vec4, color on 2d radar"""
     @property
+    def has_changed_flag (self: sbs.navpoint) -> int:
+        """int, if you change this navpoint, also set this flag to !0, so the server sends it down to the clients"""
+    @has_changed_flag.setter
+    def has_changed_flag (self: sbs.navpoint, arg0: int) -> None:
+        """int, if you change this navpoint, also set this flag to !0, so the server sends it down to the clients"""
+    @property
     def pos (self: sbs.navpoint) -> sbs.vec3:
         """vec3, position in space"""
     @pos.setter
@@ -417,14 +439,10 @@ class simulation(object): ### from pybind
         ...
     def add_navpoint(self: sbs.simulation, arg0: float, arg1: float, arg2: float, arg3: str, arg4: str) -> sbs.navpoint:
         """adds a new navpoint to space; don't hold on to this Navpoint object in a global; keep the name string instead    args:  float x, float y, float z, std::string text, std::string colorDesc"""
-    def clear_navpoints(self: sbs.simulation) -> None:
-        """deletes all navpoints"""
     def delete_navpoint_by_name(self: sbs.simulation, arg0: str) -> None:
         """deletes navpoint by its name"""
     def delete_navpoint_by_reference(self: sbs.simulation, arg0: sbs.navpoint) -> None:
         """deletes navpoint by its reference"""
-    def get_hull_map(self: sbs.simulation, shipUID: int) -> sbs.hullmap:
-        """gets the hull map object for this space object"""
     def get_navpoint_by_name(self: sbs.simulation, arg0: str) -> sbs.navpoint:
         """takes a string name, returns the associated Navpoint object"""
     def get_navpoint_by_reference(self: sbs.simulation, arg0: sbs.navpoint) -> sbs.navpoint:
@@ -504,22 +522,22 @@ class space_object(object): ### from pybind
         """string, friendly to other objects on this same side; leave empty for 'no side'"""
     @property
     def steer_pitch (self: sbs.space_object) -> float:
-        """float, change to heading and orientation of this object, over time"""
+        """float, continuing change to heading and orientation of this object, over time"""
     @steer_pitch.setter
     def steer_pitch (self: sbs.space_object, arg0: float) -> None:
-        """float, change to heading and orientation of this object, over time"""
+        """float, continuing change to heading and orientation of this object, over time"""
     @property
     def steer_roll (self: sbs.space_object) -> float:
-        """float, change to heading and orientation of this object, over time"""
+        """float, continuing change to heading and orientation of this object, over time"""
     @steer_roll.setter
     def steer_roll (self: sbs.space_object, arg0: float) -> None:
-        """float, change to heading and orientation of this object, over time"""
+        """float, continuing change to heading and orientation of this object, over time"""
     @property
     def steer_yaw (self: sbs.space_object) -> float:
-        """float, change to heading and orientation of this object, over time"""
+        """float, continuing change to heading and orientation of this object, over time"""
     @steer_yaw.setter
     def steer_yaw (self: sbs.space_object, arg0: float) -> None:
-        """float, change to heading and orientation of this object, over time"""
+        """float, continuing change to heading and orientation of this object, over time"""
     @property
     def tick_type (self: sbs.space_object) -> str:
         """string, name of behavior module

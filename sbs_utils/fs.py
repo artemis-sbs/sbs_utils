@@ -29,6 +29,13 @@ def get_artemis_graphics_dir():
     data = os.path.dirname(missions)
     return data+"\\graphics"        
 
+def get_artemis_audio_dir():
+    mission = get_script_dir()
+    missions = os.path.dirname(mission)
+    data = os.path.dirname(missions)
+    return data+"\\audio"        
+
+
 
 def get_artemis_dir():
     mission = get_script_dir()

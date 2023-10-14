@@ -17,6 +17,7 @@ class GridObject(EngineObject):
         self._name = ""
         self._tag =""
         self._go_type = ""
+        self._comms_id = ""
         self.spawn_pos = sbs.vec2()
 
     @property
@@ -24,34 +25,30 @@ class GridObject(EngineObject):
         return True
 
 
-    def grid_object(self, sim):
+    def grid_object(self):
         """ get the simulation's space object for the object
 
-        :param sim: The simulation
-        :type sim: Artemis Cosmos simulation
         :return: simulation space object
         :rtype: simulation space object
         """
         hullMap: sbs.hullmap
-        hullMap = sim.get_hull_map(self.host_id)
+        hullMap = sbs.get_hull_map(self.host_id)
         return  hullMap.get_grid_object_by_id(self.id)
         
-    def set_name(self, sim, name):
+    def set_name(self, name):
         """ Set the name of the object
 
-        :param sim: The simulation
-        :type sim: Artemis Cosmos simulation
         :param name: The object name
         :type str: The object name
         """
         go : sbs.grid_object
-        go = self.grid_object(sim)
+        go = self.grid_object()
         if go is None:
             return ""
         self._name = name
         go.name = name
 
-    def set_tag(self, sim, tag):
+    def set_tag(self, tag):
         """ Set the name of the object
 
         :param sim: The simulation
@@ -60,13 +57,13 @@ class GridObject(EngineObject):
         :type str: The object name
         """
         go : sbs.grid_object
-        go = self.grid_object(sim)
+        go = self.grid_object()
         if go is None:
             return ""
         self._tag = tag
         go.tag = tag
 
-    def set_go_type(self, sim, go_type):
+    def set_go_type(self, go_type):
         """ Set the name of the object
 
         :param sim: The simulation
@@ -75,7 +72,7 @@ class GridObject(EngineObject):
         :type str: The object name
         """
         go : sbs.grid_object
-        go = self.grid_object(sim)
+        go = self.grid_object()
         if go is None:
             return ""
         self._go_type = go_type
@@ -85,6 +82,12 @@ class GridObject(EngineObject):
     def name(self: GridObject) -> str:
         """str, cached version of name"""
         return self._name
+    
+    @name.setter
+    def name(self: GridObject, name):
+        """str, cached version of name"""
+        return self.set_name(name)
+    
     
     @property
     def tag(self: GridObject) -> str:
@@ -99,10 +102,15 @@ class GridObject(EngineObject):
     @property
     def comms_id(self: GridObject) -> str:
         """str, cached version of comms_id"""
-        return f"{self._name}({self._go_type})"
+        return self._comms_id
+    
+    @comms_id.setter
+    def comms_id(self: GridObject, comms_id):
+        """str, cached version of name"""
+        self._comms_id = comms_id
 
-    def update_blob(self, sim:sbs.simulation, speed=None, icon_index=None, icon_scale=None, color=None):
-        go = self.grid_object(sim)
+    def update_blob(self,  speed=None, icon_index=None, icon_scale=None, color=None):
+        go = self.grid_object()
         if go is None:
             return
 
@@ -121,21 +129,19 @@ class GridObject(EngineObject):
         if color is not None:
             blob.set("icon_color", color , 0)
 
-    def get_engine_object(self, sim):
+    def get_engine_object(self):
         """ Gets the simulation space object
 
-        :param sim: The simulation
-        :type sim: Artemis Cosmos simulation
         :return: The simulation space object
         :rtype: The simulation space_object
         """
-        return self.grid_object(sim)
+        return self.grid_object()
     
     
-    def spawn(self, sim:sbs.simulation, host_id, name, tag, x, y, icon_index, color,  go_type=None):
+    def spawn(self, host_id, name, tag, x, y, icon_index, color,  go_type=None):
         self.host_id = host_id
         hullMap: sbs.hullmap
-        hullMap = sim.get_hull_map(self.host_id)
+        hullMap = sbs.get_hull_map(self.host_id)
         if go_type is None:
             go_type = self.__class__.__name__
         if isinstance(go_type, str):
@@ -153,6 +159,7 @@ class GridObject(EngineObject):
         self._go_type = go_type
         self.spawn_pos.x = x
         self.spawn_pos.y = y
+        self._comms_id = f"{self._name}({self._go_type})"
 
         self.add()
         for role in roles:

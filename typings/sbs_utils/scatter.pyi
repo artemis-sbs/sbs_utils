@@ -13,9 +13,30 @@ def arc (count, x, y, z, r, start=0.0, end=90.0, random=False):
         the angle to start at in degrees
     end: float=360, optional
         the angle to end at in degrees"""
-def box_fill (cw, ch, cd, x, y, z, w, h, d, random=False):
+def box (count, x, y, z, x2, y2, z2, centered=False, ax=0, ay=0, az=0, degrees=True):
     """Calculate the points within a box
     
+    Parameters
+    ----------
+    count: int
+        The number of points to generate
+    
+    x,y,z: float,float,float
+        the start point/origin
+        if center is true this is the center
+        if center is False this is the left, bottom, front
+    x2,y2,z2: float,float,float
+        if center is true this is the width, height, depth
+        if center is false this is the right, top, back
+    
+    center: bool
+        when true x,y,z and its the center point
+        when true x2,y2,z2 is the width, height, depth
+        when false x,y,z is left, bottom, front
+        when false x2,y2,z2 is right, top, back"""
+def box_fill (cw, ch, cd, x, y, z, w, h, d, random=False):
+    """Calculate the points within a box
+        the box is subdivide to ideally avoid overlap
     
     Parameters
     ----------

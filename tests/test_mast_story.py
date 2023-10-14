@@ -90,8 +90,6 @@ section style="area:1,2,3,4;row-height:10px;"
 
 section style=fred
 
-section style="area:1,2,3,4;" clickable "color:red; text:Click here!; font:smallest":
-end_clickable
 
 
 radio var "helm,weapons,science"
@@ -177,7 +175,32 @@ end_await
                 print(err)
         assert(len(errors) == 0)
 
+    def test_weird(self):
+        (errors,  _) = mast_story_compile( code = """
+#import grid_editor.mast
 
+reroute server server_start
+reroute clients client_start_once
+
+
+===== add_menu =====
+
+#section style="area:10, 0, 30, 45px;"
+dropdown menu 'text  Editor; list grid,character;':
+end_dropdown
+
+on change menu.value:
+#    sel = menu.value
+    #
+    if menu == "grid":
+        jump grid_editor_client_start
+#        case "character":
+#            jump character_editor_client_start
+    end_if
+end_on 
+
+""")
+        assert(len(errors)==0)
 
 if __name__ == '__main__':
     try:

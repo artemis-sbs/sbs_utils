@@ -1,7 +1,6 @@
 from ..gui import Page
 import sbs
 from ..spaceobject import SpaceObject
-from ..tickdispatcher import TickDispatcher
 
 
 class StartPage(Page):
@@ -11,7 +10,7 @@ class StartPage(Page):
         self.desc = description
         self.callback = callback
 
-    def present(self, sim, event):
+    def present(self, event):
         CID = event.client_id
 
         sbs.send_gui_clear(CID)
@@ -19,11 +18,12 @@ class StartPage(Page):
                     CID,  "text", self.desc, 25, 30, 99, 90)
         
         sbs.send_gui_button(CID, "start", "text: Start", 80,90, 99,99)
+        sbs.send_gui_complete(CID)
         
 
-    def on_message(self, sim, event):
+    def on_message(self, event):
         if event.sub_tag == 'start':
-            self.callback(sim, event)
+            self.callback(event)
         
 
 class ClientSelectPage(Page):
@@ -36,7 +36,7 @@ class ClientSelectPage(Page):
         self.widget_list =  "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
         self.player_count = 0
 
-    def present(self, sim, event):
+    def present(self, event):
         CID = event.client_id
 
         players = SpaceObject.get_role_objects("__PLAYER__")
@@ -46,7 +46,6 @@ class ClientSelectPage(Page):
 
         if self.state == "choose":
             sbs.send_gui_clear(CID)
-            sbs.send_gui_clear(event.client_id)
             sbs.send_client_widget_list(event.client_id, "","")
             i = 0
             for console in ["Helm", "Weapons", "Science", "Engineering", "Comms", "Main Screen"]:
@@ -64,10 +63,11 @@ class ClientSelectPage(Page):
             if self.player_id is not None:
                 sbs.send_gui_button(CID, "select", "text:Select", 80,95-i*5, 99,99-i*5)
             self.state = "skip"
+            sbs.send_gui_complete(CID)
             
         
 
-    def on_message(self, sim, event):
+    def on_message(self, event):
 
         match event.sub_tag:
             case "Helm":
@@ -77,7 +77,7 @@ class ClientSelectPage(Page):
             case "Weapons":
                 self.console_name = "normal_weap"
                 self.console = event.sub_tag
-                self.widget_list = "2dview^weapon_control^weap_beam_freq^ship_data^shield_control^text_waterfall^main_screen_control"
+                self.widget_list = "2dview^weapon_control^weap_beam_freq^weap_beam_speed^ship_data^shield_control^text_waterfall^main_screen_control"
             case "Science":
                 self.console_name = "normal_sci" 
                 self.console = event.sub_tag
@@ -102,22 +102,23 @@ class ClientSelectPage(Page):
                 sbs.send_gui_clear(event.client_id)
                 sbs.send_client_widget_list(event.client_id, self.console_name, self.widget_list)
                 self.state = "main"
-                self.present(sim, event)
+                self.present(event)
                 sbs.assign_client_to_ship(event.client_id, self.player_id)
+                sbs.send_gui_complete(event.client_id)
                 return
             case _:
                 self.player_id = int(event.sub_tag)
 
         self.state = "choose"
-        self.present(sim, event)
+        self.present(event)
 
-    def on_event(self, sim, event):
+    def on_event(self, event):
         if event.tag == "client_change":
             if event.sub_tag == "change_console":
                 self.state = "choose"
-                self.present(sim, event)
+                self.present(event)
         elif event.tag == "x_sim_resume":
             self.state = "choose"
-            self.present(sim, event)
+            self.present(event)
 
 

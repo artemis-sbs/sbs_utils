@@ -1,22 +1,25 @@
 from .mast import Mast, Scope
 from .mastsbs import Simulation, Route,  FollowRoute,TransmitReceive, Comms, Button, Broadcast, Scan, ScanTab,ScanResult
-from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask
+from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask, ChangeRuntimeNode
 import sbs
-from .mastobjects import SpaceObject, MastSpaceObject, Npc, PlayerShip, Terrain, GridObject
+from .mastobjects import SpaceObject, MastSpaceObject
 
 from ..consoledispatcher import ConsoleDispatcher
 from ..lifetimedispatcher import LifetimeDispatcher
-from ..damagedispatcher import DamageDispatcher
+from ..damagedispatcher import DamageDispatcher, CollisionDispatcher
 from ..griddispatcher import GridDispatcher
-from ..gui import Gui, Context
+from ..gui import Gui
 from .errorpage import ErrorPage
 from .. import faces
 from ..tickdispatcher import TickDispatcher
+from ..helpers import FakeEvent
 import sys
-import json
+
 import re
-from .. import query
-from .. import scatter
+from ..procedural import query
+from ..procedural import roles
+from ..procedural import links
+from ..procedural import inventory
 
 from functools import partial
 
@@ -46,7 +49,7 @@ class TransmitReceiveRuntimeNode(MastRuntimeNode):
             #
             # Make sure player is origin
             #
-            if not query.has_role(origin_id, "__PLAYER__"):
+            if not roles.has_role(origin_id, "__PLAYER__"):
                 t = origin_id
                 origin_id = selected_id
                 selected_id = t
@@ -137,7 +140,7 @@ class BroadcastRuntimeNode(MastRuntimeNode):
 
 class CommsInfoRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Comms):
-        color = node.color if node.color else "white"
+        color = node.color if task.format_string(node.color) else "white"
         to_so:SpaceObject = query.to_object(task.get_variable("COMMS_SELECTED_ID"))
         from_so:SpaceObject = query.to_object(task.get_variable("COMMS_ORIGIN_ID"))
 
@@ -154,7 +157,11 @@ class CommsInfoRuntimeNode(MastRuntimeNode):
             comms_id = task.format_string(node.message)
         face = faces.get_face(to_so.id) 
 
-        sbs.send_comms_selection_info(from_so.id, face, color, comms_id)
+        if to_so.is_grid_object:
+            sbs.send_grid_selection_info(from_so.id, face, color, comms_id)
+        else:
+            sbs.send_comms_selection_info(from_so.id, face, color, comms_id)
+        
 
 
 class CommsRuntimeNode(MastRuntimeNode):
@@ -165,6 +172,19 @@ class CommsRuntimeNode(MastRuntimeNode):
         else:
             self.timeout = task.main.get_seconds("sim")+ (node.minutes*60+node.seconds)
 
+        #
+        # Check for on change nodes
+        #
+        self.on_change = None
+        if node.on_change is not None:
+            self.on_change=[]
+            # create proxies of the runtime node to test
+            for change in node.on_change:
+                rt = ChangeRuntimeNode()
+                rt.enter(mast, task, change)
+                self.on_change.append(rt)
+
+
         self.tag = None
         self.button = None
         self.task = task
@@ -173,7 +193,8 @@ class CommsRuntimeNode(MastRuntimeNode):
         self.color = node.color if node.color else "white"
         # If this is the same ship it is known
         self.is_unknown = False
-
+        
+        
         buttons = []
         # Expand all the 'for' buttons
         for button in node.buttons:
@@ -213,17 +234,21 @@ class CommsRuntimeNode(MastRuntimeNode):
         self.face = faces.get_face(selected_so.id)
         
 
-
+        selection = None
         if self.is_grid_comms:        
             ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'grid_selected_UID', self.comms_selected)
             ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'grid_selected_UID', self.comms_message)
+            selection = query.get_grid_selection(self.origin_id)
         else:
             ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'comms_target_UID', self.comms_selected)
             ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'comms_target_UID', self.comms_message)
-        self.set_buttons(self.origin_id, self.selected_id)
+            selection = query.get_comms_selection(self.origin_id)
+
+        if selection == self.selected_id:
+            self.set_buttons(self.origin_id, selection)
         # from_so.face_desc
 
-    def comms_selected(self, sim, an_id, event):
+    def comms_selected(self, an_id, event):
         #
         # Check to see if this was intended for us
         #
@@ -258,7 +283,7 @@ class CommsRuntimeNode(MastRuntimeNode):
                 if oo is None or so is None:
                     return
                 scan_name = oo.side+"scan"
-                initial_scan = so.get_engine_data(self.task.main.sim, scan_name)
+                initial_scan = so.get_engine_data(scan_name)
                 
                 if initial_scan is None or initial_scan =="":
                     sbs.send_comms_selection_info(origin_id, "", "white", "unknown")
@@ -269,7 +294,7 @@ class CommsRuntimeNode(MastRuntimeNode):
 
             for i, button in enumerate(self.buttons):
                 value = True
-                color = "blue" if button.color is None else button.color
+                color = "white" if button.color is None else button.color
                 if button.code is not None:
                     value = self.task.eval_code(button.code)
                 if value and button.should_present((origin_id, selected_id)):
@@ -288,12 +313,14 @@ class CommsRuntimeNode(MastRuntimeNode):
                 clone = button.clone()
                 clone.data = data
                 clone.message = task.format_string(clone.message)
+                if clone.color is not None:
+                    clone.color = task.format_string(clone.color)
                 buttons.append(clone)
 
         return buttons
 
 
-    def comms_message(self, sim, message, an_id, event):
+    def comms_message(self, message, an_id, event):
         #
         # Check to see if this was intended for us
         #
@@ -342,20 +369,17 @@ class CommsRuntimeNode(MastRuntimeNode):
             if oo is None or so is None:
                 return PollResults.OK_ADVANCE_TRUE
             scan_name = oo.side+"scan"
-            initial_scan = so.get_engine_data(self.task.main.sim, scan_name)
+            initial_scan = so.get_engine_data(scan_name)
             self.is_unknown = (initial_scan is None or initial_scan == "")
             # It is now known
             #
             if not self.is_unknown:
                 # if selected update buttons
-                player_current_select = oo.get_engine_data(self.task.main.sim, "comms_target_UID")
+                player_current_select = oo.get_engine_data( "comms_target_UID")
                 if player_current_select == self.selected_id:
                     self.set_buttons(self.origin_id, self.selected_id)
             return PollResults.OK_RUN_AGAIN
 
-        if len(node.buttons)==0:
-            # clear the comms buttons
-            return PollResults.OK_ADVANCE_TRUE
 
         if self.button is not None:
             button = self.buttons[self.button] 
@@ -375,8 +399,18 @@ class CommsRuntimeNode(MastRuntimeNode):
             elif node.end_await_node:
                 task.jump(task.active_label,node.end_await_node.loc+1)
                 return PollResults.OK_JUMP
-            
-        
+
+        if self.on_change:
+            for change in self.on_change:
+                if change.test():
+                    task.jump(task.active_label,change.node.loc+1)
+                    return PollResults.OK_JUMP
+
+
+        if len(node.buttons)==0:
+            # clear the comms buttons
+            return PollResults.OK_ADVANCE_TRUE
+
         return PollResults.OK_RUN_AGAIN
     
 class ScanRuntimeNode(MastRuntimeNode):
@@ -427,7 +461,7 @@ class ScanRuntimeNode(MastRuntimeNode):
 
         if to_so is not None:
             scan_tab = from_so.side+"scan"
-            has_scan = to_so.get_engine_data(task.main.sim, scan_tab)
+            has_scan = to_so.get_engine_data(scan_tab)
             if has_scan is None:
                 scan_tabs = "scan"
                 self.scan_is_done = False
@@ -447,11 +481,11 @@ class ScanRuntimeNode(MastRuntimeNode):
                                 scan_tabs += " "
                             scan_tabs += msg
                         # Check if this has been scanned
-                        has_scan = to_so.get_engine_data(task.main.sim, from_so.side+msg)
+                        has_scan = to_so.get_engine_data(from_so.side+msg)
                         if has_scan:
                             scanned_tabs += 1
                 self.scan_is_done = scanned_tabs == button_count
-                to_so.update_engine_data(task.main.sim, {"scan_type_list":scan_tabs})
+                to_so.update_engine_data({"scan_type_list":scan_tabs})
 
         
         ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'science_target_UID', self.science_selected)
@@ -461,11 +495,11 @@ class ScanRuntimeNode(MastRuntimeNode):
         if routed:
             event = task.get_variable("EVENT")
             if event is not None:
-                self.start_scan(task.main.sim, from_so.id, to_so.id, event.extra_tag)
+                self.start_scan(from_so.id, to_so.id, event.extra_tag)
             else:
-                self.start_scan(task.main.sim, from_so.id, to_so.id, "__init__")
+                self.start_scan( from_so.id, to_so.id, "__init__")
 
-    def science_selected(self, ctx, an_id, event):
+    def science_selected(self, an_id, event):
         #
         # avoid if this isn't for us
         #
@@ -473,9 +507,9 @@ class ScanRuntimeNode(MastRuntimeNode):
             self.selected_id != event.selected_id:
             return
         
-        self.start_scan(ctx.sim, event.origin_id, event.selected_id, event.extra_tag)
+        self.start_scan(event.origin_id, event.selected_id, event.extra_tag)
 
-    def start_scan(self, sim, origin_id, selected_id, extra_tag):
+    def start_scan(self, origin_id, selected_id, extra_tag):
         #
         # Check if this was initiated by a "Follow route"
         #
@@ -492,7 +526,7 @@ class ScanRuntimeNode(MastRuntimeNode):
         if so.side == so_sel.side:
             percent = 0.90
         if so:
-            so.update_engine_data(sim, {
+            so.update_engine_data({
                 "cur_scan_ID": selected_id,
                 "cur_scan_type": extra_tag,
                 "cur_scan_percent": percent
@@ -515,7 +549,7 @@ class ScanRuntimeNode(MastRuntimeNode):
         return buttons
 
 
-    def science_message(self, sim, message, an_id, event):
+    def science_message(self, message, an_id, event):
         # makes sure this was for us
         if event.selected_id != self.selected_id or self.origin_id != event.origin_id:
             return
@@ -549,7 +583,7 @@ class ScanRuntimeNode(MastRuntimeNode):
             self.tab = None
             if so and so_player:
                 tab = so_player.side+"scan"
-                scan_tab = so.get_engine_data(task.main.sim, tab)
+                scan_tab = so.get_engine_data(tab)
                 if scan_tab is None:
                     if node.fog == 0:
                         self.tab = "scan"
@@ -573,7 +607,7 @@ class ScanRuntimeNode(MastRuntimeNode):
             if self.button is not None:
                 button = self.buttons[self.button] 
                 self.button = None
-                task.set_value(button.for_name, button.data, Scope.TEMP)
+                #task.set_value(button.for_name, button.data, Scope.TEMP)
                 task.set_value("EVENT", self.event, Scope.TEMP)
                 task.jump(task.active_label,button.loc+1)
             return PollResults.OK_JUMP
@@ -589,10 +623,10 @@ class ScanResultRuntimeNode(MastRuntimeNode):
         #print(f"{scan.tab} scan {msg}")
         so = query.to_object(scan.selected_id)
         if so:
-            so.update_engine_data(task.main.sim, {
+            so.update_engine_data({
                 scan.tab: msg,
             })
-            query.set_inventory_value(scan.selected_id, "SCANNED", True)
+            inventory.set_inventory_value(scan.selected_id, "SCANNED", True)
 
         # Rerun the scan (until all scans are done)
         if scan.node:
@@ -608,7 +642,7 @@ class RegexEqual(str):
 #
 #
 
-def handle_purge_tasks(ctx, so):
+def handle_purge_tasks(so):
     """
     This will clear out all tasks related to the destroyed item
     """
@@ -627,39 +661,37 @@ class FollowRouteRuntimeNode(MastRuntimeNode):
             return PollResults.OK_ADVANCE_TRUE
         origin_id = query.to_id(origin)
         selected_id = query.to_id(selected)
-        class FakeEvent:
-            def __init__(self, sub_tag, origin_id, selected_id, extra_tag):
-                self.sub_tag = sub_tag
-                self.client_id = None
-                self.origin_id = origin_id
-                self.extra_tag = extra_tag
-                self.selected_id = selected_id
+        
         console = None
         extra_tag = ""
+        value_tag = ""
         match RegexEqual(node.route):
             case "comms\s+select":
                 console = "comms_target_UID"
                 extra_tag = ""
+                value_tag = "comms_sorted_list"
             
             case "science\s+select":
                 console = "science_target_UID"
                 extra_tag = "__init__"
+                value_tag = "science_sorted_list"
 
             case "grid\s+select":
                 console = "grid_selected_UID"
                 extra_tag = ""
+                value_tag = "grid_object_list"
 
             case _:
                 print("GOT HERE but should not have")
 
         if console is not None:
             ctx = task.get_variable('ctx')
-            event = FakeEvent(console, origin_id, selected_id, extra_tag)
+            event = FakeEvent(sub_tag=console, origin_id=origin_id, selected_id=selected_id, extra_tag=extra_tag,value_tag=value_tag)
             #
             # A bit of a hack directly using dispatchers data
             # forcing the default handlers
             #
-            ConsoleDispatcher.dispatch_select(ctx, event)
+            ConsoleDispatcher.dispatch_select(event)
         
         return PollResults.OK_ADVANCE_TRUE
 
@@ -671,11 +703,11 @@ class RouteRuntimeNode(MastRuntimeNode):
         #   Except change console
 
         
-        def handle_dispatch(task, console, sim, an_id, event):
+        def handle_dispatch(task, console, an_id, event):
             # 
             # Avoid scheduling this multiple times
             #
-            if query.has_link_to(event.origin_id, f"__route{console}", event.selected_id):
+            if links.has_link_to(event.origin_id, f"__route{console}", event.selected_id):
                 return
             
 
@@ -690,11 +722,11 @@ class RouteRuntimeNode(MastRuntimeNode):
                 
             )
             if not t.done:
-                query.link(event.origin_id, f"__route{console}", event.selected_id)
+                links.link(event.origin_id, f"__route{console}", event.selected_id)
                 MastAsyncTask.add_dependency(event.origin_id,t)
                 MastAsyncTask.add_dependency(event.selected_id,t)
 
-        def handle_spawn(sim, so):
+        def handle_spawn(so):
             t = task.start_task(node.label, {
                     f"SPAWNED_ID": so.id,
                     f"SPAWNED_ROUTED": True
@@ -702,7 +734,7 @@ class RouteRuntimeNode(MastRuntimeNode):
             if not t.done:
                 MastAsyncTask.add_dependency(so.id,t)
 
-        def handle_destroyed(sim, so):
+        def handle_destroyed(so):
             t = task.start_task(node.label, {
                     f"DESTROYED_ID": so.id,
                     f"DESTROYED_ROUTED": True
@@ -711,7 +743,7 @@ class RouteRuntimeNode(MastRuntimeNode):
                 MastAsyncTask.add_dependency(so.id,t)
 
 
-        def handle_spawn_grid(sim, so):
+        def handle_spawn_grid(so):
             t = task.start_task(node.label, {
                     f"SPAWNED_ID": so.id,
                     f"SPAWNED_ROUTED": True
@@ -719,7 +751,7 @@ class RouteRuntimeNode(MastRuntimeNode):
             if not t.done:
                 MastAsyncTask.add_dependency(so.id,t)
 
-        def handle_damage(ctx, event):
+        def handle_damage(event):
             # Need point? amount
             t = task.start_task(node.label, {
                     "DAMAGE_SOURCE_ID": event.origin_id,
@@ -733,14 +765,30 @@ class RouteRuntimeNode(MastRuntimeNode):
             if not t.done:
                 MastAsyncTask.add_dependency(event.origin_id,t)
                 MastAsyncTask.add_dependency(event.selected_id,t)
+
+        def handle_collision(event):
+            # Need point? amount
+            t = task.start_task(node.label, {
+                    "COLLISION_SOURCE_ID": event.origin_id,
+                    "COLLISION_PARENT_ID": event.parent_id,
+                    "COLLISION_TARGET_ID": event.selected_id,
+                    "COLLISION_ORIGIN_ID": event.origin_id,
+                    "COLLISION_SELECTED_ID": event.selected_id,
+                    #"EVENT": event,
+                    "COLLISION_ROUTED": True
+            })
+            if not t.done:
+                MastAsyncTask.add_dependency(event.origin_id,t)
+                MastAsyncTask.add_dependency(event.selected_id,t)
         
-        def handle_damage_internal(ctx, event):
+        def handle_damage_internal(event):
             # Need point? amount
             t= task.start_task(node.label, {
                     "DAMAGE_SOURCE_ID": event.origin_id,
-                    "DAMAGE_TARGET_ID": event.origin_id,
+                    "DAMAGE_TARGET_ID": event.selected_id,
                     "DAMAGE_PARENT_ID": event.parent_id,
                     "DAMAGE_ORIGIN_ID": event.origin_id,
+                    "DAMAGE_SELECTED_ID": event.selected_id,
                     "EVENT": event,
                     "DAMAGE_ROUTED": True
             })
@@ -748,7 +796,22 @@ class RouteRuntimeNode(MastRuntimeNode):
                 MastAsyncTask.add_dependency(event.origin_id,t)
                 MastAsyncTask.add_dependency(event.selected_id,t)
 
-        def handle_grid_event(ctx, event):
+        def handle_damage_heat(event):
+            # Need point? amount
+            t= task.start_task(node.label, {
+                    "DAMAGE_SOURCE_ID": event.origin_id,
+                    "DAMAGE_TARGET_ID": event.selected_id,
+                    "DAMAGE_PARENT_ID": event.parent_id,
+                    "DAMAGE_ORIGIN_ID": event.origin_id,
+                    "DAMAGE_SELECTED_ID": event.selected_id,
+                    "EVENT": event,
+                    "DAMAGE_ROUTED": True
+            })
+            if not t.done:
+                MastAsyncTask.add_dependency(event.origin_id,t)
+                MastAsyncTask.add_dependency(event.selected_id,t)
+
+        def handle_grid_event(event):
             # Need point? amount
             t= task.start_task(node.label, {
                     "GRID_PARENT_ID": event.parent_id,
@@ -806,10 +869,20 @@ class RouteRuntimeNode(MastRuntimeNode):
                     return PollResults.OK_ADVANCE_TRUE
                 DamageDispatcher.add_any(handle_damage)
 
+            case "collision[ \t]+object":
+                if task.main.client_id != 0:
+                    return PollResults.OK_ADVANCE_TRUE
+                CollisionDispatcher.add_any(handle_collision)
+
             case "damage\s*internal":
                 if task.main.client_id != 0:
                     return PollResults.OK_ADVANCE_TRUE
                 DamageDispatcher.add_any_internal(handle_damage_internal)
+
+            case "damage\s*heat":
+                if task.main.client_id != 0:
+                    return PollResults.OK_ADVANCE_TRUE
+                DamageDispatcher.add_any_heat(handle_damage_heat)
 
             case "spawn":
                 if task.main.client_id != 0:
@@ -867,8 +940,18 @@ for func in [
     Mast.globals[func.__name__] = func
 
 
-from .. import names
-Mast.import_python_module('sbs_utils.query')
+#
+# Expose procedural methods to script
+#
+Mast.import_python_module('sbs_utils.procedural.query')
+Mast.import_python_module('sbs_utils.procedural.spawn')
+Mast.import_python_module('sbs_utils.procedural.timers')
+Mast.import_python_module('sbs_utils.procedural.grid')
+Mast.import_python_module('sbs_utils.procedural.space_objects')
+Mast.import_python_module('sbs_utils.procedural.roles')
+Mast.import_python_module('sbs_utils.procedural.inventory')
+Mast.import_python_module('sbs_utils.procedural.links')
+
 Mast.import_python_module('sbs_utils.faces')
 Mast.import_python_module('sbs_utils.fs')
 Mast.import_python_module('sbs_utils.scatter', 'scatter')
@@ -882,35 +965,7 @@ class MastSbsScheduler(MastScheduler):
         else:
             super().__init__(mast,  over)
         self.sim = None
-        # Create schedulable space objects
-        self.vars["npc_spawn"] = self.npc_spawn
-        self.vars["terrain_spawn"] = self.terrain_spawn
-        self.vars["player_spawn"] = self.player_spawn
-        self.vars["grid_spawn"] = self.grid_spawn
-
-
-    def Npc(self):
-        return Npc(self)
-    def PlayerShip(self):
-        return PlayerShip(self)
-    def Terrain(self):
-        return Terrain(self)
     
-    def npc_spawn(self, x,y,z,name, side, art_id, behave_id):
-        so = Npc(self)
-        return so.spawn(self.sim, x,y,z,name, side, art_id, behave_id)
-        
-    def player_spawn(self, x,y,z,name, side, art_id):
-        so = PlayerShip(self)
-        return so.spawn(self.sim, x,y,z,name, side, art_id)
-    def terrain_spawn(self, x,y,z,name, side, art_id, behave_id):
-        so = Terrain(self)
-        return so.spawn(self.sim, x,y,z,name, side, art_id, behave_id)
-    
-    def grid_spawn(self, id, name, tag, x,y, icon, color, roles):
-        so = GridObject(self)
-        
-        return so.spawn(self.sim, id, name, tag, x,y, icon, color, roles)
 
     def run(self, ctx, label="main", inputs=None):
         self.sim = ctx.sim

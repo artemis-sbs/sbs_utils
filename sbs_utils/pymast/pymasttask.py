@@ -6,6 +6,7 @@ from functools import partial
 import types
 import sbs
 from ..engineobject import EngineObject, get_task_id
+from ..helpers import FrameContext
 
 class DataHolder(object):
     pass
@@ -60,16 +61,14 @@ class PyMastTask(EngineObject):
         self.done = True
             
 
-    def tick(self, ctx):
-        if ctx is None:
-            print("ctx is NONE")
+    def tick(self):
         
-        self.sim = ctx.sim
-        self.story.sim = ctx.sim
-        self.scheduler.sim = ctx.sim
-        self.ctx = ctx
-        self.story.ctx = ctx
-        self.scheduler.ctx = ctx
+        self.sim = FrameContext.context.sim
+        self.story.sim = self.sim
+        self.scheduler.sim = self.sim
+        self.ctx = FrameContext.context
+        self.story.ctx = self.ctx
+        self.scheduler.ctx = self.ctx
         self.story.task = self
         # Keep running until told to defer or you've jump 100 time
         # Arbitrary number
@@ -249,7 +248,7 @@ class PyMastTask(EngineObject):
 
         # Then Await for it to finish
         science = PyMastScience(self, scans, player, npc)
-        science.handle_selected(self.sim, player, npc, "scan")
+        science.handle_selected(player, npc, "scan")
         def pusher(story):
             return self.run_science(science)
         self.task.push_jump_pop(pusher)
@@ -292,9 +291,7 @@ class PyMastTask(EngineObject):
         page.test_end_await_cb = test_end_await
         page.disconnect_cb = on_disconnect
         page.set_buttons(buttons)
-        # page.present(self.story.sim, None)
-        # self.await_gen = self.run_gui()
-        #return PollResults.OK_RUN_AGAIN
+
         page.run(timeout)
         return PollResults.OK_JUMP
     
@@ -302,32 +299,32 @@ class PyMastTask(EngineObject):
     def watch_event(self, event_tag, label):
         self.events[event_tag] = label
 
-    def on_event(self, ctx, event):
-        #
-        # This is another push_jump_pop
-        # So if a jump occurs in unwinds the push stack for all push_jump_pop:s
-        label = self.events.get(event.tag)
-        if label is None:
-            return
-        def pusher(story):
-            return self._run_event(label, ctx, event)
-        self.task.push_jump_pop(pusher)
+    # def on_event(self, event):
+    #     #
+    #     # This is another push_jump_pop
+    #     # So if a jump occurs in unwinds the push stack for all push_jump_pop:s
+    #     label = self.events.get(event.tag)
+    #     if label is None:
+    #         return
+    #     def pusher(story):
+    #         return self._run_event(label, event)
+    #     self.task.push_jump_pop(pusher)
     
-    def _run_event(self, label, ctx, event):    
-        gen = None
-        res = PollResults.FAIL_END
-        if inspect.isfunction(label):
-            gen = label(self.story, ctx, event)
-            res = PollResults.OK_JUMP
-        elif inspect.ismethod(label):
-            gen = label(ctx,event)
-            res = PollResults.OK_JUMP
-        if gen is not None:
-            for this_res in gen:
-                res = this_res
-                yield res
-        self.last_poll_result = res
-        yield self.pop()
+    # def _run_event(self, label, event):    
+    #     gen = None
+    #     res = PollResults.FAIL_END
+    #     if inspect.isfunction(label):
+    #         gen = label(self.story, ctx, event)
+    #         res = PollResults.OK_JUMP
+    #     elif inspect.ismethod(label):
+    #         gen = label(ctx,event)
+    #         res = PollResults.OK_JUMP
+    #     if gen is not None:
+    #         for this_res in gen:
+    #             res = this_res
+    #             yield res
+    #     self.last_poll_result = res
+    #     yield self.pop()
 
 
 

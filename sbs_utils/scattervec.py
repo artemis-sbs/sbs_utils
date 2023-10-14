@@ -80,6 +80,34 @@ def box_fill(cw, ch, cd, v, w, h, d, random=False):
     """
     return scatter.box_fill(cw, ch, cd, v.x, v.y, v.z, w, h, d, random)
 
+def box(count, v1, v2, centered=False, a=None, degrees=True):
+    """Calculate the points within a box
+
+    Parameters
+    ----------
+    count: int
+        The number of points to generate
+
+    v1: Vec3
+        the start point/origin
+        if center is true this is the center
+        if center is False this is the left, bottom, front
+    v2: Vec3
+        if center is true this is the width, height, depth
+        if center is false this is the right, top, back 
+
+    center: bool
+        when true v1 and its the center point
+        when true v2 is the width, height, depth
+        when false v1 is left, bottom, front
+        when false v2 is right, top, back
+    """
+    if a is not None:
+        return scatter.box(count, v1.x,v1.y, v1.z, v2.x, v2.y, v2.z, centered, a.x, a.y,a.z, degrees)
+    else:
+        return scatter.box(count, v1.x,v1.y, v1.z, v2.x, v2.y, v2.z, centered)
+    
+
 def ring(ca, cr, v, outer_r, inner_r=0, start=0.0, end=90.0, random=False):
     """Calculate the points on rings with each ring has same count
     Parameters

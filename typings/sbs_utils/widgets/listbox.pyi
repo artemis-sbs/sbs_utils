@@ -38,7 +38,7 @@ class Listbox(Widget):
         :type CID: int
         :param data: unused no component use data
         :type data: any"""
-    def present (self, sim, event):
+    def present (self, ctx, event):
         """present
         
         builds/manages the content of the widget

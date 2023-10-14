@@ -83,7 +83,7 @@ def rect_fill(cw, cd, x, y, z, w, d, random=False):
    
 def box_fill(cw, ch, cd, x, y, z, w, h, d, random=False):
     """Calculate the points within a box
-
+        the box is subdivide to ideally avoid overlap
         
     Parameters
     ----------
@@ -123,22 +123,62 @@ def box_fill(cw, ch, cd, x, y, z, w, h, d, random=False):
     else: 
         d_diff = 1
     for layer in range(0,ch):
-        if random:
-            _y =  bottom + uniform(0,ch) * h_diff
-        else:
-            _y =  bottom + layer * h_diff
+        _y =  bottom + layer * h_diff
         for row in range(0,cd):
-            if random:
-                _z =  front + uniform(0,cd) * d_diff
-            else:
-                _z = front + row * d_diff
+            _z = front + row * d_diff
             for col in range(0,cw):
                 if random:
+                    _y =  bottom + uniform(0,ch) * h_diff
                     _x =  left + uniform(0,cw) * w_diff
+                    _z =  front + uniform(0,cd) * d_diff
                 else:
                     _x = left + col * w_diff
                 yield Vec3(_x,_y,_z)
 
+def box(count, x,y, z, x2, y2, z2, centered=False, ax=0,ay=0,az=0, degrees=True):
+    """Calculate the points within a box
+
+    Parameters
+    ----------
+    count: int
+        The number of points to generate
+
+    x,y,z: float,float,float
+        the start point/origin
+        if center is true this is the center
+        if center is False this is the left, bottom, front
+    x2,y2,z2: float,float,float
+        if center is true this is the width, height, depth
+        if center is false this is the right, top, back 
+
+    center: bool
+        when true x,y,z and its the center point
+        when true x2,y2,z2 is the width, height, depth
+        when false x,y,z is left, bottom, front
+        when false x2,y2,z2 is right, top, back
+    """
+
+    rotate = ax!=0 or ay != 0 or az != 0
+    # for simplicity for rotation convert to centered
+    origin = Vec3(x,y,z)
+    w = x2
+    h = y2
+    d = z2
+    if not centered:
+        w = x2-x
+        h = y2-y
+        d = z2-z
+        origin = Vec3(x+ w/2, y+h/2, z+d/2)
+
+
+    for _ in range(0,count):
+        _x =  uniform(origin.x-w/2,origin.x+w/2)
+        _y =  uniform(origin.y-h/2,y+h/2)
+        _z =  uniform(origin.z-d/2,z+d/2)
+        v = Vec3(_x,_y,_z)
+        if rotate:
+            v = v.rotate_around(origin, ax,ay,az, degrees)
+        yield v
 
 def ring(ca, cr, x,y,z, outer_r, inner_r=0, start=0.0, end=90.0, random=False):
     """Calculate the points on rings with each ring has same count

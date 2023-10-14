@@ -13,9 +13,11 @@ from sbs_utils.mast.maststory import DropdownControl
 from sbs_utils.mast.maststory import Face
 from sbs_utils.mast.maststory import GuiContent
 from sbs_utils.mast.maststory import Hole
+from sbs_utils.mast.maststory import Icon
 from sbs_utils.mast.maststory import ImageControl
 from sbs_utils.mast.maststory import MastStory
 from sbs_utils.mast.maststory import OnChange
+from sbs_utils.mast.maststory import OnClick
 from sbs_utils.mast.maststory import RadioControl
 from sbs_utils.mast.maststory import Refresh
 from sbs_utils.mast.maststory import RerouteGui
@@ -135,6 +137,12 @@ class HoleRuntimeNode(StoryRuntimeNode):
     """class HoleRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.Hole):
         ...
+class IconRuntimeNode(StoryRuntimeNode):
+    """class IconRuntimeNode"""
+    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.Icon):
+        ...
+    def poll (self, mast, task, node: sbs_utils.mast.maststory.Face):
+        ...
 class ImageControlRuntimeNode(StoryRuntimeNode):
     """class ImageControlRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.ImageControl):
@@ -146,6 +154,14 @@ class OnChangeRuntimeNode(StoryRuntimeNode):
     def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.OnChange):
         ...
     def test (self):
+        ...
+class OnClickRuntimeNode(StoryRuntimeNode):
+    """class OnClickRuntimeNode"""
+    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.OnClick):
+        ...
+    def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.OnClick):
+        ...
+    def test (self, click_tag):
         ...
 class RadioControlRuntimeNode(StoryRuntimeNode):
     """class RadioControlRuntimeNode"""
@@ -192,6 +208,8 @@ class StoryPage(Page):
     def add_content (self, layout_item, runtime_node):
         ...
     def add_on_change (self, runtime_node):
+        ...
+    def add_on_click (self, runtime_node):
         ...
     def add_row (self):
         ...
@@ -247,6 +265,8 @@ class StoryRuntimeNode(MastRuntimeNode):
     def apply_style_def (self, style_def, layout_item, task):
         ...
     def apply_style_name (self, style_name, layout_item, task):
+        ...
+    def compile_formatted_string (self, message):
         ...
     def databind (self):
         ...

@@ -126,7 +126,7 @@ next x
         (errors, mast) =mast_compile( code = """
 
 
-
+push fred {"test": 1}
 ->END
 -> END
 -> a_label
@@ -157,7 +157,9 @@ end_if
         (errors, runner, mast) =mast_run( code = """
 logger string output
 x = 45
-
+push test_args {"x": 2}
+log "{x}"
+                                         
 jump fred if x==2
 log "yes-1"
 jump barney if x > 40
@@ -167,6 +169,10 @@ log "no-1"
 ==== fred ===
 log "no-1"
 ->END
+
+==== test_args ===
+log "{x}"
+<<-
 
 ==== barney === 
 
@@ -192,7 +198,7 @@ log "no-1"
         assert(output is not None)
         st = output[0]
         value = st.getvalue()
-        assert(value=="yes-1\nyes-2\nyes-3\n")
+        assert(value=="2\n45\nyes-1\nyes-2\nyes-3\n")
 
     def test_await_all_any_compile_err(self):
         (errors, mast) =mast_compile( code = """
@@ -1332,7 +1338,7 @@ log "Three"
                 value = st.getvalue()
                 assert(value =="""One\nTwo\nThree\n""")
 
-
+    
 
 if __name__ == '__main__':
     try:
@@ -1358,3 +1364,5 @@ Cancel,
     Jump,
     Delay,
 """
+
+
