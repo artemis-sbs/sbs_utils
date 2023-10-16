@@ -1087,11 +1087,24 @@ class Mast(EngineObject):
 
                         case "Import":
                             lib_name = data.get("lib")
-                            err = self.import_content(data['name'], lib_name)
-                            if err is not None:
-                                errors.extend(err)
-                                for e in err:
-                                    print("import error "+e)
+                            name = data['name']
+
+                            if name.endswith('.py'):
+                                import importlib
+                                module_name = name[:-3]
+                                if sys.modules.get(module_name) is None:
+                                    file_name = os.path.join(fs.get_mission_dir(), name)
+                                    spec = importlib.util.spec_from_file_location(module_name, file_name)
+                                    module = importlib.util.module_from_spec(spec)
+                                    sys.modules[module_name] = module
+                                    spec.loader.exec_module(module)
+                                    Mast.import_python_module(module_name)
+                            else:
+                                err = self.import_content(name, lib_name)
+                                if err is not None:
+                                    errors.extend(err)
+                                    for e in err:
+                                        print("import error "+e)
 
 
                         # Throw comments and markers away

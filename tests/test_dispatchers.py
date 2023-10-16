@@ -5,7 +5,7 @@ from mock import sbs as sbs
 from sbs_utils import names
 import sys
 from sbs_utils.pymast.pymaststory import PyMastStory
-from sbs_utils.helpers import FrameContext, Context
+from sbs_utils.helpers import FrameContext, Context, FakeEvent
 from sbs_utils.tickdispatcher import TickDispatcher
 
 
@@ -27,7 +27,7 @@ class TestDispatcher(unittest.TestCase):
         self.count += 1
 
     def test_something(self):
-        ctx = Context(FakeSim(), sbs)
+        ctx = Context(FakeSim(), sbs, FakeEvent())
         FrameContext.context = ctx
         self.count = 0
         TickDispatcher.do_once(self.inc_count, 0)

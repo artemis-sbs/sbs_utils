@@ -7,7 +7,7 @@ from sbs_utils.spaceobject import SpaceObject, TickType
 from sbs_utils.sbs_utils.procedural.query import role, linked_to, closest_list, closest, broad_test, to_py_object_list
 from sbs_utils.objects import Npc, Terrain, PlayerShip
 from sbs_utils.gridobject import GridObject
-from sbs_utils.helpers import FrameContext, Context
+from sbs_utils.helpers import FrameContext, Context, FakeEvent
 
 def get_sim():
     """ Function in case I change how to get the sim"""
@@ -24,7 +24,7 @@ class TestSpaceObject(unittest.TestCase):
     def test_space_object(self):
         """ Test for the basic creation of SpaceObjects"""
         sbs.create_new_sim()
-        FrameContext.context = Context(sbs.sim, sbs) 
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent()) 
 
 
         artemis = PlayerShip().spawn(0,0,0, "Artemis", "tsn", "Battle Cruiser")
@@ -79,7 +79,7 @@ class TestSpaceObject(unittest.TestCase):
     def test_roles(self):
         test_obj = []
         sbs.create_new_sim()
-        FrameContext.context = Context(sbs.sim, sbs) 
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent()) 
 
         names = ["Artemis", "Hera", "Atlas", "Juno", "Zeus", "Jupiter"]
         for name in names:
@@ -143,7 +143,7 @@ class TestSpaceObject(unittest.TestCase):
         test_obj = []
         names = ["Artemis", "Hera", "Atlas", "Juno", "Zeus", "Jupiter"]
         sbs.create_new_sim()
-        FrameContext.context = Context(sbs.sim, sbs) 
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent()) 
 
         for i, name in enumerate(names):
             test_obj.append(PlayerShip().spawn(i*100,0,0, name, "tsn", "Battle Cruiser").py_object)
@@ -181,7 +181,7 @@ class TestSpaceObject(unittest.TestCase):
         test_obj = []
         names = ["Artemis", "Hera", "Atlas", "Juno", "Zeus", "Jupiter"]
         sbs.create_new_sim()
-        FrameContext.context = Context(sbs.sim, sbs) 
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent()) 
 
         for i, name in enumerate(names):
             test_obj.append(PlayerShip().spawn(i*100,0,0, name, "tsn", "Battle Cruiser").py_object)
@@ -318,7 +318,7 @@ class TestSpaceObject(unittest.TestCase):
         test_obj = []
         names = ["Artemis", "Hera", "Atlas", "Juno", "Zeus", "Jupiter"]
         sbs.create_new_sim()
-        FrameContext.context = Context(sbs.sim, sbs) 
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent()) 
 
         for i, name in enumerate(names):
             test_obj.append(PlayerShip().spawn(i*100,0,0, name, "tsn", "Battle Cruiser").py_object)
@@ -357,7 +357,7 @@ class TestSpaceObject(unittest.TestCase):
     def test_inventory(self):
         
         sbs.create_new_sim()
-        FrameContext.context = Context(sbs.sim, sbs) 
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent()) 
 
         
         artemis = PlayerShip().spawn(0,0,0, "Artemis", "tsn", "Battle Cruiser").py_object

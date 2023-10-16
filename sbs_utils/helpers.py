@@ -3,9 +3,10 @@ import sbs
 
 
 class Context:
-    def __init__(self, sim, _sbs):
+    def __init__(self, sim, _sbs, _event):
         self.sim = sim
         self.sbs = _sbs
+        self.event = _event
 
 
 class FrameContext:

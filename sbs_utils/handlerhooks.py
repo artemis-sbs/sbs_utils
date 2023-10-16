@@ -74,7 +74,7 @@ def cosmos_event_handler(sim, event):
         t = time.process_time()
         # Allow guis more direct access to events
         # e.g. Mast Story Page, Clients change
-        ctx = Context(sim, sbs)
+        ctx = Context(sim, sbs, event)
         FrameContext.context = ctx
         
         #print(f"{event.sub_tag}")

@@ -5,7 +5,7 @@ from mock import sbs as sbs
 from sbs_utils import names
 import sys
 from sbs_utils.pymast.pymaststory import PyMastStory
-from sbs_utils.helpers import FrameContext, Context
+from sbs_utils.helpers import FrameContext, Context, FakeEvent
 
 
 def example_loose(self):
@@ -58,7 +58,7 @@ class TestNames(unittest.TestCase):
         self.assertEqual(3, 3)
 
     def test_something(self):
-        ctx = Context(FakeSim(), sbs)
+        ctx = Context(FakeSim(), sbs, FakeEvent())
         FrameContext.context = ctx
         story = ExampleStory()
         story.enable()
