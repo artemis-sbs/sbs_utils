@@ -5,7 +5,7 @@ from .mast import *
 import time
 import traceback
 from ..engineobject import EngineObject, get_task_id
-import inspect
+from ..helpers import FrameContext
 
 
 class MastRuntimeNode:
@@ -795,6 +795,7 @@ class MastAsyncTask(EngineObject):
     
     def tick(self):
         cmd = None
+        FrameContext.task = self
         try:
             if self.done:
                 # should unschedule
@@ -1263,6 +1264,8 @@ class MastScheduler(EngineObject):
     def tick(self):
         for task in self.tasks:
             self.active_task = task
+            FrameContext.task = self
+            FrameContext.shared_id = self.mast.get_id()
             res = task.tick()
             if res == PollResults.OK_END:
                 self.done.append(task)

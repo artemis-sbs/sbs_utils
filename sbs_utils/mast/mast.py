@@ -870,6 +870,7 @@ class Mast(EngineObject):
     def clear(self):
         self.inputs = {}
         self.set_inventory_value("mast", self)
+        self.set_inventory_value("SHARED", self.get_id())
         # self.vars = {"mast": self}
         self.labels = {}
         self.inline_labels = {}

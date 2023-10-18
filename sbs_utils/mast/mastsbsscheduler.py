@@ -20,6 +20,7 @@ from ..procedural import query
 from ..procedural import roles
 from ..procedural import links
 from ..procedural import inventory
+from ..procedural import gui
 
 from functools import partial
 
@@ -951,6 +952,7 @@ Mast.import_python_module('sbs_utils.procedural.space_objects')
 Mast.import_python_module('sbs_utils.procedural.roles')
 Mast.import_python_module('sbs_utils.procedural.inventory')
 Mast.import_python_module('sbs_utils.procedural.links')
+Mast.import_python_module('sbs_utils.procedural.gui')
 
 Mast.import_python_module('sbs_utils.faces')
 Mast.import_python_module('sbs_utils.fs')

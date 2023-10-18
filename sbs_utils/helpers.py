@@ -12,6 +12,10 @@ class Context:
 class FrameContext:
     context = None
     aspect_ratio = sbs.vec3(1024,768,0)
+    page = None
+    task = None
+    shared_id = -1
+
 
 class FakeEvent:
     def __init__(self, client_id=0, tag="", sub_tag="", origin_id=0, selected_id=0, parent_id=0, extra_tag="", value_tag=""):

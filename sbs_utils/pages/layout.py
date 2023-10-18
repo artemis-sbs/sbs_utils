@@ -198,7 +198,7 @@ class Text(Column):
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
 
     def update(self, message):
-        print(f"{message}")
+        # print(f"{message}")
         if "text:" not in message:
             message = f"text:{message}"
         self.message = message

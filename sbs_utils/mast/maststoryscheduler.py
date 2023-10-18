@@ -4,6 +4,7 @@ from .mast import Mast, Scope
 import sbs
 from ..gui import Gui, Page
 from ..helpers import FakeEvent, FrameContext
+from ..procedural.inventory import get_inventory_value, set_inventory_value
 from .parsers import StyleDefinition
 
 from ..pages import layout
@@ -13,6 +14,23 @@ import traceback
 from .mastsbsscheduler import MastSbsScheduler, Button
 from ..consoledispatcher import ConsoleDispatcher
 from .parsers import LayoutAreaParser
+
+
+
+class TabControl(layout.Text):
+    def __init__(self, tag, message, label, page) -> None:
+        super().__init__(tag,message)
+        self.page = page
+        self.label = label
+
+    def on_message(self, event):
+        if event.sub_tag == self.click_tag:
+            if self.label is not None:
+                self.page.gui_task.jump(self.label)
+
+
+
+
 
 class StoryRuntimeNode(MastRuntimeNode):
     def on_message(self, event):
@@ -936,12 +954,18 @@ class StoryScheduler(MastSbsScheduler):
 
     def story_tick_tasks(self, client_id):
         ctx = FrameContext.context
+        #
+        FrameContext.page = self.page
+
         self.sim = ctx.sim
         self.ctx = ctx
         self.set_inventory_value('sim', ctx.sim)
         self.set_inventory_value('ctx', ctx)
         self.client_id = client_id
-        return super().sbs_tick_tasks(ctx)
+        ret = super().sbs_tick_tasks(ctx)
+        FrameContext.page = None
+        return ret
+
 
     def refresh(self, label):
         for task in self.tasks:
@@ -1036,6 +1060,11 @@ class StoryPage(Page):
         self.tag_map = self.pending_tag_map
         self.console = self.pending_console
         self.widgets = self.pending_widgets
+
+        
+        self.gui_queue_console_tabs()
+        #set_inventory_value(self.client_id, "CONSOLE_TYPE", self.console)
+        
         
         self.tag = 10000
         
@@ -1141,6 +1170,96 @@ class StoryPage(Page):
             self.pending_layouts.append(layout)
         
         self.swap_layout()
+
+    def gui_queue_console_tabs(self):
+        console = self.console
+        if self.console is not None: 
+            console = self.console.lower()
+        
+        convert = {
+            "normal_helm": "helm",
+            "normal_weap": "weapons",
+            "normal_sci": "science",
+            "normal_engi": "engineering",
+            "normal_comm": "comms"
+        }
+        console = convert.get(console, console)
+        #
+        # tabs can be for all ships or single
+        #
+        all_ship_tabs = get_inventory_value(FrameContext.shared_id, "console_tabs", {})
+        # print(all_ship_tabs)
+        all_tabs = all_ship_tabs.get("any", {})
+        ship_id = get_inventory_value(self.client_id, "assigned_ship", None)
+        #
+        # Add ship any
+        #
+        ship_any_tabs = {}
+        ship_tabs = {}
+        if ship_id is not None:
+            ship_tabs = get_inventory_value(ship_id, "console_tabs", {})
+            ship_any_tabs = ship_tabs.get("any", {})
+        
+        #
+        #  Add console
+        #
+        all_console_tabs = {}
+        ship_console_tabs ={}
+        back_tab = get_inventory_value(self.client_id, "__back_tab__", "back")
+        if console is not None:
+            console = console.lower()
+            set_inventory_value(self.client_id, "__back_tab__", console)
+            all_console_tabs = all_ship_tabs.get(console, {})
+            ship_console_tabs = ship_tabs.get(console, {})
+        #
+        # Ship and console override if keys match
+        #
+        all_tabs  = all_tabs |  all_console_tabs | ship_any_tabs | ship_console_tabs
+            
+        if len(all_tabs) == 0 : return
+        #
+        # Ok we're on a ship, on a console
+        #
+        _layout = layout.Layout(None, None, 20,0, 100, 3)
+        _row = layout.Row(height=3)
+        _layout.add(_row)
+
+        # Make spots for a certain amount of tabs
+        spots = 6
+        blanks = spots-len(all_tabs)
+        if blanks <0: blanks = 0
+        for _ in range(blanks):
+            _row.add(layout.Blank())
+
+        for tab in all_tabs:
+            
+            tab_text = tab
+            if tab == "__back_tab__":
+                tab_text = back_tab
+            msg = f"justify:center;color:black;text:{tab_text};"
+
+            button = TabControl(self.get_tag(),msg, all_tabs[tab], self) # Jump label all_tabs[tab]
+            button.click_text = tab_text
+            button.click_color = "#FFF"
+            #self.click_font = None
+            button.click_tag = self.get_tag()
+
+            if tab == console:
+                button.background = "#fff9"
+            else:
+                button.background = "#fff3"
+            
+            _row.add(button)
+        #_layout.calc()
+        self.pending_layouts.append(_layout)
+    
+
+
+
+
+
+
+
 
     def update_props_by_tag(self, tag, props):
         # get item by tag
