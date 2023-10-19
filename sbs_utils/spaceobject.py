@@ -150,7 +150,7 @@ class SpaceObject(EngineObject):
         """
 
         if (self.side != ""):
-            self._comms_id = f"{self.name}({self.side})"
+            self._comms_id = f"{self.name} ({self.side})"
         else:
             self._comms_id = self.name
 
@@ -194,23 +194,24 @@ class MSpawn:
 
 
         blob = obj.data_set
+        if name is not None:
+            self._name = name
+            blob.set("name_tag", name, 0)
+
         if side is not None:
             if isinstance(side, str):
                 roles = side.split(",")
             else:
                 roles = side
             side = roles[0].strip()
-            self._comms_id = f"{name}({side})" if name is not None else f"{side}{self.id}"
             obj.side = side
             self._side = side
+            self.update_comms_id()
             for role in roles:
                 self.add_role(role)
         else:
             self._comms_id = name if name is not None else f""
-        if name is not None:
-            self._name = name
-            blob.set("name_tag", name, 0)
-
+        
         return blob
 
 

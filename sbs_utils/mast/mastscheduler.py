@@ -161,7 +161,7 @@ class PyCodeRuntimeNode(MastRuntimeNode):
 
 
 
-        task.exec_code(node.code,{"export": export, "export_var": export_var} )
+        task.exec_code(node.code,{"export": export, "export_var": export_var}, None )
         return PollResults.OK_ADVANCE_TRUE
 
 class DoCommandRuntimeNode(MastRuntimeNode):
@@ -554,7 +554,7 @@ class MastAsyncTask(EngineObject):
         self.active_label = None
         self.events = {}
         #self.vars["mast_task"] = self
-        self.set_inventory_value("main_task", self)
+        self.set_inventory_value("mast_task", self)
         #self.redirect = None
         self.pop_on_jump = 0
         self.pending_pop = None
@@ -758,6 +758,15 @@ class MastAsyncTask(EngineObject):
         #         logger.info(f"{k}: {v}")
         value = eval(message, {"__builtins__": Mast.globals}, allowed)
         return value
+    
+    def compile_and_format_string(self, value):
+        if isinstance(value, str) and "{" in value:
+            value = f'''f"""{value}"""'''
+            code = compile(value, "<string>", "eval")
+            value = self.format_string(code)
+        return value
+
+
 
     def eval_code(self, code):
         value = None

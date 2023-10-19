@@ -1,10 +1,12 @@
+
+from mock import sbs as sbs # not sure why I need this
 import unittest
-import sys
-sys.path.append("..")
-from mock import sbs
 
 from sbs_utils.spaceobject import SpaceObject, TickType
-from sbs_utils.sbs_utils.procedural.query import role, linked_to, closest_list, closest, broad_test, to_py_object_list
+from sbs_utils.procedural.query import to_py_object_list
+from sbs_utils.procedural.links import linked_to
+from sbs_utils.procedural.space_objects import closest_list, closest, broad_test
+from sbs_utils.procedural.roles import role
 from sbs_utils.objects import Npc, Terrain, PlayerShip
 from sbs_utils.gridobject import GridObject
 from sbs_utils.helpers import FrameContext, Context, FakeEvent

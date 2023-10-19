@@ -1,6 +1,4 @@
 from .vec import Vec3
-import sbs
-
 
 class Context:
     def __init__(self, sim, _sbs, _event):
@@ -11,7 +9,7 @@ class Context:
 
 class FrameContext:
     context = None
-    aspect_ratio = sbs.vec3(1024,768,0)
+    aspect_ratio = Vec3(1024,768,0)
     page = None
     task = None
     shared_id = -1

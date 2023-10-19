@@ -74,7 +74,7 @@ class TransmitReceiveRuntimeNode(MastRuntimeNode):
         elif node.comms_var:
             title = task.get_variable(node.comms_var)
         else:
-            title = from_so.comms_id +">"+to_so.comms_id
+            title = from_so.comms_id +" > "+to_so.comms_id
 
         if node.face_string:
             face = task.format_string(node.face_string)
@@ -944,6 +944,17 @@ for func in [
 #
 # Expose procedural methods to script
 #
+import sbs_utils.procedural.query
+import sbs_utils.procedural.spawn
+import sbs_utils.procedural.timers
+import sbs_utils.procedural.grid
+import sbs_utils.procedural.space_objects
+import sbs_utils.procedural.roles
+import sbs_utils.procedural.inventory
+import sbs_utils.procedural.links
+import sbs_utils.procedural.gui
+
+
 Mast.import_python_module('sbs_utils.procedural.query')
 Mast.import_python_module('sbs_utils.procedural.spawn')
 Mast.import_python_module('sbs_utils.procedural.timers')

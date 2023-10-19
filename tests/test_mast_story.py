@@ -1,5 +1,5 @@
 from sbs_utils.mast.mast import Mast
-from sbs_utils.mast.maststory import MastStory, ButtonControl
+from sbs_utils.mast.maststory import MastStory
 import unittest
 
 Mast.enable_logging()

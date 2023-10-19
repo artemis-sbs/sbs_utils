@@ -220,4 +220,16 @@ def grid_short_status(id_or_obj, status, color=None, seconds=0, minutes=0):
     # Set tooltip
     blob.set("tool_tip_cur_text", status, 0)
     grid_speech_bubble(id_or_obj, status, color, seconds, minutes)
+
+def grid_detailed_status(id_or_obj, status, color=None):
+    blob = to_blob(id_or_obj)
+    if blob is None:
+        return
+    # Set tooltip
+    blob.set("info_text", status, 0)
+    if color is not None:
+        blob.set("info_text_color", color, 0)
+
+def grid_clear_detailed_status(id_or_obj):
+    grid_detailed_status(id_or_obj, "")
     

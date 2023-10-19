@@ -2,9 +2,8 @@ from sbs_utils.mast.mast import Mast, Scope
 from sbs_utils.mast.mastscheduler import MastScheduler
 
 import unittest
-import time
 
-Mast.enable_logging()
+#Mast.enable_logging()
 
 class TMastScheduler(MastScheduler):
     def runtime_error(self, message):

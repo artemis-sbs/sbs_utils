@@ -1,7 +1,6 @@
 from random import randrange, choice, choices
 from ..engineobject import EngineObject, CloseData, SpawnData
 from ..helpers import FrameContext
-import sbs
 
 ###################
 # Set functions
