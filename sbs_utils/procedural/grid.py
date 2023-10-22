@@ -139,12 +139,16 @@ def grid_target(grid_obj_or_set, target_id: int, speed=0.01):
         this_blob = to_blob(grid_obj.id)
         other_blob = to_blob(target_id)
         if other_blob and this_blob:
+            curx= this_blob.get("curx", 0)
+            cury= this_blob.get("cury",  0)
+        
             x = other_blob.get("curx", 0)
             y = other_blob.get("cury", 0)
-            
-            this_blob.set("pathx", x, 0)
-            this_blob.set("pathy", y, 0)
-            this_blob.set("move_speed", speed, 0)
+
+            if x!=curx or y != cury:
+                this_blob.set("pathx", x, 0)
+                this_blob.set("pathy", y, 0)
+                this_blob.set("move_speed", speed, 0)
 
 def grid_target_pos(grid_obj_or_set, x:float, y:float, speed=0.01):
     """ Set the item to target
@@ -159,6 +163,14 @@ def grid_target_pos(grid_obj_or_set, x:float, y:float, speed=0.01):
         blob = to_blob(grid_obj.id)
         curx= blob.get("curx", 0)
         cury=blob.get("cury",  0)
+
+        pathx = blob.get("pathx", 0)
+        pathy = blob.set("pathy", 0)
+        
+        if pathx==x and pathy == y:
+            blob.set("move_speed", 0, 0)
+            continue
+            
         if curx!=x or cury != y:
             blob.set("pathx", x, 0)
             blob.set("pathy", y, 0)

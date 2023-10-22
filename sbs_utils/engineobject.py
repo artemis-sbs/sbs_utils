@@ -369,6 +369,7 @@ class EngineObject():
         :param role: The role/link name to add e.g. spy, pirate etc.
         :type id: str
         """
+        collection_name = collection_name.strip()
         self.inventory.add_to_collection(collection_name,data)
         self._has_inventory.add_to_collection(collection_name, self.id)
 
@@ -382,14 +383,16 @@ class EngineObject():
         # Remove any empty from has links
         collections = collection_name.split(",")
         for collection in collections:
+            collection = collection.strip()
             the_set = self.inventory.collections.get(collection)
             if len(the_set)<1:
                 self._has_inventory.remove_from_collection(collection, self.id)
 
     def has_any_inventory(self, collection_name: str | list[str]):
+        collection_name = collection_name.strip()
         return self._has_inventory.collection_has(collection_name,self.id)
 
-    def has_in_inventory(self, link_name: str | list[str], data: object):
+    def has_in_inventory(self, collection_name: str | list[str], data: object):
         """ check if the object has a role
 
         :param role: The role to add e.g. spy, pirate etc.
@@ -397,7 +400,8 @@ class EngineObject():
         :return: If the object has the role
         :rtype: bool
         """
-        return self.inventory.collection_has(link_name,data)
+        collection_name = collection_name.strip()
+        return self.inventory.collection_has(collection_name,data)
 
     def _remove_every_inventory(self, data: object):
         self.inventory.remove_every_collection(data)
@@ -406,6 +410,7 @@ class EngineObject():
         return self.inventory.get_collections_in(data)
         
     def get_inventory_objects(self, collection_name):
+        collection_name = collection_name.strip()
         the_set =  self.inventory.collection_set(collection_name)
         if the_set:
             # return a list so you can remove while iterating
@@ -413,15 +418,19 @@ class EngineObject():
         return []
 
     def get_inventory_set(self, collection_name):
+        collection_name = collection_name.strip()
         return self.inventory.collection_set(collection_name)
     
     def get_inventory_list(self, collection_name):
+        collection_name = collection_name.strip()
         return self.inventory.collection_list(collection_name)
 
     def get_inventory_value(self, collection_name, default=None):
+        collection_name = collection_name.strip()
         return self.inventory.collections.get(collection_name, default)
 
     def set_inventory_value(self, collection_name, value):
+        collection_name = collection_name.strip()
         self.inventory.collections[collection_name]=value
         if value is not None:
             self._has_inventory.add_to_collection(collection_name, self.id)
@@ -430,10 +439,12 @@ class EngineObject():
 
     @classmethod
     def has_inventory_set(cls, collection_name):
+        collection_name = collection_name.strip()
         return cls._has_inventory.collection_set(collection_name)
 
     @classmethod
     def has_inventory_list(cls, collection_name):
+        collection_name = collection_name.strip()
         return cls._has_inventory.collection_list(collection_name)
     ###########################################################
 

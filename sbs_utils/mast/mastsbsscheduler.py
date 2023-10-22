@@ -953,6 +953,8 @@ import sbs_utils.procedural.roles
 import sbs_utils.procedural.inventory
 import sbs_utils.procedural.links
 import sbs_utils.procedural.gui
+import sbs_utils.procedural.comms
+import sbs_utils.procedural.science
 
 
 Mast.import_python_module('sbs_utils.procedural.query')
@@ -964,6 +966,8 @@ Mast.import_python_module('sbs_utils.procedural.roles')
 Mast.import_python_module('sbs_utils.procedural.inventory')
 Mast.import_python_module('sbs_utils.procedural.links')
 Mast.import_python_module('sbs_utils.procedural.gui')
+Mast.import_python_module('sbs_utils.procedural.comms')
+Mast.import_python_module('sbs_utils.procedural.science')
 
 Mast.import_python_module('sbs_utils.faces')
 Mast.import_python_module('sbs_utils.fs')

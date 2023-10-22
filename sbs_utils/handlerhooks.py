@@ -3,6 +3,7 @@ from .damagedispatcher import DamageDispatcher, CollisionDispatcher
 from .consoledispatcher import ConsoleDispatcher
 from .tickdispatcher import TickDispatcher
 from .lifetimedispatcher import LifetimeDispatcher
+from .procedural.inventory import get_inventory_value, set_inventory_value
 
 from .gui import Gui, Page
 import sbs
@@ -111,6 +112,13 @@ def cosmos_event_handler(sim, event):
             case "damage":
                 DamageDispatcher.dispatch_damage(event)
                 LifetimeDispatcher.dispatch_damage(event)
+
+            case "red_alert":
+                ship_id = get_inventory_value(event.client_id, "assigned_ship", None)
+                if ship_id is not None:
+                    set_inventory_value(ship_id, "red_alert", event.value_tag == "on")
+                
+
 
             case "player_internal_damage":
                 DamageDispatcher.dispatch_internal(event)

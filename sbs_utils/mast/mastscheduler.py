@@ -1273,9 +1273,10 @@ class MastScheduler(EngineObject):
     def tick(self):
         for task in self.tasks:
             self.active_task = task
-            FrameContext.task = self
+            FrameContext.task = task
             FrameContext.shared_id = self.mast.get_id()
             res = task.tick()
+            FrameContext.task = None
             if res == PollResults.OK_END:
                 self.done.append(task)
             elif task.done:

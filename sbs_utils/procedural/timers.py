@@ -9,7 +9,7 @@ def set_timer(id_or_obj, name, seconds=0, minutes =0):
     set_inventory_value(id_or_obj, f"__timer__{name}", seconds)
 
 def is_timer_set(id_or_obj, name):
-    return get_inventory_value(id_or_obj, f"__timer__{name}", None) is None
+    return get_inventory_value(id_or_obj, f"__timer__{name}", None) is not None
 
 
 def is_timer_finished(id_or_obj, name):
@@ -20,6 +20,16 @@ def is_timer_finished(id_or_obj, name):
     if now > target:
         return True
     return False
+
+def is_timer_set_and_finished(id_or_obj, name):
+    target = get_inventory_value(id_or_obj, f"__timer__{name}")
+    if target is None or target == 0:
+        return False
+    now = FrameContext.context.sim.time_tick_counter
+    if now > target:
+        return True
+    return False
+
 
 def clear_timer(id_or_obj, name):
     set_inventory_value(id_or_obj, f"__timer__{name}", None)
