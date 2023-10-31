@@ -1,3 +1,4 @@
+from sbs_utils.helpers import FrameContext
 from sbs_utils.gui import Widget
 def list_box_control (items, text=None, face=None, ship=None, icon=None, image=None, select=False, multi=False, item_height=5):
     ...
@@ -24,7 +25,7 @@ class Listbox(Widget):
         ...
     def get_value (self):
         ...
-    def on_message (self, sim, event):
+    def on_message (self, event):
         """on_message
         
         handles messages this will look for components owned by this control and react accordingly
@@ -38,7 +39,7 @@ class Listbox(Widget):
         :type CID: int
         :param data: unused no component use data
         :type data: any"""
-    def present (self, ctx, event):
+    def present (self, event):
         """present
         
         builds/manages the content of the widget

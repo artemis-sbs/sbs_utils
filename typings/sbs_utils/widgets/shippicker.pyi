@@ -1,11 +1,9 @@
 from sbs_utils.gui import Widget
-def filter_ship (ship):
-    ...
-def ship_picker_control (title_prefix='Ship:', cur=None):
+def ship_picker_control (title_prefix='Ship:', cur=None, ship_keys=None, roles=None, sides=None):
     ...
 class ShipPicker(Widget):
     """A widget to select a ship"""
-    def __init__ (self, left, top, tag_prefix, title_prefix='Ship:', cur=None) -> None:
+    def __init__ (self, left, top, tag_prefix, title_prefix='Ship:', cur=None, ship_keys=None, roles=None, sides=None) -> None:
         """Ship Picker widget
         
         A widget the combines a title, ship viewer, next and previous buttons for selecting ships
@@ -28,7 +26,7 @@ class ShipPicker(Widget):
         :rtype: None or string of ship selected"""
     def get_value (self):
         ...
-    def on_message (self, sim, event):
+    def on_message (self, event):
         """on_message
         
         handles messages this will look for components owned by this control and react accordingly
@@ -42,7 +40,7 @@ class ShipPicker(Widget):
         :type CID: int
         :param data: unused no component use data
         :type data: any"""
-    def present (self, sim, event):
+    def present (self, event):
         """present
         
         builds/manages the content of the widget

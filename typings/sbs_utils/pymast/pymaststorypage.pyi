@@ -1,14 +1,15 @@
-from sbs_utils.gui import Context
-from sbs_utils.gui import Page
+from sbs_utils.helpers import Context
+from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.parsers import LayoutAreaParser
 from sbs_utils.mast.parsers import StyleDefinition
+from sbs_utils.gui import Page
 from sbs_utils.pymast.pollresults import PollResults
 from sbs_utils.pymast.pymastscheduler import PyMastScheduler
 class CodePusher(object):
     """class CodePusher"""
     def __init__ (self, page, func_or_tuple, end_await=True) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def on_message (self, ctx, event):
+    def on_message (self, event):
         ...
 class PyMastStoryPage(Page):
     """A interface class for creating GUI pages
@@ -44,33 +45,26 @@ class PyMastStoryPage(Page):
         ...
     def get_tag (self):
         ...
-    def on_event (self, ctx, event):
+    def on_event (self, event):
         """on_event
         
         Called when the option pages page has been interacted with
         
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation
         :param event: The event data
         :type event: event"""
-    def on_message (self, ctx, event):
+    def on_message (self, event):
         """on_message
         
         Called when the option pages page has been interacted with
         
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation
         :param event: The event data
         :type event: event"""
-    def on_pop (self, ctx):
+    def on_pop (self):
         ...
-    def present (self, ctx, event):
+    def present (self, event):
         """present
         
-        Called to have the page create and update the gui content it is presenting
-        
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation"""
+        Called to have the page create and update the gui content it is presenting"""
     def reroute_gui (self, label):
         ...
     def run (self, time_out):
@@ -83,10 +77,7 @@ class PyMastStoryPage(Page):
         ...
     def swap_layout (self):
         ...
-    def tick_gui_task (self, ctx):
+    def tick_gui_task (self):
         """tick_gui_task
         
-        Called to have the page run any tasks they have prior to present
-        
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation"""
+        Called to have the page run any tasks they have prior to present"""

@@ -51,14 +51,6 @@ class Choose(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
-class Clickable(MastNode):
-    """class Clickable"""
-    def __init__ (self, message, q, data=None, py=None, end=None, style_name=None, style=None, style_q=None, loc=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def dd_parse (lines):
-        ...
-    def parse (lines):
-        ...
 class Console(MastNode):
     """class Console"""
     def __init__ (self, console, loc=None):
@@ -206,6 +198,12 @@ class Text(MastNode):
 class TextInputControl(MastNode):
     """class TextInputControl"""
     def __init__ (self, var=None, label=None, q=None, style_name=None, style=None, style_q=None, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
+class Update(MastNode):
+    """class Update"""
+    def __init__ (self, props=None, tag=None, shared=None, q=None, qp=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...

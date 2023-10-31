@@ -1,16 +1,10 @@
 from sbs_utils.engineobject import EngineObject
-class Context(object):
-    """class Context"""
-    def __init__ (self, sim, _sbs, aspect_ratio):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-class FakeEvent(object):
-    """class FakeEvent"""
-    def __init__ (self, client_id, tag, sub_tag=''):
-        """Initialize self.  See help(type(self)) for accurate signature."""
+from sbs_utils.helpers import FakeEvent
+from sbs_utils.helpers import FrameContext
 class Gui(object):
     """class GUI
     Manages the GUI pages for all clients"""
-    def add_client (ctx, event):
+    def add_client (event):
         """add_client
         
         Call when a new client connects.
@@ -28,57 +22,46 @@ class Gui(object):
         :type class: A python class typically a Page"""
     def dirty (client_id):
         ...
-    def on_event (ctx, event):
+    def on_event (event):
         """on_event
         
         Forward to the appropriate GuiClient/Page
         handlerhooks.py will call this in HandleEvent
         
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation
         :param event: The tag name of the control interacted with
         :type event: event"""
-    def on_message (ctx, event):
+    def on_message (event):
         """on_message
         
         Forward to the appropriate GuiClient/Page
         handlerhooks.py will call this in HandlePresentGUIMessage
         
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation
         :param event: The tag name of the control interacted with
         :type event: event"""
-    def pop (ctx, client_id):
+    def pop (client_id):
         ...
-    def present (ctx, event):
+    def present (event):
         """present
         
         calls present on all clients
-        handlerhooks.py will call this in HandlePresentGUI
-        
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation"""
-    def present_dirty (ctx):
+        handlerhooks.py will call this in HandlePresentGUI"""
+    def present_dirty ():
         ...
-    def push (ctx, client_id, page):
+    def push (client_id, page):
         """push
         
         Presents the new Page on the specified client by pushing it on the stack.
         
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation
         :param clientID: called to add a new client
         :type int: client id from the engine
         :param page:
         :type Page: A GUI Page"""
-    def send_custom_event (ctx, tag, sub_tag=''):
+    def send_custom_event (tag, sub_tag=''):
         """on_event
         
         Forward to the appropriate GuiClient/Page
         handlerhooks.py will call this in HandleEvent
         
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation
         :param event: The tag name of the control interacted with
         :type event: event"""
     def server_start_page_class (cls_page):
@@ -121,100 +104,77 @@ class GuiClient(EngineObject):
         ...
     def has_links_set (collection_name):
         ...
-    def on_event (self, ctx, event):
+    def on_event (self, event):
         """on_event
         
         Calls the on_event on the top page of the specified client by calling on_event
         
-        :param ctx:
-        :type sim: Artemis Cosmos simulation
         :param event: The event data
         :type event: event"""
-    def on_message (self, ctx, event):
+    def on_message (self, event):
         """on_message
         
         Calls the on_message on the top page of the specified client by calling on_message
         
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation
         :param event: The event data
         :type event: event"""
-    def pop (self, ctx):
+    def pop (self):
         """pop
         
-        Stops presenting the current page and return to the previous one
-        
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation"""
-    def present (self, ctx, event):
+        Stops presenting the current page and return to the previous one"""
+    def present (self, event):
         """present
         
         Presents the top Page for the specified clientID by calling present on that page
         
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation
         :param CID: Client ID
         :type int: A client ID"""
-    def push (self, ctx, page):
+    def push (self, page):
         """push
         
         Presents the new Page by pushing it on the stack.
         
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation
         :param page:
         :type Page: A GUI Page"""
     def resolve_id (other: 'EngineObject | CloseData | int'):
         ...
     def resolve_py_object (other: 'EngineObject | CloseData | int'):
         ...
-    def tick_gui_task (self, ctx):
+    def tick_gui_task (self):
         """present
         
         Presents the top Page for the specified clientID by calling present on that page
         
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation
         :param CID: Client ID
         :type int: A client ID"""
 class Page(object):
     """A interface class for creating GUI pages
     
         """
-    def on_event (self, ctx, event):
+    def on_event (self, event):
         """on_event
         
         Called when the option pages page has been interacted with
         
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation
         :param event: The event data
         :type event: event"""
-    def on_message (self, ctx, event):
+    def on_message (self, event):
         """on_message
         
         Called when the option pages page has been interacted with
         
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation
         :param event: The event data
         :type event: event"""
-    def on_pop (self, ctx):
+    def on_pop (self):
         ...
-    def present (self, ctx, event):
+    def present (self, event):
         """present
         
-        Called to have the page create and update the gui content it is presenting
-        
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation"""
-    def tick_gui_task (self, ctx):
+        Called to have the page create and update the gui content it is presenting"""
+    def tick_gui_task (self):
         """tick_gui_task
         
-        Called to have the page run any tasks they have prior to present
-        
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation"""
+        Called to have the page run any tasks they have prior to present"""
 class Widget(object):
     """A interface class for creating GUI widgets i.e. composite components.
     
@@ -230,23 +190,18 @@ class Widget(object):
         :type top: float
         :param tag_prefix: Prefix to use in message tags to mak this component unique
         :type tag_prefix: str"""
-    def on_message (self, ctx, event):
+    def on_message (self, event):
         """on_message
         
         Called when a control on the page has been interacted with
         
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation
         :param message_tag: The tag name of the control interacted with
         :type message_tag: str
         :param clientID: The client ID that had the interaction
         :type clientID: int
         :param data: Any data associated with the control e.g. slider float value of current value
         :type clientID: None or str or float"""
-    def present (self, ctx, event):
+    def present (self, event):
         """present
         
-        Called to have the page create and update the gui content it is presenting
-        
-        :param ctx:
-        :type ctx: Artemis Cosmos simulation"""
+        Called to have the page create and update the gui content it is presenting"""

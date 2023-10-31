@@ -70,8 +70,8 @@ def send_client_widget_rects(arg0: int, arg1: str, arg2: float, arg3: float, arg
     """changes the rects of a gameplay widget, on the targeted client (0 = server screen)."""
 def send_comms_button_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
     """sends a complex message to the comms console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
-def send_comms_message_to_player_ship(playerID: int, sourceID: int, colorDesc: str, faceDesc: str, titleText: str, bodyText: str, messageTagSet: str = '') -> None:
-    """sends a complex message to the comms console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
+def send_comms_message_to_player_ship(playerID: int, otherID: int, faceDesc: str, titleText: str, titleColor: str, bodyText: str, bodyColor: str) -> None:
+    """sends a complex message to the comms console of a certain ship. args:  uint64 playerID (0 = all ships), uint64 otherID, std::string titleText, std::string titleColor, std::string bodyText, std::string bodyColor"""
 def send_comms_selection_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
     """sends a complex message to the comms console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
 def send_grid_button_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
@@ -468,6 +468,12 @@ class simulation(object): ### from pybind
         """get current time value"""
 class space_object(object): ### from pybind
     """class space_object"""
+    @property
+    def blink_state (self: sbs.space_object) -> int:
+        """int, positive numbers are pulse delay, negative numbers are blink delay, 0 = normal, -1 = glow off"""
+    @blink_state.setter
+    def blink_state (self: sbs.space_object, arg0: int) -> None:
+        """int, positive numbers are pulse delay, negative numbers are blink delay, 0 = normal, -1 = glow off"""
     @property
     def cur_speed (self: sbs.space_object) -> float:
         """float, speed of object"""

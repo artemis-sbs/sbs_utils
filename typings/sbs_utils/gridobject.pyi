@@ -15,15 +15,16 @@ class GridObject(EngineObject):
     @property
     def comms_id (self: 'GridObject') -> 'str':
         """str, cached version of comms_id"""
+    @comms_id.setter
+    def comms_id (self: 'GridObject', comms_id):
+        """str, cached version of comms_id"""
     def get (id):
         ...
     def get_as (id, as_cls):
         ...
-    def get_engine_object (self, sim):
+    def get_engine_object (self):
         """Gets the simulation space object
         
-        :param sim: The simulation
-        :type sim: Artemis Cosmos simulation
         :return: The simulation space object
         :rtype: The simulation space_object"""
     def get_objects_from_set (the_set):
@@ -37,11 +38,9 @@ class GridObject(EngineObject):
     @property
     def go_type (self: 'GridObject') -> 'str':
         """str, cached version of type"""
-    def grid_object (self, sim):
+    def grid_object (self):
         """get the simulation's space object for the object
         
-        :param sim: The simulation
-        :type sim: Artemis Cosmos simulation
         :return: simulation space object
         :rtype: simulation space object"""
     def has_inventory_list (collection_name):
@@ -58,35 +57,36 @@ class GridObject(EngineObject):
     @property
     def name (self: 'GridObject') -> 'str':
         """str, cached version of name"""
+    @name.setter
+    def name (self: 'GridObject', name):
+        """str, cached version of name"""
     def resolve_id (other: 'EngineObject | CloseData | int'):
         ...
     def resolve_py_object (other: 'EngineObject | CloseData | int'):
         ...
-    def set_go_type (self, sim, go_type):
+    def set_go_type (self, go_type):
         """Set the name of the object
         
         :param sim: The simulation
         :type sim: Artemis Cosmos simulation
         :param name: The object name
         :type str: The object name"""
-    def set_name (self, sim, name):
+    def set_name (self, name):
+        """Set the name of the object
+        
+        :param name: The object name
+        :type str: The object name"""
+    def set_tag (self, tag):
         """Set the name of the object
         
         :param sim: The simulation
         :type sim: Artemis Cosmos simulation
         :param name: The object name
         :type str: The object name"""
-    def set_tag (self, sim, tag):
-        """Set the name of the object
-        
-        :param sim: The simulation
-        :type sim: Artemis Cosmos simulation
-        :param name: The object name
-        :type str: The object name"""
-    def spawn (self, sim: 'sbs.simulation', host_id, name, tag, x, y, icon_index, color, go_type=None):
+    def spawn (self, host_id, name, tag, x, y, icon_index, color, go_type=None):
         ...
     @property
     def tag (self: 'GridObject') -> 'str':
         """str, cached version of tag"""
-    def update_blob (self, sim: 'sbs.simulation', speed=None, icon_index=None, icon_scale=None, color=None):
+    def update_blob (self, speed=None, icon_index=None, icon_scale=None, color=None):
         ...

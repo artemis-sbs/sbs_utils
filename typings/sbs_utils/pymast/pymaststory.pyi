@@ -4,6 +4,7 @@ from sbs_utils.damagedispatcher import DamageDispatcher
 from sbs_utils.pymast.pymasttask import DataHolder
 from sbs_utils.pymast.pymasttask import PyMastTask
 from sbs_utils.engineobject import EngineObject
+from sbs_utils.helpers import FrameContext
 from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
 from sbs_utils.lifetimedispatcher import LifetimeDispatcher
@@ -18,7 +19,7 @@ class PyMastStory(EngineObject):
     """class PyMastStory"""
     def END (self):
         ...
-    def __call__ (self, ctx, sched=None):
+    def __call__ (self, sched=None):
         """Call self as a function."""
     def __init__ (self, *args, **kwargs):
         """Initialize self.  See help(type(self)) for accurate signature."""
@@ -26,7 +27,7 @@ class PyMastStory(EngineObject):
         ...
     def _remove (id):
         ...
-    def add_scheduler (self, ctx, label):
+    def add_scheduler (self, label):
         ...
     def assign_player_ship (self, player):
         ...
@@ -53,7 +54,7 @@ class PyMastStory(EngineObject):
         ...
     def disable (self):
         ...
-    def enable (self, ctx, delay=0, count=None):
+    def enable (self, delay=0, count=None):
         ...
     def file_logger (self, filename, logger_name='pymast'):
         ...

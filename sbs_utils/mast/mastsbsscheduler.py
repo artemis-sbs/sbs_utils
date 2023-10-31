@@ -21,6 +21,7 @@ from ..procedural import roles
 from ..procedural import links
 from ..procedural import inventory
 from ..procedural import gui
+from .. import vec
 
 from functools import partial
 
@@ -934,6 +935,7 @@ over =     {
 Mast.globals["SpaceObject"] =MastSpaceObject
 Mast.globals["script"] = sys.modules['script']
 Mast.globals["sbs"] = sbs
+Mast.globals['Vec3'] = vec.Vec3
 for func in [
         ############################
         ## sbs
@@ -973,6 +975,7 @@ Mast.import_python_module('sbs_utils.procedural.science')
 
 Mast.import_python_module('sbs_utils.faces')
 Mast.import_python_module('sbs_utils.fs')
+Mast.import_python_module('sbs_utils.vec')
 Mast.import_python_module('sbs_utils.scatter', 'scatter')
 Mast.import_python_module('sbs_utils.names', 'names')
 Mast.import_python_module('sbs', 'sbs')

@@ -8,34 +8,30 @@ from sbs_utils.mast.mastsbs import ScanResult
 from sbs_utils.mast.mastsbs import ScanTab
 from sbs_utils.mast.mastsbs import Simulation
 from sbs_utils.mast.mastsbs import TransmitReceive
-from sbs_utils.damagedispatcher import CollisionDispatcher
-from sbs_utils.damagedispatcher import DamageDispatcher
-from sbs_utils.consoledispatcher import ConsoleDispatcher
-from sbs_utils.gui import Context
-from sbs_utils.gui import Gui
-from sbs_utils.mast.errorpage import ErrorPage
-from sbs_utils.griddispatcher import GridDispatcher
-from sbs_utils.mast.mastobjects import GridObject
-from sbs_utils.mast.mastobjects import MastSpaceObject
-from sbs_utils.mast.mastobjects import Npc
-from sbs_utils.mast.mastobjects import PlayerShip
-from sbs_utils.mast.mastobjects import Terrain
-from sbs_utils.lifetimedispatcher import LifetimeDispatcher
-from sbs_utils.mast.mast import Mast
-from sbs_utils.mast.mast import Scope
+from sbs_utils.mast.mastscheduler import ChangeRuntimeNode
 from sbs_utils.mast.mastscheduler import MastAsyncTask
 from sbs_utils.mast.mastscheduler import MastRuntimeNode
 from sbs_utils.mast.mastscheduler import MastScheduler
 from sbs_utils.mast.mastscheduler import PollResults
+from sbs_utils.damagedispatcher import CollisionDispatcher
+from sbs_utils.damagedispatcher import DamageDispatcher
+from sbs_utils.consoledispatcher import ConsoleDispatcher
+from sbs_utils.mast.errorpage import ErrorPage
+from sbs_utils.helpers import FakeEvent
+from sbs_utils.griddispatcher import GridDispatcher
+from sbs_utils.gui import Gui
+from sbs_utils.lifetimedispatcher import LifetimeDispatcher
+from sbs_utils.mast.mast import Mast
+from sbs_utils.mast.mast import Scope
+from sbs_utils.mast.mastobjects import MastSpaceObject
 from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.tickdispatcher import TickDispatcher
-from sbs_utils.vec import Vec3
 from functools import partial
 def func(*argv):
     """assign_client_to_ship(arg0: int, arg1: int) -> None
     
     Tells a client computer which ship it should control."""
-def handle_purge_tasks (ctx, so):
+def handle_purge_tasks (so):
     """This will clear out all tasks related to the destroyed item"""
 class BroadcastRuntimeNode(MastRuntimeNode):
     """class BroadcastRuntimeNode"""
@@ -55,9 +51,9 @@ class CommsRuntimeNode(MastRuntimeNode):
     """class CommsRuntimeNode"""
     def clear (self):
         ...
-    def comms_message (self, sim, message, an_id, event):
+    def comms_message (self, message, an_id, event):
         ...
-    def comms_selected (self, sim, an_id, event):
+    def comms_selected (self, an_id, event):
         ...
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Comms):
         ...
@@ -75,29 +71,45 @@ class FollowRouteRuntimeNode(MastRuntimeNode):
         ...
 class MastSbsScheduler(MastScheduler):
     """class MastSbsScheduler"""
-    def Npc (self):
-        ...
-    def PlayerShip (self):
-        ...
-    def Terrain (self):
-        ...
     def __init__ (self, mast: sbs_utils.mast.mast.Mast, overrides=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def _add (id, obj):
+        ...
+    def _remove (id):
+        ...
+    def clear ():
+        ...
+    def get (id):
+        ...
+    def get_as (id, as_cls):
+        ...
+    def get_objects_from_set (the_set):
+        ...
+    def get_role_object (link_name):
+        ...
+    def get_role_objects (role):
+        ...
+    def get_role_set (role):
+        ...
     def get_seconds (self, clock):
         """Gets time for a given clock default is just system """
-    def grid_spawn (self, id, name, tag, x, y, icon, color, roles):
+    def has_inventory_list (collection_name):
         ...
-    def npc_spawn (self, x, y, z, name, side, art_id, behave_id):
+    def has_inventory_set (collection_name):
         ...
-    def player_spawn (self, x, y, z, name, side, art_id):
+    def has_links_list (collection_name):
+        ...
+    def has_links_set (collection_name):
+        ...
+    def resolve_id (other: 'EngineObject | CloseData | int'):
+        ...
+    def resolve_py_object (other: 'EngineObject | CloseData | int'):
         ...
     def run (self, ctx, label='main', inputs=None):
         ...
     def runtime_error (self, message):
         ...
     def sbs_tick_tasks (self, ctx):
-        ...
-    def terrain_spawn (self, x, y, z, name, side, art_id, behave_id):
         ...
 class RegexEqual(str):
     """str(object='') -> str
@@ -130,11 +142,11 @@ class ScanRuntimeNode(MastRuntimeNode):
         ...
     def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.mastsbs.Comms):
         ...
-    def science_message (self, sim, message, an_id, event):
+    def science_message (self, message, an_id, event):
         ...
-    def science_selected (self, ctx, an_id, event):
+    def science_selected (self, an_id, event):
         ...
-    def start_scan (self, sim, origin_id, selected_id, extra_tag):
+    def start_scan (self, origin_id, selected_id, extra_tag):
         ...
 class SimulationRuntimeNode(MastRuntimeNode):
     """class SimulationRuntimeNode"""

@@ -25,7 +25,7 @@ class Assign(MastNode):
 class AwaitCondition(MastNode):
     """waits for an existing or a new 'task' to run in parallel
     this needs to be a rule before Parallel"""
-    def __init__ (self, minutes=None, seconds=None, if_exp=None, loc=None):
+    def __init__ (self, if_exp=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -44,6 +44,12 @@ class Behavior(MastNode):
 class Cancel(MastNode):
     """Cancels a new 'task' to run in parallel"""
     def __init__ (self, lhs=None, name=None, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
+class Change(MastNode):
+    """class Change"""
+    def __init__ (self, end=None, val=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -107,7 +113,7 @@ class Input(MastNode):
         ...
 class Jump(MastNode):
     """class Jump"""
-    def __init__ (self, pop=None, jump=None, jump_name=None, if_exp=None, loc=None):
+    def __init__ (self, pop=None, jump=None, jump_name=None, if_exp=None, args=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -133,7 +139,7 @@ class Logger(MastNode):
         ...
 class LoopBreak(MastNode):
     """class LoopBreak"""
-    def __init__ (self, op=None, name=None, loc=None):
+    def __init__ (self, op=None, name=None, if_exp=None, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -214,6 +220,8 @@ class Mast(EngineObject):
     def resolve_id (other: 'EngineObject | CloseData | int'):
         ...
     def resolve_py_object (other: 'EngineObject | CloseData | int'):
+        ...
+    def update_shared_props_by_tag (self, tag, props):
         ...
 class MastCompilerError(object):
     """class MastCompilerError"""
