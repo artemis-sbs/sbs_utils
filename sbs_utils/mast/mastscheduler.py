@@ -643,8 +643,14 @@ class MastAsyncTask(EngineObject):
         else:
             label_runtime_node = self.main.mast.labels.get(label)
             if label_runtime_node is not None:
-                if self.active_label == "main":
-                    self.main.mast.prune_main()
+                #
+                #
+                # Why is this here?
+                #  Why remove the assignments 
+                # Looking to remove or move to known place where Main Ends
+                #
+                #if self.active_label == "main":
+                #    self.main.mast.prune_main()
                     
                 self.cmds = self.main.mast.labels[label].cmds
                 self.active_label = label
@@ -839,6 +845,7 @@ class MastAsyncTask(EngineObject):
                         self.next()
                         continue
 
+                    #print(f"{cmd.__class__} running {self.runtime_node.__class__}")
                     result = self.runtime_node.poll(self.main.mast, self, cmd)
                     match result:
                         case PollResults.OK_ADVANCE_TRUE:
@@ -895,11 +902,18 @@ class MastAsyncTask(EngineObject):
     def next(self):
         if self.runtime_node:
             self.call_leave()
-            cmd = self.cmds[self.active_cmd]
+            #cmd = self.cmds[self.active_cmd]
             self.active_cmd += 1
         
         if self.active_cmd >= len(self.cmds):
             # move to the next label
+            #
+            # The first time Main is run, all shared 
+            # Assignment should be purged
+            # to avoid multiple assignments
+            #
+            self.main.mast.prune_main()
+
             active = self.main.mast.labels.get(self.active_label)
             next = active.next
             if next is None:

@@ -44,18 +44,21 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                 sbs.send_comms_message_to_player_ship(
                     from_obj.id,
                     to_obj.id,
-                    color,
                     face, 
-                    title, 
-                    msg)
+                    title,
+                    color, 
+                    msg,
+                    color)
             else:
                 sbs.send_comms_message_to_player_ship(
                     to_obj.id,
                     from_obj.id,
-                    color,
                     face, 
                     title, 
-                    msg)
+                    color,
+                    msg,
+                    color
+                    )
 
 def _comms_get_origin_id():
     #

@@ -102,10 +102,12 @@ class TransmitReceiveRuntimeNode(MastRuntimeNode):
         sbs.send_comms_message_to_player_ship(
             origin_id,
             selected_id,
-            node.color,
-            face, 
+            face,
             title, 
-            msg)
+            node.color,
+            msg,
+            node.color
+            )
 
 
 

@@ -18,6 +18,10 @@ def get_script_dir():
 def get_mission_dir():
     return get_script_dir()
 
+def is_dev_build():
+    mission = get_script_dir()
+    return os.path.isdir(mission+"\\.git")
+
 def get_artemis_data_dir():
     mission = get_script_dir()
     missions = os.path.dirname(mission)

@@ -212,3 +212,4 @@ def set_pos(id_or_obj, x, y, z):
         eo = object.get_engine_object()
         if eo:
             return FrameContext.context.sim.reposition_space_object(eo, x, y, z)
+

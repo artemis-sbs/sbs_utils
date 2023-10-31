@@ -560,8 +560,8 @@ class SliderControlRuntimeNode(StoryRuntimeNode):
         self.tag = task.main.page.get_tag()
         self.node = node
         val = task.get_variable(self.node.var)
-        if val is None:
-            val = self.node.value
+        #if val is None:
+        #    val = self.node.value
         if val is None:
             val = 0
         props = task.format_string(node.props)
@@ -1063,9 +1063,7 @@ class StoryPage(Page):
 
         
         self.gui_queue_console_tabs()
-        #set_inventory_value(self.client_id, "CONSOLE_TYPE", self.console)
-        
-        
+                
         self.tag = 10000
         
         if self.layouts:
@@ -1206,6 +1204,7 @@ class StoryPage(Page):
         all_console_tabs = {}
         ship_console_tabs ={}
         back_tab = get_inventory_value(self.client_id, "__back_tab__", "back")
+        back_tab = get_inventory_value(self.client_id, "CONSOLE_TYPE", back_tab)
         if console is not None:
             console = console.lower()
             set_inventory_value(self.client_id, "__back_tab__", console)

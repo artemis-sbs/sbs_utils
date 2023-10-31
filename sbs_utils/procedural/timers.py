@@ -21,6 +21,24 @@ def is_timer_finished(id_or_obj, name):
         return True
     return False
 
+def format_time_remaining(id_or_obj, name):
+    time = get_time_remaining(id_or_obj, name)
+    if time is None or time ==0:
+        return ""
+    minutes = time // 60
+    seconds = str(time % 60).zfill(2)
+    return f"{minutes}:{seconds}"
+    
+
+def get_time_remaining(id_or_obj, name):
+    target = get_inventory_value(id_or_obj, f"__timer__{name}")
+    if target is None or target == 0:
+        return 0
+    now = FrameContext.context.sim.time_tick_counter
+    return (target - now) // TICK_PER_SECONDS
+    
+
+
 def is_timer_set_and_finished(id_or_obj, name):
     target = get_inventory_value(id_or_obj, f"__timer__{name}")
     if target is None or target == 0:

@@ -181,6 +181,14 @@ def is_story_id(id):
         return False
     return (id & 0x0040000000000000)!=0
 
+def to_engine_object(id_or_obj):
+    object = to_object(id_or_obj)
+    if object is not None:
+        eo = object.get_engine_object()
+        return eo
+    return None
+
+
 
 
 def get_comms_selection(id_or_not):
@@ -206,6 +214,32 @@ def get_weapons_selection(id_or_not):
     if blob is not None:
         return blob.get("weapon_target_UID",0)
     return None
+
+
+
+def inc_disable_selection(id_or_obj, console):
+    _obj = to_object(id_or_obj)
+    if _obj is None: return
+    cur = _obj.get_inventory_value(console, 0)
+    cur += 1
+    _obj.set_inventory_value(console,cur)
+    blob = to_blob(id_or_obj)
+    blob.set(console,0,0)
+
+def inc_disable_weapons_selection(id_or_obj): inc_disable_selection(id_or_obj, "weapon_target_UID")
+def inc_disable_science_selection(id_or_obj): inc_disable_selection(id_or_obj, "science_target_UID")
+def inc_disable_grid_selection(id_or_obj): inc_disable_selection(id_or_obj, "grid_selected_UID")
+
+def dec_disable_selection(id_or_obj, console):
+    _obj = to_object(id_or_obj)
+    if _obj is None: return
+    cur = _obj.get_inventory_value(console, 0)
+    cur -= 1
+    _obj.set_inventory_value(console,cur)
+    
+def dec_disable_weapons_selection(id_or_obj): dec_disable_selection(id_or_obj, "weapon_target_UID")
+def dec_disable_science_selection(id_or_obj): dec_disable_selection(id_or_obj, "science_target_UID")
+def dec_disable_grid_selection(id_or_obj): dec_disable_selection(id_or_obj, "grid_selected_UID")
 
 
 

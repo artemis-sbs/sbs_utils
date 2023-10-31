@@ -162,12 +162,10 @@ class IfStatements(MastNode):
     if_chains = []
 
     def __init__(self, end=None, if_op=None, if_exp=None, loc=None):
-
+        self.code = None
         if if_exp:
             if_exp = if_exp.lstrip()
             self.code = compile(if_exp, "<string>", "eval")
-        else:
-            self.code = None
 
         self.end = end
         self.if_op = if_op
@@ -774,9 +772,11 @@ class Mast(EngineObject):
         super().__init__()
 
         self.lib_name = None
+        self.is_import = False
         self.basedir = None
         self.id = get_story_id()
         self.add()
+
 
         if cmds is None:
             return
@@ -869,8 +869,11 @@ class Mast(EngineObject):
 
     def clear(self):
         self.inputs = {}
-        self.set_inventory_value("mast", self)
-        self.set_inventory_value("SHARED", self.get_id())
+        if not self.is_import:
+            self.set_inventory_value("mast", self)
+            self.set_inventory_value("SHARED", self.get_id())
+            # print("Multi Shares")
+
         # self.vars = {"mast": self}
         self.labels = {}
         self.inline_labels = {}
@@ -888,6 +891,8 @@ class Mast(EngineObject):
         main = self.labels.get("main")
         # Convert all the assigned from the main into comments
         # removing is bad it will affect if statements
+        # If statements may run twice?
+        #
         if main is not None:
             for i in range(len(main.cmds)):
                 cmd = main.cmds[i]
@@ -982,14 +987,31 @@ class Mast(EngineObject):
     def import_content(self, filename, lib_file):
         add = self.__class__()
         add.basedir = self.basedir
+        add.is_import = True
         errors = add.from_file(filename, lib_file)
         if len(errors)==0:
             for label, node in add.labels.items():
                 if label == "main":
                     main = self.labels["main"]
+
+                    offset = len(main.cmds)
+                    for cmd in node.cmds:
+                        cmd.loc += offset
+                        # If and match staements need more fixups
+                        if cmd.__class__.__name__ == "IfStatements" and cmd.if_chain:
+                            for c in range(len(cmd.if_chain)):
+                                cmd.if_chain[c] += offset
+                        elif cmd.__class__.__name__ == "MatchStatements" and cmd.chain:
+                            for c in range(len(cmd.chain)):
+                                cmd.chain[c] += offset
+
+
                     main.cmds.extend(node.cmds)
+
                 else:
                     self.labels[label] = node
+
+
         return errors
 
     def compile(self, lines):

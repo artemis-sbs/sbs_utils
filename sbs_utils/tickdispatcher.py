@@ -1,6 +1,7 @@
 from .helpers import FrameContext
+from .engineobject import EngineObject, get_task_id
 
-class TickTask:
+class TickTask(EngineObject):
     """
     A task that is managed by the TickDispatcher
     """
@@ -15,8 +16,11 @@ class TickTask:
         :param count: The number of times to run None mean infinite
         :type count: int or None
         """
+        super().__init__()
         self.cb = cb
         self.delay = delay
+        self.id = get_task_id()
+
         # capture the start time
         
         self.start = FrameContext.context.sim.time_tick_counter

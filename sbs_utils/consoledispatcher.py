@@ -3,6 +3,7 @@ import typing
 # using EngineObject since it is lighter weight than query??
 from .engineobject import EngineObject
 from .helpers import FrameContext
+from .procedural.inventory import get_inventory_value
 
 
 class ConsoleDispatcher:
@@ -292,9 +293,17 @@ class ConsoleDispatcher:
         if event.extra_tag=="__init__":
             return
         my_ship = FrameContext.context.sim.get_space_object(event.origin_id)
-        
+
         blob = my_ship.data_set
-        blob.set(console, event.selected_id,0)
+        target = event.selected_id
+
+        disabled_count = get_inventory_value(event.origin_id, console, 0)
+        # if the console selection is disable don't allow selection
+        if disabled_count > 0: 
+            target = 0
+
+        blob.set(console, target,0)
+
             
         co = EngineObject.get(event.client_id)
         # Set the selection as inventory
