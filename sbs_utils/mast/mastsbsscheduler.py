@@ -931,6 +931,12 @@ over =     {
     "ScanResult": ScanResultRuntimeNode
 }
 
+from ..helpers import FrameContext
+def mast_format_string(s):
+    if FrameContext.task is not None:
+        return FrameContext.task.compile_and_format_string(s)
+
+Mast.globals["mast_format_string"] = mast_format_string
 
 Mast.globals["SpaceObject"] =MastSpaceObject
 Mast.globals["script"] = sys.modules['script']

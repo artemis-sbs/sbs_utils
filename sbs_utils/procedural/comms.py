@@ -23,10 +23,12 @@ def comms_broadcast(ids_or_obj, msg, color="#fff"):
                 if obj is not None or id==0:
                     sbs.send_message_to_player_ship(id, color, msg)
 
-def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, color="#fff"):
+def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, color="#fff", title_color=None):
     if to_ids_or_obj is None:
         # internal message
         to_ids_or_obj = from_ids_or_obj
+    if title_color is None:
+        title_color = color
     
     from_objs = query.to_object_list(from_ids_or_obj)
     to_objs = query.to_object_list(to_ids_or_obj)
@@ -46,7 +48,7 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                     to_obj.id,
                     face, 
                     title,
-                    color, 
+                    title_color, 
                     msg,
                     color)
             else:
@@ -55,7 +57,7 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                     from_obj.id,
                     face, 
                     title, 
-                    color,
+                    title_color,
                     msg,
                     color
                     )
@@ -86,7 +88,7 @@ def _comms_get_selected_id():
 
 
 
-def comms_transmit(msg, title=None, face=None, color="#fff"):
+def comms_transmit(msg, title=None, face=None, color="#fff", title_color=None):
     from_ids_or_obj = _comms_get_origin_id()
     to_ids_or_obj = _comms_get_selected_id()
     if to_ids_or_obj is None or from_ids_or_obj is None:
@@ -95,9 +97,9 @@ def comms_transmit(msg, title=None, face=None, color="#fff"):
         #
         pass 
     # player transmits a message
-    comms_message(msg, from_ids_or_obj, to_ids_or_obj,  title, face, color)
+    comms_message(msg, from_ids_or_obj, to_ids_or_obj,  title, face, color, title_color)
 
-def comms_receive(msg, title=None, face=None, color="#fff"):
+def comms_receive(msg, title=None, face=None, color="#fff", title_color=None):
     to_ids_or_obj = _comms_get_origin_id()
     from_ids_or_obj = _comms_get_selected_id()
     if to_ids_or_obj is None or from_ids_or_obj is None:
@@ -106,10 +108,10 @@ def comms_receive(msg, title=None, face=None, color="#fff"):
         #
         pass 
     # player receives a message
-    comms_message(msg, from_ids_or_obj, to_ids_or_obj,  title, face, color)
+    comms_message(msg, from_ids_or_obj, to_ids_or_obj,  title, face, color, title_color)
 
 
-def comms_transmit_internal(msg, ids_or_obj=None, to_name=None,  title=None, face=None, color="#fff"):
+def comms_transmit_internal(msg, ids_or_obj=None, to_name=None, title=None, face=None, color="#fff", title_color=None):
     ids_or_obj = _comms_get_origin_id()
     # player transmits a message to a named internal
     for ship in query.to_object_list(ids_or_obj):
@@ -120,10 +122,10 @@ def comms_transmit_internal(msg, ids_or_obj=None, to_name=None,  title=None, fac
         if face is None and to_name is not None:
             # try to find a face
             face = get_inventory_value(ship.id, f"face_{to_name}", None)
-        comms_message(msg, ship, ship,  title, face, color)
+        comms_message(msg, ship, ship,  title, face, color, title_color)
 
 
-def comms_receive_internal(msg, ids_or_obj=None, from_name=None,  title=None, face=None, color="#fff"):
+def comms_receive_internal(msg, ids_or_obj=None, from_name=None,  title=None, face=None, color="#fff", title_color=None):
     if ids_or_obj is None:
         ids_or_obj = _comms_get_origin_id()
     # player transmits a message to a named internal
@@ -135,7 +137,7 @@ def comms_receive_internal(msg, ids_or_obj=None, from_name=None,  title=None, fa
         if face is None and from_name is not None:
             # try to find a face
             face = get_inventory_value(ship.id, f"face_{from_name}", None)
-        comms_message(msg, ship, ship,  title, face, color)
+        comms_message(msg, ship, ship,  title, face, color, title_color)
         
         
         
