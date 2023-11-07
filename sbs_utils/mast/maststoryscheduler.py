@@ -355,6 +355,7 @@ class AwaitGuiRuntimeNode(StoryRuntimeNode):
 
 class AwaitSelectRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: AwaitSelect):
+        self.done = None
         seconds = (node.minutes*60+node.seconds)
         if seconds == 0:
             self.timeout = None
@@ -365,7 +366,7 @@ class AwaitSelectRuntimeNode(StoryRuntimeNode):
         self.task = task
         self.node = node
         if event is not None:
-            self.selected(None, None, event)
+            self.selected(None, event)
         #Must be called after we call the initial selected
         self.done = False
 
