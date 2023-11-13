@@ -233,14 +233,14 @@ class Simulation(MastNode):
 class MastSbs(Mast):
     nodes =  [
         # sbs specific
-        Route,
-        FollowRoute,
-        TransmitReceive,
-        Broadcast,
+            Route,
+            FollowRoute,
+            TransmitReceive,
+            Broadcast,
         Comms,
-        CommsInfo,
-        Button,
-        Simulation,
+            CommsInfo,
+            Button,
+            Simulation,
         Scan,
         ScanTab,
         ScanResult

@@ -898,32 +898,36 @@ Mast.import_python_module('sbs_utils.widgets.listbox')
 
 over =     {
     "RerouteGui": RerouteGuiRuntimeNode,
-    "Row": RowRuntimeNode,
+   
     "Text": TextRuntimeNode,
     "AppendText": AppendTextRuntimeNode,
-    "Face": FaceRuntimeNode,
-    "Icon": IconRuntimeNode,
-    "Ship": ShipRuntimeNode,
-    "GuiContent": GuiContentRuntimeNode,
-    "ButtonControl": ButtonControlRuntimeNode,
-    "SliderControl": SliderControlRuntimeNode,
-    "CheckboxControl": CheckboxControlRuntimeNode,
-    "RadioControl": RadioControlRuntimeNode,
-    "DropdownControl": DropdownControlRuntimeNode,
-    "ImageControl":ImageControlRuntimeNode,
-    "TextInputControl": TextInputControlRuntimeNode,
-    "WidgetList":WidgetListRuntimeNode,
-    "Console":ConsoleRuntimeNode,
-    "BuildaConsole":BuildaConsoleRuntimeNode,
-    "Blank": BlankRuntimeNode,
-    "Hole": HoleRuntimeNode,
+        
+        "ButtonControl": ButtonControlRuntimeNode,
+        "SliderControl": SliderControlRuntimeNode,
+        "CheckboxControl": CheckboxControlRuntimeNode,
+        "RadioControl": RadioControlRuntimeNode,
+        "DropdownControl": DropdownControlRuntimeNode,
+        "TextInputControl": TextInputControlRuntimeNode,
+    
     "OnChange": OnChangeRuntimeNode,
     "OnClick": OnClickRuntimeNode,
     "AwaitGui": AwaitGuiRuntimeNode,
     "AwaitSelect": AwaitSelectRuntimeNode,
     "Choose": ChooseRuntimeNode,
-    "Section": SectionRuntimeNode,
+  # "Row": RowRuntimeNode,
+  #  "Face": FaceRuntimeNode,
+  #  "Icon": IconRuntimeNode,
+  #  "Ship": ShipRuntimeNode,
+  #  "Blank": BlankRuntimeNode,
+  #  "Hole": HoleRuntimeNode,
+  #  "Section": SectionRuntimeNode,
 #    "Style": StyleRuntimeNode,
+        "GuiContent": GuiContentRuntimeNode,
+        "ImageControl":ImageControlRuntimeNode,
+        "WidgetList":WidgetListRuntimeNode,
+        "Console":ConsoleRuntimeNode,
+        "BuildaConsole":BuildaConsoleRuntimeNode,
+    
     "Refresh": RefreshRuntimeNode,
     "Update": UpdateRuntimeNode
 }
@@ -951,6 +955,8 @@ class StoryScheduler(MastSbsScheduler):
         self.set_inventory_value('IS_SERVER', client_id==0)
         self.set_inventory_value('IS_CLIENT', client_id!=0)
         self.set_inventory_value('STORY_PAGE', page)
+        
+        FrameContext.page = self.page
         return super().start_task( label, inputs)
 
     def story_tick_tasks(self, client_id):
