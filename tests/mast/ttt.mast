@@ -111,7 +111,7 @@ for x while x<3:
     end_if
 
 next x
-row
+do gui_row()
 next y
 
 await gui
@@ -119,7 +119,7 @@ await gui
 
 ============== draw_board   ======
 # This draws the board after the game is over
-row
+do gui_row()
 for y in range(3):
 for x in range(3):
 
@@ -139,6 +139,6 @@ end_if
 
 
 next x
-row
+do gui_row()
 next y
 <<-

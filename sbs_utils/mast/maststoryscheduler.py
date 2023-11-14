@@ -9,7 +9,7 @@ from .parsers import StyleDefinition
 
 from ..pages import layout
 
-from .maststory import AppendText, ButtonControl, MastStory, Choose, Disconnect, RerouteGui, Text, Blank, Ship, GuiContent, Face, Row, Section, Style, Refresh, SliderControl, CheckboxControl, DropdownControl, WidgetList, ImageControl, TextInputControl, AwaitGui, AwaitSelect, Hole, RadioControl, Console, BuildaConsole, OnChange, OnClick, Icon, Update
+from .maststory import AppendText,  MastStory, Choose, Disconnect, RerouteGui, Text, GuiContent, Refresh, SliderControl, CheckboxControl,  ImageControl, TextInputControl, AwaitGui, AwaitSelect,  RadioControl,  OnChange, OnMessage, OnClick, Update
 import traceback
 from .mastsbsscheduler import MastSbsScheduler, Button
 from ..consoledispatcher import ConsoleDispatcher
@@ -128,41 +128,6 @@ class StoryRuntimeNode(MastRuntimeNode):
             layout_item.tag = task.format_string(tag).strip()
 
 
-class FaceRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Face):
-        tag = task.main.page.get_tag()
-        face = node.face
-        if node.code:
-            face = task.eval_code(node.code)
-        if face is not None:
-            self.layout_item = layout.Face(tag,face)
-            self.apply_style_name(".face", self.layout_item, task)
-            if node.style_def is not None:
-                self.apply_style_def(node.style_def,  self.layout_item, task)
-            if node.style_name is not None:
-                self.apply_style_name(node.style_name, self.layout, task)
-            # Last in case tag changed in style
-            task.main.page.add_content(self.layout_item, self)
-
-    def poll(self, mast, task, node:Face):
-        return PollResults.OK_ADVANCE_TRUE
-    
-class IconRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Icon):
-        tag = task.main.page.get_tag()
-        props = task.format_string(node.props)
-        self.layout_item = layout.Icon(tag, props)
-        self.apply_style_name(".icon", self.layout_item, task)
-        if node.style_def is not None:
-            self.apply_style_def(node.style_def,  self.layout_item, task)
-        if node.style_name is not None:
-            self.apply_style_name(node.style_name, self.layout, task)
-
-        # Last in case tag changed in style
-        task.main.page.add_content(self.layout_item, self)
-
-    def poll(self, mast, task, node:Face):
-        return PollResults.OK_ADVANCE_TRUE
 
 class RefreshRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Refresh):
@@ -182,20 +147,6 @@ class UpdateRuntimeNode(StoryRuntimeNode):
             task.main.page.update_props_by_tag(tag, props)
 
 
-
-class ShipRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Ship):
-        tag = task.main.page.get_tag()
-        ship = task.format_string(node.ship)
-        item = layout.Ship(tag, ship)
-
-        self.apply_style_name(".ship", item, task)
-        if node.style_def is not None:
-            self.apply_style_def(node.style_def, item, task)
-        if node.style_name is not None:
-            self.apply_style_name(node.style_name, self.layout, task)
-        # After style in case tag changed
-        task.main.page.add_content(item, self)
 
 class GuiContentRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: GuiContent):
@@ -258,83 +209,6 @@ class AppendTextRuntimeNode(StoryRuntimeNode):
                 text.layout_text.message += '\n'
                 text.layout_text.message += msg
 
-class ButtonControlRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: ButtonControl):
-        self.data = None
-        if node.is_end == False:
-            
-            self.tag = task.main.page.get_tag()
-            value = True
-            
-            if node.code is not None:
-                value = self.task.eval_code(node.code)
-            if value:
-                msg = task.format_string(node.message)
-                layout_button = layout.Button(self.tag, msg)
-                
-                self.apply_style_name(".button", layout_button, task)
-                if node.style_def is not None:
-                    self.apply_style_def(node.style_def,  layout_button, task)
-                if node.style_name is not None:
-                    self.apply_style_name(node.style_name, layout_button, task)
-                # after style in case tag changed
-                task.main.page.add_content(layout_button, self)
-            if node.data_code is not None:
-                self.data = task.eval_code(node.data_code)
-                
-        self.node = node
-        self.task = task
-
-        
-    def on_message(self, event):
-        if event.sub_tag == self.tag:
-            # Jump to the cmds after the button
-            self.task.push_inline_block(self.task.active_label, self.node.loc+1, self.data)
-
-    def poll(self, mast:Mast, task:MastAsyncTask, node: ButtonControl):
-        if node.is_end:
-            self.task.pop_label(False)
-            return PollResults.OK_JUMP
-        elif node.end_node:
-            self.task.jump(self.task.active_label, node.end_node.loc+1)
-            return PollResults.OK_JUMP
-
-
-
-class RowRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Row):
-        task.main.page.add_row()
-        item = task.main.page.get_pending_row()
-
-        self.apply_style_name(".row", item, task)
-        if node.style_def is not None:
-            self.apply_style_def(node.style_def, item, task)
-        if node.style_name is not None:
-            self.apply_style_name(node.style_name, item, task)
-        
-
-class BlankRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Blank):
-        item = layout.Blank()
-        task.main.page.add_content(item, self)
-        self.apply_style_name(".blank", item, task)
-        if node.style_def is not None:
-            self.apply_style_def(node.style_def, item, task)
-        if node.style_name is not None:
-            self.apply_style_name(node.style_name, item, task)
-        
-class HoleRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Hole):
-        task.main.page.add_content(layout.Hole(), self)
-
-class SectionRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Section):
-        task.main.page.add_section()
-        self.apply_style_name(".section", task.main.page.get_pending_layout(), task)
-        if node.style_def is not None:
-            self.apply_style_def(node.style_def, task.main.page.get_pending_layout(), task)
-        if node.style_name is not None:
-            self.apply_style_name(node.style_name, task.main.page.get_pending_layout(), task)
 
 
 
@@ -437,7 +311,7 @@ class ChooseRuntimeNode(StoryRuntimeNode):
 
         active = 0
         index = 0
-        layout_row: Row
+        layout_row: layout.Row
         layout_row = layout.Row()
         layout_row.tag = task.main.page.get_tag()
 
@@ -681,98 +555,7 @@ class TextInputControlRuntimeNode(StoryRuntimeNode):
         if event.sub_tag == self.tag:
             self.task.set_value(self.node.var, self.layout.value, self.scope)
 
-class DropdownControlRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: DropdownControl):
-        self.task = task
-        # This is weird label may not be active label
-        # May need a fiber
-        self.label = task.active_label
-        if not node.is_end:
-            self.tag = task.main.page.get_tag()
-            self.node = node
-            val = task.get_variable(self.node.var)
             
-            values = task.format_string(node.values)
-            self.layout = layout.Dropdown(self.tag, values )
-
-            self.apply_style_name(".dropdown", self.layout, task)
-            if node.style_def is not None:
-                self.apply_style_def(node.style_def,  self.layout, task)
-            if node.style_name is not None:
-                self.apply_style_name(node.style_name, self.layout, task)
-            task.main.page.add_content(self.layout, self)
-
-    def on_message(self, event):
-        if event.sub_tag == self.tag:
-            self.layout.value = event.value_tag
-            self.task.set_value_keep_scope(self.node.var, self.layout.value)
-            self.task.push_inline_block(self.label, self.node.loc+1)
-
-    def poll(self, mast:Mast, task:MastAsyncTask, node: DropdownControl):
-        if node.is_end:
-            task.pop_label(False)
-            return PollResults.OK_JUMP
-        elif node.end_node:
-            # skip on first pass
-            self.task.jump(self.task.active_label, node.end_node.loc+1)
-            return PollResults.OK_JUMP
-    
-            
-class WidgetListRuntimeNode(MastRuntimeNode):
-    def enter(self, mast, task: MastAsyncTask, node:WidgetList):
-        task.main.page.set_widget_list(node.console, node.widgets)
-
-class BuildaConsoleRuntimeNode(MastRuntimeNode):
-    """ Lower level console building command to allow layout"""
-    def enter(self, mast, task: MastAsyncTask, node:BuildaConsole):
-        if node.console:
-            task.main.page.activate_console(node.console)
-        elif node.widget:
-            page = task.main.page
-            page.add_console_widget(node.widget)
-            control = layout.ConsoleWidget(node.widget)
-            # if style is not None:
-            #     page.apply_style_def(style,  control)
-            page.add_content(control, None)
-
-
-
-class ConsoleRuntimeNode(MastRuntimeNode):
-    def enter(self, mast, task: MastAsyncTask, node:Console):
-        if node.var:
-            console = task.get_variable(node.console)
-            match console.lower():
-                case "helm":
-                    console =  "normal_helm"
-                    widgets = "2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
-                case "weapons":
-                    console =  "normal_weap"
-                    widgets = "2dview^weapon_control^weap_beam_freq^weap_beam_speed^ship_data^shield_control^text_waterfall^main_screen_control"
-                case "science":
-                    console =  "normal_sci"
-                    widgets = "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list"
-                case "engineering":
-                    console =  "normal_engi"
-                    widgets = "ship_internal_view^grid_object_list^grid_face^grid_control^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
-                case "comms":
-                    console =  "normal_comm"
-                    widgets = "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
-                case "mainscreen":
-                    console =  "normal_main"
-                    widgets = "3dview^ship_data^text_waterfall"
-                case "clear":
-                    console = ""
-                    widgets = ""
-                case _:
-                    # use variable name as console name
-                    # variable value is widgets
-                    widgets = console
-                    console = node.console
-                    
-            task.main.page.set_widget_list(console, widgets)
-        else:
-            task.main.page.set_widget_list(node.console, node.widgets)
-
 class ImageControlRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: ImageControl):
         tag = task.main.page.get_tag()
@@ -810,6 +593,34 @@ class OnChangeRuntimeNode(StoryRuntimeNode):
         if node.end_node:
             self.task.jump(self.task.active_label, node.end_node.loc+1)
             return PollResults.OK_JUMP
+
+class OnMessageRuntimeNode(StoryRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: OnMessage):
+        self.task = task
+        self.node = node
+        self.label = task.active_label
+        if not node.is_end:
+            layout_item = task.eval_code(node.value) 
+            self.layout = layout_item
+            # This will remap to include this as the message handler
+            task.main.page.add_tag(layout_item, self)
+
+
+    def on_message(self, event):
+        if event.sub_tag == self.layout.tag:
+            self.task.set_value_keep_scope("__ITEM__", self.layout)
+            self.task.push_inline_block(self.label, self.node.loc+1)
+
+    def poll(self, mast:Mast, task:MastAsyncTask, node: OnMessage):
+        if node.is_end:
+            task.pop_label(False)
+            return PollResults.OK_JUMP
+        elif node.end_node:
+            # skip on first pass
+            self.task.jump(self.task.active_label, node.end_node.loc+1)
+            return PollResults.OK_JUMP
+
+
 
 class OnClickRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: OnClick):
@@ -901,33 +712,20 @@ over =     {
    
     "Text": TextRuntimeNode,
     "AppendText": AppendTextRuntimeNode,
-        
-        "ButtonControl": ButtonControlRuntimeNode,
         "SliderControl": SliderControlRuntimeNode,
         "CheckboxControl": CheckboxControlRuntimeNode,
         "RadioControl": RadioControlRuntimeNode,
-        "DropdownControl": DropdownControlRuntimeNode,
         "TextInputControl": TextInputControlRuntimeNode,
+        "GuiContent": GuiContentRuntimeNode,
+        "ImageControl":ImageControlRuntimeNode,
+
     
     "OnChange": OnChangeRuntimeNode,
+    "OnMessage": OnMessageRuntimeNode,
     "OnClick": OnClickRuntimeNode,
     "AwaitGui": AwaitGuiRuntimeNode,
     "AwaitSelect": AwaitSelectRuntimeNode,
     "Choose": ChooseRuntimeNode,
-  # "Row": RowRuntimeNode,
-  #  "Face": FaceRuntimeNode,
-  #  "Icon": IconRuntimeNode,
-  #  "Ship": ShipRuntimeNode,
-  #  "Blank": BlankRuntimeNode,
-  #  "Hole": HoleRuntimeNode,
-  #  "Section": SectionRuntimeNode,
-#    "Style": StyleRuntimeNode,
-        "GuiContent": GuiContentRuntimeNode,
-        "ImageControl":ImageControlRuntimeNode,
-        "WidgetList":WidgetListRuntimeNode,
-        "Console":ConsoleRuntimeNode,
-        "BuildaConsole":BuildaConsoleRuntimeNode,
-    
     "Refresh": RefreshRuntimeNode,
     "Update": UpdateRuntimeNode
 }
@@ -1095,7 +893,7 @@ class StoryPage(Page):
 
     def add_row(self):
         if not self.pending_layouts:
-            self.pending_layouts = [layout.Layout(None, None, 20,10, 100, 90)]
+            self.pending_layouts = [layout.Layout(None, None, 0,0, 100, 90)]
         if self.pending_row:
             if len(self.pending_row.columns):
                 self.pending_layouts[-1].add(self.pending_row)
@@ -1125,6 +923,9 @@ class StoryPage(Page):
         self.pending_on_change_items.append(runtime_node)
 
     def add_on_click(self, runtime_node):
+        self.pending_on_click.append(runtime_node)
+
+    def add_on_message(self, runtime_node):
         self.pending_on_click.append(runtime_node)
 
     def set_widget_list(self, console,widgets):
@@ -1400,7 +1201,7 @@ class StoryPage(Page):
 
         runtime_node = self.tag_map.get(message_tag)
         refresh = False
-        if runtime_node:
+        if runtime_node is not None and runtime_node[1] is not None:
             # tuple layout and runtime node
             runtime_node = runtime_node[1]
             FrameContext.context.aspect_ratio = self.aspect_ratio

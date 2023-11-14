@@ -8,16 +8,6 @@ STYLE_REF_RULE = r"""([ \t]+style[ \t]*=[ \t]*((?P<style_name>\w+)|((?P<style_q>
 OPT_STYLE_REF_RULE = STYLE_REF_RULE+"""?"""
 
 
-class Row(MastNode):
-    rule = re.compile(r"""row"""+OPT_STYLE_REF_RULE)
-    def __init__(self, style_name=None, style=None, style_q=None, loc=None):
-        self.loc = loc
-        self.style_def = None
-        self.style_name = None
-        if style is not None:
-            self.style_def = StyleDefinition.parse(style)
-        elif style_name is not None:
-            self.style_name = style_name
     
 class Refresh(MastNode):
     rule = re.compile(r"""refresh([ \t]*(?P<label>\w+))?""")
@@ -35,12 +25,6 @@ class Update(MastNode):
         self.shared= shared is not None
         self.props = self.compile_formatted_string(props)
         self.tag = self.compile_formatted_string(tag)
-
-    
-class Hole(MastNode):
-    rule = re.compile(r"""hole""")
-    def __init__(self,  loc=None):
-        self.loc = loc
 
 
 class Text(MastNode):
@@ -73,34 +57,6 @@ class AppendText(MastNode):
             self.code = None
 
 
-class Face(MastNode):
-    rule = re.compile(r"""face[ \t]*(((['"]{3}|["'])(?P<face>[^\n\r\f]+)\3)|(?P<face_exp>[ \t\S]+)?)"""+OPT_STYLE_REF_RULE)
-    def __init__(self, face=None, face_exp=None, style_name=None, style=None, style_q=None, loc=None):
-        self.loc = loc
-        self.face = face
-        if face_exp:
-            face_exp = face_exp.lstrip()
-            self.code = compile(face_exp, "<string>", "eval")
-        else:
-            self.code = None
-        self.style_def = None
-        self.style_name = None
-        if style is not None:
-            self.style_def = StyleDefinition.parse(style)
-        elif style_name is not None:
-            self.style_name = style_name
-
-class Ship(MastNode):
-    rule = re.compile(r"""ship[ \t]+(?P<q>['"]{3}|["'])(?P<ship>[^\n\r\f]+)(?P=q)"""+OPT_STYLE_REF_RULE)
-    def __init__(self, ship=None, q=None, style_name=None, style=None, style_q=None, loc=None):
-        self.loc = loc
-        self.ship= self.compile_formatted_string(ship)
-        self.style_def = None
-        self.style_name = None
-        if style is not None:
-            self.style_def = StyleDefinition.parse(style)
-        elif style_name is not None:
-            self.style_name = style_name
 
 class GuiContent(MastNode):
     rule = re.compile(r"""gui[ \t]+(?P<gui>page|control)[ \t]+(?P<var>\w+)[ \t]+(?P<exp>("""+PY_EXP_REGEX+'|.*))'+OPT_STYLE_REF_RULE)
@@ -121,42 +77,33 @@ class GuiContent(MastNode):
             self.style_name = style_name
 
 
-class Blank(MastNode):
-    rule = re.compile(r"""blank"""+OPT_STYLE_REF_RULE)
-    def __init__(self, style_name=None, style=None, style_q=None, loc=None):
-        self.loc = loc
-        self.style_def = None
-        self.style_name = None
-        if style is not None:
-            self.style_def = StyleDefinition.parse(style)
-        elif style_name is not None:
-            self.style_name = style_name
-
-
-
-
-class Section(MastNode):
-    rule = re.compile(r"""section"""+OPT_STYLE_REF_RULE)
-    def __init__(self, style_name=None, style=None, style_q=None, loc=None):
-        self.loc = loc
-        self.style_def = None
-        self.style_name = None
-        if style is not None:
-            self.style_def = StyleDefinition.parse(style)
-        elif style_name is not None:
-            self.style_name = style_name
-
-
-class Style(MastNode):
-    rule = re.compile(r"""style[ \t]+(?P<name>\.?\w+)[ \t]*=[ \t]*(?P<q>['"]{3}|["'])(?P<style>.*?)(?P=q)""")
-    def __init__(self, name, style=None, q=None,loc=None):
-        self.loc = loc
-        style_def = StyleDefinition.parse(style)
-        
-        StyleDefinition.styles[name] = style_def
-
 class OnChange(MastNode):
     rule = re.compile(r"(?P<end>end_on)|(on[ \t]+change[ \t]+(?P<val>[^:]+)"+BLOCK_START+")")
+    stack = []
+    def __init__(self, end=None, val=None, loc=None):
+        self.loc = loc
+        self.value = val
+        if val:
+            self.value = compile(val, "<string>", "eval")
+
+        self.is_end = False
+        #
+        # Check to see if this is embedded in an await
+        #
+        self.await_node = None
+        if len(EndAwait.stack) >0:
+            self.await_node = EndAwait.stack[-1]
+        self.end_node = None
+
+        if end is not None:
+            OnChange.stack[-1].end_node = self
+            self.is_end = True
+            OnChange.stack.pop()
+        else:
+            OnChange.stack.append(self)
+
+class OnMessage(MastNode):
+    rule = re.compile(r"(?P<end>end_on)|(on[ \t]+message[ \t]+(?P<val>[ \t\S]+)"+BLOCK_START+")")
     stack = []
     def __init__(self, end=None, val=None, loc=None):
         self.loc = loc
@@ -258,47 +205,6 @@ class Choose(MastNode):
         elif style_name is not None:
             self.style_name = style_name
 
-class ButtonControl(MastNode):
-    rule = re.compile(r"""((button[ \t]+(?P<q>['"]{3}|["'])(?P<message>[ \t\S]+?)(?P=q))([ \t]*data[ \t]*=[ \t]*(?P<data>"""+PY_EXP_REGEX+r"""))?"""+OPT_STYLE_REF_RULE+IF_EXP_REGEX+r"[ \t]*"+BLOCK_START+")|(?P<end>end_button)")
-    stack = []
-    def __init__(self, message, q, data=None, py=None, if_exp=None, end=None,style_name=None, style=None, style_q=None, loc=None):
-        #self.message = message
-        self.loc = loc
-        if message: #Message is none for end
-            self.message = self.compile_formatted_string(message)
-        self.end_node = None
-        self.is_end = False
-    
-        if if_exp:
-            if_exp = if_exp.lstrip()
-            self.code = compile(if_exp, "<string>", "eval")
-        else:
-            self.code = None
-
-        if data:
-            data = data.lstrip()
-            if py:
-                data = data[2:-2]
-                data= data.strip()
-            self.data_code = compile(data, "<string>", "eval")
-        else:
-            self.data_code = None
-
-
-        if end is not None:
-            ButtonControl.stack[-1].end_node = self
-            self.is_end = True
-            ButtonControl.stack.pop()
-        else:
-            ButtonControl.stack.append(self)
-
-        self.style_def = None
-        self.style_name = None
-        if style is not None:
-            self.style_def = StyleDefinition.parse(style)
-        elif style_name is not None:
-            self.style_name = style_name
-
 
 
 FLOAT_VALUE_REGEX = r"[+-]?([0-9]*[.])?[0-9]+"
@@ -337,19 +243,6 @@ class CheckboxControl(MastNode):
         elif style_name is not None:
             self.style_name = style_name
 
-class Icon(MastNode):
-    rule = re.compile(r"""icon[ \t]+(?P<q>['\"]{3}|[\"'])(?P<props>[ \t\S]+?)(?P=q)"""+OPT_STYLE_REF_RULE)
-    def __init__(self, props=None, q=None, style_name=None, style=None, style_q=None, loc=None):
-        self.loc = loc
-        self.props = self.compile_formatted_string(props)
-
-        self.style_def = None
-        self.style_name = None
-        if style is not None:
-            self.style_def = StyleDefinition.parse(style)
-        elif style_name is not None:
-            self.style_name = style_name
-
 
 class RadioControl(MastNode):
     rule = re.compile(r"""(?P<radio>radio|vradio)[ \t]+(?P<var>[ \t\S]+)[ \t]+(?P<q>['"]{3}|["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_STYLE_REF_RULE)
@@ -374,7 +267,6 @@ class RerouteGui(MastNode):
         self.gui = gui
         self.var = var
         self.label = label
-
         
 
 class TextInputControl(MastNode):
@@ -395,32 +287,6 @@ class TextInputControl(MastNode):
             self.style_name = style_name
 
 
-
-class DropdownControl(MastNode):
-    
-    rule = re.compile(r"""(dropdown[ \t]+(?P<var>[_\w][\w]*)[ \t]+(?P<q>['\"]{3}|[\"'])(?P<values>[^\n\r\f]+)(?P=q)"""+OPT_STYLE_REF_RULE+BLOCK_START+""")|(?P<end>end_dropdown)""")
-    stack = []
-    def __init__(self, var=None, values=None, q=None,end=None, style_name=None, style=None, style_q=None, loc=None):
-        self.loc = loc
-        self.is_end = False
-        self.end_node = None
-        self.loc = loc
-        if end is not None:
-            DropdownControl.stack[-1].end_node = self
-            self.is_end = True
-            DropdownControl.stack.pop()
-        else:
-            DropdownControl.stack.append(self)
-            self.var= var
-            self.values = self.compile_formatted_string(values)
-        
-        self.style_def = None
-        self.style_name = None
-        if style is not None:
-            self.style_def = StyleDefinition.parse(style)
-        elif style_name is not None:
-            self.style_name = style_name
-
 class ImageControl(MastNode):
     rule = re.compile(r"""image[ \t]*(?P<q>['"]{3}|["'])(?P<file>[ \t\S]+?)(?P=q)"""+OPT_STYLE_REF_RULE)
     def __init__(self, file, q, style_name=None, style=None, style_q=None, loc=None):
@@ -436,91 +302,27 @@ class ImageControl(MastNode):
 
 
 
-class WidgetList(MastNode):
-    rule = re.compile(r"""widget_list[ \t]+((?P<clear>clear)|(?P<console>['"]\w+['"])([ \t]*(?P<q>['"]{3}|["'])(?P<widgets>[ \t\S]+?)(?P=q)))""")
-    def __init__(self, clear, console, widgets, q, loc=None):
-        self.loc = loc
-        if clear == "clear":
-            self.console = ""
-            self.widgets = ""
-        else:
-            self.console = console
-            self.widgets = widgets
-
-class BuildaConsole(MastNode):
-    rule = re.compile(r"""(activate[ \t]+console[ \t]+(?P<console>\w+))|(layout[ \t]+widget[ \t]+['"](?P<widget>\w+)['"])""")
-    def __init__(self, console, widget, loc=None):
-        self.loc = loc
-        self.console = console
-        self.widget = widget
-
-
-class Console(MastNode):
-    rule = re.compile(r"""console[ \t]+(?P<console>\w+)""")
-    def __init__(self,  console, loc=None):
-        self.loc = loc
-        self.var = False
-        widgets = None
-        match console:
-            case "helm":
-                console =  "normal_helm"
-                widgets = "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
-            case "weapons":
-                console =  "normal_weap"
-                widgets = "2dview^weapon_control^weap_beam_freq^weap_beam_speed^ship_data^shield_control^text_waterfall^main_screen_control"
-            case "science":
-                console =  "normal_sci"
-                widgets = "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list"
-            case "engineering":
-                console =  "normal_engi"
-                widgets = "ship_internal_view^grid_object_list^grid_face^grid_control^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
-            case "comms":
-                console =  "normal_comm"
-                widgets = "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
-            case "mainscreen":
-                console =  "normal_main"
-                widgets = "3dview^ship_data^text_waterfall"
-            case "clear":
-                console = ""
-                widgets = ""
-            case _:
-                self.var = True
-
-        self.console = console
-        self.widgets = widgets
-
-
 class MastStory(MastSbs):
     nodes = [
         # sbs specific
-#        Row,
         Text,
         AppendText,
-#            Face,
-#            Ship,
-#            Icon,
             GuiContent,
-#            Blank,
-#            Hole,
-#            Section,
-#            Style,
         Choose,
         Disconnect,
         OnChange,
+        OnMessage,
         OnClick,
         AwaitGui,
         AwaitSelect,
-            ButtonControl,
+           # ButtonControl,
             RerouteGui,
             SliderControl,
             CheckboxControl,
             RadioControl,
-            DropdownControl,
+          #  DropdownControl,
             ImageControl,
             TextInputControl,
-           # WidgetList,
-           # Console,
-           # BuildaConsole,
         Refresh,
         Update
     ] + MastSbs.nodes 

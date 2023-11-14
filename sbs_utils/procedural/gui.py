@@ -40,6 +40,8 @@ def compile_formatted_string(message):
         return code
     else:
         return message
+    
+
 
 
 def apply_style_name(style_name, layout_item, task):
@@ -140,14 +142,14 @@ def gui_face(face, style=None):
     task = FrameContext.task
     if page is None:
         show_warning("No Page")
-        return
+        return None
     
     tag = page.get_tag()
-    if face is not None:
-        layout_item = layout.Face(tag,face)
-        apply_control_styles(".face", style, layout_item, task)
-        # Last in case tag changed in style
-        page.add_content(layout_item, None)
+    layout_item = layout.Face(tag,face)
+    apply_control_styles(".face", style, layout_item, task)
+    # Last in case tag changed in style
+    page.add_content(layout_item, None)
+    return layout_item
 
 
 def gui_icon(props, style=None):
@@ -156,31 +158,31 @@ def gui_icon(props, style=None):
     props = task.format_string(props)
     if page is None:
         show_warning("No Page")
-        return
+        return None
     
     tag = page.get_tag()
-    if props is not None:
-        layout_item = layout.Icon(tag,props)
-        apply_control_styles(".icon", style, layout_item, task)
-        # Last in case tag changed in style
-        page.add_content(layout_item, None)
+    layout_item = layout.Icon(tag,props)
+    apply_control_styles(".icon", style, layout_item, task)
+    # Last in case tag changed in style
+    page.add_content(layout_item, None)
+    return layout_item
 
 def gui_ship(props, style=None):
     page = FrameContext.page
     task = FrameContext.task
     props = task.format_string(props)
-    
-    if page is not None:
-        # Log warning
-        tag = page.get_tag()
-        if page is None:
-            show_warning("No Page")
-            return
+    if page is None:
+        show_warning("No Page")
+        return None
         
-        layout_item = layout.Ship(tag,props)
-        apply_control_styles(".ship", style, layout_item, task)
-        # Last in case tag changed in style
-        page.add_content(layout_item, None)
+    
+    # Log warning
+    tag = page.get_tag()
+    layout_item = layout.Ship(tag,props)
+    apply_control_styles(".ship", style, layout_item, task)
+    # Last in case tag changed in style
+    page.add_content(layout_item, None)
+    return layout_item
 
 
 def gui_row(style=None):
@@ -189,36 +191,75 @@ def gui_row(style=None):
         
     if page is None:
         show_warning("No Page")
-        return
+        return None
     
-    tag = page.get_tag()
     task.main.page.add_row()
     layout_item = page.get_pending_row()
     apply_control_styles(".row", style, layout_item, task)
+    return layout_item
 
 def gui_blank(style=None):
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
         show_warning("No Page")
-        return
+        return None
     
     layout_item = layout.Blank()
     apply_control_styles(".blank", style, layout_item, task)
     # Last in case tag changed in style
     page.add_content(layout_item, None)
+    return layout_item
 
 def gui_hole(style=None):
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
         show_warning("No Page")
-        return
+        return None
     # Log warning
     layout_item = layout.Hole()
     apply_control_styles(".hole", style, layout_item, task)
     # Last in case tag changed in style
     page.add_content(layout_item, None)
+    return layout_item
+
+
+def gui_button(msg, style=None, data=None):
+    page = FrameContext.page
+    task = FrameContext.task
+    if page is None:
+        show_warning("No Page")
+        return None
+    tag = page.get_tag()
+    msg = task.compile_and_format_string(msg)
+    layout_item = layout.Button(tag, msg)
+    layout_item.data = data
+    apply_control_styles(".button", style, layout_item, task)
+    # Last in case tag changed in style
+    page.add_content(layout_item, None)
+    return layout_item
+
+
+def gui_drop_down(msg, style=None, var=None, data=None):
+    page = FrameContext.page
+    task = FrameContext.task
+    if page is None:
+        show_warning("No Page")
+        return None
+    tag = page.get_tag()
+    msg = task.compile_and_format_string(msg)
+    layout_item = layout.Dropdown(tag, msg)
+    layout_item.data = data
+    if var is not None:
+        layout_item.var_name = var
+        layout_item.var_scope_id = task.get_id()
+    apply_control_styles(".button", style, layout_item, task)
+    # Last in case tag changed in style
+    page.add_content(layout_item, None)
+    return layout_item
+
+
 
 
 
@@ -227,16 +268,17 @@ def gui_section(style=None):
     task = FrameContext.task
     if page is None:
         show_warning("No Page")
-        return
+        return None
     
     page.add_section()
     layout_item = page.get_pending_layout() 
     apply_control_styles(".section", style, layout_item, task)
+    return layout_item
 
 def gui_style_def(style):
     return StyleDefinition.parse(style)
 
-def gui_named_style_def(name, style):
+def gui_set_style_def(name, style):
     style_def = StyleDefinition.parse(style)
     StyleDefinition.styles[name] = style_def
     return style_def
@@ -246,7 +288,7 @@ def gui_widget_list(console, widgets):
     page = FrameContext.page
     if page is None:
         show_warning("No Page")
-        return
+        return None
     page.set_widget_list(console, widgets)
 
 
@@ -257,25 +299,26 @@ def gui_activate_console(console):
     page = FrameContext.page
     if page is None:
         show_warning("No Page")
-        return
+        return None
     page.activate_console(console)
         
 def gui_layout_widget(widget):
     page = FrameContext.page
     if page is None:
         show_warning("No Page")
-        return
+        return None
     
     page.add_console_widget(widget)
     control = layout.ConsoleWidget(widget)
     page.add_content(control, None)
+    return control
     
 
 def gui_console(console):
     page = FrameContext.page
     if page is None:
         show_warning("No Page")
-        return
+        return None
     
     match console.lower():
         case "helm":

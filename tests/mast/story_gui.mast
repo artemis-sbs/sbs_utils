@@ -12,27 +12,27 @@ view = "View"
 ship_select = "Ship"
 text_in = "Hello, World"
 
-style .choice="padding:0.5,0,0.5,0;"
-style .button="padding:0.5,0.25,0.5,0.25;"
-style .input="padding:0.5,0.25,0.5,0.25;"
-style .checkbox="padding:0.5,0.25,0.5,0.25;"
-style .slider="padding:0.5,0.25,0.5,0.25;"
+do gui_set_style_def(".choice", "padding:0.5,0,0.5,0;")
+do gui_set_style_def(".button", "padding:0.5,0.25,0.5,0.25;")
+do gui_set_style_def(".input", "padding:0.5,0.25,0.5,0.25;")
+do gui_set_style_def(".checkbox", "padding:0.5,0.25,0.5,0.25;")
+do gui_set_style_def(".slider", "padding:0.5,0.25,0.5,0.25;")
 
 
 ->Briefing
 
 ================== Briefing ================
 
-section style="area: 0, 30px, 60, 100-30px;"
+do gui_section(style="area: 0, 30px, 60, 100-30px;")
 
 
-face alisa
+do gui_face(alisa)
 """""""""""""""""""""""""""""""""
 Welcome to the TSN
 I'm Captain Alisa. I've been running things in this sector for 10 years. We run a tight sector.
 I don't take any crap and I do not like people who lie and disobey orders out of a matter of principle.
 """""""""""""""""""""""""""""""""
-row
+do gui_row()
 
 """""""""""""""""""""""""""""""""
 Hi, I'm Captain frank. Alisa isn't that bad once you get to know her.
@@ -42,20 +42,20 @@ You're in for an adventure
 Have you ever flown a spaceship?
 """""""""""""""""""""""""""""""""
 
-face frank
+do gui_face(frank)
 
 
-section style="area: 60, 10, 100, 100-30px;"
+do gui_section(style="area: 60, 10, 100, 100-30px;")
 
-blank
-row
-ship "tsn_battle_cruiser"
-row
-blank
+do gui_blank()
+do gui_row()
+do gui_ship("tsn_battle_cruiser")
+do gui_row()
+do gui_blank()
 """""""""""""""""""""""""""""""""
 This is your first ship
 """""""""""""""""""""""""""""""""
-blank
+do gui_blank()
 
 await choice:
     + "Yes.." if learn == True:
@@ -83,8 +83,8 @@ end_await
 
 =================== YouLied ========
 
-section style="area: 20, 10, 100, 100-30px;"
-face alisa
+do gui_section(style="area: 20, 10, 100, 100-30px;")
+do gui_face(alisa)
 
 """"""""""""""""""""""""""""""""""""""""""""""
 I will not tolerate those who are untruthful.
@@ -100,9 +100,9 @@ end_await
 
 ============== YouTrained =========
 
-section style="area: 20, 10, 100, 100-30px;"
+do gui_section(style="area: 20, 10, 100, 100-30px;")
 
-face alisa
+do gui_face(alisa)
 
 """""""""""""""""""""""""""""""""
 Congratulations!
@@ -135,44 +135,44 @@ shared mission_started = True
 
 ==================           Learn     ===========
 
-section style="area: 20, 20, 100, 40;"
+do gui_section(style="area: 20, 20, 100, 40;")
 
 learn = False
 
-button "Test 1":
- -> Learn 
- end_button
+on message gui_button("Test 1"):
+    -> Learn 
+end_on
 
-button "Test 2":
+on message gui_button("Test 2"):
  ->Learn 
-end_button
-button "Test 3":
+end_on
+on message gui_button("Test 3"):
  -> Learn  
-end_button
-button "Test 4":
+end_on
+on message gui_button("Test 4"):
 ->Learn 
-end_button
-row
-button "Test 5":
+end_on
+do gui_row()
+on message gui_button("Test 5"):
 -> Learn
-end_button
-button "Test 6":
+end_on
+on message gui_button("Test 6"):
  ->Learn 
-end_button
-button "Test 7":
+end_on
+on message gui_button("Test 7"):
 -> Learn 
-end_button
-button "Test 8":
+end_on
+on message gui_button("Test 8"):
  ->Learn 
- end_button
-row
-button "Test 9":
+ end_on
+do gui_row()
+on message gui_button("Test 9"):
  -> Briefing 
- end_button
-button "Test 10":
+ end_on
+on message gui_button("Test 10"):
  -> Briefing 
- end_button
-row
+ end_on
+do gui_row()
 
 input text_in
 
@@ -205,30 +205,29 @@ shared tsn =  ~~ [
 
 ===================== Menu ============
 if IS_SERVER:
-    section style="area: 100-500px,0, 100, 30px;"
+    do gui_section(style="area: 100-500px,0, 100, 30px;")
 else:
-    section style="area: 100-500px, 0, 100, 30px;"
+    do gui_section(style="area: 100-500px, 0, 100, 30px;")
 end_if
 
+on message gui_drop_down("text: ship;list:Artemis,Hera,Atlas", var= "ship_select"):
+    <<->>PickedShip
+end_on
 
-dropdown ship_select "text: ship;list:Artemis,Hera,Atlas":   #ddd
-<<->>PickedShip
-end_dropdown
+on message gui_drop_down("text: console;list:Helm,Weapons,Science,Engineering,Comms,Medical,Main Screen", var="console":
+    view = "Main"
+    ->>PickedView
+end_on
 
-dropdown console "text: console;list:Helm,Weapons,Science,Engineering,Comms,Medical,Main Screen": 
-view = "Main"
-->>PickedView
-end_dropdown
+on message gui_drop_down("text: view;list:Main,Auxiliary,Crafting,Quarters,P.A.D.D.,Broadcast,Bar", var="view"):
+    ->>PickedView
+end_on
 
-dropdown view "text: view;list:Main,Auxiliary,Crafting,Quarters,P.A.D.D.,Broadcast,Bar":
-->>PickedView
-end_dropdown
-
-dropdown mast_view "text: Mast;list:Variables,Debug,restart":
+on message gui_drop_down("text: Mast;list:Variables,Debug,restart", "mast_view"):
 ->>PickedMast
-end_dropdown
+end_on
 
-section style="area: 0, 30px, 100, 100-30px;"
+do gui_section(style="area: 0, 30px, 100, 100-30px;")
 <<-
 
 
@@ -285,17 +284,17 @@ end_match
 
 match console:
     case "Helm":
-        widget_list "normal_helm" "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+        do gui_widget_list("normal_helm" "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control")
     case "Weapons":
-        widget_list "normal_weap" "2dview^weapon_control^weap_beam_freq^weap_beam_speed^ship_data^shield_control^text_waterfall^main_screen_control"
+        do gui_widget_list("normal_weap" "2dview^weapon_control^weap_beam_freq^weap_beam_speed^ship_data^shield_control^text_waterfall^main_screen_control")
     case "Science":
-        widget_list "normal_sci" "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list"
+        do gui_widget_list("normal_sci" "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list")
     case "Engineering":
-        widget_list "normal_engi" "ship_internal_view^grid_object_list^grid_face_grid_control^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
+        do gui_widget_list("normal_engi" "ship_internal_view^grid_object_list^grid_face_grid_control^text_waterfall^eng_heat_controls^eng_power_controls^ship_data")
     case "Comms":
-        widget_list "normal_comm" "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
+        do gui_widget_list("normal_comm" "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert")
     case "Main Screen":
-        widget_list "normal_main" "3dview^ship_data^text_waterfall"
+        do gui_widget_list("normal_main" "3dview^ship_data^text_waterfall")
     case _:
         """Pick a Console"""
 end_match

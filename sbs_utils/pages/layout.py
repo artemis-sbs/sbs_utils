@@ -1,9 +1,9 @@
 from ..gui import Page
+from ..engineobject import EngineObject
 import sbs
 import struct # for images sizes
 from .. import fs
 import os
-import json
 from ..helpers import FrameContext
 
 class Bounds:
@@ -113,6 +113,9 @@ class Column:
         self.click_color = None
         self.click_font = None
         self.click_tag = None
+        self.data = None
+        self.var_scope_id = None
+        self.var_name = None
 
     def set_bounds(self, bounds) -> None:
         self.bounds.left=bounds.left
@@ -172,6 +175,20 @@ class Column:
 
     def update(self, props):
         pass
+
+    def update_variable(self):
+        if self.var_scope_id:
+            scope = EngineObject.get(self.var_scope_id)
+            if scope is not None:
+                scope.set_inventory_value(self.var_name, self.value)
+
+    def get_variable(self, default):
+        if self.var_scope_id:
+            scope = EngineObject.get(self.var_scope_id)
+            if scope is not None:
+                return scope.get_inventory_value(self.var_name, default)
+        return default
+            
 
     @property
     def value(self):
@@ -447,6 +464,7 @@ class Dropdown(Column):
     @value.setter
     def value(self, v):
         self._value= v
+        self.update_variable()
 
 class TextInput(Column):
     def __init__(self, tag, props) -> None:
@@ -477,6 +495,7 @@ class TextInput(Column):
     @value.setter
     def value(self, v):
         self._value= v
+        self.update_variable()
 
 
 class Blank(Column):

@@ -4,8 +4,25 @@ shared martinis = 10
 shared beer = 10
 shared vodka = 8
 
+shared customers = {}
+shared messages = []
+shared message_id = 0
+message = ""
+
+if len(message)==0:
+    my_face = faces.random_terran()
+end_if
+
+
+
+===== EnterBar ===
+log "BAR"
+~~ customers[client_id]= my_face ~~
+
 ============== GotoBar ===================
-face barkeep
+do gui_section("area: 0,0,60,80-30px;")
+
+do gui_face(barkeep)
 """""""""""""""""""""""""""""""""
 Thirsty?
 I have
@@ -13,7 +30,6 @@ I have
 ^^^    {martinis} Martini{"s" if martinis>1 else ""}^^^ if martinis>0
 ^^^    {"and " if martinis>0 and (vodka) == 0 else ""}{beer} beer{"s" if beer>1 else ""}^^^ if beer > 0
 ^^^    {"and " if (beer+martinis) > 0 else ""}{vodka} vodka^^^ if vodka > 0
-
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ...
 nothing
@@ -22,35 +38,91 @@ I'm all out.
 If you go to DS1 and get more supply them the Next one is on me.
 ^^^^^^^^^^^^ if martinis == 0 and vodka == 0 and beer ==0
 
+do gui_section("area: 0,80,100,100-30px;")
+do gui_face(my_face)
+for c in customers.values():
+    if c != my_face:
+    do gui_face(c)
+    end_if
+next c
+
+
+
+do gui_section("area: 60,0, 100,80-30px;row-height: 65px;")
+for msg in reversed(messages):
+    do gui_face(msg["face"])
+    """{msg["msg"]}"""
+    do gui_row()
+next c
+
+do gui_section("area: 0,80-50px, 100,80;")
+# holes give the next control its space
+do gui_hole()
+do gui_hole()
+input message "desc:Make a toast"
+
+button "send":
+    to_send = ~~message.strip()~~
+    if len(to_send)>0:
+~~~ 
+messages.append({"face": my_face, "msg": to_send})
+if len(messages)>12:
+    messages.pop(0)
+~~~
+    message = ""
+        message_id += 1
+    end_if
+    # This is broken it pushes and pops wrong
+    ->GotoBar
+end_button
+
+#
+# Watch for changes in data
+# If it changes redo go
+#
+on change len(customers.values()):
+    refresh GotoBar
+    jump GotoBar
+end_on
+
+on change message_id:
+    refresh GotoBar
+    jump GotoBar
+end_on
+
+on change beer+martinis+vodka:
+    refresh GotoBar
+    jump GotoBar
+end_on
+
 await choice:
 + "Martini" if martinis > 0:
     shared martinis = martinis-1
-    refresh GotoBar
-    ->GotoBar
 + "Beer"  if beer > 0:
     shared beer = beer-1
-    refresh GotoBar
-    ->GotoBar
 + "Vodka" if vodka > 0:
     shared vodka = vodka-1
-    refresh GotoBar
-    ->GotoBar
 + "Had enough"  if (beer+martinis+vodka) > 0:
-<<-
+    do customers.pop(client_id, None)
+    refresh GotoBar
+     pop
+disconnect:
+    do customers.pop(client_id, None)
+    ->END
 end_await
 
-# it gets here when there are no more buttons
-# delay to give a chance to read
-delay gui 5s
+if (beer+martinis+vodka) > 0:
+    refresh GotoBar
+    ->GotoBar
+end_if
 
-section style="area: 40, 20, 70, 70;"
+do gui_section("area: 30, 20, 80, 60;")
 
-face barkeep
-row
+do gui_face(barkeep)
+do gui_row()
 """""""""""""""""""""""""""""""""""
 BAR is closed until more supplies arrive
 they are available at DS1
 """""""""""""""""""""""""""""""""""
 await gui timeout 5s
-<<-
-
+pop
