@@ -155,7 +155,7 @@ def gui_face(face, style=None):
 def gui_icon(props, style=None):
     page = FrameContext.page
     task = FrameContext.task
-    props = task.format_string(props)
+    props = task.compile_and_format_string(props)
     if page is None:
         show_warning("No Page")
         return None
@@ -167,10 +167,32 @@ def gui_icon(props, style=None):
     page.add_content(layout_item, None)
     return layout_item
 
+def gui_image(props, style=None):
+    page = FrameContext.page
+    task = FrameContext.task
+    props = task.compile_and_format_string(props)
+    if page is None:
+        show_warning("No Page")
+        return None
+    
+    if "image:" not in props:
+        props = f"image:{props};"
+
+    if "color:" not in props:
+        props+="color:white;"
+    
+    tag = page.get_tag()
+    layout_item = layout.Image(tag,props)
+    apply_control_styles(".image", style, layout_item, task)
+    # Last in case tag changed in style
+    page.add_content(layout_item, None)
+    return layout_item
+
+
 def gui_ship(props, style=None):
     page = FrameContext.page
     task = FrameContext.task
-    props = task.format_string(props)
+    props = task.compile_and_format_string(props)
     if page is None:
         show_warning("No Page")
         return None
@@ -254,13 +276,119 @@ def gui_drop_down(msg, style=None, var=None, data=None):
     if var is not None:
         layout_item.var_name = var
         layout_item.var_scope_id = task.get_id()
-    apply_control_styles(".button", style, layout_item, task)
+    apply_control_styles(".dropdown", style, layout_item, task)
     # Last in case tag changed in style
     page.add_content(layout_item, None)
     return layout_item
 
 
+def gui_checkbox(msg, style=None, var=None, data=None):
+    page = FrameContext.page
+    task = FrameContext.task
+    if page is None:
+        show_warning("No Page")
+        return None
+    tag = page.get_tag()
+    msg = task.compile_and_format_string(msg)
 
+    layout_item = layout.Checkbox(tag, msg)
+    layout_item.data = data
+    if var is not None:
+        layout_item.var_name = var
+        layout_item.var_scope_id = task.get_id()
+        layout_item.update_variable()
+
+    apply_control_styles(".checkbox", style, layout_item, task)
+    # Last in case tag changed in style
+    page.add_content(layout_item, None)
+    return layout_item
+
+def gui_radio(msg, style=None, var=None, data=None, vertical=False):
+    page = FrameContext.page
+    task = FrameContext.task
+    if page is None:
+        show_warning("No Page")
+        return None
+    tag = page.get_tag()
+    msg = task.compile_and_format_string(msg)
+    val = ""
+    if var is not None:
+        val = task.get_variable(var, "")
+
+    layout_item = layout.RadioButtonGroup(tag, msg, val, vertical)
+    layout_item.data = data
+    if var is not None:
+        layout_item.var_name = var
+        layout_item.var_scope_id = task.get_id()
+
+    apply_control_styles(".radio", style, layout_item, task)
+    # Last in case tag changed in style
+    page.add_content(layout_item, None)
+
+    return layout_item
+
+def gui_vradio(msg, style=None, var=None, data=None, vertical=False):
+    return gui_radio(msg, style, var, data, True)
+
+def gui_slider(msg, style=None, var=None, data=None, is_int=False):
+    page = FrameContext.page
+    task = FrameContext.task
+    if page is None:
+        show_warning("No Page")
+        return None
+    tag = page.get_tag()
+    msg = task.compile_and_format_string(msg)
+    val = 0
+    if var is not None:
+        val = task.get_variable(var, 0)
+
+    layout_item = layout.Slider(tag, val, msg, is_int)
+    layout_item.data = data
+    if var is not None:
+        layout_item.var_name = var
+        layout_item.var_scope_id = task.get_id()
+
+    if is_int:
+        apply_control_styles(".intslider", style, layout_item, task)
+    else:
+        apply_control_styles(".slider", style, layout_item, task)
+    # Last in case tag changed in style
+    page.add_content(layout_item, None)
+    return layout_item
+
+def gui_int_slider(msg, style=None, var=None, data=None):
+    return gui_slider(msg, style, var, True, data)
+
+
+def gui_input(label, style=None, var=None, data=None):
+    page = FrameContext.page
+    task = FrameContext.task
+    if page is None:
+        show_warning("No Page")
+        return None
+    tag = page.get_tag()
+    if label is not None:
+        label = task.compile_and_format_string(label)
+    else:
+        label = ""
+
+    val = ""
+    if var is not None:
+        val = task.get_variable(var, "")
+
+    if "text:" not in label:
+        label = f"text:{val};{label}"
+
+    layout_item = layout.TextInput(tag, label)
+    layout_item.data = data
+    if var is not None:
+        layout_item.var_name = var
+        layout_item.var_scope_id = task.get_id()
+
+    apply_control_styles(".input", style, layout_item, task)
+    # Last in case tag changed in style
+    page.add_content(layout_item, None)
+    return layout_item
 
 
 def gui_section(style=None):
@@ -319,7 +447,7 @@ def gui_console(console):
     if page is None:
         show_warning("No Page")
         return None
-    
+    widgets = ""
     match console.lower():
         case "helm":
             console =  "normal_helm"
@@ -339,7 +467,4 @@ def gui_console(console):
         case "mainscreen":
             console =  "normal_main"
             widgets = "3dview^ship_data^text_waterfall"
-        case "clear":
-            console = ""
-            widgets = ""
     page.set_widget_list(console, widgets)

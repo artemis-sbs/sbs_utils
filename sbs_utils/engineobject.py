@@ -446,6 +446,15 @@ class EngineObject():
     def has_inventory_list(cls, collection_name):
         collection_name = collection_name.strip()
         return cls._has_inventory.collection_list(collection_name)
+    
+    # Task overrides this to respect scope
+    def get_variable(self, key, default=None):
+        return self.get_inventory_value(key, default)
+    
+    # Task overrides this to respect scope
+    def set_variable(self, key, value):
+        return self.set_inventory_value(key, value)
+    
     ###########################################################
 
     @classmethod

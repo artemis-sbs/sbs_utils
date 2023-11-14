@@ -744,8 +744,8 @@ class MastAsyncTask(EngineObject):
         return val
         
 
-    def get_variable(self, key):
-        value = self.get_value(key, None)
+    def get_variable(self, key, default=None):
+        value = self.get_value(key, default)
         return value[0]
 
     def call_leave(self):

@@ -177,7 +177,7 @@ do gui_row()
 input text_in
 
 #slider slider_value 0.0 1.0 0.5
-checkbox wilma "Yaba"
+do gui_checkbox("Yaba")
 
 await choice:
 + "exit":
@@ -214,7 +214,7 @@ on message gui_drop_down("text: ship;list:Artemis,Hera,Atlas", var= "ship_select
     <<->>PickedShip
 end_on
 
-on message gui_drop_down("text: console;list:Helm,Weapons,Science,Engineering,Comms,Medical,Main Screen", var="console":
+on message gui_drop_down("text: console;list:Helm,Weapons,Science,Engineering,Comms,Medical,Main Screen", var="console"):
     view = "Main"
     ->>PickedView
 end_on
@@ -345,20 +345,20 @@ have *PlayerShip broadcast "Hello"
 ========== ViewQuarters =====
 ->> Menu
 
-image "{mission_dir}\data\quarters"
+do gui_image("{mission_dir}\data\quarters")
 
 await gui
 
 ========== ViewCrafting =====
 ->> Menu
 
-image "{mission_dir}\data\crafting"
+do gui_image("image:{mission_dir}\data\crafting;")
 
 await gui
 ========== ViewPad =====
 ->> Menu
 
-image "{mission_dir}\data\datapad"
+do gui_image( "{mission_dir}\data\datapad")
 
 await gui
 

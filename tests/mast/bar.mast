@@ -61,7 +61,7 @@ do gui_hole()
 do gui_hole()
 input message "desc:Make a toast"
 
-button "send":
+on message gui_button("send"):
     to_send = ~~message.strip()~~
     if len(to_send)>0:
 ~~~ 
@@ -74,7 +74,7 @@ if len(messages)>12:
     end_if
     # This is broken it pushes and pops wrong
     ->GotoBar
-end_button
+end_on
 
 #
 # Watch for changes in data

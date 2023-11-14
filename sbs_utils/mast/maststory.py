@@ -206,59 +206,7 @@ class Choose(MastNode):
             self.style_name = style_name
 
 
-
 FLOAT_VALUE_REGEX = r"[+-]?([0-9]*[.])?[0-9]+"
-
-class SliderControl(MastNode):
-    rule = re.compile(r"""(?P<is_int>intslider|slider|scrollbar)"""+
-        r"""[ \t]+(?P<var>\w+)"""+
-        r"""[ \t]+(?P<q>['"]{3}|["'])(?P<props>[ \t\S]+?)(?P=q)"""+
-        OPT_STYLE_REF_RULE)
-    def __init__(self, is_int=None, var=None, q=None, props=None, style_name=None, style=None, style_q=None,loc=None):
-        self.loc = loc
-        self.var= var
-        self.is_int = (is_int=="intslider")
-        self.is_scroll = (is_int=="scrollbar")
-        self.props = self.compile_formatted_string(props)
-        
-        self.style_def = None
-        self.style_name = None
-        if style is not None:
-            self.style_def = StyleDefinition.parse(style)
-        elif style_name is not None:
-            self.style_name = style_name
-    
-class CheckboxControl(MastNode):
-    rule = re.compile(r"""checkbox[ \t]+(?P<var>[ \t\S]+)[ \t]+(?P<q>['"]{3}|["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_STYLE_REF_RULE)
-    def __init__(self, var=None, message=None, q=None, style_name=None, style=None, style_q=None, loc=None):
-        self.loc = loc
-        self.var= var
-        #self.message = message
-        self.message = self.compile_formatted_string(message)
-
-        self.style_def = None
-        self.style_name = None
-        if style is not None:
-            self.style_def = StyleDefinition.parse(style)
-        elif style_name is not None:
-            self.style_name = style_name
-
-
-class RadioControl(MastNode):
-    rule = re.compile(r"""(?P<radio>radio|vradio)[ \t]+(?P<var>[ \t\S]+)[ \t]+(?P<q>['"]{3}|["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_STYLE_REF_RULE)
-    def __init__(self, radio, var=None, message=None, q=None, style_name=None, style=None, style_q=None, loc=None):
-        self.loc = loc
-        self.vertical = radio == "vradio"
-        self.var= var
-        self.message = self.compile_formatted_string(message)
-
-        self.style_def = None
-        self.style_name = None
-        if style is not None:
-            self.style_def = StyleDefinition.parse(style)
-        elif style_name is not None:
-            self.style_name = style_name
-
 
 class RerouteGui(MastNode):
     rule = re.compile(r"""reroute([ \t]+((?P<gui>server|clients)|(client[ \t]+(?P<var>[_\w][\w]*))))?[ \t]+(?P<label>[_\w][\w]*)""")
@@ -269,45 +217,13 @@ class RerouteGui(MastNode):
         self.label = label
         
 
-class TextInputControl(MastNode):
-    
-    rule = re.compile(r"""input[ \t]+(?P<var>[_\w][\w]*)([ \t]+(?P<q>['"]{3}|["'])(?P<label>[ \t\S]+?)(?P=q))?"""+OPT_STYLE_REF_RULE)
-    def __init__(self, var=None, label=None,q=None, style_name=None, style=None, style_q=None, loc=None):
-        self.loc = loc
-        self.var= var
-        #print(f"node {label}")
-        self.label = self.compile_formatted_string(label) if label is not None else None
-        #print(f"self label {self.label}")
-
-        self.style_def = None
-        self.style_name = None
-        if style is not None:
-            self.style_def = StyleDefinition.parse(style)
-        elif style_name is not None:
-            self.style_name = style_name
-
-
-class ImageControl(MastNode):
-    rule = re.compile(r"""image[ \t]*(?P<q>['"]{3}|["'])(?P<file>[ \t\S]+?)(?P=q)"""+OPT_STYLE_REF_RULE)
-    def __init__(self, file, q, style_name=None, style=None, style_q=None, loc=None):
-        self.loc = loc
-        self.file = self.compile_formatted_string(file)
-        
-        self.style_def = None
-        self.style_name = None
-        if style is not None:
-            self.style_def = StyleDefinition.parse(style)
-        elif style_name is not None:
-            self.style_name = style_name
-
-
 
 class MastStory(MastSbs):
     nodes = [
         # sbs specific
         Text,
         AppendText,
-            GuiContent,
+
         Choose,
         Disconnect,
         OnChange,
@@ -315,14 +231,8 @@ class MastStory(MastSbs):
         OnClick,
         AwaitGui,
         AwaitSelect,
-           # ButtonControl,
             RerouteGui,
-            SliderControl,
-            CheckboxControl,
-            RadioControl,
-          #  DropdownControl,
-            ImageControl,
-            TextInputControl,
+            GuiContent,
         Refresh,
         Update
     ] + MastSbs.nodes 

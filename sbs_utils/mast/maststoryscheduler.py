@@ -9,7 +9,7 @@ from .parsers import StyleDefinition
 
 from ..pages import layout
 
-from .maststory import AppendText,  MastStory, Choose, Disconnect, RerouteGui, Text, GuiContent, Refresh, SliderControl, CheckboxControl,  ImageControl, TextInputControl, AwaitGui, AwaitSelect,  RadioControl,  OnChange, OnMessage, OnClick, Update
+from .maststory import AppendText,  MastStory, Choose, Disconnect, RerouteGui, Text, GuiContent, Refresh, AwaitGui, AwaitSelect, OnChange, OnMessage, OnClick, Update
 import traceback
 from .mastsbsscheduler import MastSbsScheduler, Button
 from ..consoledispatcher import ConsoleDispatcher
@@ -426,151 +426,6 @@ class ChoiceButtonRuntimeNode(StoryRuntimeNode):
         if event.sub_tag == self.tag:
             self.choice.button = self
             self.client_id = event.client_id
-    
-
-
-
-class SliderControlRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: SliderControl):
-        self.tag = task.main.page.get_tag()
-        self.node = node
-        val = task.get_variable(self.node.var)
-        #if val is None:
-        #    val = self.node.value
-        if val is None:
-            val = 0
-        props = task.format_string(node.props)
-        self.layout = layout.Slider(self.tag, val, props)
-        self.task = task
-        self.apply_style_name(".slider", self.layout, task)
-        if node.style_def is not None:
-            self.apply_style_def(node.style_def,  self.layout, task)
-        if node.style_name is not None:
-            self.apply_style_name(node.style_name, self.layout, task)
-
-        task.main.page.add_content(self.layout, self)
-
-    def on_message(self, event):
-        if event.sub_tag == self.tag:
-            if self.node.is_int:
-                self.layout.value = int(event.sub_float)
-            else:
-                self.layout.value = event.sub_float
-            self.layout.present(event)
-            self.task.set_value_keep_scope(self.node.var, self.layout.value)
-
-
-class CheckboxControlRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: CheckboxControl):
-        self.tag = task.main.page.get_tag()
-        self.node = node
-        scoped_val = task.get_value(self.node.var, False)
-        val = scoped_val[0]
-        self.scope = scoped_val[1]
-        msg = task.format_string(node.message)
-        self.layout = layout.Checkbox(self.tag, msg, val)
-        self.task = task
-        task.main.page.add_content(self.layout, self)
-        self.apply_style_name(".checkbox", self.layout, task)
-        if node.style_def is not None:
-            self.apply_style_def(node.style_def,  self.layout, task)
-        if node.style_name is not None:
-            self.apply_style_name(node.style_name, self.layout, task)
-
-    def on_message(self, event):
-        if event.sub_tag == self.tag:
-            #self.layout.value = not self.layout.value
-            self.task.set_value(self.node.var, self.layout.value, self.scope)
-            self.layout.present(event)
-
-
-class RadioControlRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: RadioControl):
-        self.tag = task.main.page.get_tag()
-        self.node = node
-        scoped_val = task.get_value(self.node.var, False)
-        val = scoped_val[0]
-        self.scope = scoped_val[1]
-        msg = task.format_string(node.message)
-        buttons = msg.split(",")
-        self.buttons = []
-        self.layouts = []
-        
-        for button in buttons:
-            button = button.strip()
-            self.buttons.append(button)
-            radio =layout.Checkbox(f"{self.tag}:{button}", button, val==button)
-            self.apply_style_name(".radio", radio, task)
-            if node.style_def is not None:
-                self.apply_style_def(node.style_def, radio, task)
-            if node.style_name is not None:
-                self.apply_style_name(node.style_name, self.layout, task)
-            self.layouts.append(radio)
-            task.main.page.add_content(radio, self)
-            if node.vertical:
-                task.main.page.add_row()
-        self.task = task
-        
-
-    def on_message(self, event):
-        if event.sub_tag.startswith(self.tag+":"):
-            values = event.sub_tag.split(":")
-            if len(values) == 2:
-                
-                self.task.set_value(self.node.var, values[1], self.scope)
-                for i, button in enumerate(self.buttons):
-                    self.layouts[i].value = button == values[1]
-                    self.layouts[i].present(event)
-
-class TextInputControlRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: TextInputControl):
-        self.tag = task.main.page.get_tag()
-        self.node = node
-        label = ""
-        
-        if node.label is not None:
-            #print(f"node {node.label}")
-            label = task.format_string(node.label)
-            #print(f"formatted {label}")
-            if label is None:
-                label=""
-        scoped_val = task.get_value(self.node.var, "")
-        val = scoped_val[0]
-        if "text:" not in label:
-            label = f"text:{val};{label}"
-        self.scope = scoped_val[1]
-        #print("LABEL:" + label)
-        self.layout = layout.TextInput(self.tag, label)
-        self.task = task
-        
-
-        self.apply_style_name(".input", self.layout, task)
-        if node.style_def is not None:
-            self.apply_style_def(node.style_def,  self.layout, task)
-        if node.style_name is not None:
-            self.apply_style_name(node.style_name, self.layout, task)
-        task.main.page.add_content(self.layout, self)
-
-    def on_message(self, event):
-        if event.sub_tag == self.tag:
-            self.task.set_value(self.node.var, self.layout.value, self.scope)
-
-            
-class ImageControlRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: ImageControl):
-        tag = task.main.page.get_tag()
-        file = task.format_string(node.file)
-        if "image:" not in file:
-            file = "image:"+file
-        self.layout = layout.Image(tag, file )
-
-        self.apply_style_name(".image", self.layout, task)
-        if node.style_def is not None:
-            self.apply_style_def(node.style_def,  self.layout, task)
-        if node.style_name is not None:
-            self.apply_style_name(node.style_name, self.layout, task)
-
-        task.main.page.add_content(self.layout, self)
 
 class OnChangeRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: OnChange):
@@ -609,7 +464,8 @@ class OnMessageRuntimeNode(StoryRuntimeNode):
     def on_message(self, event):
         if event.sub_tag == self.layout.tag:
             self.task.set_value_keep_scope("__ITEM__", self.layout)
-            self.task.push_inline_block(self.label, self.node.loc+1)
+            data = self.layout.data
+            self.task.push_inline_block(self.label, self.node.loc+1, data)
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: OnMessage):
         if node.is_end:
@@ -619,7 +475,6 @@ class OnMessageRuntimeNode(StoryRuntimeNode):
             # skip on first pass
             self.task.jump(self.task.active_label, node.end_node.loc+1)
             return PollResults.OK_JUMP
-
 
 
 class OnClickRuntimeNode(StoryRuntimeNode):
@@ -712,13 +567,7 @@ over =     {
    
     "Text": TextRuntimeNode,
     "AppendText": AppendTextRuntimeNode,
-        "SliderControl": SliderControlRuntimeNode,
-        "CheckboxControl": CheckboxControlRuntimeNode,
-        "RadioControl": RadioControlRuntimeNode,
-        "TextInputControl": TextInputControlRuntimeNode,
         "GuiContent": GuiContentRuntimeNode,
-        "ImageControl":ImageControlRuntimeNode,
-
     
     "OnChange": OnChangeRuntimeNode,
     "OnMessage": OnMessageRuntimeNode,
