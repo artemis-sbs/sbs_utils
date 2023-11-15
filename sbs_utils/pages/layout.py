@@ -180,7 +180,7 @@ class Column:
         if self.var_scope_id:
             scope = EngineObject.get(self.var_scope_id)
             if scope is not None:
-                scope.set_inventory_value(self.var_name, self.value)
+                scope.set_variable(self.var_name, self.value)
 
     def get_variable(self, default):
         if self.var_scope_id:

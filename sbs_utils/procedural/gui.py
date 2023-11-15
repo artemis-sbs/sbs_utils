@@ -45,6 +45,8 @@ def compile_formatted_string(message):
 
 
 def apply_style_name(style_name, layout_item, task):
+    if style_name is None:
+        return
     style_def = StyleDefinition.styles.get(style_name)
     apply_style_def(style_def, layout_item, task)
 
@@ -321,7 +323,8 @@ def gui_radio(msg, style=None, var=None, data=None, vertical=False):
         layout_item.var_name = var
         layout_item.var_scope_id = task.get_id()
 
-    apply_control_styles(".radio", style, layout_item, task)
+    
+    apply_control_styles(".radio", style, layout_item.group_layout, task)
     # Last in case tag changed in style
     page.add_content(layout_item, None)
 
@@ -468,3 +471,21 @@ def gui_console(console):
             console =  "normal_main"
             widgets = "3dview^ship_data^text_waterfall"
     page.set_widget_list(console, widgets)
+
+
+def gui_content(content, style=None, var=None):
+    page = FrameContext.page
+    task = FrameContext.task
+    if page is None:
+        show_warning("No Page")
+        return None
+
+    tag = task.main.page.get_tag()
+    # gui control ShipPicker(0,0,"mast", "Your Ship")
+    layout_item = layout.GuiControl(tag, content)
+    if var is not None:
+        task.set_variable(var, layout_item)
+
+    apply_control_styles(None, style, layout_item, task)
+    # Last in case tag changed in style
+    page.add_content(layout_item, None)

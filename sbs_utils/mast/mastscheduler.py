@@ -747,6 +747,9 @@ class MastAsyncTask(EngineObject):
     def get_variable(self, key, default=None):
         value = self.get_value(key, default)
         return value[0]
+    
+    def set_variable(self, key, value):
+        self.set_value_keep_scope(key,value)
 
     def call_leave(self):
         if self.runtime_node:
@@ -1281,6 +1284,10 @@ class MastScheduler(EngineObject):
         return (val, Scope.NORMAL)
 
     def get_variable(self, key):
+        val = self.get_value(key)
+        return val[0]
+    
+    def set_variable(self, key):
         val = self.get_value(key)
         return val[0]
 

@@ -58,24 +58,6 @@ class AppendText(MastNode):
 
 
 
-class GuiContent(MastNode):
-    rule = re.compile(r"""gui[ \t]+(?P<gui>page|control)[ \t]+(?P<var>\w+)[ \t]+(?P<exp>("""+PY_EXP_REGEX+'|.*))'+OPT_STYLE_REF_RULE)
-    def __init__(self, gui=None, var=None, exp=None, py=None, style_name=None, style=None, style_q=None, loc=None):
-        self.loc = loc
-        self.gui= gui
-        self.var= var
-        exp = exp.lstrip()
-        if py:
-            exp = exp[2:-2]
-            exp = exp.strip()
-        self.code = compile(exp, "<string>", "eval")
-        self.style_def = None
-        self.style_name = None
-        if style is not None:
-            self.style_def = StyleDefinition.parse(style)
-        elif style_name is not None:
-            self.style_name = style_name
-
 
 class OnChange(MastNode):
     rule = re.compile(r"(?P<end>end_on)|(on[ \t]+change[ \t]+(?P<val>[^:]+)"+BLOCK_START+")")
@@ -232,7 +214,6 @@ class MastStory(MastSbs):
         AwaitGui,
         AwaitSelect,
             RerouteGui,
-            GuiContent,
         Refresh,
         Update
     ] + MastSbs.nodes 

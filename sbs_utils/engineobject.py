@@ -450,6 +450,9 @@ class EngineObject():
     # Task overrides this to respect scope
     def get_variable(self, key, default=None):
         return self.get_inventory_value(key, default)
+    # Task overrides this to respect scope
+    def set_variable(self, key, value):
+        self.get_inventory_value(key, value)
     
     # Task overrides this to respect scope
     def set_variable(self, key, value):

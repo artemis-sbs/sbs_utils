@@ -9,7 +9,7 @@ from .parsers import StyleDefinition
 
 from ..pages import layout
 
-from .maststory import AppendText,  MastStory, Choose, Disconnect, RerouteGui, Text, GuiContent, Refresh, AwaitGui, AwaitSelect, OnChange, OnMessage, OnClick, Update
+from .maststory import AppendText,  MastStory, Choose, Disconnect, RerouteGui, Text, Refresh, AwaitGui, AwaitSelect, OnChange, OnMessage, OnClick, Update
 import traceback
 from .mastsbsscheduler import MastSbsScheduler, Button
 from ..consoledispatcher import ConsoleDispatcher
@@ -148,21 +148,6 @@ class UpdateRuntimeNode(StoryRuntimeNode):
 
 
 
-class GuiContentRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: GuiContent):
-        tag = task.main.page.get_tag()
-        # gui control ShipPicker(0,0,"mast", "Your Ship")
-        content = task.eval_code(node.code)
-        item = layout.GuiControl(tag, content)
-        task.set_value_keep_scope(node.var, item)
-        
-        #self.apply_style_name(".pickship", item, task)
-        if node.style_def is not None:
-            self.apply_style_def(node.style_def, item, task)
-        if node.style_name is not None:
-            self.apply_style_name(node.style_name, self.layout, task)
-        # After style in case tag changed
-        task.main.page.add_content(item, self)
 
         
         
@@ -564,11 +549,8 @@ Mast.import_python_module('sbs_utils.widgets.listbox')
 
 over =     {
     "RerouteGui": RerouteGuiRuntimeNode,
-   
     "Text": TextRuntimeNode,
     "AppendText": AppendTextRuntimeNode,
-        "GuiContent": GuiContentRuntimeNode,
-    
     "OnChange": OnChangeRuntimeNode,
     "OnMessage": OnMessageRuntimeNode,
     "OnClick": OnClickRuntimeNode,
