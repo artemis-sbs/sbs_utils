@@ -1,6 +1,6 @@
 
 import typing
-from  .engineobject import EngineObject
+from  .agent import Agent
 
 class LifetimeDispatcher:
     _dispatch_spawn = set()
@@ -30,13 +30,13 @@ class LifetimeDispatcher:
 
 
     def dispatch_spawn():
-        objects = EngineObject.get_role_objects("__space_spawn__")
+        objects = Agent.get_role_objects("__space_spawn__")
         for so in objects:
             for func in LifetimeDispatcher._dispatch_spawn:
                 func(so)
             so.remove_role("__space_spawn__")
 
-        objects = EngineObject.get_role_objects("__grid_spawn__")
+        objects = Agent.get_role_objects("__grid_spawn__")
         for so in objects:
             #print("A grid object spawned")
             for func in LifetimeDispatcher._dispatch_spawn_grid:
@@ -47,7 +47,7 @@ class LifetimeDispatcher:
 
     def dispatch_damage(damage_event):
         if damage_event.sub_tag == 'destroyed':
-            so:EngineObject = EngineObject.get(damage_event.selected_id)
+            so:Agent = Agent.get(damage_event.selected_id)
             if so is not None:
                 for func in LifetimeDispatcher._dispatch_destroy:
                     func(so)

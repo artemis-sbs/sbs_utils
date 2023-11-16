@@ -1,5 +1,5 @@
 from ..gui import Page
-from ..engineobject import EngineObject
+from ..agent import Agent
 import sbs
 import struct # for images sizes
 from .. import fs
@@ -178,13 +178,13 @@ class Column:
 
     def update_variable(self):
         if self.var_scope_id:
-            scope = EngineObject.get(self.var_scope_id)
+            scope = Agent.get(self.var_scope_id)
             if scope is not None:
                 scope.set_variable(self.var_name, self.value)
 
     def get_variable(self, default):
         if self.var_scope_id:
-            scope = EngineObject.get(self.var_scope_id)
+            scope = Agent.get(self.var_scope_id)
             if scope is not None:
                 return scope.get_variable(self.var_name, default)
         return default

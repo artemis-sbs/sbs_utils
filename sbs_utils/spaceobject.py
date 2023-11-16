@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Callable
 import sbs
 from enum import IntEnum
-from .engineobject import EngineObject, SpawnData
+from .agent import Agent, SpawnData
 from .helpers import FrameContext
 from . import names
 
@@ -17,7 +17,7 @@ class TickType(IntEnum):
     ALL = -1
 
 
-class SpaceObject(EngineObject):
+class SpaceObject(Agent):
     # roles : Stuff = Stuff()
     # _has_inventory : Stuff = Stuff()
     # has_links : Stuff = Stuff()

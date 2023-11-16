@@ -1,4 +1,4 @@
-from ..engineobject import EngineObject, CloseData, SpawnData
+from ..agent import Agent, CloseData, SpawnData
 from .query import to_set, to_list, to_object
 from ..helpers import FrameContext
 import sbs
@@ -30,7 +30,7 @@ def broad_test(x1: float, z1: float, x2: float, z2: float, broad_type=-1):
 
 #######################
 # Set resolvers
-def closest_list(source: int | CloseData | SpawnData | EngineObject, the_set, max_dist=None, filter_func=None) -> list[CloseData]:
+def closest_list(source: int | CloseData | SpawnData | Agent, the_set, max_dist=None, filter_func=None) -> list[CloseData]:
     """ close_list
 
         get the list of close data that matches the test set, max_dist and optional filter function
@@ -48,13 +48,13 @@ def closest_list(source: int | CloseData | SpawnData | EngineObject, the_set, ma
   
     ret = []
     test = max_dist
-    source_id = EngineObject.resolve_id(source)
+    source_id = Agent.resolve_id(source)
 
     for other_id in the_set:
         # if this is self skip
         if other_id == source_id:
             continue
-        other_obj = EngineObject.get(other_id)
+        other_obj = Agent.get(other_id)
         if filter_func is not None and not filter_func(other_obj):
             continue
         # test distance
@@ -87,14 +87,14 @@ def closest(the_ship, the_set, max_dist=None, filter_func=None) -> CloseData:
   
     test = max_dist
     ret = None
-    source_id = EngineObject.resolve_id(the_ship)
+    source_id = Agent.resolve_id(the_ship)
     the_set = to_set(the_set)
 
     for other_id in the_set:
         # if this is self skip
         if other_id == source_id:
             continue
-        other_obj = EngineObject.get(other_id)
+        other_obj = Agent.get(other_id)
         if filter_func is not None and not filter_func(other_obj):
             continue
 
@@ -112,7 +112,7 @@ def closest(the_ship, the_set, max_dist=None, filter_func=None) -> CloseData:
     return ret
 
 
-def closest_object(the_ship, the_set, max_dist=None, filter_func=None) -> EngineObject:
+def closest_object(the_ship, the_set, max_dist=None, filter_func=None) -> Agent:
     """ closest_object
 
         get the object that matches the test set, max_dist and optional filter function
@@ -125,7 +125,7 @@ def closest_object(the_ship, the_set, max_dist=None, filter_func=None) -> Engine
         :type link_name: float
         :param filter_func: A function to filter the set
         :type filter_func: func
-        :rtype: EngineObject
+        :rtype: Agent
         """
     ret = closest(the_ship, the_set, max_dist, filter_func)
     if ret:
@@ -138,7 +138,7 @@ def target(set_or_object, target_id, shoot: bool = True, throttle: float = 1.0):
     :param shoot: if the object should be shot at
     :type shoot: bool
     """
-    target_id = EngineObject.resolve_id(target_id)
+    target_id = Agent.resolve_id(target_id)
     target_engine = FrameContext.context.sim.get_space_object(target_id)
 
     if target_engine:
@@ -153,7 +153,7 @@ def target(set_or_object, target_id, shoot: bool = True, throttle: float = 1.0):
             data["target_id"] = target_engine.unique_ID
         all = to_list(set_or_object)
         for chaser in all:
-            chaser = EngineObject.resolve_py_object(chaser)
+            chaser = Agent.resolve_py_object(chaser)
             if chaser is not None:
                 chaser.update_engine_data(data)
 
@@ -175,7 +175,7 @@ def target_pos(chasers: set | int | CloseData|SpawnData, x: float, y: float, z: 
     }
     all = to_list(chasers)
     for chaser in all:
-        chaser = EngineObject.resolve_py_object(chaser)
+        chaser = Agent.resolve_py_object(chaser)
         chaser.update_engine_data(data)
 
 def clear_target(chasers: set | int | CloseData|SpawnData):
@@ -187,7 +187,7 @@ def clear_target(chasers: set | int | CloseData|SpawnData):
         """
         all = to_list(chasers)
         for chaser in all:
-            chaser = EngineObject.resolve_py_object(chaser)
+            chaser = Agent.resolve_py_object(chaser)
             this = FrameContext.context.sim.get_space_object(chaser.id)
             chaser.update_engine_data( {
                 "target_pos_x": this.pos.x,

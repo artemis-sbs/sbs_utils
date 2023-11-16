@@ -489,3 +489,18 @@ def gui_content(content, style=None, var=None):
     apply_control_styles(None, style, layout_item, task)
     # Last in case tag changed in style
     page.add_content(layout_item, None)
+
+
+def gui_update(tag, props, shared=False):
+    page = FrameContext.page
+    task = FrameContext.task
+
+    tag = task.compile_and_format_string(tag)
+    props = task.compile_and_format_string(props)
+    if shared:
+        task.main.mast.update_shared_props_by_tag(tag, props)
+    else:
+        page.update_props_by_tag(tag, props)
+
+def gui_update_shared(tag, props):
+    gui_update(tag, props, True)

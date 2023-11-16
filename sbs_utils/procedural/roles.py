@@ -1,4 +1,4 @@
-from ..engineobject import EngineObject
+from ..agent import Agent
 from .query import to_object_list, to_set, to_object
 
 def role(role: str):
@@ -11,7 +11,7 @@ def role(role: str):
         
         :rtype: set of ids 
     """
-    return EngineObject.get_role_set(role)
+    return Agent.get_role_set(role)
 
 def any_role(roles: str):
     """ role

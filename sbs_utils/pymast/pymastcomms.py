@@ -3,7 +3,7 @@ from ..consoledispatcher import ConsoleDispatcher
 import sbs
 import inspect
 from .pollresults import PollResults
-from ..engineobject import EngineObject
+from ..agent import Agent
 from ..procedural import query
 from .. import faces
 
@@ -16,8 +16,8 @@ def transmit(text, origin_id, selected_id, color=None, face=None, title=None):
     if face is None:
         face = faces.get_face(origin_id)
     if title is None:
-        origin_so = EngineObject.get(origin_id)
-        npc_so = EngineObject.get(selected_id)
+        origin_so = Agent.get(origin_id)
+        npc_so = Agent.get(selected_id)
         if origin_so is not None and npc_so is not None:
             title = f"{origin_so.comms_id}>{npc_so.comms_id}"
         else:
@@ -34,8 +34,8 @@ def receive(text, origin_id, selected_id, color=None, face=None, title=None):
     if face is None:
         face = faces.get_face(selected_id)
     if title is None:
-        origin_so = EngineObject.get(origin_id)
-        npc_so = EngineObject.get(selected_id)
+        origin_so = Agent.get(origin_id)
+        npc_so = Agent.get(selected_id)
         if origin_so is not None and npc_so is not None:
             title = f"{npc_so.comms_id}>{origin_so.comms_id}"
         else:
@@ -90,8 +90,8 @@ class PyMastComms:
             i+=1
 
     def selected_info(self, origin_id, selected_id):
-        player_so = EngineObject.get(origin_id)
-        npc_so = EngineObject.get(selected_id)
+        player_so = Agent.get(origin_id)
+        npc_so = Agent.get(selected_id)
 
         if player_so is None or npc_so is None:
             if query.is_space_object_id(selected_id):
@@ -169,9 +169,9 @@ class PyMastComms:
         
 
     def get_origin(self):
-            return EngineObject.get(self.origin_id)
+            return Agent.get(self.origin_id)
     def get_selected(self):
-            return EngineObject.get(self.selected_id)
+            return Agent.get(self.selected_id)
 
     def clear(self):
         self.selected_info(self.origin_id, self.selected_id)

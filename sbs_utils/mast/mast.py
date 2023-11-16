@@ -6,7 +6,7 @@ import os
 from .. import fs
 from zipfile import ZipFile
 from .. import faces, scatter
-from ..engineobject import EngineObject, get_story_id
+from ..agent import Agent, get_story_id
 import math
 import itertools
 import logging
@@ -37,13 +37,6 @@ IF_EXP_REGEX = r"""([ \t]+if(?P<if_exp>[^\n\r\f]+))?"""
 BLOCK_START = r":[ \t]*(?=\r\n|\n|\#)"
 
 
-class MastCompilerError:
-    def __init__(self, message, line_no):
-        if isinstance(message, str):
-            self.messages = [message]
-        else:
-            self.messages = message
-        self.line_no = line_no
 
 
 class ParseData:
@@ -54,6 +47,9 @@ class ParseData:
 
 
 class MastNode:
+    file_num:int
+    line_num:int
+    
     def add_child(self, cmd):
         #print("ADD CHILD")
         pass
@@ -237,14 +233,14 @@ class PyCode(MastNode):
             py_cmds= py_cmds.lstrip()
             self.code = compile(py_cmds, "<string>", "exec")
 
-class DoCommand(MastNode):
-    rule = re.compile(r'do[ \t]+(?P<py_cmds>.+)')
+CLOSE_FUNC = r"\)[ \t]*(?=\r\n|\n|\#)"
+class FuncCommand(MastNode):
+    rule = re.compile(r'(?P<py_cmds>[\w\.]+\s*\([^\n\r\f]+[ \t]*(?=\r\n|\n|\#))')
     def __init__(self, py_cmds=None, loc=None):
         self.loc = loc
         if py_cmds:
             py_cmds= py_cmds.lstrip()
             self.code = compile(py_cmds, "<string>", "exec")
-
 
 
 
@@ -713,12 +709,13 @@ def first_non_newline_index(s):
     return len(s)
 
 def first_non_whitespace_index(s):
+    nl = 0
     for idx, c in enumerate(s):
         if c != '\n' and c != '\t' and c != ' ':
-            return idx
-    return len(s)
-
-
+            return (idx,nl)
+        if c == '\n':
+            nl+=1
+    return (len(s), nl)
 
 def first_newline_index(s):
     for idx, c in enumerate(s):
@@ -730,9 +727,16 @@ class InlineData:
     def __init__(self, start, end):
         self.start = start
         self.end = end
+import builtins as __builtin__
+from ..helpers import FrameContext
+def mast_print(*args, **kwargs):
+    task = FrameContext.task 
+    if len(args)==1 and task is not None:
+        return __builtin__.print(task.compile_and_format_string(args[0]))
+    #    args[0] = ">>>"+args[0]
+    return __builtin__.print(*args, **kwargs)
 
-
-class Mast(EngineObject):
+class Mast(Agent):
     include_code = False
 
     globals = {
@@ -740,7 +744,7 @@ class Mast(EngineObject):
         "faces": faces,
         "scatter": scatter,
         "random": random,
-        "print": print, 
+        "print": mast_print, 
         "dir":dir, 
         "itertools": itertools,
         "next": next,
@@ -767,6 +771,7 @@ class Mast(EngineObject):
         "__name__":__name__ # needed to define classes?
     }
     inline_count = 0
+    source_map_files = []
 
     def __init__(self, cmds=None):
         super().__init__()
@@ -776,12 +781,12 @@ class Mast(EngineObject):
         self.basedir = None
         self.id = get_story_id()
         self.add()
-
+        
 
         if cmds is None:
             return
         if isinstance(cmds, str):
-            cmds = self.compile(cmds)
+            cmds = self.compile(cmds, "<string>")
         # else:
         #     self.build(cmds)
 
@@ -805,30 +810,6 @@ class Mast(EngineObject):
                     Mast.globals[f"{mod_name}_{name}"] = func
                 elif isinstance(prepend, str):
                     Mast.globals[f"{prepend}_{name}"] = func
-       # else:
-       #     print("import failed")
-
-    # def build(self, cmds):
-    #     """
-    #     Used to build via code not a script file
-    #     should just process level things e.g. Input, Label, Var
-    #     """
-    #     self.clear()
-    #     active = self.labels["main"]
-
-    #     for cmd in cmds:
-    #         match cmd.__class__.__name__:
-    #             case "Input":
-    #                 self.inputs[cmd.name] = cmd
-    #             case "Label":
-    #                 self.labels[cmd.name] = cmd
-    #                 active.next = cmd
-    #                 active = cmd
-    #             case "Var":
-    #                 self.vars[cmd.name] = cmd
-    #                 active = cmd
-    #             case _:
-    #                 active.cmds.append(cmd)
 
 
     nodes = [
@@ -840,13 +821,13 @@ class Mast(EngineObject):
         LoopEnd,
         LoopBreak,
         PyCode,
-        DoCommand,
         Log,
         Logger,
         Input,
         #        Var,
         Import,
         AwaitCondition,
+        FuncCommand,
 #        Await,  # needs to be before Parallel
         Timeout,
         Change,
@@ -854,7 +835,6 @@ class Mast(EngineObject):
         AwaitFail,
         Behavior, # Needs to be in front of parallel
         Parallel,  # needs to be before Assign
-        
         Cancel,
         Assign,
         Fail,
@@ -862,16 +842,23 @@ class Mast(EngineObject):
         End,
         ReturnIf,
         Jump,
-        
         Delay,
         Marker,
     ]
 
-    def clear(self):
+    def get_source_file_name(file_num):
+        if file_num is None:
+            return "<string>"
+        if file_num >= len(Mast.source_map_files):
+            return "<unknown>"
+        return Mast.source_map_files[file_num]
+
+    def clear(self, file_name):
         self.inputs = {}
         if not self.is_import:
             self.set_inventory_value("mast", self)
             self.set_inventory_value("SHARED", self.get_id())
+            Mast.source_map_files = []
             # print("Multi Shares")
 
         # self.vars = {"mast": self}
@@ -883,6 +870,9 @@ class Mast(EngineObject):
         self.main_pruned = False
         self.schedulers = set()
         self.lib_name = None
+
+        Mast.source_map_files.append(file_name)
+        return len(Mast.source_map_files)-1
                 
     
     def prune_main(self):
@@ -931,7 +921,7 @@ class Mast(EngineObject):
         if errors is not None:
             return errors
         if content is not None:
-            errors = self.compile(content)
+            errors = self.compile(content, file_name)
             if len(errors) > 0:
                 message = f"Compile errors\nCannot compile file {file_name}"
                 errors.append(message)
@@ -945,7 +935,7 @@ class Mast(EngineObject):
         match ext:
             case _:
                 if content is not None:
-                    errors = self.compile(content)
+                    errors = self.compile(content, file_name)
 
                     if len(errors) > 0:
                         message = f"Compile errors\nCannot compile file {file_name}"
@@ -1014,19 +1004,19 @@ class Mast(EngineObject):
 
         return errors
 
-    def compile(self, lines):
-        self.clear()
-        line_no = 0
-        total_length = len(lines)
+    def compile(self, lines, file_name):
+        file_num = self.clear(file_name)
+        line_no = 1 # file line num are 1 based
+        
         errors = []
         active = self.labels.get("main")
         active_name = "main"
 
         while len(lines):
             mo = first_non_whitespace_index(lines)
-            line_no += mo if mo is not None else 0
+            line_no += mo[1] if mo is not None else 0
             #line = lines[:mo]
-            lines = lines[mo:]
+            lines = lines[mo[0]:]
             # Keep location in file
 
 
@@ -1076,7 +1066,7 @@ class Mast(EngineObject):
                             replace = data.get('replace')
                             if existing_label and not replace:
                                 parsed = False
-                                errors.append(f"ERROR: duplicate label '{label_name }'. Use 'replace: {data['name']}' if this is intentional.  {line_no} - {line}")
+                                errors.append(f"ERROR: duplicate label '{label_name }'. Use 'replace: {data['name']}' if this is intentional. {file_name}:{line_no} - {line}")
                                 break
                             elif existing_label and replace:
                                 # Make the pervious version jump to the replacement
@@ -1140,6 +1130,8 @@ class Mast(EngineObject):
                             try:
                                 loc = len(self.cmd_stack[-1].cmds)
                                 obj = node_cls(loc=loc, **data)
+                                obj.file_num = file_num
+                                obj.line_num = line_no
                             except Exception as e:
                                 logger = logging.getLogger("mast.compile")
                                 logger.error(f"ERROR: {line_no} - {line}")
@@ -1160,7 +1152,7 @@ class Mast(EngineObject):
 
                 if mo:
                     # this just blank lines
-                    line_no += mo
+                    #line_no += mo
                     line = lines[:mo]
                     lines = lines[mo:]
                 else:

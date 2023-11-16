@@ -98,7 +98,7 @@ class SpawnData:
     id: int
     engine_object: any
     blob: any
-    py_object: EngineObject
+    py_object: Agent
 
     def __init__(self, id, obj, blob, py_obj) -> None:
         self.id = id
@@ -109,7 +109,7 @@ class SpawnData:
 
 class CloseData:
     id: int
-    py_object: EngineObject
+    py_object: Agent
     distance: float
 
     def __init__(self, other_id, other_obj, distance) -> None:
@@ -118,7 +118,7 @@ class CloseData:
         self.distance = distance
 
 
-class EngineObject():
+class Agent():
     roles : Stuff = Stuff()
     _has_inventory : Stuff = Stuff()
     has_links : Stuff = Stuff()
@@ -158,10 +158,10 @@ class EngineObject():
 
     @classmethod
     def clear(cls):
-        EngineObject.all = {}
-        EngineObject.roles = Stuff()
-        EngineObject._has_inventory = Stuff()
-        EngineObject.has_links = Stuff()
+        Agent.all = {}
+        Agent.roles = Stuff()
+        Agent._has_inventory = Stuff()
+        Agent.has_links = Stuff()
 
     def destroyed(self):
         self.remove()
@@ -171,12 +171,12 @@ class EngineObject():
 
     @classmethod
     def _add(cls, id, obj):
-        EngineObject.all[id] = obj
+        Agent.all[id] = obj
 
     @classmethod
     def _remove(cls, id):
-        EngineObject.all.pop(id, None) #Allow remove if not added
-        return EngineObject.roles.remove_every_collection(id)
+        Agent.all.pop(id, None) #Allow remove if not added
+        return Agent.roles.remove_every_collection(id)
 
     ########## ROLES ########################
     def add_role(self, role: str):
@@ -232,7 +232,7 @@ class EngineObject():
         return None
  
     ############### LINKS ############
-    def add_link(self, link_name: str, other: EngineObject | CloseData | int):
+    def add_link(self, link_name: str, other: Agent | CloseData | int):
         """ Add a link to the space object. Links are uni-directional
 
         :param role: The role/link name to add e.g. spy, pirate etc.
@@ -243,19 +243,19 @@ class EngineObject():
         self.links.add_to_collection(link_name,id)
         self.has_links.add_to_collection(link_name, self.id)
 
-    def set_dedicated_link(self, link_name: str, other: EngineObject | CloseData | int):
+    def set_dedicated_link(self, link_name: str, other: Agent | CloseData | int):
         link_name = link_name.strip().lower()
         self.links.dedicated_collection(link_name, self.resolve_id(other))
         if other is not None:
             self.has_links.add_to_collection(link_name, self.id)
 
-    def remove_link(self, link_name: str, other: EngineObject | CloseData | int):
+    def remove_link(self, link_name: str, other: Agent | CloseData | int):
         """ Remove a role from the space object
 
         :param role: The role to add e.g. spy, pirate etc.
         :type id: str
         """
-        id = EngineObject.resolve_id(other)
+        id = Agent.resolve_id(other)
         self.links.remove_from_collection(link_name,id)
         # Remove any empty from has links
         collections = link_name.split(",")
@@ -274,7 +274,7 @@ class EngineObject():
         self.links.remove_collection(link_name)
         self.has_links.remove_from_collection(link_name, self.id)
 
-    def has_link_to(self, link_name: str | list[str], other: EngineObject | CloseData | int):
+    def has_link_to(self, link_name: str | list[str], other: Agent | CloseData | int):
         """ check if the object has a role
 
         :param role: The role to add e.g. spy, pirate etc.
@@ -286,12 +286,12 @@ class EngineObject():
         id = self.resolve_id(other)
         return self.links.collection_has(link_name,id)
 
-    def _remove_every_link(self, other: EngineObject | CloseData | int):
+    def _remove_every_link(self, other: Agent | CloseData | int):
         id = self.resolve_id(other)
         for role in self.links:
             self._remove_link(role, id)
 
-    def get_in_links(self, other: EngineObject | CloseData | int):
+    def get_in_links(self, other: Agent | CloseData | int):
         id = self.resolve_id(other)
         return self.links.get_collections_in(id)
         
@@ -334,9 +334,9 @@ class EngineObject():
         return cls.has_links.collection_list(collection_name)
     ####################################
     @classmethod
-    def resolve_id(cls, other: EngineObject | CloseData | int):
+    def resolve_id(cls, other: Agent | CloseData | int):
         id = other
-        if isinstance(other, EngineObject):
+        if isinstance(other, Agent):
             id = other.id
         elif isinstance(other, CloseData):
             id = other.id
@@ -345,9 +345,9 @@ class EngineObject():
         return id
 
     @classmethod
-    def resolve_py_object(cls, other: EngineObject | CloseData | int):
+    def resolve_py_object(cls, other: Agent | CloseData | int):
         py_object = other
-        if isinstance(other, EngineObject):
+        if isinstance(other, Agent):
             py_object = other
         elif isinstance(other, CloseData):
             py_object = other.py_object

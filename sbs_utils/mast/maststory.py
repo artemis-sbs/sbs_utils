@@ -15,18 +15,6 @@ class Refresh(MastNode):
         self.loc = loc
         self.label = label
 
-class Update(MastNode):
-    rule = re.compile(r"""update([ \t]*(?P<shared>shared))?([ \t]*tag[ \t]*(?P<q>['\"]{3}|[\"'])(?P<tag>[ \t\S]+?)(?P=q)[ \t]*(?P<qp>['\"]{3}|[\"'])(?P<props>[ \t\S]*)(?P=qp))""")
-    def __init__(self, props=None, tag=None, shared=None, q=None, qp=None, loc=None):
-        self.loc = loc
-        #
-        # Shared indicates the update/tag is propagated to all pages
-        #
-        self.shared= shared is not None
-        self.props = self.compile_formatted_string(props)
-        self.tag = self.compile_formatted_string(tag)
-
-
 class Text(MastNode):
     rule = re.compile(r"""((['"]{3,})(\n)?(?P<message>[\s\S]+?)(\n)?(['"]{3,}))"""+OPT_STYLE_REF_RULE+IF_EXP_REGEX)
     def __init__(self, message, if_exp, style_name=None, style=None, style_q=None, loc=None):
@@ -215,5 +203,4 @@ class MastStory(MastSbs):
         AwaitSelect,
             RerouteGui,
         Refresh,
-        Update
     ] + MastSbs.nodes 

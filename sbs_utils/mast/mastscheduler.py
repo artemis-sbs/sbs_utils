@@ -4,7 +4,7 @@ from typing import List
 from .mast import *
 import time
 import traceback
-from ..engineobject import EngineObject, get_task_id
+from ..agent import Agent, get_task_id
 from ..helpers import FrameContext
 
 
@@ -16,14 +16,6 @@ class MastRuntimeNode:
     
     def poll(self, mast, scheduler, node):
         return PollResults.OK_ADVANCE_TRUE
-
-class MastRuntimeError:
-    def __init__(self, message, line_no):
-        if isinstance(message, str):
-            self.messages = [message]
-        else:
-            self.messages = message
-        self.line_no = line_no
 
 
 # class MastAsyncTask:
@@ -164,8 +156,8 @@ class PyCodeRuntimeNode(MastRuntimeNode):
         task.exec_code(node.code,{"export": export, "export_var": export_var}, None )
         return PollResults.OK_ADVANCE_TRUE
 
-class DoCommandRuntimeNode(MastRuntimeNode):
-    def poll(self, mast, task:MastAsyncTask, node:DoCommand):
+class FuncCommandRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task:MastAsyncTask, node:FuncCommand):
         task.exec_code(node.code, None, None)
         return PollResults.OK_ADVANCE_TRUE
 
@@ -466,14 +458,14 @@ class LogRuntimeNode(MastRuntimeNode):
 class LoggerRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task: MastAsyncTask, node:Logger):
         logger = logging.getLogger(node.logger)
-        logging.basicConfig(level=logging.NOTSET)
-        logger.setLevel(logging.NOTSET)
+        logging.basicConfig(level=logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
 
         if node.var is not None:
             streamer = StringIO()
             handler = logging.StreamHandler(stream=streamer)
             handler.setFormatter(logging.Formatter("%(message)s"))
-            handler.setLevel(logging.NOTSET)
+            handler.setLevel(logging.DEBUG)
             logger.addHandler(handler)
             
             #mast.vars[node.var] = streamer
@@ -535,7 +527,7 @@ class PushData:
         self.runtime_node = resume_node
 
 
-class MastAsyncTask(EngineObject):
+class MastAsyncTask(Agent):
     main: 'MastScheduler'
     dependent_tasks = {}
     
@@ -887,11 +879,15 @@ class MastAsyncTask(EngineObject):
         s = "mast SCRIPT ERROR\n"
         if self.runtime_node:
             cmd = self.cmds[self.active_cmd]
-        s += f"\n   mast label: {self.active_label}"
-        if cmd is not None:
-            s += f"\n      cmd: {cmd.__class__.__name__}\n       loc: {cmd.loc}"
+        if cmd is None:
+            s += f"\n      mast label: {self.active_label}"
+        else:
+            file_name = Mast.get_source_file_name(cmd.file_num)
+            s += f"\n      line: {cmd.line_num} in file: {file_name}"
+            s += f"\n      label: {self.active_label}"
+            s += f"\n      loc: {cmd.loc} cmd: {cmd.__class__.__name__}\n"
             if cmd.line:
-                s += f"\n      code: {cmd.line}\n\n"
+                s += f"\n===== code ======\n\n{cmd.line}\n\n==================\n"
             else:
                 s += "\nNOTE: to see code Set Mast.include_code to True is script.py only during development.\n\n"
 
@@ -949,7 +945,7 @@ class MastAsyncTask(EngineObject):
             task.done = True
         MastAsyncTask.dependent_tasks.pop(id, None)
 
-class MastBehaveTask(EngineObject):
+class MastBehaveTask(Agent):
     def __init__(self):
         super().__init__()
         self.id = get_task_id()
@@ -1111,7 +1107,7 @@ class MastFallbackTask(MastBehaveTask):
 
 
 
-class MastScheduler(EngineObject):
+class MastScheduler(Agent):
     runtime_nodes = {
         "End": EndRuntimeNode,
         "ReturnIf": ReturnIfRuntimeNode,
@@ -1124,7 +1120,7 @@ class MastScheduler(EngineObject):
         "LoopEnd": LoopEndRuntimeNode,
         "LoopBreak": LoopBreakRuntimeNode,
         "PyCode": PyCodeRuntimeNode,
-        "DoCommand": DoCommandRuntimeNode,
+        "FuncCommand": FuncCommandRuntimeNode,
 #        "Await": AwaitRuntimeNode,
         "Behavior": BehaviorRuntimeNode,
         "Parallel": ParallelRuntimeNode,

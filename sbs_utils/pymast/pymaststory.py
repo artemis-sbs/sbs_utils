@@ -2,7 +2,7 @@ from ..tickdispatcher import TickDispatcher
 from ..consoledispatcher import ConsoleDispatcher
 from ..lifetimedispatcher import LifetimeDispatcher
 from ..damagedispatcher import DamageDispatcher
-from ..engineobject import EngineObject
+from ..agent import Agent
 from ..gui import Page, Gui
 from sbs_utils import faces
 from ..pages import layout
@@ -18,11 +18,11 @@ from .pymaststorypage import CodePusher
 from ..helpers import FrameContext
 import logging
 from io import StringIO
-from ..engineobject import EngineObject, get_story_id
+from ..agent import Agent, get_story_id
 
 
 
-class PyMastStory(EngineObject):
+class PyMastStory(Agent):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs) # This style of init makes it more mixin friendly
         self.schedulers = []

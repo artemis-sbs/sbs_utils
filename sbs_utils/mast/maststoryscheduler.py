@@ -9,7 +9,7 @@ from .parsers import StyleDefinition
 
 from ..pages import layout
 
-from .maststory import AppendText,  MastStory, Choose, Disconnect, RerouteGui, Text, Refresh, AwaitGui, AwaitSelect, OnChange, OnMessage, OnClick, Update
+from .maststory import AppendText,  MastStory, Choose, Disconnect, RerouteGui, Text, Refresh, AwaitGui, AwaitSelect, OnChange, OnMessage, OnClick
 import traceback
 from .mastsbsscheduler import MastSbsScheduler, Button
 from ..consoledispatcher import ConsoleDispatcher
@@ -137,14 +137,6 @@ class RefreshRuntimeNode(StoryRuntimeNode):
             task.main.mast.refresh_schedulers(task.main, node.label)
 
 
-class UpdateRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Update):
-        tag = task.format_string(node.tag)
-        props = task.format_string(node.props)
-        if node.shared:
-            mast.update_shared_props_by_tag(tag, props)
-        else:
-            task.main.page.update_props_by_tag(tag, props)
 
 
 
@@ -558,7 +550,6 @@ over =     {
     "AwaitSelect": AwaitSelectRuntimeNode,
     "Choose": ChooseRuntimeNode,
     "Refresh": RefreshRuntimeNode,
-    "Update": UpdateRuntimeNode
 }
 
 class StoryScheduler(MastSbsScheduler):

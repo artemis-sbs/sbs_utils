@@ -9,7 +9,7 @@ from .gui import Gui, Page
 import sbs
 import traceback
 from . import faces
-from .engineobject import EngineObject
+from .agent import Agent
 from .helpers import FrameContext, Context
 import time
 
@@ -56,7 +56,7 @@ class ErrorPage(Page):
                 #print(self.message)
                 self.message = self.message.replace(",", ".")
                 sbs.send_gui_text(
-                    event.client_id, "text", f"text:scripting error^{self.message}", 0, 0, 80, 95)
+                    event.client_id, "text", f"text:sbs_utils runtime error^{self.message}", 0, 0, 80, 95)
                 sbs.send_gui_button(event.client_id, "back", "text:back", 80, 90, 99, 94)
                 sbs.send_gui_button(event.client_id, "resume", "text:Resume Mission", 80, 95, 99, 99)
                 sbs.send_gui_complete(event.client_id)
@@ -138,7 +138,7 @@ def cosmos_event_handler(sim, event):
                 handled = ConsoleDispatcher.dispatch_select(event)
                 if not handled and "comms_sorted_list" == event.value_tag:
                     face = faces.get_face(event.selected_id)
-                    so = EngineObject.get(event.selected_id)
+                    so = Agent.get(event.selected_id)
                     comms_id = "static"
                     if so:
                         comms_id = so.comms_id#(sim)
@@ -180,7 +180,7 @@ def cosmos_event_handler(sim, event):
         text_err = text_err.replace(chr(94), "")
         Gui.push(0, ErrorPage(text_err))
     
-    EngineObject.context = None
+    Agent.context = None
     et = time.process_time() - t
     if et > 0.03:
         print(f"Elapsed time: {et} {event.tag}-{event.sub_tag}")

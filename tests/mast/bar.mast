@@ -20,9 +20,9 @@ log "BAR"
 ~~ customers[client_id]= my_face ~~
 
 ============== GotoBar ===================
-do gui_section("area: 0,0,60,80-30px;")
+gui_section("area: 0,0,60,80-30px;")
 
-do gui_face(barkeep)
+gui_face(barkeep)
 """""""""""""""""""""""""""""""""
 Thirsty?
 I have
@@ -38,28 +38,28 @@ I'm all out.
 If you go to DS1 and get more supply them the Next one is on me.
 ^^^^^^^^^^^^ if martinis == 0 and vodka == 0 and beer ==0
 
-do gui_section("area: 0,80,100,100-30px;")
-do gui_face(my_face)
+gui_section("area: 0,80,100,100-30px;")
+gui_face(my_face)
 for c in customers.values():
     if c != my_face:
-    do gui_face(c)
+    gui_face(c)
     end_if
 next c
 
 
 
-do gui_section("area: 60,0, 100,80-30px;row-height: 65px;")
+gui_section("area: 60,0, 100,80-30px;row-height: 65px;")
 for msg in reversed(messages):
-    do gui_face(msg["face"])
+    gui_face(msg["face"])
     """{msg["msg"]}"""
-    do gui_row()
+    gui_row()
 next c
 
-do gui_section("area: 0,80-50px, 100,80;")
+gui_section("area: 0,80-50px, 100,80;")
 # holes give the next control its space
-do gui_hole()
-do gui_hole()
-input message "desc:Make a toast"
+gui_hole()
+gui_hole()
+gui_input("desc:Make a toast", var="message")
 
 on message gui_button("send"):
     to_send = ~~message.strip()~~
@@ -116,10 +116,10 @@ if (beer+martinis+vodka) > 0:
     ->GotoBar
 end_if
 
-do gui_section("area: 30, 20, 80, 60;")
+gui_section("area: 30, 20, 80, 60;")
 
-do gui_face(barkeep)
-do gui_row()
+gui_face(barkeep)
+gui_row()
 """""""""""""""""""""""""""""""""""
 BAR is closed until more supplies arrive
 they are available at DS1

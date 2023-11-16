@@ -1,5 +1,5 @@
 from .query import to_blob, to_id, to_object, to_object_list, to_set
-from ..engineobject import CloseData
+from ..agent import CloseData
 from ..tickdispatcher import TickDispatcher
 from .inventory import get_inventory_value, set_inventory_value
 import functools

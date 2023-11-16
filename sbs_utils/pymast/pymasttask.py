@@ -5,7 +5,7 @@ from .pymastcomms import PyMastComms
 from functools import partial
 import types
 import sbs
-from ..engineobject import EngineObject, get_task_id
+from ..agent import Agent, get_task_id
 from ..helpers import FrameContext
 
 class DataHolder(object):
@@ -24,7 +24,7 @@ def label(*dargs, **dkwargs):
 ##
 ## Runs a set of generator functions
 ##
-class PyMastTask(EngineObject):
+class PyMastTask(Agent):
     def __init__(self, story, scheduler, label) -> None:
         super().__init__()
         self.vars = DataHolder()
