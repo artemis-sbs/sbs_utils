@@ -1,7 +1,7 @@
 from .helpers import FrameContext
-from .engineobject import EngineObject, get_task_id
+from .agent import Agent, get_task_id
 
-class TickTask(EngineObject):
+class TickTask(Agent):
     """
     A task that is managed by the TickDispatcher
     """

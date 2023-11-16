@@ -1,4 +1,4 @@
-from ..engineobject import EngineObject
+from ..agent import Agent
 from .query import to_object_list, to_set, to_object, to_id_list, to_id
 
 def has_link(key: str):
@@ -10,7 +10,7 @@ def has_link(key: str):
         :type key: str
         :rtype: set of ids
         """
-    return EngineObject.has_links_set(key)
+    return Agent.has_links_set(key)
 
 
 
@@ -27,7 +27,7 @@ def linked_to(link_source, link_name: str):
         """
 
 
-    link_source = EngineObject.resolve_py_object(link_source)
+    link_source = Agent.resolve_py_object(link_source)
     return link_source.get_link_set(link_name)
 
 def has_link_to(link_source, link_name: str, link_target):
@@ -43,7 +43,7 @@ def has_link_to(link_source, link_name: str, link_target):
         """
 
 
-    link_source = EngineObject.resolve_py_object(link_source)
+    link_source = Agent.resolve_py_object(link_source)
     return  link_source.has_link_to(link_name,link_target)
 
 def link(set_holder, link, set_to):

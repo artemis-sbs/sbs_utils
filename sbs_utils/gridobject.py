@@ -1,11 +1,11 @@
 from __future__ import annotations
 import sbs
 import functools
-from .engineobject import EngineObject, SpawnData, CloseData, Stuff
+from .agent import Agent, SpawnData, CloseData, Stuff
 
   
 
-class GridObject(EngineObject):
+class GridObject(Agent):
     # roles : Stuff = Stuff()
     # _has_inventory : Stuff = Stuff()
     # has_links : Stuff = Stuff()

@@ -1,7 +1,7 @@
 
 import typing
-# using EngineObject since it is lighter weight than query??
-from .engineobject import EngineObject
+# using Agent since it is lighter weight than query??
+from .agent import Agent
 from .helpers import FrameContext
 from .procedural.inventory import get_inventory_value
 
@@ -305,7 +305,7 @@ class ConsoleDispatcher:
         blob.set(console, target,0)
 
             
-        co = EngineObject.get(event.client_id)
+        co = Agent.get(event.client_id)
         # Set the selection as inventory
         if co:
             co.set_inventory_value(console.upper(), event.selected_id)

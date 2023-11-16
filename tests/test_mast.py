@@ -52,7 +52,7 @@ dsdds
     def test_py_exp_compile_err(self):
         (errors, mast) = mast_compile( code = """
 ~~ "{}{}".format(2,3) ~~
-do x + fred(123)
+~~x + fred(123)~~
 
 """)
         assert(len(errors)==0)
@@ -853,14 +853,14 @@ Done
                 (errors, _) = mast_compile( code = """
         x = 2
         if x >3:
-            do print(x)
+            print(x)
         end_if
 
         if x >3:
-            do print(x)
+            print(x)
 
         if x < 5:
-            do print(x)
+            print(x)
 
         === test == 
     
@@ -921,7 +921,7 @@ Done
                 (errors, _) = mast_compile( code = """
         x = 2
         if x >3:
-            do print(x)
+            print(x)
 
             """)
                 assert(len(errors)==1)

@@ -20,3 +20,59 @@ Routing types:
     Damage
     Destroy?
     Gui?
+
+
+
+
+
+
+
+        Text,
+        AppendText,
+        Choose,
+        Disconnect,
+        OnChange,
+        OnClick,
+        AwaitGui,
+        AwaitSelect,
+        Refresh,
+        Update
+        Comms,
+        Scan,
+        ScanTab,
+        ScanResult
+
+
+
+
+
+
+        Route,
+            FollowRoute,
+            TransmitReceive,
+            Broadcast,
+            CommsInfo,
+            Button,
+            Simulation,
+#            Face,
+#            Ship,
+#            Icon,
+            GuiContent,
+#            Blank,
+#            Hole,
+#            Section,
+            Style,
+
+            ButtonControl,
+            RerouteGui,
+            SliderControl,
+            CheckboxControl,
+            RadioControl,
+            DropdownControl,
+            ImageControl,
+            TextInputControl,
+            WidgetList,
+            Console,
+            BuildaConsole,
+
+

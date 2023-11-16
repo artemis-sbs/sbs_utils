@@ -1,5 +1,5 @@
 import sbs
-from .engineobject import EngineObject
+from .agent import Agent
 from .helpers import FakeEvent, FrameContext
 
         
@@ -89,7 +89,7 @@ class Page:
         pass
 
 
-class GuiClient(EngineObject):
+class GuiClient(Agent):
     """ Manages the pages for a client
 
     """

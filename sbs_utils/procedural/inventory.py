@@ -1,4 +1,4 @@
-from ..engineobject import EngineObject
+from ..agent import Agent
 from .query import to_object_list, to_set, to_object
 
 
@@ -12,7 +12,7 @@ def has_inventory(key: str):
         :type key: str
         :rtype: set of ids
         """
-    return EngineObject.has_inventory_set(key)
+    return Agent.has_inventory_set(key)
 def inventory_set(link_source, link_name: str):
     """ inventory_set
 
@@ -25,7 +25,7 @@ def inventory_set(link_source, link_name: str):
         :type link_name: str
         :rtype: set of data
         """
-    link_source = EngineObject.resolve_py_object(link_source)
+    link_source = Agent.resolve_py_object(link_source)
     return link_source.get_inventory_set(link_name)
 
 def inventory_value(link_source, link_name: str, default=None):
@@ -40,7 +40,7 @@ def inventory_value(link_source, link_name: str, default=None):
         :rtype: data
         """
     
-    link_source = EngineObject.resolve_py_object(link_source)
+    link_source = Agent.resolve_py_object(link_source)
     if link_source is not None:
         return link_source.get_inventory_value(link_name, default)
     return None

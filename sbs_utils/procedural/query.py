@@ -1,5 +1,5 @@
 from random import randrange, choice, choices
-from ..engineobject import EngineObject, CloseData, SpawnData
+from ..agent import Agent, CloseData, SpawnData
 from ..helpers import FrameContext
 
 ###################
@@ -10,9 +10,9 @@ def to_py_object_list(the_set):
 
         converts a set of ids to a set of objects
 
-        :rtype: list EngineObject
+        :rtype: list Agent
         """
-    return [EngineObject.get(id) for id in the_set]
+    return [Agent.get(id) for id in the_set]
 
 
 
@@ -24,12 +24,12 @@ def to_object_list(the_set):
         :param the_set: A set of ids
         :type the_set: set of ids
         
-        :rtype: list of EngineObject
+        :rtype: list of Agent
         """
     if the_set is None:
         return []
     the_list = to_list(the_set)
-    return [y for x in the_list if (y := EngineObject.resolve_py_object(x)) is not None]
+    return [y for x in the_list if (y := Agent.resolve_py_object(x)) is not None]
 
 def to_id_list(the_set):
     """ to_id_list
@@ -43,9 +43,9 @@ def to_id_list(the_set):
     if the_set is None:
         return []
     the_list = to_list(the_set)
-    return [y for x in the_list if (y:=EngineObject.resolve_id(x)) is not None]
+    return [y for x in the_list if (y:=Agent.resolve_id(x)) is not None]
 
-def to_list(other: EngineObject | CloseData | int):
+def to_list(other: Agent | CloseData | int):
     """ to_list
 
         converts a single object/id, set ot list of things to a list
@@ -62,7 +62,7 @@ def to_list(other: EngineObject | CloseData | int):
         return None
     return [other]
 
-def to_set(other: EngineObject | CloseData | int):
+def to_set(other: Agent | CloseData | int):
     """ to_set
 
         converts a single object/id, set ot list of things to a set of ids
@@ -80,9 +80,9 @@ def to_set(other: EngineObject | CloseData | int):
     return {to_id(other)}
 
 
-def to_id(other: EngineObject | CloseData | int):
+def to_id(other: Agent | CloseData | int):
     other_id = other
-    if isinstance(other, EngineObject):
+    if isinstance(other, Agent):
         other_id = other.id
     elif isinstance(other, CloseData):
         other_id = other.id
@@ -91,9 +91,9 @@ def to_id(other: EngineObject | CloseData | int):
    
     return other_id
 
-def to_object(other: EngineObject | CloseData | int):
+def to_object(other: Agent | CloseData | int):
     py_object = other
-    if isinstance(other, EngineObject):
+    if isinstance(other, Agent):
         py_object = other
     elif isinstance(other, CloseData):
         py_object = other.py_object
@@ -101,7 +101,7 @@ def to_object(other: EngineObject | CloseData | int):
         py_object = other.py_object
     else:
         # should return space object or grid object
-        py_object = EngineObject.get(other)
+        py_object = Agent.get(other)
     return py_object
 
 
@@ -248,10 +248,10 @@ def random_object(the_set):
 
         get the object from the set provide
 
-        :rtype: EngineObject
+        :rtype: Agent
         """
     rand_id = choice(tuple(the_set))
-    return EngineObject.get(rand_id)
+    return Agent.get(rand_id)
 
 
 def random_object_list(the_set, count=1):
@@ -263,7 +263,7 @@ def random_object_list(the_set, count=1):
         :type the_set: set of ids
         :param count: The number of objects to pick
         :type count: int
-        :rtype: list of EngineObject
+        :rtype: list of Agent
         """
     rand_id_list = choices(tuple(the_set), count)
-    return [EngineObject.get(x) for x in rand_id_list]
+    return [Agent.get(x) for x in rand_id_list]

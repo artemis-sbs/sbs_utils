@@ -22,7 +22,7 @@ from sbs_utils.mast.mastsbsscheduler import MastSbsScheduler
 from sbs_utils.mast.maststory import MastStory
 from sbs_utils.mast.maststoryscheduler import StoryPage, StoryScheduler
 from sbs_utils import fs
-from sbs_utils.procedural import query
+from sbs_utils.procedural.grid import grid_target_pos
 import os
 from sbs_utils.gridobject import GridObject
 from random import randrange, choice
@@ -168,19 +168,7 @@ class TestLayoutPage(LayoutPage):
 
 class GuiStory(StoryPage):
     story_file = "tests/mast/story_gui.mast"
-    # inputs = {
-    #         "PlayerShip": PlayerShip,
-    #         "Npc": Npc,
-    #         "Terrain": Terrain
-    #         }
     
-class SiegeStory(StoryPage):
-    story_file = "tests/mast/siege.mast"
-    # inputs = {
-    #         "PlayerShip": PlayerShip,
-    #         "Npc": Npc,
-    #         "Terrain": Terrain
-    #         }
 
 class TttStory(StoryPage):
     story_file = "tests/mast/ttt.mast"
@@ -221,7 +209,6 @@ class GuiMain(Page):
         sbs.send_gui_button(event.client_id, "story", "text: Mast bar", *next(w))
         sbs.send_gui_button(event.client_id, "story_ttt", "text: Mast ttt", *next(w))
         sbs.send_gui_button(event.client_id, "grid", "text: GridItems", *next(w))
-        sbs.send_gui_button(event.client_id, "siege", "text: Mast Siege", *next(w))
         sbs.send_gui_complete(event.client_id)
 
     def on_message(self, event):
@@ -286,12 +273,6 @@ class GuiMain(Page):
                 Gui.client_start_page_class(GuiStory)        
                 Gui.push(event.client_id, page)
 
-            case "siege":
-                page = SiegeStory()
-                #page.run(sim , story_script)        
-                Gui.client_start_page_class(SiegeStory)        
-                Gui.push(event.client_id, page)
-                
             case "story_ttt":
                 page = TttStory()
                 #page.run(sim , story_script)                
@@ -300,7 +281,7 @@ class GuiMain(Page):
             case "face_gen":
                 sbs.create_new_sim()
                 sbs.resume_sim()
-                Mission.face_gen(x.sim)
+                Mission.face_gen()
 
             case "start":
                 sbs.create_new_sim()
@@ -448,7 +429,7 @@ class Mission:
         go2 = GridObject()
         go2.spawn(sd_player.id, "barney", "barney", 8,4, 3, "green", "rubble")
         go2.update_blob( speed=0.01, icon_scale=1.3)
-        query.grid_target_pos(go2, 9,12)
+        grid_target_pos(go2, 9,12)
         #GridDispatcher.add_object(go2.id, lambda sim, event: print("Barney Arrived"))
         
         

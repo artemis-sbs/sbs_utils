@@ -40,7 +40,7 @@ class TestSpaceObject(unittest.TestCase):
         assert(artemis.py_object.has_role("__PLAYER__"))
         assert(artemis.py_object.has_role("PlayerShip"))
         assert(artemis.py_object.has_role("tsn"))
-        assert(artemis.py_object.comms_id == "Artemis(tsn)")
+        assert(artemis.py_object.comms_id == "Artemis (tsn)")
 
         ds1 = Npc().spawn(0,0,0, f"DS1", "tsn", "Starbase", "behav_spaceport")
         py_ds1 = ds1.py_object 
@@ -53,7 +53,7 @@ class TestSpaceObject(unittest.TestCase):
         assert(py_ds1.has_role("__NPC__"))
         assert(py_ds1.has_role("Npc"))
         assert(py_ds1.has_role("tsn"))
-        assert(py_ds1.comms_id == "DS1(tsn)")
+        assert(py_ds1.comms_id == "DS1 (tsn)")
 
         ast = Terrain().spawn(0,0,0, None, None, "Asteroid 1", "behav_asteroid")
         py_ast = ast.py_object 

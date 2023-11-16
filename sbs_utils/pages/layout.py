@@ -1,9 +1,9 @@
 from ..gui import Page
+from ..agent import Agent
 import sbs
 import struct # for images sizes
 from .. import fs
 import os
-import json
 from ..helpers import FrameContext
 
 class Bounds:
@@ -113,6 +113,9 @@ class Column:
         self.click_color = None
         self.click_font = None
         self.click_tag = None
+        self.data = None
+        self.var_scope_id = None
+        self.var_name = None
 
     def set_bounds(self, bounds) -> None:
         self.bounds.left=bounds.left
@@ -172,6 +175,19 @@ class Column:
 
     def update(self, props):
         pass
+
+    def update_variable(self):
+        if self.var_scope_id:
+            scope = Agent.get(self.var_scope_id)
+            if scope is not None:
+                scope.set_variable(self.var_name, self.value)
+
+    def get_variable(self, default):
+        if self.var_scope_id:
+            scope = Agent.get(self.var_scope_id)
+            if scope is not None:
+                return scope.get_variable(self.var_name, default)
+        return default
 
     @property
     def value(self):
@@ -286,6 +302,7 @@ class Slider(Column):
     @value.setter
     def value(self, v):
         self._value = v
+        self.update_variable()
 
 class Checkbox(Column):
     def __init__(self, tag, message, value=False) -> None:
@@ -307,7 +324,8 @@ class Checkbox(Column):
     
     def on_message(self, event):
         if event.sub_tag == self.tag:
-            self._value= not self._value
+            self.value= not self.value
+            
             self.present(event)
         else:
             super().on_message(event)
@@ -326,6 +344,7 @@ class Checkbox(Column):
     @value.setter
     def value(self, v):
         self._value= v
+        self.update_variable()
 
 
 def split_props(s, def_key):
@@ -447,6 +466,7 @@ class Dropdown(Column):
     @value.setter
     def value(self, v):
         self._value= v
+        self.update_variable()
 
 class TextInput(Column):
     def __init__(self, tag, props) -> None:
@@ -477,6 +497,7 @@ class TextInput(Column):
     @value.setter
     def value(self, v):
         self._value= v
+        self.update_variable()
 
 
 class Blank(Column):
@@ -618,7 +639,8 @@ class GuiControl(Column):
         self.content.present(event)
     def on_message(self, event):
         self.content.on_message(event)
-        self._value = self.content.get_value()
+        self.value = self.content.get_value()
+        
   
     def set_bounds(self, bounds) -> None:
         super().set_bounds(bounds)
@@ -635,6 +657,7 @@ class GuiControl(Column):
     @value.setter
     def value(self, v):
         self._value= v
+        self.update_variable()
 
 
 
@@ -833,16 +856,17 @@ class Layout:
     
 
 class RadioButton(Column):
-    def __init__(self, tag,  message, group, value=False) -> None:
+    def __init__(self, tag,  message, parent, value=False) -> None:
         super().__init__()
         self.message = message
         self.tag = tag
         self._value = value
-        self.group = group
+        self.parent = parent
+        self.group = parent.group
         
     def _present(self, event):
         ctx = FrameContext.context
-        props = f"state:{self._value};text:{self.message};"
+        props = f"state:{self._value==1};text:{self.message};"
         ctx.sbs.send_gui_checkbox(event.client_id, 
             self.tag, props,
             # 1 if self._value else 0,
@@ -851,10 +875,14 @@ class RadioButton(Column):
     def on_message(self, event):
         if event.sub_tag == self.tag:
             self.value = 1
+            
             for e in self.group:
                 if e != self:
                     e.value = 0
                 e.present(event)
+            #
+            #
+            self.parent.update_variable()
         else:
             super().on_message(event)
 
@@ -881,7 +909,7 @@ class RadioButtonGroup(Column):
         i=0
         for button in buttons:
             button = button.strip()
-            radio =RadioButton(f"{tag}:{i}", button, group,  value==button)
+            radio =RadioButton(f"{tag}:{i}", button, self,  value==button)
             group.append(radio)
             row.add(radio)
             i+=1
@@ -889,7 +917,7 @@ class RadioButtonGroup(Column):
                 self.group_layout.add(row)
                 row = Row()
         self.group_layout.add(row)
-
+        
     def set_bounds(self, bounds) -> None:
         self.group_layout.set_bounds(bounds)
         self.group_layout.calc()
@@ -914,6 +942,10 @@ class RadioButtonGroup(Column):
                 item.value = 1
             else:
                 item.value = 0
+        #
+        #
+        self.group.update_variable()
+        
 
 
 class LayoutPage(Page):

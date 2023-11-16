@@ -2,7 +2,7 @@ from . import query
 from .inventory import get_inventory_value
 from .roles import has_role
 from .. import faces
-from ..engineobject import EngineObject
+from ..agent import Agent
 from ..helpers import FrameContext
 import sbs
 

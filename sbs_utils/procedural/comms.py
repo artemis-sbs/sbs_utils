@@ -2,7 +2,7 @@ from . import query
 from .inventory import get_inventory_value
 from .roles import has_role
 from .. import faces
-from ..engineobject import EngineObject
+from ..agent import Agent
 from ..helpers import FrameContext
 import sbs
 
@@ -19,7 +19,7 @@ def comms_broadcast(ids_or_obj, msg, color="#fff"):
                 sbs.send_message_to_client(id, color, msg)
             else:
                 # Just verify the id
-                obj = EngineObject.get(id)
+                obj = Agent.get(id)
                 if obj is not None or id==0:
                     sbs.send_message_to_player_ship(id, color, msg)
 
