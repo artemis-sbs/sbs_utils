@@ -10,6 +10,12 @@ class DamageDispatcher:
     _dispatch_heat = {}
     _dispatch_any_heat = set()
 
+    _HULL = 1
+    _INTERNAL = 2
+    _HEAT = 3
+    _SOURCE = 4
+    _TARGET = 4
+
     
     def add_source(id: int, cb: typing.Callable):
         DamageDispatcher._dispatch_source[id] = cb

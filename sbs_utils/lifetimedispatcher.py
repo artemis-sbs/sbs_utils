@@ -6,6 +6,11 @@ class LifetimeDispatcher:
     _dispatch_spawn = set()
     _dispatch_spawn_grid = set()
     _dispatch_destroy = set()
+
+    SPAWN = 0
+    GRID_SPAWN = 1
+    DESTROYED = 2
+
     
     def add_spawn(cb: typing.Callable):
         LifetimeDispatcher._dispatch_spawn.add(cb)
@@ -28,6 +33,25 @@ class LifetimeDispatcher:
         # Callback should have arguments of other object's id, message
         LifetimeDispatcher._dispatch_destroy.discard(cb)
 
+
+    def add_lifecycle(lifecycle, cb: typing.Callable):
+        match lifecycle:
+            case LifetimeDispatcher.SPAWN:
+                LifetimeDispatcher.add_spawn(cb)
+            case LifetimeDispatcher.GRID_SPAWN:
+                LifetimeDispatcher.add_spawn_grid(cb)
+            case LifetimeDispatcher.DESTROYED:
+                LifetimeDispatcher.add_destroy(cb)
+
+
+    def remove_lifecycle(lifecycle, cb: typing.Callable):
+        match lifecycle:
+            case LifetimeDispatcher.SPAWN:
+                LifetimeDispatcher.remove_spawn(cb)
+            case LifetimeDispatcher.GRID_SPAWN:
+                LifetimeDispatcher.remove_spawn_grid(cb)
+            case LifetimeDispatcher.DESTROYED:
+                LifetimeDispatcher.remove_destroy(cb)
 
     def dispatch_spawn():
         objects = Agent.get_role_objects("__space_spawn__")

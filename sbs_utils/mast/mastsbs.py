@@ -2,16 +2,6 @@ from .mast import IF_EXP_REGEX, TIMEOUT_REGEX, OPT_COLOR, Mast, MastNode, EndAwa
 import re
 
 
-class Route(MastNode):
-    """
-    Route unhandled things comms, science, events
-    """
-    rule = re.compile(r"""route[ \t]+(?P<route>destroy|spawn|damage[ \t]+heat|damage[ \t]+internal|damage[ \t]+object|collision[ \t]+object|comms[ \t]+select|science[ \t]+select|weapons[ \t]+select|grid[ \t]+select|grid[ \t]+point|grid[ \t]+object|grid[ \t]+spawn|change[ \t]*console)[ \t]+(?P<name>\w+)""")
-    def __init__(self, route, name, loc=None):
-        self.loc = loc
-        self.route = route
-        self.label = name
-
 class FollowRoute(MastNode):
     """
     Route unhandled things comms, science, events
@@ -24,26 +14,6 @@ class FollowRoute(MastNode):
         self.selected_tag = selected_tag
 
 
-class TransmitReceive(MastNode):
-    OPT_FACE = r"""([ \t]*face(([ \t]*(?P<faceq>['"]{3}|["'])(?P<face_string>[ \t\S]+?)(?P=faceq))|([ \t]+(?P<face_var>\w+))))?"""
-    OPT_COMMS_ID = r"""([ \t]*title(([ \t]*(?P<comq>['"]{3}|["'])(?P<comms_string>[ \t\S]+?)(?P=comq))|([ \t]+(?P<comms_var>\w+))))?"""
-    rule = re.compile(r"""(?P<tr>receive|transmit)([ \t]+(?P<origin>\w+)[ \t]+(?P<selected>\w+))?[ \t]+(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)"""+OPT_COMMS_ID+OPT_FACE+OPT_COLOR)
-    def __init__(self, tr, message, origin, selected,
-                face_string=None, face_var=None, faceq=None,
-                comms_string=None, comms_var=None, comq=None,
-                q=None, color=None, loc=None):
-        self.loc = loc
-        self.transmit = tr == "transmit"
-        self.message = self.compile_formatted_string(message)
-        self.color = color if color is not None else "#fff"
-        self.face_string = self.compile_formatted_string(face_string)
-        self.face_var = face_var
-        self.comms_string = self.compile_formatted_string(comms_string)
-        self.comms_var = comms_var
-        self.origin = origin
-        self.selected = selected
-
-
 class CommsInfo(MastNode):
     rule = re.compile(r"""comms_info([ \t]+(?P<q>['"]{3}|["'])(?P<message>[ \t\S]+?)(?P=q))?"""+OPT_COLOR)
     def __init__(self, message, q=None, color=None, loc=None):
@@ -52,15 +22,6 @@ class CommsInfo(MastNode):
         self.color = color if color is not None else "#fff"
 
 
-
-
-class Broadcast(MastNode):
-    rule = re.compile(r"""have[ \t]*(?P<to_tag>\*?\w+)[ \t]+broadcast[ \t]+(?P<q>['"]{3}|["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_COLOR)
-    def __init__(self, to_tag, message, color=None, q=None,loc=None):
-        self.to_tag = to_tag
-        self.loc = loc
-        self.message = self.compile_formatted_string(message)
-        self.color = color if color is not None else "#fff"
 
 
 class Comms(MastNode):
@@ -80,6 +41,7 @@ class Comms(MastNode):
 
         self.timeout_label = None
         self.on_change = None
+        self.focus = None
         self.fail_label = None
         self.end_await_node = None
         EndAwait.stack.append(self)
@@ -95,6 +57,7 @@ class Scan(MastNode):
         self.fog = int(fog) if fog is not None else 5000
         self.buttons = []
         self.on_change = None
+        self.focus = None
 
         self.end_await_node = None
         EndAwait.stack.append(self)
@@ -217,32 +180,28 @@ class Button(MastNode):
     def expand(self):
         pass
 
-
-
-    
-
-class Simulation(MastNode):
-    """
-    Handle commands to the simulation
-    """
-    rule = re.compile(r"""simulation[ \t]+(?P<cmd>pause|create|resume)""")
-    def __init__(self, cmd=None, loc=None):
+class Focus(MastNode):
+    rule = re.compile(r'focus:')
+    def __init__(self, loc=None):
         self.loc = loc
-        self.cmd = cmd
+        self.await_node = EndAwait.stack[-1]
+        if self.await_node is not None:
+            self.await_node.focus = self
+
+
+   
 
 class MastSbs(Mast):
     nodes =  [
         # sbs specific
-            Route,
             FollowRoute,
-            TransmitReceive,
-            Broadcast,
-        Comms,
             CommsInfo,
-            Button,
-            Simulation,
+            
+        Comms,
+          Focus,
+          Button,
         Scan,
-        ScanTab,
-        ScanResult
+            ScanTab,
+            ScanResult
     ] + Mast.nodes 
     

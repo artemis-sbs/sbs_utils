@@ -1,5 +1,5 @@
 from .mast import Mast, Scope
-from .mastsbs import Simulation, Route,  FollowRoute,TransmitReceive, Comms, Button, Broadcast, Scan, ScanTab,ScanResult
+from .mastsbs import FollowRoute,Comms, Button, Scan, ScanTab,ScanResult
 from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask, ChangeRuntimeNode
 import sbs
 from .mastobjects import SpaceObject, MastSpaceObject
@@ -17,10 +17,10 @@ import sys
 
 import re
 from ..procedural import query
-from ..procedural import roles
 from ..procedural import links
 from ..procedural import inventory
-from ..procedural import gui
+
+
 from .. import vec
 
 from functools import partial
@@ -40,107 +40,6 @@ class ButtonRuntimeNode(MastRuntimeNode):
             
         return PollResults.OK_ADVANCE_TRUE
 
-
-class TransmitReceiveRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: TransmitReceive):
-        face = ""
-        title = ""
-        if node.origin is not None and node.selected is not None:
-            selected_id = task.get_variable(node.selected)
-            origin_id = task.get_variable(node.origin)
-            #
-            # Make sure player is origin
-            #
-            if not roles.has_role(origin_id, "__PLAYER__"):
-                t = origin_id
-                origin_id = selected_id
-                selected_id = t
-        else:
-            selected_id = task.get_variable("COMMS_SELECTED_ID")
-            origin_id = task.get_variable("COMMS_ORIGIN_ID")
-        if node.transmit:
-            to_so:SpaceObject = query.to_object(selected_id)
-            from_so:SpaceObject = query.to_object(origin_id)
-        else:
-            to_so:SpaceObject = query.to_object(origin_id)
-            from_so:SpaceObject = query.to_object(selected_id)
-            
-
-        if to_so is None or from_so is None:
-            return
-        
-        # From face should be used
-        if node.comms_string:
-            title = task.format_string(node.comms_string)
-        elif node.comms_var:
-            title = task.get_variable(node.comms_var)
-        else:
-            title = from_so.comms_id +" > "+to_so.comms_id
-
-        if node.face_string:
-            face = task.format_string(node.face_string)
-        elif node.face_var:
-            face = task.get_variable(node.face_var)
-        else:
-            face = faces.get_face(from_so.get_id())
-    
-        if face is None:
-            face = ""
-
-        msg = task.format_string(node.message)
-        # Format indirection, Is this slow?
-        # limit to 10 attempts
-        indirect = 0
-        test = node.compile_formatted_string(msg)
-        while test != msg and indirect<10:
-            msg = task.format_string(test)
-            test = node.compile_formatted_string(msg)
-            indirect+=1
-        
-        
-        
-        #print(f"{self.from_id} {self.from_id} {node.color} {self.face} {self.title} {msg}")
-        sbs.send_comms_message_to_player_ship(
-            origin_id,
-            selected_id,
-            face,
-            title, 
-            node.color,
-            msg,
-            node.color
-            )
-
-
-
-
-class BroadcastRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Broadcast):
-        self.to_ids = None
-        # 
-        if node.to_tag=="SERVER":
-            self.to_ids = [0]
-        else:
-            ship_id= query.to_id_list(task.get_variable(node.to_tag))
-            if ship_id:
-                self.to_ids = ship_id
-            else:
-                task.runtime_error(f"Broadcast has invalid TO {node.to_tag}")            
-    
-    def poll(self, mast:Mast, task:MastAsyncTask, node: Broadcast):
-        if self.to_ids:
-            for id in self.to_ids:
-                #print(f"Broadcasting id {id}")
-                #task.set_value("broadcast_target", obj)
-                msg = task.format_string(node.message)
-                if query.is_client_id(id):
-                    sbs.send_message_to_client(id, node.color, msg)
-                else:
-                    # Just verify the id
-                    obj = SpaceObject.get(id)
-                    if obj is not None or id==0:
-                        sbs.send_message_to_player_ship(id, node.color, msg)
-
-        return PollResults.OK_ADVANCE_TRUE
 
 class CommsInfoRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Comms):
@@ -197,6 +96,8 @@ class CommsRuntimeNode(MastRuntimeNode):
         self.color = node.color if node.color else "white"
         # If this is the same ship it is known
         self.is_unknown = False
+        self.run_focus = False
+        
         
         
         buttons = []
@@ -265,6 +166,7 @@ class CommsRuntimeNode(MastRuntimeNode):
             origin_id = event.origin_id
             selected_id = event.selected_id
             self.set_buttons(origin_id, selected_id)
+            self.run_focus = True
 
     def set_buttons(self, origin_id, selected_id):
         if self.selected_id != selected_id or \
@@ -409,6 +311,10 @@ class CommsRuntimeNode(MastRuntimeNode):
                 if change.test():
                     task.jump(task.active_label,change.node.loc+1)
                     return PollResults.OK_JUMP
+        if node.focus and self.run_focus:
+            self.run_focus = False
+            task.push_inline_block(task.active_label,node.focus.loc+1)
+            return PollResults.OK_JUMP
 
 
         if len(node.buttons)==0:
@@ -700,233 +606,14 @@ class FollowRouteRuntimeNode(MastRuntimeNode):
         return PollResults.OK_ADVANCE_TRUE
 
 
-class RouteRuntimeNode(MastRuntimeNode):
-    def poll(self, mast:Mast, task:MastAsyncTask, node: Route):
-        #
-        #  most Only route on the server
-        #   Except change console
 
-        
-        def handle_dispatch(task, console, an_id, event):
-            # 
-            # Avoid scheduling this multiple times
-            #
-            if links.has_link_to(event.origin_id, f"__route{console}", event.selected_id):
-                return
-            
-
-            # I it reaches this, there are no pending comms handler
-            # Create a new task and jump to the routing label
-            t = task.start_task(node.label, {
-                    f"{console}_ORIGIN_ID": event.origin_id,
-                    f"{console}_SELECTED_ID": event.selected_id,
-                    f"EVENT": event,
-                    f"{console}_ROUTED": True
-            }
-                
-            )
-            if not t.done:
-                links.link(event.origin_id, f"__route{console}", event.selected_id)
-                MastAsyncTask.add_dependency(event.origin_id,t)
-                MastAsyncTask.add_dependency(event.selected_id,t)
-
-        def handle_spawn(so):
-            t = task.start_task(node.label, {
-                    f"SPAWNED_ID": so.id,
-                    f"SPAWNED_ROUTED": True
-            })
-            if not t.done:
-                MastAsyncTask.add_dependency(so.id,t)
-
-        def handle_destroyed(so):
-            t = task.start_task(node.label, {
-                    f"DESTROYED_ID": so.id,
-                    f"DESTROYED_ROUTED": True
-            })
-            if not t.done:
-                MastAsyncTask.add_dependency(so.id,t)
-
-
-        def handle_spawn_grid(so):
-            t = task.start_task(node.label, {
-                    f"SPAWNED_ID": so.id,
-                    f"SPAWNED_ROUTED": True
-            })
-            if not t.done:
-                MastAsyncTask.add_dependency(so.id,t)
-
-        def handle_damage(event):
-            # Need point? amount
-            t = task.start_task(node.label, {
-                    "DAMAGE_SOURCE_ID": event.origin_id,
-                    "DAMAGE_PARENT_ID": event.parent_id,
-                    "DAMAGE_TARGET_ID": event.selected_id,
-                    "DAMAGE_ORIGIN_ID": event.origin_id,
-                    "DAMAGE_SELECTED_ID": event.selected_id,
-                    #"EVENT": event,
-                    "DAMAGE_ROUTED": True
-            })
-            if not t.done:
-                MastAsyncTask.add_dependency(event.origin_id,t)
-                MastAsyncTask.add_dependency(event.selected_id,t)
-
-        def handle_collision(event):
-            # Need point? amount
-            t = task.start_task(node.label, {
-                    "COLLISION_SOURCE_ID": event.origin_id,
-                    "COLLISION_PARENT_ID": event.parent_id,
-                    "COLLISION_TARGET_ID": event.selected_id,
-                    "COLLISION_ORIGIN_ID": event.origin_id,
-                    "COLLISION_SELECTED_ID": event.selected_id,
-                    #"EVENT": event,
-                    "COLLISION_ROUTED": True
-            })
-            if not t.done:
-                MastAsyncTask.add_dependency(event.origin_id,t)
-                MastAsyncTask.add_dependency(event.selected_id,t)
-        
-        def handle_damage_internal(event):
-            # Need point? amount
-            t= task.start_task(node.label, {
-                    "DAMAGE_SOURCE_ID": event.origin_id,
-                    "DAMAGE_TARGET_ID": event.selected_id,
-                    "DAMAGE_PARENT_ID": event.parent_id,
-                    "DAMAGE_ORIGIN_ID": event.origin_id,
-                    "DAMAGE_SELECTED_ID": event.selected_id,
-                    "EVENT": event,
-                    "DAMAGE_ROUTED": True
-            })
-            if not t.done:
-                MastAsyncTask.add_dependency(event.origin_id,t)
-                MastAsyncTask.add_dependency(event.selected_id,t)
-
-        def handle_damage_heat(event):
-            # Need point? amount
-            t= task.start_task(node.label, {
-                    "DAMAGE_SOURCE_ID": event.origin_id,
-                    "DAMAGE_TARGET_ID": event.selected_id,
-                    "DAMAGE_PARENT_ID": event.parent_id,
-                    "DAMAGE_ORIGIN_ID": event.origin_id,
-                    "DAMAGE_SELECTED_ID": event.selected_id,
-                    "EVENT": event,
-                    "DAMAGE_ROUTED": True
-            })
-            if not t.done:
-                MastAsyncTask.add_dependency(event.origin_id,t)
-                MastAsyncTask.add_dependency(event.selected_id,t)
-
-        def handle_grid_event(event):
-            # Need point? amount
-            t= task.start_task(node.label, {
-                    "GRID_PARENT_ID": event.parent_id,
-                    "GRID_ORIGIN_ID": event.origin_id,
-                    "GRID_SELECTED_ID": event.selected_id,
-                    "EVENT": event,
-                    "GRID_ROUTED": True
-            })
-            if not t.done:
-                MastAsyncTask.add_dependency(event.origin_id,t)
-                MastAsyncTask.add_dependency(event.selected_id,t)
-
-        match RegexEqual(node.route):
-            case "comms\s+select":
-                if task.main.client_id != 0:
-                    return PollResults.OK_ADVANCE_TRUE
-                ConsoleDispatcher.add_default_select("comms_target_UID", partial(handle_dispatch, task, "COMMS"))
-            
-            case "science\s+select":
-                if task.main.client_id != 0:
-                    return PollResults.OK_ADVANCE_TRUE
-                ConsoleDispatcher.add_default_select("science_target_UID", partial(handle_dispatch, task, "SCIENCE"))
-
-            case "weapons\s+select":
-                if task.main.client_id != 0:
-                    return PollResults.OK_ADVANCE_TRUE
-                ConsoleDispatcher.add_default_select("weapon_target_UID", partial(handle_dispatch, task, "WEAPONS"))
-
-            case "grid\s+select":
-                if task.main.client_id != 0:
-                    return PollResults.OK_ADVANCE_TRUE
-                ConsoleDispatcher.add_default_select("grid_selected_UID", partial(handle_dispatch, task, "COMMS"))
-
-            case "grid\s+point":
-                if task.main.client_id != 0:
-                    return PollResults.OK_ADVANCE_TRUE
-                GridDispatcher.add_any_point(handle_grid_event)
-
-            case "grid\s+object":
-                if task.main.client_id != 0:
-                    return PollResults.OK_ADVANCE_TRUE
-                GridDispatcher.add_any_object(handle_grid_event)
-
-
-            case "change\s+console":
-                task.main.page.change_console_label = node.label
-
-            case "grid\s+spawn":
-                if task.main.client_id != 0:
-                    return PollResults.OK_ADVANCE_TRUE
-                LifetimeDispatcher.add_spawn_grid(handle_spawn_grid)
-
-            case "damage[ \t]+object":
-                if task.main.client_id != 0:
-                    return PollResults.OK_ADVANCE_TRUE
-                DamageDispatcher.add_any(handle_damage)
-
-            case "collision[ \t]+object":
-                if task.main.client_id != 0:
-                    return PollResults.OK_ADVANCE_TRUE
-                CollisionDispatcher.add_any(handle_collision)
-
-            case "damage\s*internal":
-                if task.main.client_id != 0:
-                    return PollResults.OK_ADVANCE_TRUE
-                DamageDispatcher.add_any_internal(handle_damage_internal)
-
-            case "damage\s*heat":
-                if task.main.client_id != 0:
-                    return PollResults.OK_ADVANCE_TRUE
-                DamageDispatcher.add_any_heat(handle_damage_heat)
-
-            case "spawn":
-                if task.main.client_id != 0:
-                    return PollResults.OK_ADVANCE_TRUE
-                LifetimeDispatcher.add_spawn(handle_spawn)
-
-            case "destroy":
-                if task.main.client_id != 0:
-                    return PollResults.OK_ADVANCE_TRUE
-                LifetimeDispatcher.add_destroy(handle_destroyed)
-
-            case _:
-                print("GOT HERE but should not have")
-
-        return PollResults.OK_ADVANCE_TRUE
-
-
-
-class SimulationRuntimeNode(MastRuntimeNode):
-    def poll(self, mast:Mast, task:MastAsyncTask, node: Simulation):
-        match node.cmd:
-            case "create":
-                sbs.create_new_sim()
-            case "pause":
-                sbs.pause_sim()
-            case "resume":
-                sbs.resume_sim()
-
-        return PollResults.OK_ADVANCE_TRUE
 
 
 over =     {
-    "Route": RouteRuntimeNode,
     "FollowRoute": FollowRouteRuntimeNode,
     "Comms": CommsRuntimeNode,
     "CommsInfo": CommsInfoRuntimeNode,
-    "TransmitReceive": TransmitReceiveRuntimeNode,
-    "Broadcast": BroadcastRuntimeNode,
     "Button": ButtonRuntimeNode,
-    "Simulation": SimulationRuntimeNode,
     "Scan": ScanRuntimeNode,
     "ScanResult": ScanResultRuntimeNode
 }
@@ -954,17 +641,20 @@ for func in [
 #
 # Expose procedural methods to script
 #
-import sbs_utils.procedural.query
-import sbs_utils.procedural.spawn
-import sbs_utils.procedural.timers
-import sbs_utils.procedural.grid
-import sbs_utils.procedural.space_objects
-import sbs_utils.procedural.roles
-import sbs_utils.procedural.inventory
-import sbs_utils.procedural.links
-import sbs_utils.procedural.gui
-import sbs_utils.procedural.comms
-import sbs_utils.procedural.science
+from ..procedural import query
+from ..procedural import spawn
+from ..procedural import timers
+from ..procedural import grid
+from ..procedural import space_objects
+from ..procedural import roles
+from ..procedural import inventory
+from ..procedural import links
+from ..procedural import gui
+from ..procedural import comms
+from ..procedural import science
+from ..procedural import cosmos
+from ..procedural import routes
+from ..procedural import execution
 
 
 Mast.import_python_module('sbs_utils.procedural.query')
@@ -978,6 +668,9 @@ Mast.import_python_module('sbs_utils.procedural.links')
 Mast.import_python_module('sbs_utils.procedural.gui')
 Mast.import_python_module('sbs_utils.procedural.comms')
 Mast.import_python_module('sbs_utils.procedural.science')
+Mast.import_python_module('sbs_utils.procedural.cosmos')
+Mast.import_python_module('sbs_utils.procedural.routes')
+Mast.import_python_module('sbs_utils.procedural.execution')
 
 Mast.import_python_module('sbs_utils.faces')
 Mast.import_python_module('sbs_utils.fs')

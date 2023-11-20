@@ -489,6 +489,7 @@ def gui_content(content, style=None, var=None):
     apply_control_styles(None, style, layout_item, task)
     # Last in case tag changed in style
     page.add_content(layout_item, None)
+    return layout_item
 
 
 def gui_update(tag, props, shared=False):

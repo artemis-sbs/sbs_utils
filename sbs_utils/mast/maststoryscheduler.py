@@ -9,7 +9,7 @@ from .parsers import StyleDefinition
 
 from ..pages import layout
 
-from .maststory import AppendText,  MastStory, Choose, Disconnect, RerouteGui, Text, Refresh, AwaitGui, AwaitSelect, OnChange, OnMessage, OnClick
+from .maststory import AppendText,  MastStory, Choose, Disconnect, RerouteGui, Text, Refresh, AwaitGui, OnChange, OnMessage, OnClick
 import traceback
 from .mastsbsscheduler import MastSbsScheduler, Button
 from ..consoledispatcher import ConsoleDispatcher
@@ -136,13 +136,6 @@ class RefreshRuntimeNode(StoryRuntimeNode):
         else:
             task.main.mast.refresh_schedulers(task.main, node.label)
 
-
-
-
-
-
-        
-        
 class TextRuntimeNode(StoryRuntimeNode):
     current = None
     def enter(self, mast:Mast, task:MastAsyncTask, node: Text):
@@ -204,67 +197,6 @@ class AwaitGuiRuntimeNode(StoryRuntimeNode):
                 return PollResults.OK_ADVANCE_TRUE
         return PollResults.OK_RUN_AGAIN
 
-class AwaitSelectRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: AwaitSelect):
-        self.done = None
-        seconds = (node.minutes*60+node.seconds)
-        if seconds == 0:
-            self.timeout = None
-        else:
-            self.timeout = sbs.app_seconds()+ (node.minutes*60+node.seconds)
-
-        event = task.get_variable("EVENT")
-        self.task = task
-        self.node = node
-        if event is not None:
-            self.selected(None, event)
-        #Must be called after we call the initial selected
-        self.done = False
-
-        if node.console=="comms":
-            ConsoleDispatcher.add_always_select( 'comms_target_UID', self.selected)
-        elif node.console=="science":
-            ConsoleDispatcher.add_always_select('science_target_UID', self.selected)
-        elif node.console=="weapons":
-            ConsoleDispatcher.add_always_select( 'weapon_target_UID', self.selected)
-        elif node.console=="grid":
-            ConsoleDispatcher.add_always_select('grid_selected_UID', self.selected)
-
-        # Clear variable if we reenter    
-        console = self.node.console.upper()
-        self.task.set_value(f"{console}_ORIGIN_ID", None, Scope.NORMAL)
-        self.task.set_value(f"EVENT", None, Scope.NORMAL)
-        self.task.set_value(f"{console}_SELECTED_ID", None, Scope.NORMAL)
-        self.task.set_value(f"{console}_SELECTED_POINT", None, Scope.NORMAL)
-
-        
-            
-    def selected(self, __, event):
-        self.done = True
-        console = self.node.console.upper()
-        point = sbs.vec3()
-        point.x = event.source_point.x
-        point.y = event.source_point.y
-        point.z = event.source_point.z
-
-        self.task.set_value(f"{console}_ORIGIN_ID", event.origin_id, Scope.NORMAL)
-        self.task.set_value(f"EVENT", event, Scope.NORMAL)
-        if event.selected_id != 0:
-            self.task.set_value(f"{console}_SELECTED_ID", event.selected_id, Scope.NORMAL)
-            self.task.set_value(f"{console}_SELECTED_POINT", None, Scope.NORMAL)
-        else:
-            self.task.set_value(f"{console}_SELECTED_ID", None, Scope.NORMAL)
-            self.task.set_value(f"{console}_SELECTED_POINT", point, Scope.NORMAL)
-
-    def poll(self, mast:Mast, task:MastAsyncTask, node: AwaitGui):
-        if self.timeout:
-            if self.timeout <= sbs.app_seconds():
-                return PollResults.OK_ADVANCE_TRUE
-        
-        if self.done:
-            return PollResults.OK_ADVANCE_TRUE
-            
-        return PollResults.OK_RUN_AGAIN
 
 class DisconnectRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task: MastAsyncTask, node:Disconnect):
@@ -547,7 +479,6 @@ over =     {
     "OnMessage": OnMessageRuntimeNode,
     "OnClick": OnClickRuntimeNode,
     "AwaitGui": AwaitGuiRuntimeNode,
-    "AwaitSelect": AwaitSelectRuntimeNode,
     "Choose": ChooseRuntimeNode,
     "Refresh": RefreshRuntimeNode,
 }

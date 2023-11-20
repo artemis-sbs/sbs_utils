@@ -127,19 +127,6 @@ class AwaitGui(MastNode):
         self.nothing = False
         # just await gui
 
-class AwaitSelect(MastNode):
-    rule = re.compile(r"await[ \t]+select[ \t](?P<console>comms|weapons|grid|science)"+TIMEOUT_REGEX)
-    def __init__(self, console=None,minutes=None, seconds=None, loc=None):
-        self.loc = loc
-        self.console = console
-        self.seconds = 0 if  seconds is None else int(seconds)
-        self.minutes = 0 if  minutes is None else int(minutes)
-                
-        self.buttons = []
-        self.active = False
-        self.nothing = False
-        # just await gui
-
 class Disconnect(MastNode):
     rule = re.compile(r'disconnect:')
     def __init__(self, loc=None):
@@ -195,12 +182,13 @@ class MastStory(MastSbs):
         AppendText,
 
         Choose,
-        Disconnect,
+            Disconnect,
         OnChange,
         OnMessage,
         OnClick,
         AwaitGui,
-        AwaitSelect,
+
+        
             RerouteGui,
-        Refresh,
+            Refresh,
     ] + MastSbs.nodes 
