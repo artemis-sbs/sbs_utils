@@ -144,7 +144,7 @@ class PyCodeRuntimeNode(MastRuntimeNode):
             if shared:
                 #
                 #task.main.mast.vars[name] = value
-                task.mast.set_inventory_value(name, value, None)
+                Agent.SHARED.set_inventory_value(name, value, None)
             else:
                 # task.main.vars[name] = value
                 task.main.set_inventory_value(name, value, None)
@@ -469,7 +469,7 @@ class LoggerRuntimeNode(MastRuntimeNode):
             logger.addHandler(handler)
             
             #mast.vars[node.var] = streamer
-            mast.set_inventory_value(node.var, streamer)
+            Agent.SHARED.set_inventory_value(node.var, streamer)
 
         if node.name is not None:
             name = task.format_string(node.name)
@@ -633,7 +633,12 @@ class MastAsyncTask(Agent):
             self.runtime_node = None
             self.done = True
         else:
-            label_runtime_node = self.main.mast.labels.get(label)
+            # label_runtime_node = Agent.SHARED.get_inventory_value(label)
+            if isinstance(label, str): 
+                label_runtime_node = self.main.mast.labels.get(label)
+            else:
+                label_runtime_node = label
+
             if label_runtime_node is not None:
                 #
                 #
@@ -644,7 +649,7 @@ class MastAsyncTask(Agent):
                 #if self.active_label == "main":
                 #    self.main.mast.prune_main()
                     
-                self.cmds = self.main.mast.labels[label].cmds
+                self.cmds = label_runtime_node.cmds
                 self.active_label = label
                 self.active_cmd = activate_cmd
                 self.runtime_node = None
@@ -672,7 +677,7 @@ class MastAsyncTask(Agent):
 
     def get_symbols(self):
         # m1 = self.main.mast.vars | self.main.vars
-        mast_inv = self.main.mast.inventory.collections
+        mast_inv = Agent.SHARED.inventory.collections
         m1 = mast_inv | self.main.inventory.collections
         m1 =   m1 | self.inventory.collections 
         for st in self.label_stack:
@@ -686,7 +691,7 @@ class MastAsyncTask(Agent):
     def set_value(self, key, value, scope):
         if scope == Scope.SHARED:
             # self.main.mast.vars[key] = value
-            self.main.mast.set_inventory_value(key, value)
+            Agent.SHARED.set_inventory_value(key, value)
         elif scope == Scope.TEMP:
             self.set_inventory_value(key, value)
             #self.vars[key] = value
@@ -1238,8 +1243,8 @@ class MastScheduler(Agent):
         if self.inputs is None:
             self.inputs = inputs
 
-        if self.mast and self.mast.labels.get(label,  None) is None:
-            raise Exception(f"Calling undefined label {label}")
+        # if self.mast and self.mast.labels.get(label,  None) is None:
+        #     raise Exception(f"Calling undefined label {label}")
         t= MastAsyncTask(self, inputs)
         return t
 
@@ -1272,7 +1277,7 @@ class MastScheduler(Agent):
         if val is not None:
             return (val, Scope.SHARED)
         #val = self.mast.vars.get(key, None)
-        val = self.mast.get_inventory_value(key, None)
+        val = Agent.SHARED.get_inventory_value(key, None)
         if val is not None:
             return (val, Scope.SHARED)
         #val = self.vars.get(key, defa)
@@ -1288,16 +1293,18 @@ class MastScheduler(Agent):
         return val[0]
 
     def tick(self):
+        restore = FrameContext.task
         for task in self.tasks:
             self.active_task = task
             FrameContext.task = task
-            FrameContext.shared_id = self.mast.get_id()
+            
             res = task.tick()
             FrameContext.task = None
             if res == PollResults.OK_END:
                 self.done.append(task)
             elif task.done:
                 self.done.append(task)
+        FrameContext.task = restore
         
         if len(self.done):
             for rem in self.done:

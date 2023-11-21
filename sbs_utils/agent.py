@@ -124,6 +124,8 @@ class Agent():
     has_links : Stuff = Stuff()
     all = {}
     removing = set()
+    SHARED = None
+
 
     def __init__(self):
         super().__init__()
@@ -521,4 +523,9 @@ class Agent():
         return None
     
 
+
+Agent.SHARED = Agent()
+Agent.SHARED_ID = get_story_id()
+Agent.SHARED.id = Agent.SHARED_ID
+Agent.SHARED.add()
 

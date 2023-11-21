@@ -2,8 +2,9 @@ from ..consoledispatcher import ConsoleDispatcher
 from ..griddispatcher import GridDispatcher
 from ..lifetimedispatcher import LifetimeDispatcher
 from ..damagedispatcher import DamageDispatcher, CollisionDispatcher
+from .query import to_id
 
-from ..helpers import FrameContext
+from ..helpers import FrameContext, FakeEvent
 
 import sbs
 
@@ -265,3 +266,33 @@ def route_collision_object(label):
 def route_change_console(label):
     page = FrameContext.page
     page.change_console_label = label
+
+
+def _follow_route_console(origin_id, selected_id, console, widget, extra_tag):
+    origin_id = to_id(origin_id)
+    selected_id = to_id(selected_id )
+    event = FakeEvent(sub_tag=console, origin_id=origin_id, selected_id=selected_id, extra_tag=extra_tag,value_tag=widget)
+    #
+    # A bit of a hack directly using dispatchers data
+    # forcing the default handlers
+    #
+    ConsoleDispatcher.dispatch_select(event)
+        
+def follow_route_comms_select(origin_id, selected_id):
+    console = "comms_target_UID"
+    widget = "comms_sorted_list"
+    _follow_route_console(origin_id, selected_id, console, widget, None)
+        
+
+def follow_route_science_select(origin_id, selected_id):
+    console = "science_target_UID"
+    widget = "science_sorted_list"
+    extra_tag = "__init__"
+    _follow_route_console(origin_id, selected_id, console, widget,extra_tag)
+
+def follow_route_grid_select(origin_id, selected_id):
+    console = "grid_selected_UID"
+    widget = "grid_object_list"
+    _follow_route_console(origin_id, selected_id, console, widget, None)
+
+

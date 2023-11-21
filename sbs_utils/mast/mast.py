@@ -736,7 +736,9 @@ def mast_print(*args, **kwargs):
     #    args[0] = ">>>"+args[0]
     return __builtin__.print(*args, **kwargs)
 
-class Mast(Agent):
+
+
+class Mast():
     include_code = False
 
     globals = {
@@ -779,8 +781,6 @@ class Mast(Agent):
         self.lib_name = None
         self.is_import = False
         self.basedir = None
-        self.id = get_story_id()
-        self.add()
         
 
         if cmds is None:
@@ -823,7 +823,7 @@ class Mast(Agent):
         PyCode,
         Log,
         Logger,
-        Input,
+    Input,
         #        Var,
         Import,
         AwaitCondition,
@@ -834,16 +834,16 @@ class Mast(Agent):
         EndAwait,
         AwaitFail,
         Behavior, # Needs to be in front of parallel
-        Parallel,  # needs to be before Assign
-        Cancel,
+            Parallel,  # needs to be before Assign
+            Cancel,
         Assign,
         Fail,
         Yield,
         End,
         ReturnIf,
-        Jump,
-        Delay,
-        Marker,
+            Jump,
+            Delay,
+    Marker,
     ]
 
     def get_source_file_name(file_num):
@@ -856,8 +856,8 @@ class Mast(Agent):
     def clear(self, file_name):
         self.inputs = {}
         if not self.is_import:
-            self.set_inventory_value("mast", self)
-            self.set_inventory_value("SHARED", self.get_id())
+            #self.set_inventory_value("mast", self)
+            Agent.SHARED.set_inventory_value("SHARED", Agent.SHARED.get_id())
             Mast.source_map_files = []
             # print("Multi Shares")
 
@@ -922,26 +922,26 @@ class Mast(Agent):
             return errors
         if content is not None:
             errors = self.compile(content, file_name)
-            if len(errors) > 0:
-                message = f"Compile errors\nCannot compile file {file_name}"
-                errors.append(message)
+            # if len(errors) > 0:
+            #     message = f"\nCompile errors\nCannot compile file {file_name}"
+            #     errors.append(message)
             return errors
         return []
         
 
-    def process_file_content(self,content, file_name):
-        file_name, ext = os.path.splitext(file_name)
-        errors = []
-        match ext:
-            case _:
-                if content is not None:
-                    errors = self.compile(content, file_name)
+    # def process_file_content(self,content, file_name):
+    #     file_name, ext = os.path.splitext(file_name)
+    #     errors = []
+    #     match ext:
+    #         case _:
+    #             if content is not None:
+    #                 errors = self.compile(content, file_name)
 
-                    if len(errors) > 0:
-                        message = f"Compile errors\nCannot compile file {file_name}"
-                        errors.append(message)
+    #                 if len(errors) > 0:
+    #                     message = f"Compile errors\nCannot compile file {file_name}"
+    #                     errors.append(message)
 
-        return errors
+    #     return errors
         
        
 
@@ -1066,32 +1066,42 @@ class Mast(Agent):
                             replace = data.get('replace')
                             if existing_label and not replace:
                                 parsed = False
-                                errors.append(f"ERROR: duplicate label '{label_name }'. Use 'replace: {data['name']}' if this is intentional. {file_name}:{line_no} - {line}")
+                                errors.append(f"\nERROR: duplicate label '{label_name }'. Use 'replace: {data['name']}' if this is intentional. {file_name}:{line_no} - {line}")
                                 break
                             elif existing_label and replace:
                                 # Make the pervious version jump to the replacement
                                 # making fall through also work
                                 existing_label.cmds = [Jump(jump_name=label_name,loc=0)]
 
+                            
                             #####
                             # Dangling if, for, end_await
                             for node in EndAwait.stack:
-                                errors.append(f"ERROR: Missing end_await prior to label '{active_name}'cmd {node.loc}")
+                                errors.append(f"\nERROR: Missing end_await prior to label '{active_name}'cmd {node.loc}")
                             EndAwait.stack.clear()
                             for node in LoopStart.loop_stack:
-                                errors.append(f"ERROR: Missing next of loop prior to label''{active_name}'cmd {node.loc}")
+                                errors.append(f"\nERROR: Missing next of loop prior to label''{active_name}'cmd {node.loc}")
                             LoopStart.loop_stack.clear()
                             for node in IfStatements.if_chains:
-                                errors.append(f"ERROR: Missing end_if prior to label '{active_name}'cmd {node.loc}")
+                                errors.append(f"\nERROR: Missing end_if prior to label '{active_name}'cmd {node.loc}")
                             IfStatements.if_chains.clear()
                             for node in MatchStatements.chains:
-                                errors.append(f"ERROR: Missing end_match prior to label '{active_name}'cmd {node.loc}")
+                                errors.append(f"\nERROR: Missing end_match prior to label '{active_name}'cmd {node.loc}")
                             MatchStatements.chains.clear()
                             next = Label(**data)
                             active.next = next
                             active = next
                             active_name = label_name
                             self.labels[data['name']] = active
+                            exists =  Agent.SHARED.get_inventory_value(label_name)
+                            exists =  Mast.globals.get(label_name, exists)
+                            if exists:
+                                errors.append(f"\nERROR: label conflicts with shared name, rename label '{label_name }'. {file_name}:{line_no} - {line}")
+                                break
+
+                            # Sets a variable for the label
+                            Agent.SHARED.set_inventory_value(label_name, active)
+
                             self.cmd_stack.pop()
                             self.cmd_stack.append(active)
                         case "Input":
@@ -1106,8 +1116,8 @@ class Mast(Agent):
                                 import importlib
                                 module_name = name[:-3]
                                 if sys.modules.get(module_name) is None:
-                                    file_name = os.path.join(fs.get_mission_dir(), name)
-                                    spec = importlib.util.spec_from_file_location(module_name, file_name)
+                                    import_file_name = os.path.join(fs.get_mission_dir(), name)
+                                    spec = importlib.util.spec_from_file_location(module_name, import_file_name)
                                     module = importlib.util.module_from_spec(spec)
                                     sys.modules[module_name] = module
                                     spec.loader.exec_module(module)
@@ -1137,8 +1147,8 @@ class Mast(Agent):
                                 logger.error(f"ERROR: {line_no} - {line}")
                                 logger.error(f"Exception: {e}")
 
-                                errors.append(f"ERROR: {line_no} - {line}")
-                                errors.append(f"Exception: {e}")
+                                errors.append(f"\nERROR: {line_no} - {line}")
+                                errors.append(f"\nException: {e}")
                                 return errors # return with first errors
 
                             obj.line = line if Mast.include_code else None
@@ -1159,23 +1169,27 @@ class Mast(Agent):
                     mo = first_newline_index(lines)
 
                     logger = logging.getLogger("mast.compile")
-                    logger.error(f"ERROR: {line_no} - {lines[0:mo]}")
-                    errors.append(f"ERROR: {line_no} - {lines[0:mo]}")
+                    logger.error(f"\nERROR: {line_no} - {lines[0:mo]}")
+                    errors.append(f"\nERROR: {line_no} - {lines[0:mo]}")
                     lines = lines[mo+1:]
 
         for node in EndAwait.stack:
-            errors.append(f"ERROR: Missing end_await prior to label '{active_name}'cmd {node.loc}")
+            errors.append(f"\nERROR: Missing end_await prior to label '{active_name}'cmd {node.loc}")
         EndAwait.stack.clear()
         for node in LoopStart.loop_stack:
-            errors.append(f"ERROR: Missing next of loop prior to label''{active_name}'cmd {node.loc}")
+            errors.append(f"\nERROR: Missing next of loop prior to label''{active_name}'cmd {node.loc}")
         LoopStart.loop_stack.clear()
         for node in IfStatements.if_chains:
-            errors.append(f"ERROR: Missing end_if prior to label '{active_name}'cmd {node.loc}")
+            errors.append(f"\nERROR: Missing end_if prior to label '{active_name}'cmd {node.loc}")
         IfStatements.if_chains.clear()
         for node in MatchStatements.chains:
-            errors.append(f"ERROR: Missing end_match prior to label '{active_name}'cmd {node.loc}")
+            errors.append(f"\nERROR: Missing end_match prior to label '{active_name}'cmd {node.loc}")
         MatchStatements.chains.clear()
 
+        
+        
+
+            
 
         return errors
 

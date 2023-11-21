@@ -29,6 +29,8 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
         to_ids_or_obj = from_ids_or_obj
     if title_color is None:
         title_color = color
+    if FrameContext.task:
+        msg = FrameContext.task.compile_and_format_string(msg)
     
     from_objs = query.to_object_list(from_ids_or_obj)
     to_objs = query.to_object_list(to_ids_or_obj)
@@ -140,4 +142,33 @@ def comms_receive_internal(msg, ids_or_obj=None, from_name=None,  title=None, fa
         comms_message(msg, ship, ship,  title, face, color, title_color)
         
         
-        
+def comms_info(name, face=None, color=None):
+    if FrameContext.task is not None:
+        color = FrameContext.task.compile_and_format_string(color) if color else "white"
+        name = FrameContext.task.compile_and_format_string(name) if name else None
+
+    to_so = query.to_object(_comms_get_selected_id())
+    from_so = query.to_object(_comms_get_origin_id())
+
+    if to_so is None or from_so is None:
+        #print("Comms Info escaped")
+        return
+    # Just in case swap if from is not a player
+    if not from_so.is_player:
+        swap = to_so
+        to_so = from_so
+        from_so = swap
+
+    if name is None:
+        name = to_so.comms_id
+
+    if face is None:    
+        face = faces.get_face(to_so.id) 
+
+    
+    if to_so.is_grid_object:
+        #print("Comms Info grid")
+        sbs.send_grid_selection_info(from_so.id, face, color, name)
+    else:
+        #print(f"Comms Info comms nn{name} i{from_so.id} f{face} c{color} n{comms_id}")
+        sbs.send_comms_selection_info(from_so.id, face, color, name)

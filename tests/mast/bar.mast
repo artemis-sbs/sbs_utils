@@ -81,17 +81,17 @@ end_on
 # If it changes redo go
 #
 on change len(customers.values()):
-    refresh GotoBar
+    gui_refresh("GotoBar")
     jump GotoBar
 end_on
 
 on change message_id:
-    refresh GotoBar
+    gui_refresh("GotoBar")
     jump GotoBar
 end_on
 
 on change beer+martinis+vodka:
-    refresh GotoBar
+    gui_refresh("GotoBar")
     jump GotoBar
 end_on
 
@@ -104,7 +104,7 @@ await choice:
     shared vodka = vodka-1
 + "Had enough"  if (beer+martinis+vodka) > 0:
     do customers.pop(client_id, None)
-    refresh GotoBar
+    gui_refresh("GotoBar")
      pop
 disconnect:
     do customers.pop(client_id, None)
@@ -112,7 +112,7 @@ disconnect:
 end_await
 
 if (beer+martinis+vodka) > 0:
-    refresh GotoBar
+    gui_refresh("GotoBar")
     ->GotoBar
 end_if
 

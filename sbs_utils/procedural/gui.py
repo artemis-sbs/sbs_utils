@@ -505,3 +505,11 @@ def gui_update(tag, props, shared=False):
 
 def gui_update_shared(tag, props):
     gui_update(tag, props, True)
+
+
+def gui_refresh(label):
+    task = FrameContext.task
+    if label is None:
+        task.main.refresh(label)
+    else:
+        task.main.mast.refresh_schedulers(task.main, label)

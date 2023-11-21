@@ -6,13 +6,12 @@ from ..gui import Gui, Page
 from ..helpers import FakeEvent, FrameContext
 from ..procedural.inventory import get_inventory_value, set_inventory_value
 from .parsers import StyleDefinition
-
+from ..agent import Agent
 from ..pages import layout
 
-from .maststory import AppendText,  MastStory, Choose, Disconnect, RerouteGui, Text, Refresh, AwaitGui, OnChange, OnMessage, OnClick
+from .maststory import AppendText,  MastStory, Choose, Disconnect, RerouteGui, Text, AwaitGui, OnChange, OnMessage, OnClick
 import traceback
 from .mastsbsscheduler import MastSbsScheduler, Button
-from ..consoledispatcher import ConsoleDispatcher
 from .parsers import LayoutAreaParser
 
 
@@ -127,14 +126,6 @@ class StoryRuntimeNode(MastRuntimeNode):
             tag = self.compile_formatted_string(tag)
             layout_item.tag = task.format_string(tag).strip()
 
-
-
-class RefreshRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Refresh):
-        if node.label is None:
-            task.main.refresh(node.label)
-        else:
-            task.main.mast.refresh_schedulers(task.main, node.label)
 
 class TextRuntimeNode(StoryRuntimeNode):
     current = None
@@ -480,7 +471,6 @@ over =     {
     "OnClick": OnClickRuntimeNode,
     "AwaitGui": AwaitGuiRuntimeNode,
     "Choose": ChooseRuntimeNode,
-    "Refresh": RefreshRuntimeNode,
 }
 
 class StoryScheduler(MastSbsScheduler):
@@ -513,23 +503,26 @@ class StoryScheduler(MastSbsScheduler):
     def story_tick_tasks(self, client_id):
         ctx = FrameContext.context
         #
+        restore = FrameContext.page
         FrameContext.page = self.page
-
         self.sim = ctx.sim
         self.ctx = ctx
         self.set_inventory_value('sim', ctx.sim)
         self.set_inventory_value('ctx', ctx)
         self.client_id = client_id
         ret = super().sbs_tick_tasks(ctx)
-        FrameContext.page = None
+        FrameContext.page = restore
         return ret
 
 
     def refresh(self, label):
         for task in self.tasks:
             if label == task.active_label:
+                restore = FrameContext.page
+                FrameContext.page = self.page
                 task.jump(task.active_label)
-                self.story_tick_tasks(self.client_id)
+                task.tick()
+                FrameContext.page = restore
                 Gui.dirty(self.client_id)
             if label == None:
                 # On change or element requested refresh?
@@ -746,7 +739,7 @@ class StoryPage(Page):
         #
         # tabs can be for all ships or single
         #
-        all_ship_tabs = get_inventory_value(FrameContext.shared_id, "console_tabs", {})
+        all_ship_tabs = Agent.SHARED.get_inventory_value("console_tabs", {})
         # print(all_ship_tabs)
         all_tabs = all_ship_tabs.get("any", {})
         ship_id = get_inventory_value(self.client_id, "assigned_ship", None)

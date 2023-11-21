@@ -1,18 +1,15 @@
 from .mast import Mast, Scope
-from .mastsbs import FollowRoute,Comms, Button, Scan, ScanTab,ScanResult
+from .mastsbs import Comms, Button, Scan
 from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask, ChangeRuntimeNode
 import sbs
 from .mastobjects import SpaceObject, MastSpaceObject
 
 from ..consoledispatcher import ConsoleDispatcher
 from ..lifetimedispatcher import LifetimeDispatcher
-from ..damagedispatcher import DamageDispatcher, CollisionDispatcher
-from ..griddispatcher import GridDispatcher
 from ..gui import Gui
 from .errorpage import ErrorPage
 from .. import faces
 from ..tickdispatcher import TickDispatcher
-from ..helpers import FakeEvent
 import sys
 
 import re
@@ -20,10 +17,7 @@ from ..procedural import query
 from ..procedural import links
 from ..procedural import inventory
 
-
 from .. import vec
-
-from functools import partial
 
 
 import traceback
@@ -41,29 +35,6 @@ class ButtonRuntimeNode(MastRuntimeNode):
         return PollResults.OK_ADVANCE_TRUE
 
 
-class CommsInfoRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Comms):
-        color = node.color if task.format_string(node.color) else "white"
-        to_so:SpaceObject = query.to_object(task.get_variable("COMMS_SELECTED_ID"))
-        from_so:SpaceObject = query.to_object(task.get_variable("COMMS_ORIGIN_ID"))
-
-        if to_so is None or from_so is None:
-            return
-        # Just in case swap if from is not a player
-        if not from_so.is_player:
-            swap = to_so
-            to_so = from_so
-            from_so = swap
-
-        comms_id = to_so.comms_id
-        if node.message:
-            comms_id = task.format_string(node.message)
-        face = faces.get_face(to_so.id) 
-
-        if to_so.is_grid_object:
-            sbs.send_grid_selection_info(from_so.id, face, color, comms_id)
-        else:
-            sbs.send_comms_selection_info(from_so.id, face, color, comms_id)
         
 
 
@@ -446,7 +417,7 @@ class ScanRuntimeNode(MastRuntimeNode):
     #     # check to see if the from ship still exists
         
 
-    def expand(self, button: ScanTab, task: MastAsyncTask):
+    def expand(self, button: Button, task: MastAsyncTask):
         buttons = []
         if button.for_code is not None:
             iter_value = task.eval_code(button.for_code)
@@ -523,26 +494,6 @@ class ScanRuntimeNode(MastRuntimeNode):
             return PollResults.OK_JUMP
         return PollResults.OK_RUN_AGAIN
 
-class ScanResultRuntimeNode(MastRuntimeNode):
-    def poll(self, mast:Mast, task:MastAsyncTask, node: ScanResult):
-        scan = task.get_variable("__SCAN_TAB__")
-        if scan is None:
-            return
-        
-        msg = task.format_string(node.message)
-        #print(f"{scan.tab} scan {msg}")
-        so = query.to_object(scan.selected_id)
-        if so:
-            so.update_engine_data({
-                scan.tab: msg,
-            })
-            inventory.set_inventory_value(scan.selected_id, "SCANNED", True)
-
-        # Rerun the scan (until all scans are done)
-        if scan.node:
-            task.jump(task.active_label,scan.node.loc)
-            return PollResults.OK_JUMP
-        return PollResults.OK_RUN_AGAIN
 
 class RegexEqual(str):
     def __eq__(self, pattern):
@@ -551,7 +502,6 @@ class RegexEqual(str):
 #
 #
 #
-
 def handle_purge_tasks(so):
     """
     This will clear out all tasks related to the destroyed item
@@ -561,61 +511,14 @@ def handle_purge_tasks(so):
 LifetimeDispatcher.add_destroy(handle_purge_tasks)
 
 
-class FollowRouteRuntimeNode(MastRuntimeNode):
-    def poll(self, mast:Mast, task:MastAsyncTask, node: FollowRoute):
-        if node.origin_tag is None or node.selected_tag is None:
-            return PollResults.OK_ADVANCE_TRUE
-        origin = task.get_variable(node.origin_tag)
-        selected = task.get_variable(node.selected_tag)
-        if origin is None or selected is None:
-            return PollResults.OK_ADVANCE_TRUE
-        origin_id = query.to_id(origin)
-        selected_id = query.to_id(selected)
-        
-        console = None
-        extra_tag = ""
-        value_tag = ""
-        match RegexEqual(node.route):
-            case "comms\s+select":
-                console = "comms_target_UID"
-                extra_tag = ""
-                value_tag = "comms_sorted_list"
-            
-            case "science\s+select":
-                console = "science_target_UID"
-                extra_tag = "__init__"
-                value_tag = "science_sorted_list"
-
-            case "grid\s+select":
-                console = "grid_selected_UID"
-                extra_tag = ""
-                value_tag = "grid_object_list"
-
-            case _:
-                print("GOT HERE but should not have")
-
-        if console is not None:
-            ctx = task.get_variable('ctx')
-            event = FakeEvent(sub_tag=console, origin_id=origin_id, selected_id=selected_id, extra_tag=extra_tag,value_tag=value_tag)
-            #
-            # A bit of a hack directly using dispatchers data
-            # forcing the default handlers
-            #
-            ConsoleDispatcher.dispatch_select(event)
-        
-        return PollResults.OK_ADVANCE_TRUE
-
 
 
 
 
 over =     {
-    "FollowRoute": FollowRouteRuntimeNode,
     "Comms": CommsRuntimeNode,
-    "CommsInfo": CommsInfoRuntimeNode,
     "Button": ButtonRuntimeNode,
-    "Scan": ScanRuntimeNode,
-    "ScanResult": ScanResultRuntimeNode
+    "Scan": ScanRuntimeNode
 }
 
 from ..helpers import FrameContext

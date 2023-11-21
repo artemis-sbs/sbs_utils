@@ -8,12 +8,6 @@ STYLE_REF_RULE = r"""([ \t]+style[ \t]*=[ \t]*((?P<style_name>\w+)|((?P<style_q>
 OPT_STYLE_REF_RULE = STYLE_REF_RULE+"""?"""
 
 
-    
-class Refresh(MastNode):
-    rule = re.compile(r"""refresh([ \t]*(?P<label>\w+))?""")
-    def __init__(self, label, loc=None):
-        self.loc = loc
-        self.label = label
 
 class Text(MastNode):
     rule = re.compile(r"""((['"]{3,})(\n)?(?P<message>[\s\S]+?)(\n)?(['"]{3,}))"""+OPT_STYLE_REF_RULE+IF_EXP_REGEX)
@@ -182,13 +176,11 @@ class MastStory(MastSbs):
         AppendText,
 
         Choose,
-            Disconnect,
         OnChange,
         OnMessage,
         OnClick,
         AwaitGui,
+        Disconnect,
 
-        
             RerouteGui,
-            Refresh,
     ] + MastSbs.nodes 

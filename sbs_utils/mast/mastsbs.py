@@ -2,16 +2,6 @@ from .mast import IF_EXP_REGEX, TIMEOUT_REGEX, OPT_COLOR, Mast, MastNode, EndAwa
 import re
 
 
-class FollowRoute(MastNode):
-    """
-    Route unhandled things comms, science, events
-    """
-    rule = re.compile(r"""follow[ \t]+route[ \t]+(?P<route>comms[ \t]+select|science[ \t]+select|grid[ \t]+select)[ \t]+(?P<origin_tag>\*?\w+)[ \t]+(?P<selected_tag>\*?\w+)""")
-    def __init__(self, route, origin_tag, selected_tag, loc=None):
-        self.loc = loc
-        self.route = route
-        self.origin_tag = origin_tag
-        self.selected_tag = selected_tag
 
 
 class CommsInfo(MastNode):
@@ -62,55 +52,7 @@ class Scan(MastNode):
         self.end_await_node = None
         EndAwait.stack.append(self)
 
-class ScanResult(MastNode):
-    rule = re.compile(r"""scan[ \t]*results[ \t]*((['"]{3}|["'])(?P<message>[ \t\S]+?)\2)""")
-    def __init__(self, message=None, loc=None):
-        self.loc = loc
-        self.message = self.compile_formatted_string(message)
 
-FOR_RULE = r'([ \t]+for[ \t]+(?P<for_name>\w+)[ \t]+in[ \t]+(?P<for_exp>[ \t\S]+?))?'
-class ScanTab(MastNode):
-    rule = re.compile(r"""scan[ \t]*tab[ \t]+(?P<q>["'])(?P<message>.+?)(?P=q)"""+FOR_RULE+IF_EXP_REGEX+r"[ \t]*"+BLOCK_START)
-    def __init__(self, message=None, button=None,  
-                if_exp=None, 
-                for_name=None, for_exp=None, 
-                clone=False, q=None, loc=None):
-        if clone:
-            return
-        self.message = self.compile_formatted_string(message)
-        self.loc = loc
-        self.await_node = EndAwait.stack[-1]
-        self.await_node.buttons.append(self)
-
-        if if_exp:
-            if_exp = if_exp.lstrip()
-            self.code = compile(if_exp, "<string>", "eval")
-        else:
-            self.code = None
-
-        self.for_name = for_name
-        self.data = None
-        if for_exp:
-            for_exp = for_exp.lstrip()
-            self.for_code = compile(for_exp, "<string>", "eval")
-        else:
-            self.cor_code = None
-
-
-    def clone(self):
-        proxy = ScanTab(clone=True)
-        proxy.message = self.message
-        proxy.code = self.code
-        proxy.loc = self.loc
-        proxy.await_node = self.await_node
-        proxy.data = self.data
-        proxy.for_code = self.for_code
-        proxy.for_name = self.for_name
-
-        return proxy
-    
-    def expand(self):
-        pass
 
 
 
@@ -194,14 +136,9 @@ class Focus(MastNode):
 class MastSbs(Mast):
     nodes =  [
         # sbs specific
-            FollowRoute,
-            CommsInfo,
-            
         Comms,
           Focus,
           Button,
-        Scan,
-            ScanTab,
-            ScanResult
+        Scan
     ] + Mast.nodes 
     
