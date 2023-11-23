@@ -589,6 +589,7 @@ class MastAsyncTask(Agent):
                 label_runtime_node = self.main.mast.labels.get(label)
             else:
                 label_runtime_node = label
+                label = label_runtime_node.name
 
             if label_runtime_node is not None:
                 #
@@ -856,28 +857,29 @@ class MastAsyncTask(Agent):
 
 
     def next(self):
-        if self.runtime_node:
-            self.call_leave()
-            #cmd = self.cmds[self.active_cmd]
-            self.active_cmd += 1
-        
-        if self.active_cmd >= len(self.cmds):
-            # move to the next label
-            #
-            # The first time Main is run, all shared 
-            # Assignment should be purged
-            # to avoid multiple assignments
-            #
-            self.main.mast.prune_main()
-
-            active = self.main.mast.labels.get(self.active_label)
-            next = active.next
-            if next is None:
-                self.done = True
-                return False
-            return self.jump(next.name)
-            
         try:
+            if self.runtime_node:
+                self.call_leave()
+                #cmd = self.cmds[self.active_cmd]
+                self.active_cmd += 1
+            
+            if self.active_cmd >= len(self.cmds):
+                # move to the next label
+                #
+                # The first time Main is run, all shared 
+                # Assignment should be purged
+                # to avoid multiple assignments
+                #
+                self.main.mast.prune_main()
+
+                active = self.main.mast.labels.get(self.active_label)
+                next = active.next
+                if next is None:
+                    self.done = True
+                    return False
+                return self.jump(next.name)
+                
+            
             cmd = self.cmds[self.active_cmd]
             runtime_node_cls = self.main.nodes.get(cmd.__class__.__name__, MastRuntimeNode)
             
