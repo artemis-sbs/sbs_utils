@@ -45,7 +45,7 @@ if len(raiders)==0:
     -> Won
 end_if
 
-delay sim 4s
+await delay_sim(4)
 -> WatchEndGame
 
 ================= Won ===================
@@ -228,7 +228,7 @@ end_await
 -> station_comms
 
 === build_torp ===
-delay sim 10s
+await delay_sim(10)
 ~~
 cur_count = self.get_engine_data(sim, "torpedo_count", torpedo_build_type)
 self.set_engine_data(sim, "torpedo_count", cur_count+1, torpedo_build_type)
@@ -261,6 +261,6 @@ for raider in role('Raider'):
 next raider
 
 
-delay sim 5s
+await delay_sim(5)
 -> NPC_Targeting
 

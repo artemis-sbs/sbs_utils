@@ -1,17 +1,20 @@
 from sbs_utils.mast.mast import Mast
 from sbs_utils.mast.maststory import MastStory
 import unittest
+from sbs_utils.agent import clear_shared
 
 Mast.enable_logging()
 
 
 def mast_story_compile(code=None):
     mast = MastStory()
-    errors = mast.compile(code)
+    clear_shared()
+    errors = mast.compile(code, "test")
     return (errors, mast)
 
 def mast_story_compile_file(code=None):
     mast = MastStory()
+    clear_shared()
     errors = mast.from_file(code)
     return (errors, mast)
 
@@ -44,7 +47,7 @@ await gui
 
 await gui timeout 5s
 
-input name "enter name"
+gui_input("enter name")
 
 await choice:
     + "Start Mission" if started==False:
@@ -75,29 +78,29 @@ await choice:
     end_await
 end_await
 
-style .button="padding:3px;"
-style .face="padding:2px;"
+gui_style("padding:3px;", ".button")
+gui_style("padding:2px;", ".face")
 
-style fred = "area:1,2,3,4;"
-style barney="area: 1,2,3-1px,4;"
-style wilma="area:1,2,3,4;row-height:10px;"
+gui_style("area:1,2,3,4;", "fred")
+gui_style("area: 1,2,3-1px,4;", "barney")
+gui_style("area:1,2,3,4;row-height:10px;", "wilma")
 
-section style="area:1,2,3,4;"
+gui_section(style="area:1,2,3,4;")
 
-section style="area: 1,2,3-1px,4;"
+gui_section(style="area: 1,2,3-1px,4;")
 
-section style="area:1,2,3,4;row-height:10px;"
+gui_section(style="area:1,2,3,4;row-height:10px;")
 
-section style=fred
+gui_section(style=fred)
 
 
 
-radio var "helm,weapons,science"
-vradio var "helm,weapons,science"
+gui_radio( "helm,weapons,science", var=" var")
+gui_vradio( "helm,weapons,science", var=" var")
 
-console helm
-console clear
-console console_name
+console("helm")
+console("clear")
+console("console_name")
 
 
 """)
@@ -132,38 +135,38 @@ console console_name
         (errors, mast)= mast_story_compile( code = """
 
 =========== server_main =====
-section style="area:2,20,18,35;"
+gui_section(style="area:2,20,18,35;")
 
-button "Speak":
-    log "{fred}"
+on message gui_button("Speak"):
+    log("{fred}")
     ->server_main
-end_button
-row
-slider fred "low:0;high:5"
+end_on
+gui_row()
+gui_slider("low:0;high:5", var="fred") 
 
 
 await choice:
     + "{x}" for x in range(3):
-        log "well test"
+        log("well test")
 end_await
 
 await choice:
     + "Test" if y == 2:
-        log "well test"
+        log("well test")
 end_await
 
 await choice:
     + "{x}" for x in range(3) if s==3:
-        log "well test"
+        log("well test")
 end_await
 
 await choice:
     + "{x}" if s==3:
-        log "well test"
+        log("well test")
     + "{x}" for x in range(3) if s==3:
-        log "well test"
+        log("well test")
     + "Test":
-        log "well test"
+        log("well test")
 end_await
 
 ->END
@@ -186,8 +189,8 @@ reroute clients client_start_once
 ===== add_menu =====
 
 #section style="area:10, 0, 30, 45px;"
-dropdown menu 'text  Editor; list grid,character;':
-end_dropdown
+gui_dropdown('text  Editor; list grid,character;', var="menu")
+
 
 on change menu.value:
 #    sel = menu.value

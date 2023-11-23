@@ -29,11 +29,11 @@ class TestProcedural(unittest.TestCase):
             "failure": "I'm not married, excrement face.",
             "success": "I shall crush your skull with my bare hands for insulting my spouse, {name}!",
             "science": "The captain and their spouse have a very stable, loving relationship."
-        },
+        }
 
         result = prodecural_data.data_choose_value_from_template(taunt["data"])
 
-        assert(result != data)
+        assert(result != taunt1)
 
         
         

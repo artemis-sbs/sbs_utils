@@ -4,10 +4,6 @@ from ..helpers import FrameContext
 from ..pages import layout
 from ..mast.parsers import LayoutAreaParser, StyleDefinition
 
-def show_warning(t):
-    print(t)
-
-
 def gui_add_console_tab(id_or_obj, console, tab_name, label):
     ship_id = to_id(id_or_obj)
     console = console.lower()
@@ -513,3 +509,63 @@ def gui_refresh(label):
         task.main.refresh(label)
     else:
         task.main.mast.refresh_schedulers(task.main, label)
+
+
+def _gui_reroute_main(label, server):
+    task = FrameContext.task
+    #
+    # RerouteGui in main defers to the end of main
+    #
+    if task.active_label!="main":
+        return False
+    
+    client_id = task.get_variable("client_id")
+    if client_id is None:
+        # Run on Non-gui task?
+        return True
+    if server and client_id!= 0:
+        # Run on client skips setting server
+        return True
+    if not server and client_id== 0:
+        return True
+    #
+    # A jump in main set the label's next
+    # label so it runs at the end of main
+    #
+    main_label_obj = task.main.mast.labels.get("main")
+    jump_label_obj = task.main.mast.labels.get(label, label)
+    #
+    # TODO: This should change something task specific
+    #
+    main_label_obj.next = jump_label_obj
+    return True
+
+from ..gui import Gui
+def gui_reroute_client(client_id, label):
+    client = Gui.clients.get(client_id, None)
+    if client is not None:
+        page = client.page_stack[-1]
+        if page is None: 
+            return
+    if page is not None and page.gui_task:
+        page.gui_task.jump(label)
+
+def gui_reroute_server(label):
+    if _gui_reroute_main(label, True):
+        return
+    gui_reroute_client(0,label)
+
+
+def gui_reroute_clients(label):
+    #
+    # RerouteGui in main defers to the end of main
+    #
+    if _gui_reroute_main(label, False):
+        return
+    #
+    """Walk all the clients (not server) and send them to a new flow"""
+    for id, client in Gui.clients.items():
+        if id != 0 and client is not None:
+            client_page = client.page_stack[-1]
+            if client_page is not None and client_page.gui_task:
+                client_page.gui_task.jump(label)

@@ -77,6 +77,7 @@ def cosmos_event_handler(sim, event):
         # e.g. Mast Story Page, Clients change
         ctx = Context(sim, sbs, event)
         FrameContext.context = ctx
+        Agent.SHARED.set_inventory_value("sim", sim)
         
         #print(f"{event.sub_tag}")
         match(event.tag):
@@ -172,7 +173,7 @@ def cosmos_event_handler(sim, event):
         
             case _:
                 print (f"Unhandled event {event.client_id} {event.tag} {event.sub_tag}")
-
+        
     except BaseException as err:
         sbs.pause_sim()
 
@@ -180,7 +181,9 @@ def cosmos_event_handler(sim, event):
         text_err = text_err.replace(chr(94), "")
         Gui.push(0, ErrorPage(text_err))
     
+    Agent.SHARED.set_inventory_value("sim", None)
     Agent.context = None
+    
     et = time.process_time() - t
     if et > 0.03:
         print(f"Elapsed time: {et} {event.tag}-{event.sub_tag}")

@@ -157,17 +157,6 @@ class Choose(MastNode):
             self.style_name = style_name
 
 
-FLOAT_VALUE_REGEX = r"[+-]?([0-9]*[.])?[0-9]+"
-
-class RerouteGui(MastNode):
-    rule = re.compile(r"""reroute([ \t]+((?P<gui>server|clients)|(client[ \t]+(?P<var>[_\w][\w]*))))?[ \t]+(?P<label>[_\w][\w]*)""")
-    def __init__(self, gui, var=None, label=None, loc=None):
-        self.loc = loc
-        self.gui = gui
-        self.var = var
-        self.label = label
-        
-
 
 class MastStory(MastSbs):
     nodes = [
@@ -182,5 +171,4 @@ class MastStory(MastSbs):
         AwaitGui,
         Disconnect,
 
-            RerouteGui,
     ] + MastSbs.nodes 

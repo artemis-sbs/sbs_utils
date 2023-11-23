@@ -16,7 +16,7 @@ end_if
 
 
 ===== EnterBar ===
-log "BAR"
+log("BAR")
 ~~ customers[client_id]= my_face ~~
 
 ============== GotoBar ===================
@@ -103,11 +103,11 @@ await choice:
 + "Vodka" if vodka > 0:
     shared vodka = vodka-1
 + "Had enough"  if (beer+martinis+vodka) > 0:
-    do customers.pop(client_id, None)
+    ~~customers.pop(client_id, None)~~
     gui_refresh("GotoBar")
      pop
 disconnect:
-    do customers.pop(client_id, None)
+    ~~customers.pop(client_id, None)~~
     ->END
 end_await
 

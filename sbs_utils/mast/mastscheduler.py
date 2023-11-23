@@ -6,6 +6,7 @@ import time
 import traceback
 from ..agent import Agent, get_task_id
 from ..helpers import FrameContext
+from ..procedural.futures import Promise
 
 
 class MastRuntimeNode:
@@ -157,8 +158,18 @@ class PyCodeRuntimeNode(MastRuntimeNode):
         return PollResults.OK_ADVANCE_TRUE
 
 class FuncCommandRuntimeNode(MastRuntimeNode):
+    def enter(self, mast, task:MastAsyncTask, node:FuncCommand):
+        self.value = task.eval_code(node.code)
+        self.is_await = node.is_await
+        if self.is_await and not isinstance(self.value, Promise):
+            self.is_await = False
+
     def poll(self, mast, task:MastAsyncTask, node:FuncCommand):
-        task.exec_code(node.code, None, None)
+        #
+        # await the promise to complete
+        #
+        if node.is_await and self.value is not None and not self.value.done():
+            return PollResults.OK_RUN_AGAIN
         return PollResults.OK_ADVANCE_TRUE
 
 class JumpRuntimeNode(MastRuntimeNode):
@@ -368,7 +379,7 @@ class ParallelRuntimeNode(MastRuntimeNode):
             task = task.start_task(node.labels, vars, task_name=node.name)
 
         self.task = task if node.await_task else None
-        self.timeout = task.main.get_seconds("sim") + (node.minutes*60+node.seconds)
+        self.timeout = FrameContext.sim_seconds + (node.minutes*60+node.seconds)
         
     def poll(self, mast, task: MastAsyncTask, node:Parallel):
         if self.task:
@@ -376,7 +387,7 @@ class ParallelRuntimeNode(MastRuntimeNode):
                 return PollResults.OK_RUN_AGAIN
             if node.fail_label and self.task.done and self.task.result == PollResults.FAIL_END:
                 task.jump(task.active_label,node.fail_label.loc+1)
-        if node.timeout_label and self.timeout < task.main.get_seconds("sim"):
+        if node.timeout_label and self.timeout < FrameContext.sim_seconds:
             task.jump(task.active_label,node.timeout_label.loc+1)
 
 
@@ -395,7 +406,7 @@ class BehaviorRuntimeNode(MastRuntimeNode):
                 task = task.main.start_fallback_task(node.labels, vars, task_name=node.name, conditional=node.conditional)
 
         self.task = task # if node.is_await else None
-        self.timeout = task.main.get_seconds("sim") + (node.minutes*60+node.seconds)
+        self.timeout = FrameContext.sim_seconds + (node.minutes*60+node.seconds)
         
     def poll(self, mast, task: MastAsyncTask, node:Behavior):
         if self.task:
@@ -411,7 +422,7 @@ class BehaviorRuntimeNode(MastRuntimeNode):
             elif node.until == "fail" and self.task.done:
                 if  self.task.result != PollResults.FAIL_END:
                     return self.task.rewind()
-        if node.timeout_label and self.timeout < task.main.get_seconds("sim"):
+        if node.timeout_label and self.timeout < FrameContext.sim_seconds:
             task.jump(task.active_label,node.timeout_label.loc+1)
 
         return PollResults.OK_ADVANCE_TRUE
@@ -419,79 +430,19 @@ class BehaviorRuntimeNode(MastRuntimeNode):
 
 class TimeoutRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task: MastAsyncTask, node:Timeout):
-        if node.end_await_node:
-            task.jump(task.active_label,node.end_await_node.loc+1)
+        # if you run into this its from another sub-label
+        if node.await_node and node.await_node.end_await_node:
+            task.jump(task.active_label,node.await_node.end_await_node.loc+1)
 
 class AwaitFailRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task: MastAsyncTask, node:AwaitFail):
-        if node.end_await_node:
-            task.jump(task.active_label,node.end_await_node.loc+1)
+        # if you run into this its from another sub-label
+        if node.await_node and node.await_node.end_await_node:
+            task.jump(task.active_label,node.await_node.end_await_node.loc+1)
 
 
 class EndAwaitRuntimeNode(MastRuntimeNode):
     pass
-
-class CancelRuntimeNode(MastRuntimeNode):
-    def poll(self, mast, task: MastAsyncTask, node:Cancel):
-        task.main.cancel_task(node.name)
-        return PollResults.OK_ADVANCE_TRUE
-
-class LogRuntimeNode(MastRuntimeNode):
-    def enter(self, mast, task: MastAsyncTask, node:Log):
-        #print("Logger is defered?")
-        logger = logging.getLogger(node.logger)
-        message = task.format_string(node.message)
-        match node.level:
-            case "info":
-                logger.info(message)
-            case "debug":
-                logger.debug(message)
-            case "warning":
-                logger.warning(message)
-            case "error":
-                logger.error(message)
-            case "critical":
-                logger.critical(message)
-            case _:
-                logger.debug(message)
-
-class LoggerRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task: MastAsyncTask, node:Logger):
-        logger = logging.getLogger(node.logger)
-        logging.basicConfig(level=logging.DEBUG)
-        logger.setLevel(logging.DEBUG)
-
-        if node.var is not None:
-            streamer = StringIO()
-            handler = logging.StreamHandler(stream=streamer)
-            handler.setFormatter(logging.Formatter("%(message)s"))
-            handler.setLevel(logging.DEBUG)
-            logger.addHandler(handler)
-            
-            #mast.vars[node.var] = streamer
-            Agent.SHARED.set_inventory_value(node.var, streamer)
-
-        if node.name is not None:
-            name = task.format_string(node.name)
-            handler = logging.FileHandler(name,mode='w')
-            handler.setFormatter(logging.Formatter("%(message)s"))
-            handler.setLevel(logging.NOTSET)
-            logger.addHandler(handler)
-
-    
-
-class DelayRuntimeNode(MastRuntimeNode):
-    def enter(self, mast, task, node):
-        self.timeout = task.main.get_seconds(node.clock) + (node.minutes*60+node.seconds)
-        
-        self.tag = None
-
-    def poll(self, mast, task, node):
-        if self.timeout <= task.main.get_seconds(node.clock):
-            return PollResults.OK_ADVANCE_TRUE
-
-        return PollResults.OK_RUN_AGAIN
-
 
 
 class AwaitConditionRuntimeNode(MastRuntimeNode):
@@ -499,14 +450,14 @@ class AwaitConditionRuntimeNode(MastRuntimeNode):
         seconds = (node.minutes*60+node.seconds)
         self.timeout = None
         if seconds != 0:
-            self.timeout = task.main.get_seconds("sim") + (node.minutes*60+node.seconds)
+            self.timeout = FrameContext.sim_seconds + (node.minutes*60+node.seconds)
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: AwaitCondition):
         value = task.eval_code(node.code)
         if value:
             return PollResults.OK_ADVANCE_TRUE
 
-        if self.timeout is not None and self.timeout <= task.main.get_seconds("sim"):
+        if self.timeout is not None and self.timeout <= FrameContext.sim_seconds:
             if node.timeout_label:
                 task.jump(task.active_label,node.timeout_label.loc+1)
                 return PollResults.OK_JUMP
@@ -877,11 +828,11 @@ class MastAsyncTask(Agent):
 
         
 
-    def runtime_error(self, s):
+    def runtime_error(self, rte):
         cmd = None
         logger = logging.getLogger("mast.runtime")
-        logger.error(s)
-        s = "mast SCRIPT ERROR\n"
+        logger.error(rte)
+        s = "mast RUNTIME ERROR\n" 
         if self.runtime_node:
             cmd = self.cmds[self.active_cmd]
         if cmd is None:
@@ -895,6 +846,7 @@ class MastAsyncTask(Agent):
                 s += f"\n===== code ======\n\n{cmd.line}\n\n==================\n"
             else:
                 s += "\nNOTE: to see code Set Mast.include_code to True is script.py only during development.\n\n"
+        s += '\n'+rte
 
         logger = logging.getLogger("mast.runtime")
         logger.error(s)
@@ -1126,19 +1078,14 @@ class MastScheduler(Agent):
         "LoopBreak": LoopBreakRuntimeNode,
         "PyCode": PyCodeRuntimeNode,
         "FuncCommand": FuncCommandRuntimeNode,
-#        "Await": AwaitRuntimeNode,
         "Behavior": BehaviorRuntimeNode,
         "Parallel": ParallelRuntimeNode,
-        "Cancel": CancelRuntimeNode,
         "Assign": AssignRuntimeNode,
         "AwaitCondition": AwaitConditionRuntimeNode,
-        "AwaitFail": AwaitFailRuntimeNode,
-        "Change": ChangeRuntimeNode,
-        "Timeout": TimeoutRuntimeNode,
+            "AwaitFail": AwaitFailRuntimeNode,
+            "Change": ChangeRuntimeNode,
+            "Timeout": TimeoutRuntimeNode,
         "EndAwait": EndAwaitRuntimeNode,
-        "Delay": DelayRuntimeNode,
-        "Log": LogRuntimeNode,
-        "Logger": LoggerRuntimeNode,
     }
 
     def __init__(self, mast: Mast, overrides=None):
@@ -1262,7 +1209,10 @@ class MastScheduler(Agent):
         self.active_task = t
         t.tick()
     def cancel_task(self, name):
-        data = self.active_task.get_variable(name)
+        if isinstance(name, str):
+            data = self.active_task.get_variable(name)
+        else:
+            data = name
         # Assuming its OK to cancel none
         if data is not None:
             self.done.append(data)

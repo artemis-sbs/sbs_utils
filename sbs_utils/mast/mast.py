@@ -1,12 +1,11 @@
-from asyncio.log import logger
-from enum import IntEnum, Enum
+from enum import Enum
 import re
 import ast
 import os
 from .. import fs
 from zipfile import ZipFile
 from .. import faces, scatter
-from ..agent import Agent, get_story_id
+from ..agent import Agent
 import math
 import itertools
 import logging
@@ -92,25 +91,6 @@ class Label(MastNode):
 
 
 
-class Log(MastNode):
-    rule = re.compile(r"""log[ \t]+(name[ \t]+(?P<logger>[\w\.]*)[ \t]+)?(?P<q>['"]{3}|["'])(?P<message>[\s\S]+?)(?P=q)([ \t]+(?P<level>debug|info|warning|error|critical))?""")
-    
-    def __init__(self, message, logger=None, level=None, q=None, loc=None):
-        self.message = self.compile_formatted_string(message)
-        self.level = level if level is not None else "debug"
-        self.logger = logger if logger is not None else "mast.story"
-        self.loc = loc
-
-class Logger(MastNode):
-    rule = re.compile(r"""logger([ \t]+name[ \t]+(?P<logger>[\w\.]*))?([ \t]+string[ \t]+(?P<var>\w*))?([ \t]+file[ \t]*(?P<q>['"]{3}|["'])(?P<name>[^\n\r\f]+)(?P=q))?""")
-
-    def __init__(self, logger=None, var=None, name=None, q=None, loc=None):
-        self.var = var
-        if name is not None:
-            name = self.compile_formatted_string(name)
-        self.name = name
-        self.logger = logger if logger is not None else "mast.story"
-        self.loc = loc
 
 class LoopStart(MastNode):
     rule = re.compile(r'(for[ \t]*(?P<name>\w+)[ \t]*)(?P<while_in>in|while)((?P<cond>[^\n\r\f]+))'+BLOCK_START)
@@ -235,21 +215,15 @@ class PyCode(MastNode):
 
 CLOSE_FUNC = r"\)[ \t]*(?=\r\n|\n|\#)"
 class FuncCommand(MastNode):
-    rule = re.compile(r'(?P<py_cmds>[\w\.]+\s*\([^\n\r\f]+[ \t]*(?=\r\n|\n|\#))')
-    def __init__(self, py_cmds=None, loc=None):
+    rule = re.compile(r'(?P<is_await>await\s+)?(?P<py_cmds>[\w\.]+\s*\([^\n\r\f]+[ \t]*(?=\r\n|\n|\#))')
+    def __init__(self, is_await=None, py_cmds=None, loc=None):
         self.loc = loc
+        self.is_await = is_await != None
         if py_cmds:
             py_cmds= py_cmds.lstrip()
-            self.code = compile(py_cmds, "<string>", "exec")
+            self.code = compile(py_cmds, "<string>", "eval")
 
 
-
-class Input(MastNode):
-    rule = re.compile(r'input[ \t]+(?P<name>\w+)')
-
-    def __init__(self, name, loc=None):
-        self.loc = loc
-        self.name = name
 
 class Import(MastNode):
     rule = re.compile(r'(from[ \t]+(?P<lib>[\w\.\\\/-]+)[ \t]+)?import\s+(?P<name>[\w\.\\\/-]+)')
@@ -265,11 +239,6 @@ class Comment(MastNode):
     rule = re.compile(r'(#[ \t\S]*)|(/\*[^*]*\*+(?:[^/*][^*]*\*+)*/)|([!]{3,}\s*(?P<com>\w+)\s*[!]{3,}[\s\S]+[!]{3,}\s*end\s+(?P=com)\s*[!]{3,})')
 
     def __init__(self, com=None, loc=None):
-        self.loc = loc
-
-class Marker(MastNode):
-    rule = re.compile(r'[-*+]{3,}')
-    def __init__(self, loc=None):
         self.loc = loc
 
 
@@ -620,16 +589,6 @@ class AwaitCondition(MastNode):
             self.code = None
 
 
-class Cancel(MastNode):
-    """
-    Cancels a new 'task' to run in parallel
-    """
-    rule = re.compile(r"""cancel[ \t]*(?P<name>[\w\.\[\]]+)""")
-
-    def __init__(self, lhs=None, name=None, loc=None):
-        self.loc = loc
-        self.name = name
-
 
 class End(MastNode):
     rule = re.compile(r'->[ \t]*END'+IF_EXP_REGEX)
@@ -673,17 +632,6 @@ class Yield(MastNode):
             self.if_code = compile(if_exp, "<string>", "eval")
         else:
             self.if_code = None
-
-
-class Delay(MastNode):
-    clock = r"([ \t]*(?P<clock>\w+))"
-    rule = re.compile(r'delay'+clock+MIN_SECONDS_REGEX)
-
-    def __init__(self, clock, seconds=None, minutes=None, loc=None):
-        self.loc = loc
-        self.seconds = 0 if seconds is None else int(seconds)
-        self.minutes = 0 if minutes is None else int(minutes)
-        self.clock = clock
 
 
 class Rule:
@@ -769,6 +717,11 @@ class Mast():
         "data_dir": fs.get_artemis_data_dir(),
         "MastDataObject": MastDataObject,
         "range": range,
+        "INFO": logging.INFO,
+        "DEBUG": logging.DEBUG,
+        "WARNING": logging.WARNING,
+        "ERROR": logging.ERROR,
+        "CRITICAL": logging.CRITICAL,
         "__build_class__":__build_class__, # ability to define classes
         "__name__":__name__ # needed to define classes?
     }
@@ -821,10 +774,6 @@ class Mast():
         LoopEnd,
         LoopBreak,
         PyCode,
-        Log,
-        Logger,
-    Input,
-        #        Var,
         Import,
         AwaitCondition,
         FuncCommand,
@@ -834,16 +783,13 @@ class Mast():
         EndAwait,
         AwaitFail,
         Behavior, # Needs to be in front of parallel
-            Parallel,  # needs to be before Assign
-            Cancel,
+        #    Parallel,  # needs to be before Assign
         Assign,
         Fail,
         Yield,
         End,
         ReturnIf,
             Jump,
-            Delay,
-    Marker,
     ]
 
     def get_source_file_name(file_num):
@@ -1095,7 +1041,7 @@ class Mast():
                             self.labels[data['name']] = active
                             exists =  Agent.SHARED.get_inventory_value(label_name)
                             exists =  Mast.globals.get(label_name, exists)
-                            if exists:
+                            if exists and not replace:
                                 errors.append(f"\nERROR: label conflicts with shared name, rename label '{label_name }'. {file_name}:{line_no} - {line}")
                                 break
 
@@ -1133,8 +1079,6 @@ class Mast():
                         # Throw comments and markers away
                         case "Comment":
                             pass
-                        case "Marker":
-                            pass
 
                         case _:
                             try:
@@ -1144,10 +1088,10 @@ class Mast():
                                 obj.line_num = line_no
                             except Exception as e:
                                 logger = logging.getLogger("mast.compile")
-                                logger.error(f"ERROR: {line_no} - {line}")
+                                logger.error(f"ERROR: {file_name} {line_no} - {line}")
                                 logger.error(f"Exception: {e}")
 
-                                errors.append(f"\nERROR: {line_no} - {line}")
+                                errors.append(f"\nERROR: {file_name} {line_no} - {line}")
                                 errors.append(f"\nException: {e}")
                                 return errors # return with first errors
 
@@ -1169,8 +1113,9 @@ class Mast():
                     mo = first_newline_index(lines)
 
                     logger = logging.getLogger("mast.compile")
-                    logger.error(f"\nERROR: {line_no} - {lines[0:mo]}")
-                    errors.append(f"\nERROR: {line_no} - {lines[0:mo]}")
+                    error = f"\nERROR: {line_no} - {file_name}\n\n    {lines[0:mo]}\n"
+                    logger.error(error )
+                    errors.append(error)
                     lines = lines[mo+1:]
 
         for node in EndAwait.stack:
@@ -1186,11 +1131,6 @@ class Mast():
             errors.append(f"\nERROR: Missing end_match prior to label '{active_name}'cmd {node.loc}")
         MatchStatements.chains.clear()
 
-        
-        
-
-            
-
         return errors
 
     def enable_logging():
@@ -1202,8 +1142,3 @@ class Mast():
         # fh = logging.FileHandler('mast.log')
         # fh.setLevel(logging.DEBUG)
         # logger.addHandler(fh)
-        
-
-
-
-

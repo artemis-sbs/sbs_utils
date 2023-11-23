@@ -12,27 +12,27 @@ view = "View"
 ship_select = "Ship"
 text_in = "Hello, World"
 
-do gui_set_style_def(".choice", "padding:0.5,0,0.5,0;")
-do gui_set_style_def(".button", "padding:0.5,0.25,0.5,0.25;")
-do gui_set_style_def(".input", "padding:0.5,0.25,0.5,0.25;")
-do gui_set_style_def(".checkbox", "padding:0.5,0.25,0.5,0.25;")
-do gui_set_style_def(".slider", "padding:0.5,0.25,0.5,0.25;")
+gui_set_style_def(".choice", "padding:0.5,0,0.5,0;")
+gui_set_style_def(".button", "padding:0.5,0.25,0.5,0.25;")
+gui_set_style_def(".input", "padding:0.5,0.25,0.5,0.25;")
+gui_set_style_def(".checkbox", "padding:0.5,0.25,0.5,0.25;")
+gui_set_style_def(".slider", "padding:0.5,0.25,0.5,0.25;")
 
 
 ->Briefing
 
 ================== Briefing ================
 
-do gui_section(style="area: 0, 30px, 60, 100-30px;")
+gui_section(style="area: 0, 30px, 60, 100-30px;")
 
 
-do gui_face(alisa)
+gui_face(alisa)
 """""""""""""""""""""""""""""""""
 Welcome to the TSN
 I'm Captain Alisa. I've been running things in this sector for 10 years. We run a tight sector.
 I don't take any crap and I do not like people who lie and disobey orders out of a matter of principle.
 """""""""""""""""""""""""""""""""
-do gui_row()
+gui_row()
 
 """""""""""""""""""""""""""""""""
 Hi, I'm Captain frank. Alisa isn't that bad once you get to know her.
@@ -42,20 +42,20 @@ You're in for an adventure
 Have you ever flown a spaceship?
 """""""""""""""""""""""""""""""""
 
-do gui_face(frank)
+gui_face(frank)
 
 
-do gui_section(style="area: 60, 10, 100, 100-30px;")
+gui_section(style="area: 60, 10, 100, 100-30px;")
 
-do gui_blank()
-do gui_row()
-do gui_ship("tsn_battle_cruiser")
-do gui_row()
-do gui_blank()
+gui_blank()
+gui_row()
+gui_ship("tsn_battle_cruiser")
+gui_row()
+gui_blank()
 """""""""""""""""""""""""""""""""
 This is your first ship
 """""""""""""""""""""""""""""""""
-do gui_blank()
+gui_blank()
 
 await choice:
     + "Yes.." if learn == True:
@@ -83,8 +83,8 @@ end_await
 
 =================== YouLied ========
 
-do gui_section(style="area: 20, 10, 100, 100-30px;")
-do gui_face(alisa)
+gui_section(style="area: 20, 10, 100, 100-30px;")
+gui_face(alisa)
 
 """"""""""""""""""""""""""""""""""""""""""""""
 I will not tolerate those who are untruthful.
@@ -100,9 +100,9 @@ end_await
 
 ============== YouTrained =========
 
-do gui_section(style="area: 20, 10, 100, 100-30px;")
+gui_section(style="area: 20, 10, 100, 100-30px;")
 
-do gui_face(alisa)
+gui_face(alisa)
 
 """""""""""""""""""""""""""""""""
 Congratulations!
@@ -135,7 +135,7 @@ shared mission_started = True
 
 ==================           Learn     ===========
 
-do gui_section(style="area: 20, 20, 100, 40;")
+gui_section(style="area: 20, 20, 100, 40;")
 
 learn = False
 
@@ -152,7 +152,7 @@ end_on
 on message gui_button("Test 4"):
 ->Learn 
 end_on
-do gui_row()
+gui_row()
 on message gui_button("Test 5"):
 -> Learn
 end_on
@@ -165,19 +165,19 @@ end_on
 on message gui_button("Test 8"):
  ->Learn 
  end_on
-do gui_row()
+gui_row()
 on message gui_button("Test 9"):
  -> Briefing 
  end_on
 on message gui_button("Test 10"):
  -> Briefing 
  end_on
-do gui_row()
+gui_row()
 
-input text_in
+gui_input(var="text_in")
 
 #slider slider_value 0.0 1.0 0.5
-do gui_checkbox("Yaba")
+gui_checkbox("Yaba")
 
 await choice:
 + "exit":
@@ -205,9 +205,9 @@ shared tsn =  ~~ [
 
 ===================== Menu ============
 if IS_SERVER:
-    do gui_section(style="area: 100-500px,0, 100, 30px;")
+    gui_section(style="area: 100-500px,0, 100, 30px;")
 else:
-    do gui_section(style="area: 100-500px, 0, 100, 30px;")
+    gui_section(style="area: 100-500px, 0, 100, 30px;")
 end_if
 
 on message gui_drop_down("text: ship;list:Artemis,Hera,Atlas", var= "ship_select"):
@@ -227,7 +227,7 @@ on message gui_drop_down("text: Mast;list:Variables,Debug,restart", "mast_view")
 ->>PickedMast
 end_on
 
-do gui_section(style="area: 0, 30px, 100, 100-30px;")
+gui_section(style="area: 0, 30px, 100, 100-30px;")
 <<-
 
 
@@ -284,17 +284,17 @@ end_match
 
 match console:
     case "Helm":
-        do gui_widget_list("normal_helm" "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control")
+        gui_widget_list("normal_helm" "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control")
     case "Weapons":
-        do gui_widget_list("normal_weap" "2dview^weapon_control^weap_beam_freq^weap_beam_speed^ship_data^shield_control^text_waterfall^main_screen_control")
+        gui_widget_list("normal_weap" "2dview^weapon_control^weap_beam_freq^weap_beam_speed^ship_data^shield_control^text_waterfall^main_screen_control")
     case "Science":
-        do gui_widget_list("normal_sci" "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list")
+        gui_widget_list("normal_sci" "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list")
     case "Engineering":
-        do gui_widget_list("normal_engi" "ship_internal_view^grid_object_list^grid_face_grid_control^text_waterfall^eng_heat_controls^eng_power_controls^ship_data")
+        gui_widget_list("normal_engi" "ship_internal_view^grid_object_list^grid_face_grid_control^text_waterfall^eng_heat_controls^eng_power_controls^ship_data")
     case "Comms":
-        do gui_widget_list("normal_comm" "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert")
+        gui_widget_list("normal_comm" "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert")
     case "Main Screen":
-        do gui_widget_list("normal_main" "3dview^ship_data^text_waterfall")
+        gui_widget_list("normal_main" "3dview^ship_data^text_waterfall")
     case _:
         """Pick a Console"""
 end_match
@@ -339,26 +339,26 @@ await choice:
 end_await
 
 ====== BroadcastTest ==============
-have *PlayerShip broadcast "Hello"
+comms_broadcast(PlayerShip,  "Hello")
 <<-
 
 ========== ViewQuarters =====
 ->> Menu
 
-do gui_image("{mission_dir}\data\quarters")
+gui_image("{mission_dir}\data\quarters")
 
 await gui
 
 ========== ViewCrafting =====
 ->> Menu
 
-do gui_image("image:{mission_dir}\data\crafting;")
+gui_image("image:{mission_dir}\data\crafting;")
 
 await gui
 ========== ViewPad =====
 ->> Menu
 
-do gui_image( "{mission_dir}\data\datapad")
+gui_image( "{mission_dir}\data\datapad")
 
 await gui
 

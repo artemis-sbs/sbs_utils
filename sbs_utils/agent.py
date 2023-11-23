@@ -529,3 +529,11 @@ Agent.SHARED_ID = get_story_id()
 Agent.SHARED.id = Agent.SHARED_ID
 Agent.SHARED.add()
 
+#
+# Needed for testing
+#
+def clear_shared():
+    Agent.SHARED_ID
+    Agent.SHARED = Agent()
+    Agent.SHARED.id = Agent.SHARED_ID
+    Agent.SHARED.add()

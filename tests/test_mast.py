@@ -1,23 +1,30 @@
 from sbs_utils.mast.mast import Mast, Scope
 from sbs_utils.mast.mastscheduler import MastScheduler
-
+from sbs_utils.agent import clear_shared
 import unittest
+# for logging
+import sbs_utils.procedural.execution
+Mast.import_python_module('sbs_utils.procedural.execution')
 
 #Mast.enable_logging()
+Mast.include_code = True
 
 class TMastScheduler(MastScheduler):
     def runtime_error(self, message):
         print(f"RUNTIME ERROR: {message}")
+        assert(False)
 
 def mast_compile(code=None):
         mast = Mast()
-        errors = mast.compile(code)
+        clear_shared()
+        errors = mast.compile(code, "test")
         return (errors, mast)
 
 
 def mast_run(code=None):
     mast = Mast()
-    errors = mast.compile(code)
+    clear_shared()
+    errors = mast.compile(code, "test")
     runner = TMastScheduler(mast)
     runner.start_task()
     return (errors,runner, mast)
@@ -101,9 +108,9 @@ next x
         (errors, mast) = mast_compile( code = """
 
     ====== test ======
-    log "Hello"
+    log("Hello")
     ==== test ====
-    log "good bye"
+    log("good bye")
 
 """)
         assert(len(errors)==1)
@@ -113,9 +120,9 @@ next x
         (errors, mast) = mast_compile( code = """
 
     ====== test ======
-    log "Hello"
+    log("Hello")
     ==== replace: test ====
-    log "good bye"
+    log("good bye")
 
 """)
         assert(len(errors)==0)
@@ -154,41 +161,41 @@ end_if
 
     def test_jumps_run(self):
         (errors, runner, mast) =mast_run( code = """
-logger string output
+logger(var="output")
 x = 45
 push test_args {"x": 2}
-log "{x}"
+log("{x}")
                                          
 jump fred if x==2
-log "yes-1"
+log("yes-1")
 jump barney if x > 40
-log "no-1"
+log("no-1")
 ->END
 
 ==== fred ===
-log "no-1"
+log("no-1")
 ->END
 
 ==== test_args ===
-log "{x}"
+log("{x}")
 <<-
 
 ==== barney === 
 
 if x==2:
-    log "no-1"
+    log("no-1")
    jump betty
 end_if
-log "yes-2"
+log("yes-2")
 
 if x==2:
    jump betty if x==45
 end_if
-log "yes-3"
+log("yes-3")
 ->END
 
 ==== betty === 
-log "no-1"
+log("no-1")
 
 """)
 
@@ -227,7 +234,7 @@ fail:
 ->FAIL
 end_await
 => all fred & barney
-schedule all fred & barney
+task_all(fred, barney)
 
 
 => pass_data {"self": player1, "HP": 30}
@@ -394,61 +401,61 @@ d //= 10
      
     def test_if(self):
         (errors, runner, _) = mast_run( code = """
-        logger string output
+        logger(var="output")
 x = 52
 if x>50:
-log "if-case1"
+log("if-case1")
 x=100
 end_if
 
 if x<50:
-log "if-case2"
+log("if-case2")
 x=100
 else:
-log "else-case2"
+log("else-case2")
 x=100000
 end_if
 
 if x>50:
-log "if-case3"
+log("if-case3")
 x=100
 else:
-log "else-case3"
+log("else-case3")
 x=100000
 end_if
 
 if x<50:
-log "if-case4"
+log("if-case4")
 x=9999
 elif x>50:
-log "elif-case4"
+log("elif-case4")
 x=200
 else:
-log "else-case4"
+log("else-case4")
 x=300
 end_if
 
 if x<50:
-log "if-case5"
+log("if-case5")
 x=9999
 elif x>250:
-log "elif-case5"
+log("elif-case5")
 x=200
 else:
-log "else-case5"
+log("else-case5")
 x=300
 end_if
 x = 52
 
 if x > 50:
-    log "if-case6"
+    log("if-case6")
     if x <50:
-        log "inner-if-case6"
+        log("inner-if-case6")
     else:
-         log "inner-else-case6"
+         log("inner-else-case6")
     end_if
 else:
-    log "else-case6"
+    log("else-case6")
 end_if
 
 
@@ -492,27 +499,27 @@ case 50:
 
     def test_loops(self):
             (errors, runner, _) = mast_run( code = """
-    logger string output
+    logger(var="output")
     x = 52
-    log "{x}"
+    log("{x}")
     # 62
     for y in range(10):
         x = x + 1
     next y
-    log "{x}"
+    log("{x}")
 
     #72
     x = x + 20
-    log "{x}"
+    log("{x}")
     #122
     x = x + 50
-    log "{x}"
+    log("{x}")
 
     #132
     for y in range(10):
         x = x + 1
     next y
-    log "{x}"
+    log("{x}")
     
 
     #142
@@ -521,13 +528,13 @@ case 50:
         x = x + 1
         count = count - 1
     next y
-    log "{x}"
+    log("{x}")
 
     #147
     for y while y<5:
         x = x + 1
     next y
-    log "{x}"
+    log("{x}")
 
     #257
     for y in range(10):
@@ -535,14 +542,14 @@ case 50:
             x = x + 1
         next z
     next y
-    log "{x}"
+    log("{x}")
 
     #757
     for y in range(10):
         x = x + 500
         break
     next y
-    log "{x}"
+    log("{x}")
 
     # 757 (no adds)
     for y in range(10):
@@ -551,7 +558,7 @@ case 50:
         break
     end_if
     next y
-    log "{x}"
+    log("{x}")
 
     #777
     for y in range(10):
@@ -560,17 +567,17 @@ case 50:
         break
     end_if
     next y
-    log "{x}"
+    log("{x}")
 
     #877
     for y in range(10):
-    # log "877 - {y}"
+    # log("877 - {y}")
     if y > 50:
         break
     end_if
     x = x + 10
     next y
-    log "{x}"
+    log("{x}")
 
 
     """)
@@ -584,16 +591,16 @@ case 50:
     
     def test_replace_label(self):
             (errors, runner, _) = mast_run( code = """
-    logger string output
+    logger(var="output")
     -> test
     ======= test ======
-    log "NO1"
+    log("NO1")
     ==== replace: test ====
-    log "YES1"
+    log("YES1")
     ====== fred ===== 
-    log "NO2"
+    log("NO2")
     ==== replace: fred ====
-    log "YES2"
+    log("YES2")
     """)
             assert(len(errors)==0)
             output = runner.get_value("output", None)
@@ -608,10 +615,10 @@ case 50:
 shared x = 0
 var t =>  Inc
 await until x==10:
-    log "x={x}"
+    log("x={x}")
 end_await
 cancel t
-log "done"
+log("done")
 ->END
 === Inc ==
 x = x + 1
@@ -636,9 +643,9 @@ shared var2 = 100
 ->> Push  # var1 is 200 # var2 200
 ->> Push  # var1 is 300 # var2 300
 
-await => Spawn {"data": data}  # var1 is 400 var2 is 400
-await schedule Spawn {"data": data}# var1 is 500 var2 is 500
-await => Spawn {"data": other} # var1 still 500 on this 
+await task_schedule(Spawn, data: {"data": data})  # var1 is 400 var2 is 400
+await task_schedule(Spawn, data={"data": data}) # var1 is 500 var2 is 500
+await task_schedule(Spawn, data={"data": other}) # var1 still 500 on this 
 
 if data.var1==500:
     ->> Push  # var1 is 600
@@ -689,11 +696,11 @@ var2 = var2 + 100
 
     def test_task_pass_data_run_no_err(self):
         (errors, runner, _) = mast_run( code = """
-logger string output
+logger(var="output")
 await => Spawn {"var1": 99} # var1 still 500 on this 
-
+->END
 === Spawn ===
-log "{var1}"
+log("{var1}")
 ->END
 
     """)
@@ -776,19 +783,19 @@ shared var2 = var2 + 100
 
     def test_log_run_no_err(self):
                 (errors, runner, _) = mast_run( code = """
-    logger string output            
+    logger(var="output")            
     -> Here
     ======== NotHere =====
-    log "Got here later"
+    log("Got here later")
     -> End
     ======== Here =====
-    log "First"
+    log("First")
     -> NotHere
     ======== End =====
-    log "Done"
+    log("Done")
     ->END
     ======== Never =====
-    log "Can never reach"        
+    log("Can never reach"        )
             """)
                 assert(len(errors)==0)
                 output = runner.get_value("output", None)
@@ -805,13 +812,13 @@ Done
 
     def test_multi_log_run_no_err(self):
                 (errors, runner, _) = mast_run( code = """
-    logger name test1 string output1
-    logger name test2 string output2
-    log name test1 "Test1"
+    logger(name="test1", var="output1")
+    logger(name="test2", var="output2")
+    log("Test1", name="test1")
     
-    log name test2 "Test2"
-    log name test1 "Done1"
-    log name test2 "Done2"
+    log("Test2", name="test2")
+    log("Done1", name="test1")
+    log("Done2", name="test2")
     
             """)
                 assert(len(errors)==0)
@@ -833,19 +840,19 @@ Done
     
     def test_log_compile_no_err(self):
                 (errors, _) = mast_compile( code = """
-    logger string output
-    logger file "test"
+    logger(var="output")
+    logger(file="test")
     -> Here
     ======== NotHere =====
-    log "Got here later"
+    log("Got here later")
     -> End
     ======== Here =====
-    log "First"
+    log("First")
     -> NotHere
     ======== End =====
-    log "Done"
+    log("Done")
     ======== Never =====
-    log "Can never reach"        
+    log("Can never reach"        )
             """)
                 assert(len(errors)==0)
 
@@ -959,27 +966,27 @@ Done
 
     def test_push_pop_run_no_err(self):
                 (errors, runner, _) = mast_run( code = """
-    logger string output            
+    logger(var="output")
     ->> PushHere
     ->> PushJump
     ->> PushDouble
-    log "out"
+    log("out")
     ->END
     
     ======== PushHere =====
-    log "Push"
+    log("Push")
     <<-
     ======== PushDouble =====
-    log "PushDouble"
+    log("PushDouble")
     ->> PushJump
-    log "PopDouble"
+    log("PopDouble")
     <<-
 
     ======== PushJump =====
-    log "PushJump"
+    log("PushJump")
     -> Popper
     ===== Popper ====
-    log "Popper"
+    log("Popper")
     <<-
             """)
                 assert(len(errors)==0)
@@ -1002,22 +1009,22 @@ out
 
     def test_all_no_err(self):
         (errors, runner, _) = mast_run( code = """
-        logger string output            
+        logger(var="output")
         
         await all Seq1 & Seq2 & Seq3
         ->END
         ======== Seq1 =====
-        log "S1"
+        log("S1")
         delay test 3s
-        log "S1 Again"
+        log("S1 Again")
         -> END
         ======== Seq2 =====
-        log "S2"
+        log("S2")
         -> END
         ===== Seq3 ====
-        log "S3"
+        log("S3")
         delay test 1s
-        log "S3 Again"
+        log("S3 Again")
         -> END
     """)
         assert(len(errors)==0)
@@ -1040,20 +1047,20 @@ S1 Again
 
     def test_any_no_err(self):
         (errors, runner, _) = mast_run( code = """
-        logger string output            
+        logger(var="output")
         
         await any Seq1 | Seq2 | Seq3
         ->END
         ======== Seq1 =====
-        log "S1"
+        log("S1")
         delay gui 10s
-        log "S1 Again"
+        log("S1 Again")
         ======== Seq2 =====
-        log "S2"
+        log("S2")
         -> END
         ===== Seq3 ====
         delay gui 10s
-        log "S3"
+        log("S3")
         -> FAIL
     """)
         assert(len(errors)==0)
@@ -1074,24 +1081,24 @@ S2
 
     def test_fallback_no_err(self):
         (errors, runner, _) = mast_run( code = """
-        logger string output            
+        logger(var="output")
         
         await bt sel Seq1 | Seq2 | Seq3
         ->END
         ======== Seq1 =====
-        log "S1"
+        log("S1")
         yield Fail
         delay test 3s
-        log "S1 Again"
+        log("S1 Again")
 
         ======== Seq2 =====
-        log "S2"
+        log("S2")
         delay test 10s
-        log "S2 Again"
+        log("S2 Again")
         yield Success
         ===== Seq3 ====
         delay test 3s
-        log "S3"
+        log("S3")
         yield faIl
     """)
         assert(len(errors)==0)
@@ -1112,27 +1119,27 @@ S2 Again
 
     def test_fallback_loop_no_err(self):
         (errors, runner, _) = mast_run( code = """
-        logger string output            
+        logger(var="output")            
         shared x = 0
         === run ===
         await bt sel Seq1 | Seq2 | Seq3:
         fail:
-            log "Fail"
+            log("Fail")
             ->run
         end_await
         ->END
         ======== Seq1 =====
-        log "S1"
+        log("S1")
         yield fail
         
 
         ======== Seq2 =====
-        log "S2"
+        log("S2")
         x = x +1
         yield fail if x<3
         -> END
         ===== Seq3 ====
-        log "S3"
+        log("S3")
         yield fail
     """)
         assert(len(errors)==0)
@@ -1149,24 +1156,24 @@ S2 Again
 
     def test_fallback_until_success_no_err(self):
         (errors, runner, _) = mast_run( code = """
-        logger string output            
+        logger(var="output")            
         shared x = 0
         === run ===
         await bt until success sel Seq1 | Seq2 | Seq3
         
         ->END
         ======== Seq1 =====
-        log "S1"
+        log("S1")
         yield fail
         
 
         ======== Seq2 =====
-        log "S2"
+        log("S2")
         x = x +1
         yield fail if x<3
         -> END
         ===== Seq3 ====
-        log "S3"
+        log("S3")
         yield fail
     """)
         assert(len(errors)==0)
@@ -1183,7 +1190,7 @@ S2 Again
 
     def test_fallback_no_cond_no_err(self):
         (errors, runner, _) = mast_run( code = """
-        logger string output            
+        logger(var="output")            
         shared has_apple = False
         shared has_banana = False
         # Start something that will eventually find an apple
@@ -1193,11 +1200,11 @@ S2 Again
         await bt until success sel eat_apple | eat_banana        
         #await a
         
-        log "not hungry"
+        log("not hungry")
         ->END
         ??????? eat_apple ??????
         ->FAIL if not has_apple
-        log "Ate Apple"
+        log("Ate Apple")
         -> END
         ??????? eat_banana ?????
         -> FAIL if not has_banana
@@ -1224,7 +1231,7 @@ S2 Again
 
     def test_fallback_cond_no_err(self):
         (errors, runner, _) = mast_run( code = """
-        logger string output
+        logger(var="output")
 
         blackboard  = ~~MastDataObject({
             "not_hungry":  False,
@@ -1233,11 +1240,11 @@ S2 Again
         })~~
 
         #await =>=> external & not_hungry  {"blackboard": blackboard}
-        schedule external {"blackboard": blackboard}
+        task_schedule(external, data= {"blackboard": blackboard})
         await bt until success seq not_hungry {"blackboard": blackboard}
     
         
-        log "not hungry"
+        log("not hungry")
         ->END
 
         ====== not_hungry =====
@@ -1247,18 +1254,18 @@ S2 Again
         ??????? eat_apple ??????
         ->FAIL if not blackboard.has_apple
         blackboard.not_hungry = True
-        log "Ate Apple"
+        log("Ate Apple")
         -> END
         ??????? eat_banana ?????
         -> FAIL if not blackboard.has_banana
-        log "Ate Banana"
+        log("Ate Banana")
         blackboard.not_hungry = True
         -> END
 
 
         ===== external ====
         for x in range(10):
-        #    log 'fail'
+        #    log('fail')
             yield
         next x
         blackboard.has_apple = True
@@ -1281,24 +1288,24 @@ S2 Again
 
     def test_sequence_no_err(self):
         (errors, runner, _) = mast_run( code = """
-        logger string output            
+        logger(var="output")            
         
         await bt seq Seq1 & Seq2 & Seq3
         ->END
         ======== Seq1 =====
-        log "S1"
+        log("S1")
         delay test 3s
-        log "S1 Again"
+        log("S1 Again")
         ->END
 
         ======== Seq2 =====
-        log "S2"
+        log("S2")
         delay test 10s
-        log "S2 Again"
+        log("S2 Again")
         -> END
         ===== Seq3 ====
         delay test 3s
-        log "S3"
+        log("S3")
         ->END
     """)
         assert(len(errors)==0)
@@ -1321,13 +1328,13 @@ S3
 
     def test_label_pass_through_run_no_err(self):
                 (errors, runner, _) = mast_run( code = """
-logger string output
+logger(var="output")
 ======== One =====
-log "One"
+log("One")
 ======== Two =====
-log "Two"
+log("Two")
 ===== Three ====
-log "Three"
+log("Three")
             """)
                 assert(len(errors)==0)
                 output = runner.get_value("output", None)

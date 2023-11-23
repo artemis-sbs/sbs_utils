@@ -44,7 +44,7 @@ class CommsRuntimeNode(MastRuntimeNode):
         if seconds == 0:
             self.timeout = None
         else:
-            self.timeout = task.main.get_seconds("sim")+ (node.minutes*60+node.seconds)
+            self.timeout = FrameContext.sim_seconds+ (node.minutes*60+node.seconds)
 
         #
         # Check for on change nodes
@@ -269,7 +269,7 @@ class CommsRuntimeNode(MastRuntimeNode):
             task.jump(task.active_label,button.loc+1)
             return PollResults.OK_JUMP
 
-        if self.timeout is not None and self.timeout <= task.main.get_seconds("sim"):
+        if self.timeout is not None and self.timeout <= FrameContext.sim_seconds:
             if node.timeout_label:
                 task.jump(task.active_label,node.timeout_label.loc+1)
                 return PollResults.OK_JUMP
@@ -588,24 +588,6 @@ class MastSbsScheduler(MastScheduler):
             super().__init__(mast, over|overrides)
         else:
             super().__init__(mast,  over)
-        self.sim = None
-    
-
-    def run(self, ctx, label="main", inputs=None):
-        self.sim = ctx.sim
-        self.ctx = ctx
-        inputs = inputs if inputs else {}
-        super().start_task( label, inputs)
-
-    def sbs_tick_tasks(self, ctx):
-        self.sim = ctx.sim
-        self.ctx = ctx
-        return super().tick()
-
-    def get_seconds(self, clock):
-        if clock == "sim":
-            return TickDispatcher.current/TickDispatcher.tps
-        return super().get_seconds(clock)
 
 
     def runtime_error(self, message):

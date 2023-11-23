@@ -1,4 +1,5 @@
 from .vec import Vec3
+import time as time
 
 class Context:
     def __init__(self, sim, _sbs, _event):
@@ -6,14 +7,53 @@ class Context:
         self.sbs = _sbs
         self.event = _event
 
+def show_warning(t):
+    print(t)
 
-class FrameContext:
+
+_TPS = 30.0
+class FrameContextMeta(type):
     context = None
     aspect_ratio = Vec3(1024,768,0)
-    page = None
-    task = None
+    _page = None
+    _task = None
     shared_id = -1
 
+    @property
+    def page(self):
+        if self._page is None:
+            show_warning("FrameContext missing page")
+        return self._page
+    
+    @page.setter
+    def page(self,value):
+        self._page = value
+
+    @property
+    def task(self):
+        if self._task is None:
+            show_warning("FrameContext missing Task")
+        return self._task
+    
+    @task.setter
+    def task(self,value):
+        self._task = value
+
+
+    @property
+    def sim(self):
+        return self.context.sim
+
+    @property
+    def sim_seconds(self):
+        return float(self.context.sim.time_tick_counter) / _TPS
+
+    @property
+    def app_seconds(self):
+       return time.time() 
+
+class FrameContext(metaclass=FrameContextMeta):
+    pass
 
 class FakeEvent:
     def __init__(self, client_id=0, tag="", sub_tag="", origin_id=0, selected_id=0, parent_id=0, extra_tag="", value_tag=""):

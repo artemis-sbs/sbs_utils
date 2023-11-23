@@ -9,7 +9,7 @@ from .parsers import StyleDefinition
 from ..agent import Agent
 from ..pages import layout
 
-from .maststory import AppendText,  MastStory, Choose, Disconnect, RerouteGui, Text, AwaitGui, OnChange, OnMessage, OnClick
+from .maststory import AppendText,  MastStory, Choose, Disconnect, Text, AwaitGui, OnChange, OnMessage, OnClick
 import traceback
 from .mastsbsscheduler import MastSbsScheduler, Button
 from .parsers import LayoutAreaParser
@@ -26,9 +26,6 @@ class TabControl(layout.Text):
         if event.sub_tag == self.click_tag:
             if self.label is not None:
                 self.page.gui_task.jump(self.label)
-
-
-
 
 
 class StoryRuntimeNode(MastRuntimeNode):
@@ -401,55 +398,6 @@ class OnClickRuntimeNode(StoryRuntimeNode):
             return PollResults.OK_JUMP
 
 
-class RerouteGuiRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: RerouteGui):
-        #
-        # RerouteGui in main defers to the end of main
-        #
-        if task.active_label=="main":
-            client_id = task.get_variable("client_id")
-            if client_id is None:
-                return
-            if node.gui == "server" and client_id!= 0:
-                return
-            if node.gui == "clients" and client_id== 0:
-                return
-            #
-            # A jump in main set the label's next
-            # label so it runs at the end of main
-            #
-            main_label_obj = task.main.mast.labels.get("main")
-            jump_label_obj = task.main.mast.labels.get(node.label)
-            main_label_obj.next = jump_label_obj
-            return
-        #
-        page = None
-        if node.gui == "server":
-            """ This is directly routing the server screen """
-            client = Gui.clients.get(0, None)
-            if client is not None:
-                page = client.page_stack[-1]
-                if page is None: 
-                    return
-        elif node.var:
-            """ This is directly routing a specific client by ID"""
-            val = task.get_variable(node.var)
-            if val is not None:
-                client = Gui.clients.get(val, None)
-                if client is not None:
-                    page = client.page_stack[-1]
-                    if page is None: 
-                        return
-        elif node.gui == "clients":
-            """Walk all the clients (not server) and send them to a new flow"""
-            for id, client in Gui.clients.items():
-                if id != 0 and client is not None:
-                    client_page = client.page_stack[-1]
-                    if client_page is not None and client_page.gui_task:
-                        client_page.gui_task.jump(node.label)
-        if page is not None and page.gui_task:
-            page.gui_task.jump(node.label)
-
 
 #
 # These are needed so the import later works, domn't remove
@@ -463,12 +411,13 @@ Mast.import_python_module('sbs_utils.widgets.shippicker')
 Mast.import_python_module('sbs_utils.widgets.listbox')
 
 over =     {
-    "RerouteGui": RerouteGuiRuntimeNode,
     "Text": TextRuntimeNode,
     "AppendText": AppendTextRuntimeNode,
+
     "OnChange": OnChangeRuntimeNode,
     "OnMessage": OnMessageRuntimeNode,
     "OnClick": OnClickRuntimeNode,
+
     "AwaitGui": AwaitGuiRuntimeNode,
     "Choose": ChooseRuntimeNode,
 }
@@ -479,38 +428,37 @@ class StoryScheduler(MastSbsScheduler):
             super().__init__(mast, over|overrides)
         else:
             super().__init__(mast,  over)
-        self.sim = None
+        
         self.paint_refresh = False
         self.errors = []
-        self.client_id = None
+        # self.sim = None
+        # self.client_id = None
 
     def run(self, client_id, page, label="main", inputs=None):
-        ctx = FrameContext.context
-        self.sim = ctx.sim
-        self.ctx = ctx
+        # ctx = FrameContext.context
+        # self.sim = ctx.sim
+        # self.ctx = ctx
         self.page = page
         self.client_id = client_id
-        inputs = inputs if inputs else {}
-        self.set_inventory_value('sim', ctx.sim)
-        self.set_inventory_value('client_id', client_id)
-        self.set_inventory_value('IS_SERVER', client_id==0)
-        self.set_inventory_value('IS_CLIENT', client_id!=0)
-        self.set_inventory_value('STORY_PAGE', page)
-        
+        #inputs = inputs if inputs else {}
+        # self.set_inventory_value('sim', ctx.sim)
+        # self.set_inventory_value('client_id', client_id)
+        # self.set_inventory_value('IS_SERVER', client_id==0)
+        # self.set_inventory_value('IS_CLIENT', client_id!=0)
+        # self.set_inventory_value('STORY_PAGE', page)
         FrameContext.page = self.page
-        return super().start_task( label, inputs)
+        return super().start_task( label)
 
     def story_tick_tasks(self, client_id):
-        ctx = FrameContext.context
         #
         restore = FrameContext.page
         FrameContext.page = self.page
-        self.sim = ctx.sim
-        self.ctx = ctx
-        self.set_inventory_value('sim', ctx.sim)
-        self.set_inventory_value('ctx', ctx)
-        self.client_id = client_id
-        ret = super().sbs_tick_tasks(ctx)
+        # self.sim = ctx.sim
+        # self.ctx = ctx
+        # self.set_inventory_value('sim', ctx.sim)
+        # self.set_inventory_value('ctx', ctx)
+        # self.client_id = client_id
+        ret = super().tick()
         FrameContext.page = restore
         return ret
 
@@ -535,8 +483,7 @@ class StoryScheduler(MastSbsScheduler):
 
 
     def runtime_error(self, message):
-        if self.sim:
-            sbs.pause_sim()
+        sbs.pause_sim()
         err = traceback.format_exc()
         if not err.startswith("NoneType"):
             message += str(err)
@@ -591,6 +538,13 @@ class StoryPage(Page):
         self.client_id == client_id
         if len(self.errors)==0:
             self.story_scheduler = StoryScheduler(cls.story)
+            self.story_scheduler.page = self
+            #self.story_scheduler.set_inventory_value('sim', ctx.sim)
+            self.story_scheduler.set_inventory_value('client_id', client_id)
+            self.story_scheduler.set_inventory_value('IS_SERVER', client_id==0)
+            self.story_scheduler .set_inventory_value('IS_CLIENT', client_id!=0)
+            # self.set_inventory_value('STORY_PAGE', page)
+
             self.gui_task = self.story_scheduler.run(client_id, self, inputs=cls.inputs)
 
 
@@ -805,13 +759,6 @@ class StoryPage(Page):
             _row.add(button)
         #_layout.calc()
         self.pending_layouts.append(_layout)
-    
-
-
-
-
-
-
 
 
     def update_props_by_tag(self, tag, props):
@@ -880,7 +827,7 @@ class StoryPage(Page):
         if len(self.errors) > 0:
             message = "".join(self.errors)
             message = message.replace(";", "~")
-            message = "text: Compiler Errors" + message.replace(",", ".")
+            message = "text: Mast Compiler Errors\n" + message.replace(",", ".")
             my_sbs.send_gui_clear(event.client_id)
             if event.client_id != 0:
                 my_sbs.send_client_widget_list(event.client_id, "", "")

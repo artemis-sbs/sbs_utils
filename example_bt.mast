@@ -78,17 +78,17 @@ end_brain
 ->END
 
 ======== search_under_doormat   ======
-delay sim 2s
+await delay_sim(2)
 inventory.add("Key", True)
 ->END
 
 ======== search_garden   ======
-delay sim 3s
+await delay_sim(3)
 inventory.add("Key", True)
 ->END
 
 ======== open_door   ======
-delay sim 2s
+await delay_sim(2)
 door_open = True
 ->END
         
@@ -125,14 +125,14 @@ end_brain
 ->END
 
 ======== eat_apple   ======
-delay sim 2s
+await delay_sim(2)
 inventory.Remove("Apple")
 hungry = FALSE
 ->END
 
 
 ======== eat_banana   ======
-delay sim 3s
+await delay_sim(3)
 inventory.Remove("Banana")
 hungry = FALSE
 ->END
