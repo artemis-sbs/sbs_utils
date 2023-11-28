@@ -111,6 +111,7 @@ def cosmos_event_handler(sim, event):
                 LifetimeDispatcher.dispatch_spawn()
  
             case "damage":
+                #print_event(event)
                 DamageDispatcher.dispatch_damage(event)
                 LifetimeDispatcher.dispatch_damage(event)
 

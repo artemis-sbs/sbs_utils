@@ -12,7 +12,7 @@ class MastSpaceObject(SpaceObject):
     def destroyed(self):
         task: MastAsyncTask
         for task in self.tasks:
-            task.done = True
+            task.end()
         self.tasks.clear()
         self.remove()
         self.scheduler = None
@@ -46,7 +46,7 @@ class GridObject(TheGridObject):
     def destroyed(self):
         task: MastAsyncTask
         for task in self.tasks:
-            task.done = True
+            task.end()
         self.tasks.clear()
         self.remove()
         self.scheduler = None

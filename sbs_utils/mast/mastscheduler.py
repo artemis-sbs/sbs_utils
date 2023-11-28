@@ -1,12 +1,14 @@
 from __future__ import annotations
 from enum import IntEnum
+from functools import partial
+import inspect
 from typing import List
 from .mast import *
 import time
 import traceback
 from ..agent import Agent, get_task_id
 from ..helpers import FrameContext
-from ..procedural.futures import Promise
+from ..futures import Promise
 
 
 class MastRuntimeNode:
@@ -310,7 +312,7 @@ class IfStatementsRuntimeNode(MastRuntimeNode):
     def first_true(self, task: MastAsyncTask, node: IfStatements):
         cmd_to_run = None
         for i in node.if_chain:
-            test_node = task.cmds[i]
+            test_node = task.mast_ticker.cmds[i]
             if test_node.code:
                 value = task.eval_code(test_node.code)
                 if value:
@@ -343,7 +345,7 @@ class MatchStatementsRuntimeNode(MastRuntimeNode):
     def first_true(self, task: MastAsyncTask, node: MatchStatements):
         cmd_to_run = None
         for i in node.chain:
-            test_node = task.cmds[i]
+            test_node = task.mast_ticker.cmds[i]
             if test_node.code:
                 value = task.eval_code(test_node.code)
                 if value:
@@ -383,9 +385,9 @@ class ParallelRuntimeNode(MastRuntimeNode):
         
     def poll(self, mast, task: MastAsyncTask, node:Parallel):
         if self.task:
-            if not self.task.done:
+            if not self.task.done():
                 return PollResults.OK_RUN_AGAIN
-            if node.fail_label and self.task.done and self.task.result == PollResults.FAIL_END:
+            if node.fail_label and self.task.done() and self.task.tick_result == PollResults.FAIL_END:
                 task.jump(task.active_label,node.fail_label.loc+1)
         if node.timeout_label and self.timeout < FrameContext.sim_seconds:
             task.jump(task.active_label,node.timeout_label.loc+1)
@@ -410,17 +412,17 @@ class BehaviorRuntimeNode(MastRuntimeNode):
         
     def poll(self, mast, task: MastAsyncTask, node:Behavior):
         if self.task:
-            if not self.task.done:
+            if not self.task.done():
                 return PollResults.OK_RUN_AGAIN
             if node.is_yield:
-                return self.task.result
-            if node.fail_label and self.task.done and self.task.result == PollResults.FAIL_END:
+                return self.task.tick_result
+            if node.fail_label and self.task.done() and self.task.tick_result == PollResults.FAIL_END:
                 task.jump(task.active_label,node.fail_label.loc+1)
-            elif node.until == "success" and self.task.done:
-                if  self.task.result == PollResults.FAIL_END:
+            elif node.until == "success" and self.task.done():
+                if  self.task.tick_result == PollResults.FAIL_END:
                     return self.task.rewind()
-            elif node.until == "fail" and self.task.done:
-                if  self.task.result != PollResults.FAIL_END:
+            elif node.until == "fail" and self.task.done():
+                if  self.task.tick_result != PollResults.FAIL_END:
                     return self.task.rewind()
         if node.timeout_label and self.timeout < FrameContext.sim_seconds:
             task.jump(task.active_label,node.timeout_label.loc+1)
@@ -478,94 +480,23 @@ class PushData:
         self.runtime_node = resume_node
 
 
-class MastAsyncTask(Agent):
-    main: 'MastScheduler'
-    dependent_tasks = {}
-    
-    def __init__(self, main: 'MastScheduler', inputs=None, conditional= None):
-        super().__init__()
-        self.id = get_task_id()
+class MastTicker:
+    def __init__(self, task, main):
         self.done = False
         self.runtime_node = None
-        self.main= main
-        #self.vars= inputs if inputs else {}
-        if inputs:
-            self.inventory.collections = dict(self.inventory.collections, **inputs)
-            #self.inventory.collections |= inputs
         self.result = None
-        self.label_stack = []
         self.active_label = None
-        self.events = {}
-        #self.vars["mast_task"] = self
-        self.set_inventory_value("mast_task", self)
-        #self.redirect = None
         self.pop_on_jump = 0
         self.pending_pop = None
         self.pending_jump = None
         self.pending_push = None
-        self.add()
-    
-    def push_label(self, label, activate_cmd=0, data=None):
-        #print("PUSH")
-        if self.active_label:
-            self.pending_push = PushData(self.active_label, self.active_cmd, data)
-            self.label_stack.append(self.pending_push)
-        self.jump(label, activate_cmd)
+        self.main = main
+        self.task = task
 
-    def push_inline_block(self, label, activate_cmd=0, data=None):
-        #
-        # This type of push resumes running the same runtime node 
-        # that was active when the push occurred
-        # This done by Buttons, Dropdown and event
-        #
-        #print("PUSH JUMP POP")
-        push_data = PushData(self.active_label, self.active_cmd, data, self.runtime_node)
-        self.label_stack.append(push_data)
-        self.pop_on_jump += 1
-        self.pending_jump = (label,activate_cmd)
-        #print(f"PUSH: {label}")
-        #self.jump(label, activate_cmd)
+    def end(self):
+        self.result = PollResults.OK_END
+        self.done = True
 
-
-
-    def pop_label(self, inc_loc=True, true_pop=False):
-        if len(self.label_stack)>0:
-            #
-            # Actual Pop was called in an inline block
-            # So unwind the inline_blocks
-            #
-            if true_pop:
-                while self.pop_on_jump>0:
-                    # if this is a jump and there are tested push
-                    # get back to the main flow
-                    self.pop_on_jump-=1
-                    push_data = self.label_stack.pop()
-            elif self.pop_on_jump >0:
-                self.pop_on_jump-=1
-                # push_data: PushData
-                # push_data = self.label_stack.pop()
-                # return
-            push_data: PushData
-            push_data = self.label_stack.pop()
-            #print(f"POP: {push_data.label}")
-            #print(f"POP DATA {push_data.label} {push_data.active_cmd} len {len(self.label_stack)}")
-            if self.pending_jump is None:
-                if inc_loc:
-                    #print(f"I inc'd {push_data.runtime_node}")
-                    self.pending_pop = (push_data.label, push_data.active_cmd+1, push_data.runtime_node)
-                else:
-                    #print(f"I DID NOT inc {push_data.runtime_node}")
-                    self.pending_pop = (push_data.label, push_data.active_cmd, push_data.runtime_node)
-
-    def add_event(self, event_name, event):
-        event_data = PushData(self.active_label, event.loc)
-        self.events[event_name] = event_data
-
-    def run_event(self, event_name, event):
-        ev_data = self.events.get(event_name)
-        if ev_data is not None:
-            self.push_inline_block(ev_data.label, ev_data.active_cmd+1,{"event": event})
-            self.tick()
 
     def jump(self, label = "main", activate_cmd=0):
         self.pending_jump = (label,activate_cmd)
@@ -573,13 +504,13 @@ class MastAsyncTask(Agent):
             # if this is a jump and there are tested push
             # get back to the main flow
             self.pop_on_jump-=1
-            push_data = self.label_stack.pop()
+            push_data = self.task.label_stack.pop()
             #print(f"POP: {push_data.label}")
     
     
     def do_jump(self, label = "main", activate_cmd=0):
            
-        if label == "END":
+        if label == "END" or label is None:
             self.active_cmd = 0
             self.runtime_node = None
             self.done = True
@@ -626,6 +557,414 @@ class MastAsyncTask(Agent):
             self.active_cmd = 0
             self.runtime_node = None
             self.done = True
+    def push_label(self, label, activate_cmd=0, data=None):
+        #print("PUSH")
+        if self.active_label:
+            self.pending_push = PushData(self.active_label, self.active_cmd, data)
+            self.task.label_stack.append(self.pending_push)
+        self.jump(label, activate_cmd)
+    def push_inline_block(self, label, activate_cmd=0, data=None):
+        #
+        # This type of push resumes running the same runtime node 
+        # that was active when the push occurred
+        # This done by Buttons, Dropdown and event
+        #
+        #print("PUSH JUMP POP")
+        push_data = PushData(self.active_label, self.active_cmd, data, self.runtime_node)
+        self.task.label_stack.append(push_data)
+        self.pop_on_jump += 1
+        self.pending_jump = (label,activate_cmd)
+        #print(f"PUSH: {label}")
+        #self.jump(label, activate_cmd)
+
+
+
+    def pop_label(self, inc_loc=True, true_pop=False):
+        if len(self.task.label_stack)>0:
+            #
+            # Actual Pop was called in an inline block
+            # So unwind the inline_blocks
+            #
+            if true_pop:
+                while self.pop_on_jump>0:
+                    # if this is a jump and there are tested push
+                    # get back to the main flow
+                    self.pop_on_jump-=1
+                    push_data = self.task.label_stack.pop()
+            elif self.pop_on_jump >0:
+                self.pop_on_jump-=1
+                # push_data: PushData
+                # push_data = self.task.label_stack.pop()
+                # return
+            push_data: PushData
+            push_data = self.task.label_stack.pop()
+            #print(f"POP: {push_data.label}")
+            #print(f"POP DATA {push_data.label} {push_data.active_cmd} len {len(self.task.label_stack)}")
+            if self.pending_jump is None:
+                if inc_loc:
+                    #print(f"I inc'd {push_data.runtime_node}")
+                    self.pending_pop = (push_data.label, push_data.active_cmd+1, push_data.runtime_node)
+                else:
+                    #print(f"I DID NOT inc {push_data.runtime_node}")
+                    self.pending_pop = (push_data.label, push_data.active_cmd, push_data.runtime_node)
+    def tick(self):
+        cmd = None
+        try:
+            if self.done:
+                # should unschedule
+                return PollResults.OK_END
+
+            count = 0
+            while not self.done:
+                if self.pending_jump:
+                    jump_data = self.pending_jump
+                    self.pending_jump = None
+                    # Jump takes precedence
+                    self.pending_pop = None
+                    self.do_jump(*jump_data)
+                elif self.pending_pop:
+                    # Pending jump trumps pending pop
+                    pop_data = self.pending_pop
+                    self.pending_pop = None
+                    if pop_data[2] is not None:
+                        self.do_resume(*pop_data)
+                    else:    
+                        self.do_jump(pop_data[0], pop_data[1])
+
+                count += 1
+                # avoid tight loops
+                if count > 1000:
+                    break
+
+                if self.runtime_node:
+                    cmd = self.cmds[self.active_cmd]
+                    # Purged Assigned are seen as Comments
+                    if cmd.__class__== "Comment":
+                        self.next()
+                        continue
+
+                    #print(f"{cmd.__class__} running {self.runtime_node.__class__}")
+                    result = self.runtime_node.poll(self.main.mast, self.task, cmd)
+                    match result:
+                        case PollResults.OK_ADVANCE_TRUE:
+                            self.result = result
+                            self.next()
+                        case PollResults.OK_YIELD:
+                            self.result = result
+                            self.next()
+                            break
+                        case PollResults.OK_ADVANCE_FALSE:
+                            self.result = result
+                            self.next()
+                        case PollResults.OK_END:
+                            self.result = result
+                            self.done = True
+                            return PollResults.OK_END
+                        case PollResults.FAIL_END:
+                            self.result = result
+                            return PollResults.FAIL_END
+
+                        case PollResults.OK_RUN_AGAIN:
+                            break
+                        case PollResults.OK_JUMP:
+                            continue
+            return PollResults.OK_RUN_AGAIN
+        except BaseException as err:
+            self.main.runtime_error(str(err))
+            return PollResults.OK_END
+
+        
+
+    def runtime_error(self, rte):
+        cmd = None
+        logger = logging.getLogger("mast.runtime")
+        logger.error(rte)
+        s = "mast RUNTIME ERROR\n" 
+        if self.runtime_node:
+            cmd = self.cmds[self.active_cmd]
+        if cmd is None:
+            s += f"\n      mast label: {self.active_label}"
+        else:
+            file_name = Mast.get_source_file_name(cmd.file_num)
+            s += f"\n      line: {cmd.line_num} in file: {file_name}"
+            s += f"\n      label: {self.active_label}"
+            s += f"\n      loc: {cmd.loc} cmd: {cmd.__class__.__name__}\n"
+            if cmd.line:
+                s += f"\n===== code ======\n\n{cmd.line}\n\n==================\n"
+            else:
+                s += "\nNOTE: to see code Set Mast.include_code to True is script.py only during development.\n\n"
+        s += '\n'+rte
+
+        logger = logging.getLogger("mast.runtime")
+        logger.error(s)
+
+        self.main.runtime_error(s)
+        self.done = True
+
+    def call_leave(self):
+        if self.runtime_node:
+            cmd = self.cmds[self.active_cmd]
+            self.runtime_node.leave(self.main.mast, self.task, cmd)
+            self.runtime_node = None
+
+
+    def next(self):
+        try:
+            if self.runtime_node:
+                self.call_leave()
+                #cmd = self.cmds[self.active_cmd]
+                self.active_cmd += 1
+            
+            if self.active_cmd >= len(self.cmds):
+                # move to the next label
+                #
+                # The first time Main is run, all shared 
+                # Assignment should be purged
+                # to avoid multiple assignments
+                #
+                self.main.mast.prune_main()
+
+                active = self.main.mast.labels.get(self.active_label)
+                next = active.next
+                if next is None:
+                    self.done = True
+                    return False
+                return self.jump(next.name)
+                
+            
+            cmd = self.cmds[self.active_cmd]
+            runtime_node_cls = self.main.nodes.get(cmd.__class__.__name__, MastRuntimeNode)
+            
+            self.runtime_node = runtime_node_cls()
+            #print(f"RUNNER {self.runtime_node.__class__.__name__}")
+            self.runtime_node.enter(self.main.mast, self.task, cmd)
+        except BaseException as err:
+            self.main.runtime_error(str(err))
+        
+        return True
+
+
+class PyTicker():
+    def __init__(self, task) -> None:
+        super().__init__()
+        self.stack=[]
+        self.delay_time = None
+        self.task = task
+        self.pending_jump = None
+        self.pending_pop = None
+        self.pop_on_jump = 0
+        self.current_gen = None
+        self.last_poll_result = None
+        self.done = False
+
+
+
+    def end(self):
+        self.last_poll_result = PollResults.OK_END
+        self.done = True
+            
+
+    def tick(self):
+        # Keep running until told to defer or you've jump 100 time
+        # Arbitrary number
+        throttle = 0
+        is_new_jump = False
+        while not self.done and throttle < 100:
+            throttle += 1
+            if self.pending_jump:
+                #print(f"jump to {self.pending_jump}")
+                res = self.do_jump()
+                self.pending_pop = None
+                is_new_jump = True
+            elif self.pending_pop:
+                # Pending jump trumps pending pop
+                #print(f"pending pop to {self.pending_pop.__name__}")
+                self.current_gen = self.pending_pop
+                self.pending_pop = None
+
+            
+            gen = self.current_gen
+            # It is possible that the label
+            # did not Yield, which is OK just End 
+            if gen is None:
+                #print("Gen None")
+                #self.last_poll_result = PollResults.OK_END
+                self.end()
+                return self.last_poll_result
+            
+            #self.last_poll_result = None
+            gen_done = True
+            for res in gen:
+                is_new_jump = False
+                if res is None:
+                    #print("Label yielded None")
+                    gen_done = True
+                    break
+                gen_done = False
+                if res is not None:
+                    self.last_poll_result = res
+                if res == PollResults.OK_RUN_AGAIN:
+                    return self.last_poll_result
+                if res == PollResults.OK_JUMP:
+                    break
+                if res == PollResults.OK_END:
+                    gen_done = True
+                    self.end()
+                    break
+                
+            if self.last_poll_result == PollResults.OK_JUMP:
+                continue
+            
+            if gen_done:
+                #
+                # The generator finished without jumping or popping
+                #
+                #
+                # This could be because the handler did not yield
+                #
+                # If there is a pending Jump DON't pop
+                #
+                if self.pending_jump is not None:
+                #
+                # jump was called and the generate just never yielded
+                    pass
+                elif len(self.stack)>0:
+                    # if there things on the stack treat this as a pop
+                    # Pop wasn't called
+                    # assuming it should pop
+                    self.last_poll_result = self.pop()
+                else:
+                    self.current_gen = self.pending_pop
+                    if self.current_gen is None:
+                        self.end()
+                        self.last_poll_result = PollResults.OK_END
+                    else:
+                        self.last_poll_result = PollResults.OK_JUMP
+                    return self.last_poll_result
+        return self.last_poll_result
+
+    def do_jump(self):
+        label = self.pending_jump
+        self.pending_jump = None
+        gen, res = self.get_gen(label)
+        self.current_gen = gen
+        # if gen is None:
+        #     print("Get_gen failed?")
+        return res
+
+    def get_gen(self, label):
+        gen = None
+        res = PollResults.FAIL_END
+        if inspect.isfunction(label):
+            gen = label(self.task)
+            res = PollResults.OK_JUMP
+            #print(f"IS func {label.__name__}")
+        elif inspect.ismethod(label):
+            gen = label()
+            res = PollResults.OK_JUMP
+            #print(f"IS method {label.__name__} {gen}")
+        elif isinstance(label, partial):
+            gen = label()
+            res = PollResults.OK_JUMP
+        else:
+            print("Unexpected label type: not function, method or partial")
+        
+        return (gen, res)
+    
+    def jump(self, label):
+        while self.pop_on_jump>0:
+            #print(f"I popped {label.__name__}")
+            #self.pop_on_jump -= 1
+            #self.stack.pop()
+            self.pop()
+        self.pending_jump = label
+        # jump cancels out pops
+        self.pending_pop = None
+        return PollResults.OK_JUMP
+
+    def push(self, label):
+        if self.current_gen is not None:
+            self.stack.append(self.current_gen)
+        return self.jump(label)
+    
+    def quick_push(self, func):
+        # The function proviced is expected to pop
+        if self.current_gen is not None:
+            self.stack.append(self.current_gen)
+        #gen, res = self.get_gen(func)
+        self.pending_jump = func 
+        return PollResults.OK_JUMP
+
+    
+    def push_jump_pop(self, label):
+        if self.current_gen is not None:
+            self.stack.append(self.current_gen)
+        self.pending_jump = label
+        self.pop_on_jump += 1
+        return PollResults.OK_JUMP
+
+    def pop(self):
+        if len(self.stack) > 0:
+            if self.pop_on_jump >0:
+                self.pop_on_jump-=1
+            self.pending_pop = self.stack.pop()
+            return PollResults.OK_JUMP
+        return PollResults.FAIL_END
+
+
+
+class MastAsyncTask(Agent, Promise):
+    main: 'MastScheduler'
+    dependent_tasks = {}
+    
+    def __init__(self, main: 'MastScheduler', inputs=None, conditional= None):
+        super().__init__()
+        self.id = get_task_id()
+        
+        #self.runtime_node = None
+        self.main= main
+        #self.vars= inputs if inputs else {}
+        if inputs:
+            self.inventory.collections = dict(self.inventory.collections, **inputs)
+            #self.inventory.collections |= inputs
+        
+        #self.label_stack = []
+        
+        #self.events = {}
+        #self.vars["mast_task"] = self
+        self.set_inventory_value("mast_task", self)
+        #self.redirect = None
+        # self.pop_on_jump = 0
+        # self.pending_pop = None
+        # self.pending_jump = None
+        # self.pending_push = None
+        self.mast_ticker = MastTicker(self, main)
+        self.py_ticker = PyTicker(self)
+        self.active_ticker = self.mast_ticker
+        self.label_stack = []
+
+        #self.done = False
+        #self.result = None
+        #self.active_label = None
+        self.add()
+    
+    def end(self):
+        self.active_ticker.end()
+        self.set_result(True)
+        self.done = True
+    #
+    # Override of Promise
+    #
+    # def done(self):
+    #     return self.active_ticker.done
+    
+    @property
+    def active_label(self):
+        return self.active_ticker.active_label
+    
+    @property
+    def tick_result(self):
+        return self.active_ticker.result
 
     def get_symbols(self):
         # m1 = self.main.mast.vars | self.main.vars
@@ -700,11 +1039,6 @@ class MastAsyncTask(Agent):
     def set_variable(self, key, value):
         self.set_value_keep_scope(key,value)
 
-    def call_leave(self):
-        if self.runtime_node:
-            cmd = self.cmds[self.active_cmd]
-            self.runtime_node.leave(self.main.mast, self, cmd)
-            self.runtime_node = None
 
     def format_string(self, message):
         if isinstance(message, str):
@@ -733,7 +1067,7 @@ class MastAsyncTask(Agent):
             value = eval(code, {"__builtins__": Mast.globals}, allowed)
         except:
             self.runtime_error(traceback.format_exc())
-            self.done = True
+            self.end()
         finally:
             pass
         return value
@@ -751,7 +1085,7 @@ class MastAsyncTask(Agent):
             exec(code, {"__builtins__": g}, allowed)
         except:
             self.runtime_error(traceback.format_exc())
-            self.done = True
+            self.end()
         finally:
             pass
         
@@ -761,136 +1095,32 @@ class MastAsyncTask(Agent):
         return self.main.start_task(label, inputs, task_name)
     
     def tick(self):
-        cmd = None
         FrameContext.task = self
-        try:
-            if self.done:
-                # should unschedule
-                return PollResults.OK_END
-
-            count = 0
-            while not self.done:
-                if self.pending_jump:
-                    jump_data = self.pending_jump
-                    self.pending_jump = None
-                    # Jump takes precedence
-                    self.pending_pop = None
-                    self.do_jump(*jump_data)
-                elif self.pending_pop:
-                    # Pending jump trumps pending pop
-                    pop_data = self.pending_pop
-                    self.pending_pop = None
-                    if pop_data[2] is not None:
-                        self.do_resume(*pop_data)
-                    else:    
-                        self.do_jump(pop_data[0], pop_data[1])
-
-                count += 1
-                # avoid tight loops
-                if count > 1000:
-                    break
-
-                if self.runtime_node:
-                    cmd = self.cmds[self.active_cmd]
-                    # Purged Assigned are seen as Comments
-                    if cmd.__class__== "Comment":
-                        self.next()
-                        continue
-
-                    #print(f"{cmd.__class__} running {self.runtime_node.__class__}")
-                    result = self.runtime_node.poll(self.main.mast, self, cmd)
-                    match result:
-                        case PollResults.OK_ADVANCE_TRUE:
-                            self.result = result
-                            self.next()
-                        case PollResults.OK_YIELD:
-                            self.result = result
-                            self.next()
-                            break
-                        case PollResults.OK_ADVANCE_FALSE:
-                            self.result = result
-                            self.next()
-                        case PollResults.OK_END:
-                            self.result = result
-                            self.done = True
-                            return PollResults.OK_END
-                        case PollResults.FAIL_END:
-                            self.result = result
-                            return PollResults.FAIL_END
-
-                        case PollResults.OK_RUN_AGAIN:
-                            break
-                        case PollResults.OK_JUMP:
-                            continue
-            return PollResults.OK_RUN_AGAIN
-        except BaseException as err:
-            self.main.runtime_error(str(err))
-            return PollResults.OK_END
-
+        res = self.active_ticker.tick()
+        if self.active_ticker.done:
+            self.set_result(True)
+        return res
         
 
-    def runtime_error(self, rte):
-        cmd = None
-        logger = logging.getLogger("mast.runtime")
-        logger.error(rte)
-        s = "mast RUNTIME ERROR\n" 
-        if self.runtime_node:
-            cmd = self.cmds[self.active_cmd]
-        if cmd is None:
-            s += f"\n      mast label: {self.active_label}"
+    def jump(self, label = "main", activate_cmd=0):
+        if isinstance(label, str) or isinstance(label, Label):
+            self.active_ticker = self.mast_ticker
+            self.mast_ticker.jump(label, activate_cmd)
         else:
-            file_name = Mast.get_source_file_name(cmd.file_num)
-            s += f"\n      line: {cmd.line_num} in file: {file_name}"
-            s += f"\n      label: {self.active_label}"
-            s += f"\n      loc: {cmd.loc} cmd: {cmd.__class__.__name__}\n"
-            if cmd.line:
-                s += f"\n===== code ======\n\n{cmd.line}\n\n==================\n"
-            else:
-                s += "\nNOTE: to see code Set Mast.include_code to True is script.py only during development.\n\n"
-        s += '\n'+rte
-
-        logger = logging.getLogger("mast.runtime")
-        logger.error(s)
-
-        self.main.runtime_error(s)
-        self.done = True
-
-
-    def next(self):
-        try:
-            if self.runtime_node:
-                self.call_leave()
-                #cmd = self.cmds[self.active_cmd]
-                self.active_cmd += 1
-            
-            if self.active_cmd >= len(self.cmds):
-                # move to the next label
-                #
-                # The first time Main is run, all shared 
-                # Assignment should be purged
-                # to avoid multiple assignments
-                #
-                self.main.mast.prune_main()
-
-                active = self.main.mast.labels.get(self.active_label)
-                next = active.next
-                if next is None:
-                    self.done = True
-                    return False
-                return self.jump(next.name)
-                
-            
-            cmd = self.cmds[self.active_cmd]
-            runtime_node_cls = self.main.nodes.get(cmd.__class__.__name__, MastRuntimeNode)
-            
-            self.runtime_node = runtime_node_cls()
-            #print(f"RUNNER {self.runtime_node.__class__.__name__}")
-            self.runtime_node.enter(self.main.mast, self, cmd)
-        except BaseException as err:
-            self.main.runtime_error(str(err))
+            self.active_ticker = self.py_ticker
+            self.py_ticker.jump(label)
         
-        return True
-    
+
+    def push_label(self, label, activate_cmd=0, data=None):
+        self.active_ticker.push_label(label, activate_cmd, data)
+
+    def push_inline_block(self, label, activate_cmd=0, data=None):
+        self.active_ticker.push_inline_block(label, activate_cmd, data)
+
+    def pop_label(self, inc_loc=True, true_pop=False):
+        self.active_ticker.pop_label(inc_loc, true_pop)
+
+        
     @classmethod
     def add_dependency(cls, id, task):
         the_set = MastAsyncTask.dependent_tasks.get(id, set())
@@ -901,8 +1131,10 @@ class MastAsyncTask(Agent):
     def stop_for_dependency(cls, id):
         the_set = MastAsyncTask.dependent_tasks.get(id, set())
         for task in the_set:
-            task.done = True
+            task.end()
         MastAsyncTask.dependent_tasks.pop(id, None)
+
+
 
 class MastBehaveTask(Agent):
     def __init__(self):
@@ -1081,7 +1313,7 @@ class MastScheduler(Agent):
         "PyCode": PyCodeRuntimeNode,
         "FuncCommand": FuncCommandRuntimeNode,
         "Behavior": BehaviorRuntimeNode,
-        "Parallel": ParallelRuntimeNode,
+#        "Parallel": ParallelRuntimeNode,
         "Assign": AssignRuntimeNode,
         "AwaitCondition": AwaitConditionRuntimeNode,
             "AwaitFail": AwaitFailRuntimeNode,
@@ -1254,7 +1486,7 @@ class MastScheduler(Agent):
             FrameContext.task = None
             if res == PollResults.OK_END:
                 self.done.append(task)
-            elif task.done:
+            elif task.done():
                 self.done.append(task)
         FrameContext.task = restore
         

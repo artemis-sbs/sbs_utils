@@ -3,6 +3,7 @@ import logging as logging
 from ..agent import Agent
 from io import StringIO
 from ..pymast.pollresults import PollResults
+from ..futures import Promise
 
 def jump(label):
     task = FrameContext.task
@@ -52,6 +53,8 @@ def logger(name=None, file=None, var=None):
         _logger.addHandler(handler)
 
 
+
+
 def task_schedule(label, data=None, var=None):
     task = FrameContext.task
 
@@ -62,8 +65,7 @@ def task_schedule(label, data=None, var=None):
 
 def task_cancel(task):
     if FrameContext.task is None:
-        return
-    FrameContext.task.main.cancel_task(task)
+        FrameContext.task.main.cancel_task(task)
 
 
 def watch_all(tasks):
@@ -72,7 +74,7 @@ def watch_all(tasks):
     while not done:
         finished = set()
         for t in tasks:
-            if t.done:
+            if t.finished:
                 finished.add(t)
         else:
             done = True

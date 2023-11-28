@@ -936,7 +936,7 @@ class StoryPage(Page):
             self.tick_gui_task()
         elif event.tag == "client_change":
             if event.sub_tag == "change_console":
-                if self.gui_task is not None and not self.gui_task.done:
+                if self.gui_task is not None and not self.gui_task.done():
                     if self.change_console_label:
                         self.gui_task.jump(self.change_console_label)
                         self.present(event)

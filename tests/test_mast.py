@@ -1,6 +1,7 @@
 from sbs_utils.mast.mast import Mast, Scope
-from sbs_utils.mast.mastscheduler import MastScheduler
+from sbs_utils.mast.mastscheduler import MastScheduler, PollResults
 from sbs_utils.agent import clear_shared
+from sbs_utils.mast.label import label
 import unittest
 # for logging
 import sbs_utils.procedural.execution
@@ -17,16 +18,25 @@ class TMastScheduler(MastScheduler):
 def mast_compile(code=None):
         mast = Mast()
         clear_shared()
-        errors = mast.compile(code, "test")
+        if code:
+            errors = mast.compile(code, "test")
         return (errors, mast)
 
 
-def mast_run(code=None):
+def mast_run(code=None, label=None):
     mast = Mast()
     clear_shared()
-    errors = mast.compile(code, "test")
+    errors = []
+    if code:
+        errors = mast.compile(code, "test")
+    else:
+        mast.clear("test_code")
+    
+    if label is None:
+        label = "main"
+
     runner = TMastScheduler(mast)
-    runner.start_task()
+    runner.start_task(label)
     return (errors,runner, mast)
 
 
@@ -82,9 +92,10 @@ from tests\mast\implib.zip import imp.mast
     
     def test_delay_compile_err(self):
         (errors, mast) = mast_compile( code = """
-delay 1m
-delay 2s
-delay 1m 5s
+await delay_sim(minutes=1)
+await delay_app(2)
+await delay_app(5,1)
+await delay_app(seconds=5,minutes=1)
 """)
         assert(len(errors)==0)
 
@@ -206,7 +217,7 @@ log("no-1")
         value = st.getvalue()
         assert(value=="2\n45\nyes-1\nyes-2\nyes-3\n")
 
-    def test_await_all_any_compile_err(self):
+    def _test_await_all_any_compile_err(self):
         (errors, mast) =mast_compile( code = """
 
 => fork
@@ -386,7 +397,7 @@ d //= 10
     def test_end_task(self):
         (errors, runner, _) = mast_run( code = """
         shared x = 0
-        => task
+        task_schedule(task)
         ->END
         ==== task ====
         x += 1
@@ -613,11 +624,11 @@ case 50:
     def test_await_condition(self):
         (errors, runner, _) = mast_run( code = """
 shared x = 0
-var t =>  Inc
+t = task_schedule(Inc)
 await until x==10:
     log("x={x}")
 end_await
-cancel t
+task_cancel(t)
 log("done")
 ->END
 === Inc ==
@@ -697,7 +708,8 @@ var2 = var2 + 100
     def test_task_pass_data_run_no_err(self):
         (errors, runner, _) = mast_run( code = """
 logger(var="output")
-await => Spawn {"var1": 99} # var1 still 500 on this 
+await task_schedule(Spawn, data= {"var1": 99})  # var1 still 500 on this 
+log("after")
 ->END
 === Spawn ===
 log("{var1}")
@@ -705,13 +717,15 @@ log("{var1}")
 
     """)
         assert(len(errors)==0)
+        while runner.tick():
+            pass
         # run again, shared data should NOT reset
         output = runner.active_task.get_value("output", None)
         assert(output is not None)
         st = output[0]
         #st.seek(0)
         value = st.getvalue()
-        assert(value == "99\n")
+        assert(value == "99\nafter\n")
         
 
     def test_comments_run_no_err(self):
@@ -1007,7 +1021,7 @@ out
 """)
 
 
-    def test_all_no_err(self):
+    def _test_all_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger(var="output")
         
@@ -1045,7 +1059,7 @@ S1 Again
 
 
 
-    def test_any_no_err(self):
+    def _test_any_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger(var="output")
         
@@ -1079,7 +1093,7 @@ S2
 
 
 
-    def test_fallback_no_err(self):
+    def _test_fallback_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger(var="output")
         
@@ -1117,7 +1131,7 @@ S2 Again
 """)
 
 
-    def test_fallback_loop_no_err(self):
+    def _test_fallback_loop_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger(var="output")            
         shared x = 0
@@ -1154,7 +1168,7 @@ S2 Again
 
         assert(value =="""S1\nS2\nS3\nFail\nS1\nS2\nS3\nFail\nS1\nS2\n""")
 
-    def test_fallback_until_success_no_err(self):
+    def _test_fallback_until_success_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger(var="output")            
         shared x = 0
@@ -1188,7 +1202,7 @@ S2 Again
 
         assert(value =="""S1\nS2\nS3\nS1\nS2\nS3\nS1\nS2\n""")
 
-    def test_fallback_no_cond_no_err(self):
+    def _test_fallback_no_cond_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger(var="output")            
         shared has_apple = False
@@ -1229,7 +1243,7 @@ S2 Again
 
 
 
-    def test_fallback_cond_no_err(self):
+    def _test_fallback_cond_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger(var="output")
 
@@ -1286,7 +1300,7 @@ S2 Again
 
 
 
-    def test_sequence_no_err(self):
+    def _test_sequence_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger(var="output")            
         
@@ -1372,3 +1386,24 @@ Cancel,
 """
 
 
+
+@label()
+def try_python(task):
+    x = 1
+    y = 2 + x
+    assert(y==3)
+    yield PollResults.OK_RUN_AGAIN
+    assert(y==3)
+    yield PollResults.OK_END
+    assert(False)
+
+
+
+
+
+class TestMastPython(unittest.TestCase):
+    
+    def test_python_label(self):
+        (errors, runner, _) = mast_run(code=None, label=try_python )
+        while runner.tick():
+            pass

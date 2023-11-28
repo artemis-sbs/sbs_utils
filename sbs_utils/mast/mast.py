@@ -10,7 +10,6 @@ import math
 import itertools
 import logging
 import random
-from io import StringIO
 from inspect import getmembers, isfunction  
 import sys
 
@@ -313,123 +312,123 @@ class Jump(MastNode):
             self.args = compile(args, "<string>", "eval")
 
 
-class Parallel(MastNode):
-    """
-    Creates a new 'task' to run in parallel
-    """
+# class Parallel(MastNode):
+#     """
+#     Creates a new 'task' to run in parallel
+#     """
 
-    def __init__(self, name=None, is_block=None, await_task=None, 
-                 any_labels=None, all_labels=None, label=None, inputs=None, loc=None):
-        self.loc = loc
-        self.name = name
-        self.labels = label
-        self.await_task = await_task
-        self.code = None
-        self.end_await_node = None
-        self.minutes = 0
-        self.seconds = 0
-        self.timeout_label = None
-        self.on_change = None
-        self.fail_label = None
-        if is_block:
-            self.timeout_label = None
-            self.fail_label = None
-            EndAwait.stack.append(self)
+#     def __init__(self, name=None, is_block=None, await_task=None, 
+#                  any_labels=None, all_labels=None, label=None, inputs=None, loc=None):
+#         self.loc = loc
+#         self.name = name
+#         self.labels = label
+#         self.await_task = await_task
+#         self.code = None
+#         self.end_await_node = None
+#         self.minutes = 0
+#         self.seconds = 0
+#         self.timeout_label = None
+#         self.on_change = None
+#         self.fail_label = None
+#         if is_block:
+#             self.timeout_label = None
+#             self.fail_label = None
+#             EndAwait.stack.append(self)
 
-        if await_task and name:
-            self.await_task = True
-            return
+#         if await_task and name:
+#             self.await_task = True
+#             return
     
-        self.labels = label
-        self.all = False
-        self.any = False
+#         self.labels = label
+#         self.all = False
+#         self.any = False
         
-        if all_labels:
-            self.all = True
-            self.labels = re.split(r'\s*&\s*', all_labels)
-        elif any_labels:
-            self.any = True
-            self.labels = re.split(r'\s*\|\s*', any_labels)
+#         if all_labels:
+#             self.all = True
+#             self.labels = re.split(r'\s*&\s*', all_labels)
+#         elif any_labels:
+#             self.any = True
+#             self.labels = re.split(r'\s*\|\s*', any_labels)
 
-        if inputs:
-            inputs = inputs.lstrip()
-            self.code = compile(inputs, "<string>", "eval")
+#         if inputs:
+#             inputs = inputs.lstrip()
+#             self.code = compile(inputs, "<string>", "eval")
         
-    task_name =  re.compile(r"""(?P<await_task>await)[ \t]+(?P<name>\w+)""")
-    schedule_rule = re.compile(r"""(?P<await_task>await[ \t]*)?(var[ \t]+(?P<name>\w+)[ \t]*)?(schedule|\=>)[ \t]*(?P<label>\w+)(?P<inputs>[ \t]*"""+ DICT_REGEX+")?")
-    any_all_rule = re.compile(r"""await[ \t]*(var[ \t]+(?P<name>\w+)[ \t]*)?(all[ \t]+(?P<all_labels>[ \t]*(\w+)(([ \t]*&[ \t]*)\w+)*)|any[ \t]+(?P<any_labels>[ \t]*(\w+)(([ \t]*\|[ \t]*)\w+)*))""") # (?P<inputs>\s*"""+ DICT_REGEX+")?")
-    schedule_all_rule = re.compile(r"""(schedule[ \t]+|\=\>[ \t]*)all[ \t]+(?P<all_labels>[ \t]*(\w+)(([ \t]*&[ \t]*)\w+)*)(?P<inputs>[ \t]*"""+ DICT_REGEX+")?")
-    #await_rule = re.compile(r"await\s+")
-    #await_return_rule = re.compile(r"await\s*(?P<ret>->)?\s*")
-    block_rule = re.compile(r"[ \t]*:")
+#     task_name =  re.compile(r"""(?P<await_task>await)[ \t]+(?P<name>\w+)""")
+#     schedule_rule = re.compile(r"""(?P<await_task>await[ \t]*)?(var[ \t]+(?P<name>\w+)[ \t]*)?(schedule|\=>)[ \t]*(?P<label>\w+)(?P<inputs>[ \t]*"""+ DICT_REGEX+")?")
+#     any_all_rule = re.compile(r"""await[ \t]*(var[ \t]+(?P<name>\w+)[ \t]*)?(all[ \t]+(?P<all_labels>[ \t]*(\w+)(([ \t]*&[ \t]*)\w+)*)|any[ \t]+(?P<any_labels>[ \t]*(\w+)(([ \t]*\|[ \t]*)\w+)*))""") # (?P<inputs>\s*"""+ DICT_REGEX+")?")
+#     schedule_all_rule = re.compile(r"""(schedule[ \t]+|\=\>[ \t]*)all[ \t]+(?P<all_labels>[ \t]*(\w+)(([ \t]*&[ \t]*)\w+)*)(?P<inputs>[ \t]*"""+ DICT_REGEX+")?")
+#     #await_rule = re.compile(r"await\s+")
+#     #await_return_rule = re.compile(r"await\s*(?P<ret>->)?\s*")
+#     block_rule = re.compile(r"[ \t]*:")
 
-    @classmethod
-    def parse(cls, lines):
-        #
-        # schedule any/all
-        #
-        match_any_all_await =  Parallel.schedule_all_rule.match(lines) 
-        if match_any_all_await:
-            span = match_any_all_await.span()
-            data = match_any_all_await.groupdict()
-            data["await_task"] = True
-            end = span[1]
-            block =  Parallel.block_rule.match(lines[end:])
+#     @classmethod
+#     def parse(cls, lines):
+#         #
+#         # schedule any/all
+#         #
+#         match_any_all_await =  Parallel.schedule_all_rule.match(lines) 
+#         if match_any_all_await:
+#             span = match_any_all_await.span()
+#             data = match_any_all_await.groupdict()
+#             data["await_task"] = True
+#             end = span[1]
+#             block =  Parallel.block_rule.match(lines[end:])
             
-            if block:
-                end+= block.span()[1]
-                data["is_block"] = True
+#             if block:
+#                 end+= block.span()[1]
+#                 data["is_block"] = True
            
-            return ParseData(span[0], end, data)
+#             return ParseData(span[0], end, data)
         
-        #
-        # await / schedule
-        #
-        match_sched_await =  Parallel.schedule_rule.match(lines) 
-        if match_sched_await:
-            span = match_sched_await.span()
-            data = match_sched_await.groupdict()
-            end = span[1]
-            block =  Parallel.block_rule.match(lines[end:])
+#         #
+#         # await / schedule
+#         #
+#         match_sched_await =  Parallel.schedule_rule.match(lines) 
+#         if match_sched_await:
+#             span = match_sched_await.span()
+#             data = match_sched_await.groupdict()
+#             end = span[1]
+#             block =  Parallel.block_rule.match(lines[end:])
             
-            if block:
-                end+= block.span[1]
-                data["is_block"] = True
+#             if block:
+#                 end+= block.span[1]
+#                 data["is_block"] = True
            
-            return ParseData(span[0], end, data)
-        #
-        # Await any/all
-        #
-        match_any_all_await =  Parallel.any_all_rule.match(lines) 
-        if match_any_all_await:
-            span = match_any_all_await.span()
-            data = match_any_all_await.groupdict()
-            data["await_task"] = True
-            end = span[1]
-            block =  Parallel.block_rule.match(lines[end:])
+#             return ParseData(span[0], end, data)
+#         #
+#         # Await any/all
+#         #
+#         match_any_all_await =  Parallel.any_all_rule.match(lines) 
+#         if match_any_all_await:
+#             span = match_any_all_await.span()
+#             data = match_any_all_await.groupdict()
+#             data["await_task"] = True
+#             end = span[1]
+#             block =  Parallel.block_rule.match(lines[end:])
             
-            if block:
-                end+= block.span()[1]
-                data["is_block"] = True
+#             if block:
+#                 end+= block.span()[1]
+#                 data["is_block"] = True
            
-            return ParseData(span[0], end, data)
+#             return ParseData(span[0], end, data)
       
-        #
-        # Await an variable
-        #
-        match_task_await =  Parallel.task_name.match(lines) 
-        if match_task_await:
-            span = match_task_await.span()
-            data = match_task_await.groupdict()
-            data["await_task"] = True
-            end = span[1]
-            block =  Parallel.block_rule.match(lines[end:])
+#         #
+#         # Await an variable
+#         #
+#         match_task_await =  Parallel.task_name.match(lines) 
+#         if match_task_await:
+#             span = match_task_await.span()
+#             data = match_task_await.groupdict()
+#             data["await_task"] = True
+#             end = span[1]
+#             block =  Parallel.block_rule.match(lines[end:])
             
-            if block:
-                end+= block.span()[1]
-                data["is_block"] = True
+#             if block:
+#                 end+= block.span()[1]
+#                 data["is_block"] = True
            
-            return ParseData(span[0], end, data)
+#             return ParseData(span[0], end, data)
 
 
 class Behavior(MastNode):

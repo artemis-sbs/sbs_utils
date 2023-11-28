@@ -1,6 +1,6 @@
 from .inventory import get_inventory_value, set_inventory_value
 from ..helpers import FrameContext
-from .futures import Promise
+from ..futures import Promise
 
 TICK_PER_SECONDS = 30
 def set_timer(id_or_obj, name, seconds=0, minutes =0):

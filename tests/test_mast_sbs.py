@@ -91,13 +91,13 @@ end_await
 
 
 == One ==
-await=>HeadToDS1
-await=>HeadToDS2
+await task_schedule(HeadToDS1)
+await task_schedule(HeadToDS2)
 ->One
 
 == Two ==
-await=>HeadToDS2
-await=>HeadToDS1
+await task_schedule(HeadToDS2)
+await task_schedule(HeadToDS1)
 ->Two
 
 == Start ==
@@ -129,25 +129,25 @@ end_await
 
 == Hi ==
 receive("Hi")
-delay 10s
+await delay_app(10)
 -> Start
 
 == Chat ==
 receive("Blah, Blah")
-delay 2s
+await delay_app(2)
 -> Chat
 
 == Shutup ==
-cancel chat
+task_cancel(chat)
 
 == Blue ==
 receive ( "Blue")
-delay 10s
+await delay_app(10)
 -> Start
 
 == Yellow ==
 receive ("Yellow")
-delay 10s
+await delay_app(10)
 -> Start
 
 == Cyan ==
@@ -162,7 +162,7 @@ end_await
 
 == TooSlow ==
 receive ("Woh too slow")
-delay 10s
+await delay_app(10)
 -> Start
 
 """)

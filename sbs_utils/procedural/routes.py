@@ -79,7 +79,7 @@ class HandleConsoleSelect:
                     f"EVENT": event,
                     f"{console}_ROUTED": True
             })
-        #   if not t.done:
+        #   if not .done():
         #         MastAsyncTask.add_dependency(event.origin_id,t)
         #         MastAsyncTask.add_dependency(event.selected_id,t)
 
@@ -155,7 +155,7 @@ class HandleLifetime:
                     f"{self.cycle}_OBJ": so,
                     f"{self.cycle}_ROUTED": True
             })
-           #   if not t.done:
+           #   if not .done():
         #         MastAsyncTask.add_dependency(event.origin_id,t)
 
 
@@ -206,7 +206,7 @@ class HandleDamage:
                 "EVENT": event,
                 "DAMAGE_ROUTED": True
             })
-           #   if not t.done:
+           #   if not .done():
         #         MastAsyncTask.add_dependency(event.origin_id,t)
         #         MastAsyncTask.add_dependency(event.selected_id,t)
 
@@ -253,7 +253,7 @@ class HandleCollision:
                 #"EVENT": event,
                 "COLLISION_ROUTED": True
             })
-        #   if not t.done:
+        #   if not .done():
         #         MastAsyncTask.add_dependency(event.origin_id,t)
         #         MastAsyncTask.add_dependency(event.selected_id,t)
 

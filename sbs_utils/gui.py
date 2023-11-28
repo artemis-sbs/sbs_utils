@@ -115,7 +115,7 @@ class GuiClient(Agent):
         page.aspect_ratio = sbs.vec3(self.aspect_ratio.x,self.aspect_ratio.y,self.aspect_ratio.z)
         self.page_stack.append(page)
         self.present(event)
-        #print(f"After Pushing {self.client_id} {page.task.done}")
+        #print(f"After Pushing {self.client_id} {page.task.done()}")
 
     def pop(self):
         """ pop
