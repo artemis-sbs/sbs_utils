@@ -97,3 +97,23 @@ def delay_sim(seconds=0, minutes=0):
 
 def delay_app(seconds=0, minutes=0):
     return Delay(seconds, minutes, False)
+
+
+
+
+class DelayForTests(Promise):
+    def __init__(self,  seconds, minutes) -> None:
+        super().__init__()
+        self.count = seconds+minutes*60
+        
+    def done(self):
+        #
+        # Tiny hack to just do the work in done
+        #
+        self.count -= 1
+        if self.count <=0:
+            self.set_result(True)
+        return super().done()
+    
+def delay_test(seconds=0, minutes=0):
+    return DelayForTests(seconds, minutes)

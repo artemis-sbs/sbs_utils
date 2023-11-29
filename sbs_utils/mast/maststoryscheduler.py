@@ -231,7 +231,7 @@ class ChooseRuntimeNode(StoryRuntimeNode):
                     if button.code is not None:
                         value = task.eval_code(button.code)
                     if value and button.should_present(0):#task.main.client_id):
-                        runtime_node = ChoiceButtonRuntimeNode(self, index, task.main.page.get_tag(), button)
+                        runtime_node = ChoiceButtonRuntimeNode(self, task, index, task.main.page.get_tag(), button)
                         #runtime_node.enter(mast, task, button)
                         msg = task.format_string(button.message)
                         layout_button = layout.Button(runtime_node.tag, msg)
@@ -312,17 +312,20 @@ class ChooseRuntimeNode(StoryRuntimeNode):
 
 
 class ChoiceButtonRuntimeNode(StoryRuntimeNode):
-    def __init__(self, choice, index, tag, node):
+    def __init__(self, choice, task, index, tag, node):
         self.choice = choice
         self.index = index
         self.tag = tag
         self.client_id = None
         self.node = node
+        self.task = task
         
     def on_message(self, event):
         if event.sub_tag == self.tag:
             self.choice.button = self
             self.client_id = event.client_id
+            self.task.tick()
+            
 
 class OnChangeRuntimeNode(StoryRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: OnChange):
@@ -528,7 +531,13 @@ class StoryPage(Page):
         if cls.story is None:
             if cls.story is  None:
                 cls.story = MastStory()
-                self.errors =  cls.story.from_file(cls.story_file)
+                if cls.__dict__.get("story_file"):
+                    self.errors =  cls.story.from_file(cls.story_file)
+        self.story = cls.story
+        self.main = cls.__dict__.get("main", "main")
+        self.main_server = cls.__dict__.get("main_server", self.main)
+        self.main_client = cls.__dict__.get("main_client", self.main)
+        
         
 
     def start_story(self, client_id):
@@ -537,15 +546,27 @@ class StoryPage(Page):
         cls = self.__class__
         self.client_id == client_id
         if len(self.errors)==0:
-            self.story_scheduler = StoryScheduler(cls.story)
+            self.story_scheduler = StoryScheduler(self.story)
+            #
+            # Get a label from the story class or us main
+            # main should at least be an empty label
+            label = self.__dict__.get("main", "main")
+            # Look for server specific main
+            if client_id == 0:
+                label = self.__dict__.get("main_server", label)
+            # Look for client specific main
+            if client_id != 0:
+                label = self.__dict__.get("main_client", label)
+            #print(f"LABEL: {label}")
+
             self.story_scheduler.page = self
             #self.story_scheduler.set_inventory_value('sim', ctx.sim)
             self.story_scheduler.set_inventory_value('client_id', client_id)
             self.story_scheduler.set_inventory_value('IS_SERVER', client_id==0)
-            self.story_scheduler .set_inventory_value('IS_CLIENT', client_id!=0)
+            self.story_scheduler.set_inventory_value('IS_CLIENT', client_id!=0)
             # self.set_inventory_value('STORY_PAGE', page)
 
-            self.gui_task = self.story_scheduler.run(client_id, self, inputs=cls.inputs)
+            self.gui_task = self.story_scheduler.run(client_id, self, label, inputs=cls.inputs)
 
 
     def tick_gui_task(self):

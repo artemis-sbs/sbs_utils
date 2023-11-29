@@ -4,8 +4,15 @@ from sbs_utils.agent import clear_shared
 from sbs_utils.mast.label import label
 import unittest
 # for logging
-import sbs_utils.procedural.execution
+import sbs_utils.procedural.execution as ex
+import sbs_utils.procedural.timers
 Mast.import_python_module('sbs_utils.procedural.execution')
+Mast.import_python_module('sbs_utils.procedural.timers')
+
+def mast_assert(cond):
+      assert(cond)
+
+Mast.make_global_var("assert", mast_assert)
 
 #Mast.enable_logging()
 Mast.include_code = True
@@ -93,9 +100,9 @@ from tests\mast\implib.zip import imp.mast
     def test_delay_compile_err(self):
         (errors, mast) = mast_compile( code = """
 await delay_sim(minutes=1)
-await delay_app(2)
-await delay_app(5,1)
-await delay_app(seconds=5,minutes=1)
+await delay_test(2)
+await delay_test(5,1)
+await delay_test(seconds=5,minutes=1)
 """)
         assert(len(errors)==0)
 
@@ -217,42 +224,30 @@ log("no-1")
         value = st.getvalue()
         assert(value=="2\n45\nyes-1\nyes-2\nyes-3\n")
 
-    def _test_await_all_any_compile_err(self):
+    def test_await_all_any_compile_err(self):
         (errors, mast) =mast_compile( code = """
 
-=> fork
-=> fork
-=>fork_you
-=>fork_you
-=> pass_data {"self": player1, "HP": 30}
-=> pass_data ~~{
+task_schedule(fork)
+task_schedule(fork, {"self": player1, "HP": 30})
+task_schedule(fork, data={"self": player1, "HP": 30})
+
+~~ task_schedule(fork, data={
     "self": player1, 
     "HP": 30
-    }~~
-await => trend
-await => pass_data {"self": player1, "HP": 30}
-await => pass_data ~~{
-    "self": player1, 
-    "HP": 30
-    }~~
-await => trend
-await => trend
-await=> trend
-await=> trend
-await all fred & barney:
-->END
-fail:
-->FAIL
-end_await
-=> all fred & barney
+    })~~
+await task_schedule(thread)
+await task_schedule(fork, data={"self": player1, "HP": 30})
+
+trend = task_schedule(fork)
+await trend
+#await task_all(fred, barney):
+    ->END
+#fail:
+    ->FAIL
+#end_await
+                                     
 task_all(fred, barney)
 
-
-=> pass_data {"self": player1, "HP": 30}
-=> pass_data ~~{
-    "self": player1, 
-    "HP": 30
-    }~~
 """)
 
         assert(len(errors)==0)
@@ -1021,15 +1016,15 @@ out
 """)
 
 
-    def _test_all_no_err(self):
+    def test_all_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger(var="output")
         
-        await all Seq1 & Seq2 & Seq3
+        await task_all(Seq1, Seq2,  Seq3)
         ->END
         ======== Seq1 =====
         log("S1")
-        delay test 3s
+        await delay_test(3)
         log("S1 Again")
         -> END
         ======== Seq2 =====
@@ -1037,12 +1032,12 @@ out
         -> END
         ===== Seq3 ====
         log("S3")
-        delay test 1s
+        await delay_test(1)
         log("S3 Again")
         -> END
     """)
         assert(len(errors)==0)
-        for _ in range(10):
+        for _ in range(5):
             runner.tick()
         output = runner.get_value("output", None)
         assert(output is not None)
@@ -1059,21 +1054,22 @@ S1 Again
 
 
 
-    def _test_any_no_err(self):
+    def test_any_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger(var="output")
         
-        await any Seq1 | Seq2 | Seq3
+        await task_any(Seq1, Seq2, Seq3)
         ->END
         ======== Seq1 =====
         log("S1")
-        delay gui 10s
+        await delay_test(20)
         log("S1 Again")
+        ->FAIL
         ======== Seq2 =====
         log("S2")
         -> END
         ===== Seq3 ====
-        delay gui 10s
+        await delay_test(20)
         log("S3")
         -> FAIL
     """)
@@ -1366,37 +1362,29 @@ if __name__ == '__main__':
     except Exception as e:
         print(e.msg)
 
-"""
-    Comment,
-    Label,
-    IfStatements,
-LoopStart,
-LoopEnd,
-LoopBreak,
-    PyCode,
-Input,
-Import,
-    Await,  # needs to be before Parallel
-    Parallel,  # needs to be before Assign
-Cancel,
-    Assign,
-    End,
-    Jump,
-    Delay,
-"""
-
-
 
 @label()
-def try_python(task):
+def try_python_one():
+    ex.logger(var='output')
     x = 1
     y = 2 + x
     assert(y==3)
+    ex.log(f"{y}")
     yield PollResults.OK_RUN_AGAIN
-    assert(y==3)
-    yield PollResults.OK_END
-    assert(False)
+    ex.log(f"{y} again")
 
+@label()
+def try_python_two():
+    x = 2
+    y = 2 + x
+    assert(y==4)
+    ex.log(f"{y}")
+    yield PollResults.OK_RUN_AGAIN
+    assert(y==4)
+    ex.log(f"{y} again")
+    yield PollResults.OK_END
+    ex.log("do not enter")
+    assert(False)
 
 
 
@@ -1404,6 +1392,12 @@ def try_python(task):
 class TestMastPython(unittest.TestCase):
     
     def test_python_label(self):
-        (errors, runner, _) = mast_run(code=None, label=try_python )
+        (errors, runner, _) = mast_run(code=None, label=try_python_one )
         while runner.tick():
             pass
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        #st.seek(0)
+        value = st.getvalue()
+        assert(value =="""3\n3 again\n4\n4 again\n""")

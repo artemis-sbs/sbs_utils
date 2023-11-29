@@ -3,6 +3,7 @@ from .inventory import get_inventory_value, set_inventory_value
 from ..helpers import FrameContext
 from ..pages import layout
 from ..mast.parsers import LayoutAreaParser, StyleDefinition
+from ..futures import Promise
 
 def gui_add_console_tab(id_or_obj, console, tab_name, label):
     ship_id = to_id(id_or_obj)
@@ -139,7 +140,6 @@ def gui_face(face, style=None):
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
-        show_warning("No Page")
         return None
     
     tag = page.get_tag()
@@ -155,7 +155,6 @@ def gui_icon(props, style=None):
     task = FrameContext.task
     props = task.compile_and_format_string(props)
     if page is None:
-        show_warning("No Page")
         return None
     
     tag = page.get_tag()
@@ -170,7 +169,6 @@ def gui_image(props, style=None):
     task = FrameContext.task
     props = task.compile_and_format_string(props)
     if page is None:
-        show_warning("No Page")
         return None
     
     if "image:" not in props:
@@ -192,7 +190,6 @@ def gui_ship(props, style=None):
     task = FrameContext.task
     props = task.compile_and_format_string(props)
     if page is None:
-        show_warning("No Page")
         return None
         
     
@@ -210,7 +207,6 @@ def gui_row(style=None):
     task = FrameContext.task
         
     if page is None:
-        show_warning("No Page")
         return None
     
     task.main.page.add_row()
@@ -222,7 +218,6 @@ def gui_blank(style=None):
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
-        show_warning("No Page")
         return None
     
     layout_item = layout.Blank()
@@ -235,7 +230,6 @@ def gui_hole(style=None):
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
-        show_warning("No Page")
         return None
     # Log warning
     layout_item = layout.Hole()
@@ -244,12 +238,24 @@ def gui_hole(style=None):
     page.add_content(layout_item, None)
     return layout_item
 
+class MessageHandler:
+    def __init__(self, layout_item, task, label) -> None:
+        self.layout_item = layout_item
+        self.label = label
+        self.task = task
 
-def gui_button(msg, style=None, data=None):
+    def on_message(self, event):
+        if event.sub_tag == self.layout_item.tag:
+            restore = FrameContext.task
+            FrameContext.task = self.task
+            self.task.set_variable("__ITEM__", self.layout_item)
+            self.label()
+            FrameContext.task = restore
+
+def gui_button(msg, style=None, data=None, on_message=None):
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
-        show_warning("No Page")
         return None
     tag = page.get_tag()
     msg = task.compile_and_format_string(msg)
@@ -257,7 +263,11 @@ def gui_button(msg, style=None, data=None):
     layout_item.data = data
     apply_control_styles(".button", style, layout_item, task)
     # Last in case tag changed in style
-    page.add_content(layout_item, None)
+    runtime_item = None
+    if on_message is not None:
+        runtime_item = MessageHandler(layout_item, task, on_message)
+
+    page.add_content(layout_item, runtime_item)
     return layout_item
 
 
@@ -265,7 +275,6 @@ def gui_drop_down(msg, style=None, var=None, data=None):
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
-        show_warning("No Page")
         return None
     tag = page.get_tag()
     msg = task.compile_and_format_string(msg)
@@ -284,7 +293,6 @@ def gui_checkbox(msg, style=None, var=None, data=None):
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
-        show_warning("No Page")
         return None
     tag = page.get_tag()
     msg = task.compile_and_format_string(msg)
@@ -305,7 +313,6 @@ def gui_radio(msg, style=None, var=None, data=None, vertical=False):
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
-        show_warning("No Page")
         return None
     tag = page.get_tag()
     msg = task.compile_and_format_string(msg)
@@ -333,7 +340,6 @@ def gui_slider(msg, style=None, var=None, data=None, is_int=False):
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
-        show_warning("No Page")
         return None
     tag = page.get_tag()
     msg = task.compile_and_format_string(msg)
@@ -363,7 +369,6 @@ def gui_input(label, style=None, var=None, data=None):
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
-        show_warning("No Page")
         return None
     tag = page.get_tag()
     if label is not None:
@@ -394,7 +399,6 @@ def gui_section(style=None):
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
-        show_warning("No Page")
         return None
     
     page.add_section()
@@ -414,7 +418,6 @@ def gui_set_style_def(name, style):
 def gui_widget_list(console, widgets):
     page = FrameContext.page
     if page is None:
-        show_warning("No Page")
         return None
     page.set_widget_list(console, widgets)
 
@@ -425,14 +428,12 @@ def gui_widget_list_clear():
 def gui_activate_console(console):
     page = FrameContext.page
     if page is None:
-        show_warning("No Page")
         return None
     page.activate_console(console)
         
 def gui_layout_widget(widget):
     page = FrameContext.page
     if page is None:
-        show_warning("No Page")
         return None
     
     page.add_console_widget(widget)
@@ -444,7 +445,6 @@ def gui_layout_widget(widget):
 def gui_console(console):
     page = FrameContext.page
     if page is None:
-        show_warning("No Page")
         return None
     widgets = ""
     match console.lower():
@@ -473,7 +473,6 @@ def gui_content(content, style=None, var=None):
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
-        show_warning("No Page")
         return None
 
     tag = task.main.page.get_tag()
@@ -487,6 +486,32 @@ def gui_content(content, style=None, var=None):
     page.add_content(layout_item, None)
     return layout_item
 
+def gui_text(props, style=None):
+        """ Gets the simulation space object
+
+        valid properties 
+           text
+           color
+           font
+
+
+        :param props: property string 
+        :type props: str
+        :param layout: property string 
+        :type layout: str
+        """
+        page = FrameContext.page
+        task = FrameContext.task
+
+        if page is None:
+            return
+        if style is None: 
+            style = ""
+        layout_item = layout.Text(page.get_tag(), props)
+        apply_control_styles(".radio", style, layout_item, task)
+
+        page.add_content(layout_item, None)
+        return layout_item
 
 def gui_update(tag, props, shared=False):
     page = FrameContext.page
@@ -569,3 +594,10 @@ def gui_reroute_clients(label):
             client_page = client.page_stack[-1]
             if client_page is not None and client_page.gui_task:
                 client_page.gui_task.jump(label)
+
+
+def gui():
+    page = FrameContext.page
+    #task = FrameContext.task
+    page.set_button_layout(None)
+    return Promise()

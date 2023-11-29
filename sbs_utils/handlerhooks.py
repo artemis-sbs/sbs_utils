@@ -53,7 +53,7 @@ class ErrorPage(Page):
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
                 self.gui_state = "presenting"
-                #print(self.message)
+                print(self.message)
                 self.message = self.message.replace(",", ".")
                 sbs.send_gui_text(
                     event.client_id, "text", f"text:sbs_utils runtime error^{self.message}", 0, 0, 80, 95)

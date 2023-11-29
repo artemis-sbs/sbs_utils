@@ -736,11 +736,13 @@ class Mast():
         
 
         if cmds is None:
+            self.clear("no_mast_file")
             return
         if isinstance(cmds, str):
             cmds = self.compile(cmds, "<string>")
         # else:
         #     self.build(cmds)
+        
 
     def make_global(func):
         add_to = Mast.globals

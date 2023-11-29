@@ -9,6 +9,7 @@ import traceback
 from ..agent import Agent, get_task_id
 from ..helpers import FrameContext
 from ..futures import Promise
+from .label import get_fall_through
 
 
 class MastRuntimeNode:
@@ -361,39 +362,6 @@ class MatchStatementsRuntimeNode(MastRuntimeNode):
         return cmd_to_run
 
 
-class ParallelRuntimeNode(MastRuntimeNode):
-    def enter(self, mast, task: MastAsyncTask, node:Parallel):
-        #vars = {} | task.vars if node.labels is not None else None
-        vars = {} | task.inventory.collections
-        
-        if node.code:
-            inputs = task.eval_code(node.code)
-            vars = vars | inputs
-        if isinstance(node.labels, list):
-            if node.all:
-                task = task.main.start_all_task(node.labels, vars, task_name=node.name, conditional=None)
-            elif node.any:
-                task = task.main.start_any_task(node.labels, vars, task_name=node.name, conditional=None)
-        
-        elif node.await_task and node.name:
-            task = task.get_variable(node.name)        
-        else:
-            task = task.start_task(node.labels, vars, task_name=node.name)
-
-        self.task = task if node.await_task else None
-        self.timeout = FrameContext.sim_seconds + (node.minutes*60+node.seconds)
-        
-    def poll(self, mast, task: MastAsyncTask, node:Parallel):
-        if self.task:
-            if not self.task.done():
-                return PollResults.OK_RUN_AGAIN
-            if node.fail_label and self.task.done() and self.task.tick_result == PollResults.FAIL_END:
-                task.jump(task.active_label,node.fail_label.loc+1)
-        if node.timeout_label and self.timeout < FrameContext.sim_seconds:
-            task.jump(task.active_label,node.timeout_label.loc+1)
-
-
-        return PollResults.OK_ADVANCE_TRUE
     
 class BehaviorRuntimeNode(MastRuntimeNode):
     def enter(self, mast, task: MastAsyncTask, node:Behavior):
@@ -545,11 +513,15 @@ class MastTicker:
                 self.done = True
 
     def do_resume(self, label, activate_cmd, runtime_node):
+        #print("I am RESUMING")
         label_runtime_node = self.main.mast.labels.get(label)
         if label_runtime_node is not None:
             self.cmds = self.main.mast.labels[label].cmds
             self.active_label = label
             self.active_cmd = activate_cmd
+            #print(f"ACTIVE_CMD {self.cmds[self.active_cmd]}")
+
+            #print(f"RUNTIME NODE {runtime_node}")
             self.runtime_node = runtime_node
             self.done = False
         else:
@@ -602,9 +574,15 @@ class MastTicker:
             #print(f"POP DATA {push_data.label} {push_data.active_cmd} len {len(self.task.label_stack)}")
             if self.pending_jump is None:
                 if inc_loc:
-                    #print(f"I inc'd {push_data.runtime_node}")
-                    self.pending_pop = (push_data.label, push_data.active_cmd+1, push_data.runtime_node)
+                    # TREAT THIS LIKE A JUMP
+                    # I think this is a True POP in an inline
+                    # So don't resume
+                    #print(f"I inc'd {true_pop}")
+                    self.pending_pop = (push_data.label, push_data.active_cmd+1, None)
                 else:
+                    #
+                    # We didn't inc so the hope is to resume 
+                    #
                     #print(f"I DID NOT inc {push_data.runtime_node}")
                     self.pending_pop = (push_data.label, push_data.active_cmd, push_data.runtime_node)
     def tick(self):
@@ -756,6 +734,7 @@ class PyTicker():
         self.current_gen = None
         self.last_poll_result = None
         self.done = False
+        self.fall_through_label = None
 
 
 
@@ -794,6 +773,7 @@ class PyTicker():
             
             #self.last_poll_result = None
             gen_done = True
+            fallthrough = True
             for res in gen:
                 is_new_jump = False
                 if res is None:
@@ -801,6 +781,7 @@ class PyTicker():
                     gen_done = True
                     break
                 gen_done = False
+                fallthrough - False
                 if res is not None:
                     self.last_poll_result = res
                 if res == PollResults.OK_RUN_AGAIN:
@@ -809,11 +790,14 @@ class PyTicker():
                     break
                 if res == PollResults.OK_END:
                     gen_done = True
+                    fallthrough = False
                     self.end()
                     break
                 
             if self.last_poll_result == PollResults.OK_JUMP:
                 continue
+
+            
             
             if gen_done:
                 #
@@ -824,6 +808,11 @@ class PyTicker():
                 #
                 # If there is a pending Jump DON't pop
                 #
+                if fallthrough and self.fall_through_label:
+                    # set pending jump
+                    self.jump(self.fall_through_label)
+                    
+
                 if self.pending_jump is not None:
                 #
                 # jump was called and the generate just never yielded
@@ -854,16 +843,24 @@ class PyTicker():
 
     def get_gen(self, label):
         gen = None
+        self.fall_through_label = None
         res = PollResults.FAIL_END
         if inspect.isfunction(label):
-            gen = label(self.task)
-            res = PollResults.OK_JUMP
             #print(f"IS func {label.__name__}")
+            self.fall_through_label = get_fall_through(label)
+            gen = label()
+            res = PollResults.OK_JUMP
+            
         elif inspect.ismethod(label):
+            self.fall_through_label = get_fall_through(label)
             gen = label()
             res = PollResults.OK_JUMP
             #print(f"IS method {label.__name__} {gen}")
         elif isinstance(label, partial):
+            #
+            # Not sure this will work right?
+            #
+            self.fall_through_label = get_fall_through(label)
             gen = label()
             res = PollResults.OK_JUMP
         else:
@@ -960,6 +957,8 @@ class MastAsyncTask(Agent, Promise):
     
     @property
     def active_label(self):
+        if self.active_ticker is None:
+            return "main"
         return self.active_ticker.active_label
     
     @property
@@ -1142,63 +1141,6 @@ class MastBehaveTask(Agent):
         self.id = get_task_id()
         self.add()
 
-
-class MastAllTask(MastBehaveTask):
-    def __init__(self, main) -> None:
-        super().__init__()
-        self.tasks = []
-        self.main= main
-        self.conditional = None
-        self.done = False
-        self.result = None
-        self.active_label = ""
-
-    def tick(self) -> PollResults:
-        if self.conditional is not None and self.task.get_variable(self.conditional):
-            self.done = True
-            return PollResults.OK_END
-        for t in list(self.tasks):
-            self.result = t.tick()
-            if self.result == PollResults.OK_END:
-                self.tasks.remove(t)
-                t.destroyed()
-        if len(self.tasks):
-            return PollResults.OK_RUN_AGAIN
-        self.done = True
-        return PollResults.OK_END
-
-    def run_event(self, event_name, event):
-        for t in list(self.tasks):
-            t.run_event(event_name, event)
-            
-        
-class MastAnyTask(MastBehaveTask):
-    def __init__(self, main) -> None:
-        super().__init__()
-        self.tasks = []
-        self.main= main
-        self.conditional = None
-        self.done = False
-        self.result = None
-        self.active_label = ""
-
-    def tick(self) -> PollResults:
-        if self.conditional is not None and self.task.get_variable(self.conditional):
-            self.done = True
-            return PollResults.OK_END
-        for t in self.tasks:
-            self.result = t.tick()
-            if self.result == PollResults.OK_END:
-                self.done = True
-                return PollResults.OK_END
-        if len(self.tasks):
-            return PollResults.OK_RUN_AGAIN
-        self.done = True
-        return PollResults.OK_END
-    def run_event(self, event_name, event):
-        for t in list(self.tasks):
-            t.run_event(event_name, event)
-
 class MastSequenceTask(MastBehaveTask):
     def __init__(self, main, labels, conditional) -> None:
         super().__init__()
@@ -1352,40 +1294,6 @@ class MastScheduler(Agent):
             self.test_clock += 0.2
             return self.test_clock
         return time.time()
-
-
-    def start_all_task(self, labels = "main", inputs=None, task_name=None, conditional=None)-> MastAllTask:
-        all_task = MastAllTask(self)
-        if not isinstance(labels, list):
-            return self.start_task(label, inputs, task_name)
-        
-        for label in labels:
-            t = self._start_task(label, inputs, None)
-            t.jump(label)
-            all_task.tasks.append(t)
-
-        #self.on_start_task(t)
-        self.tasks.append(all_task)
-        if task_name is not None:
-            self.active_task.set_value(task_name, all_task, Scope.NORMAL)
-        return all_task
-
-    def start_any_task(self, labels = "main", inputs=None, task_name=None, conditional=None)->MastAnyTask:
-        any_task = MastAnyTask(self)
-        # if single label no need for any
-        if not isinstance(labels, list):
-            return self.start_task(label, inputs, task_name)
-        
-        for label in labels:
-            t = self._start_task(label, inputs, None)
-            t.jump(label)
-            any_task.tasks.append(t)
-
-        #self.on_start_task(t)
-        self.tasks.append(any_task)
-        if task_name is not None:
-            self.active_task.set_value(task_name, any_task, Scope.NORMAL)
-        return any_task
 
     def start_sequence_task(self, labels = "main", inputs=None, task_name=None, conditional=None)->MastSequenceTask:
         # if single label no need for any

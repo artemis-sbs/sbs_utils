@@ -3,7 +3,7 @@ import logging as logging
 from ..agent import Agent
 from io import StringIO
 from ..pymast.pollresults import PollResults
-from ..futures import Promise
+from ..futures import PromiseAllAny
 
 def jump(label):
     task = FrameContext.task
@@ -68,31 +68,6 @@ def task_cancel(task):
         FrameContext.task.main.cancel_task(task)
 
 
-def watch_all(tasks):
-    done = False
-    tasks = set(tasks)
-    while not done:
-        finished = set()
-        for t in tasks:
-            if t.finished:
-                finished.add(t)
-        else:
-            done = True
-        tasks = tasks - finished
-        yield PollResults.OK_RUN_AGAIN
-    yield PollResults.OK_END
-
-def watch_any(tasks):
-    done = False
-    while not done:
-        for t in tasks:
-            if t.done:
-                done = True
-                break
-        else:
-            done = True
-        yield PollResults.OK_RUN_AGAIN
-    yield PollResults.OK_END
 
 #
 # Args are labels or task
@@ -107,7 +82,8 @@ def task_all(*args, **kwargs):
     for label in args:
         t = FrameContext.task.start_task(label, data)
         tasks.append(t)
-    return watch_all(tasks)
+    return PromiseAllAny(tasks, True)
+
 
 
 
@@ -116,6 +92,14 @@ def task_all(*args, **kwargs):
 #
 # Doesn't return until any success, or all fail
 #
-def task_all(*args, **kwargs):
-    pass
+def task_any(*args, **kwargs):
+    if FrameContext.task is None:
+        return
+    data = kwargs.get("data", None)
+    tasks = []
+    for label in args:
+        t = FrameContext.task.start_task(label, data)
+        tasks.append(t)
+    return PromiseAllAny(tasks, False)
+
 
