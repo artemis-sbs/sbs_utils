@@ -239,20 +239,25 @@ def gui_hole(style=None):
     return layout_item
 
 class MessageHandler:
-    def __init__(self, layout_item, task, label) -> None:
+    def __init__(self, layout_item, task, label, jump=False) -> None:
         self.layout_item = layout_item
         self.label = label
         self.task = task
+        self.jump = jump
 
     def on_message(self, event):
         if event.sub_tag == self.layout_item.tag:
             restore = FrameContext.task
             FrameContext.task = self.task
             self.task.set_variable("__ITEM__", self.layout_item)
-            self.label()
+            if self.jump:
+                self.task.jump(self.label)
+            else:
+                self.label()
+                
             FrameContext.task = restore
 
-def gui_button(msg, style=None, data=None, on_message=None):
+def gui_button(msg, style=None, data=None, on_message=None, jump=None ):
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
@@ -266,6 +271,8 @@ def gui_button(msg, style=None, data=None, on_message=None):
     runtime_item = None
     if on_message is not None:
         runtime_item = MessageHandler(layout_item, task, on_message)
+    elif jump is not None:
+        runtime_item = MessageHandler(layout_item, task, jump, True)
 
     page.add_content(layout_item, runtime_item)
     return layout_item

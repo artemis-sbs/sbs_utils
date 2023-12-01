@@ -5,7 +5,7 @@ from sbs_utils.mast.label import label
 import unittest
 # for logging
 import sbs_utils.procedural.execution as ex
-import sbs_utils.procedural.timers
+import sbs_utils.procedural.timers as timers
 Mast.import_python_module('sbs_utils.procedural.execution')
 Mast.import_python_module('sbs_utils.procedural.timers')
 
@@ -1363,35 +1363,35 @@ if __name__ == '__main__':
         print(e.msg)
 
 
-@label()
-def try_python_one():
-    ex.logger(var='output')
-    x = 1
-    y = 2 + x
-    assert(y==3)
-    ex.log(f"{y}")
-    yield PollResults.OK_RUN_AGAIN
-    ex.log(f"{y} again")
-
-@label()
-def try_python_two():
-    x = 2
-    y = 2 + x
-    assert(y==4)
-    ex.log(f"{y}")
-    yield PollResults.OK_RUN_AGAIN
-    assert(y==4)
-    ex.log(f"{y} again")
-    yield PollResults.OK_END
-    ex.log("do not enter")
-    assert(False)
-
 
 
 
 class TestMastPython(unittest.TestCase):
-    
     def test_python_label(self):
+        @label()
+        def try_python_one():
+            ex.logger(var='output')
+            x = 1
+            y = 2 + x
+            assert(y==3)
+            ex.log(f"{y}")
+            yield PollResults.OK_RUN_AGAIN
+            ex.log(f"{y} again")
+
+        @label()
+        def try_python_two():
+            x = 2
+            y = 2 + x
+            assert(y==4)
+            ex.log(f"{y}")
+            yield PollResults.OK_RUN_AGAIN
+            assert(y==4)
+            ex.log(f"{y} again")
+            yield PollResults.OK_END
+            ex.log("do not enter")
+            assert(False)
+
+
         (errors, runner, _) = mast_run(code=None, label=try_python_one )
         while runner.tick():
             pass
@@ -1401,3 +1401,88 @@ class TestMastPython(unittest.TestCase):
         #st.seek(0)
         value = st.getvalue()
         assert(value =="""3\n3 again\n4\n4 again\n""")
+
+    def test_python_await_delay(self):
+        @label()
+        def try_python_await():
+            ex.logger(var='output')
+            x = 1
+            y = 2 + x
+            assert(y==3)
+            yield ex.AWAIT(timers.delay_test(2))
+            ex.log(f"{y}")
+
+
+        (errors, runner, _) = mast_run(code=None, label=try_python_await )
+        while runner.tick():
+            pass
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        #st.seek(0)
+        value = st.getvalue()
+        assert(value =="""3\n""")
+
+
+    def test_python_jump(self):
+        @label()
+        def try_python_one():
+            x = 1
+            y = 2 + x
+            assert(y==3)
+            ex.log(f"{y}")
+            yield ex.END()
+            ex.log(f"{y} again")
+
+        @label()
+        def try_python_two():
+            ex.logger(var='output')
+            x = 2
+            y = 2 + x
+            assert(y==4)
+            ex.log(f"{y}")
+            yield ex.jump(try_python_one)
+
+
+        (errors, runner, _) = mast_run(code=None, label=try_python_two )
+        while runner.tick():
+            pass
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        #st.seek(0)
+        value = st.getvalue()
+        assert(value =="""4\n3\n""")
+
+    def test_python_jump_class(self):
+        class Story:
+            
+            @label()
+            def try_python_two(self):
+                ex.logger(var='output')
+                x = 2
+                y = 2 + x
+                assert(y==4)
+                ex.log(f"{y}")
+                yield ex.jump(self.try_python_one)
+                
+            @label()
+            def try_python_one(self):
+                x = 1
+                y = 2 + x
+                assert(y==3)
+                ex.log(f"{y}")
+                yield ex.END()
+                ex.log(f"{y} again")
+
+
+        story = Story()
+        (errors, runner, _) = mast_run(code=None, label=story.try_python_two )
+        while runner.tick():
+            pass
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        #st.seek(0)
+        value = st.getvalue()
+        assert(value =="""4\n3\n""")

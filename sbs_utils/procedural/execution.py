@@ -2,15 +2,22 @@ from ..helpers import FrameContext
 import logging as logging
 from ..agent import Agent
 from io import StringIO
-from ..pymast.pollresults import PollResults
-from ..futures import PromiseAllAny
+from ..futures import Promise, PromiseAllAny, PromiseWaiter
+from ..mast.pollresults import PollResults
 
 def jump(label):
     task = FrameContext.task
 
     if task is not None:
         return task.jump(label)
-    return None
+    return PollResults.OK_JUMP
+
+def END():
+    task = FrameContext.task
+
+    if task is not None:
+        return task.end()
+    return PollResults.OK_END
 
 
 def log(message, name=None, level=None):
@@ -103,3 +110,30 @@ def task_any(*args, **kwargs):
     return PromiseAllAny(tasks, False)
 
 
+
+def set_variable(key, value):
+    if FrameContext.task is None:
+        return
+    FrameContext.task.set_variable(key,value)
+
+def get_variable(key, default=None):
+    if FrameContext.task is None:
+        return None
+    return FrameContext.task.get_variable(key,default)
+
+
+def get_shared_variable(self, key, default=None):
+    if FrameContext.task is None:
+        return None
+    return FrameContext.task.get_shared_variable(key,default)
+
+def set_shared_variable(self, key, value):
+    if FrameContext.task is None:
+        return None
+    return FrameContext.task.set_shared_variable(key,value)
+
+
+
+def AWAIT(promise: Promise):
+    return PromiseWaiter(promise)
+    

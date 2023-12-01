@@ -21,8 +21,8 @@ class FrameContextMeta(type):
 
     @property
     def page(self):
-        if self._page is None:
-            show_warning("FrameContext missing page")
+        #if self._page is None:
+        #    show_warning("FrameContext missing page")
         return self._page
     
     @page.setter

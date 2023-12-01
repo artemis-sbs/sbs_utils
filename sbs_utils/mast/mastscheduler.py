@@ -8,8 +8,9 @@ import time
 import traceback
 from ..agent import Agent, get_task_id
 from ..helpers import FrameContext
-from ..futures import Promise
+from ..futures import Promise, Waiter
 from .label import get_fall_through
+from .pollresults import PollResults
 
 
 class MastRuntimeNode:
@@ -24,16 +25,6 @@ class MastRuntimeNode:
 
 # class MastAsyncTask:
 #     pass
-
-# Using enum.IntEnum 
-class PollResults(IntEnum):
-     OK_JUMP = 1
-     OK_ADVANCE_TRUE = 2
-     OK_ADVANCE_FALSE=3
-     OK_RUN_AGAIN = 4
-     OK_YIELD=5 # This will advance, but run again
-     FAIL_END = 100
-     OK_END = 99
 
 class EndRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:End):
@@ -747,14 +738,14 @@ class PyTicker():
         # Keep running until told to defer or you've jump 100 time
         # Arbitrary number
         throttle = 0
-        is_new_jump = False
+        
         while not self.done and throttle < 100:
             throttle += 1
             if self.pending_jump:
                 #print(f"jump to {self.pending_jump}")
                 res = self.do_jump()
                 self.pending_pop = None
-                is_new_jump = True
+                
             elif self.pending_pop:
                 # Pending jump trumps pending pop
                 #print(f"pending pop to {self.pending_pop.__name__}")
@@ -774,6 +765,7 @@ class PyTicker():
             #self.last_poll_result = None
             gen_done = True
             fallthrough = True
+            self.last_poll_result = None
             for res in gen:
                 is_new_jump = False
                 if res is None:
@@ -786,18 +778,26 @@ class PyTicker():
                     self.last_poll_result = res
                 if res == PollResults.OK_RUN_AGAIN:
                     return self.last_poll_result
-                if res == PollResults.OK_JUMP:
+                elif res == PollResults.OK_JUMP:
                     break
-                if res == PollResults.OK_END:
+                elif res == PollResults.OK_END:
                     gen_done = True
                     fallthrough = False
                     self.end()
                     break
+                elif isinstance(res, Waiter):
+                    if self.current_gen is not None:
+                        self.stack.append(self.current_gen)
+                    self.current_gen = res.get_waiter()
+                    self.last_poll_result = PollResults.OK_JUMP
+                    break
+
                 
             if self.last_poll_result == PollResults.OK_JUMP:
                 continue
 
-            
+            if self.last_poll_result == PollResults.OK_END:
+                continue
             
             if gen_done:
                 #
@@ -808,11 +808,8 @@ class PyTicker():
                 #
                 # If there is a pending Jump DON't pop
                 #
-                if fallthrough and self.fall_through_label:
-                    # set pending jump
-                    self.jump(self.fall_through_label)
                     
-
+                
                 if self.pending_jump is not None:
                 #
                 # jump was called and the generate just never yielded
@@ -822,6 +819,9 @@ class PyTicker():
                     # Pop wasn't called
                     # assuming it should pop
                     self.last_poll_result = self.pop()
+                elif fallthrough and self.fall_through_label:
+                    # set pending jump
+                    self.jump(self.fall_through_label)
                 else:
                     self.current_gen = self.pending_pop
                     if self.current_gen is None:
@@ -845,13 +845,15 @@ class PyTicker():
         gen = None
         self.fall_through_label = None
         res = PollResults.FAIL_END
-        if inspect.isfunction(label):
-            #print(f"IS func {label.__name__}")
+        
+            
+        if inspect.ismethod(label):
+            print(f"IS METHOD {label.__name__}")
             self.fall_through_label = get_fall_through(label)
             gen = label()
             res = PollResults.OK_JUMP
-            
-        elif inspect.ismethod(label):
+        elif inspect.isfunction(label):
+            #print(f"IS func {label.__name__}")
             self.fall_through_label = get_fall_through(label)
             gen = label()
             res = PollResults.OK_JUMP
@@ -949,6 +951,7 @@ class MastAsyncTask(Agent, Promise):
         self.active_ticker.end()
         self.set_result(True)
         self.done = True
+        return PollResults.OK_END
     #
     # Override of Promise
     #
@@ -1038,6 +1041,12 @@ class MastAsyncTask(Agent, Promise):
     def set_variable(self, key, value):
         self.set_value_keep_scope(key,value)
 
+    def get_shared_variable(self, key, default=None):
+        return Agent.SHARED.get_inventory_value(key, default)
+    
+    def set_shared_variable(self, key, value):
+        Agent.SHARED.set_inventory_value(key, value)
+
 
     def format_string(self, message):
         if isinstance(message, str):
@@ -1104,10 +1113,10 @@ class MastAsyncTask(Agent, Promise):
     def jump(self, label = "main", activate_cmd=0):
         if isinstance(label, str) or isinstance(label, Label):
             self.active_ticker = self.mast_ticker
-            self.mast_ticker.jump(label, activate_cmd)
+            return self.mast_ticker.jump(label, activate_cmd)
         else:
             self.active_ticker = self.py_ticker
-            self.py_ticker.jump(label)
+            return self.py_ticker.jump(label)
         
 
     def push_label(self, label, activate_cmd=0, data=None):

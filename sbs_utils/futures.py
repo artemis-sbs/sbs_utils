@@ -1,3 +1,5 @@
+from .mast.pollresults import PollResults
+
 class Promise:
     def __init__(self) -> None:
         self._result = None
@@ -77,3 +79,17 @@ class PromiseAllAny(Promise):
         self.canceled = True
 
 
+class Waiter:
+    def get_waiter(self):
+        pass
+
+
+class PromiseWaiter(Waiter):
+    def __init__(self, promise) -> None:
+        self.promise = promise
+    def get_waiter(self):
+#        print()
+ #       def _waiter(promise):
+            while not self.promise.done():
+                yield PollResults.OK_RUN_AGAIN
+  #      return _waiter(self.promise)
