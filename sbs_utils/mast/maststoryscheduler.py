@@ -9,23 +9,13 @@ from .parsers import StyleDefinition
 from ..agent import Agent
 from ..pages import layout
 
-from .maststory import AppendText,  MastStory, Choose, Disconnect, Text, AwaitGui, OnChange, OnMessage, OnClick
+from .maststory import AppendText,  Disconnect, Text,  OnChange, OnMessage, OnClick
 import traceback
-from .mastsbsscheduler import MastSbsScheduler, Button
+from .mastsbsscheduler import MastSbsScheduler
 from .parsers import LayoutAreaParser
 
 
 
-class TabControl(layout.Text):
-    def __init__(self, tag, message, label, page) -> None:
-        super().__init__(tag,message)
-        self.page = page
-        self.label = label
-
-    def on_message(self, event):
-        if event.sub_tag == self.click_tag:
-            if self.label is not None:
-                self.page.gui_task.jump(self.label)
 
 
 class StoryRuntimeNode(MastRuntimeNode):
@@ -170,20 +160,20 @@ class AppendTextRuntimeNode(StoryRuntimeNode):
 
 
 
-class AwaitGuiRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: AwaitGui):
-        seconds = (node.minutes*60+node.seconds)
-        if seconds == 0:
-            self.timeout = None
-        else:
-            self.timeout = sbs.app_seconds()+ (node.minutes*60+node.seconds)
-        task.main.page.set_button_layout(None)
+# class AwaitGuiRuntimeNode(StoryRuntimeNode):
+#     def enter(self, mast:Mast, task:MastAsyncTask, node: AwaitGui):
+#         seconds = (node.minutes*60+node.seconds)
+#         if seconds == 0:
+#             self.timeout = None
+#         else:
+#             self.timeout = sbs.app_seconds()+ (node.minutes*60+node.seconds)
+#         task.main.page.set_button_layout(None)
 
-    def poll(self, mast:Mast, task:MastAsyncTask, node: AwaitGui):
-        if self.timeout:
-            if self.timeout <= sbs.app_seconds():
-                return PollResults.OK_ADVANCE_TRUE
-        return PollResults.OK_RUN_AGAIN
+#     def poll(self, mast:Mast, task:MastAsyncTask, node: AwaitGui):
+#         if self.timeout:
+#             if self.timeout <= sbs.app_seconds():
+#                 return PollResults.OK_ADVANCE_TRUE
+#         return PollResults.OK_RUN_AGAIN
 
 
 class DisconnectRuntimeNode(MastRuntimeNode):
@@ -191,140 +181,141 @@ class DisconnectRuntimeNode(MastRuntimeNode):
         if node.end_await_node:
             task.jump(task.active_label,node.end_await_node.loc+1)
 
-class ChooseRuntimeNode(StoryRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Choose):
-        seconds = (node.minutes*60+node.seconds)
-        if seconds == 0:
-            self.timeout = None
-        else:
-            self.timeout = sbs.app_seconds()+ seconds
+# class ChooseRuntimeNode(StoryRuntimeNode):
+#     def enter(self, mast:Mast, task:MastAsyncTask, node: Choose):
+#         seconds = (node.minutes*60+node.seconds)
+#         if seconds == 0:
+#             self.timeout = None
+#         else:
+#             self.timeout = sbs.app_seconds()+ seconds
 
-        top = ((task.main.page.aspect_ratio.y - 30)/task.main.page.aspect_ratio.y)*100
+#         top = ((task.main.page.aspect_ratio.y - 30)/task.main.page.aspect_ratio.y)*100
 
-        # ast = LayoutAreaParser.parse_e(LayoutAreaParser.lex("100-30px"))
-        # top = LayoutAreaParser.compute(ast, {}, task.main.page.aspect_ratio.y)
-        button_layout = layout.Layout(None, None, 0,top,100,100)
-        button_layout.tag = task.main.page.get_tag()
+#         # ast = LayoutAreaParser.parse_e(LayoutAreaParser.lex("100-30px"))
+#         # top = LayoutAreaParser.compute(ast, {}, task.main.page.aspect_ratio.y)
+#         button_layout = layout.Layout(None, None, 0,top,100,100)
+#         button_layout.tag = task.main.page.get_tag()
 
-        active = 0
-        index = 0
-        layout_row: layout.Row
-        layout_row = layout.Row()
-        layout_row.tag = task.main.page.get_tag()
+#         active = 0
+#         index = 0
+#         layout_row: layout.Row
+#         layout_row = layout.Row()
+#         layout_row.tag = task.main.page.get_tag()
 
-        buttons = []
+#         buttons = []
 
-        # Expand all the 'for' buttons
-        for button in node.buttons:
-            if button.__class__.__name__ != "Button":
-                buttons.append(button)
-            elif button.for_name is None:
-                buttons.append(button)
-            else:
-                buttons.extend(self.expand(button, task))
+#         # Expand all the 'for' buttons
+#         for button in node.buttons:
+#             if button.__class__.__name__ != "Button":
+#                 buttons.append(button)
+#             elif button.for_name is None:
+#                 buttons.append(button)
+#             else:
+#                 buttons.extend(self.expand(button, task))
         
-        for button in buttons:
-            match button.__class__.__name__:
-                case "Button":
-                    value = True
-                    #button.end_await_node = node.end_await_node
-                    if button.code is not None:
-                        value = task.eval_code(button.code)
-                    if value and button.should_present(0):#task.main.client_id):
-                        runtime_node = ChoiceButtonRuntimeNode(self, task, index, task.main.page.get_tag(), button)
-                        #runtime_node.enter(mast, task, button)
-                        msg = task.format_string(button.message)
-                        layout_button = layout.Button(runtime_node.tag, msg)
-                        layout_row.add(layout_button)
+#         for button in buttons:
+#             match button.__class__.__name__:
+#                 case "Button":
+#                     value = True
+#                     #button.end_await_node = node.end_await_node
+#                     if button.code is not None:
+#                         value = task.eval_code(button.code)
+#                     if value and button.should_present(0):#task.main.client_id):
+#                         runtime_node = ChoiceButtonRuntimeNode(self, task, index, task.main.page.get_tag(), button)
+#                         #runtime_node.enter(mast, task, button)
+#                         msg = task.format_string(button.message)
+#                         layout_button = layout.Button(runtime_node.tag, msg)
+#                         layout_row.add(layout_button)
                         
-                        self.apply_style_name(".choice", layout_button, task)
-                        if node.style_def is not None:
-                            self.apply_style_def(node.style_def,  layout_button, task)
-                        if node.style_name is not None:
-                            self.apply_style_name(node.style_name, layout_button, task)
-                        # After style could change tag
-                        task.main.page.add_tag(layout_button, runtime_node)
-                        active += 1
-                case "Separator":
-                    # Handle face expression
-                    layout_row.add(layout.Blank())
-            index+=1
+#                         self.apply_style_name(".choice", layout_button, task)
+#                         if node.style_def is not None:
+#                             self.apply_style_def(node.style_def,  layout_button, task)
+#                         if node.style_name is not None:
+#                             self.apply_style_name(node.style_name, layout_button, task)
+#                         # After style could change tag
+#                         task.main.page.add_tag(layout_button, runtime_node)
+#                         active += 1
+#                 case "Separator":
+#                     # Handle face expression
+#                     layout_row.add(layout.Blank())
+#             index+=1
 
-        if active>0:    
-            button_layout.add(layout_row)
-            task.main.page.set_button_layout(button_layout)
-        else:
-            task.main.page.set_button_layout(None)
+#         if active>0:    
+#             button_layout.add(layout_row)
+#             task.main.page.set_button_layout(button_layout)
+#         else:
+#             task.main.page.set_button_layout(None)
 
-        self.active = active
-        self.buttons = buttons
-        self.button = None
+#         self.active = active
+#         self.buttons = buttons
+#         self.button = None
 
-    def expand(self, button: Button, task: MastAsyncTask):
-        buttons = []
-        if button.for_code is not None:
-            iter_value = task.eval_code(button.for_code)
-            for data in iter_value:
-                task.set_value(button.for_name, data, Scope.TEMP)
-                clone = button.clone()
-                clone.data = data
-                clone.message = task.format_string(clone.message)
-                buttons.append(clone)
+#     def expand(self, button: Button, task: MastAsyncTask):
+#         buttons = []
+#         if button.for_code is not None:
+#             iter_value = task.eval_code(button.for_code)
+#             for data in iter_value:
+#                 task.set_value(button.for_name, data, Scope.TEMP)
+#                 clone = button.clone()
+#                 clone.data = data
+#                 clone.message = task.format_string(clone.message)
+#                 buttons.append(clone)
 
-        return buttons
+#         return buttons
 
 
-    def poll(self, mast:Mast, task:MastAsyncTask, node: Choose):
-        if node.disconnect_label is not None:
-            page = task.main.page
-            if page is not None and page.disconnected:
-                task.push_inline_block(task.active_label,node.disconnect_label.loc+1)
-                return PollResults.OK_JUMP
+#     def poll(self, mast:Mast, task:MastAsyncTask, node: Choose):
+#         if node.disconnect_label is not None:
+#             page = task.main.page
+#             if page is not None and page.disconnected:
+#                 task.push_inline_block(task.active_label,node.disconnect_label.loc+1)
+#                 return PollResults.OK_JUMP
         
-        if self.active==0 and self.timeout is None:
-            return PollResults.OK_ADVANCE_TRUE
+#         if self.active==0 and self.timeout is None:
+#             return PollResults.OK_ADVANCE_TRUE
 
 
-        if self.button is not None:
-            if node.assign:
-                task.set_value_keep_scope(node.assign, self.button.index)
-                return PollResults.OK_ADVANCE_TRUE
+#         if self.button is not None:
+#             if node.assign:
+#                 task.set_value_keep_scope(node.assign, self.button.index)
+#                 return PollResults.OK_ADVANCE_TRUE
             
-            self.button.node.visit(self.button.client_id)
-            button = self.buttons[self.button.index]
-            if button.for_name:
-                task.set_value(button.for_name, button.data, Scope.TEMP)
+#             self.button.node.visit(self.button.client_id)
+#             button = self.buttons[self.button.index]
+#             if button.for_name:
+#                 task.set_value(button.for_name, button.data, Scope.TEMP)
 
-            self.button = None
-            #print(f"CHOICE {button.loc+1} {node.end_await_node.loc}")
-            task.push_inline_block(task.active_label,button.loc+1)
-            return PollResults.OK_JUMP
+#             self.button = None
+#             #print(f"CHOICE {button.loc+1} {node.end_await_node.loc}")
+#             task.push_inline_block(task.active_label,button.loc+1)
+#             return PollResults.OK_JUMP
 
-        if self.timeout is not None:
-            if self.timeout <= sbs.app_seconds():
-                if node.timeout_label:
-                    task.jump(task.active_label,node.timeout_label.loc+1)
-                    return PollResults.OK_JUMP
-                elif node.end_await_node:
-                    task.jump(task.active_label,node.end_await_node.loc+1)
-                    return PollResults.OK_JUMP
-        return PollResults.OK_RUN_AGAIN
+#         if self.timeout is not None:
+#             if self.timeout <= sbs.app_seconds():
+#                 if node.timeout_label:
+#                     task.jump(task.active_label,node.timeout_label.loc+1)
+#                     return PollResults.OK_JUMP
+#                 elif node.end_await_node:
+#                     task.jump(task.active_label,node.end_await_node.loc+1)
+#                     return PollResults.OK_JUMP
+#         return PollResults.OK_RUN_AGAIN
 
 
-class ChoiceButtonRuntimeNode(StoryRuntimeNode):
-    def __init__(self, choice, task, index, tag, node):
-        self.choice = choice
-        self.index = index
-        self.tag = tag
-        self.client_id = None
-        self.node = node
-        self.task = task
+# class ChoiceButtonRuntimeNode(StoryRuntimeNode):
+#     def __init__(self, choice, task, index, tag, node):
+#         self.choice = choice
+#         self.index = index
+#         self.tag = tag
+#         self.client_id = None
+#         self.node = node
+#         self.task = task
         
-    def on_message(self, event):
-        if event.sub_tag == self.tag:
-            self.choice.button = self
-            self.client_id = event.client_id
-            self.task.tick()
+#     def on_message(self, event):
+#         if event.sub_tag == self.tag:
+#             self.choice.button = self
+#             self.client_id = event.client_id
+#             # This assure the right page gets activated
+#             self.task.main.page.tick_gui_task()
             
 
 class OnChangeRuntimeNode(StoryRuntimeNode):
@@ -421,8 +412,8 @@ over =     {
     "OnMessage": OnMessageRuntimeNode,
     "OnClick": OnClickRuntimeNode,
 
-    "AwaitGui": AwaitGuiRuntimeNode,
-    "Choose": ChooseRuntimeNode,
+    #"AwaitGui": AwaitGuiRuntimeNode,
+    #"Choose": ChooseRuntimeNode,
 }
 
 class StoryScheduler(MastSbsScheduler):

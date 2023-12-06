@@ -142,20 +142,19 @@ def target(set_or_object, target_id, shoot: bool = True, throttle: float = 1.0):
     target_engine = FrameContext.context.sim.get_space_object(target_id)
 
     if target_engine:
-        data = {
-            "target_pos_x": target_engine.pos.x,
-            "target_pos_y": target_engine.pos.y,
-            "target_pos_z": target_engine.pos.z,
-            "target_id": 0,
-            "throttle": throttle
-        }
+        target_id: 0
         if shoot:
-            data["target_id"] = target_engine.unique_ID
+            target_id = target_engine.unique_ID
         all = to_list(set_or_object)
         for chaser in all:
             chaser = Agent.resolve_py_object(chaser)
             if chaser is not None:
-                chaser.update_engine_data(data)
+                chaser.data_set.set("target_pos_x", target_engine.pos.x,0)
+                chaser.data_set.set("target_pos_y", target_engine.pos.y,0)
+                chaser.data_set.set("target_pos_z", target_engine.pos.z,0)
+                chaser.data_set.set("target_id", target_id,0)
+                chaser.data_set.set("throttle", throttle,0)
+
 
 
 def target_pos(chasers: set | int | CloseData|SpawnData, x: float, y: float, z: float, throttle: float = 1.0):
@@ -166,17 +165,16 @@ def target_pos(chasers: set | int | CloseData|SpawnData, x: float, y: float, z: 
     :param shoot: if the object should be shot at
     :type shoot: bool
     """
-    data = {
-        "target_pos_x": x,
-        "target_pos_y": y,
-        "target_pos_z": z,
-        "target_id": 0,
-        "throttle": throttle
-    }
     all = to_list(chasers)
     for chaser in all:
         chaser = Agent.resolve_py_object(chaser)
-        chaser.update_engine_data(data)
+        chaser.data_set.set("target_pos_x", x, 0)
+        chaser.data_set.set("target_pos_y", y,0)
+        chaser.data_set.set("target_pos_z", z,0)
+        chaser.data_set.set("target_id", 0,0)
+        chaser.data_set.set("throttle", throttle, 0)
+    
+   
 
 def clear_target(chasers: set | int | CloseData|SpawnData):
         """ Clear the target
@@ -189,17 +187,16 @@ def clear_target(chasers: set | int | CloseData|SpawnData):
         for chaser in all:
             chaser = Agent.resolve_py_object(chaser)
             this = FrameContext.context.sim.get_space_object(chaser.id)
-            chaser.update_engine_data( {
-                "target_pos_x": this.pos.x,
-                "target_pos_y": this.pos.y,
-                "target_pos_z": this.pos.z,
-                "target_id": 0
-            })
+            chaser.data_set.set("target_pos_x", this.pos.x,0)
+            chaser.data_set.set("target_pos_y", this.pos.y,0)
+            chaser.data_set.set("target_pos_z", this.pos.z,0)
+            chaser.data_set.set("target_id", 0,0)
+
 
 def get_pos(id_or_obj):
     object = to_object(id_or_obj)
     if object is not None:
-        eo = object.get_engine_object()
+        eo = object.engine_object
         if eo:
             return eo.pos
     return None
@@ -209,7 +206,7 @@ def set_pos(id_or_obj, x, y, z):
     for id in ids:
         object = to_object(id_or_obj)
     if object is not None:
-        eo = object.get_engine_object()
+        eo = object.engine_object
         if eo:
             return FrameContext.context.sim.reposition_space_object(eo, x, y, z)
 

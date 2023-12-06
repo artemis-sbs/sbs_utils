@@ -3,29 +3,36 @@ from .mast.pollresults import PollResults
 class Promise:
     def __init__(self) -> None:
         self._result = None
-        self.canceled = None
-        self.exception = None
+        self._canceled = None
+        self._exception = None
 
-    def _result(self):
+    def result(self):
         return self._result
+    
+    def exception(self):
+        return self._exception
     
     def set_result(self, result):
         self._result = result
 
     def set_exception(self, ex):
-        self.exception = ex
+        self._exception = ex
 
     def done(self):
-        return self._result is not None or self.canceled is not None or self.exception is not None 
+        self.poll()
+        return self._result is not None or self._canceled is not None or self._exception is not None 
     
-    def cancelled(self):
-        return self.canceled is not None
+    def poll(self):
+        pass
+
+    def canceled(self):
+        return self._canceled is not None
     
-    def cancel(self, msg):
-        if self.done() or self.canceled:
+    def cancel(self, msg=None):
+        if self.done() or self.canceled():
             return False
         
-        self.canceled = True
+        self._canceled = True
 
     
 
@@ -89,7 +96,27 @@ class PromiseWaiter(Waiter):
         self.promise = promise
     def get_waiter(self):
 #        print()
- #       def _waiter(promise):
+#       def _waiter(promise):
             while not self.promise.done():
                 yield PollResults.OK_RUN_AGAIN
-  #      return _waiter(self.promise)
+#      return _waiter(self.promise)
+
+
+class AwaitBlockPromise(Promise):
+    def __init__(self, timeout=None) -> None:
+        super().__init__()
+        # A promise from a delay function, or None
+        self.timeout = timeout
+        self.inlines = []
+        self._initial_poll = False
+
+    
+    def initial_poll(self):
+        if self._initial_poll:
+            return
+        self._initial_poll = True
+
+    def poll(self):
+        self.initial_poll()
+        if self.timeout and self.timeout.done():
+            self.set_result(True)

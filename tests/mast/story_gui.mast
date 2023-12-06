@@ -57,7 +57,7 @@ This is your first ship
 """""""""""""""""""""""""""""""""
 gui_blank()
 
-await choice:
+await gui():
     + "Yes.." if learn == True:
         -> YouLied 
     + "Yes.." if learn == False:
@@ -92,7 +92,7 @@ I will not tolerate those who are untruthful.
 You should board the next shuttle and get the hell out of my sector
 """""""""""""""""""""""""""""""""""""""""""
 
-await choice:
+await gui():
 + "Exit":
 ->END
 end_await
@@ -114,7 +114,7 @@ You're ready to command your own ship.
 Good luck
 """""""""""""""""""""""""""""""""
 
-await choice:
+await gui():
     + "Resume Mission"  if mission_started==True:
         -> ResumeMission
     + "Start Mission"  if mission_started==False:
@@ -179,7 +179,7 @@ gui_input(var="text_in")
 #slider slider_value 0.0 1.0 0.5
 gui_checkbox("Yaba")
 
-await choice:
+await gui():
 + "exit":
   ->END
 end_await
@@ -241,7 +241,7 @@ You can also select from a selection of different views.
 
 """
 
-await choice:
+await gui():
     + "Back":
         <<-
 end_await
@@ -298,7 +298,7 @@ match console:
     case _:
         """Pick a Console"""
 end_match
-await gui
+await gui()
 
 ========== PickedView =====
 ->> Menu
@@ -325,7 +325,7 @@ end_match
 """
 Unrreachable?
 """
-await gui
+await gui()
 
 ========== PickedMast =====
 ->> Menu
@@ -333,7 +333,7 @@ await gui
 """
 Mast {mast_view}
 """
-await choice:
+await gui():
     + "Back":
         <<-
 end_await
@@ -347,20 +347,20 @@ comms_broadcast(PlayerShip,  "Hello")
 
 gui_image("{mission_dir}\data\quarters")
 
-await gui
+await gui()
 
 ========== ViewCrafting =====
 ->> Menu
 
 gui_image("image:{mission_dir}\data\crafting;")
 
-await gui
+await gui()
 ========== ViewPad =====
 ->> Menu
 
 gui_image( "{mission_dir}\data\datapad")
 
-await gui
+await gui()
 
 ========== ViewAux =====
 ->> Menu
@@ -368,4 +368,4 @@ await gui
 """
 This would be the auxiliary Screen
 """
-await gui
+await gui()

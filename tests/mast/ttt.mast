@@ -83,7 +83,7 @@ end_match
 
 ->>draw_board
 
-await choice:
+await gui():
     + "Play Again":
         ->> clear
         ###
@@ -114,7 +114,7 @@ next x
 gui_row()
 next y
 
-await gui
+await gui()
 
 
 ============== draw_board   ======

@@ -98,6 +98,11 @@ def delay_sim(seconds=0, minutes=0):
 def delay_app(seconds=0, minutes=0):
     return Delay(seconds, minutes, False)
 
+def timeout(seconds=0, minutes=0):
+    return Delay(seconds, minutes, False)
+
+def timeout_sim(seconds=0, minutes=0):
+    return Delay(seconds, minutes, True)
 
 
 

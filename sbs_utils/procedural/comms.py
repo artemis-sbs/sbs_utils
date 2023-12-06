@@ -172,3 +172,5 @@ def comms_info(name, face=None, color=None):
     else:
         #print(f"Comms Info comms nn{name} i{from_so.id} f{face} c{color} n{comms_id}")
         sbs.send_comms_selection_info(from_so.id, face, color, name)
+
+

@@ -131,6 +131,8 @@ class Agent():
         super().__init__()
         self.links = Stuff()
         self.inventory = Stuff()
+        self._data_set = None
+        self._engine_object = None
 
     @property
     def is_player(self):
@@ -155,6 +157,15 @@ class Agent():
     @property
     def is_grid_object(self):
         return False
+    
+    @property
+    def data_set(self):
+        return self._data_set
+    
+    @property
+    def engine_object(self):
+        return self._engine_object
+
 
 
 
@@ -491,36 +502,36 @@ class Agent():
         """
         self._remove(self.id)
 
-    def update_engine_data(self, data):
-        blob = self.get_engine_data_set()
-        if blob is not None:
-            for (key, value) in data.items():
-                if type(value) is tuple:
-                    blob.set(key, value[0], value[1])
-                else:
-                    blob.set(key, value)
+    # def update_engine_data(self, data):
+    #     blob = self.get_engine_data_set()
+    #     if blob is not None:
+    #         for (key, value) in data.items():
+    #             if type(value) is tuple:
+    #                 blob.set(key, value[0], value[1])
+    #             else:
+    #                 blob.set(key, value)
 
-    def get_engine_data(self, key, index=0):
-        blob = self.get_engine_data_set()
-        if blob is not None:
-            return blob.get(key, index)
-        return None
+    # def get_engine_data(self, key, index=0):
+    #     blob = self.get_engine_data_set()
+    #     if blob is not None:
+    #         return blob.get(key, index)
+    #     return None
 
-    def set_engine_data(self, key, value, index=0):
-        blob = self.get_engine_data_set()
-        if blob is not None:
-            blob.set(key, value, index)
+    # def set_engine_data(self, key, value, index=0):
+    #     blob = self.get_engine_data_set()
+    #     if blob is not None:
+    #         blob.set(key, value, index)
 
-    def get_engine_data_set(self):
-        this = self.get_engine_object()
-        if this is None:
-            # Object is destroyed
-            return None
-        return this.data_set
+    # def get_engine_data_set(self):
+    #     this = self.get_engine_object()
+    #     if this is None:
+    #         # Object is destroyed
+    #         return None
+    #     return this.data_set
     
-    def get_engine_object(self):
-        # Needs to be implemented by Grid and Space Object
-        return None
+    # def get_engine_object(self):
+    #     # Needs to be implemented by Grid and Space Object
+    #     return None
     
 
 

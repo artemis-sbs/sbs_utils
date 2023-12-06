@@ -1,5 +1,5 @@
-from .mast import Mast, Scope
-from .mastsbs import Comms, Button, Scan
+from .mast import Mast, Scope, Button
+from .mastsbs import Comms,  Scan
 from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask, ChangeRuntimeNode
 import sbs
 from .mastobjects import SpaceObject, MastSpaceObject
@@ -22,20 +22,6 @@ from .. import vec
 
 import traceback
 
-class ButtonRuntimeNode(MastRuntimeNode):
-    def poll(self, mast:Mast, task:MastAsyncTask, node: Button):
-        #task.redirect_pop_label(True)
-        #return PollResults.OK_JUMP
-        if node.await_node and node.await_node.end_await_node:
-            #print(f"Button return {task.active_label} {node.await_node.end_await_node.loc+1}")
-
-            task.jump(task.active_label,node.await_node.end_await_node.loc+1)
-            return PollResults.OK_JUMP
-            
-        return PollResults.OK_ADVANCE_TRUE
-
-
-        
 
 
 class CommsRuntimeNode(MastRuntimeNode):
@@ -160,7 +146,7 @@ class CommsRuntimeNode(MastRuntimeNode):
                 if oo is None or so is None:
                     return
                 scan_name = oo.side+"scan"
-                initial_scan = so.get_engine_data(scan_name)
+                initial_scan = so.data_set.get(scan_name,0)
                 
                 if initial_scan is None or initial_scan =="":
                     sbs.send_comms_selection_info(origin_id, "", "white", "unknown")
@@ -246,13 +232,13 @@ class CommsRuntimeNode(MastRuntimeNode):
             if oo is None or so is None:
                 return PollResults.OK_ADVANCE_TRUE
             scan_name = oo.side+"scan"
-            initial_scan = so.get_engine_data(scan_name)
+            initial_scan = so.data_set.get(scan_name,0)
             self.is_unknown = (initial_scan is None or initial_scan == "")
             # It is now known
             #
             if not self.is_unknown:
                 # if selected update buttons
-                player_current_select = oo.get_engine_data( "comms_target_UID")
+                player_current_select = oo.data_set.get( "comms_target_UID",0)
                 if player_current_select == self.selected_id:
                     self.set_buttons(self.origin_id, self.selected_id)
             return PollResults.OK_RUN_AGAIN
@@ -342,7 +328,7 @@ class ScanRuntimeNode(MastRuntimeNode):
 
         if to_so is not None:
             scan_tab = from_so.side+"scan"
-            has_scan = to_so.get_engine_data(scan_tab)
+            has_scan = to_so.data_set.get(scan_tab,0)
             if has_scan is None:
                 scan_tabs = "scan"
                 self.scan_is_done = False
@@ -362,11 +348,11 @@ class ScanRuntimeNode(MastRuntimeNode):
                                 scan_tabs += " "
                             scan_tabs += msg
                         # Check if this has been scanned
-                        has_scan = to_so.get_engine_data(from_so.side+msg)
+                        has_scan = to_so.data_set.get(from_so.side+msg, 0)
                         if has_scan:
                             scanned_tabs += 1
                 self.scan_is_done = scanned_tabs == button_count
-                to_so.update_engine_data({"scan_type_list":scan_tabs})
+                to_so.data_set.set("scan_type_list", scan_tabs, 0)
 
         
         ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'science_target_UID', self.science_selected)
@@ -407,11 +393,10 @@ class ScanRuntimeNode(MastRuntimeNode):
         if so.side == so_sel.side:
             percent = 0.90
         if so:
-            so.update_engine_data({
-                "cur_scan_ID": selected_id,
-                "cur_scan_type": extra_tag,
-                "cur_scan_percent": percent
-            })
+            so.data_set.set("cur_scan_ID", selected_id,0)
+            so.data_set.set("cur_scan_type", extra_tag,0)
+            so.data_set.set("cur_scan_percent", percent,0)
+            
 
     # def set_buttons(self, from_id, to_id):
     #     # check to see if the from ship still exists
@@ -464,7 +449,7 @@ class ScanRuntimeNode(MastRuntimeNode):
             self.tab = None
             if so and so_player:
                 tab = so_player.side+"scan"
-                scan_tab = so.get_engine_data(tab)
+                scan_tab = so.data_set.get(tab,0)
                 if scan_tab is None:
                     if node.fog == 0:
                         self.tab = "scan"
@@ -511,13 +496,8 @@ def handle_purge_tasks(so):
 LifetimeDispatcher.add_destroy(handle_purge_tasks)
 
 
-
-
-
-
 over =     {
     "Comms": CommsRuntimeNode,
-    "Button": ButtonRuntimeNode,
     "Scan": ScanRuntimeNode
 }
 
@@ -558,6 +538,7 @@ from ..procedural import science
 from ..procedural import cosmos
 from ..procedural import routes
 from ..procedural import execution
+from ..procedural import behavior
 
 
 Mast.import_python_module('sbs_utils.procedural.query')
@@ -574,6 +555,7 @@ Mast.import_python_module('sbs_utils.procedural.science')
 Mast.import_python_module('sbs_utils.procedural.cosmos')
 Mast.import_python_module('sbs_utils.procedural.routes')
 Mast.import_python_module('sbs_utils.procedural.execution')
+Mast.import_python_module('sbs_utils.procedural.behavior')
 
 Mast.import_python_module('sbs_utils.faces')
 Mast.import_python_module('sbs_utils.fs')

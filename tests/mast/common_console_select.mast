@@ -29,7 +29,7 @@ button "accept":
     ->console_selected
 end_button
 
-await gui
+await gui()
 
 ->END
 
@@ -44,6 +44,6 @@ next player_ship
 
 console console_select
 
-await gui
+await gui()
 
 

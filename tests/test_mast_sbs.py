@@ -36,7 +36,8 @@ await self comms player:
     + "Button Two":
         -> JumpLabel
     + "Button Jump":
-timeout 1m 1s:
+        -> JumpSomeWhere
+    =timeout(2,2):
         -> JumpSomeWhere
 end_await
 
@@ -155,7 +156,7 @@ receive ("Cyan")
 await self comms player timeout 5s:
 + "Say main":
     -> main
-timeout:
+=timeout():
 -> TooSlow
 end_await
 

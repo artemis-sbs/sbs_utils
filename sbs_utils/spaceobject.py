@@ -31,6 +31,8 @@ class SpaceObject(Agent):
         self._art_id = ""
         self.spawn_pos = sbs.vec3(0,0,0)
         self.tick_type = TickType.UNKNOWN
+        self._data_set = None
+        self._engine_object = None
     
     @property
     def is_player(self):
@@ -106,7 +108,8 @@ class SpaceObject(Agent):
         :return: simulation space object
         :rtype: simulation space object
         """
-        return FrameContext.context.sim.get_space_object(self.id)
+        return self._engine_object
+        # return FrameContext.context.sim.get_space_object(self.id)
 
     def set_side(self, side):
         """ Get the side of the object
@@ -174,10 +177,18 @@ class SpaceObject(Agent):
         """str, cached version of art_id"""
         return self._art_id
 
+    @art_id.setter
+    def art_id(self: SpaceObject, value: str):
+        self._art_id = value
+        self.space_object().art_id = value
+
+
 
 class MSpawn:
     def spawn_common(self, obj, x, y, z, name, side, art_id):
         self.spawn_pos = sbs.vec3(x,y,z)
+        self._engine_object = obj
+
         FrameContext.context.sim.reposition_space_object(obj, x, y, z)
         self.add()
         self.add_role(self.__class__.__name__)
@@ -194,6 +205,8 @@ class MSpawn:
 
 
         blob = obj.data_set
+        self._data_set = blob
+
         if name is not None:
             self._name = name
             blob.set("name_tag", name, 0)

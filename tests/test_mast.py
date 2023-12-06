@@ -6,8 +6,12 @@ import unittest
 # for logging
 import sbs_utils.procedural.execution as ex
 import sbs_utils.procedural.timers as timers
+import sbs_utils.procedural.behavior as behavior
+import sbs_utils.procedural.gui as gui
 Mast.import_python_module('sbs_utils.procedural.execution')
+Mast.import_python_module('sbs_utils.procedural.behavior')
 Mast.import_python_module('sbs_utils.procedural.timers')
+Mast.import_python_module('sbs_utils.procedural.gui')
 
 def mast_assert(cond):
       assert(cond)
@@ -239,7 +243,7 @@ await task_schedule(thread)
 await task_schedule(fork, data={"self": player1, "HP": 30})
 
 trend = task_schedule(fork)
-await trend
+##FIX await trend
 #await task_all(fred, barney):
     ->END
 #fail:
@@ -619,17 +623,25 @@ case 50:
     def test_await_condition(self):
         (errors, runner, _) = mast_run( code = """
 shared x = 0
-t = task_schedule(Inc)
-await until x==10:
+t = task_schedule("Incr")
+await  x==10:
     log("x={x}")
 end_await
+await delay_app(2):
+=fail:   
+end_await
+
+await delay_app(2):
+=fail:   
+end_await
+
 task_cancel(t)
 log("done")
 ->END
-=== Inc ==
+=== Incr ==
 x = x + 1
 if x < 10:
-    ->Inc
+    ->Incr
 end_if
 
     """)
@@ -1089,25 +1101,25 @@ S2
 
 
 
-    def _test_fallback_no_err(self):
+    def test_fallback_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger(var="output")
         
-        await bt sel Seq1 | Seq2 | Seq3
+        await bt_sel(Seq1, Seq2,  Seq3)
         ->END
         ======== Seq1 =====
         log("S1")
         yield Fail
-        delay test 3s
+        await delay_test(3)
         log("S1 Again")
 
         ======== Seq2 =====
         log("S2")
-        delay test 10s
+        await delay_test(10)
         log("S2 Again")
         yield Success
         ===== Seq3 ====
-        delay test 3s
+        await delay_test(3)
         log("S3")
         yield faIl
     """)
@@ -1127,13 +1139,13 @@ S2 Again
 """)
 
 
-    def _test_fallback_loop_no_err(self):
+    def test_fallback_loop_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger(var="output")            
         shared x = 0
         === run ===
-        await bt sel Seq1 | Seq2 | Seq3:
-        fail:
+        await bt_sel(Seq1, Seq2,  Seq3):
+        =fail:
             log("Fail")
             ->run
         end_await
@@ -1207,7 +1219,8 @@ S2 Again
         => external
         # Start hungry until you eat something
         # await => eat_apple | eat_banana        
-        await bt until success sel eat_apple | eat_banana        
+        # yield AWAIT(UNTIL(PollResults.BT_SUCCESS, bt_sel, (eat_apple, eat_banana, data=None))
+        await until success bt_sel(eat_apple, eat_banana)
         #await a
         
         log("not hungry")
@@ -1296,25 +1309,25 @@ S2 Again
 
 
 
-    def _test_sequence_no_err(self):
+    def test_sequence_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger(var="output")            
         
-        await bt seq Seq1 & Seq2 & Seq3
+        await bt_seq(Seq1, Seq2, Seq3)
         ->END
         ======== Seq1 =====
         log("S1")
-        delay test 3s
+        await delay_test(3)
         log("S1 Again")
         ->END
 
         ======== Seq2 =====
         log("S2")
-        delay test 10s
+        await delay_test(10)
         log("S2 Again")
         -> END
         ===== Seq3 ====
-        delay test 3s
+        await delay_test(3)
         log("S3")
         ->END
     """)

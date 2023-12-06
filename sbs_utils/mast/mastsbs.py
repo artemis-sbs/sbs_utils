@@ -36,6 +36,10 @@ class Comms(MastNode):
         self.end_await_node = None
         EndAwait.stack.append(self)
 
+    def add_inline(self, _):
+        pass
+        """ Temp just needed until I can remove this"""
+
 
 
 class Scan(MastNode):
@@ -51,76 +55,6 @@ class Scan(MastNode):
 
         self.end_await_node = None
         EndAwait.stack.append(self)
-
-
-
-
-
-FOR_RULE = r'([ \t]+for[ \t]+(?P<for_name>\w+)[ \t]+in[ \t]+(?P<for_exp>[ \t\S]+?))?'
-class Button(MastNode):
-    
-    rule = re.compile(r"""(?P<button>\*|\+)[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_COLOR+FOR_RULE+IF_EXP_REGEX+r"[ \t]*"+BLOCK_START)
-    def __init__(self, message=None, button=None,  
-                color=None, if_exp=None, 
-                for_name=None, for_exp=None, 
-                clone=False, q=None, loc=None):
-        if clone:
-            return
-        self.message = self.compile_formatted_string(message)
-        self.sticky = (button == '+' or button=="button")
-        self.color = color
-        if color is not None:
-            self.color = self.compile_formatted_string(color)
-        self.visited = set() if not self.sticky else None
-        self.loc = loc
-        self.await_node = EndAwait.stack[-1]
-        self.await_node.buttons.append(self)
-
-        if if_exp:
-            if_exp = if_exp.lstrip()
-            self.code = compile(if_exp, "<string>", "eval")
-        else:
-            self.code = None
-
-        self.for_name = for_name
-        self.data = None
-        if for_exp:
-            for_exp = for_exp.lstrip()
-            self.for_code = compile(for_exp, "<string>", "eval")
-        else:
-            self.cor_code = None
-
-    def visit(self, id_tuple):
-        if self.visited is not None:
-            self.visited.add(id_tuple)
-    
-    def been_here(self, id_tuple):
-        if self.visited is not None:
-            return (id_tuple in self.visited)
-        return False
-
-    def should_present(self, id_tuple):
-        if self.visited is not None:
-            return not id_tuple in self.visited
-        return True
-
-    def clone(self):
-        proxy = Button(clone=True)
-        proxy.message = self.message
-        proxy.code = self.code
-        proxy.color = self.color
-        proxy.loc = self.loc
-        proxy.await_node = self.await_node
-        proxy.sticky = self.sticky
-        proxy.visited = self.visited
-        proxy.data = self.data
-        proxy.for_code = self.for_code
-        proxy.for_name = self.for_name
-
-        return proxy
-    
-    def expand(self):
-        pass
 
 class Focus(MastNode):
     rule = re.compile(r'focus:')
@@ -138,7 +72,6 @@ class MastSbs(Mast):
         # sbs specific
         Comms,
           Focus,
-          Button,
         Scan
     ] + Mast.nodes 
     

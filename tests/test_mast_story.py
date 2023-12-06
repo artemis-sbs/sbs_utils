@@ -43,35 +43,35 @@ end_on
 
     def test_compile_no_err(self):
         (errors, mast)= mast_story_compile( code = """
-await gui
+await gui()
 
-await gui timeout 5s
+await gui(timeout(5))
 
 gui_input("enter name")
 
-await choice:
+await gui():
     + "Start Mission" if started==False:
     ~~ sbs.resume_sim()~~
     + "Resume Mission" if started==True:
     ~~ sbs.resume_sim() ~~
 end_await
 
-await choice:
+await gui():
     * "Button one":
         -> JumpLabel
     + "Button Two":
         -> JumpLabel
     + "Button Jump":
-timeout  1m 1s:
+=timeout():
     -> JumpSomeWhere
 end_await
 
 
-await choice:
+await gui():
 * "Button one":
-    await choice:
+    await gui():
     * "Button one":
-        await choice:
+        await gui():
         * "Button one":
             -> JumpLabel
         end_await
@@ -145,22 +145,22 @@ gui_row()
 gui_slider("low:0;high:5", var="fred") 
 
 
-await choice:
+await gui():
     + "{x}" for x in range(3):
         log("well test")
 end_await
 
-await choice:
+await gui():
     + "Test" if y == 2:
         log("well test")
 end_await
 
-await choice:
+await gui():
     + "{x}" for x in range(3) if s==3:
         log("well test")
 end_await
 
-await choice:
+await gui():
     + "{x}" if s==3:
         log("well test")
     + "{x}" for x in range(3) if s==3:
@@ -182,8 +182,8 @@ end_await
         (errors,  _) = mast_story_compile( code = """
 #import grid_editor.mast
 
-reroute server server_start
-reroute clients client_start_once
+reroute_server(server_start)
+reroute_clients(client_start_once)
 
 
 ===== add_menu =====

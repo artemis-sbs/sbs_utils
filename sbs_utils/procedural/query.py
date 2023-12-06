@@ -119,37 +119,41 @@ def all_objects_exists(the_set):
 
 
 
-def update_engine_data(to_update, data):
-    objects = to_object_list(to_set(to_update))
-    for object in objects:
-        object.update_engine_data( data)
+# def update_engine_data(to_update, data):
+#     objects = to_object_list(to_set(to_update))
+#     for object in objects:
+#         object.update_engine_data(data)
+# def set_engine_data(to_update, key, value, index=0):
+#     objects = to_object_list(to_set(to_update))
+#     for object in objects:
+#         object.data_set.set(key, value, index)
 
-def get_engine_data(id_or_obj, key, index=0):
+
+
+# def get_engine_data(id_or_obj, key, index=0):
+#     object = to_object(id_or_obj)
+#     if object is not None:
+#         return object.data_set.get(key, index)
+#     return None
+
+def get_data_set_value(id_or_obj, key, index=0):
     object = to_object(id_or_obj)
     if object is not None:
-        return object.get_engine_data(key, index)
+        return object.data_set.get(key, index)
     return None
 
-def get_data_set_value(data_set, key, index=0):
-    return data_set.get(key, index)
-def set_data_set_value(data_set, key, value, index=0):
-    return data_set.set(key, value, index)
-
+def set_data_set_value(to_update, key, value, index=0):
+    objects = to_object_list(to_set(to_update))
+    for object in objects:
+        object.data_set.set(key, value, index)
 
 def get_engine_data_set(id_or_obj):
     if isinstance(id_or_obj, SpawnData):
         return id_or_obj.blob
     object = to_object(id_or_obj)
     if object is not None:
-        return object.get_engine_data_set()
+        return object.data_set
     return None
-
-
-
-def set_engine_data(to_update, key, value, index=0):
-    objects = to_object_list(to_set(to_update))
-    for object in objects:
-        object.set_engine_data(key, value, index=0)
 
 # easier to remember function names
 def to_blob(id_or_obj):
@@ -184,7 +188,7 @@ def is_story_id(id):
 def to_engine_object(id_or_obj):
     object = to_object(id_or_obj)
     if object is not None:
-        eo = object.get_engine_object()
+        eo = object.engine_object
         return eo
     return None
 

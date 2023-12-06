@@ -7,8 +7,19 @@ from ..agent import Agent
 from ..pages import layout
 
 from .maststory import  MastStory
-from .maststoryscheduler import StoryScheduler, TabControl
+from .maststoryscheduler import StoryScheduler
 
+
+class TabControl(layout.Text):
+    def __init__(self, tag, message, label, page) -> None:
+        super().__init__(tag,message)
+        self.page = page
+        self.label = label
+
+    def on_message(self, event):
+        if event.sub_tag == self.click_tag:
+            if self.label is not None:
+                self.page.gui_task.jump(self.label)
 
 
 

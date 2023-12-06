@@ -95,7 +95,7 @@ on change beer+martinis+vodka:
     jump GotoBar
 end_on
 
-await choice:
+await gui():
 + "Martini" if martinis > 0:
     shared martinis = martinis-1
     ->GotoBar
@@ -127,5 +127,5 @@ gui_row()
 BAR is closed until more supplies arrive
 they are available at DS1
 """""""""""""""""""""""""""""""""""
-await gui timeout 5s
+await gui(timeout(5))
 pop

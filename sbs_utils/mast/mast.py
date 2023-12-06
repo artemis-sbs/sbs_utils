@@ -14,6 +14,7 @@ from inspect import getmembers, isfunction
 import sys
 
 
+
 # tokens
 #
 # Optional color:
@@ -212,17 +213,6 @@ class PyCode(MastNode):
             py_cmds= py_cmds.lstrip()
             self.code = compile(py_cmds, "<string>", "exec")
 
-CLOSE_FUNC = r"\)[ \t]*(?=\r\n|\n|\#)"
-class FuncCommand(MastNode):
-    rule = re.compile(r'(?P<is_await>await\s+)?(?P<py_cmds>[\w\.]+\s*\([^\n\r\f]+[ \t]*(?=\r\n|\n|\#))')
-    def __init__(self, is_await=None, py_cmds=None, loc=None):
-        self.loc = loc
-        self.is_await = is_await != None
-        if py_cmds:
-            py_cmds= py_cmds.lstrip()
-            self.code = compile(py_cmds, "<string>", "eval")
-
-
 
 class Import(MastNode):
     rule = re.compile(r'(from[ \t]+(?P<lib>[\w\.\\\/-]+)[ \t]+)?import\s+(?P<name>[\w\.\\\/-]+)')
@@ -312,182 +302,45 @@ class Jump(MastNode):
             self.args = compile(args, "<string>", "eval")
 
 
-# class Parallel(MastNode):
-#     """
-#     Creates a new 'task' to run in parallel
-#     """
-
-#     def __init__(self, name=None, is_block=None, await_task=None, 
-#                  any_labels=None, all_labels=None, label=None, inputs=None, loc=None):
-#         self.loc = loc
-#         self.name = name
-#         self.labels = label
-#         self.await_task = await_task
-#         self.code = None
-#         self.end_await_node = None
-#         self.minutes = 0
-#         self.seconds = 0
-#         self.timeout_label = None
-#         self.on_change = None
-#         self.fail_label = None
-#         if is_block:
-#             self.timeout_label = None
-#             self.fail_label = None
-#             EndAwait.stack.append(self)
-
-#         if await_task and name:
-#             self.await_task = True
-#             return
-    
-#         self.labels = label
-#         self.all = False
-#         self.any = False
-        
-#         if all_labels:
-#             self.all = True
-#             self.labels = re.split(r'\s*&\s*', all_labels)
-#         elif any_labels:
-#             self.any = True
-#             self.labels = re.split(r'\s*\|\s*', any_labels)
-
-#         if inputs:
-#             inputs = inputs.lstrip()
-#             self.code = compile(inputs, "<string>", "eval")
-        
-#     task_name =  re.compile(r"""(?P<await_task>await)[ \t]+(?P<name>\w+)""")
-#     schedule_rule = re.compile(r"""(?P<await_task>await[ \t]*)?(var[ \t]+(?P<name>\w+)[ \t]*)?(schedule|\=>)[ \t]*(?P<label>\w+)(?P<inputs>[ \t]*"""+ DICT_REGEX+")?")
-#     any_all_rule = re.compile(r"""await[ \t]*(var[ \t]+(?P<name>\w+)[ \t]*)?(all[ \t]+(?P<all_labels>[ \t]*(\w+)(([ \t]*&[ \t]*)\w+)*)|any[ \t]+(?P<any_labels>[ \t]*(\w+)(([ \t]*\|[ \t]*)\w+)*))""") # (?P<inputs>\s*"""+ DICT_REGEX+")?")
-#     schedule_all_rule = re.compile(r"""(schedule[ \t]+|\=\>[ \t]*)all[ \t]+(?P<all_labels>[ \t]*(\w+)(([ \t]*&[ \t]*)\w+)*)(?P<inputs>[ \t]*"""+ DICT_REGEX+")?")
-#     #await_rule = re.compile(r"await\s+")
-#     #await_return_rule = re.compile(r"await\s*(?P<ret>->)?\s*")
-#     block_rule = re.compile(r"[ \t]*:")
-
-#     @classmethod
-#     def parse(cls, lines):
-#         #
-#         # schedule any/all
-#         #
-#         match_any_all_await =  Parallel.schedule_all_rule.match(lines) 
-#         if match_any_all_await:
-#             span = match_any_all_await.span()
-#             data = match_any_all_await.groupdict()
-#             data["await_task"] = True
-#             end = span[1]
-#             block =  Parallel.block_rule.match(lines[end:])
-            
-#             if block:
-#                 end+= block.span()[1]
-#                 data["is_block"] = True
-           
-#             return ParseData(span[0], end, data)
-        
-#         #
-#         # await / schedule
-#         #
-#         match_sched_await =  Parallel.schedule_rule.match(lines) 
-#         if match_sched_await:
-#             span = match_sched_await.span()
-#             data = match_sched_await.groupdict()
-#             end = span[1]
-#             block =  Parallel.block_rule.match(lines[end:])
-            
-#             if block:
-#                 end+= block.span[1]
-#                 data["is_block"] = True
-           
-#             return ParseData(span[0], end, data)
-#         #
-#         # Await any/all
-#         #
-#         match_any_all_await =  Parallel.any_all_rule.match(lines) 
-#         if match_any_all_await:
-#             span = match_any_all_await.span()
-#             data = match_any_all_await.groupdict()
-#             data["await_task"] = True
-#             end = span[1]
-#             block =  Parallel.block_rule.match(lines[end:])
-            
-#             if block:
-#                 end+= block.span()[1]
-#                 data["is_block"] = True
-           
-#             return ParseData(span[0], end, data)
-      
-#         #
-#         # Await an variable
-#         #
-#         match_task_await =  Parallel.task_name.match(lines) 
-#         if match_task_await:
-#             span = match_task_await.span()
-#             data = match_task_await.groupdict()
-#             data["await_task"] = True
-#             end = span[1]
-#             block =  Parallel.block_rule.match(lines[end:])
-            
-#             if block:
-#                 end+= block.span()[1]
-#                 data["is_block"] = True
-           
-#             return ParseData(span[0], end, data)
-
-
-class Behavior(MastNode):
-    """
-    Creates a new 'task' to run in parallel
-    """
-    # yield bt sel a|a   [data]
-    # await bt until fail seq a&b [data] 
-    # await bt until success seq a&b [data]
-    # await bt invert seq a&b [data]
-    # await bt invert seq a&b [data]
-    rule =  re.compile(r"""((?P<yield_await>await|yield)[ \t]+)?bt[ \t]+(((?P<invert>invert)|(until\s+(?P<until>fail|success)))[ \t]+)?((seq[ \t]*(?P<seq_labels>[ \t]*(\w+)(([ \t]*&[ \t]*)\w+)*))|(sel[ \t]*(?P<sel_labels>[ \t]*(\w+)(([ \t]*\|[ \t]*)\w+)*)))"""
-                       + r"""(?P<inputs>[ \t]*"""+ DICT_REGEX+")?"
-                       + r"""(?P<is_block>[ \t]*:)?""")
-    
-    
-
-    # yield success
-    # yield fail 
-    # yield success if cond
-    # yield fail if cond
-
-
-    def __init__(self, yield_await=None, is_block=None, invert=None, until=None, sel_labels=None, seq_labels=None, inputs=None, loc=None):
+CLOSE_FUNC = r"\)[ \t]*(?=\r\n|\n|\#)"
+class FuncCommand(MastNode):
+    rule = re.compile(r'(?P<is_await>await\s+)?(?P<py_cmds>[\w\.]+\s*\([^\n\r\f]+[ \t]*(?=\r\n|\n|\#))')
+    def __init__(self, is_await=None, py_cmds=None, loc=None):
         self.loc = loc
+        self.is_await = is_await != None
+        if py_cmds:
+            py_cmds= py_cmds.lstrip()
+            self.code = compile(py_cmds, "<string>", "eval")
         
+
+class Await(MastNode):
+    """
+    waits for an existing or a new 'task' to run in parallel
+    this needs to be a rule before Parallel
+    """
+    rule = re.compile(r"""await[ \t]+(until[ \t]+(?P<until>\w+)[ \t]+)?(?P<if_exp>[^:\n\r\f]+)"""+BLOCK_START)
+    def __init__(self, until=None, if_exp=None, loc=None):
+        self.loc = loc
         self.end_await_node = None
-        self.minutes = 0
-        self.seconds = 0
+        self.inlines = []
+        self.buttons = []
+        self.until = until
+
         self.timeout_label = None
         self.on_change = None
         self.fail_label = None
-        self.invert = invert is not None
-        self.until = until
-        self.code = None
-        self.name = None
-        self.conditional = None
-        self.is_yield = yield_await=="yield"
-        self.is_await = yield_await=="await"
-        self.end_await_node = None
-
-        if is_block:
-            self.timeout_label = None
-            self.fail_label = None
-            EndAwait.stack.append(self)
-
-        self.sequence =  seq_labels is not None
-        self.fallback =  sel_labels is not None
-        if seq_labels is not None:
-            self.labels = re.split(r'\s*&\s*', seq_labels)
-        elif sel_labels:
-            self.labels = re.split(r'\s*\|\s*', sel_labels)
-
-        if inputs:
-            inputs = inputs.lstrip()
-            self.code = compile(inputs, "<string>", "eval")
         
+        EndAwait.stack.append(self)
 
-    
+        if if_exp:
+            if_exp = if_exp.lstrip()
+            self.code = compile(if_exp, "<string>", "eval")
+        else:
+            self.code = None
+
+    def add_inline(self, inline_data):
+        self.inlines.append(inline_data)
+
 
         
 class EndAwait(MastNode):
@@ -498,33 +351,18 @@ class EndAwait(MastNode):
         EndAwait.stack[-1].end_await_node = self
         EndAwait.stack.pop()
 
-#
-# Deprecated
-#
-# class Event(MastNode):
-#     rule = re.compile(r'(event[ \t]+(?P<event>[\w|_]+)'+BLOCK_START+')|(end_event)')
-#     stack = []
-#     def __init__(self, event=None, loc=None):
-#         self.loc = loc
-#         self.end = None
-#         self.event = event
-#         if event is None:
-#             Event.stack[-1].end = self
-#             Event.stack.pop()
-#         else:
-#             Event.stack.append(self)
 
 MIN_SECONDS_REGEX = r"""([ \t]*((?P<minutes>\d+))m)?([ \t]*((?P<seconds>\d+)s))?"""
 TIMEOUT_REGEX = r"([ \t]*timeout"+MIN_SECONDS_REGEX + r")?"
-class Timeout(MastNode):
-    rule = re.compile(r'timeout([ \t]*((?P<minutes>\d+))m)?([ \t]*((?P<seconds>\d+)s))?:')
-    def __init__(self, minutes, seconds, loc=None):
-        self.loc = loc
+# class Timeout(MastNode):
+#     rule = re.compile(r'timeout([ \t]*((?P<minutes>\d+))m)?([ \t]*((?P<seconds>\d+)s))?:')
+#     def __init__(self, minutes, seconds, loc=None):
+#         self.loc = loc
         
-        self.await_node = EndAwait.stack[-1]
-        EndAwait.stack[-1].timeout_label = self
-        self.await_node.seconds = 0 if  seconds is None else int(seconds)
-        self.await_node.minutes = 0 if  minutes is None else int(minutes)
+#         self.await_node = EndAwait.stack[-1]
+#         EndAwait.stack[-1].timeout_label = self
+#         self.await_node.seconds = 0 if  seconds is None else int(seconds)
+#         self.await_node.minutes = 0 if  minutes is None else int(minutes)
 
 
 
@@ -551,41 +389,88 @@ class Change(MastNode):
 
 
 
-class AwaitFail(MastNode):
-    rule = re.compile(r'fail:')
-    def __init__(self, loc=None):
-        self.loc = loc
+# class AwaitFail(MastNode):
+#     rule = re.compile(r'fail:')
+#     def __init__(self, loc=None):
+#         self.loc = loc
         
+#         self.await_node = EndAwait.stack[-1]
+#         EndAwait.stack[-1].fail_label = self
+
+
+class AwaitInlineLabel(MastNode):
+    rule = re.compile(r"\=(?P<val>[^:\n\r\f]+)"+BLOCK_START)
+    def __init__(self, val=None, loc=None):
+        self.loc = loc
+        self.inline = val
         self.await_node = EndAwait.stack[-1]
-        EndAwait.stack[-1].fail_label = self
+        EndAwait.stack[-1].add_inline(self)
 
-
-
-class AwaitCondition(MastNode):
-    """
-    waits for an existing or a new 'task' to run in parallel
-    this needs to be a rule before Parallel
-    """
-    rule = re.compile(r"""await[ \t]+until[ \t]+(?P<if_exp>[^:]+)"""+BLOCK_START)
-                      
-    def __init__(self, if_exp=None, loc=None):
+FOR_RULE = r'([ \t]+for[ \t]+(?P<for_name>\w+)[ \t]+in[ \t]+(?P<for_exp>[ \t\S]+?))?'
+class Button(MastNode):
+    
+    rule = re.compile(r"""(?P<button>\*|\+)[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_COLOR+FOR_RULE+IF_EXP_REGEX+r"[ \t]*"+BLOCK_START)
+    def __init__(self, message=None, button=None,  
+                color=None, if_exp=None, 
+                for_name=None, for_exp=None, 
+                clone=False, q=None, loc=None):
+        if clone:
+            return
+        self.message = self.compile_formatted_string(message)
+        self.sticky = (button == '+' or button=="button")
+        self.color = color
+        if color is not None:
+            self.color = self.compile_formatted_string(color)
+        self.visited = set() if not self.sticky else None
         self.loc = loc
-        self.timeout_label = None
-        self.on_change = None
-        self.end_await_node = None
-        self.fail_label = None
-
-        # Done int timeout now
-        self.seconds = 0 
-        self.minutes = 0
-        
-        EndAwait.stack.append(self)
+        self.await_node = EndAwait.stack[-1]
+        self.await_node.buttons.append(self)
 
         if if_exp:
             if_exp = if_exp.lstrip()
             self.code = compile(if_exp, "<string>", "eval")
         else:
             self.code = None
+
+        self.for_name = for_name
+        self.data = None
+        if for_exp:
+            for_exp = for_exp.lstrip()
+            self.for_code = compile(for_exp, "<string>", "eval")
+        else:
+            self.cor_code = None
+
+    def visit(self, id_tuple):
+        if self.visited is not None:
+            self.visited.add(id_tuple)
+    
+    def been_here(self, id_tuple):
+        if self.visited is not None:
+            return (id_tuple in self.visited)
+        return False
+
+    def should_present(self, id_tuple):
+        if self.visited is not None:
+            return not id_tuple in self.visited
+        return True
+
+    def clone(self):
+        proxy = Button(clone=True)
+        proxy.message = self.message
+        proxy.code = self.code
+        proxy.color = self.color
+        proxy.loc = self.loc
+        proxy.await_node = self.await_node
+        proxy.sticky = self.sticky
+        proxy.visited = self.visited
+        proxy.data = self.data
+        proxy.for_code = self.for_code
+        proxy.for_name = self.for_name
+
+        return proxy
+    
+    def expand(self):
+        pass
 
 
 
@@ -776,15 +661,15 @@ class Mast():
         LoopBreak,
         PyCode,
         Import,
-        AwaitCondition,
+        Await,  # New Await Block
         FuncCommand,
-#        Await,  # needs to be before Parallel
-        Timeout,
+        #        AwaitCondition,
+        #Timeout,
         Change,
         EndAwait,
-        AwaitFail,
-        Behavior, # Needs to be in front of parallel
-        #    Parallel,  # needs to be before Assign
+        #AwaitFail, # Fail Label
+        AwaitInlineLabel,
+        Button,
         Assign,
         Fail,
         Yield,

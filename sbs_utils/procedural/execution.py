@@ -84,7 +84,9 @@ def task_cancel(task):
 def task_all(*args, **kwargs):
     if FrameContext.task is None:
         return
-    data = kwargs.get("data", None)
+    data = None
+    if kwargs is not None:
+        data = kwargs.get("data", None)
     tasks = []
     for label in args:
         t = FrameContext.task.start_task(label, data)
@@ -102,7 +104,9 @@ def task_all(*args, **kwargs):
 def task_any(*args, **kwargs):
     if FrameContext.task is None:
         return
-    data = kwargs.get("data", None)
+    data = None
+    if kwargs is not None:
+        data = kwargs.get("data", None)
     tasks = []
     for label in args:
         t = FrameContext.task.start_task(label, data)

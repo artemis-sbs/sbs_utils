@@ -26,7 +26,7 @@ intslider enemy_count 1.0 50.0 5.0
 row
 """ Enemies: {int(enemy_count)} """
 
-await choice:
+await gui():
 + "Start Mission":
     sim_create()
     sim_resume()
@@ -55,7 +55,7 @@ section style="area: 50, 10, 99, 90;"
 Mission is won!  All the enemies have been destroyed.
 """"""
 
-await choice:
+await gui():
     + "Continue":
     -> Start
 end_await
@@ -67,7 +67,7 @@ section style="area: 50, 10, 99, 90;"
 Mission is lost!  All yer base are belong to us, dammit.
 """
 
-await choice:
+await gui():
     + "Continue":
     -> Start
 end_await
@@ -182,10 +182,10 @@ comms_id = player.comms_id # (sim)
 
 await self comms player:
     + "Hail":
-        homing = self.get_engine_data(sim, "torpedo_count", sbs.TORPEDO.HOMING)
-        nuke = self.get_engine_data(sim, "torpedo_count", sbs.TORPEDO.NUKE)
-        emp = self.get_engine_data(sim, "torpedo_count", sbs.TORPEDO.EMP)
-        mine = self.get_engine_data(sim, "torpedo_count", sbs.TORPEDO.MINE)
+        homing = self.get_data_set_valuesim, "torpedo_count", sbs.TORPEDO.HOMING)
+        nuke = self.get_data_set_valuesim, "torpedo_count", sbs.TORPEDO.NUKE)
+        emp = self.get_data_set_valuesim, "torpedo_count", sbs.TORPEDO.EMP)
+        mine = self.get_data_set_valuesim, "torpedo_count", sbs.TORPEDO.MINE)
         have self tell player """
 Hello, {comms_id}.  We stand ready to assist.
 You have full docking privileges.
@@ -230,7 +230,7 @@ end_await
 === build_torp ===
 await delay_sim(10)
 ~~
-cur_count = self.get_engine_data(sim, "torpedo_count", torpedo_build_type)
+cur_count = self.get_data_set_valuesim, "torpedo_count", torpedo_build_type)
 self.set_engine_data(sim, "torpedo_count", cur_count+1, torpedo_build_type)
 ~~
 have self tell player  """{comms_id}. {torpedo_build_type} Production complete."""
