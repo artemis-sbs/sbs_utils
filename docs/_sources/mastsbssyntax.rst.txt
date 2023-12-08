@@ -49,7 +49,7 @@ Await Science
 .. tabs::
     .. code-tab:: mast
         
-        await scan:
+        await scan():
             scan tab "scan":
                 scan results "Scan"
             scan tab "bio":

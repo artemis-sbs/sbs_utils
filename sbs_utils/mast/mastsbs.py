@@ -42,19 +42,19 @@ class Comms(MastNode):
 
 
 
-class Scan(MastNode):
-    rule = re.compile(r"""await([ \t]+(?P<from_tag>\w+))?[ \t]+scan([ \t]+(?P<to_tag>\w+))?(\s+fog\s+(?P<fog>\d+))?"""+BLOCK_START)
-    def __init__(self, to_tag=None, from_tag=None, fog = None, loc=None):
-        self.loc = loc
-        self.to_tag = to_tag
-        self.from_tag = from_tag
-        self.fog = int(fog) if fog is not None else 5000
-        self.buttons = []
-        self.on_change = None
-        self.focus = None
+# class Scan(MastNode):
+#     rule = re.compile(r"""await([ \t]+(?P<from_tag>\w+))?[ \t]+scan([ \t]+(?P<to_tag>\w+))?(\s+fog\s+(?P<fog>\d+))?"""+BLOCK_START)
+#     def __init__(self, to_tag=None, from_tag=None, fog = None, loc=None):
+#         self.loc = loc
+#         self.to_tag = to_tag
+#         self.from_tag = from_tag
+#         self.fog = int(fog) if fog is not None else 5000
+#         self.buttons = []
+#         self.on_change = None
+#         self.focus = None
 
-        self.end_await_node = None
-        EndAwait.stack.append(self)
+#         self.end_await_node = None
+#         EndAwait.stack.append(self)
 
 class Focus(MastNode):
     rule = re.compile(r'focus:')
@@ -72,6 +72,6 @@ class MastSbs(Mast):
         # sbs specific
         Comms,
           Focus,
-        Scan
+        #Scan
     ] + Mast.nodes 
     

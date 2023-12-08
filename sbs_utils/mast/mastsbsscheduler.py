@@ -1,5 +1,5 @@
 from .mast import Mast, Scope, Button
-from .mastsbs import Comms,  Scan
+from .mastsbs import Comms
 from .mastscheduler import MastScheduler, PollResults, MastRuntimeNode,  MastAsyncTask, ChangeRuntimeNode
 import sbs
 from .mastobjects import SpaceObject, MastSpaceObject
@@ -280,204 +280,204 @@ class CommsRuntimeNode(MastRuntimeNode):
 
         return PollResults.OK_RUN_AGAIN
     
-class ScanRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Scan):
-        self.button = None
-        self.task = task
-        self.tab = None
-        self.node = node
-        self.event = None
-        ###############
-        # If this is the first scan only have the scan button
-        # Otherwise have them all
-        self.scan_is_done = False
-        buttons = []
-        # Expand all the 'for' buttons
-        for button in node.buttons:
-            if button.for_name is None:
-                buttons.append(button)
-            else:
-                buttons.extend(self.expand(button, task))
-        self.buttons = buttons
+# class ScanRuntimeNode(MastRuntimeNode):
+#     def enter(self, mast:Mast, task:MastAsyncTask, node: Scan):
+#         self.button = None
+#         self.task = task
+#         self.tab = None
+#         self.node = node
+#         self.event = None
+#         ###############
+#         # If this is the first scan only have the scan button
+#         # Otherwise have them all
+#         self.scan_is_done = False
+#         buttons = []
+#         # Expand all the 'for' buttons
+#         for button in node.buttons:
+#             if button.for_name is None:
+#                 buttons.append(button)
+#             else:
+#                 buttons.extend(self.expand(button, task))
+#         self.buttons = buttons
 
-        # Check if this was caused by a routed select
-        routed = task.get_variable("SCIENCE_ROUTED")
-        # if routed is None:
-        # Only roue once
-        task.set_value_keep_scope("SCIENCE_ROUTED", False)
-        if node.to_tag:
-            to_so:SpaceObject = query.to_object(task.get_variable(node.to_tag))
-        else:
-            to_so:SpaceObject = query.to_object(task.get_variable("SCIENCE_SELECTED_ID"))
+#         # Check if this was caused by a routed select
+#         routed = task.get_variable("SCIENCE_ROUTED")
+#         # if routed is None:
+#         # Only roue once
+#         task.set_value_keep_scope("SCIENCE_ROUTED", False)
+#         if node.to_tag:
+#             to_so:SpaceObject = query.to_object(task.get_variable(node.to_tag))
+#         else:
+#             to_so:SpaceObject = query.to_object(task.get_variable("SCIENCE_SELECTED_ID"))
 
-        if node.from_tag:    
-            from_so:SpaceObject = query.to_object(task.get_variable(node.from_tag))
-        else:
-            from_so:SpaceObject = query.to_object(task.get_variable("SCIENCE_ORIGIN_ID"))
+#         if node.from_tag:    
+#             from_so:SpaceObject = query.to_object(task.get_variable(node.from_tag))
+#         else:
+#             from_so:SpaceObject = query.to_object(task.get_variable("SCIENCE_ORIGIN_ID"))
 
-        if to_so is None or from_so is None:
-            return
-        # Just in case swap if from is not a player
-        if not from_so.is_player:
-            swap = to_so
-            to_so = from_so
-            from_so = swap
+#         if to_so is None or from_so is None:
+#             return
+#         # Just in case swap if from is not a player
+#         if not from_so.is_player:
+#             swap = to_so
+#             to_so = from_so
+#             from_so = swap
 
-        self.selected_id = to_so.get_id()
-        self.origin_id = from_so.get_id()
+#         self.selected_id = to_so.get_id()
+#         self.origin_id = from_so.get_id()
 
-        if to_so is not None:
-            scan_tab = from_so.side+"scan"
-            has_scan = to_so.data_set.get(scan_tab,0)
-            if has_scan is None:
-                scan_tabs = "scan"
-                self.scan_is_done = False
-            else:
-                scan_tabs = ""
-                scanned_tabs = 0
-                button_count = 0
-                for button in self.buttons:
-                    value = True
-                    if button.code is not None:
-                        value = task.eval_code(button.code)
-                    if value:
-                        button_count += 1
-                        msg = self.task.format_string(button.message).strip()
-                        if msg != "scan":
-                            if len(scan_tabs):
-                                scan_tabs += " "
-                            scan_tabs += msg
-                        # Check if this has been scanned
-                        has_scan = to_so.data_set.get(from_so.side+msg, 0)
-                        if has_scan:
-                            scanned_tabs += 1
-                self.scan_is_done = scanned_tabs == button_count
-                to_so.data_set.set("scan_type_list", scan_tabs, 0)
+#         if to_so is not None:
+#             scan_tab = from_so.side+"scan"
+#             has_scan = to_so.data_set.get(scan_tab,0)
+#             if has_scan is None:
+#                 scan_tabs = "scan"
+#                 self.scan_is_done = False
+#             else:
+#                 scan_tabs = ""
+#                 scanned_tabs = 0
+#                 button_count = 0
+#                 for button in self.buttons:
+#                     value = True
+#                     if button.code is not None:
+#                         value = task.eval_code(button.code)
+#                     if value:
+#                         button_count += 1
+#                         msg = self.task.format_string(button.message).strip()
+#                         if msg != "scan":
+#                             if len(scan_tabs):
+#                                 scan_tabs += " "
+#                             scan_tabs += msg
+#                         # Check if this has been scanned
+#                         has_scan = to_so.data_set.get(from_so.side+msg, 0)
+#                         if has_scan:
+#                             scanned_tabs += 1
+#                 self.scan_is_done = scanned_tabs == button_count
+#                 to_so.data_set.set("scan_type_list", scan_tabs, 0)
 
         
-        ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'science_target_UID', self.science_selected)
-        ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'science_target_UID', self.science_message)
-        #self.set_buttons(self.to_id, self.from_id)
-        # from_so.face_desc
-        if routed:
-            event = task.get_variable("EVENT")
-            if event is not None:
-                self.start_scan(from_so.id, to_so.id, event.extra_tag)
-            else:
-                self.start_scan( from_so.id, to_so.id, "__init__")
+#         ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'science_target_UID', self.science_selected)
+#         ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'science_target_UID', self.science_message)
+#         #self.set_buttons(self.to_id, self.from_id)
+#         # from_so.face_desc
+#         if routed:
+#             event = task.get_variable("EVENT")
+#             if event is not None:
+#                 self.start_scan(from_so.id, to_so.id, event.extra_tag)
+#             else:
+#                 self.start_scan( from_so.id, to_so.id, "__init__")
 
-    def science_selected(self, an_id, event):
-        #
-        # avoid if this isn't for us
-        #
-        if self.origin_id != event.origin_id or \
-            self.selected_id != event.selected_id:
-            return
+#     def science_selected(self, an_id, event):
+#         #
+#         # avoid if this isn't for us
+#         #
+#         if self.origin_id != event.origin_id or \
+#             self.selected_id != event.selected_id:
+#             return
         
-        self.start_scan(event.origin_id, event.selected_id, event.extra_tag)
+#         self.start_scan(event.origin_id, event.selected_id, event.extra_tag)
 
-    def start_scan(self, origin_id, selected_id, extra_tag):
-        #
-        # Check if this was initiated by a "Follow route"
-        #
-        if self.selected_id != selected_id or \
-            self.origin_id != origin_id:
-            return
-        if extra_tag == "__init__":
-            self.tab = extra_tag
-            return
-        so = query.to_object(origin_id)
-        so_sel = query.to_object(selected_id)
-        percent = 0.0
+#     def start_scan(self, origin_id, selected_id, extra_tag):
+#         #
+#         # Check if this was initiated by a "Follow route"
+#         #
+#         if self.selected_id != selected_id or \
+#             self.origin_id != origin_id:
+#             return
+#         if extra_tag == "__init__":
+#             self.tab = extra_tag
+#             return
+#         so = query.to_object(origin_id)
+#         so_sel = query.to_object(selected_id)
+#         percent = 0.0
 
-        if so.side == so_sel.side:
-            percent = 0.90
-        if so:
-            so.data_set.set("cur_scan_ID", selected_id,0)
-            so.data_set.set("cur_scan_type", extra_tag,0)
-            so.data_set.set("cur_scan_percent", percent,0)
+#         if so.side == so_sel.side:
+#             percent = 0.90
+#         if so:
+#             so.data_set.set("cur_scan_ID", selected_id,0)
+#             so.data_set.set("cur_scan_type", extra_tag,0)
+#             so.data_set.set("cur_scan_percent", percent,0)
             
 
-    # def set_buttons(self, from_id, to_id):
-    #     # check to see if the from ship still exists
+#     # def set_buttons(self, from_id, to_id):
+#     #     # check to see if the from ship still exists
         
 
-    def expand(self, button: Button, task: MastAsyncTask):
-        buttons = []
-        if button.for_code is not None:
-            iter_value = task.eval_code(button.for_code)
-            for data in iter_value:
-                task.set_value(button.for_name, data, Scope.TEMP)
-                clone = button.clone()
-                clone.data = data
-                clone.message = task.format_string(clone.message)
-                buttons.append(clone)
-        return buttons
+#     def expand(self, button: Button, task: MastAsyncTask):
+#         buttons = []
+#         if button.for_code is not None:
+#             iter_value = task.eval_code(button.for_code)
+#             for data in iter_value:
+#                 task.set_value(button.for_name, data, Scope.TEMP)
+#                 clone = button.clone()
+#                 clone.data = data
+#                 clone.message = task.format_string(clone.message)
+#                 buttons.append(clone)
+#         return buttons
 
 
-    def science_message(self, message, an_id, event):
-        # makes sure this was for us
-        if event.selected_id != self.selected_id or self.origin_id != event.origin_id:
-            return
-        self.tab = event.extra_tag
-        self.event = event
-        #print(f"science scanned {self.tab}")
-        self.task.tick()
+#     def science_message(self, message, an_id, event):
+#         # makes sure this was for us
+#         if event.selected_id != self.selected_id or self.origin_id != event.origin_id:
+#             return
+#         self.tab = event.extra_tag
+#         self.event = event
+#         #print(f"science scanned {self.tab}")
+#         self.task.tick()
 
 
-    def leave(self, mast:Mast, task:MastAsyncTask, node: Comms):
-        ConsoleDispatcher.remove_select_pair(self.origin_id, self.selected_id, 'science_target_UID')
-        ConsoleDispatcher.remove_message_pair(self.origin_id, self.selected_id, 'science_target_UID')
+#     def leave(self, mast:Mast, task:MastAsyncTask, node: Comms):
+#         ConsoleDispatcher.remove_select_pair(self.origin_id, self.selected_id, 'science_target_UID')
+#         ConsoleDispatcher.remove_message_pair(self.origin_id, self.selected_id, 'science_target_UID')
         
 
-    def poll(self, mast:Mast, task:MastAsyncTask, node: Comms):
-        if len(node.buttons)==0:
-            self.scan_is_done = True
-            return PollResults.OK_ADVANCE_TRUE
+#     def poll(self, mast:Mast, task:MastAsyncTask, node: Comms):
+#         if len(node.buttons)==0:
+#             self.scan_is_done = True
+#             return PollResults.OK_ADVANCE_TRUE
 
-        if self.scan_is_done:
-            task.jump(task.active_label,node.end_await_node.loc+1)
-            return PollResults.OK_JUMP
+#         if self.scan_is_done:
+#             task.jump(task.active_label,node.end_await_node.loc+1)
+#             return PollResults.OK_JUMP
 
-        #
-        # Check if the first scan should auto trigger
-        #
-        if self.tab == "__init__":        
-            so = query.to_object(self.selected_id)
-            so_player = query.to_object(self.origin_id)
-            # Clear tab it maybe set below
-            self.tab = None
-            if so and so_player:
-                tab = so_player.side+"scan"
-                scan_tab = so.data_set.get(tab,0)
-                if scan_tab is None:
-                    if node.fog == 0:
-                        self.tab = "scan"
-                    else:
-                        dist = sbs.distance_id(self.origin_id, self.selected_id)
-                        if dist < node.fog:
-                            self.tab = "scan"
-                        #fall through
+#         #
+#         # Check if the first scan should auto trigger
+#         #
+#         if self.tab == "__init__":        
+#             so = query.to_object(self.selected_id)
+#             so_player = query.to_object(self.origin_id)
+#             # Clear tab it maybe set below
+#             self.tab = None
+#             if so and so_player:
+#                 tab = so_player.side+"scan"
+#                 scan_tab = so.data_set.get(tab,0)
+#                 if scan_tab is None:
+#                     if node.fog == 0:
+#                         self.tab = "scan"
+#                     else:
+#                         dist = sbs.distance_id(self.origin_id, self.selected_id)
+#                         if dist < node.fog:
+#                             self.tab = "scan"
+#                         #fall through
 
 
-        if self.tab is not None:
-            for i, button in enumerate(self.buttons):
-                if task.format_string(button.message) == self.tab:
-                    self.button = i
-                    #print(f"science scanned {i}")
-            so_player = query.to_object(self.origin_id)
-            if so_player:
-                self.tab = so_player.side+self.tab
+#         if self.tab is not None:
+#             for i, button in enumerate(self.buttons):
+#                 if task.format_string(button.message) == self.tab:
+#                     self.button = i
+#                     #print(f"science scanned {i}")
+#             so_player = query.to_object(self.origin_id)
+#             if so_player:
+#                 self.tab = so_player.side+self.tab
 
-            task.set_value("__SCAN_TAB__", self,  Scope.TEMP)
-            if self.button is not None:
-                button = self.buttons[self.button] 
-                self.button = None
-                #task.set_value(button.for_name, button.data, Scope.TEMP)
-                task.set_value("EVENT", self.event, Scope.TEMP)
-                task.jump(task.active_label,button.loc+1)
-            return PollResults.OK_JUMP
-        return PollResults.OK_RUN_AGAIN
+#             task.set_value("__SCAN_TAB__", self,  Scope.TEMP)
+#             if self.button is not None:
+#                 button = self.buttons[self.button] 
+#                 self.button = None
+#                 #task.set_value(button.for_name, button.data, Scope.TEMP)
+#                 task.set_value("EVENT", self.event, Scope.TEMP)
+#                 task.jump(task.active_label,button.loc+1)
+#             return PollResults.OK_JUMP
+#         return PollResults.OK_RUN_AGAIN
 
 
 class RegexEqual(str):
@@ -498,7 +498,7 @@ LifetimeDispatcher.add_destroy(handle_purge_tasks)
 
 over =     {
     "Comms": CommsRuntimeNode,
-    "Scan": ScanRuntimeNode
+#    "Scan": ScanRuntimeNode
 }
 
 from ..helpers import FrameContext

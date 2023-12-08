@@ -606,40 +606,29 @@ def gui_reroute_clients(label):
 
 
 class ChoiceButtonRuntimeNode:
-    def __init__(self, promise, task, index, tag):
+    def __init__(self, promise, button, tag):
         self.promise = promise
-        self.index = index
+        self.button = button
         self.tag = tag
-        self.task = task
-        
+                
     def on_message(self, event):
         #
         # The 'right' page already filtered 
         # event to know it is for this client
         #
         if event.sub_tag == self.tag:
-            self.promise.button = self
+            self.promise.press_button(self.button)
 
 
 class ButtonPromise(AwaitBlockPromise):
     def __init__(self, task, timeout=None) -> None:
         super().__init__(timeout)
 
-        self.active_buttons = 0
         self.buttons = []
         self.button = None
-        self.button_layout = None
         self.var = None
         self.task = task
         self.disconnect_label = None
-
-    def initial_poll(self):
-        if self._initial_poll:
-            return
-        # Will Build buttons
-        self.show_buttons()
-        super().initial_poll()
-    
 
     def poll(self):
         super().poll()
@@ -650,8 +639,6 @@ class ButtonPromise(AwaitBlockPromise):
             # First run could have no gui_task
             if self.task is None:
                 self.task = FrameContext.task
-
-
 
         if self.disconnect_label is not None:
             page = task.main.page
@@ -672,7 +659,8 @@ class ButtonPromise(AwaitBlockPromise):
                 self.set_result(True)
             
         #     self.button.node.visit(self.button.client_id)
-            button = self.buttons[self.button.index]
+            # button = self.buttons[self.button.index]
+            button = self.button
             if button.for_name:
                 task.set_value(button.for_name, button.data, Scope.TEMP)
 
@@ -685,10 +673,63 @@ class ButtonPromise(AwaitBlockPromise):
     def press_button(self, button):
         self.button = button
 
+    def expand_button(self, button):
+        buttons = []
+        if button.for_code is not None:
+            iter_value = self.task.eval_code(button.for_code)
+            for data in iter_value:
+                self.task.set_value(button.for_name, data, Scope.TEMP)
+                clone = button.clone()
+                clone.data = data
+                clone.message = self.task.format_string(clone.message)
+                buttons.append(clone)
+
+        return buttons
+
+    def get_expanded_buttons(self):
+        buttons = []
+        # Expand all the 'for' buttons
+        for button in self.buttons:
+            if button.__class__.__name__ != "Button":
+                buttons.append(button)
+            elif button.for_name is None:
+                buttons.append(button)
+            else:
+                buttons.extend(self.expand_button(button))
+        return buttons
+    
+    
+
+class GuiPromise(ButtonPromise):
+    def __init__(self, page, timeout=None) -> None:
+        super().__init__(page.gui_task, timeout)
+
+        self.page = page
+        self.disconnect_label = None
+        self.button_layout = None
+
+    def initial_poll(self):
+        if self._initial_poll:
+            return
+        # Will Build buttons
+        self.show_buttons()
+        self.page.set_button_layout(self.button_layout)
+        super().initial_poll()
+        
+    #
+    # This 
+    #
     def show_buttons(self):
         if len(self.buttons) == 0:
             return
-        task = FrameContext.task
+        
+        
+        if self.task is None:
+            self.task = self.page.gui_task
+            # First run could have no gui_task
+            if self.task is None:
+                self.task = FrameContext.task
+        task = self.task
 
         top = ((task.main.page.aspect_ratio.y - 30)/task.main.page.aspect_ratio.y)*100
         button_layout = layout.Layout(None, None, 0,top,100,100)
@@ -700,16 +741,7 @@ class ButtonPromise(AwaitBlockPromise):
         layout_row = layout.Row()
         layout_row.tag = task.main.page.get_tag()
 
-        buttons = []
-
-        # Expand all the 'for' buttons
-        for button in self.buttons:
-            if button.__class__.__name__ != "Button":
-                buttons.append(button)
-            elif button.for_name is None:
-                buttons.append(button)
-            else:
-                buttons.extend(self.expand(button, task))
+        buttons = self.get_expanded_buttons()
         
         for button in buttons:
             match button.__class__.__name__:
@@ -719,7 +751,7 @@ class ButtonPromise(AwaitBlockPromise):
                     if button.code is not None:
                         value = task.eval_code(button.code)
                     if value and button.should_present(0):#task.main.client_id):
-                        runtime_node = ChoiceButtonRuntimeNode(self, task, index, task.main.page.get_tag())
+                        runtime_node = ChoiceButtonRuntimeNode(self, button, task.main.page.get_tag())
                         #runtime_node.enter(mast, task, button)
                         msg = task.format_string(button.message)
                         layout_button = layout.Button(runtime_node.tag, msg)
@@ -747,35 +779,6 @@ class ButtonPromise(AwaitBlockPromise):
         self.buttons = buttons
         self.button = None
 
-    def expand(self, button, task):
-        buttons = []
-        if button.for_code is not None:
-            iter_value = task.eval_code(button.for_code)
-            for data in iter_value:
-                task.set_value(button.for_name, data, Scope.TEMP)
-                clone = button.clone()
-                clone.data = data
-                clone.message = task.format_string(clone.message)
-                buttons.append(clone)
-
-        return buttons
-
-
-class GuiPromise(ButtonPromise):
-    def __init__(self, page, timeout=None) -> None:
-        super().__init__(page.gui_task, timeout)
-
-        self.page = page
-        self.disconnect_label = None
-
-    def initial_poll(self):
-        if self._initial_poll:
-            return
-        # Will Build buttons
-        super().initial_poll()
-        self.page.set_button_layout(self.button_layout)
-        
-    
 
 
 

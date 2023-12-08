@@ -83,16 +83,19 @@ def scan_results(message):
     if so:
         so.data_set.set(scan.tab, msg,0)
         so.set_inventory_value("SCANNED", True)
+        task.set_inventory_value("__SCAN_DONE__", True)
 
     # Rerun the scan (until all scans are done)
-    if scan.node:
-        task.jump(task.active_label,scan.node.loc)
+    #if scan.node:
+    task.pop_label(False) #(task.active_label,scan.node.loc)
 
 from .gui import ButtonPromise
 from ..consoledispatcher import ConsoleDispatcher
 class ScanPromise(ButtonPromise):
     def __init__(self, task, timeout=None) -> None:
         super().__init__(task, timeout)
+
+        self.expanded_buttons = None
 
         self.origin_id = task.get_variable("SCIENCE_ORIGIN_ID")
         self.selected_id = task.get_variable("SCIENCE_SELECTED_ID")
@@ -107,11 +110,19 @@ class ScanPromise(ButtonPromise):
     def initial_poll(self):
         if self._initial_poll:
             return
-        for inline in self.inlines:
-            if inline.oper == "=":
-                self.buttons += inline
-                 
+        
+        if self.expanded_buttons is None:
+            self.expanded_buttons = self.get_expanded_buttons()
+        self.show_buttons()
         super().initial_poll()
+
+    def poll(self):
+        if self.task.get_inventory_value("__SCAN_DONE__", None):
+            self.task.set_inventory_value("__SCAN_DONE__", None)
+            self.show_buttons()
+            if self.scan_is_done:
+                self.set_result(True)
+        super().poll()
 
 
     def science_message(self, message, an_id, event):
@@ -124,7 +135,7 @@ class ScanPromise(ButtonPromise):
 
     def process_tab(self):
         if self.tab is not None:
-            for i, button in enumerate(self.buttons):
+            for i, button in enumerate(self.expanded_buttons):
                 if self.task.format_string(button.message) == self.tab:
                     self.button = i
 
@@ -134,10 +145,10 @@ class ScanPromise(ButtonPromise):
 
             self.task.set_variable("__SCAN_TAB__", self)
             if self.button is not None:
-                button = self.buttons[self.button] 
+                button = self.expanded_buttons[self.button] 
                 self.button = None
                 self.task.set_variable("EVENT", self.event)
-                self.task.jump(self.task.active_label,button.loc+1)
+                self.task.push_inline_block(self.task.active_label,button.loc+1)
 
     def science_selected(self, an_id, event):
         #
@@ -178,7 +189,48 @@ class ScanPromise(ButtonPromise):
         ConsoleDispatcher.remove_select_pair(self.origin_id, self.selected_id, 'science_target_UID')
         ConsoleDispatcher.remove_message_pair(self.origin_id, self.selected_id, 'science_target_UID')
      
+    def show_buttons(self):
+        to_so = query.to_object(self.selected_id)
+        from_so = query.to_object(self.origin_id)
 
+        if to_so is not None:
+            scan_tab = from_so.side+"scan"
+            has_scan = to_so.data_set.get(scan_tab,0)
+            if has_scan is None:
+                scan_tabs = "scan"
+                self.scan_is_done = False
+            else:
+                scan_tabs = ""
+                scanned_tabs = 0
+                button_count = 0
+                for button in self.expanded_buttons:
+                    value = True
+                    if button.code is not None:
+                        value = self.task.eval_code(button.code)
+                    if value:
+                        button_count += 1
+                        msg = self.task.format_string(button.message).strip()
+                        if msg != "scan":
+                            if len(scan_tabs):
+                                scan_tabs += " "
+                            scan_tabs += msg
+                        # Check if this has been scanned
+                        has_scan = to_so.data_set.get(from_so.side+msg, 0)
+                        if has_scan:
+                            scanned_tabs += 1
+                self.scan_is_done = scanned_tabs == button_count
+                to_so.data_set.set("scan_type_list", scan_tabs, 0)
+
+        
+        ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'science_target_UID', self.science_selected)
+        ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'science_target_UID', self.science_message)
+        
+        # if routed:
+        #     event = task.get_variable("EVENT")
+        #     if event is not None:
+        #         self.start_scan(from_so.id, to_so.id, event.extra_tag)
+        #     else:
+        #         self.start_scan( from_so.id, to_so.id, "__init__")
 
 
 def scan(timeout=None):
