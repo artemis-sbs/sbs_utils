@@ -517,7 +517,7 @@ def gui_text(props, style=None):
         if style is None: 
             style = ""
         layout_item = layout.Text(page.get_tag(), props)
-        apply_control_styles(".radio", style, layout_item, task)
+        apply_control_styles(".text", style, layout_item, task)
 
         page.add_content(layout_item, None)
         return layout_item
@@ -619,16 +619,24 @@ class ChoiceButtonRuntimeNode:
         if event.sub_tag == self.tag:
             self.promise.press_button(self.button)
 
-
+import re
 class ButtonPromise(AwaitBlockPromise):
+    focus_rule = re.compile(r'focus')
+    disconnect_rule = re.compile(r'disconnect')
+
     def __init__(self, task, timeout=None) -> None:
         super().__init__(timeout)
 
         self.buttons = []
+        self.inlines = []
         self.button = None
         self.var = None
         self.task = task
         self.disconnect_label = None
+        self.on_change = None
+        self.focus = None
+        self.expand_inlines()
+
 
     def poll(self):
         super().poll()
@@ -646,11 +654,17 @@ class ButtonPromise(AwaitBlockPromise):
                 task.push_inline_block(task.active_label,self.disconnect_label.loc+1)
                 #return PollResults.OK_JUMP
                 self.set_result(True)
-        
-        # if self.active_buttons==0 and self.timeout is None:
-        #     #self.set_result(PollResults.OK_ADVANCE_TRUE)
-        #     self.set_result(True)
 
+        if self.on_change:
+            for change in self.on_change:
+                if change.test():
+                    self.task.push_inline_block(self.task.active_label,change.node.loc+1)
+                    return # let it run
+                    
+        if self.focus and self.run_focus:
+            self.run_focus = False
+            self.task.push_inline_block(self.task.active_label,self.focus.loc+1)
+            return # let it cook
 
         if self.button is not None:
             if self.var:
@@ -698,6 +712,33 @@ class ButtonPromise(AwaitBlockPromise):
                 buttons.extend(self.expand_button(button))
         return buttons
     
+    def expand_inline(self, inline):
+        if inline.inline is  None:
+            return
+        # Handle =disconnect:
+        if ButtonPromise.disconnect_rule.match(inline.inline):
+            self.disconnect_label = inline
+        # Handle focus
+        if ButtonPromise.focus_rule.match(inline.inline):
+            self.focus_label = inline
+        # Handle Fail () maybe only for behaviors?
+        if ButtonPromise.fail_rule.match(inline.inline):
+            self.fail_label = inline
+        # Handle change
+        # Handle timeout
+        #if ButtonPromise.focus_rule.match(inline.inline):
+        #    self.focus_label = inline
+
+        
+        
+    
+
+    def expand_inlines(self):
+        # Expand all the 'for' buttons
+        for inline in self.inlines:
+            self.expand_inline(inline)
+        
+    
     
 
 class GuiPromise(ButtonPromise):
@@ -705,7 +746,6 @@ class GuiPromise(ButtonPromise):
         super().__init__(page.gui_task, timeout)
 
         self.page = page
-        self.disconnect_label = None
         self.button_layout = None
 
     def initial_poll(self):

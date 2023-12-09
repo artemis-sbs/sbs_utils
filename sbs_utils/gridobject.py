@@ -178,6 +178,8 @@ class GridObject(Agent):
         blob.set("icon_index", icon_index, 0)
         blob.set("icon_scale", 1.0, 0)
         blob.set("icon_color", color , 0)
+        self._data_set = blob
+        self._engine_object = go
 
         return SpawnData(self.id, go, blob, self)
 

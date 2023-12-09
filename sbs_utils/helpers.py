@@ -31,8 +31,8 @@ class FrameContextMeta(type):
 
     @property
     def task(self):
-        if self._task is None:
-            show_warning("FrameContext missing Task")
+        #if self._task is None:
+        #    show_warning("FrameContext missing Task")
         return self._task
     
     @task.setter

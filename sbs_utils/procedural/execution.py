@@ -64,9 +64,11 @@ def logger(name=None, file=None, var=None):
 
 def task_schedule(label, data=None, var=None):
     task = FrameContext.task
-
+    print(f"Task Before: {task}")
     if task is not None:
-        return task.start_task(label, data, var)
+        t = task.start_task(label, data, var)
+        print(f"Task After: {FrameContext.task}")
+        return t
     return None
 
 

@@ -182,11 +182,8 @@ class CommsPromise(ButtonPromise):
         super().__init__(task, timeout)
 
         self.task = task
-        self.disconnect_label = None
         self.button = None
         self.is_unknown = False
-        self.on_change = None
-        self.focus = None
         self.color = "white"
         self.expanded_buttons = None
 
@@ -371,19 +368,9 @@ class CommsPromise(ButtonPromise):
                     self.set_buttons(self.origin_id, self.selected_id)
             return
 
-        if self.on_change:
-            for change in self.on_change:
-                if change.test():
-                    self.task.jump(self.task.active_label,change.node.loc+1)
-                    self.set_result(False)
-                    return 
-        if self.focus and self.run_focus:
-            self.run_focus = False
-            self.task.push_inline_block(self.task.active_label,self.focus.loc+1)
-            return
 
 
-        if len(self.buttons)==0:
+        if len(self.inlines)==0:
             # clear the comms buttons
             return 
 

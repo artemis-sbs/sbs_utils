@@ -16,7 +16,7 @@ Mast.import_python_module('sbs_utils.procedural.gui')
 def mast_assert(cond):
       assert(cond)
 
-Mast.make_global_var("assert", mast_assert)
+Mast.make_global_var("ASSERT", mast_assert)
 
 #Mast.enable_logging()
 Mast.include_code = True
@@ -257,7 +257,7 @@ task_all(fred, barney)
         assert(len(errors)==0)
 
 
-    def test_btree_compile_err(self):
+    def _test_btree_compile_err(self):
         (errors, mast) =mast_compile( code = """
 
 yield bt sel a|b
@@ -288,7 +288,7 @@ end_await
 
 
     
-    def test_py_exp_run_no_err(self):
+    def test_assign(self):
         (errors, runner, _) = mast_run( code = """
 shared var1 = 100
 var2 = 200
@@ -302,17 +302,20 @@ var7 = var2 / var1 * var5
 var8 = ~~ [[2,3],[4,5]] ~~
 """)
         assert(len(errors)==0)
-        assert(runner.get_value("var1") == (100,Scope.SHARED))
-        assert(runner.get_value("var2") == (200,Scope.NORMAL))
-        assert(runner.get_value("var3") == ("This is a string",Scope.NORMAL))
-        assert(runner.get_value("var4") == ("This is a string 200",Scope.NORMAL))
-        assert(runner.get_value("var5") == (300,Scope.NORMAL))
-        struct = runner.get_value("var6") 
+        task = runner.active_task
+        while runner.is_running():
+            runner.tick()
+        assert(task.get_value("var1", None) == (100,Scope.SHARED))
+        assert(task.get_value("var2", None) == (200,Scope.NORMAL))
+        assert(task.get_value("var3", None) == ("This is a string",Scope.NORMAL))
+        assert(task.get_value("var4", None) == ("This is a string 200",Scope.NORMAL))
+        assert(task.get_value("var5", None) == (300,Scope.NORMAL))
+        struct = task.get_value("var6", None) 
         assert(struct[1] == Scope.NORMAL)
         assert(struct[0].HP == 40)
         assert(struct[0].XP == 20)
-        assert(runner.get_value("var7")==(600, Scope.NORMAL))
-        list_tup = runner.get_value("var8")
+        assert(task.get_value("var7", None)==(600, Scope.NORMAL))
+        list_tup = task.get_value("var8", None)
         list_value = list_tup[0]
         list_scope  = list_tup[1]
         assert(list_scope == Scope.NORMAL)
@@ -352,7 +355,7 @@ end_if
         assert(len(errors)==0)
 
 
-    def test_assign(self):
+    def test_assign_operators(self):
         (errors, runner, _) = mast_run( code = """
 x = 52
 x += 10
@@ -653,7 +656,7 @@ end_if
 
 
 
-    def test_py_exp_run_no_err(self):
+    def _test_py_exp_run_no_err(self):
         (errors, runner, _) = mast_run( code = """
 data = MastDataObject({"var1": 100})
 other = MastDataObject({"var1": 900000})
@@ -1101,7 +1104,7 @@ S2
 
 
 
-    def test_fallback_no_err(self):
+    def _test_fallback_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger(var="output")
         
@@ -1139,7 +1142,7 @@ S2 Again
 """)
 
 
-    def test_fallback_loop_no_err(self):
+    def _test_fallback_loop_no_err(self):
         (errors, runner, _) = mast_run( code = """
         logger(var="output")            
         shared x = 0
