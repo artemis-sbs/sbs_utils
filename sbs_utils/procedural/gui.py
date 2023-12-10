@@ -734,6 +734,8 @@ class ButtonPromise(AwaitBlockPromise):
                 clone = button.clone()
                 clone.data = data
                 clone.message = self.task.format_string(clone.message)
+                if clone.color:
+                    clone.color = self.task.format_string(clone.color)
                 buttons.append(clone)
 
         return buttons
