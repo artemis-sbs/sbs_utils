@@ -208,12 +208,14 @@ class CommsPromise(ButtonPromise):
         #
         # Set the client so it knows the selected console
         #
+        self.run_focus = True
         this_button = int(event.sub_tag)
         self.event = event
         self.button = self.expanded_buttons[this_button]
         self.button.visit((self.origin_id, self.selected_id))
         self.clear()
         self.task.tick()
+        
 
 
     def clear(self):
@@ -260,7 +262,6 @@ class CommsPromise(ButtonPromise):
         #self.color = node.color if node.color else "white"
         # If this is the same ship it is known
         self.is_unknown = False
-        self.run_focus = False
 
         self.selected_id = self.task.get_variable("COMMS_SELECTED_ID")
         self.origin_id = self.task.get_variable("COMMS_ORIGIN_ID")
@@ -333,7 +334,9 @@ class CommsPromise(ButtonPromise):
             
             for i, button in enumerate(self.expanded_buttons):
                 value = True
-                color = "white" if button.color is None else button.color
+                color = "white"
+                if button.color is not None:
+                    color = self.task.format_string(button.color)
                 if button.code is not None:
                     value = self.task.eval_code(button.code)
                 if value and button.should_present((origin_id, selected_id)):
@@ -366,13 +369,8 @@ class CommsPromise(ButtonPromise):
                 player_current_select = oo.data_set.get( "comms_target_UID",0)
                 if player_current_select == self.selected_id:
                     self.set_buttons(self.origin_id, self.selected_id)
-            return
+                return
 
-
-
-        if len(self.inlines)==0:
-            # clear the comms buttons
-            return 
 
 
 def comms(timeout=None):

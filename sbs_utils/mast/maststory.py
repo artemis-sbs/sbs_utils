@@ -108,16 +108,6 @@ class OnClick(MastNode):
             OnChange.stack.append(self)
 
 
-# class Disconnect(MastNode):
-#     rule = re.compile(r'disconnect:')
-#     def __init__(self, loc=None):
-#         self.loc = loc
-#         self.await_node = EndAwait.stack[-1]
-#         if self.await_node is not None:
-#             self.await_node.disconnect_label = self
-
-
-
 
 class MastStory(Mast):
     nodes = [
@@ -128,6 +118,4 @@ class MastStory(Mast):
         OnChange,
         OnMessage,
         OnClick,
-        #Disconnect,
-
     ] + Mast.nodes 

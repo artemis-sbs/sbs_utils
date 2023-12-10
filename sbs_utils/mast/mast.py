@@ -348,6 +348,7 @@ class EndAwait(MastNode):
     stack = []
     def __init__(self, loc=None):
         self.loc = loc
+        self.await_node = EndAwait.stack[-1]
         EndAwait.stack[-1].end_await_node = self
         EndAwait.stack.pop()
 

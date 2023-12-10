@@ -354,56 +354,7 @@ class MatchStatementsRuntimeNode(MastRuntimeNode):
 
 
     
-# class BehaviorRuntimeNode(MastRuntimeNode):
-#     def enter(self, mast, task: MastAsyncTask, node:Behavior):
-#         vars = {} | task.inventory.collections if node.labels is not None else None
-#         if node.code:
-#             inputs = task.eval_code(node.code)
-#             vars = vars | inputs
-#         if isinstance(node.labels, list):
-#             if node.sequence:
-#                 task = task.main.start_sequence_task(node.labels, vars, task_name=node.name, conditional=node.conditional)
-#             elif node.fallback:
-#                 task = task.main.start_fallback_task(node.labels, vars, task_name=node.name, conditional=node.conditional)
 
-#         self.task = task # if node.is_await else None
-#         self.timeout = FrameContext.sim_seconds + (node.minutes*60+node.seconds)
-        
-#     def poll(self, mast, task: MastAsyncTask, node:Behavior):
-#         if self.task:
-#             if not self.task.done():
-#                 return PollResults.OK_RUN_AGAIN
-#             if node.is_yield:
-#                 return self.task.tick_result
-#             if node.fail_label and self.task.done() and self.task.tick_result == PollResults.FAIL_END:
-#                 task.jump(task.active_label,node.fail_label.loc+1)
-#             elif node.until == "success" and self.task.done():
-#                 if  self.task.tick_result == PollResults.FAIL_END:
-#                     return self.task.rewind()
-#             elif node.until == "fail" and self.task.done():
-#                 if  self.task.tick_result != PollResults.FAIL_END:
-#                     return self.task.rewind()
-#         if node.timeout_label and self.timeout < FrameContext.sim_seconds:
-#             task.jump(task.active_label,node.timeout_label.loc+1)
-
-#         return PollResults.OK_ADVANCE_TRUE
-
-
-# class TimeoutRuntimeNode(MastRuntimeNode):
-#     def poll(self, mast, task: MastAsyncTask, node:Timeout):
-#         # if you run into this its from another sub-label
-#         if node.await_node and node.await_node.end_await_node:
-#             task.jump(task.active_label,node.await_node.end_await_node.loc+1)
-
-# class AwaitFailRuntimeNode(MastRuntimeNode):
-#     def poll(self, mast, task: MastAsyncTask, node:AwaitFail):
-#         # if you run into this its from another sub-label
-#         if node.await_node and node.await_node.end_await_node:
-#             task.jump(task.active_label,node.await_node.end_await_node.loc+1)
-
-
-class EndAwaitRuntimeNode(MastRuntimeNode):
-    pass
 
 class AwaitRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Await):
@@ -414,41 +365,50 @@ class AwaitRuntimeNode(MastRuntimeNode):
             self.promise.inlines = node.inlines
             self.promise.buttons = node.buttons
 
-
+        
     def poll(self, mast:Mast, task:MastAsyncTask, node: Await):
         if self.promise:
             if self.promise.done():
-                return PollResults.OK_ADVANCE_TRUE
+                #print(f"{task.active_label} {node.end_await_node.loc+1}")
+                task.jump(task.active_label, node.end_await_node.loc+1)
+                return PollResults.OK_JUMP
             else:
                 return PollResults.OK_RUN_AGAIN
 
         value = task.eval_code(node.code)
         if value:
-            return PollResults.OK_ADVANCE_TRUE
+            #print(f"value {node.end_await_node.loc+1}")
+            task.jump(task.active_label, node.end_await_node.loc+1)
 
         return PollResults.OK_RUN_AGAIN
+
+    
+
+
+class EndAwaitRuntimeNode(MastRuntimeNode):
+    def poll(self, mast:Mast, task:MastAsyncTask, node: Await):
+        task.pop_label(False)
+        return PollResults.OK_JUMP
 
 
 class AwaitInlineLabelRuntimeNode(MastRuntimeNode):
     def poll(self, mast:Mast, task:MastAsyncTask, node: Button):
-        #task.redirect_pop_label(True)
-        #return PollResults.OK_JUMP
-        if node.await_node and node.await_node.end_await_node:
-            #print(f"Button return {task.active_label} {node.await_node.end_await_node.loc+1}")
-            task.jump(task.active_label,node.await_node.end_await_node.loc+1)
-            return PollResults.OK_JUMP
-        return PollResults.OK_ADVANCE_TRUE
+        task.pop_label(False)
+        return PollResults.OK_JUMP
+        # if node.await_node:
+        #     task.jump(task.active_label,node.await_node.end_await_node.loc)
+        #     return PollResults.OK_JUMP
+        # return PollResults.OK_ADVANCE_TRUE
 
 
 class ButtonRuntimeNode(MastRuntimeNode):
     def poll(self, mast:Mast, task:MastAsyncTask, node: Button):
-        #task.redirect_pop_label(True)
-        #return PollResults.OK_JUMP
-        if node.await_node and node.await_node.end_await_node:
-            #print(f"Button return {task.active_label} {node.await_node.end_await_node.loc+1}")
-            task.jump(task.active_label,node.await_node.end_await_node.loc+1)
-            return PollResults.OK_JUMP
-        return PollResults.OK_ADVANCE_TRUE
+        task.pop_label(False)
+        return PollResults.OK_JUMP
+        # if node.await_node:
+        #     task.jump(task.active_label,node.await_node.end_await_node.loc)
+        #     return PollResults.OK_JUMP
+        # return PollResults.OK_ADVANCE_TRUE
 
 
 
@@ -480,7 +440,10 @@ class MastTicker:
 
 
     def jump(self, label = "main", activate_cmd=0):
+        # if self.pending_jump:
+        #     print("PENDING")
         self.pending_jump = (label,activate_cmd)
+        # print(f"{label} {activate_cmd}")
         while self.pop_on_jump>0:
             # if this is a jump and there are tested push
             # get back to the main flow
@@ -555,6 +518,9 @@ class MastTicker:
         # This done by Buttons, Dropdown and event
         #
         #print("PUSH JUMP POP")
+        # if self.pending_jump:
+        #     print("POP HAS PENDING")
+      
         push_data = PushData(self.active_label, self.active_cmd, data, self.runtime_node)
         self.task.label_stack.append(push_data)
         self.pop_on_jump += 1
@@ -596,7 +562,7 @@ class MastTicker:
                     #
                     # We didn't inc so the hope is to resume 
                     #
-                    #print(f"I DID NOT inc {push_data.runtime_node}")
+                    print(f"I DID NOT inc {push_data.runtime_node}")
                     self.pending_pop = (push_data.label, push_data.active_cmd, push_data.runtime_node)
     def tick(self):
         cmd = None

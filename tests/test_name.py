@@ -4,42 +4,6 @@ sys.path.append("..")
 from mock import sbs as sbs
 from sbs_utils import names
 import sys
-from sbs_utils.pymast.pymaststory import PyMastStory
-from sbs_utils.helpers import FrameContext, Context, FakeEvent
-
-
-def example_loose(self):
-    print("Loose label")
-    yield self.pop()
-
-
-class ExampleStory(PyMastStory):
-
-    def start(self):
-        self.count = 0
-        print("start")
-        # yield self.delay(3)
-        # print("start 2")
-        # yield self.push("one")
-        # yield self.push(example_loose)
-        # print("END")
-
-
-    
-    def one(self):
-        print("one")
-        yield self.delay(5)
-        yield self.jump("two")
-        
-
-    def two(self):
-        print(f"two {self.count}")
-        self.count += 1
-        if self.count < 4:
-            yield self.delay(5)
-            yield self.jump("two")
-        yield self.pop()
-        
     
 class FakeSim:
     def __init__(self) -> None:
@@ -56,21 +20,6 @@ class TestNames(unittest.TestCase):
             if i%6 == 5:
                 sys.stdout.write('\n')
         self.assertEqual(3, 3)
-
-    def test_something(self):
-        ctx = Context(FakeSim(), sbs, FakeEvent())
-        FrameContext.context = ctx
-        story = ExampleStory()
-        story.enable()
-        story.add_scheduler(story.start)
-
-
-        for x in range(1000):
-            story()
-            ctx.sim.tick()
-        print()
-   
-
 
     def test_filter_ship_data(self):
         ast = names.asteroid_keys()

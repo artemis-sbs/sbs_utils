@@ -4,7 +4,6 @@ sys.path.append("..")
 from mock import sbs as sbs
 from sbs_utils import names
 import sys
-from sbs_utils.pymast.pymaststory import PyMastStory
 from sbs_utils.helpers import FrameContext, Context, FakeEvent
 from sbs_utils.tickdispatcher import TickDispatcher
 

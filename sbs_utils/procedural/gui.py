@@ -604,6 +604,19 @@ def gui_reroute_clients(label):
             if client_page is not None and client_page.gui_task:
                 client_page.gui_task.jump(label)
 
+class OnChangeRuntimeNode:
+    def __init__(self, task, node):
+        self.task = task
+        self.node = node
+        value = node.inline[6:].strip()
+        self.value = task.eval_code(value) 
+        task.main.page.add_on_change(self)
+
+    def test(self):
+        prev = self.value
+        self.value = self.task.eval_code(self.node.value) 
+        return prev!=self.value
+
 
 class ChoiceButtonRuntimeNode:
     def __init__(self, promise, button, tag):
@@ -623,6 +636,7 @@ import re
 class ButtonPromise(AwaitBlockPromise):
     focus_rule = re.compile(r'focus')
     disconnect_rule = re.compile(r'disconnect')
+    fail_rule = re.compile(r'fail')
 
     def __init__(self, task, timeout=None) -> None:
         super().__init__(timeout)
@@ -634,12 +648,32 @@ class ButtonPromise(AwaitBlockPromise):
         self.task = task
         self.disconnect_label = None
         self.on_change = None
-        self.focus = None
+        self.focus_label = None
+        self.run_focus = False
+        self.running_button = None
+        #print("INit ")
+        
+    def initial_poll(self):
+        if self._initial_poll:
+            return
+        # Will Build buttons
+        #print("INit pool")
         self.expand_inlines()
+        self.show_buttons()
+        super().initial_poll()
 
+    def check_for_button_done(self):
+        #
+        # THIS sets the promise to finish 
+        # after you let the button process
+        # science will override this to 
+        # keep going until all scanned
+        if self.running_button:
+            self.set_result(self.running_button)
 
     def poll(self):
         super().poll()
+        self.check_for_button_done()
 
         task = self.task
         if self.task is None:
@@ -661,31 +695,35 @@ class ButtonPromise(AwaitBlockPromise):
                     self.task.push_inline_block(self.task.active_label,change.node.loc+1)
                     return # let it run
                     
-        if self.focus and self.run_focus:
+        if self.focus_label and self.run_focus:
             self.run_focus = False
-            self.task.push_inline_block(self.task.active_label,self.focus.loc+1)
+            self.task.push_inline_block(self.task.active_label,self.focus_label.loc+1)
             return # let it cook
 
         if self.button is not None:
             if self.var:
                 task.set_value_keep_scope(self.var, self.button.index)
-                #return PollResults.OK_ADVANCE_TRUE
-                self.set_result(True)
-            
-        #     self.button.node.visit(self.button.client_id)
+             
+            # self.button.node.visit(self.button.client_id)
             # button = self.buttons[self.button.index]
             button = self.button
             if button.for_name:
                 task.set_value(button.for_name, button.data, Scope.TEMP)
 
+            
+            #print(f"CHOICE {button.loc+1} ")
+            #
+            # If the button doesn't jump, make sure the 
+            # promise has a chance to finish
+            #
+            self.running_button = self.button
             self.button = None
-            #print(f"CHOICE {button.loc+1} {node.end_await_node.loc}")
             task.push_inline_block(task.active_label,button.loc+1)
-            #return PollResults.OK_JUMP
-            self.set_result(True)
+           
 
     def press_button(self, button):
         self.button = button
+        self.poll()
 
     def expand_button(self, button):
         buttons = []
@@ -715,6 +753,7 @@ class ButtonPromise(AwaitBlockPromise):
     def expand_inline(self, inline):
         if inline.inline is  None:
             return
+        print(f"__{inline.inline}__")
         # Handle =disconnect:
         if ButtonPromise.disconnect_rule.match(inline.inline):
             self.disconnect_label = inline
@@ -725,13 +764,11 @@ class ButtonPromise(AwaitBlockPromise):
         if ButtonPromise.fail_rule.match(inline.inline):
             self.fail_label = inline
         # Handle change
+        if inline.inline.startswith("change"):
+            OnChangeRuntimeNode(self.task, inline)
         # Handle timeout
         #if ButtonPromise.focus_rule.match(inline.inline):
         #    self.focus_label = inline
-
-        
-        
-    
 
     def expand_inlines(self):
         # Expand all the 'for' buttons
@@ -751,18 +788,15 @@ class GuiPromise(ButtonPromise):
     def initial_poll(self):
         if self._initial_poll:
             return
-        # Will Build buttons
-        self.show_buttons()
-        self.page.set_button_layout(self.button_layout)
         super().initial_poll()
-        
+        self.page.set_button_layout(self.button_layout)
+
     #
     # This 
     #
     def show_buttons(self):
         if len(self.buttons) == 0:
             return
-        
         
         if self.task is None:
             self.task = self.page.gui_task

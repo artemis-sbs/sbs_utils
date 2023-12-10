@@ -117,12 +117,26 @@ class ScanPromise(ButtonPromise):
         super().initial_poll()
 
     def poll(self):
-        if self.task.get_inventory_value("__SCAN_DONE__", None):
-            self.task.set_inventory_value("__SCAN_DONE__", None)
-            self.show_buttons()
-            if self.scan_is_done:
-                self.set_result(True)
+        # if self.task.get_inventory_value("__SCAN_DONE__", None):
+        #     self.task.set_inventory_value("__SCAN_DONE__", None)
+        #     self.show_buttons()
+        #     if self.scan_is_done:
+        #         self.set_result(True)
         super().poll()
+
+    def check_for_button_done(self):
+        self.show_buttons()
+        if not self.scan_is_done:
+            return
+        
+        #
+        # THIS sets the promise to finish 
+        # after you let the button process
+        # science will override this to 
+        # keep going until all scanned
+        if self.running_button:
+            self.set_result(self.running_button)
+
 
 
     def science_message(self, message, an_id, event):
@@ -157,6 +171,7 @@ class ScanPromise(ButtonPromise):
         if self.origin_id != event.origin_id or \
             self.selected_id != event.selected_id:
             return
+        self.run_focus = True
         self.start_scan(event.origin_id, event.selected_id, event.extra_tag)
 
     def start_scan(self, origin_id, selected_id, extra_tag):
@@ -182,7 +197,8 @@ class ScanPromise(ButtonPromise):
             
 
     def set_result(self, result):
-        self.leave()
+        if result is not None:
+            self.leave()
         super().set_result(result)
 
     def leave(self):
