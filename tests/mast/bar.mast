@@ -61,7 +61,7 @@ gui_hole()
 gui_hole()
 gui_input("desc:Make a toast", var="message")
 
-on message gui_button("send"):
+on gui_message(gui_button("send")):
     to_send = ~~message.strip()~~
     if len(to_send)>0:
 ~~~ 

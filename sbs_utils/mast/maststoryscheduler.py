@@ -1,16 +1,12 @@
 import logging
 from .mastscheduler import PollResults, MastRuntimeNode, MastAsyncTask, MastScheduler
-from .mast import Mast, Scope
+from .mast import Mast
 import sbs
 from ..gui import Gui
 from ..procedural.gui import gui_text
 from ..helpers import FakeEvent, FrameContext
-from ..procedural.inventory import get_inventory_value, set_inventory_value
-from .parsers import StyleDefinition
-from ..agent import Agent
-from ..pages import layout
 
-from .maststory import AppendText,  Text,  OnChange, OnMessage, OnClick
+from .maststory import AppendText,  Text
 import traceback
 from .parsers import LayoutAreaParser
 # Needed to get procedural in memory
@@ -24,11 +20,15 @@ class TextRuntimeNode(MastRuntimeNode):
         msg = ""
         self.task = task 
         value = True
+        TextRuntimeNode.current = self
         if node.code is not None:
             value = task.eval_code(node.code)
         if value:
             msg = task.format_string(node.message)
-            self.layout_text = gui_text(msg)
+            style = node.style
+            if style is None:
+                style = node.style_name
+            self.layout_text = gui_text(msg,style)
         
 
 class AppendTextRuntimeNode(MastRuntimeNode):
@@ -46,89 +46,9 @@ class AppendTextRuntimeNode(MastRuntimeNode):
 
 
 
-class OnChangeRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: OnChange):
-        self.task = task
-        self.node = node
-        if not node.is_end:
-            self.value = task.eval_code(node.value) 
-            task.main.page.add_on_change(self)
-
-    def test(self):
-        prev = self.value
-        self.value = self.task.eval_code(self.node.value) 
-        return prev!=self.value
-        
-
-    def poll(self, mast:Mast, task:MastAsyncTask, node: OnChange):
-        if node.is_end:
-            self.task.pop_label(False)
-            return PollResults.OK_JUMP
-        if node.end_node:
-            self.task.jump(self.task.active_label, node.end_node.loc+1)
-            return PollResults.OK_JUMP
-
-class OnMessageRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: OnMessage):
-        self.task = task
-        self.node = node
-        self.label = task.active_label
-        if not node.is_end:
-            layout_item = task.eval_code(node.value) 
-            self.layout = layout_item
-            # This will remap to include this as the message handler
-            task.main.page.add_tag(layout_item, self)
-
-
-    def on_message(self, event):
-        if event.sub_tag == self.layout.tag:
-            self.task.set_value_keep_scope("__ITEM__", self.layout)
-            data = self.layout.data
-            self.task.push_inline_block(self.label, self.node.loc+1, data)
-
-    def poll(self, mast:Mast, task:MastAsyncTask, node: OnMessage):
-        if node.is_end:
-            task.pop_label(False)
-            return PollResults.OK_JUMP
-        elif node.end_node:
-            # skip on first pass
-            self.task.jump(self.task.active_label, node.end_node.loc+1)
-            return PollResults.OK_JUMP
-
-
-class OnClickRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: OnClick):
-        self.task = task
-        self.node = node
-        if not node.is_end:
-            task.main.page.add_on_click(self)
-
-    def test(self, click_tag):
-        if self.node.name is not None:
-            if self.node.name!= click_tag:
-                return False
-        self.task.set_value("__CLICKED__", click_tag, Scope.TEMP)
-        return True
-        
-
-    def poll(self, mast:Mast, task:MastAsyncTask, node: OnClick):
-        if node.is_end:
-            self.task.pop_label(False)
-            return PollResults.OK_JUMP
-        if node.end_node:
-            self.task.jump(self.task.active_label, node.end_node.loc+1)
-            return PollResults.OK_JUMP
-
-
-
-
 over =     {
     "Text": TextRuntimeNode,
     "AppendText": AppendTextRuntimeNode,
-
-    "OnChange": OnChangeRuntimeNode,
-    "OnMessage": OnMessageRuntimeNode,
-    "OnClick": OnClickRuntimeNode,
 }
 
 class StoryScheduler(MastScheduler):

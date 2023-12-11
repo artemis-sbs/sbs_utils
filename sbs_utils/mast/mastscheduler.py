@@ -8,7 +8,7 @@ import time
 import traceback
 from ..agent import Agent, get_task_id
 from ..helpers import FrameContext
-from ..futures import Promise, Waiter, AwaitBlockPromise
+from ..futures import Promise, Waiter, Trigger
 from .label import get_fall_through
 from .pollresults import PollResults
 
@@ -410,6 +410,39 @@ class ButtonRuntimeNode(MastRuntimeNode):
         #     return PollResults.OK_JUMP
         # return PollResults.OK_ADVANCE_TRUE
 
+class OnChangeRuntimeNode(MastRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: OnChange):
+        self.task = task
+        self.node = node
+        if not node.is_end:
+            self.value = task.eval_code(node.value)
+            # Triggers handle things themselves
+            if not isinstance(self.value, Trigger):  
+                task.main.page.add_on_change(self)
+            # If the label is set don't override it
+            # Python must have set it
+            else:
+                self.value.loc = node.loc+1
+                self.value.label = task.active_label
+
+            # TODO
+            # Hmmm A little leakage that it use PAGE
+            # Move this to Task>
+            #
+
+    def test(self):
+        prev = self.value
+        self.value = self.task.eval_code(self.node.value) 
+        return prev!=self.value
+        
+
+    def poll(self, mast:Mast, task:MastAsyncTask, node: OnChange):
+        if node.is_end:
+            self.task.pop_label(False)
+            return PollResults.OK_JUMP
+        if node.end_node:
+            self.task.jump(self.task.active_label, node.end_node.loc+1)
+            return PollResults.OK_JUMP
 
 
 
@@ -1279,6 +1312,7 @@ class MastScheduler(Agent):
         "Await": AwaitRuntimeNode,
         "AwaitInlineLabel": AwaitInlineLabelRuntimeNode,
         "Button": ButtonRuntimeNode,
+            "OnChange": OnChangeRuntimeNode,
             "Change": ChangeRuntimeNode,
         #    "Timeout": TimeoutRuntimeNode,
         "EndAwait": EndAwaitRuntimeNode,
@@ -1314,38 +1348,6 @@ class MastScheduler(Agent):
             self.test_clock += 0.2
             return self.test_clock
         return time.time()
-
-    def start_sequence_task(self, labels = "main", inputs=None, task_name=None, conditional=None)->MastSequenceTask:
-        # if single label no need for any
-        if not isinstance(labels, list):
-            return self.start_task(labels, inputs, task_name)
-
-        seq_task = MastSequenceTask(self, labels, conditional)    
-        t = self._start_task(labels[0], inputs, None)
-        t.jump(labels[0])
-        seq_task.task = t
-
-        #self.on_start_task(t)
-        self.tasks.append(seq_task)
-        if task_name is not None:
-            self.active_task.set_value(task_name, seq_task, Scope.NORMAL)
-        return seq_task
-
-    def start_fallback_task(self, labels = "main", inputs=None, task_name=None, conditional=None)->MastFallbackTask:
-        # if single label no need for any
-        if not isinstance(labels, list):
-            return self.start_task(labels, inputs, task_name)
-
-        seq_task = MastFallbackTask(self, labels, conditional)    
-        t = self._start_task(labels[0], inputs, None)
-        t.jump(labels[0])
-        seq_task.task = t
-
-        #self.on_start_task(t)
-        self.tasks.append(seq_task)
-        if task_name is not None:
-            self.active_task.set_value(task_name, seq_task, Scope.NORMAL)
-        return seq_task
 
 
     def _start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:

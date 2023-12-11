@@ -4,7 +4,7 @@ from .inventory import get_inventory_value, set_inventory_value
 from ..helpers import FrameContext
 from ..pages import layout
 from ..mast.parsers import LayoutAreaParser, StyleDefinition
-from ..futures import Promise, AwaitBlockPromise
+from ..futures import Trigger, AwaitBlockPromise
 import sbs
 
 def gui_add_console_tab(id_or_obj, console, tab_name, label):
@@ -604,18 +604,70 @@ def gui_reroute_clients(label):
             if client_page is not None and client_page.gui_task:
                 client_page.gui_task.jump(label)
 
-class OnChangeRuntimeNode:
-    def __init__(self, task, node):
-        self.task = task
-        self.node = node
-        value = node.inline[6:].strip()
-        self.value = task.eval_code(value) 
-        task.main.page.add_on_change(self)
 
-    def test(self):
-        prev = self.value
-        self.value = self.task.eval_code(self.node.value) 
-        return prev!=self.value
+    
+class MessageTrigger(Trigger):
+    def __init__(self, task, layout_item, label=None):
+        # This will remap to include this as the message handler
+        task.main.page.add_tag(layout_item, self)
+        self.task = task
+        self.layout_item = layout_item
+        # Needs to be set by Mast
+        # Pure mast this is active Label
+        # Python ith should be a callable
+        self.label = label
+        if label is None:
+            self.label = task.active_label 
+        # 0 for python the node loc of the on in Mast
+        self.loc = 0
+
+
+    def on_message(self, event):
+        if event.sub_tag == self.layout_item.tag:
+            self.task.set_value_keep_scope("__ITEM__", self.layout_item)
+            data = self.layout_item.data
+            self.task.push_inline_block(self.label, self.loc, data)
+            restore = FrameContext.page
+            FrameContext.page = self.task.main.page
+            self.task.tick()
+            FrameContext.page = restore
+
+def gui_message(layout_item):
+    task = FrameContext.task
+    return MessageTrigger(task, layout_item)
+
+class ClickableTrigger(Trigger):
+    def __init__(self, task, name):
+        self.name = name
+        self.task = task
+        # Needs to be set by Mast
+        # Pure mast this is active Label
+        # Python ith should be a callable
+        self.label = None 
+        # 0 for python the node loc of the on in Mast
+        self.loc = 0
+        task.main.page.add_on_click(self)
+
+    def click(self, click_tag):
+        if self.name is not None:     
+            if click_tag != self.name:
+                    return False
+        print(click_tag)
+        self.task.set_value("__CLICKED__", click_tag, Scope.TEMP)
+        self.task.push_inline_block(self.label, self.loc)
+        restore = FrameContext.page
+        FrameContext.page = self.task.main.page
+        self.task.tick()
+        FrameContext.page = restore
+        return True
+
+def gui_click(name_or_layout_item=None):
+    task = FrameContext.task
+    name = name_or_layout_item
+    if name is not None:
+        if not isinstance(name_or_layout_item, str):
+            name = name_or_layout_item.click_tag
+    return ClickableTrigger(task, name)
 
 
 class ChoiceButtonRuntimeNode:
@@ -767,7 +819,7 @@ class ButtonPromise(AwaitBlockPromise):
             self.fail_label = inline
         # Handle change
         if inline.inline.startswith("change"):
-            OnChangeRuntimeNode(self.task, inline)
+            ChangeTrigger(self.task, inline)
         # Handle timeout
         #if ButtonPromise.focus_rule.match(inline.inline):
         #    self.focus_label = inline

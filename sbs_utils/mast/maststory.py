@@ -18,12 +18,8 @@ class Text(MastNode):
             self.code = compile(if_exp, "<string>", "eval")
         else:
             self.code = None
-        self.style_def = None
-        self.style_name = None
-        if style is not None:
-            self.style_def = StyleDefinition.parse(style)
-        elif style_name is not None:
-            self.style_name = style_name
+        self.style = style 
+        self.style_name = style_name
 
 class AppendText(MastNode):
     rule = re.compile(r"""(([\^]{3,})(\n)?(?P<message>[\s\S]+?)(\n)?([\^]{3,}))"""+IF_EXP_REGEX)
@@ -40,30 +36,6 @@ class AppendText(MastNode):
 
 
 
-class OnChange(MastNode):
-    rule = re.compile(r"(?P<end>end_on)|(on[ \t]+change[ \t]+(?P<val>[^:]+)"+BLOCK_START+")")
-    stack = []
-    def __init__(self, end=None, val=None, loc=None):
-        self.loc = loc
-        self.value = val
-        if val:
-            self.value = compile(val, "<string>", "eval")
-
-        self.is_end = False
-        #
-        # Check to see if this is embedded in an await
-        #
-        self.await_node = None
-        if len(EndAwait.stack) >0:
-            self.await_node = EndAwait.stack[-1]
-        self.end_node = None
-
-        if end is not None:
-            OnChange.stack[-1].end_node = self
-            self.is_end = True
-            OnChange.stack.pop()
-        else:
-            OnChange.stack.append(self)
 
 class OnMessage(MastNode):
     rule = re.compile(r"(?P<end>end_on)|(on[ \t]+message[ \t]+(?P<val>[ \t\S]+)"+BLOCK_START+")")
@@ -115,7 +87,6 @@ class MastStory(Mast):
         Text,
         AppendText,
 
-        OnChange,
-        OnMessage,
-        OnClick,
+        # OnMessage,
+        # OnClick,
     ] + Mast.nodes 

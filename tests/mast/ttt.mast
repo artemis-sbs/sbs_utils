@@ -99,7 +99,7 @@ for x while x<3:
     space = grid[test]
     
     if space == 0:
-        on message gui_button("{test+1}", data = {"myslot": test}):
+        on gui_message(gui_button("{test+1}", data = {"myslot": test})):
             grid[myslot] = turn
             turn = -turn
             ->check_winner

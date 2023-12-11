@@ -139,37 +139,37 @@ gui_section(style="area: 20, 20, 100, 40;")
 
 learn = False
 
-on message gui_button("Test 1"):
+on gui_message(gui_button("Test 1")):
     -> Learn 
 end_on
 
-on message gui_button("Test 2"):
+on gui_message(gui_button("Test 2")):
  ->Learn 
 end_on
-on message gui_button("Test 3"):
+on gui_message(gui_button("Test 3")):
  -> Learn  
 end_on
-on message gui_button("Test 4"):
+on gui_message(gui_button("Test 4")):
 ->Learn 
 end_on
 gui_row()
-on message gui_button("Test 5"):
+on gui_message(gui_button("Test 5")):
 -> Learn
 end_on
-on message gui_button("Test 6"):
+on gui_message(gui_button("Test 6")):
  ->Learn 
 end_on
-on message gui_button("Test 7"):
+on gui_message(gui_button("Test 7")):
 -> Learn 
 end_on
-on message gui_button("Test 8"):
+on gui_message(gui_button("Test 8")):
  ->Learn 
  end_on
 gui_row()
-on message gui_button("Test 9"):
+on gui_message(gui_button("Test 9")):
  -> Briefing 
  end_on
-on message gui_button("Test 10"):
+on gui_message(gui_button("Test 10")):
  -> Briefing 
  end_on
 gui_row()
@@ -210,20 +210,20 @@ else:
     gui_section(style="area: 100-500px, 0, 100, 30px;")
 end_if
 
-on message gui_drop_down("text: ship;list:Artemis,Hera,Atlas", var= "ship_select"):
+on gui_message(gui_drop_down("text: ship;list:Artemis,Hera,Atlas", var= "ship_select")):
     <<->>PickedShip
 end_on
 
-on message gui_drop_down("text: console;list:Helm,Weapons,Science,Engineering,Comms,Medical,Main Screen", var="console"):
+on gui_message(gui_drop_down("text: console;list:Helm,Weapons,Science,Engineering,Comms,Medical,Main Screen", var="console")):
     view = "Main"
     ->>PickedView
 end_on
 
-on message gui_drop_down("text: view;list:Main,Auxiliary,Crafting,Quarters,P.A.D.D.,Broadcast,Bar", var="view"):
+on gui_message(gui_drop_down("text: view;list:Main,Auxiliary,Crafting,Quarters,P.A.D.D.,Broadcast,Bar", var="view")):
     ->>PickedView
 end_on
 
-on message gui_drop_down("text: Mast;list:Variables,Debug,restart", "mast_view"):
+on gui_message(gui_drop_down("text: Mast;list:Variables,Debug,restart", "mast_view")):
 ->>PickedMast
 end_on
 

@@ -120,3 +120,8 @@ class AwaitBlockPromise(Promise):
         self.initial_poll()
         if self.timeout and self.timeout.done():
             self.set_result(True)
+
+
+class Trigger:
+    def test(self):
+        pass

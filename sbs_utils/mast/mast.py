@@ -257,7 +257,7 @@ class Assign(MastNode):
     oper_map = {"=": EQUALS, "+=": INC,  "-=": DEC, "*=": MUL, "%=": MOD, "/=": DIV, "//=":INT_DIV }
     # '|'+STRING_REGEX+ddd
     rule = re.compile(
-        r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|.*))')
+        r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|[^\n\r\f]+))')
 
     """ Note this doesn't support destructuring. To do so isn't worth the effort"""
     def __init__(self, scope, lhs, oper, exp, quote=None, py=None, loc=None):
@@ -406,6 +406,33 @@ class AwaitInlineLabel(MastNode):
         self.inline = val
         self.await_node = EndAwait.stack[-1]
         EndAwait.stack[-1].add_inline(self)
+
+class OnChange(MastNode):
+    rule = re.compile(r"(?P<end>end_on)|(on[ \t]+(change[ \t]+)?(?P<val>[^:]+)"+BLOCK_START+")")
+    stack = []
+    def __init__(self, end=None, val=None, loc=None):
+        self.loc = loc
+        self.value = val
+        if val:
+            self.value = compile(val, "<string>", "eval")
+
+        self.is_end = False
+        #
+        # Check to see if this is embedded in an await
+        #
+        self.await_node = None
+        if len(EndAwait.stack) >0:
+            self.await_node = EndAwait.stack[-1]
+        self.end_node = None
+
+        if end is not None:
+            OnChange.stack[-1].end_node = self
+            self.is_end = True
+            OnChange.stack.pop()
+        else:
+            OnChange.stack.append(self)
+
+
 
 FOR_RULE = r'([ \t]+for[ \t]+(?P<for_name>\w+)[ \t]+in[ \t]+(?P<for_exp>[ \t\S]+?))?'
 class Button(MastNode):
@@ -667,16 +694,18 @@ class Mast():
         #        AwaitCondition,
         #Timeout,
         Change,
+        OnChange,
         EndAwait,
         #AwaitFail, # Fail Label
         AwaitInlineLabel,
         Button,
-        Assign,
+
         Fail,
         Yield,
         End,
         ReturnIf,
             Jump,
+        Assign,
     ]
 
     def get_source_file_name(file_num):

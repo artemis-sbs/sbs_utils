@@ -462,11 +462,12 @@ class StoryPage(Page):
                 return
             
         if clicked is not None:
-            for click in self.on_click:
-                if click.test(clicked.click_tag):
-                    self.gui_task.push_inline_block(self.gui_task.active_label, click.node.loc+1)
-                    return
             layout.Layout.clicked[self.client_id] = None
+            for click in self.on_click:
+                if click.click(clicked.click_tag):
+                    return
+
+
             
         if refresh:
             self.gui_state = "refresh"
