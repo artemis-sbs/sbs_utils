@@ -109,7 +109,7 @@ await gui():
     ~~customers.pop(client_id, None)~~
     gui_refresh("GotoBar")
      pop
-disconnect:
+=disconnect:
     ~~customers.pop(client_id, None)~~
     ->END
 end_await

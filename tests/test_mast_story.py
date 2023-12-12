@@ -137,7 +137,7 @@ console("console_name")
 =========== server_main =====
 gui_section(style="area:2,20,18,35;")
 
-on message gui_button("Speak"):
+on gui_message(gui_button("Speak")):
     log("{fred}")
     ->server_main
 end_on
