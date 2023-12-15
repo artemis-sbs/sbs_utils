@@ -1,0 +1,3302 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../python/">
+      
+      
+        <link rel="next" href="../model/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.2">
+    
+    
+      
+        <title>Syntax - SBS Utils library Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.50c56a3b.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#language-basics" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="SBS Utils library Documentation" class="md-header__button md-logo" aria-label="SBS Utils library Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SBS Utils library Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Syntax
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+    
+  
+  Mast
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../cosmos/" class="md-tabs__link">
+          
+  
+    
+  
+  Cosmos
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorial/" class="md-tabs__link">
+          
+  
+    
+  
+  Tutorial
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/" class="md-tabs__link">
+          
+  
+    
+  
+  API
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../about/" class="md-tabs__link">
+        
+  
+    
+  
+  About
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="SBS Utils library Documentation" class="md-nav__button md-logo" aria-label="SBS Utils library Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    SBS Utils library Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Mast
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Mast
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Language
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Python
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Syntax
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Syntax
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#simple-assignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Simple assignment
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-python-with-assignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using python with assignment
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shared-data-assignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Shared data assignment
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-flow-story-sections-via-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      Task Flow: Story sections via labels
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Task Flow: Story sections via labels">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      Labels
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stateflow-changes-jump-push-pop" class="md-nav__link">
+    <span class="md-ellipsis">
+      State/Flow changes: Jump, Push, Pop
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="State/Flow changes: Jump, Push, Pop">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#jump" class="md-nav__link">
+    <span class="md-ellipsis">
+      Jump
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pushpop" class="md-nav__link">
+    <span class="md-ellipsis">
+      Push/Pop
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jump-to-end" class="md-nav__link">
+    <span class="md-ellipsis">
+      Jump to End
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scheduling-tasks-and-waiting-for-them-to-complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scheduling tasks and waiting for them to complete
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scheduling tasks and waiting for them to complete">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scheduling-tasks-in-mast" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scheduling tasks in mast
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#passing-data-to-a-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      passing data to a task
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#named-task-and-waiting-for-a-task-or-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Named task and waiting for a Task or Tasks
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#awaiting-for-any-or-all-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Awaiting for any or all tasks
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#canceling-a-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      Canceling a task
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conditional-statements" class="md-nav__link">
+    <span class="md-ellipsis">
+      Conditional Statements
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Conditional Statements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#if-statements" class="md-nav__link">
+    <span class="md-ellipsis">
+      If statements
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#match-statements" class="md-nav__link">
+    <span class="md-ellipsis">
+      Match statements
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#for-loops" class="md-nav__link">
+    <span class="md-ellipsis">
+      For loops
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comments" class="md-nav__link">
+    <span class="md-ellipsis">
+      Comments
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Comments">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#comments_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Comments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-line-comments-aka-block-comments" class="md-nav__link">
+    <span class="md-ellipsis">
+      Multi line Comments aka block comments
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#importing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Importing
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      Logging
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#logger-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      logger command
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#log-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      log command
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#delay-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      Delay commands
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Agent Model
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../behavior/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Behavior trees
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../cosmos/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Cosmos
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Cosmos
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cosmos/comms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Comms
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cosmos/science/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Science
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cosmos/gui/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Gui
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cosmos/world_building/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    World Building
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../cosmos/routes/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Routing
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_6" id="__nav_3_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            Routing
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cosmos/routes/lifetime/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing Lifetime
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cosmos/routes/console/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing console
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cosmos/routes/damage/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing damage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../tutorial/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Tutorial
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../tutorial/gui/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    gui
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_2" id="__nav_4_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            gui
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/gui/simple_gui/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    simple
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../tutorial/comms/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    comms
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_3" id="__nav_4_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            comms
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/comms/simple_comms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    simple
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/comms/complex_comms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    complex
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/comms/simple_grid.md" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    grid
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../tutorial/science/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    science
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_4" id="__nav_4_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            science
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/science/simple_science/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    simple
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../tutorial/ai/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    AI
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_5" id="__nav_4_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            AI
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/ai/simple_ai/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    simple
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/ai/complex_ai/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    complex
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../tutorial/damage/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    damage
+  </span>
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            damage
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    API
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            API
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/engine/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Engine
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5_2" id="__nav_5_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            Engine
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/engine/sbs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    sbs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/utility/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Utility
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5_3" id="__nav_5_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_3">
+            <span class="md-nav__icon md-icon"></span>
+            Utility
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/utility/faces/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    faces
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/utility/scatter/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Scatter
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/utility/vec/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vec3
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/procedural/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Procedural
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5_4" id="__nav_5_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_4">
+            <span class="md-nav__icon md-icon"></span>
+            Procedural
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/gui/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    gui
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/query/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    query
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/roles/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    roles
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_5" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/dispatch/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Dispatch
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5_5" id="__nav_5_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_5">
+            <span class="md-nav__icon md-icon"></span>
+            Dispatch
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/dispatch/tick_dispatcher/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TickDispatcher
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/dispatch/damage_dispatcher/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    DamageDispatcher
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/dispatch/console_dispatcher/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ConsoleDispatcher
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../about/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    About
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#simple-assignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Simple assignment
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-python-with-assignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using python with assignment
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shared-data-assignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Shared data assignment
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-flow-story-sections-via-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      Task Flow: Story sections via labels
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Task Flow: Story sections via labels">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      Labels
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stateflow-changes-jump-push-pop" class="md-nav__link">
+    <span class="md-ellipsis">
+      State/Flow changes: Jump, Push, Pop
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="State/Flow changes: Jump, Push, Pop">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#jump" class="md-nav__link">
+    <span class="md-ellipsis">
+      Jump
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pushpop" class="md-nav__link">
+    <span class="md-ellipsis">
+      Push/Pop
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jump-to-end" class="md-nav__link">
+    <span class="md-ellipsis">
+      Jump to End
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scheduling-tasks-and-waiting-for-them-to-complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scheduling tasks and waiting for them to complete
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scheduling tasks and waiting for them to complete">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scheduling-tasks-in-mast" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scheduling tasks in mast
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#passing-data-to-a-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      passing data to a task
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#named-task-and-waiting-for-a-task-or-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Named task and waiting for a Task or Tasks
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#awaiting-for-any-or-all-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Awaiting for any or all tasks
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#canceling-a-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      Canceling a task
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conditional-statements" class="md-nav__link">
+    <span class="md-ellipsis">
+      Conditional Statements
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Conditional Statements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#if-statements" class="md-nav__link">
+    <span class="md-ellipsis">
+      If statements
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#match-statements" class="md-nav__link">
+    <span class="md-ellipsis">
+      Match statements
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#for-loops" class="md-nav__link">
+    <span class="md-ellipsis">
+      For loops
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comments" class="md-nav__link">
+    <span class="md-ellipsis">
+      Comments
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Comments">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#comments_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Comments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-line-comments-aka-block-comments" class="md-nav__link">
+    <span class="md-ellipsis">
+      Multi line Comments aka block comments
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#importing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Importing
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      Logging
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#logger-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      logger command
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#log-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      log command
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#delay-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      Delay commands
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+<h1 id="language-basics">Language Basics</h1>
+<ul>
+<li>Data</li>
+<li>Task flow</li>
+<li>Conditional</li>
+<li>Loops </li>
+<li>Scheduling Tasks</li>
+</ul>
+<h2 id="data">Data</h2>
+<p>You can create data that is any valid python type.
+This data can be used in you mast tasks.</p>
+<h3 id="simple-assignment">Simple assignment</h3>
+<p>To do so you use the assignment statement::</p>
+<pre><code>fred = 3
+</code></pre>
+<p>Assignment has a variable name an equals followed by a value.</p>
+<h3 id="using-python-with-assignment">Using python with assignment</h3>
+<p>The assignment is simple and has trouble with more complex python statements e.g. a list of list, etc.
+To allow more complex assignments you can wrap the value in 'snakes' to have the python compiler used::</p>
+<pre><code>players_inventory = ~~ [ [2,3], [4,5]] ~~
+</code></pre>
+<p>You need at least 2 'snakes' (the tilde character), before and after the python values. But you can have more tha two, and the number doesn't need to be exactly the same, as long as you have at least two::</p>
+<pre><code>players_inventory = 
+    ~~~~~~~~~ 
+    [
+        [2,3], 
+        [4,5]
+    ] 
+    ~~~~~~
+</code></pre>
+<h3 id="shared-data-assignment">Shared data assignment</h3>
+<p>Data has multiple scopes. Data can be at the scope of a Mast story, For a scheduler, A task, and block</p>
+<p>There are times you want data to be shared by all tasks within a story. To share data you add the 'shared' marked in front of the assignment::</p>
+<pre><code>shared enemy_count = 20
+shared beer_count = 8
+</code></pre>
+<p>When using Data, scope is automatically handled you only need to specify shared at assignment::</p>
+<pre><code>shared beer_count = 8
+my_beer = 0
+
+# Drink all the beer
+my_beer = my_beer + beer_count
+share beer_count = 0
+</code></pre>
+<h2 id="task-flow-story-sections-via-labels">Task Flow: Story sections via labels</h2>
+<p>A mast story is broken into sections using labels.
+You also can have comments, and there are also other 'markers' that can help organizing sections and help have them stand out in the file.</p>
+<h3 id="labels">Labels</h3>
+<p>Labels have a Name with no spaces and are  enclosed in 2 or more equals</p>
+<div class="highlight"><pre><span></span><code>    ====== GotoBar ====
+     . . .
+    == ShowHelm ==
+     . . .
+
+    ========================================== MoreStuff ===========================
+     . . .
+```
+
+There are two labels that are implied: main and END.
+
+The label &quot;main&quot; is the very start of the script.
+The label &quot;END&quot; end the current task.
+
+They are predefined and don&#39;t need to be defined in script.
+
+Labels are not &#39;functions&#39;, one label passes into the next label
+
+```
+    ======== One =====
+    log &quot;One&quot;
+    ======== Two =====
+    log &quot;Two&quot;
+    ===== Three ====
+    log &quot;Three&quot;
+</code></pre></div>
+<p>Expected output</p>
+<div class="highlight"><pre><span></span><code> One
+ Two
+ Three
+</code></pre></div>
+<h2 id="stateflow-changes-jump-push-pop">State/Flow changes: Jump, Push, Pop</h2>
+<p>There are times you will want to change what part of a task is running.
+This is done by redirecting the flow to a label.</p>
+<h3 id="jump">Jump</h3>
+<p>This can be done by a Jump command. Which is a 'thin arrow' followed by the label name.::</p>
+<div class="highlight"><pre><span></span><code>    -&gt; Here
+
+    ======== NotHere =====
+    log &quot;Got here later&quot;
+    -&gt; End
+
+    ======== Here =====
+    log &quot;First&quot;
+    -&gt; NotHere
+
+    ======== End =====
+    log &quot;Done&quot;
+    -&gt;END
+    ======== Never =====
+    log &quot;Can never reach&quot;
+</code></pre></div>
+<p>The expected output</p>
+<div class="highlight"><pre><span></span><code>First
+Got Here later
+Done
+</code></pre></div>
+<h3 id="pushpop">Push/Pop</h3>
+<p>Push is kind of the "Hold my Beer" of jump. When you Push it remembers the current location. Pop returns back to that location.</p>
+<p>Push is a 'thin double arrow' followed by the label name.</p>
+<p>Pop returns back to the previous location. Pop is a backwards thin double arrow.</p>
+<p>For example
+<div class="highlight"><pre><span></span><code>log &quot;See you later&quot;
+-&gt;&gt; PushHere
+log &quot;and we&#39;re back&quot;
+-&gt;END
+======== PushHere =====
+log &quot;Going back&quot;
+&lt;&lt;-
+</code></pre></div></p>
+<p>The expected output</p>
+<div class="highlight"><pre><span></span><code>See you later
+Going Back
+and we&#39;re back
+</code></pre></div>
+<h3 id="jump-to-end">Jump to End</h3>
+<p>To immediately end a task you can use a Jump to End.</p>
+<p>Jump to end looks like a Jump with a thin arrow and the label "END"</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">mast</label><label for="__tabbed_1_2">Python</label><label for="__tabbed_1_3">Output</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>===== start ====
+
+log(&quot;See you later&quot;)
+-&gt;END
+log(&quot;Never gets here&quot;)
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>@label()
+def start(self):
+    print(&quot;See you later&quot;)
+    yield END()
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>See you later
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>Jump to End ends the task. If that task the only task, the whole story ends.</p>
+<h2 id="scheduling-tasks-and-waiting-for-them-to-complete">Scheduling tasks and waiting for them to complete</h2>
+<p>A story can have multiple tasks running in parallel.</p>
+<p>For example, a ship maybe have multiple Tasks associated with it. 
+One tracking it comms, several for its client consoles, and several related to 'quest' it is involved in.</p>
+<p>To do so, new task can be scheduled. Either in python or via Mast.</p>
+<h3 id="scheduling-tasks-in-mast">Scheduling tasks in mast</h3>
+<p>Schedule a task is similar to a Jump, but it uses the Fat arrow.
+The difference is another task begins, and the original task continues on.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><input id="__tabbed_2_3" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Mast</label><label for="__tabbed_2_2">Python</label><label for="__tabbed_2_3">Output</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>log(&quot;before&quot;)
+#
+task_schedule(ATask)
+log(&quot;after&quot;)
+
+=== ATask ===
+log(&quot;in task&quot;)
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>@label()
+def start(self):
+    logger()
+    log(&quot;before&quot;)
+    task_schedule(self.a_task)
+    log(&quot;after&quot;)
+
+@label()
+def a_task(self):
+    log(&quot;in task&quot;)
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>before
+after
+in task
+</code></pre></div>
+</div>
+</div>
+</div>
+<h3 id="passing-data-to-a-task">passing data to a task</h3>
+<p>You can pass data to a new task. The data passed is different than the original task.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:3"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><input id="__tabbed_3_3" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Mast</label><label for="__tabbed_3_2">Python</label><label for="__tabbed_3_3">Output</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>message = &quot;Different&quot;
+schedule ATask {&quot;message&quot;: &quot;Hello&quot;}
+log &quot;{message}&quot;
+
+=== ATask ===
+log &quot;{message}&quot;
+message = &quot;Who cares&quot;
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>@label()
+def start(self):
+    self.logger()
+
+    self.schedule_task(self.a_task, {&quot;message&quot;: &quot;Hello&quot;})
+    self.log(f&quot;{self.task.message}&quot;)
+
+@label()
+def a_task(self):
+    self.log(self.task.message)
+    self.task.message = &quot;Should not change original&quot;
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>different
+Hello
+</code></pre></div>
+</div>
+</div>
+</div>
+<h3 id="named-task-and-waiting-for-a-task-or-tasks">Named task and waiting for a Task or Tasks</h3>
+<p>You can assign a task to a variable by putting a name in front of the fat arrow.</p>
+<p>This can be used to await the task later.</p>
+<p>Example scheduling a task</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="4:1"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1">Mast</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>log &quot;Start&quot;
+task1 =&gt; ATask
+await task1
+log &quot;Done&quot;
+
+=== ATask ===
+log &quot;task run&quot;
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>=== "Output":
+    <div class="highlight"><pre><span></span><code>Start
+task run
+Done
+</code></pre></div></p>
+<h3 id="awaiting-for-any-or-all-tasks">Awaiting for any or all tasks</h3>
+<p>This can be used to await a list of tasks.
+You can await for ay task to complete.
+And you can await for all tasks to finish.</p>
+<p>Example await all</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="5:4"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><input id="__tabbed_5_2" name="__tabbed_5" type="radio" /><input id="__tabbed_5_3" name="__tabbed_5" type="radio" /><input id="__tabbed_5_4" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1">Mast</label><label for="__tabbed_5_2">Output</label><label for="__tabbed_5_3">Mast</label><label for="__tabbed_5_4">Output</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>log(&quot;Start&quot;)
+task1 = task_schedule(ATask, data= {&quot;say&quot;: &quot;Task1&quot;})
+task2 = task_schedule(ATask, data= {&quot;say&quot;: &quot;Task2&quot;})
+#### This needs to be refactored
+await join_all(task1,task2]
+log(&quot;Done&quot;)
+
+=== ATask ===
+log(&quot;{say}&quot;)
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>Start
+Task1
+Task2
+Done
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>log(&quot;Start&quot;)
+task1 = task_schedule(ATask, data= {&quot;say&quot;: &quot;Task1&quot;})
+task2 = task_schedule(ATask, data= {&quot;say&quot;: &quot;Task2&quot;})
+#### This needs to be refactored
+await join_any(task1,task2]
+log(&quot;Done&quot;)
+
+=== ATask ===
+log(&quot;{say}&quot;)&quot;
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>Start
+Task1
+Task2
+Done
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>The order maybe be different based on timing of the tasks.</p>
+<p>For an await any if any task end, the await is satisfied.</p>
+<h3 id="canceling-a-task">Canceling a task</h3>
+<p>You can cancel a tasks by name from another task.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="6:3"><input checked="checked" id="__tabbed_6_1" name="__tabbed_6" type="radio" /><input id="__tabbed_6_2" name="__tabbed_6" type="radio" /><input id="__tabbed_6_3" name="__tabbed_6" type="radio" /><div class="tabbed-labels"><label for="__tabbed_6_1">Mast</label><label for="__tabbed_6_2">Python</label><label for="__tabbed_6_3">Output</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>log(&quot;Start&quot;)
+task1 task_schedule(ATask)
+task_cancel(task1)
+log(&quot;Done&quot;)
+
+=== ATask ===
+log(&quot;May not run&quot;)
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>@label()
+def start(self):
+    logger()
+    log(&quot;Start&quot;)
+    task1 = task_schedule_task(a_task)
+    task_cancel(task1)
+    log(&quot;Done&quot;)
+
+@label()
+def a_task(self):
+    log(&quot;May not run&quot;)
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<p>Start
+Done</p>
+</div>
+</div>
+</div>
+<h2 id="conditional-statements">Conditional Statements</h2>
+<p>Mast supports both a if and match statements similar to python's.
+PyMast simply uses the python statements.</p>
+<h3 id="if-statements">If statements</h3>
+<p>Mast supports if statements similar to python with if, elif, and else.
+Mast is not a whitespace language so you need to close an if with and end_if</p>
+<p>If conditionals can be nested as well.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="7:3"><input checked="checked" id="__tabbed_7_1" name="__tabbed_7" type="radio" /><input id="__tabbed_7_2" name="__tabbed_7" type="radio" /><input id="__tabbed_7_3" name="__tabbed_7" type="radio" /><div class="tabbed-labels"><label for="__tabbed_7_1">Mast</label><label for="__tabbed_7_2">Python</label><label for="__tabbed_7_3">Output</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>===== start ====
+value = 300
+
+if value &lt; 300:
+    log &quot;less&quot;
+elif value &gt; 300:
+log &quot;more&quot;
+else:
+    log &quot;equal&quot;
+end_if
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>class Story(PyMastStory):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @label()
+    def start(self):
+        value = 300
+        if value &lt; 300:
+            log &quot;less&quot;
+        elif value &gt; 300:
+            log &quot;more&quot;
+        else:
+            log &quot;equal&quot;
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>equal
+</code></pre></div>
+</div>
+</div>
+</div>
+<h3 id="match-statements">Match statements</h3>
+<p>Mast supports match statements similar to python with match, case.
+Mast is not a whitespace language so you need to close an if with and end_match</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="8:3"><input checked="checked" id="__tabbed_8_1" name="__tabbed_8" type="radio" /><input id="__tabbed_8_2" name="__tabbed_8" type="radio" /><input id="__tabbed_8_3" name="__tabbed_8" type="radio" /><div class="tabbed-labels"><label for="__tabbed_8_1">Mast</label><label for="__tabbed_8_2">Python</label><label for="__tabbed_8_3">Output</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p>````
+===== start ====
+value = 300</p>
+<p>match value:
+    case 200:
+        log("200")
+    case 300:
+        log("300")
+    case _:
+        log*("something else")
+end_match
+```</p>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>@label()
+def start(self):
+    value = 300
+    match value:
+        case 200:
+            log &quot;200&quot;
+        case 300:
+            log &quot;300&quot;
+        case _:
+            log &quot;something else&quot;
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>300
+</code></pre></div>
+</div>
+</div>
+</div>
+<h3 id="for-loops">For loops</h3>
+<p>Mast supports for loop similar to python with for, break, continue .
+Mast is not a whitespace language so you need to close an if with and next.</p>
+<p>PyMast uses the standard python for or while loop.</p>
+<p>However, mast support a for ... in loop and a for .. while loop.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="9:3"><input checked="checked" id="__tabbed_9_1" name="__tabbed_9" type="radio" /><input id="__tabbed_9_2" name="__tabbed_9" type="radio" /><input id="__tabbed_9_3" name="__tabbed_9" type="radio" /><div class="tabbed-labels"><label for="__tabbed_9_1">Mast</label><label for="__tabbed_9_2">Python</label><label for="__tabbed_9_3">Output</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p>```
+for x in range(3):
+    log("{x}")
+next x</p>
+<p>y = 10
+for z while y &lt; 30:
+    log("{z} {y}")
+    y += 10
+next z</p>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>for x in range(3):
+    log &quot;{x}&quot;
+
+y = 10
+z = 0
+while y &lt; 30:
+    log &quot;{z} {y}&quot;
+    y += 10
+    z += 1
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<p>1
+2
+3
+0 10
+1 20
+2 30</p>
+</div>
+</div>
+</div>
+<h2 id="comments">Comments</h2>
+<p>Comments provide code extra information to help make it more understandable.</p>
+<h3 id="comments_1">Comments</h3>
+<p>Single line comments start with a # and go until the end of the line.</p>
+<p>Comments use the # like python does</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="10:1"><input checked="checked" id="__tabbed_10_1" name="__tabbed_10" type="radio" /><div class="tabbed-labels"><label for="__tabbed_10_1">Mast</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>fred = 10 # set fred to 10
+</code></pre></div>
+</div>
+</div>
+</div>
+<h3 id="multi-line-comments-aka-block-comments">Multi line Comments aka block comments</h3>
+<p>You can have a c style block comment</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="11:1"><input checked="checked" id="__tabbed_11_1" name="__tabbed_11" type="radio" /><div class="tabbed-labels"><label for="__tabbed_11_1">Mast</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>/*********
+Beware
+This is the tricky part
+****/
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>Using block comments to 'disable' code it can quickly get confusing. Therefore, an additional block comment is supported.</p>
+<h2 id="importing">Importing</h2>
+<p>You can break up mast content into multiple files and use import to included them</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="12:1"><input checked="checked" id="__tabbed_12_1" name="__tabbed_12" type="radio" /><div class="tabbed-labels"><label for="__tabbed_12_1">Mast</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>import story_two.mast
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>The import command also supports importing from a zip fill</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="13:1"><input checked="checked" id="__tabbed_13_1" name="__tabbed_13" type="radio" /><div class="tabbed-labels"><label for="__tabbed_13_1">Mast</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>from my_lib.zip import bar.mast
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>One use of the zip file concept it to create a sharable library of things.</p>
+<h2 id="logging">Logging</h2>
+<p>Mast supports syntax to simplify pythons logging features.</p>
+<h3 id="logger-command">logger command</h3>
+<p>The logger command sets up logging. </p>
+<p>Logging needs to be enabled</p>
+<p>Logging can enabled for stdout, to a string stream (stringIO) variable, and a file</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="14:2"><input checked="checked" id="__tabbed_14_1" name="__tabbed_14" type="radio" /><input id="__tabbed_14_2" name="__tabbed_14" type="radio" /><div class="tabbed-labels"><label for="__tabbed_14_1">Mast</label><label for="__tabbed_14_2">Python</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code># enable logging to stdout
+logger()
+# enable logging to stdout, and a string
+logger(var=&quot;string my_string_logger&quot;)
+# enable logging to stdout, and a file
+logger(file=&quot;{mission_dir}/my_log.log&quot;)
+# enable logging to stdout, a string and a file
+logger(var=&quot;my_string_logger&quot;, file=&quot;{mission_dir}/my_log.log&quot;)
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>@label
+def some_label(self):
+    # Logging to stdout
+    logger()
+    # Logging to string IO
+    logger(var=&quot;my_string_logger&quot;)
+    # Logging to file
+    logger(file=&quot;{mission_dir}/my_log.log&quot;)
+    logger()
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>You can have multiple loggers, each logger can have separate strings, or files.</p>
+<p>The default logger does not need to specify the name.</p>
+<p>To create a new loggers by using the logger command specifying a name</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="15:1"><input checked="checked" id="__tabbed_15_1" name="__tabbed_15" type="radio" /><div class="tabbed-labels"><label for="__tabbed_15_1">Mast</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>logger(name=&quot;tonnage&quot;)
+logger(name=&quot;tonnage&quot;, var=&quot;tonnage&quot;)
+logger(name=&quot;tonnage&quot;,file=&quot;{get_mission_dir()}/tonnage.txt&quot;)
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>==== "Python"
+    <div class="highlight"><pre><span></span><code># this import is needed for get_mission_dir
+from sbs_utils.fs import get_mission_dir
+
+@label
+def some_label(self):
+    logger(name=&quot;tonnage&quot;)
+    logger(name=&quot;tonnage&quot;, var=&quot;tonnage&quot;)
+    logger(name=&quot;tonnage&quot;,file=&quot;{get_mission_dir()}/tonnage.txt&quot;)
+</code></pre></div></p>
+<h3 id="log-command">log command</h3>
+<p>The log command is how you send messages to the log.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="16:2"><input checked="checked" id="__tabbed_16_1" name="__tabbed_16" type="radio" /><input id="__tabbed_16_2" name="__tabbed_16" type="radio" /><div class="tabbed-labels"><label for="__tabbed_16_1">Mast</label><label for="__tabbed_16_2">Python</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code># no logger name defaults to name &quot;mast&quot;
+log(&quot;Hello, World&quot;)
+# Specify a name to log to a secondary logger
+log(&quot;Tonnage score {tonnage}&quot;, name=&quot;tonnage&quot;)
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>@label
+def some_label(self):
+    # no logger name defaults to name &quot;mast&quot;
+    log(&quot;Hello, World&quot;)
+    # Specify a name to log to a secondary logger
+    log(&quot;Tonnage score {tonnage}&quot;, name=&quot;tonnage&quot;)
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>The log command can accept levels. These are visible is the stdout messages.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="17:2"><input checked="checked" id="__tabbed_17_1" name="__tabbed_17" type="radio" /><input id="__tabbed_17_2" name="__tabbed_17" type="radio" /><div class="tabbed-labels"><label for="__tabbed_17_1">Mast</label><label for="__tabbed_17_2">Python</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>log(&quot;Hello, World&quot;, level=&quot;info&quot;)
+log(&quot;Hello, World&quot;, level= &quot;debug&quot;)
+log(&quot;Hello, World&quot;, level= &quot;error&quot;)
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>@label
+def some_label(self):
+
+    log(&quot;Hello, World&quot;, level=&quot;info&quot;)
+    log(&quot;Hello, World&quot;, level= &quot;debug&quot;)
+    log(&quot;Hello, World&quot;, level= &quot;error&quot;)
+</code></pre></div>
+</div>
+</div>
+</div>
+<h2 id="delay-commands">Delay commands</h2>
+<p>The delay command continues to execute for a period of time.</p>
+<p>A Delay needs a clock to use Artemis Cosmos has two clocks and sim.
+The gui clock is running continuously (realtime), the sim clock can be paused when the simulation is not running(game time).</p>
+<p>For gui and other things use the gui clock.
+If you want to delay 10s of game time use sim.</p>
+<p>Delay can specify minutes and seconds.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="18:2"><input checked="checked" id="__tabbed_18_1" name="__tabbed_18" type="radio" /><input id="__tabbed_18_2" name="__tabbed_18" type="radio" /><div class="tabbed-labels"><label for="__tabbed_18_1">Mast</label><label for="__tabbed_18_2">Python</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>await delay_app(minutes=1)
+await delay_app(seconds=10)
+await delay_app(seconds=5, minutes=1)
+await delay_sim(0, 10)
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>yield AWAIT(delay_app(minutes=1))
+yield AWAIT(delay_app(seconds=10))
+yield AWAIT(delay_app(seconds=5, minutes=1))
+yield AWAIT(delay_sim(0, 10))
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>Delay can delay the flow of the code</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="19:3"><input checked="checked" id="__tabbed_19_1" name="__tabbed_19" type="radio" /><input id="__tabbed_19_2" name="__tabbed_19" type="radio" /><input id="__tabbed_19_3" name="__tabbed_19" type="radio" /><div class="tabbed-labels"><label for="__tabbed_19_1">Mast</label><label for="__tabbed_19_2">Python</label><label for="__tabbed_19_3">Output</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>for x in range(3):
+    log(&quot;{x}&quot;)
+    await delay_app(1)
+next x
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>for x in range(3):
+    log(&quot;{x}&quot;)
+    yield AWAIT(delay_app(1))
+next x
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>1
+2
+3
+</code></pre></div>
+</div>
+</div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.indexes"], "search": "../../assets/javascripts/workers/search.f886a092.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7c377c4.min.js"></script>
+      
+    
+  </body>
+</html>
