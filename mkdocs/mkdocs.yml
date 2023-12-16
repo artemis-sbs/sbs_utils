@@ -1,0 +1,135 @@
+site_name: SBS Utils library Documentation
+copyright: "Artemis: Cosmos scripting tools"
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/solid/cart-shopping
+      link: https://www.artemisspaceshipbridge.com/
+    - icon: fontawesome/brands/youtube 
+      link: https://www.youtube.com/@ArtemisSbs
+    - icon: fontawesome/brands/steam 
+      link: https://store.steampowered.com/app/2467840/Artemis_Cosmos/
+    - icon: material/forum
+      link: https://artemis.forumchitchat.com/
+
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    #- navigation.footer
+  custom_dir: overrides
+  icon: 
+    logo: mast/icon
+
+repo_url: https://github.com/artemis-sbs/sbs_utils
+repo_name: artemis-sbs/sbs_utils
+
+nav:
+  - Home: index.md
+  - Getting started: 
+    - Creating a mission: home/start.md
+    - Getting the library: home/get_library.md
+    - Creating a script: home/create_script.md
+    - Publishing your mission: 
+      - home/publish/index.md
+      - Tools: home/publish/tools.md
+      - Github: home/publish/github.md
+
+
+    - Contributing:
+      - home/contributing/index.md
+
+  - Mast:
+    - mast/index.md
+    - Language: mast/overview.md
+    - Python: mast/python.md
+    - Syntax: mast/syntax.md
+    - Agent Model: mast/model.md
+    - Behavior trees: mast/behavior.md
+
+  - Cosmos:
+    - cosmos/index.md
+    - Comms: cosmos/comms.md
+    - Science: cosmos/science.md
+    - Gui: cosmos/gui.md
+    - World Building: cosmos/world_building.md
+    - Routing:
+      - cosmos/routes/index.md
+      - Routing Lifetime: cosmos/routes/lifetime.md
+      - Routing console: cosmos/routes/console.md
+      - Routing damage: cosmos/routes/damage.md
+
+  - Tutorial:
+    - tutorial/index.md
+    - gui:
+      - tutorial/gui/index.md
+      - simple: tutorial/gui/simple_gui.md
+    - comms:
+      - tutorial/comms/index.md
+      - simple: tutorial/comms/simple_comms.md
+      - complex: tutorial/comms/complex_comms.md
+      - grid: tutorial/comms/simple_grid.md
+    - science:
+      - tutorial/science/index.md
+      - simple: tutorial/science/simple_science.md
+    - AI:
+      - tutorial/ai/index.md
+      - simple: tutorial/ai/simple_ai.md
+      - complex: tutorial/ai/complex_ai.md
+    - damage:
+      - tutorial/damage/index.md
+
+  - SBS Utils:
+    - sbs_utils/index.md
+    
+  - SBS:
+    - sbs/index.md
+
+  - API:
+    - api/index.md
+    - Engine:
+      - api/engine/index.md
+      - sbs: api/engine/sbs.md
+    - Utility:
+      - api/utility/index.md
+      - faces: api/utility/faces.md
+      - Scatter: api/utility/scatter.md
+      - Vec3: api/utility/vec.md
+    - Procedural:
+      - api/procedural/index.md
+      - gui: api/procedural/gui.md
+      - query: api/procedural/query.md
+      - roles: api/procedural/roles.md
+
+    - Dispatch:
+      - api/dispatch/index.md
+      - TickDispatcher: api/dispatch/tick_dispatcher.md
+      - DamageDispatcher: api/dispatch/damage_dispatcher.md
+      - ConsoleDispatcher: api/dispatch/console_dispatcher.md
+
+  - About: 
+    - about/index.md
+
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji 
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      options:
+        custom_icons:
+          - overrides/.icons
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [".."]

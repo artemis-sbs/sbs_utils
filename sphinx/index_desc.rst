@@ -1,4 +1,0 @@
-
-Utilities for Artemis Cosmos
-=============================
-

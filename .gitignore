@@ -3,3 +3,4 @@
 .vscode/
 /sphinx/_build/
 *.sbslib
+/mkdocs/site/

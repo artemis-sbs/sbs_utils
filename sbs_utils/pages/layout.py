@@ -392,7 +392,7 @@ class Image(Column):
         # to get size get absolute path
         self.file = os.path.abspath(props["image"].strip())
         # Make the file relative to artemis dir
-        rel_file = os.path.relpath(props["image"].strip(), fs.get_artemis_data_dir()+"\graphics")
+        rel_file = os.path.relpath(props["image"].strip(), fs.get_artemis_data_dir()+"\\graphics")
         props["image"] = rel_file
         self.props = merge_props(props)
         #print(f"{self.file} \n>>\n{rel_file}\nPROPS: {self.props} ")

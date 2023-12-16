@@ -12,11 +12,29 @@ To develop and change this library clone this repo into the missions directory i
 This has a stub mission file for running tests.
 
 ### update the docs. run:
-When adding to this library, the documentation should be updated in the sphinx folder.
+When adding to this library, the documentation should be updated in the mkdocs folder.
 
-to update the docs run:
+To use the doc you need to install several python libraries:
+
 ```
-sphinx\make html
+pip install mkdocs-material
+pip install mkdocstrings
+pip install mkdocstrings[python]
+
+```
+
+To view the docs with live updates as you edit:
+
+```
+cd mkdocs
+mkdocs serve
+```
+
+to publish the docs github :
+
+```
+cd mkdocs
+mkdocs gh-deploy --force 
 ```
 
 note: The docs use Graphviz to generate some images.

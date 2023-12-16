@@ -125,7 +125,7 @@ class Listbox(Widget):
                 image_to_display = self.image(item)
                 if image_to_display is not None:
                     props = layout.split_props(image_to_display, "image")
-                    rel_file = os.path.relpath(props["image"].strip(), fs.get_artemis_data_dir()+"\graphics")
+                    rel_file = os.path.relpath(props["image"].strip(), fs.get_artemis_data_dir()+"\\graphics")
                     props["image"] = rel_file
                     image_to_display = layout.merge_props(props)
                     
