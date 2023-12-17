@@ -29,11 +29,11 @@ class TestMastStoryCompile(unittest.TestCase):
         (errors, mast)= mast_story_compile( code = """
 on change enemy_count:
    jump label
-end_on
+
  
 on change len(role(players)):
    jump label
-end_on
+
 """)
         if len(errors)>0:
             for err in errors:
@@ -54,7 +54,7 @@ await gui():
     ~~ sbs.resume_sim()~~
     + "Resume Mission" if started==True:
     ~~ sbs.resume_sim() ~~
-end_await
+
 
 await gui():
     * "Button one":
@@ -62,9 +62,9 @@ await gui():
     + "Button Two":
         -> JumpLabel
     + "Button Jump":
-=timeout():
-    -> JumpSomeWhere
-end_await
+    =timeout():
+        -> JumpSomeWhere
+
 
 
 await gui():
@@ -74,9 +74,6 @@ await gui():
         await gui():
         * "Button one":
             -> JumpLabel
-        end_await
-    end_await
-end_await
 
 gui_style("padding:3px;", ".button")
 gui_style("padding:2px;", ".face")
@@ -140,7 +137,7 @@ gui_section(style="area:2,20,18,35;")
 on gui_message(gui_button("Speak")):
     log("{fred}")
     ->server_main
-end_on
+
 gui_row()
 gui_slider("low:0;high:5", var="fred") 
 
@@ -148,17 +145,17 @@ gui_slider("low:0;high:5", var="fred")
 await gui():
     + "{x}" for x in range(3):
         log("well test")
-end_await
+
 
 await gui():
     + "Test" if y == 2:
         log("well test")
-end_await
+
 
 await gui():
     + "{x}" for x in range(3) if s==3:
         log("well test")
-end_await
+
 
 await gui():
     + "{x}" if s==3:
@@ -167,7 +164,6 @@ await gui():
         log("well test")
     + "Test":
         log("well test")
-end_await
 
 ->END
 
@@ -199,8 +195,7 @@ on change menu.value:
         jump grid_editor_client_start
 #        case "character":
 #            jump character_editor_client_start
-    end_if
-end_on 
+    
 
 """)
         assert(len(errors)==0)

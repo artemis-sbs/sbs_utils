@@ -31,8 +31,8 @@ turn = X_TURN
 grid = []
 ####
 for i in range(9):
-~~grid.append(END_UNKNOWN)~~
-next i
+    ~~grid.append(END_UNKNOWN)~~
+
 winning_loc = []
 <<-
 
@@ -41,45 +41,45 @@ draw = grid[0]
 
 end_game = END_UNKNOWN
 for check in range(len(checks)):
-check_cur = checks[check]
-draw = draw* grid[check+1]
+    check_cur = checks[check]
+    draw = draw* grid[check+1]
 
-sum = grid[check_cur[0]]+grid[check_cur[1]]+grid[check_cur[2]]
+    sum = grid[check_cur[0]]+grid[check_cur[1]]+grid[check_cur[2]]
 
-if  sum == 3:
-    winning_loc = check_cur
-    end_game = END_X_WINS
-elif  sum == -3:
-    winning_loc = check_cur
-    end_game = END_O_WINS
-end_if
-next check
+    if  sum == 3:
+        winning_loc = check_cur
+        end_game = END_X_WINS
+    elif  sum == -3:
+        winning_loc = check_cur
+        end_game = END_O_WINS
+
+
 
 # if any zero on grid draw would = 0
 # so non zero means draw        
 if  draw != 0:
-end_game = END_DRAW
-end_if
+    end_game = END_DRAW
+
 
 match end_game:
-case END_X_WINS:
-"""
+    case END_X_WINS:
+        """
 X WINS
 """
-case END_O_WINS:
-"""
+    case END_O_WINS:
+        """
 O WINS
 """
-case END_DRAW:
-"""
+    case END_DRAW:
+        """
 DRAW
 """
-case _:
-###
-### This needs to pop then jump to play
-### This is a bit complex, can this be made easier?
-<<-> play
-end_match
+    case _:
+        ###
+        ### This needs to pop then jump to play
+        ### This is a bit complex, can this be made easier?
+        <<-> play
+
 
 ->>draw_board
 
@@ -90,30 +90,28 @@ await gui():
         ### This needs to pop then jump to play
         ### This is a bit complex, can this be made easier?
         ->play
-end_await
+
 
 =========== play ================
 for y while y<3:
-for x while x<3:
-    test = y * 3 + x
-    space = grid[test]
-    
-    if space == 0:
-        data = {"myslot": test}
-        on gui_message(gui_button("{test+1}", data=data)):
-            grid[myslot] = turn
-            turn = -turn
-            ->check_winner
-        end_on
-    elif space == 1:
-        """ X """
-    elif space == -1:
-        """ 0 """
-    end_if
+    for x while x<3:
+        test = y * 3 + x
+        space = grid[test]
+        
+        if space == 0:
+            data = {"myslot": test}
+            on gui_message(gui_button("{test+1}", data=data)):
+                grid[myslot] = turn
+                turn = -turn
+                ->check_winner
 
-next x
-gui_row()
-next y
+        elif space == 1:
+            """ X """
+        elif space == -1:
+            """ 0 """
+
+    gui_row()
+
 
 await gui()
 
@@ -122,24 +120,20 @@ await gui()
 # This draws the board after the game is over
 gui_row()
 for y in range(3):
-for x in range(3):
+    for x in range(3):
 
-space = grid[y*3+x]
-test = y*3+x
-is_win_loc = test in winning_loc
-left_text = ~~"[ " if is_win_loc else "  "~~
-right_text = ~~" ]" if is_win_loc else "  "~~
+        space = grid[y*3+x]
+        test = y*3+x
+        is_win_loc = test in winning_loc
+        left_text = ~~"[ " if is_win_loc else "  "~~
+        right_text = ~~" ]" if is_win_loc else "  "~~
 
-if space == 0:
-"""  .  """
-elif space == 1:
-"""{left_text}X{right_text}"""
-elif space == -1:
-"""{left_text}O{right_text}"""
-end_if
+        if space == 0:
+            """  .  """
+        elif space == 1:
+            """{left_text}X{right_text}"""
+        elif space == -1:
+            """{left_text}O{right_text}"""
+    gui_row()
 
-
-next x
-gui_row()
-next y
 <<-

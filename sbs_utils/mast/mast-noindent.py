@@ -48,10 +48,6 @@ class ParseData:
 class MastNode:
     file_num:int
     line_num:int
-    block_stack = []
-
-    def create_end_node(self, loc):
-        return None
     
     def add_child(self, cmd):
         #print("ADD CHILD")
@@ -94,14 +90,6 @@ class Label(MastNode):
         self.cmds.append(cmd)
 
 
-class LoopEnd(MastNode):
-    rule = re.compile(r'((?P<loop>next)[ \t]*(?P<name>\w+))')
-    def __init__(self, loop=None, name=None, loc=None):
-        self.loop = True if loop is not None and 'next' in loop else False
-        self.name = name
-        self.start = LoopStart.loop_stack.pop()
-        self.loc = loc
-        self.start.end = self
 
 
 class LoopStart(MastNode):
@@ -118,10 +106,6 @@ class LoopStart(MastNode):
         self.loc = loc
         self.end = None
         LoopStart.loop_stack.append(self)
-        MastNode.block_stack.append(self)
-
-    def create_end_node(self, loc):
-        return LoopEnd(True, name=self.name, loc=loc)
 
 
 class LoopBreak(MastNode):
@@ -138,6 +122,14 @@ class LoopBreak(MastNode):
         else:
             self.if_code = None
 
+class LoopEnd(MastNode):
+    rule = re.compile(r'((?P<loop>next)[ \t]*(?P<name>\w+))')
+    def __init__(self, loop=None, name=None, loc=None):
+        self.loop = True if loop is not None and 'next' in loop else False
+        self.name = name
+        self.start = LoopStart.loop_stack.pop()
+        self.loc = loc
+        self.start.end = self
 
 
 class IfStatements(MastNode):
@@ -171,12 +163,6 @@ class IfStatements(MastNode):
         elif "if" == self.if_op:
             self.if_chain = [loc]
             IfStatements.if_chains.append(self)
-            MastNode.block_stack.append(self)
-
-    def create_end_node(self, loc):
-        if self.if_op == 'if':
-            return IfStatements(True, loc=loc)
-        return None
 
 class MatchStatements(MastNode):
     rule = re.compile(r'((?P<end>case[ \t]*_:|end_match)|(((?P<op>match|case)[ \t]+?(?P<exp>[^\n\r\f]+)'+BLOCK_START+')))')
@@ -207,7 +193,6 @@ class MatchStatements(MastNode):
             self.match_node = self
             self.chain = []
             MatchStatements.chains.append(self)
-            MastNode.block_stack.append(self)
         
         if op == "match":
             self.match_exp = exp.lstrip()
@@ -217,12 +202,6 @@ class MatchStatements(MastNode):
             self.code = compile(exp, "<string>", "eval")
         else:
             self.code = None
-
-    def create_end_node(self, loc):
-        if self.op == 'match':
-            return MatchStatements(True, loc=loc)
-        return None
-
 
 
 class PyCode(MastNode):
@@ -332,16 +311,7 @@ class FuncCommand(MastNode):
         if py_cmds:
             py_cmds= py_cmds.lstrip()
             self.code = compile(py_cmds, "<string>", "eval")
-
-class EndAwait(MastNode):
-    rule = re.compile(r'end_await')
-    stack = []
-    def __init__(self, loc=None):
-        self.loc = loc
-        self.await_node = EndAwait.stack[-1]
-        EndAwait.stack[-1].end_await_node = self
-        EndAwait.stack.pop()
-
+        
 
 class Await(MastNode):
     """
@@ -371,14 +341,29 @@ class Await(MastNode):
     def add_inline(self, inline_data):
         self.inlines.append(inline_data)
 
-    def create_end_node(self, loc):
-        return EndAwait(loc=loc)
-
 
         
+class EndAwait(MastNode):
+    rule = re.compile(r'end_await')
+    stack = []
+    def __init__(self, loc=None):
+        self.loc = loc
+        self.await_node = EndAwait.stack[-1]
+        EndAwait.stack[-1].end_await_node = self
+        EndAwait.stack.pop()
+
 
 MIN_SECONDS_REGEX = r"""([ \t]*((?P<minutes>\d+))m)?([ \t]*((?P<seconds>\d+)s))?"""
 TIMEOUT_REGEX = r"([ \t]*timeout"+MIN_SECONDS_REGEX + r")?"
+# class Timeout(MastNode):
+#     rule = re.compile(r'timeout([ \t]*((?P<minutes>\d+))m)?([ \t]*((?P<seconds>\d+)s))?:')
+#     def __init__(self, minutes, seconds, loc=None):
+#         self.loc = loc
+        
+#         self.await_node = EndAwait.stack[-1]
+#         EndAwait.stack[-1].timeout_label = self
+#         self.await_node.seconds = 0 if  seconds is None else int(seconds)
+#         self.await_node.minutes = 0 if  minutes is None else int(minutes)
 
 
 
@@ -403,6 +388,15 @@ class Change(MastNode):
                 self.await_node.on_change  = []
             self.await_node.on_change.append(self)
 
+
+
+# class AwaitFail(MastNode):
+#     rule = re.compile(r'fail:')
+#     def __init__(self, loc=None):
+#         self.loc = loc
+        
+#         self.await_node = EndAwait.stack[-1]
+#         EndAwait.stack[-1].fail_label = self
 
 
 class AwaitInlineLabel(MastNode):
@@ -437,9 +431,6 @@ class OnChange(MastNode):
             OnChange.stack.pop()
         else:
             OnChange.stack.append(self)
-
-    def create_end_node(self, loc):
-        return OnChange(True,loc=loc)
 
 
 
@@ -579,14 +570,12 @@ def first_non_newline_index(s):
 
 def first_non_whitespace_index(s):
     nl = 0
-    nl_idx=0
     for idx, c in enumerate(s):
         if c != '\n' and c != '\t' and c != ' ':
-            return (idx,nl, nl_idx)
+            return (idx,nl)
         if c == '\n':
             nl+=1
-            nl_idx = idx
-    return (len(s), nl, nl_idx)
+    return (len(s), nl)
 
 def first_newline_index(s):
     for idx, c in enumerate(s):
@@ -884,172 +873,150 @@ class Mast():
         errors = []
         active = self.labels.get("main")
         active_name = "main"
-        indent_stack = [0]
-
-        def inject_dedent():
-            if len(MastNode.block_stack)==0:
-                logger = logging.getLogger("mast.compile")
-                error = f"\nERROR: {line_no} - {file_name}\n\n  Indention error\n"
-                logger.error(error )
-                errors.append(error)
-                return
-                                
-            
-            end_cls = MastNode.block_stack.pop().get_end_cls()
-            loc = len(self.cmd_stack[-1].cmds)
-            obj = end_cls(loc=loc, **data)
-            obj.file_num = file_num
-            obj.line_num = line_no
-            self.cmd_stack[-1].add_child(obj)
-
-        def inject_remaining_dedents():
-            for _ in MastNode.block_stack:
-                inject_dedent()
-
-
 
         while len(lines):
             mo = first_non_whitespace_index(lines)
             line_no += mo[1] if mo is not None else 0
             #line = lines[:mo]
             lines = lines[mo[0]:]
-            indent = max((mo[0] - mo[2]) -1,0)
-         
             # Keep location in file
+
+
             parsed = False
+            # indent = first_non_space_index(lines)
+            # if indent is None:
+            #     continue
+            ###########################################
+            ### Support indent as meaningful
+            ###########################################
+            # if indent > self.indent_stack[-1]:
+            #     # new indent
+            #     self.cmd_stack.append(active_cmd)
+            #     self.indent_stack.append(indent)
+            # while indent < self.indent_stack[-1]:
+            #     self.cmd_stack.pop()
+            #     self.indent_stack.pop()
+            # if indent > 0:
+            #     # strip spaces
+            #     lines = lines[indent:]
             if len(lines)==0:
-                # Pop out all indents
-                inject_remaining_dedents()
                 break
 
             for node_cls in self.__class__.nodes:
                 #mo = node_cls.rule.match(lines)
                 mo = node_cls.parse(lines)
-                if not mo:
-                    continue
-                #span = mo.span()
-                data = mo.data
+                if mo:
+                    #span = mo.span()
+                    data = mo.data
 
-                line = lines[mo.start:mo.end]
-                lines = lines[mo.end:]
+                    line = lines[mo.start:mo.end]
+                    lines = lines[mo.end:]
 
-                line_no += line.count('\n')
+                    line_no += line.count('\n')
+                    
+
+                    parsed = True
                 
+                    
+                    logger = logging.getLogger("mast.compile")
+                    logger.debug(f"PARSED: {node_cls.__name__:} {line}")
 
-                parsed = True
+                    match node_cls.__name__:
+                        case "Label":
+                            label_name = data['name']
+                            existing_label = self.labels.get(label_name) 
+                            replace = data.get('replace')
+                            if existing_label and not replace:
+                                parsed = False
+                                errors.append(f"\nERROR: duplicate label '{label_name }'. Use 'replace: {data['name']}' if this is intentional. {file_name}:{line_no} - {line}")
+                                break
+                            elif existing_label and replace:
+                                # Make the pervious version jump to the replacement
+                                # making fall through also work
+                                existing_label.cmds = [Jump(jump_name=label_name,loc=0)]
 
-                if node_cls.__name__ != "Comment":
-                    if indent > indent_stack[-1]:
-                        print(f"INDENT {indent}")
-                        indent_stack.append(indent)
-                    elif indent < indent_stack[-1]:
-                        print(f"DEDENT {indent}")
-                        if len(indent_stack)<=1:
-                            print("Indent error")
-                        else:
-                            indent_stack.pop()
+                            
+                            #####
+                            # Dangling if, for, end_await
+                            for node in EndAwait.stack:
+                                errors.append(f"\nERROR: Missing end_await prior to label '{active_name}'cmd {node.loc}")
+                            EndAwait.stack.clear()
+                            for node in LoopStart.loop_stack:
+                                errors.append(f"\nERROR: Missing next of loop prior to label''{active_name}'cmd {node.loc}")
+                            LoopStart.loop_stack.clear()
+                            for node in IfStatements.if_chains:
+                                errors.append(f"\nERROR: Missing end_if prior to label '{active_name}'cmd {node.loc}")
+                            IfStatements.if_chains.clear()
+                            for node in MatchStatements.chains:
+                                errors.append(f"\nERROR: Missing end_match prior to label '{active_name}'cmd {node.loc}")
+                            MatchStatements.chains.clear()
+                            next = Label(**data)
+                            active.next = next
+                            active = next
+                            active_name = label_name
+                            self.labels[data['name']] = active
+                            exists =  Agent.SHARED.get_inventory_value(label_name)
+                            exists =  Mast.globals.get(label_name, exists)
+                            if exists and not replace:
+                                errors.append(f"\nERROR: label conflicts with shared name, rename label '{label_name }'. {file_name}:{line_no} - {line}")
+                                break
 
-            
-                
-                logger = logging.getLogger("mast.compile")
-                logger.debug(f"PARSED: {node_cls.__name__:} {line}")
+                            # Sets a variable for the label
+                            Agent.SHARED.set_inventory_value(label_name, active)
 
-                match node_cls.__name__:
-                    # Throw comments and markers away
-                    case "Comment":
-                        pass
+                            self.cmd_stack.pop()
+                            self.cmd_stack.append(active)
+                        case "Input":
+                            input = Input(**data)
+                            self.inputs[data['name']] = input
 
-                    case "Label":
-                        label_name = data['name']
-                        existing_label = self.labels.get(label_name) 
-                        replace = data.get('replace')
-                        if existing_label and not replace:
-                            parsed = False
-                            errors.append(f"\nERROR: duplicate label '{label_name }'. Use 'replace: {data['name']}' if this is intentional. {file_name}:{line_no} - {line}")
-                            break
-                        elif existing_label and replace:
-                            # Make the pervious version jump to the replacement
-                            # making fall through also work
-                            existing_label.cmds = [Jump(jump_name=label_name,loc=0)]
+                        case "Import":
+                            lib_name = data.get("lib")
+                            name = data['name']
 
-                        inject_remaining_dedents()
-                        #####
-                        # Dangling if, for, end_await
-                        # for node in EndAwait.stack:
-                        #     errors.append(f"\nERROR: Missing end_await prior to label '{active_name}'cmd {node.loc}")
-                        # EndAwait.stack.clear()
-                        # for node in LoopStart.loop_stack:
-                        #     errors.append(f"\nERROR: Missing next of loop prior to label''{active_name}'cmd {node.loc}")
-                        # LoopStart.loop_stack.clear()
-                        # for node in IfStatements.if_chains:
-                        #     errors.append(f"\nERROR: Missing end_if prior to label '{active_name}'cmd {node.loc}")
-                        # IfStatements.if_chains.clear()
-                        # for node in MatchStatements.chains:
-                        #     errors.append(f"\nERROR: Missing end_match prior to label '{active_name}'cmd {node.loc}")
-                        # MatchStatements.chains.clear()
-
-                        next = Label(**data)
-                        active.next = next
-                        active = next
-                        active_name = label_name
-                        self.labels[data['name']] = active
-                        exists =  Agent.SHARED.get_inventory_value(label_name)
-                        exists =  Mast.globals.get(label_name, exists)
-                        if exists and not replace:
-                            errors.append(f"\nERROR: label conflicts with shared name, rename label '{label_name }'. {file_name}:{line_no} - {line}")
-                            break
-
-                        # Sets a variable for the label
-                        Agent.SHARED.set_inventory_value(label_name, active)
-
-                        self.cmd_stack.pop()
-                        self.cmd_stack.append(active)
-
-                    case "Import":
-                        lib_name = data.get("lib")
-                        name = data['name']
-
-                        if name.endswith('.py'):
-                            import importlib
-                            module_name = name[:-3]
-                            if sys.modules.get(module_name) is None:
-                                import_file_name = os.path.join(fs.get_mission_dir(), name)
-                                spec = importlib.util.spec_from_file_location(module_name, import_file_name)
-                                module = importlib.util.module_from_spec(spec)
-                                sys.modules[module_name] = module
-                                spec.loader.exec_module(module)
-                                Mast.import_python_module(module_name)
-                        else:
-                            err = self.import_content(name, lib_name)
-                            if err is not None:
-                                errors.extend(err)
-                                for e in err:
-                                    print("import error "+e)
+                            if name.endswith('.py'):
+                                import importlib
+                                module_name = name[:-3]
+                                if sys.modules.get(module_name) is None:
+                                    import_file_name = os.path.join(fs.get_mission_dir(), name)
+                                    spec = importlib.util.spec_from_file_location(module_name, import_file_name)
+                                    module = importlib.util.module_from_spec(spec)
+                                    sys.modules[module_name] = module
+                                    spec.loader.exec_module(module)
+                                    Mast.import_python_module(module_name)
+                            else:
+                                err = self.import_content(name, lib_name)
+                                if err is not None:
+                                    errors.extend(err)
+                                    for e in err:
+                                        print("import error "+e)
 
 
+                        # Throw comments and markers away
+                        case "Comment":
+                            pass
 
-                    case _:
-                        try:
-                            loc = len(self.cmd_stack[-1].cmds)
-                            obj = node_cls(loc=loc, **data)
-                            obj.file_num = file_num
-                            obj.line_num = line_no
-                        except Exception as e:
-                            logger = logging.getLogger("mast.compile")
-                            logger.error(f"ERROR: {file_name} {line_no} - {line}")
-                            logger.error(f"Exception: {e}")
+                        case _:
+                            try:
+                                loc = len(self.cmd_stack[-1].cmds)
+                                obj = node_cls(loc=loc, **data)
+                                obj.file_num = file_num
+                                obj.line_num = line_no
+                            except Exception as e:
+                                logger = logging.getLogger("mast.compile")
+                                logger.error(f"ERROR: {file_name} {line_no} - {line}")
+                                logger.error(f"Exception: {e}")
 
-                            errors.append(f"\nERROR: {file_name} {line_no} - {line}")
-                            errors.append(f"\nException: {e}")
-                            return errors # return with first errors
+                                errors.append(f"\nERROR: {file_name} {line_no} - {line}")
+                                errors.append(f"\nException: {e}")
+                                return errors # return with first errors
 
-                        obj.line = line if Mast.include_code else None
-                        
-                        
+                            obj.line = line if Mast.include_code else None
+                            
+                            
 
-                        self.cmd_stack[-1].add_child(obj)
-                break
-
+                            self.cmd_stack[-1].add_child(obj)
+                    break
             if not parsed:
                 mo = first_non_newline_index(lines)
 
@@ -1067,18 +1034,18 @@ class Mast():
                     errors.append(error)
                     lines = lines[mo+1:]
 
-        # for node in EndAwait.stack:
-        #     errors.append(f"\nERROR: Missing end_await prior to label '{active_name}'cmd {node.loc}")
-        # EndAwait.stack.clear()
-        # for node in LoopStart.loop_stack:
-        #     errors.append(f"\nERROR: Missing next of loop prior to label''{active_name}'cmd {node.loc}")
-        # LoopStart.loop_stack.clear()
-        # for node in IfStatements.if_chains:
-        #     errors.append(f"\nERROR: Missing end_if prior to label '{active_name}'cmd {node.loc}")
-        # IfStatements.if_chains.clear()
-        # for node in MatchStatements.chains:
-        #     errors.append(f"\nERROR: Missing end_match prior to label '{active_name}'cmd {node.loc}")
-        # MatchStatements.chains.clear()
+        for node in EndAwait.stack:
+            errors.append(f"\nERROR: Missing end_await prior to label '{active_name}'cmd {node.loc}")
+        EndAwait.stack.clear()
+        for node in LoopStart.loop_stack:
+            errors.append(f"\nERROR: Missing next of loop prior to label''{active_name}'cmd {node.loc}")
+        LoopStart.loop_stack.clear()
+        for node in IfStatements.if_chains:
+            errors.append(f"\nERROR: Missing end_if prior to label '{active_name}'cmd {node.loc}")
+        IfStatements.if_chains.clear()
+        for node in MatchStatements.chains:
+            errors.append(f"\nERROR: Missing end_match prior to label '{active_name}'cmd {node.loc}")
+        MatchStatements.chains.clear()
 
         return errors
 

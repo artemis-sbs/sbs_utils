@@ -79,8 +79,8 @@ class ChangeRuntimeNode(MastRuntimeNode):
         
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: Change):
-        if node.await_node and node.await_node.end_await_node:
-            task.jump(task.active_label,node.await_node.end_await_node.loc+1)
+        if node.await_node and node.await_node.dedent_loc:
+            task.jump(task.active_label,node.await_node.dedent_loc)
             return PollResults.OK_JUMP
         return PollResults.OK_RUN_AGAIN
 
@@ -226,7 +226,7 @@ class LoopStartRuntimeNode(MastRuntimeNode):
                     # End loop clear value
                     task.set_value(node.name, None, Scope.TEMP)
                     task.set_value(node.name+"__iter", None, Scope.TEMP)
-                    task.jump(task.active_label, node.end.loc+1)
+                    task.jump(task.active_label, node.dedent_loc)
                     return PollResults.OK_JUMP
 
             
@@ -235,7 +235,7 @@ class LoopStartRuntimeNode(MastRuntimeNode):
             # End loop clear value
             task.set_value(node.name, None, Scope.TEMP)
             task.set_value(node.name+"__iter", None, Scope.TEMP)
-            task.jump(task.active_label, node.end.loc+1)
+            task.jump(task.active_label, node.dedent_loc)
             #task.jump_inline_end(inline_label, False)
             return PollResults.OK_JUMP
         else:
@@ -246,7 +246,7 @@ class LoopStartRuntimeNode(MastRuntimeNode):
                 # done iterating jump to end
                 task.set_value(node.name, None, Scope.TEMP)
                 task.set_value(node.name+"__iter", None, Scope.TEMP)
-                task.jump(task.active_label, node.end.loc+1)
+                task.jump(task.active_label, node.dedent_loc)
                 return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
@@ -276,7 +276,7 @@ class LoopBreakRuntimeNode(MastRuntimeNode):
             #task.jump_inline_end(inline_label, True)
             task.set_value(node.start.name, None, self.scope)
             task.set_value(node.start.name+"__iter", None, Scope.TEMP)
-            task.jump(task.active_label, node.start.end.loc+1)
+            task.jump(task.active_label, node.start.dedent_loc)
             # End loop clear value
             
             return PollResults.OK_JUMP
@@ -295,11 +295,9 @@ class IfStatementsRuntimeNode(MastRuntimeNode):
             if activate is not None:
                 task.jump(task.active_label, activate+1)
                 return PollResults.OK_JUMP
-        else:
-            # Everything else jumps to past the endif
-            activate = node.if_node.if_chain[-1]
-            task.jump(task.active_label, activate+1)
-            return PollResults.OK_JUMP
+        # Everything else jumps to past all things involved in this chain
+        task.jump(task.active_label, node.if_node.dedent_loc)
+        return PollResults.OK_JUMP
 
     def first_true(self, task: MastAsyncTask, node: IfStatements):
         cmd_to_run = None
@@ -328,11 +326,9 @@ class MatchStatementsRuntimeNode(MastRuntimeNode):
             if activate is not None:
                 task.jump(task.active_label, activate+1)
                 return PollResults.OK_JUMP
-        else:
-            # Everything else jumps to past the endif
-            activate = node.match_node.chain[-1]
-            task.jump(task.active_label, activate+1)
-            return PollResults.OK_JUMP
+            
+        task.jump(task.active_label, node.match_node.dedent_loc)
+        return PollResults.OK_JUMP
 
     def first_true(self, task: MastAsyncTask, node: MatchStatements):
         cmd_to_run = None
@@ -370,7 +366,7 @@ class AwaitRuntimeNode(MastRuntimeNode):
         if self.promise:
             if self.promise.done():
                 #print(f"{task.active_label} {node.end_await_node.loc+1}")
-                task.jump(task.active_label, node.end_await_node.loc+1)
+                task.jump(task.active_label, node.dedent_loc)
                 return PollResults.OK_JUMP
             else:
                 return PollResults.OK_RUN_AGAIN
@@ -378,7 +374,7 @@ class AwaitRuntimeNode(MastRuntimeNode):
         value = task.eval_code(node.code)
         if value:
             #print(f"value {node.end_await_node.loc+1}")
-            task.jump(task.active_label, node.end_await_node.loc+1)
+            task.jump(task.active_label, node.dedent_loc)
 
         return PollResults.OK_RUN_AGAIN
 
@@ -392,23 +388,19 @@ class EndAwaitRuntimeNode(MastRuntimeNode):
 
 
 class AwaitInlineLabelRuntimeNode(MastRuntimeNode):
-    def poll(self, mast:Mast, task:MastAsyncTask, node: Button):
-        task.pop_label(False)
-        return PollResults.OK_JUMP
-        # if node.await_node:
-        #     task.jump(task.active_label,node.await_node.end_await_node.loc)
-        #     return PollResults.OK_JUMP
-        # return PollResults.OK_ADVANCE_TRUE
+    def poll(self, mast:Mast, task:MastAsyncTask, node: AwaitInlineLabel):
+        if node.await_node:
+            task.jump(task.active_label,node.await_node.loc)
+            return PollResults.OK_JUMP
+        return PollResults.OK_ADVANCE_TRUE
 
 
 class ButtonRuntimeNode(MastRuntimeNode):
     def poll(self, mast:Mast, task:MastAsyncTask, node: Button):
-        task.pop_label(False)
-        return PollResults.OK_JUMP
-        # if node.await_node:
-        #     task.jump(task.active_label,node.await_node.end_await_node.loc)
-        #     return PollResults.OK_JUMP
-        # return PollResults.OK_ADVANCE_TRUE
+        if node.await_node:
+            task.jump(task.active_label,node.await_node.loc)
+            return PollResults.OK_JUMP
+        return PollResults.OK_ADVANCE_TRUE
 
 class OnChangeRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: OnChange):
@@ -441,7 +433,7 @@ class OnChangeRuntimeNode(MastRuntimeNode):
             self.task.pop_label(False)
             return PollResults.OK_JUMP
         if node.end_node:
-            self.task.jump(self.task.active_label, node.end_node.loc+1)
+            self.task.jump(self.task.active_label, node.dedent_loc+1)
             return PollResults.OK_JUMP
 
 
@@ -1187,109 +1179,6 @@ class MastAsyncTask(Agent, Promise):
 
 
 
-# class MastBehaveTask(Agent):
-#     def __init__(self):
-#         super().__init__()
-#         self.id = get_task_id()
-#         self.add()
-
-# class MastSequenceTask(MastBehaveTask):
-#     def __init__(self, main, labels, conditional) -> None:
-#         super().__init__()
-#         self.task = None
-#         self.main= main
-#         self.labels = labels
-#         self.conditional = conditional
-#         self.current_label = 0
-#         self.done = False
-#         self.result = None
-
-#     @property
-#     def active_label(self):
-#         self.task.active_label
-
-#     def rewind(self):
-#         self.current_label = 0
-#         self.done = False
-#         label = self.labels[self.current_label]
-#         self.task.jump(label)
-#         # The task was removed, re-add
-#         self.main.tasks.append(self)
-#         return PollResults.OK_JUMP
-
-#     def tick(self) -> PollResults:
-#         if self.conditional is not None and self.task.get_variable(self.conditional):
-#             self.done = True
-#             return PollResults.OK_END
-#         self.result = self.task.tick()
-#         if self.result == PollResults.OK_END:
-#             self.current_label += 1
-#             if self.current_label >= len(self.labels):
-#                 self.done = True
-#                 return PollResults.OK_END
-#             # so if this fails as a sequence it reruns the sequence?
-#             label = self.labels[self.current_label]
-#             #TODO: I'm not sure why just jump didn't work
-#             self.task.do_jump(label)
-            
-#             return PollResults.OK_JUMP
-#         if self.result == PollResults.FAIL_END:
-#                 self.done = True
-#                 return PollResults.FAIL_END
-#         return PollResults.OK_RUN_AGAIN
-#     def run_event(self, event_name, event):
-#         self.task.run_event(event_name, event)
-
-# class MastFallbackTask(MastBehaveTask):
-#     def __init__(self, main,  labels, conditional) -> None:
-#         super().__init__()
-#         self.task = None
-#         self.main= main
-#         self.labels = labels
-#         self.conditional = conditional
-#         self.current_selection = 0
-#         self.done = False
-#         self.result = None
-        
-
-#     @property
-#     def active_label(self):
-#         self.task.active_label
-
-#     def rewind(self):
-#         self.current_selection = 0
-#         self.done = False
-#         label = self.labels[self.current_selection]
-#         self.task.do_jump(label)
-#         self.main.tasks.append(self)
-#         return PollResults.OK_JUMP
-
-#     def tick(self) -> PollResults:
-#         if self.conditional is not None and  self.task.get_variable(self.conditional):
-#             self.done = True
-#             return PollResults.OK_END
-#         self.result = self.task.tick()
-#         if self.result == PollResults.FAIL_END:
-#             self.current_selection += 1
-#             if self.current_selection >= len(self.labels):
-#                 self.done = True
-#                 return PollResults.FAIL_END
-#             # so if this fails as a sequence it reruns the sequence?
-#             label = self.labels[self.current_selection]
-#             #TODO: I'm not sure why just jump didn't work
-#             # 
-#             self.task.do_jump(label)
-#             #self.result = self.task.tick()
-#             return PollResults.OK_JUMP
-#         if self.result == PollResults.OK_END:
-#             self.done = True
-#             #print(f"Fallback ended {self.task.active_label}")
-#             return PollResults.OK_END
-#         return PollResults.OK_RUN_AGAIN
-#     def run_event(self, event_name, event):
-#         self.task.run_event(event_name, event)
-    
-
 
 
 class MastScheduler(Agent):
@@ -1306,15 +1195,12 @@ class MastScheduler(Agent):
         "LoopBreak": LoopBreakRuntimeNode,
         "PyCode": PyCodeRuntimeNode,
         "FuncCommand": FuncCommandRuntimeNode,
-        #"Behavior": BehaviorRuntimeNode,
-#        "Parallel": ParallelRuntimeNode,
         "Assign": AssignRuntimeNode,
         "Await": AwaitRuntimeNode,
         "AwaitInlineLabel": AwaitInlineLabelRuntimeNode,
         "Button": ButtonRuntimeNode,
             "OnChange": OnChangeRuntimeNode,
             "Change": ChangeRuntimeNode,
-        #    "Timeout": TimeoutRuntimeNode,
         "EndAwait": EndAwaitRuntimeNode,
     }
 

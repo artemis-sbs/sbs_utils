@@ -11,8 +11,6 @@ message = ""
 
 if len(message)==0:
     my_face = faces.random_terran()
-end_if
-
 
 
 ===== EnterBar ===
@@ -42,9 +40,8 @@ gui_section("area: 0,80,100,100-30px;")
 gui_face(my_face)
 for c in customers.values():
     if c != my_face:
-    gui_face(c)
-    end_if
-next c
+        gui_face(c)
+    
 
 
 
@@ -53,7 +50,7 @@ for msg in reversed(messages):
     gui_face(msg["face"])
     """{msg["msg"]}"""
     gui_row()
-next c
+
 
 gui_section("area: 0,80-50px, 100,80;")
 # holes give the next control its space
@@ -64,17 +61,17 @@ gui_input("desc:Make a toast", var="message")
 on gui_message(gui_button("send")):
     to_send = ~~message.strip()~~
     if len(to_send)>0:
-~~~ 
+        ~~~ 
 messages.append({"face": my_face, "msg": to_send})
 if len(messages)>12:
     messages.pop(0)
 ~~~
-    message = ""
+        message = ""
         message_id += 1
-    end_if
+    
     # This is broken it pushes and pops wrong
     ->GotoBar
-end_on
+
 
 #
 # Watch for changes in data
@@ -83,41 +80,41 @@ end_on
 on change len(customers.values()):
     gui_refresh("GotoBar")
     jump GotoBar
-end_on
+
 
 on change message_id:
     gui_refresh("GotoBar")
     jump GotoBar
-end_on
+
 
 on change beer+martinis+vodka:
     #gui_refresh("GotoBar")
     jump GotoBar
-end_on
+
 
 await gui():
-+ "Martini" if martinis > 0:
-    shared martinis = martinis-1
-    ->GotoBar
-+ "Beer"  if beer > 0:
-    shared beer = beer-1
-    ->GotoBar
-+ "Vodka" if vodka > 0:
-    shared vodka = vodka-1
-    ->GotoBar
-+ "Had enough"  if (beer+martinis+vodka) > 0:
-    ~~customers.pop(client_id, None)~~
-    gui_refresh("GotoBar")
-     pop
-=disconnect:
-    ~~customers.pop(client_id, None)~~
-    ->END
-end_await
+    + "Martini" if martinis > 0:
+        shared martinis = martinis-1
+        ->GotoBar
+    + "Beer"  if beer > 0:
+        shared beer = beer-1
+        ->GotoBar
+    + "Vodka" if vodka > 0:
+        shared vodka = vodka-1
+        ->GotoBar
+    + "Had enough"  if (beer+martinis+vodka) > 0:
+        ~~customers.pop(client_id, None)~~
+        gui_refresh("GotoBar")
+        pop
+    =disconnect:
+        ~~customers.pop(client_id, None)~~
+        ->END
+
 
 if (beer+martinis+vodka) > 0:
     gui_refresh("GotoBar")
     ->GotoBar
-end_if
+
 
 gui_section("area: 30, 20, 80, 60;")
 

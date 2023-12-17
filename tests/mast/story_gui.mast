@@ -63,14 +63,14 @@ await gui():
     + "Yes.." if learn == False:
         -> YouTrained 
     + "Ready to learn":
-         -> Learn
+        -> Learn
     + "Bar":
-     ->> GotoBar
+        ->> GotoBar
     + "HUD":
-    ->> Hud
+        ->> Hud
     + "Exit":
-    ->END
-end_await
+        ->END
+
 
 # This is for the bar/hud when they pops
 ->Briefing
@@ -93,10 +93,8 @@ You should board the next shuttle and get the hell out of my sector
 """""""""""""""""""""""""""""""""""""""""""
 
 await gui():
-+ "Exit":
-->END
-end_await
-
+    + "Exit":
+        ->END
 
 ============== YouTrained =========
 
@@ -118,8 +116,8 @@ await gui():
     + "Resume Mission"  if mission_started==True:
         -> ResumeMission
     + "Start Mission"  if mission_started==False:
-     -> StartMission
-end_await
+        -> StartMission
+
 
 ================= StartMission ==============================
 
@@ -141,37 +139,37 @@ learn = False
 
 on gui_message(gui_button("Test 1")):
     -> Learn 
-end_on
+
 
 on gui_message(gui_button("Test 2")):
  ->Learn 
-end_on
+
 on gui_message(gui_button("Test 3")):
  -> Learn  
-end_on
+
 on gui_message(gui_button("Test 4")):
-->Learn 
-end_on
+    ->Learn 
+
 gui_row()
 on gui_message(gui_button("Test 5")):
--> Learn
-end_on
+    -> Learn
+
 on gui_message(gui_button("Test 6")):
- ->Learn 
-end_on
+    ->Learn 
+
 on gui_message(gui_button("Test 7")):
--> Learn 
-end_on
+    -> Learn 
+
 on gui_message(gui_button("Test 8")):
- ->Learn 
- end_on
+    ->Learn 
+
 gui_row()
 on gui_message(gui_button("Test 9")):
- -> Briefing 
- end_on
+    -> Briefing 
+
 on gui_message(gui_button("Test 10")):
- -> Briefing 
- end_on
+    -> Briefing 
+
 gui_row()
 
 gui_input(var="text_in")
@@ -180,9 +178,9 @@ gui_input(var="text_in")
 gui_checkbox("Yaba")
 
 await gui():
-+ "exit":
-  ->END
-end_await
+    + "exit":
+        ->END
+
 
 ====================== NoChoice ======================
 
@@ -208,24 +206,24 @@ if IS_SERVER:
     gui_section(style="area: 100-500px,0, 100, 30px;")
 else:
     gui_section(style="area: 100-500px, 0, 100, 30px;")
-end_if
 
-on gui_message(gui_drop_down("text: ship;list:Artemis,Hera,Atlas", var= "ship_select")):
+button = gui_drop_down("text: ship;list:Artemis,Hera,Atlas", var= "ship_select")
+on gui_message(button):
     <<->>PickedShip
-end_on
+
 
 on gui_message(gui_drop_down("text: console;list:Helm,Weapons,Science,Engineering,Comms,Medical,Main Screen", var="console")):
     view = "Main"
     ->>PickedView
-end_on
+
 
 on gui_message(gui_drop_down("text: view;list:Main,Auxiliary,Crafting,Quarters,P.A.D.D.,Broadcast,Bar", var="view")):
     ->>PickedView
-end_on
+
 
 on gui_message(gui_drop_down("text: Mast;list:Variables,Debug,restart", "mast_view")):
-->>PickedMast
-end_on
+    ->>PickedMast
+
 
 gui_section(style="area: 0, 30px, 100, 100-30px;")
 <<-
@@ -244,35 +242,33 @@ You can also select from a selection of different views.
 await gui():
     + "Back":
         <<-
-end_await
 
 ========== PickedShip =====
 match ship_select:
-case "Artemis":
-~~
+    case "Artemis":
+        ~~
 sbs.assign_client_to_ship(client_id, player.id)
 sbs.send_message_to_player_ship(0,"yellow","New officer")
 sbs.send_message_to_player_ship(player.id,"blue","New officer")
 sbs.send_message_to_player_ship(hera.id,"red","New officer")
 sbs.send_message_to_player_ship(atlas.id,"green","New officer")
 ~~
-case "Hera":
-~~
+    case "Hera":
+        ~~
 sbs.assign_client_to_ship(client_id, hera.id)
 sbs.send_message_to_player_ship(0,"yellow","New officer")
 sbs.send_message_to_player_ship(player.id,"blue","New officer")
 sbs.send_message_to_player_ship(hera.id,"red","New officer")
 sbs.send_message_to_player_ship(atlas.id,"green","New officer")
 ~~
-case "Atlas":
-~~
+    case "Atlas":
+        ~~
 sbs.assign_client_to_ship(client_id, atlas.id)
 sbs.send_message_to_player_ship(0,"yellow","New officer")
 sbs.send_message_to_player_ship(player.id,"blue","New officer")
 sbs.send_message_to_player_ship(hera.id,"red","New officer")
 sbs.send_message_to_player_ship(atlas.id,"green","New officer")
 ~~
-end_match
 
 -> PickedView
 
@@ -297,7 +293,7 @@ match console:
         gui_widget_list("normal_main" "3dview^ship_data^text_waterfall")
     case _:
         """Pick a Console"""
-end_match
+
 await gui()
 
 ========== PickedView =====
@@ -320,7 +316,7 @@ match view:
         ->Hud
     case _:
         -> MainView
-end_match
+
 
 """
 Unrreachable?
@@ -336,7 +332,7 @@ Mast {mast_view}
 await gui():
     + "Back":
         <<-
-end_await
+
 
 ====== BroadcastTest ==============
 comms_broadcast(PlayerShip,  "Hello")

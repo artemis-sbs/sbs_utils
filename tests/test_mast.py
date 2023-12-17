@@ -113,26 +113,25 @@ await delay_test(seconds=5,minutes=1)
     def test_loop_compile_err(self):
         (errors, mast) = mast_compile( code = """
 for x while y<0:
-y = y + x
-next x
+    y = y + x
+
 
 for x while y!="test:test":
-y = y + x
-next x
+    y = y + x
+
 
 for x in range(10):
-y = y + x
-next x
+    y = y + x
 """)
         assert(len(errors)==0)
 
     def test_label_compile_err(self):
         (errors, mast) = mast_compile( code = """
 
-    ====== test ======
-    log("Hello")
-    ==== test ====
-    log("good bye")
+====== test ======
+log("Hello")
+==== test ====
+log("good bye")
 
 """)
         assert(len(errors)==1)
@@ -141,10 +140,10 @@ next x
     def test_replace_label_compile(self):
         (errors, mast) = mast_compile( code = """
 
-    ====== test ======
-    log("Hello")
-    ==== replace: test ====
-    log("good bye")
+====== test ======
+log("Hello")
+==== replace: test ====
+log("good bye")
 
 """)
         assert(len(errors)==0)
@@ -170,13 +169,10 @@ jump fred if x==2
 jump barney
 if x==2:
    jump betty
-end_if
+
 
 if x==2:
    jump betty if x==2
-end_if
-
-
 """)
 
         assert(len(errors)==0)
@@ -205,14 +201,14 @@ log("{x}")
 ==== barney === 
 
 if x==2:
-    log("no-1")
+   log("no-1")
    jump betty
-end_if
+
 log("yes-2")
 
 if x==2:
    jump betty if x==45
-end_if
+
 log("yes-3")
 ->END
 
@@ -245,9 +241,9 @@ await task_schedule(fork, data={"self": player1, "HP": 30})
 trend = task_schedule(fork)
 ##FIX await trend
 #await task_all(fred, barney):
-    ->END
+->END
 #fail:
-    ->FAIL
+->FAIL
 #end_await
                                      
 task_all(fred, barney)
@@ -327,29 +323,32 @@ var8 = ~~ [[2,3],[4,5]] ~~
         (errors,  _) = mast_compile( code = """
 x = 52
 if x<50:
-x=100
-end_if
+    x=100
 
 s = "hello"
 if x=="hello":
-x=100
-end_if
+    x=100
+                                    
+if x<50:
+    x=9999
+else:
+    x=300
+
 
 if x<50:
-x=9999
+    x=9999
 elif x>50:
-x=200
+    x=200
 else:
-x=300
-end_if
+    x=300
+
 
 if x<50:
-x=9999
+    x=9999
 elif x>250:
-x=200
+    x=200
 else:
-x=300
-end_if
+    x=300
 
     """)
         assert(len(errors)==0)
@@ -398,66 +397,168 @@ d //= 10
 
     def test_end_task(self):
         (errors, runner, _) = mast_run( code = """
-        shared x = 0
-        task_schedule(task)
-        ->END
-        ==== task ====
-        x += 1
-        ->END
-    """)
+shared x = 0
+task_schedule(task)
+->END
+==== task ====
+x += 1
+->END
+""")
         assert(len(errors)==0)
         task = runner.active_task
         while runner.is_running():
             runner.tick()
         x = task.get_value("x", None)
         assert(x==(1, Scope.SHARED))
-     
-    def test_if(self):
+
+    def test_if_true(self):
         (errors, runner, _) = mast_run( code = """
-        logger(var="output")
+logger(var="output")
 x = 52
 if x>50:
-log("if-case1")
-x=100
-end_if
+    log("if-case1")
+    x=100
+log("END")
+""")
+        assert(len(errors)==0)
+        task = runner.active_task
+        while runner.is_running():
+            runner.tick()
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        value = st.getvalue()
+        assert(value=="if-case1\nEND\n")
 
+    def test_if_false(self):
+        (errors, runner, _) = mast_run( code = """
+logger(var="output")
+x = 52
 if x<50:
-log("if-case2")
-x=100
+    log("if-case1")
+    x=100
+log("END")
+""")
+        assert(len(errors)==0)
+        task = runner.active_task
+        while runner.is_running():
+            runner.tick()
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        value = st.getvalue()
+        assert(value=="END\n")
+
+    def test_if_false_else(self):
+        (errors, runner, _) = mast_run( code = """
+logger(var="output")
+x = 52
+if x<50:
+    log("if-case1")
 else:
-log("else-case2")
-x=100000
-end_if
+    log("else-case1")
+log("END")
+""")
+        assert(len(errors)==0)
+        task = runner.active_task
+        while runner.is_running():
+            runner.tick()
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        value = st.getvalue()
+        assert(value=="else-case1\nEND\n")
+
+    def test_if_true_else(self):
+        (errors, runner, _) = mast_run( code = """
+logger(var="output")
+x = 52
+if x>50:
+    log("if-case1")
+else:
+    log("else-case1")
+log("END")
+""")
+        assert(len(errors)==0)
+        task = runner.active_task
+        while runner.is_running():
+            runner.tick()
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        value = st.getvalue()
+        assert(value=="if-case1\nEND\n")
+
+    def test_if_if_true(self):
+        (errors, runner, _) = mast_run( code = """
+logger(var="output")
+x = 52
+if x>50:
+    log("if-case1")
+else:
+    log("else-case1")
 
 if x>50:
-log("if-case3")
-x=100
+    log("if-case2")
 else:
-log("else-case3")
-x=100000
-end_if
+    log("else-case2")
+log("END")
+""")
+        assert(len(errors)==0)
+        task = runner.active_task
+        while runner.is_running():
+            runner.tick()
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        value = st.getvalue()
+        assert(value=="if-case1\nif-case2\nEND\n")
+
+
+    def test_if(self):
+        (errors, runner, _) = mast_run( code = """
+logger(var="output")
+x = 52
+if x>50:
+    log("if-case1")
+    x=100
 
 if x<50:
-log("if-case4")
-x=9999
+    log("if-case2")
+    x=100
+else:
+    log("else-case2")
+    x=100000
+
+if x>50:
+    log("if-case3")
+    x=100
+else:
+    log("else-case3")
+    x=100000
+
+if x<50:
+    log("if-case4")
+    x=9999
 elif x>50:
-log("elif-case4")
-x=200
+    log("elif-case4")
+    x=200
 else:
-log("else-case4")
-x=300
-end_if
+    log("else-case4")
+    x=300
 
+
+                                       
 if x<50:
-log("if-case5")
-x=9999
+    log("if-case5")
+    x=9999
 elif x>250:
-log("elif-case5")
-x=200
+    log("elif-case5")
+    x=200
 else:
-log("else-case5")
-x=300
-end_if
+    log("else-case5")
+    x=300
+
 x = 52
 
 if x > 50:
@@ -465,11 +566,10 @@ if x > 50:
     if x <50:
         log("inner-if-case6")
     else:
-         log("inner-else-case6")
-    end_if
+        log("inner-else-case6")
 else:
     log("else-case6")
-end_if
+
 
 
     """)
@@ -487,110 +587,117 @@ end_if
         (errors, runner, _) = mast_run( code = """
 x = 52
 match x:
-case 50:
-    x=100
+    case 50:
+        x=100
     case 52:
-    x=300
+        x=300
     case 55:
-    x=999
+        x=999
     case _:
         x=-19
-    end_match
+    
 # test the default case _
-    match x:
+match x:
     case 50:
-    x=100
-        case 55:
-    x=999
+        x=100
+    case 55:
+        x=999
     case _:
         x= x *2
-    end_match
+
+# test the default case _
+match x:
+    case 50:
+        x=100
+    case 55:
+        x=999
+    case _:
+        match x:
+            case 600:
+                x= x *2
+print("END")
 """)
         assert(len(errors)==0)
         x = runner.active_task.get_value("x", None)
-        assert(x==(600, Scope.NORMAL))
+        assert(x==(1200, Scope.NORMAL))
 
     def test_loops(self):
             (errors, runner, _) = mast_run( code = """
-    logger(var="output")
-    x = 52
+logger(var="output")
+x = 52
+log("{x}")
+# 62
+for y in range(10):
+    x = x + 1
     log("{x}")
-    # 62
-    for y in range(10):
+
+#82
+x = x + 20
+log("{x}")
+#132
+x = x + 50
+log("{x}")
+
+#142
+for y in range(10):
+    x = x + 1
+
+log("{x}")
+
+
+
+#152
+count = 10
+for y while count>0:
+    x = x + 1
+    count = count - 1
+
+log("{x}")
+
+
+#157
+for y while y<5:
+    x = x + 1
+
+log("{x}")
+
+
+#257
+for y in range(10):
+    for z in range(10):
         x = x + 1
-    next y
-    log("{x}")
+log("{x}")
 
-    #72
-    x = x + 20
-    log("{x}")
-    #122
-    x = x + 50
-    log("{x}")
+#757
+for y in range(10):
+    x = x + 500
+    break
 
-    #132
-    for y in range(10):
-        x = x + 1
-    next y
-    log("{x}")
-    
+log("BUT HERE{x}")
 
-    #142
-    count = 10
-    for y while count>0:
-        x = x + 1
-        count = count - 1
-    next y
-    log("{x}")
-
-    #147
-    for y while y<5:
-        x = x + 1
-    next y
-    log("{x}")
-
-    #257
-    for y in range(10):
-        for z in range(10):
-            x = x + 1
-        next z
-    next y
-    log("{x}")
-
-    #757
-    for y in range(10):
-        x = x + 500
-        break
-    next y
-    log("{x}")
-
-    # 757 (no adds)
-    for y in range(10):
+# 757 (no adds)
+for y in range(10):
     if y > 50:
         x = x + 10000
         break
-    end_if
-    next y
-    log("{x}")
 
-    #777
-    for y in range(10):
+log("HERE {x}")
+
+#777
+for y in range(10):
     x = x + 20
     if y < 5:
         break
-    end_if
-    next y
-    log("{x}")
+log("{x}")
 
-    #877
-    for y in range(10):
+#877
+for y in range(10):
     # log("877 - {y}")
     if y > 50:
         break
-    end_if
     x = x + 10
-    next y
-    log("{x}")
+    
+log("{x}")
 
 
     """)
@@ -601,20 +708,41 @@ case 50:
             st = output[0]
             value = st.getvalue()
             assert(x==(877, Scope.NORMAL))
-    
+
+    def test_loop_for(self):
+            (errors, runner, _) = mast_run( code = """
+logger(var="output")
+x = 52
+log("{x}")
+# 62
+for y in range(10):
+    x = x + 1
+    log("{x}")
+
+print("END")
+    """)
+            assert(len(errors)==0)
+            x = runner.active_task.get_value("x", None)
+            output = runner.get_value("output", None)
+            assert(output is not None)
+            st = output[0]
+            value = st.getvalue()
+            assert(value=="52\n53\n54\n55\n56\n57\n58\n59\n60\n61\n62\n")
+
+
     def test_replace_label(self):
             (errors, runner, _) = mast_run( code = """
-    logger(var="output")
-    -> test
-    ======= test ======
-    log("NO1")
-    ==== replace: test ====
-    log("YES1")
-    ====== fred ===== 
-    log("NO2")
-    ==== replace: fred ====
-    log("YES2")
-    """)
+logger(var="output")
+-> test
+======= test ======
+log("NO1")
+==== replace: test ====
+log("YES1")
+====== fred ===== 
+log("NO2")
+==== replace: fred ====
+log("YES2")
+""")
             assert(len(errors)==0)
             output = runner.get_value("output", None)
             assert(output is not None)
@@ -629,14 +757,14 @@ shared x = 0
 t = task_schedule("Incr")
 await  x==10:
     log("x={x}")
-end_await
-await delay_app(2):
-=fail:   
-end_await
 
 await delay_app(2):
-=fail:   
-end_await
+    =fail:   
+
+
+await delay_app(2):
+    =fail:   
+    
 
 task_cancel(t)
 log("done")
@@ -645,7 +773,6 @@ log("done")
 x = x + 1
 if x < 10:
     ->Incr
-end_if
 
     """)
         assert(len(errors)==0)
@@ -807,20 +934,20 @@ shared var2 = var2 + 100
 
     def test_log_run_no_err(self):
                 (errors, runner, _) = mast_run( code = """
-    logger(var="output")            
-    -> Here
-    ======== NotHere =====
-    log("Got here later")
-    -> End
-    ======== Here =====
-    log("First")
-    -> NotHere
-    ======== End =====
-    log("Done")
-    ->END
-    ======== Never =====
-    log("Can never reach"        )
-            """)
+logger(var="output")            
+-> Here
+======== NotHere =====
+log("Got here later")
+-> End
+======== Here =====
+log("First")
+-> NotHere
+======== End =====
+log("Done")
+->END
+======== Never =====
+log("Can never reach"        )
+""")
                 assert(len(errors)==0)
                 output = runner.get_value("output", None)
                 assert(output is not None)
@@ -836,15 +963,14 @@ Done
 
     def test_multi_log_run_no_err(self):
                 (errors, runner, _) = mast_run( code = """
-    logger(name="test1", var="output1")
-    logger(name="test2", var="output2")
-    log("Test1", name="test1")
-    
-    log("Test2", name="test2")
-    log("Done1", name="test1")
-    log("Done2", name="test2")
-    
-            """)
+logger(name="test1", var="output1")
+logger(name="test2", var="output2")
+log("Test1", name="test1")
+
+log("Test2", name="test2")
+log("Done1", name="test1")
+log("Done2", name="test2")
+""")
                 assert(len(errors)==0)
                 output = runner.get_value("output1", None)
                 assert(output is not None)
@@ -864,155 +990,152 @@ Done
     
     def test_log_compile_no_err(self):
                 (errors, _) = mast_compile( code = """
-    logger(var="output")
-    logger(file="test")
-    -> Here
-    ======== NotHere =====
-    log("Got here later")
-    -> End
-    ======== Here =====
-    log("First")
-    -> NotHere
-    ======== End =====
-    log("Done")
-    ======== Never =====
-    log("Can never reach"        )
-            """)
+logger(var="output")
+logger(file="test")
+-> Here
+======== NotHere =====
+log("Got here later")
+-> End
+======== Here =====
+log("First")
+-> NotHere
+======== End =====
+log("Done")
+======== Never =====
+log("Can never reach"        )
+        """)
                 assert(len(errors)==0)
 
     def test_dangle_if_compile_err(self):
                 (errors, _) = mast_compile( code = """
-        x = 2
-        if x >3:
-            print(x)
-        end_if
+x = 2
+if x >3:
+    print(x)
 
-        if x >3:
-            print(x)
 
-        if x < 5:
-            print(x)
+if x >3:
+    print(x)
 
-        === test == 
-    
-            """)
-                assert(len(errors)==2)
-                assert("Missing end_if" in errors[0])
-                assert("Missing end_if" in errors[1])
+if x < 5:
+    print(x)
 
+=== test == 
+
+""")
+                assert(len(errors)==0)
+        
     def test_dangle_match_compile_err(self):
-                (errors, _) = mast_compile( code = """
-        s = "Hello"
-        match s:
-            case "Hello": 
+        (errors, _) = mast_compile( code = """
+s = "Hello"
+match s:
+    case "Hello": 
 
-        === test == 
+=== test == 
 
-        match s:
-            case "Hello": 
+match s:
+    case "Hello": 
 
-    
-            """)
-                assert(len(errors)==2)
-                assert("Missing end_match" in errors[0])
-                assert("Missing end_match" in errors[1])
+
+""")
+        assert(len(errors)==0)
+                
 
     def test_dangle_await_compile_err(self):
                 (errors, _) = mast_compile( code = """
         
-        await my_task:
-            
-              
-
-        === test == 
+await my_task:
     
-            """)
-                assert(len(errors)==1)
-                assert("Missing end_await" in errors[0])
+        
+
+=== test == 
+
+    """)
+                assert(len(errors)==0)
+                #assert("Missing end_await" in errors[0])
 
 
 
     def test_dangle_loop_compile_err(self):
                 (errors, _) = mast_compile( code = """
         
-        for y in range(10):
-            x = y + 1
-            for z in range(3):
-                x = x + z
-              
+for y in range(10):
+    x = y + 1
+    for z in range(3):
+        x = x + z
+        
 
-        === test == 
-    
+=== test == 
+
             """)
-                assert(len(errors)==2)
-                assert("Missing next" in errors[0])
-                assert("Missing next" in errors[1])
+                assert(len(errors)==0)
+                #assert("Missing next" in errors[0])
+                #assert("Missing next" in errors[1])
 
     def test_dangle_if2_compile_err(self):
                 (errors, _) = mast_compile( code = """
-        x = 2
-        if x >3:
-            print(x)
+x = 2
+if x >3:
+    print(x)
 
-            """)
-                assert(len(errors)==1)
-                assert("Missing end_if" in errors[0])
+    """)
+                assert(len(errors)==0)
+                #assert("Missing end_if" in errors[0])
 
     def test_dangle_match2_compile_err(self):
                 (errors, _) = mast_compile( code = """
-        s = "Hello"
-        match s:
-            case "Hello": 
-    
-            """)
-                assert(len(errors)==1)
-                assert("Missing end_match" in errors[0])
+s = "Hello"
+match s:
+    case "Hello": 
+
+    """)
+                assert(len(errors)==0)
+                #assert("Missing end_match" in errors[0])
 
     def test_dangle_await2_compile_err(self):
                 (errors, _) = mast_compile( code = """
-        
-        await my_task:
-            """)
-                assert(len(errors)==1)
-                assert("Missing end_await" in errors[0])
+
+await my_task:
+    """)
+                assert(len(errors)==0)
+                #assert("Missing end_await" in errors[0])
 
 
     def test_dangle_loop2_compile_err(self):
                 (errors, _) = mast_compile( code = """
-        
-        for y in range(10):
-            x = y + 1
-              
-            """)
-                assert(len(errors)==1)
-                assert("Missing next" in errors[0])
+
+for y in range(10):
+    x = y + 1
+    
+""")
+                assert(len(errors)==0)
+                #assert("Missing next" in errors[0])
 
 
     def test_push_pop_run_no_err(self):
                 (errors, runner, _) = mast_run( code = """
-    logger(var="output")
-    ->> PushHere
-    ->> PushJump
-    ->> PushDouble
-    log("out")
-    ->END
-    
-    ======== PushHere =====
-    log("Push")
-    <<-
-    ======== PushDouble =====
-    log("PushDouble")
-    ->> PushJump
-    log("PopDouble")
-    <<-
+logger(var="output")
+->> PushHere
+->> PushJump
+->> PushDouble
+log("out")
+->END
 
-    ======== PushJump =====
-    log("PushJump")
-    -> Popper
-    ===== Popper ====
-    log("Popper")
-    <<-
-            """)
+======== PushHere =====
+log("Push")
+<<-
+======== PushDouble =====
+log("PushDouble")
+->> PushJump
+log("PopDouble")
+<<-
+
+======== PushJump =====
+log("PushJump")
+-> Popper
+===== Popper ====
+log("Popper")
+<<-
+        """)
                 assert(len(errors)==0)
                 output = runner.get_value("output", None)
                 assert(output is not None)
@@ -1033,23 +1156,23 @@ out
 
     def test_all_no_err(self):
         (errors, runner, _) = mast_run( code = """
-        logger(var="output")
-        
-        await task_all(Seq1, Seq2,  Seq3)
-        ->END
-        ======== Seq1 =====
-        log("S1")
-        await delay_test(3)
-        log("S1 Again")
-        -> END
-        ======== Seq2 =====
-        log("S2")
-        -> END
-        ===== Seq3 ====
-        log("S3")
-        await delay_test(1)
-        log("S3 Again")
-        -> END
+logger(var="output")
+
+await task_all(Seq1, Seq2,  Seq3)
+->END
+======== Seq1 =====
+log("S1")
+await delay_test(3)
+log("S1 Again")
+-> END
+======== Seq2 =====
+log("S2")
+-> END
+===== Seq3 ====
+log("S3")
+await delay_test(1)
+log("S3 Again")
+-> END
     """)
         assert(len(errors)==0)
         for _ in range(5):
@@ -1071,22 +1194,22 @@ S1 Again
 
     def test_any_no_err(self):
         (errors, runner, _) = mast_run( code = """
-        logger(var="output")
-        
-        await task_any(Seq1, Seq2, Seq3)
-        ->END
-        ======== Seq1 =====
-        log("S1")
-        await delay_test(20)
-        log("S1 Again")
-        ->FAIL
-        ======== Seq2 =====
-        log("S2")
-        -> END
-        ===== Seq3 ====
-        await delay_test(20)
-        log("S3")
-        -> FAIL
+logger(var="output")
+
+await task_any(Seq1, Seq2, Seq3)
+->END
+======== Seq1 =====
+log("S1")
+await delay_test(20)
+log("S1 Again")
+->FAIL
+======== Seq2 =====
+log("S2")
+-> END
+===== Seq3 ====
+await delay_test(20)
+log("S3")
+-> FAIL
     """)
         assert(len(errors)==0)
         for _ in range(10):
@@ -1106,25 +1229,25 @@ S2
 
     def _test_fallback_no_err(self):
         (errors, runner, _) = mast_run( code = """
-        logger(var="output")
-        
-        await bt_sel(Seq1, Seq2,  Seq3)
-        ->END
-        ======== Seq1 =====
-        log("S1")
-        yield Fail
-        await delay_test(3)
-        log("S1 Again")
+logger(var="output")
 
-        ======== Seq2 =====
-        log("S2")
-        await delay_test(10)
-        log("S2 Again")
-        yield Success
-        ===== Seq3 ====
-        await delay_test(3)
-        log("S3")
-        yield faIl
+await bt_sel(Seq1, Seq2,  Seq3)
+->END
+======== Seq1 =====
+log("S1")
+yield Fail
+await delay_test(3)
+log("S1 Again")
+
+======== Seq2 =====
+log("S2")
+await delay_test(10)
+log("S2 Again")
+yield Success
+===== Seq3 ====
+await delay_test(3)
+log("S3")
+yield faIl
     """)
         assert(len(errors)==0)
         #for _ in range(50):
@@ -1314,25 +1437,25 @@ S2 Again
 
     def test_sequence_no_err(self):
         (errors, runner, _) = mast_run( code = """
-        logger(var="output")            
-        
-        await bt_seq(Seq1, Seq2, Seq3)
-        ->END
-        ======== Seq1 =====
-        log("S1")
-        await delay_test(3)
-        log("S1 Again")
-        ->END
+logger(var="output")            
 
-        ======== Seq2 =====
-        log("S2")
-        await delay_test(10)
-        log("S2 Again")
-        -> END
-        ===== Seq3 ====
-        await delay_test(3)
-        log("S3")
-        ->END
+await bt_seq(Seq1, Seq2, Seq3)
+->END
+======== Seq1 =====
+log("S1")
+await delay_test(3)
+log("S1 Again")
+->END
+
+======== Seq2 =====
+log("S2")
+await delay_test(10)
+log("S2 Again")
+-> END
+===== Seq3 ====
+await delay_test(3)
+log("S3")
+->END
     """)
         assert(len(errors)==0)
         #for _ in range(50):
