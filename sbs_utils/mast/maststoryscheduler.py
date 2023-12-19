@@ -4,13 +4,14 @@ from .mast import Mast
 import sbs
 from ..gui import Gui
 from ..procedural.gui import gui_text
-from ..helpers import FakeEvent, FrameContext
+from ..helpers import FakeEvent, FrameContext, format_exception
 
 from .maststory import AppendText,  Text
 import traceback
 from .parsers import LayoutAreaParser
 # Needed to get procedural in memory
 from . import mast_sbs_procedural
+import sys
 
 
 class TextRuntimeNode(MastRuntimeNode):
@@ -100,8 +101,9 @@ class StoryScheduler(MastScheduler):
 
     def runtime_error(self, message):
         sbs.pause_sim()
-        err = traceback.format_exc()
+        err = format_exception(message, "SBS Utils Page level Runtime Error:")
+        #err = traceback.format_exc()
         if not err.startswith("NoneType"):
-            message += str(err)
-            self.errors = [message]
+            #message += str(err)
+            self.errors = [err]
 

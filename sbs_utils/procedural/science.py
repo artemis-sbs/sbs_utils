@@ -92,13 +92,14 @@ def scan_results(message):
 from .gui import ButtonPromise
 from ..consoledispatcher import ConsoleDispatcher
 class ScanPromise(ButtonPromise):
-    def __init__(self, task, timeout=None) -> None:
+    def __init__(self, task, timeout=None, auto_side=True) -> None:
         super().__init__(task, timeout)
 
         self.expanded_buttons = None
 
         self.origin_id = task.get_variable("SCIENCE_ORIGIN_ID")
         self.selected_id = task.get_variable("SCIENCE_SELECTED_ID")
+        self.auto_side = auto_side
 
         so = query.to_object(self.origin_id )
         if so:
@@ -182,14 +183,18 @@ class ScanPromise(ButtonPromise):
             self.origin_id != origin_id:
             return
         if extra_tag == "__init__":
-            self.tab = extra_tag
+            self.tab = "scan"
             return
         so = query.to_object(origin_id)
         so_sel = query.to_object(selected_id)
         percent = 0.0
 
         if so.side == so_sel.side:
-            percent = 0.90
+            if self.auto_side:
+                percent = 0.99
+            else:
+                percent = 0.50
+
         if so:
             so.data_set.set("cur_scan_ID", selected_id,0)
             so.data_set.set("cur_scan_type", extra_tag,0)
@@ -249,6 +254,6 @@ class ScanPromise(ButtonPromise):
         #         self.start_scan( from_so.id, to_so.id, "__init__")
 
 
-def scan(timeout=None):
+def scan(timeout=None, auto_side=True):
     task = FrameContext.task
-    return ScanPromise(task, timeout)
+    return ScanPromise(task, timeout, auto_side)

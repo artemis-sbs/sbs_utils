@@ -10,7 +10,7 @@ import sbs
 import traceback
 from . import faces
 from .agent import Agent
-from .helpers import FrameContext, Context
+from .helpers import FrameContext, Context, format_exception
 import time
 
 
@@ -178,7 +178,8 @@ def cosmos_event_handler(sim, event):
     except BaseException as err:
         sbs.pause_sim()
 
-        text_err = traceback.format_exc()
+        #text_err = traceback.format_exc()
+        text_err = format_exception("", "SBS Utils Hook level Runtime Error:")
         text_err = text_err.replace(chr(94), "")
         Gui.push(0, ErrorPage(text_err))
     

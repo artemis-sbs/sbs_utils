@@ -1,5 +1,7 @@
 from .vec import Vec3
 import time as time
+import traceback
+import sys
 
 class Context:
     def __init__(self, sim, _sbs, _event):
@@ -66,3 +68,8 @@ class FakeEvent:
         self.value_tag = value_tag
         self.selected_id = selected_id
         self.source_point = Vec3()
+
+def format_exception(message, source):
+    error_type, error, tb = sys.exc_info()
+    filename, lineno, func_name, line = traceback.extract_tb(tb)[-1]
+    return f"{source}\n\n{message}\n{line}\nfunction: {func_name}\nline: {lineno}\nFile: {filename}"

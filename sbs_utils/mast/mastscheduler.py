@@ -7,7 +7,7 @@ from .mast import *
 import time
 import traceback
 from ..agent import Agent, get_task_id
-from ..helpers import FrameContext
+from ..helpers import FrameContext, format_exception
 from ..futures import Promise, Waiter, Trigger
 from .label import get_fall_through
 from .pollresults import PollResults
@@ -153,18 +153,27 @@ class PyCodeRuntimeNode(MastRuntimeNode):
 
 class FuncCommandRuntimeNode(MastRuntimeNode):
     def enter(self, mast, task:MastAsyncTask, node:FuncCommand):
-        self.value = task.eval_code(node.code)
         self.is_await = node.is_await
-        if self.is_await and not isinstance(self.value, Promise):
-            self.is_await = False
+        value = task.eval_code(node.code)
+        self.promise = None
+        if isinstance(value, Promise):
+            self.promise = value
 
     def poll(self, mast, task:MastAsyncTask, node:FuncCommand):
-        #
-        # await the promise to complete
-        #
-        if node.is_await and self.value is not None and not self.value.done():
-            return PollResults.OK_RUN_AGAIN
-        return PollResults.OK_ADVANCE_TRUE
+        if not node.is_await:
+            return PollResults.OK_ADVANCE_TRUE
+    
+        if self.promise:
+            if self.promise.done():
+                return PollResults.OK_ADVANCE_TRUE
+            else:
+                return PollResults.OK_RUN_AGAIN
+
+        value = task.eval_code(node.code)
+        if value:
+            return PollResults.OK_ADVANCE_TRUE
+
+        return PollResults.OK_RUN_AGAIN    
 
 class JumpRuntimeNode(MastRuntimeNode):
     def poll(self, mast:Mast, task:MastAsyncTask, node:Jump):
@@ -1104,7 +1113,9 @@ class MastAsyncTask(Agent, Promise):
             allowed = self.get_symbols()
             value = eval(code, {"__builtins__": Mast.globals}, allowed)
         except:
-            self.runtime_error(traceback.format_exc())
+            #err = traceback.format_exc()
+            err = format_exception("", "Mast eval level Runtime Error:")
+            self.runtime_error(err)
             self.end()
         finally:
             pass
@@ -1122,7 +1133,9 @@ class MastAsyncTask(Agent, Promise):
                 g = Mast.globals
             exec(code, {"__builtins__": g}, allowed)
         except:
-            self.runtime_error(traceback.format_exc())
+            #err = traceback.format_exc()
+            err = format_exception("", "Mast exec level Runtime Error:")
+            self.runtime_error(err)
             self.end()
         finally:
             pass

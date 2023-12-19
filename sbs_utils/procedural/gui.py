@@ -5,6 +5,7 @@ from ..helpers import FrameContext
 from ..pages import layout
 from ..mast.parsers import LayoutAreaParser, StyleDefinition
 from ..futures import Trigger, AwaitBlockPromise
+import re
 import sbs
 
 def gui_add_console_tab(id_or_obj, console, tab_name, label):
@@ -462,7 +463,7 @@ def gui_console(console):
             widgets = "2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
         case "weapons":
             console =  "normal_weap"
-            widgets = "2dview^weapon_control^weap_beam_freq^weap_beam_speed^ship_data^shield_control^text_waterfall^main_screen_control"
+            widgets = "2dview^weapon_control^weap_beam_freq^weap_beam_speed^weap_torp_conversion^ship_data^shield_control^text_waterfall^main_screen_control"
         case "science":
             console =  "normal_sci"
             widgets = "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list"
@@ -670,6 +671,34 @@ def gui_click(name_or_layout_item=None):
     return ClickableTrigger(task, name)
 
 
+class ChangeTrigger(Trigger):
+    rule = re.compile(r"change[ \t]+(?P<val>.+)")
+    def __init__(self, task, node):
+        self.task = task
+        match_obj = ChangeTrigger.rule.match(node.inline)
+        val = None
+        if match_obj:
+            data = match_obj.groupdict()
+            val = data['val']
+        if val is None:
+            self.value = False
+            self.code = compile("True", "<string>", "eval")
+        else:
+            self.code = compile(val, "<string>", "eval")
+            self.value = self.task.eval_code(self.code) 
+
+        # What to jump to one past the inline node
+        self.node = node
+        self.label = task.active_label
+
+    def test(self):
+        prev = self.value
+        self.value = self.task.eval_code(self.code) 
+        return prev!=self.value
+    
+
+
+
 class ChoiceButtonRuntimeNode:
     def __init__(self, promise, button, tag):
         self.promise = promise
@@ -737,19 +766,22 @@ class ButtonPromise(AwaitBlockPromise):
         if self.disconnect_label is not None:
             page = task.main.page
             if page is not None and page.disconnected:
-                task.push_inline_block(task.active_label,self.disconnect_label.loc+1)
+                # Await use a jump back to the await, so jump here is OK
+                task.jump(task.active_label,self.disconnect_label.loc+1)
                 #return PollResults.OK_JUMP
                 self.set_result(True)
 
         if self.on_change:
             for change in self.on_change:
                 if change.test():
-                    self.task.push_inline_block(self.task.active_label,change.node.loc+1)
+                    # Await use a jump back to the await, so jump here is OK
+                    self.task.jump(change.label,change.node.loc+1)
                     return # let it run
                     
         if self.focus_label and self.run_focus:
             self.run_focus = False
-            self.task.push_inline_block(self.task.active_label,self.focus_label.loc+1)
+            # Await use a jump back to the await, so jump here is OK
+            self.task.jump(self.task.active_label,self.focus_label.loc+1)
             return # let it cook
 
         if self.button is not None:
@@ -819,7 +851,9 @@ class ButtonPromise(AwaitBlockPromise):
             self.fail_label = inline
         # Handle change
         if inline.inline.startswith("change"):
-            ChangeTrigger(self.task, inline)
+            if self.on_change is None:
+                self.on_change = []
+            self.on_change.append(ChangeTrigger(self.task, inline))
         # Handle timeout
         #if ButtonPromise.focus_rule.match(inline.inline):
         #    self.focus_label = inline

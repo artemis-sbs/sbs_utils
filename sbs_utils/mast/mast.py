@@ -973,7 +973,21 @@ class Mast():
 
         return errors
 
+
     def compile(self, lines, file_name):
+        # Catching compiler errors lower to give better error message
+        errors = []
+        try:
+            return self._compile(lines, file_name)
+        except Exception as e:
+            logger = logging.getLogger("mast.compile")
+            logger.error(f"Exception: {e}")
+            errors.append(f"\nException: {e}")
+            return errors # return with first errors
+
+        
+
+    def _compile(self, lines, file_name):
         file_num = self.clear(file_name)
         line_no = 1 # file line num are 1 based
         
