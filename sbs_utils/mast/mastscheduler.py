@@ -596,7 +596,7 @@ class MastTicker:
                     #
                     # We didn't inc so the hope is to resume 
                     #
-                    print(f"I DID NOT inc {push_data.runtime_node}")
+                    #print(f"I DID NOT inc {push_data.runtime_node}")
                     self.pending_pop = (push_data.label, push_data.active_cmd, push_data.runtime_node)
     def tick(self):
         cmd = None

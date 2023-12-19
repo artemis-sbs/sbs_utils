@@ -92,7 +92,7 @@ class StoryScheduler(MastScheduler):
             if label == None:
                 # On change or element requested refresh?
                 #task.jump(task.active_label)
-                print("I was told to refresh")
+                #print("I was told to refresh")
                 self.story_tick_tasks(self.client_id)
                 self.page.gui_state = "repaint"
                 event = FakeEvent(self.client_id, "gui_represent")

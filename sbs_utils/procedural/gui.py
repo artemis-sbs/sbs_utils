@@ -653,7 +653,7 @@ class ClickableTrigger(Trigger):
         if self.name is not None:     
             if click_tag != self.name:
                     return False
-        print(click_tag)
+        #print(click_tag)
         self.task.set_value("__CLICKED__", click_tag, Scope.TEMP)
         self.task.push_inline_block(self.label, self.loc)
         restore = FrameContext.page
@@ -839,7 +839,7 @@ class ButtonPromise(AwaitBlockPromise):
     def expand_inline(self, inline):
         if inline.inline is  None:
             return
-        print(f"__{inline.inline}__")
+        #print(f"__{inline.inline}__")
         # Handle =disconnect:
         if ButtonPromise.disconnect_rule.match(inline.inline):
             self.disconnect_label = inline

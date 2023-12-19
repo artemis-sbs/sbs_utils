@@ -1053,11 +1053,11 @@ class Mast():
                 if node_cls.__name__ != "Comment":
                     (cur_indent, _)  = indent_stack[-1] 
                     if indent > cur_indent:
-                        print(f"INDENT {indent}")
+                        #print(f"INDENT {indent}")
                         is_indent = True
                         # indent_stack.append(indent)
                     elif indent < cur_indent:
-                        print(f"DEDENT {indent}")
+                        #print(f"DEDENT {indent}")
                         is_dedent = True
                 
                 logger = logging.getLogger("mast.compile")
