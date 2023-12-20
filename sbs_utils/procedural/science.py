@@ -100,13 +100,7 @@ class ScanPromise(ButtonPromise):
         self.origin_id = task.get_variable("SCIENCE_ORIGIN_ID")
         self.selected_id = task.get_variable("SCIENCE_SELECTED_ID")
         self.auto_side = auto_side
-
-        so = query.to_object(self.origin_id )
-        if so:
-            self.start_scan(self.origin_id, self.selected_id, "scan")
-
-            ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'science_target_UID', self.science_selected)
-            ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'science_target_UID', self.science_message)
+        # The stuff to start the scan is now in initial_poll / show_buttons
 
     def initial_poll(self):
         if self._initial_poll:
@@ -129,7 +123,6 @@ class ScanPromise(ButtonPromise):
         self.show_buttons()
         if not self.scan_is_done:
             return
-        
         #
         # THIS sets the promise to finish 
         # after you let the button process
@@ -146,6 +139,7 @@ class ScanPromise(ButtonPromise):
             return
         self.tab = event.extra_tag
         self.event = event
+        #print(f"SCIENCE MESSAGE {event.extra_tag}")
         self.process_tab()
 
     def process_tab(self):
@@ -176,15 +170,13 @@ class ScanPromise(ButtonPromise):
         self.start_scan(event.origin_id, event.selected_id, event.extra_tag)
 
     def start_scan(self, origin_id, selected_id, extra_tag):
-        #
-        # Check if this was initiated by a "Follow route"
-        #
         if self.selected_id != selected_id or \
             self.origin_id != origin_id:
             return
-        if extra_tag == "__init__":
-            self.tab = "scan"
-            return
+        #
+        # Check if this was initiated by a "Follow route"
+        #
+            
         so = query.to_object(origin_id)
         so_sel = query.to_object(selected_id)
         percent = 0.0
@@ -194,6 +186,13 @@ class ScanPromise(ButtonPromise):
                 percent = 0.99
             else:
                 percent = 0.50
+
+        if extra_tag == "__init__":
+            self.tab = "scan"
+            percent = 0.99
+            self.process_tab()
+            return 
+
 
         if so:
             so.data_set.set("cur_scan_ID", selected_id,0)
@@ -211,12 +210,16 @@ class ScanPromise(ButtonPromise):
         ConsoleDispatcher.remove_message_pair(self.origin_id, self.selected_id, 'science_target_UID')
      
     def show_buttons(self):
-        to_so = query.to_object(self.selected_id)
-        from_so = query.to_object(self.origin_id)
+        sel_so = query.to_object(self.selected_id)
+        origin_so = query.to_object(self.origin_id)
 
-        if to_so is not None:
-            scan_tab = from_so.side+"scan"
-            has_scan = to_so.data_set.get(scan_tab,0)
+        if sel_so is not None:
+            scan_tab = origin_so.side+"scan"
+            #
+            # Have scans ever occurred
+            # If so just do the scan tab
+            #
+            has_scan = sel_so.data_set.get(scan_tab,0)
             if has_scan is None:
                 scan_tabs = "scan"
                 self.scan_is_done = False
@@ -236,22 +239,25 @@ class ScanPromise(ButtonPromise):
                                 scan_tabs += " "
                             scan_tabs += msg
                         # Check if this has been scanned
-                        has_scan = to_so.data_set.get(from_so.side+msg, 0)
+                        has_scan = sel_so.data_set.get(origin_so.side+msg, 0)
                         if has_scan:
                             scanned_tabs += 1
                 self.scan_is_done = scanned_tabs == button_count
-                to_so.data_set.set("scan_type_list", scan_tabs, 0)
+                sel_so.data_set.set("scan_type_list", scan_tabs, 0)
 
         
         ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'science_target_UID', self.science_selected)
         ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'science_target_UID', self.science_message)
         
-        # if routed:
-        #     event = task.get_variable("EVENT")
-        #     if event is not None:
-        #         self.start_scan(from_so.id, to_so.id, event.extra_tag)
-        #     else:
-        #         self.start_scan( from_so.id, to_so.id, "__init__")
+        routed = self.task.get_variable("SCIENCE_ROUTED")
+        if routed:
+            # Clear routed???
+            routed = self.task.set_variable("SCIENCE_ROUTED", False)
+            self.event = self.task.get_variable("EVENT")
+            if self.event is not None:
+                self.start_scan(origin_so.id, sel_so.id, self.event.extra_tag)
+            else:
+                self.start_scan( origin_so.id, sel_so.id, "__init__")
 
 
 def scan(timeout=None, auto_side=True):
