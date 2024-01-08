@@ -343,7 +343,7 @@ def gui_radio(msg, style=None, var=None, data=None, vertical=False):
 
     return layout_item
 
-def gui_vradio(msg, style=None, var=None, data=None, vertical=False):
+def gui_vradio(msg, style=None, var=None, data=None):
     return gui_radio(msg, style, var, data, True)
 
 def gui_slider(msg, style=None, var=None, data=None, is_int=False):
@@ -372,7 +372,7 @@ def gui_slider(msg, style=None, var=None, data=None, is_int=False):
     return layout_item
 
 def gui_int_slider(msg, style=None, var=None, data=None):
-    return gui_slider(msg, style, var, True, data)
+    return gui_slider(msg, style, var,  data, True)
 
 
 def gui_input(label, style=None, var=None, data=None):

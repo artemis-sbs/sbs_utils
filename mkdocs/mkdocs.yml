@@ -19,6 +19,7 @@ theme:
     - navigation.tabs
     - navigation.sections
     - navigation.indexes
+    - content.code.copy
     #- navigation.footer
   custom_dir: overrides
   icon: 
@@ -117,7 +118,13 @@ nav:
 markdown_extensions:
   - attr_list
   - md_in_html
-  - pymdownx.superfences
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.emoji:

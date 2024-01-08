@@ -301,7 +301,10 @@ class Slider(Column):
     
     @value.setter
     def value(self, v):
-        self._value = v
+        if self.is_int:
+            self._value = int(v)
+        else:
+            self._value = v
         self.update_variable()
 
 class Checkbox(Column):
