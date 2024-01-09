@@ -1,4 +1,4 @@
-from sbs_utils.mast.mast import Mast, Scope
+from sbs_utils.mast.mast import Mast, Scope, find_exp_end
 from sbs_utils.mast.mastscheduler import MastScheduler, PollResults
 from sbs_utils.agent import clear_shared
 from sbs_utils.mast.label import label
@@ -319,6 +319,7 @@ var8 = ~~ [[2,3],[4,5]] ~~
         assert(list_value[0][1]==3)
         assert(list_value[1][0]==4)
         assert(list_value[1][1]==5)
+
     def test_if_comp(self):
         (errors,  _) = mast_compile( code = """
 x = 52
@@ -352,6 +353,62 @@ else:
 
     """)
         assert(len(errors)==0)
+
+    def test_if_with_on_comp(self):
+        (errors,  mast) = mast_compile( code = '''
+if ip_count > 0 and ctype == "helm" and not ip_timer > 0:
+    on gui_message(gui_button("Infusion P-Coils")):
+        print()
+else:
+    if ip_timer > 0:
+        print()
+    else:
+        print()
+''')
+        assert(len(errors)==0)
+        main = mast.labels.get('main')
+        assert(main is not None)
+        for cmd in main.cmds:
+            print(f"{cmd.__class__} {cmd.loc}")
+        
+        for cmd in main.cmds[0].if_chain:
+             print(cmd.loc)
+        print()
+
+    def test_if_with_on_two_comp(self):
+        (errors,  mast) = mast_compile( code = '''
+if ho_count > 0 and (ctype == "engineering" or ctype == "weapons"):
+    on gui_message(gui_button("Haplix Overcharger")):
+        print()
+        if fshield > fshieldmax or rshield > rshieldmax: 
+            print()
+        else: 
+            print()
+            #for dmg in range(4):
+            dmgrand = random.randrange(1,100)
+            if dmgrand <= dmgcheck:
+                was_damaged = grid_damage_system(ship_id, "shield")
+                if was_damaged:
+                    print(f"Haplix Shield Damage dmgcheck = {dmgcheck} dmgrand = {dmgrand}")
+                else:
+                    print(f"Haplix All Shields Damaged")
+            else:
+                print(f"Haplix NO Shield Damage dmgcheck = {dmgcheck} dmgrand = {dmgrand}")
+            dmgcheck -= 25
+        jump upgrade_screen
+else:
+    print()
+
+''')
+        assert(len(errors)==0)
+        main = mast.labels.get('main')
+        assert(main is not None)
+        for cmd in main.cmds:
+            print(f"{cmd.__class__} {cmd.loc}")
+        
+        for cmd in main.cmds[0].if_chain:
+             print(cmd.loc)
+        print()
 
 
     def test_assign_operators(self):
@@ -728,6 +785,68 @@ print("END")
             st = output[0]
             value = st.getvalue()
             assert(value=="52\n53\n54\n55\n56\n57\n58\n59\n60\n61\n62\n")
+
+    def test_loop_for_nest(self):
+            (errors, runner, _) = mast_run( code = """
+logger(var="output")
+for y in range(2):
+    log("Y{y}")
+    for z in range(2):
+        log("Y{y}Z{z}")
+        for a in range(2):
+            log("Y{y}Z{z}A{a}")
+    for b in range(2):
+        log("Y{y}B{b}")
+
+log("END")
+    """)
+            assert(len(errors)==0)
+            t = ""
+            for y in range(2):
+                t+= f"Y{y}\n"
+                for z in range(2):
+                    t+= f"Y{y}Z{z}\n"
+                    for a in range(2):
+                        t+= f"Y{y}Z{z}A{a}\n"
+                for b in range(2):
+                    t+= f"Y{y}B{b}\n"
+            t+="END\n"
+            output = runner.get_value("output", None)
+            assert(output is not None)
+            st = output[0]
+            value = st.getvalue()
+            assert(value==t)
+
+    def test_loop_for_nest_two(self):
+            (errors, runner, _) = mast_run( code = """
+logger(var="output")
+for y in range(2):
+    log("Y{y}")
+    for z in range(2):
+        log("Y{y}Z{z}")
+        for a in range(2):
+            log("Y{y}Z{z}A{a}")
+for b in range(2):
+    log("B{b}")
+
+log("END")
+    """)
+            assert(len(errors)==0)
+            t = ""
+            for y in range(2):
+                t+= f"Y{y}\n"
+                for z in range(2):
+                    t+= f"Y{y}Z{z}\n"
+                    for a in range(2):
+                        t+= f"Y{y}Z{z}A{a}\n"
+            for b in range(2):
+                t+= f"B{b}\n"
+            t+="END\n"
+            output = runner.get_value("output", None)
+            assert(output is not None)
+            st = output[0]
+            value = st.getvalue()
+            assert(value==t)
 
 
     def test_replace_label(self):
@@ -1625,3 +1744,19 @@ class TestMastPython(unittest.TestCase):
         #st.seek(0)
         value = st.getvalue()
         assert(value =="""4\n3\n""")
+
+    def t_expr_parser(self, s , expected, block, valid=True):
+        test = find_exp_end(s, block)
+
+        exp = s[:test.idx]
+        assert(test.idx==len(expected))
+        assert(test.is_valid == valid)
+        assert(exp==expected)
+
+    def test_expr_parser(self):
+        self.t_expr_parser("""hello()[""]:\nworld()""", """hello()[""]""", True)
+        self.t_expr_parser("""hello(\n)["\n"\n]:\nworld()""", """hello(\n)["\n"\n]""", True)
+        self.t_expr_parser("""test[1] = 1234""", """test[1] = 1234""", False)
+        self.t_expr_parser("""test[1 = 1234""", """test[1 = 1234""", False, False)
+        
+        

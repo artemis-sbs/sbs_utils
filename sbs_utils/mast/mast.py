@@ -102,12 +102,13 @@ class Label(MastNode):
 
 
 class LoopEnd(MastNode):
-    rule = re.compile(r'((?P<loop>next)[ \t]*(?P<name>\w+))')
-    def __init__(self, loop=None, name=None, loc=None):
+    """
+    LoopEnd is a node that is injected to allow loops to know where the end is
+    """
+    #rule = re.compile(r'((?P<loop>next)[ \t]*(?P<name>\w+))')
+    def __init__(self, start=None, name=None, loc=None):
         super().__init__()
-        self.loop = True if loop is not None and 'next' in loop else False
-        self.name = name
-        self.start = LoopStart.loop_stack.pop()
+        self.start = start
         self.loc = loc
         self.start.end = self
 
@@ -132,8 +133,17 @@ class LoopStart(MastNode):
         return True
 
     def create_end_node(self, loc, dedent_obj):
-        end =  LoopEnd("next", self.name, loc=loc)
-        end.dedent_loc = self.loc
+        end =  LoopEnd(self, loc=loc)
+
+        if dedent_obj.__class__ == LoopStart:
+            LoopStart.loop_stack.pop()
+            LoopStart.loop_stack.pop()
+            LoopStart.loop_stack.append(dedent_obj)
+        else:
+            LoopStart.loop_stack.pop()
+
+
+        # Dedent is one passed the end node
         self.dedent_loc = loc+1
         return end
         
@@ -178,18 +188,18 @@ class IfStatements(MastNode):
 
         if "end_if" == self.end:
             self.if_node = IfStatements.if_chains[-1]
-            IfStatements.if_chains[-1].if_chain.append(loc)
+            IfStatements.if_chains[-1].if_chain.append(self)
             IfStatements.if_chains.pop()
         elif "else:" == self.end:
             self.if_node = IfStatements.if_chains[-1]
-            IfStatements.if_chains[-1].if_chain.append(loc)
+            IfStatements.if_chains[-1].if_chain.append(self)
             
         elif "elif" == self.if_op:
             self.if_node = IfStatements.if_chains[-1]
-            IfStatements.if_chains[-1].if_chain.append(loc)
+            IfStatements.if_chains[-1].if_chain.append(self)
             
         elif "if" == self.if_op:
-            self.if_chain = [loc]
+            self.if_chain = [self]
             self.if_node = self
             IfStatements.if_chains.append(self)
             
@@ -198,22 +208,29 @@ class IfStatements(MastNode):
         return True
     
     def create_end_node(self, loc, dedent_obj):
+        self.if_node.dedent_loc = loc      
         if dedent_obj is None:
             # Dandling
-            self.if_node.dedent_loc = loc
             IfStatements.if_chains.pop()
+
         elif dedent_obj.__class__ == IfStatements and self.if_op == 'if':
+            # Pop the chains until it matches the
+            # expected if is the indent object
+            # self is the indent object
+            while IfStatements.if_chains[-1] != self:
+                IfStatements.if_chains.pop()
+
             if dedent_obj.if_op=='if':
                 IfStatements.if_chains.pop()
-                IfStatements.if_chains.pop()
-                self.if_node.dedent_loc = loc
                 IfStatements.if_chains.append(dedent_obj)
+                return None
 
         elif dedent_obj.__class__ == IfStatements:
-            self.if_node.dedent_loc = loc
+            pass # self.if_node.dedent_loc = loc
         else:
-            self.if_node.dedent_loc = loc
+            #while IfStatements.if_chains[-1] != self.if_node:
             IfStatements.if_chains.pop()
+            # self.if_node.dedent_loc = loc
 
         return None
 
@@ -231,16 +248,10 @@ class MatchStatements(MastNode):
         self.chain = None
         self.match_node = None
 
-        # if "end_match" == end:
-        #     the_match_node = MatchStatements.chains[-1]
-        #     self.match_node = the_match_node
-        #     the_match_node.chain.append(loc)
-        #     MatchStatements.chains.pop()
-        # el
         if "case" == op:
             the_match_node = MatchStatements.chains[-1]
             self.match_node = the_match_node
-            the_match_node.chain.append(loc)
+            the_match_node.chain.append(self)
         elif "match" == op:
             self.match_node = self
             self.chain = []
@@ -273,6 +284,8 @@ class MatchStatements(MastNode):
                 MatchStatements.chains.pop()
                 self.match_node.dedent_loc = loc
                 MatchStatements.chains.append(dedent_obj)
+            else:
+                self.match_node.dedent_loc = loc
 
         elif dedent_obj.__class__ == MatchStatements:
             self.match_node.dedent_loc = loc
@@ -448,28 +461,6 @@ MIN_SECONDS_REGEX = r"""([ \t]*((?P<minutes>\d+))m)?([ \t]*((?P<seconds>\d+)s))?
 TIMEOUT_REGEX = r"([ \t]*timeout"+MIN_SECONDS_REGEX + r")?"
 
 
-
-# #
-# # Allow a state change to be handled in await
-# #
-# class Change(MastNode):
-#     rule = re.compile(r"change[ \t]+(?P<val>[^:]+)"+BLOCK_START)
-#     def __init__(self, end=None, val=None, loc=None):
-#         super().__init__()
-#         self.loc = loc
-#         self.value = val
-#         if val:
-#             self.value = compile(val, "<string>", "eval")
-#         #
-#         # Check to see if this is embedded in an await
-#         #
-#         self.await_node = None
-#         if len(Await.stack) >0:
-#             self.await_node = Await.stack[-1]
-#             # Only add on change if we need them
-#             if self.await_node.on_change  is None:
-#                 self.await_node.on_change  = []
-#             self.await_node.on_change.append(self)
 
 
 
@@ -690,6 +681,72 @@ def first_newline_index(s):
             return idx
     return len(s)
 
+
+class ExpParseData:
+    def __init__(self):
+        self.in_string = False
+        self.paren = 0
+        self.bracket = 0
+        self.brace = 0
+        self.is_assign = False
+        self.is_block = False
+        self.idx = -1
+        self.double_assign = False
+
+    @property
+    def in_something(self):
+        return self.in_string or (self.paren>0) or (self.bracket>0) or (self.brace>0)
+    @property
+    def is_valid(self):
+        return not (self.in_something or self.double_assign)
+
+def find_exp_end(s, expect_block):
+    data = ExpParseData()
+
+    for idx, c in enumerate(s):
+        if c == '\n' and not data.in_something:
+            data.idx = idx
+            return data
+        if c == '=' and not data.in_something and not data.is_assign:
+            data.is_assign = True
+            continue
+        elif c == '=' and not data.in_something and data.is_assign:
+            data.double_assign = True
+            return data
+        
+        if c == ':' and not data.in_something and expect_block:
+            data.is_block = True
+            data.idx = idx
+            return data
+        
+        if c == '(' and not data.in_string:
+            data.paren+=1
+            continue
+        if c == ')' and not data.in_string:
+            data.paren-=1
+            continue
+        if c == '[' and not data.in_string:
+            data.bracket+=1
+            continue
+        if c == ']' and not data.in_string:
+            data.bracket-=1
+            continue
+        if c == '{' and not data.in_string:
+            data.brace+=1
+            continue
+        if c == '}' and not data.in_string:
+            data.brace-=1
+            continue
+        if c == '"' and not data.in_string:
+            data.in_string = True
+            continue
+        if c == '"' and data.in_string:
+            data.in_string = False
+            continue
+
+    data.idx = len(s)
+    return data
+
 class InlineData:
     def __init__(self, start, end):
         self.start = start
@@ -787,26 +844,19 @@ class Mast():
 
 
     nodes = [
-        Comment,
-        Label,
+        Comment,#NO EXP
+        Label,#NO EXP
         IfStatements,
         MatchStatements,
         LoopStart,
-        # LoopEnd, 
         LoopBreak,
         PyCode,
-        Import,
+        Import, #NO EXP
         Await,  # New Await Block
         FuncCommand,
-        #        AwaitCondition,
-        #Timeout,
-    #    Change,
-        OnChange,
-        # EndAwait,
-        #AwaitFail, # Fail Label
+        OnChange, 
         AwaitInlineLabel,
         Button,
-
         Fail,
         Yield,
         End,
@@ -898,22 +948,6 @@ class Mast():
         return []
         
 
-    # def process_file_content(self,content, file_name):
-    #     file_name, ext = os.path.splitext(file_name)
-    #     errors = []
-    #     match ext:
-    #         case _:
-    #             if content is not None:
-    #                 errors = self.compile(content, file_name)
-
-    #                 if len(errors) > 0:
-    #                     message = f"Compile errors\nCannot compile file {file_name}"
-    #                     errors.append(message)
-
-    #     return errors
-        
-       
-
     def content_from_lib_or_file(self, file_name, lib_name):
         try:
             if lib_name is not None:
@@ -959,7 +993,7 @@ class Mast():
                         # If and match staements need more fixups
                         if cmd.__class__.__name__ == "IfStatements" and cmd.if_chain:
                             for c in range(len(cmd.if_chain)):
-                                cmd.if_chain[c] += offset
+                                cmd.if_chain[c].loc += offset
                         elif cmd.__class__.__name__ == "MatchStatements" and cmd.chain:
                             for c in range(len(cmd.chain)):
                                 cmd.chain[c] += offset
@@ -1009,6 +1043,7 @@ class Mast():
                 return
             loc = len(self.cmd_stack[-1].cmds)
             indent_node.create_end_node(loc, dedent_node)
+            
 
         def inject_remaining_dedents():
             nonlocal indent_stack

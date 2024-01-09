@@ -261,10 +261,9 @@ class LoopStartRuntimeNode(MastRuntimeNode):
 
 class LoopEndRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:LoopEnd):
-        if node.loop == True:
-            task.jump(task.active_label, node.start.loc)
-            return PollResults.OK_JUMP
-        return PollResults.OK_ADVANCE_TRUE
+        task.jump(task.active_label, node.start.loc)
+        return PollResults.OK_JUMP
+        # return PollResults.OK_ADVANCE_TRUE
 
 class LoopBreakRuntimeNode(MastRuntimeNode):
     def enter(self, mast, task:MastAsyncTask, node:LoopBreak):
@@ -302,16 +301,19 @@ class IfStatementsRuntimeNode(MastRuntimeNode):
         if node.if_op == "if":
             activate = self.first_true(task, node)
             if activate is not None:
-                task.jump(task.active_label, activate+1)
+                task.jump(task.active_label, activate.loc+1)
                 return PollResults.OK_JUMP
         # Everything else jumps to past all things involved in this chain
-        task.jump(task.active_label, node.if_node.dedent_loc)
-        return PollResults.OK_JUMP
+        if node.if_node.dedent_loc is not None:
+            task.jump(task.active_label, node.if_node.dedent_loc)
+            return PollResults.OK_JUMP
+        else:
+            print("DEDENT IS NON IN AN IF")
 
     def first_true(self, task: MastAsyncTask, node: IfStatements):
         cmd_to_run = None
         for i in node.if_chain:
-            test_node = task.mast_ticker.cmds[i]
+            test_node = i # task.mast_ticker.cmds[i]
             if test_node.code:
                 value = task.eval_code(test_node.code)
                 if value:
@@ -333,7 +335,7 @@ class MatchStatementsRuntimeNode(MastRuntimeNode):
         if node.op == "match":
             activate = self.first_true(task, node)
             if activate is not None:
-                task.jump(task.active_label, activate+1)
+                task.jump(task.active_label, activate.loc+1)
                 return PollResults.OK_JUMP
             
         task.jump(task.active_label, node.match_node.dedent_loc)
@@ -342,7 +344,7 @@ class MatchStatementsRuntimeNode(MastRuntimeNode):
     def first_true(self, task: MastAsyncTask, node: MatchStatements):
         cmd_to_run = None
         for i in node.chain:
-            test_node = task.mast_ticker.cmds[i]
+            test_node = i # task.mast_ticker.cmds[i]
             if test_node.code:
                 value = task.eval_code(test_node.code)
                 if value:
