@@ -142,7 +142,7 @@ def target(set_or_object, target_id, shoot: bool = True, throttle: float = 1.0):
     target_engine = FrameContext.context.sim.get_space_object(target_id)
 
     if target_engine:
-        target_id: 0
+        target_id = 0
         if shoot:
             target_id = target_engine.unique_ID
         all = to_list(set_or_object)

@@ -2,7 +2,7 @@ from ..consoledispatcher import ConsoleDispatcher
 from ..griddispatcher import GridDispatcher
 from ..lifetimedispatcher import LifetimeDispatcher
 from ..damagedispatcher import DamageDispatcher, CollisionDispatcher
-from .query import to_id
+from .query import to_id, to_object
 
 from ..helpers import FrameContext, FakeEvent
 
@@ -19,6 +19,7 @@ _SELECT = 1
 _POINT = 2
 _FOCUS = 3
 _GRID_OBJECT = 4
+_MESSAGE = 5
 
 
 class HandleConsoleSelect:
@@ -222,9 +223,6 @@ def route_damage_object(label):
     return HandleDamage(DamageDispatcher._HULL, label)
 
 
-
-
-
 class HandleCollision:
     just_once = set()
 
@@ -297,3 +295,105 @@ def follow_route_grid_select(origin_id, selected_id):
     _follow_route_console(origin_id, selected_id, console, widget, None)
 
 
+
+#######################################
+# Decorators for agent classes
+#######################################
+class RouteSpawn(object):
+    def __init__(self, method):
+        self.method = method
+        LifetimeDispatcher.add_lifecycle(LifetimeDispatcher.SPAWN, self.handler)
+
+    def handler(self, so):
+        if self.method.__qualname__.startswith(so.__class__.__name__):
+            # print(f"{self.method.__qualname__} {so.__class__.__name__}")
+            self.method(so)
+
+
+class RouteComms(object):
+    def __init__(self, method, console, etype):
+        self.method = method
+        uid = uids.get(console)
+        if etype == _SELECT:
+            ConsoleDispatcher.add_default_select(uid, self.handler)
+        if etype == _MESSAGE:
+            ConsoleDispatcher.add_default_message(uid, self.message_handler)
+        if etype == _POINT:
+            if console == "grid":
+                GridDispatcher.add_any_point(self.grid_handler)
+            else:
+                ConsoleDispatcher.add_select(uid, self.handler)
+        if etype == _FOCUS:
+            ConsoleDispatcher.add_always_select(uid, self.handler)
+        if etype == _GRID_OBJECT:
+            GridDispatcher.add_any_object(self.grid_handler)
+
+    def handler(self, pid, event):
+        so = to_object(event.selected_id)
+        if so is None:
+            return
+
+        if self.method.__qualname__.startswith(so.__class__.__name__):
+            self.method(so, pid, event)
+
+    def message_handler(self, message, pid, event):
+        so = to_object(event.selected_id)
+        if so is None:
+            return
+
+        if self.method.__qualname__.startswith(so.__class__.__name__):
+            self.method(so, message, pid, event)
+
+
+    def grid_handler(self, event):
+        so = to_object(event.selected_id)
+        if so is None:
+            return
+
+        if self.method.__qualname__.startswith(so.__class__.__name__):
+            self.method(so, event)
+
+class RouteCommsSelect(RouteComms):
+    def __init__(self, method):
+        super().__init__(method, "comms", _SELECT)
+
+class RouteCommsFocus(RouteComms):
+    def __init__(self, method):
+        super().__init__(method, "comms", _FOCUS)
+
+class RouteCommsMessage(RouteComms):
+    def __init__(self, method):
+        super().__init__(method, "comms", _MESSAGE)
+
+
+class RouteDamageSource(object):
+    def __init__(self, method, damage_type):
+        self.method = method
+        if damage_type==DamageDispatcher._HEAT:
+                DamageDispatcher.add_any_heat(self.handler)
+        elif damage_type==DamageDispatcher._INTERNAL:
+            DamageDispatcher.add_any_internal(self.handler)
+        else:
+            DamageDispatcher.add_any(self.handler)
+            
+    def handler(self, event):
+        so = to_object(event.origin_id)
+        if so is None:
+            return
+
+        if self.method.__qualname__.startswith(so.__class__.__name__):
+            self.method(so, event)
+
+class RouteDamageObject(RouteDamageSource):
+    def __init__(self, method):
+        super().__init__(method, DamageDispatcher._HULL)
+
+class RouteDamageHeat(RouteDamageSource):
+    def __init__(self, method):
+        super().__init__(method, DamageDispatcher._HEAT)
+
+class RouteDamageInternal(RouteDamageSource):
+    def __init__(self, method):
+        super().__init__(method, DamageDispatcher._INTERNAL)
+
+        
