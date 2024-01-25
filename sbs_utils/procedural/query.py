@@ -220,6 +220,27 @@ def get_weapons_selection(id_or_not):
     return None
 
 
+def set_console_selection(id_or_not, other_id_or_obj, console):
+    blob = to_blob(id_or_not)
+    other = to_id(other_id_or_obj)
+    if other is None:
+        other = 0
+    if blob is not None:
+        blob.set(console, other, 0)
+
+
+def set_comms_selection(id_or_not, other_id_or_obj):
+    set_console_selection(id_or_not, other_id_or_obj, "comms_target_UID")
+
+def set_science_selection(id_or_not, other_id_or_obj):
+    set_console_selection(id_or_not, other_id_or_obj, "science_target_UID")
+
+def set_grid_selection(id_or_not, other_id_or_obj):
+    set_console_selection(id_or_not, other_id_or_obj, "grid_selected_UID")
+
+def set_weapons_selection(id_or_not, other_id_or_obj):
+    set_console_selection(id_or_not, other_id_or_obj, "weapon_target_UID")
+
 
 def inc_disable_selection(id_or_obj, console):
     _obj = to_object(id_or_obj)

@@ -56,10 +56,12 @@ def link(set_holder, link, set_to):
 
 
 def get_dedicated_link(so, link):
+    # Dedicated links are one-to-one, 
     so = to_object(so)
     return so.get_dedicated_link(link)
             
 def set_dedicated_link(so, link, to):
+    # Dedicated links are one-to-one
     so = to_object(so)
     to = to_id(to)
     so.set_dedicated_link(link, to)

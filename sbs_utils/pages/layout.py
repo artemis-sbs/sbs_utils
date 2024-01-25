@@ -676,7 +676,7 @@ class Layout:
         self.default_width = None
         self.padding = None
         self.background = None
-        self.tag = None
+        self.tag = tag
         self.click_text  = None
         self.click_tag  = None
         self.click_font  = None

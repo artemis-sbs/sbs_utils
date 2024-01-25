@@ -6,10 +6,12 @@ class LifetimeDispatcher:
     _dispatch_spawn = set()
     _dispatch_spawn_grid = set()
     _dispatch_destroy = set()
+    _dispatch_dock = set()
 
     SPAWN = 0
     GRID_SPAWN = 1
     DESTROYED = 2
+    DOCK = 3
 
     
     def add_spawn(cb: typing.Callable):
@@ -20,6 +22,9 @@ class LifetimeDispatcher:
 
     def add_destroy(cb: typing.Callable):
         LifetimeDispatcher._dispatch_destroy.add(cb)
+    
+    def add_dock(cb: typing.Callable):
+        LifetimeDispatcher._dispatch_dock.add(cb)
 
     def remove_spawn(cb: typing.Callable):
         # Callback should have arguments of other object's id, message
@@ -32,6 +37,10 @@ class LifetimeDispatcher:
     def remove_destroy(cb: typing.Callable):
         # Callback should have arguments of other object's id, message
         LifetimeDispatcher._dispatch_destroy.discard(cb)
+    
+    def remove_dock(cb: typing.Callable):
+        # Callback should have arguments of other object's id, message
+        LifetimeDispatcher._dispatch_dock.discard(cb)
 
 
     def add_lifecycle(lifecycle, cb: typing.Callable):
@@ -42,6 +51,8 @@ class LifetimeDispatcher:
                 LifetimeDispatcher.add_spawn_grid(cb)
             case LifetimeDispatcher.DESTROYED:
                 LifetimeDispatcher.add_destroy(cb)
+            case LifetimeDispatcher.DOCK:
+                LifetimeDispatcher.add_dock(cb)
 
 
     def remove_lifecycle(lifecycle, cb: typing.Callable):
@@ -52,6 +63,8 @@ class LifetimeDispatcher:
                 LifetimeDispatcher.remove_spawn_grid(cb)
             case LifetimeDispatcher.DESTROYED:
                 LifetimeDispatcher.remove_destroy(cb)
+            case LifetimeDispatcher.DOCK:
+                LifetimeDispatcher.remove_dock(cb)
 
     def dispatch_spawn():
         objects = Agent.get_role_objects("__space_spawn__")
@@ -66,6 +79,10 @@ class LifetimeDispatcher:
             for func in LifetimeDispatcher._dispatch_spawn_grid:
                 func(so)
             so.remove_role("__grid_spawn__")
+
+    def dispatch_dock(damage_event):
+        for func in LifetimeDispatcher._dispatch_dock:
+            func(damage_event)
 
 
 

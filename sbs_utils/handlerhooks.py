@@ -171,6 +171,8 @@ def cosmos_event_handler(sim, event):
                 Gui.send_custom_event("x_sim_paused")
             case "sim_unpaused":
                 Gui.send_custom_event("x_sim_resume")
+            case "fighter_requests_dock":
+                LifetimeDispatcher.dispatch_dock(event)
         
             case _:
                 print (f"Unhandled event {event.client_id} {event.tag} {event.sub_tag}")

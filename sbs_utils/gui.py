@@ -317,6 +317,7 @@ class Gui:
                 gui.on_event(event)
                 gui.destroyed()
                 Gui.clients.pop(cid)
+                
 
         # Anything left is a client not connected to the script
         # So we start the client as if it connected

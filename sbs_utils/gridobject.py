@@ -142,6 +142,10 @@ class GridObject(Agent):
         self.host_id = host_id
         hullMap: sbs.hullmap
         hullMap = sbs.get_hull_map(self.host_id)
+        if hullMap is None:
+            print(f"No Hull map {host_id&0xfffff} {name} {tag} {go_type}")
+            return None
+        
         if go_type is None:
             go_type = self.__class__.__name__
         if isinstance(go_type, str):

@@ -100,6 +100,7 @@ class ScanPromise(ButtonPromise):
         self.origin_id = task.get_variable("SCIENCE_ORIGIN_ID")
         self.selected_id = task.get_variable("SCIENCE_SELECTED_ID")
         self.auto_side = auto_side
+        self.scan_is_done = False
         # The stuff to start the scan is now in initial_poll / show_buttons
 
     def initial_poll(self):

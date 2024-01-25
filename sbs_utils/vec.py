@@ -58,7 +58,13 @@ class Vec3:
         """
         r = self.add(v)
         return self._set(r)
-
+    
+    @staticmethod
+    def create(v):
+        ret = Vec3()
+        ret._set(v)
+        return ret
+    
     def _set(self, v):
         self.x = v.x
         self.y = v.y

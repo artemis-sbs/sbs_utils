@@ -80,8 +80,8 @@ def apply_style_def(style_def, layout_item, task):
         layout_item.set_row_height(height)        
     width = style_def.get("col-width")
     if width is not None:
-        width = LayoutAreaParser.compute(height, task.get_symbols(),aspect_ratio.x)
-        layout_item.set_col_width(height)        
+        width = LayoutAreaParser.compute(width, task.get_symbols(),aspect_ratio.x)
+        layout_item.set_col_width(width)        
     padding = style_def.get("padding")
     if padding is not None:
         aspect_ratio = task.main.page.aspect_ratio
@@ -476,6 +476,10 @@ def gui_console(console):
         case "mainscreen":
             console =  "normal_main"
             widgets = "3dview^ship_data^text_waterfall"
+        case "cockpit":
+            widgets = "3dview^2dview^helm_free_3d^text_waterfall^fighter_control^ship_internal_view^ship_data^grid_face^grid_control"
+        
+
     page.set_widget_list(console, widgets)
 
 

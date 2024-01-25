@@ -188,7 +188,9 @@ class Agent():
 
     @classmethod
     def _remove(cls, id):
+        #print("Something called remove")
         Agent.all.pop(id, None) #Allow remove if not added
+        ## TODO: Remove from inventory, and links
         return Agent.roles.remove_every_collection(id)
 
     ########## ROLES ########################

@@ -201,12 +201,14 @@ def get_pos(id_or_obj):
             return eo.pos
     return None
 
-def set_pos(id_or_obj, x, y, z):
+def set_pos(id_or_obj, x, y=None, z=None):
     ids = to_set(id_or_obj)
     for id in ids:
-        object = to_object(id_or_obj)
-    if object is not None:
-        eo = object.engine_object
-        if eo:
-            return FrameContext.context.sim.reposition_space_object(eo, x, y, z)
+        object = to_object(id)
+        if object is not None:
+            eo = object.engine_object
+            if eo:
+                if y is None:
+                    return FrameContext.context.sim.reposition_space_object(eo, x.x, x.y, x.z)
+                return FrameContext.context.sim.reposition_space_object(eo, x, y, z)
 

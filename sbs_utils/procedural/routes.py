@@ -131,7 +131,7 @@ def route_grid_point(label):
 
 class HandleLifetime:
     just_once = set()
-    cycles = ["SPAWNED", "SPAWNED", "DESTROYED"]
+    cycles = ["SPAWNED", "SPAWNED", "DESTROYED", "DOCK"]
     def __init__(self, lifecycle, label) -> None:
         #
         #
@@ -151,7 +151,15 @@ class HandleLifetime:
             LifetimeDispatcher.add_lifecycle(lifecycle, self.selected)
             
     def selected(self, so):
-        t = self.task.start_task(self.label, {
+        if self.cycle == "DOCK":
+            event = so # argument is an event
+            t = self.task.start_task(self.label, {
+                    f"{self.cycle}_ID": event.origin_id,
+                    f"EVENT": event,
+                    f"{self.cycle}_ROUTED": True
+            })
+        else:
+            t = self.task.start_task(self.label, {
                     f"{self.cycle}_ID": so.get_id(),
                     f"{self.cycle}_OBJ": so,
                     f"{self.cycle}_ROUTED": True
@@ -171,6 +179,9 @@ def route_grid_spawn(label):
 
 def route_destroy(label):
     return HandleLifetime(LifetimeDispatcher.DESTROYED, label)
+
+def route_dock(label):
+    return HandleLifetime(LifetimeDispatcher.DOCK, label)
 
 
 
@@ -308,6 +319,21 @@ class RouteSpawn(object):
         if self.method.__qualname__.startswith(so.__class__.__name__):
             # print(f"{self.method.__qualname__} {so.__class__.__name__}")
             self.method(so)
+
+class RouteDock(object):
+    def __init__(self, method):
+        self.method = method
+        LifetimeDispatcher.add_lifecycle(LifetimeDispatcher.DOCK, self.handler)
+
+    def handler(self, event):
+        so = to_object(event.origin_id)
+        if so is None:
+            return
+        
+        if self.method.__qualname__.startswith(so.__class__.__name__):
+            # print(f"{self.method.__qualname__} {so.__class__.__name__}")
+            self.method(so)
+
 
 
 class RouteComms(object):

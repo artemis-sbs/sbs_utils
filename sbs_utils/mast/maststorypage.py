@@ -145,7 +145,7 @@ class StoryPage(Page):
 
     def add_row(self):
         if not self.pending_layouts:
-            self.pending_layouts = [layout.Layout(None, None, 0,0, 100, 90)]
+            self.pending_layouts = [layout.Layout(self.get_tag(), None, 0,0, 100, 90)]
         if self.pending_row:
             if len(self.pending_row.columns):
                 self.pending_layouts[-1].add(self.pending_row)
@@ -279,7 +279,7 @@ class StoryPage(Page):
         #
         # Ok we're on a ship, on a console
         #
-        _layout = layout.Layout(None, None, 20,0, 100, 3)
+        _layout = layout.Layout(self.get_tag(), None, 20,0, 100, 3)
         _row = layout.Row(height=3)
         _layout.add(_row)
 
