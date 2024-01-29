@@ -1042,7 +1042,10 @@ class Mast():
             if ind_loc == 0:
                 return
             loc = len(self.cmd_stack[-1].cmds)
-            indent_node.create_end_node(loc, dedent_node)
+            end_obj = indent_node.create_end_node(loc, dedent_node)
+            if end_obj:
+                self.cmd_stack[-1].add_child(end_obj)
+                
             
 
         def inject_remaining_dedents():

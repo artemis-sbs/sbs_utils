@@ -28,6 +28,30 @@ def broad_test(x1: float, z1: float, x2: float, z2: float, broad_type=-1):
     obj_list = sbs.broad_test(x1, z1, x2, z2, broad_type)
     return {so.unique_ID for so in obj_list}
 
+def broad_test_around(id_or_obj, width: float, depth: float, broad_type=-1):
+    """ broad_test_around
+
+        returns a set of ids that are in the target rect
+
+        :param id_or_obj: object to use as a center point
+        :type id_or_obj: id or object
+        :param width: width
+        :type width: float
+        :param depth: depth z dimension
+        :type depth: float
+
+        :param broad type:  -1=All, 0=player, 1=Active, 2=Passive
+        :type broad_type: int
+        :rtype: set of ids
+        """
+    so = to_object(id_or_obj)
+    if so is None:
+        return {}
+    _pos = so.engine_object.pos
+    obj_list = sbs.broad_test(_pos.x-(width/2), _pos.z-(depth/2), _pos.x+(width/2), _pos.z+(depth/2), broad_type)
+    return {so.unique_ID for so in obj_list}
+
+
 #######################
 # Set resolvers
 def closest_list(source: int | CloseData | SpawnData | Agent, the_set, max_dist=None, filter_func=None) -> list[CloseData]:
