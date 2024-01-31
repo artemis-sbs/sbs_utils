@@ -229,16 +229,18 @@ def gui_blank(style=None):
     page.add_content(layout_item, None)
     return layout_item
 
-def gui_hole(style=None):
+def gui_hole(count=1, style=None):
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
         return None
-    # Log warning
-    layout_item = layout.Hole()
-    apply_control_styles(".hole", style, layout_item, task)
-    # Last in case tag changed in style
-    page.add_content(layout_item, None)
+    layout_item = None
+    for _ in range(count):
+        # Log warning
+        layout_item = layout.Hole()
+        apply_control_styles(".hole", style, layout_item, task)
+        # Last in case tag changed in style
+        page.add_content(layout_item, None)
     return layout_item
 
 class MessageHandler:

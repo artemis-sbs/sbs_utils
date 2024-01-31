@@ -27,16 +27,26 @@ def science_start_scan(origin_id, selected_id, tab):
         so.data_set.set("cur_scan_percent", percent,)
         
 
-def science_set_scan_data(player_id_or_obj, scan_target_id_or_obj, tab, message):
-        player_id = query.to_id(player_id_or_obj)
-        scan_target_id = query.to_id(scan_target_id_or_obj)
-        player_obj = query.to_object(player_id)
-        target_blob = query.to_blob(scan_target_id)
+def science_set_scan_data(player_id_or_obj, scan_target_id_or_obj, tabs):
+    player_id = query.to_id(player_id_or_obj)
+    scan_target_id = query.to_id(scan_target_id_or_obj)
+    player_obj = query.to_object(player_id)
+    target_blob = query.to_blob(scan_target_id)
+    
 
-        if player_obj is None: return
-        if target_blob is None: return
+    if player_obj is None: return
+    if target_blob is None: return
+    scan_tabs = ""
+    if isinstance(tabs, str):
+        tabs = {"scan": tabs}
+
+    for tab in tabs:
+        if tab != "scan":
+            scan_tabs += f"{tab} "
+        message = tabs.get(tab)
+        print(f"sci scan {tab} {message}")
         target_blob.set(f"{player_obj.side}{tab}", message, 0)
-
+    target_blob.set("scan_type_list", scan_tabs, 0)
 
 def _science_get_origin_id():
     #

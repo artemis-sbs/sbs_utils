@@ -217,8 +217,9 @@ class MSpawn:
             else:
                 roles = side
             side = roles[0].strip()
-            obj.side = side
-            self._side = side
+            if side != "#":
+                obj.side = side
+                self._side = side
             self.update_comms_id()
             for role in roles:
                 self.add_role(role)

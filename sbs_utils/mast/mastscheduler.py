@@ -943,7 +943,7 @@ class PyTicker():
         logger.error(rte)
         s = "mast python RUNTIME ERROR\n" 
         s += f"\n===== code ======\n\n{rte}\n\n==================\n"
-        s += '\n'+rte
+        s += '\n'
 
         logger = logging.getLogger("mast.runtime")
         logger.error(s)
@@ -1115,7 +1115,6 @@ class MastAsyncTask(Agent, Promise):
             allowed = self.get_symbols()
             value = eval(code, {"__builtins__": Mast.globals}, allowed)
         except:
-            #err = traceback.format_exc()
             err = format_exception("", "Mast eval level Runtime Error:")
             self.runtime_error(err)
             self.end()

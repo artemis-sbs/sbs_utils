@@ -71,5 +71,8 @@ class FakeEvent:
 
 def format_exception(message, source):
     error_type, error, tb = sys.exc_info()
-    filename, lineno, func_name, line = traceback.extract_tb(tb)[-1]
-    return f"{source}\n\n{message}\n{line}\nfunction: {func_name}\nline: {lineno}\nFile: {filename}"
+    lines = traceback.extract_tb(tb)
+    if len(lines)>0:
+        filename, lineno, func_name, line = lines[-1]
+        return f"{source}\n\n{message}\n{error}\n{line}\nfunction: {func_name}\nline: {lineno}\nFile: {filename}"
+    return f"{source}\n\n{message}\n"

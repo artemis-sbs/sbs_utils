@@ -2,6 +2,7 @@ from ..consoledispatcher import ConsoleDispatcher
 from ..griddispatcher import GridDispatcher
 from ..lifetimedispatcher import LifetimeDispatcher
 from ..damagedispatcher import DamageDispatcher, CollisionDispatcher
+from .roles import has_roles
 from .query import to_id, to_object
 
 from ..helpers import FrameContext, FakeEvent
@@ -306,22 +307,57 @@ def follow_route_grid_select(origin_id, selected_id):
     _follow_route_console(origin_id, selected_id, console, widget, None)
 
 
-
+import inspect
 #######################################
 # Decorators for agent classes
 #######################################
 class RouteSpawn(object):
     def __init__(self, method):
+        s = method.__qualname__.split(".")
+        self.cls = None
+        if len(s)  == 2:
+            self.cls == s[0]
         self.method = method
         LifetimeDispatcher.add_lifecycle(LifetimeDispatcher.SPAWN, self.handler)
 
     def handler(self, so):
-        if self.method.__qualname__.startswith(so.__class__.__name__):
-            # print(f"{self.method.__qualname__} {so.__class__.__name__}")
+        if self.cls is None or self.cls==so.__class__.__name__:
             self.method(so)
+
+class RouteGridSpawn(object):
+    def __init__(self, method):
+        s = method.__qualname__.split(".")
+        self.cls = None
+        if len(s)  == 2:
+            self.cls == s[0]
+        self.method = method
+        LifetimeDispatcher.add_lifecycle(LifetimeDispatcher.GRID_SPAWN, self.handler)
+
+    def handler(self, so):
+        if self.cls is None or self.cls==so.__class__.__name__:
+            self.method(so)
+
+
+class RouteDestroy(object):
+    def __init__(self, method):
+        s = method.__qualname__.split(".")
+        self.cls = None
+        if len(s)  == 2:
+            self.cls == s[0]
+        self.method = method
+        LifetimeDispatcher.add_lifecycle(LifetimeDispatcher.DESTROYED, self.handler)
+
+    def handler(self, so):
+        if self.cls is None or self.cls==so.__class__.__name__:
+            self.method(so)
+
 
 class RouteDock(object):
     def __init__(self, method):
+        s = method.__qualname__.split(".")
+        self.cls = None
+        if len(s)  == 2:
+            self.cls == s[0]
         self.method = method
         LifetimeDispatcher.add_lifecycle(LifetimeDispatcher.DOCK, self.handler)
 
@@ -329,10 +365,11 @@ class RouteDock(object):
         so = to_object(event.origin_id)
         if so is None:
             return
-        
-        if self.method.__qualname__.startswith(so.__class__.__name__):
-            # print(f"{self.method.__qualname__} {so.__class__.__name__}")
+    
+        if self.cls is None or self.cls==so.__class__.__name__:
             self.method(so)
+
+
 
 
 

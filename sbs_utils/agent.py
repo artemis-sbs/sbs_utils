@@ -259,6 +259,11 @@ class Agent():
         self.has_links.add_to_collection(link_name, self.id)
 
     def set_dedicated_link(self, link_name: str, other: Agent | CloseData | int):
+        """ set the a dedicated link. i.e. there can be only one
+
+        :param link_name: The link to add e.g. spy, pirate etc.
+        :type id: id
+        """
         link_name = link_name.strip().lower()
         self.links.dedicated_collection(link_name, self.resolve_id(other))
         if other is not None:
@@ -319,6 +324,13 @@ class Agent():
         return []
 
     def get_dedicated_link(self, link_name):
+        """ get the a dedicated link. i.e. there can be only one
+
+        :param link_name: The link to add e.g. spy, pirate etc.
+        :type id: id
+        :return: The id of t he linked object
+        :rtype: id
+        """
         link_name = link_name.strip().lower()
         the_set =  self.links.collection_set(link_name)
         if len(the_set)==1:
