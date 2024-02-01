@@ -14,6 +14,7 @@ from ..procedural import query
 from ..procedural import links
 from ..procedural import inventory
 
+
 from .. import vec
 
 #
@@ -60,6 +61,7 @@ from ..procedural import spawn
 from ..procedural import timers
 from ..procedural import grid
 from ..procedural import space_objects
+from ..procedural import ship_data
 from ..procedural import roles
 from ..procedural import inventory
 from ..procedural import links
@@ -93,6 +95,7 @@ Mast.import_python_module('sbs_utils.fs')
 Mast.import_python_module('sbs_utils.vec')
 Mast.import_python_module('sbs_utils.scatter', 'scatter')
 Mast.import_python_module('sbs_utils.names', 'names')
+Mast.import_python_module('sbs_utils.procedural.ship_data', 'ship_data')
 Mast.import_python_module('sbs', 'sbs')
 
 #

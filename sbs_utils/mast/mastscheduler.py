@@ -667,12 +667,7 @@ class MastTicker:
             self.main.runtime_error(str(err))
             return PollResults.OK_END
 
-        
-
-    def runtime_error(self, rte):
-        cmd = None
-        logger = logging.getLogger("mast.runtime")
-        logger.error(rte)
+    def get_runtime_error_info(self, rte):
         s = "mast RUNTIME ERROR\n" 
         if self.runtime_node:
             cmd = self.cmds[self.active_cmd]
@@ -688,7 +683,11 @@ class MastTicker:
             else:
                 s += "\nNOTE: to see code Set Mast.include_code to True is script.py only during development.\n\n"
         s += '\n'+rte
+        return s
 
+    def runtime_error(self, rte):
+        cmd = None
+        s = self.get_runtime_error_info(rte)
         logger = logging.getLogger("mast.runtime")
         logger.error(s)
 
@@ -937,14 +936,16 @@ class PyTicker():
             return PollResults.OK_JUMP
         return PollResults.FAIL_END
     
-    def runtime_error(self, rte):
-        cmd = None
-        logger = logging.getLogger("mast.runtime")
-        logger.error(rte)
+
+    def get_runtime_error_info(self, rte):
         s = "mast python RUNTIME ERROR\n" 
         s += f"\n===== code ======\n\n{rte}\n\n==================\n"
         s += '\n'
+        return s
 
+    def runtime_error(self, rte):
+        cmd = None
+        s = self.get_runtime_error_info(rte)
         logger = logging.getLogger("mast.runtime")
         logger.error(s)
 
@@ -1115,8 +1116,8 @@ class MastAsyncTask(Agent, Promise):
             allowed = self.get_symbols()
             value = eval(code, {"__builtins__": Mast.globals}, allowed)
         except:
-            err = format_exception("", "Mast eval level Runtime Error:")
-            self.runtime_error(err)
+            # err = format_exception("", "Mast eval level Runtime Error:")
+            self.runtime_error("Mast eval level Runtime Error:\n")
             self.end()
         finally:
             pass
@@ -1135,8 +1136,8 @@ class MastAsyncTask(Agent, Promise):
             exec(code, {"__builtins__": g}, allowed)
         except:
             #err = traceback.format_exc()
-            err = format_exception("", "Mast exec level Runtime Error:")
-            self.runtime_error(err)
+            #err = format_exception("", "Mast exec level Runtime Error:")
+            self.runtime_error("Mast exec level Runtime Error:\n")
             self.end()
         finally:
             pass
@@ -1174,7 +1175,15 @@ class MastAsyncTask(Agent, Promise):
     def pop_label(self, inc_loc=True, true_pop=False):
         self.active_ticker.pop_label(inc_loc, true_pop)
 
+    def get_runtime_error_info(self, rte):
+        # avoid duplicate info calls
+        if "mast RUNTIME ERROR" in rte:
+            return rte
+        
+        return self.active_ticker.get_runtime_error_info(rte)
+
     def runtime_error(self, msg):
+        
         self.active_ticker.runtime_error(msg)
 
         

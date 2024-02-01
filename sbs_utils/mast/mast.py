@@ -1200,6 +1200,7 @@ class Mast():
                                 if end_obj:
                                     self.cmd_stack[-1].add_child(end_obj)
                                     loc+=1
+                                    end_obj.file_num = file_num
                                     obj.loc += 1
                                 
                                 (i_loc,_) = indent_stack[-1]

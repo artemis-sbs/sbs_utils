@@ -236,3 +236,25 @@ def set_pos(id_or_obj, x, y=None, z=None):
                     return FrameContext.context.sim.reposition_space_object(eo, x.x, x.y, x.z)
                 return FrameContext.context.sim.reposition_space_object(eo, x, y, z)
 
+def get_engineering_value(id_or_obj, name, default=None):
+    so = to_object(id_or_obj)
+    if so is None: return default
+
+    for x in range(30):
+        label = so.data_set.get("eng_control_label", x)
+        if label is None or label == "":
+            return default
+        
+        if label.lower() == name.lower():
+            return so.data_set.get("eng_control_value", x)
+    return default
+
+def set_engineering_value(id_or_obj, name, value):
+    so = to_object(id_or_obj)
+    for x in range(30):
+        label = so.data_set.get("eng_control_label", x)
+        if label is None or label == "":
+            return
+        if label.lower() == name.lower():
+            return so.data_set.set("eng_control_value", value, x)
+    return

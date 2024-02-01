@@ -15,6 +15,11 @@ def get_script_dir():
 
     return script_dir.replace("/", "\\")
 
+def get_missions_dir():
+    mission = get_script_dir()
+    missions = os.path.dirname(mission)
+    return missions
+
 def get_mission_dir():
     return get_script_dir()
 
@@ -78,8 +83,3 @@ def save_json_data(file, data):
         #j = re.sub(r',[\n\r]+[ \t]*"', ',"', j )
         #j = re.sub(r'\n[\s]+},\n[\s]+', '},', j )
         f.write(j)
-
-
-ship_data_cache = load_json_data( os.path.join(get_artemis_data_dir(), "shipData.json"))
-def get_ship_data():
-    return ship_data_cache

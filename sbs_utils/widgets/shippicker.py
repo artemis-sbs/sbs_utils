@@ -2,6 +2,7 @@ from ..gui import Widget
 from .. import layout as layout
 import sbs
 from .. import fs
+from ..procedural import ship_data
 
 
 class ShipPicker(Widget):
@@ -27,7 +28,7 @@ class ShipPicker(Widget):
         self.bottom = top+40
         self.right = left+33
         
-        data = fs.get_ship_data()
+        data = ship_data.get_ship_data()
         #data = None
         if roles is not None:
             roles = roles.strip().lower()
@@ -104,7 +105,7 @@ class ShipPicker(Widget):
         ship = self.ships[self.cur]
 
         sbs.send_gui_text(
-                    CID, f"{self.tag_prefix}title", f"text: {self.title_prefix} {ship['name']}",  self.left, self.top, self.right, self.top+5)
+                    CID, f"{self.tag_prefix}title", f"text: {self.title_prefix} {ship['side']} {ship['name']}",  self.left, self.top, self.right, self.top+5)
         #l1 = layout.wrap(self.left, self.bottom, , 4,col=2)
         half = (self.right-self.left)/2
         

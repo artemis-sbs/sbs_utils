@@ -1,5 +1,5 @@
 from . import query 
-from .inventory import get_inventory_value
+from .inventory import to_object
 from .roles import has_role
 from .. import faces
 from ..agent import Agent
@@ -142,6 +142,12 @@ class ScanPromise(ButtonPromise):
         if self.running_button:
             self.set_result(self.running_button)
 
+    def cancel_if_no_longer_exists(self):
+        oo = to_object(self.origin_id)
+        so = to_object(self.selected_id)
+        if so is None or oo is None:
+            self.cancel("Objects no longer exist")
+
 
 
     def science_message(self, message, an_id, event):
@@ -150,8 +156,11 @@ class ScanPromise(ButtonPromise):
             return
         self.tab = event.extra_tag
         self.event = event
-        #print(f"SCIENCE MESSAGE {event.extra_tag}")
-        self.process_tab()
+        self.cancel_if_no_longer_exists()
+
+        if not self.done():
+            #print(f"SCIENCE MESSAGE {event.extra_tag}")
+            self.process_tab()
 
     def process_tab(self):
         if self.tab is not None:
@@ -178,7 +187,10 @@ class ScanPromise(ButtonPromise):
             self.selected_id != event.selected_id:
             return
         self.run_focus = True
-        self.start_scan(event.origin_id, event.selected_id, event.extra_tag)
+        self.cancel_if_no_longer_exists()
+        
+        if not self.done():
+            self.start_scan(event.origin_id, event.selected_id, event.extra_tag)
 
     def start_scan(self, origin_id, selected_id, extra_tag):
         if self.selected_id != selected_id or \
@@ -187,6 +199,10 @@ class ScanPromise(ButtonPromise):
         #
         # Check if this was initiated by a "Follow route"
         #
+        self.cancel_if_no_longer_exists()
+        if self.done():
+            return
+
             
         so = query.to_object(origin_id)
         so_sel = query.to_object(selected_id)
@@ -223,6 +239,8 @@ class ScanPromise(ButtonPromise):
     def show_buttons(self):
         sel_so = query.to_object(self.selected_id)
         origin_so = query.to_object(self.origin_id)
+        if sel_so is None or origin_so is None:
+            return
 
         if sel_so is not None:
             scan_tab = origin_so.side+"scan"

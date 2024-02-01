@@ -4,7 +4,7 @@ import sbs
 from enum import IntEnum
 from .agent import Agent, SpawnData
 from .helpers import FrameContext
-from . import names
+from .procedural import ship_data as SHIP_DATA
 
 
 class TickType(IntEnum):
@@ -197,7 +197,7 @@ class MSpawn:
         #
         # Add default roles
         #
-        ship_data = names.get_ship_data(art_id)
+        ship_data = SHIP_DATA.get_ship_data_for(art_id)
         if ship_data:
             roles = ship_data.get("roles", None)
             if roles:

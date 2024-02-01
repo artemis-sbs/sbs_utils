@@ -1,5 +1,6 @@
 from ..agent import Agent
 from .query import to_object_list, to_set, to_object
+import random
 
 def role(role: str):
     """ role
@@ -81,3 +82,5 @@ def get_race(id_or_obj):
         if has_role(id_or_obj, test):
             return test
     return None
+
+

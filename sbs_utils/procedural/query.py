@@ -59,7 +59,7 @@ def to_list(other: Agent | CloseData | int):
     elif isinstance(other, list):
         return other
     elif other is None:
-        return None
+        return []
     return [other]
 
 def to_set(other: Agent | CloseData | int):
@@ -76,7 +76,7 @@ def to_set(other: Agent | CloseData | int):
     elif isinstance(other, set):
         return other
     elif other is None:
-        return None
+        return set()
     return {to_id(other)}
 
 
@@ -265,6 +265,21 @@ def dec_disable_selection(id_or_obj, console):
 def dec_disable_weapons_selection(id_or_obj): dec_disable_selection(id_or_obj, "weapon_target_UID")
 def dec_disable_science_selection(id_or_obj): dec_disable_selection(id_or_obj, "science_target_UID")
 def dec_disable_grid_selection(id_or_obj): dec_disable_selection(id_or_obj, "grid_selected_UID")
+
+def get_side(id_or_obj):
+    so = to_object(id_or_obj)
+    if so is not None:
+        return so.side
+    return ""
+
+def random_id(the_set):
+    """ random_object
+
+        get the object from the set provide
+
+        :rtype: Agent
+        """
+    return choice(tuple(the_set))
 
 
 
