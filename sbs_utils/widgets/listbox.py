@@ -41,6 +41,8 @@ class Listbox(Widget):
         self.face = face
         self.ship = ship
         self.image = image
+        self.background = "#bbb3"
+        self.click_color = "black"
         self.icon = icon
         self.select = select
         self.multi= multi
@@ -97,6 +99,7 @@ class Listbox(Widget):
             return
 
         left = self.left
+        bkleft = left
         top = self.top
         
         cur = self.cur
@@ -112,6 +115,8 @@ class Listbox(Widget):
         
         
         while top+5 <= self.bottom:
+            if cur >= len(self.items):
+                break
             item = self.items[cur]
             # track what item is in what slot
             self.slots.append(cur)
@@ -153,21 +158,38 @@ class Listbox(Widget):
             if self.text:
                 text = self.text(item)
                 if "text:" not in text:
-                    text = f"text: {text}"
-            if self.select or self.multi:
-                #print(f"{cur} selected {1 if cur in self.selected else 0}")
-                sbs.send_gui_checkbox(
-                    CID, f"{self.tag_prefix}name:{slot}", f"state: {'on' if cur in self.selected else 'off'}; {text}",
-                        left, top, self.right-1.5, top+self.item_height)
-            else:
-                sbs.send_gui_text(
+                    text = f"text:{text};justify:center;"
+            sbs.send_gui_text(
                     CID, f"{self.tag_prefix}name:{slot}", text,
                         left, top, self.right, top+self.item_height)
+            if self.select or self.multi:
+                #print(f"{cur} selected {1 if cur in self.selected else 0}")
+                # sbs.send_gui_checkbox(
+                #     CID, f"{self.tag_prefix}name:{slot}", f"state: {'on' if cur in self.selected else 'off'}; {text}",
+                #         left, top, self.right-1.5, top+self.item_height)
+                myright = left
+                if cur in self.selected:
+                    myright = self.right
+                props = f"image:smallWhite; color:{self.background};" # sub_rect: 0,0,etc"
+                sbs.send_gui_image(CID, 
+                    f"{self.tag_prefix}bk:{slot}", props,
+                    left, 
+                    top, 
+                    myright,
+                    top+self.item_height)
+                sbs.send_gui_clickregion(CID, 
+                    #text = self.text(item)
+                    f"{self.tag_prefix}click:{slot}", f"font:gui-2;color:blue;{text}",
+                    left, 
+                    top, 
+                    self.right,
+                    top+self.item_height)
+            #else:
+            
             top += self.item_height
             cur += 1
             slot+=1
-            if cur >= len(self.items):
-                break
+            
             left = self.left
         
         self.gui_state = "presenting"
@@ -211,8 +233,8 @@ class Listbox(Widget):
                     self.gui_state = "redraw"
                     self.present(event)
                 return True
-        if message_tag.startswith('name:'):
-            slot = int(message_tag[5:])
+        if message_tag.startswith('click:'):
+            slot = int(message_tag[6:])
             item = int(self.slots[slot])
             # handle multi-select
             if self.multi:

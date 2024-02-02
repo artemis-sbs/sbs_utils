@@ -48,6 +48,10 @@ def get_hull_map(spaceObjectID: int, forceCreate: bool = False) -> sbs.hullmap:
     """gets the hull map object for this space object; setting forceCreate to True will erase and rebuild the grid (and gridObjects) of this spaceobject"""
 def get_screen_size() -> sbs.vec2:
     """returns a VEC2, with the width and height of the display in pixels"""
+def in_standby_list(space_object: sbs.space_object) -> bool:
+    """returns true if the spaceobject is in the standby list."""
+def in_standby_list_id(id: int) -> bool:
+    """returns true if the spaceobject is in the standby list."""
 def particle_at(position: sbs.vec3, descriptorString: str) -> None:
     """emit some particles in space."""
 def particle_emittor_exists(emittorID: int) -> bool:
@@ -60,10 +64,18 @@ def play_audio_file(clientID: int, filename: str, volume: float, pitch: float) -
     """Plays a WAV audio file now, for just the specified client, OR zero for server."""
 def play_music_file(ID: int, filename: str) -> None:
     """Plays a music file now; ID is ship, OR client, OR zero for server."""
+def push_to_standby_list(space_object: sbs.space_object) -> None:
+    """moves the spaceobject from normal space to the standby list."""
+def push_to_standby_list_id(id: int) -> None:
+    """moves the spaceobject from normal space to the standby list."""
 def query_client_tags() -> None:
     """stub; does nothing yet."""
 def resume_sim() -> None:
     """the sim will now run; HandleStartMission() and HandleTickMission() are called."""
+def retrieve_from_standby_list(space_object: sbs.space_object) -> None:
+    """moves the spaceobject from the standby list to normal space."""
+def retrieve_from_standby_list_id(id: int) -> None:
+    """moves the spaceobject from the standby list to normal space."""
 def send_client_widget_list(arg0: int, arg1: str, arg2: str) -> None:
     """sends the gameplay widgets to draw, on the targeted client (0 = server screen)"""
 def send_client_widget_rects(arg0: int, arg1: str, arg2: float, arg3: float, arg4: float, arg5: float, arg6: float, arg7: float, arg8: float, arg9: float) -> None:
@@ -447,8 +459,10 @@ class simulation(object): ### from pybind
         """takes a string name, returns the associated Navpoint object"""
     def get_navpoint_by_reference(self: sbs.simulation, arg0: sbs.navpoint) -> sbs.navpoint:
         """takes a navpoint reference, returns the ref if it's valid"""
+    def get_shield_hit_index(self: sbs.simulation, sourceShip: sbs.space_object, targetShip: sbs.space_object) -> int:
+        """Given a source ship and a target ship, this returns the shield (index) that would be hit by a hypothetical beam. -1 if no shield can currently intercept such a beam."""
     def get_space_object(self: sbs.simulation, arg0: int) -> sbs.space_object:
-        """returns the refence to a spaceobject, by ID"""
+        """returns the reference to a spaceobject, by ID"""
     def make_new_active(self: sbs.simulation, aiTag: str, dataTag: str) -> int:
         """creates a new spaceobject"""
     def make_new_passive(self: sbs.simulation, aiTag: str, dataTag: str) -> int:
@@ -460,7 +474,7 @@ class simulation(object): ### from pybind
     def navpoint_exists_ref(self: sbs.simulation, arg0: sbs.navpoint) -> bool:
         """returns true if the navpoint reference exists"""
     def reposition_space_object(self: sbs.simulation, arg0: sbs.space_object, arg1: float, arg2: float, arg3: float) -> None:
-        """immedaitely changes the position of a spaceobject"""
+        """immediately changes the position of a spaceobject"""
     def space_object_exists(self: sbs.simulation, arg0: int) -> bool:
         """returns true if the spaceobject exists, by ID"""
     @property
