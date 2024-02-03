@@ -235,6 +235,9 @@ class Listbox(Widget):
                 return True
         if message_tag.startswith('click:'):
             slot = int(message_tag[6:])
+            # could be an old message with a different sized list box
+            if slot < 0 or slot >= len(self.slots):
+                return
             item = int(self.slots[slot])
             # handle multi-select
             if self.multi:

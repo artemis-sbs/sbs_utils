@@ -268,6 +268,7 @@ class StoryPage(Page):
         if console is not None:
             console = console.lower()
             set_inventory_value(self.client_id, "__back_tab__", console)
+            set_inventory_value(self.client_id, "CONSOLE_TYPE", console)
             all_console_tabs = all_ship_tabs.get(console, {})
             ship_console_tabs = ship_tabs.get(console, {})
         #
