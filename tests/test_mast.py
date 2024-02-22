@@ -13,6 +13,9 @@ Mast.import_python_module('sbs_utils.procedural.behavior')
 Mast.import_python_module('sbs_utils.procedural.timers')
 Mast.import_python_module('sbs_utils.procedural.gui')
 
+from mock import sbs as sbs
+from sbs_utils.helpers import FrameContext, Context, FakeEvent
+
 def mast_assert(cond):
       assert(cond)
 
@@ -34,6 +37,14 @@ def mast_compile(code=None):
         return (errors, mast)
 
 
+#FrameContext.sim= sbs.simulation()
+class FakeSim:
+    def __init__(self) -> None:
+        self.time_tick_counter = 0
+    def tick(self):
+        self.time_tick_counter +=30
+
+
 def mast_run(code=None, label=None):
     mast = Mast()
     clear_shared()
@@ -45,9 +56,10 @@ def mast_run(code=None, label=None):
     
     if label is None:
         label = "main"
-
+    FrameContext.context  = Context(FakeSim(), sbs, FakeEvent())
     runner = TMastScheduler(mast)
-    runner.start_task(label)
+    if len(errors)==0:
+        runner.start_task(label)
     return (errors,runner, mast)
 
 
@@ -256,10 +268,10 @@ task_all(fred, barney)
     def _test_btree_compile_err(self):
         (errors, mast) =mast_compile( code = """
 
-yield bt sel a|b
-await bt until fail seq a&b
-await bt until success seq a&b
-await bt invert seq a&b
+yield bt_sel(a,b)
+await bt_until_fail(bt_seq(a,b))
+await bt_until_success(bt_seq(a,b))
+await bt_invert(bt_seq(a,b))
 
 yield bt sel a|b {"self": player1, "HP": 30}
 await bt until fail seq a&b {"self": player1, "HP": 30}
@@ -902,40 +914,46 @@ if x < 10:
 
 
 
-    def _test_py_exp_run_no_err(self):
+    def test_py_exp_run_no_err(self):
         (errors, runner, _) = mast_run( code = """
+logger(var="output")
+shared var2 = 100
+
+==== loop ====
 data = MastDataObject({"var1": 100})
 other = MastDataObject({"var1": 900000})
-shared var2 = 100
-->> Push  # var1 is 200 # var2 200
-->> Push  # var1 is 300 # var2 300
+->> PushTest  # var1 is 200 # var2 200
+log("v2 200?={var2}")
+->> PushTest  # var1 is 300 # var2 300
+log("v2 300?={var2}")
 
-await task_schedule(Spawn, data: {"data": data})  # var1 is 400 var2 is 400
+await task_schedule(Spawn, data={"data": data})  # var1 is 400 var2 is 400
 await task_schedule(Spawn, data={"data": data}) # var1 is 500 var2 is 500
 await task_schedule(Spawn, data={"data": other}) # var1 still 500 on this 
+log("v2 600?={var2}")
 
 if data.var1==500:
-    ->> Push  # var1 is 600
+    ->> PushTest  # var1 is 600
 else:
     data.var1 = 10000000
-end_if
+
 
 if data.var1==300:
     data.var1 = 20000000
 else:
-    ->> Push  # var1 is 700
-end_if
+    ->> PushTest  # var1 is 700
+
 
 if data.var1==500:
     data.var1 = 30000000
 elif data.var1 == 700:
     data.var1 = data.var1 + 100
 else:
-data.var1 = 40000000 + data.var1
-end_if
+    data.var1 = 40000000 + data.var1
+
 ->END
 
-=== Push ===
+=== PushTest ===
 data.var1 = data.var1 + 100
 var2 = var2 + 100
 <<-
@@ -945,7 +963,7 @@ data.var1 = data.var1 + 100
 var2 = var2 + 100
 ->END
 
-    """)
+""")
         assert(len(errors)==0)
         data, scope = runner.tasks[0].get_value("data", None)
         var1 = data.var1
@@ -954,11 +972,18 @@ var2 = var2 + 100
         assert(var2 == (800,Scope.SHARED))
         
         # run again, shared data should NOT reset
-        task = runner.start_task()
+        task = runner.start_task("loop")
         data, scope = runner.tasks[0].get_value("data", None)
         var1 = data.var1
         var2 = task.get_value("var2", None)
         assert(var1 == 800)
+
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        #st.seek(0)
+        value = st.getvalue()
+
         assert(var2 == (1500,Scope.SHARED))
 
     def test_task_pass_data_run_no_err(self):
@@ -1346,7 +1371,7 @@ S2
 
 
 
-    def _test_fallback_no_err(self):
+    def test_fallback_no_err(self):
         (errors, runner, _) = mast_run( code = """
 logger(var="output")
 
@@ -1384,30 +1409,31 @@ S2 Again
 """)
 
 
-    def _test_fallback_loop_no_err(self):
+    def test_fallback_loop_no_err(self):
         (errors, runner, _) = mast_run( code = """
-        logger(var="output")            
-        shared x = 0
-        === run ===
-        await bt_sel(Seq1, Seq2,  Seq3):
-        =fail:
-            log("Fail")
-            ->run
-        end_await
-        ->END
-        ======== Seq1 =====
-        log("S1")
-        yield fail
-        
+logger(var="output")            
+shared x = 0
+=== run ===
+await bt_sel(Seq1, Seq2,  Seq3):
+    =fail:
+        log("Fail")
+        ->run
+log("got-dedent")
+->END
 
-        ======== Seq2 =====
-        log("S2")
-        x = x +1
-        yield fail if x<3
-        -> END
-        ===== Seq3 ====
-        log("S3")
-        yield fail
+======== Seq1 =====
+log("S1")
+yield fail
+
+
+======== Seq2 =====
+log("S2")
+x = x +1
+yield fail if x<3
+-> END
+===== Seq3 ====
+log("S3")
+yield fail
     """)
         assert(len(errors)==0)
         #for _ in range(50):
@@ -1418,35 +1444,34 @@ S2 Again
         st = output[0]
         #st.seek(0)
         value = st.getvalue()
+        assert(value =="""S1\nS2\nS3\nFail\nS1\nS2\nS3\nFail\nS1\nS2\ngot-dedent\n""")
 
-        assert(value =="""S1\nS2\nS3\nFail\nS1\nS2\nS3\nFail\nS1\nS2\n""")
-
-    def _test_fallback_until_success_no_err(self):
+    def test_fallback_until_success_no_err(self):
         (errors, runner, _) = mast_run( code = """
-        logger(var="output")            
-        shared x = 0
-        === run ===
-        await bt until success sel Seq1 | Seq2 | Seq3
-        
-        ->END
-        ======== Seq1 =====
-        log("S1")
-        yield fail
-        
+logger(var="output")            
+shared x = 0
+=== run ===
+await bt_until_success(bt_sel(Seq1, Seq2, Seq3))
 
-        ======== Seq2 =====
-        log("S2")
-        x = x +1
-        yield fail if x<3
-        -> END
-        ===== Seq3 ====
-        log("S3")
-        yield fail
-    """)
+->END
+======== Seq1 =====
+log("S1")
+yield fail
+
+
+======== Seq2 =====
+log("S2")
+x = x +1
+yield fail if x<3
+-> END
+===== Seq3 ====
+log("S3")
+yield fail
+""")
         assert(len(errors)==0)
-        #for _ in range(50):
-        while runner.tick():
-            pass
+        for _ in range(50):
+            runner.tick()
+            #pass
         output = runner.get_value("output", None)
         assert(output is not None)
         st = output[0]
@@ -1455,38 +1480,41 @@ S2 Again
 
         assert(value =="""S1\nS2\nS3\nS1\nS2\nS3\nS1\nS2\n""")
 
-    def _test_fallback_no_cond_no_err(self):
+    def test_fallback_no_cond_no_err(self):
         (errors, runner, _) = mast_run( code = """
-        logger(var="output")            
-        shared has_apple = False
-        shared has_banana = False
-        # Start something that will eventually find an apple
-        => external
-        # Start hungry until you eat something
-        # await => eat_apple | eat_banana        
-        # yield AWAIT(UNTIL(PollResults.BT_SUCCESS, bt_sel, (eat_apple, eat_banana, data=None))
-        await until success bt_sel(eat_apple, eat_banana)
-        #await a
-        
-        log("not hungry")
-        ->END
-        ??????? eat_apple ??????
-        ->FAIL if not has_apple
-        log("Ate Apple")
-        -> END
-        ??????? eat_banana ?????
-        -> FAIL if not has_banana
-        -> END
+logger(var="output")            
+shared has_apple = False
+shared has_banana = False
+# Start something that will eventually find an apple
+task_schedule(external)
 
-        ===== external ====
-        delay test 10s
-        has_apple = True
+# Start hungry until you eat something
+# await bt_sel(eat_apple | eat_banana        
+# yield AWAIT(UNTIL(PollResults.BT_SUCCESS, bt_sel, (eat_apple, eat_banana, data=None))
+await bt_until_success(bt_sel(eat_apple, eat_banana))
+#await a
+
+log("not hungry")
+->END
+??????? eat_apple ??????
+->FAIL if not has_apple
+log("Ate Apple")
+-> END
+??????? eat_banana ?????
+-> FAIL if not has_banana
+-> END
+
+===== external ====
+await delay_sim(seconds=10)
+has_apple = True
     """)
         assert(len(errors)==0)
+        
         #for _ in range(50):
         #    runner.tick()
         while runner.tick():
-            pass
+            FrameContext.sim.tick()
+
         output = runner.get_value("output", None)
         assert(output is not None)
         st = output[0]

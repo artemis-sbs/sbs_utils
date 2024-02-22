@@ -1,4 +1,4 @@
-from ..gui import Widget
+from ..gui import Widget, get_client_aspect_ratio
 from ..pages import layout as layout
 import sbs
 import struct # for images sizes
@@ -18,7 +18,7 @@ class Listbox(Widget):
     """
 
     def __init__(self, left, top, tag_prefix, items, 
-                 text=None, face=None, ship=None, icon=None, image=None,
+                 text=None, face=None, ship=None, icon=None, image=None, title=None,
                  select=False, multi=False, item_height=5) -> None:
         """ Listbox
 
@@ -33,6 +33,7 @@ class Listbox(Widget):
         """
         super().__init__(left,top,tag_prefix)
         self.gui_state = "blank"
+        self.title = title
         self.cur = 0
         self.bottom = top+40
         self.right = left+33
@@ -65,7 +66,8 @@ class Listbox(Widget):
         """
         CID = event.client_id
         
-        aspect_ratio = FrameContext.aspect_ratio 
+        aspect_ratio = get_client_aspect_ratio(CID) 
+        #print(f"list box {aspect_ratio.x} {aspect_ratio.y} ")
         if aspect_ratio.x == 0 or aspect_ratio.y == 1:
             square_ratio = 1.0
         elif aspect_ratio.x > aspect_ratio.y:
@@ -79,7 +81,7 @@ class Listbox(Widget):
         # force redraw of on size change
         if square_width_percent != self.square_width_percent:
             self.gui_state = "redraw"
-            print("Changed listbox ratio")
+            #print("Changed listbox ratio")
             self.square_width_percent = square_width_percent
 
         # Not sure this is needed, 
@@ -90,25 +92,34 @@ class Listbox(Widget):
         # if self.gui_state == "presenting":
         #    return
            
-        if len(self.items)==0:
-            return
         
         if self.items is None:
             sbs.send_gui_text(
-                    CID, f"Error {self.test}", f"{self.tag_prefix}error", self.left, self.top, self.right, self.top+5)
+                    CID, f"{self.tag_prefix}error", f"text:Error no items;", self.left, self.top, self.right, self.top+5)
             return
+        
+            
+
 
         left = self.left
         bkleft = left
         top = self.top
+        if self.title is not None:
+            title = self.title()
+            sbs.send_gui_text(
+                    CID, f"{self.tag_prefix}title", f"{title}",self.left, self.top, self.right, self.top+self.item_height)
+            top += self.item_height
+        
+        if len(self.items)==0:
+            return
         
         cur = self.cur
-        max_slot = (self.bottom-self.top)/self.item_height
+        max_slot = (self.bottom-top)/self.item_height
         slot_count = len(self.items)-max_slot
         if slot_count > 0:
             self.slot_count = slot_count
             sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", int(slot_count-self.cur +0.5), f"low:0.0; high: {(slot_count+0.5)}; show_number:no",
-                        (self.right-1), self.top,
+                        (self.right-1), top,
                         self.right, self.bottom)
         slot= 0
         self.slots =[]
@@ -261,13 +272,16 @@ class Listbox(Widget):
     
     def get_value(self):
         return self.get_selected()
+    
+    def update(self, props):
+        pass
 
 
 #list_box_control(ships, text=lambda ship: ship.comms_id, ship=lambda ship: ship.art_id)
 
 
 
-def list_box_control(items, text=None, face=None, ship=None, icon=None, image=None, select=False, multi=False, item_height=5):
+def list_box_control(items, text=None, face=None, ship=None, icon=None, image=None, title=None, select=False, multi=False, item_height=5):
     return Listbox(0, 0, "mast", items, text=text, face=face, ship=ship, 
-                   icon = icon, image = image,
+                   icon = icon, image = image, title=title,
                    select=select, multi=multi, item_height=item_height)

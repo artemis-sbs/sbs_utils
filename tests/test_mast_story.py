@@ -126,6 +126,7 @@ console("console_name")
         if len(errors)>0:
             for err in errors:
                 print(err)
+        # NOTE: Currently fails because of colon in string
         assert(len(errors) == 0)
 
     def test_compile_no_err_22(self):

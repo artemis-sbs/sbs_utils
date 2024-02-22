@@ -5,6 +5,7 @@ from enum import IntEnum
 from .agent import Agent, SpawnData
 from .helpers import FrameContext
 from .procedural import ship_data as SHIP_DATA
+from .vec import Vec3
 
 
 class TickType(IntEnum):
@@ -29,7 +30,7 @@ class SpaceObject(Agent):
         self._name = ""
         self._side = ""
         self._art_id = ""
-        self.spawn_pos = sbs.vec3(0,0,0)
+        self.spawn_pos = Vec3(0,0,0)
         self.tick_type = TickType.UNKNOWN
         self._data_set = None
         self._engine_object = None
@@ -181,6 +182,16 @@ class SpaceObject(Agent):
     def art_id(self: SpaceObject, value: str):
         self._art_id = value
         self.space_object().art_id = value
+
+    @property
+    def pos(self: SpaceObject) -> Vec3:
+        """str, cached version of art_id"""
+        return Vec3(self._engine_object.pos)
+
+    @pos.setter
+    def pos(self: SpaceObject, *args):
+        v = Vec3(args)
+        FrameContext.context.sim.reposition_space_object(self._engine_object, v.x, v.y, v.z)
 
 
 

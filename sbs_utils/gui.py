@@ -1,6 +1,7 @@
 import sbs
 from .agent import Agent
 from .helpers import FakeEvent, FrameContext
+from .vec import Vec3
 
         
 
@@ -30,6 +31,14 @@ class Widget:
         Called to have the page create and update the gui content it is presenting
         """
         pass
+
+    def calc_pixels_y(self, pixels):
+        """ present
+        Called to have the page create and update the gui content it is presenting
+        """
+        aspect_ratio = FrameContext.aspect_ratio 
+
+        
 
     def on_message(self, event):
         """ on_message
@@ -100,7 +109,8 @@ class GuiClient(Agent):
         self.client_id = client_id
         self.id = client_id
         self.add()
-        self.aspect_ratio = sbs.vec3(1024,768,1)
+        self.add_role("__gui__")
+        self.aspect_ratio = Vec3(1024,768,1)
 
     def push(self, page):
         """ push
@@ -191,13 +201,17 @@ class GuiClient(Agent):
                 if (self.aspect_ratio.x != aspect_ratio.x or 
                     self.aspect_ratio.y != aspect_ratio.y):
                     # Aspect change
-                    self.aspect_ratio.x = sz.x
-                    self.aspect_ratio.y = sz.y
+                    #print(f"page told {aspect_ratio.x} {aspect_ratio.y} ")
+                    for page in self.page_stack:
+                        page.aspect_ratio.x = sz.x
+                        page.aspect_ratio.y = sz.y
+
+                self.aspect_ratio.x = sz.x
+                self.aspect_ratio.y = sz.y
+                #print(f"client told {aspect_ratio.x} {aspect_ratio.y} ")
         
 
         if len(self.page_stack) > 0:
-            FrameContext.aspect_ratio.x = self.aspect_ratio.x
-            FrameContext.aspect_ratio.y = self.aspect_ratio.y
             self.page_stack[-1].on_event(event)
 
 
@@ -403,3 +417,9 @@ class Gui:
             gui.on_event(event)
 
             
+def get_client_aspect_ratio(cid):
+    gui_client = Agent.get(cid)
+    if gui_client is not None:
+        # print("Found client gui")
+        return gui_client.aspect_ratio
+    return Vec3(1024,768,99) # 99 Means the client hasn't set the aspect ratio

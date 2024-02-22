@@ -3,11 +3,26 @@ import math
 from random import uniform
 
 
-@dataclass
+#@dataclass
 class Vec3:
-    x: float = 0
-    y: float = 0
-    z: float = 0
+    def __init__(self, *args):
+        count = len(args)
+        if count == 0:
+            self. x = 0
+            self. y = 0
+            self. z = 0
+        elif count==1:
+            self. x = args[0].x
+            self. y = args[0].y
+            self. z = args[0].z
+        elif count==2:
+            self. x = args[0].x
+            self. y = 0
+            self. z = args[1].z
+        elif count==3:
+            self. x = args[0]
+            self. y = args[1]
+            self. z = args[2]
 
     @property
     def xyz(self):

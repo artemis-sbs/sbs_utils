@@ -13,6 +13,24 @@ def has_inventory(key: str):
         :rtype: set of ids
         """
     return Agent.has_inventory_set(key)
+
+def has_inventory_value(key: str, value):
+    """ has_inventory
+
+        get the object that have a inventory item with the given key
+
+        :param key: The key/name of the inventory item
+        :type key: str
+        :rtype: set of ids
+        """
+    holders = Agent.has_inventory_set(key)
+    ret = set()
+    for holder in to_object_list(holders):
+        v = holder.get_inventory_value(key)
+        if v == value:
+            ret.add(holder.get_id())
+    return ret
+
 def inventory_set(link_source, link_name: str):
     """ inventory_set
 

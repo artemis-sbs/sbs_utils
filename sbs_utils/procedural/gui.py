@@ -340,6 +340,8 @@ def gui_radio(msg, style=None, var=None, data=None, vertical=False):
 
     
     apply_control_styles(".radio", style, layout_item.group_layout, task)
+    apply_control_styles(".radio", style, layout_item, task)
+    layout_item.group_layout.tag = layout_item.tag+":group"
     # Last in case tag changed in style
     page.add_content(layout_item, None)
 
@@ -529,19 +531,19 @@ def gui_text(props, style=None):
         page.add_content(layout_item, None)
         return layout_item
 
-def gui_update(tag, props, shared=False):
+def gui_update(tag, props, shared=False, test=None):
     page = FrameContext.page
     task = FrameContext.task
 
     tag = task.compile_and_format_string(tag)
     props = task.compile_and_format_string(props)
     if shared:
-        task.main.mast.update_shared_props_by_tag(tag, props)
+        task.main.mast.update_shared_props_by_tag(tag, props, test)
     else:
-        page.update_props_by_tag(tag, props)
+        page.update_props_by_tag(tag, props, test)
 
-def gui_update_shared(tag, props):
-    gui_update(tag, props, True)
+def gui_update_shared(tag, props, test=None):
+    gui_update(tag, props, True, test)
 
 
 def gui_refresh(label):

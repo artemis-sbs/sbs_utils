@@ -276,6 +276,8 @@ class Slider(Column):
 
     def _present(self, event):
         if self.is_int:
+            if self._value is None:
+                self._value = 0
             self._value = int(self._value)
         ctx = FrameContext.context
         ctx.sbs.send_gui_slider(event.client_id, 
@@ -662,6 +664,9 @@ class GuiControl(Column):
         self._value= v
         self.update_variable()
 
+    def update(self, props):
+        self.content.update(props)
+
 
 
 class Layout:
@@ -892,7 +897,6 @@ class RadioButton(Column):
     @property
     def value(self):
          return self._value
-    
        
     @value.setter
     def value(self, v):
@@ -948,6 +952,20 @@ class RadioButtonGroup(Column):
         #
         #
         self.group.update_variable()
+
+    def update(self, props):
+        #print(f"update {props}")
+        if props is None:
+            return
+        buts = props.split(",")
+        i  = 0
+        for but in buts:
+            if i >= len(self.group):
+                break
+            self.group[i].message = but
+            i+=1
+            
+        
         
 
 

@@ -314,12 +314,26 @@ class StoryPage(Page):
         self.pending_layouts.append(_layout)
 
 
-    def update_props_by_tag(self, tag, props):
+    def update_props_by_tag(self, tag, props, test):
         # get item by tag
         item = self.tag_map.get(tag)
         # call update
         if item is None:
             return
+        #
+        # Test allows one to pass values they need to be 
+        # equal to 
+        # Added for example to make sure the ship picker
+        # only updates if the ship is the same
+        #
+        if test is not None:
+            for k in test:
+                expected = test.get(k)
+
+                this = self.gui_task.get_variable(k)
+                if this != expected:
+                    return
+
         item = item[0]
         item.update(props)
         # present it
@@ -389,18 +403,18 @@ class StoryPage(Page):
             my_sbs.send_gui_complete(event.client_id)
             return
         
-        sz = FrameContext.aspect_ratio
-        if sz is not None and sz.y != 0:
-            aspect_ratio = sz
-            if (self.aspect_ratio.x != aspect_ratio.x or 
-                self.aspect_ratio.y != aspect_ratio.y):
-                self.aspect_ratio.x = sz.x
-                self.aspect_ratio.y = sz.y
-                #print(f"Aspect Change {self.aspect_ratio.x} {self.aspect_ratio .y}")
-                for layout in self.layouts:
-                    # layout.aspect_ratio.x = aspect_ratio.x
-                    layout.calc()
-                self.gui_state = 'repaint'
+        # sz = FrameContext.aspect_ratio
+        # if sz is not None and sz.y != 0:
+        #     aspect_ratio = sz
+        #     if (self.aspect_ratio.x != aspect_ratio.x or 
+        #         self.aspect_ratio.y != aspect_ratio.y):
+        #         self.aspect_ratio.x = sz.x
+        #         self.aspect_ratio.y = sz.y
+        #         print(f"Aspect Change {self.aspect_ratio.x} {self.aspect_ratio .y}")
+        #         for layout in self.layouts:
+        #             # layout.aspect_ratio.x = aspect_ratio.x
+        #             layout.calc()
+        #         self.gui_state = 'repaint'
 
         
         match self.gui_state:
@@ -494,3 +508,10 @@ class StoryPage(Page):
                     if self.change_console_label:
                         self.gui_task.jump(self.change_console_label)
                         self.present(event)
+        elif event.tag == "screen_size":
+            save = FrameContext.page
+            FrameContext.page = self
+            self.gui_state = "refresh"
+            self.present(event)
+            FrameContext.page = save
+            # print(f"Aspect Event {self.aspect_ratio.x} {self.aspect_ratio .y}")

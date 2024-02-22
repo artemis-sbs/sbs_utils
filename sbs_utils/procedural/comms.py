@@ -4,6 +4,7 @@ from .roles import has_role
 from .. import faces
 from ..agent import Agent
 from ..helpers import FrameContext
+from ..mast.mastscheduler import ChangeRuntimeNode
 import sbs
 
 def comms_broadcast(ids_or_obj, msg, color="#fff"):
@@ -245,7 +246,7 @@ class CommsPromise(ButtonPromise):
             # create proxies of the runtime node to test
             for change in self.on_change:
                 rt = ChangeRuntimeNode()
-                rt.enter(mast, task, change)
+                rt.enter(self.task.main.mast, self.task, change)
                 self.on_change.append(rt)
     
     #
@@ -268,6 +269,9 @@ class CommsPromise(ButtonPromise):
 
         self.is_grid_comms = query.is_grid_object_id(self.selected_id)
         selected_so = query.to_object(self.selected_id)
+        if selected_so is None:
+            return
+        
         self.comms_id = selected_so.comms_id
         self.face = faces.get_face(self.selected_id)
         

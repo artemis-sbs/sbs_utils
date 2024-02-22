@@ -5,6 +5,7 @@ import unittest
 from sbs_utils.spaceobject import SpaceObject, TickType
 from sbs_utils.procedural.query import to_py_object_list
 from sbs_utils.procedural.links import linked_to
+from sbs_utils.procedural.inventory import has_inventory_value
 from sbs_utils.procedural.space_objects import closest_list, closest, broad_test
 from sbs_utils.procedural.roles import role
 from sbs_utils.objects import Npc, Terrain, PlayerShip
@@ -418,23 +419,21 @@ class TestSpaceObject(unittest.TestCase):
         assert("Kirk" in names)
         assert("Spock" in names)
 
+    def test_inventory_find_inventory(self):
 
-
-
-
-
-
-
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent()) 
 
         
+        for x in range(10):
+            artemis = PlayerShip().spawn(0,0,0, "Artemis", "tsn", "Battle Cruiser").py_object
+            if (x % 2)==1:
+                artemis.set_inventory_value("Gold", 5)
+            else:
+                artemis.set_inventory_value("Gold", 12)
 
-        
+        the_set = has_inventory_value("Gold", 5)
+        assert(len(the_set)==5)
+        the_set = has_inventory_value("Gold", 12)
+        assert(len(the_set)==5)
 
-
-        
-
-
-
-
-
-        

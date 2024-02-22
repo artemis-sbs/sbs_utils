@@ -8,7 +8,7 @@ from ..procedural import ship_data
 class ShipPicker(Widget):
     """ A widget to select a ship"""
 
-    def __init__(self, left, top, tag_prefix, title_prefix="Ship:", cur=None, ship_keys=None, roles=None, sides=None) -> None:
+    def __init__(self, left, top, tag_prefix, title_prefix="Ship:", cur=None, ship_keys=None, roles=None, sides=None, show_desc=True) -> None:
         """ Ship Picker widget
 
         A widget the combines a title, ship viewer, next and previous buttons for selecting ships
@@ -25,7 +25,7 @@ class ShipPicker(Widget):
         self.title_prefix = title_prefix
         self.cur = 0
         self.test = fs.get_artemis_data_dir()
-        self.bottom = top+40
+        self.bottom = top+50
         self.right = left+33
         
         data = ship_data.get_ship_data()
@@ -39,6 +39,7 @@ class ShipPicker(Widget):
             sides=set(sides.split(","))
         
         self.ships = None
+        self.show_desc = show_desc
         if data is None:
             self.ships = None
         else:
@@ -103,17 +104,27 @@ class ShipPicker(Widget):
             return
 
         ship = self.ships[self.cur]
+        top = self.top
 
         sbs.send_gui_text(
-                    CID, f"{self.tag_prefix}title", f"text: {self.title_prefix} {ship['side']} {ship['name']}",  self.left, self.top, self.right, self.top+5)
+                    CID, f"{self.tag_prefix}title", f"text: {self.title_prefix} {ship['side']} {ship['name']}",  self.left, top, self.right, top+5)
+        top += 5
+        if self.show_desc:
+            desc = ship.get('long_desc',None)
+            if desc is not None:
+                sbs.send_gui_text(
+                        CID, f"{self.tag_prefix}desc", f"text: {desc}",  self.left, top, self.right, top+15)
+            # Keep spacing?
+            top += 15
+        
         #l1 = layout.wrap(self.left, self.bottom, , 4,col=2)
         half = (self.right-self.left)/2
         
         sbs.send_gui_button(CID,f"{self.tag_prefix}prev", "text:prev", self.left, self.bottom-5, self.left+half, self.bottom)
         sbs.send_gui_button(CID, f"{self.tag_prefix}next", "text:next", self.right-half, self.bottom-5, self.right, self.bottom)
         sbs.send_gui_3dship(CID,  f"{self.tag_prefix}ship", f"hull_tag:{ship['key']}",
-            self.left+5, self.top+5,
-            self.right-5, self.bottom-5 )
+            self.left, top,
+            self.right, self.bottom-5 )
      
         self.gui_state = "presenting"
 
@@ -184,7 +195,27 @@ class ShipPicker(Widget):
         if "name" in ship:
             return ship["name"]
         return None
+    def set_selected(self, key):
+        """ set selected
 
+        :return: None or string of ship selected
+        :rtype: None or string of ship selected
+        """
+        cur = 0
+        for k in self.ships:
+            ship = self.ships[cur]
+            if "key" in ship and ship["key"] == key:
+                break
+            cur += 1
+        if cur != self.cur:
+            self.gui_state = "redraw"
+        if cur < len(self.ships):
+            self.cur = cur
+        
 
-def ship_picker_control(title_prefix="Ship:", cur=None, ship_keys=None, roles=None, sides=None):
-    return ShipPicker(0, 0, "mast", title_prefix, cur, ship_keys, roles, sides)
+    
+    def update(self, props):
+        self.set_selected(props)
+
+def ship_picker_control(title_prefix="Ship:", cur=None, ship_keys=None, roles=None, sides=None, show_desc=True):
+    return ShipPicker(0, 0, "mast", title_prefix, cur, ship_keys, roles, sides, show_desc)

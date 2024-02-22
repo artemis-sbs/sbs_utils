@@ -427,19 +427,24 @@ class Await(MastNode):
     """
     stack = []
     rule = re.compile(r"""await[ \t]+(until[ \t]+(?P<until>\w+)[ \t]+)?(?P<if_exp>[^:\n\r\f]+)"""+BLOCK_START)
-    def __init__(self, until=None, if_exp=None, loc=None):
+    def __init__(self, until=None, if_exp=None, is_end = None, loc=None):
         super().__init__()
         self.loc = loc
         self.end_await_node = None
-        self.inlines = []
-        self.buttons = []
+        self.inlines = None
+        self.buttons = None
         self.until = until
 
         self.timeout_label = None
         self.on_change = None
         self.fail_label = None
-        
-        Await.stack.append(self)
+        self.is_end = is_end
+        if self.is_end is None:
+            self.inlines = []
+            self.buttons = []
+            Await.stack.append(self)
+        else:
+            Await.stack[-1].end_await_node = self
 
         if if_exp:
             if_exp = if_exp.lstrip()
@@ -454,8 +459,10 @@ class Await(MastNode):
         return True
     
     def create_end_node(self, loc, dedent_obj):
-        """ cascade the dedent up to the start"""
-        self.dedent_loc = loc+1
+        self.dedent_loc = loc
+        end = Await(is_end=True, loc = loc)
+        end.dedent_loc = loc+1
+        return end
 
 MIN_SECONDS_REGEX = r"""([ \t]*((?P<minutes>\d+))m)?([ \t]*((?P<seconds>\d+)s))?"""
 TIMEOUT_REGEX = r"([ \t]*timeout"+MIN_SECONDS_REGEX + r")?"
@@ -479,6 +486,7 @@ class AwaitInlineLabel(MastNode):
     def create_end_node(self, loc, dedent_obj):
         """ cascade the dedent up to the start"""
         self.dedent_loc = loc+1
+        
 
 
 class OnChange(MastNode):
@@ -918,10 +926,10 @@ class Mast():
                 continue
             scheduler.refresh(label)
 
-    def update_shared_props_by_tag(self, tag, props):
+    def update_shared_props_by_tag(self, tag, props, test):
         for scheduler in self.schedulers:
             if scheduler.page is not None:
-                scheduler.page.update_props_by_tag(tag, props)
+                scheduler.page.update_props_by_tag(tag, props, test)
 
 
     def remove_scheduler(self, scheduler):
@@ -1044,6 +1052,9 @@ class Mast():
             loc = len(self.cmd_stack[-1].cmds)
             end_obj = indent_node.create_end_node(loc, dedent_node)
             if end_obj:
+                end_obj.line_num = indent_node.line_num
+                end_obj.line = indent_node.line
+                end_obj.file_num = file_num
                 self.cmd_stack[-1].add_child(end_obj)
                 
             
@@ -1201,6 +1212,8 @@ class Mast():
                                     self.cmd_stack[-1].add_child(end_obj)
                                     loc+=1
                                     end_obj.file_num = file_num
+                                    end_obj.line_num = line_no
+                                    end_obj.line = obj.line
                                     obj.loc += 1
                                 
                                 (i_loc,_) = indent_stack[-1]

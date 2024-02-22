@@ -2,6 +2,7 @@ from .query import to_blob, to_id, to_object, to_object_list, to_set
 from ..agent import CloseData
 from ..tickdispatcher import TickDispatcher
 from .inventory import get_inventory_value, set_inventory_value
+from ..fs import load_json_data, get_artemis_data_dir_filename, get_mission_dir_filename
 import functools
 import sbs
 
@@ -245,3 +246,14 @@ def grid_detailed_status(id_or_obj, status, color=None):
 def grid_clear_detailed_status(id_or_obj):
     grid_detailed_status(id_or_obj, "")
     
+
+
+_grid_data = None 
+def grid_get_grid_data():
+    global _grid_data
+    if _grid_data is None:
+        _grid_data = load_json_data(get_artemis_data_dir_filename("grid_data.json"))
+        script_grid_data = load_json_data(get_mission_dir_filename("data\\grid_data.json"))
+        if script_grid_data is not None:
+            _grid_data |= script_grid_data
+    return _grid_data

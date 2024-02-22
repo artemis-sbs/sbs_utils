@@ -32,6 +32,10 @@ def get_artemis_data_dir():
     missions = os.path.dirname(mission)
     return os.path.dirname(missions)
 
+def get_artemis_data_dir_filename(filename):
+    return get_artemis_data_dir()+"\\"+filename        
+
+
 def get_artemis_graphics_dir():
     mission = get_script_dir()
     missions = os.path.dirname(mission)

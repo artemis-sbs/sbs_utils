@@ -365,8 +365,10 @@ class MatchStatementsRuntimeNode(MastRuntimeNode):
 
 class AwaitRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Await):
-        value = task.eval_code(node.code)
         self.promise = None
+        if node.is_end:
+            return
+        value = task.eval_code(node.code)
         if isinstance(value, Promise):
             self.promise = value
             self.promise.inlines = node.inlines
@@ -374,34 +376,45 @@ class AwaitRuntimeNode(MastRuntimeNode):
 
         
     def poll(self, mast:Mast, task:MastAsyncTask, node: Await):
+        if node.is_end:
+            task.jump(task.active_label, node.dedent_loc)
+            return PollResults.OK_JUMP
+        
+      
         if self.promise:
             if self.promise.done():
-                #print(f"{task.active_label} {node.end_await_node.loc+1}")
+                print(f"{self.promise.__class__.__name__} {task.active_label} {node.end_await_node.loc+1}")
+                print("Promise Done")
                 task.jump(task.active_label, node.dedent_loc)
                 return PollResults.OK_JUMP
             else:
                 return PollResults.OK_RUN_AGAIN
-
+        
         value = task.eval_code(node.code)
         if value:
+            print("Value related")
             #print(f"value {node.end_await_node.loc+1}")
             task.jump(task.active_label, node.dedent_loc)
+            return PollResults.OK_JUMP
+
+      
 
         return PollResults.OK_RUN_AGAIN
 
     
 
 
-class EndAwaitRuntimeNode(MastRuntimeNode):
-    def poll(self, mast:Mast, task:MastAsyncTask, node: Await):
-        task.pop_label(False)
-        return PollResults.OK_JUMP
+# class EndAwaitRuntimeNode(MastRuntimeNode):
+#     def poll(self, mast:Mast, task:MastAsyncTask, node: Await):
+#         task.pop_label(False)
+#         return PollResults.OK_JUMP
 
 
 class AwaitInlineLabelRuntimeNode(MastRuntimeNode):
     def poll(self, mast:Mast, task:MastAsyncTask, node: AwaitInlineLabel):
         if node.await_node:
-            task.jump(task.active_label,node.await_node.loc)
+            task.jump(task.active_label, node.await_node.end_await_node.dedent_loc)
+            #task.jump(task.active_label,node.await_node.loc)
             return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
@@ -409,7 +422,7 @@ class AwaitInlineLabelRuntimeNode(MastRuntimeNode):
 class ButtonRuntimeNode(MastRuntimeNode):
     def poll(self, mast:Mast, task:MastAsyncTask, node: Button):
         if node.await_node:
-            task.jump(task.active_label,node.await_node.loc)
+            task.jump(task.active_label, node.await_node.end_await_node.dedent_loc)
             return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
@@ -1143,9 +1156,9 @@ class MastAsyncTask(Agent, Promise):
             pass
         
 
-    def start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:
+    def start_task(self, label = "main", inputs=None, task_name=None, defer=False)->MastAsyncTask:
         inputs= self.inventory.collections|inputs if inputs else self.inventory.collections
-        return self.main.start_task(label, inputs, task_name)
+        return self.main.start_task(label, inputs, task_name, defer)
     
     def tick(self):
         restore = FrameContext.task
@@ -1224,7 +1237,7 @@ class MastScheduler(Agent):
         "Button": ButtonRuntimeNode,
             "OnChange": OnChangeRuntimeNode,
             "Change": ChangeRuntimeNode,
-        "EndAwait": EndAwaitRuntimeNode,
+        #"EndAwait": EndAwaitRuntimeNode,
     }
 
     def __init__(self, mast: Mast, overrides=None):
@@ -1269,13 +1282,14 @@ class MastScheduler(Agent):
         return t
 
 
-    def start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:
+    def start_task(self, label = "main", inputs=None, task_name=None, defer=False)->MastAsyncTask:
         t = self._start_task(label, inputs, task_name)
         if task_name is not None:
             t.set_value(task_name, t, Scope.NORMAL)
         t.jump(label)
         self.tasks.append(t)
-        self.on_start_task(t)
+        if not defer:
+            self.on_start_task(t)
         return t
 
     def on_start_task(self, t):
