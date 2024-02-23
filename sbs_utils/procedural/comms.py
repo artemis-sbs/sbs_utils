@@ -5,6 +5,7 @@ from .. import faces
 from ..agent import Agent
 from ..helpers import FrameContext
 from ..mast.mastscheduler import ChangeRuntimeNode
+from ..mast.pollresults import PollResults
 import sbs
 
 def comms_broadcast(ids_or_obj, msg, color="#fff"):
@@ -361,7 +362,7 @@ class CommsPromise(ButtonPromise):
             # Should the END?
             if oo is None or so is None:
                 self.set_result(True)
-                return
+                return PollResults.OK_ADVANCE_TRUE
             
             scan_name = oo.side+"scan"
             initial_scan = so.data_set.get(scan_name,0)
@@ -373,7 +374,7 @@ class CommsPromise(ButtonPromise):
                 player_current_select = oo.data_set.get( "comms_target_UID",0)
                 if player_current_select == self.selected_id:
                     self.set_buttons(self.origin_id, self.selected_id)
-                return
+                return PollResults.OK_JUMP
 
 
 

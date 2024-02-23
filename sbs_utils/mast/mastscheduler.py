@@ -143,11 +143,6 @@ class PyCodeRuntimeNode(MastRuntimeNode):
             else:
                 # task.main.vars[name] = value
                 task.main.set_inventory_value(name, value, None)
-                
-
-
-
-
         task.exec_code(node.code,{"export": export, "export_var": export_var}, None )
         return PollResults.OK_ADVANCE_TRUE
 
@@ -164,6 +159,10 @@ class FuncCommandRuntimeNode(MastRuntimeNode):
             return PollResults.OK_ADVANCE_TRUE
     
         if self.promise:
+            res = self.promise.poll()
+            if res == PollResults.OK_JUMP:
+                return PollResults.OK_JUMP
+
             if self.promise.done():
                 return PollResults.OK_ADVANCE_TRUE
             else:
@@ -382,6 +381,10 @@ class AwaitRuntimeNode(MastRuntimeNode):
         
       
         if self.promise:
+            res = self.promise.poll()
+            if res == PollResults.OK_JUMP:
+                return PollResults.OK_JUMP
+            
             if self.promise.done():
                 print(f"{self.promise.__class__.__name__} {task.active_label} {node.end_await_node.loc+1}")
                 print("Promise Done")

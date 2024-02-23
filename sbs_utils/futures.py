@@ -19,7 +19,7 @@ class Promise:
         self._exception = ex
 
     def done(self):
-        self.poll()
+        #self.poll()
         return self._result is not None or self._canceled is not None or self._exception is not None 
     
     def poll(self):

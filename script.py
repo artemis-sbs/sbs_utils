@@ -155,8 +155,9 @@ class TestLayoutPage(LayoutPage):
                 .add(Text("tag_four", text))
                 .add( Face("tag_five", faces.random_terran()))
         )
+        #aspect_ratio = get_client_aspect_ratio(self.client_id)
         
-        self.layout.calc()
+        #self.layout.calc(aspect_ratio)
 
 
 

@@ -16,7 +16,6 @@ def show_warning(t):
 _TPS = 30.0
 class FrameContextMeta(type):
     context = None
-    aspect_ratio = Vec3(1024,768,0)
     _page = None
     _task = None
     shared_id = -1

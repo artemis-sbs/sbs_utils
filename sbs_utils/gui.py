@@ -122,7 +122,7 @@ class GuiClient(Agent):
         """
         event = FakeEvent(self.client_id, "gui_push")
         #print(f"Pushing {self.client_id}")
-        page.aspect_ratio = sbs.vec3(self.aspect_ratio.x,self.aspect_ratio.y,self.aspect_ratio.z)
+        # page.aspect_ratio = sbs.vec3(self.aspect_ratio.x,self.aspect_ratio.y,self.aspect_ratio.z)
         self.page_stack.append(page)
         self.present(event)
         #print(f"After Pushing {self.client_id} {page.task.done()}")
@@ -157,8 +157,6 @@ class GuiClient(Agent):
         """
         if len(self.page_stack) > 0:
             page = self.page_stack[-1]
-            FrameContext.aspect_ratio.x = self.aspect_ratio.x
-            FrameContext.aspect_ratio.y = self.aspect_ratio.y
             page.present(event)
 
     def tick_gui_task(self):
@@ -202,12 +200,12 @@ class GuiClient(Agent):
                     self.aspect_ratio.y != aspect_ratio.y):
                     # Aspect change
                     #print(f"page told {aspect_ratio.x} {aspect_ratio.y} ")
-                    for page in self.page_stack:
-                        page.aspect_ratio.x = sz.x
-                        page.aspect_ratio.y = sz.y
+                    # for page in self.page_stack:
+                    #     page.aspect_ratio.x = sz.x
+                    #     page.aspect_ratio.y = sz.y
 
-                self.aspect_ratio.x = sz.x
-                self.aspect_ratio.y = sz.y
+                    self.aspect_ratio.x = sz.x
+                    self.aspect_ratio.y = sz.y
                 #print(f"client told {aspect_ratio.x} {aspect_ratio.y} ")
         
 

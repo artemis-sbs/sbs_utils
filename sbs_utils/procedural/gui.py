@@ -5,6 +5,8 @@ from ..helpers import FrameContext
 from ..pages import layout
 from ..mast.parsers import LayoutAreaParser, StyleDefinition
 from ..futures import Trigger, AwaitBlockPromise
+from ..gui import get_client_aspect_ratio
+from ..mast.pollresults import PollResults
 import re
 import sbs
 
@@ -53,7 +55,8 @@ def apply_style_name(style_name, layout_item, task):
 def apply_style_def(style_def, layout_item, task):
     if style_def is None:
         return
-    aspect_ratio = task.main.page.aspect_ratio
+    aspect_ratio = get_client_aspect_ratio(task.main.page.client_id)
+    # aspect_ratio = task.main.page.aspect_ratio
     if aspect_ratio.x == 0:
         aspect_ratio.x = 1
     if aspect_ratio.y == 0:
@@ -84,7 +87,7 @@ def apply_style_def(style_def, layout_item, task):
         layout_item.set_col_width(width)        
     padding = style_def.get("padding")
     if padding is not None:
-        aspect_ratio = task.main.page.aspect_ratio
+        #aspect_ratio = task.main.page.aspect_ratio
         i = 1
         values=[]
         for ast in padding:
@@ -771,27 +774,6 @@ class ButtonPromise(AwaitBlockPromise):
             if self.task is None:
                 self.task = FrameContext.task
 
-        if self.disconnect_label is not None:
-            page = task.main.page
-            if page is not None and page.disconnected:
-                # Await use a jump back to the await, so jump here is OK
-                task.jump(task.active_label,self.disconnect_label.loc+1)
-                #return PollResults.OK_JUMP
-                self.set_result(True)
-
-        if self.on_change:
-            for change in self.on_change:
-                if change.test():
-                    # Await use a jump back to the await, so jump here is OK
-                    self.task.jump(change.label,change.node.loc+1)
-                    return # let it run
-                    
-        if self.focus_label and self.run_focus:
-            self.run_focus = False
-            # Await use a jump back to the await, so jump here is OK
-            self.task.jump(self.task.active_label,self.focus_label.loc+1)
-            return # let it cook
-
         if self.button is not None:
             if self.var:
                 task.set_value_keep_scope(self.var, self.button.index)
@@ -811,7 +793,31 @@ class ButtonPromise(AwaitBlockPromise):
             self.running_button = self.button
             self.button = None
             task.push_inline_block(task.active_label,button.loc+1)
-           
+            return PollResults.OK_JUMP
+
+        if self.disconnect_label is not None:
+            page = task.main.page
+            if page is not None and page.disconnected:
+                # Await use a jump back to the await, so jump here is OK
+                task.jump(task.active_label,self.disconnect_label.loc+1)
+                #return PollResults.OK_JUMP
+                self.set_result(True)
+                return PollResults.OK_JUMP
+
+        if self.on_change:
+            for change in self.on_change:
+                if change.test():
+                    # Await use a jump back to the await, so jump here is OK
+                    self.task.jump(change.label,change.node.loc+1)
+                    return PollResults.OK_JUMP
+                    
+        if self.focus_label and self.run_focus:
+            self.run_focus = False
+            # Await use a jump back to the await, so jump here is OK
+            self.task.jump(self.task.active_label,self.focus_label.loc+1)
+            return PollResults.OK_JUMP
+
+        return PollResults.OK_RUN_AGAIN
 
     def press_button(self, button):
         self.button = button
@@ -900,8 +906,9 @@ class GuiPromise(ButtonPromise):
             if self.task is None:
                 self.task = FrameContext.task
         task = self.task
+        aspect_ratio = get_client_aspect_ratio(task.main.page.client_id)
 
-        top = ((task.main.page.aspect_ratio.y - 30)/task.main.page.aspect_ratio.y)*100
+        top = ((aspect_ratio.y - 30)/aspect_ratio.y)*100
         button_layout = layout.Layout(None, None, 0,top,100,100)
         button_layout.tag = task.main.page.get_tag()
 

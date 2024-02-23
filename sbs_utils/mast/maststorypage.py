@@ -1,6 +1,6 @@
 
 import sbs
-from ..gui import Gui, Page
+from ..gui import Gui, Page, get_client_aspect_ratio
 from ..helpers import FakeEvent, FrameContext
 from ..procedural.inventory import get_inventory_value, set_inventory_value
 from ..agent import Agent
@@ -40,7 +40,7 @@ class StoryPage(Page):
         self.pending_row.tag = self.get_tag()
         self.pending_tag_map = {}
         self.tag_map = {}
-        self.aspect_ratio = sbs.vec2(1024,768)
+        #self.aspect_ratio = sbs.vec2(1024,768)
         self.client_id = None
         self.sbs = None
         self.ctx = None
@@ -125,7 +125,8 @@ class StoryPage(Page):
         
         if self.layouts:
             for layout_obj in self.layouts:
-                layout_obj.calc()
+                aspect_ratio = get_client_aspect_ratio(self.client_id)
+                layout_obj.calc(aspect_ratio)
             
             section = layout.Layout(None, None, 0,0, 100, 90)
             section.tag = self.get_tag()
@@ -403,20 +404,6 @@ class StoryPage(Page):
             my_sbs.send_gui_complete(event.client_id)
             return
         
-        # sz = FrameContext.aspect_ratio
-        # if sz is not None and sz.y != 0:
-        #     aspect_ratio = sz
-        #     if (self.aspect_ratio.x != aspect_ratio.x or 
-        #         self.aspect_ratio.y != aspect_ratio.y):
-        #         self.aspect_ratio.x = sz.x
-        #         self.aspect_ratio.y = sz.y
-        #         print(f"Aspect Change {self.aspect_ratio.x} {self.aspect_ratio .y}")
-        #         for layout in self.layouts:
-        #             # layout.aspect_ratio.x = aspect_ratio.x
-        #             layout.calc()
-        #         self.gui_state = 'repaint'
-
-        
         match self.gui_state:
             
             case  "repaint":
@@ -435,6 +422,8 @@ class StoryPage(Page):
                 my_sbs.send_gui_complete(event.client_id)
             case  "refresh":
                 for layout in self.layouts:
+                    aspect_ratio = get_client_aspect_ratio(self.client_id)
+                    layout.calc(aspect_ratio)
                     layout.present(event)
                 if len(self.layouts)==0:
                     self.gui_state = "repaint"
@@ -464,7 +453,7 @@ class StoryPage(Page):
         if runtime_node is not None and runtime_node[1] is not None:
             # tuple layout and runtime node
             runtime_node = runtime_node[1]
-            FrameContext.context.aspect_ratio = self.aspect_ratio
+            # FrameContext.context.aspect_ratio = self.aspect_ratio
             runtime_node.on_message(event)
             # for node in self.tag_map.values():
             #     if node != runtime_node:

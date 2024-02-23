@@ -18,7 +18,8 @@ class Listbox(Widget):
     """
 
     def __init__(self, left, top, tag_prefix, items, 
-                 text=None, face=None, ship=None, icon=None, image=None, title=None,
+                 text=None, face=None, ship=None, icon=None, image=None, 
+                 title=None,  background=None, title_background=None,
                  select=False, multi=False, item_height=5) -> None:
         """ Listbox
 
@@ -42,7 +43,7 @@ class Listbox(Widget):
         self.face = face
         self.ship = ship
         self.image = image
-        self.background = "#bbb3"
+        self.select_color = "#bbb3"
         self.click_color = "black"
         self.icon = icon
         self.select = select
@@ -52,6 +53,8 @@ class Listbox(Widget):
         self.square_width_percent = 0
         self.slots =[]
         self.selected = set()
+        self.background=background
+        self.title_background=title_background
 
 
     def present(self, event):
@@ -97,19 +100,27 @@ class Listbox(Widget):
             sbs.send_gui_text(
                     CID, f"{self.tag_prefix}error", f"text:Error no items;", self.left, self.top, self.right, self.top+5)
             return
-        
-            
-
 
         left = self.left
-        bkleft = left
         top = self.top
         if self.title is not None:
             title = self.title()
+            if self.title_background is not None:
+                props = f"image:smallWhite; color:{self.title_background};" # sub_rect: 0,0,etc"
+                sbs.send_gui_image(CID, 
+                    f"{self.tag_prefix}tbg", props,
+                    self.left, self.top, self.right, top+self.item_height)
             sbs.send_gui_text(
-                    CID, f"{self.tag_prefix}title", f"{title}",self.left, self.top, self.right, self.top+self.item_height)
+                    CID, f"{self.tag_prefix}title", f"{title}",self.left, top, self.right, top+self.item_height)
             top += self.item_height
-        
+
+        if self.background is not None:
+            props = f"image:smallWhite; color:{self.background};" # sub_rect: 0,0,etc"
+            sbs.send_gui_image(CID, 
+                f"{self.tag_prefix}bg", props,
+                self.left, self.top, self.right, self.bottom)
+
+
         if len(self.items)==0:
             return
         
@@ -123,7 +134,8 @@ class Listbox(Widget):
                         self.right, self.bottom)
         slot= 0
         self.slots =[]
-        
+
+    
         
         while top+5 <= self.bottom:
             if cur >= len(self.items):
@@ -181,7 +193,7 @@ class Listbox(Widget):
                 myright = left
                 if cur in self.selected:
                     myright = self.right
-                props = f"image:smallWhite; color:{self.background};" # sub_rect: 0,0,etc"
+                props = f"image:smallWhite; color:{self.select_color};" # sub_rect: 0,0,etc"
                 sbs.send_gui_image(CID, 
                     f"{self.tag_prefix}bk:{slot}", props,
                     left, 
@@ -281,7 +293,10 @@ class Listbox(Widget):
 
 
 
-def list_box_control(items, text=None, face=None, ship=None, icon=None, image=None, title=None, select=False, multi=False, item_height=5):
+def list_box_control(items, text=None, face=None, ship=None, icon=None, image=None, 
+                     title=None, background=None, title_background=None,
+                     select=False, multi=False, item_height=5):
     return Listbox(0, 0, "mast", items, text=text, face=face, ship=ship, 
-                   icon = icon, image = image, title=title,
+                   icon = icon, image = image, 
+                   title=title, background=background, title_background=title_background,
                    select=select, multi=multi, item_height=item_height)

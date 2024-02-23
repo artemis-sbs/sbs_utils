@@ -1,4 +1,4 @@
-from ..gui import Page
+from ..gui import Page, get_client_aspect_ratio
 from ..agent import Agent
 import sbs
 import struct # for images sizes
@@ -705,10 +705,9 @@ class Layout:
     def add(self, row:Row):
         self.rows.append(row)
 
-    def calc(self):
+    def calc(self, aspect_ratio):
         # remove empty
         #self.rows = [x for x in self.rows if len(x.columns)>0]
-        aspect_ratio = FrameContext.aspect_ratio
         if len(self.rows):
             padding = self.padding if self.padding else Bounds()
             
@@ -927,9 +926,11 @@ class RadioButtonGroup(Column):
         
     def set_bounds(self, bounds) -> None:
         self.group_layout.set_bounds(bounds)
-        self.group_layout.calc()
+        #self.group_layout.calc()
 
     def _present(self, event):
+        aspect_ratio = get_client_aspect_ratio(event.client_id)
+        self.group_layout.calc(aspect_ratio)
         self.group_layout.present(event)
     
     def on_message(self, event):
@@ -979,15 +980,15 @@ class LayoutPage(Page):
 
     def _present(self, event):
         """ Present the gui """
-        ctx = FrameContext.context
+        aspect_ratio = get_client_aspect_ratio(event.client_id)
         sz = ctx.aspect_ratio
         if self.aspect_ratio.x != sz.x or self.aspect_ratio.y != sz.y:
             self.aspect_ratio.x = sz.x
             self.aspect_ratio.y = sz.y
-            self.layout.calc()
+            self.layout.calc(aspect_ratio)
             self.gui_state = 'repaint'
 
-        
+        ctx = FrameContext.context
         match self.gui_state:
             case  "repaint":
                 ctx.sbs.send_gui_clear(event.client_id)
