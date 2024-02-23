@@ -253,7 +253,7 @@ def grid_get_grid_data():
     global _grid_data
     if _grid_data is None:
         _grid_data = load_json_data(get_artemis_data_dir_filename("grid_data.json"))
-        script_grid_data = load_json_data(get_mission_dir_filename("data\\grid_data.json"))
+        script_grid_data = load_json_data(get_mission_dir_filename("extra_grid_data.json"))
         if script_grid_data is not None:
             _grid_data |= script_grid_data
     return _grid_data
