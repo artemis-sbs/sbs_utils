@@ -500,7 +500,10 @@ def gui_content(content, style=None, var=None):
     # gui control ShipPicker(0,0,"mast", "Your Ship")
     layout_item = layout.GuiControl(tag, content)
     if var is not None:
-        task.set_variable(var, layout_item)
+        layout_item.var_name = var
+        layout_item.var_scope_id = task.get_id()
+        v = task.get_variable(var)
+        layout_item.value =v
 
     apply_control_styles(None, style, layout_item, task)
     # Last in case tag changed in style

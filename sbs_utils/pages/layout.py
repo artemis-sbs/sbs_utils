@@ -180,6 +180,7 @@ class Column:
         if self.var_scope_id:
             scope = Agent.get(self.var_scope_id)
             if scope is not None:
+                # print(f"{self.var_name} {self.value}")
                 scope.set_variable(self.var_name, self.value)
 
     def get_variable(self, default):
@@ -644,7 +645,11 @@ class GuiControl(Column):
         self.content.present(event)
     def on_message(self, event):
         self.content.on_message(event)
-        self.value = self.content.get_value()
+        v = self.content.get_value()
+        if v != self._value:
+            self._value = v
+            self.update_variable()
+
         
   
     def set_bounds(self, bounds) -> None:
@@ -661,7 +666,8 @@ class GuiControl(Column):
        
     @value.setter
     def value(self, v):
-        self._value= v
+        self._value = v
+        self.content.set_value(v)
         self.update_variable()
 
     def update(self, props):

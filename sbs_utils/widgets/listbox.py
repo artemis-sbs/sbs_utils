@@ -20,7 +20,7 @@ class Listbox(Widget):
     def __init__(self, left, top, tag_prefix, items, 
                  text=None, face=None, ship=None, icon=None, image=None, 
                  title=None,  background=None, title_background=None,
-                 select=False, multi=False, item_height=5) -> None:
+                 select=False, multi=False, item_height=5, convert_value=None) -> None:
         """ Listbox
 
         A widget Shows a list of things
@@ -55,6 +55,7 @@ class Listbox(Widget):
         self.selected = set()
         self.background=background
         self.title_background=title_background
+        self.convert_value = convert_value
 
 
     def present(self, event):
@@ -283,7 +284,31 @@ class Listbox(Widget):
         return ret
     
     def get_value(self):
-        return self.get_selected()
+        ret = []
+        if self.convert_value:
+            for item in self.selected:
+                ret.append(self.convert_value(self.items[item]))
+        else:
+            ret = self.get_selected()
+
+        if self.multi:
+            return ret
+        elif len(ret):
+            return ret[0]
+        else:
+            return None
+    
+    def set_value(self, value):
+        self.selected = []
+        i = 0
+        for item in self.items:
+            if self.convert_value:
+                v = self.convert_value(item)
+                if v == value:
+                    self.selected.append(i)
+            elif item == value:
+                self.selected.append(i)
+            i+=1
     
     def update(self, props):
         pass
@@ -295,8 +320,10 @@ class Listbox(Widget):
 
 def list_box_control(items, text=None, face=None, ship=None, icon=None, image=None, 
                      title=None, background=None, title_background=None,
-                     select=False, multi=False, item_height=5):
+                     select=False, multi=False, item_height=5,
+                     convert_value=None):
     return Listbox(0, 0, "mast", items, text=text, face=face, ship=ship, 
                    icon = icon, image = image, 
                    title=title, background=background, title_background=title_background,
-                   select=select, multi=multi, item_height=item_height)
+                   select=select, multi=multi, item_height=item_height,
+                   convert_value=convert_value)

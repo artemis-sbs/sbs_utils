@@ -173,6 +173,9 @@ class ShipPicker(Widget):
                 
     def get_value(self):
         return self.get_selected()
+    
+    def set_value(self, value):
+        self.set_selected(value)
 
     def get_selected(self):
         """ get selected
