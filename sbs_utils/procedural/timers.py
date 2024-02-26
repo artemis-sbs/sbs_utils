@@ -72,8 +72,6 @@ class Delay(Promise):
     def __init__(self,  seconds, minutes, sim) -> None:
         super().__init__()
 
-        
-
         self.is_sim = sim
         if self.is_sim:
             self.timeout = FrameContext.sim_seconds + (minutes*60+seconds) 
@@ -85,7 +83,7 @@ class Delay(Promise):
         # Tiny hack to just do the work in done
         #
         if self.is_sim: 
-            if self.timeout < FrameContext.sim_seconds:
+            if self.timeout <= FrameContext.sim_seconds:
                 self.set_result(True)
         else:
             if self.timeout < FrameContext.app_seconds:

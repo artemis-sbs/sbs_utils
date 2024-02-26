@@ -307,3 +307,10 @@ def random_object_list(the_set, count=1):
         """
     rand_id_list = choices(tuple(the_set), count)
     return [Agent.get(x) for x in rand_id_list]
+
+def safe_int(s, defa=0):
+    if s is None:
+        return defa
+    if s.isdigit():
+        return int(s)
+    return defa

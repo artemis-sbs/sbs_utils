@@ -1,5 +1,6 @@
 import random
 
+
 def data_choose_value_from_template(data):
     ret = {}
     for key in data:

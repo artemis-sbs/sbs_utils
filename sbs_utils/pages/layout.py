@@ -384,13 +384,19 @@ def merge_props(d):
     return s  
 
 
+IMAGE_FIT = 0
+IMAGE_ABSOLUTE = 1
+IMAGE_KEEP_ASPECT = 2
+IMAGE_KEEP_ASPECT_CENTER = 3
+
 
 class Image(Column):
     #"image:icon-bad-bang; color:blue; sub_rect: 0,0,etc"
-    def __init__(self, tag, file) -> None:
+    def __init__(self, tag, file, mode=1) -> None:
         super().__init__()
         self.tag = tag
         self.update(file)
+        self.mode = mode
 
     def update(self, file):
         fs.get_artemis_data_dir()
@@ -414,6 +420,41 @@ class Image(Column):
             ctx.sbs.send_gui_text(event.client_id, 
                 self.tag, message,
                 self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+        elif self.mode == IMAGE_ABSOLUTE:
+            ar = get_client_aspect_ratio(event.client_id)
+            x = 100* self.width / ar.x
+            y = 100* self.height / ar.y
+
+            ctx.sbs.send_gui_image(event.client_id, 
+                self.tag, self.props,
+                self.bounds.left, self.bounds.top, 
+                self.bounds.left+x, self.bounds.top+y)
+        elif self.mode >= IMAGE_KEEP_ASPECT:
+            ar = get_client_aspect_ratio(event.client_id)
+            # Get section in pixels
+            space_x = (self.bounds.right-self.bounds.left)/100
+            space_y = (self.bounds.bottom-self.bounds.top)/100
+            pixels_x  = (space_x*ar.x)
+            pixels_y  = (space_y*ar.y)
+
+            r = pixels_x / self.width
+            if r*self.height > pixels_y: 
+                r = pixels_y / self.height 
+
+            x = 100* self.width / ar.x  * r
+            y = 100* self.height / ar.y * r
+            ox=0
+            oy=0
+            if self.mode == IMAGE_KEEP_ASPECT_CENTER:
+                ox = (space_x*100-x)/2
+                oy = (space_y*100 - y)/2
+            
+            
+            
+            ctx.sbs.send_gui_image(event.client_id, 
+                self.tag, self.props,
+                self.bounds.left+ox, self.bounds.top+oy, 
+                self.bounds.left+ox+x, self.bounds.top+oy+y)
         else:
             ctx.sbs.send_gui_image(event.client_id, 
                 self.tag, self.props,

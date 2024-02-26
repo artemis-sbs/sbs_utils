@@ -170,7 +170,19 @@ def gui_icon(props, style=None):
     page.add_content(layout_item, None)
     return layout_item
 
-def gui_image(props, style=None):
+def gui_image_stretch(props, style=None):
+    return gui_image(props, style=style, fit=0)
+
+def gui_image_absolute(props, style=None):
+    return gui_image(props, style=style, fit=1)
+
+def gui_image_keep_aspect_ratio(props, style=None):
+    return gui_image(props, style=style, fit=2)
+
+def gui_image_keep_aspect_ratio_center(props, style=None):
+    return gui_image(props, style=style, fit=3)
+
+def gui_image(props, style=None, fit=0):
     page = FrameContext.page
     task = FrameContext.task
     props = task.compile_and_format_string(props)
@@ -184,7 +196,7 @@ def gui_image(props, style=None):
         props+="color:white;"
     
     tag = page.get_tag()
-    layout_item = layout.Image(tag,props)
+    layout_item = layout.Image(tag,props, fit)
     apply_control_styles(".image", style, layout_item, task)
     # Last in case tag changed in style
     page.add_content(layout_item, None)
@@ -605,16 +617,18 @@ def gui_reroute_server(label):
     gui_reroute_client(0,label)
 
 
-def gui_reroute_clients(label):
+def gui_reroute_clients(label, exclude=None):
     #
     # RerouteGui in main defers to the end of main
     #
     if _gui_reroute_main(label, False):
         return
+    if exclude is None:
+        exclude = set()
     #
     """Walk all the clients (not server) and send them to a new flow"""
     for id, client in Gui.clients.items():
-        if id != 0 and client is not None:
+        if id != 0 and client is not None and id not in exclude:
             client_page = client.page_stack[-1]
             if client_page is not None and client_page.gui_task:
                 client_page.gui_task.jump(label)

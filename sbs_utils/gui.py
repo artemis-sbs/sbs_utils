@@ -203,8 +203,11 @@ class GuiClient(Agent):
                     # for page in self.page_stack:
                     #     page.aspect_ratio.x = sz.x
                     #     page.aspect_ratio.y = sz.y
+                    crap = 0
+                    if self.client_id ==0:
+                        crap = 300
 
-                    self.aspect_ratio.x = sz.x
+                    self.aspect_ratio.x = sz.x - crap
                     self.aspect_ratio.y = sz.y
                 #print(f"client told {aspect_ratio.x} {aspect_ratio.y} ")
         

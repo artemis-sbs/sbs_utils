@@ -15,6 +15,15 @@ def get_script_dir():
 
     return script_dir.replace("/", "\\")
 
+mission_name = None
+def get_mission_name():
+    global mission_name
+    if mission_name is None:
+        sdir = get_script_dir()
+        mission_name = os.path.basename(sdir)
+
+    return mission_name
+
 def get_missions_dir():
     mission = get_script_dir()
     missions = os.path.dirname(mission)
@@ -41,6 +50,17 @@ def get_artemis_graphics_dir():
     missions = os.path.dirname(mission)
     data = os.path.dirname(missions)
     return data+"\\graphics"        
+
+def get_mission_graphics_file(file):
+    mission = get_mission_name()
+    return f"../missions/{mission}/{file}"
+
+def get_mission_audio_file(file):
+    mission = get_mission_name()
+    return f"../missions/{mission}/{file}"
+    
+
+
 
 def get_artemis_audio_dir():
     mission = get_script_dir()
