@@ -534,7 +534,7 @@ class Button(MastNode):
     def __init__(self, message=None, button=None,  
                 color=None, if_exp=None, 
                 for_name=None, for_exp=None, 
-                clone=False, q=None, loc=None):
+                clone=False, q=None, label=None, loc=None):
         super().__init__()
         if clone:
             return
@@ -545,8 +545,10 @@ class Button(MastNode):
             self.color = self.compile_formatted_string(color)
         self.visited = set() if not self.sticky else None
         self.loc = loc
-        self.await_node = Await.stack[-1]
-        self.await_node.buttons.append(self)
+        if label is None:
+            self.await_node = Await.stack[-1]
+            self.await_node.buttons.append(self)
+        self.label = label
 
         if if_exp:
             if_exp = if_exp.lstrip()

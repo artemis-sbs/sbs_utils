@@ -128,12 +128,12 @@ def get_variable(key, default=None):
     return FrameContext.task.get_variable(key,default)
 
 
-def get_shared_variable(self, key, default=None):
+def get_shared_variable(key, default=None):
     if FrameContext.task is None:
         return None
     return FrameContext.task.get_shared_variable(key,default)
 
-def set_shared_variable(self, key, value):
+def set_shared_variable(key, value):
     if FrameContext.task is None:
         return None
     return FrameContext.task.set_shared_variable(key,value)

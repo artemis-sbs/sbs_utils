@@ -98,7 +98,7 @@ class PromiseWaiter(Waiter):
 #        print()
 #       def _waiter(promise):
             while not self.promise.done():
-                yield PollResults.OK_RUN_AGAIN
+                yield self.promise.poll()
 #      return _waiter(self.promise)
 
 

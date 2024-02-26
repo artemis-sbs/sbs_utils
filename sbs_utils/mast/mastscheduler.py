@@ -937,10 +937,11 @@ class PyTicker():
         return PollResults.OK_JUMP
 
     
-    def push_jump_pop(self, label):
+    def push_inline_block(self, label, _loc=0, data=None):
         if self.current_gen is not None:
             self.stack.append(self.current_gen)
         self.pending_jump = label
+        self.pending_pop = None
         self.pop_on_jump += 1
         return PollResults.OK_JUMP
 

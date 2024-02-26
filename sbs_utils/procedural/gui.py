@@ -1,4 +1,4 @@
-from ..mast.mast import Scope
+from ..mast.mast import Scope, Button
 from .query import to_id
 from .inventory import get_inventory_value, set_inventory_value
 from ..helpers import FrameContext
@@ -809,7 +809,10 @@ class ButtonPromise(AwaitBlockPromise):
             #
             self.running_button = self.button
             self.button = None
-            task.push_inline_block(task.active_label,button.loc+1)
+            if button.label:
+                task.push_inline_block(button.label)
+            else:
+                task.push_inline_block(task.active_label,button.loc+1)
             return PollResults.OK_JUMP
 
         if self.disconnect_label is not None:
@@ -975,8 +978,7 @@ class GuiPromise(ButtonPromise):
 
 
 
-
-def gui(timeout=None):
+def gui(buttons=None, timeout=None):
     """Example function with PEP 484 type annotations.
 
     Args:
@@ -988,5 +990,11 @@ def gui(timeout=None):
 
     """
     page = FrameContext.page
-    return GuiPromise(page, timeout)
+    ret = GuiPromise(page, timeout)
+    if buttons is not None:
+        for k in buttons:
+            ret .buttons.append(Button(k, label=buttons[k],loc=0))
+        
+    return ret
+    
 

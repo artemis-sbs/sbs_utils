@@ -45,7 +45,7 @@ on change len(role(players)):
         (errors, mast)= mast_story_compile( code = """
 await gui()
 
-await gui(timeout(5))
+await gui(timeout=timeout(5))
 
 gui_input("enter name")
 
