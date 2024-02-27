@@ -453,7 +453,9 @@ class OnChangeRuntimeNode(MastRuntimeNode):
         prev = self.value
         self.value = self.task.eval_code(self.node.value) 
         return prev!=self.value
-        
+    
+    def run(self):
+        self.task.push_inline_block(self.task.active_label, self.node.loc+1)
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: OnChange):
         if node.is_end:

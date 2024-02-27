@@ -277,6 +277,7 @@ class Listbox(Widget):
 
                 
         return False
+    
     def get_selected(self):
         ret = []
         for item in self.selected:

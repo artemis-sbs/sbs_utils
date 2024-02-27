@@ -360,7 +360,8 @@ class StoryPage(Page):
         
         for change in self.on_change_items:
             if change.test():
-                self.gui_task.push_inline_block(self.gui_task.active_label, change.node.loc+1)
+                #self.gui_task.push_inline_block(self.gui_task.active_label, change.node.loc+1)
+                change.run()
                 self.tick_gui_task()
                 return
 
@@ -462,7 +463,7 @@ class StoryPage(Page):
         
         for change in self.on_change_items:
             if change.test():
-                self.gui_task.push_inline_block(self.gui_task.active_label, change.node.loc+1)
+                change.run()
                 return
             
         if clicked is not None:
