@@ -101,9 +101,23 @@ nav:
       - Vec3: api/utility/vec.md
     - Procedural:
       - api/procedural/index.md
+      - behavior: api/procedural/behavior.md
+      - comms: api/procedural/comms.md
+      - cosmos: api/procedural/cosmos.md
+      - execution: api/procedural/execution.md
       - gui: api/procedural/gui.md
+      - grid: api/procedural/grid.md
+      - inventory: api/procedural/inventory.md
+      - links: api/procedural/links.md
       - query: api/procedural/query.md
       - roles: api/procedural/roles.md
+      - routes: api/procedural/routes.md
+      - science: api/procedural/science.md
+      - ship_data: api/procedural/ship_data.md
+      - space_objects: api/procedural/space_objects.md
+      - spawn: api/procedural/spawn.md
+      - timers: api/procedural/timers.md
+      
 
     - Dispatch:
       - api/dispatch/index.md
@@ -139,4 +153,6 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
+          options:
+            show_source: false
           paths: [".."]

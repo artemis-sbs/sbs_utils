@@ -188,38 +188,38 @@ class ConsoleDispatcher:
         cb_set = ConsoleDispatcher._dispatch_select.get((None, console))
         if cb_set is not None:
             for cb in cb_set:
-                cb(event.origin_id, event)
+                cb(event)
 
         #handled = False
         cb = ConsoleDispatcher._dispatch_select.get((event.origin_id, event.selected_id, console))
         if cb is not None:
-            cb(event.selected_id, event)
+            cb(event)
             return True
             
         # Allow to route to the selected ship too
         cb = ConsoleDispatcher._dispatch_select.get((event.selected_id, event.origin_id, console))
         if cb is not None:
-            cb(event.origin_id, event)
+            cb(event)
             return True
 
         cb_set = ConsoleDispatcher._dispatch_select.get((event.origin_id, console))
         if cb_set is not None:
             for cb in cb_set:
-                cb(event.selected_id, event)
+                cb(event)
             return True
             
         # Allow to route to the selected ship too
         cb_set = ConsoleDispatcher._dispatch_select.get((event.selected_id, console))
         if cb_set is not None:
             for cb in cb_set:
-                cb(event.origin_id, event)
+                cb(event)
             return True
         
         # Allow to route to defaults too
         cb_set = ConsoleDispatcher._dispatch_select.get((0, console))
         if cb_set is not None:
             for cb in cb_set:
-                cb(event.origin_id, event)
+                cb(event)
             return True
 
         return False

@@ -147,6 +147,14 @@ class GuiClient(Agent):
         self.present(event)
         return ret
 
+    @property
+    def page(self):
+        if len(self.page_stack) > 0:
+            page = self.page_stack[-1]
+            return page
+        return None
+
+
     def present(self, event):
         """ present
 

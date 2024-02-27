@@ -47,3 +47,7 @@ placing examples for now
       # side is included in roles
       close = closest(some_id, role("tsn"))
       ```
+
+# API: Roles
+
+::: sbs_utils.procedural.roles

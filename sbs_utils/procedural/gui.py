@@ -1004,16 +1004,15 @@ class GuiPromise(ButtonPromise):
 
 
 def gui(buttons=None, timeout=None):
-    """Example function with PEP 484 type annotations.
+    """present the gui that has been queued up
 
     Args:
-        param1: The first parameter.
-        param2: The second parameter.
+        buttons (dict, optional): _description_. Defaults to None.
+        timeout (promise, optional): A promise that ends the gui. Typically a timeout. Defaults to None.
 
     Returns:
-        The return value. True for success, False otherwise.
-
-    """
+        Promise: The promise for the gui, promise is done when a button is selected
+    """    
     page = FrameContext.page
     ret = GuiPromise(page, timeout)
     if buttons is not None:

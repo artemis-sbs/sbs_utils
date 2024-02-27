@@ -2,6 +2,7 @@ from .vec import Vec3
 import time as time
 import traceback
 import sys
+from  .agent import Agent
 
 class Context:
     def __init__(self, sim, _sbs, _event):
@@ -22,9 +23,17 @@ class FrameContextMeta(type):
 
     @property
     def page(self):
-        #if self._page is None:
-        #    show_warning("FrameContext missing page")
+        if self._page is None:
+            gui = Agent.get(self.client_id)
+            if gui is not None:
+                return gui.page
         return self._page
+    
+    @property
+    def client_id(self):
+        if self.context is None:
+            return 0
+        return self.context.event.client_id
     
     @page.setter
     def page(self,value):
@@ -32,8 +41,10 @@ class FrameContextMeta(type):
 
     @property
     def task(self):
-        #if self._task is None:
-        #    show_warning("FrameContext missing Task")
+        if self._task is None:
+            page = self.page
+            if page is not None:
+                return page.gui_task
         return self._task
     
     @task.setter

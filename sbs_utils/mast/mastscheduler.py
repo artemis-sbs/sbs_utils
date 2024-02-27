@@ -686,7 +686,8 @@ class MastTicker:
             return PollResults.OK_END
 
     def get_runtime_error_info(self, rte):
-        s = "mast RUNTIME ERROR\n" 
+        s = "mast RUNTIME ERROR\n"
+        cmd = None 
         if self.runtime_node:
             cmd = self.cmds[self.active_cmd]
         if cmd is None:

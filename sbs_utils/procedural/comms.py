@@ -6,10 +6,18 @@ from ..agent import Agent
 from ..helpers import FrameContext
 from ..mast.mastscheduler import ChangeRuntimeNode
 from ..mast.pollresults import PollResults
+from ..mast.mast import Button
 import sbs
 
 def comms_broadcast(ids_or_obj, msg, color="#fff"):
-    
+    """Send text to the text waterfall
+    The ids can be player ship ids or client/console ids
+
+    Args:
+        ids_or_obj (id or objecr): A set or single id or object to send to, 
+        msg (str): The text to send
+        color (str, optional): The Color for the text. Defaults to "#fff".
+    """    
     if ids_or_obj is None:
         # default to the 
         ids_or_obj = FrameContext.context.event.parent_id
@@ -26,6 +34,18 @@ def comms_broadcast(ids_or_obj, msg, color="#fff"):
                     sbs.send_message_to_player_ship(id, color, msg)
 
 def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, color="#fff", title_color=None):
+    """ Send a Comms message 
+    This is a lower level function that lets you have more control the sender and receiver
+
+    Args:
+        msg (str): The message to send
+        from_ids_or_obj (idset): The senders of the message
+        to_ids_or_obj (idset): The set or receivers
+        title (str, optional): The title text. Defaults to None.
+        face (str, optional): The face string to use. Defaults to None.
+        color (str, optional): The color of the body text. Defaults to "#fff".
+        title_color (str, optional): The color of the title text. Defaults to None.
+    """    
     if to_ids_or_obj is None:
         # internal message
         to_ids_or_obj = from_ids_or_obj
@@ -93,6 +113,17 @@ def _comms_get_selected_id():
 
 
 def comms_transmit(msg, title=None, face=None, color="#fff", title_color=None):
+    """ Transmits a message from a player ship
+    It uses the current context to determine the sender and receiver.
+    typically from the event that it being handled provide the context.
+
+    Args:
+        msg (str): The message to send
+        title (str, optional):The title text. Defaults to None.
+        face (str, optional): The face string of the face to use. Defaults to None.
+        color (str, optional): The body text color. Defaults to "#fff".
+        title_color (str, optional): The title text color. Defaults to None.
+    """    
     from_ids_or_obj = _comms_get_origin_id()
     to_ids_or_obj = _comms_get_selected_id()
     if to_ids_or_obj is None or from_ids_or_obj is None:
@@ -104,6 +135,17 @@ def comms_transmit(msg, title=None, face=None, color="#fff", title_color=None):
     comms_message(msg, from_ids_or_obj, to_ids_or_obj,  title, face, color, title_color)
 
 def comms_receive(msg, title=None, face=None, color="#fff", title_color=None):
+    """ Receive a message on a player ship from another ship
+    It uses the current context to determine the sender and receiver.
+    typically from the event that it being handled provide the context.
+
+    Args:
+        msg (str): The message to send
+        title (str, optional):The title text. Defaults to None.
+        face (str, optional): The face string of the face to use. Defaults to None.
+        color (str, optional): The body text color. Defaults to "#fff".
+        title_color (str, optional): The title text color. Defaults to None.
+    """    
     to_ids_or_obj = _comms_get_origin_id()
     from_ids_or_obj = _comms_get_selected_id()
     if to_ids_or_obj is None or from_ids_or_obj is None:
@@ -116,6 +158,17 @@ def comms_receive(msg, title=None, face=None, color="#fff", title_color=None):
 
 
 def comms_transmit_internal(msg, ids_or_obj=None, to_name=None, title=None, face=None, color="#fff", title_color=None):
+    """ Transmits a message within a player ship
+    It uses the current context to determine the sender and receiver.
+    typically from the event that it being handled provide the context.
+
+    Args:
+        msg (str): The message to send
+        title (str, optional):The title text. Defaults to None.
+        face (str, optional): The face string of the face to use. Defaults to None.
+        color (str, optional): The body text color. Defaults to "#fff".
+        title_color (str, optional): The title text color. Defaults to None.
+    """    
     ids_or_obj = _comms_get_origin_id()
     # player transmits a message to a named internal
     for ship in query.to_object_list(ids_or_obj):
@@ -130,6 +183,17 @@ def comms_transmit_internal(msg, ids_or_obj=None, to_name=None, title=None, face
 
 
 def comms_receive_internal(msg, ids_or_obj=None, from_name=None,  title=None, face=None, color="#fff", title_color=None):
+    """ Receiver a message within a player ship
+    It uses the current context to determine the sender and receiver.
+    typically from the event that it being handled provide the context.
+
+    Args:
+        msg (str): The message to send
+        title (str, optional):The title text. Defaults to None.
+        face (str, optional): The face string of the face to use. Defaults to None.
+        color (str, optional): The body text color. Defaults to "#fff".
+        title_color (str, optional): The title text color. Defaults to None.
+    """    
     if ids_or_obj is None:
         ids_or_obj = _comms_get_origin_id()
     # player transmits a message to a named internal
@@ -145,6 +209,13 @@ def comms_receive_internal(msg, ids_or_obj=None, from_name=None,  title=None, fa
         
         
 def comms_info(name, face=None, color=None):
+    """Set the communication information status in the comms console
+
+    Args:
+        name (str): The name to present
+        face (str, optional): The face string of the face. Defaults to None.
+        color (str, optional): The colot of the text. Defaults to None.
+    """    
     if FrameContext.task is not None:
         color = FrameContext.task.compile_and_format_string(color) if color else "white"
         name = FrameContext.task.compile_and_format_string(name) if name else None
@@ -291,7 +362,7 @@ class CommsPromise(ButtonPromise):
             self.set_buttons(self.origin_id, selection)
         # from_so.face_desc
 
-    def comms_selected(self, an_id, event):
+    def comms_selected(self, event):
         #
         # Check to see if this was intended for us
         #
@@ -375,10 +446,28 @@ class CommsPromise(ButtonPromise):
                 if player_current_select == self.selected_id:
                     self.set_buttons(self.origin_id, self.selected_id)
                 return PollResults.OK_JUMP
+        return PollResults.OK_RUN_AGAIN
 
 
 
-def comms(timeout=None):
+def comms(buttons=None, timeout=None):
+    """Present the comms buttons. and wait for a choice.
+    The timeout can be any promise, but typically is a made using the timeout function.
+
+    Args:
+        buttons (dict, optional): An dict of button dat key = button properties value label to process button press
+        timeout (Promise, optional): The comms will end if this promise finishes. Defaults to None.
+
+    Returns:
+        Promise: A Promise that finishes when a comms button is selected
+    """    
     task = FrameContext.task
-    return CommsPromise(task, timeout)
+    ret = CommsPromise(task, timeout)
+    if buttons is not None:
+        for k in buttons:
+            # The + makes the button sticky
+            ret .buttons.append(Button(k, "+", label=buttons[k],loc=0))
+        
+    return ret
+
 

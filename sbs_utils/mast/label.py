@@ -8,6 +8,12 @@ next_labels = {}
 prev_label = None
 prev_label_module = None
 
+
+def is_pymast_label(func):
+    if not isinstance(func, str):
+        func = func.__name__
+    return (python_labels.get(func) is not None)
+
 # defining a decorator that can take anything
 def label(**kwargs):
     def dec(func):

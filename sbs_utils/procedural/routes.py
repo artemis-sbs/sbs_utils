@@ -2,8 +2,9 @@ from ..consoledispatcher import ConsoleDispatcher
 from ..griddispatcher import GridDispatcher
 from ..lifetimedispatcher import LifetimeDispatcher
 from ..damagedispatcher import DamageDispatcher, CollisionDispatcher
-from .roles import has_roles
+from .execution import task_schedule
 from .query import to_id, to_object
+from ..mast.label import is_pymast_label
 
 from ..helpers import FrameContext, FakeEvent
 
@@ -61,7 +62,7 @@ class HandleConsoleSelect:
     def grid_selected(self, event):
         self.selected(None, event)
 
-    def selected(self, __, event):
+    def selected(self, event):
         if self.console == "grid" and self.etype == _SELECT:
             console = "COMMS"
         else:
@@ -373,9 +374,14 @@ class RouteDock(object):
 
 
 
-class RouteComms(object):
+class RouteConsole(object):
     def __init__(self, method, console, etype):
+        s = method.__qualname__.split(".")
+        self.cls = None
+        if len(s)  == 2:
+            self.cls == s[0]
         self.method = method
+
         uid = uids.get(console)
         if etype == _SELECT:
             ConsoleDispatcher.add_default_select(uid, self.handler)
@@ -391,20 +397,26 @@ class RouteComms(object):
         if etype == _GRID_OBJECT:
             GridDispatcher.add_any_object(self.grid_handler)
 
-    def handler(self, pid, event):
+    def handler(self, event):
         so = to_object(event.selected_id)
         if so is None:
             return
-
-        if self.method.__qualname__.startswith(so.__class__.__name__):
-            self.method(so, pid, event)
+        # The label has to happen after the route?
+        self.is_label = is_pymast_label(self.method)
+        # self.is_label = hasattr(self.method, "is_label")
+        if self.is_label:
+            data = {"COMMS_SELECTED_ID": event.selected_id,"COMMS_ORIGIN_ID": event.origin_id}
+            task_schedule(self.method, data)
+        elif self.cls is None or self.cls==so.__class__.__name__:
+            # print(self.method.__qualname__)
+            self.method(event)
 
     def message_handler(self, message, pid, event):
         so = to_object(event.selected_id)
         if so is None:
             return
 
-        if self.method.__qualname__.startswith(so.__class__.__name__):
+        if self.cls is None or self.cls==so.__class__.__name__:
             self.method(so, message, pid, event)
 
 
@@ -413,24 +425,55 @@ class RouteComms(object):
         if so is None:
             return
 
-        if self.method.__qualname__.startswith(so.__class__.__name__):
+        if self.cls is None or self.cls==so.__class__.__name__:
             self.method(so, event)
 
-class RouteCommsSelect(RouteComms):
+class RouteCommsSelect(RouteConsole):
     def __init__(self, method):
         super().__init__(method, "comms", _SELECT)
 
-class RouteCommsFocus(RouteComms):
+class RouteCommsFocus(RouteConsole):
     def __init__(self, method):
         super().__init__(method, "comms", _FOCUS)
 
-class RouteCommsMessage(RouteComms):
+class RouteCommsMessage(RouteConsole):
     def __init__(self, method):
         super().__init__(method, "comms", _MESSAGE)
 
 
+class RouteScienceSelect(RouteConsole):
+    def __init__(self, method):
+        super().__init__(method, "science", _SELECT)
+
+class RouteScienceFocus(RouteConsole):
+    def __init__(self, method):
+        super().__init__(method, "science", _FOCUS)
+
+class RouteScienceMessage(RouteConsole):
+    def __init__(self, method):
+        super().__init__(method, "science", _MESSAGE)
+
+
+class RouteWeaponsSelect(RouteConsole):
+    def __init__(self, method):
+        super().__init__(method, "weapons", _SELECT)
+
+# class RouteWeaponsFocus(RouteConsole):
+#     def __init__(self, method):
+#         super().__init__(method, "weapons", _FOCUS)
+
+# class RouteWeaponsMessage(RouteConsole):
+#     def __init__(self, method):
+#         super().__init__(method, "weapons", _MESSAGE)
+
+
 class RouteDamageSource(object):
     def __init__(self, method, damage_type):
+        s = method.__qualname__.split(".")
+        self.cls = None
+        if len(s)  == 2:
+            self.cls == s[0]
+
         self.method = method
         if damage_type==DamageDispatcher._HEAT:
                 DamageDispatcher.add_any_heat(self.handler)
@@ -444,7 +487,7 @@ class RouteDamageSource(object):
         if so is None:
             return
 
-        if self.method.__qualname__.startswith(so.__class__.__name__):
+        if self.cls is None or self.cls==so.__class__.__name__:
             self.method(so, event)
 
 class RouteDamageObject(RouteDamageSource):
