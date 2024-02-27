@@ -272,7 +272,7 @@ Probably need to break each step out
 
           # make a few random clusters of Asteroids
           spawn_points = scatter_sphere(random.randint(10,20), 0,0,0, 1000, 4000, ring=True)
-          asteroid_types = names_asteroid_keys()
+          asteroid_types = ship_data_asteroid_keys()
           for v in spawn_points:
           cluster_spawn_points = scatter_sphere(random.randint(10,20), v.x, 0,v.z, 100, 1000, ring=False)
           for v2 in cluster_spawn_points:
@@ -361,7 +361,7 @@ Probably need to break each step out
 
                # make a few random clusters of Asteroids
                spawn_points = scatter.sphere(random.randint(10,20), 0,0,0, 1000, 4000, ring=True)
-               asteroid_types = names.asteroid_keys()
+               asteroid_types = ship_data.asteroid_keys()
                for v in spawn_points:
                     cluster_spawn_points = scatter.sphere(random.randint(10,20), v.x, 0,v.z, 100, 1000, ring=False)
                     for v2 in cluster_spawn_points:
