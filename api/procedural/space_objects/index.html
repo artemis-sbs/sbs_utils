@@ -2659,6 +2659,42 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.space_objects.get_engineering_value" class="md-nav__link">
+    <span class="md-ellipsis">
+      get_engineering_value()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.space_objects.get_pos" class="md-nav__link">
+    <span class="md-ellipsis">
+      get_pos()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.space_objects.set_engineering_value" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_engineering_value()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.space_objects.set_pos" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_pos()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.space_objects.target" class="md-nav__link">
     <span class="md-ellipsis">
       target()
@@ -3041,6 +3077,42 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.space_objects.get_engineering_value" class="md-nav__link">
+    <span class="md-ellipsis">
+      get_engineering_value()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.space_objects.get_pos" class="md-nav__link">
+    <span class="md-ellipsis">
+      get_pos()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.space_objects.set_engineering_value" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_engineering_value()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.space_objects.set_pos" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_pos()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.space_objects.target" class="md-nav__link">
     <span class="md-ellipsis">
       target()
@@ -3114,19 +3186,112 @@
 
   <div class="doc doc-contents ">
   
-      <p>broad_test</p>
-<p>returns a set of ids that are in the target rect</p>
-<p>:param x1: x location (left)
-:type x1: float
-:param z1: z location (top)
-:type z1: float
-:param x2: x location (right)
-:type x2: float
-:param z2: z location (bottom)
-:type z2: float</p>
-<p>:param broad type:  -1=All, 0=player, 1=Active, 2=Passive
-:type broad_type: int
-:rtype: set of ids</p>
+      <p>returns a set of ids that are in the target rect</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>x1(float)</code></td>
+          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>x location (left)</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>z1(float)</code></td>
+          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>z location (top)</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>x2(float)</code></td>
+          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>x location (right)</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>z2(float)</code></td>
+          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>z location (bottom)</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>broad_type</code></td>
+          <td>
+                <code>int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>-1=All, 0=player, 1=Active, 2=Passive. Defaults to -1.</p>
+            </div>
+          </td>
+          <td>
+                <code>-1</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>set</code></td>          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A set of ids</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3146,17 +3311,99 @@
 
   <div class="doc doc-contents ">
   
-      <p>broad_test_around</p>
-<p>returns a set of ids that are in the target rect</p>
-<p>:param id_or_obj: object to use as a center point
-:type id_or_obj: id or object
-:param width: width
-:type width: float
-:param depth: depth z dimension
-:type depth: float</p>
-<p>:param broad type:  -1=All, 0=player, 1=Active, 2=Passive
-:type broad_type: int
-:rtype: set of ids</p>
+      <p>returns a set of ids that are around the specified object in the target rect</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>id_obj(agent)</code></td>
+          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The ID or object of an agent</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>w(float)</code></td>
+          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>width</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>d(float)</code></td>
+          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>depth</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>broad_type</code></td>
+          <td>
+                <code>int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>-1=All, 0=player, 1=Active, 2=Passive. Defaults to -1.</p>
+            </div>
+          </td>
+          <td>
+                <code>-1</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>set</code></td>          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A set of ids</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3176,9 +3423,37 @@
 
   <div class="doc doc-contents ">
   
-      <p>Clear the target</p>
-<p>:param the_set: A set of ids, id, CloseData, or SpawnData
-:type the_set: set of ids, id, CloseData, or SpawnData</p>
+      <p>clear the target on an agent or set of agents</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>chasers</code></td>
+          <td>
+                <code>set | int | <span title="sbs_utils.agent.CloseData">CloseData</span> | <span title="sbs_utils.agent.SpawnData">SpawnData</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>an agent or set of agents</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3198,17 +3473,103 @@
 
   <div class="doc doc-contents ">
   
-      <p>closest</p>
-<p>get the  close data that matches the test set, max_dist and optional filter function</p>
-<p>:param source: The id object to check
-:type source: int / id
-:param the_set: a set of ids to check against
-:type the_set: set of ids
-:param max_dist: The maximum distance to include
-:type link_name: float
-:param filter_func: A function to filter the set
-:type filter_func: func
-:rtype: CloseData</p>
+      <p>get the  close data that matches the test set, max_dist and optional filter function</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>the_ship</code></td>
+          <td>
+                <code><span title="sbs_utils.agent">agent</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The agent ID or object</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>the_set</code></td>
+          <td>
+                <code>agent set</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The set of objects to test against</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>max_dist</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The maximum distance to check. Defaults to None.</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>filter_func</code></td>
+          <td>
+                <code>func</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>An additional function to test with. Defaults to None.</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>CloseData</code></td>          <td>
+                <code><span title="sbs_utils.agent.CloseData">CloseData</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The close object close data to get the distance</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3228,17 +3589,103 @@
 
   <div class="doc doc-contents ">
   
-      <p>close_list</p>
-<p>get the list of close data that matches the test set, max_dist and optional filter function</p>
-<p>:param source: The id object to check
-:type source: int / id
-:param the_set: a set of ids to check against
-:type the_set: set of ids
-:param max_dist: The maximum distance to include
-:type link_name: float
-:param filter_func: A function to filter the set
-:type filter_func: func
-:rtype: list of CloseData</p>
+      <p>get the list of close data that matches the test set, max_dist and optional filter function</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>source</code></td>
+          <td>
+                <code><span title="sbs_utils.agent">agent</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The agent object or id of the agent</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>the_set</code></td>
+          <td>
+                <code>agents set</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>a set of ids to check against</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>max_dist</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The maximum distance to include. Defaults to None.</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>filter_func</code></td>
+          <td>
+                <code>function</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>an additional function to check against. Defaults to None.</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>list[<span title="sbs_utils.agent.CloseData">CloseData</span>]</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>list[CloseData]: The list of close objects With close data to get the distance</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3258,17 +3705,447 @@
 
   <div class="doc doc-contents ">
   
-      <p>closest_object</p>
-<p>get the object that matches the test set, max_dist and optional filter function</p>
-<p>:param source: The id object to check
-:type source: int / id
-:param the_set: a set of ids to check against
-:type the_set: set of ids
-:param max_dist: The maximum distance to include
-:type link_name: float
-:param filter_func: A function to filter the set
-:type filter_func: func
-:rtype: Agent</p>
+      <p>get the  close data that matches the test set, max_dist and optional filter function</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>the_ship</code></td>
+          <td>
+                <code><span title="sbs_utils.agent">agent</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The agent ID or object</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>the_set</code></td>
+          <td>
+                <code>agent set</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The set of objects to test against</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>max_dist</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The maximum distance to check. Defaults to None.</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>filter_func</code></td>
+          <td>
+                <code>func</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>An additional function to test with. Defaults to None.</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>agent</code></td>          <td>
+                <code><span title="sbs_utils.agent.Agent">Agent</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>Return the closest agents or None</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.procedural.space_objects.get_engineering_value" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">get_engineering_value</span><span class="p">(</span><span class="n">id_or_obj</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>gets an engineering value by name</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>id_or_obj</code></td>
+          <td>
+                <code><span title="sbs_utils.agent">agent</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>An agent id or object</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>name</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The value to get</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>default</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>What to return if not found. Defaults to None.</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>float</code></td>          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A value or the default</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.procedural.space_objects.get_pos" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">get_pos</span><span class="p">(</span><span class="n">id_or_obj</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>get the position of an agent</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>id_or_obj</code></td>
+          <td>
+                <code>agent id | agent</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The agent to set position on</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>Vec3</code></td>          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p><em>description</em></p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.procedural.space_objects.set_engineering_value" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">set_engineering_value</span><span class="p">(</span><span class="n">id_or_obj</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>sets an engineering value by name</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>id_or_obj</code></td>
+          <td>
+                <code><span title="sbs_utils.agent">agent</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>An agent id or object</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>name</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The value to get</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>value</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The value</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.procedural.space_objects.set_pos" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">set_pos</span><span class="p">(</span><span class="n">id_or_obj</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>set the position of an agent or set of agents</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>id_or_obj</code></td>
+          <td>
+                <code>agent|set of agent</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>an agent or set of agent IDs or objects</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>x</code></td>
+          <td>
+                <code>float | Cec3</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The x location or a vector </p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>y</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>y location. Defaults to None.</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>z</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>z location. Defaults to None.</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3288,11 +4165,79 @@
 
   <div class="doc doc-contents ">
   
-      <p>Set the item to target
-:param other_id: the id of the object to target
-:type other_id: int
-:param shoot: if the object should be shot at
-:type shoot: bool</p>
+      <p>set Target a target for an agent/set of agents</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>set_or_object</code></td>
+          <td>
+                <code>(<span title="sbs_utils.agent">agent</span>, set)</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the agent or set of object to set the target on</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>target_id</code></td>
+          <td>
+                <code><span title="sbs_utils.agent">agent</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>agent id or object to target</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>shoot</code></td>
+          <td>
+                <code>bool</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>whether to also lock weapons on target. Defaults to True.</p>
+            </div>
+          </td>
+          <td>
+                <code>True</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>throttle</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The speed to travel at. Defaults to 1.0.</p>
+            </div>
+          </td>
+          <td>
+                <code>1.0</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3312,11 +4257,93 @@
 
   <div class="doc doc-contents ">
   
-      <p>Set the item to target</p>
-<p>:param other_id: the id of the object to target
-:type other_id: int
-:param shoot: if the object should be shot at
-:type shoot: bool</p>
+      <p>Set the target position of an agent or set of agents</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>chasers</code></td>
+          <td>
+                <code>agent id | agent set</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the agents to set</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>x</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>x location</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>y</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>y location</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>z</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>z location</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>throttle</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The speed to go. Defaults to 1.0.</p>
+            </div>
+          </td>
+          <td>
+                <code>1.0</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 

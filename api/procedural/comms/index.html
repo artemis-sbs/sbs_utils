@@ -3069,7 +3069,7 @@
 
 
 <h2 id="sbs_utils.procedural.comms.comms" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">comms</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+          <code class="highlight language-python"><span class="n">comms</span><span class="p">(</span><span class="n">buttons</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -3093,13 +3093,27 @@ The timeout can be any promise, but typically is a made using the timeout functi
     </thead>
     <tbody>
         <tr>
+          <td><code>buttons</code></td>
+          <td>
+                <code>dict</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>An dict of button dat key = button properties value label to process button press</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+        <tr>
           <td><code>timeout</code></td>
           <td>
                 <code>Promise</code>
           </td>
           <td>
             <div class="doc-md-description">
-              <p>The comms will nd if thethis promise finishes. Defaults to None.</p>
+              <p>The comms will end if this promise finishes. Defaults to None.</p>
             </div>
           </td>
           <td>

@@ -2968,7 +2968,7 @@
 
   <div class="doc doc-contents ">
   
-      <p>Example function with PEP 484 type annotations.</p>
+      <p>present the gui that has been queued up</p>
 
 
 
@@ -2984,29 +2984,31 @@
     </thead>
     <tbody>
         <tr>
-          <td><code>param1</code></td>
+          <td><code>buttons</code></td>
           <td>
+                <code>dict</code>
           </td>
           <td>
             <div class="doc-md-description">
-              <p>The first parameter.</p>
+              <p><em>description</em>. Defaults to None.</p>
             </div>
           </td>
           <td>
-              <em>required</em>
+                <code>None</code>
           </td>
         </tr>
         <tr>
-          <td><code>param2</code></td>
+          <td><code>timeout</code></td>
           <td>
+                <code>promise</code>
           </td>
           <td>
             <div class="doc-md-description">
-              <p>The second parameter.</p>
+              <p>A promise that ends the gui. Typically a timeout. Defaults to None.</p>
             </div>
           </td>
           <td>
-              <em>required</em>
+                <code>None</code>
           </td>
         </tr>
     </tbody>
@@ -3018,17 +3020,17 @@
   <table>
     <thead>
       <tr>
-        <th>Type</th>
+<th>Name</th>        <th>Type</th>
         <th>Description</th>
       </tr>
     </thead>
     <tbody>
         <tr>
-          <td>
+<td><code>Promise</code></td>          <td>
           </td>
           <td>
             <div class="doc-md-description">
-              <p>The return value. True for success, False otherwise.</p>
+              <p>The promise for the gui, promise is done when a button is selected</p>
             </div>
           </td>
         </tr>
