@@ -2461,6 +2461,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.links.get_dedicated_link" class="md-nav__link">
+    <span class="md-ellipsis">
+      get_dedicated_link()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.links.has_link" class="md-nav__link">
     <span class="md-ellipsis">
       has_link()
@@ -2479,9 +2488,36 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.links.link" class="md-nav__link">
+    <span class="md-ellipsis">
+      link()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.links.linked_to" class="md-nav__link">
     <span class="md-ellipsis">
       linked_to()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.links.set_dedicated_link" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_dedicated_link()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.links.unlink" class="md-nav__link">
+    <span class="md-ellipsis">
+      unlink()
     </span>
   </a>
   
@@ -2906,6 +2942,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.links.get_dedicated_link" class="md-nav__link">
+    <span class="md-ellipsis">
+      get_dedicated_link()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.links.has_link" class="md-nav__link">
     <span class="md-ellipsis">
       has_link()
@@ -2924,9 +2969,36 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.links.link" class="md-nav__link">
+    <span class="md-ellipsis">
+      link()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.links.linked_to" class="md-nav__link">
     <span class="md-ellipsis">
       linked_to()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.links.set_dedicated_link" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_dedicated_link()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.links.unlink" class="md-nav__link">
+    <span class="md-ellipsis">
+      unlink()
     </span>
   </a>
   
@@ -2978,6 +3050,83 @@
 
 
 
+<h2 id="sbs_utils.procedural.links.get_dedicated_link" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">get_dedicated_link</span><span class="p">(</span><span class="n">so</span><span class="p">,</span> <span class="n">link</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Get the agent linked to</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Dedicated link means there is only one thing linked to 1-1</p>
+</div>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>link</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The link name</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>agent</code></td>          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The single agent or None</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
 <h2 id="sbs_utils.procedural.links.has_link" class="doc doc-heading">
           <code class="highlight language-python"><span class="n">has_link</span><span class="p">(</span><span class="n">key</span><span class="p">)</span></code>
 
@@ -2986,11 +3135,60 @@
 
   <div class="doc doc-contents ">
   
-      <p>has_link</p>
-<p>get the object that have a link item with the given key</p>
-<p>:param key: The key/name of the inventory item
-:type key: str
-:rtype: set of ids</p>
+      <p>get the object that have a link item with the given key</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>key</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The key/name of the inventory item</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>set</code></td>          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>set of ids</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3010,13 +3208,152 @@
 
   <div class="doc doc-contents ">
   
-      <p>has_linked_to</p>
-<p>check if target and source are linked to for the given key</p>
-<p>:param link_source: The id object to check
-:type link_source: int / id
-:param link_name: The key/name of the inventory item
-:type link_name: str
-:rtype: set of ids</p>
+      <p>check if target and source are linked to for the given key</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>link_source</code></td>
+          <td>
+                <code><span title="sbs_utils.agent">agent</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The agent hosting the link</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>link_name</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The key/name of the inventory item</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>set | None: set of ids</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.procedural.links.link" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">link</span><span class="p">(</span><span class="n">set_holder</span><span class="p">,</span> <span class="n">link</span><span class="p">,</span> <span class="n">set_to</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>create a link between agents</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>set_holder</code></td>
+          <td>
+                <code>agent | agent set</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The host (set) of the link</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>link</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The link name</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>set_to</code></td>
+          <td>
+                <code>agent|agent set</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The items to link to</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3036,13 +3373,210 @@
 
   <div class="doc doc-contents ">
   
-      <p>linked_to</p>
-<p>get the set that inventor the source is linked to for the given key</p>
-<p>:param link_source: The id object to check
-:type link_source: int / id
-:param link_name: The key/name of the inventory item
-:type link_name: str
-:rtype: set of ids</p>
+      <p>get the set that inventor the source is linked to for the given key</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>link_source(id)</code></td>
+          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The id object to check</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>link_name</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The key/name of the inventory item</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>set</code></td>
+          <td>
+                <code>| None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>set of ids</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.procedural.links.set_dedicated_link" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">set_dedicated_link</span><span class="p">(</span><span class="n">so</span><span class="p">,</span> <span class="n">link</span><span class="p">,</span> <span class="n">to</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Set the agent linked to</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Dedicated link means there is only one thing linked to 1-1</p>
+</div>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>link</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The link name</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>to</code></td>
+          <td>
+                <code><span title="sbs_utils.agent">agent</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The single agent or None</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.procedural.links.unlink" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">unlink</span><span class="p">(</span><span class="n">set_holder</span><span class="p">,</span> <span class="n">link</span><span class="p">,</span> <span class="n">set_to</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>removes the link between things</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>set_holder</code></td>
+          <td>
+                <code>agent|agent set</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>An agent or set of agents (ids or objects)</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>link</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>Link name</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>set_to</code></td>
+          <td>
+                <code>agent|agent set</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The agents(s) to add a link to</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 

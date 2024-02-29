@@ -2562,6 +2562,42 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.science.scan" class="md-nav__link">
+    <span class="md-ellipsis">
+      scan()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.science.scan_results" class="md-nav__link">
+    <span class="md-ellipsis">
+      scan_results()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.science.science_set_scan_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      science_set_scan_data()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.science.science_start_scan" class="md-nav__link">
+    <span class="md-ellipsis">
+      science_start_scan()
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2914,6 +2950,42 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.science.scan" class="md-nav__link">
+    <span class="md-ellipsis">
+      scan()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.science.scan_results" class="md-nav__link">
+    <span class="md-ellipsis">
+      scan_results()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.science.science_set_scan_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      science_set_scan_data()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.science.science_start_scan" class="md-nav__link">
+    <span class="md-ellipsis">
+      science_start_scan()
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2955,6 +3027,332 @@
 
 
 
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.procedural.science.scan" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">scan</span><span class="p">(</span><span class="n">buttons</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">auto_side</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Start a science scan</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>buttons</code></td>
+          <td>
+                <code>dict</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>dictionary key = button, value = label. Defaults to None.</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>timeout</code></td>
+          <td>
+                <code>_type_</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A promise typically by calling timeout(). Defaults to None.</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>auto_side</code></td>
+          <td>
+                <code>bool</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>If true quickly scans thing on the same side. Defaults to True.</p>
+            </div>
+          </td>
+          <td>
+                <code>True</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>Promise</code></td>          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A promise to wait. Typically passed to an await/AWAIT</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.procedural.science.scan_results" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">scan_results</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tab</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Set the scan results for the current scan. This should be called when the scan is completed.
+   This is typically called as part of a scan()
+   This could also be called in response to a routed science message.
+   When pair with a scan() the target and tab are not need.
+   Tab is the variable <strong>SCAN_TAB</strong>, target is track </p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>message</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>scan text for a scan the is in progress</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>tab</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>scan tab for a scan the is in progress</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.procedural.science.science_set_scan_data" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">science_set_scan_data</span><span class="p">(</span><span class="n">player_id_or_obj</span><span class="p">,</span> <span class="n">scan_target_id_or_obj</span><span class="p">,</span> <span class="n">tabs</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Immediately set the science scan data for a scan target
+   use this for things that you do not want to have scan delayed.</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>player_id_or_obj</code></td>
+          <td>
+                <code><span title="sbs_utils.agent">agent</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The player ship agent id or object</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>scan_target_id_or_obj</code></td>
+          <td>
+                <code><span title="sbs_utils.agent">agent</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The target ship agent id or object</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>tabs</code></td>
+          <td>
+                <code>dict</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A dictionary to key = tab, value = scan string</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.procedural.science.science_start_scan" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">science_start_scan</span><span class="p">(</span><span class="n">origin_id_or_side</span><span class="p">,</span> <span class="n">selected_id</span><span class="p">,</span> <span class="n">tab</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Start the scan for a a science tab</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>origin_id_or_side</code></td>
+          <td>
+                <code><span title="sbs_utils.agent">agent</span> | str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>If a string is passed it used as the player side, otherwise it use this as an agent to determine side</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>selected_id</code></td>
+          <td>
+                <code><span title="sbs_utils.agent">agent</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>Agent id or objects</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>tab</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The tab to start</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
 
 
 

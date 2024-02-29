@@ -2313,6 +2313,51 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.behavior.bt_invert" class="md-nav__link">
+    <span class="md-ellipsis">
+      bt_invert()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.behavior.bt_sel" class="md-nav__link">
+    <span class="md-ellipsis">
+      bt_sel()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.behavior.bt_seq" class="md-nav__link">
+    <span class="md-ellipsis">
+      bt_seq()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.behavior.bt_until_fail" class="md-nav__link">
+    <span class="md-ellipsis">
+      bt_until_fail()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.behavior.bt_until_success" class="md-nav__link">
+    <span class="md-ellipsis">
+      bt_until_success()
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2878,6 +2923,51 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.behavior.bt_invert" class="md-nav__link">
+    <span class="md-ellipsis">
+      bt_invert()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.behavior.bt_sel" class="md-nav__link">
+    <span class="md-ellipsis">
+      bt_sel()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.behavior.bt_seq" class="md-nav__link">
+    <span class="md-ellipsis">
+      bt_seq()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.behavior.bt_until_fail" class="md-nav__link">
+    <span class="md-ellipsis">
+      bt_until_fail()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.behavior.bt_until_success" class="md-nav__link">
+    <span class="md-ellipsis">
+      bt_until_success()
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2917,6 +3007,401 @@
 
 
 
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.procedural.behavior.bt_invert" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">bt_invert</span><span class="p">(</span><span class="n">a_bt_promise</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>behavior tree invert</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>a_bt_promise</code></td>
+          <td>
+                <code>promise</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>Invert the success or failure of a behavior promise</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>Promise</code></td>          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Promise that runs until failure or success</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.procedural.behavior.bt_sel" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">bt_sel</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>behavior tree select returns success if any task has success</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>args</code></td>
+          <td>
+                <code>labels</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The arguments are labels</p>
+            </div>
+          </td>
+          <td>
+                <code>()</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>kwargs</code></td>
+          <td>
+                <code>any</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>data = will pass data the the behavior tasks.</p>
+            </div>
+          </td>
+          <td>
+                <code>{}</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>Promise</code></td>          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Promise that runs until failure or success</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.procedural.behavior.bt_seq" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">bt_seq</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>behavior tree sequence only returns success if the whole sequence has success</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>args</code></td>
+          <td>
+                <code>labels</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The arguments are labels</p>
+            </div>
+          </td>
+          <td>
+                <code>()</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>kwargs</code></td>
+          <td>
+                <code>any</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>data = will pass data the the behavior tasks.</p>
+            </div>
+          </td>
+          <td>
+                <code>{}</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>Promise</code></td>          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Promise that runs until failure or success</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.procedural.behavior.bt_until_fail" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">bt_until_fail</span><span class="p">(</span><span class="n">a_bt_promise</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>reruns behavior tree until failure
+Behavior promise has a reset() to rerun</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>a_bt_promise</code></td>
+          <td>
+                <code>promise</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The promise to run</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>Promise</code></td>          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Promise that runs until failure</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.procedural.behavior.bt_until_success" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">bt_until_success</span><span class="p">(</span><span class="n">a_bt_promise</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>reruns behavior tree until success 
+Behavior promise has a reset() to rerun</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>a_bt_promise</code></td>
+          <td>
+                <code>promise</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The promise to run</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>Promise</code></td>          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Promise that runs until success</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
 
 
 
