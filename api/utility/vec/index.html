@@ -2323,6 +2323,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.vec.Vec3.angleTo" class="md-nav__link">
+    <span class="md-ellipsis">
+      angleTo()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.vec.Vec3.cross" class="md-nav__link">
     <span class="md-ellipsis">
       cross()
@@ -2416,6 +2425,15 @@
   <a href="#sbs_utils.vec.Vec3.rand_offset" class="md-nav__link">
     <span class="md-ellipsis">
       rand_offset()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.vec.Vec3.rotate_around" class="md-nav__link">
+    <span class="md-ellipsis">
+      rotate_around()
     </span>
   </a>
   
@@ -3257,6 +3275,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.vec.Vec3.angleTo" class="md-nav__link">
+    <span class="md-ellipsis">
+      angleTo()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.vec.Vec3.cross" class="md-nav__link">
     <span class="md-ellipsis">
       cross()
@@ -3356,6 +3383,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.vec.Vec3.rotate_around" class="md-nav__link">
+    <span class="md-ellipsis">
+      rotate_around()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.vec.Vec3.subtract" class="md-nav__link">
     <span class="md-ellipsis">
       subtract()
@@ -3442,8 +3478,30 @@
   
       <p>Get the vector as a tuple
 Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
-<p>:return: a tuple with x,y,z
-:rtype: (float,float,float)</p>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>values</code></td>          <td>
+                <code>tuple</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>a tuple with x,y,z</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
   </div>
 
 </div>
@@ -3465,10 +3523,60 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>operator add immutable</p>
-<p>:param v: the other vector
-:type v: Vec3 or number
-:return: new vector 
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>v</code></td>
+          <td>
+                <code> Vec3 or number</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the other vector</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3489,10 +3597,60 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>operator equals immutable</p>
-<p>:param v: the other vector
-:type v: Vec3
-:return: new vector 
-:rtype: bool</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>v</code></td>
+          <td>
+                <code> Vec3</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the other vector</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>bool</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3513,10 +3671,60 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>operator inline add (+=) mutable</p>
-<p>:param v: the other vector
-:type v: Vec3 or number
-:return: new vector 
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>v</code></td>
+          <td>
+                <code> Vec3 or number</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the other vector</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3537,10 +3745,60 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>operator inline multiply mutable</p>
-<p>:param v: the other vector
-:type v: Vec3 or number
-:return: new vector 
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>v</code></td>
+          <td>
+                <code> Vec3 or number</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the other vector</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3561,10 +3819,60 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>operator inline subtract mutable</p>
-<p>:param v: the other vector
-:type v: Vec3 or number
-:return: new vector 
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>v</code></td>
+          <td>
+                <code> Vec3 or number</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the other vector</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3585,10 +3893,60 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>operator inline divide mutable</p>
-<p>:param v: the other vector
-:type v: Vec3 or number
-:return: new vector 
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>v</code></td>
+          <td>
+                <code> Vec3 or number</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the other vector</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3609,10 +3967,60 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>operator matrix multiply (@) dot product immutable</p>
-<p>:param v: the other vector
-:type v: Vec3 or number
-:return: new vector 
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>v</code></td>
+          <td>
+                <code> Vec3 or number</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the other vector</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3633,10 +4041,60 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>operator multiply immutable</p>
-<p>:param v: the other vector
-:type v: Vec3 or number
-:return: new vector 
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>v</code></td>
+          <td>
+                <code> Vec3 or number</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the other vector</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3657,8 +4115,30 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>operator Negate a vector immutable</p>
-<p>:return: new vector negated version of this one
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector negated version of this one</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3679,10 +4159,60 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>operator sub immutable</p>
-<p>:param v: the other vector
-:type v: Vec3 or number
-:return: new vector 
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>v</code></td>
+          <td>
+                <code> Vec3 or number</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the other vector</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3703,10 +4233,60 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>operator divide immutable</p>
-<p>:param v: the other vector
-:type v: Vec3 or number
-:return: new vector 
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>v</code></td>
+          <td>
+                <code> Vec3 or number</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the other vector</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3727,10 +4307,133 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>add immutable</p>
-<p>:param v: the other vector
-:type v: Vec3 or number
-:return: new vector 
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>v</code></td>
+          <td>
+                <code> Vec3 or number</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the other vector</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.vec.Vec3.angleTo" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">angleTo</span><span class="p">(</span><span class="n">a</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>angle to</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>a</code></td>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The other point</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>float</code></td>          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>Angle in radians</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3751,10 +4454,60 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>cross product immutable</p>
-<p>:param v: the other vector
-:type v: Vec3 or number
-:return: new vector 
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>v</code></td>
+          <td>
+                <code> Vec3 or number</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the other vector</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3775,10 +4528,60 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>divide immutable</p>
-<p>:param v: the other vector
-:type v: Vec3 or number
-:return: new vector 
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>v</code></td>
+          <td>
+                <code> Vec3 or number</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the other vector</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3799,10 +4602,60 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>dot product immutable</p>
-<p>:param v: the other vector
-:type v: Vec3
-:return: new vector 
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>v</code></td>
+          <td>
+                <code> Vec3</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the other vector</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3823,10 +4676,60 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>equals immutable</p>
-<p>:param v: the other vector
-:type v: Vec3
-:return: if they are equal
-:rtype: bool</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>v</code></td>
+          <td>
+                <code> Vec3</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the other vector</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>bool</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>if they are equal</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3847,8 +4750,30 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>length immutable</p>
-<p>:return: The length of the vector
-:rtype: float</p>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The length of the vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3869,8 +4794,30 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>max of x,y,z</p>
-<p>:return: max of x,y,z
-:rtype: float</p>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>max of x,y,z</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3891,8 +4838,30 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>min of x,y,z</p>
-<p>:return: min of x,y,z
-:rtype: float</p>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>min of x,y,z</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3913,10 +4882,60 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>multiply immutable</p>
-<p>:param v: the other vector
-:type v: Vec3 or number
-:return: new vector 
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>v</code></td>
+          <td>
+                <code> Vec3 or number</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the other vector</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3937,8 +4956,30 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>Negate a vector immutable</p>
-<p>:return: new vector negated version of this one
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector negated version of this one</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3959,16 +5000,102 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>random within a sphere</p>
-<p>:param radius: radius
-:type radius: float
-:param outer: outer radius if 0 r is outer, if non-zero r is inner radius. default=0
-:type outer: float
-:param only_top_half: limit to top half
-:type only_top_half: bool
-:param ring: limit to 2d ring
-:type ring: bool
-:return: A randomly offset vector within the sphere/ring
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>radius</code></td>
+          <td>
+                <code> float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>radius</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>outer</code></td>
+          <td>
+                <code> float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>outer radius if 0 r is outer, if non-zero r is inner radius. default=0</p>
+            </div>
+          </td>
+          <td>
+                <code>0</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>only_top_half</code></td>
+          <td>
+                <code> bool</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>limit to top half</p>
+            </div>
+          </td>
+          <td>
+                <code>False</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>ring</code></td>
+          <td>
+                <code> bool</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>limit to 2d ring</p>
+            </div>
+          </td>
+          <td>
+                <code>False</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A randomly offset vector within the sphere/ring</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3989,16 +5116,231 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>random spherical offset</p>
-<p>:param r: radius
-:type r: float
-:param outer: outer radius if 0 r is outer, if non-zero r is inner radius. default=0
-:type outer: float
-:param top_only: limit to top half
-:type top_only: bool
-:param ring: limit to 2d ring
-:type ring: bool
-:return: A randomly offset vector within the sphere/ring
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>r</code></td>
+          <td>
+                <code> float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>radius</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>outer</code></td>
+          <td>
+                <code> float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>outer radius if 0 r is outer, if non-zero r is inner radius. default=0</p>
+            </div>
+          </td>
+          <td>
+                <code>0</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>top_only</code></td>
+          <td>
+                <code> bool</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>limit to top half</p>
+            </div>
+          </td>
+          <td>
+                <code>False</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>ring</code></td>
+          <td>
+                <code> bool</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>limit to 2d ring</p>
+            </div>
+          </td>
+          <td>
+                <code>False</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A randomly offset vector within the sphere/ring</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.vec.Vec3.rotate_around" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">rotate_around</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">ay</span><span class="p">,</span> <span class="n">az</span><span class="p">,</span> <span class="n">degrees</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Rotate around a point</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>o</code></td>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>origin </p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>ax</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>x angle</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>ay</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>y angle</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>az</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>z angle</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>degrees</code></td>
+          <td>
+                <code>bool</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>Use degrees if true, radians if false. Defaults to True.</p>
+            </div>
+          </td>
+          <td>
+                <code>True</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>Vec3</code></td>          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -4019,10 +5361,60 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>subtract immutable</p>
-<p>:param v: the other vector
-:type v: Vec3 or number
-:return: new vector 
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>v</code></td>
+          <td>
+                <code> Vec3 or number</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>the other vector</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -4035,7 +5427,7 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
 
 
 <h2 id="sbs_utils.vec.Vec3.toAngles" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">toAngles</span><span class="p">(</span><span class="n">v</span><span class="p">)</span></code>
+          <code class="highlight language-python"><span class="n">toAngles</span><span class="p">()</span></code>
 
 </h2>
 
@@ -4043,8 +5435,29 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>polar angles</p>
-<p>:return: theta and phi
-:rtype: theta: float, phi: float</p>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>theta, phi (float, float):  tuple containing theta and phi</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -4065,8 +5478,30 @@ Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())</p>
   <div class="doc doc-contents ">
   
       <p>unit vector immutable</p>
-<p>:return: new vector 
-:rtype: Vec3</p>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="sbs_utils.vec.Vec3" href="#sbs_utils.vec.Vec3">Vec3</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>new vector</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 

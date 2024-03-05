@@ -2245,6 +2245,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.faces.random_face" class="md-nav__link">
+    <span class="md-ellipsis">
+      random_face()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.faces.random_kralien" class="md-nav__link">
     <span class="md-ellipsis">
       random_kralien()
@@ -3176,6 +3185,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.faces.random_face" class="md-nav__link">
+    <span class="md-ellipsis">
+      random_face()
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.faces.random_kralien" class="md-nav__link">
     <span class="md-ellipsis">
       random_kralien()
@@ -3442,18 +3460,116 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>Create an arvonian face</p>
-<p>:param face_i: The index of the face 0
-:type face_i: int
-:param eye_id: The index of the eyes 0-4
-:type eye_i: int
-:param mouth_id: The index of the mouth 0-4
-:type mouth_i: int
-:param crown_id: The index of the crown 0-4 or None
-:type crown_i: int or None
-:param collar_id: The index of the collar 0-4 or None
-:type collar_i: int or None</p>
-<p>:return: A Face string
-:rtype: string</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>face_i</code></td>
+          <td>
+                <code> int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the face 0</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>eye_id</code></td>
+          <td>
+                <code> int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the eyes 0-4</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>mouth_id</code></td>
+          <td>
+                <code> int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the mouth 0-4</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>crown_id</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the crown 0-4 or None</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>collar_id</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the collar 0-4 or None</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Face string</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3474,8 +3590,36 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>Removes a face string for a specified ID</p>
-<p>:param ship_id: The id of the ship/object
-:type ship_id: int</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>ship_id</code></td>
+          <td>
+                <code><span title="sbs_utils.agent">agent</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The id of the ship/object</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3496,10 +3640,59 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>returns a face string for a specified ID</p>
-<p>:param ship_id: The id of the ship/object
-:type ship_id: int
-:return: A Face string
-:rtype: string</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>ship_id</code></td>
+          <td>
+                <code><span title="sbs_utils.agent">agent</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The id of the ship/object</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>str</code></td>          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Face string</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3520,18 +3713,116 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>Create an kralien face</p>
-<p>:param face_i: The index of the face 0
-:type face_i: int
-:param eye_id: The index of the eyes 0-4
-:type eye_i: int
-:param mouth_id: The index of the mouth 0-4
-:type mouth_i: int
-:param scalp_id: The index of the scalp 0-4 or None
-:type scalp_i: int or None
-:param extra_id: The index of the extra 0-4 or None
-:type extra_i: int or None</p>
-<p>:return: A Face string
-:rtype: string</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>face_i</code></td>
+          <td>
+                <code> int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the face 0</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>eye_id</code></td>
+          <td>
+                <code> int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the eyes 0-4</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>mouth_id</code></td>
+          <td>
+                <code> int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the mouth 0-4</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>scalp_id</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the scalp 0-4 or None</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>extra_id</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the extra 0-4 or None</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Face string</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3552,8 +3843,103 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>Create a random arvonian face</p>
-<p>:return: A Face string
-:rtype: string</p>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Face string</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.faces.random_face" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">random_face</span><span class="p">(</span><span class="n">race</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Returns a random face for the specified race</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>race</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The Race Terran, Torgoth etc.</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>str</code></td>          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The Face String</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3574,8 +3960,30 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>Create a random kralien face</p>
-<p>:return: A Face string
-:rtype: string</p>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Face string</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3596,8 +4004,30 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>Create a random skaraan face</p>
-<p>:return: A Face string
-:rtype: string</p>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Face string</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3618,12 +4048,74 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>Create a random terran face</p>
-<p>:param face: The index of the hair 0=male,1=female,2=fluid male, 3=fluid female or None= random
-:type face: int or None
-:param civilian: The force this to be a civilian=True, For non-civilian=False or None= random
-:type civilian: boolean or None</p>
-<p>:return: A Face string
-:rtype: string</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>face</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the hair 0=male,1=female,2=fluid male, 3=fluid female or None= random</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>civilian</code></td>
+          <td>
+                <code> boolean or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The force this to be a civilian=True, For non-civilian=False or None= random</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Face string</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3644,12 +4136,60 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>Create a random terran female face</p>
-<p>:param face: The index of the hair 0=male,1=female,2=fluid male, 3=fluid female or None= random
-:type face: int or None
-:param civilian: The force this to be a civilian=True, For non-civilian=False or None= random
-:type civilian: boolean or None</p>
-<p>:return: A Face string
-:rtype: string</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>civilian</code></td>
+          <td>
+                <code> boolean or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The force this to be a civilian=True, For non-civilian=False or None= random</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Face string</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3670,10 +4210,60 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>Create a random fluid terran face i.e. may have male or female features</p>
-<p>:param civilian: The force this to be a civilian=True, For non-civilian=False or None= random
-:type civilian: boolean or None</p>
-<p>:return: A Face string
-:rtype: string</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>civilian</code></td>
+          <td>
+                <code> boolean or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The force this to be a civilian=True, For non-civilian=False or None= random</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Face string</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3694,10 +4284,60 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>Create a random terran male face</p>
-<p>:param civilian: The force this to be a civilian=True, For non-civilian=False or None= random
-:type civilian: boolean or None</p>
-<p>:return: A Face string
-:rtype: string</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>civilian</code></td>
+          <td>
+                <code> boolean or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The force this to be a civilian=True, For non-civilian=False or None= random</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Face string</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3718,8 +4358,30 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>Create a random torgoth face</p>
-<p>:return: A Face string
-:rtype: string</p>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Face string</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3740,8 +4402,30 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>Create a random ximni face</p>
-<p>:return: A Face string
-:rtype: string</p>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Face string</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3762,10 +4446,50 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>sets a face string for a specified ID</p>
-<p>:param ship_id: The id of the ship/object
-:type ship_id: int
-:param face: A Face string
-:type face: string</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>ship_id</code></td>
+          <td>
+                <code><span title="sbs_utils.agent">agent</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The id of the ship/object</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>face</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Face string</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3786,18 +4510,116 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>Create a skaraan face</p>
-<p>:param face_i: The index of the face 0
-:type face_i: int
-:param eye_id: The index of the eyes 0-4
-:type eye_i: int
-:param mouth_id: The index of the mouth 0-4
-:type mouth_i: int
-:param horn_id: The index of the horn 0-4 or None
-:type horn_i: int or None
-:param hat_id: The index of the hat 0-4 or None
-:type hat_i: int or None
-:return: A Face string
-:rtype: string</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>face_i</code></td>
+          <td>
+                <code> int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the face 0</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>eye_id</code></td>
+          <td>
+                <code> int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the eyes 0-4</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>mouth_id</code></td>
+          <td>
+                <code> int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the mouth 0-4</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>horn_id</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the horn 0-4 or None</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>hat_id</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the hat 0-4 or None</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Face string</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3818,28 +4640,186 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>Create an terran face</p>
-<p>:param face_i: The index of the face 0=male, 1=female, 2=fluid_male, 3=fluid_female
-:type face_i: int or None 
-:param eye_i: The index of the eyes 0-9
-:type eye_i: int or None
-:param mouth_i: The index of the mouth 0-9
-:type mouth_i: int
-:param hair_i: The index of the hair 0-9 or None
-:type hair_i: int or None
-:param longhair_i: The index of the hair 0-7 or None
-:type longhair_i: int or None
-:param facial_i: The index of the hair 0-11 or None
-:type facial_i: int or None
-:param extra_i: The index of the extra 0-5 or None
-:type extra_i: int or None
-:param uniform_i: The index of the uniform 0 or None. None = civilian
-:type uniform_i: int or None
-:param skintone_i: The index of the skintone 0-??, string = color string or None. 
-:type skintone_i: int, str or None
-:param hairtone_i: The index of the skintone 0-??, string = color string  or None.
-:type hairtone_i: int, str or None</p>
-<p>:return: A Face string
-:rtype: string</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>face_i</code></td>
+          <td>
+                <code> int or None </code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the face 0=male, 1=female, 2=fluid_male, 3=fluid_female</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>eye_i</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the eyes 0-9</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>mouth_i</code></td>
+          <td>
+                <code> int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the mouth 0-9</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>hair_i</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the hair 0-9 or None</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>longhair_i</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the hair 0-7 or None</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>facial_i</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the hair 0-11 or None</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>extra_i</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the extra 0-5 or None</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>uniform_i</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the uniform 0 or None. None = civilian</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>skintone_i</code></td>
+          <td>
+                <code> int, str or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the skintone 0-??, string = color string or None. </p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>hairtone_i</code></td>
+          <td>
+                <code> int, str or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the skintone 0-??, string = color string  or None.</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Face string</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3860,20 +4840,130 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>Create a torgoth face</p>
-<p>:param face_i: The index of the face 0
-:type face_i: int
-:param eye_id: The index of the eyes 0-4
-:type eye_i: int
-:param mouth_id: The index of the mouth 0-4
-:type mouth_i: int
-:param hair_id: The index of the hair 0-4 or None
-:type hair_i: int or None
-:param extra_id: The index of the extra 0-4 or None
-:type extra_i: int or None
-:param hat_id: The index of the hat 0 or None
-:type hat_i: int or None</p>
-<p>:return: A Face string
-:rtype: string</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>face_i</code></td>
+          <td>
+                <code> int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the face 0</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>eye_id</code></td>
+          <td>
+                <code> int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the eyes 0-4</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>mouth_id</code></td>
+          <td>
+                <code> int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the mouth 0-4</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>hair_id</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the hair 0-4 or None</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>extra_id</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the extra 0-4 or None</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>hat_id</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the hat 0 or None</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Face string</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
@@ -3894,20 +4984,130 @@ The first layer is the lowest layer.</p>
   <div class="doc doc-contents ">
   
       <p>Create an ximni face</p>
-<p>:param face_i: The index of the face 0
-:type face_i: int
-:param eye_id: The index of the eyes 0-4
-:type eye_i: int
-:param mouth_id: The index of the mouth 0-4
-:type mouth_i: int
-:param horns_id: The index of the horns 0-4 or None
-:type horns_i: int or None
-:param mask_id: The index of the mask 0-4 or None
-:type mask_i: int or None
-:param collar_id: The index of the collar 0 or None
-:type collar_i: int or None</p>
-<p>:return: A Face string
-:rtype: string</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>face_i</code></td>
+          <td>
+                <code> int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the face 0</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>eye_id</code></td>
+          <td>
+                <code> int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the eyes 0-4</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>mouth_id</code></td>
+          <td>
+                <code> int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the mouth 0-4</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>horns_id</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the horns 0-4 or None</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>mask_id</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the mask 0-4 or None</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>collar_id</code></td>
+          <td>
+                <code> int or None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The index of the collar 0 or None</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A Face string</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
 
   </div>
 
