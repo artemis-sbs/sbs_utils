@@ -19,11 +19,10 @@ class Promise:
         self._exception = ex
 
     def done(self):
-        #self.poll()
         return self._result is not None or self._canceled is not None or self._exception is not None 
     
     def poll(self):
-        pass
+        return PollResults.OK_RUN_AGAIN
 
     def canceled(self):
         return self._canceled is not None
@@ -95,11 +94,14 @@ class PromiseWaiter(Waiter):
     def __init__(self, promise) -> None:
         self.promise = promise
     def get_waiter(self):
-#        print()
-#       def _waiter(promise):
-            while not self.promise.done():
-                yield self.promise.poll()
-#      return _waiter(self.promise)
+        while True:
+            res = self.promise.poll()
+            yield res
+            #print(f"Waiter tick {res}")
+            #yield self.promise.poll()
+            if self.promise.done():
+                break
+        yield PollResults.OK_ADVANCE_TRUE
 
 
 class AwaitBlockPromise(Promise):
@@ -120,6 +122,7 @@ class AwaitBlockPromise(Promise):
         self.initial_poll()
         if self.timeout and self.timeout.done():
             self.set_result(True)
+        return super().poll()
 
 
 class Trigger:

@@ -40,3 +40,7 @@ class TestProcedural(unittest.TestCase):
 
         
 
+class TestProceduralTimer(unittest.TestCase):
+
+    def test_data_(self):
+        pass

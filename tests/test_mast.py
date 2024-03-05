@@ -1689,6 +1689,13 @@ class TestMastPython(unittest.TestCase):
         assert(value =="""3\n3 again\n4\n4 again\n""")
 
     def test_python_await_delay(self):
+
+        @label()
+        def start():
+            yield ex.task_schedule(try_python_await)
+            yield ex.END()
+
+
         @label()
         def try_python_await():
             ex.logger(var='output')
@@ -1699,7 +1706,7 @@ class TestMastPython(unittest.TestCase):
             ex.log(f"{y}")
 
 
-        (errors, runner, _) = mast_run(code=None, label=try_python_await )
+        (errors, runner, _) = mast_run(code=None, label=start )
         while runner.tick():
             pass
         output = runner.get_value("output", None)

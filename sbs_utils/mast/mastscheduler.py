@@ -386,8 +386,8 @@ class AwaitRuntimeNode(MastRuntimeNode):
                 return PollResults.OK_JUMP
             
             if self.promise.done():
-                print(f"{self.promise.__class__.__name__} {task.active_label} {node.end_await_node.loc+1}")
-                print("Promise Done")
+                #print(f"{self.promise.__class__.__name__} {task.active_label} {node.end_await_node.loc+1}")
+                #print("Promise Done")
                 task.jump(task.active_label, node.dedent_loc)
                 return PollResults.OK_JUMP
             else:
@@ -395,7 +395,7 @@ class AwaitRuntimeNode(MastRuntimeNode):
         
         value = task.eval_code(node.code)
         if value:
-            print("Value related")
+            #print("Value related")
             #print(f"value {node.end_await_node.loc+1}")
             task.jump(task.active_label, node.dedent_loc)
             return PollResults.OK_JUMP
@@ -620,6 +620,8 @@ class MastTicker:
                     self.pending_pop = (push_data.label, push_data.active_cmd, push_data.runtime_node)
     def tick(self):
         cmd = None
+        #print(f"tick Mast task {self.task.id & 0xFFFFF}")
+
         try:
             if self.done:
                 # should unschedule
@@ -781,6 +783,7 @@ class PyTicker():
         # Keep running until told to defer or you've jump 100 time
         # Arbitrary number
         throttle = 0
+        #print(f"tick task {self.task.id & 0xFFFFF}")
         
         while not self.done and throttle < 100:
             throttle += 1
@@ -791,7 +794,7 @@ class PyTicker():
                 
             elif self.pending_pop:
                 # Pending jump trumps pending pop
-                #print(f"pending pop to {self.pending_pop.__name__}")
+                # print(f"pending pop to {self.pending_pop.__name__}")
                 self.current_gen = self.pending_pop
                 self.pending_pop = None
 
@@ -826,12 +829,14 @@ class PyTicker():
                 elif res == PollResults.OK_END:
                     gen_done = True
                     fallthrough = False
+                    #print("Res is OK_END")
                     self.end()
                     break
                 elif isinstance(res, Waiter):
                     if self.current_gen is not None:
                         self.stack.append(self.current_gen)
                     self.current_gen = res.get_waiter()
+                    # print("Handling waiter")
                     self.last_poll_result = PollResults.OK_JUMP
                     break
 
@@ -870,6 +875,7 @@ class PyTicker():
                 else:
                     self.current_gen = self.pending_pop
                     if self.current_gen is None:
+                        #print("Popped weird")
                         self.end()
                         self.last_poll_result = PollResults.OK_END
                     else:
@@ -978,12 +984,15 @@ class MastAsyncTask(Agent, Promise):
     main: 'MastScheduler'
     dependent_tasks = {}
     
-    def __init__(self, main: 'MastScheduler', inputs=None, conditional= None):
+    def __init__(self, main: 'MastScheduler', inputs=None, name= None):
         super().__init__()
         self.id = get_task_id()
         
         #self.runtime_node = None
         self.main= main
+        self.name = name
+        # if name:
+        #     print(f"Creating task {name}")
         #self.vars= inputs if inputs else {}
         if inputs:
             self.inventory.collections = dict(self.inventory.collections, **inputs)
@@ -1010,6 +1019,11 @@ class MastAsyncTask(Agent, Promise):
         self.add()
     
     def end(self):
+        # if self.name is not None:
+        #     print(f"Task {self.name} called end")
+        # else:
+        #     print("Task called end")
+
         self.active_ticker.end()
         self.set_result(self.active_ticker.last_poll_result)
         #self.done = True
@@ -1029,6 +1043,10 @@ class MastAsyncTask(Agent, Promise):
     @property
     def tick_result(self):
         return self.active_ticker.last_poll_result
+    
+    def poll(self):
+        return self.tick_result()
+
 
     def get_symbols(self):
         # m1 = self.main.mast.vars | self.main.vars
@@ -1138,6 +1156,7 @@ class MastAsyncTask(Agent, Promise):
         except:
             # err = format_exception("", "Mast eval level Runtime Error:")
             self.runtime_error("Mast eval level Runtime Error:\n")
+            print("eval error")
             self.end()
         finally:
             pass
@@ -1158,6 +1177,7 @@ class MastAsyncTask(Agent, Promise):
             #err = traceback.format_exc()
             #err = format_exception("", "Mast exec level Runtime Error:")
             self.runtime_error("Mast exec level Runtime Error:\n")
+            print("exec error")
             self.end()
         finally:
             pass
@@ -1168,6 +1188,8 @@ class MastAsyncTask(Agent, Promise):
         return self.main.start_task(label, inputs, task_name, defer)
     
     def tick(self):
+        # if self.name is not None:
+        #     print(f"ticking {self.name}")
         restore = FrameContext.task
         FrameContext.task = self
         res = self.active_ticker.tick()
@@ -1216,6 +1238,7 @@ class MastAsyncTask(Agent, Promise):
     @classmethod
     def stop_for_dependency(cls, id):
         the_set = MastAsyncTask.dependent_tasks.get(id, set())
+        print("Unlikely")
         for task in the_set:
             task.end()
         MastAsyncTask.dependent_tasks.pop(id, None)
@@ -1285,7 +1308,7 @@ class MastScheduler(Agent):
 
         # if self.mast and self.mast.labels.get(label,  None) is None:
         #     raise Exception(f"Calling undefined label {label}")
-        t= MastAsyncTask(self, inputs)
+        t= MastAsyncTask(self, inputs, task_name)
         return t
 
 
@@ -1295,8 +1318,11 @@ class MastScheduler(Agent):
             t.set_value(task_name, t, Scope.NORMAL)
         t.jump(label)
         self.tasks.append(t)
+        b4 = len(self.tasks)
+        
         if not defer:
             self.on_start_task(t)
+        # print(f"Task count {b4} =? {len(self.tasks)}")
         return t
 
     def on_start_task(self, t):
@@ -1339,6 +1365,7 @@ class MastScheduler(Agent):
 
     def tick(self):
         restore = FrameContext.task
+        # print(f"Task count for tick {len(self.tasks)}")
         for task in self.tasks:
             self.active_task = task
             FrameContext.task = task

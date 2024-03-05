@@ -1,6 +1,7 @@
 from .inventory import get_inventory_value, set_inventory_value
 from ..helpers import FrameContext
 from ..futures import Promise
+from ..mast.pollresults import PollResults
 
 TICK_PER_SECONDS = 30
 def set_timer(id_or_obj, name, seconds=0, minutes =0):
@@ -175,6 +176,11 @@ class Delay(Promise):
                 self.set_result(True)
         return super().done()
     
+    def poll(self):
+        if self.done():
+            return None
+        return PollResults.OK_RUN_AGAIN
+    
 def delay_sim(seconds=0, minutes=0):
     """creates a Promise that waits for the specified time to elapse
     this is in simulation time (i.e. it could get paused)
@@ -242,6 +248,12 @@ class DelayForTests(Promise):
         if self.count <=0:
             self.set_result(True)
         return super().done()
+    
+    def poll(self):
+        if self.done():
+            return PollResults.OK_ADVANCE_TRUE
+        return PollResults.OK_RUN_AGAIN
+    
     
 def delay_test(seconds=0, minutes=0):
     """creates a Promise that waits for the specified time to elapse
