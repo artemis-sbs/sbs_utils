@@ -378,7 +378,7 @@ def route_dock(label):
 class HandleDamage:
     just_once = set()
 
-    def __init__(self, damage_type, label) -> None:
+    def __init__(self, damage_type, label, ff=None) -> None:
         #
         #
         # Also avoid adding twice, e.g. each client can added the route

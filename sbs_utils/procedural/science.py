@@ -182,7 +182,7 @@ class ScanPromise(ButtonPromise):
 
 
 
-    def science_message(self, message, an_id, event):
+    def science_message(self, event):
         # makes sure this was for us
         if event.selected_id != self.selected_id or self.origin_id != event.origin_id:
             return
@@ -211,7 +211,7 @@ class ScanPromise(ButtonPromise):
                 self.task.set_variable("EVENT", self.event)
                 self.task.push_inline_block(self.task.active_label,button.loc+1)
 
-    def science_selected(self, an_id, event):
+    def science_selected(self, event):
         #
         # avoid if this isn't for us
         #
