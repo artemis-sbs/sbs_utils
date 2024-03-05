@@ -1,4 +1,4 @@
-# GUI
+# The Inventory system
 
 
 

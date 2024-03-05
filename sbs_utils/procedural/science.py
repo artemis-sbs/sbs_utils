@@ -4,6 +4,7 @@ from .roles import has_role
 from .. import faces
 from ..agent import Agent
 from ..helpers import FrameContext
+from ..mast.mast import Button
 import sbs
 
 def show_warning(t):
@@ -11,15 +12,23 @@ def show_warning(t):
 
 
 
-def science_start_scan(origin_id, selected_id, tab):
-    #
-    # Check if this was initiated by a "Follow route"
-    #
-    so = query.to_object(origin_id)
+def science_start_scan(origin_id_or_side, selected_id, tab):
+    """Start the scan for a a science tab
+
+    Args:
+        origin_id_or_side (agent|str): If a string is passed it used as the player side, otherwise it use this as an agent to determine side
+        selected_id (agent): Agent id or objects
+        tab (str): The tab to start
+    """
+    player_side = origin_id_or_side
+    if not isinstance(origin_id_or_side, str):
+        so = query.to_object(origin_id_or_side)
+        player_side = so.side
+
     so_sel = query.to_object(selected_id)
     percent = 0.0
 
-    if so.side == so_sel.side:
+    if player_side == so_sel.side:
         percent = 0.90
     if so:
         so.data_set.set("cur_scan_ID", selected_id,0)
@@ -28,6 +37,14 @@ def science_start_scan(origin_id, selected_id, tab):
         
 
 def science_set_scan_data(player_id_or_obj, scan_target_id_or_obj, tabs):
+    """Immediately set the science scan data for a scan target
+       use this for things that you do not want to have scan delayed.
+
+    Args:
+        player_id_or_obj (agent): The player ship agent id or object
+        scan_target_id_or_obj (agent): The target ship agent id or object
+        tabs (dict): A dictionary to key = tab, value = scan string
+    """    
     player_id = query.to_id(player_id_or_obj)
     scan_target_id = query.to_id(scan_target_id_or_obj)
     player_obj = query.to_object(player_id)
@@ -74,21 +91,36 @@ def _science_get_selected_id():
 
 
 
-def scan_results(message):
+def scan_results(message, target=None, tab = None):
+    """Set the scan results for the current scan. This should be called when the scan is completed.
+       This is typically called as part of a scan()
+       This could also be called in response to a routed science message.
+       When pair with a scan() the target and tab are not need.
+       Tab is the variable __SCAN_TAB__, target is track 
+
+    Args:
+        message (str): scan text for a scan the is in progress
+        tab (str): scan tab for a scan the is in progress
+    """    
     if FrameContext.task is None:
         show_warning("Scan results called in a weird way")
         return
     
     task = FrameContext.task
 
-    scan = task.get_variable("__SCAN_TAB__")
+    scan = tab
+    if tab is None:
+        scan = task.get_variable("__SCAN_TAB__")
+
     if scan is None:
         show_warning("Scan results expecting a scan tab")
         return
     
     msg = task.compile_and_format_string(message)
     #print(f"{scan.tab} scan {msg}")
-    selected_id = _science_get_selected_id()
+    selected_id = target
+    if target is None:
+        selected_id = _science_get_selected_id()
     so = query.to_object(selected_id)
     if so:
         so.data_set.set(scan.tab, msg,0)
@@ -289,6 +321,23 @@ class ScanPromise(ButtonPromise):
                 self.start_scan( origin_so.id, sel_so.id, "__init__")
 
 
-def scan(timeout=None, auto_side=True):
+def scan(buttons=None, timeout=None, auto_side=True):
+    """Start a science scan
+
+    Args:
+        buttons (dict, optional): dictionary key = button, value = label. Defaults to None.
+        timeout (_type_, optional): A promise typically by calling timeout(). Defaults to None.
+        auto_side (bool, optional): If true quickly scans thing on the same side. Defaults to True.
+
+    Returns:
+        Promise: A promise to wait. Typically passed to an await/AWAIT
+    """    
     task = FrameContext.task
-    return ScanPromise(task, timeout, auto_side)
+    ret = ScanPromise(task, timeout, auto_side)
+    if buttons is not None:
+        for k in buttons:
+            ret .buttons.append(Button(k,button="+", label=buttons[k],loc=0))
+        
+    return ret
+
+    

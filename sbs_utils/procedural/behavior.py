@@ -149,17 +149,61 @@ class PromiseBehaveUntil(PromiseBehave):
 
 
 def bt_seq(*args, **kwargs):
+    """behavior tree sequence only returns success if the whole sequence has success
+
+    Args:
+        args (labels): The arguments are labels
+        kwargs (any): data = will pass data the the behavior tasks.
+
+    Returns:
+        Promise: A Promise that runs until failure or success
+    """    
     return PromiseBehaveSeq(*args, **kwargs)
 
 def bt_sel(*args, **kwargs):
+    """behavior tree select returns success if any task has success
+
+    Args:
+        args (labels): The arguments are labels
+        kwargs (any): data = will pass data the the behavior tasks.
+
+    Returns:
+        Promise: A Promise that runs until failure or success
+    """        
     return PromiseBehaveSel(*args, **kwargs)
 
 def bt_invert(a_bt_promise):
+    """behavior tree invert
+
+    Args:
+        a_bt_promise (promise): Invert the success or failure of a behavior promise
+
+    Returns:
+        Promise: A Promise that runs until failure or success
+    """        
     return PromiseBehaveInvert(a_bt_promise)
 
 def bt_until_success(a_bt_promise):
+    """reruns behavior tree until success 
+    Behavior promise has a reset() to rerun
+
+    Args:
+        a_bt_promise (promise): The promise to run
+
+    Returns:
+        Promise: A Promise that runs until success
+    """        
     return PromiseBehaveUntil(a_bt_promise, PollResults.BT_SUCCESS)
 
 def bt_until_fail(a_bt_promise):
+    """reruns behavior tree until failure
+    Behavior promise has a reset() to rerun
+
+    Args:
+        a_bt_promise (promise): The promise to run
+
+    Returns:
+        Promise: A Promise that runs until failure
+    """            
     return PromiseBehaveUntil(a_bt_promise, PollResults.BT_FAIL)
 

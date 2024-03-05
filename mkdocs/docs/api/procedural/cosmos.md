@@ -1,5 +1,3 @@
-# The comms system
-
-
+# The cosmos functions
 
 ::: sbs_utils.procedural.cosmos

@@ -239,33 +239,33 @@ class ConsoleDispatcher:
         """
         cb = ConsoleDispatcher._dispatch_messages.get((event.origin_id, event.selected_id, console))
         if cb is not None:
-            cb(event.sub_tag, event.selected_id, event)
+            cb(event)
             return
 
         cb = ConsoleDispatcher._dispatch_messages.get((event.selected_id, event.origin_id, console))
         # Allow the target to process
         if cb is not None:
-            cb(event.sub_tag, event.origin_id, event)
+            cb(event)
             return
 
         cb_set = ConsoleDispatcher._dispatch_messages.get((event.origin_id, console))
         if cb_set is not None:
             for cb in cb_set:
-                cb(event.sub_tag, event.selected_id, event)
+                cb(event)
             return True
             
         # Allow to route to the selected ship too
         cb_set = ConsoleDispatcher._dispatch_messages.get((event.selected_id, console))
         if cb_set is not None:
             for cb in cb_set:
-                cb(event.sub_tag, event.origin_id, event)
+                cb(event)
             return True
         
         # Allow to route to the default too
         cb_set = ConsoleDispatcher._dispatch_messages.get((0, console))
         if cb_set is not None:
             for cb in cb_set:
-                cb(event.sub_tag, event.origin_id, event)
+                cb(event)
             return True
 
         

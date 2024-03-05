@@ -212,9 +212,8 @@ def get_shared_variable(key, default=None):
     Returns:
         any: The value of the variable, or default value
     """    
-    if FrameContext.task is None:
-        return None
-    return FrameContext.task.get_shared_variable(key,default)
+    return Agent.SHARED.get_inventory_value(key, default)
+    
 
 def set_shared_variable(key, value):
     """set the value of a variable at shared scope. Or returns the passed default if it doesn't exist.
@@ -223,9 +222,7 @@ def set_shared_variable(key, value):
         key (str): the variable name
         value (any): The value to set the variable to
     """    
-    if FrameContext.task is None:
-        return None
-    return FrameContext.task.set_shared_variable(key,value)
+    Agent.SHARED.set_inventory_value(key, value)
 
 
 

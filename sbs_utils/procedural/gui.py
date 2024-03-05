@@ -11,6 +11,14 @@ import re
 import sbs
 
 def gui_add_console_tab(id_or_obj, console, tab_name, label):
+    """adds a tab definition 
+
+    Args:
+        id_or_obj (agent): agent id or object
+        console (str): Console name
+        tab_name (str): Tab name
+        label (label): Label to run when tab selected
+    """    
     ship_id = to_id(id_or_obj)
     console = console.lower()
     tabs = get_inventory_value(ship_id, "console_tabs", {})
@@ -22,6 +30,13 @@ def gui_add_console_tab(id_or_obj, console, tab_name, label):
     set_inventory_value(ship_id, "console_tabs", tabs)
 
 def gui_remove_console_tab(id_or_obj, console, tab_name):
+    """removes a tab definition 
+
+    Args:
+        id_or_obj (agent): agent id or object
+        console (str): Console name
+        tab_name (str): Tab name
+    """        
     ship_id = to_id(id_or_obj)
     tabs = get_inventory_value(ship_id, "console_tabs", None)
     if tabs is None: return
@@ -34,6 +49,14 @@ def gui_remove_console_tab(id_or_obj, console, tab_name):
 
 
 def compile_formatted_string(message):
+    """build a compiled version of the format string for faster execution
+
+    Args:
+        message (str): The format string
+
+    Returns:
+        code: compiled python eval
+    """    
     if message is None:
         return message
     if "{" in message:
@@ -143,6 +166,15 @@ def apply_control_styles(control_name, extra_style, layout_item, task):
 
 
 def gui_face(face, style=None):
+    """queue a gui face element
+
+    Args:
+        face (str): _description_
+        style (str, optional): Style. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """    
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
@@ -157,6 +189,15 @@ def gui_face(face, style=None):
 
 
 def gui_icon(props, style=None):
+    """queue a gui icon element
+
+    Args:
+        props (str): _description_
+        style (str, optional): Style. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """        
     page = FrameContext.page
     task = FrameContext.task
     props = task.compile_and_format_string(props)
@@ -171,18 +212,64 @@ def gui_icon(props, style=None):
     return layout_item
 
 def gui_image_stretch(props, style=None):
+    """queue a gui image element that stretches to fit
+
+    Args:
+        props (str): _description_
+        style (str, optional): Style. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """            
     return gui_image(props, style=style, fit=0)
 
 def gui_image_absolute(props, style=None):
+    """queue a gui image element that draw the absolute pixels dimensions
+
+    Args:
+        props (str): _description_
+        style (str, optional): Style. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """                
     return gui_image(props, style=style, fit=1)
 
 def gui_image_keep_aspect_ratio(props, style=None):
+    """queue a gui image element that draw keeping the same aspect ratio, left top justified
+
+    Args:
+        props (str): _description_
+        style (str, optional): Style. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """                
     return gui_image(props, style=style, fit=2)
 
 def gui_image_keep_aspect_ratio_center(props, style=None):
+    """queue a gui image element that keeps the aspect ratio and centers when there is extra
+
+    Args:
+        props (str): _description_
+        style (str, optional): Style. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """                
     return gui_image(props, style=style, fit=3)
 
 def gui_image(props, style=None, fit=0):
+    """queue a gui image element that draw based on the fit argument. Default is stretch
+
+    Args:
+        props (str): _description_
+        style (str, optional): Style. Defaults to None.
+        fit (int): The type of fill, 
+
+    Returns:
+        layout object: The Layout object created
+    """                    
     page = FrameContext.page
     task = FrameContext.task
     props = task.compile_and_format_string(props)
@@ -204,6 +291,15 @@ def gui_image(props, style=None, fit=0):
 
 
 def gui_ship(props, style=None):
+    """renders a 3d image of the ship 
+
+    Args:
+        props (str): The ship key
+        style (str, optional): Style. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """                
     page = FrameContext.page
     task = FrameContext.task
     props = task.compile_and_format_string(props)
@@ -221,6 +317,14 @@ def gui_ship(props, style=None):
 
 
 def gui_row(style=None):
+    """queue a gui row
+
+    Args:
+        style (str, optional): Style. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """                
     page = FrameContext.page
     task = FrameContext.task
         
@@ -233,6 +337,14 @@ def gui_row(style=None):
     return layout_item
 
 def gui_blank(style=None):
+    """adds an empty column to the current gui ow
+
+    Args:
+        style (_type_, optional): Style. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """    
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
@@ -245,6 +357,15 @@ def gui_blank(style=None):
     return layout_item
 
 def gui_hole(count=1, style=None):
+    """adds an empty column that is used by the next item
+
+    Args:
+        count (int): The number of columns to use
+        style (_type_, optional): Style. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """        
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
@@ -277,14 +398,27 @@ class MessageHandler:
                 
             FrameContext.task = restore
 
-def gui_button(msg, style=None, data=None, on_message=None, jump=None ):
+def gui_button(props, style=None, data=None, on_message=None, jump=None ):
+    """Add a gui button
+
+    Args:
+        count (int): The number of columns to use
+        style (_type_, optional): Style. Defaults to None.
+        data (object): The data to pass to the button's label
+        on_message (label): A label to handle a button press
+        jump (label): A label to jump to a button press, ending the Await gui
+
+    Returns:
+        layout object: The Layout object created
+    """        
+
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
         return None
     tag = page.get_tag()
-    msg = task.compile_and_format_string(msg)
-    layout_item = layout.Button(tag, msg)
+    props = task.compile_and_format_string(props)
+    layout_item = layout.Button(tag, props)
     layout_item.data = data
     apply_control_styles(".button", style, layout_item, task)
     # Last in case tag changed in style
@@ -298,14 +432,25 @@ def gui_button(msg, style=None, data=None, on_message=None, jump=None ):
     return layout_item
 
 
-def gui_drop_down(msg, style=None, var=None, data=None):
+def gui_drop_down(props, style=None, var=None, data=None):
+    """ Draw a gui drop down list 
+
+    Args:
+        props (str): 
+        style (style, optional): Style. Defaults to None.
+        var (str, optional): Variable name to set the selection to. Defaults to None.
+        data (object, optional): data to pass the handler. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """    
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
         return None
     tag = page.get_tag()
-    msg = task.compile_and_format_string(msg)
-    layout_item = layout.Dropdown(tag, msg)
+    props = task.compile_and_format_string(props)
+    layout_item = layout.Dropdown(tag, props)
     layout_item.data = data
     if var is not None:
         layout_item.var_name = var
@@ -317,6 +462,17 @@ def gui_drop_down(msg, style=None, var=None, data=None):
 
 
 def gui_checkbox(msg, style=None, var=None, data=None):
+    """ Draw a checkbox 
+
+    Args:
+        props (str): 
+        style (style, optional): Style. Defaults to None.
+        var (str, optional): Variable name to set the value to. Defaults to None.
+        data (object, optional): data to pass the handler. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """    
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
@@ -337,6 +493,18 @@ def gui_checkbox(msg, style=None, var=None, data=None):
     return layout_item
 
 def gui_radio(msg, style=None, var=None, data=None, vertical=False):
+    """ Draw a radio button list 
+
+    Args:
+        props (str): List of buttons to use
+        style (style, optional): Style. Defaults to None.
+        var (str, optional): Variable name to set the selection to. Defaults to None.
+        data (object, optional): data to pass the handler. Defaults to None.
+        vertical (bool): Layout vertical if True, default False means horizontal
+
+    Returns:
+        layout object: The Layout object created
+    """    
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
@@ -363,9 +531,32 @@ def gui_radio(msg, style=None, var=None, data=None, vertical=False):
     return layout_item
 
 def gui_vradio(msg, style=None, var=None, data=None):
+    """ Draw a vertical radio button list 
+
+    Args:
+        props (str): List of buttons to use
+        style (style, optional): Style. Defaults to None.
+        var (str, optional): Variable name to set the selection to. Defaults to None.
+        data (object, optional): data to pass the handler. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """        
     return gui_radio(msg, style, var, data, True)
 
 def gui_slider(msg, style=None, var=None, data=None, is_int=False):
+    """ Draw a slider control
+
+    Args:
+        props (str): hi, low etc.
+        style (style, optional): Style. Defaults to None.
+        var (str, optional): Variable name to set the selection to. Defaults to None.
+        data (object, optional): data to pass the handler. Defaults to None.
+        is_int (bool): Use only integers values
+
+    Returns:
+        layout object: The Layout object created
+    """    
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
@@ -391,28 +582,51 @@ def gui_slider(msg, style=None, var=None, data=None, is_int=False):
     return layout_item
 
 def gui_int_slider(msg, style=None, var=None, data=None):
+    """ Draw an integer slider control
+
+    Args:
+        props (str): hi, low etc.
+        style (style, optional): Style. Defaults to None.
+        var (str, optional): Variable name to set the selection to. Defaults to None.
+        data (object, optional): data to pass the handler. Defaults to None.
+    
+    Returns:
+        layout object: The Layout object created
+    """    
     return gui_slider(msg, style, var,  data, True)
 
 
-def gui_input(label, style=None, var=None, data=None):
+def gui_input(props, style=None, var=None, data=None):
+    """ Draw a text type in
+
+    Args:
+        props (str): hi, low etc.
+        style (style, optional): Style. Defaults to None.
+        var (str, optional): Variable name to set the selection to. Defaults to None.
+        data (object, optional): data to pass the handler. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """    
+
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
         return None
     tag = page.get_tag()
-    if label is not None:
-        label = task.compile_and_format_string(label)
+    if props is not None:
+        props = task.compile_and_format_string(props)
     else:
-        label = ""
+        props = ""
 
     val = ""
     if var is not None:
         val = task.get_variable(var, "")
 
-    if "text:" not in label:
-        label = f"text:{val};{label}"
+    if "text:" not in props:
+        props = f"text:{val};{props}"
 
-    layout_item = layout.TextInput(tag, label)
+    layout_item = layout.TextInput(tag, props)
     layout_item.data = data
     if var is not None:
         layout_item.var_name = var
@@ -425,6 +639,15 @@ def gui_input(label, style=None, var=None, data=None):
 
 
 def gui_section(style=None):
+    """ Create a new gui section that uses the area specified in the style
+
+    Args:
+        style (style, optional): Style. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """    
+
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
@@ -445,6 +668,13 @@ def gui_set_style_def(name, style):
 
 
 def gui_widget_list(console, widgets):
+    """ Set the engine widget list. i.e. controls engine controls
+
+    Args:
+        console (str): The console type name
+        widgets (str): The list of widgets
+
+    """    
     page = FrameContext.page
     if page is None:
         return None
@@ -452,15 +682,31 @@ def gui_widget_list(console, widgets):
 
 
 def gui_widget_list_clear():
+    """clear the widet list on the client
+    """    
     gui_widget_list("","")
 
 def gui_activate_console(console):
+    """set the console name for the client
+
+    Args:
+        console (str): The console name
+
+    """    
     page = FrameContext.page
     if page is None:
         return None
     page.activate_console(console)
         
 def gui_layout_widget(widget):
+    """Places a specific console widget in the a layout section. Placing it at a specific location
+
+    Args:
+        widget (str): The gui widget
+
+    Returns:
+        layout element: The layout element
+    """    
     page = FrameContext.page
     if page is None:
         return None
@@ -472,6 +718,12 @@ def gui_layout_widget(widget):
     
 
 def gui_console(console):
+    """Activates a console using the default set of widgets
+
+    Args:
+        console (str): The console name
+
+    """    
     page = FrameContext.page
     if page is None:
         return None
@@ -503,6 +755,16 @@ def gui_console(console):
 
 
 def gui_content(content, style=None, var=None):
+    """Place a python code widget e.g. list box using the layout system
+
+    Args:
+        content (widget): A gui widget code in python
+        style (str, optional): Style. Defaults to None.
+        var (str, optional): The variable to set the widget's value to. Defaults to None.
+
+    Returns:
+        layout object: The layout object
+    """    
     page = FrameContext.page
     task = FrameContext.task
     if page is None:
@@ -523,33 +785,39 @@ def gui_content(content, style=None, var=None):
     return layout_item
 
 def gui_text(props, style=None):
-        """ Gets the simulation space object
+    """ Add a gui text object
 
-        valid properties 
-           text
-           color
-           font
+    valid properties 
+        text
+        color
+        font
 
 
-        :param props: property string 
-        :type props: str
-        :param layout: property string 
-        :type layout: str
-        """
-        page = FrameContext.page
-        task = FrameContext.task
+    props (str): property string 
+    style (style, optional): The style
+    """
+    page = FrameContext.page
+    task = FrameContext.task
 
-        if page is None:
-            return
-        if style is None: 
-            style = ""
-        layout_item = layout.Text(page.get_tag(), props)
-        apply_control_styles(".text", style, layout_item, task)
+    if page is None:
+        return
+    if style is None: 
+        style = ""
+    layout_item = layout.Text(page.get_tag(), props)
+    apply_control_styles(".text", style, layout_item, task)
 
-        page.add_content(layout_item, None)
-        return layout_item
+    page.add_content(layout_item, None)
+    return layout_item
 
 def gui_update(tag, props, shared=False, test=None):
+    """Update the properties of a current gui element
+
+    Args:
+        tag (str): 
+        props (str): The new properties to use
+        shared (bool, optional): Update all gui screen if true. Defaults to False.
+        test (dict, optional): Check the variable (key) update if any value is different than the test. Defaults to None.
+    """    
     page = FrameContext.page
     task = FrameContext.task
 
@@ -565,6 +833,11 @@ def gui_update_shared(tag, props, test=None):
 
 
 def gui_refresh(label):
+    """refresh any gui running the specified label
+
+    Args:
+        label (label): A mast label
+    """    
     task = FrameContext.task
     if label is None:
         task.main.refresh(label)
@@ -612,15 +885,23 @@ def gui_reroute_client(client_id, label):
         page.gui_task.jump(label)
 
 def gui_reroute_server(label):
+    """reroute server gui to run the specified label
+
+    Args:
+        label (label): Label to jump to
+    """    
     if _gui_reroute_main(label, True):
         return
     gui_reroute_client(0,label)
 
 
 def gui_reroute_clients(label, exclude=None):
-    #
-    # RerouteGui in main defers to the end of main
-    #
+    """reroute client guis to run the specified label
+
+    Args:
+        label (label): Label to jump to
+        exclude (set, optional): set client_id values to exclude. Defaults to None.
+    """    
     if _gui_reroute_main(label, False):
         return
     if exclude is None:
@@ -662,6 +943,14 @@ class MessageTrigger(Trigger):
             FrameContext.page = restore
 
 def gui_message(layout_item):
+    """Trigger to watch when the specified layout element has a message
+
+    Args:
+        layout_item (layout object): The object to watch
+
+    Returns:
+        trigger: A trigger watches something and runs something when the trigger is reached
+    """    
     task = FrameContext.task
     return MessageTrigger(task, layout_item)
 
@@ -691,6 +980,14 @@ class ClickableTrigger(Trigger):
         return True
 
 def gui_click(name_or_layout_item=None):
+    """Trigger to watch when the specified layout element is clicked
+
+    Args:
+        layout_item (layout object): The object to watch
+
+    Returns:
+        trigger: A trigger watches something and runs something when the element is clicked
+    """    
     task = FrameContext.task
     name = name_or_layout_item
     if name is not None:
@@ -740,6 +1037,17 @@ class ChangeTrigger(Trigger):
         self.task.push_inline_block(self.label, loc)
 
 def gui_change(code, label):
+    """Trigger to watch when the specified value changes
+    This is the python version of the mast on change construct
+
+    Args:
+        code (str): Code to evaluate
+        label (label): The label to jump to run when the value changes
+
+    Returns:
+        trigger: A trigger watches something and runs something when the element is clicked
+    """    
+
     task = FrameContext.task
     page = FrameContext.page
     if task is None:

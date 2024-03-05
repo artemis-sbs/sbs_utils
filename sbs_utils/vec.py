@@ -29,8 +29,8 @@ class Vec3:
         """Get the vector as a tuple
         Useful for passing to arguments e.g. player.spawn(sim, *v.xyz())
 
-        :return: a tuple with x,y,z
-        :rtype: (float,float,float)
+        Returns:
+            values (tuple): a tuple with x,y,z
         """
         return (self.x,self.y,self.z)
 
@@ -40,36 +40,38 @@ class Vec3:
     def neg(self):
         """Negate a vector immutable
 
-        :return: new vector negated version of this one
-        :rtype: Vec3
+        Returns:
+            (Vec3):  new vector negated version of this one
         """
         return self.__neg__()
 
     def __neg__(self):
         """operator Negate a vector immutable
 
-        :return: new vector negated version of this one
-        :rtype: Vec3
+        Returns:
+            (Vec3):  new vector negated version of this one
         """
         return Vec3(-self.x, -self.y, -self.z)
 
     def __add__(self, v):
         """ operator add immutable
 
-        :param v: the other vector
-        :type v: Vec3 or number
-        :return: new vector 
-        :rtype: Vec3
+        Args:
+            v ( Vec3 or number): the other vector
+
+        Returns:
+            (Vec3):  new vector 
         """
         return self.add(v)
 
     def __iadd__(self, v):
         """operator inline add (+=) mutable
 
-        :param v: the other vector
-        :type v: Vec3 or number
-        :return: new vector 
-        :rtype: Vec3
+        Args:
+            v ( Vec3 or number): the other vector
+
+        Returns:
+            (Vec3):  new vector 
         """
         r = self.add(v)
         return self._set(r)
@@ -89,10 +91,11 @@ class Vec3:
     def add(self, v):
         """add immutable
 
-        :param v: the other vector
-        :type v: Vec3 or number
-        :return: new vector 
-        :rtype: Vec3
+        Args:
+            v ( Vec3 or number): the other vector
+
+        Returns:
+            (Vec3):  new vector 
         """
         if isinstance(v, Vec3):
             return Vec3(self.x + v.x, self.y + v.y, self.z + v.z)
@@ -102,20 +105,22 @@ class Vec3:
     def subtract(self, v):
         """subtract immutable
 
-        :param v: the other vector
-        :type v: Vec3 or number
-        :return: new vector 
-        :rtype: Vec3
+        Args:
+            v ( Vec3 or number): the other vector
+
+        Returns:
+            (Vec3):  new vector 
         """
         return self.__sub__(v)
 
     def __sub__(self, v):
         """operator sub immutable
 
-        :param v: the other vector
-        :type v: Vec3 or number
-        :return: new vector 
-        :rtype: Vec3
+        Args:
+            v ( Vec3 or number): the other vector
+
+        Returns:
+            (Vec3):  new vector 
         """
         if isinstance(v, Vec3):
             return Vec3(self.x - v.x, self.y - v.y, self.z - v.z)
@@ -124,11 +129,12 @@ class Vec3:
 
     def __isub__(self, v):
         """operator inline subtract mutable
+        
+        Args:
+            v ( Vec3 or number): the other vector
 
-        :param v: the other vector
-        :type v: Vec3 or number
-        :return: new vector 
-        :rtype: Vec3
+        Returns:
+            (Vec3):  new vector 
         """
         r = self.__sub__(v)
         return self._set(r)
@@ -136,20 +142,22 @@ class Vec3:
     def multiply(self, v):
         """multiply immutable
 
-        :param v: the other vector
-        :type v: Vec3 or number
-        :return: new vector 
-        :rtype: Vec3
+        Args:
+            v ( Vec3 or number): the other vector
+
+        Returns:
+            (Vec3):  new vector 
         """
         return self.__mul__(v)
 
     def __mul__(self, v):
         """operator multiply immutable
 
-        :param v: the other vector
-        :type v: Vec3 or number
-        :return: new vector 
-        :rtype: Vec3
+        Args:
+            v ( Vec3 or number): the other vector
+
+        Returns:
+            (Vec3):  new vector 
         """
         if isinstance(v, Vec3):
             return Vec3(self.x * v.x, self.y * v.y, self.z * v.z)
@@ -159,10 +167,11 @@ class Vec3:
     def __imul__(self, v):
         """operator inline multiply mutable
 
-        :param v: the other vector
-        :type v: Vec3 or number
-        :return: new vector 
-        :rtype: Vec3
+        Args:
+            v ( Vec3 or number): the other vector
+
+        Returns:
+            (Vec3):  new vector 
         """
         r = self.__mul__(v)
         return self._set(r)
@@ -170,20 +179,22 @@ class Vec3:
     def divide(self, v):
         """divide immutable
 
-        :param v: the other vector
-        :type v: Vec3 or number
-        :return: new vector 
-        :rtype: Vec3
+        Args:
+            v ( Vec3 or number): the other vector
+
+        Returns:
+            (Vec3):  new vector 
         """
         return self.__truediv__(v)
 
     def __truediv__(self, v):
         """operator divide immutable
 
-        :param v: the other vector
-        :type v: Vec3 or number
-        :return: new vector 
-        :rtype: Vec3
+        Args:
+            v ( Vec3 or number): the other vector
+
+        Returns:
+            (Vec3):  new vector 
         """
         if isinstance(v, Vec3):
             return Vec3(self.x / v.x, self.y / v.y, self.z / v.z)
@@ -193,10 +204,11 @@ class Vec3:
     def __itruediv__(self, v):
         """operator inline divide mutable
 
-        :param v: the other vector
-        :type v: Vec3 or number
-        :return: new vector 
-        :rtype: Vec3
+        Args:
+            v ( Vec3 or number): the other vector
+
+        Returns:
+            (Vec3):  new vector 
         """
         r = self.__truediv__(v)
         return self._set(r)
@@ -204,40 +216,44 @@ class Vec3:
     def equals(self, v):
         """equals immutable
 
-        :param v: the other vector
-        :type v: Vec3
-        :return: if they are equal
-        :rtype: bool
+        Args:
+            v ( Vec3): the other vector
+
+        Returns:
+            (bool):  if they are equal
         """
         return self.__eq__(v)
 
     def __eq__(self, v) -> bool:
         """operator equals immutable
 
-        :param v: the other vector
-        :type v: Vec3
-        :return: new vector 
-        :rtype: bool
+        Args:
+            v ( Vec3): the other vector
+
+        Returns:
+            (bool):  new vector 
         """
         return self.x == v.x and self.y == v.y and self.z == v.z
 
     def dot(self, v):
         """dot product immutable
 
-        :param v: the other vector
-        :type v: Vec3
-        :return: new vector 
-        :rtype: Vec3
+        Args:
+            v ( Vec3): the other vector
+
+        Returns:
+            (Vec3):  new vector 
         """
         return self.x * v.x + self.y * v.y + self.z * v.z
 
     def __matmul__(self, v):
         """operator matrix multiply (@) dot product immutable
 
-        :param v: the other vector
-        :type v: Vec3 or number
-        :return: new vector 
-        :rtype: Vec3
+        Args:
+            v ( Vec3 or number): the other vector
+
+        Returns:
+            (Vec3):  new vector 
         """
         return self.dot(v)
 
@@ -248,10 +264,11 @@ class Vec3:
     def cross(self, v):
         """cross product immutable
 
-        :param v: the other vector
-        :type v: Vec3 or number
-        :return: new vector 
-        :rtype: Vec3
+        Args:
+            v ( Vec3 or number): the other vector
+
+        Returns:
+            (Vec3):  new vector 
         """
         return Vec3(
             self.y * v.z - self.z * v.y,
@@ -262,40 +279,40 @@ class Vec3:
     def length(self):
         """length immutable
 
-        :return: The length of the vector
-        :rtype: float
+        Returns:
+            (float):  The length of the vector
         """
         return math.sqrt(self.dot(self))
 
     def unit(self):
         """unit vector immutable
 
-        :return: new vector 
-        :rtype: Vec3
+        Returns:
+            (Vec3):  new vector 
         """
         return self.divide(self.length())
 
     def min(self):
         """min of x,y,z
 
-        :return: min of x,y,z
-        :rtype: float
+        Returns:
+            (float):  min of x,y,z
         """
         return math.min(math.min(self.x, self.y), self.z)
 
     def max(self):
         """max of x,y,z
 
-        :return: max of x,y,z
-        :rtype: float
+        Returns:
+            (float):  max of x,y,z
         """
         return math.max(math.max(self.x, self.y), self.z)
 
-    def toAngles(self, v):
+    def toAngles(self):
         """polar angles
         
-        :return: theta and phi
-        :rtype: theta: float, phi: float
+        Returns:
+            theta, phi (float, float):  tuple containing theta and phi
         """
         return {
             'theta': math.atan2(self.z, self.x),
@@ -303,21 +320,27 @@ class Vec3:
         }
 
     def angleTo(self, a):
+        """ angle to
+
+        Args:
+            a (Vec3): The other point
+
+        Returns:
+            float: Angle in radians
+        """        
         return math.acos(self.dot(a) / (self.length() * a.length()))
 
     def rand_offset(self, r, outer=0, top_only=False, ring=False):
         """ random spherical offset
 
-        :param r: radius
-        :type r: float
-        :param outer: outer radius if 0 r is outer, if non-zero r is inner radius. default=0
-        :type outer: float
-        :param top_only: limit to top half
-        :type top_only: bool
-        :param ring: limit to 2d ring
-        :type ring: bool
-        :return: A randomly offset vector within the sphere/ring
-        :rtype: Vec3
+        Args:
+            r ( float): radius
+            outer ( float): outer radius if 0 r is outer, if non-zero r is inner radius. default=0
+            top_only ( bool): limit to top half
+            ring ( bool): limit to 2d ring
+
+        Returns:
+            (Vec3):  A randomly offset vector within the sphere/ring
         """
         v = Vec3.rand_in_sphere(r, outer, top_only, ring)
         return self + v
@@ -325,16 +348,14 @@ class Vec3:
     def rand_in_sphere(radius, outer=0, only_top_half=False, ring=False):
         """ random within a sphere
 
-        :param radius: radius
-        :type radius: float
-        :param outer: outer radius if 0 r is outer, if non-zero r is inner radius. default=0
-        :type outer: float
-        :param only_top_half: limit to top half
-        :type only_top_half: bool
-        :param ring: limit to 2d ring
-        :type ring: bool
-        :return: A randomly offset vector within the sphere/ring
-        :rtype: Vec3
+        Args:
+            radius ( float): radius
+            outer ( float): outer radius if 0 r is outer, if non-zero r is inner radius. default=0
+            only_top_half ( bool): limit to top half
+            ring ( bool): limit to 2d ring
+
+        Returns:
+            (Vec3):  A randomly offset vector within the sphere/ring
         """
 
         PI = math.pi
@@ -362,6 +383,18 @@ class Vec3:
         return ret
     
     def rotate_around(self, o, ax, ay, az, degrees=True):
+        """Rotate around a point
+
+        Args:
+            o (Vec3): origin 
+            ax (float): x angle
+            ay (float): y angle
+            az (float): z angle
+            degrees (bool, optional): Use degrees if true, radians if false. Defaults to True.
+
+        Returns:
+            Vec3: The new vector
+        """        
         px = self.x - o.x
         py = self.y - o.y
         pz = self.z - o.z

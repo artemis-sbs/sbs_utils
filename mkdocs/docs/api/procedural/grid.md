@@ -1,4 +1,4 @@
-# GUI
+# Grid Object system
 
 
 

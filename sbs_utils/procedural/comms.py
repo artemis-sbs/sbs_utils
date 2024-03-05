@@ -270,7 +270,7 @@ class CommsPromise(ButtonPromise):
         self.show_buttons()
         super().initial_poll()
 
-    def comms_message(self, message, an_id, event):
+    def comms_message(self, event):
         #
         # Check to see if this was intended for us
         #

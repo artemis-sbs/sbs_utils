@@ -5,8 +5,17 @@ from .inventory import get_inventory_value, set_inventory_value
 from ..fs import load_json_data, get_artemis_data_dir_filename, get_mission_dir_filename
 import functools
 import sbs
+from ..vec import Vec3
 
 def grid_objects(so_id):
+    """get a set of agent ids of the grid objects on the specified ship
+
+    Args:
+        so_id (agent): agent id or object 
+
+    Returns:
+        set: a set of agent ids
+    """    
     gos = set()
     hm = sbs.get_hull_map(to_id(so_id))
     if hm is None:
@@ -18,6 +27,16 @@ def grid_objects(so_id):
     return gos
 
 def grid_objects_at(so_id, x,y):
+    """get a set of agent ids of the grid objects on the specified ship, at the location specified
+
+    Args:
+        so_id (agent): agent id or object 
+        x (int): The x grid location
+        y (int): The y grid location
+
+    Returns:
+        set: a set of agent ids
+    """    
     gos = set()
     hm = sbs.get_hull_map(to_id(so_id))
     if hm is None:
@@ -30,16 +49,17 @@ def grid_objects_at(so_id, x,y):
 ####### TODO: Update for sets
 
 def grid_close_list(grid_obj, the_set, max_dist=None, filter_func=None) -> list[CloseData]:
-    """ Finds a list of matching objects
-    :param roles: Roles to looks for can also be class name
-    :type roles: str or List[str]
-    :param max_dist: Max distance to search (faster)
-    :type max_dist: float
-    :param filter_func: Called to test each object to filter out non matches
-    :type filter_func:
-    :return: A list of close object
-    :rtype: List[GridCloseData]
-    """
+    """Find and target the closest object matching the criteria
+
+    Args:
+        grid_obj_or_set (agent set): The agent 
+        target_set (agent set, optional): The items to test. Defaults to None.
+        max_dist (float, optional): max distance. Defaults to None.
+        filter_func (_type_, optional): additional filer function. Defaults to None.
+
+    Returns:
+        CloseData list: The gird close data of the closest objects
+    """    
     ret = []
     grid_obj=to_object(grid_obj)
     blob = to_blob(grid_obj.id)
@@ -84,19 +104,19 @@ def grid_close_list(grid_obj, the_set, max_dist=None, filter_func=None) -> list[
 
     return ret
 
-def grid_closest(grid_obj, roles=None, max_dist=None, filter_func=None) -> CloseData:
-    """ Finds the closest object matching the criteria
+def grid_closest(grid_obj, target_set=None, max_dist=None, filter_func=None) -> CloseData:
+    """Find and target the closest object matching the criteria
 
-    :param roles: Roles to looks for can also be class name
-    :type roles: str or List[str] 
-    :param max_dist: Max distance to search (faster)
-    :type max_dist: float
-    :param filter_func: Called to test each object to filter out non matches
-    :type filter_func: function that takes ID
-    :return: A list of close object
-    :rtype: GridCloseData
-    """
-    close = grid_close_list(grid_obj, roles, max_dist, filter_func)
+    Args:
+        grid_obj_or_set (agent set): The agent 
+        target_set (agent set, optional): The items to test. Defaults to None.
+        max_dist (float, optional): max distance. Defaults to None.
+        filter_func (_type_, optional): additional filer function. Defaults to None.
+
+    Returns:
+        CloseData: The gird close data of the closest object
+    """    
+    close = grid_close_list(grid_obj, target_set, max_dist, filter_func)
     # Maybe not the most efficient
     if len(close)==1:
         return close[0]
@@ -105,36 +125,34 @@ def grid_closest(grid_obj, roles=None, max_dist=None, filter_func=None) -> Close
     
     return None
 
-def grid_target_closest(grid_obj_or_set, roles=None, max_dist=None, filter_func=None):
-    """ Find and target the closest object matching the criteria
+def grid_target_closest(grid_obj_or_set, target_set=None, max_dist=None, filter_func=None):
+    """Find and target the closest object matching the criteria
 
-    :param roles: Roles to looks for can also be class name
-    :type roles: str or List[str] 
-    :param max_dist: Max distance to search (faster)
-    :type max_dist: float
-    :param filter_func: Called to test each object to filter out non matches
-    :type filter_func: function
-    :param shoot: if the target should be shot at
-    :type shoot: bool
-    :return: A list of close object
-    :rtype: GridCloseData
-    """
+    Args:
+        grid_obj_or_set (agent set): The agent 
+        target_set (agent set, optional): The items to test. Defaults to None.
+        max_dist (float, optional): max distance. Defaults to None.
+        filter_func (_type_, optional): additional filer function. Defaults to None.
+
+    Returns:
+        GridCloseData: The gird close data of the closest object
+    """    
     grid_objs= to_object_list(grid_obj_or_set)
     for grid_obj in grid_objs:
         grid_obj=to_object(grid_obj)
-        close = grid_closest(grid_obj, roles, max_dist, filter_func)
+        close = grid_closest(grid_obj, target_set, max_dist, filter_func)
         if close.id is not None:
             grid_obj.target(close.id)
         return close
 
 def grid_target(grid_obj_or_set, target_id: int, speed=0.01):
-    """ Set the item to target
+    """Set a grid object to target the location of another grid object
 
-    :param other_id: the id of the object to target
-    :type other_id: int
-    :param shoot: if the object should be shot at
-    :type shoot: bool
-    """
+    Args:
+        grid_obj_or_set (agent): an id, object or set of agent(s)
+        target_id (agent): an agent id or object 
+        speed (float, optional): the speed to move. Defaults to 0.01.
+    """    
     grid_objs= to_object_list(grid_obj_or_set)
     for grid_obj in grid_objs:
         this_blob = to_blob(grid_obj.id)
@@ -152,13 +170,14 @@ def grid_target(grid_obj_or_set, target_id: int, speed=0.01):
                 this_blob.set("move_speed", speed, 0)
 
 def grid_target_pos(grid_obj_or_set, x:float, y:float, speed=0.01):
-    """ Set the item to target
+    """ Set the grid object go to the target location
 
-    :param other_id: the id of the object to target
-    :type other_id: int
-    :param shoot: if the object should be shot at
-    :type shoot: bool
-    """
+    Args:
+        grid_obj_or_set (agent): An id, object or set of grid object agent(s)
+        x (float): x location
+        y (float): y location
+        speed (float, optional): The grid object speed. Defaults to 0.01.
+    """    
     grid_objs= to_object_list(grid_obj_or_set)
     for grid_obj in grid_objs:
         blob = to_blob(grid_obj.id)
@@ -180,10 +199,11 @@ def grid_target_pos(grid_obj_or_set, x:float, y:float, speed=0.01):
             blob.set("move_speed", 0, 0)
 
 def grid_clear_target(grid_obj_or_set):
-    """ Clear the target
+    """ Clear the target of a grid object
 
-    :param id: the id of the object or set
-    :type id: int
+    Args:
+        grid_obj_or_set (agent): the id of the object or set
+
     """
     grid_objs= to_object_list(grid_obj_or_set)
     for grid_obj in grid_objs:
@@ -194,17 +214,34 @@ def grid_clear_target(grid_obj_or_set):
 
         
 def get_open_grid_points(id_or_obj):
+    """gets a list of open grid location
+
+    Args:
+        id_or_obj (agent): agent id or object to check
+
+    Returns:
+        set: a set of Vec3 with x and y set
+    """    
     the_set = []
     hull_map = sbs.get_hull_map(to_id(id_or_obj))
     if hull_map is not None:
         for x in range(hull_map.w):
             for y in range(hull_map.w):
                 if hull_map.is_grid_point_open(x,y) != 0:
-                    the_set.append((x,y))
+                    the_set.append(Vec3(x,y,0))
     return the_set
 
 
 def grid_speech_bubble(id_or_obj, status, color=None, seconds=0, minutes=0):
+    """sets the speech bubble text of a grid object. The text will disappear if the seconds/minutes are set
+
+    Args:
+        id_or_obj (agent): Agent id or object
+        status (str): The detailed status string
+        color (str, optional): change the color of the detailed status text. None does not change the current value
+        seconds (int): The seconds for the speech bubble
+        minutes: (int): The minutes for the speech bubble
+    """        
     blob = to_blob(id_or_obj)
     if blob is None:
         return
@@ -222,11 +259,25 @@ def grid_speech_bubble(id_or_obj, status, color=None, seconds=0, minutes=0):
         set_inventory_value(id_or_obj, "speech_bubble_tick_task", t)
 
 def grid_clear_speech_bubble(id_or_obj):
+    """clear the speech bubble for a grid object
+
+    Args:
+        id_or_obj (agent): agent id or object of the grid object
+    """    
     grid_speech_bubble(id_or_obj, "")
     set_inventory_value(id_or_obj, "speech_bubble_tick_task", None)
     
 
 def grid_short_status(id_or_obj, status, color=None, seconds=0, minutes=0):
+    """sets the short status (tool tip) and speech bubble text of a grid object
+
+    Args:
+        id_or_obj (agent): Agent id or object
+        status (str): The detailed status string
+        color (str, optional): change the color of the detailed status text. None does not change the current value
+        seconds (int): The seconds for the speech bubble
+        minutes: (int): The minutes for the speech bubble
+    """    
     blob = to_blob(id_or_obj)
     if blob is None:
         return
@@ -235,6 +286,13 @@ def grid_short_status(id_or_obj, status, color=None, seconds=0, minutes=0):
     grid_speech_bubble(id_or_obj, status, color, seconds, minutes)
 
 def grid_detailed_status(id_or_obj, status, color=None):
+    """sets the detailed status of a grid object
+
+    Args:
+        id_or_obj (agent): Agent id or object
+        status (str): The detailed status string
+        color (str, optional): change the color of the detailed status text. None does not change the current value
+    """    
     blob = to_blob(id_or_obj)
     if blob is None:
         return
@@ -244,12 +302,22 @@ def grid_detailed_status(id_or_obj, status, color=None):
         blob.set("info_text_color", color, 0)
 
 def grid_clear_detailed_status(id_or_obj):
+    """clears the detailed status string of a grid object
+
+    Args:
+        id_or_obj (agent): The agent id of object
+    """    
     grid_detailed_status(id_or_obj, "")
     
 
 
 _grid_data = None 
 def grid_get_grid_data():
+    """get the grid data from all the grid_data.json files
+
+    Returns:
+        dict: a dictionary of grid data objects key is a ship key
+    """    
     global _grid_data
     if _grid_data is None:
         _grid_data = load_json_data(get_artemis_data_dir_filename("grid_data.json"))

@@ -4,25 +4,25 @@ from .query import to_object_list, to_set, to_object
 
 
 def has_inventory(key: str):
-    """ has_inventory
+    """ get the set of agent ids that have a inventory item with the given key
 
-        get the object that have a inventory item with the given key
-
-        :param key: The key/name of the inventory item
-        :type key: str
-        :rtype: set of ids
-        """
+    Args:
+        key (str): The key/name of the inventory item
+    
+    Returns:
+        set: set of ids
+    """
     return Agent.has_inventory_set(key)
 
 def has_inventory_value(key: str, value):
-    """ has_inventory
+    """get the object that have a inventory item with the given key
 
-        get the object that have a inventory item with the given key
+    Args:
+        key (str): The key/name of the inventory item
 
-        :param key: The key/name of the inventory item
-        :type key: str
-        :rtype: set of ids
-        """
+    Returns:
+        set: set of ids
+    """
     holders = Agent.has_inventory_set(key)
     ret = set()
     for holder in to_object_list(holders):
@@ -31,92 +31,76 @@ def has_inventory_value(key: str, value):
             ret.add(holder.get_id())
     return ret
 
-def inventory_set(link_source, link_name: str):
-    """ inventory_set
-
-        get the set that inventory items with the given key the the link source has
+def inventory_set(source, key: str):
+    """ get the set that inventory items with the given key the the link source has
         this is the way to create a collection in inventory
 
-        :param link_source: The id object to check
-        :type link_source: int / id
-        :param link_name: The key/name of the inventory item
-        :type link_name: str
-        :rtype: set of data
-        """
-    link_source = Agent.resolve_py_object(link_source)
-    return link_source.get_inventory_set(link_name)
-
-def inventory_value(link_source, link_name: str, default=None):
-    """ inventory_value
-
-        get the value that inventory items with the given key the the link source has
+    !!! Note
+        This is like set_inventory_value bu the value is a set
         
-        :param link_source: The id object to check
-        :type link_source: int / id
-        :param link_name: The key/name of the inventory item
-        :type link_name: str
-        :rtype: data
-        """
-    
-    link_source = Agent.resolve_py_object(link_source)
-    if link_source is not None:
-        return link_source.get_inventory_value(link_name, default)
-    return None
-
-def get_inventory_value(so, key, default=None):
-    """ get_inventory_value
-
-    get the value that inventory items with the given key the the link source has
-    
-    :param link_source: The id object to check
-    :type link_source: int / id
-    :param link_name: The key/name of the inventory item
-    :type link_name: str
-    :rtype: data
+    Args:
+        source (agent): The agent id or object to check
+        key (str): The key/name of the inventory item
+        set: set of data
     """
-    so = to_object(so)
-    if so is not None:
-        return so.get_inventory_value(key, default)
+    source = Agent.resolve_py_object(source)
+    return source.get_inventory_set(key)
+
+
+def get_inventory_value(id_or_object, key, default=None):
+    """ get inventory value with the given key the the agent  has
+        this is the way to create a collection in inventory
+        
+    Args:
+        id_or_obj (agent): The agent id or object to check
+        key (str): The key/name of the inventory item
+        default (any): the default value data
+    """
+    id_or_object = to_object(id_or_object)
+    if id_or_object is not None:
+        return id_or_object.get_inventory_value(key, default)
     return default
+
+def inventory_value(id_or_obj, key: str, default=None):
+    """ get inventory value with the given key the the agent  has
+        this is the way to create a collection in inventory
+        
+    Args:
+        id_or_obj (agent): The agent id or object to check
+        key (str): The key/name of the inventory item
+        default (any): the default value data
+    """
+    return get_inventory_value(id_or_obj, key, default)
+
             
 def set_inventory_value(so, key, value):
-    """ set_inventory_value
-
-    set the value that inventory items with the given key the the link source has
-    
-    :param source: The id object to check
-    :type source: int / id
-    :param key: The key/name of the inventory item
-    :type key: str
-    :param value: The value of the inventory item
-    :type value: str
+    """ set inventory value with the given key the the agent  has
+        this is the way to create a collection in inventory
+        
+    Args:
+        id_or_obj (agent): The agent id or object to check
+        key (str): The key/name of the inventory item
+        value (any): the value
     """
-   
     obj_list = to_object_list(so)
     for obj in obj_list:
         if obj is not None:
             obj.set_inventory_value(key, value)
 
 def get_shared_inventory_value(key, default=None):
-    """ get_shared_inventory_value
-
-    get the value that inventory items with the given key on the shared agent
-   
-    :param key: The key/name of the inventory item
-    :type key: str
-    :param value: The value of the inventory item
-    :type value: str
+    """ get inventory value from the shared data agent
+        
+    Args:
+        key (str): The key/name of the inventory item
+        default (any): the value to return if not found
     """
     return Agent.SHARED.get_inventory_value(key, default)
 
 def set_shared_inventory_value(key, value):
-    """ set_inventory_value
-
-    set the value that inventory items with the given key on the shared agent
-    
-    :param key: The key/name of the inventory item
-    :type key: str
-    :param value: The value of the inventory item
-    :type value: str
+    """ set inventory value with the given key on the shared agent
+        
+    Args:
+        key (str): The key/name of the inventory item
+        value (any): the value
     """
     return Agent.SHARED.get_inventory_value(key, value)
