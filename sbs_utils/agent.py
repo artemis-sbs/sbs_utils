@@ -320,7 +320,12 @@ class Agent():
         the_set =  self.links.collection_set(link_name)
         if the_set:
             # return a list so you can remove while iterating
-            return [self.get(x) for x in the_set]
+            ret = []
+            for x in the_set:
+                o = self.get(x)
+                if o is not None:
+                    ret.append(o)
+            return ret
         return []
 
     def get_dedicated_link(self, link_name):

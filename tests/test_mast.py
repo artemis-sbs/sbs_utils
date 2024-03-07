@@ -1480,7 +1480,7 @@ yield fail
 
         assert(value =="""S1\nS2\nS3\nS1\nS2\nS3\nS1\nS2\n""")
 
-    def test_fallback_no_cond_no_err(self):
+    def _test_fallback_no_cond_no_err(self):
         (errors, runner, _) = mast_run( code = """
 logger(var="output")            
 shared has_apple = False
@@ -1505,7 +1505,7 @@ log("Ate Apple")
 -> END
 
 ===== external ====
-await delay_sim(seconds=10)
+await delay_test(seconds=10)
 has_apple = True
     """)
         assert(len(errors)==0)

@@ -61,7 +61,7 @@ def science_set_scan_data(player_id_or_obj, scan_target_id_or_obj, tabs):
         if tab != "scan":
             scan_tabs += f"{tab} "
         message = tabs.get(tab)
-        print(f"sci scan {tab} {message}")
+        #print(f"sci scan {tab} {message}")
         target_blob.set(f"{player_obj.side}{tab}", message, 0)
     target_blob.set("scan_type_list", scan_tabs, 0)
 

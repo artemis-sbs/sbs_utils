@@ -135,7 +135,9 @@ def object_exists(so_id):
         bool: if the object exists in the engine
     """    
     so_id = to_id(so_id)
-    return FrameContext.context.sim.space_object_exists(so_id)
+    if so_id is None:
+        return False
+    return FrameContext.context.sim.space_object_exists(so_id) != 0
     #return eo is not None
 
 def all_objects_exists(the_set):

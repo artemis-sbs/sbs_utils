@@ -226,9 +226,11 @@ class IfStatements(MastNode):
                 return None
 
         elif dedent_obj.__class__ == IfStatements:
-            pass # self.if_node.dedent_loc = loc
+            pass
+            #  if dedent_obj != self.if_node:
+            #     IfStatements.if_chains.pop()
         else:
-            #while IfStatements.if_chains[-1] != self.if_node:
+            #while len(IfStatements.if_chains)>0 and IfStatements.if_chains[-1] != self.if_node:
             IfStatements.if_chains.pop()
             # self.if_node.dedent_loc = loc
 
@@ -814,11 +816,11 @@ class Mast():
     inline_count = 0
     source_map_files = []
 
-    def __init__(self, cmds=None):
+    def __init__(self, cmds=None, is_import=False):
         super().__init__()
 
         self.lib_name = None
-        self.is_import = False
+        self.is_import = is_import
         self.basedir = None
         
 
@@ -988,9 +990,9 @@ class Mast():
     
 
     def import_content(self, filename, lib_file):
-        add = self.__class__()
+        add = self.__class__(is_import=True)
         add.basedir = self.basedir
-        add.is_import = True
+        # add.is_import = True
         errors = add.from_file(filename, lib_file)
         if len(errors)==0:
             for label, node in add.labels.items():
