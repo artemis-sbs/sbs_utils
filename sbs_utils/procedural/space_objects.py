@@ -141,22 +141,23 @@ def target(set_or_object, target_id, shoot: bool = True, throttle: float = 1.0):
         shoot (bool, optional): whether to also lock weapons on target. Defaults to True.
         throttle (float, optional): The speed to travel at. Defaults to 1.0.
     """    
-    target_id = Agent.resolve_id(target_id)
-    target_engine = FrameContext.context.sim.get_space_object(target_id)
-
-    if target_engine:
-        target_id = 0
-        if shoot:
-            target_id = target_engine.unique_ID
-        all = to_list(set_or_object)
-        for chaser in all:
-            chaser = Agent.resolve_py_object(chaser)
-            if chaser is not None:
-                chaser.data_set.set("target_pos_x", target_engine.pos.x,0)
-                chaser.data_set.set("target_pos_y", target_engine.pos.y,0)
-                chaser.data_set.set("target_pos_z", target_engine.pos.z,0)
-                chaser.data_set.set("target_id", target_id,0)
-                chaser.data_set.set("throttle", throttle,0)
+    target_obj = to_object(target_id)
+    if target_obj  is None:
+        return
+    
+    target_id = 0
+    _pos = target_obj.pos
+    if shoot:
+        target_id = target_obj.id
+    all = to_list(set_or_object)
+    for chaser in all:
+        chaser = Agent.resolve_py_object(chaser)
+        if chaser is not None:
+            chaser.data_set.set("target_pos_x", _pos.x,0)
+            chaser.data_set.set("target_pos_y", _pos.y,0)
+            chaser.data_set.set("target_pos_z", _pos.z,0)
+            chaser.data_set.set("target_id", target_id,0)
+            chaser.data_set.set("throttle", throttle,0)
 
 
 

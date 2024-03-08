@@ -538,6 +538,9 @@ class Button(MastNode):
                 for_name=None, for_exp=None, 
                 clone=False, q=None, label=None, loc=None):
         super().__init__()
+        #
+        # Remember any field in here need to be set in clone()
+        #
         if clone:
             return
         self.message = self.compile_formatted_string(message)
@@ -564,7 +567,7 @@ class Button(MastNode):
             for_exp = for_exp.lstrip()
             self.for_code = compile(for_exp, "<string>", "eval")
         else:
-            self.cor_code = None
+            self.for_code = None
 
     def visit(self, id_tuple):
         if self.visited is not None:
@@ -583,6 +586,7 @@ class Button(MastNode):
     def clone(self):
         proxy = Button(clone=True)
         proxy.message = self.message
+        proxy.label = self.label
         proxy.code = self.code
         proxy.color = self.color
         proxy.loc = self.loc
@@ -592,6 +596,7 @@ class Button(MastNode):
         proxy.data = self.data
         proxy.for_code = self.for_code
         proxy.for_name = self.for_name
+        
 
         return proxy
     
