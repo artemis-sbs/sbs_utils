@@ -381,7 +381,7 @@ else:
         main = mast.labels.get('main')
         assert(main is not None)
         for cmd in main.cmds:
-            print(f"{cmd.__class__} {cmd.loc}")
+            print(f"{cmd.__class__} {cmd.loc} {cmd.dedent_loc}")
         
         for cmd in main.cmds[0].if_chain:
              print(cmd.loc)
@@ -1642,13 +1642,82 @@ log("Three")
 
     
 
+
+
+    def test_nested_if(self):
+        (errors, mast) = mast_compile( code = """
+await comms():
+    + "Hail":
+        comms_receive(f"Go away, {name}! You talk too much!", title_color=raider_color)
+    + "Taunt":    # if enrage_value is None and not hide_taunt:
+        if enrage_value:
+            comms_receive(f"I'm too angry to deal with you right now, {name}.", title_color=raider_color)
+        elif hide_taunt==True:
+            comms_receive(f"Your taunts are worthless to us, {name}.", title_color=raider_color)
+        else:
+            # Navigate to sub Menu
+            jump comms_taunts
+
+    + "Surrender now" if show_surr:
+        blob = to_blob(COMMS_SELECTED_ID)
+        set_inventory_value(COMMS_SELECTED_ID, "surrender_count", surrender_count+1)
+        shield_count = blob.get("shield_count", 0)
+        s_ratio = 100
+        for s in range(shield_count):
+            s_max = blob.get("shield_max_val", s )
+            s_cur = blob.get("shield_val", s )
+            s_ratio = min(s_cur/s_max, s_ratio)
+
+        # Secret Codecase, force surrender if active, otherwise check shield ratio
+        if sc_timer > 0:
+            comms_receive(f"OK we give up, {name}.", title_color=surrender_color)
+            add_role(COMMS_SELECTED_ID, "surrendered")
+            ~~ game_stats["ships_surrender"] += 1~~
+            remove_role(COMMS_SELECTED_ID, "raider")
+            sc_timer = 0
+            set_inventory_value(COMMS_ORIGIN_ID, "sc_timer", sc_timer )
+            set_data_set_value(COMMS_SELECTED_ID, "surrender_flag", 1)
+            
+        elif s_ratio < 0.09:
+            if random.randint(1,6)<3:
+                comms_receive(f"OK we give up, {name}.", title_color=surrender_color)
+                add_role(COMMS_SELECTED_ID, "surrendered")
+                ~~ game_stats["ships_surrender"] += 1~~
+                remove_role(COMMS_SELECTED_ID, "raider")
+
+                set_data_set_value(COMMS_SELECTED_ID, "surrender_flag", 1)
+            else:
+                comms_receive(f"We will fight to our last breath!", title_color=raider_color)
+                add_role(COMMS_SELECTED_ID, "never_surrender")
+        
+        elif s_ratio < 0.5:
+            if random.randint(0,6)<=2:
+                comms_receive(f"OK we give up, {name}.", title_color=surrender_color)
+                add_role(COMMS_SELECTED_ID, "surrendered")
+                remove_role(COMMS_SELECTED_ID, "raider")
+                set_data_set_value(COMMS_SELECTED_ID, "surrender_flag", 1)
+            else:
+                comms_receive(f"We can still defeat you, {name}! Prepare to die!", title_color=raider_color)
+
+        else:
+            comms_receive(f"Go climb a tree, {name}!", title_color=raider_color)
+
+jump npc_comms
+""")
+        assert(len(errors)==0)
+        main = mast.labels.get("main")
+        l = len(main.cmds)
+        for cmd in main.cmds:
+             print(f"{cmd.__class__}")
+        assert(l>0)
+
+                
+
 if __name__ == '__main__':
     try:
         unittest.main(exit=False)
     except Exception as e:
         print(e.msg)
-
-
 
 
 
@@ -1795,3 +1864,6 @@ class TestMastPython(unittest.TestCase):
         self.t_expr_parser("""test[1 = 1234""", """test[1 = 1234""", False, False)
         
         
+
+
+

@@ -170,7 +170,7 @@ class LoopBreak(MastNode):
 class IfStatements(MastNode):
     rule = re.compile(r'((?P<end>else:)|(((?P<if_op>if|elif)[ \t]+?(?P<if_exp>[ \t\S]+?)'+BLOCK_START+')))')
 
-    if_chains = []
+    if_chains = {}
 
     def __init__(self, end=None, if_op=None, if_exp=None, loc=None):
         super().__init__()
@@ -187,52 +187,55 @@ class IfStatements(MastNode):
 
 
         if "end_if" == self.end:
-            self.if_node = IfStatements.if_chains[-1]
-            IfStatements.if_chains[-1].if_chain.append(self)
-            IfStatements.if_chains.pop()
+            self.if_node = IfStatements.if_chains.get(Mast.current_indent)
+            if self.if_node is not None:
+                self.if_node.if_chain.append(self)
+            IfStatements.if_chains[Mast.current_indent] = None
         elif "else:" == self.end:
-            self.if_node = IfStatements.if_chains[-1]
-            IfStatements.if_chains[-1].if_chain.append(self)
+            self.if_node = IfStatements.if_chains.get(Mast.current_indent)
+            if self.if_node is not None:
+                self.if_node.if_chain.append(self)
             
         elif "elif" == self.if_op:
-            self.if_node = IfStatements.if_chains[-1]
-            IfStatements.if_chains[-1].if_chain.append(self)
+            self.if_node = IfStatements.if_chains.get(Mast.current_indent)
+            if self.if_node is not None:
+                self.if_node.if_chain.append(self)
             
         elif "if" == self.if_op:
             self.if_chain = [self]
             self.if_node = self
-            IfStatements.if_chains.append(self)
+            IfStatements.if_chains[Mast.current_indent] = self
             
 
     def is_indentable(self):
         return True
     
     def create_end_node(self, loc, dedent_obj):
-        self.if_node.dedent_loc = loc      
-        if dedent_obj is None:
-            # Dandling
-            IfStatements.if_chains.pop()
+        self.if_node.dedent_loc = loc
+        # if dedent_obj is None:
+        #     # Dandling
+        #     IfStatements.if_chains.pop()
 
-        elif dedent_obj.__class__ == IfStatements and self.if_op == 'if':
-            # Pop the chains until it matches the
-            # expected if is the indent object
-            # self is the indent object
-            while IfStatements.if_chains[-1] != self:
-                IfStatements.if_chains.pop()
+        # elif dedent_obj.__class__ == IfStatements and self.if_op == 'if':
+        #     # Pop the chains until it matches the
+        #     # expected if is the indent object
+        #     # self is the indent object
+        #     while IfStatements.if_chains[-1] != self:
+        #         IfStatements.if_chains.pop()
 
-            if dedent_obj.if_op=='if':
-                IfStatements.if_chains.pop()
-                IfStatements.if_chains.append(dedent_obj)
-                return None
+        #     if dedent_obj.if_op=='if':
+        #         IfStatements.if_chains.pop()
+        #         IfStatements.if_chains.append(dedent_obj)
+        #         return None
 
-        elif dedent_obj.__class__ == IfStatements:
-            pass
-            #  if dedent_obj != self.if_node:
-            #     IfStatements.if_chains.pop()
-        else:
-            #while len(IfStatements.if_chains)>0 and IfStatements.if_chains[-1] != self.if_node:
-            IfStatements.if_chains.pop()
-            # self.if_node.dedent_loc = loc
+        # elif dedent_obj.__class__ == IfStatements:
+        #     pass
+        #     #  if dedent_obj != self.if_node:
+        #     #     IfStatements.if_chains.pop()
+        # else:
+        #     #while len(IfStatements.if_chains)>0 and IfStatements.if_chains[-1] != self.if_node:
+        #     IfStatements.if_chains.pop()
+        #     # self.if_node.dedent_loc = loc
 
         return None
 
@@ -1082,6 +1085,7 @@ class Mast():
             #line = lines[:mo]
             lines = lines[mo[0]:]
             indent = max((mo[0] - mo[2]) -1,0)
+            Mast.current_indent = indent
          
             # Keep location in file
             parsed = False
