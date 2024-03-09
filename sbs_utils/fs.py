@@ -25,9 +25,7 @@ def get_mission_name():
     return mission_name
 
 def get_missions_dir():
-    mission = get_script_dir()
-    missions = os.path.dirname(mission)
-    return missions
+    return get_artemis_data_dir()+"/missions"
 
 def get_mission_dir():
     return get_script_dir()
@@ -37,43 +35,41 @@ def is_dev_build():
     return os.path.isdir(mission+"\\.git")
 
 def get_artemis_data_dir():
-    mission = get_script_dir()
-    missions = os.path.dirname(mission)
-    return os.path.dirname(missions)
+    exe_dir = os.path.dirname(sys.executable)
+    return exe_dir+"/data"
+    
 
 def get_artemis_data_dir_filename(filename):
     return get_artemis_data_dir()+"\\"+filename        
 
 
 def get_artemis_graphics_dir():
-    mission = get_script_dir()
-    missions = os.path.dirname(mission)
-    data = os.path.dirname(missions)
+    data = get_artemis_data_dir()
     return data+"\\graphics"        
 
 def get_mission_graphics_file(file):
-    mission = get_mission_name()
-    return f"../missions/{mission}/{file}"
+    start = get_artemis_graphics_dir()
+    mission = get_mission_dir()
+    rel = os.path.relpath(mission, start)
+    return f"{rel}/{file}"
 
 def get_mission_audio_file(file):
-    mission = get_mission_name()
-    return f"../missions/{mission}/{file}"
+    start = get_artemis_audio_dir()
+    mission = get_mission_dir()
+    rel = os.path.relpath(mission, start)
+    return f"{rel}/{file}"
     
 
 
 
 def get_artemis_audio_dir():
-    mission = get_script_dir()
-    missions = os.path.dirname(mission)
-    data = os.path.dirname(missions)
+    data = get_artemis_data_dir()
     return data+"\\audio"        
 
 
 
 def get_artemis_dir():
-    mission = get_script_dir()
-    missions = os.path.dirname(mission)
-    data = os.path.dirname(missions)
+    data = get_artemis_data_dir()
     return os.path.dirname(data)
 
 def get_mission_dir_filename(filename):
@@ -107,3 +103,6 @@ def save_json_data(file, data):
         #j = re.sub(r',[\n\r]+[ \t]*"', ',"', j )
         #j = re.sub(r'\n[\s]+},\n[\s]+', '},', j )
         f.write(j)
+
+def add_to_path(dir):
+    sys.path.insert(0, dir) 

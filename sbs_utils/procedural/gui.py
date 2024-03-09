@@ -877,10 +877,15 @@ def _gui_reroute_main(label, server):
 from ..gui import Gui
 def gui_reroute_client(client_id, label):
     client = Gui.clients.get(client_id, None)
-    if client is not None:
-        page = client.page_stack[-1]
-        if page is None: 
-            return
+    if client is None:
+        return
+    if len(client.page_stack) == 0:
+        return
+    
+    page = client.page_stack[-1]
+    if page is None: 
+        return
+    
     if page is not None and page.gui_task:
         page.gui_task.jump(label)
 

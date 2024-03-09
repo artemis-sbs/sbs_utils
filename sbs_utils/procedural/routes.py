@@ -55,7 +55,7 @@ class HandleConsoleSelect:
 
 
     def grid_selected(self, event):
-        self.selected(None, event)
+        self.selected(event)
 
     def selected(self, event):
         if self.filter is not None:
