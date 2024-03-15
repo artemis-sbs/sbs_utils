@@ -9,13 +9,18 @@ from .vec import Vec3
 
 
 class TickType(IntEnum):
-    PASSIVE = 0,
-    TERRAIN = 0,
-    ACTIVE = 1,
-    NPC = 1,
-    PLAYER = 2,
-    UNKNOWN = -1,
-    ALL = -1
+    # Engine value bit 1111
+    # Passive = 0x1 = Engine 
+    PASSIVE = 0x01,
+    TERRAIN = 0x01,
+    ACTIVE = 0x10,
+    NPC = 0x10,
+    PLAYER = 0x20,
+    ALL = 0xffff,
+    #
+    #
+    NPC_AND_PLAYER = 0x30,
+    UNKNOWN = 0
 
 
 class SpaceObject(Agent):
@@ -37,23 +42,23 @@ class SpaceObject(Agent):
     
     @property
     def is_player(self):
-        return self.tick_type == TickType.PLAYER
+        return self.tick_type & TickType.PLAYER
 
     @property
     def is_npc(self):
-        return self.tick_type == TickType.ACTIVE
+        return self.tick_type & TickType.ACTIVE
 
     @property
     def is_terrain(self):
-        return self.tick_type == TickType.PASSIVE
+        return self.tick_type & TickType.PASSIVE
 
     @property
     def is_active(self):
-        return self.tick_type == TickType.ACTIVE
+        return self.tick_type & TickType.ACTIVE
 
     @property
     def is_passive(self):
-        return self.tick_type == TickType.PASSIVE
+        return self.tick_type & TickType.PASSIVE
 
 
     def get_space_object(self):
@@ -118,11 +123,15 @@ class SpaceObject(Agent):
         :return: side
         :rtype: str
         """
-        so = self.space_object()
-        self._side = side
-        self.update_comms_id()
-        if so is not None:
-            so._side = side
+        if side != self._side:
+            self.remove_role(self._side)
+            self.add_role(side)
+            so = self.space_object()
+            self._side = side
+            self.update_comms_id()
+            if so is not None:
+                so.side = side
+                FrameContext.context.sim.force_update_to_clients(self.id)
 
     def set_name(self, name):
         """ Get the name of the object
@@ -143,9 +152,12 @@ class SpaceObject(Agent):
         :return: name
         :rtype: str
         """
-        so = self.space_object()
-        so.data_tag = art_id
-        self._art_id = art_id
+        if art_id != self._art_id:
+            so = self.space_object()
+            if so is not None:
+                so.data_tag = art_id
+                FrameContext.context.sim.force_update_to_clients(self.id)
+            self._art_id = art_id
 
     def update_comms_id(self):
         """ Updates the comms ID when the name or side has changed
@@ -163,10 +175,19 @@ class SpaceObject(Agent):
         """str, cached version of comms_id"""
         return self._name
 
+    @name.setter
+    def name(self: SpaceObject, value: str):
+        self.set_name(value)
+
     @property
     def side(self: SpaceObject) -> str:
         """str, cached version of comms_id"""
         return self._side
+    
+    @side.setter
+    def side(self: SpaceObject, value: str):
+        self.set_side(value)
+
 
     @property
     def comms_id(self: SpaceObject) -> str:
@@ -180,8 +201,8 @@ class SpaceObject(Agent):
 
     @art_id.setter
     def art_id(self: SpaceObject, value: str):
-        self._art_id = value
-        self.space_object().art_id = value
+        self.set_art_id(value)
+
 
     @property
     def pos(self: SpaceObject) -> Vec3:
@@ -242,7 +263,7 @@ class MSpawn:
 
 class MSpawnPlayer(MSpawn):
     def _make_new_player(self, behave, data_id):
-        self.id = FrameContext.context.sim.make_new_player(behave, data_id)
+        self.id = FrameContext.context.sim.create_space_object(behave, data_id, TickType.PLAYER)
         self.tick_type = TickType.PLAYER
         return FrameContext.context.sim.get_space_object(self.id)
 
@@ -304,7 +325,7 @@ class MSpawnActive(MSpawn):
     """
 
     def _make_new_active(self, behave, data_id):
-        self.id = FrameContext.context.sim.make_new_active(behave, data_id)
+        self.id = FrameContext.context.sim.create_space_object(behave, data_id, TickType.ACTIVE)
         self.tick_type = TickType.ACTIVE
         return self.get_space_object()
 
@@ -366,7 +387,7 @@ class MSpawnPassive(MSpawn):
     """
 
     def _make_new_passive(self, behave, data_id):
-        self.id = FrameContext.context.sim.make_new_passive(behave, data_id)
+        self.id = FrameContext.context.sim.create_space_object(behave, data_id, TickType.PASSIVE)
         self.tick_type = TickType.PASSIVE
         return self.get_space_object()
 

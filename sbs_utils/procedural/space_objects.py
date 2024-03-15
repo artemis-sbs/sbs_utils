@@ -6,7 +6,7 @@ import sbs
 
 
 
-def broad_test(x1: float, z1: float, x2: float, z2: float, broad_type=-1):
+def broad_test(x1: float, z1: float, x2: float, z2: float, broad_type=0xfff0):
     """returns a set of ids that are in the target rect
 
     Args:
@@ -22,7 +22,7 @@ def broad_test(x1: float, z1: float, x2: float, z2: float, broad_type=-1):
     obj_list = sbs.broad_test(x1, z1, x2, z2, broad_type)
     return {so.unique_ID for so in obj_list}
 
-def broad_test_around(id_or_obj, width: float, depth: float, broad_type=-1):
+def broad_test_around(id_or_obj, width: float, depth: float, broad_type=0xfff0):
     """returns a set of ids that are around the specified object in the target rect
 
     Args:

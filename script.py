@@ -395,15 +395,15 @@ class Mission:
         #bad.target_closest(sim, "PlayerShip")
         sim = FrameContext.context.sim
 
-        player_id = sim.make_new_player("behav_playership", "tsn_battle_cruiser")
+        player_id = sim.create_space_object("behav_playership", "tsn_battle_cruiser", 0x20)
         sbs.assign_player_ship(player_id)
         player = sim.get_space_object(player_id)
-        player.side = "TSN";
+        player.side = "TSN"
         blob = player.data_set
         blob.set("name_tag", "Artemis", 0)
         sim.reposition_space_object(player, 0, 0, 10)
 
-        other_id = sim.make_new_active("behav_npcship", "tsn_battle_cruiser")
+        other_id = sim.create_space_object("behav_npcship", "tsn_battle_cruiser", 0x10)
         other = sim.get_space_object(other_id)
         other.side = "baddy"
         sim.reposition_space_object(other, 0,0,1400)

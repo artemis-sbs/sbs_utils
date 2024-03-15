@@ -102,6 +102,9 @@ def cosmos_event_handler(sim, event):
             case "client_change":
                 if event.sub_tag == "change_console":
                     Gui.on_event(event)
+
+            case "main_screen_change":
+                Gui.on_event(event)
             
             case "mission_tick":
                 # Run Guis, tick task

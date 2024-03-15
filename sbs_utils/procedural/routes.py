@@ -517,6 +517,21 @@ def route_change_console(label):
     page = FrameContext.page
     page.change_console_label = label
 
+def route_main_screen_change(label):
+    """called when a  change to the main screen view occurs
+
+    Note:
+        Typically this redirects the console gui to a gui_console
+
+    Args:
+        label (label): The label to run
+
+    Returns:
+        The route: Used rarely to cancel the route
+    """    
+    page = FrameContext.page
+    page.main_screen_change_label = label
+
 
 def _follow_route_console(origin_id, selected_id, console, widget, extra_tag):
     origin_id = to_id(origin_id)

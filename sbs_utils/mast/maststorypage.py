@@ -2,7 +2,10 @@
 import sbs
 from ..gui import Gui, Page, get_client_aspect_ratio
 from ..helpers import FakeEvent, FrameContext
-from ..procedural.inventory import get_inventory_value, set_inventory_value
+from ..procedural.inventory import get_inventory_value, set_inventory_value, has_inventory_value
+from ..procedural.links import linked_to
+from ..procedural.gui import gui_reroute_client
+from ..procedural.execution import log
 from ..agent import Agent
 from ..pages import layout
 
@@ -54,6 +57,7 @@ class StoryPage(Page):
         self.on_click = []
         self.gui_task = None
         self.change_console_label = None
+        self.main_screen_change_label = None
         self.disconnected = False
         
         self.errors = []
@@ -365,7 +369,6 @@ class StoryPage(Page):
                 self.tick_gui_task()
                 return
 
-        
         if self.story_scheduler is None:
             self.start_story(event.client_id)
         else:
@@ -409,8 +412,7 @@ class StoryPage(Page):
             
             case  "repaint":
                 my_sbs.send_gui_clear(event.client_id)
-                if event.client_id != 0:
-                    my_sbs.send_client_widget_list(event.client_id, self.console, self.widgets)
+                my_sbs.send_client_widget_list(event.client_id, self.console, self.widgets)
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
 
@@ -494,10 +496,25 @@ class StoryPage(Page):
             self.tick_gui_task()
         elif event.tag == "client_change":
             if event.sub_tag == "change_console":
-                if self.gui_task is not None and not self.gui_task.done():
                     if self.change_console_label:
                         self.gui_task.jump(self.change_console_label)
                         self.present(event)
+        elif event.tag == "main_screen_change":
+            if self.main_screen_change_label:
+                ms =  linked_to(get_inventory_value(self.client_id,"assigned_ship"), "consoles") & has_inventory_value("CONSOLE_TYPE", "normal_main")
+                # 3d_view, info, data - affects layout
+                # front, left, right, back - engine controlled
+                # 3d (chase, first_person, tracking) 2d (short, long) - engine controlled
+                
+                for m in ms:
+                    t = get_inventory_value(m, "CONSOLE_TYPE", "not set")
+                    log(f"Got here {len(ms)} {t}", "mast:internal")
+                    gui_reroute_client(m, self.main_screen_change_label, {
+                        "MAIN_SCREEN_VIEW": event.sub_tag,
+                        "MAIN_SCREEN_FACING": event.value_tag,
+                        "MAIN_SCREEN_MODE": event.extra_tag
+                    })
+
         elif event.tag == "screen_size":
             save = FrameContext.page
             FrameContext.page = self

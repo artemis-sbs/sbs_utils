@@ -746,7 +746,13 @@ def gui_console(console):
             widgets = "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
         case "mainscreen":
             console =  "normal_main"
-            widgets = "3dview^ship_data^text_waterfall"
+            view = page.gui_task.get_variable("MAIN_SCREEN_VIEW", "3d_view")
+            if view == "info":
+                widgets = "2dview^ship_data^text_waterfall"
+            elif view == "data":
+                widgets = "3dview^2dview^ship_internal_view^ship_data^text_waterfall"
+            else:
+                widgets = "3dview^ship_data^text_waterfall"
         case "cockpit":
             widgets = "3dview^2dview^helm_free_3d^text_waterfall^fighter_control^ship_internal_view^ship_data^grid_face^grid_control"
         
@@ -875,7 +881,7 @@ def _gui_reroute_main(label, server):
     return True
 
 from ..gui import Gui
-def gui_reroute_client(client_id, label):
+def gui_reroute_client(client_id, label, data=None):
     client = Gui.clients.get(client_id, None)
     if client is None:
         return
@@ -887,9 +893,12 @@ def gui_reroute_client(client_id, label):
         return
     
     if page is not None and page.gui_task:
+        if data:
+            for k in data:
+                page.gui_task.set_variable(k, data[k])
         page.gui_task.jump(label)
 
-def gui_reroute_server(label):
+def gui_reroute_server(label, data=None):
     """reroute server gui to run the specified label
 
     Args:
@@ -897,10 +906,10 @@ def gui_reroute_server(label):
     """    
     if _gui_reroute_main(label, True):
         return
-    gui_reroute_client(0,label)
+    gui_reroute_client(0,label, data)
 
 
-def gui_reroute_clients(label, exclude=None):
+def gui_reroute_clients(label, data=None, exclude=None):
     """reroute client guis to run the specified label
 
     Args:
@@ -915,9 +924,7 @@ def gui_reroute_clients(label, exclude=None):
     """Walk all the clients (not server) and send them to a new flow"""
     for id, client in Gui.clients.items():
         if id != 0 and client is not None and id not in exclude:
-            client_page = client.page_stack[-1]
-            if client_page is not None and client_page.gui_task:
-                client_page.gui_task.jump(label)
+            gui_reroute_client(id, label, data)
 
 
     
