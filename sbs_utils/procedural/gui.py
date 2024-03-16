@@ -750,7 +750,7 @@ def gui_console(console):
             if view == "info":
                 widgets = "2dview^ship_data^text_waterfall"
             elif view == "data":
-                widgets = "3dview^2dview^ship_internal_view^ship_data^text_waterfall"
+                widgets = "ship_internal_view^ship_data^text_waterfall"
             else:
                 widgets = "3dview^ship_data^text_waterfall"
         case "cockpit":

@@ -1344,19 +1344,19 @@ class MastScheduler(Agent):
         return True
 
     def get_value(self, key, defa=None):
-        val = Mast.globals.get(key, None)
+        val = Mast.globals.get(key, None) # don't use defa here
         if val is not None:
             return (val, Scope.SHARED)
         #val = self.mast.vars.get(key, None)
-        val = Agent.SHARED.get_inventory_value(key, None)
+        val = Agent.SHARED.get_inventory_value(key, None) # don't use defa here
         if val is not None:
             return (val, Scope.SHARED)
         #val = self.vars.get(key, defa)
-        val = self.get_inventory_value(key, None)
+        val = self.get_inventory_value(key, defa) # now defa make sense
         return (val, Scope.NORMAL)
 
-    def get_variable(self, key):
-        val = self.get_value(key)
+    def get_variable(self, key, defa=None):
+        val = self.get_value(key, defa)
         return val[0]
     
     def set_variable(self, key):

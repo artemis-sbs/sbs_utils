@@ -4,6 +4,7 @@ from ..agent import Agent
 from io import StringIO
 from ..futures import Promise, PromiseAllAny, PromiseWaiter
 from ..mast.pollresults import PollResults
+from .. import fs
 
 def jump(label):
     """reset the program flow to a label
@@ -40,10 +41,9 @@ def log(message, name=None, level=None):
         name (str, optional): Name of the logger to log to. Defaults to None.
         level (str, optional): The logging level to use. Defaults to None.
     """    
-    _logger = logging.getLogger()
-    if isinstance(name, str):
-        _logger = logging.getLogger(name)
-    
+    if name is None:
+        name = "__base_logger__"
+    _logger = logging.getLogger(name)
 
     task = FrameContext.task
     if task is not None:
@@ -56,17 +56,31 @@ def log(message, name=None, level=None):
         level = logging.getLevelName(level)
     _logger.log(level, message)
 
-def logger(name=None, file=None, var=None):
+def logger(name=None, file=None, var=None, std_err=False):
     """create or retreive a looger
 
     Args:
         name (str, optional): The name of the logger. Defaults to None.
         file (str, optional): The file to log to. Defaults to None.
         var (str, optional): The name of a string variable to log to. Defaults to None.
-    """    
-    _logger = logging.getLogger(name)
-    logging.basicConfig(level=logging.DEBUG)
+    """
+    if name is None:
+        # name = "__base_logger__"
+        _logger = logging.getLogger("__base_logger__")
+    else:
+        _logger = logging.getLogger(name)
     _logger.setLevel(logging.DEBUG)
+
+    #logging.basicConfig(level=logging.CRITICAL)
+    
+    force_std = file is None and var is None
+    std_err = std_err or force_std
+    if std_err:    
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        handler.setLevel(logging.DEBUG)
+        _logger.addHandler(handler)
+
 
     if var is not None:
         streamer = StringIO()
@@ -80,11 +94,11 @@ def logger(name=None, file=None, var=None):
     task = FrameContext.task
     if file is not None and task is not None:
         file = task.format_string(file)
+        file = fs.get_mission_dir_filename(file)
         handler = logging.FileHandler(file,mode='w')
         handler.setFormatter(logging.Formatter("%(message)s"))
         handler.setLevel(logging.NOTSET)
         _logger.addHandler(handler)
-
 
 
 
@@ -198,6 +212,7 @@ def get_variable(key, default=None):
         any: The value of the variable, or default value
     """    
     if FrameContext.task is None:
+        print("NOT HERE")
         return None
     return FrameContext.task.get_variable(key,default)
 
