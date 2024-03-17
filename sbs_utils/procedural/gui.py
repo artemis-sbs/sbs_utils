@@ -747,9 +747,14 @@ def gui_console(console):
         case "mainscreen":
             console =  "normal_main"
             view = page.gui_task.get_variable("MAIN_SCREEN_VIEW", "3d_view")
-            if view == "info":
+            if view == "lrs":
+                console =  "normal_main_lrs"
+                widgets = "2dview^ship_data^text_waterfall"
+            elif view == "tactical":
+                console =  "normal_main_tact"
                 widgets = "2dview^ship_data^text_waterfall"
             elif view == "data":
+                console =  "normal_main_data"
                 widgets = "ship_internal_view^ship_data^text_waterfall"
             else:
                 widgets = "3dview^ship_data^text_waterfall"
