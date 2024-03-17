@@ -1045,7 +1045,7 @@ class MastAsyncTask(Agent, Promise):
         return self.active_ticker.last_poll_result
     
     def poll(self):
-        return self.tick_result()
+        return self.tick_result
 
 
     def get_symbols(self):

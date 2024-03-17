@@ -211,7 +211,7 @@ class SpaceObject(Agent):
 
     @pos.setter
     def pos(self: SpaceObject, *args):
-        v = Vec3(args)
+        v = Vec3(*args)
         FrameContext.context.sim.reposition_space_object(self._engine_object, v.x, v.y, v.z)
 
 

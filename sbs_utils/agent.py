@@ -35,6 +35,7 @@ class Stuff:
     def add_to_collection(self, collection, id):
         collections = collection.split(",")
         for collection in collections:
+            collection = collection.strip()
             if collection not in self.collections:
                 self.collections[collection] = set()
             self.collections[collection].add(id)
@@ -42,6 +43,7 @@ class Stuff:
     def remove_from_collection(self, collection, id):
         collections = collection.split(",")
         for collection in collections:
+            collection = collection.strip()
             the_set = self.collections.get(collection) 
             if the_set is not None:
                 the_set.discard(id)
