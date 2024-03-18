@@ -159,21 +159,27 @@ class Delay(Promise):
         super().__init__()
 
         self.is_sim = sim
+        self.seconds = seconds
+        self.minutes = minutes
+        self.rewind()
+
+    def rewind(self):
+        # this enables the standard delay to work with behavior tree
         if self.is_sim:
-            self.timeout = FrameContext.sim_seconds + (minutes*60+seconds) 
+            self.timeout = FrameContext.sim_seconds + (self.minutes*60+self.seconds) 
         else:
-            self.timeout = FrameContext.app_seconds + (minutes*60+seconds)
+            self.timeout = FrameContext.app_seconds + (self.minutes*60+self.seconds)
 
     def done(self):
         #
         # Tiny hack to just do the work in done
         #
         if self.is_sim: 
-            if self.timeout <= FrameContext.sim_seconds:
-                self.set_result(True)
+            if self.timeout < FrameContext.sim_seconds:
+                self.set_result(PollResults.BT_SUCCESS)
         else:
             if self.timeout < FrameContext.app_seconds:
-                self.set_result(True)
+                self.set_result(PollResults.BT_SUCCESS)
         return super().done()
     
     def poll(self):

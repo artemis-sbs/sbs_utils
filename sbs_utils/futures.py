@@ -9,6 +9,10 @@ class Promise:
     def result(self):
         return self._result
     
+    def rewind(self):
+        # Enables any promise to with behavior trees
+        pass
+    
     def exception(self):
         return self._exception
     

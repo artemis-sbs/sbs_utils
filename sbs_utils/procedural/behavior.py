@@ -1,5 +1,5 @@
 from ..helpers import FrameContext
-from ..futures import AwaitBlockPromise
+from ..futures import AwaitBlockPromise, Promise
 from ..mast.pollresults import PollResults
 
 
@@ -23,6 +23,9 @@ class PromiseBehave(AwaitBlockPromise):
                 self.success_label = inline
             
         super().initial_poll()
+    
+    def rewind(self):
+        pass
 
     def run_success_label(self):
         if self.success_label:
@@ -42,9 +45,15 @@ class PromiseBehaveSeqSel(PromiseBehave):
             return
         self.main_task = FrameContext.task
         self.data = None
-        self.task = None
+        self.task_promise = None
         if kwargs is not None:
             self.data = kwargs.get("data", None)
+        else:
+            self.data = {}
+
+        self.set_variable("BT_PROMISE", self)
+        self.set_variable("BT_MAIN", self.main_task)
+
         self.labels = list(args)
         self.current = None
         if len(self.labels)==0:
@@ -64,16 +73,40 @@ class PromiseBehaveSeqSel(PromiseBehave):
 
         if self.current < len(self.labels):
             label = self.labels[self.current]
-            self.task = FrameContext.task.start_task(label, self.data)
+            if isinstance(label, Promise):
+                self.task_promise = label
+                # Need to make sure it is in start state
+                # e.g. bt_delay
+                label.rewind()
+            else:
+                self.task_promise = FrameContext.task.start_task(label, self.data)
+
+            
 
     def poll(self):
         super().poll()
+
+    def set_variable(self, name, value):
+        if self.data is None:
+            self.data = {}
+        self.data[name] = value
+
+    def export_variable(self, name, value):
+        self.main_task.set_variable(name, value)
+
+    def get_variable(self, name, defa_value):
+        if self.data is None:
+            return defa_value
+        return self.data.get(name, defa_value)
 
 class PromiseBehaveSeq(PromiseBehaveSeqSel):
     def poll(self):
         super().poll()
-        if self.task and self.task.done():
-            if self.task.result() == PollResults.BT_SUCCESS:
+        if self.task_promise:
+            self.task_promise.poll()
+
+        if self.task_promise and self.task_promise.done():
+            if self.task_promise.result() == PollResults.BT_SUCCESS:
                 self.next()
             else:
                 #
@@ -91,8 +124,8 @@ class PromiseBehaveSel(PromiseBehaveSeqSel):
                 
     def poll(self):
         super().poll()
-        if self.task.done():
-            if self.task.result() == PollResults.BT_FAIL:
+        if self.task_promise.done():
+            if self.task_promise.result() == PollResults.BT_FAIL:
                 self.next()
             else:
 
@@ -146,8 +179,6 @@ class PromiseBehaveUntil(PromiseBehave):
             self.promise.rewind()
                 
 
-
-
 def bt_seq(*args, **kwargs):
     """behavior tree sequence only returns success if the whole sequence has success
 
@@ -183,6 +214,7 @@ def bt_invert(a_bt_promise):
     """        
     return PromiseBehaveInvert(a_bt_promise)
 
+
 def bt_until_success(a_bt_promise):
     """reruns behavior tree until success 
     Behavior promise has a reset() to rerun
@@ -207,3 +239,45 @@ def bt_until_fail(a_bt_promise):
     """            
     return PromiseBehaveUntil(a_bt_promise, PollResults.BT_FAIL)
 
+def bt_set_variable(name, value):
+    """sets a variable on the blackboard data of a behavior tree
+
+    Args:
+        name (str): The variable name to set
+        value (any): The value to set
+    """            
+    task = FrameContext.task
+    if task is None:
+        return
+    main = task.get_variable("BT_PROMISE")
+    if main:
+        main.set_variable(name, value)
+
+def bt_export_variable(name, value):
+    """sets a variable on the main task of a behavior tree
+
+    Args:
+        name (str): The variable name to set
+        value (any): The value to set
+    """            
+    task = FrameContext.task
+    if task is None:
+        return
+    main = task.get_variable("BT_TASK")
+    if main:
+        main.set_variable(name, value)
+
+def bt_get_variable(name, defa_value):
+    """sets a variable on the blackboard data of a behavior tree
+
+    Args:
+        name (str): The variable name to set
+        defa_value (any): The value if the name is not found
+    """                
+    task = FrameContext.task
+    if task is None:
+        return None
+    main = task.get_variable("BT_PROMISE")
+    if main:
+        return main.get_variable(name, defa_value)
+    return None
