@@ -1,6 +1,7 @@
 from ..agent import Agent, CloseData, SpawnData
-from .query import to_set, to_list, to_object
+from .query import to_set, to_list, to_object, to_id, object_exists
 from ..helpers import FrameContext
+from ..vec import Vec3
 import sbs
 
 
@@ -132,7 +133,7 @@ def closest_object(the_ship, the_set, max_dist=None, filter_func=None) -> Agent:
     if ret:
         return ret.py_object
 
-def target(set_or_object, target_id, shoot: bool = True, throttle: float = 1.0):
+def target(set_or_object, target_id, shoot: bool = True, throttle: float = 1.0, stop_dist=None):
     """set Target a target for an agent/set of agents
 
     Args:
@@ -146,7 +147,7 @@ def target(set_or_object, target_id, shoot: bool = True, throttle: float = 1.0):
         return
     
     target_id = 0
-    _pos = target_obj.pos
+    _pos = Vec3(target_obj.pos)
     if shoot:
         target_id = target_obj.id
     all = to_list(set_or_object)
@@ -157,11 +158,16 @@ def target(set_or_object, target_id, shoot: bool = True, throttle: float = 1.0):
             chaser.data_set.set("target_pos_y", _pos.y,0)
             chaser.data_set.set("target_pos_z", _pos.z,0)
             chaser.data_set.set("target_id", target_id,0)
-            chaser.data_set.set("throttle", throttle,0)
+            t = throttle
+            if stop_dist is not None:
+                diff = Vec3(chaser.pos) - _pos
+                if diff.length() < stop_dist:
+                    t = 0
+            chaser.data_set.set("throttle", t,0)
 
 
 
-def target_pos(chasers: set | int | CloseData|SpawnData, x: float, y: float, z: float, throttle: float = 1.0):
+def target_pos(chasers: set | int | CloseData|SpawnData, x: float, y: float, z: float, throttle: float = 1.0, target_id=None, stop_dist=None):
     """ Set the target position of an agent or set of agents
 
     Args:
@@ -170,15 +176,29 @@ def target_pos(chasers: set | int | CloseData|SpawnData, x: float, y: float, z: 
         y (float): y location
         z (float): z location
         throttle (float, optional): The speed to go. Defaults to 1.0.
-    """    
+        target_id (id, optional): What to shoot
+        stop_dist (float, optional): The distance to stop
+    """ 
+    pos = Vec3(x,y,z)   
     all = to_list(chasers)
+    if target_id is not None:
+        target_id = to_id(target_id)
     for chaser in all:
         chaser = Agent.resolve_py_object(chaser)
+        if chaser is None or not object_exists(chaser):
+            continue
         chaser.data_set.set("target_pos_x", x, 0)
         chaser.data_set.set("target_pos_y", y,0)
         chaser.data_set.set("target_pos_z", z,0)
-        chaser.data_set.set("target_id", 0,0)
-        chaser.data_set.set("throttle", throttle, 0)
+        if target_id is not None:
+            chaser.data_set.set("target_id", target_id,0)
+
+        t = throttle
+        if stop_dist is not None:
+            diff = Vec3(chaser.pos) - pos
+            if diff.length() < stop_dist:
+                t = 0
+        chaser.data_set.set("throttle", t, 0)
     
    
 
