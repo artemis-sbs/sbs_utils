@@ -169,6 +169,7 @@ class Delay(Promise):
             self.timeout = FrameContext.sim_seconds + (self.minutes*60+self.seconds) 
         else:
             self.timeout = FrameContext.app_seconds + (self.minutes*60+self.seconds)
+        self.set_result(None)
 
     def done(self):
         #

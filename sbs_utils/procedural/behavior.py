@@ -58,8 +58,9 @@ class PromiseBehaveSeqSel(PromiseBehave):
         self.current = None
         if len(self.labels)==0:
             self.set_result(PollResults.BT_FAIL)
-        else:
-            self.next()
+        #else:
+        #    self.next()
+        
 
     def rewind(self):
         self.current = None
@@ -75,16 +76,20 @@ class PromiseBehaveSeqSel(PromiseBehave):
             label = self.labels[self.current]
             if isinstance(label, Promise):
                 self.task_promise = label
+                data = getattr(label, "data", None)
+                if data is not None:
+                    label.data = label.data | self.data
+
                 # Need to make sure it is in start state
                 # e.g. bt_delay
                 label.rewind()
             else:
                 self.task_promise = FrameContext.task.start_task(label, self.data)
 
-            
-
     def poll(self):
         super().poll()
+        if self.current is None:
+            self.next()
 
     def set_variable(self, name, value):
         if self.data is None:
@@ -102,7 +107,7 @@ class PromiseBehaveSeqSel(PromiseBehave):
 class PromiseBehaveSeq(PromiseBehaveSeqSel):
     def poll(self):
         super().poll()
-        if self.task_promise:
+        if self.task_promise and not self.task_promise.done():
             self.task_promise.poll()
 
         if self.task_promise and self.task_promise.done():
@@ -112,11 +117,12 @@ class PromiseBehaveSeq(PromiseBehaveSeqSel):
                 #
                 self.set_result(PollResults.BT_FAIL)
                 self.run_fail_label()
-                return
+                return PollResults.OK_RUN_AGAIN
         # if nothing is left then everything succeeded
-        if self.current >= len(self.labels) :
+        if self.current is not None and self.current >= len(self.labels) :
             self.set_result(PollResults.BT_SUCCESS)   
             self.run_success_label()
+        return PollResults.OK_RUN_AGAIN
         
 class PromiseBehaveSel(PromiseBehaveSeqSel):
     def __init__(self, *args, **kwargs) -> None:
@@ -153,12 +159,14 @@ class PromiseBehaveInvert(PromiseBehave):
                 
     def poll(self):
         super().poll()
+        self.promise.poll()
         if self.promise.done():
             if self.promise.result() == PollResults.BT_FAIL:
                 self.set_result(PollResults.BT_FAIL)       
+                return PollResults.BT_FAIL
             else:
                 self.set_result(PollResults.BT_SUCCESS)
-                return
+                return PollResults.BT_SUCCESS
 
 
 class PromiseBehaveUntil(PromiseBehave):
@@ -172,12 +180,41 @@ class PromiseBehaveUntil(PromiseBehave):
                 
     def poll(self):
         super().poll()
+        self.promise.poll()
         if self.promise.done():
             if self.promise.result() == self.until_result:
                 self.set_result(self.until_result)       
+                return self.until_result
             # Will fail on non-bt
             self.promise.rewind()
+        return PollResults.OK_RUN_AGAIN
+
+
+class PromiseBehaveRepeat(PromiseBehave):
+    def __init__(self, label_or_promise, count) -> None:
+        super().__init__()
+        # Expect a promise, assum label otherwise
+        self.promise = label_or_promise
+        self.count = count
+        if not isinstance(label_or_promise, AwaitBlockPromise):
+            self.promise = bt_sel(label_or_promise)
                 
+    def poll(self):
+        super().poll()
+        if not self.promise.done():
+            self.promise.poll()
+        if self.promise.done():
+            if self.promise.result() != PollResults.BT_SUCCESS:
+                self.set_result(self.promise.result())
+                return self.promise.result()
+            self.count -= 1
+            if self.count <=0:
+                self.set_result(self.promise.result())
+                return self.promise.result()
+            # Will fail on non-bt
+            self.promise.rewind()
+        return PollResults.OK_RUN_AGAIN
+
 
 def bt_seq(*args, **kwargs):
     """behavior tree sequence only returns success if the whole sequence has success
@@ -239,6 +276,19 @@ def bt_until_fail(a_bt_promise):
     """            
     return PromiseBehaveUntil(a_bt_promise, PollResults.BT_FAIL)
 
+def bt_repeat(a_bt_promise, count):
+    """reruns behavior tree a number of times
+    Behavior promise has a reset() to rerun
+
+    Args:
+        a_bt_promise (promise): The promise to run
+
+    Returns:
+        Promise: A Promise that runs until success
+    """        
+    return PromiseBehaveRepeat(a_bt_promise, count)
+
+
 def bt_set_variable(name, value):
     """sets a variable on the blackboard data of a behavior tree
 
@@ -267,7 +317,7 @@ def bt_export_variable(name, value):
     if main:
         main.set_variable(name, value)
 
-def bt_get_variable(name, defa_value):
+def bt_get_variable(name, defa_value=None):
     """sets a variable on the blackboard data of a behavior tree
 
     Args:
