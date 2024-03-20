@@ -4,7 +4,7 @@ import sbs
 import struct # for images sizes
 import os
 from .. import fs
-from ..helpers import FrameContext
+from ..helpers import FrameContext, FakeEvent
 
 
 
@@ -284,6 +284,25 @@ class Listbox(Widget):
             ret.append(self.items[item])
         return ret
     
+    def select_all(self):
+        if self.multi:
+            self.selected = set()
+            for item in range(len(self.items)):
+                self.selected.add(item)
+        self.gui_state = "redraw"
+        # Pure hackery or brilliant, time will tell
+        e = FakeEvent(FrameContext.client_id)
+        self.present(e)
+
+    def select_none(self):
+        self.selected = set()
+        self.gui_state = "redraw"
+        # Pure hackery or brilliant, time will tell
+        e = FakeEvent(FrameContext.client_id)
+        self.present(e)
+
+
+    
     def get_value(self):
         ret = []
         if self.convert_value:
@@ -300,15 +319,15 @@ class Listbox(Widget):
             return None
     
     def set_value(self, value):
-        self.selected = []
+        self.selected = set()
         i = 0
         for item in self.items:
             if self.convert_value:
                 v = self.convert_value(item)
                 if v == value:
-                    self.selected.append(i)
+                    self.selected.add(i)
             elif item == value:
-                self.selected.append(i)
+                self.selected.add(i)
             i+=1
     
     def update(self, props):
