@@ -25,7 +25,8 @@ class TextRuntimeNode(MastRuntimeNode):
         if node.code is not None:
             value = task.eval_code(node.code)
         if value:
-            msg = task.format_string(node.message)
+            #msg = task.format_string(node.message)
+            msg = node.message
             style = node.style
             if style is None:
                 style = node.style_name

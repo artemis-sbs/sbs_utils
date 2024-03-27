@@ -1,7 +1,7 @@
 from ..mast.mast import Scope, Button
 from .query import to_id
 from .inventory import get_inventory_value, set_inventory_value
-from ..helpers import FrameContext
+from ..helpers import FrameContext, FakeEvent
 from ..pages import layout
 from ..mast.parsers import LayoutAreaParser, StyleDefinition
 from ..futures import Trigger, AwaitBlockPromise
@@ -843,6 +843,68 @@ def gui_update_shared(tag, props, test=None):
     gui_update(tag, props, True, test)
 
 
+
+def gui_represent(layout_item):
+    """redraw an item
+
+    ??? Note
+        For sections it will recalculate the layout and redraw all items
+
+    Args:
+        layout_item (layout_item): 
+    """    
+    page = FrameContext.page
+    if page is None:
+        return
+    event = FakeEvent(page.client_id)
+    #print(f"Page {event.client_id}")
+    layout_item.represent(event)
+
+def gui_show(layout_item):
+    """gui show. If the item is hidden it will make it visible again
+
+    ??? Note
+        For sections it will recalculate the layout.
+        For individual item or row, it will hide, but not layout. 
+        so you may also need to pair this with a gui_represent of a section
+
+    Args:
+        layout_item (layout_item): 
+    """    
+    if layout_item is None:
+        return
+    
+    layout_item.show(True)
+    page = FrameContext.page
+    if page is None:
+        return
+    event = FakeEvent(page.client_id)
+    layout_item.represent(event)
+
+def gui_hide(layout_item):
+    """If the item is visible it will make it hidden
+
+    ??? Note
+        For sections it will recalculate the layout.
+        For individual item or row, it will hide, but not layout. 
+        so you may also need to pair this with a gui_represent of a section
+
+    Args:
+        layout_item (layout_item): 
+    """    
+    if layout_item is None:
+        return
+    
+    layout_item.show(False)
+    page = FrameContext.page
+    if page is None:
+        return
+    event = FakeEvent(page.client_id)
+    layout_item.represent(event)
+
+
+
+
 def gui_refresh(label):
     """refresh any gui running the specified label
 
@@ -854,6 +916,30 @@ def gui_refresh(label):
         task.main.refresh(label)
     else:
         task.main.mast.refresh_schedulers(task.main, label)
+
+
+def gui_history_store(back_text, back_label=None):
+    """store the current 
+
+    Args:
+        label (label): A mast label
+    """    
+    page = FrameContext.page
+    if page is None:
+        return
+    if back_label is None:
+        back_label = page.gui_task.active_label
+    
+def gui_history_back():
+    """returns the back label pair this with a jump
+
+    Returns:
+        label (label, None): A mast label
+    """    
+    page = FrameContext.page
+    if page is None:
+        return
+    
 
 
 def _gui_reroute_main(label, server):
@@ -954,10 +1040,7 @@ class MessageTrigger(Trigger):
             self.task.set_value_keep_scope("__ITEM__", self.layout_item)
             data = self.layout_item.data
             self.task.push_inline_block(self.label, self.loc, data)
-            restore = FrameContext.page
-            FrameContext.page = self.task.main.page
-            self.task.tick()
-            FrameContext.page = restore
+            self.task.tick_in_context()
 
 def gui_message(layout_item):
     """Trigger to watch when the specified layout element has a message
@@ -990,10 +1073,7 @@ class ClickableTrigger(Trigger):
         #print(click_tag)
         self.task.set_value("__CLICKED__", click_tag, Scope.TEMP)
         self.task.push_inline_block(self.label, self.loc)
-        restore = FrameContext.page
-        FrameContext.page = self.task.main.page
-        self.task.tick()
-        FrameContext.page = restore
+        self.task.tick_in_context()
         return True
 
 def gui_click(name_or_layout_item=None):
@@ -1052,6 +1132,7 @@ class ChangeTrigger(Trigger):
         if self.node:
             loc = self.node.loc + 1
         self.task.push_inline_block(self.label, loc)
+        self.task.tick_in_context()
 
 def gui_change(code, label):
     """Trigger to watch when the specified value changes
@@ -1127,8 +1208,10 @@ class ButtonPromise(AwaitBlockPromise):
         # after you let the button process
         # science will override this to 
         # keep going until all scanned
-        if self.running_button:
-            self.set_result(self.running_button)
+        #
+        # if self.running_button:
+        #    self.set_result(self.running_button)
+        pass
 
     def poll(self):
         super().poll()
@@ -1151,8 +1234,8 @@ class ButtonPromise(AwaitBlockPromise):
             if button.for_name:
                 task.set_value(button.for_name, button.data, Scope.TEMP)
 
-            
-            #print(f"CHOICE {button.loc+1} ")
+            task.set_value("BUTTON_PROMISE", self, Scope.TEMP)
+
             #
             # If the button doesn't jump, make sure the 
             # promise has a chance to finish
@@ -1161,8 +1244,11 @@ class ButtonPromise(AwaitBlockPromise):
             self.button = None
             if button.label:
                 task.push_inline_block(button.label)
+                self.task.tick_in_context()
             else:
                 task.push_inline_block(task.active_label,button.loc+1)
+                self.task.tick_in_context()
+
             return PollResults.OK_JUMP
 
         if self.disconnect_label is not None:
@@ -1210,12 +1296,17 @@ class ButtonPromise(AwaitBlockPromise):
 
     def get_expanded_buttons(self):
         buttons = []
+        #
+        # Note: Always use clones in layouts
+        # So we can have access to the layout item
+        #
+
         # Expand all the 'for' buttons
         for button in self.buttons:
             if button.__class__.__name__ != "Button":
                 buttons.append(button)
             elif button.for_name is None:
-                buttons.append(button)
+                buttons.append(button.clone())
             else:
                 buttons.extend(self.expand_button(button))
         return buttons
@@ -1251,6 +1342,8 @@ class ButtonPromise(AwaitBlockPromise):
     
 
 class GuiPromise(ButtonPromise):
+    button_height_px = 40
+
     def __init__(self, page, timeout=None) -> None:
         super().__init__(page.gui_task, timeout)
 
@@ -1278,7 +1371,11 @@ class GuiPromise(ButtonPromise):
         task = self.task
         aspect_ratio = get_client_aspect_ratio(task.main.page.client_id)
 
-        top = ((aspect_ratio.y - 30)/aspect_ratio.y)*100
+        #
+        # Create button Row
+        #
+        top = ((aspect_ratio.y - GuiPromise.button_height_px)/aspect_ratio.y)*100
+
         button_layout = layout.Layout(None, None, 0,top,100,100)
         button_layout.tag = task.main.page.get_tag()
 
@@ -1302,6 +1399,7 @@ class GuiPromise(ButtonPromise):
                         #runtime_node.enter(mast, task, button)
                         msg = task.format_string(button.message)
                         layout_button = layout.Button(runtime_node.tag, msg)
+                        button.layout_item = layout_button
                         layout_row.add(layout_button)
 
                         apply_control_styles(".choice", None, layout_button, task)
@@ -1346,4 +1444,152 @@ def gui(buttons=None, timeout=None):
         
     return ret
     
+def gui_history_jump(to_label, back_name=None, back_label=None, back_data=None):
+    """Jump to a new gui label, but remember how to return to the current state
 
+    Args:
+        to_label (label): Where to jump to
+        back_name (str): A name to use if displayed
+        back_label (label, optional): The label to return to defaults to the label active when called
+        back_data (dict, optional): A set of value to set when returning back
+
+    ??? Note:
+        If there is forward history it will be cleared
+
+    Returns:
+        results (PollResults): PollResults of the jump
+    """    
+    page = FrameContext.page
+    if page is None:
+        return
+    task = page.gui_task
+    
+    if back_label is None:
+        back_label = task.active_label
+
+    if back_name is  None:
+        back_name = "BACK"
+
+    history = task.get_variable("GUI_HISTORY")
+    if history is None:
+        history = []
+
+    history_pos = task.get_variable("GUI_HISTORY_POS", 0)
+    # Clear forward
+    history = history[:history_pos]
+    history.append( (back_name, back_label, back_data))
+    task.set_variable("GUI_HISTORY_POS", len(history)-1)
+    task.set_variable("GUI_HISTORY", history)
+
+
+    return task.jump(to_label)
+
+def gui_history_back():
+    """Jump back in history
+
+    """    
+    page = FrameContext.page
+    if page is None:
+        return
+    task = page.gui_task
+    
+    history = task.get_variable("GUI_HISTORY")
+    if history is None:
+        return
+
+    history_pos = task.get_variable("GUI_HISTORY_POS", 0)
+    # Clear forward
+    history = history[history_pos]
+    history_pos = max(0, history_pos-1)
+
+    back_label = history[1]
+    back_data = history[2]
+    if back_data is not None:
+        for k in back_data:
+            task.set_value_keep_scope(k, back_data[k])
+    
+    task.set_variable("GUI_HISTORY_POS", history_pos)
+
+    return task.jump(back_label)
+
+
+def gui_history_forward():
+    """Jump forward in history
+    """    
+    page = FrameContext.page
+    if page is None:
+        return
+    task = page.gui_task
+    
+    history = task.get_variable("GUI_HISTORY")
+    if history is None:
+        return
+
+    history_pos = task.get_variable("GUI_HISTORY_POS", 0)
+    
+    history_pos = (history_pos+1) % len(history)
+    history = history[history_pos]
+    
+    back_label = history[1]
+    back_data = history[2]
+
+    if back_data is not None:
+        for k in back_data:
+            task.set_value_keep_scope(k, back_data[k])
+    
+    task.set_variable("GUI_HISTORY_POS", history_pos)
+
+    return task.jump(back_label)
+
+def gui_history_clear():
+    """Clears the history for the given page
+    """
+    page = FrameContext.page
+    if page is None:
+        return
+    task = page.gui_task
+    task.set_variable("GUI_HISTORY", None)
+    task.set_variable("GUI_HISTORY_POS", None)
+
+    
+def gui_history_redirect(back_name=None, back_label=None, back_data=None):
+    page = FrameContext.page
+    if page is None:
+        return
+    task = page.gui_task
+    
+    if back_label is None:
+        back_label = task.active_label
+
+    if back_name is  None:
+        back_name = "BACK"
+
+    history = task.get_variable("GUI_HISTORY")
+    if history is None:
+        history = []
+
+    history_pos = task.get_variable("GUI_HISTORY_POS", 0)
+    # Clear forward
+    history = history[:history_pos]
+    history.append( (back_name, back_label, back_data))
+    task.set_variable("GUI_HISTORY_POS", len(history)-1)
+    task.set_variable("GUI_HISTORY", history)
+
+
+
+def gui_hide_choice():
+    page = FrameContext.page
+    if page is None:
+        return
+    task = page.gui_task
+    
+    promise = task.get_variable("BUTTON_PROMISE")
+    if promise is None:
+        return
+    button_item = promise.running_button.layout_item
+    button_layout = promise.button_layout
+
+    print(f"page {FrameContext.page.client_id}")
+    
+    gui_hide(button_item)
+    gui_represent(button_layout)

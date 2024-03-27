@@ -382,16 +382,16 @@ class Assign(MastNode):
 
 
 class Jump(MastNode):
-    rule = re.compile(r"""(((?P<jump>jump|->|push|->>|popjump|<<->|poppush|<<->>)[ \t]*(?P<jump_name>\w+))|(?P<pop>pop|<<-))"""+OPT_ARGS_REGEX+IF_EXP_REGEX)
-
+    #rule = re.compile(r"""(((?P<jump>jump|->|push|->>|popjump|<<->|poppush|<<->>)[ \t]*(?P<jump_name>\w+))|(?P<pop>pop|<<-))"""+OPT_ARGS_REGEX+IF_EXP_REGEX)
+    rule = re.compile(r"""(?P<jump>jump|->)[ \t]*(?P<jump_name>\w+)"""+OPT_ARGS_REGEX+IF_EXP_REGEX)
     def __init__(self, pop=None, jump=None, jump_name=None, if_exp=None, args=None, loc=None):
         super().__init__()
         self.loc = loc
         self.label = jump_name
-        self.push = jump == 'push' or jump == "->>"
-        self.pop = pop is not None
-        self.pop_jump = jump == 'popjump'or jump == "<<->"
-        self.pop_push = jump == 'poppush'or jump == "<<->>"
+        # self.push = jump == 'push' or jump == "->>"
+        # self.pop = pop is not None
+        # self.pop_jump = jump == 'popjump'or jump == "<<->"
+        # self.pop_push = jump == 'poppush'or jump == "<<->>"
         self.args = args
         if if_exp:
             if_exp = if_exp.lstrip()
@@ -599,6 +599,9 @@ class Button(MastNode):
         proxy.data = self.data
         proxy.for_code = self.for_code
         proxy.for_name = self.for_name
+        ####
+        # This is used by the gui buttons
+        proxy.layout_item = None 
         
 
         return proxy
@@ -626,7 +629,10 @@ class End(MastNode):
             self.if_code = None
 
 class ReturnIf(MastNode):
-    rule = re.compile(r'->[ \t]*RETURN'+IF_EXP_REGEX)
+    #
+    # This is a 'pop' for push inline
+    #
+    rule = re.compile(r'->[ \t]*(RETURN|AWAIT_AGAIN)'+IF_EXP_REGEX)
     def __init__(self, if_exp=None,  loc=None):
         super().__init__()
         self.loc = loc

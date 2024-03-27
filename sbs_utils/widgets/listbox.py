@@ -1,5 +1,6 @@
 from ..gui import Widget, get_client_aspect_ratio
 from ..pages import layout as layout
+from ..procedural.query import to_list
 import sbs
 import struct # for images sizes
 import os
@@ -56,6 +57,7 @@ class Listbox(Widget):
         self.background=background
         self.title_background=title_background
         self.convert_value = convert_value
+        self.last_tags = None
 
 
     def present(self, event):
@@ -136,7 +138,9 @@ class Listbox(Widget):
         slot= 0
         self.slots =[]
 
-    
+        # Keep track of tags
+        #  to clear any no longer used
+        tags = set()
         
         while top+5 <= self.bottom:
             if cur >= len(self.items):
@@ -145,11 +149,20 @@ class Listbox(Widget):
             # track what item is in what slot
             self.slots.append(cur)
             if self.icon is not None:
-                icon_to_display = self.icon(item)
-                sbs.send_gui_icon(CID,  f"{self.tag_prefix}icon:{slot}", icon_to_display,
-                    left, top,
-                    left+square_width_percent, top+square_height_percent )
-                left += square_width_percent
+                icons_to_display = self.icon(item)
+                icons_to_display = icons_to_display
+                i=0
+                #print(f"Icon count {icons_to_display}")
+
+                for icon_item in icons_to_display:
+                    tag = f"{self.tag_prefix}icon:{slot}:{i}"
+                    tags.add(tag)
+                    sbs.send_gui_icon(CID, tag, icon_item,
+                        left, top,
+                        left+square_width_percent, top+square_height_percent )
+                    left += square_width_percent
+                    i += 1
+
             if self.image is not None:
                 image_to_display = self.image(item)
                 if image_to_display is not None:
@@ -157,8 +170,9 @@ class Listbox(Widget):
                     rel_file = os.path.relpath(props["image"].strip(), fs.get_artemis_data_dir()+"\\graphics")
                     props["image"] = rel_file
                     image_to_display = layout.merge_props(props)
-                    
-                    sbs.send_gui_image(CID,f"{self.tag_prefix}image:{slot}", image_to_display, 
+                    tag = f"{self.tag_prefix}image:{slot}"
+                    tags.add(tag)
+                    sbs.send_gui_image(CID,tag, image_to_display, 
                         # cell_left, cell_top, cell_right, cell_bottom,
                         left, top, self.left+square_width_percent,  top+square_height_percent
                     )
@@ -168,13 +182,17 @@ class Listbox(Widget):
                 if "hull_tag:" not in ship_to_display:
                     ship_to_display = "hull_tag:"+ship_to_display
 
-                sbs.send_gui_3dship(CID,  f"{self.tag_prefix}ship:{slot}", ship_to_display,
+                tag = f"{self.tag_prefix}ship:{slot}"
+                tags.add(tag)
+                sbs.send_gui_3dship(CID, tag, ship_to_display,
                     left, top,
                     left+square_width_percent, top+square_height_percent )
                 left += square_width_percent
             if self.face: 
                 face = self.face(item)
-                sbs.send_gui_face(CID, f"{self.tag_prefix}face:{slot}",  face,
+                tag = f"{self.tag_prefix}face:{slot}"
+                tags.add(tag)
+                sbs.send_gui_face(CID, tag,  face,
                     left, top,
                     left+square_width_percent, top+square_height_percent )
                 left += square_width_percent
@@ -183,8 +201,10 @@ class Listbox(Widget):
                 text = self.text(item)
                 if "text:" not in text:
                     text = f"text:{text};justify:center;"
+            tag = f"{self.tag_prefix}name:{slot}"
+            tags.add(tag)
             sbs.send_gui_text(
-                    CID, f"{self.tag_prefix}name:{slot}", text,
+                    CID, tag, text,
                         left, top, self.right, top+self.item_height)
             if self.select or self.multi:
                 #print(f"{cur} selected {1 if cur in self.selected else 0}")
@@ -195,27 +215,44 @@ class Listbox(Widget):
                 if cur in self.selected:
                     myright = self.right
                 props = f"image:smallWhite; color:{self.select_color};" # sub_rect: 0,0,etc"
+
+                tag = f"{self.tag_prefix}bk:{slot}"
+                tags.add(tag)
                 sbs.send_gui_image(CID, 
-                    f"{self.tag_prefix}bk:{slot}", props,
+                    tag, props,
                     left, 
                     top, 
                     myright,
                     top+self.item_height)
+                
+                tag = f"{self.tag_prefix}click:{slot}"
+                tags.add(tag)
                 sbs.send_gui_clickregion(CID, 
                     #text = self.text(item)
-                    f"{self.tag_prefix}click:{slot}", f"font:gui-2;color:blue;{text}",
+                    tag,
+                    f"font:gui-2;color:blue;{text}",
                     left, 
                     top, 
                     self.right,
                     top+self.item_height)
             #else:
-            
             top += self.item_height
             cur += 1
             slot+=1
             
             left = self.left
-        
+        #
+        #
+        # This handles hiding things if the list size changes
+        #
+        if self.last_tags is not None:
+            diff = self.last_tags - tags
+            print(f"tags {len(self.last_tags)} {len(tags)} {len(diff)}")
+            for t in diff:
+                sbs.send_gui_text(
+                    CID, t, "text:_",
+                        -1000, -1000, -999,-999)
+        self.last_tags = tags
         self.gui_state = "presenting"
 
     def get_image_size(self, file):

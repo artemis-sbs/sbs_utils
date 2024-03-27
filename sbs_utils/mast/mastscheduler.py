@@ -181,21 +181,21 @@ class JumpRuntimeNode(MastRuntimeNode):
             if not value:
                 return PollResults.OK_ADVANCE_TRUE
             
-        if node.push:
-            args = node.args
-            if node.args is not None:
-                args = task.eval_code(node.args)
-            task.push_label(node.label, data=args)
-        elif node.pop_jump:
-            task.pop_label(True,True)
-            task.jump(node.label)
-        elif node.pop_push:
-            task.pop_label(True,True)
-            task.push_label(node.label)
-        elif node.pop:
-            task.pop_label(True,True)
-        else:
-            task.jump(node.label)
+        # if node.push:
+        #     args = node.args
+        #     if node.args is not None:
+        #         args = task.eval_code(node.args)
+        #     task.push_label(node.label, data=args)
+        # elif node.pop_jump:
+        #     task.pop_label(True,True)
+        #     task.jump(node.label)
+        # elif node.pop_push:
+        #     task.pop_label(True,True)
+        #     task.push_label(node.label)
+        # elif node.pop:
+        #     task.pop_label(True,True)
+        # else:
+        task.jump(node.label)
         return PollResults.OK_JUMP
 
 
@@ -456,6 +456,7 @@ class OnChangeRuntimeNode(MastRuntimeNode):
     
     def run(self):
         self.task.push_inline_block(self.task.active_label, self.node.loc+1)
+        self.task.tick_in_context()
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: OnChange):
         if node.is_end:
@@ -484,7 +485,6 @@ class MastTicker:
         self.pop_on_jump = 0
         self.pending_pop = None
         self.pending_jump = None
-        self.pending_push = None
         self.main = main
         self.task = task
 
@@ -503,7 +503,7 @@ class MastTicker:
             # get back to the main flow
             self.pop_on_jump-=1
             push_data = self.task.label_stack.pop()
-            #print(f"POP: {push_data.label}")
+            # print(f"IN JUMP POP: {push_data.label} {len(self.task.label_stack)}")
     
     
     def do_jump(self, label = "main", activate_cmd=0):
@@ -562,8 +562,8 @@ class MastTicker:
     def push_label(self, label, activate_cmd=0, data=None):
         #print("PUSH")
         if self.active_label:
-            self.pending_push = PushData(self.active_label, self.active_cmd, data)
-            self.task.label_stack.append(self.pending_push)
+            pending_push = PushData(self.active_label, self.active_cmd, data)
+            self.task.label_stack.append(pending_push)
         self.jump(label, activate_cmd)
     def push_inline_block(self, label, activate_cmd=0, data=None):
         #
@@ -571,15 +571,10 @@ class MastTicker:
         # that was active when the push occurred
         # This done by Buttons, Dropdown and event
         #
-        #print("PUSH JUMP POP")
-        # if self.pending_jump:
-        #     print("POP HAS PENDING")
-      
         push_data = PushData(self.active_label, self.active_cmd, data, self.runtime_node)
         self.task.label_stack.append(push_data)
         self.pop_on_jump += 1
         self.pending_jump = (label,activate_cmd)
-        #print(f"PUSH: {label}")
         #self.jump(label, activate_cmd)
 
 
@@ -998,16 +993,7 @@ class MastAsyncTask(Agent, Promise):
             self.inventory.collections = dict(self.inventory.collections, **inputs)
             #self.inventory.collections |= inputs
         
-        #self.label_stack = []
-        
-        #self.events = {}
-        #self.vars["mast_task"] = self
         self.set_inventory_value("mast_task", self)
-        #self.redirect = None
-        # self.pop_on_jump = 0
-        # self.pending_pop = None
-        # self.pending_jump = None
-        # self.pending_push = None
         self.mast_ticker = MastTicker(self, main)
         self.py_ticker = PyTicker(self)
         self.active_ticker = self.mast_ticker
@@ -1081,7 +1067,7 @@ class MastAsyncTask(Agent, Promise):
         #     scope = Scope.NORMAL
         self.set_value(key,value, scope)
 
-    def get_value(self, key, defa):
+    def get_value(self, key, defa=None):
         data = None
         # if self.redirect:
         #     data = self.redirect.data
@@ -1187,6 +1173,18 @@ class MastAsyncTask(Agent, Promise):
         inputs= self.inventory.collections|inputs if inputs else self.inventory.collections
         return self.main.start_task(label, inputs, task_name, defer)
     
+    def tick_in_context(self):
+        _page = FrameContext.page
+        _task = FrameContext.task
+
+        FrameContext.page = self.main.page
+        FrameContext.task = self
+        res = self.tick()
+        FrameContext.page = _page
+        FrameContext.task = _task
+        return res
+
+
     def tick(self):
         # if self.name is not None:
         #     print(f"ticking {self.name}")

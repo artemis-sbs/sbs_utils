@@ -102,6 +102,8 @@ class StoryPage(Page):
             # self.set_inventory_value('STORY_PAGE', page)
 
             self.gui_task = self.story_scheduler.run(client_id, self, label, inputs=cls.inputs)
+            set_inventory_value(self.client_id, "GUI_TASK", self.gui_task)
+            set_inventory_value(self.client_id, "GUI_PAGE", self)
 
 
     def tick_gui_task(self):
@@ -129,8 +131,7 @@ class StoryPage(Page):
         
         if self.layouts:
             for layout_obj in self.layouts:
-                aspect_ratio = get_client_aspect_ratio(self.client_id)
-                layout_obj.calc(aspect_ratio)
+                layout_obj.calc(self.client_id)
             
             section = layout.Layout(None, None, 0,0, 100, 90)
             section.tag = self.get_tag()
@@ -360,13 +361,9 @@ class StoryPage(Page):
         #
         my_sbs = FrameContext.context.sbs
         
-            
-        
         for change in self.on_change_items:
             if change.test():
-                #self.gui_task.push_inline_block(self.gui_task.active_label, change.node.loc+1)
                 change.run()
-                self.tick_gui_task()
                 return
 
         if self.story_scheduler is None:
@@ -408,6 +405,7 @@ class StoryPage(Page):
             my_sbs.send_gui_complete(event.client_id)
             return
         
+        
         match self.gui_state:
             
             case  "repaint":
@@ -416,18 +414,17 @@ class StoryPage(Page):
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
 
-                for layout in self.layouts:
-                    layout.present(event)
+                for layout_obj in self.layouts:
+                    layout_obj.present(event)
                 if len(self.layouts)==0:
                     self.gui_state = "repaint"
                 else:
                     self.gui_state = "presenting"
                 my_sbs.send_gui_complete(event.client_id)
             case  "refresh":
-                for layout in self.layouts:
-                    aspect_ratio = get_client_aspect_ratio(self.client_id)
-                    layout.calc(aspect_ratio)
-                    layout.present(event)
+                for layout_obj in self.layouts:
+                    layout_obj.calc(self.client_id)
+                    layout_obj.present(event)
                 if len(self.layouts)==0:
                     self.gui_state = "repaint"
                 else:
@@ -435,7 +432,10 @@ class StoryPage(Page):
             case _:
                 for change in self.on_change_items:
                     if change.test():
-                        self.gui_task.push_inline_block(self.gui_task.active_label, change.node.loc+1)
+                        print("ON CHANGE - match")
+                        change.run()
+                        #self.gui_task.push_inline_block(self.gui_task.active_label, change.node.loc+1)
+                        #self.gui_task.tick_in_context()
                         break
 
     def on_message(self, event):
@@ -449,6 +449,7 @@ class StoryPage(Page):
         # Process layout first
         for section in self.layouts:
             section.on_message(event)
+
         clicked = layout.Layout.clicked.get(self.client_id)
 
         runtime_node = self.tag_map.get(message_tag)
@@ -456,13 +457,8 @@ class StoryPage(Page):
         if runtime_node is not None and runtime_node[1] is not None:
             # tuple layout and runtime node
             runtime_node = runtime_node[1]
-            # FrameContext.context.aspect_ratio = self.aspect_ratio
             runtime_node.on_message(event)
-            # for node in self.tag_map.values():
-            #     if node != runtime_node:
-            #         bound = node.databind()
-            #         refresh = bound or refresh
-        
+          
         for change in self.on_change_items:
             if change.test():
                 change.run()

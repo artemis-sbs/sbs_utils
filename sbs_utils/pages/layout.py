@@ -5,6 +5,7 @@ import struct # for images sizes
 from .. import fs
 import os
 from ..helpers import FrameContext
+from ..procedural.inventory import get_inventory_value
 
 class Bounds:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
@@ -57,6 +58,9 @@ class Row:
     def add(self, col):
         self.columns.append(col)
         return self
+    
+    def represent(self, event):
+        self.present(event)
 
     def present(self, event):
         col:Column
@@ -105,6 +109,7 @@ class Row:
 class Column:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
         self.bounds = Bounds(left,top,right,bottom)
+        self.restore_bounds = self.bounds
         self.padding = None
         self.square = False
         self.background = None
@@ -122,6 +127,20 @@ class Column:
         self.bounds.top=bounds.top
         self.bounds.right=bounds.right
         self.bounds.bottom=bounds.bottom
+        if bounds.left != -1000:
+            self.restore_bounds = self.bounds
+
+
+    def show(self, _show):
+        if not _show:
+            # Needs to be different than section to truly know it is hidden
+            self.set_bounds(Bounds(-1011,-1011, -999,-999))
+        else:
+            self.set_bounds(self.restore_bounds)
+
+    @property
+    def is_hidden(self):
+        return self.bounds.left < -1000
         
 
     def set_row_height(self, height):
@@ -132,6 +151,9 @@ class Column:
 
     def set_padding(self, padding):
         self.padding = padding
+
+    def represent(self, event):
+        self.present(event)
 
     def present(self, event):
         self._pre_present(event)
@@ -203,21 +225,26 @@ class Column:
 class Text(Column):
     def __init__(self, tag, message) -> None:
         super().__init__()
-        if "text:" not in message:
-            message = f"text:{message}"
+        
         self.message = message
         self.tag = tag
 
     def _present(self, event):
         ctx = FrameContext.context
+        task = get_inventory_value(event.client_id, "GUI_TASK")
+        if task is not None:
+            message = task.format_string(self.message)
+        else:
+            message = self.message
+        if "text:" not in message:
+            message = f"text:{message}"
+
         ctx.sbs.send_gui_text(event.client_id, 
-            self.tag, self.message,  
+            self.tag, message,  
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
 
     def update(self, message):
         # print(f"{message}")
-        if "text:" not in message:
-            message = f"text:{message}"
         self.message = message
 
     
@@ -227,9 +254,6 @@ class Text(Column):
        
     @value.setter
     def value(self, v):
-        if "text:" not in v:
-            v = f"text:{v}"
-
         self.message = v
     
 
@@ -724,6 +748,7 @@ class Layout:
                 left_pixels=False, top_pixels=False, right_pixels=False, bottom_pixels=False) -> None:
         self.rows = rows if rows else []
         self.set_bounds(Bounds(left,top,right,bottom))
+        self.restore_bounds = self.bounds
         self.default_height = None
         self.default_width = None
         self.padding = None
@@ -733,16 +758,19 @@ class Layout:
         self.click_tag  = None
         self.click_font  = None
         self.click_color  = None
+        self.client_id = None
         
         
 
     def set_bounds(self, bounds):
         self.bounds = bounds
+        if bounds.left != -1000:
+            self.restore_bounds = self.bounds
+
 
     def set_padding(self, padding):
         self.padding = padding
 
-       
     def set_row_height(self, height):
         self.default_height = height
 
@@ -752,7 +780,20 @@ class Layout:
     def add(self, row:Row):
         self.rows.append(row)
 
-    def calc(self, aspect_ratio):
+    def show(self, _show):
+        if not _show:
+            self.set_bounds(Bounds(-1000,-1000, -999,-999))
+        else:
+            self.set_bounds(self.restore_bounds)
+
+    def represent(self, event):
+        self.calc(event.client_id)
+        self.present(event)
+
+
+    def calc(self, client_id):
+        aspect_ratio = get_client_aspect_ratio(client_id)
+        self.client_id = client_id
         # remove empty
         #self.rows = [x for x in self.rows if len(x.columns)>0]
         if len(self.rows):
@@ -793,10 +834,18 @@ class Layout:
                 if len(row.columns)==0:
                     continue
                 
+                actual_cols = []
                 for col in row.columns:
+                    if col.is_hidden:
+                        continue
                     squares += 1 if col.square else 0
+                    actual_cols.append(col)
+
+                if len(actual_cols)==0:
+                    continue
+
                 # get the width and the height of a cell in pixels
-                actual_width = row.width/len(row.columns) * aspect_ratio.x / 100
+                actual_width = row.width/len(actual_cols) * aspect_ratio.x / 100
                 actual_height =  row.height * aspect_ratio.y /100
 
                 # get the low of these two as a percentage of the window width
@@ -810,11 +859,11 @@ class Layout:
                 # if layout_col_width is not None:
                 #     rect_col_width = layout_col_width
                 # el
-                if len(row.columns) != squares:
-                    rect_col_width = (row.width-(squares*square_width))/(len(row.columns)-squares)
+                if len(actual_cols) != squares:
+                    rect_col_width = (row.width-(squares*square_width))/(len(actual_cols)-squares)
                     if square_width> rect_col_width:
                         square_width= rect_col_width
-                        rect_col_width = (row.width-(squares*square_width))/(len(row.columns)-squares)
+                        rect_col_width = (row.width-(squares*square_width))/(len(actual_cols)-squares)
                 else:
                     rect_col_width = square_width
 
@@ -823,7 +872,7 @@ class Layout:
 
                 col_left = left
                 hole_size = 0
-                for col in row.columns:
+                for col in actual_cols:
                     if col.padding is not None:
                         padding.left += col.padding.left
                         padding.right+= col.padding.right
@@ -868,6 +917,7 @@ class Layout:
                     padding.right-= row.padding.right
                     padding.top -= row.padding.top
                     padding.bottom -= row.padding.bottom
+                #print(f"calc w: {bounds.right-bounds.left}")
 
 
     def present(self, event):
@@ -883,6 +933,7 @@ class Layout:
             row.present(event)
 
         self._post_present(event)
+
 
     def _post_present(self, event):
         if self.click_text is not None:
@@ -976,8 +1027,8 @@ class RadioButtonGroup(Column):
         #self.group_layout.calc()
 
     def _present(self, event):
-        aspect_ratio = get_client_aspect_ratio(event.client_id)
-        self.group_layout.calc(aspect_ratio)
+        #aspect_ratio = get_client_aspect_ratio(event.client_id)
+        self.group_layout.calc(event.client_id)
         self.group_layout.present(event)
     
     def on_message(self, event):
@@ -1032,7 +1083,7 @@ class LayoutPage(Page):
         if self.aspect_ratio.x != sz.x or self.aspect_ratio.y != sz.y:
             self.aspect_ratio.x = sz.x
             self.aspect_ratio.y = sz.y
-            self.layout.calc(aspect_ratio)
+            self.layout.calc(event.client_id)
             self.gui_state = 'repaint'
 
         ctx = FrameContext.context

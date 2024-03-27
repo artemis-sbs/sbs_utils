@@ -62,9 +62,13 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             if not title:
                 title = from_obj.comms_id +" > "+to_obj.comms_id
                 face = faces.get_face(from_obj.get_id())
+            else:
+                title = from_obj.comms_id +": "+ title
+
 
             if face is None:
-                face = ""
+                face = faces.get_face(from_obj.get_id())
+
             # Only player ships send messages
             if has_role(from_obj.id, "__PLAYER__"):
                 sbs.send_comms_message_to_player_ship(
