@@ -758,6 +758,7 @@ class Layout:
         self.click_tag  = None
         self.click_font  = None
         self.click_color  = None
+        self.click_background = None
         self.client_id = None
         
         
@@ -767,7 +768,10 @@ class Layout:
         if bounds.left != -1000:
             self.restore_bounds = self.bounds
 
-
+    @property
+    def is_hidden(self):
+        return self.bounds.left == -1000
+    
     def set_padding(self, padding):
         self.padding = padding
 
@@ -804,6 +808,10 @@ class Layout:
             else:
                 layout_row_height = self.bounds.height / len(self.rows)
 
+            for row in self.rows:
+                if row.default_height is not None:
+                    layout_row_height += (layout_row_height-row.default_height)
+
             # if self.default_width is not None:
             #     layout_col_width = self.default_width
             # else:
@@ -812,6 +820,9 @@ class Layout:
             row : Row
             left = self.bounds.left
             top = self.bounds.top
+            # Find rows with assign height and adjust other height 
+            # to account for that
+            
             for row in self.rows:
                 # Cascading padding
                 if row.padding:
@@ -944,6 +955,10 @@ class Layout:
                 click_props += f"font: {self.click_font};"
             if self.click_tag is None:
                 self.click_tag = f"click:{self.tag}:{self.click_text}"
+            if self.click_background is not None:
+                click_props += f"background_color:{self.click_background};"
+            click_props += f"background_color: white;"
+
             ctx = FrameContext.context
             ctx.sbs.send_gui_clickregion(event.client_id, 
                 self.click_tag, click_props,

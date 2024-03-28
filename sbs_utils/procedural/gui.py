@@ -331,7 +331,7 @@ def gui_row(style=None):
     if page is None:
         return None
     
-    task.main.page.add_row()
+    page.add_row()
     layout_item = page.get_pending_row()
     apply_control_styles(".row", style, layout_item, task)
     return layout_item
@@ -781,7 +781,7 @@ def gui_content(content, style=None, var=None):
     if page is None:
         return None
 
-    tag = task.main.page.get_tag()
+    tag = page.get_tag()
     # gui control ShipPicker(0,0,"mast", "Your Ship")
     layout_item = layout.GuiControl(tag, content)
     if var is not None:

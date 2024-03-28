@@ -12,6 +12,7 @@ import logging
 import random
 from inspect import getmembers, isfunction  
 import sys
+from ..helpers import format_exception
 
 
 
@@ -553,6 +554,9 @@ class Button(MastNode):
             self.color = self.compile_formatted_string(color)
         self.visited = set() if not self.sticky else None
         self.loc = loc
+        # Note: label is used with python buttons
+        # and is generally None
+        self.await_node = None
         if label is None:
             self.await_node = Await.stack[-1]
             self.await_node.buttons.append(self)
@@ -571,6 +575,7 @@ class Button(MastNode):
             self.for_code = compile(for_exp, "<string>", "eval")
         else:
             self.for_code = None
+        
 
     def visit(self, id_tuple):
         if self.visited is not None:
@@ -1043,6 +1048,7 @@ class Mast():
             logger = logging.getLogger("mast.compile")
             logger.error(f"Exception: {e}")
             errors.append(f"\nException: {e}")
+            errors.append(format_exception("",""))
             return errors # return with first errors
 
         

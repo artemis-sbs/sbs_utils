@@ -90,6 +90,7 @@ def cosmos_event_handler(sim, event):
             #     print(f"{event.sub_tag}")
             #     print(f"{event.sub_float}")
             case "present_gui":
+                Agent.SHARED.set_inventory_value("SIM_STATE", "sim_paused")
                 Gui.present(event)
 
             case "screen_size":
@@ -109,6 +110,9 @@ def cosmos_event_handler(sim, event):
             case "mission_tick":
                 # Run Guis, tick task
                 Gui.present(event)
+                # set the simulation state variable
+                #Agent.SHARED.set_inventory_value("SIM_STATE", event.sub_tag)
+                Agent.SHARED.set_inventory_value("SIM_STATE", "sim_running")
                 TickDispatcher.dispatch_tick()
                 # after tick task handle any lifetime events
                 LifetimeDispatcher.dispatch_spawn()

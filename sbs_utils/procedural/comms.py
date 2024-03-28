@@ -33,7 +33,7 @@ def comms_broadcast(ids_or_obj, msg, color="#fff"):
                 if obj is not None or id==0:
                     sbs.send_message_to_player_ship(id, color, msg)
 
-def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, color="#fff", title_color=None):
+def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, color="#fff", title_color=None, is_receive=True, from_name=None):
     """ Send a Comms message 
     This is a lower level function that lets you have more control the sender and receiver
 
@@ -56,14 +56,23 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
     
     from_objs = query.to_object_list(from_ids_or_obj)
     to_objs = query.to_object_list(to_ids_or_obj)
+
     for from_obj in from_objs:
         for to_obj in to_objs:
             # From face should be used
-            if not title:
-                title = from_obj.comms_id +" > "+to_obj.comms_id
-                face = faces.get_face(from_obj.get_id())
+            from_name_now = from_name
+            if from_name is None:
+                from_name_now = from_obj.comms_id 
+
+            if title is None:
+                title = from_name_now # +" > "+to_obj.comms_id
             else:
-                title = from_obj.comms_id +": "+ title
+                title = from_name_now +": "+ title
+
+            if is_receive:
+                title = "< < " + title
+            else:
+                title = "> > " + title
 
 
             if face is None:
@@ -136,7 +145,7 @@ def comms_transmit(msg, title=None, face=None, color="#fff", title_color=None):
         #
         pass 
     # player transmits a message
-    comms_message(msg, from_ids_or_obj, to_ids_or_obj,  title, face, color, title_color)
+    comms_message(msg, from_ids_or_obj, to_ids_or_obj,  title, face, color, title_color, False)
 
 def comms_receive(msg, title=None, face=None, color="#fff", title_color=None):
     """ Receive a message on a player ship from another ship
@@ -158,7 +167,7 @@ def comms_receive(msg, title=None, face=None, color="#fff", title_color=None):
         #
         pass 
     # player receives a message
-    comms_message(msg, from_ids_or_obj, to_ids_or_obj,  title, face, color, title_color)
+    comms_message(msg, from_ids_or_obj, to_ids_or_obj,  title, face, color, title_color, True)
 
 
 def comms_transmit_internal(msg, ids_or_obj=None, to_name=None, title=None, face=None, color="#fff", title_color=None):
@@ -178,12 +187,12 @@ def comms_transmit_internal(msg, ids_or_obj=None, to_name=None, title=None, face
     for ship in query.to_object_list(ids_or_obj):
         if to_name is None:
             to_name = ship.name
-        if title is None:
-            title = f"{ship.name} > {to_name}"
+        # if title is None:
+        #     title = f"{ship.name} > {to_name}"
         if face is None and to_name is not None:
             # try to find a face
             face = get_inventory_value(ship.id, f"face_{to_name}", None)
-        comms_message(msg, ship, ship,  title, face, color, title_color)
+        comms_message(msg, ship, ship,  title, face, color, title_color, False, to_name)
 
 
 def comms_receive_internal(msg, ids_or_obj=None, from_name=None,  title=None, face=None, color="#fff", title_color=None):
@@ -204,12 +213,12 @@ def comms_receive_internal(msg, ids_or_obj=None, from_name=None,  title=None, fa
     for ship in query.to_object_list(ids_or_obj):
         if from_name is None:
             from_name = ship.name
-        if title is None:
-            title = f"{from_name} > {ship.name}"
+        # if title is None:
+        #     title = f"{from_name} > {ship.name}"
         if face is None and from_name is not None:
             # try to find a face
             face = get_inventory_value(ship.id, f"face_{from_name}", None)
-        comms_message(msg, ship, ship,  title, face, color, title_color)
+        comms_message(msg, ship, ship,  title, face, color, title_color, True, from_name)
         
         
 def comms_info(name, face=None, color=None):
