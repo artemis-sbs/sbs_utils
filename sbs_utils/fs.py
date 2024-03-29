@@ -21,8 +21,11 @@ def get_mission_name():
     if mission_name is None:
         sdir = get_script_dir()
         mission_name = os.path.basename(sdir)
-
     return mission_name
+
+def get_startup_mission_name():
+    # TODO: get the preference data
+    return get_mission_name()
 
 def get_missions_dir():
     return get_artemis_data_dir()+"/missions"

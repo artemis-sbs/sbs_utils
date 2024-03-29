@@ -8,6 +8,7 @@ from ..procedural.gui import gui_reroute_client
 from ..procedural.execution import log
 from ..agent import Agent
 from ..pages import layout
+from..fs import get_mission_name, get_startup_mission_name
 
 from .maststory import  MastStory
 from .maststoryscheduler import StoryScheduler
@@ -372,29 +373,20 @@ class StoryPage(Page):
             self.start_story(event.client_id)
         else:
             if len(self.story_scheduler.errors) > 0:
-                #errors = self.errors.reverse()
-                message = ''.join([str(elem) for elem in self.story_scheduler.errors])
-                message = message.replace(chr(94), "-")
-                message = message.replace(chr(44), "`")
-                message = "text:"+message
-                print(message)
-                my_sbs.send_gui_clear(event.client_id)
-                if event.client_id != 0:
-                    my_sbs.send_client_widget_list(event.client_id, "", "")
-                my_sbs.send_gui_text(event.client_id, "error",  message, 0,0,99,99)
-                self.gui_state = "errors"
-                my_sbs.send_gui_complete(event.client_id)
-                return
-
-            if self.story_scheduler.paint_refresh:
-                if self.gui_state != "repaint":  
-                    self.gui_state = "refresh"
-                self.story_scheduler.paint_refresh = False
+                self.errors = self.story_scheduler.errors
+                self.story_scheduler.errors = []
+            else:
+                if self.story_scheduler.paint_refresh:
+                    if self.gui_state != "repaint":  
+                        self.gui_state = "refresh"
+                    self.story_scheduler.paint_refresh = False
+                
+                if not self.story_scheduler.story_tick_tasks(event.client_id):
+                    #self.story_runtime_node.mast.remove_runtime_node(self)
+                    Gui.pop(event.client_id)
+                    return
             
-            if not self.story_scheduler.story_tick_tasks(event.client_id):
-                #self.story_runtime_node.mast.remove_runtime_node(self)
-                Gui.pop(event.client_id)
-                return
+
         if len(self.errors) > 0:
             message = "".join(self.errors)
             message = message.replace(";", "~")
@@ -403,6 +395,10 @@ class StoryPage(Page):
             if event.client_id != 0:
                 my_sbs.send_client_widget_list(event.client_id, "", "")
             my_sbs.send_gui_text(event.client_id, "error", message,  0,0,100,100)
+            sbs.send_gui_button(event.client_id, "$Error$resume", "text:Attempt Resume", 0, 90, 20, 99)
+            sbs.send_gui_button(event.client_id, "$Error$pause", "text:Attempt pause", 25, 90, 45, 99)
+            sbs.send_gui_button(event.client_id, "$Error$rerun", "text:Attempt Rerun", 50, 90, 70, 99)
+            sbs.send_gui_button(event.client_id, "$Error$startup", "text:Run startup", 75, 90, 99, 99)
             self.gui_state = "errors"
             my_sbs.send_gui_complete(event.client_id)
             return
@@ -445,6 +441,36 @@ class StoryPage(Page):
             return
         
         message_tag = event.sub_tag
+        if message_tag == "$Error$resume":
+            self.errors = []
+            FrameContext.context.sbs.resume_sim()
+            self.gui_state = "paint"
+            self.present(event)
+            return
+        
+        if message_tag == "$Error$pause":
+            self.errors = []
+            FrameContext.context.sbs.pause_sim()
+            self.gui_state = "paint"
+            self.present(event)
+            return
+        
+        if message_tag == "$Error$rerun":
+            self.errors = []
+            mission = get_mission_name()
+            FrameContext.context.sbs.run_next_mission(mission)
+            self.gui_state = "paint"
+            self.present(event)
+            return
+        
+        if message_tag == "$Error$startup":
+            self.errors = []
+            start_mission = get_startup_mission_name()
+            FrameContext.context.sbs.run_next_mission(start_mission)
+            self.gui_state = "paint"
+            self.present(event)
+            return
+            
         
 
         clicked = None

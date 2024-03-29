@@ -9,6 +9,8 @@ from .gui import Gui, Page
 import sbs
 import traceback
 from . import faces
+from .fs import get_mission_name, get_startup_mission_name
+
 from .agent import Agent
 from .helpers import FrameContext, Context, format_exception
 import time
@@ -57,18 +59,45 @@ class ErrorPage(Page):
                 self.message = self.message.replace(",", ".")
                 sbs.send_gui_text(
                     event.client_id, "text", f"text:sbs_utils runtime error^{self.message}", 0, 0, 80, 95)
-                sbs.send_gui_button(event.client_id, "back", "text:back", 80, 90, 99, 94)
-                sbs.send_gui_button(event.client_id, "resume", "text:Resume Mission", 80, 95, 99, 99)
+                
+                # sbs.send_gui_button(event.client_id, "back", "text:pause mission;", 0, 80, 20, 94)
+                sbs.send_gui_button(event.client_id, "resume", "text:Resume Mission;", 25, 80, 45, 99)
+                sbs.send_gui_button(event.client_id, "rerun", "text:Rerun Mission;", 50, 80, 70, 99)
+                sbs.send_gui_button(event.client_id, "startup", "text:run startup Mission;", 75, 80, 99, 99)
                 sbs.send_gui_complete(event.client_id)
 
     def on_message(self, event):
         match event.sub_tag:
-            case "back":
-                Gui.pop(event.client_id)
+            # case "back":
+            #     self.gui_state = "sim_on"
+            #     self.present(event)
+
+            #     Gui.pop(event.client_id)
+            #     FrameContext.context.sbs.pause_sim()
 
             case "resume":
+                self.gui_state = "sim_on"
+                self.present(event)
+
                 Gui.pop(event.client_id)
                 FrameContext.context.sbs.resume_sim()
+
+            case "rerun":
+                self.gui_state = "sim_on"
+                self.present(event)
+
+                Gui.pop(event.client_id)
+                start_mission = get_mission_name()
+                sbs.run_next_mission(start_mission)
+
+            case "startup":
+                self.gui_state = "sim_on"
+                self.present(event)
+
+                Gui.pop(event.client_id)
+                start_mission = get_startup_mission_name()
+                sbs.run_next_mission(start_mission)
+
 
 def cosmos_event_handler(sim, event):
     try:
