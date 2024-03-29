@@ -63,12 +63,12 @@ class StoryScheduler(MastScheduler):
         self.paint_refresh = False
         self.errors = []
 
-    def run(self, client_id, page, label="main", inputs=None):
+    def run(self, client_id, page, label="main", inputs=None, task_name=None, defer=False):
         self.page = page
         self.client_id = client_id
         restore = FrameContext.page
         FrameContext.page = self.page
-        ret =  super().start_task( label)
+        ret =  super().start_task( label, inputs, task_name, defer)
         FrameContext.page = restore
         return ret
 

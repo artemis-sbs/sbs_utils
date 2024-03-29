@@ -101,9 +101,11 @@ class StoryPage(Page):
             self.story_scheduler.set_inventory_value('IS_CLIENT', client_id!=0)
             # self.set_inventory_value('STORY_PAGE', page)
 
-            self.gui_task = self.story_scheduler.run(client_id, self, label, inputs=cls.inputs)
+            # Start task defer so we can set gui_task appropriately
+            self.gui_task = self.story_scheduler.run(client_id, self, label, cls.inputs, None, True)
             set_inventory_value(self.client_id, "GUI_TASK", self.gui_task)
             set_inventory_value(self.client_id, "GUI_PAGE", self)
+            self.gui_task.tick_in_context()
 
 
     def tick_gui_task(self):
