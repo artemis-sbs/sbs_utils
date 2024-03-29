@@ -62,7 +62,10 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             # From face should be used
             from_name_now = from_name
             if from_name is None:
-                from_name_now = from_obj.comms_id 
+                if is_receive:
+                    from_name_now = from_obj.comms_id
+                else:
+                    from_name_now = to_obj.comms_id
 
             if title is None:
                 title = from_name_now # +" > "+to_obj.comms_id

@@ -21,7 +21,7 @@ brain:
         if freezing:
             ->FAIL
         else:
-            ->SUCCESS
+            ->SUCCEED
         end_if
 
     select "Jacket":
@@ -41,7 +41,7 @@ brain:
 
             select "Door Open:
                 if door_open:
-                    ->SUCCESS
+                    ->SUCCEED
                 else:
                     ->FAIL
                 end_if

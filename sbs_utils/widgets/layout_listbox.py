@@ -108,6 +108,7 @@ class LayoutListbox(Widget):
         """
         CID = event.client_id
         self.client_id = CID
+        
 
         if self.horizontal:
             max_slots = (self.right - self.left) // max(self.item_width,1) 

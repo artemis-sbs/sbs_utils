@@ -113,7 +113,9 @@ def cosmos_event_handler(sim, event):
                 # set the simulation state variable
                 #Agent.SHARED.set_inventory_value("SIM_STATE", event.sub_tag)
                 Agent.SHARED.set_inventory_value("SIM_STATE", "sim_running")
-                TickDispatcher.dispatch_tick()
+                # Give a few ticks
+                for x in range(10):
+                    TickDispatcher.dispatch_tick()
                 # after tick task handle any lifetime events
                 LifetimeDispatcher.dispatch_spawn()
  
