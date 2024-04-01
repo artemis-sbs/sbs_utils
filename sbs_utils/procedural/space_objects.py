@@ -200,7 +200,26 @@ def target_pos(chasers: set | int | CloseData|SpawnData, x: float, y: float, z: 
                 t = 0
         chaser.data_set.set("throttle", t, 0)
     
-   
+
+def target_shoot(chasers: set | int | CloseData|SpawnData, target_id=None):
+    """ Set the target id only
+    Args:
+        chasers (agent id | agent set): the agents to set
+        target_id (id, optional): What to shoot
+    """ 
+    all = to_list(chasers)
+    if target_id is not None:
+        target_id = to_id(target_id)
+    if not object_exists(target_id):
+        return
+    
+    for chaser in all:
+        chaser = to_object(chaser)
+        if chaser is None or not object_exists(chaser):
+            continue
+        if target_id is not None:
+            chaser.data_set.set("target_id", target_id,0)
+
 
 def clear_target(chasers: set | int | CloseData|SpawnData):
     """ clear the target on an agent or set of agents

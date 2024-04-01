@@ -1161,7 +1161,7 @@ class Mast():
                         active.next = next
                         active = next
                         active_name = label_name
-                        self.labels[data['name']] = active
+                        self.labels[active_name] = active
                         exists =  Agent.SHARED.get_inventory_value(label_name)
                         exists =  Mast.globals.get(label_name, exists)
                         if exists and not replace:

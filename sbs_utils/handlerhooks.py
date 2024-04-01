@@ -96,7 +96,8 @@ class ErrorPage(Page):
 
                 Gui.pop(event.client_id)
                 start_mission = get_startup_mission_name()
-                sbs.run_next_mission(start_mission)
+                if start_mission is not None:
+                    sbs.run_next_mission(start_mission)
 
 
 def cosmos_event_handler(sim, event):
@@ -118,9 +119,9 @@ def cosmos_event_handler(sim, event):
             #     print(f"{event.selected_id}")
             #     print(f"{event.sub_tag}")
             #     print(f"{event.sub_float}")
-            case "present_gui":
-                Agent.SHARED.set_inventory_value("SIM_STATE", "sim_paused")
-                Gui.present(event)
+            # case "present_gui":
+            #     Agent.SHARED.set_inventory_value("SIM_STATE", "sim_paused")
+            #     Gui.present(event)
 
             case "screen_size":
                 # print(f"{event.client_id}")
@@ -140,8 +141,8 @@ def cosmos_event_handler(sim, event):
                 # Run Guis, tick task
                 Gui.present(event)
                 # set the simulation state variable
-                #Agent.SHARED.set_inventory_value("SIM_STATE", event.sub_tag)
-                Agent.SHARED.set_inventory_value("SIM_STATE", "sim_running")
+                Agent.SHARED.set_inventory_value("SIM_STATE", event.sub_tag)
+                #Agent.SHARED.set_inventory_value("SIM_STATE", "sim_running")
                 # Give a few ticks
                 for x in range(10):
                     TickDispatcher.dispatch_tick()

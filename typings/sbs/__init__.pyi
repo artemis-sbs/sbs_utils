@@ -10,8 +10,8 @@ def app_seconds() -> int:
     ...
 def assign_client_to_ship(arg0: int, arg1: int) -> None:
     """Tells a client computer which ship it should control."""
-def broad_test(arg0: float, arg1: float, arg2: float, arg3: float, arg4: int) -> List[sbs.space_object]:
-    """return a list of space objects that are currently inside an x/z 2d rect  ARGS: 2D bounding rect, and type value (0, 1, or 2, -1 = all)"""
+def broad_test(lx: float, lz: float, mx: float, mz: float, abits: int) -> List[sbs.space_object]:
+    """return a list of space objects that are currently inside an x/z 2d rect  ARGS: 2D bounding rect, and bitfield"""
 def clear_client_tags() -> None:
     """stub; does nothing yet."""
 def create_new_sim() -> None:
@@ -76,6 +76,8 @@ def retrieve_from_standby_list(space_object: sbs.space_object) -> None:
     """moves the spaceobject from the standby list to normal space."""
 def retrieve_from_standby_list_id(id: int) -> None:
     """moves the spaceobject from the standby list to normal space."""
+def run_next_mission(mission_folder: str) -> None:
+    """Shuts down this script and starts the mission in the folder argument"""
 def send_client_widget_list(arg0: int, arg1: str, arg2: str) -> None:
     """sends the gameplay widgets to draw, on the targeted client (0 = server screen)"""
 def send_client_widget_rects(arg0: int, arg1: str, arg2: float, arg3: float, arg4: float, arg5: float, arg6: float, arg7: float, arg8: float, arg9: float) -> None:
@@ -137,7 +139,7 @@ def set_beam_damages(clientID: int, playerBeamDamage: float, npcBeamDamage: floa
 def set_dmx_channel(arg0: int, arg1: int, arg2: int, arg3: int, arg4: int, arg5: int) -> None:
     """set a color channel of dmx."""
 def set_main_view_modes(clientID: int, main_screen_view: str, cam_angle: str, cam_mode: str) -> None:
-    """sets the three modes of the main screen view for the specified client.  main_screen_view = (3d_view, info);  cam_angle = (front, back, left, right); cam_mode = (first_person, chase, tracking)"""
+    """sets the three modes of the main screen view for the specified client.  main_screen_view = (3d_view, info, data);  cam_angle = (front, back, left, right); cam_mode = (first_person, chase, tracking)"""
 def set_music_folder(ID: int, filename: str) -> None:
     """Sets the folder from which music is streamed; ID is ship, OR client, OR zero for server."""
 def set_music_tension(ID: int, tensionValue: float) -> None:
@@ -451,10 +453,14 @@ class simulation(object): ### from pybind
         ...
     def add_navpoint(self: sbs.simulation, arg0: float, arg1: float, arg2: float, arg3: str, arg4: str) -> sbs.navpoint:
         """adds a new navpoint to space; don't hold on to this Navpoint object in a global; keep the name string instead    args:  float x, float y, float z, std::string text, std::string colorDesc"""
+    def create_space_object(self: sbs.simulation, aiTag: str, dataTag: str, abits: int) -> int:
+        """creates a new spaceobject. abits is a 16-bit bitfield for further defining the object.  bit 1, when set, means the object is unmoving and static."""
     def delete_navpoint_by_name(self: sbs.simulation, arg0: str) -> None:
         """deletes navpoint by its name"""
     def delete_navpoint_by_reference(self: sbs.simulation, arg0: sbs.navpoint) -> None:
         """deletes navpoint by its reference"""
+    def force_update_to_clients(self: sbs.simulation, spaceObjectID: int) -> None:
+        """forces this space object to update its data to all clients"""
     def get_navpoint_by_name(self: sbs.simulation, arg0: str) -> sbs.navpoint:
         """takes a string name, returns the associated Navpoint object"""
     def get_navpoint_by_reference(self: sbs.simulation, arg0: sbs.navpoint) -> sbs.navpoint:
@@ -463,12 +469,6 @@ class simulation(object): ### from pybind
         """Given a source ship and a target ship, this returns the shield (index) that would be hit by a hypothetical beam. -1 if no shield can currently intercept such a beam."""
     def get_space_object(self: sbs.simulation, arg0: int) -> sbs.space_object:
         """returns the reference to a spaceobject, by ID"""
-    def make_new_active(self: sbs.simulation, aiTag: str, dataTag: str) -> int:
-        """creates a new spaceobject"""
-    def make_new_passive(self: sbs.simulation, aiTag: str, dataTag: str) -> int:
-        """creates a new spaceobject.  This object will be treated (by the code) like an asteroid or nebula; something without movement or AI"""
-    def make_new_player(self: sbs.simulation, aiTag: str, dataTag: str) -> int:
-        """creates a new spaceobject, with all the extra code afforded to something intended to be operated by players"""
     def navpoint_exists(self: sbs.simulation, arg0: str) -> bool:
         """returns true if the navpoint exists, by name"""
     def navpoint_exists_ref(self: sbs.simulation, arg0: sbs.navpoint) -> bool:
@@ -482,6 +482,12 @@ class simulation(object): ### from pybind
         """get current time value"""
 class space_object(object): ### from pybind
     """class space_object"""
+    @property
+    def abits (self: sbs.space_object) -> int:
+        """unsigned 16-bit bitfield for filtering.  bits 0-3 is reserved by c++. bit 0, if set, means that this object is unmoving and static (nebula, asteroid, black hole, etc)"""
+    @abits.setter
+    def abits (self: sbs.space_object, arg0: int) -> None:
+        """unsigned 16-bit bitfield for filtering.  bits 0-3 is reserved by c++. bit 0, if set, means that this object is unmoving and static (nebula, asteroid, black hole, etc)"""
     @property
     def blink_state (self: sbs.space_object) -> int:
         """int, positive numbers are pulse delay, negative numbers are blink delay, 0 = normal, -1 = glow off"""
@@ -565,9 +571,6 @@ class space_object(object): ### from pybind
     @property
     def tick_type_ID (self: sbs.space_object) -> int:
         """int32, read only, internal representation of tick_type"""
-    @property
-    def type (self: sbs.space_object) -> int:
-        """int, 0=passive, 1=active, 2=playerShip"""
     @property
     def unique_ID (self: sbs.space_object) -> int:
         """uint64, read only, id of this particular object"""

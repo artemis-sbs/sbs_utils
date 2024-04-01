@@ -302,12 +302,13 @@ class IfStatementsRuntimeNode(MastRuntimeNode):
             if activate is not None:
                 task.jump(task.active_label, activate.loc+1)
                 return PollResults.OK_JUMP
+
         # Everything else jumps to past all things involved in this chain
         if node.if_node.dedent_loc is not None:
             task.jump(task.active_label, node.if_node.dedent_loc)
             return PollResults.OK_JUMP
         else:
-            print("DEDENT IS NON IN AN IF")
+            print("DEDENT IS NONE IN AN IF")
 
     def first_true(self, task: MastAsyncTask, node: IfStatements):
         cmd_to_run = None

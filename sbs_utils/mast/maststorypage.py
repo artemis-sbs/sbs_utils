@@ -466,7 +466,8 @@ class StoryPage(Page):
         if message_tag == "$Error$startup":
             self.errors = []
             start_mission = get_startup_mission_name()
-            FrameContext.context.sbs.run_next_mission(start_mission)
+            if start_mission is not None:
+                FrameContext.context.sbs.run_next_mission(start_mission)
             self.gui_state = "paint"
             self.present(event)
             return

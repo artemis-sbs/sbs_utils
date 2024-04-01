@@ -744,6 +744,9 @@ def gui_console(console):
         case "comms":
             console =  "normal_comm"
             widgets = "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
+        case "cinematic":
+            console =  "cinematic"
+            widgets = "3dview"
         case "mainscreen":
             console =  "normal_main"
             view = page.gui_task.get_variable("MAIN_SCREEN_VIEW", "3d_view")
@@ -1550,6 +1553,37 @@ def gui_history_clear():
     task = page.gui_task
     task.set_variable("GUI_HISTORY", None)
     task.set_variable("GUI_HISTORY_POS", None)
+
+def gui_cinematic_auto(client_id):
+    """Will automatically track the consoles assigned ship
+
+    ??? Note:
+        The tracked ship needs to have excitement values 
+        player ships automatically have that set    
+    
+    Args:
+        client_id (id): the console's client ID
+    """
+    no_offset = sbs.vec3()
+    sbs.set_main_view_modes(client_id, "cinematic", "cinematic", "cinematic")
+    sbs.cinematic_control(client_id, 0, 0, no_offset, 0, no_offset)
+
+def gui_cinematic_full_control(client_id, camera_id, camera_offset, tracked_id, tracked_offset):
+    if camera_offset is not None:
+        _camera_offset = sbs.vec3()
+        _camera_offset.x = camera_offset.x
+        _camera_offset.y = camera_offset.y
+        _camera_offset.z = camera_offset.z
+        camera_offset = _camera_offset
+    if tracked_offset is not None:
+        _offset = sbs.vec3()
+        _offset.x = tracked_offset.x
+        _offset.y = tracked_offset.y
+        _offset.z = tracked_offset.z
+        tracked_offset = _offset
+    sbs.set_main_view_modes(client_id, "cinematic", "cinematic", "cinematic")
+    sbs.cinematic_control(client_id, 1, camera_id, camera_offset, tracked_id, tracked_offset)
+
 
     
 def gui_history_redirect(back_name=None, back_label=None, back_data=None):

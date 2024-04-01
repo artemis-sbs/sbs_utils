@@ -247,7 +247,7 @@ class Listbox(Widget):
         #
         if self.last_tags is not None:
             diff = self.last_tags - tags
-            print(f"tags {len(self.last_tags)} {len(tags)} {len(diff)}")
+            #print(f"tags {len(self.last_tags)} {len(tags)} {len(diff)}")
             for t in diff:
                 sbs.send_gui_text(
                     CID, t, "text:_",
