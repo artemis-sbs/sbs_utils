@@ -9,10 +9,21 @@ from ..procedural.inventory import get_inventory_value
 
 class Bounds:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
-        self.left=left
-        self.top=top
-        self.right=right
-        self.bottom=bottom
+        if left is None:
+            self.left=0
+            self.top=0
+            self.right=0
+            self.bottom=0
+        elif isinstance(left, Bounds):
+            self.left=left.left
+            self.top=left.top
+            self.right=left.right
+            self.bottom=left.bottom
+        else:
+            self.left=left
+            self.top=top
+            self.right=right
+            self.bottom=bottom
     @property
     def height(self):
         return self.bottom-self.top
@@ -22,6 +33,34 @@ class Bounds:
     def __repr__(self) -> str:
         return f"{self.left}, {self.top}, {self.right}, {self.bottom}"
 
+    def __add__(self, o):
+        return Bounds(self.left+o.left,
+            self.top+o.top,
+            self.right+o.right,
+            self.bottom+o.bottom)
+    
+    def __sub__(self, o):
+        return Bounds(self.left-o.left,
+            self.top-o.top,
+            self.right-o.right,
+            self.bottom-o.bottom)
+    
+    def shrink(self, o):
+        if o is None:
+            return
+        self.left   +=  o.left
+        self.top    += o.top
+        self.right  -= o.right
+        self.bottom -= o.bottom
+    
+    def grow(self, o):
+        if o is None:
+            return
+        self.left   -=  o.left
+        self.top    -= o.top
+        self.right  += o.right
+        self.bottom += o.bottom
+
 
 class Row:
     def __init__(self, cols=None, width=0, height=0) -> None:
@@ -30,10 +69,20 @@ class Row:
         self.columns = cols if cols else []
         self.left=0
         self.top=0
+
         self.padding = None
+        self.border = None
+        self.margin = None
+
         self.default_height = None
         self.default_width = None
+
+
         self.background = None
+        self.background_image = "smallWhite"
+        self.border_image = "smallWhite"
+        self.border_color = None
+
         self.tag = None
         self.click_text  = None
         self.click_tag  = None
@@ -47,6 +96,11 @@ class Row:
     def set_padding(self, padding):
         self.padding = padding
 
+    def set_margin(self, margin):
+        self.margin = margin
+
+    def set_border(self, border):
+        self.border = border
 
     def set_col_width(self, width):
         self.default_width = width
@@ -65,19 +119,34 @@ class Row:
     def present(self, event):
         col:Column
         ctx = FrameContext.context
+
+        
+        border = self.border
+        if self.border is None:
+            border = Bounds()
+
+        margin = self.margin
+        if self.margin is None:
+            margin  = Bounds()
+
+        if self.border is not None and self.border_color is not None:
+            bb_props = f"image:{self.border_image}; color:{self.border_color};" # sub_rect: 0,0,etc"
+            ctx.sbs.send_gui_image(event.client_id, 
+                "__row-bb:"+self.tag, bb_props,
+                self.left  + margin.left, 
+                self.top   + margin.top, 
+                self.left+self.width - margin.right, 
+                self.top+self.height - margin.bottom)
+            
         if self.background is not None:
-            props = f"image:smallWhite; color:{self.background};" # sub_rect: 0,0,etc"
-            if self.padding:
-                ctx.sbs.send_gui_image(event.client_id, 
-                    "__row-bg:"+self.tag, props,
-                    self.left+self.padding.left, 
-                    self.top+self.padding.top, 
-                    self.left+self.width-self.padding.right, 
-                    self.top+self.height-self.padding.bottom)
-            else:
-                ctx.sbs.send_gui_image(event.client_id, 
-                    "__row-bg:"+self.tag, props,
-                    self.left, self.top, self.left+self.width, self.top+self.height)
+            props = f"image:{self.background_image}; color:{self.background};" # sub_rect: 0,0,etc"
+            ctx.sbs.send_gui_image(event.client_id, 
+                "__row-bg:"+self.tag, props,
+                self.left  + margin.left    + border.left, 
+                self.top   + margin.top     + border.top, 
+                self.left+self.width - margin.right - border.right, 
+                self.top+self.height - margin.bottom - border.bottom)
+            
         for col in self.columns:
             col.present(event)
         self._post_present(event)
@@ -92,7 +161,8 @@ class Row:
                 click_props += f"font: {self.click_font};"
             if self.click_tag is None:
                 self.click_tag = f"click:{self.tag}:{self.click_text}"
-            
+
+            #TODO: This looks wrong
             ctx.sbs.send_gui_clickregion(event.client_id, 
                 self.click_tag, click_props,
                 self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
@@ -110,9 +180,18 @@ class Column:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
         self.bounds = Bounds(left,top,right,bottom)
         self.restore_bounds = self.bounds
+
         self.padding = None
-        self.square = False
+        self.border = None
+        self.margin = None
+
         self.background = None
+        self.background_image = "smallWhite"
+        self.border_image = "smallWhite"
+        self.border_color = None
+
+        self.square = False
+        
         self.tag = None
         self.click_text = None
         self.click_color = None
@@ -152,6 +231,12 @@ class Column:
     def set_padding(self, padding):
         self.padding = padding
 
+    def set_margin(self, margin):
+        self.margin = margin
+
+    def set_border(self, border):
+        self.border = border
+
     def represent(self, event):
         self.present(event)
 
@@ -165,15 +250,27 @@ class Column:
 
     def _pre_present(self, event):
         if self.background is not None:
-            props = f"image:smallWhite; color:{self.background};" # sub_rect: 0,0,etc"
-
-            #
-            # Bounds include padding for column
-            #
+            props = f"image:{self.background_image}; color:{self.background};" # sub_rect: 0,0,etc"
             ctx = FrameContext.context
+            #
+            # Bounds include padding, margin for column
+            # Layout Calc fills this in
+            #
+            bounds = Bounds(self.bounds)
+            if self.padding is not None:
+                bounds.grow(self.padding)
+
+            if self.border is not None and self.border_color is not None:
+                bb = Bounds(bounds)
+                bb.grow(self.border)
+                bb_props = f"image:{self.border_image}; color:{self.border_color};" # sub_rect: 0,0,etc"
+                ctx.sbs.send_gui_image(event.client_id, 
+                    "__bb:"+self.tag, bb_props,
+                    bb.left, bb.top, bb.right, bb.bottom)
+            
             ctx.sbs.send_gui_image(event.client_id, 
                     "__bg:"+self.tag, props,
-                    self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+                    bounds.left, bounds.top, bounds.right, bounds.bottom)
 
     def _post_present(self, event):
         if self.click_text is not None:
@@ -186,9 +283,16 @@ class Column:
                 self.click_tag = f"click:{self.tag}:{self.click_text}"
 
             ctx = FrameContext.context
+            #
+            #
+            #
+            bounds = Bounds(self.bounds)
+            if self.padding is not None:
+                bounds.grow(self.padding)
+
             ctx.sbs.send_gui_clickregion(event.client_id, 
                 self.click_tag, click_props,
-                self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+                bounds.left, bounds.top, bounds.right, bounds.bottom)
 
    
     def on_message(self, event):
@@ -197,6 +301,9 @@ class Column:
 
     def update(self, props):
         pass
+
+    def calc(self, client_id):
+        pass # Unused but here to be compatible with sub sections
 
     def update_variable(self):
         if self.var_scope_id:
@@ -751,8 +858,17 @@ class Layout:
         self.restore_bounds = self.bounds
         self.default_height = None
         self.default_width = None
+
         self.padding = None
+        self.border = None
+        self.margin = None
+
         self.background = None
+        self.background_image = "smallWhite"
+        self.border_image = "smallWhite"
+        self.border_color = None
+
+
         self.tag = tag
         self.click_text  = None
         self.click_tag  = None
@@ -775,6 +891,12 @@ class Layout:
     def set_padding(self, padding):
         self.padding = padding
 
+    def set_border(self, border):
+        self.border = border
+
+    def set_margin(self, margin):
+        self.margin = margin
+
     def set_row_height(self, height):
         self.default_height = height
 
@@ -794,19 +916,24 @@ class Layout:
         self.calc(event.client_id)
         self.present(event)
 
-
     def calc(self, client_id):
         aspect_ratio = get_client_aspect_ratio(client_id)
         self.client_id = client_id
         # remove empty
         #self.rows = [x for x in self.rows if len(x.columns)>0]
         if len(self.rows):
-            padding = self.padding if self.padding else Bounds()
+            margin = Bounds(self.margin)
+            padding =Bounds(self.padding)
+            border =Bounds(self.border)
+            bounds_area = Bounds(self.bounds)
+            bounds_area.shrink(margin)
+            bounds_area.shrink(border)
+            bounds_area.shrink(padding)
             
             if self.default_height is not None:
                 layout_row_height = self.default_height
             else:
-                layout_row_height = self.bounds.height / len(self.rows)
+                layout_row_height = bounds_area.height / len(self.rows)
 
             for row in self.rows:
                 if row.default_height is not None:
@@ -818,18 +945,21 @@ class Layout:
             #     layout_col_width = None
 
             row : Row
-            left = self.bounds.left
-            top = self.bounds.top
+            left = bounds_area.left
+            top = bounds_area.top
             # Find rows with assign height and adjust other height 
             # to account for that
             
             for row in self.rows:
                 # Cascading padding
+                if row.margin:
+                    margin += row.margin
+
+                if row.border:
+                    border += row.border
+
                 if row.padding:
-                    padding.left += row.padding.left
-                    padding.right+= row.padding.right
-                    padding.top += row.padding.top
-                    padding.bottom += row.padding.bottom
+                    padding += row.padding
 
                 if row.default_height is not None:
                     row_height = row.default_height
@@ -838,7 +968,7 @@ class Layout:
                 row.height = row_height
                 row.left = left
                 row.top = top
-                row.width = self.bounds.width
+                row.width = bounds_area.width
                 squares = 0
 
                 col: Column
@@ -879,17 +1009,17 @@ class Layout:
                     rect_col_width = square_width
 
                 # bit of a hack to make sure face aren't the biggest things
-                
-
                 col_left = left
                 hole_size = 0
                 for col in actual_cols:
-                    if col.padding is not None:
-                        padding.left += col.padding.left
-                        padding.right+= col.padding.right
-                        padding.top += col.padding.top
-                        padding.bottom += col.padding.bottom
+                    if col.margin is not None:
+                        margin += col.margin
 
+                    if col.border is not None:
+                        border += col.border
+
+                    if col.padding is not None:
+                        padding += col.padding
 
                     bounds = Bounds(col_left,0,0,0)
                     bounds.top = top
@@ -908,37 +1038,66 @@ class Layout:
                         hole_size = 0
                     col_left = bounds.right
 
-                    # Add padding 
-                    bounds.left=bounds.left+padding.left
-                    bounds.top=bounds.top+padding.top
-                    bounds.right=bounds.right-padding.right
-                    bounds.bottom=bounds.bottom-padding.bottom
+                    # Add margin and padding 
+                    bounds.shrink(margin)
+                    bounds.shrink(border)
+                    bounds.shrink(padding)
 
                     col.set_bounds(bounds)
+
+                    col.calc(client_id)
+
                     # remove column padding
                     if col.padding is not None:
-                        padding.left -= col.padding.left
-                        padding.right-= col.padding.right
-                        padding.top -= col.padding.top
-                        padding.bottom -= col.padding.bottom
+                        padding -= col.padding
+
+                    if col.border is not None:
+                        border -= col.border
+
+                    if col.margin is not None:
+                        margin -= col.margin
+
                 top += row_height
                 # remove the row's padding
                 if row.padding:
-                    padding.left -= row.padding.left
-                    padding.right-= row.padding.right
-                    padding.top -= row.padding.top
-                    padding.bottom -= row.padding.bottom
+                    padding -= row.padding
+                    
+                if row.border:
+                    border -= row.border
+
+                if row.margin:
+                    margin -= row.margin
+                    
                 #print(f"calc w: {bounds.right-bounds.left}")
 
 
     def present(self, event):
+
         
+        
+        # Sections are different their bounds are the whole container
+
+        if self.border is not None and self.border_color is not None:
+            bounds = Bounds(self.bounds)
+            bounds.shrink(self.margin)
+
+            ctx = FrameContext.context
+            props = f"image:{self.border_image}; color:{self.border_color};" # sub_rect: 0,0,etc"
+            ctx.sbs.send_gui_image(event.client_id, 
+                    "__section-bb:"+self.tag, props,
+                    bounds.left, bounds.top, bounds.right, bounds.bottom)
+
+
         if self.background is not None:
+            bounds = Bounds(self.bounds)
+            bounds.shrink(self.margin)
+            bounds.shrink(self.border)
+
             ctx = FrameContext.context
             props = f"image:smallWhite; color:{self.background};" # sub_rect: 0,0,etc"
             ctx.sbs.send_gui_image(event.client_id, 
                     "__section-bg:"+self.tag, props,
-                    self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+                    bounds.left, bounds.top, bounds.right, bounds.bottom)
         row:Row
         for row in self.rows:
             row.present(event)
@@ -959,10 +1118,14 @@ class Layout:
                 click_props += f"background_color:{self.click_background};"
             click_props += f"background_color: white;"
 
+            bounds = Bounds(self.bounds)
+            bounds.shrink(self.margin)
+            bounds.shrink(self.border)
+
             ctx = FrameContext.context
             ctx.sbs.send_gui_clickregion(event.client_id, 
                 self.click_tag, click_props,
-                self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+                bounds.left, bounds.top, bounds.right, bounds.bottom)
 
     def on_message(self, event):
         # If this is clickable handle it

@@ -108,6 +108,39 @@ def apply_style_def(style_def, layout_item, task):
     if width is not None:
         width = LayoutAreaParser.compute(width, task.get_symbols(),aspect_ratio.x)
         layout_item.set_col_width(width)        
+
+    margin = style_def.get("margin")
+    if margin is not None:
+        #aspect_ratio = task.main.page.aspect_ratio
+        i = 1
+        values=[]
+        for ast in margin:
+            if i >0:
+                ratio =  aspect_ratio.x
+            else:
+                ratio =  aspect_ratio.y
+            i=-i
+            values.append(LayoutAreaParser.compute(ast, task.get_symbols(),ratio))
+        while len(values)<4:
+            values.append(0.0)
+        layout_item.set_margin(layout.Bounds(*values))
+    ###############
+    border = style_def.get("border")
+    if border is not None:
+        #aspect_ratio = task.main.page.aspect_ratio
+        i = 1
+        values=[]
+        for ast in border:
+            if i >0:
+                ratio =  aspect_ratio.x
+            else:
+                ratio =  aspect_ratio.y
+            i=-i
+            values.append(LayoutAreaParser.compute(ast, task.get_symbols(),ratio))
+        while len(values)<4:
+            values.append(0.0)
+        layout_item.set_border(layout.Bounds(*values))
+    ###############        
     padding = style_def.get("padding")
     if padding is not None:
         #aspect_ratio = task.main.page.aspect_ratio
@@ -127,6 +160,21 @@ def apply_style_def(style_def, layout_item, task):
     if background is not None:
         background = compile_formatted_string(background)
         layout_item.background = task.format_string(background)
+
+    st = style_def.get("background-image")
+    if st is not None:
+        st = compile_formatted_string(st)
+        layout_item.background_image = task.format_string(st)
+
+    st = style_def.get("border-image")
+    if st is not None:
+        st = compile_formatted_string(st)
+        layout_item.border_image = task.format_string(st)
+
+    st = style_def.get("border-color")
+    if st is not None:
+        st = compile_formatted_string(st)
+        layout_item.border_color = task.format_string(st)
 
     click_text = style_def.get("click_text")
     if click_text is not None:
@@ -734,7 +782,7 @@ def gui_console(console):
             widgets = "2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
         case "weapons":
             console =  "normal_weap"
-            widgets = "2dview^weapon_control^weap_beam_freq^weap_beam_speed^weap_torp_conversion^ship_data^shield_control^text_waterfall^main_screen_control"
+            widgets = "weapon_2d_view^weapon_control^weap_beam_freq^weap_beam_speed^weap_torp_conversion^ship_data^shield_control^text_waterfall^main_screen_control"
         case "science":
             console =  "normal_sci"
             widgets = "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list"
@@ -1565,7 +1613,7 @@ def gui_cinematic_auto(client_id):
         client_id (id): the console's client ID
     """
     no_offset = sbs.vec3()
-    sbs.set_main_view_modes(client_id, "cinematic", "cinematic", "cinematic")
+    sbs.set_main_view_modes(client_id, "3dview", "front", "cinematic")
     sbs.cinematic_control(client_id, 0, 0, no_offset, 0, no_offset)
 
 def gui_cinematic_full_control(client_id, camera_id, camera_offset, tracked_id, tracked_offset):

@@ -1116,6 +1116,8 @@ class MastAsyncTask(Agent, Promise):
 
 
     def format_string(self, message):
+        if message is None:
+            return ""
         if isinstance(message, str):
             return message
         allowed = self.get_symbols()
@@ -1123,8 +1125,15 @@ class MastAsyncTask(Agent, Promise):
         # for k,v in allowed.items():
         #     if k == "myslot":
         #         logger.info(f"{k}: {v}")
-        value = eval(message, {"__builtins__": Mast.globals}, allowed)
-        return value
+        try:
+            value = eval(message, {"__builtins__": Mast.globals}, allowed)
+            return value
+        except BaseException as err:
+            s =  f"FORMAT String error:\n\t f'{message}'\n"
+            s += str(err)
+            self.main.runtime_error(s)
+        return ""
+        
     
     def compile_and_format_string(self, value):
         if isinstance(value, str) and "{" in value:

@@ -69,3 +69,14 @@ Update typings
 - delete typings content
 - Run the script in artemis
 - select 'stubgen'
+
+
+------------------------
+Post EA3 stuff
+
+- Add with statement
+- add margin to layout objects, border?
+- add gui_sub_section
+- add gui_canvas
+- add gui_text_area
+

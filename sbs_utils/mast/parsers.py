@@ -139,14 +139,22 @@ class StyleDefinition:
                 case "area":
                     ret[key]=StyleDefinition.parse_area(value)
                 case "padding":
-                    ret[key]=StyleDefinition.parse_padding(value)
+                    ret[key]=StyleDefinition.parse_bounds(value)
                 case "row-height":
                     ret[key]=StyleDefinition.parse_height(value)
                 case "col-width":
                     ret[key]=StyleDefinition.parse_width(value)
-                case "padding":
-                    ret[key]=StyleDefinition.parse_padding(value)
+                case "margin":
+                    ret[key]=StyleDefinition.parse_bounds(value)
+                case "border":
+                    ret[key]=StyleDefinition.parse_bounds(value)
                 case "background":
+                    ret[key]=value
+                case "background-image":
+                    ret[key]=value
+                case "border-image":
+                    ret[key]=value
+                case "border-color":
                     ret[key]=value
                 case "click_text":
                     ret[key]=value
@@ -167,12 +175,12 @@ class StyleDefinition:
             raise Exception("Invalid area arguments")
         return asts
 
-    def parse_padding(padding):
+    def parse_bounds(padding):
         if padding is not None:
             tokens = LayoutAreaParser.lex(padding)
             return LayoutAreaParser.parse_list(tokens)
         return None
-
+    
     def parse_width(width):
         if width is not None:
             tokens = LayoutAreaParser.lex(width)
