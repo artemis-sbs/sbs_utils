@@ -102,11 +102,11 @@ def apply_style_def(style_def, layout_item, task):
 
     height = style_def.get("row-height")
     if height is not None:
-        height = LayoutAreaParser.compute(height, task.get_symbols(),aspect_ratio.y)
+        #height = LayoutAreaParser.compute(height, task.get_symbols(),aspect_ratio.y)
         layout_item.set_row_height(height)        
     width = style_def.get("col-width")
     if width is not None:
-        width = LayoutAreaParser.compute(width, task.get_symbols(),aspect_ratio.x)
+        #width = LayoutAreaParser.compute(width, task.get_symbols(),aspect_ratio.x)
         layout_item.set_col_width(width)        
 
     margin = style_def.get("margin")
@@ -156,10 +156,16 @@ def apply_style_def(style_def, layout_item, task):
         while len(values)<4:
             values.append(0.0)
         layout_item.set_padding(layout.Bounds(*values))
+    #####
     background = style_def.get("background")
     if background is not None:
         background = compile_formatted_string(background)
         layout_item.background = task.format_string(background)
+    ######
+    st = style_def.get("color")
+    if st is not None:
+        st = compile_formatted_string(st)
+        layout_item.color = task.format_string(st)
 
     st = style_def.get("background-image")
     if st is not None:
@@ -705,6 +711,38 @@ def gui_section(style=None):
     layout_item = page.get_pending_layout() 
     apply_control_styles(".section", style, layout_item, task)
     return layout_item
+
+class PageSubSection:
+    def __init__(self, style) -> None:
+        page = FrameContext.page
+        if page is None:
+            return None
+        self.page = page
+        self.style = style
+
+    def __enter__(self):
+        self.page.push_sub_section(self.style)
+        # return layout_item
+
+
+    def __exit__(self):
+        self.page.pop_sub_section()
+        
+
+
+
+def gui_sub_section(style=None):
+    """ Create a new gui section that uses the area specified in the style
+
+    Args:
+        style (style, optional): Style. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """    
+    return PageSubSection(style)
+
+
 
 def gui_style_def(style):
     return StyleDefinition.parse(style)

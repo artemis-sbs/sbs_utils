@@ -148,7 +148,68 @@ class LoopStart(MastNode):
         self.dedent_loc = loc+1
         return end
         
-   
+
+class WithEnd(MastNode):
+    """
+    LoopEnd is a node that is injected to allow loops to know where the end is
+    """
+    #rule = re.compile(r'((?P<loop>next)[ \t]*(?P<name>\w+))')
+    def __init__(self, start=None, name=None, loc=None):
+        super().__init__()
+        self.start = start
+        self.loc = loc
+        self.start.end = self
+
+
+class WithStart(MastNode):
+    rule = re.compile(r'(with[ \t]*(?P<obj>[^\n\r\f]+))'+BLOCK_START)
+    with_vars = 0
+    def __init__(self, obj=None, name=None, loc=None):
+        super().__init__()
+        if obj:
+            self.code = compile(obj, "<string>", "eval")
+        else:
+            self.code = None
+        self.name = name
+        self.with_name = f"__WITH_{WithStart.with_vars}"
+        WithStart.with_vars += 1
+
+        self.loc = loc
+        self.end = None
+        
+    def is_indentable(self):
+        return True
+    
+    @classmethod
+    def parse(cls, lines):
+        mo = cls.rule.match(lines)
+        if mo:
+            span = mo.span()
+            data = mo.groupdict()
+            obj= data.get("obj")
+            if obj is None:
+                return None
+            obj = obj.lstrip()
+            has_as = obj.rsplit(" as ")
+            if len(has_as)==2:
+                data["name"] = has_as[1]
+                data["obj"] = has_as[0]
+            elif len(has_as)!=1:
+                return None
+
+            return ParseData(span[0], span[1], data)
+        else:
+            return None
+
+
+    def create_end_node(self, loc, _):
+        end =  WithEnd(self, loc=loc)
+        # Dedent is one passed the end node
+        self.dedent_loc = loc+1
+        return end
+        
+
+
 
 class LoopBreak(MastNode):
 
@@ -880,6 +941,7 @@ class Mast():
         IfStatements,
         MatchStatements,
         LoopStart,
+        WithStart,
         LoopBreak,
         PyCode,
         Import, #NO EXP

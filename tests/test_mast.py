@@ -24,10 +24,22 @@ Mast.make_global_var("ASSERT", mast_assert)
 #Mast.enable_logging()
 Mast.include_code = True
 
+class TestScoped:
+    def __init__(self) -> None:
+        pass
+    def __enter__(self):
+        FrameContext.task.set_variable("test_enter", 23)
+
+    def __exit__(self):
+        FrameContext.task.set_variable("test_exit", 34)
+Mast.make_global_var("TextScoped", TestScoped)
+
 class TMastScheduler(MastScheduler):
     def runtime_error(self, message):
         print(f"RUNTIME ERROR: {message}")
         assert(False)
+
+
 
 def mast_compile(code=None):
         mast = Mast()
@@ -165,18 +177,14 @@ log("good bye")
         (errors, mast) =mast_compile( code = """
 
 
-push fred {"test": 1}
+
 ->END
 -> END
 -> a_label
 ->another
 -> maybe
-->> a_push
-->>b_push
-<<-
 ->RETURN  if s
-<<-> pop_jump
-<<->> pop_push
+
 jump fred if x==2
 jump barney
 if x==2:
@@ -193,7 +201,7 @@ if x==2:
         (errors, runner, mast) =mast_run( code = """
 logger(var="output")
 x = 45
-push test_args {"x": 2}
+await task_schedule(test_args, data= {"x": 2})
 log("{x}")
                                          
 jump fred if x==2
@@ -208,7 +216,7 @@ log("no-1")
 
 ==== test_args ===
 log("{x}")
-<<-
+yield success
 
 ==== barney === 
 
@@ -294,7 +302,33 @@ end_await
 """)
         assert(len(errors)==0)
 
+    def test_with_statement_comp(self):
+        class TestScoped:
+            def __init__(self) -> None:
+                self.value = 12
+            def __enter__(self):
+                FrameContext.task.set_variable("test_enter", 23)
 
+            def __exit__(self):
+                FrameContext.task.set_variable("test_exit", 34)
+        Mast.make_global_var("TestScoped", TestScoped)
+
+        (errors, runner, _) = mast_run( code = """
+logger(var="output")
+with TestScoped() as fred:
+    log("{fred.value}")
+log(test_enter)
+log(test_exit)
+""")
+        assert(len(errors)==0)
+        task = runner.active_task
+        while runner.is_running():
+            runner.tick()
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        value = st.getvalue()
+        assert(value=="12\n23\n34\n")
     
     def test_assign(self):
         (errors, runner, _) = mast_run( code = """

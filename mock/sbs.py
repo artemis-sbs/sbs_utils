@@ -567,23 +567,23 @@ class simulation(object): ### from pybind
         """returns the refence to a spaceobject, by ID"""
         return self.space_objects.get(arg0)
 
-    def make_new_active(self: simulation, arg0: str, arg1: str) -> int:
-        """creates a new spaceobject"""
-        return self._make_space_object(arg0, arg1, 1)
-    def make_new_passive(self: simulation, arg0: str, arg1: str) -> int:
-        """creates a new spaceobject"""
-        return self._make_space_object(arg0, arg1, 0)
-    def make_new_player(self: simulation, arg0: str, arg1: str) -> int:
-        return self._make_space_object(arg0, arg1, 2)
+    # def make_new_active(self: simulation, arg0: str, arg1: str) -> int:
+    #     """creates a new spaceobject"""
+    #     return self._make_space_object(arg0, arg1, 1)
+    # def make_new_passive(self: simulation, arg0: str, arg1: str) -> int:
+    #     """creates a new spaceobject"""
+    #     return self._make_space_object(arg0, arg1, 0)
+    # def make_new_player(self: simulation, arg0: str, arg1: str) -> int:
+    #     return self._make_space_object(arg0, arg1, 2)
 
-    def _make_space_object(self: simulation, arg0: str, arg1: str, tick_type:int) -> int:
+    def create_space_object(self: simulation, arg0: str, arg1: str, abits:int) -> int:
         """creates a new spaceobject"""
         global sim
         sim.object_ids += 1
         id = sim.object_ids
         obj  = space_object()
         obj._id = id
-        obj._type = tick_type # """int, 0=passive, 1=active, 2=playerShip""" #
+        obj._type = abits # """int, 0=passive, 1=active, 2=playerShip""" #
         obj._data_tag = arg1
         obj._tick_type = arg0
         sim.space_objects[id] = obj

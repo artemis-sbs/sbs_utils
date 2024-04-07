@@ -12,6 +12,7 @@ class LayoutAreaParser:
     rules = {
         "ws": r"[ \t]+",
         "pixels": r"\d+px",
+        "ems": r"\d+em",
         "digits": r"\d+(\.\d+)?",
         "id": r"[_a-zA-Z][_a-zA-Z0-9]*",
         "comma": r",",
@@ -78,7 +79,7 @@ class LayoutAreaParser:
 
 
     def parse_values(tokens):
-        if tokens[0].token_type in ["pixels", "digits", "id"]:
+        if tokens[0].token_type in ["ems","pixels", "digits", "id"]:
             return tokens.pop(0)
         LayoutAreaParser.match(tokens,"lparen")
         expression = LayoutAreaParser.parse_e(tokens)
@@ -106,14 +107,16 @@ class LayoutAreaParser:
         "div": operator.truediv
     }
 
-    def compute(node, vars, aspect_ratio):
+    def compute(node, vars, aspect_ratio, font_size=20):
         match node.token_type:
             case "digits":
                 return float(node.value)
             case "pixels":
                 return (float(node.value[:-2])/aspect_ratio)*100
+            case "ems":
+                return (float(node.value[:-2])*font_size/aspect_ratio)*100
             case "id":
-                if node.value in vars:
+                if vars is not None and node.value in vars:
                     return vars[node.value]
                 return 1  #node.value
 
@@ -153,6 +156,12 @@ class StyleDefinition:
                 case "background-image":
                     ret[key]=value
                 case "border-image":
+                    ret[key]=value
+                case "color":
+                    ret[key]=value
+                case "justify":
+                    ret[key]=value
+                case "font":
                     ret[key]=value
                 case "border-color":
                     ret[key]=value

@@ -4,7 +4,7 @@ from ..gui import Gui, Page, get_client_aspect_ratio
 from ..helpers import FakeEvent, FrameContext
 from ..procedural.inventory import get_inventory_value, set_inventory_value, has_inventory_value
 from ..procedural.links import linked_to
-from ..procedural.gui import gui_reroute_client
+from ..procedural.gui import gui_reroute_client, apply_control_styles
 from ..procedural.execution import log
 from ..agent import Agent
 from ..pages import layout
@@ -138,8 +138,8 @@ class StoryPage(Page):
             
             section = layout.Layout(None, None, 0,0, 100, 90)
             section.tag = self.get_tag()
-            self.pending_layouts = self.pending_layouts = [section]
-            self.pending_row = self.pending_row = layout.Row()
+            self.pending_layouts = [section]
+            self.pending_row = layout.Row()
             self.pending_row.tag = self.get_tag()
             self.pending_tag_map = {}
             self.pending_console = ""
@@ -170,6 +170,23 @@ class StoryPage(Page):
         if hasattr(layout_item, 'tag'):
             self.pending_tag_map[layout_item.tag] = (layout_item, runtime_node)
 
+    def push_sub_section(self, style):
+        self.add_section()
+        layout_item = self.get_pending_layout() 
+        apply_control_styles(".section", style, layout_item, self.gui_task)
+
+        # self.pending_row = layout.Row()
+        # Rows have tags for background and/or clickable
+        #self.pending_row.tag = self.get_tag()
+        
+        # The new pending is the sub section
+        # Inserting it in the prior section is handled it in the pop
+
+    def pop_sub_section(self):
+        self.add_row()
+        sub = self.pending_layouts.pop()
+        self.pending_row = self.pending_layouts[-1].rows.pop()
+        self.pending_row.add(sub)
 
 
     def add_content(self, layout_item, runtime_node):

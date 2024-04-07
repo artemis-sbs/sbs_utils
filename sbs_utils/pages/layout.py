@@ -6,6 +6,7 @@ from .. import fs
 import os
 from ..helpers import FrameContext
 from ..procedural.inventory import get_inventory_value
+from ..mast.parsers import LayoutAreaParser,LayoutAreaNode
 
 class Bounds:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
@@ -45,6 +46,7 @@ class Bounds:
             self.right-o.right,
             self.bottom-o.bottom)
     
+    
     def shrink(self, o):
         if o is None:
             return
@@ -74,9 +76,13 @@ class Row:
         self.border = None
         self.margin = None
 
+
+        # cascading props
+        self.default_color = None
+        self.default_justify = None
+        self.default_font = None
         self.default_height = None
         self.default_width = None
-
 
         self.background = None
         self.background_image = "smallWhite"
@@ -89,6 +95,30 @@ class Row:
         self.click_font  = None
         self.click_color  = None
         self.clicked = False
+
+    @property
+    def color(self):
+        return self.default_color
+
+    @color.setter
+    def color(self, v):
+        self.default_color = v
+
+    @property
+    def justify(self):
+        return self.default_justify
+
+    @justify.setter
+    def justify(self, v):
+        self.default_justify = v
+
+    @property
+    def font(self):
+        return self.default_font
+
+    @font.setter
+    def font(self, v):
+        self.default_font = v
 
     def set_row_height(self, height):
         self.default_height = height
@@ -190,7 +220,16 @@ class Column:
         self.border_image = "smallWhite"
         self.border_color = None
 
+        self.color = None
+        self.default_color = None
+        self.justify = None
+        self.default_justify = None
+        self.font = None
+        self.default_font = None
+
         self.square = False
+        self.default_width = None
+        self.default_height = None
         
         self.tag = None
         self.click_text = None
@@ -229,7 +268,43 @@ class Column:
         self.default_width = width
 
     def set_padding(self, padding):
-        self.padding = padding
+        self._padding = padding
+
+
+    def get_color(self):
+        if self.default_color is not None:
+            return self.default_color
+        return self.color
+    
+    def get_justify(self):
+        if self.default_justify is not None:
+            return self.default_justify
+        return self.justify
+    
+    def get_font(self):
+        if self.default_font is not None:
+            return self.default_font
+        return self.font
+    
+    def get_cascade_props(self,font = False, color = False, justify = False):
+        props = ""
+        if font:
+            prop = self.get_font()
+            if prop is not None:
+                props += f"font:{prop};"
+        if color:
+            prop = self.get_color()
+            if prop is not None:
+                props += f"color:{prop};"
+        if justify:
+            prop = self.get_justify()
+            if prop is not None:
+                props += f"justify:{prop};"
+        return props
+
+
+
+
 
     def set_margin(self, margin):
         self.margin = margin
@@ -338,13 +413,11 @@ class Text(Column):
 
     def _present(self, event):
         ctx = FrameContext.context
-        task = get_inventory_value(event.client_id, "GUI_TASK")
-        if task is not None:
-            message = task.format_string(self.message)
-        else:
-            message = self.message
+        message = self.message
         if "text:" not in message:
-            message = f"text:{message}"
+            message = f"text:{message};"
+
+        message += self.get_cascade_props(True, True, True)
 
         ctx.sbs.send_gui_text(event.client_id, 
             self.tag, message,  
@@ -369,20 +442,22 @@ class Button(Column):
         super().__init__()
         self.tag = tag
         if "text:" not in message:
-            self.message = f"text:{message}"
+            self.message = f"text:{message};"
         else:
             self.message = message
 
     def _present(self,  event):
         ctx = FrameContext.context
+        message = self.message
+        message += self.get_cascade_props(True, True, True)
         ctx.sbs.send_gui_button(event.client_id, 
-            self.tag, self.message, 
+            self.tag, message, 
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
         
 
     def update(self, message):
         if "text:" not in message:
-            message = f"text:{message}"
+            message = f"text:{message};"
         self.message = message
 
 
@@ -445,13 +520,14 @@ class Checkbox(Column):
     def __init__(self, tag, message, value=False) -> None:
         super().__init__()
         if "text:" not in message:
-            message = f"text:{message}"
+            message = f"text:{message};"
         self.message = message
         self.tag = tag
         self._value = value
         
     def _present(self, event):
         message = f"state: {self._value};{self.message}"
+        message += self.get_cascade_props(True, True, True)
         #print(f"{self.tag} {message}")
         ctx = FrameContext.context
         ctx.sbs.send_gui_checkbox(event.client_id, 
@@ -470,7 +546,7 @@ class Checkbox(Column):
 
     def update(self, message):
         if "text:" not in message:
-            message = f"text:{message}"
+            message = f"text:{message};"
         self.message = message
 
 
@@ -658,8 +734,10 @@ class TextInput(Column):
         
     def _present(self, event):
         ctx = FrameContext.context
+        props = self.props
+        props += self.get_cascade_props(True, True, True)
         ctx.sbs.send_gui_typein(event.client_id, 
-            self.tag, self.props,
+            self.tag, props,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
         
     def on_message(self, event):
@@ -845,7 +923,56 @@ class GuiControl(Column):
     def update(self, props):
         self.content.update(props)
 
+def calc_float_attribute(name, col, row, sec, aspect_ratio_axis, font_size):
+    att = None
+    if col is not None and hasattr(col, name) is not None:
+        att = getattr(col, name, None)
+    elif row is not None and hasattr(row, name) is not None:
+        att = getattr(row, name, None)
+    elif sec is not None and hasattr(sec, name) is not None:
+        att = getattr(sec, name, None)
 
+    if att is not None:
+        if not isinstance(att, float):
+            return LayoutAreaParser.compute(att, None,aspect_ratio_axis, font_size)
+    return att
+            
+def calc_bounds_attribute(name, col, row, sec, aspect_ratio, font_size):
+    att = None
+    if col is not None and hasattr(col, name) is not None:
+        att = getattr(col, name, None)
+    elif row is not None and hasattr(row, name) is not None:
+        att = getattr(row, name, None)
+    elif sec is not None and hasattr(sec, name) is not None:
+        att = getattr(sec, name, None)
+
+    if att is not None:
+        if not isinstance(att, Bounds):
+            i = 1
+            values=[]
+            for ast in att:
+                if i >0:
+                    ratio =  aspect_ratio.x
+                else:
+                    ratio =  aspect_ratio.y
+                i=-i
+                if ratio == 0:
+                    ratio = 1
+                values.append(LayoutAreaParser.compute(ast, None,ratio,font_size))
+        return Bounds(*values)
+    return att
+                
+def get_font_size(font):
+    sizes = {             # MIN  2k 4k
+        "smallest": 12,   # LB   -- -- 
+        "gui-1": 16,      # BD   LB -- 
+        "gui-2": 20,      # H3   BD LB 
+        "gui-3": 24,      # H2   H3 BD  
+        "gui-4": 28,      # H1   H2 H3
+        "gui-5": 32,      # TT   H1 H2
+        "gui-6": 48,      # __   TT H1/TT
+    }
+    return sizes.get(font, 20)
 
 class Layout:
     clicked = {}
@@ -858,6 +985,11 @@ class Layout:
         self.restore_bounds = self.bounds
         self.default_height = None
         self.default_width = None
+        self.default_color = None
+        self.default_justify = None
+        self.default_font = None
+
+        self.square = False
 
         self.padding = None
         self.border = None
@@ -867,6 +999,8 @@ class Layout:
         self.background_image = "smallWhite"
         self.border_image = "smallWhite"
         self.border_color = None
+
+        
 
 
         self.tag = tag
@@ -887,6 +1021,31 @@ class Layout:
     @property
     def is_hidden(self):
         return self.bounds.left == -1000
+    
+    @property
+    def color(self):
+        return self.default_color
+
+    @color.setter
+    def color(self, v):
+        self.default_color = v
+
+    @property
+    def justify(self):
+        return self.default_justify
+
+    @justify.setter
+    def justify(self, v):
+        self.default_justify = v
+
+    @property
+    def font(self):
+        return self.default_font
+
+    @font.setter
+    def font(self, v):
+        self.default_font = v
+
     
     def set_padding(self, padding):
         self.padding = padding
@@ -919,6 +1078,8 @@ class Layout:
     def calc(self, client_id):
         aspect_ratio = get_client_aspect_ratio(client_id)
         self.client_id = client_id
+        task = get_inventory_value(self.client_id, "GUI_TASK")
+
         # remove empty
         #self.rows = [x for x in self.rows if len(x.columns)>0]
         if len(self.rows):
@@ -931,26 +1092,26 @@ class Layout:
             bounds_area.shrink(padding)
             
             if self.default_height is not None:
-                layout_row_height = self.default_height
+                layout_row_height = calc_float_attribute("default_height", None, None, self, aspect_ratio.y, 20)
             else:
-                layout_row_height = bounds_area.height / len(self.rows)
-
-            for row in self.rows:
-                if row.default_height is not None:
-                    layout_row_height += (layout_row_height-row.default_height)
-
-            # if self.default_width is not None:
-            #     layout_col_width = self.default_width
-            # else:
-            #     layout_col_width = None
-
+                layout_row_height = bounds_area.height
+                flex_rows = len(self.rows)
+                for row in self.rows:
+                    if row.default_height is not None:
+                        row_font_height = 20
+                        value = calc_float_attribute("default_height", None, row, self, aspect_ratio.y, row_font_height)
+                        layout_row_height -= value
+                        flex_rows -= 1
+                        
+                if flex_rows>0:
+                    layout_row_height /= flex_rows
+            
             row : Row
             left = bounds_area.left
             top = bounds_area.top
-            # Find rows with assign height and adjust other height 
-            # to account for that
-            
-            for row in self.rows:
+
+
+            for row in self.rows:                    
                 # Cascading padding
                 if row.margin:
                     margin += row.margin
@@ -961,10 +1122,12 @@ class Layout:
                 if row.padding:
                     padding += row.padding
 
+                row_font_height = 20
                 if row.default_height is not None:
-                    row_height = row.default_height
+                    row_height = calc_float_attribute("default_height", None, row, None,  aspect_ratio.y, row_font_height)
                 else:
                     row_height = layout_row_height
+
                 row.height = row_height
                 row.left = left
                 row.top = top
@@ -976,10 +1139,18 @@ class Layout:
                     continue
                 
                 actual_cols = []
+                assigned_space = 0
+                assigned_cols = 0
                 for col in row.columns:
                     if col.is_hidden:
                         continue
                     squares += 1 if col.square else 0
+                    col_font_size = 20
+                    default_width = calc_float_attribute("default_width", col, row, self, aspect_ratio.x, col_font_size)
+                    if default_width is not None:
+                        assigned_space += default_width
+                        assigned_cols += 1
+
                     actual_cols.append(col)
 
                 if len(actual_cols)==0:
@@ -997,14 +1168,12 @@ class Layout:
                     square_width = (actual_width/aspect_ratio.x) *100
                     square_height = (actual_width/aspect_ratio.y) * 100
 
-                # if layout_col_width is not None:
-                #     rect_col_width = layout_col_width
-                # el
                 if len(actual_cols) != squares:
-                    rect_col_width = (row.width-(squares*square_width))/(len(actual_cols)-squares)
+                    need_assigned = max(len(actual_cols)-squares-assigned_cols,1)
+                    rect_col_width = (row.width-assigned_space-(squares*square_width))/need_assigned
                     if square_width> rect_col_width:
                         square_width= rect_col_width
-                        rect_col_width = (row.width-(squares*square_width))/(len(actual_cols)-squares)
+                        rect_col_width = (row.width-(squares*square_width))/need_assigned
                 else:
                     rect_col_width = square_width
 
@@ -1024,6 +1193,14 @@ class Layout:
                     bounds = Bounds(col_left,0,0,0)
                     bounds.top = top
                     bounds.bottom = top+row_height
+
+                    assigned_space = rect_col_width
+                    col_font_size = 20
+                    default_width = calc_float_attribute("default_width", col, row, self, aspect_ratio.x, col_font_size)
+                    if default_width is not None:
+                        assigned_space = default_width
+
+
                     if col.square:
                         bounds.right = bounds.left + square_width
                         #print(f"SW {square_width} SH {square_height}")
@@ -1031,10 +1208,11 @@ class Layout:
                         # Square ignores holes?
                         hole_size = 0
                     elif col.__class__ == Hole:
-                        hole_size += rect_col_width
+                        hole_size += assigned_space
                         continue
+                    
                     else:
-                        bounds.right = bounds.left+rect_col_width + hole_size
+                        bounds.right = bounds.left+assigned_space + hole_size
                         hole_size = 0
                     col_left = bounds.right
 
@@ -1043,8 +1221,18 @@ class Layout:
                     bounds.shrink(border)
                     bounds.shrink(padding)
 
-                    col.set_bounds(bounds)
+                    
 
+                    ##############
+                    ### Cascade other attributes
+                    if col.color is None:
+                        if row.color is not None:
+                            col.default_color = row.color
+                        elif self.color is not None:
+                            col.default_color = self.color
+
+                    ##################
+                    col.set_bounds(bounds)
                     col.calc(client_id)
 
                     # remove column padding

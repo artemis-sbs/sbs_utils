@@ -264,6 +264,7 @@ class LoopEndRuntimeNode(MastRuntimeNode):
         return PollResults.OK_JUMP
         # return PollResults.OK_ADVANCE_TRUE
 
+
 class LoopBreakRuntimeNode(MastRuntimeNode):
     def enter(self, mast, task:MastAsyncTask, node:LoopBreak):
         scoped_val = task.get_value(node.start.name, None)
@@ -292,6 +293,36 @@ class LoopBreakRuntimeNode(MastRuntimeNode):
             #task.jump_inline_start(inline_label)
             return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
+
+class WithStartRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task, node:WithStart):
+        value = task.eval_code(node.code)
+        if value is None:
+            return PollResults.OK_ADVANCE_TRUE
+        
+        if node.name is not None:
+            task.set_value(node.name, value, Scope.NORMAL)
+        task.set_value(node.with_name, value, Scope.NORMAL)
+
+        if not hasattr(value, '__enter__'):
+            return PollResults.OK_ADVANCE_TRUE
+        value.__enter__()
+        
+        return PollResults.OK_ADVANCE_TRUE
+
+class WithEndRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task, node:WithEnd):
+        value = task.get_variable(node.start.with_name)
+        if value is None:
+            return PollResults.OK_ADVANCE_TRUE
+        if not hasattr(value, '__exit__'):
+            return PollResults.OK_ADVANCE_TRUE
+        value.__exit__()
+        # In case then WithEnd runs again?
+        task.set_variable(node.start.with_name, None)
+        return PollResults.OK_ADVANCE_TRUE
+
+
 
 class IfStatementsRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:IfStatements):
@@ -1266,6 +1297,8 @@ class MastScheduler(Agent):
         "MatchStatements": MatchStatementsRuntimeNode,
         "LoopStart": LoopStartRuntimeNode,
         "LoopEnd": LoopEndRuntimeNode,
+        "WithStart": WithStartRuntimeNode,
+        "WithEnd": WithEndRuntimeNode,
         "LoopBreak": LoopBreakRuntimeNode,
         "PyCode": PyCodeRuntimeNode,
         "FuncCommand": FuncCommandRuntimeNode,
