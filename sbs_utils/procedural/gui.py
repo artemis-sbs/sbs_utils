@@ -102,61 +102,23 @@ def apply_style_def(style_def, layout_item, task):
 
     height = style_def.get("row-height")
     if height is not None:
-        #height = LayoutAreaParser.compute(height, task.get_symbols(),aspect_ratio.y)
         layout_item.set_row_height(height)        
+    ###############
     width = style_def.get("col-width")
     if width is not None:
-        #width = LayoutAreaParser.compute(width, task.get_symbols(),aspect_ratio.x)
         layout_item.set_col_width(width)        
-
+    ###############
     margin = style_def.get("margin")
     if margin is not None:
-        #aspect_ratio = task.main.page.aspect_ratio
-        i = 1
-        values=[]
-        for ast in margin:
-            if i >0:
-                ratio =  aspect_ratio.x
-            else:
-                ratio =  aspect_ratio.y
-            i=-i
-            values.append(LayoutAreaParser.compute(ast, task.get_symbols(),ratio))
-        while len(values)<4:
-            values.append(0.0)
-        layout_item.set_margin(layout.Bounds(*values))
+        layout_item.margin_style = margin
     ###############
     border = style_def.get("border")
     if border is not None:
-        #aspect_ratio = task.main.page.aspect_ratio
-        i = 1
-        values=[]
-        for ast in border:
-            if i >0:
-                ratio =  aspect_ratio.x
-            else:
-                ratio =  aspect_ratio.y
-            i=-i
-            values.append(LayoutAreaParser.compute(ast, task.get_symbols(),ratio))
-        while len(values)<4:
-            values.append(0.0)
-        layout_item.set_border(layout.Bounds(*values))
+        layout_item.border_style =border
     ###############        
     padding = style_def.get("padding")
     if padding is not None:
-        #aspect_ratio = task.main.page.aspect_ratio
-        i = 1
-        values=[]
-        for ast in padding:
-            if i >0:
-                ratio =  aspect_ratio.x
-            else:
-                ratio =  aspect_ratio.y
-            i=-i
-            values.append(LayoutAreaParser.compute(ast, task.get_symbols(),ratio))
-        while len(values)<4:
-            values.append(0.0)
-        layout_item.set_padding(layout.Bounds(*values))
-    #####
+        layout_item.padding_style = padding
     background = style_def.get("background")
     if background is not None:
         background = compile_formatted_string(background)

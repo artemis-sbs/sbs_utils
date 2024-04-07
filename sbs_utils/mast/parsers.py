@@ -12,7 +12,7 @@ class LayoutAreaParser:
     rules = {
         "ws": r"[ \t]+",
         "pixels": r"\d+px",
-        "ems": r"\d+em",
+        "ems": r"\d+(\.\d+)?em",
         "digits": r"\d+(\.\d+)?",
         "id": r"[_a-zA-Z][_a-zA-Z0-9]*",
         "comma": r",",

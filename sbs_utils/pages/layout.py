@@ -5,7 +5,6 @@ import struct # for images sizes
 from .. import fs
 import os
 from ..helpers import FrameContext
-from ..procedural.inventory import get_inventory_value
 from ..mast.parsers import LayoutAreaParser,LayoutAreaNode
 
 class Bounds:
@@ -75,6 +74,10 @@ class Row:
         self.padding = None
         self.border = None
         self.margin = None
+
+        self.padding_style = None
+        self.border_style = None
+        self.margin_style = None
 
 
         # cascading props
@@ -215,6 +218,11 @@ class Column:
         self.border = None
         self.margin = None
 
+        self.padding_style = None
+        self.border_style = None
+        self.margin_style = None
+
+
         self.background = None
         self.background_image = "smallWhite"
         self.border_image = "smallWhite"
@@ -301,10 +309,6 @@ class Column:
             if prop is not None:
                 props += f"justify:{prop};"
         return props
-
-
-
-
 
     def set_margin(self, margin):
         self.margin = margin
@@ -936,7 +940,20 @@ def calc_float_attribute(name, col, row, sec, aspect_ratio_axis, font_size):
         if not isinstance(att, float):
             return LayoutAreaParser.compute(att, None,aspect_ratio_axis, font_size)
     return att
-            
+
+
+def cascade_attribute(name, col, row, sec):
+    att = None
+    if col is not None and hasattr(col, name) is not None:
+        att = getattr(col, name, None)
+    elif row is not None and hasattr(row, name) is not None:
+        att = getattr(row, name, None)
+    elif sec is not None and hasattr(sec, name) is not None:
+        att = getattr(sec, name, None)
+
+    return att
+
+
 def calc_bounds_attribute(name, col, row, sec, aspect_ratio, font_size):
     att = None
     if col is not None and hasattr(col, name) is not None:
@@ -946,6 +963,9 @@ def calc_bounds_attribute(name, col, row, sec, aspect_ratio, font_size):
     elif sec is not None and hasattr(sec, name) is not None:
         att = getattr(sec, name, None)
 
+    return calc_bounds(att, aspect_ratio, font_size)
+
+def calc_bounds(att, aspect_ratio, font_size):
     if att is not None:
         if not isinstance(att, Bounds):
             i = 1
@@ -959,7 +979,7 @@ def calc_bounds_attribute(name, col, row, sec, aspect_ratio, font_size):
                 if ratio == 0:
                     ratio = 1
                 values.append(LayoutAreaParser.compute(ast, None,ratio,font_size))
-        return Bounds(*values)
+            return Bounds(*values)
     return att
                 
 def get_font_size(font):
@@ -995,13 +1015,15 @@ class Layout:
         self.border = None
         self.margin = None
 
+        self.padding_style = None
+        self.border_style = None
+        self.margin_style = None
+
+
         self.background = None
         self.background_image = "smallWhite"
         self.border_image = "smallWhite"
         self.border_color = None
-
-        
-
 
         self.tag = tag
         self.click_text  = None
@@ -1010,8 +1032,6 @@ class Layout:
         self.click_color  = None
         self.click_background = None
         self.client_id = None
-        
-        
 
     def set_bounds(self, bounds):
         self.bounds = bounds
@@ -1078,14 +1098,17 @@ class Layout:
     def calc(self, client_id):
         aspect_ratio = get_client_aspect_ratio(client_id)
         self.client_id = client_id
-        task = get_inventory_value(self.client_id, "GUI_TASK")
-
+        sec_font_size = 20
         # remove empty
         #self.rows = [x for x in self.rows if len(x.columns)>0]
         if len(self.rows):
-            margin = Bounds(self.margin)
-            padding =Bounds(self.padding)
-            border =Bounds(self.border)
+            margin = Bounds(calc_bounds(self.margin_style, aspect_ratio, sec_font_size))
+            padding =Bounds(calc_bounds(self.padding_style, aspect_ratio, sec_font_size))
+            border =Bounds(calc_bounds(self.border_style, aspect_ratio, sec_font_size))
+            self.margin = margin
+            self.border = border
+            self.padding = padding
+
             bounds_area = Bounds(self.bounds)
             bounds_area.shrink(margin)
             bounds_area.shrink(border)
@@ -1113,6 +1136,10 @@ class Layout:
 
             for row in self.rows:                    
                 # Cascading padding
+                row.margin = Bounds(calc_bounds(row.margin_style, aspect_ratio, sec_font_size))
+                row.padding =Bounds(calc_bounds(row.padding_style, aspect_ratio, sec_font_size))
+                row.border =Bounds(calc_bounds(row.border_style, aspect_ratio, sec_font_size))
+
                 if row.margin:
                     margin += row.margin
 
@@ -1181,6 +1208,10 @@ class Layout:
                 col_left = left
                 hole_size = 0
                 for col in actual_cols:
+                    col.margin = Bounds(calc_bounds(col.margin_style, aspect_ratio, sec_font_size))
+                    col.padding =Bounds(calc_bounds(col.padding_style, aspect_ratio, sec_font_size))
+                    col.border =Bounds(calc_bounds(col.border_style, aspect_ratio, sec_font_size))
+
                     if col.margin is not None:
                         margin += col.margin
 
@@ -1220,8 +1251,6 @@ class Layout:
                     bounds.shrink(margin)
                     bounds.shrink(border)
                     bounds.shrink(padding)
-
-                    
 
                     ##############
                     ### Cascade other attributes
