@@ -43,7 +43,8 @@ def broad_test(x1: float, z1: float, x2: float, z2: float, tick_type: int) -> Li
         
     if sim is not None:
         for v in sim.space_objects.values():
-            if tick_type != -1 and tick_type != v._type:
+            is_valid_bits = v._type & tick_type
+            if tick_type != -1 and not is_valid_bits:
                 continue
             pos = v.pos
             if pos.x >= x1 and pos.x < x2 and pos.z >= z1 and pos.z <= z2:

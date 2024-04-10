@@ -65,9 +65,9 @@ await gui():
     + "Ready to learn":
         -> Learn
     + "Bar":
-        ->> GotoBar
+        gui_history_jump(GotoBar)
     + "HUD":
-        ->> Hud
+        gui_history_jump(Hud)
     + "Exit":
         ->END
 
@@ -124,7 +124,7 @@ await gui():
 ~~sbs.create_new_sim()~~
 
 shared mission_started = True
-->>MapStuff
+await task_schedule(MapStuff)
 ->ResumeMission
 
 ================= ResumeMission ==============================
@@ -198,7 +198,7 @@ shared tsn =  ~~ [
     Npc().spawn(sim, 1400, 0, 1000, "TSN2", "tsn", "Battle Cruiser", "behav_npcship").py_object
     ]~~
 
-<<-
+yield success
 
 
 ===================== Menu ============
@@ -209,28 +209,28 @@ else:
 
 button = gui_drop_down("text: ship;list:Artemis,Hera,Atlas", var= "ship_select")
 on gui_message(button):
-    <<->>PickedShip
+    jump PickedShip
 
-
-on gui_message(gui_drop_down("text: console;list:Helm,Weapons,Science,Engineering,Comms,Medical,Main Screen", var="console")):
+dd = gui_drop_down("text: console;list:Helm,Weapons,Science,Engineering,Comms,Medical,Main Screen", var="console")
+on gui_message(dd):
     view = "Main"
-    ->>PickedView
+    gui_history_jump(PickedView)
 
+dd2 = gui_drop_down("text: view;list:Main,Auxiliary,Crafting,Quarters,P.A.D.D.,Broadcast,Bar", var="view")
+on gui_message(dd2):
+    gui_history_jump(PickedView)
 
-on gui_message(gui_drop_down("text: view;list:Main,Auxiliary,Crafting,Quarters,P.A.D.D.,Broadcast,Bar", var="view")):
-    ->>PickedView
-
-
-on gui_message(gui_drop_down("text: Mast;list:Variables,Debug,restart", "mast_view")):
-    ->>PickedMast
+dd3=gui_drop_down("text: Mast;list:Variables,Debug,restart", "mast_view")
+on gui_message(dd3):
+    gui_history_jump(PickedMast)
 
 
 gui_section(style="area: 0, 30px, 100, 100-30px;")
-<<-
+gui_history_back()
 
 
 ===================== Hud ============
-->> Menu
+await task_schedule(Menu)
 
 """
 Welcome, select your ship, and console.
@@ -241,7 +241,7 @@ You can also select from a selection of different views.
 
 await gui():
     + "Back":
-        <<-
+        gui_history_back()
 
 ========== PickedShip =====
 match ship_select:
@@ -275,7 +275,7 @@ sbs.send_message_to_player_ship(atlas.id,"green","New officer")
 
 
 ========== MainView =====
-->> Menu
+await task_task(Menu)
 
 
 match console:
@@ -297,7 +297,7 @@ match console:
 await gui()
 
 ========== PickedView =====
-->> Menu
+await task_schedule(Menu)
 match view:
     case "Main":
         -> MainView
@@ -312,7 +312,7 @@ match view:
     case "Broadcast":
         -> BroadcastTest
     case "Bar":
-        ->> GotoBar
+        gui_history_jump(GotoBar)
         ->Hud
     case _:
         -> MainView
@@ -324,42 +324,42 @@ Unrreachable?
 await gui()
 
 ========== PickedMast =====
-->> Menu
+await task_schedule(Menu)
 
 """
 Mast {mast_view}
 """
 await gui():
     + "Back":
-        <<-
+        gui_history_back()
 
 
 ====== BroadcastTest ==============
 comms_broadcast(PlayerShip,  "Hello")
-<<-
+yield success
 
 ========== ViewQuarters =====
-->> Menu
+await task_schedule(Menu)
 
 gui_image("{mission_dir}\data\quarters")
 
 await gui()
 
 ========== ViewCrafting =====
-->> Menu
+await task_schedule(Menu)
 
 gui_image("image:{mission_dir}\data\crafting;")
 
 await gui()
 ========== ViewPad =====
-->> Menu
+await task_schedule(Menu)
 
 gui_image( "{mission_dir}\data\datapad")
 
 await gui()
 
 ========== ViewAux =====
-->> Menu
+await task_schedule(Menu)
 
 """
 This would be the auxiliary Screen

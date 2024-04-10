@@ -8,9 +8,12 @@ from sbs_utils.procedural.links import linked_to
 from sbs_utils.procedural.inventory import has_inventory_value
 from sbs_utils.procedural.space_objects import closest_list, closest, broad_test
 from sbs_utils.procedural.roles import role
+from sbs_utils.fs import test_set_exe_dir, get_script_dir
 from sbs_utils.objects import Npc, Terrain, PlayerShip
 from sbs_utils.gridobject import GridObject
 from sbs_utils.helpers import FrameContext, Context, FakeEvent
+import os
+
 
 def get_sim():
     """ Function in case I change how to get the sim"""
@@ -21,6 +24,9 @@ class TestSpaceObject(unittest.TestCase):
     def setUp(self) -> None:
         ### This clears all the role info
         SpaceObject.clear()
+
+
+        test_set_exe_dir()
         
         return super().setUp()
     
@@ -242,7 +248,7 @@ class TestSpaceObject(unittest.TestCase):
         visit_list = linked_to(artemis, "Visit")
         assert(len(visit_list )==4)
         # Get the set active objects in the area
-        in_range = broad_test(10000,10000, -10000, -10000, 1)
+        in_range = broad_test(10000,10000, -10000, -10000, 0x10)
         assert(len(in_range)==15)
         test = in_range & visit_list & stations 
         assert(len(test)==2) # 2 stations and NOT the two friendly
@@ -252,14 +258,14 @@ class TestSpaceObject(unittest.TestCase):
         assert(test.py_object.name == "DS1")
 
         test = closest(artemis,  
-            broad_test(10000,10000, -10000, -10000, 1) 
+            broad_test(10000,10000, -10000, -10000, 0xF0) 
             & linked_to(artemis, "Visit")
             & role("Station") )
         assert(test.py_object.name == "DS1")
 
         # Gets the all visitable in range
         test = closest_list(artemis,  
-            broad_test(5000,5000, -5000, -5000, 1) 
+            broad_test(5000,5000, -5000, -5000, 0xF0) 
             & linked_to(artemis, "Visit")
              )
         assert(len(test)==4)
@@ -270,7 +276,7 @@ class TestSpaceObject(unittest.TestCase):
         assert("F3" in names)
         # Gets the all visitable in narrower range
         test = closest_list(artemis,  
-            broad_test(200,200, -200, -200, 1) 
+            broad_test(200,200, -200, -200, 0xF0) 
             & linked_to(artemis, "Visit")
              )
         assert(len(test)==2)
@@ -280,7 +286,7 @@ class TestSpaceObject(unittest.TestCase):
 
         # get all visitable that are not stations
         test = closest_list(artemis,  
-            broad_test(10000,10000, -10000, -10000, 1) 
+            broad_test(10000,10000, -10000, -10000, 0xF0) 
             & linked_to(artemis, "Visit")
             - role("Station") )
         assert(len(test)==2)
@@ -290,7 +296,7 @@ class TestSpaceObject(unittest.TestCase):
 
         # get all visitable that are stations
         test = closest_list(artemis,  
-            broad_test(10000,10000, -10000, -10000, 1) 
+            broad_test(10000,10000, -10000, -10000, 0xFF) 
             & linked_to(artemis, "Visit")
             & role("Station") )
         assert(len(test)==2)

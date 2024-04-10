@@ -127,7 +127,17 @@ def apply_style_def(style_def, layout_item, task):
     st = style_def.get("color")
     if st is not None:
         st = compile_formatted_string(st)
-        layout_item.color = task.format_string(st)
+        layout_item.default_color = task.format_string(st)
+
+    st = style_def.get("font")
+    if st is not None:
+        st = compile_formatted_string(st)
+        layout_item.default_font = task.format_string(st)
+
+    st = style_def.get("justify")
+    if st is not None:
+        st = compile_formatted_string(st)
+        layout_item.default_justify = task.format_string(st)
 
     st = style_def.get("background-image")
     if st is not None:

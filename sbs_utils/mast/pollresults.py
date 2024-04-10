@@ -6,6 +6,7 @@ class PollResults(IntEnum):
     OK_RUN_AGAIN=4
     OK_YIELD=5 # This will advance, but run again
     OK_END = 99
+    OK_SUCCESS = 99
     BT_SUCCESS = 99
     FAIL_END = 100
     BT_FAIL = 100

@@ -5,6 +5,18 @@ import re
 import sbs
 
 # the script module should be the startup script
+exe_dir = os.path.dirname(sys.executable)
+def test_set_exe_dir():
+    global exe_dir
+    d = get_script_dir()
+    d = os.path.dirname(d)
+    d = os.path.dirname(d)
+    d = os.path.dirname(d)
+
+    exe_dir = d
+
+
+
 script_dir = None
 def get_script_dir():
     global script_dir
@@ -39,7 +51,6 @@ def is_dev_build():
     return os.path.isdir(mission+"\\.git")
 
 def get_artemis_data_dir():
-    exe_dir = os.path.dirname(sys.executable)
     return exe_dir+"/data"
     
 

@@ -280,16 +280,24 @@ class Column:
 
 
     def get_color(self):
+        if self.color is not None:
+            return self.color
+        
         if self.default_color is not None:
             return self.default_color
         return self.color
     
     def get_justify(self):
+        if self.justify is not None:
+            return self.justify
         if self.default_justify is not None:
             return self.default_justify
         return self.justify
     
     def get_font(self):
+        # self.font is set by calc
+        if self.font is not None:
+            return self.font
         if self.default_font is not None:
             return self.default_font
         return self.font
@@ -929,11 +937,11 @@ class GuiControl(Column):
 
 def calc_float_attribute(name, col, row, sec, aspect_ratio_axis, font_size):
     att = None
-    if col is not None and hasattr(col, name) is not None:
+    if col is not None and hasattr(col, name)and getattr(col, name, None) is not None:
         att = getattr(col, name, None)
-    elif row is not None and hasattr(row, name) is not None:
+    elif row is not None and hasattr(row, name) and getattr(row, name, None) is not None:
         att = getattr(row, name, None)
-    elif sec is not None and hasattr(sec, name) is not None:
+    elif sec is not None and hasattr(sec, name) and getattr(sec, name, None) is not None:
         att = getattr(sec, name, None)
 
     if att is not None:
@@ -1098,7 +1106,9 @@ class Layout:
     def calc(self, client_id):
         aspect_ratio = get_client_aspect_ratio(client_id)
         self.client_id = client_id
-        sec_font_size = 20
+        
+        sec_font_size = get_font_size(self.default_font)
+        
         # remove empty
         #self.rows = [x for x in self.rows if len(x.columns)>0]
         if len(self.rows):
@@ -1120,8 +1130,12 @@ class Layout:
                 layout_row_height = bounds_area.height
                 flex_rows = len(self.rows)
                 for row in self.rows:
+                    row_font = self.default_font
+                    if row.default_font is not None:
+                        row_font = row.default_font
+
                     if row.default_height is not None:
-                        row_font_height = 20
+                        row_font_height  = get_font_size(row_font)
                         value = calc_float_attribute("default_height", None, row, self, aspect_ratio.y, row_font_height)
                         layout_row_height -= value
                         flex_rows -= 1
@@ -1136,9 +1150,14 @@ class Layout:
 
             for row in self.rows:                    
                 # Cascading padding
-                row.margin = Bounds(calc_bounds(row.margin_style, aspect_ratio, sec_font_size))
-                row.padding =Bounds(calc_bounds(row.padding_style, aspect_ratio, sec_font_size))
-                row.border =Bounds(calc_bounds(row.border_style, aspect_ratio, sec_font_size))
+                row_font = row.default_font
+                if row_font is None:
+                    row_font = self.default_font
+
+                row_font_height  = get_font_size(row_font)
+                row.margin = Bounds(calc_bounds(row.margin_style, aspect_ratio, row_font_height))
+                row.padding =Bounds(calc_bounds(row.padding_style, aspect_ratio, row_font_height))
+                row.border =Bounds(calc_bounds(row.border_style, aspect_ratio, row_font_height))
 
                 if row.margin:
                     margin += row.margin
@@ -1149,9 +1168,9 @@ class Layout:
                 if row.padding:
                     padding += row.padding
 
-                row_font_height = 20
                 if row.default_height is not None:
                     row_height = calc_float_attribute("default_height", None, row, None,  aspect_ratio.y, row_font_height)
+                    #print(f"RRR {row_height} {row_font_height}")
                 else:
                     row_height = layout_row_height
 
@@ -1172,7 +1191,11 @@ class Layout:
                     if col.is_hidden:
                         continue
                     squares += 1 if col.square else 0
-                    col_font_size = 20
+                    col_font = row_font
+                    if col_font is None:
+                        col_font = col.default_font
+
+                    col_font_size  = get_font_size(col_font)
                     default_width = calc_float_attribute("default_width", col, row, self, aspect_ratio.x, col_font_size)
                     if default_width is not None:
                         assigned_space += default_width
@@ -1208,9 +1231,15 @@ class Layout:
                 col_left = left
                 hole_size = 0
                 for col in actual_cols:
-                    col.margin = Bounds(calc_bounds(col.margin_style, aspect_ratio, sec_font_size))
-                    col.padding =Bounds(calc_bounds(col.padding_style, aspect_ratio, sec_font_size))
-                    col.border =Bounds(calc_bounds(col.border_style, aspect_ratio, sec_font_size))
+                    col_font = row_font
+                    if col_font is None:
+                        col_font = col.default_font
+                    col.font = col_font
+                    col_font_size  = get_font_size(col_font)
+
+                    col.margin = Bounds(calc_bounds(col.margin_style, aspect_ratio, col_font_size))
+                    col.padding =Bounds(calc_bounds(col.padding_style, aspect_ratio, col_font_size))
+                    col.border =Bounds(calc_bounds(col.border_style, aspect_ratio, col_font_size))
 
                     if col.margin is not None:
                         margin += col.margin
@@ -1226,7 +1255,6 @@ class Layout:
                     bounds.bottom = top+row_height
 
                     assigned_space = rect_col_width
-                    col_font_size = 20
                     default_width = calc_float_attribute("default_width", col, row, self, aspect_ratio.x, col_font_size)
                     if default_width is not None:
                         assigned_space = default_width
@@ -1255,11 +1283,22 @@ class Layout:
                     ##############
                     ### Cascade other attributes
                     if col.color is None:
-                        if row.color is not None:
-                            col.default_color = row.color
-                        elif self.color is not None:
-                            col.default_color = self.color
+                        if col.default_color is not None:
+                            col.color = col.default_color
+                        elif row.default_color is not None:
+                            col.color = row.default_color
+                        elif self.default_color is not None:
+                            col.color = self.default_color
 
+                    if col.justify is None:
+                        if col.default_justify is not None:
+                            col.justify = col.default_justify
+                        elif row.default_justify is not None:
+                            col.justify = row.default_justify
+                        elif self.default_justify is not None:
+                            col.justify = self.default_justify
+
+                    
                     ##################
                     col.set_bounds(bounds)
                     col.calc(client_id)

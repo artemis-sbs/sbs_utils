@@ -162,7 +162,7 @@ class WithEnd(MastNode):
 
 
 class WithStart(MastNode):
-    rule = re.compile(r'(with[ \t]*(?P<obj>[^\n\r\f]+))'+BLOCK_START)
+    rule = re.compile(r'(with[ \t]*(?P<obj>[^\n\r\f]+))')
     with_vars = 0
     def __init__(self, obj=None, name=None, loc=None):
         super().__init__()
@@ -190,6 +190,11 @@ class WithStart(MastNode):
             if obj is None:
                 return None
             obj = obj.lstrip()
+
+            if not obj.endswith(":"):
+                return None
+            obj = obj[:-1]
+            
             has_as = obj.rsplit(" as ")
             if len(has_as)==2:
                 data["name"] = has_as[1]
@@ -418,10 +423,10 @@ class Assign(MastNode):
     oper_map = {"=": EQUALS, "+=": INC,  "-=": DEC, "*=": MUL, "%=": MOD, "/=": DIV, "//=":INT_DIV }
     # '|'+STRING_REGEX+ddd
     rule = re.compile(
-        r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|[^\n\r\f]+))')
+        r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)(?P<a_wait>\s*await)?\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|[^\n\r\f]+))')
 
     """ Note this doesn't support destructuring. To do so isn't worth the effort"""
-    def __init__(self, scope, lhs, oper, exp, quote=None, py=None, loc=None):
+    def __init__(self, scope, lhs, oper, exp,a_wait=None,  quote=None, py=None, loc=None):
         super().__init__()
         self.lhs = lhs
         self.loc = loc
@@ -437,6 +442,7 @@ class Assign(MastNode):
             exp = exp[2:-2]
             exp = exp.strip()
         self.code = compile(exp, "<string>", "eval")
+        self.is_await = a_wait is not None
 
         if lhs in Mast.globals:
             raise Exception(f"Variable assignment to a keyword {lhs}")
@@ -694,44 +700,74 @@ class End(MastNode):
         else:
             self.if_code = None
 
-class ReturnIf(MastNode):
-    #
-    # This is a 'pop' for push inline
-    #
-    rule = re.compile(r'->[ \t]*(RETURN|AWAIT_AGAIN)'+IF_EXP_REGEX)
-    def __init__(self, if_exp=None,  loc=None):
-        super().__init__()
-        self.loc = loc
-        if if_exp:
-            if_exp = if_exp.lstrip()
-            self.if_code = compile(if_exp, "<string>", "eval")
-        else:
-            self.if_code = None
+# class ReturnIf(MastNode):
+#     #
+#     # This is a 'pop' for push inline
+#     #
+#     rule = re.compile(r'->[ \t]*(RETURN|AWAIT_AGAIN)'+IF_EXP_REGEX)
+#     def __init__(self, if_exp=None,  loc=None):
+#         super().__init__()
+#         self.loc = loc
+#         if if_exp:
+#             if_exp = if_exp.lstrip()
+#             self.if_code = compile(if_exp, "<string>", "eval")
+#         else:
+#             self.if_code = None
 
 
-class Fail(MastNode):
-    rule = re.compile(r'->[ \t]*FAIL'+IF_EXP_REGEX)
-    def __init__(self, if_exp=None, loc=None):
-        super().__init__()
-        self.loc = loc
-        if if_exp:
-            if_exp = if_exp.lstrip()
-            self.if_code = compile(if_exp, "<string>", "eval")
-        else:
-            self.if_code = None
+# class Fail(MastNode):
+#     rule = re.compile(r'->[ \t]*FAIL'+IF_EXP_REGEX)
+#     def __init__(self, if_exp=None, loc=None):
+#         super().__init__()
+#         self.loc = loc
+#         if if_exp:
+#             if_exp = if_exp.lstrip()
+#             self.if_code = compile(if_exp, "<string>", "eval")
+#         else:
+#             self.if_code = None
 
 class Yield(MastNode):
-    rule = re.compile(r'yield([ \t]+(?P<res>(?i:fail|success)))?' +IF_EXP_REGEX)
-    def __init__(self, res= None, if_exp=None, loc=None):
+    rule = re.compile(r'yield[ \t]+(?P<res>(?i:fail|success))?(?P<exp>[^\n\r\f]+)?')
+    def __init__(self, res= None, exp=None, if_exp=None, loc=None):
         super().__init__()
         self.loc = loc
         self.result = res
+        self.code = exp
+        if exp is not None:
+            exp = exp.lstrip()
+            self.code = compile(exp, "<string>", "eval")
+            self.result  = "code"
 
         if if_exp:
             if_exp = if_exp.lstrip()
             self.if_code = compile(if_exp, "<string>", "eval")
         else:
             self.if_code = None
+
+    @classmethod
+    def parse(cls, lines):
+        mo = cls.rule.match(lines)
+        if not mo:
+            return None
+        span = mo.span()
+        data = mo.groupdict()
+        # res= data.get("res")
+        obj= data.get("exp")
+        if obj is not None:
+            obj = obj.lstrip()
+            is_if = obj.startswith("if ")
+
+            has_if = obj.rsplit(" if ")
+            if len(has_if)==2:
+                data["if_exp"] = has_if[1]
+                data["exp"] = has_if[0]
+            elif is_if:
+                data["exp"] = None
+                data["if_exp"] = obj[3:]
+
+        return ParseData(span[0], span[1], data)
+        
+
 
 
 class Rule:
@@ -950,11 +986,11 @@ class Mast():
         OnChange, 
         AwaitInlineLabel,
         Button,
-        Fail,
+        #Fail,
         Yield,
         End,
-        ReturnIf,
-            Jump,
+        #ReturnIf,
+        Jump,
         Assign,
     ]
 

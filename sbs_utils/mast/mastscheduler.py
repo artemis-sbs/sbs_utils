@@ -33,24 +33,6 @@ class EndRuntimeNode(MastRuntimeNode):
             if not value:
                 return PollResults.OK_ADVANCE_TRUE
         return PollResults.OK_END
-
-class ReturnIfRuntimeNode(MastRuntimeNode):
-    def poll(self, mast, task, node:ReturnIf):
-        if node.if_code:
-            value = task.eval_code(node.if_code)
-            if not value:
-                return PollResults.OK_ADVANCE_TRUE
-        task.pop_label(False, False)
-        return PollResults.OK_JUMP
-
-class FailRuntimeNode(MastRuntimeNode):
-    def poll(self, mast, task, node:Fail):
-        if node.if_code:
-            value = task.eval_code(node.if_code)
-            if not value:
-                return PollResults.OK_ADVANCE_TRUE
-    
-        return PollResults.FAIL_END
     
 class YieldRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:Yield):
@@ -58,7 +40,9 @@ class YieldRuntimeNode(MastRuntimeNode):
             value = task.eval_code(node.if_code)
             if not value:
                 return PollResults.OK_ADVANCE_TRUE
-        if node.result is None:
+        if node.code is not None:
+            value = task.eval_code(node.code)
+            task.yield_results = value
             return PollResults.OK_YIELD
         if node.result.lower() == 'fail':
             return PollResults.FAIL_END
@@ -88,9 +72,26 @@ class ChangeRuntimeNode(MastRuntimeNode):
 
 
 class AssignRuntimeNode(MastRuntimeNode):
+    def __init__(self) -> None:
+        super().__init__()
+        self.promise = None
+
     def poll(self, mast, task:MastAsyncTask, node:Assign):
         #try:
-        value = task.eval_code(node.code)
+        if not self.promise:
+            value = task.eval_code(node.code)
+            if node.is_await and isinstance(value, Promise):
+                self.promise = value
+        
+            
+        if self.promise:
+            self.promise.poll()
+            # The assumes the promise is a task
+            if self.promise.done():
+                value = self.promise.result()
+            else:
+                return PollResults.OK_RUN_AGAIN
+        # Value should be set by here
         start = task.get_variable(node.lhs) 
         match node.oper:
             case Assign.EQUALS:
@@ -690,6 +691,11 @@ class MastTicker:
                             self.last_poll_result = result
                             self.next()
                         case PollResults.OK_YIELD:
+                            if self.task.yields_once:
+                                self.done = True
+                                self.last_poll_result = PollResults.OK_YIELD
+                                return PollResults.OK_YIELD
+                            
                             self.last_poll_result = result
                             self.next()
                             break
@@ -1030,10 +1036,9 @@ class MastAsyncTask(Agent, Promise):
         self.py_ticker = PyTicker(self)
         self.active_ticker = self.mast_ticker
         self.label_stack = []
+        self.yield_results = None
+        self.yields_once = True
 
-        #self.done = False
-        #self.result = None
-        #self.active_label = None
         self.add()
     
     def end(self):
@@ -1057,7 +1062,14 @@ class MastAsyncTask(Agent, Promise):
         if self.active_ticker is None:
             return "main"
         return self.active_ticker.active_label
-    
+
+    @property
+    def is_observable(self):
+        # Allows to yield multiple times
+        self.yields_once = False
+        self.yields_once = False
+
+
     @property
     def tick_result(self):
         return self.active_ticker.last_poll_result
@@ -1234,7 +1246,10 @@ class MastAsyncTask(Agent, Promise):
         res = self.active_ticker.tick()
         FrameContext.task = restore
         if self.active_ticker.done:
-            self.set_result(self.active_ticker.last_poll_result)
+            if self.active_ticker.last_poll_result == PollResults.OK_YIELD:
+                self.set_result(self.yield_results)
+            else:
+                self.set_result(self.active_ticker.last_poll_result)
         return res
         
 
@@ -1277,7 +1292,7 @@ class MastAsyncTask(Agent, Promise):
     @classmethod
     def stop_for_dependency(cls, id):
         the_set = MastAsyncTask.dependent_tasks.get(id, set())
-        print("Unlikely")
+        #print("Unlikely")
         for task in the_set:
             task.end()
         MastAsyncTask.dependent_tasks.pop(id, None)
@@ -1289,8 +1304,8 @@ class MastAsyncTask(Agent, Promise):
 class MastScheduler(Agent):
     runtime_nodes = {
         "End": EndRuntimeNode,
-        "ReturnIf": ReturnIfRuntimeNode,
-        "Fail": FailRuntimeNode,
+        #"ReturnIf": ReturnIfRuntimeNode,
+        #"Fail": FailRuntimeNode,
         "Yield": YieldRuntimeNode,
         "Jump": JumpRuntimeNode,
         "IfStatements": IfStatementsRuntimeNode,

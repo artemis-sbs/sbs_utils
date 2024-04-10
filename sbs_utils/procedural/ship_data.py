@@ -27,6 +27,9 @@ def get_ship_index():
     ship_index = {
 
     }
+    if data is None:
+        return ship_index
+    
     for i,ship in enumerate(data["#ship-list"]):
         this_ship_index = ship_index.get(ship['side'])
         if not this_ship_index:
@@ -50,6 +53,8 @@ def filter_ship_data_by_side(test_key, sides, role=None, ret_key_only=False):
     data = get_ship_data()
 
     ret = []
+    if data is None:
+        return ret
     if sides is not None:
         if isinstance(sides, str):
             sides=sides.lower()

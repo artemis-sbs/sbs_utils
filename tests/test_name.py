@@ -3,6 +3,7 @@ import sys
 sys.path.append("..")
 from mock import sbs as sbs
 from sbs_utils import names
+from sbs_utils.fs import test_set_exe_dir
 from sbs_utils.procedural import ship_data
 import sys
     
@@ -23,6 +24,7 @@ class TestNames(unittest.TestCase):
         self.assertEqual(3, 3)
 
     def test_filter_ship_data(self):
+        test_set_exe_dir()
         ast = ship_data.asteroid_keys()
         self.assertEqual(len(ast), 11)
         cast = ship_data.crystal_asteroid_keys()

@@ -105,7 +105,7 @@ await gui():
     + "Had enough"  if (beer+martinis+vodka) > 0:
         ~~customers.pop(client_id, None)~~
         gui_refresh("GotoBar")
-        pop
+        # pop
     =disconnect:
         ~~customers.pop(client_id, None)~~
         ->END
@@ -125,4 +125,4 @@ BAR is closed until more supplies arrive
 they are available at DS1
 """""""""""""""""""""""""""""""""""
 await gui(timeout=timeout(5))
-pop
+## pop

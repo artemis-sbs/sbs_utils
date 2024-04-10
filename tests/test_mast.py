@@ -197,6 +197,26 @@ if x==2:
 
         assert(len(errors)==0)
 
+
+    def test_yield_compile_err(self):
+        (errors, mast) =mast_compile( code = """
+yield fail
+yield success
+yield fail if x==123
+yield fail
+if x==456:
+   jump betty
+
+if x==789:
+   yield fail if x==200
+
+if x==211:
+   yield fail if x==222
+
+""")
+
+        assert(len(errors)==0)
+
     def test_jumps_run(self):
         (errors, runner, mast) =mast_run( code = """
 logger(var="output")
@@ -263,7 +283,7 @@ trend = task_schedule(fork)
 #await task_all(fred, barney):
 ->END
 #fail:
-->FAIL
+yield fail
 #end_await
                                      
 task_all(fred, barney)
@@ -1289,30 +1309,33 @@ for y in range(10):
                 #assert("Missing next" in errors[0])
 
 
-    def test_push_pop_run_no_err(self):
+    def test_task_as_func(self):
                 (errors, runner, _) = mast_run( code = """
 logger(var="output")
-->> PushHere
-->> PushJump
-->> PushDouble
+await task_schedule(PushHere)
+await task_schedule(PushJump)
+await task_schedule(PushDouble)
 log("out")
 ->END
 
 ======== PushHere =====
 log("Push")
-<<-
+yield success
+
 ======== PushDouble =====
 log("PushDouble")
-->> PushJump
+await task_schedule(PushJump)
 log("PopDouble")
-<<-
+yield success
 
 ======== PushJump =====
 log("PushJump")
--> Popper
+await task_schedule(Popper)
+yield success
+
 ===== Popper ====
 log("Popper")
-<<-
+yield success
         """)
                 assert(len(errors)==0)
                 output = runner.get_value("output", None)
@@ -1330,6 +1353,32 @@ Popper
 PopDouble
 out
 """)
+                
+
+    def test_assign_await(self):
+        (errors, runner, _) = mast_run( code = """
+logger(var="output")
+x = await task_schedule(get_x)
+y = await task_schedule(get_y)
+log("{x+y=}")
+->END
+
+======== get_x =====
+x = 3                                               
+yield 12 if x == 3
+
+======== get_y =====
+yield 34
+
+""")
+        assert(len(errors)==0)
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        #st.seek(0)
+        value = st.getvalue()
+
+        assert(value =="""x+y=46\n""")
 
 
     def test_all_no_err(self):
@@ -1375,19 +1424,20 @@ S1 Again
 logger(var="output")
 
 await task_any(Seq1, Seq2, Seq3)
+log("Moving On")
 ->END
 ======== Seq1 =====
 log("S1")
 await delay_test(20)
 log("S1 Again")
-->FAIL
+yield fail
 ======== Seq2 =====
 log("S2")
 -> END
 ===== Seq3 ====
 await delay_test(20)
 log("S3")
--> FAIL
+yield fail
     """)
         assert(len(errors)==0)
         for _ in range(10):
@@ -1398,9 +1448,7 @@ log("S3")
         #st.seek(0)
         value = st.getvalue()
 
-        assert(value =="""S1
-S2
-""")
+        assert(value =="""S1\nS2\nMoving On\nS1 Again\nS3\n""")
 
 
 
@@ -1531,11 +1579,11 @@ await bt_until_success(bt_sel(eat_apple, eat_banana))
 log("not hungry")
 ->END
 ??????? eat_apple ??????
-->FAIL if not has_apple
+yield fail if not has_apple
 log("Ate Apple")
 -> END
 ??????? eat_banana ?????
--> FAIL if not has_banana
+yield fail if not has_banana
 -> END
 
 ===== external ====
@@ -1582,12 +1630,12 @@ has_apple = True
         yield bt sel  eat_banana | eat_apple   {"blackboard": blackboard}
 
         ??????? eat_apple ??????
-        ->FAIL if not blackboard.has_apple
+        yield fail if not blackboard.has_apple
         blackboard.not_hungry = True
         log("Ate Apple")
         -> END
         ??????? eat_banana ?????
-        -> FAIL if not blackboard.has_banana
+        yield fail if not blackboard.has_banana
         log("Ate Banana")
         blackboard.not_hungry = True
         -> END
