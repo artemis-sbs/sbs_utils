@@ -9,6 +9,7 @@ from ..mast.parsers import LayoutAreaParser
 
 
 
+
 class SubPage:
     """A class for use with the layout listbox to make using the procedural gui function work
     """
@@ -69,15 +70,15 @@ class LayoutListbox(layout.Column):
     """
 
     def __init__(self, left, top, tag_prefix, items, 
-                 template_func=None, title=None, 
-                 section_style=None,
+                 item_template=None, title_template=None, 
+                 section_style=None, title_section_style=None,
                  select=False, multi=False) -> None:
         super().__init__(left,top,33,44)
 
         self.tag_prefix = tag_prefix
         self.tag  = tag_prefix
         self.gui_state = "blank"
-        self.title = title
+        
         self.cur = 0
         # self.bottom = top
         # self.right = left+33
@@ -93,7 +94,18 @@ class LayoutListbox(layout.Column):
         self.square_width_percent = 0
         #self.sections = []
         self.title_height = 2
-        self.template_func = template_func
+        self.template_func = item_template
+        self.item_template = None
+        if isinstance(self.template_func, str):
+            self.item_template = item_template
+            self.template_func = self.default_item_template
+
+        self.title_template_func = title_template
+        self.title_template = None
+        if isinstance(self.title_template_func, str):
+            self.title_template = title_template
+            self.title_template_func = self.default_title_template
+
         self.selected = set()
         self.last_tags = None
         self.horizontal = None
@@ -102,12 +114,30 @@ class LayoutListbox(layout.Column):
         if section_style is None:
             self.section_style = "padding: 2px,2px,2px,2px;"
 
+        self.title_section_style = title_section_style
+        if title_section_style is None:
+            self.title_section_style = "padding: 2px,2px,2px,2px;"
+
     def set_row_height(self, height):
         self.default_item_height = height
 
     def set_col_width(self, width):
         self.default_item_width = width
 
+    def default_item_template(self, item):
+        from ..procedural.gui import gui_row, gui_text
+        gui_row("row-height: 1.2em;padding:13px")
+        task = FrameContext.task
+        task.set_variable("LB_ITEM", item)
+        msg = task.compile_and_format_string(self.item_template)
+        gui_text(msg)
+
+    def default_title_template(self):
+        from ..procedural.gui import gui_row, gui_text
+        gui_row("row-height: 1.2em;padding:13px")
+        task = FrameContext.task
+        msg = task.compile_and_format_string(self.title_template)
+        gui_text(msg)
 
     def _present(self, event):
         """ present
@@ -119,7 +149,6 @@ class LayoutListbox(layout.Column):
         :param CID: Client ID
         :type CID: int
         """
-        from ..procedural.gui import gui_hide
         CID = event.client_id
         self.client_id = CID
 
@@ -167,20 +196,7 @@ class LayoutListbox(layout.Column):
                         right, self.bounds.bottom)
                 right -= 2
 
-        if self.title is not None:
-            title = self.title
-            if self.title_background is not None:
-                props = f"image:smallWhite; color:{self.title_background};" # sub_rect: 0,0,etc"
-                sbs.send_gui_image(CID, 
-                    f"{self.tag_prefix}tbg", props,
-                    self.bounds.left, self.bounds.top, right, top+self.title_height)
-            sbs.send_gui_text(
-                    CID, f"{self.tag_prefix}title", f"{title}",left, top, right, top+self.title_height)
-            top += self.title_height
 
-
-        # get_tag()
-        # add_content()
         slot = 0
         cur = self.cur
 
@@ -188,6 +204,27 @@ class LayoutListbox(layout.Column):
         sub_page = SubPage(self.tag_prefix, restore.gui_task, event.client_id)
         restore = FrameContext.page
         FrameContext.page = sub_page
+
+        this_right =   left+item_width
+        this_bottom =   top+item_height
+        if self.horizontal:
+            this_bottom = bottom
+        else:
+            this_right = right
+
+        if self.title_template_func is not None:
+            tag = f"{self.tag_prefix}"
+            sec = layout.Layout(tag+":title", None, left, top, this_right, this_bottom)
+            #self.title_section_style
+            sub_page.next_slot(-1, sec)
+            self.title_template_func()
+            #
+            # Set the task values
+            #
+            sec.calc(CID)
+            sec.present(event)
+            top += sec.bounds.height
+
 
         for slot in range(max_slots): 
             item = self.items[cur]
@@ -354,11 +391,11 @@ class LayoutListbox(layout.Column):
 
 
 def layout_list_box_control(items,
-                 template_func=None, title=None, 
-                 section_style=None,
+                 template_func=None, title_template=None, 
+                 section_style=None, title_section_style=None,
                  select=False, multi=False):
     # The gui_content sets the values
     return LayoutListbox(0, 0, "mast", items,
-                 template_func, title, 
-                 section_style,
+                 template_func, title_template, 
+                 section_style, title_section_style,
                  select,multi)
