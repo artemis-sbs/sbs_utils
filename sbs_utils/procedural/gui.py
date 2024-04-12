@@ -7,6 +7,7 @@ from ..mast.parsers import LayoutAreaParser, StyleDefinition
 from ..futures import Trigger, AwaitBlockPromise
 from ..gui import get_client_aspect_ratio
 from ..mast.pollresults import PollResults
+from ..widgets.layout_listbox import LayoutListbox
 import re
 import sbs
 
@@ -85,21 +86,10 @@ def apply_style_def(style_def, layout_item, task):
     if aspect_ratio.y == 0:
         aspect_ratio.y = 1
 
-    area = style_def.get("area")
-    if area is not None:
-        i = 1
-        values=[]
-        for ast in area:
-            if i >0:
-                ratio =  aspect_ratio.x
-            else:
-                ratio =  aspect_ratio.y
-            i=-i
-            if ratio == 0:
-                ratio = 1
-            values.append(LayoutAreaParser.compute(ast, task.get_symbols(),ratio))
-        layout_item.set_bounds(layout.Bounds(*values))
-
+    st = style_def.get("area")
+    if st is not None:
+        layout_item.bounds_style = st
+    
     height = style_def.get("row-height")
     if height is not None:
         layout_item.set_row_height(height)        
@@ -683,6 +673,36 @@ def gui_section(style=None):
     layout_item = page.get_pending_layout() 
     apply_control_styles(".section", style, layout_item, task)
     return layout_item
+
+
+def gui_list_box(items, style, 
+                 template_func=None, title=None, 
+                 section_style=None,
+                 select=False, multi=False):
+    
+    page = FrameContext.page
+    task = FrameContext.task
+    if page is None:
+        return None
+    tag = page.get_tag()
+    # The gui_content sets the values
+    layout_item = LayoutListbox(0, 0, tag, items,
+                 template_func, title, 
+                 section_style,
+                 select,multi)
+    # #layout_item.data = data
+    # if var is not None:
+    #     layout_item.var_name = var
+    #     layout_item.var_scope_id = task.get_id()
+    #     layout_item.update_variable()
+
+    apply_control_styles(".listbox", style, layout_item, task)
+    # Last in case tag changed in style
+    page.add_content(layout_item, None)
+    return layout_item
+
+    
+
 
 class PageSubSection:
     def __init__(self, style) -> None:

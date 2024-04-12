@@ -78,6 +78,7 @@ class Row:
         self.padding_style = None
         self.border_style = None
         self.margin_style = None
+        self.bounds_style = None
 
 
         # cascading props
@@ -213,6 +214,7 @@ class Column:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
         self.bounds = Bounds(left,top,right,bottom)
         self.restore_bounds = self.bounds
+        
 
         self.padding = None
         self.border = None
@@ -221,6 +223,7 @@ class Column:
         self.padding_style = None
         self.border_style = None
         self.margin_style = None
+        self.bounds_style = None
 
 
         self.background = None
@@ -274,6 +277,9 @@ class Column:
 
     def set_col_width(self, width):
         self.default_width = width
+
+    def set_padding(self, padding):
+        self._padding = padding
 
     def set_padding(self, padding):
         self._padding = padding
@@ -1006,7 +1012,7 @@ class Layout:
     clicked = {}
     
     def __init__(self, tag=None,  rows = None, 
-                left=0, top=0, right=100, bottom=100,
+                left=0, top=0, right=100, bottom=50,
                 left_pixels=False, top_pixels=False, right_pixels=False, bottom_pixels=False) -> None:
         self.rows = rows if rows else []
         self.set_bounds(Bounds(left,top,right,bottom))
@@ -1026,6 +1032,7 @@ class Layout:
         self.padding_style = None
         self.border_style = None
         self.margin_style = None
+        self.bounds_style = None
 
 
         self.background = None
@@ -1108,6 +1115,14 @@ class Layout:
         self.client_id = client_id
         
         sec_font_size = get_font_size(self.default_font)
+        if self.bounds_style is None:
+            bounds_area = Bounds(self.bounds)
+        elif self.bounds is not None and self.is_hidden:
+            bounds_area = Bounds(self.bounds)
+        else:
+            bounds_area = Bounds(calc_bounds(self.bounds_style, aspect_ratio, sec_font_size))
+            self.bounds = bounds_area
+
         
         # remove empty
         #self.rows = [x for x in self.rows if len(x.columns)>0]
@@ -1119,7 +1134,7 @@ class Layout:
             self.border = border
             self.padding = padding
 
-            bounds_area = Bounds(self.bounds)
+
             bounds_area.shrink(margin)
             bounds_area.shrink(border)
             bounds_area.shrink(padding)
@@ -1350,7 +1365,7 @@ class Layout:
             bounds.shrink(self.border)
 
             ctx = FrameContext.context
-            props = f"image:smallWhite; color:{self.background};" # sub_rect: 0,0,etc"
+            props = f"image:{self.background_image}; color:{self.background};" # sub_rect: 0,0,etc"
             ctx.sbs.send_gui_image(event.client_id, 
                     "__section-bg:"+self.tag, props,
                     bounds.left, bounds.top, bounds.right, bounds.bottom)
