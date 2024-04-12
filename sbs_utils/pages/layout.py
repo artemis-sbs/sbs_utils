@@ -62,6 +62,14 @@ class Bounds:
         self.right  += o.right
         self.bottom += o.bottom
 
+    def merge(self, b):
+        if b is None:
+            return
+        self.left = min(b.left, self.left)
+        self.top= min(b.top, self.top)
+        self.right= max(b.right, self.right)
+        self.bottom = max(b.bottom, self.bottom)
+
 
 class Row:
     def __init__(self, cols=None, width=0, height=0) -> None:
@@ -88,7 +96,7 @@ class Row:
         self.default_height = None
         self.default_width = None
 
-        self.background = None
+        self.background_color = None
         self.background_image = "smallWhite"
         self.border_image = "smallWhite"
         self.border_color = None
@@ -99,6 +107,12 @@ class Row:
         self.click_font  = None
         self.click_color  = None
         self.clicked = False
+
+
+    @property
+    def bounds(self):
+        return Bounds(self.left,self.top, self.left+self.width, self.top + self.height)
+
 
     @property
     def color(self):
@@ -150,6 +164,18 @@ class Row:
     def represent(self, event):
         self.present(event)
 
+    def get_tags(self):
+        tags = set()
+        if self.tag:
+            tags.add(self.tag)
+        if self.border_color:
+            tags.add("__bb:"+self.tag)
+        if self.background_color:
+            tags.add("__bg:"+self.tag)
+        if self.click_tag:
+            tags.add(self.click_tag)
+        return tags
+
     def present(self, event):
         col:Column
         ctx = FrameContext.context
@@ -166,16 +192,16 @@ class Row:
         if self.border is not None and self.border_color is not None:
             bb_props = f"image:{self.border_image}; color:{self.border_color};" # sub_rect: 0,0,etc"
             ctx.sbs.send_gui_image(event.client_id, 
-                "__row-bb:"+self.tag, bb_props,
+                "__bb:"+self.tag, bb_props,
                 self.left  + margin.left, 
                 self.top   + margin.top, 
                 self.left+self.width - margin.right, 
                 self.top+self.height - margin.bottom)
             
-        if self.background is not None:
-            props = f"image:{self.background_image}; color:{self.background};" # sub_rect: 0,0,etc"
+        if self.background_color is not None:
+            props = f"image:{self.background_image}; color:{self.background_color};" # sub_rect: 0,0,etc"
             ctx.sbs.send_gui_image(event.client_id, 
-                "__row-bg:"+self.tag, props,
+                "__bg:"+self.tag, props,
                 self.left  + margin.left    + border.left, 
                 self.top   + margin.top     + border.top, 
                 self.left+self.width - margin.right - border.right, 
@@ -194,7 +220,7 @@ class Row:
             if self.click_font is not None:
                 click_props += f"font: {self.click_font};"
             if self.click_tag is None:
-                self.click_tag = f"click:{self.tag}:{self.click_text}"
+                self.click_tag = f"__click:{self.tag}"
 
             #TODO: This looks wrong
             ctx.sbs.send_gui_clickregion(event.client_id, 
@@ -226,7 +252,7 @@ class Column:
         self.bounds_style = None
 
 
-        self.background = None
+        self.background_color = None
         self.background_image = "smallWhite"
         self.border_image = "smallWhite"
         self.border_color = None
@@ -284,6 +310,17 @@ class Column:
     def set_padding(self, padding):
         self._padding = padding
 
+    def get_tags(self):
+        tags = set()
+        if self.tag:
+            tags.add(self.tag)
+        if self.border_color:
+            tags.add("__bb:"+self.tag)
+        if self.background_color:
+            tags.add("__bg:"+self.tag)
+        if self.click_tag:
+            tags.add(self.click_tag)
+        return tags
 
     def get_color(self):
         if self.color is not None:
@@ -342,8 +379,8 @@ class Column:
         pass
 
     def _pre_present(self, event):
-        if self.background is not None:
-            props = f"image:{self.background_image}; color:{self.background};" # sub_rect: 0,0,etc"
+        if self.background_color is not None:
+            props = f"image:{self.background_image}; color:{self.background_color};" # sub_rect: 0,0,etc"
             ctx = FrameContext.context
             #
             # Bounds include padding, margin for column
@@ -373,7 +410,7 @@ class Column:
             if self.click_font:
                 click_props += f"font: {self.click_font};"
             if self.click_tag is None:
-                self.click_tag = f"click:{self.tag}:{self.click_text}"
+                self.click_tag = f"__click:{self.tag}"
 
             ctx = FrameContext.context
             #
@@ -1035,7 +1072,7 @@ class Layout:
         self.bounds_style = None
 
 
-        self.background = None
+        self.background_color = None
         self.background_image = "smallWhite"
         self.border_image = "smallWhite"
         self.border_color = None
@@ -1048,10 +1085,33 @@ class Layout:
         self.click_background = None
         self.client_id = None
 
+    def get_tags(self):
+        tags = set()
+        if self.tag:
+            tags.add(self.tag)
+        if self.border_color:
+            tags.add("__bb:"+self.tag)
+        if self.background_color:
+            tags.add("__bg:"+self.tag)
+        if self.click_tag:
+            tags.add(self.click_tag)
+        return tags
+
+
     def set_bounds(self, bounds):
         self.bounds = bounds
         if bounds.left != -1000:
             self.restore_bounds = self.bounds
+
+    def get_content_bounds(self):
+        b = Bounds(self.bounds)
+        for row in self.rows:
+            b.merge(row.bounds)
+        return b
+    
+    def resize_to_content(self):
+        self.bounds = self.get_content_bounds()
+
 
     @property
     def is_hidden(self):
@@ -1355,19 +1415,19 @@ class Layout:
             ctx = FrameContext.context
             props = f"image:{self.border_image}; color:{self.border_color};" # sub_rect: 0,0,etc"
             ctx.sbs.send_gui_image(event.client_id, 
-                    "__section-bb:"+self.tag, props,
+                    "__bb:"+self.tag, props,
                     bounds.left, bounds.top, bounds.right, bounds.bottom)
 
 
-        if self.background is not None:
+        if self.background_color is not None:
             bounds = Bounds(self.bounds)
             bounds.shrink(self.margin)
             bounds.shrink(self.border)
 
             ctx = FrameContext.context
-            props = f"image:{self.background_image}; color:{self.background};" # sub_rect: 0,0,etc"
+            props = f"image:{self.background_image}; color:{self.background_color};" # sub_rect: 0,0,etc"
             ctx.sbs.send_gui_image(event.client_id, 
-                    "__section-bg:"+self.tag, props,
+                    "__bg:"+self.tag, props,
                     bounds.left, bounds.top, bounds.right, bounds.bottom)
         row:Row
         for row in self.rows:
@@ -1384,7 +1444,7 @@ class Layout:
             if self.click_font is not None:
                 click_props += f"font: {self.click_font};"
             if self.click_tag is None:
-                self.click_tag = f"click:{self.tag}:{self.click_text}"
+                self.click_tag = f"__click:{self.tag}"
             if self.click_background is not None:
                 click_props += f"background_color:{self.click_background};"
             click_props += f"background_color: white;"

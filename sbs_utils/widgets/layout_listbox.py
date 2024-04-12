@@ -6,6 +6,7 @@ import os
 from .. import fs
 from ..helpers import FrameContext, FakeEvent
 from ..mast.parsers import LayoutAreaParser
+from ..procedural.style import apply_control_styles
 
 
 
@@ -177,6 +178,9 @@ class LayoutListbox(layout.Column):
 
         max_slots = int(max_slots)
         slot_count = len(self.items)-max_slots
+        if slot_count <0:
+            slot_count = 0
+
         top = self.bounds.top
         left = self.bounds.left
         right = self.bounds.right
@@ -201,20 +205,17 @@ class LayoutListbox(layout.Column):
         cur = self.cur
 
         restore = FrameContext.page
+        task = restore.gui_task
+
         sub_page = SubPage(self.tag_prefix, restore.gui_task, event.client_id)
         restore = FrameContext.page
         FrameContext.page = sub_page
 
-        this_right =   left+item_width
-        this_bottom =   top+item_height
-        if self.horizontal:
-            this_bottom = bottom
-        else:
-            this_right = right
 
         if self.title_template_func is not None:
             tag = f"{self.tag_prefix}"
-            sec = layout.Layout(tag+":title", None, left, top, this_right, this_bottom)
+            sec = layout.Layout(tag+":title", None, left, top, right, top+2)
+            apply_control_styles("", self.title_section_style, sec, task)
             #self.title_section_style
             sub_page.next_slot(-1, sec)
             self.title_template_func()
@@ -223,10 +224,15 @@ class LayoutListbox(layout.Column):
             #
             sec.calc(CID)
             sec.present(event)
+            sec.resize_to_content()
             top += sec.bounds.height
+            sub_page.tags |= sec.get_tags()
 
+        #draw_slots = slot_count 
+        for slot in range(max_slots):
+            if cur >= len(self.items):
+                break
 
-        for slot in range(max_slots): 
             item = self.items[cur]
             tag = f"{self.tag_prefix}:{slot}"
             this_right =   left+item_width
@@ -237,21 +243,18 @@ class LayoutListbox(layout.Column):
                 this_right = right
 
             sec = layout.Layout(tag+":sec", None, left, top, this_right, this_bottom)
-            #self.sections.append(sec)
-
-
-            #apply_control_styles(".section",  self.section_style, sec, restore.gui_task)
 
             if self.select or self.multi:
                 sec.click_text = "__________________"
                 sec.click_background = "white"
                 sec.click_color = "black"
                 if cur in self.selected:
-                    sec.background = self.select_color
+                    sec.background_color = self.select_color
                 else:
-                    sec.background = "#0000"
-                sec.click_tag = f"{tag}:click"
-
+                    sec.background_color = "#0000"
+                sec.click_tag = f"{tag}:__click"
+                
+                
             sub_page.next_slot(slot, sec)
             self.template_func(item)
             #
@@ -259,6 +262,8 @@ class LayoutListbox(layout.Column):
             #
             sec.calc(CID)
             sec.present(event)
+            sec.resize_to_content()
+            sub_page.tags |= sec.get_tags()
 
             cur += 1
             if self.horizontal:
@@ -266,8 +271,7 @@ class LayoutListbox(layout.Column):
             else:
                 top+= item_height
 
-            if cur >= len(self.items):
-                break
+            
         
         # sub_page.present(event)   
         FrameContext.page = restore
@@ -307,7 +311,7 @@ class LayoutListbox(layout.Column):
             return
         if sec[0] != self.tag_prefix:
             return
-        if sec[2] != "click":
+        if sec[2] != "__click":
             return
         print(sec[1])
         if not sec[1].isdigit():

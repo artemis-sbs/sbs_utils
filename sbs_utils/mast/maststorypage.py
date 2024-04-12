@@ -331,9 +331,9 @@ class StoryPage(Page):
             button.click_tag = self.get_tag()
 
             if tab == console:
-                button.background = "#fff9"
+                button.background_color = "#fff9"
             else:
-                button.background = "#fff3"
+                button.background_color = "#fff3"
             
             _row.add(button)
         #_layout.calc()
