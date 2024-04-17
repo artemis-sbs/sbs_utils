@@ -1528,7 +1528,7 @@ def gui_cinematic_full_control(client_id, camera_id, camera_offset, tracked_id, 
         _offset.y = tracked_offset.y
         _offset.z = tracked_offset.z
         tracked_offset = _offset
-    sbs.set_main_view_modes(client_id, "cinematic", "cinematic", "cinematic")
+    sbs.set_main_view_modes(client_id, "3dview", "front", "cinematic")
     sbs.cinematic_control(client_id, 1, camera_id, camera_offset, tracked_id, tracked_offset)
 
 
