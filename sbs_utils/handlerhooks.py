@@ -10,6 +10,7 @@ import sbs
 import traceback
 from . import faces
 from .fs import get_mission_name, get_startup_mission_name
+from .vec import Vec3
 
 from .agent import Agent
 from .helpers import FrameContext, Context, format_exception
@@ -125,10 +126,13 @@ def cosmos_event_handler(sim, event):
 
             case "screen_size":
                 # print(f"{event.client_id}")
-                # #print(f"Point {event.source_point.x}  {event.source_point.y} {event.source_point.z}")
+                print(f"Point {event.source_point.x}  {event.source_point.y} {event.source_point.z}")
                 # gui = Gui.clients.get(event.client_id)
                 # if gui is not None:
                 #     gui.present(Context(sim, sbs, None), event)
+                ar = Vec3(event.source_point.x, event.source_point.y,event.source_point.z)
+
+                FrameContext.aspect_ratios[event.client_id] = ar
                 Gui.on_event(event)
             case "client_change":
                 if event.sub_tag == "change_console":
@@ -140,7 +144,11 @@ def cosmos_event_handler(sim, event):
             case "mission_tick":
                 # Run Guis, tick task
                 Gui.present(event)
+                #
                 # set the simulation state variable
+                #
+                # either sim_paused, or sim_running
+                #
                 Agent.SHARED.set_inventory_value("SIM_STATE", event.sub_tag)
                 #Agent.SHARED.set_inventory_value("SIM_STATE", "sim_running")
                 # Give a few ticks

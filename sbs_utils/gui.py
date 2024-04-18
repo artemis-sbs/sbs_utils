@@ -200,24 +200,19 @@ class GuiClient(Agent):
         :type event: event
         
         """
-        if event.client_id ==self.client_id and event.tag == "screen_size":
-            sz = event.source_point
-            if sz is not None and sz.y != 0:
-                aspect_ratio = sz
-                if (self.aspect_ratio.x != aspect_ratio.x or 
-                    self.aspect_ratio.y != aspect_ratio.y):
-                    # Aspect change
-                    #print(f"page told {aspect_ratio.x} {aspect_ratio.y} ")
-                    # for page in self.page_stack:
-                    #     page.aspect_ratio.x = sz.x
-                    #     page.aspect_ratio.y = sz.y
-                    crap = 0
-                    if self.client_id ==0:
-                        crap = 300
+        # if event.client_id ==self.client_id and event.tag == "screen_size":
+        #     sz = event.source_point
+        #     if sz is not None and sz.y != 0:
+        #         aspect_ratio = sz
+        #         if (self.aspect_ratio.x != aspect_ratio.x or 
+        #             self.aspect_ratio.y != aspect_ratio.y):
+        #             crap = 0
+        #             if self.client_id ==0:
+        #                 crap = 300
 
-                    self.aspect_ratio.x = sz.x - crap
-                    self.aspect_ratio.y = sz.y
-                #print(f"client told {aspect_ratio.x} {aspect_ratio.y} ")
+        #             self.aspect_ratio.x = sz.x - crap
+        #             self.aspect_ratio.y = sz.y
+        #         #print(f"client told {aspect_ratio.x} {aspect_ratio.y} ")
         
 
         if len(self.page_stack) > 0:
@@ -340,6 +335,7 @@ class Gui:
                 gui.on_event(event)
                 gui.destroyed()
                 Gui.clients.pop(cid)
+                FrameContext.aspect_ratios.pop(cid)
                 
 
         # Anything left is a client not connected to the script
@@ -394,6 +390,8 @@ class Gui:
         gui = Gui.clients.get(event.client_id)
         if gui is not None:
             gui.on_message(event)
+        Gui.present_dirty()
+        
 
     @staticmethod
     def on_event(event):
@@ -427,8 +425,26 @@ class Gui:
 
             
 def get_client_aspect_ratio(cid):
-    gui_client = Agent.get(cid)
-    if gui_client is not None:
+    ar = FrameContext.aspect_ratios.get(cid)
+    if ar is not None:
+        ar = Vec3(ar)
+        if cid == 0 and Agent.SHARED.get_inventory_value("SIM_STATE",None) == "sim_paused":
+            ar.x -= 300
+            print("AR CALC Paused (gui.py)")
         # print("Found client gui")
-        return gui_client.aspect_ratio
-    return Vec3(1024,768,99) # 99 Means the client hasn't set the aspect ratio
+        return ar
+    v = get_server_win()
+    FrameContext.aspect_ratios[cid] = v
+    return v # Vec3(1020,768,99) # 99 Means the client hasn't set the aspect ratio
+
+import ctypes
+#import os
+from ctypes.wintypes import HWND, DWORD, RECT
+
+def get_server_win():
+    hwnd = ctypes.windll.user32.GetForegroundWindow()
+    rect = ctypes.wintypes.RECT()
+    ctypes.windll.user32.GetWindowRect(hwnd, ctypes.pointer(rect))
+    # print(hwnd)
+    # print(rect)
+    return Vec3(rect.right-rect.left, rect.bottom-rect.top, 88)

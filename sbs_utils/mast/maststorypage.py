@@ -1,6 +1,6 @@
 
 import sbs
-from ..gui import Gui, Page, get_client_aspect_ratio
+from ..gui import Gui, Page
 from ..helpers import FakeEvent, FrameContext
 from ..procedural.inventory import get_inventory_value, set_inventory_value, has_inventory_value
 from ..procedural.links import linked_to
@@ -146,6 +146,7 @@ class StoryPage(Page):
             self.pending_widgets = ""
         
         self.gui_state = 'repaint'
+        Gui.dirty(self.client_id)
 
 
     def get_tag(self):

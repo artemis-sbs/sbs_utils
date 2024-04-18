@@ -20,6 +20,7 @@ class FrameContextMeta(type):
     _page = None
     _task = None
     shared_id = -1
+    aspect_ratios = {}
 
     @property
     def page(self):

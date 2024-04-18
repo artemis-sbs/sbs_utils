@@ -24,12 +24,24 @@ class Bounds:
             self.top=top
             self.right=right
             self.bottom=bottom
+
+    def __str__(self) -> str:
+        return f"l: {self.left} r: {self.right} t: {self.top} b: {self.bottom}"
     @property
     def height(self):
         return self.bottom-self.top
+    
+    @height.setter
+    def height(self, h):
+        self.bottom = self.top+h
+
     @property
     def width(self):
         return self.right-self.left
+    @width.setter
+    def width(self, w):
+        self.right = self.left + w
+
     def __repr__(self) -> str:
         return f"{self.left}, {self.top}, {self.right}, {self.bottom}"
 
@@ -1005,16 +1017,16 @@ def cascade_attribute(name, col, row, sec):
     return att
 
 
-def calc_bounds_attribute(name, col, row, sec, aspect_ratio, font_size):
-    att = None
-    if col is not None and hasattr(col, name) is not None:
-        att = getattr(col, name, None)
-    elif row is not None and hasattr(row, name) is not None:
-        att = getattr(row, name, None)
-    elif sec is not None and hasattr(sec, name) is not None:
-        att = getattr(sec, name, None)
+# def calc_bounds_attribute(name, col, row, sec, aspect_ratio, font_size):
+#     att = None
+#     if col is not None and hasattr(col, name) is not None:
+#         att = getattr(col, name, None)
+#     elif row is not None and hasattr(row, name) is not None:
+#         att = getattr(row, name, None)
+#     elif sec is not None and hasattr(sec, name) is not None:
+#         att = getattr(sec, name, None)
 
-    return calc_bounds(att, aspect_ratio, font_size)
+#     return calc_bounds(att, aspect_ratio, font_size)
 
 def calc_bounds(att, aspect_ratio, font_size):
     if att is not None:
@@ -1172,6 +1184,7 @@ class Layout:
 
     def calc(self, client_id):
         aspect_ratio = get_client_aspect_ratio(client_id)
+        print(f"Calc AR: {aspect_ratio.x},{aspect_ratio.y}")
         self.client_id = client_id
         
         sec_font_size = get_font_size(self.default_font)
@@ -1181,23 +1194,19 @@ class Layout:
             bounds_area = Bounds(self.bounds)
         else:
             bounds_area = Bounds(calc_bounds(self.bounds_style, aspect_ratio, sec_font_size))
-            self.bounds = bounds_area
+            self.bounds = Bounds(bounds_area)
 
         
         # remove empty
         #self.rows = [x for x in self.rows if len(x.columns)>0]
         if len(self.rows):
-            margin = Bounds(calc_bounds(self.margin_style, aspect_ratio, sec_font_size))
-            padding =Bounds(calc_bounds(self.padding_style, aspect_ratio, sec_font_size))
-            border =Bounds(calc_bounds(self.border_style, aspect_ratio, sec_font_size))
-            self.margin = margin
-            self.border = border
-            self.padding = padding
+            self.margin = Bounds(calc_bounds(self.margin_style, aspect_ratio, sec_font_size))
+            self.padding =Bounds(calc_bounds(self.padding_style, aspect_ratio, sec_font_size))
+            self.border =Bounds(calc_bounds(self.border_style, aspect_ratio, sec_font_size))
 
-
-            bounds_area.shrink(margin)
-            bounds_area.shrink(border)
-            bounds_area.shrink(padding)
+            bounds_area.shrink(self.margin)
+            bounds_area.shrink(self.border)
+            bounds_area.shrink(self.padding)
             
             if self.default_height is not None:
                 layout_row_height = calc_float_attribute("default_height", None, None, self, aspect_ratio.y, 20)
@@ -1219,11 +1228,14 @@ class Layout:
                     layout_row_height /= flex_rows
             
             row : Row
-            left = bounds_area.left
-            top = bounds_area.top
+            row_top = bounds_area.top
+            #print(f"SEC Bounds {bounds_area}")
 
-
-            for row in self.rows:                    
+            
+            for row in self.rows:
+                row_bounds_area = Bounds(bounds_area)
+                row_bounds_area.top = row_top
+                
                 # Cascading padding
                 row_font = row.default_font
                 if row_font is None:
@@ -1234,25 +1246,24 @@ class Layout:
                 row.padding =Bounds(calc_bounds(row.padding_style, aspect_ratio, row_font_height))
                 row.border =Bounds(calc_bounds(row.border_style, aspect_ratio, row_font_height))
 
-                if row.margin:
-                    margin += row.margin
-
-                if row.border:
-                    border += row.border
-
-                if row.padding:
-                    padding += row.padding
-
+                # This is for drawing background and border?
                 if row.default_height is not None:
                     row_height = calc_float_attribute("default_height", None, row, None,  aspect_ratio.y, row_font_height)
                     #print(f"RRR {row_height} {row_font_height}")
                 else:
                     row_height = layout_row_height
 
-                row.height = row_height
-                row.left = left
-                row.top = top
-                row.width = bounds_area.width
+                #print(f"RRR {row_height}")
+                row_bounds_area.height = row_height
+                row.left = row_bounds_area.left
+                row.width = row_bounds_area.width
+                row.top = row_bounds_area.top
+                row.height = row_bounds_area.height
+
+                row_bounds_area.shrink(row.margin)
+                row_bounds_area.shrink(row.padding)
+                row_bounds_area.shrink(row.border)
+
                 squares = 0
 
                 col: Column
@@ -1280,10 +1291,10 @@ class Layout:
 
                 if len(actual_cols)==0:
                     continue
-
+                
                 # get the width and the height of a cell in pixels
-                actual_width = row.width/len(actual_cols) * aspect_ratio.x / 100
-                actual_height =  row.height * aspect_ratio.y /100
+                actual_width = row_bounds_area.width/len(actual_cols) * aspect_ratio.x / 100
+                actual_height =  row_bounds_area.height * aspect_ratio.y /100
 
                 # get the low of these two as a percentage of the window width
                 if actual_height < actual_width:
@@ -1295,15 +1306,17 @@ class Layout:
 
                 if len(actual_cols) != squares:
                     need_assigned = max(len(actual_cols)-squares-assigned_cols,1)
-                    rect_col_width = (row.width-assigned_space-(squares*square_width))/need_assigned
+                    rect_col_width = (row_bounds_area.width-assigned_space-(squares*square_width))/need_assigned
                     if square_width> rect_col_width:
                         square_width= rect_col_width
-                        rect_col_width = (row.width-(squares*square_width))/need_assigned
+                        rect_col_width = (row_bounds_area.width-(squares*square_width))/need_assigned
                 else:
                     rect_col_width = square_width
 
+                #print(f"   ROW Bounds {row_bounds_area} RCW {rect_col_width}")
+
                 # bit of a hack to make sure face aren't the biggest things
-                col_left = left
+                col_left = row_bounds_area.left
                 hole_size = 0
                 for col in actual_cols:
                     col_font = row_font
@@ -1316,19 +1329,9 @@ class Layout:
                     col.padding =Bounds(calc_bounds(col.padding_style, aspect_ratio, col_font_size))
                     col.border =Bounds(calc_bounds(col.border_style, aspect_ratio, col_font_size))
 
-                    if col.margin is not None:
-                        margin += col.margin
-
-                    if col.border is not None:
-                        border += col.border
-
-                    if col.padding is not None:
-                        padding += col.padding
-
-                    bounds = Bounds(col_left,0,0,0)
-                    bounds.top = top
-                    bounds.bottom = top+row_height
-
+                    col_bounds_area = Bounds(row_bounds_area)
+                    col_bounds_area.left = col_left
+                    
                     assigned_space = rect_col_width
                     default_width = calc_float_attribute("default_width", col, row, self, aspect_ratio.x, col_font_size)
                     if default_width is not None:
@@ -1336,9 +1339,8 @@ class Layout:
 
 
                     if col.square:
-                        bounds.right = bounds.left + square_width
-                        #print(f"SW {square_width} SH {square_height}")
-                        bounds.bottom = top+square_height
+                        col_bounds_area.width = square_width
+                        col_bounds_area.height = square_height
                         # Square ignores holes?
                         hole_size = 0
                     elif col.__class__ == Hole:
@@ -1346,14 +1348,15 @@ class Layout:
                         continue
                     
                     else:
-                        bounds.right = bounds.left+assigned_space + hole_size
+                        col_bounds_area.width =  assigned_space + hole_size
                         hole_size = 0
-                    col_left = bounds.right
 
-                    # Add margin and padding 
-                    bounds.shrink(margin)
-                    bounds.shrink(border)
-                    bounds.shrink(padding)
+
+                    col_bounds_area.shrink(col.margin)
+                    col_bounds_area.shrink(col.border)
+                    col_bounds_area.shrink(col.padding)
+
+                    col_left = col_bounds_area.right
 
                     ##############
                     ### Cascade other attributes
@@ -1375,40 +1378,18 @@ class Layout:
 
                     
                     ##################
-                    col.set_bounds(bounds)
+                    #print(f"       COL Bounds {col_bounds_area}")
+                    col.set_bounds(col_bounds_area)
                     col.calc(client_id)
 
-                    # remove column padding
-                    if col.padding is not None:
-                        padding -= col.padding
-
-                    if col.border is not None:
-                        border -= col.border
-
-                    if col.margin is not None:
-                        margin -= col.margin
-
-                top += row_height
-                # remove the row's padding
-                if row.padding:
-                    padding -= row.padding
-                    
-                if row.border:
-                    border -= row.border
-
-                if row.margin:
-                    margin -= row.margin
-                    
-                #print(f"calc w: {bounds.right-bounds.left}")
+         
+                row_top += row_height
+         
 
 
     def present(self, event):
-
-        
-        
         # Sections are different their bounds are the whole container
-
-        if self.border is not None and self.border_color is not None:
+        if self.border_color is not None:
             bounds = Bounds(self.bounds)
             bounds.shrink(self.margin)
 

@@ -1522,12 +1522,17 @@ def gui_cinematic_full_control(client_id, camera_id, camera_offset, tracked_id, 
         _camera_offset.y = camera_offset.y
         _camera_offset.z = camera_offset.z
         camera_offset = _camera_offset
+    #else:
+    #     camera_offset = sbs.vec3()
     if tracked_offset is not None:
         _offset = sbs.vec3()
         _offset.x = tracked_offset.x
         _offset.y = tracked_offset.y
         _offset.z = tracked_offset.z
         tracked_offset = _offset
+    # else:
+    #     tracked_offset = sbs.vec3()
+
     sbs.set_main_view_modes(client_id, "3dview", "front", "cinematic")
     sbs.cinematic_control(client_id, 1, camera_id, camera_offset, tracked_id, tracked_offset)
 
