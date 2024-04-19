@@ -1184,7 +1184,7 @@ class Layout:
 
     def calc(self, client_id):
         aspect_ratio = get_client_aspect_ratio(client_id)
-        print(f"Calc AR: {aspect_ratio.x},{aspect_ratio.y}")
+        # print(f"Calc AR: {aspect_ratio.x},{aspect_ratio.y}")
         self.client_id = client_id
         
         sec_font_size = get_font_size(self.default_font)

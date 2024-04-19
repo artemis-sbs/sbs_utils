@@ -20,6 +20,7 @@ class SubPage:
         self.tag = 0
         self.active_layout = None
         self.layouts=[]
+        self.sub_sections=[]
         self.slot = 0
         self.pending_row = None
         # Incase it is needed by the layout elements
@@ -56,6 +57,24 @@ class SubPage:
 
     def get_pending_row(self):
         return self.pending_row
+    
+    def push_sub_section(self, style):
+        sub_section_data = (self.active_layout, self.pending_row)
+        tag = self.get_tag()
+        layout_item = layout.Layout(tag, None, 0,0, 100, 90)
+        apply_control_styles(".section", style, layout_item, self.gui_task)
+        self.sub_sections.append(sub_section_data)
+
+        self.active_layout =  layout_item
+        self.pending_row = None
+        #self.add_row()
+
+    def pop_sub_section(self):
+        (sec,p_row) = self.sub_sections.pop()
+        p_row.add(self.active_layout)
+        self.active_layout = sec
+        self.pending_row = p_row
+
     
     def present(self, event):
         for sec in self.layouts:

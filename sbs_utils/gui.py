@@ -428,12 +428,17 @@ def get_client_aspect_ratio(cid):
     ar = FrameContext.aspect_ratios.get(cid)
     if ar is not None:
         ar = Vec3(ar)
+        if ar.x == 0 or ar.y == 0:
+            ar = Vec3(1020,768,99)
+            
         if cid == 0 and Agent.SHARED.get_inventory_value("SIM_STATE",None) == "sim_paused":
             ar.x -= 300
-            print("AR CALC Paused (gui.py)")
+            #print("AR CALC Paused (gui.py)")
         # print("Found client gui")
         return ar
     v = get_server_win()
+    if v.x == 0 or v.y==0:
+        v = Vec3(1020,768,99)
     FrameContext.aspect_ratios[cid] = v
     return v # Vec3(1020,768,99) # 99 Means the client hasn't set the aspect ratio
 

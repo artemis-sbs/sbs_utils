@@ -150,13 +150,17 @@ class Listbox(Widget):
             self.slots.append(cur)
             if self.icon is not None:
                 icons_to_display = self.icon(item)
-                icons_to_display = icons_to_display
+                #
+                # Can be single or array
+                if isinstance(icons_to_display, str):
+                    icons_to_display = [icons_to_display]
                 i=0
                 #print(f"Icon count {icons_to_display}")
 
                 for icon_item in icons_to_display:
                     tag = f"{self.tag_prefix}icon:{slot}:{i}"
                     tags.add(tag)
+                    print (f"ICON PROPS: {icon_item}")
                     sbs.send_gui_icon(CID, tag, icon_item,
                         left, top,
                         left+square_width_percent, top+square_height_percent )
