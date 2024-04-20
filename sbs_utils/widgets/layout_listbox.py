@@ -58,20 +58,26 @@ class SubPage:
     def get_pending_row(self):
         return self.pending_row
     
-    def push_sub_section(self, style):
+    def push_sub_section(self, style, layout_item):
         sub_section_data = (self.active_layout, self.pending_row)
-        tag = self.get_tag()
-        layout_item = layout.Layout(tag, None, 0,0, 100, 90)
-        apply_control_styles(".section", style, layout_item, self.gui_task)
+
+        if layout_item is None:
+            tag = self.get_tag()
+            layout_item = layout.Layout(tag, None, 0,0, 100, 90)
+            apply_control_styles(".section", style, layout_item, self.gui_task)
+
         self.sub_sections.append(sub_section_data)
 
         self.active_layout =  layout_item
-        self.pending_row = None
-        #self.add_row()
 
-    def pop_sub_section(self):
+        self.pending_row = None
+        if len(layout_item.rows) >0:
+            self.pending_row = layout_item.rows.pop()
+
+    def pop_sub_section(self, add):
         (sec,p_row) = self.sub_sections.pop()
-        p_row.add(self.active_layout)
+        if add:
+            p_row.add(self.active_layout)
         self.active_layout = sec
         self.pending_row = p_row
 
@@ -105,7 +111,7 @@ class LayoutListbox(layout.Column):
         self.items = items
         self.select_color = "#bbb3"
         self.click_color = "black"
-        self.background= None
+        
         self.title_background=None
         self.default_item_width = None
         self.default_item_height = None
@@ -137,6 +143,10 @@ class LayoutListbox(layout.Column):
         self.title_section_style = title_section_style
         if title_section_style is None:
             self.title_section_style = "padding: 2px,2px,2px,2px;"
+
+        tokens = LayoutAreaParser.lex("1em")
+        self.slider_style =  LayoutAreaParser.parse_e2(tokens)
+        
 
     def set_row_height(self, height):
         self.default_item_height = height
@@ -208,16 +218,18 @@ class LayoutListbox(layout.Column):
 
         if slot_count > 0:
             self.slot_count = slot_count
+            em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
             if self.horizontal:
                 sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", int(self.cur), f"low:0.0; high: {(slot_count+0.5)}; show_number:no",
-                        left, bottom-2,
+                        left, bottom-em2,
                         self.bounds.right, bottom)
-                bottom-=2
+                bottom-=em2
             else:
+                em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.x, 20)
                 sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", int(slot_count-self.cur +0.5), f"low:0.0; high: {(slot_count+0.5)}; show_number:no",
-                        (right-2), top,
+                        (right-em2), top,
                         right, self.bounds.bottom)
-                right -= 2
+                right -= em2
 
 
         slot = 0
@@ -332,7 +344,7 @@ class LayoutListbox(layout.Column):
             return
         if sec[2] != "__click":
             return
-        print(sec[1])
+        #print(sec[1])
         if not sec[1].isdigit():
             return
         slot = int(sec[1])+self.cur
@@ -349,14 +361,31 @@ class LayoutListbox(layout.Column):
         self.present(event)
 
         
-            
-
-        
     def get_selected(self):
         ret = []
         for item in self.selected:
             ret.append(self.items[item])
-        return ret
+        if self.multi:
+            return ret
+        if len(ret)==1:
+            return ret[0]
+        return None
+        
+
+    def get_selected_index(self):
+        ret = list(self.selected)
+        if self.multi:
+            return ret
+        if len(ret)==1:
+            return ret[0]
+        return None
+    
+    def set_selected_index(self, v):
+        self.selected = set()
+        if v is not None:
+            self.selected.add(v)
+        e = FakeEvent(FrameContext.client_id)
+        self.present(e)
     
     def select_all(self):
         if self.multi:
@@ -378,6 +407,14 @@ class LayoutListbox(layout.Column):
     def convert_value(self, item):
         return item
     
+    @property
+    def value(self):
+        return self.get_value()
+    
+    @value.setter
+    def value(self, v):
+        self.set_value(v)
+
     def get_value(self):
         ret = []
         if self.convert_value:

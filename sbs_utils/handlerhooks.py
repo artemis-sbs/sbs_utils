@@ -126,7 +126,7 @@ def cosmos_event_handler(sim, event):
 
             case "screen_size":
                 # print(f"{event.client_id}")
-                print(f"Point {event.source_point.x}  {event.source_point.y} {event.source_point.z}")
+                #print(f"Point {event.source_point.x}  {event.source_point.y} {event.source_point.z}")
                 # gui = Gui.clients.get(event.client_id)
                 # if gui is not None:
                 #     gui.present(Context(sim, sbs, None), event)

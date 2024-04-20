@@ -11,6 +11,9 @@ from ..mast.pollresults import PollResults
 from ..widgets.layout_listbox import LayoutListbox
 import re
 import sbs
+from . import screen_shot 
+
+gui_screenshot = screen_shot.gui_screenshot
 
 def gui_add_console_tab(id_or_obj, console, tab_name, label):
     """adds a tab definition 
@@ -576,21 +579,23 @@ def gui_list_box(items, style,
 class PageSubSection:
     def __init__(self, style) -> None:
         page = FrameContext.page
+        self.sub_section = None
         if page is None:
             return None
         self.page = page
         self.style = style
+        self.add = True
 
     def __enter__(self):
-        self.page.push_sub_section(self.style)
-        # return layout_item
+        # Allow reentering
+        self.sub_section = self.page.push_sub_section(self.style, self.sub_section)
+        
 
     # Pythons expects 4 args, mast only 1
     # Python's are exception related
     def __exit__(self, ex=None, value=None, tb=None):
-        self.page.pop_sub_section()
-        
-
+        self.page.pop_sub_section(self.add)
+        self.add = False
 
 
 def gui_sub_section(style=None):

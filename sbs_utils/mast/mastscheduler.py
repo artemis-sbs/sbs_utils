@@ -55,6 +55,7 @@ class ChangeRuntimeNode(MastRuntimeNode):
         self.task = task
         self.node = node
         self.value = task.eval_code(node.value) 
+        self.node_label = task.active_label
 
     def test(self):
         prev = self.value
@@ -64,7 +65,7 @@ class ChangeRuntimeNode(MastRuntimeNode):
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: Change):
         if node.await_node and node.await_node.dedent_loc:
-            task.jump(task.active_label,node.await_node.dedent_loc)
+            task.jump(self.node_label,node.await_node.dedent_loc)
             return PollResults.OK_JUMP
         return PollResults.OK_RUN_AGAIN
 
@@ -320,7 +321,7 @@ class WithEndRuntimeNode(MastRuntimeNode):
             return PollResults.OK_ADVANCE_TRUE
         value.__exit__()
         # In case then WithEnd runs again?
-        task.set_variable(node.start.with_name, None)
+        #task.set_variable(node.start.with_name, None)
         return PollResults.OK_ADVANCE_TRUE
 
 
@@ -447,18 +448,22 @@ class AwaitRuntimeNode(MastRuntimeNode):
 
 
 class AwaitInlineLabelRuntimeNode(MastRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: OnChange):
+        self.node_label = self.task.active_label
     def poll(self, mast:Mast, task:MastAsyncTask, node: AwaitInlineLabel):
         if node.await_node:
-            task.jump(task.active_label, node.await_node.end_await_node.dedent_loc)
+            task.jump(self.node_label, node.await_node.end_await_node.dedent_loc)
             #task.jump(task.active_label,node.await_node.loc)
             return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
 
 class ButtonRuntimeNode(MastRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: OnChange):
+        self.node_label = task.active_label
     def poll(self, mast:Mast, task:MastAsyncTask, node: Button):
         if node.await_node:
-            task.jump(task.active_label, node.await_node.end_await_node.dedent_loc)
+            task.jump(self.node_label, node.await_node.end_await_node.dedent_loc)
             return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
@@ -466,6 +471,7 @@ class OnChangeRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: OnChange):
         self.task = task
         self.node = node
+        self.node_label = self.task.active_label
         if not node.is_end:
             self.value = task.eval_code(node.value)
             # Triggers handle things themselves
@@ -488,7 +494,7 @@ class OnChangeRuntimeNode(MastRuntimeNode):
         return prev!=self.value
     
     def run(self):
-        self.task.push_inline_block(self.task.active_label, self.node.loc+1)
+        self.task.push_inline_block(self.node_label, self.node.loc+1)
         self.task.tick_in_context()
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: OnChange):
@@ -496,7 +502,7 @@ class OnChangeRuntimeNode(MastRuntimeNode):
             self.task.pop_label(False)
             return PollResults.OK_JUMP
         if node.end_node:
-            self.task.jump(self.task.active_label, node.dedent_loc+1)
+            self.task.jump(self.node_label, node.dedent_loc+1)
             return PollResults.OK_JUMP
 
 

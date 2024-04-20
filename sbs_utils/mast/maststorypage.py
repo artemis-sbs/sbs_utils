@@ -171,23 +171,51 @@ class StoryPage(Page):
         if hasattr(layout_item, 'tag'):
             self.pending_tag_map[layout_item.tag] = (layout_item, runtime_node)
 
-    def push_sub_section(self, style):
-        self.add_section()
-        layout_item = self.get_pending_layout() 
-        apply_control_styles(".section", style, layout_item, self.gui_task)
-
-        # self.pending_row = layout.Row()
-        # Rows have tags for background and/or clickable
-        #self.pending_row.tag = self.get_tag()
+    def push_sub_section(self, style, layout_item):
+        #
+        # If there is even an empty row, we need to cache it away for later
+        #
+        if self.pending_row:
+            if len(self.pending_layouts) != 0:
+                self.pending_layouts[-1].add(self.pending_row)
+            else:
+                print("Lost main layout?")
+            self.pending_row = None
         
-        # The new pending is the sub section
-        # Inserting it in the prior section is handled it in the pop
+        if layout_item is None:
+            self.add_section()
+            layout_item = self.get_pending_layout() 
+            apply_control_styles(".section", style, layout_item, self.gui_task)
+            self.add_row()
+        else:
+            self.pending_layouts.append(layout_item)
+            rows = layout_item.rows
+            if len(rows)>0:
+                p_row = rows.pop()
+                self.pending_row = p_row
 
-    def pop_sub_section(self):
-        self.add_row()
+        return layout_item
+        
+
+    def pop_sub_section(self, add_content):
+        # Finish the layout for the sub section
+        if self.pending_row:
+            if len(self.pending_row.columns):
+                self.pending_layouts[-1].add(self.pending_row)
+
         sub = self.pending_layouts.pop()
-        self.pending_row = self.pending_layouts[-1].rows.pop()
-        self.pending_row.add(sub)
+        p_row = None
+        if len(self.pending_layouts)>0:
+            rows = self.pending_layouts[-1].rows
+            if len(rows)>0:
+                p_row = rows.pop()
+                if add_content:
+                    p_row.add(sub)
+                self.pending_row = p_row
+                return
+        # If get here started pretty much empty
+        if add_content:
+            self.add_content(sub, None)
 
 
     def add_content(self, layout_item, runtime_node):

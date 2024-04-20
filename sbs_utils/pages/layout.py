@@ -391,28 +391,28 @@ class Column:
         pass
 
     def _pre_present(self, event):
+        ctx = FrameContext.context
+        if self.border is not None and self.border_color is not None:
+            bb = Bounds(self.bounds)
+            bb.grow(self.padding)
+            bb.grow(self.border)
+            bb_props = f"image:{self.border_image}; color:{self.border_color};" # sub_rect: 0,0,etc"
+            ctx.sbs.send_gui_image(event.client_id, 
+                "__bb:"+self.tag, bb_props,
+                bb.left, bb.top, bb.right, bb.bottom)
+            
         if self.background_color is not None:
             props = f"image:{self.background_image}; color:{self.background_color};" # sub_rect: 0,0,etc"
-            ctx = FrameContext.context
+            
             #
             # Bounds include padding, margin for column
             # Layout Calc fills this in
             #
-            bounds = Bounds(self.bounds)
-            if self.padding is not None:
-                bounds.grow(self.padding)
-
-            if self.border is not None and self.border_color is not None:
-                bb = Bounds(bounds)
-                bb.grow(self.border)
-                bb_props = f"image:{self.border_image}; color:{self.border_color};" # sub_rect: 0,0,etc"
-                ctx.sbs.send_gui_image(event.client_id, 
-                    "__bb:"+self.tag, bb_props,
-                    bb.left, bb.top, bb.right, bb.bottom)
-            
+            bg = Bounds(self.bounds)
+            bg.grow(self.padding)
             ctx.sbs.send_gui_image(event.client_id, 
-                    "__bg:"+self.tag, props,
-                    bounds.left, bounds.top, bounds.right, bounds.bottom)
+                "__bg:"+self.tag, props,
+                bg.left, bg.top, bg.right, bg.bottom)
 
     def _post_present(self, event):
         if self.click_text is not None:

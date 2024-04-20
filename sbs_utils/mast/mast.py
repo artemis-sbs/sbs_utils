@@ -189,11 +189,12 @@ class WithStart(MastNode):
             obj= data.get("obj")
             if obj is None:
                 return None
-            obj = obj.lstrip()
+            obj = obj.strip()
 
             if not obj.endswith(":"):
                 return None
             obj = obj[:-1]
+            obj = obj.strip()
             
             has_as = obj.rsplit(" as ")
             if len(has_as)==2:
@@ -201,6 +202,8 @@ class WithStart(MastNode):
                 data["obj"] = has_as[0]
             elif len(has_as)!=1:
                 return None
+            else:
+                data["obj"] = obj
 
             return ParseData(span[0], span[1], data)
         else:
