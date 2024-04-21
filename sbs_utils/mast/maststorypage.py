@@ -24,6 +24,8 @@ class TabControl(layout.Text):
         if event.sub_tag == self.click_tag:
             if self.label is not None:
                 self.page.gui_task.jump(self.label)
+                self.page.gui_task.tick_in_context()
+
 
 
 
@@ -569,6 +571,7 @@ class StoryPage(Page):
             if event.sub_tag == "change_console":
                     if self.change_console_label:
                         self.gui_task.jump(self.change_console_label)
+                        self.gui_task.tick_in_context()
                         self.present(event)
         elif event.tag == "main_screen_change":
             if self.main_screen_change_label:

@@ -448,7 +448,7 @@ class AwaitRuntimeNode(MastRuntimeNode):
 
 
 class AwaitInlineLabelRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: OnChange):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: AwaitInlineLabel):
         self.node_label = self.task.active_label
     def poll(self, mast:Mast, task:MastAsyncTask, node: AwaitInlineLabel):
         if node.await_node:
@@ -459,7 +459,7 @@ class AwaitInlineLabelRuntimeNode(MastRuntimeNode):
 
 
 class ButtonRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: OnChange):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: Button):
         self.node_label = task.active_label
     def poll(self, mast:Mast, task:MastAsyncTask, node: Button):
         if node.await_node:
@@ -471,6 +471,7 @@ class OnChangeRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: OnChange):
         self.task = task
         self.node = node
+        self.is_running = False
         self.node_label = self.task.active_label
         if not node.is_end:
             self.value = task.eval_code(node.value)
@@ -490,20 +491,28 @@ class OnChangeRuntimeNode(MastRuntimeNode):
 
     def test(self):
         prev = self.value
+        self.is_running = False
         self.value = self.task.eval_code(self.node.value) 
         return prev!=self.value
     
     def run(self):
+        self.is_running = True
         self.task.push_inline_block(self.node_label, self.node.loc+1)
         self.task.tick_in_context()
 
     def poll(self, mast:Mast, task:MastAsyncTask, node: OnChange):
-        if node.is_end:
+        if node.is_end and self.is_running:
             self.task.pop_label(False)
-            return PollResults.OK_JUMP
+            self.is_running = False
+            # This is run again intentionally
+            # The change aspect is done, no need to run anything 
+            # again for this fork of the task 
+            #
+            return PollResults.OK_RUN_AGAIN
         if node.end_node:
             self.task.jump(self.node_label, node.dedent_loc+1)
             return PollResults.OK_JUMP
+        return PollResults.OK_RUN_AGAIN
 
 
 
@@ -680,7 +689,16 @@ class MastTicker:
 
                 count += 1
                 # avoid tight loops
-                if count > 1000:
+                if count > 100000:
+                    print(f"Mast Tick Threshold {self.active_label} possible performance loss")
+
+                    if self.runtime_node is not None:
+                        print(f"running {self.runtime_node.__class__}")
+                        
+
+                    this_cmd = self.cmds[self.active_cmd]
+                    print(f"Mast command {this_cmd.__class__} {this_cmd.line_num}")
+                    print(f"code  {this_cmd.line}")
                     break
 
                 if self.runtime_node:
