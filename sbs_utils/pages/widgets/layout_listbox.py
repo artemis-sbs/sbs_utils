@@ -1,12 +1,10 @@
-from ..gui import get_client_aspect_ratio
-from ..pages import layout as layout
+from ...gui import get_client_aspect_ratio
+from ..layout import layout as layout
 import sbs
-import struct # for images sizes
-import os
-from .. import fs
-from ..helpers import FrameContext, FakeEvent
-from ..mast.parsers import LayoutAreaParser
-from ..procedural.style import apply_control_styles
+from ... import fs
+from ...helpers import FrameContext, FakeEvent
+from ...mast.parsers import LayoutAreaParser
+from ...procedural.style import apply_control_styles
 
 
 
@@ -155,7 +153,7 @@ class LayoutListbox(layout.Column):
         self.default_item_width = width
 
     def default_item_template(self, item):
-        from ..procedural.gui import gui_row, gui_text
+        from ...procedural.gui import gui_row, gui_text
         gui_row("row-height: 1.2em;padding:13px")
         task = FrameContext.task
         task.set_variable("LB_ITEM", item)
@@ -163,7 +161,7 @@ class LayoutListbox(layout.Column):
         gui_text(msg)
 
     def default_title_template(self):
-        from ..procedural.gui import gui_row, gui_text
+        from ...procedural.gui import gui_row, gui_text
         gui_row("row-height: 1.2em;padding:13px")
         task = FrameContext.task
         msg = task.compile_and_format_string(self.title_template)

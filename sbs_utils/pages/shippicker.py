@@ -1,6 +1,6 @@
 from ..gui import Page, Gui
 from .. import layout as layout
-from ..widgets.shippicker import ShipPicker as WShipPicker
+from .widgets.shippicker import ShipPicker as WShipPicker
 import sbs
 
 

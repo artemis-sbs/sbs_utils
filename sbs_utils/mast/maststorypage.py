@@ -7,7 +7,7 @@ from ..procedural.links import linked_to
 from ..procedural.gui import gui_reroute_client, apply_control_styles
 from ..procedural.execution import log
 from ..agent import Agent
-from ..pages import layout
+from ..pages.layout import layout
 from..fs import get_mission_name, get_startup_mission_name
 
 from .maststory import  MastStory

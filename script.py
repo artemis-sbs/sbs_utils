@@ -11,9 +11,9 @@ import sbs_utils.layout as layout
 from sbs_utils.gui import Page, Gui
 from sbs_utils.pages.avatar import AvatarEditor
 from sbs_utils.pages.shippicker import ShipPicker
-from sbs_utils.widgets.listbox import Listbox
+from sbs_utils.pages.widgets.listbox import Listbox
 from sbs_utils.pages.start import ClientSelectPage
-from sbs_utils.pages.layout import LayoutPage, Layout, Row, Text, Face, Ship
+from pages.layout.layout import LayoutPage, Layout, Row, Text, Face, Ship
 #import sbs_utils
 from sbs_utils.mast.mast import Mast
 

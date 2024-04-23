@@ -1,11 +1,11 @@
-from ..gui import Page, get_client_aspect_ratio
-from ..agent import Agent
+from ...gui import Page, get_client_aspect_ratio
+from ...agent import Agent
 import sbs
 import struct # for images sizes
-from .. import fs
+from ... import fs
 import os
-from ..helpers import FrameContext
-from ..mast.parsers import LayoutAreaParser,LayoutAreaNode
+from ...helpers import FrameContext
+from ...mast.parsers import LayoutAreaParser,LayoutAreaNode
 
 class Bounds:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
@@ -1412,6 +1412,10 @@ class Layout:
                     bounds.left, bounds.top, bounds.right, bounds.bottom)
         row:Row
         for row in self.rows:
+            if row.bounds.left > 100 or row.bounds.right < 0 or row.bounds.top>100 or row.bounds.bottom <0:
+                continue
+            if row.bounds.left > self.bounds.right or row.bounds.right < self.bounds.left or row.bounds.top>self.bounds.bottom or row.bounds.bottom < self.bounds.top:
+                continue
             row.present(event)
 
         self._post_present(event)
@@ -1448,7 +1452,8 @@ class Layout:
         row:Row
         for row in self.rows:
             row.on_message(event)
-    
+
+
 
 class RadioButton(Column):
     def __init__(self, tag,  message, parent, value=False) -> None:

@@ -1,11 +1,10 @@
-from ..gui import Widget, get_client_aspect_ratio
-from ..pages import layout as layout
-from ..procedural.query import to_list
+from ...gui import Widget, get_client_aspect_ratio
+from ..layout import layout as layout
 import sbs
 import struct # for images sizes
 import os
-from .. import fs
-from ..helpers import FrameContext, FakeEvent
+from ... import fs
+from ...helpers import FrameContext, FakeEvent
 
 
 

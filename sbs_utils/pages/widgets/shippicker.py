@@ -1,8 +1,8 @@
-from ..gui import Widget
-from .. import layout as layout
+from ...gui import Widget
+from ..layout import layout as layout
 import sbs
-from .. import fs
-from ..procedural import ship_data
+from ... import fs
+from ...procedural import ship_data
 
 
 class ShipPicker(Widget):

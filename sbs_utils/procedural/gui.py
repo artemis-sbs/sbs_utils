@@ -2,13 +2,14 @@ from ..mast.mast import Scope, Button
 from .query import to_id
 from .inventory import get_inventory_value, set_inventory_value
 from ..helpers import FrameContext, FakeEvent
-from ..pages import layout
+from ..pages.layout import layout
 from ..mast.parsers import StyleDefinition
 from ..futures import Trigger, AwaitBlockPromise
 from ..gui import get_client_aspect_ratio
 from .style import apply_control_styles
 from ..mast.pollresults import PollResults
-from ..widgets.layout_listbox import LayoutListbox
+from ..pages.widgets.layout_listbox import LayoutListbox
+from ..pages.layout.text_area import TextArea
 import re
 import sbs
 from . import screen_shot 
@@ -776,6 +777,32 @@ def gui_text(props, style=None):
     page.add_content(layout_item, None)
     return layout_item
 
+
+def gui_text_area(props, style=None):
+    """ Add a gui text object
+
+    valid properties 
+        text
+        color
+        font
+
+
+    props (str): property string 
+    style (style, optional): The style
+    """
+    page = FrameContext.page
+    task = FrameContext.task
+
+    if page is None:
+        return
+    if style is None: 
+        style = ""
+    layout_item = TextArea(page.get_tag(), props)
+    apply_control_styles(".textarea", style, layout_item, task)
+
+    page.add_content(layout_item, None)
+    return layout_item
+
 def gui_update(tag, props, shared=False, test=None):
     """Update the properties of a current gui element
 
@@ -944,6 +971,7 @@ def gui_reroute_client(client_id, label, data=None):
             for k in data:
                 page.gui_task.set_variable(k, data[k])
         page.gui_task.jump(label)
+        page.gui_task.tick_in_context()
 
 def gui_reroute_server(label, data=None):
     """reroute server gui to run the specified label

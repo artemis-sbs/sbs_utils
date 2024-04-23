@@ -101,12 +101,12 @@ Mast.import_python_module('sbs', 'sbs')
 #
 # These are needed so the import later works, domn't remove
 #
-from sbs_utils.widgets.listbox import Listbox
-from sbs_utils.widgets.layout_listbox import layout_list_box_control
-from sbs_utils.widgets.shippicker import ShipPicker
+from sbs_utils.pages.widgets.listbox import Listbox
+from sbs_utils.pages.widgets.layout_listbox import layout_list_box_control
+from sbs_utils.pages.widgets.shippicker import ShipPicker
 
 ######################
 ## Mast extensions
-Mast.import_python_module('sbs_utils.widgets.shippicker')
-Mast.import_python_module('sbs_utils.widgets.listbox')
-Mast.import_python_module('sbs_utils.widgets.layout_listbox')
+Mast.import_python_module('sbs_utils.pages.widgets.shippicker')
+Mast.import_python_module('sbs_utils.pages.widgets.listbox')
+Mast.import_python_module('sbs_utils.pages.widgets.layout_listbox')
