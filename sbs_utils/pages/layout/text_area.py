@@ -1,6 +1,7 @@
 from .layout import Column, Bounds, get_font_size
 from ...helpers import FrameContext
 from ...gui import get_client_aspect_ratio
+import re
 
 class TextLine:
     def __init__(self, text, style, width, height, is_sec_end) -> None:
@@ -19,22 +20,24 @@ class TextArea(Column):
         "p1":{"style":  "font:gui-2;color:#11f;", "prepend": "", "indent": 0, "height": 20},
         "ul":{"style":  "font:gui-2;color:#11f;", "prepend": "", "indent": 2, "height": 20},
         "ol":{"style":  "font:gui-2;color:#11f;", "prepend": "1", "indent": 2, "height": 20},
-        "_" :{"style":  "font:gui-2;color:brown;", "prepend": "", "indent": 0, "height": 20}
+        "_" :{"style":  "font:gui-2;color:white;", "prepend": "", "indent": 0, "height": 20}
         }
     
     def __init__(self, tag, message) -> None:
         super().__init__()
         
         self.content = []
+        # This needs to be before self.value=
+        self.simple_text = False
         self.value = message
-
-
+        
         self.tag = tag
         self.active_tags = set()
         self.lines = []
         self.start_line = 0
         self.last_line = 0
         self.max_tag = 0
+        
         
     def get_style(self, key):
         ret = self.styles.get(key, None)
@@ -43,6 +46,9 @@ class TextArea(Column):
         return ret
 
     def calc(self, client_id):
+        if self.simple_text:
+            return
+        
         content_lines = self.content.copy()
         self.lines = []
         calc_height = 0
@@ -80,7 +86,29 @@ class TextArea(Column):
             return prepend
         
         def clear_sub_headings(style_key):
-            pass
+            if style_key == "t":
+                style_key = "h0"
+                
+            suffix = re.split('[^\d]', style_key)
+            # title clears all headings
+            
+                
+            if len(suffix) != 2 or suffix[1]=="":
+                return
+            prefix = style_key[:-len(suffix[1])]
+            level = int(suffix[1])
+            #
+            # Only support six levels
+            #
+            for x in range(level+1, 6):
+                sk = f"{prefix}{x}"
+                cur = heading_numbers.get(sk, None)
+                if cur is None:
+                    break
+                #print(f"clearing {sk}")
+                heading_numbers[sk]=1
+
+
 
         for some_lines in content_lines:
             # style = style_default
@@ -102,7 +130,7 @@ class TextArea(Column):
                     some_lines = some_lines[nl:]
 
             style = self.get_style(style_key)
-            height = style.get("height", 20)
+            height = style.get("height", 90)
             prepend = get_prepend(style_key)
             # If this is a list each line is numbered
             # otherwise just the first line
@@ -113,7 +141,7 @@ class TextArea(Column):
 
             # Not sure why 50 expected 100, but
             # it is proportional and a guess?
-            char_width = height *50 / ar.x
+            char_width = height *65 / ar.x
             max_char = int(self.bounds.width // char_width)
 
             is_end = False
@@ -144,7 +172,6 @@ class TextArea(Column):
                     if is_a_list:
                         prepend = get_prepend(style_key)
                         line = prepend +  line
-
                     last_line = TextLine(line,style_key, char_width, screen_height, False)
                     self.lines.append(last_line)
                     line = left_over
@@ -153,10 +180,11 @@ class TextArea(Column):
                 last_line.is_end = True
                 last_line.height *= 1.5
 
-
+        #
+        # Calculate the right size for the scrollbar
+        #
         self.need_v_scroll = calc_height > self.bounds.height
         self.last_line = len(self.lines)
-        #print(f"VBAR {self.calc_height} {self.bounds.height}")
         if not self.need_v_scroll:
             return
         
@@ -165,7 +193,6 @@ class TextArea(Column):
         while calc_height < self.bounds.height:
             self.last_line-=1
             if self.last_line<=0:
-                print("break")
                 break
             
             height = self.lines[self.last_line].height
@@ -175,13 +202,27 @@ class TextArea(Column):
             # print(f"LL {height}")
             calc_height += height
             
+    def _present_simple(self, event):
+        ctx = FrameContext.context
+        message = self.content[0]
+        if "text:" not in message:
+            message = f"text:{message};"
 
-        
+        message += self.get_cascade_props(True, True, True)
+
+        ctx.sbs.send_gui_text(event.client_id, 
+            self.tag, message,  
+            self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
 
 
 
     def _present(self, event):
-        
+        #
+        # Handle simple gui_text
+        #
+        if self.simple_text:
+            return self._present_simple(event)
+
         ctx = FrameContext.context
         CID = event.client_id
         ar = get_client_aspect_ratio(CID)
@@ -254,7 +295,14 @@ class TextArea(Column):
         message = message.strip()
         message = message.replace("^", "\n")
         # Split into sections
-        message = message.split("\n\n")
+        message = re.split(r"\n\n+", message)
+
+        if len(message)==1:
+            # if "text:" in message[0]:
+            self.simple_text = True
+            self.content = message
+            return
+
         # check for style header section
         if len(message) > 0 and message[0].startswith("=$"):
             self.parse_header(message[0])
@@ -295,9 +343,10 @@ class TextArea(Column):
                 prepend = value[1].split(">")
 
                 if len(prepend) == 2:
-                    indent = 1 # Default is just one space
-                    if prepend[1].isdigit():
-                        indent = int(prepend[1])
+                    indent = 0 # Default is just one space
+                    s_indent = prepend[1].strip()
+                    if s_indent.isdigit():
+                        indent = int(s_indent)
                 prepend = prepend[0].strip()
                 if prepend == "":
                     prepend = ""

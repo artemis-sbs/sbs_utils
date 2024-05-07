@@ -134,6 +134,10 @@ class Listbox(Widget):
             sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", int(slot_count-self.cur +0.5), f"low:0.0; high: {(slot_count+0.5)}; show_number:no",
                         (self.right-1), top,
                         self.right, self.bottom)
+        else:
+            # they all fit draw them all
+            cur = 0
+
         slot= 0
         self.slots =[]
 

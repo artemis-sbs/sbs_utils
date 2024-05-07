@@ -639,7 +639,8 @@ def random_face(race):
 
     Returns:
         str: The Face String
-    """    
+    """
+    race = race.lower()    
     if "kralien" in race:
         return random_kralien()
     if "arvonian" in race:

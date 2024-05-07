@@ -102,6 +102,7 @@ class LayoutListbox(layout.Column):
         self.tag_prefix = tag_prefix
         self.tag  = tag_prefix
         self.gui_state = "blank"
+        self.region = None
         
         self.cur = 0
         # self.bottom = top
@@ -109,6 +110,7 @@ class LayoutListbox(layout.Column):
         self.items = items
         self.select_color = "#bbb3"
         self.click_color = "black"
+        self.cur = 0
         
         self.title_background=None
         self.default_item_width = None
@@ -179,6 +181,7 @@ class LayoutListbox(layout.Column):
         """
         CID = event.client_id
         self.client_id = CID
+        
 
         item_width = self.bounds.width 
         item_height = self.bounds.height
@@ -195,7 +198,6 @@ class LayoutListbox(layout.Column):
         # At this point is should assume it is vertical
         if self.horizontal is None:
             self.horizontal = False
-        
 
         if self.horizontal:
             max_slots = (self.bounds.right - self.bounds.left) // max(item_width,1) 
@@ -204,32 +206,45 @@ class LayoutListbox(layout.Column):
 
 
         max_slots = int(max_slots)
-        slot_count = len(self.items)-max_slots
-        if slot_count <0:
-            slot_count = 0
-
+        extra_slot_count = len(self.items)-max_slots
+        if extra_slot_count <0:
+            extra_slot_count = 0
+            self.cur = 0
+        
         top = self.bounds.top
         left = self.bounds.left
         right = self.bounds.right
         bottom = self.bounds.bottom
 
+        # if self.region is None:
+        #     self.region = sbs.send_gui_sub_region(CID, self.tag, "", left, top, right, bottom)
+        # sbs.target_gui_sub_region(CID, self.tag)
+        # left=0
+        # top=0
+        # right=self.bounds.width
+        # bottom=self.bounds.height
+        
 
-        if slot_count > 0:
-            self.slot_count = slot_count
+        if extra_slot_count > 0:
+            self.extra_slot_count = extra_slot_count
             em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
             if self.horizontal:
-                sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", int(self.cur), f"low:0.0; high: {(slot_count+0.5)}; show_number:no",
+                sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", int(self.cur), f"low:0.0; high: {(extra_slot_count+0.5)}; show_number:no",
                         left, bottom-em2,
                         self.bounds.right, bottom)
                 bottom-=em2
             else:
                 em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.x, 20)
-                sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", int(slot_count-self.cur +0.5), f"low:0.0; high: {(slot_count+0.5)}; show_number:no",
+                sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", int(extra_slot_count-self.cur +0.5), f"low:0.0; high: {(extra_slot_count+0.5)}; show_number:no",
                         (right-em2), top,
                         right, self.bounds.bottom)
                 right -= em2
+        else:
+            sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", 0, f"low:0.0; high: 1.0; show_number:no",
+                        -1000, -1000,
+                        -1000, -1000)
 
-
+        #self.cur = 0
         slot = 0
         cur = self.cur
 
@@ -252,12 +267,14 @@ class LayoutListbox(layout.Column):
             # Set the task values
             #
             sec.calc(CID)
+            sbs.target_gui_sub_region(CID, self.tag)
             sec.present(event)
             sec.resize_to_content()
             top += sec.bounds.height
             sub_page.tags |= sec.get_tags()
 
-        #draw_slots = slot_count 
+        #draw_slots = max_slot
+        print(f"{cur=} {max_slots=}" )
         for slot in range(max_slots):
             if cur >= len(self.items):
                 break
@@ -270,9 +287,10 @@ class LayoutListbox(layout.Column):
                 this_bottom = bottom
             else:
                 this_right = right
-
+            
+            
             sec = layout.Layout(tag+":sec", None, left, top, this_right, this_bottom)
-
+            print(f"BREAK {cur}  {tag} {left=} {top=}")
             if self.select or self.multi:
                 sec.click_text = "__________________"
                 sec.click_background = "white"
@@ -309,12 +327,13 @@ class LayoutListbox(layout.Column):
         # I the slot should not show
         if self.last_tags is not None:
             diff = self.last_tags - sub_page.tags
-            #print(f"tags {len(self.last_tags)} {len(tags)} {len(diff)}")
+            #print(f"tags {len(self.last_tags)} {len(sub_page.tags)} {len(diff)}")
             for t in diff:
                 sbs.send_gui_text(
                     CID, t, "text:_",
                         -1000, -1000, -999,-999)
         self.last_tags = sub_page.tags
+        
 
     def on_message(self, event):
         if self.client_id != event.client_id:
@@ -324,7 +343,7 @@ class LayoutListbox(layout.Column):
             if self.horizontal:
                 value = int(event.sub_float)
             else:
-                value = int(-event.sub_float+self.slot_count+0.5)
+                value = int(-event.sub_float+self.extra_slot_count+0.5)
             if value != self.cur:
                 self.cur = value
                 self.gui_state = "redraw"

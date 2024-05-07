@@ -43,6 +43,14 @@ def get_startup_mission_name():
 def get_missions_dir():
     return get_artemis_data_dir()+"/missions"
 
+
+def get_mod_file(mod, file):
+    return f"{get_artemis_data_dir()}/missions/{mod}/{file}"
+
+def get_mod_dir(mod):
+    return f"{get_artemis_data_dir()}/missions/{mod}"
+
+
 def get_mission_dir():
     return get_script_dir()
 
@@ -121,3 +129,5 @@ def save_json_data(file, data):
 
 def add_to_path(dir):
     sys.path.insert(0, dir) 
+
+    

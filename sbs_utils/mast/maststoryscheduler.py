@@ -3,7 +3,7 @@ from .mastscheduler import PollResults, MastRuntimeNode, MastAsyncTask, MastSche
 from .mast import Mast
 import sbs
 from ..gui import Gui
-from ..procedural.gui import gui_text
+from ..procedural.gui import gui_text_area, gui_text
 from ..helpers import FakeEvent, FrameContext, format_exception
 
 from .maststory import AppendText,  Text
@@ -30,7 +30,7 @@ class TextRuntimeNode(MastRuntimeNode):
             style = node.style
             if style is None:
                 style = node.style_name
-            self.layout_text = gui_text(msg,style)
+            self.layout_text = gui_text_area(msg,style)
         
 
 class AppendTextRuntimeNode(MastRuntimeNode):

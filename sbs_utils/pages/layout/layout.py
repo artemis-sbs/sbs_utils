@@ -6,6 +6,7 @@ from ... import fs
 import os
 from ...helpers import FrameContext
 from ...mast.parsers import LayoutAreaParser,LayoutAreaNode
+from enum import IntEnum
 
 class Bounds:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
@@ -1057,12 +1058,17 @@ def get_font_size(font):
     }
     return sizes.get(font, 20)
 
+class RegionType(IntEnum):
+    TOP_LEVEL = 0,
+    TOP_WINDOWS = 1,
+    CHILD_WINDOW = 2
+
+
 class Layout:
     clicked = {}
     
     def __init__(self, tag=None,  rows = None, 
-                left=0, top=0, right=100, bottom=50,
-                left_pixels=False, top_pixels=False, right_pixels=False, bottom_pixels=False) -> None:
+                left=0, top=0, right=100, bottom=50, region_type=RegionType.TOP_LEVEL) -> None:
         self.rows = rows if rows else []
         self.set_bounds(Bounds(left,top,right,bottom))
         self.restore_bounds = self.bounds
@@ -1096,6 +1102,9 @@ class Layout:
         self.click_color  = None
         self.click_background = None
         self.client_id = None
+
+        self.region = None
+        self.region_type = region_type
 
     def get_tags(self):
         tags = set()
@@ -1389,6 +1398,9 @@ class Layout:
 
     def present(self, event):
         # Sections are different their bounds are the whole container
+        
+        self.sync_region(event.client_id)
+
         if self.border_color is not None:
             bounds = Bounds(self.bounds)
             bounds.shrink(self.margin)
@@ -1416,10 +1428,16 @@ class Layout:
                 continue
             if row.bounds.left > self.bounds.right or row.bounds.right < self.bounds.left or row.bounds.top>self.bounds.bottom or row.bounds.bottom < self.bounds.top:
                 continue
+            self.sync_region(event.client_id)
             row.present(event)
+        
 
         self._post_present(event)
 
+
+    def sync_region(self, client_id):
+        if self.region_type == RegionType.TOP_LEVEL:
+            sbs.target_gui_sub_region(client_id, "MAIN")
 
     def _post_present(self, event):
         if self.click_text is not None:
@@ -1439,6 +1457,7 @@ class Layout:
             bounds.shrink(self.border)
 
             ctx = FrameContext.context
+            self.sync_region(event.client_id)
             ctx.sbs.send_gui_clickregion(event.client_id, 
                 self.click_tag, click_props,
                 bounds.left, bounds.top, bounds.right, bounds.bottom)

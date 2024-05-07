@@ -1,4 +1,4 @@
-from ..fs import load_json_data, get_artemis_data_dir, get_mission_dir
+from ..fs import load_json_data, get_artemis_data_dir, get_mission_dir, get_mod_dir
 import os
 
 
@@ -16,6 +16,60 @@ def get_ship_data():
         # ship_data_cache |= script_ship_data
 
     return ship_data_cache
+
+def merge_mod_ship_data(mod):
+    global ship_data_cache
+    ship_data_cache = load_json_data( os.path.join(get_artemis_data_dir(), "shipData.json"))
+    
+    script_ship_data = load_json_data( os.path.join(get_mod_dir(mod), "extraShipData.json"))
+    if script_ship_data is not None:
+        ship_data_cache["#ship-list"] = script_ship_data["#ship-list"] + ship_data_cache["#ship-list"]
+
+    return ship_data_cache
+
+
+def reset_ship_data_caches():
+        global ship_index
+        ship_index = None
+        global asteroid_keys_cache
+        asteroid_keys_cache = None
+        global crystal_asteroid_keys_cache
+        crystal_asteroid_keys_cache = None
+        global plain_asteroid_keys_cache
+        plain_asteroid_keys_cache=None
+        global danger_keys_cache
+        danger_keys_cache = None
+        global container_keys_cache
+        container_keys_cache = None
+        global terran_starbase_keys_cache
+        terran_starbase_keys_cache = None
+        global pirate_starbase_keys_cache
+        pirate_starbase_keys_cache=None
+        global pirate_ship_keys_cache
+        pirate_ship_keys_cache=None
+        global ximni_starbase_keys_cache
+        ximni_starbase_keys_cache=None
+        global ximni_ship_keys_cache
+        ximni_ship_keys_cache=None
+        global arvonian_starbase_keys_cache
+        arvonian_starbase_keys_cache=None
+        global arvonian_ship_keys_cache
+        arvonian_ship_keys_cache=None
+        global skaraan_starbase_keys_cache
+        skaraan_starbase_keys_cache=None
+        global skaraan_ship_keys_cache
+        skaraan_ship_keys_cache=None
+        global kralien_starbase_keys_cache
+        kralien_starbase_keys_cache=None
+        global kralien_ship_keys_cache
+        kralien_ship_keys_cache=None
+        global torgoth_starbase_keys_cache
+        torgoth_starbase_keys_cache=None
+        global torgoth_ship_keys_cache
+        torgoth_ship_keys_cache=None
+
+
+
 
 ship_index = None
 def get_ship_index():
@@ -231,3 +285,4 @@ def torgoth_ship_keys():
     if torgoth_ship_keys_cache is None:
         torgoth_ship_keys_cache =filter_ship_data_by_side(None, "Torgoth", "ship", True)
     return torgoth_ship_keys_cache
+

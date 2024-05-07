@@ -841,7 +841,9 @@ def gui_represent(layout_item):
         return
     event = FakeEvent(page.client_id)
     #print(f"Page {event.client_id}")
+    sbs.target_gui_sub_region(page.client_id, "FULL")
     layout_item.represent(event)
+    #sbs.send_gui_complete(event.client_id)
 
 def gui_show(layout_item):
     """gui show. If the item is hidden it will make it visible again
@@ -1421,6 +1423,8 @@ def gui(buttons=None, timeout=None):
         Promise: The promise for the gui, promise is done when a button is selected
     """    
     page = FrameContext.page
+    sbs.send_gui_sub_region(page.client_id, "FULL", "", 0, 0, 100, 100)
+    sbs.target_gui_sub_region(page.client_id, "FULL")
     ret = GuiPromise(page, timeout)
     if buttons is not None:
         for k in buttons:

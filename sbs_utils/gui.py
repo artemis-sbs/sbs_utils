@@ -430,26 +430,29 @@ def get_client_aspect_ratio(cid):
         ar = Vec3(ar)
         if ar.x == 0 or ar.y == 0:
             ar = Vec3(1020,768,99)
+            #print("0  0")
             
         if cid == 0 and Agent.SHARED.get_inventory_value("SIM_STATE",None) == "sim_paused":
             ar.x -= 300
             #print("AR CALC Paused (gui.py)")
         # print("Found client gui")
         return ar
-    v = get_server_win()
-    if v.x == 0 or v.y==0:
-        v = Vec3(1020,768,99)
-    FrameContext.aspect_ratios[cid] = v
-    return v # Vec3(1020,768,99) # 99 Means the client hasn't set the aspect ratio
+    # v = get_server_win()
+    # if v.x == 0 or v.y==0:
+    #     v = Vec3(1020,768,99)
+    # FrameContext.aspect_ratios[cid] = v
+    # return v # 
+    return Vec3(1024,768,99) # 99 Means the client hasn't set the aspect ratio
 
-import ctypes
-#import os
-from ctypes.wintypes import HWND, DWORD, RECT
 
-def get_server_win():
-    hwnd = ctypes.windll.user32.GetForegroundWindow()
-    rect = ctypes.wintypes.RECT()
-    ctypes.windll.user32.GetWindowRect(hwnd, ctypes.pointer(rect))
-    # print(hwnd)
-    # print(rect)
-    return Vec3(rect.right-rect.left, rect.bottom-rect.top, 88)
+# import ctypes
+# #import os
+# from ctypes.wintypes import HWND, DWORD, RECT
+
+# def get_server_win():
+#     hwnd = ctypes.windll.user32.GetForegroundWindow()
+#     rect = ctypes.wintypes.RECT()
+#     ctypes.windll.user32.GetWindowRect(hwnd, ctypes.pointer(rect))
+#     # print(hwnd)
+#     # print(rect)
+#     return Vec3(rect.right-rect.left, rect.bottom-rect.top, 88)
