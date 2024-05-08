@@ -70,6 +70,7 @@ class PromiseAllAny(Promise):
             else:
                 # Rebuild the promises, 
                 # without the finished ones
+                p.poll()
                 self.promises.append(p)
         is_done = len(self._result) > 0
         if self.all:

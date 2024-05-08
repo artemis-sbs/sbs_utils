@@ -610,7 +610,7 @@ class Button(MastNode):
     def __init__(self, message=None, button=None,  
                 color=None, if_exp=None, 
                 for_name=None, for_exp=None, 
-                clone=False, q=None, label=None, loc=None):
+                clone=False, q=None, label=None, new_task=None, task_data=None, path=None, loc=None):
         super().__init__()
         #
         # Remember any field in here need to be set in clone()
@@ -631,6 +631,11 @@ class Button(MastNode):
             self.await_node = Await.stack[-1]
             self.await_node.buttons.append(self)
         self.label = label
+        self.new_task = new_task
+        self.task_data = task_data
+        self.path = path
+            
+
 
         if if_exp:
             if_exp = if_exp.lstrip()
@@ -674,6 +679,9 @@ class Button(MastNode):
         proxy.data = self.data
         proxy.for_code = self.for_code
         proxy.for_name = self.for_name
+        proxy.new_task = self.new_task
+        proxy.task_data = self.task_data
+        proxy.path = self.path
         ####
         # This is used by the gui buttons
         proxy.layout_item = None 

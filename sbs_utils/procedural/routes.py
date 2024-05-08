@@ -7,6 +7,7 @@ from .query import to_id, to_object
 from ..mast.label import is_pymast_label
 
 from ..helpers import FrameContext, FakeEvent
+from .gui import ButtonPromise
 
 import sbs
 
@@ -163,6 +164,28 @@ def route_comms_select(label):
     """    
     return HandleConsoleSelect("comms", label, _SELECT)
     
+
+
+
+def route_comms_navigate(path, label):
+    """ called to extend a comms navigation
+
+    
+    Args:
+        path: (str): The navigation path to extend
+        label (label): The label to run
+    """
+    path = f"comms/{path}"
+    path_labels = ButtonPromise.navigation_map.get(path)
+    if path_labels is None:
+        path_labels = set()
+    path_labels.add(label)
+    ButtonPromise.navigation_map[path] = path_labels
+
+    
+    
+
+
 def route_science_select(label):
     """called when science changes selection.
 
@@ -702,6 +725,9 @@ class RouteConsole(object):
         return self.cls is None or self.cls==so.__class__.__name__
 
 
+
+
+
 class RouteCommsSelect(RouteConsole):
     """ decorator for routing to a python function or python class method
 
@@ -755,6 +781,9 @@ class RouteCommsMessage(RouteConsole):
     """        
     def __init__(self, method):
         super().__init__(method, "comms", _MESSAGE)
+
+
+
 
 
 class RouteGridSelect(RouteConsole):

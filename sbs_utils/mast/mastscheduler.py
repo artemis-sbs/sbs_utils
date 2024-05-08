@@ -1052,7 +1052,8 @@ class MastAsyncTask(Agent, Promise):
         #     print(f"Creating task {name}")
         #self.vars= inputs if inputs else {}
         if inputs:
-            self.inventory.collections = dict(self.inventory.collections, **inputs)
+            for k in inputs:
+                self.set_inventory_value(k, inputs[k])
             #self.inventory.collections |= inputs
         
         self.set_inventory_value("mast_task", self)
@@ -1247,8 +1248,11 @@ class MastAsyncTask(Agent, Promise):
         
 
     def start_task(self, label = "main", inputs=None, task_name=None, defer=False)->MastAsyncTask:
-        inputs= self.inventory.collections|inputs if inputs else self.inventory.collections
-        return self.main.start_task(label, inputs, task_name, defer)
+        if inputs:
+            for k in inputs:
+                self.set_inventory_value(k, inputs[k])
+                
+        return self.main.start_task(label, self.inventory.collections, task_name, defer)
     
     def tick_in_context(self):
         _page = FrameContext.page
@@ -1383,8 +1387,8 @@ class MastScheduler(Agent):
 
 
     def _start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:
-        if self.inputs is None:
-            self.inputs = inputs
+        #if self.inputs is None:
+        #    self.inputs = inputs
 
         # if self.mast and self.mast.labels.get(label,  None) is None:
         #     raise Exception(f"Calling undefined label {label}")

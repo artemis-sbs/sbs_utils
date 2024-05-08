@@ -134,8 +134,8 @@ def scan_results(message, target=None, tab = None):
 from .gui import ButtonPromise
 from ..consoledispatcher import ConsoleDispatcher
 class ScanPromise(ButtonPromise):
-    def __init__(self, task, timeout=None, auto_side=True) -> None:
-        super().__init__(task, timeout)
+    def __init__(self, path, task, timeout=None, auto_side=True) -> None:
+        super().__init__(path, task, timeout)
 
         self.expanded_buttons = None
 
@@ -321,7 +321,7 @@ class ScanPromise(ButtonPromise):
                 self.start_scan( origin_so.id, sel_so.id, "__init__")
 
 
-def scan(buttons=None, timeout=None, auto_side=True):
+def scan(path=None, buttons=None, timeout=None, auto_side=True):
     """Start a science scan
 
     Args:
@@ -333,7 +333,7 @@ def scan(buttons=None, timeout=None, auto_side=True):
         Promise: A promise to wait. Typically passed to an await/AWAIT
     """    
     task = FrameContext.task
-    ret = ScanPromise(task, timeout, auto_side)
+    ret = ScanPromise(path, task, timeout, auto_side)
     if buttons is not None:
         for k in buttons:
             ret .buttons.append(Button(k,button="+", label=buttons[k],loc=0))

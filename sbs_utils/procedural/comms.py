@@ -7,7 +7,11 @@ from ..helpers import FrameContext
 from ..mast.mastscheduler import ChangeRuntimeNode
 from ..mast.pollresults import PollResults
 from ..mast.mast import Button
+
 import sbs
+
+
+
 
 def comms_broadcast(ids_or_obj, msg, color="#fff"):
     """Send text to the text waterfall
@@ -267,14 +271,25 @@ def comms_info(name, face=None, color=None):
 from ..consoledispatcher import ConsoleDispatcher
 from .gui import ButtonPromise
 class CommsPromise(ButtonPromise):
-    def __init__(self, task, timeout=None) -> None:
-        super().__init__(task, timeout)
+
+    def __init__(self, path, task, timeout=None) -> None:
+        path = path if path is not None else ""
+        path = f"comms/{path}"
+        
+        super().__init__(path, task, timeout)
+
 
         self.task = task
         self.button = None
         self.is_unknown = False
         self.color = "white"
         self.expanded_buttons = None
+
+    def set_path(self, path):
+        path = path if path is not None else ""
+        path = f"comms/{path}"
+        super().set_path(path)
+      
 
     def initial_poll(self):
         if self._initial_poll:
@@ -341,9 +356,10 @@ class CommsPromise(ButtonPromise):
     # This 
     #
     def show_buttons(self):
+        self.expanded_buttons = self.get_expanded_buttons()
         if len(self.expanded_buttons) == 0:
             return
-
+        
         self.tag = None
         self.button = None
         self.event = None
@@ -400,10 +416,14 @@ class CommsPromise(ButtonPromise):
         
         # check to see if the from ship still exists
         if origin_id is not None:
+
+            title = f"{self.comms_id}"
+            if len(self.path)>6:
+                title = f"{self.comms_id} {self.path[6:]}"
             if self.is_grid_comms:
-                sbs.send_grid_selection_info(origin_id, self.face, self.color, self.comms_id)
+                sbs.send_grid_selection_info(origin_id, self.face, self.color, title)
             elif origin_id == selected_id:
-                sbs.send_comms_selection_info(origin_id, self.face, self.color, self.comms_id)
+                sbs.send_comms_selection_info(origin_id, self.face, self.color, title)
             else:
                 #
                 # Check for unknown 
@@ -421,9 +441,8 @@ class CommsPromise(ButtonPromise):
                     self.is_unknown = True
                     return
                 else:
-                    sbs.send_comms_selection_info(origin_id, self.face, self.color, self.comms_id)
+                    sbs.send_comms_selection_info(origin_id, self.face, self.color, title)
 
-            
             for i, button in enumerate(self.expanded_buttons):
                 value = True
                 color = "white"
@@ -464,9 +483,10 @@ class CommsPromise(ButtonPromise):
                 return PollResults.OK_JUMP
         return PollResults.OK_RUN_AGAIN
 
+        
+        
 
-
-def comms(buttons=None, timeout=None):
+def comms(path=None, buttons=None, timeout=None):
     """Present the comms buttons. and wait for a choice.
     The timeout can be any promise, but typically is a made using the timeout function.
 
@@ -478,7 +498,10 @@ def comms(buttons=None, timeout=None):
         Promise: A Promise that finishes when a comms button is selected
     """    
     task = FrameContext.task
-    ret = CommsPromise(task, timeout)
+    ret = CommsPromise(path, task, timeout)
+ 
+    
+
     if buttons is not None:
         for k in buttons:
             # The + makes the button sticky
@@ -486,4 +509,17 @@ def comms(buttons=None, timeout=None):
         
     return ret
 
+
+def comms_add_button(message, label=None, color=None, data=None, path=None):
+    p = ButtonPromise.navigating_promise
+    if p is None:
+        return
+    p.nav_buttons.append(Button(message, "+", color=color, label=label, task_data=data, new_task=True, path=path, loc=0))
+
+def comms_set_path(path):
+    task = FrameContext.task
+    p = task.get_variable("BUTTON_PROMISE")
+    if p is None:
+        return
+    p.set_path(path)
 

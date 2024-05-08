@@ -10,6 +10,7 @@ from .style import apply_control_styles
 from ..mast.pollresults import PollResults
 from ..pages.widgets.layout_listbox import LayoutListbox
 from ..pages.layout.text_area import TextArea
+from .execution import task_all, AWAIT
 import re
 import sbs
 from . import screen_shot 
@@ -1164,10 +1165,14 @@ class ButtonPromise(AwaitBlockPromise):
     disconnect_rule = re.compile(r'disconnect')
     fail_rule = re.compile(r'fail')
 
-    def __init__(self, task, timeout=None) -> None:
+    navigation_map = {}
+
+    def __init__(self, path, task, timeout=None) -> None:
         super().__init__(timeout)
 
+        self.path = path if path is not None else ""
         self.buttons = []
+        self.nav_buttons = []
         self.inlines = []
         self.button = None
         self.var = None
@@ -1177,6 +1182,7 @@ class ButtonPromise(AwaitBlockPromise):
         self.focus_label = None
         self.run_focus = False
         self.running_button = None
+        self.sub_task = None
         #print("INit ")
         
     def initial_poll(self):
@@ -1187,6 +1193,12 @@ class ButtonPromise(AwaitBlockPromise):
         self.expand_inlines()
         self.show_buttons()
         super().initial_poll()
+
+    def set_path(self, path):
+        # typically this is overridden
+        self.path = path
+        self.show_buttons()
+
 
     def check_for_button_done(self):
         #
@@ -1201,6 +1213,14 @@ class ButtonPromise(AwaitBlockPromise):
 
     def poll(self):
         super().poll()
+        if self.sub_task is not None:
+            self.sub_task.poll()
+            if self.sub_task.done:
+                self.show_buttons()
+                self.sub_task= None
+            else:
+                return PollResults.OK_RUN_AGAIN
+
         self.check_for_button_done()
 
         task = self.task
@@ -1228,7 +1248,20 @@ class ButtonPromise(AwaitBlockPromise):
             #
             self.running_button = self.button
             self.button = None
-            if button.label:
+
+            if button.new_task and button.label:
+                # if button.data is not None:
+                #     for k in button.data:
+                #         print(f"{k} set to {button.data[k]}")
+                self.sub_task = task.start_task(button.label, inputs=button.task_data)
+                self.sub_task.set_variable("BUTTON_PROMISE", self)
+                self.sub_task.tick_in_context()
+                return self.sub_task.poll()
+                # if self.sub_task.done:
+                #     self.task.tick_in_context()
+            elif button.path is not None:
+                self.set_path(button.path)
+            elif button.label:
                 task.push_inline_block(button.label)
                 self.task.tick_in_context()
             else:
@@ -1295,6 +1328,8 @@ class ButtonPromise(AwaitBlockPromise):
                 buttons.append(button.clone())
             else:
                 buttons.extend(self.expand_button(button))
+        self.build_navigation_buttons()
+        buttons.extend(self.nav_buttons)
         return buttons
     
     def expand_inline(self, inline):
@@ -1323,6 +1358,32 @@ class ButtonPromise(AwaitBlockPromise):
         # Expand all the 'for' buttons
         for inline in self.inlines:
             self.expand_inline(inline)
+
+    def build_navigation_buttons(self):
+        self.nav_buttons = []
+        path_labels = ButtonPromise.navigation_map.get(self.path)
+        if path_labels is None:
+            return
+        
+        ButtonPromise.navigating_promise = self
+        p = task_all(*path_labels)
+        p.poll()
+        #
+        # This could get into a lock
+        # but the expectation is this runs in one pass
+        #
+        count = 0
+        while not p.done():
+            p.poll()
+            if count > 100000:
+                print(f"Comms path {self.path} caused hang")
+                break
+            count += 1
+        ButtonPromise.navigating_promise = None
+        
+    
+
+        
         
     
     
@@ -1331,7 +1392,7 @@ class GuiPromise(ButtonPromise):
     button_height_px = 40
 
     def __init__(self, page, timeout=None) -> None:
-        super().__init__(page.gui_task, timeout)
+        super().__init__("", page.gui_task, timeout)
 
         self.page = page
         self.button_layout = None
@@ -1346,9 +1407,6 @@ class GuiPromise(ButtonPromise):
     # This 
     #
     def show_buttons(self):
-        if len(self.buttons) == 0:
-            return
-        
         if self.task is None:
             self.task = self.page.gui_task
             # First run could have no gui_task
@@ -1372,6 +1430,10 @@ class GuiPromise(ButtonPromise):
         layout_row.tag = task.main.page.get_tag()
 
         buttons = self.get_expanded_buttons()
+        
+        if len(buttons) == 0:
+            return
+        
         
         for button in buttons:
             match button.__class__.__name__:
@@ -1613,8 +1675,6 @@ def gui_hide_choice():
     button_item = promise.running_button.layout_item
     button_layout = promise.button_layout
 
-    print(f"page {FrameContext.page.client_id}")
-    
     gui_hide(button_item)
     gui_represent(button_layout)
 
