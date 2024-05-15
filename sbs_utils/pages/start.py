@@ -13,12 +13,12 @@ class StartPage(Page):
     def present(self, event):
         CID = event.client_id
 
-        sbs.send_gui_clear(CID)
+        sbs.send_gui_clear(CID,"")
         sbs.send_gui_text(
                     CID,  "text", self.desc, 25, 30, 99, 90)
         
         sbs.send_gui_button(CID, "start", "text: Start", 80,90, 99,99)
-        sbs.send_gui_complete(CID)
+        sbs.send_gui_complete(CID, "")
         
 
     def on_message(self, event):
@@ -45,7 +45,7 @@ class ClientSelectPage(Page):
            self.player_count == len(players)
 
         if self.state == "choose":
-            sbs.send_gui_clear(CID)
+            sbs.send_gui_clear(CID,"")
             sbs.send_client_widget_list(event.client_id, "","")
             i = 0
             for console in ["Helm", "Weapons", "Science", "Engineering", "Comms", "Main Screen"]:
@@ -63,7 +63,7 @@ class ClientSelectPage(Page):
             if self.player_id is not None:
                 sbs.send_gui_button(CID, "select", "text:Select", 80,95-i*5, 99,99-i*5)
             self.state = "skip"
-            sbs.send_gui_complete(CID)
+            sbs.send_gui_complete(CID,"")
             
         
 
@@ -99,12 +99,12 @@ class ClientSelectPage(Page):
                 self.state = "choose"
                 self.present(sim, event)
             case "select":
-                sbs.send_gui_clear(event.client_id)
+                sbs.send_gui_clear(event.client_id,"")
                 sbs.send_client_widget_list(event.client_id, self.console_name, self.widget_list)
                 self.state = "main"
                 self.present(event)
                 sbs.assign_client_to_ship(event.client_id, self.player_id)
-                sbs.send_gui_complete(event.client_id)
+                sbs.send_gui_complete(event.client_id,"")
                 return
             case _:
                 self.player_id = int(event.sub_tag)

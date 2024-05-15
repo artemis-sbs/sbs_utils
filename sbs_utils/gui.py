@@ -134,7 +134,7 @@ class GuiClient(Agent):
 
         """
         ret = None
-        sbs.send_gui_clear(self.client_id)
+        sbs.send_gui_clear(self.client_id, "")
         if len(self.page_stack) > 0:
             ret = self.page_stack.pop()
             if ret:
@@ -432,7 +432,7 @@ def get_client_aspect_ratio(cid):
             ar = Vec3(1020,768,99)
             #print("0  0")
             
-        if cid == 0 and Agent.SHARED.get_inventory_value("SIM_STATE",None) == "sim_paused":
+        if cid == 0 and Agent.SHARED.get_inventory_value("SIM_STATE",None) != "sim_running":
             ar.x -= 300
             #print("AR CALC Paused (gui.py)")
         # print("Found client gui")

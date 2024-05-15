@@ -48,11 +48,11 @@ class ErrorPage(Page):
         match self.gui_state:
             case  "sim_on":
                 self.gui_state = "blank"
-                sbs.send_gui_clear(event.client_id)
-                sbs.send_gui_complete(event.client_id)
+                sbs.send_gui_clear(event.client_id, "")
+                sbs.send_gui_complete(event.client_id, "")
 
             case  "show":
-                sbs.send_gui_clear(event.client_id)
+                sbs.send_gui_clear(event.client_id, "")
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
                 self.gui_state = "presenting"
@@ -65,7 +65,7 @@ class ErrorPage(Page):
                 sbs.send_gui_button(event.client_id, "resume", "text:Resume Mission;", 25, 80, 45, 99)
                 sbs.send_gui_button(event.client_id, "rerun", "text:Rerun Mission;", 50, 80, 70, 99)
                 sbs.send_gui_button(event.client_id, "startup", "text:run startup Mission;", 75, 80, 99, 99)
-                sbs.send_gui_complete(event.client_id)
+                sbs.send_gui_complete(event.client_id, "")
 
     def on_message(self, event):
         match event.sub_tag:
@@ -200,6 +200,7 @@ def cosmos_event_handler(sim, event):
                 ConsoleDispatcher.dispatch_message(event, "science_target_UID")
 
             case "gui_message":
+                # print_event(event)
                 Gui.on_message(event)
 
             case "grid_object":

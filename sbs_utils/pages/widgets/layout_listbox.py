@@ -182,10 +182,12 @@ class LayoutListbox(layout.Column):
         CID = event.client_id
         self.client_id = CID
         
+        
 
         item_width = self.bounds.width 
         item_height = self.bounds.height
         aspect_ratio = get_client_aspect_ratio(event.client_id)
+        
 
         if self.default_item_width:
             item_width = LayoutAreaParser.compute(self.default_item_width, None, aspect_ratio.x, 20)
@@ -207,6 +209,9 @@ class LayoutListbox(layout.Column):
 
         max_slots = int(max_slots)
         extra_slot_count = len(self.items)-max_slots
+
+        
+
         if extra_slot_count <0:
             extra_slot_count = 0
             self.cur = 0
@@ -216,18 +221,13 @@ class LayoutListbox(layout.Column):
         right = self.bounds.right
         bottom = self.bounds.bottom
 
-        # if self.region is None:
-        #     self.region = sbs.send_gui_sub_region(CID, self.tag, "", left, top, right, bottom)
-        # sbs.target_gui_sub_region(CID, self.tag)
-        # left=0
-        # top=0
-        # right=self.bounds.width
-        # bottom=self.bounds.height
         
 
         if extra_slot_count > 0:
             self.extra_slot_count = extra_slot_count
             em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
+            #print(f"adding scroll bar font size {em2} {self.bounds} == {self.tag} -- {self.tag_prefix}")
+            sbs.target_gui_sub_region(CID, self.tag+"$$")
             if self.horizontal:
                 sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", int(self.cur), f"low:0.0; high: {(extra_slot_count+0.5)}; show_number:no",
                         left, bottom-em2,
@@ -239,10 +239,11 @@ class LayoutListbox(layout.Column):
                         (right-em2), top,
                         right, self.bounds.bottom)
                 right -= em2
-        else:
-            sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", 0, f"low:0.0; high: 1.0; show_number:no",
-                        -1000, -1000,
-                        -1000, -1000)
+        #else:
+        #    print("No scrollbar needed")
+            # sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", 0, f"low:0.0; high: 1.0; show_number:no",
+            #             -1000, -1000,
+            #             -1000, -1000)
 
         #self.cur = 0
         slot = 0
@@ -267,7 +268,7 @@ class LayoutListbox(layout.Column):
             # Set the task values
             #
             sec.calc(CID)
-            sbs.target_gui_sub_region(CID, self.tag)
+            #sbs.target_gui_sub_region(CID, self.tag)
             sec.present(event)
             sec.resize_to_content()
             top += sec.bounds.height
@@ -277,6 +278,7 @@ class LayoutListbox(layout.Column):
         print(f"{cur=} {max_slots=}" )
         for slot in range(max_slots):
             if cur >= len(self.items):
+                print("BROKE")
                 break
 
             item = self.items[cur]
@@ -290,7 +292,7 @@ class LayoutListbox(layout.Column):
             
             
             sec = layout.Layout(tag+":sec", None, left, top, this_right, this_bottom)
-            print(f"BREAK {cur}  {tag} {left=} {top=}")
+            #print(f"BREAK {cur}  {tag} {left=} {top=}")
             if self.select or self.multi:
                 sec.click_text = "__________________"
                 sec.click_background = "white"
@@ -310,7 +312,7 @@ class LayoutListbox(layout.Column):
             sec.calc(CID)
             sec.present(event)
             sec.resize_to_content()
-            sub_page.tags |= sec.get_tags()
+            #sub_page.tags |= sec.get_tags()
 
             cur += 1
             if self.horizontal:
@@ -322,17 +324,39 @@ class LayoutListbox(layout.Column):
         
         # sub_page.present(event)   
         FrameContext.page = restore
-
         #
         # I the slot should not show
-        if self.last_tags is not None:
-            diff = self.last_tags - sub_page.tags
-            #print(f"tags {len(self.last_tags)} {len(sub_page.tags)} {len(diff)}")
-            for t in diff:
-                sbs.send_gui_text(
-                    CID, t, "text:_",
-                        -1000, -1000, -999,-999)
-        self.last_tags = sub_page.tags
+        # if self.last_tags is not None:
+        #     diff = self.last_tags - sub_page.tags
+        #     #print(f"tags {len(self.last_tags)} {len(sub_page.tags)} {len(diff)}")
+        #     for t in diff:
+        #         sbs.send_gui_text(
+        #             CID, t, "text:_",
+        #                 -1000, -1000, -999,-999)
+        # self.last_tags = sub_page.tags
+        #sbs.target_gui_sub_region(CID, "")
+
+    def present(self, event):
+        CID = event.client_id
+        is_update = self.region is not None
+        # If first time create sub region
+        if not is_update:
+            #print("Listbox CREATE present")
+            sbs.send_gui_sub_region(CID, self.tag+"$$", "draggable:True;", 0,0,100,100)
+            self.region = True
+            sbs.target_gui_sub_region(CID, self.tag+"$$")
+            super().present(event)
+        else:
+            #print("Listbox UPDATE present")
+            sbs.target_gui_sub_region(CID, self.tag+"$$")
+            sbs.send_gui_clear(CID, self.tag+"$$")
+            super().present(event)
+            sbs.send_gui_complete(CID, self.tag+"$$")
+
+        sbs.target_gui_sub_region(CID, "")
+        
+    def represent(self, event):
+        super().represent(event)
         
 
     def on_message(self, event):
@@ -347,8 +371,8 @@ class LayoutListbox(layout.Column):
             if value != self.cur:
                 self.cur = value
                 self.gui_state = "redraw"
-                self.present(event)
-            
+                self.represent(event)
+                return
 
         if not self.select and not self.multi:
             return
@@ -375,7 +399,8 @@ class LayoutListbox(layout.Column):
             self.selected = {slot}
         else:
             return
-        self.present(event)
+        self.represent(event)
+
 
         
     def get_selected(self):
@@ -401,14 +426,25 @@ class LayoutListbox(layout.Column):
         self.selected = set()
         if v is not None:
             self.selected.add(v)
-        e = FakeEvent(FrameContext.client_id)
-        self.present(e)
+
+        self.redraw_if_showing()
     
     def select_all(self):
         if self.multi:
             self.selected = set()
             for item in range(len(self.items)):
                 self.selected.add(item)
+
+            self.redraw_if_showing()
+
+    
+    def redraw_if_showing(self):
+        """ 
+        Redraw if this is already one screen.
+        Since sub_region is used if you present too early it will confuse the gui.
+        """
+        if self.region is None:
+            return
         self.gui_state = "redraw"
         # Pure hackery or brilliant, time will tell
         e = FakeEvent(FrameContext.client_id)
@@ -416,10 +452,7 @@ class LayoutListbox(layout.Column):
 
     def select_none(self):
         self.selected = set()
-        self.gui_state = "redraw"
-        # Pure hackery or brilliant, time will tell
-        e = FakeEvent(FrameContext.client_id)
-        self.present(e)
+        self.redraw_if_showing()
 
     def convert_value(self, item):
         return item

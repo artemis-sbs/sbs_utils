@@ -2,6 +2,7 @@ from .layout import Column, Bounds, get_font_size
 from ...helpers import FrameContext
 from ...gui import get_client_aspect_ratio
 import re
+import sbs
 
 class TextLine:
     def __init__(self, text, style, width, height, is_sec_end) -> None:
@@ -37,6 +38,7 @@ class TextArea(Column):
         self.start_line = 0
         self.last_line = 0
         self.max_tag = 0
+        self.region = None
         
         
     def get_style(self, key):
@@ -222,9 +224,9 @@ class TextArea(Column):
         #
         if self.simple_text:
             return self._present_simple(event)
-
         ctx = FrameContext.context
         CID = event.client_id
+        
         ar = get_client_aspect_ratio(CID)
         
         bounds = Bounds(self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
@@ -277,9 +279,29 @@ class TextArea(Column):
         max = -(self.last_line+1)
         cur = self.start_line
 
-        ctx.sbs.send_gui_slider(CID, f"{self.tag}vbar", int(cur), f"low:{max}; high: 0; show_number:no",
+        ctx.sbs.send_gui_slider(CID, f"{self.tag}vbar", -int(cur), f"low:{max}; high: 0; show_number:no",
             scroll_bounds.right-20*100/ar.x, scroll_bounds.top,
             scroll_bounds.right, scroll_bounds.bottom)
+
+    def present(self, event):
+        CID = event.client_id
+        is_update = self.region is not None
+        # If first time create sub region
+        if not is_update:
+            #print("Listbox CREATE present")
+            sbs.send_gui_sub_region(CID, self.tag+"$$", "draggable:False;", 0,0,100,100)
+            self.region = True
+            sbs.target_gui_sub_region(CID, self.tag+"$$")
+            super().present(event)
+        else:
+            #print("Listbox UPDATE present")
+            sbs.target_gui_sub_region(CID, self.tag+"$$")
+            sbs.send_gui_clear(CID, self.tag+"$$")
+            super().present(event)
+            sbs.send_gui_complete(CID, self.tag+"$$")
+
+        sbs.target_gui_sub_region(CID, "")
+        
 
     def update(self, message):
         # print(f"{message}")
@@ -357,7 +379,7 @@ class TextArea(Column):
     def on_message(self, event):
         if event.sub_tag != f"{self.tag}vbar":
             return
-        
+        print("TextArea")
         value = -int(event.sub_float)
         if value != self.start_line:
             self.start_line = value

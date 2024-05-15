@@ -439,7 +439,7 @@ class StoryPage(Page):
             message = "".join(self.errors)
             message = message.replace(";", "~")
             message = "text: Mast Compiler Errors\n" + message.replace(",", ".")
-            my_sbs.send_gui_clear(event.client_id)
+            my_sbs.send_gui_clear(event.client_id,"")
             if event.client_id != 0:
                 my_sbs.send_client_widget_list(event.client_id, "", "")
             my_sbs.send_gui_text(event.client_id, "error", message,  0,0,100,100)
@@ -448,14 +448,14 @@ class StoryPage(Page):
             sbs.send_gui_button(event.client_id, "$Error$rerun", "text:Attempt Rerun", 50, 90, 70, 99)
             sbs.send_gui_button(event.client_id, "$Error$startup", "text:Run startup", 75, 90, 99, 99)
             self.gui_state = "errors"
-            my_sbs.send_gui_complete(event.client_id)
+            my_sbs.send_gui_complete(event.client_id,"")
             return
         
         
         match self.gui_state:
             
             case  "repaint":
-                my_sbs.send_gui_clear(event.client_id)
+                my_sbs.send_gui_clear(event.client_id,"")
                 my_sbs.send_client_widget_list(event.client_id, self.console, self.widgets)
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
@@ -466,7 +466,7 @@ class StoryPage(Page):
                     self.gui_state = "repaint"
                 else:
                     self.gui_state = "presenting"
-                my_sbs.send_gui_complete(event.client_id)
+                my_sbs.send_gui_complete(event.client_id,"")
             case  "refresh":
                 for layout_obj in self.layouts:
                     layout_obj.calc(self.client_id)

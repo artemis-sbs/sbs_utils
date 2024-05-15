@@ -1205,6 +1205,11 @@ class Layout:
             bounds_area = Bounds(calc_bounds(self.bounds_style, aspect_ratio, sec_font_size))
             self.bounds = Bounds(bounds_area)
 
+        if self.region_type != RegionType.TOP_LEVEL:
+            w = bounds_area.width
+            h = bounds_area.height
+            bounds_area = Bounds(0,0,w,h)
+
         
         # remove empty
         #self.rows = [x for x in self.rows if len(x.columns)>0]
@@ -1430,14 +1435,20 @@ class Layout:
                 continue
             self.sync_region(event.client_id)
             row.present(event)
-        
 
+        self.sync_region(event.client_id)
         self._post_present(event)
 
 
     def sync_region(self, client_id):
+        return
         if self.region_type == RegionType.TOP_LEVEL:
-            sbs.target_gui_sub_region(client_id, "MAIN")
+            sbs.target_gui_sub_region(client_id, "")
+            print("TARGET ROOT")
+        elif self.region_type == RegionType.TOP_WINDOWS:
+            sbs.target_gui_sub_region(client_id, self.tag)
+            print("TARGET LAYOUT")
+
 
     def _post_present(self, event):
         if self.click_text is not None:
@@ -1603,12 +1614,12 @@ class LayoutPage(Page):
         ctx = FrameContext.context
         match self.gui_state:
             case  "repaint":
-                ctx.sbs.send_gui_clear(event.client_id)
+                ctx.sbs.send_gui_clear(event.client_id, "")
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
                 self.gui_state = "presenting"
                 self.layout.present(event)
-                ctx.sbs.send_gui_complete(event.client_id)
+                ctx.sbs.send_gui_complete(event.client_id, "")
                 
 
 
