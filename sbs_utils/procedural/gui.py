@@ -101,6 +101,29 @@ def gui_icon(props, style=None):
     page.add_content(layout_item, None)
     return layout_item
 
+def gui_icon_button(props, style=None):
+    """queue a gui icon element
+
+    Args:
+        props (str): _description_
+        style (str, optional): Style. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """        
+    page = FrameContext.page
+    task = FrameContext.task
+    props = task.compile_and_format_string(props)
+    if page is None:
+        return None
+    
+    tag = page.get_tag()
+    layout_item = layout.IconButton(tag,props)
+    apply_control_styles(".icon_button", style, layout_item, task)
+    # Last in case tag changed in style
+    page.add_content(layout_item, None)
+    return layout_item
+
 def gui_image_stretch(props, style=None):
     """queue a gui image element that stretches to fit
 
@@ -549,6 +572,7 @@ def gui_section(style=None):
     return layout_item
 
 
+
 def gui_list_box(items, style, 
                  item_template=None, title_template=None, 
                  section_style=None, title_section_style=None,
@@ -590,13 +614,13 @@ class PageSubSection:
 
     def __enter__(self):
         # Allow reentering
-        self.sub_section = self.page.push_sub_section(self.style, self.sub_section)
+        self.sub_section = self.page.push_sub_section(self.style, self.sub_section, False)
         
 
     # Pythons expects 4 args, mast only 1
     # Python's are exception related
     def __exit__(self, ex=None, value=None, tb=None):
-        self.page.pop_sub_section(self.add)
+        self.page.pop_sub_section(self.add, False)
         self.add = False
 
 
@@ -611,6 +635,64 @@ def gui_sub_section(style=None):
     """    
     return PageSubSection(style)
 
+
+class PageRegion:
+    def __init__(self, style) -> None:
+        page = FrameContext.page
+        if page is None:
+            return None
+        self.page = page
+        self.style = style
+        self.sub_section = None
+        # Create  top level layout        
+        self.sub_section  = gui_section(style)
+        
+
+    def __enter__(self):
+        # Allow reentering
+        self.sub_section = self.page.push_sub_section(self.style, self.sub_section, self.sub_section.region)
+        self.sub_section.region_type = layout.RegionType.REGION_ABSOLUTE
+        
+
+    # Pythons expects 4 args, mast only 1
+    # Python's are exception related
+    def __exit__(self, ex=None, value=None, tb=None):
+        self.page.pop_sub_section(False, self.sub_section.region)
+        if self.sub_section.region:
+            gui_represent(self.sub_section)
+
+    def show(self, _show):
+        self.sub_section.show(_show)
+
+    def represent(self, e):
+        self.sub_section.represent(e)
+
+
+
+
+def gui_region(style=None):
+    """ Create a new gui section that uses the area specified in the style
+
+    Args:
+        style (style, optional): Style. Defaults to None.
+
+    Returns:
+        layout object: The Layout object created
+    """    
+    return PageRegion(style)
+
+
+def gui_rebuild(region):
+    """ prepares a section/region to be build a new layout
+
+    Args:
+        region (layout_item): a layout/Layout item
+
+    Returns:
+        layout object: The Layout object created
+    """
+    region.sub_section.rebuild()
+    return region
 
 
 def gui_style_def(style):
@@ -1024,6 +1106,7 @@ class MessageTrigger(Trigger):
 
     def on_message(self, event):
         if event.sub_tag == self.layout_item.tag:
+            # print(f"ON MESSAGE: {event.sub_tag} {self.label} {self.loc} {self.task.is_sub_task}")
             self.task.set_value_keep_scope("__ITEM__", self.layout_item)
             data = self.layout_item.data
             self.task.push_inline_block(self.label, self.loc, data)
@@ -1361,12 +1444,13 @@ class ButtonPromise(AwaitBlockPromise):
 
     def build_navigation_buttons(self):
         self.nav_buttons = []
+        # print(f"Build Nav Buttons {self.path}")
         path_labels = ButtonPromise.navigation_map.get(self.path)
         if path_labels is None:
             return
         
         ButtonPromise.navigating_promise = self
-        p = task_all(*path_labels)
+        p = task_all(*path_labels, sub_tasks=True)
         p.poll()
         #
         # This could get into a lock
@@ -1392,7 +1476,8 @@ class GuiPromise(ButtonPromise):
     button_height_px = 40
 
     def __init__(self, page, timeout=None) -> None:
-        super().__init__("", page.gui_task, timeout)
+        path = page.get_path()
+        super().__init__(path, page.gui_task, timeout)
 
         self.page = page
         self.button_layout = None
@@ -1400,8 +1485,9 @@ class GuiPromise(ButtonPromise):
     def initial_poll(self):
         if self._initial_poll:
             return
+        
         super().initial_poll()
-        self.page.set_button_layout(self.button_layout)
+        self.page.set_button_layout(self.button_layout, self)
 
     #
     # This 

@@ -154,10 +154,11 @@ for x in range(10):
 
 ====== test ======
 log("Hello")
-==== test ====
+==== test
 log("good bye")
 
 """)
+        # Label end delimiter are now optional because we're now indention + newline based
         assert(len(errors)==1)
         assert("duplicate label 'test'" in errors[0])
 
@@ -1949,3 +1950,81 @@ class TestMastPython(unittest.TestCase):
 
 
 
+    def test_sub_task(self):
+        (errors, runner, mast) =mast_run( code = """
+logger(var="output")
+shared x = 1
+===== loop ====                                          
+log("preloop")
+await delay_test(4)
+# Don't log here timing not reliable
+jump loop if x < 4
+log("exit")
+->END
+
+==== sub_one ===
+x += 1
+log("sub_one")
+->END
+
+==== sub_two ===
+x += 1
+log("sub_two")
+yield success
+
+==== sub_three ===
+log("sub_three")
+x += 1
+yield fail
+
+
+""")
+
+        assert(len(errors)==0)
+        t = runner.active_task
+        for _ in range(2):
+            t.tick()
+        x = t.get_variable("x")
+        assert(x==1)
+        st = t.start_sub_task("sub_one")
+        for _ in range(2):
+            t.tick()
+        assert(not st.done())
+        x = t.get_variable("x")
+        assert(x==2)
+        st.jump("sub_two")
+        for _ in range(2):
+            t.tick()
+        assert(not t.done())
+        assert(not st.done())
+        
+        x = t.get_variable("x")
+        assert(x==3)
+
+        st.tick()
+        assert(not st.done())
+        for _ in range(5):
+            t.tick()
+        assert(not t.done())
+        assert(not st.done())
+        assert(len(t.sub_tasks)==1)
+        st.jump("sub_three")
+
+        
+        for _ in range(120):
+            t.tick()
+
+        x = t.get_variable("x")
+        assert(x==4)    
+        assert(len(t.sub_tasks)==0)
+        assert(st.done())
+        #assert(t.done())
+
+
+
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        value = st.getvalue()
+        assert(t.done())
+        assert(value=="preloop\nsub_one\nsub_two\nsub_three\nexit\n")

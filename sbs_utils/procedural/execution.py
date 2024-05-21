@@ -151,6 +151,36 @@ def task_all(*args, **kwargs):
     if FrameContext.task is None:
         return
     data = None
+    sub_tasks = False
+    if kwargs is not None:
+        data = kwargs.get("data", None)
+        sub_tasks = kwargs.get("sub_tasks", False)
+    tasks = []
+    for label in args:
+        if not sub_tasks:
+            t = FrameContext.task.start_task(label, data)
+        else:
+            t = FrameContext.task.start_sub_task(label, data)
+        tasks.append(t)
+    return PromiseAllAny(tasks, True)
+
+#
+# Args are labels or task
+#
+# Doesn't return until all success, or any fail
+#
+def sub_task_all(*args, **kwargs):
+    """Creates a task for each argument that is a label. Also supports a data named argument to pass the data to all the tasks.
+
+    Args:
+        args (0..n labels): the labels to schedule.
+        data (dict): keyword arg to pass data to the tasks.
+    Returns:
+        Promise: A promise that is finished when all tasks are completed.
+    """    
+    if FrameContext.task is None:
+        return
+    data = None
     if kwargs is not None:
         data = kwargs.get("data", None)
     tasks = []
@@ -158,6 +188,7 @@ def task_all(*args, **kwargs):
         t = FrameContext.task.start_task(label, data)
         tasks.append(t)
     return PromiseAllAny(tasks, True)
+
 
 
 

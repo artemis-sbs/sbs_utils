@@ -1,4 +1,4 @@
-from test_label import label
+from t_label import label
 
 @label
 def four():

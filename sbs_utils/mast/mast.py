@@ -87,7 +87,7 @@ class MastNode:
 
 
 class Label(MastNode):
-    rule = re.compile(r'(?P<m>=|\?){2,}\s*(?P<replace>replace:)?[ \t]*(?P<name>\w+)[ \t]*(?P=m){2,}')
+    rule = re.compile(r'(?P<m>=|\?){2,}\s*(?P<replace>replace:)?[ \t]*(?P<name>\w+)[ \t]*((?P=m){2,})?')
 
     def __init__(self, name, replace=None, m=None, loc=None):
         super().__init__()

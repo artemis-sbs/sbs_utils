@@ -200,7 +200,7 @@ def cosmos_event_handler(sim, event):
                 ConsoleDispatcher.dispatch_message(event, "science_target_UID")
 
             case "gui_message":
-                # print_event(event)
+                #print_event(event)
                 Gui.on_message(event)
 
             case "grid_object":

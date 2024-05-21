@@ -177,17 +177,17 @@ class Row:
     def represent(self, event):
         self.present(event)
 
-    def get_tags(self):
-        tags = set()
-        if self.tag:
-            tags.add(self.tag)
-        if self.border_color:
-            tags.add("__bb:"+self.tag)
-        if self.background_color:
-            tags.add("__bg:"+self.tag)
-        if self.click_tag:
-            tags.add(self.click_tag)
-        return tags
+    # def get_tags(self):
+    #     tags = set()
+    #     if self.tag:
+    #         tags.add(self.tag)
+    #     if self.border_color:
+    #         tags.add("__bb:"+self.tag)
+    #     if self.background_color:
+    #         tags.add("__bg:"+self.tag)
+    #     if self.click_tag:
+    #         tags.add(self.click_tag)
+    #     return tags
 
     def present(self, event):
         col:Column
@@ -323,17 +323,17 @@ class Column:
     def set_padding(self, padding):
         self._padding = padding
 
-    def get_tags(self):
-        tags = set()
-        if self.tag:
-            tags.add(self.tag)
-        if self.border_color:
-            tags.add("__bb:"+self.tag)
-        if self.background_color:
-            tags.add("__bg:"+self.tag)
-        if self.click_tag:
-            tags.add(self.click_tag)
-        return tags
+    # def get_tags(self):
+    #     tags = set()
+    #     if self.tag:
+    #         tags.add(self.tag)
+    #     if self.border_color:
+    #         tags.add("__bb:"+self.tag)
+    #     if self.background_color:
+    #         tags.add("__bg:"+self.tag)
+    #     if self.click_tag:
+    #         tags.add(self.click_tag)
+    #     return tags
 
     def get_color(self):
         if self.color is not None:
@@ -932,12 +932,13 @@ class IconButton(Column):
         super().__init__()
         self.tag = tag
         self.props = props
+        self.square = True
 
     def _present(self,  event):
         ctx = FrameContext.context
         ctx.sbs.send_gui_iconbutton(event.client_id, 
             self.tag, self.props, 
-            self.bounds.left,self.bounds.top, self.right, self.bottom)
+            self.bounds.left,self.bounds.top, self.bounds.right, self.bounds.bottom)
     @property
     def value(self):
          return self.props
@@ -1059,16 +1060,19 @@ def get_font_size(font):
     return sizes.get(font, 20)
 
 class RegionType(IntEnum):
-    TOP_LEVEL = 0,
-    TOP_WINDOWS = 1,
-    CHILD_WINDOW = 2
+    SECTION_AREA_ABSOLUTE = 0,       # Not a window layout, Old school layout
+    REGION_ABSOLUTE = 100,   # a Sub region that use 0,0,100,100 of screen
+    REGION_RELATIVE = 200,   # TODO: Sub Region that uses pixel size of area as aspect ration
+    # CHILD_WINDOW = 2,          
+    
 
 
 class Layout:
     clicked = {}
+    region_target_stack = [""]
     
     def __init__(self, tag=None,  rows = None, 
-                left=0, top=0, right=100, bottom=50, region_type=RegionType.TOP_LEVEL) -> None:
+                left=0, top=0, right=100, bottom=50, region_type=RegionType.SECTION_AREA_ABSOLUTE) -> None:
         self.rows = rows if rows else []
         self.set_bounds(Bounds(left,top,right,bottom))
         self.restore_bounds = self.bounds
@@ -1105,18 +1109,20 @@ class Layout:
 
         self.region = None
         self.region_type = region_type
+        self.representing = False
+        self._show = True
 
-    def get_tags(self):
-        tags = set()
-        if self.tag:
-            tags.add(self.tag)
-        if self.border_color:
-            tags.add("__bb:"+self.tag)
-        if self.background_color:
-            tags.add("__bg:"+self.tag)
-        if self.click_tag:
-            tags.add(self.click_tag)
-        return tags
+    # def get_tags(self):
+    #     tags = set()
+    #     if self.tag:
+    #         tags.add(self.tag)
+    #     if self.border_color:
+    #         tags.add("__bb:"+self.tag)
+    #     if self.background_color:
+    #         tags.add("__bg:"+self.tag)
+    #     if self.click_tag:
+    #         tags.add(self.click_tag)
+    #     return tags
 
 
     def set_bounds(self, bounds):
@@ -1136,7 +1142,7 @@ class Layout:
 
     @property
     def is_hidden(self):
-        return self.bounds.left == -1000
+        return not self._show #bounds.left == -1000
     
     @property
     def color(self):
@@ -1181,15 +1187,33 @@ class Layout:
     def add(self, row:Row):
         self.rows.append(row)
 
+    def rebuild(self):
+        self.rows = [Row()]
+
     def show(self, _show):
+        self._show = _show
         if not _show:
             self.set_bounds(Bounds(-1000,-1000, -999,-999))
         else:
             self.set_bounds(self.restore_bounds)
 
     def represent(self, event):
-        self.calc(event.client_id)
-        self.present(event)
+        self.representing = True
+        if self.region_type == RegionType.SECTION_AREA_ABSOLUTE:
+            self.calc(event.client_id)
+            self.present(event)
+            return
+        elif not self.is_hidden:
+            self.calc(event.client_id)
+            self.present(event)
+            return
+        else:
+            #self.calc(event.client_id)
+            self.region_begin(event.client_id)
+            self.region_target(event.client_id)
+            #self.present(event)
+            self.region_end(event.client_id)
+        
 
     def calc(self, client_id):
         aspect_ratio = get_client_aspect_ratio(client_id)
@@ -1205,7 +1229,7 @@ class Layout:
             bounds_area = Bounds(calc_bounds(self.bounds_style, aspect_ratio, sec_font_size))
             self.bounds = Bounds(bounds_area)
 
-        if self.region_type != RegionType.TOP_LEVEL:
+        if self.region_type == RegionType.REGION_RELATIVE:
             w = bounds_area.width
             h = bounds_area.height
             bounds_area = Bounds(0,0,w,h)
@@ -1399,13 +1423,15 @@ class Layout:
          
                 row_top += row_height
          
-
+    @property
+    def region_tag(self):
+        return self.tag + "$$"
 
     def present(self, event):
         # Sections are different their bounds are the whole container
         
-        self.sync_region(event.client_id)
-
+        self.region_begin(event.client_id)
+        self.region_target(event.client_id)
         if self.border_color is not None:
             bounds = Bounds(self.bounds)
             bounds.shrink(self.margin)
@@ -1433,22 +1459,63 @@ class Layout:
                 continue
             if row.bounds.left > self.bounds.right or row.bounds.right < self.bounds.left or row.bounds.top>self.bounds.bottom or row.bounds.bottom < self.bounds.top:
                 continue
-            self.sync_region(event.client_id)
+            self.region_target(event.client_id)
             row.present(event)
 
-        self.sync_region(event.client_id)
+        self.region_target(event.client_id)
         self._post_present(event)
+        self.region_end(event.client_id)
 
 
-    def sync_region(self, client_id):
-        return
-        if self.region_type == RegionType.TOP_LEVEL:
+    def region_begin(self, client_id):
+        if self.representing:
+            if self.region_type != RegionType.SECTION_AREA_ABSOLUTE:
+                #print(f"clear {self.region_tag}")
+                sbs.send_gui_clear(client_id, self.region_tag)
+        elif not self.region:
+            if self.region_type == RegionType.REGION_ABSOLUTE:
+                #print(f"create {self.tag}")
+                
+                self.region = True
+                sbs.send_gui_sub_region(client_id, self.region_tag, "draggable:True;", 0.0,0.0,100.0,100.0)
+            elif self.region_type == RegionType.REGION_RELATIVE:
+                #
+                # TODO: This should be bounds
+                #
+                sbs.send_gui_sub_region(client_id, self.region_tag, "draggable:True;", 0,0,50,50)
+        #
+        # Always push a target so children restore parent
+        #
+        if self.region_type == RegionType.SECTION_AREA_ABSOLUTE:
+            Layout.region_target_stack.append(Layout.region_target_stack[-1])
+        else:
+            Layout.region_target_stack.append(self.region_tag)
+
+    def region_target(self, client_id):
+        if self.region_type != RegionType.SECTION_AREA_ABSOLUTE:
+            #print(f"target {self.region_tag}")
+            sbs.target_gui_sub_region(client_id,  self.region_tag)
+        
+        
+    def region_end(self, client_id):
+        Layout.region_target_stack.pop()
+        # There should always be the root
+
+        if self.representing:
+            self.representing = False
+            if self.region_type != RegionType.SECTION_AREA_ABSOLUTE:
+                #print(f"complete {self.region_tag}")
+                sbs.send_gui_complete(client_id, self.region_tag)
+        
+        #
+        # BASIC SECTION ARE NOT REGIONS
+        #
+        if self.region_type != RegionType.SECTION_AREA_ABSOLUTE:
+            # Always point at root
+            #print("Un target")
             sbs.target_gui_sub_region(client_id, "")
-            print("TARGET ROOT")
-        elif self.region_type == RegionType.TOP_WINDOWS:
-            sbs.target_gui_sub_region(client_id, self.tag)
-            print("TARGET LAYOUT")
 
+        
 
     def _post_present(self, event):
         if self.click_text is not None:
@@ -1468,7 +1535,7 @@ class Layout:
             bounds.shrink(self.border)
 
             ctx = FrameContext.context
-            self.sync_region(event.client_id)
+            self.region_target(event.client_id)
             ctx.sbs.send_gui_clickregion(event.client_id, 
                 self.click_tag, click_props,
                 bounds.left, bounds.top, bounds.right, bounds.bottom)

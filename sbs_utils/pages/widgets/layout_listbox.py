@@ -272,7 +272,7 @@ class LayoutListbox(layout.Column):
             sec.present(event)
             sec.resize_to_content()
             top += sec.bounds.height
-            sub_page.tags |= sec.get_tags()
+            # sub_page.tags |= sec.get_tags()
 
         #draw_slots = max_slot
         print(f"{cur=} {max_slots=}" )

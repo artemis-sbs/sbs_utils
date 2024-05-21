@@ -39,6 +39,8 @@ class StoryPage(Page):
         self.story_scheduler = None
         self.layouts = []
         self.tag = 10000
+        self.rebuild_tag = 20000
+        self.is_processing_rebuild = False
         section = layout.Layout(None, None, 0,0, 100, 90)
         section.tag = self.get_tag()
         self.pending_layouts = self.pending_layouts = []
@@ -46,6 +48,7 @@ class StoryPage(Page):
         self.pending_row.tag = self.get_tag()
         self.pending_tag_map = {}
         self.tag_map = {}
+
         #self.aspect_ratio = sbs.vec2(1024,768)
         self.client_id = None
         self.sbs = None
@@ -54,14 +57,15 @@ class StoryPage(Page):
         self.widgets = ""
         self.pending_console = ""
         self.pending_widgets = ""
-        self.pending_on_change_items= []
-        self.on_change_items= []
+        # self.pending_on_change_items= []
+        # self.on_change_items= []
         self.pending_on_click = []
         self.on_click = []
         self.gui_task = None
         self.change_console_label = None
         self.main_screen_change_label = None
         self.disconnected = False
+
         
         self.errors = []
         cls = self.__class__
@@ -106,6 +110,7 @@ class StoryPage(Page):
 
             # Start task defer so we can set gui_task appropriately
             self.gui_task = self.story_scheduler.run(client_id, self, label, cls.inputs, None, True)
+            self.gui_task.is_gui_task = True
             set_inventory_value(self.client_id, "GUI_TASK", self.gui_task)
             set_inventory_value(self.client_id, "GUI_PAGE", self)
             self.gui_task.tick_in_context()
@@ -120,8 +125,9 @@ class StoryPage(Page):
 
 
     def swap_layout(self):
-        self.on_change_items= self.pending_on_change_items
-        self.pending_on_change_items = []
+        # self.on_change_items= self.pending_on_change_items
+        # self.pending_on_change_items = []
+        self.gui_task.swap_on_change()
         self.on_click = self.pending_on_click
         self.pending_on_click = []
         self.layouts = self.pending_layouts
@@ -129,9 +135,11 @@ class StoryPage(Page):
         self.console = self.pending_console
         self.widgets = self.pending_widgets
 
-        
+        # TODO: this should be one thing
+        # convert console tabs to procedural
         self.gui_queue_console_tabs()
-                
+        
+        self.rebuild_tag = self.tag
         self.tag = 10000
         
         if self.layouts:
@@ -152,6 +160,10 @@ class StoryPage(Page):
 
 
     def get_tag(self):
+        if self.is_processing_rebuild:
+            self.rebuild_tag += 1
+            return str(self.rebuild_tag)
+
         self.tag += 1
         return str(self.tag)
 
@@ -173,10 +185,13 @@ class StoryPage(Page):
         if hasattr(layout_item, 'tag'):
             self.pending_tag_map[layout_item.tag] = (layout_item, runtime_node)
 
-    def push_sub_section(self, style, layout_item):
+    def push_sub_section(self, style, layout_item, is_rebuild):
         #
         # If there is even an empty row, we need to cache it away for later
         #
+        if is_rebuild:
+            self.is_processing_rebuild = True
+
         if self.pending_row:
             if len(self.pending_layouts) != 0:
                 self.pending_layouts[-1].add(self.pending_row)
@@ -199,7 +214,14 @@ class StoryPage(Page):
         return layout_item
         
 
-    def pop_sub_section(self, add_content):
+    def pop_sub_section(self, add_content, is_rebuild):
+        if is_rebuild:
+            self.is_processing_rebuild = False
+            self.tag_map.update(self.pending_tag_map)
+            self.pending_tag_map = {}
+            print(f"Len click {len(self.pending_on_click)}")
+            self.on_click.extend(self.pending_on_click)
+            self.pending_on_click = []
         # Finish the layout for the sub section
         if self.pending_row:
             if len(self.pending_row.columns):
@@ -228,14 +250,12 @@ class StoryPage(Page):
 
         self.pending_row.add(layout_item)
 
-    def add_on_change(self, runtime_node):
-        self.pending_on_change_items.append(runtime_node)
+    # def add_on_change(self, runtime_node):
+    #     self.pending_on_change_items.append(runtime_node)
 
     def add_on_click(self, runtime_node):
         self.pending_on_click.append(runtime_node)
 
-    def add_on_message(self, runtime_node):
-        self.pending_on_click.append(runtime_node)
 
     def set_widget_list(self, console,widgets):
         self.pending_console = console
@@ -272,8 +292,11 @@ class StoryPage(Page):
             self.add_row()
         return self.pending_row
 
+    def get_path(self):
+        # The pending console is the one the gui is going to present
+        return f"gui/{self.pending_console}"
 
-    def set_button_layout(self, layout):
+    def set_button_layout(self, layout, gui_promise):
         if self.pending_row and self.pending_layouts:
             if self.pending_row:
                 self.pending_layouts[-1].add(self.pending_row)
@@ -412,10 +435,10 @@ class StoryPage(Page):
         #
         my_sbs = FrameContext.context.sbs
         
-        for change in self.on_change_items:
-            if change.test():
-                change.run()
-                return
+        # for change in self.on_change_items:
+        #     if change.test():
+        #         change.run()
+        #         return
 
         if self.story_scheduler is None:
             self.start_story(event.client_id)
@@ -475,14 +498,14 @@ class StoryPage(Page):
                     self.gui_state = "repaint"
                 else:
                     self.gui_state = "presenting"
-            case _:
-                for change in self.on_change_items:
-                    if change.test():
-                        print("ON CHANGE - match")
-                        change.run()
-                        #self.gui_task.push_inline_block(self.gui_task.active_label, change.node.loc+1)
-                        #self.gui_task.tick_in_context()
-                        break
+            # case _:
+            #     for change in self.on_change_items:
+            #         if change.test():
+            #             print("ON CHANGE - match")
+            #             change.run()
+            #             #self.gui_task.push_inline_block(self.gui_task.active_label, change.node.loc+1)
+            #             #self.gui_task.tick_in_context()
+            #             break
 
     def on_message(self, event):
         if event.client_id != self.client_id:
@@ -530,16 +553,18 @@ class StoryPage(Page):
         clicked = layout.Layout.clicked.get(self.client_id)
 
         runtime_node = self.tag_map.get(message_tag)
+        
         refresh = False
         if runtime_node is not None and runtime_node[1] is not None:
             # tuple layout and runtime node
             runtime_node = runtime_node[1]
             runtime_node.on_message(event)
           
-        for change in self.on_change_items:
-            if change.test():
-                change.run()
-                return
+        # for change in self.on_change_items:
+        #     if change.test():
+        #         change.run()
+        #         return
+        self.gui_task.run_on_change()
             
         if clicked is not None:
             layout.Layout.clicked[self.client_id] = None

@@ -477,7 +477,7 @@ class OnChangeRuntimeNode(MastRuntimeNode):
             self.value = task.eval_code(node.value)
             # Triggers handle things themselves
             if not isinstance(self.value, Trigger):  
-                task.main.page.add_on_change(self)
+                task.queue_on_change(self)
             # If the label is set don't override it
             # Python must have set it
             else:
@@ -485,7 +485,7 @@ class OnChangeRuntimeNode(MastRuntimeNode):
                 self.value.label = task.active_label
 
             # TODO
-            # Hmmm A little leakage that it use PAGE
+            # Hmmm A little leakage that it uses PAGE
             # Move this to Task>
             #
 
@@ -535,6 +535,7 @@ class MastTicker:
         self.pending_jump = None
         self.main = main
         self.task = task
+        
 
     def end(self):
         #self.last_poll_result = PollResults.OK_END
@@ -555,8 +556,9 @@ class MastTicker:
     
     
     def do_jump(self, label = "main", activate_cmd=0):
-           
-        if label == "END" or label is None:
+        is_sub_task = self.task.is_sub_task
+
+        if not is_sub_task and label == "END" or label is None:
             self.active_cmd = 0
             self.runtime_node = None
             self.done = True
@@ -583,6 +585,10 @@ class MastTicker:
                 self.active_cmd = activate_cmd
                 self.runtime_node = None
                 self.done = False
+                #
+                # This is for sub tasks so the can run again
+                #
+                self.last_poll_result = PollResults.OK_JUMP
                 self.next()
             else:
                 self.runtime_error(f"""Jump to label "{label}" not found""")
@@ -664,10 +670,13 @@ class MastTicker:
     def tick(self):
         cmd = None
         #print(f"tick Mast task {self.task.id & 0xFFFFF}")
+        is_sub_task = self.task.is_sub_task
 
         try:
             if self.done:
                 # should unschedule
+                if is_sub_task:
+                    return PollResults.FAIL_END
                 return PollResults.OK_END
 
             count = 0
@@ -687,6 +696,9 @@ class MastTicker:
                     else:    
                         self.do_jump(pop_data[0], pop_data[1])
 
+                if self.task.is_sub_task and self.last_poll_result == PollResults.OK_END:
+                    return PollResults.OK_END
+                
                 count += 1
                 # avoid tight loops
                 if count > 100000:
@@ -728,7 +740,8 @@ class MastTicker:
                             self.next()
                         case PollResults.OK_END:
                             self.last_poll_result = result
-                            self.done = True
+                            if not is_sub_task:
+                                self.done = True
                             return PollResults.OK_END
                         case PollResults.FAIL_END:
                             self.last_poll_result = result
@@ -798,7 +811,8 @@ class MastTicker:
                 active = self.main.mast.labels.get(self.active_label)
                 next = active.next
                 if next is None:
-                    self.done = True
+                    if not self.task.is_sub_task:
+                        self.done = True
                     return False
                 return self.jump(next.name)
                 
@@ -1063,8 +1077,39 @@ class MastAsyncTask(Agent, Promise):
         self.label_stack = []
         self.yield_results = None
         self.yields_once = True
+        self.is_sub_task = False
+        self.sub_tasks = []
 
         self.add()
+
+        self.pending_on_change_items = []
+        self.on_change_items = []
+        # So far this is used only of on change processing
+        self.is_gui_task = False
+
+
+    def queue_on_change(self, runtime_node):
+        if self.is_gui_task:
+            self.pending_on_change_items.append(runtime_node)
+        else:
+            self.on_change_items.append(runtime_node)
+
+    def run_on_change(self):
+        for change in self.on_change_items:
+            if change.test():
+                change.run()
+                return True
+        for st in self.sub_tasks:
+            if st.run_on_change():
+                return True
+
+        return False
+            
+    def swap_on_change(self):
+        if self.is_gui_task:
+            self.on_change_items= self.pending_on_change_items
+        self.pending_on_change_items = []
+    
     
     def end(self):
         # if self.name is not None:
@@ -1248,11 +1293,36 @@ class MastAsyncTask(Agent, Promise):
         
 
     def start_task(self, label = "main", inputs=None, task_name=None, defer=False)->MastAsyncTask:
-        if inputs:
-            for k in inputs:
-                self.set_inventory_value(k, inputs[k])
-                
-        return self.main.start_task(label, self.inventory.collections, task_name, defer)
+        if inputs is not None:
+            inputs = self.inventory.collections | inputs
+        else:
+            inputs = self.inventory.collections | {}
+        return self.main.start_task(label, inputs, task_name, defer)
+            
+      
+    
+    def start_sub_task(self, label = "main", inputs=None, task_name=None, defer=False)->MastAsyncTask:
+        if inputs is not None:
+            inputs = self.inventory.collections | inputs
+        else:
+            inputs = self.inventory.collections | {}
+        t= MastAsyncTask(self.main, inputs, task_name)
+        t.is_sub_task = True
+        if task_name is not None:
+            t.set_value(task_name, t, Scope.NORMAL)
+        t.jump(label)
+        self.sub_tasks.append(t)
+        if not defer:
+            t.tick_in_context()
+        return t
+    
+    def remove_sub_task(self, t):
+        t.stop()
+
+    def remove_all_sub_tasks(self):
+        for t in self.sub_tasks():
+            t.stop()
+
     
     def tick_in_context(self):
         _page = FrameContext.page
@@ -1264,6 +1334,27 @@ class MastAsyncTask(Agent, Promise):
         FrameContext.page = _page
         FrameContext.task = _task
         return res
+
+    def tick_subtasks(self):
+        restore = FrameContext.task
+        done = []
+        for task in self.sub_tasks:
+            self.active_task = task
+            FrameContext.task = task
+            res = task.tick()
+            FrameContext.task = None
+            if res == PollResults.FAIL_END:
+                done.append(task)
+            elif task.done():
+                done.append(task)
+        FrameContext.task = restore
+        
+        if len(done):
+            for rem in done:
+                if rem in self.sub_tasks:
+                    self.sub_tasks.remove(rem)
+            done = []
+
 
 
     def tick(self):
@@ -1278,6 +1369,7 @@ class MastAsyncTask(Agent, Promise):
                 self.set_result(self.yield_results)
             else:
                 self.set_result(self.active_ticker.last_poll_result)
+        self.tick_subtasks()
         return res
         
 
@@ -1372,6 +1464,7 @@ class MastScheduler(Agent):
         self.mast.add_scheduler(self)
         self.test_clock = 0
         self.active_task = None
+        self.page = None
         
 
     def runtime_error(self, message):
@@ -1467,6 +1560,9 @@ class MastScheduler(Agent):
                 if rem in self.tasks:
                     self.tasks.remove(rem)
             self.done = []
+
+        for task in self.tasks:
+            task.run_on_change()
 
         if len(self.tasks):
             return True

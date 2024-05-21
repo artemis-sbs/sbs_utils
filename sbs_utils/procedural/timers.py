@@ -245,7 +245,9 @@ def timeout_sim(seconds=0, minutes=0):
 class DelayForTests(Promise):
     def __init__(self,  seconds, minutes) -> None:
         super().__init__()
-        self.count = seconds+minutes*60
+        self.count = seconds+minutes*60 
+        self.count *= 20 # Poll calls done and poll is called a bunch 
+        # caused hangs if the delay was too short
         
     def done(self):
         #
