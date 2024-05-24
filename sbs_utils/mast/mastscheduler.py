@@ -26,13 +26,21 @@ class MastRuntimeNode:
 # class MastAsyncTask:
 #     pass
 
-class EndRuntimeNode(MastRuntimeNode):
-    def poll(self, mast, task, node:End):
-        if node.if_code:
-            value = task.eval_code(node.if_code)
-            if not value:
-                return PollResults.OK_ADVANCE_TRUE
-        return PollResults.OK_END
+# class EndRuntimeNode(MastRuntimeNode):
+#     def poll(self, mast, task, node:End):
+#         if node.if_code:
+#             value = task.eval_code(node.if_code)
+#             if not value:
+#                 return PollResults.OK_ADVANCE_TRUE
+#         res = node.result.upper()
+#         if res == 'FAIL':
+#             return PollResults.FAIL_END
+#         if res == 'SUCCESS':
+#             return PollResults.OK_END
+#         if res == 'END':
+#             return PollResults.OK_END
+#         if res == 'IDLE':
+#             return PollResults.OK_IDLE
     
 class YieldRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:Yield):
@@ -43,12 +51,19 @@ class YieldRuntimeNode(MastRuntimeNode):
         if node.code is not None:
             value = task.eval_code(node.code)
             task.yield_results = value
-            return PollResults.OK_YIELD
         if node.result.lower() == 'fail':
             return PollResults.FAIL_END
         if node.result.lower() == 'success':
             return PollResults.OK_END
+        if node.result.lower() == 'end':
+            return PollResults.OK_END
+        if node.result.lower() == 'idle':
+            return PollResults.OK_IDLE
+        if node.result.lower() == 'result':
+            return PollResults.OK_YIELD
+        print("GONE ASTRAY")
         return PollResults.OK_RUN_AGAIN
+    
     
 class ChangeRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Change):
@@ -556,11 +571,11 @@ class MastTicker:
     
     
     def do_jump(self, label = "main", activate_cmd=0):
-        is_sub_task = self.task.is_sub_task
 
-        if not is_sub_task and label == "END" or label is None:
+        if label == "END" or label is None:
             self.active_cmd = 0
             self.runtime_node = None
+            self.last_poll_result = PollResults.OK_END
             self.done = True
         else:
             # label_runtime_node = Agent.SHARED.get_inventory_value(label)
@@ -696,8 +711,8 @@ class MastTicker:
                     else:    
                         self.do_jump(pop_data[0], pop_data[1])
 
-                if self.task.is_sub_task and self.last_poll_result == PollResults.OK_END:
-                    return PollResults.OK_END
+                if self.last_poll_result == PollResults.OK_IDLE:
+                    return PollResults.OK_IDLE
                 
                 count += 1
                 # avoid tight loops
@@ -740,9 +755,11 @@ class MastTicker:
                             self.next()
                         case PollResults.OK_END:
                             self.last_poll_result = result
-                            if not is_sub_task:
-                                self.done = True
+                            self.done = True
                             return PollResults.OK_END
+                        case PollResults.OK_IDLE:
+                            self.last_poll_result = result
+                            return PollResults.OK_IDLE
                         case PollResults.FAIL_END:
                             self.last_poll_result = result
                             self.done = True
@@ -1423,9 +1440,7 @@ class MastAsyncTask(Agent, Promise):
 
 class MastScheduler(Agent):
     runtime_nodes = {
-        "End": EndRuntimeNode,
-        #"ReturnIf": ReturnIfRuntimeNode,
-        #"Fail": FailRuntimeNode,
+        #"End": EndRuntimeNode,
         "Yield": YieldRuntimeNode,
         "Jump": JumpRuntimeNode,
         "IfStatements": IfStatementsRuntimeNode,

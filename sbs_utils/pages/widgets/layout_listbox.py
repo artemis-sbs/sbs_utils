@@ -56,7 +56,7 @@ class SubPage:
     def get_pending_row(self):
         return self.pending_row
     
-    def push_sub_section(self, style, layout_item):
+    def push_sub_section(self, style, layout_item, is_rebuild):
         sub_section_data = (self.active_layout, self.pending_row)
 
         if layout_item is None:
@@ -72,7 +72,7 @@ class SubPage:
         if len(layout_item.rows) >0:
             self.pending_row = layout_item.rows.pop()
 
-    def pop_sub_section(self, add):
+    def pop_sub_section(self, add, is_rebuild):
         (sec,p_row) = self.sub_sections.pop()
         if add:
             p_row.add(self.active_layout)
@@ -358,6 +358,8 @@ class LayoutListbox(layout.Column):
     def represent(self, event):
         super().represent(event)
         
+    def invalidate_regions(self):
+        self.region = None
 
     def on_message(self, event):
         if self.client_id != event.client_id:

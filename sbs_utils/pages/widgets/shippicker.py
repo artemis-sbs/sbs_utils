@@ -3,9 +3,10 @@ from ..layout import layout as layout
 import sbs
 from ... import fs
 from ...procedural import ship_data
+from .control import Control
 
 
-class ShipPicker(Widget):
+class ShipPicker(Control):
     """ A widget to select a ship"""
 
     def __init__(self, left, top, tag_prefix, title_prefix="Ship:", cur=None, ship_keys=None, roles=None, sides=None, show_desc=True) -> None:
@@ -17,11 +18,13 @@ class ShipPicker(Widget):
         :type left: float
         :param top: top coordinate
         :type top: float
-        :param tag_prefix: Prefix to use in message tags to mak this component unique
-        :type tag_prefix: str
+        :param tag: Prefix to use in message tags to mak this component unique
+        :type tag: str
         """
-        super().__init__(left,top,tag_prefix)
+        super().__init__(left,top,33,44)
+
         self.gui_state = "blank"
+        self.tag = tag_prefix
         self.title_prefix = title_prefix
         self.cur = 0
         self.test = fs.get_artemis_data_dir()
@@ -84,7 +87,9 @@ class ShipPicker(Widget):
                 self.ships = None
 
 
-    def present(self, event):
+    
+
+    def _present(self, event):
         """ present
 
         builds/manages the content of the widget
@@ -96,35 +101,37 @@ class ShipPicker(Widget):
         """
         CID = event.client_id
 
+        the_bounds = layout.Bounds(0,0,100,100)
+
         if self.gui_state == "presenting":
             return
         if self.ships is None:
             sbs.send_gui_text(
-                    CID,  f"{self.tag_prefix}error", f"text:Error {self.test}", self.left, self.top, self.right, self.top+5)
+                    CID,  f"{self.tag}error", f"text:Error {self.test}",the_bounds.left, the_bounds.top, the_bounds.right, the_bounds.top+5)
             return
 
         ship = self.ships[self.cur]
-        top = self.top
+        top = the_bounds.top
 
         sbs.send_gui_text(
-                    CID, f"{self.tag_prefix}title", f"text: {self.title_prefix} {ship['side']} {ship['name']}",  self.left, top, self.right, top+5)
+                    CID, f"{self.tag}title", f"text: {self.title_prefix} {ship['side']} {ship['name']}",  the_bounds.left, top, the_bounds.right, top+5)
         top += 5
         if self.show_desc:
             desc = ship.get('long_desc',None)
             if desc is not None:
                 sbs.send_gui_text(
-                        CID, f"{self.tag_prefix}desc", f"text: {desc}",  self.left, top, self.right, top+15)
+                        CID, f"{self.tag}desc", f"text: {desc}",  the_bounds.left, top, the_bounds.right, top+15)
             # Keep spacing?
             top += 15
         
         #l1 = layout.wrap(self.left, self.bottom, , 4,col=2)
-        half = (self.right-self.left)/2
+        half = (the_bounds.right-the_bounds.left)/2
         
-        sbs.send_gui_button(CID,f"{self.tag_prefix}prev", "text:prev", self.left, self.bottom-5, self.left+half, self.bottom)
-        sbs.send_gui_button(CID, f"{self.tag_prefix}next", "text:next", self.right-half, self.bottom-5, self.right, self.bottom)
-        sbs.send_gui_3dship(CID,  f"{self.tag_prefix}ship", f"hull_tag:{ship['key']}",
-            self.left, top,
-            self.right, self.bottom-5 )
+        sbs.send_gui_button(CID,f"{self.tag}prev", "text:prev", the_bounds.left, the_bounds.bottom-5, the_bounds.left+half, the_bounds.bottom)
+        sbs.send_gui_button(CID, f"{self.tag}next", "text:next", the_bounds.right-half, the_bounds.bottom-5, the_bounds.right, the_bounds.bottom)
+        sbs.send_gui_3dship(CID,  f"{self.tag}ship", f"hull_tag:{ship['key']}",
+            the_bounds.left, top,
+            the_bounds.right, the_bounds.bottom-5 )
      
         self.gui_state = "presenting"
 
@@ -147,10 +154,10 @@ class ShipPicker(Widget):
         message_tag = event.sub_tag
         client_id = event.client_id
 
-        if not message_tag.startswith(self.tag_prefix):
+        if not message_tag.startswith(self.tag):
             return False
 
-        message_tag = message_tag[len(self.tag_prefix):] 
+        message_tag = message_tag[len(self.tag):] 
         match message_tag:
             case "prev":
                 if self.cur >= 0:
@@ -158,7 +165,7 @@ class ShipPicker(Widget):
                     self.gui_state = "redraw"
                     if self.cur <0:
                         self.cur = len(self.ships)-1
-                    self.present(event)
+                    #self.present(event)
                     return True
                 
             case "next":
@@ -167,7 +174,7 @@ class ShipPicker(Widget):
                     self.gui_state = "redraw"
                     if self.cur >= len(self.ships):
                         self.cur = 0
-                    self.present(event)
+                    #self.present(event)
                     return True
         return False
                 

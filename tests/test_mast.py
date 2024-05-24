@@ -121,7 +121,7 @@ dsdds
 import tests/mast/imp.mast
 import tests\mast\imp.mast
 from tests/mast/implib.zip import imp.mast
-from tests\mast\implib.zip import imp.mast
+from tests\mast\\implib.zip import imp.mast
 """)
         assert(len(errors)==0)
     
@@ -1137,11 +1137,11 @@ logger(var="output")
 -> Here
 ======== NotHere =====
 log("Got here later")
--> End
+-> TheEnd
 ======== Here =====
 log("First")
 -> NotHere
-======== End =====
+======== TheEnd =====
 log("Done")
 ->END
 ======== Never =====
@@ -1366,10 +1366,10 @@ log("{x+y=}")
 
 ======== get_x =====
 x = 3                                               
-yield 12 if x == 3
+yield result 12 if x == 3
 
 ======== get_y =====
-yield 34
+yield result 34
 
 """)
         assert(len(errors)==0)
@@ -1403,8 +1403,10 @@ log("S3 Again")
 -> END
     """)
         assert(len(errors)==0)
-        for _ in range(5):
-            runner.tick()
+        
+        while runner.tick():
+             pass
+             
         output = runner.get_value("output", None)
         assert(output is not None)
         st = output[0]
@@ -1441,8 +1443,8 @@ log("S3")
 yield fail
     """)
         assert(len(errors)==0)
-        for _ in range(10):
-            runner.tick()
+        while runner.tick():
+             pass
         output = runner.get_value("output", None)
         assert(output is not None)
         st = output[0]
@@ -1552,9 +1554,8 @@ log("S3")
 yield fail
 """)
         assert(len(errors)==0)
-        for _ in range(50):
-            runner.tick()
-            #pass
+        while runner.tick():
+            pass
         output = runner.get_value("output", None)
         assert(output is not None)
         st = output[0]
@@ -1965,17 +1966,17 @@ log("exit")
 ==== sub_one ===
 x += 1
 log("sub_one")
-->END
+yield idle
 
 ==== sub_two ===
 x += 1
 log("sub_two")
-yield success
+yield idle
 
 ==== sub_three ===
 log("sub_three")
 x += 1
-yield fail
+yield END
 
 
 """)
@@ -2028,3 +2029,28 @@ yield fail
         value = st.getvalue()
         assert(t.done())
         assert(value=="preloop\nsub_one\nsub_two\nsub_three\nexit\n")
+
+    def test_strange_for(self):
+        (errors, runner, mast) =mast_run( code = """
+                                         
+=== test_label
+my_players = [1,2,3,4]
+other_loop = [1,2,3,4]
+num_ids = 0
+num_ids_2 = 0
+for player in my_players:
+    ship_id = player
+    
+    for friend in other_loop:
+        num_ids += 1
+    
+
+    num_ids_2 += 1
+
+print()
+-> END""")
+        assert(len(errors)==0)
+        label = mast.labels.get("test_label")
+        cmds_count = len(label.cmds)
+        assert(label is not None)
+

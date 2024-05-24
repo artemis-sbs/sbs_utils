@@ -10,4 +10,5 @@ class PollResults(IntEnum):
     BT_SUCCESS = 99
     FAIL_END = 100
     BT_FAIL = 100
+    OK_IDLE = 999
 

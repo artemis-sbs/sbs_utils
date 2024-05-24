@@ -334,8 +334,8 @@ class Gui:
                 event = FakeEvent(cid,"mast:client_disconnect")
                 gui.on_event(event)
                 gui.destroyed()
-                Gui.clients.pop(cid)
-                FrameContext.aspect_ratios.pop(cid)
+                Gui.clients.pop(cid, None)
+                FrameContext.aspect_ratios.pop(cid, None)
                 
 
         # Anything left is a client not connected to the script

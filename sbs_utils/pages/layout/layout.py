@@ -224,6 +224,10 @@ class Row:
             col.present(event)
         self._post_present(event)
 
+    def invalidate_regions(self):
+        for col in self.columns:
+            col.invalidate_regions()
+
     def _post_present(self, event):
         if self.click_text is not None:
             ctx = FrameContext.context
@@ -436,7 +440,9 @@ class Column:
             ctx.sbs.send_gui_clickregion(event.client_id, 
                 self.click_tag, click_props,
                 bounds.left, bounds.top, bounds.right, bounds.bottom)
-
+            
+    def invalidate_regions(self):
+        pass
    
     def on_message(self, event):
         if event.sub_tag == self.click_tag:
@@ -957,7 +963,7 @@ class GuiControl(Column):
         super().__init__()
         self.tag = tag
         self.content = content
-        self.content.tag_prefix = tag
+        self.content.tag = tag
         self._value=self.content.get_value()
 
     def _present(self, event):
@@ -969,14 +975,16 @@ class GuiControl(Column):
             self._value = v
             self.update_variable()
 
-        
+    def invalidate_regions(self):
+        self.content.invalidate_regions()
   
     def set_bounds(self, bounds) -> None:
         super().set_bounds(bounds)
-        self.content.left = self.bounds.left
-        self.content.top = self.bounds.top
-        self.content.right = self.bounds.right
-        self.content.bottom = self.bounds.bottom
+        # self.content.left = self.bounds.left
+        # self.content.top = self.bounds.top
+        # self.content.right = self.bounds.right
+        # self.content.bottom = self.bounds.bottom
+        self.content.bounds = self.bounds
         self.content.gui_state = ""
 
     @property
@@ -1197,6 +1205,17 @@ class Layout:
         else:
             self.set_bounds(self.restore_bounds)
 
+    # Called when the content is clear and not presented
+    # Meaning all the children no longer exist
+    # So THEY need to recreate any regions they have
+    # If the are shown again
+    def invalidate(self):
+        for r in self.rows:
+            r.invalidate_regions()
+    
+    def invalidate_regions(self):
+        self.region = None
+
     def represent(self, event):
         self.representing = True
         if self.region_type == RegionType.SECTION_AREA_ABSOLUTE:
@@ -1207,11 +1226,12 @@ class Layout:
             self.calc(event.client_id)
             self.present(event)
             return
-        else:
+        else:  # is_hidden 
             #self.calc(event.client_id)
             self.region_begin(event.client_id)
             self.region_target(event.client_id)
             #self.present(event)
+            self.invalidate()
             self.region_end(event.client_id)
         
 
@@ -1469,6 +1489,7 @@ class Layout:
 
     def region_begin(self, client_id):
         if self.representing:
+        #if self.region:
             if self.region_type != RegionType.SECTION_AREA_ABSOLUTE:
                 #print(f"clear {self.region_tag}")
                 sbs.send_gui_clear(client_id, self.region_tag)
@@ -1482,6 +1503,7 @@ class Layout:
                 #
                 # TODO: This should be bounds
                 #
+                self.region = True
                 sbs.send_gui_sub_region(client_id, self.region_tag, "draggable:True;", 0,0,50,50)
         #
         # Always push a target so children restore parent

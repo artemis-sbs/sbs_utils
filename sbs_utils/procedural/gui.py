@@ -754,7 +754,7 @@ def gui_layout_widget(widget):
     return control
     
 
-def gui_console(console):
+def gui_console(console, is_jump=False):
     """Activates a console using the default set of widgets
 
     Args:
@@ -768,7 +768,10 @@ def gui_console(console):
     match console.lower():
         case "helm":
             console =  "normal_helm"
-            widgets = "2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+            if is_jump:
+                widgets = "2dview^helm_movement^helm_jump^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+            else:
+                widgets = "2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
         case "weapons":
             console =  "normal_weap"
             widgets = "weapon_2d_view^weapon_control^weap_beam_freq^weap_beam_speed^weap_torp_conversion^ship_data^shield_control^text_waterfall^main_screen_control"

@@ -40,32 +40,32 @@ class ShipListDemo(Page):
                                ship=lambda item: item.art_id, 
                                item_height=5,
                                select=True)
-        self.picker1.bottom = 45
-        self.picker1.right = 45
+        self.picker1.bounds.bottom = 45
+        self.picker1.bounds.right = 45
         self.picker4 = Listbox(5,50, "pick4:", ships, 
                                text=lambda item: item.comms_id,
                                #face=lambda item: faces.get_face(item.id), 
                                #ship=lambda item: item.art_id, 
                                item_height=5,
                                multi=True)
-        self.picker4.bottom = 95
-        self.picker4.right = 45
+        self.picker4.bounds.bottom = 95
+        self.picker4.bounds.right = 45
         self.picker2 = Listbox(50,5, "pick2:", ships, 
                                text=lambda item: item.comms_id,
                                face=lambda item: faces.get_face(item.id), 
                                #ship=lambda item: item.art_id, 
                                item_height=5,
                                select=False)
-        self.picker2.bottom = 95
-        self.picker2.right = 65
+        self.picker2.bounds.bottom = 95
+        self.picker2.bounds.right = 65
         self.picker3 = Listbox(75,5, "pick3:", ships, 
                                text=lambda item: item.comms_id,
                                #face=lambda item: faces.get_face(item.id), 
                                ship=lambda item: item.art_id, 
                                item_height=5,
                                select=False)
-        self.picker3.bottom = 95
-        self.picker3.right = 95
+        self.picker3.bounds.bottom = 95
+        self.picker3.bounds.right = 95
 
 
     def present(self, event):

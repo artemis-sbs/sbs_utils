@@ -6,9 +6,10 @@ import os
 from ... import fs
 from ...helpers import FrameContext, FakeEvent
 
+from .control import Control
 
 
-class Listbox(Widget):
+class Listbox(Control):
     """
       A widget to list things passing function/lamdas to get the data needed for option display of
       - face
@@ -32,12 +33,11 @@ class Listbox(Widget):
         :param tag_prefix: Prefix to use in message tags to mak this component unique
         :type tag_prefix: str
         """
-        super().__init__(left,top,tag_prefix)
+        super().__init__(left,top,100,100)
+        self.tag = tag_prefix
         self.gui_state = "blank"
         self.title = title
         self.cur = 0
-        self.bottom = top+40
-        self.right = left+33
         self.items = items
         self.text = text
         self.face = face
@@ -59,7 +59,7 @@ class Listbox(Widget):
         self.last_tags = None
 
 
-    def present(self, event):
+    def _present(self, event):
         """ present
 
         builds/manages the content of the widget
@@ -70,6 +70,8 @@ class Listbox(Widget):
         :type CID: int
         """
         CID = event.client_id
+
+        the_bounds = layout.Bounds(0,0,100,100)
         
         aspect_ratio = get_client_aspect_ratio(CID) 
         #print(f"list box {aspect_ratio.x} {aspect_ratio.y} ")
@@ -100,40 +102,40 @@ class Listbox(Widget):
         
         if self.items is None:
             sbs.send_gui_text(
-                    CID, f"{self.tag_prefix}error", f"text:Error no items;", self.left, self.top, self.right, self.top+5)
+                    CID, f"{self.tag}error", f"text:Error no items;", the_bounds.left, the_bounds.top, the_bounds.right, the_bounds.top+5)
             return
 
-        left = self.left
-        top = self.top
+        left = the_bounds.left
+        top = the_bounds.top
         if self.title is not None:
             title = self.title()
             if self.title_background is not None:
                 props = f"image:smallWhite; color:{self.title_background};" # sub_rect: 0,0,etc"
                 sbs.send_gui_image(CID, 
-                    f"{self.tag_prefix}tbg", props,
-                    self.left, self.top, self.right, top+self.item_height)
+                    f"{self.tag}tbg", props,
+                    the_bounds.left, the_bounds.top, the_bounds.right, top+self.item_height)
             sbs.send_gui_text(
-                    CID, f"{self.tag_prefix}title", f"{title}",self.left, top, self.right, top+self.item_height)
+                    CID, f"{self.tag}title", f"{title}",the_bounds.left, top, the_bounds.right, top+self.item_height)
             top += self.item_height
 
         if self.background is not None:
             props = f"image:smallWhite; color:{self.background};" # sub_rect: 0,0,etc"
             sbs.send_gui_image(CID, 
-                f"{self.tag_prefix}bg", props,
-                self.left, self.top, self.right, self.bottom)
+                f"{self.tag}bg", props,
+                the_bounds.left, the_bounds.top, the_bounds.right, the_bounds.bottom)
 
 
         if len(self.items)==0:
             return
         
         cur = self.cur
-        max_slot = (self.bottom-top)/self.item_height
+        max_slot = (the_bounds.bottom-top)/self.item_height
         slot_count = len(self.items)-max_slot
         if slot_count > 0:
             self.slot_count = slot_count
-            sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", int(slot_count-self.cur +0.5), f"low:0.0; high: {(slot_count+0.5)}; show_number:no",
-                        (self.right-1), top,
-                        self.right, self.bottom)
+            sbs.send_gui_slider(CID, f"{self.tag}cur", int(slot_count-self.cur +0.5), f"low:0.0; high: {(slot_count+0.5)}; show_number:no",
+                        (the_bounds.right-1), top,
+                        the_bounds.right, the_bounds.bottom)
         else:
             # they all fit draw them all
             cur = 0
@@ -145,7 +147,7 @@ class Listbox(Widget):
         #  to clear any no longer used
         tags = set()
         
-        while top+5 <= self.bottom:
+        while top+5 <= the_bounds.bottom:
             if cur >= len(self.items):
                 break
             item = self.items[cur]
@@ -161,7 +163,7 @@ class Listbox(Widget):
                 #print(f"Icon count {icons_to_display}")
 
                 for icon_item in icons_to_display:
-                    tag = f"{self.tag_prefix}icon:{slot}:{i}"
+                    tag = f"{self.tag}icon:{slot}:{i}"
                     tags.add(tag)
                     print (f"ICON PROPS: {icon_item}")
                     sbs.send_gui_icon(CID, tag, icon_item,
@@ -177,11 +179,11 @@ class Listbox(Widget):
                     rel_file = os.path.relpath(props["image"].strip(), fs.get_artemis_data_dir()+"\\graphics")
                     props["image"] = rel_file
                     image_to_display = layout.merge_props(props)
-                    tag = f"{self.tag_prefix}image:{slot}"
+                    tag = f"{self.tag}image:{slot}"
                     tags.add(tag)
                     sbs.send_gui_image(CID,tag, image_to_display, 
                         # cell_left, cell_top, cell_right, cell_bottom,
-                        left, top, self.left+square_width_percent,  top+square_height_percent
+                        left, top, the_bounds.left+square_width_percent,  top+square_height_percent
                     )
                     left += square_width_percent
             if self.ship: 
@@ -189,7 +191,7 @@ class Listbox(Widget):
                 if "hull_tag:" not in ship_to_display:
                     ship_to_display = "hull_tag:"+ship_to_display
 
-                tag = f"{self.tag_prefix}ship:{slot}"
+                tag = f"{self.tag}ship:{slot}"
                 tags.add(tag)
                 sbs.send_gui_3dship(CID, tag, ship_to_display,
                     left, top,
@@ -197,7 +199,7 @@ class Listbox(Widget):
                 left += square_width_percent
             if self.face: 
                 face = self.face(item)
-                tag = f"{self.tag_prefix}face:{slot}"
+                tag = f"{self.tag}face:{slot}"
                 tags.add(tag)
                 sbs.send_gui_face(CID, tag,  face,
                     left, top,
@@ -208,11 +210,11 @@ class Listbox(Widget):
                 text = self.text(item)
                 if "text:" not in text:
                     text = f"text:{text};justify:center;"
-            tag = f"{self.tag_prefix}name:{slot}"
+            tag = f"{self.tag}name:{slot}"
             tags.add(tag)
             sbs.send_gui_text(
                     CID, tag, text,
-                        left, top, self.right, top+self.item_height)
+                        left, top, the_bounds.right, top+self.item_height)
             if self.select or self.multi:
                 #print(f"{cur} selected {1 if cur in self.selected else 0}")
                 # sbs.send_gui_checkbox(
@@ -220,10 +222,10 @@ class Listbox(Widget):
                 #         left, top, self.right-1.5, top+self.item_height)
                 myright = left
                 if cur in self.selected:
-                    myright = self.right
+                    myright = the_bounds.right
                 props = f"image:smallWhite; color:{self.select_color};" # sub_rect: 0,0,etc"
 
-                tag = f"{self.tag_prefix}bk:{slot}"
+                tag = f"{self.tag}bk:{slot}"
                 tags.add(tag)
                 sbs.send_gui_image(CID, 
                     tag, props,
@@ -232,7 +234,7 @@ class Listbox(Widget):
                     myright,
                     top+self.item_height)
                 
-                tag = f"{self.tag_prefix}click:{slot}"
+                tag = f"{self.tag}click:{slot}"
                 tags.add(tag)
                 sbs.send_gui_clickregion(CID, 
                     #text = self.text(item)
@@ -240,14 +242,14 @@ class Listbox(Widget):
                     f"font:gui-2;color:blue;{text}",
                     left, 
                     top, 
-                    self.right,
+                    the_bounds.right,
                     top+self.item_height)
             #else:
             top += self.item_height
             cur += 1
             slot+=1
             
-            left = self.left
+            left = the_bounds.left
         #
         #
         # This handles hiding things if the list size changes
@@ -290,10 +292,10 @@ class Listbox(Widget):
         message_tag = event.sub_tag
         client_id = event.client_id
 
-        if not message_tag.startswith(self.tag_prefix):
+        if not message_tag.startswith(self.tag):
             return False
 
-        message_tag = message_tag[len(self.tag_prefix):] 
+        message_tag = message_tag[len(self.tag):] 
         if message_tag == "cur":
                 value = int(-event.sub_float+self.slot_count+0.5)
                 if value != self.cur:

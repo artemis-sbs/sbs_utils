@@ -700,16 +700,16 @@ class Button(MastNode):
         self.await_node.dedent_loc = loc
 
 
-class End(MastNode):
-    rule = re.compile(r'->[ \t]*END'+IF_EXP_REGEX)
-    def __init__(self,  if_exp=None, loc=None):
-        super().__init__()
-        self.loc = loc
-        if if_exp:
-            if_exp = if_exp.lstrip()
-            self.if_code = compile(if_exp, "<string>", "eval")
-        else:
-            self.if_code = None
+# class End(MastNode):
+#     rule = re.compile(r'->[ \t]*(?P<res>(FAIL|SUCCESS|IDLE|END))'+IF_EXP_REGEX)
+#     def __init__(self,  if_exp=None, loc=None):
+#         super().__init__()
+#         self.loc = loc
+#         if if_exp:
+#             if_exp = if_exp.lstrip()
+#             self.if_code = compile(if_exp, "<string>", "eval")
+#         else:
+#             self.if_code = None
 
 # class ReturnIf(MastNode):
 #     #
@@ -738,16 +738,16 @@ class End(MastNode):
 #             self.if_code = None
 
 class Yield(MastNode):
-    rule = re.compile(r'yield[ \t]+(?P<res>(?i:fail|success))?(?P<exp>[^\n\r\f]+)?')
+    rule = re.compile(r'(->|yield[ \t])[ \t]*(?P<res>(FAIL|fail|SUCCESS|success|END|end|IDLE|idle|RESULT|result))(?P<exp>[^\n\r\f]+)?')
     def __init__(self, res= None, exp=None, if_exp=None, loc=None):
         super().__init__()
         self.loc = loc
-        self.result = res
+        self.result = res.lower()
         self.code = exp
         if exp is not None:
             exp = exp.lstrip()
             self.code = compile(exp, "<string>", "eval")
-            self.result  = "code"
+            #self.result  = "code"
 
         if if_exp:
             if_exp = if_exp.lstrip()
@@ -999,7 +999,7 @@ class Mast():
         Button,
         #Fail,
         Yield,
-        End,
+        #End,
         #ReturnIf,
         Jump,
         Assign,
