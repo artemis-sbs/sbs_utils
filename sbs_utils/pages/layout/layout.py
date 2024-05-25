@@ -1119,6 +1119,7 @@ class Layout:
         self.region_type = region_type
         self.representing = False
         self._show = True
+        self.orientation = 0 # 0 = Top to bottom, 1 = bottom to top
 
     # def get_tags(self):
     #     tags = set()
@@ -1176,6 +1177,13 @@ class Layout:
     def font(self, v):
         self.default_font = v
 
+    def set_orientation(self, s):
+        print(f"orientation {s}")
+        s = s.strip().upper()
+        if s == "TB":
+            self.orientation = 0
+        elif s == "BT":
+            self.orientation = 1
     
     def set_padding(self, padding):
         self.padding = padding
@@ -1258,10 +1266,13 @@ class Layout:
             h = bounds_area.height
             bounds_area = Bounds(0,0,w,h)
 
+        rows = self.rows
+        #if self.orientation == 1:
+        #    rows = list(reversed(rows))
         
         # remove empty
         #self.rows = [x for x in self.rows if len(x.columns)>0]
-        if len(self.rows):
+        if len(rows):
             self.margin = Bounds(calc_bounds(self.margin_style, aspect_ratio, sec_font_size))
             self.padding =Bounds(calc_bounds(self.padding_style, aspect_ratio, sec_font_size))
             self.border =Bounds(calc_bounds(self.border_style, aspect_ratio, sec_font_size))
@@ -1274,8 +1285,8 @@ class Layout:
                 layout_row_height = calc_float_attribute("default_height", None, None, self, aspect_ratio.y, 20)
             else:
                 layout_row_height = bounds_area.height
-                flex_rows = len(self.rows)
-                for row in self.rows:
+                flex_rows = len(rows)
+                for row in rows:
                     row_font = self.default_font
                     if row.default_font is not None:
                         row_font = row.default_font
@@ -1291,13 +1302,10 @@ class Layout:
             
             row : Row
             row_top = bounds_area.top
+            row_bottom = bounds_area.bottom
             #print(f"SEC Bounds {bounds_area}")
-
             
-            for row in self.rows:
-                row_bounds_area = Bounds(bounds_area)
-                row_bounds_area.top = row_top
-                
+            for row in rows:
                 # Cascading padding
                 row_font = row.default_font
                 if row_font is None:
@@ -1316,11 +1324,24 @@ class Layout:
                     row_height = layout_row_height
 
                 #print(f"RRR {row_height}")
-                row_bounds_area.height = row_height
+                row_bounds_area = Bounds(bounds_area)
+                # row_bounds_area.height = row_height
+                #row.left = bounds_area.left
+                #row.width = bounds_area.width
+                if self.orientation==0:
+                    row_bounds_area.top = row_top
+                    row_top += row_height
+                    row_bounds_area.bottom = row_top # + row_bounds_area.height
+                    
+                else:
+                    row_bounds_area.bottom=row_bottom
+                    row_bottom -= row_height
+                    row_bounds_area.top = row_bottom
                 row.left = row_bounds_area.left
-                row.width = row_bounds_area.width
                 row.top = row_bounds_area.top
-                row.height = row_bounds_area.height
+                row.right = row_bounds_area.right
+                row.bottom = row_bounds_area.bottom
+                
 
                 row_bounds_area.shrink(row.margin)
                 row_bounds_area.shrink(row.padding)
@@ -1444,8 +1465,7 @@ class Layout:
                     col.set_bounds(col_bounds_area)
                     col.calc(client_id)
 
-         
-                row_top += row_height
+                
          
     @property
     def region_tag(self):
@@ -1492,7 +1512,7 @@ class Layout:
 
 
     def region_begin(self, client_id):
-        if self.representing:
+        if self.representing and self.region:
         #if self.region:
             if self.region_type != RegionType.SECTION_AREA_ABSOLUTE:
                 #print(f"clear {self.region_tag}")

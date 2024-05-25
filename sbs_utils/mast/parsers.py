@@ -175,6 +175,8 @@ class StyleDefinition:
                     ret[key]=value
                 case "tag":
                     ret[key]=value
+                case "orientation":
+                    ret[key]=value
         return ret
 
     def parse_area(area):

@@ -219,7 +219,7 @@ class StoryPage(Page):
             self.is_processing_rebuild = False
             self.tag_map.update(self.pending_tag_map)
             self.pending_tag_map = {}
-            print(f"Len click {len(self.pending_on_click)}")
+            # print(f"Len click {len(self.pending_on_click)}")
             self.on_click.extend(self.pending_on_click)
             self.pending_on_click = []
         # Finish the layout for the sub section

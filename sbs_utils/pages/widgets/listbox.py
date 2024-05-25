@@ -72,10 +72,10 @@ class Listbox(Control):
         CID = event.client_id
 
         the_bounds = layout.Bounds(0,0,100,100)
-        print(f"LB _present {self.region_tag} {self.bounds}")
+        #print(f"LB _present {self.region_tag} {self.bounds}")
         
         aspect_ratio = get_client_aspect_ratio(CID) 
-        print(f"list box {aspect_ratio.x} {aspect_ratio.y} ")
+        #print(f"list box {aspect_ratio.x} {aspect_ratio.y} ")
         if aspect_ratio.x == 0 or aspect_ratio.y == 1:
             square_ratio = 1.0
         elif aspect_ratio.x > aspect_ratio.y:

@@ -41,6 +41,9 @@ def apply_style_def(style_def, layout_item, task):
     st = style_def.get("area")
     if st is not None:
         layout_item.bounds_style = st
+    ori = style_def.get("orientation")
+    if ori is not None:
+        layout_item.set_orientation(ori)        
     
     height = style_def.get("row-height")
     if height is not None:
