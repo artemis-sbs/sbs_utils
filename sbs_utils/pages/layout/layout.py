@@ -1209,12 +1209,16 @@ class Layout:
     # Meaning all the children no longer exist
     # So THEY need to recreate any regions they have
     # If the are shown again
-    def invalidate(self):
+    def invalidate_children(self):
         for r in self.rows:
             r.invalidate_regions()
     
     def invalidate_regions(self):
         self.region = None
+
+    def invalidate_all(self):
+        self.invalidate_regions()
+        self.invalidate_children()
 
     def represent(self, event):
         self.representing = True
@@ -1231,7 +1235,7 @@ class Layout:
             self.region_begin(event.client_id)
             self.region_target(event.client_id)
             #self.present(event)
-            self.invalidate()
+            self.invalidate_children()
             self.region_end(event.client_id)
         
 
@@ -1499,12 +1503,14 @@ class Layout:
                 
                 self.region = True
                 sbs.send_gui_sub_region(client_id, self.region_tag, "draggable:True;", 0.0,0.0,100.0,100.0)
+                sbs.send_gui_clear(client_id, self.region_tag)
             elif self.region_type == RegionType.REGION_RELATIVE:
                 #
                 # TODO: This should be bounds
                 #
                 self.region = True
                 sbs.send_gui_sub_region(client_id, self.region_tag, "draggable:True;", 0,0,50,50)
+                sbs.send_gui_clear(client_id, self.region_tag)
         #
         # Always push a target so children restore parent
         #
@@ -1523,12 +1529,12 @@ class Layout:
         Layout.region_target_stack.pop()
         # There should always be the root
 
-        if self.representing:
-            self.representing = False
-            if self.region_type != RegionType.SECTION_AREA_ABSOLUTE:
-                #print(f"complete {self.region_tag}")
-                sbs.send_gui_complete(client_id, self.region_tag)
-        
+        #if self.representing:
+        #    self.representing = False
+        if self.region_type != RegionType.SECTION_AREA_ABSOLUTE:
+            #print(f"complete {self.region_tag}")
+            sbs.send_gui_complete(client_id, self.region_tag)
+    
         #
         # BASIC SECTION ARE NOT REGIONS
         #

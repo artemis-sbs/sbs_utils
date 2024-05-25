@@ -105,6 +105,7 @@ class ShipPicker(Control):
 
         if self.gui_state == "presenting":
             return
+        self.gui_state == "presenting"
         if self.ships is None:
             sbs.send_gui_text(
                     CID,  f"{self.tag}error", f"text:Error {self.test}",the_bounds.left, the_bounds.top, the_bounds.right, the_bounds.top+5)
@@ -133,7 +134,7 @@ class ShipPicker(Control):
             the_bounds.left, top,
             the_bounds.right, the_bounds.bottom-5 )
      
-        self.gui_state = "presenting"
+        self.gui_state = "notpresenting"
 
 
     def on_message(self, event):
