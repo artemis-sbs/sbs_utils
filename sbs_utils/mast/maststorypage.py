@@ -491,10 +491,12 @@ class StoryPage(Page):
                     self.gui_state = "presenting"
                 my_sbs.send_gui_complete(event.client_id,"")
             case  "refresh":
+                my_sbs.send_gui_clear(event.client_id,"")
                 for layout_obj in self.layouts:
                     #layout_obj.calc(self.client_id)
                     layout_obj.invalidate_all()
                     layout_obj.represent(event)
+                my_sbs.send_gui_complete(event.client_id,"")
                 if len(self.layouts)==0:
                     self.gui_state = "repaint"
                 else:

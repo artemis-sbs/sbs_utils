@@ -325,3 +325,96 @@ def grid_get_grid_data():
         if script_grid_data is not None:
             _grid_data |= script_grid_data
     return _grid_data
+
+
+_grid_theme = None 
+def grid_get_grid_theme():
+    """get the grid data from all the grid_data.json files
+
+    Returns:
+        dict: a dictionary of grid data objects key is a ship key
+    """    
+    global _grid_theme
+    if _grid_theme is None:
+        _grid_theme = load_json_data(get_artemis_data_dir_filename("grid_theme.json"))
+        if _grid_theme is None:
+            _grid_theme = []
+        script_grid_data = load_json_data(get_mission_dir_filename("extra_grid_theme.json"))
+        if script_grid_data is not None:
+            _grid_theme.extend(script_grid_data)
+    return _grid_theme
+
+_grid_theme_current = 0
+def grid_get_grid_current_theme():
+    global _grid_theme_current
+    td = grid_get_grid_theme()
+    if _grid_theme_current < len(td):
+        return td[_grid_theme_current]
+    return _grid_theme_current
+
+def grid_set_grid_current_theme(i):
+    global _grid_theme_current
+    td = grid_get_grid_theme()
+    if i < len(td):
+        _grid_theme_current = i
+
+
+def grid_get_grid_named_theme(name):
+    if name is None:
+        return grid_get_grid_current_theme()
+    td = grid_get_grid_theme()
+    name = name.lower.strip()
+    for t in td:
+        if t["name"].lower() == name:
+            return t
+
+
+def grid_set_grid_named_theme(name):
+    global _grid_theme_current
+    td = grid_get_grid_theme()
+    name = name.lower.strip()
+
+    for i,t in enumerate(td):
+        if t["name"].lower() == name:
+            _grid_theme_current = i
+            break
+    return _grid_theme_current
+
+def grid_get_item_theme_data(roles, name=None):
+    roles = roles.strip().lower().split(",") # Last is used first
+    td = grid_get_grid_named_theme(name)
+    
+    icon = None # td["icons"].get("default", def_icon)
+    damage_color = None # icon["scale"]
+    color = None # td.get("default", "red")
+
+    for r in reversed(roles):
+        r = r.strip()
+        if icon is None:
+            icon = td["icons"].get(r, None)
+        if color is None:
+            color = td["colors"].get(r, None)
+        if damage_color is None:
+            damage_color = td["damage_colors"].get(r, None)
+        if color is not None and icon is not None and damage_color is not None:
+            break
+    
+    if icon is None:
+        icon = {"icon": 120, "scale": 1.0}
+    if color is None:
+        color = td["colors"].get("default", "red")
+    if damage_color is None:
+        damage_color = td["damage_colors"].get("default", "red")
+
+
+    class RetVal:
+        def __init__(self, i,s,c, d) -> None:
+            self.icon = i
+            self.scale = s
+            self.color = c
+            self.damage_color = d
+    
+    r = RetVal(icon["icon"], icon["scale"], color, damage_color)
+    
+    return r
+
