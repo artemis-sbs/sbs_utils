@@ -60,8 +60,11 @@ class MastNode:
     def is_indentable(self):
         return False
 
-    def create_end_node(self, loc, dedent_obj):
+    def create_end_node(self, loc, dedent_obj, compile_info):
         self.dedent_loc = loc
+
+    def post_dedent(self,compile_info):
+        pass
 
     def compile_formatted_string(self, message):
         if message is None:
@@ -89,7 +92,7 @@ class MastNode:
 class Label(MastNode):
     rule = re.compile(r'(?P<m>=|\?){2,}\s*(?P<replace>replace:)?[ \t]*(?P<name>\w+)[ \t]*((?P=m){2,})?')
 
-    def __init__(self, name, replace=None, m=None, loc=None):
+    def __init__(self, name, replace=None, m=None, loc=None, compile_info=None):
         super().__init__()
 
         self.name = name
@@ -107,17 +110,18 @@ class LoopEnd(MastNode):
     LoopEnd is a node that is injected to allow loops to know where the end is
     """
     #rule = re.compile(r'((?P<loop>next)[ \t]*(?P<name>\w+))')
-    def __init__(self, start=None, name=None, loc=None):
+    def __init__(self, start=None, name=None,loc=None, compile_info=None):
         super().__init__()
         self.start = start
         self.loc = loc
         self.start.end = self
+        
 
 
 class LoopStart(MastNode):
     rule = re.compile(r'(for[ \t]*(?P<name>\w+)[ \t]*)(?P<while_in>in|while)((?P<cond>[^\n\r\f]+))'+BLOCK_START)
-    loop_stack = []
-    def __init__(self, while_in=None, cond=None, name=None, loc=None):
+    loop_stack = {}
+    def __init__(self, while_in=None, cond=None, name=None, loc=None, compile_info=None):
         super().__init__()
         if cond:
             cond = cond.lstrip()
@@ -128,20 +132,31 @@ class LoopStart(MastNode):
         self.is_while = while_in == "while"
         self.loc = loc
         self.end = None
-        LoopStart.loop_stack.append(self)
+        self.indent = compile_info.indent
+
+    def post_dedent(self,compile_info):
+        #
+        # This needs to happen after the dedent, indents are all processed
+        #
+        LoopStart.loop_stack[compile_info.indent] =self
+        
         
     def is_indentable(self):
         return True
 
-    def create_end_node(self, loc, dedent_obj):
-        end =  LoopEnd(self, loc=loc)
+    def create_end_node(self, loc, dedent_obj, compile_info):
+        end =  LoopEnd(self, loc=loc, compile_info=compile_info)
 
-        if dedent_obj.__class__ == LoopStart:
-            LoopStart.loop_stack.pop()
-            LoopStart.loop_stack.pop()
-            LoopStart.loop_stack.append(dedent_obj)
-        else:
-            LoopStart.loop_stack.pop()
+        # if dedent_obj.__class__ == LoopStart:
+        #     LoopStart.loop_stack.pop()
+        #     LoopStart.loop_stack.pop()
+        #     LoopStart.loop_stack.append(dedent_obj)
+        # else:
+        #     LoopStart.loop_stack.pop()
+        if LoopStart.loop_stack[self.indent] != self:
+            raise "For loop indention issue"
+        
+        LoopStart.loop_stack[self.indent] = None
 
 
         # Dedent is one passed the end node
@@ -154,7 +169,7 @@ class WithEnd(MastNode):
     LoopEnd is a node that is injected to allow loops to know where the end is
     """
     #rule = re.compile(r'((?P<loop>next)[ \t]*(?P<name>\w+))')
-    def __init__(self, start=None, name=None, loc=None):
+    def __init__(self, start=None, name=None,loc=None, compile_info=None):
         super().__init__()
         self.start = start
         self.loc = loc
@@ -164,7 +179,7 @@ class WithEnd(MastNode):
 class WithStart(MastNode):
     rule = re.compile(r'(with[ \t]*(?P<obj>[^\n\r\f]+))')
     with_vars = 0
-    def __init__(self, obj=None, name=None, loc=None):
+    def __init__(self, obj=None, name=None, loc=None, compile_info=None):
         super().__init__()
         if obj:
             self.code = compile(obj, "<string>", "eval")
@@ -210,7 +225,7 @@ class WithStart(MastNode):
             return None
 
 
-    def create_end_node(self, loc, _):
+    def create_end_node(self, loc, _,  compile_info):
         end =  WithEnd(self, loc=loc)
         # Dedent is one passed the end node
         self.dedent_loc = loc+1
@@ -223,11 +238,26 @@ class LoopBreak(MastNode):
 
     #rule = re.compile(r'(?P<op>break|continue)\s*(?P<name>\w+)')
     rule = re.compile(r'(?P<op>break|continue)'+IF_EXP_REGEX)
-    def __init__(self, op=None, name=None, if_exp=None, loc=None):
+    def __init__(self, op=None, name=None, if_exp=None, loc=None, compile_info=None):
         super().__init__()
         self.name = name
         self.op = op
-        self.start = LoopStart.loop_stack[-1]
+
+        # Find the right for loop
+        prev_indent = -1
+        for (i, obj) in LoopStart.loop_stack.items():
+            # Skip anything th
+            if i >= compile_info.indent or obj is None:
+                continue
+
+            if i > prev_indent:
+                prev_indent = i
+        if prev_indent >-1:
+            self.start = LoopStart.loop_stack.get(prev_indent, None)
+
+        if self.start is None:
+            raise Exception("MAST break/continue indention error") 
+
         self.loc = loc
         if if_exp:
             if_exp = if_exp.lstrip()
@@ -242,7 +272,7 @@ class IfStatements(MastNode):
 
     if_chains = {}
 
-    def __init__(self, end=None, if_op=None, if_exp=None, loc=None):
+    def __init__(self, end=None, if_op=None, if_exp=None, loc=None, compile_info=None):
         super().__init__()
         self.code = None
         if if_exp:
@@ -257,55 +287,31 @@ class IfStatements(MastNode):
 
 
         if "end_if" == self.end:
-            self.if_node = IfStatements.if_chains.get(Mast.current_indent)
+            self.if_node = IfStatements.if_chains.get(compile_info.indent)
             if self.if_node is not None:
                 self.if_node.if_chain.append(self)
-            IfStatements.if_chains[Mast.current_indent] = None
+            IfStatements.if_chains[compile_info.indent] = None
         elif "else:" == self.end:
-            self.if_node = IfStatements.if_chains.get(Mast.current_indent)
+            self.if_node = IfStatements.if_chains.get(compile_info.indent)
             if self.if_node is not None:
                 self.if_node.if_chain.append(self)
             
         elif "elif" == self.if_op:
-            self.if_node = IfStatements.if_chains.get(Mast.current_indent)
+            self.if_node = IfStatements.if_chains.get(compile_info.indent)
             if self.if_node is not None:
                 self.if_node.if_chain.append(self)
             
         elif "if" == self.if_op:
             self.if_chain = [self]
             self.if_node = self
-            IfStatements.if_chains[Mast.current_indent] = self
+            IfStatements.if_chains[compile_info.indent] = self
             
 
     def is_indentable(self):
         return True
     
-    def create_end_node(self, loc, dedent_obj):
+    def create_end_node(self, loc, dedent_obj, compile_info):
         self.if_node.dedent_loc = loc
-        # if dedent_obj is None:
-        #     # Dandling
-        #     IfStatements.if_chains.pop()
-
-        # elif dedent_obj.__class__ == IfStatements and self.if_op == 'if':
-        #     # Pop the chains until it matches the
-        #     # expected if is the indent object
-        #     # self is the indent object
-        #     while IfStatements.if_chains[-1] != self:
-        #         IfStatements.if_chains.pop()
-
-        #     if dedent_obj.if_op=='if':
-        #         IfStatements.if_chains.pop()
-        #         IfStatements.if_chains.append(dedent_obj)
-        #         return None
-
-        # elif dedent_obj.__class__ == IfStatements:
-        #     pass
-        #     #  if dedent_obj != self.if_node:
-        #     #     IfStatements.if_chains.pop()
-        # else:
-        #     #while len(IfStatements.if_chains)>0 and IfStatements.if_chains[-1] != self.if_node:
-        #     IfStatements.if_chains.pop()
-        #     # self.if_node.dedent_loc = loc
 
         return None
 
@@ -313,7 +319,7 @@ class MatchStatements(MastNode):
     #rule = re.compile(r'((?P<end>case[ \t]*_:|end_match)|(((?P<op>match|case)[ \t]+?(?P<exp>[^\n\r\f]+)'+BLOCK_START+')))')
     rule = re.compile(r'((?P<op>match|case)[ \t]+?(?P<exp>(_)|([^\n\r\f]+))'+BLOCK_START+')')
     chains = []
-    def __init__(self, end=None, op=None, exp=None, loc=None):
+    def __init__(self, end=None, op=None, exp=None, loc=None, compile_info=None):
         super().__init__()
 
         self.loc = loc
@@ -347,7 +353,7 @@ class MatchStatements(MastNode):
     def is_indentable(self):
         return True
     
-    def create_end_node(self, loc, dedent_obj):
+    def create_end_node(self, loc, dedent_obj, compile_info):
         if dedent_obj is None:
             # Dandling
             self.match_node.dedent_loc = loc
@@ -374,7 +380,7 @@ class MatchStatements(MastNode):
 class PyCode(MastNode):
     rule = re.compile(r'((\~{2,})\n?(?P<py_cmds>[\s\S]+?)\n?(\~{2,}))')
 
-    def __init__(self, py_cmds=None, loc=None):
+    def __init__(self, py_cmds=None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
         if py_cmds:
@@ -384,7 +390,7 @@ class PyCode(MastNode):
 class Import(MastNode):
     rule = re.compile(r'(from[ \t]+(?P<lib>[\w\.\\\/-]+)[ \t]+)?import\s+(?P<name>[\w\.\\\/-]+)')
 
-    def __init__(self, name, lib=None, loc=None):
+    def __init__(self, name, lib=None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
         self.name = name
@@ -395,7 +401,7 @@ class Comment(MastNode):
     #rule = re.compile(r'(#[ \t\S]*)|((?P<com>[!]{3,})[\s\S]+(?P=com))')
     rule = re.compile(r'(#[ \t\S]*)|(/\*[^*]*\*+(?:[^/*][^*]*\*+)*/)|([!]{3,}\s*(?P<com>\w+)\s*[!]{3,}[\s\S]+[!]{3,}\s*end\s+(?P=com)\s*[!]{3,})')
 
-    def __init__(self, com=None, loc=None):
+    def __init__(self, com=None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
 
@@ -429,7 +435,7 @@ class Assign(MastNode):
         r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)(?P<a_wait>\s*await)?\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|[^\n\r\f]+))')
 
     """ Note this doesn't support destructuring. To do so isn't worth the effort"""
-    def __init__(self, scope, lhs, oper, exp,a_wait=None,  quote=None, py=None, loc=None):
+    def __init__(self, scope, lhs, oper, exp,a_wait=None,  quote=None, py=None, loc=None, compile_info=None):
         super().__init__()
         self.lhs = lhs
         self.loc = loc
@@ -455,7 +461,7 @@ class Assign(MastNode):
 class Jump(MastNode):
     #rule = re.compile(r"""(((?P<jump>jump|->|push|->>|popjump|<<->|poppush|<<->>)[ \t]*(?P<jump_name>\w+))|(?P<pop>pop|<<-))"""+OPT_ARGS_REGEX+IF_EXP_REGEX)
     rule = re.compile(r"""(?P<jump>jump|->)[ \t]*(?P<jump_name>\w+)"""+OPT_ARGS_REGEX+IF_EXP_REGEX)
-    def __init__(self, pop=None, jump=None, jump_name=None, if_exp=None, args=None, loc=None):
+    def __init__(self, pop=None, jump=None, jump_name=None, if_exp=None, args=None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
         self.label = jump_name
@@ -477,7 +483,7 @@ class Jump(MastNode):
 CLOSE_FUNC = r"\)[ \t]*(?=\r\n|\n|\#)"
 class FuncCommand(MastNode):
     rule = re.compile(r'(?P<is_await>await\s+)?(?P<py_cmds>[\w\.]+\s*\([^\n\r\f]+[ \t]*(?=\r\n|\n|\#))')
-    def __init__(self, is_await=None, py_cmds=None, loc=None):
+    def __init__(self, is_await=None, py_cmds=None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
         self.is_await = is_await != None
@@ -488,7 +494,7 @@ class FuncCommand(MastNode):
 # class EndAwait(MastNode):
 #     rule = re.compile(r'end_await')
 #     stack = []
-#     def __init__(self, loc=None):
+#     def __init__(self, loc=None, compile_info=None):
 #         super().__init__()
 #         self.loc = loc
 #         self.await_node = Await.stack[-1]
@@ -503,7 +509,7 @@ class Await(MastNode):
     """
     stack = []
     rule = re.compile(r"""await[ \t]+(until[ \t]+(?P<until>\w+)[ \t]+)?(?P<if_exp>[^:\n\r\f]+)"""+BLOCK_START)
-    def __init__(self, until=None, if_exp=None, is_end = None, loc=None):
+    def __init__(self, until=None, if_exp=None, is_end = None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
         self.end_await_node = None
@@ -534,7 +540,7 @@ class Await(MastNode):
     def is_indentable(self):
         return True
     
-    def create_end_node(self, loc, dedent_obj):
+    def create_end_node(self, loc, dedent_obj, compile_info):
         self.dedent_loc = loc
         end = Await(is_end=True, loc = loc)
         end.dedent_loc = loc+1
@@ -549,7 +555,7 @@ TIMEOUT_REGEX = r"([ \t]*timeout"+MIN_SECONDS_REGEX + r")?"
 
 class AwaitInlineLabel(MastNode):
     rule = re.compile(r"\=(?P<val>[^:\n\r\f]+)"+BLOCK_START)
-    def __init__(self, val=None, loc=None):
+    def __init__(self, val=None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
         self.inline = val
@@ -559,7 +565,7 @@ class AwaitInlineLabel(MastNode):
     def is_indentable(self):
         return True
 
-    def create_end_node(self, loc, dedent_obj):
+    def create_end_node(self, loc, dedent_obj, compile_info):
         """ cascade the dedent up to the start"""
         self.dedent_loc = loc+1
         
@@ -568,7 +574,7 @@ class AwaitInlineLabel(MastNode):
 class OnChange(MastNode):
     rule = re.compile(r"on[ \t]+(change[ \t]+)?(?P<val>[^:]+)"+BLOCK_START)
     stack = []
-    def __init__(self, end=None, val=None, loc=None):
+    def __init__(self, end=None, val=None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
         self.value = val
@@ -594,7 +600,7 @@ class OnChange(MastNode):
     def is_indentable(self):
         return True
 
-    def create_end_node(self, loc, dedent_obj):
+    def create_end_node(self, loc, dedent_obj, compile_info):
         """ cascade the dedent up to the start"""
         self.dedent_loc = loc
         end = OnChange("on_end", loc = loc)
@@ -610,7 +616,7 @@ class Button(MastNode):
     def __init__(self, message=None, button=None,  
                 color=None, if_exp=None, 
                 for_name=None, for_exp=None, 
-                clone=False, q=None, label=None, new_task=None, task_data=None, path=None, loc=None):
+                clone=False, q=None, label=None, new_task=None, task_data=None, path=None, loc=None, compile_info=None):
         super().__init__()
         #
         # Remember any field in here need to be set in clone()
@@ -695,14 +701,14 @@ class Button(MastNode):
     def is_indentable(self):
         return True
     
-    def create_end_node(self, loc, dedent_obj):
+    def create_end_node(self, loc, dedent_obj, compile_info):
         """ cascade the dedent up to the start"""
         self.await_node.dedent_loc = loc
 
 
 # class End(MastNode):
 #     rule = re.compile(r'->[ \t]*(?P<res>(FAIL|SUCCESS|IDLE|END))'+IF_EXP_REGEX)
-#     def __init__(self,  if_exp=None, loc=None):
+#     def __init__(self,  if_exp=None, loc=None, compile_info=None):
 #         super().__init__()
 #         self.loc = loc
 #         if if_exp:
@@ -728,7 +734,7 @@ class Button(MastNode):
 
 # class Fail(MastNode):
 #     rule = re.compile(r'->[ \t]*FAIL'+IF_EXP_REGEX)
-#     def __init__(self, if_exp=None, loc=None):
+#     def __init__(self, if_exp=None, loc=None, compile_info=None):
 #         super().__init__()
 #         self.loc = loc
 #         if if_exp:
@@ -739,7 +745,7 @@ class Button(MastNode):
 
 class Yield(MastNode):
     rule = re.compile(r'(->|yield[ \t])[ \t]*(?P<res>(FAIL|fail|SUCCESS|success|END|end|IDLE|idle|RESULT|result))(?P<exp>[^\n\r\f]+)?')
-    def __init__(self, res= None, exp=None, if_exp=None, loc=None):
+    def __init__(self, res= None, exp=None, if_exp=None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
         self.result = res.lower()
@@ -1172,7 +1178,15 @@ class Mast():
         indent_stack = [(0,None)]
         prev_node = None
 
-        def inject_dedent(ind_loc, indent_node, dedent_node):
+        class CompileInfo:
+            def __init__(self) -> None:
+                self.indent = None
+                self.is_indent = None
+                self.is_dedent = None
+
+        
+
+        def inject_dedent(ind_level, indent_node, dedent_node, info):
             if len(indent_stack)==0:
                 logger = logging.getLogger("mast.compile")
                 error = f"\nERROR: Indention Error {line_no} - {file_name}\n\n"
@@ -1180,10 +1194,10 @@ class Mast():
                 errors.append(error)
                 return
             
-            if ind_loc == 0:
+            if ind_level == 0:
                 return
             loc = len(self.cmd_stack[-1].cmds)
-            end_obj = indent_node.create_end_node(loc, dedent_node)
+            end_obj = indent_node.create_end_node(loc, dedent_node, info)
             if end_obj:
                 end_obj.line_num = indent_node.line_num
                 end_obj.line = indent_node.line
@@ -1195,8 +1209,12 @@ class Mast():
         def inject_remaining_dedents():
             nonlocal indent_stack
             l = indent_stack[::-1]
-            for (ind_loc, ind_obj) in l:
-                inject_dedent(ind_loc, ind_obj, None)
+            for (ind_level, ind_obj) in l:
+                info = CompileInfo()
+                info.indent = ind_level
+                info.is_indent = False
+                info.is_dedent = True
+                inject_dedent(ind_level, ind_obj, None, info)
             indent_stack = [(0,None)]
 
 
@@ -1206,7 +1224,7 @@ class Mast():
             #line = lines[:mo]
             lines = lines[mo[0]:]
             indent = max((mo[0] - mo[2]) -1,0)
-            Mast.current_indent = indent
+            #Mast.current_indent = indent  # Replaced with compile_info
          
             # Keep location in file
             parsed = False
@@ -1308,7 +1326,12 @@ class Mast():
                     case _:
                         try:
                             loc = len(self.cmd_stack[-1].cmds)
-                            obj = node_cls(loc=loc, **data)
+                            info = CompileInfo()
+                            info.indent = indent
+                            info.is_dedent = is_dedent
+                            info.is_indent = is_indent
+
+                            obj = node_cls(compile_info=info,loc=loc, **data)
                             obj.file_num = file_num
                             obj.line_num = line_no
                         except Exception as e:
@@ -1337,7 +1360,7 @@ class Mast():
                             while i_loc > indent:
                                 (i_loc,i_obj) = indent_stack.pop()
                                 # Should equal i_obj
-                                end_obj = i_obj.create_end_node(loc, obj)
+                                end_obj = i_obj.create_end_node(loc, obj,info)
                                 #
                                 # So far only loops need this
                                 # Creates the end node
@@ -1351,6 +1374,11 @@ class Mast():
                                     obj.loc += 1
                                 
                                 (i_loc,_) = indent_stack[-1]
+                        #
+                        # This is for nesting things
+                        # like for loops, that should wait to do things 
+                        #
+                        obj.post_dedent(info)        
                         self.cmd_stack[-1].add_child(obj)
                         prev_node = obj
                 break

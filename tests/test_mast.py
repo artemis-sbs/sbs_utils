@@ -884,6 +884,44 @@ log("END")
             value = st.getvalue()
             assert(value==t)
 
+
+    def test_loop_for_nest_continue(self):
+            """
+            This is testing for an edge case where the break or continue
+            was the dedent on a for, which was connecting to the wrong for
+            """
+            (errors, runner, _) = mast_run( code = """
+logger(var="output")
+for y in range(3):
+    log("Y{y}")
+    continue if y==2
+    for z in range(3):
+        log("Y{y}Z{z}")
+                                           
+    continue if y==0
+    log("+Y{y}")
+
+log("END")
+    """)
+            assert(len(errors)==0)
+            t = ""
+            for y in range(3):
+                t+= f"Y{y}\n"
+                if y == 2:
+                     continue
+                for z in range(3):
+                    t+= f"Y{y}Z{z}\n"
+                if y == 0:
+                     continue
+                t+= f"+Y{y}\n"
+            t+="END\n"
+            output = runner.get_value("output", None)
+            assert(output is not None)
+            st = output[0]
+            value = st.getvalue()
+            assert(value==t)
+
+
     def test_loop_for_nest_two(self):
             (errors, runner, _) = mast_run( code = """
 logger(var="output")
