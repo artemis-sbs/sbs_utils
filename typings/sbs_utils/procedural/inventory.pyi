@@ -1,53 +1,92 @@
-from sbs_utils.engineobject import EngineObject
-def get_inventory_value (so, link, default=None):
-    ...
+from sbs_utils.agent import Agent
+def get_inventory_value (id_or_object, key, default=None):
+    """get inventory value with the given key the the agent  has
+        this is the way to create a collection in inventory
+    
+    Args:
+        id_or_obj (agent): The agent id or object to check
+        key (str): The key/name of the inventory item
+        default (any): the default value data"""
+def get_shared_inventory_value (key, default=None):
+    """get inventory value from the shared data agent
+    
+    Args:
+        key (str): The key/name of the inventory item
+        default (any): the value to return if not found"""
 def has_inventory (key: str):
-    """has_inventory
+    """get the set of agent ids that have a inventory item with the given key
     
-    get the object that have a inventory item with the given key
+    Args:
+        key (str): The key/name of the inventory item
     
-    :param key: The key/name of the inventory item
-    :type key: str
-    :rtype: set of ids"""
-def inventory_set (link_source, link_name: str):
-    """inventory_set
+    Returns:
+        set: set of ids"""
+def has_inventory_value (key: str, value):
+    """get the object that have a inventory item with the given key
     
-    get the set that inventory items with the given key the the link source has
-    this is the way to create a collection in inventory
+    Args:
+        key (str): The key/name of the inventory item
     
-    :param link_source: The id object to check
-    :type link_source: int / id
-    :param link_name: The key/name of the inventory item
-    :type link_name: str
-    :rtype: set of data"""
-def inventory_value (link_source, link_name: str, default=None):
-    """inventory_value
+    Returns:
+        set: set of ids"""
+def inventory_set (source, key: str):
+    """get the set that inventory items with the given key the the link source has
+        this is the way to create a collection in inventory
     
-    get the value that inventory items with the given key the the link source has
+    !!! Note
+        This is like set_inventory_value bu the value is a set
     
-    :param link_source: The id object to check
-    :type link_source: int / id
-    :param link_name: The key/name of the inventory item
-    :type link_name: str
-    :rtype: data"""
-def set_inventory_value (so, name, value):
-    ...
-def to_object (other: sbs_utils.engineobject.EngineObject | sbs_utils.engineobject.CloseData | int):
-    ...
+    Args:
+        source (agent): The agent id or object to check
+        key (str): The key/name of the inventory item
+        set: set of data"""
+def inventory_value (id_or_obj, key: str, default=None):
+    """get inventory value with the given key the the agent  has
+        this is the way to create a collection in inventory
+    
+    Args:
+        id_or_obj (agent): The agent id or object to check
+        key (str): The key/name of the inventory item
+        default (any): the default value data"""
+def set_inventory_value (so, key, value):
+    """set inventory value with the given key the the agent  has
+        this is the way to create a collection in inventory
+    
+    Args:
+        id_or_obj (agent): The agent id or object to check
+        key (str): The key/name of the inventory item
+        value (any): the value"""
+def set_shared_inventory_value (key, value):
+    """set inventory value with the given key on the shared agent
+    
+    Args:
+        key (str): The key/name of the inventory item
+        value (any): the value"""
+def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
+    """converts the item passed to an agent
+    
+    ??? note
+        Retrun of None could mean the agent no longer exists
+    
+    Args:
+        other (Agent | CloseData | int): The agent ID or other agent like data
+    
+    Returns:
+        agent | None: The agent or None"""
 def to_object_list (the_set):
     """to_object_list
-    
     converts a set to a list of objects
     
-    :param the_set: A set of ids
-    :type the_set: set of ids
+    Args:
+        the_set (set|list): a set of agent ids
     
-    :rtype: list of EngineObject"""
-def to_set (other: sbs_utils.engineobject.EngineObject | sbs_utils.engineobject.CloseData | int):
-    """to_set
+    Returns:
+        list: of Agents"""
+def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
+    """converts a single object/id, set ot list of things to a set of ids
     
-    converts a single object/id, set ot list of things to a set of ids
+    Args:
+        the_set (set): set, list or single item
     
-    :param the_set: The a set of things
-    :type the_set: set, list or single item
-    :rtype: list of ids"""
+    Returns:
+        set of things"""

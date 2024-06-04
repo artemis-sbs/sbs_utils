@@ -118,23 +118,20 @@ def scan_results(message, target=None, tab = None):
     
     msg = task.compile_and_format_string(message)
     #print(f"{scan.tab} scan {msg}")
-    selected_id = target
-    if target is None:
-        selected_id = _science_get_selected_id()
-    so = query.to_object(selected_id)
-    if so:
-        so.data_set.set(scan.tab, msg,0)
-        so.set_inventory_value("SCANNED", True)
-        task.set_inventory_value("__SCAN_DONE__", True)
-
+    
+    p = task.get_variable("BUTTON_PROMISE")
+    p.set_scan_results(msg) 
     # Rerun the scan (until all scans are done)
     #if scan.node:
-    task.pop_label(False) #(task.active_label,scan.node.loc)
+    
 
 from .gui import ButtonPromise
 from ..consoledispatcher import ConsoleDispatcher
 class ScanPromise(ButtonPromise):
     def __init__(self, path, task, timeout=None, auto_side=True) -> None:
+        path = path if path is not None else ""
+        path = f"sci/{path}"
+
         super().__init__(path, task, timeout)
 
         self.expanded_buttons = None
@@ -144,6 +141,11 @@ class ScanPromise(ButtonPromise):
         self.auto_side = auto_side
         self.scan_is_done = False
         # The stuff to start the scan is now in initial_poll / show_buttons
+
+    def set_path(self, path):
+        path = path if path is not None else ""
+        path = f"sci/{path}"
+        super().set_path(path)
 
     def initial_poll(self):
         if self._initial_poll:
@@ -161,6 +163,16 @@ class ScanPromise(ButtonPromise):
         #     if self.scan_is_done:
         #         self.set_result(True)
         super().poll()
+
+    def set_scan_results(self, msg):
+        selected_id = self.selected_id
+        so = query.to_object(selected_id)
+        if so:
+            so.data_set.set(self.tab, msg,0)
+            so.set_inventory_value("SCANNED", True)
+            self.task.set_inventory_value("__SCAN_DONE__", True)
+        self.task.pop_label(False) #(task.active_label,scan.node.loc)
+
 
     def check_for_button_done(self):
         self.show_buttons()
@@ -189,7 +201,7 @@ class ScanPromise(ButtonPromise):
         self.tab = event.extra_tag
         self.event = event
         self.cancel_if_no_longer_exists()
-
+        #print(f"SCIENCE MESSAGE {event.extra_tag} {event.tag} {event.sub_tag} ")
         if not self.done():
             #print(f"SCIENCE MESSAGE {event.extra_tag}")
             self.process_tab()
@@ -198,18 +210,42 @@ class ScanPromise(ButtonPromise):
         if self.tab is not None:
             for i, button in enumerate(self.expanded_buttons):
                 if self.task.format_string(button.message) == self.tab:
-                    self.button = i
+                    self.button = button
+                    #self.button = None # Don't let default process the button
 
             so_player = query.to_object(self.origin_id)
             if so_player:
                 self.tab = so_player.side+self.tab
 
+            task = self.task
             self.task.set_variable("__SCAN_TAB__", self)
-            if self.button is not None:
-                button = self.expanded_buttons[self.button] 
-                self.button = None
-                self.task.set_variable("EVENT", self.event)
-                self.task.push_inline_block(self.task.active_label,button.loc+1)
+        # if self.button is None:
+        #     return
+        
+        # button = self.button
+        # self.button = None
+        
+        # if button.new_task and button.label:
+        #     # if button.data is not None:
+        #     #     for k in button.data:
+        #     #         print(f"{k} set to {button.data[k]}")
+        #     self.sub_task = task.start_task(button.label, inputs=button.task_data)
+        #     self.sub_task.set_variable("BUTTON_PROMISE", self)
+        #     self.sub_task.tick_in_context()
+        #     return self.sub_task.poll()
+        #     # if self.sub_task.done:
+        #     #     self.task.tick_in_context()
+        # elif button.path is not None:
+        #     self.set_path(button.path)
+        # elif button.label:
+        #     self.task.set_variable("BUTTON_PROMISE", self)
+        #     task.push_inline_block(button.label)
+        #     self.task.tick_in_context()
+        # else:
+        #     self.task.set_variable("BUTTON_PROMISE", self)
+        #     task.push_inline_block(task.active_label,button.loc+1)
+        #     self.task.tick_in_context()
+
 
     def science_selected(self, event):
         #
@@ -340,4 +376,16 @@ def scan(path=None, buttons=None, timeout=None, auto_side=True):
         
     return ret
 
-    
+def science_add_scan(message, label=None, data=None, path=None):
+    p = ButtonPromise.navigating_promise
+    if p is None:
+        return
+    p.nav_buttons.append(Button(message, "+", label=label, task_data=data, new_task=True, path=path, loc=0))
+
+
+def science_navigate(path):
+    task = FrameContext.task
+    p = task.get_variable("BUTTON_PROMISE")
+    if p is None:
+        return
+    p.set_path(path)

@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../LegendaryMissions"
+		},
+		{
+			"path": "../tutorial_runner"
+		}
+	],
+	"settings": {
+		"python.testing.unittestEnabled": true,
+		"python.test"
+		
+	}
+}

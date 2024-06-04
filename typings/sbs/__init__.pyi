@@ -8,16 +8,16 @@ def app_minutes() -> int:
     ...
 def app_seconds() -> int:
     ...
-def assign_client_to_ship(arg0: int, arg1: int) -> None:
+def assign_client_to_ship(clientComputerID: int, controlledShipID: int) -> None:
     """Tells a client computer which ship it should control."""
 def broad_test(lx: float, lz: float, mx: float, mz: float, abits: int) -> List[sbs.space_object]:
     """return a list of space objects that are currently inside an x/z 2d rect  ARGS: 2D bounding rect, and bitfield"""
+def cinematic_control(clientID: int, scriptControlsCamera: int, dollyID: int, dollyPos: sbs.vec3, targetID: int, targetPos: sbs.vec3) -> None:
+    """for a specific client (0=server machine), this sets the values to be used with the 'cinematic' console, which requiers a 3d_view widget, and 'cinematic' == camModeTag"""
 def clear_client_tags() -> None:
     """stub; does nothing yet."""
 def create_new_sim() -> None:
     """all space objects are deleted; a blank slate is born."""
-def create_transient(type: int, subtype: int, sourceID: int, targetID: int, parentID: int, x: float, y: float, z: float, sideTag: str) -> None:
-    """Generates a temporary graphical object, usually an explosion."""
 def delete_all_navpoints() -> None:
     """deletes all navpoints on server, and notifies all clients of the change"""
 def delete_grid_object(spaceObjectID: int, gridObjID: int) -> None:
@@ -42,12 +42,28 @@ def find_valid_unoccupied_grid_point_for_vector3(spaceObjectID: int, vecPoint: s
     """return a list of two integers, the grid x and y that is open and is closest.  The list is empty if the search fails."""
 def get_client_ID_list() -> List[int]:
     """return a list of client ids, for the computers that are currently connected to this server."""
+def get_debug_gui_tree(clientID: int, tag: str, displayListFlag: int) -> None:
+    """sends a GUI debug message from the targeted client (0 = server screen)"""
 def get_game_version() -> str:
     """returns the version of the game EXE currently operating this script, as a string."""
 def get_hull_map(spaceObjectID: int, forceCreate: bool = False) -> sbs.hullmap:
     """gets the hull map object for this space object; setting forceCreate to True will erase and rebuild the grid (and gridObjects) of this spaceobject"""
+def get_preference_float(key: str) -> float:
+    """Gets a value from preferences.json"""
+def get_preference_int(key: str) -> int:
+    """Gets a value from preferences.json"""
+def get_preference_string(key: str) -> str:
+    """Gets a value from preferences.json"""
 def get_screen_size() -> sbs.vec2:
     """returns a VEC2, with the width and height of the display in pixels"""
+def get_shared_string(key: str) -> str:
+    """gets a shared string, given the key (itself a string).  Shared strings are automatically copied from server to all clients."""
+def get_ship_of_client(clientID: int) -> int:
+    """returns the player ship ID assigned to the client computer"""
+def get_type_of_client(clientID: int) -> str:
+    """returns the consoleType perviously assigned to the client computer"""
+def hide_gui_tag(clientID: int, tag: str) -> None:
+    """makes a GUI element invisible, on the targeted client (0 = server screen)"""
 def in_standby_list(space_object: sbs.space_object) -> bool:
     """returns true if the spaceobject is in the standby list."""
 def in_standby_list_id(id: int) -> bool:
@@ -78,7 +94,7 @@ def retrieve_from_standby_list_id(id: int) -> None:
     """moves the spaceobject from the standby list to normal space."""
 def run_next_mission(mission_folder: str) -> None:
     """Shuts down this script and starts the mission in the folder argument"""
-def send_client_widget_list(arg0: int, arg1: str, arg2: str) -> None:
+def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) -> None:
     """sends the gameplay widgets to draw, on the targeted client (0 = server screen)"""
 def send_client_widget_rects(arg0: int, arg1: str, arg2: float, arg3: float, arg4: float, arg5: float, arg6: float, arg7: float, arg8: float, arg9: float) -> None:
     """changes the rects of a gameplay widget, on the targeted client (0 = server screen)."""
@@ -92,41 +108,43 @@ def send_grid_button_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
     """sends a complex message to the engineering console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
 def send_grid_selection_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
     """sends a complex message to the engineering console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
-def send_gui_3dship(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+def send_gui_3dship(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a 3D ship box GUI element, on the targeted client (0 = server screen)"""
-def send_gui_button(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+def send_gui_button(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a button GUI element, on the targeted client (0 = server screen)"""
-def send_gui_checkbox(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+def send_gui_checkbox(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a checkbox GUI element, on the targeted client (0 = server screen)"""
-def send_gui_clear(clientID: int) -> None:
+def send_gui_clear(clientID: int, tag: str) -> None:
     """Clears all GUI elements from screen, on the targeted client (0 = server screen).  remember to use send_gui_complete after adding widgets."""
-def send_gui_clickregion(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+def send_gui_clickregion(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a click-region GUI element, on the targeted client (0 = server screen)"""
-def send_gui_colorbutton(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+def send_gui_colorbutton(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a color button GUI element, on the targeted client (0 = server screen)"""
-def send_gui_colorcheckbox(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+def send_gui_colorcheckbox(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a color checkbox GUI element, on the targeted client (0 = server screen)"""
-def send_gui_complete(clientID: int) -> None:
+def send_gui_complete(clientID: int, tag: str) -> None:
     """Flips double-buffered GUI display list, on the targeted client (0 = server screen).  Use after a send_gui_clear() and some send_gui* calls"""
-def send_gui_dropdown(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+def send_gui_dropdown(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a dropdown GUI element, on the targeted client (0 = server screen)"""
-def send_gui_face(clientID: int, tag: str, face_string: str, left: float, top: float, right: float, bottom: float) -> None:
+def send_gui_face(clientID: int, parent: str, tag: str, face_string: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a face box GUI element, on the targeted client (0 = server screen)"""
-def send_gui_icon(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+def send_gui_icon(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates an icon art GUI element, on the targeted client (0 = server screen)"""
-def send_gui_iconbutton(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+def send_gui_iconbutton(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates an icon-button GUI element, on the targeted client (0 = server screen)"""
-def send_gui_iconcheckbox(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+def send_gui_iconcheckbox(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates an icon-checkbox GUI element, on the targeted client (0 = server screen)"""
-def send_gui_image(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+def send_gui_image(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a 2d art image GUI element, on the targeted client (0 = server screen)"""
-def send_gui_rawiconbutton(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+def send_gui_rawiconbutton(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a simple clickable icon GUI element, on the targeted client (0 = server screen)"""
-def send_gui_slider(clientID: int, tag: str, current: float, style: str, left: float, top: float, right: float, bottom: float) -> None:
+def send_gui_slider(clientID: int, parent: str, tag: str, current: float, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a slider bar GUI element, on the targeted client (0 = server screen) (long clientID, std::string tag, float low, float high, float current, float left, float top, float right, float bottom, bool showNumberFlag)"""
-def send_gui_text(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+def send_gui_sub_region(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+    """Creates a subregion GUI element, on the targeted client (0 = server screen)"""
+def send_gui_text(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a text box GUI element, on the targeted client (0 = server screen)"""
-def send_gui_typein(clientID: int, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+def send_gui_typein(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a text entry GUI element, on the targeted client (0 = server screen)"""
 def send_message_to_client(clientID: int, colorDesc: str, text: str) -> None:
     """sends a text message to the text box, for the specific client. args:  uint64 clientID (0 = server screen), std::string color, std::string text"""
@@ -136,7 +154,7 @@ def send_story_dialog(clientID: int, title: str, text: str, face: str, color: st
     """sends a story dialog to the targeted client (0 = server screen)"""
 def set_beam_damages(clientID: int, playerBeamDamage: float, npcBeamDamage: float) -> None:
     """sets the values for player base beam damage, and npc base beam damage.  Per client, or all clients + server (if ID = 0)."""
-def set_dmx_channel(arg0: int, arg1: int, arg2: int, arg3: int, arg4: int, arg5: int) -> None:
+def set_dmx_channel(clientID: int, channel: int, behavior: int, speed: int, low: int, high: int) -> None:
     """set a color channel of dmx."""
 def set_main_view_modes(clientID: int, main_screen_view: str, cam_angle: str, cam_mode: str) -> None:
     """sets the three modes of the main screen view for the specified client.  main_screen_view = (3d_view, info, data);  cam_angle = (front, back, left, right); cam_mode = (first_person, chase, tracking)"""
@@ -144,10 +162,20 @@ def set_music_folder(ID: int, filename: str) -> None:
     """Sets the folder from which music is streamed; ID is ship, OR client, OR zero for server."""
 def set_music_tension(ID: int, tensionValue: float) -> None:
     """Sets the tension value of ambient music (0-100); ID is ship, OR client, OR zero for server."""
+def set_shared_string(key: str, value: str) -> None:
+    """sets (or changes) a shared string, given a key and a value (both strings).  The shared strings are automatically copied from server to all clients."""
 def set_sky_box(clientID: int, artFileName: str) -> None:
     """sets the skybox art for a clientID (0 = server)."""
 def set_sky_box_all(artFileName: str) -> None:
     """sets the skybox art for all connected computers."""
+def show_gui_tag(clientID: int, tag: str) -> None:
+    """makes a GUI element visible, on the targeted client (0 = server screen)"""
+def super_hyper_warp_mode(clientID: int, ship_hull_key: str, on_off_flag: int) -> None:
+    """turns on (or off) the super_hyper_warp_mode screen to a particular computer"""
+def suppress_client_connect_dialog(on_off_flag: int) -> None:
+    """turns on (or off) the client connect dialog on the server (arg is 1 or 0)"""
+def transparent_options_button(clientID: int, on_off_flag: int) -> None:
+    """for a specific client (0=server machine), turns on (or off) the Options button transparency (arg is 1 or 0)"""
 class SHPSYS(object): ### from pybind
     """One of four ship systems to track damage
     
@@ -162,30 +190,32 @@ class SHPSYS(object): ### from pybind
       SHIELDS : the shields index for *system_damage*
     
       MAX : the total number of types of *system_damage*"""
-    ENGINES : 1
-    MAX : 4
-    SENSORS : 2
-    SHIELDS : 3
-    WEAPONS : 0
-class TORPEDO(object): ### from pybind
-    """enum of torpedo types
-    
-    Members:
-    
-      HOMING : a torpedo type index
-    
-      NUKE : a torpedo type index
-    
-      EMP : a torpedo type index
-    
-      MINE : a torpedo type index
-    
-      TORPTYPECOUNT : number of torpedo types"""
-    EMP : 2
-    HOMING : 0
-    MINE : 3
-    NUKE : 1
-    TORPTYPECOUNT : 4
+    def __eq__(self: object, other: object) -> bool:
+        ...
+    def __getstate__(self: object) -> int:
+        ...
+    def __hash__(self: object) -> int:
+        ...
+    def __index__(self: sbs.SHPSYS) -> int:
+        ...
+    def __init__(self: sbs.SHPSYS, value: int) -> None:
+        ...
+    def __int__(self: sbs.SHPSYS) -> int:
+        ...
+    def __ne__(self: object, other: object) -> bool:
+        ...
+    def __repr__(self: object) -> str:
+        ...
+    def __setstate__(self: sbs.SHPSYS, state: int) -> None:
+        ...
+    def __str__(*argv):
+        """name(self: handle) -> str"""
+    @property
+    def name name(self: handle) -> str:
+        """name(self: handle) -> str"""
+    @property
+    def value (arg0: sbs.SHPSYS) -> int:
+        ...
 class Writer(object): ### from pybind
     """class Writer"""
     def flush(self: sbs.Writer) -> None:
@@ -451,27 +481,29 @@ class simulation(object): ### from pybind
         """finds and deletes an existing tractor connection.  Args: u64 sourceID, u64 targetID"""
     def GetTractorConnection(self: sbs.simulation, arg0: int, arg1: int) -> sbs.tractor_connection:
         ...
-    def add_navpoint(self: sbs.simulation, arg0: float, arg1: float, arg2: float, arg3: str, arg4: str) -> sbs.navpoint:
+    def add_navarea(self: sbs.simulation, x1: float, y1: float, x2: float, y2: float, x3: float, y3: float, x4: float, y4: float, text: str, colDesc: str) -> sbs.navpoint:
+        """adds a new navarea to space; don't hold on to this Navpoint object in a global; keep the name string instead    args:  four x/y floats, std::string text, std::string colorDesc"""
+    def add_navpoint(self: sbs.simulation, x: float, y: float, z: float, text: str, colDesc: str) -> sbs.navpoint:
         """adds a new navpoint to space; don't hold on to this Navpoint object in a global; keep the name string instead    args:  float x, float y, float z, std::string text, std::string colorDesc"""
     def create_space_object(self: sbs.simulation, aiTag: str, dataTag: str, abits: int) -> int:
         """creates a new spaceobject. abits is a 16-bit bitfield for further defining the object.  bit 1, when set, means the object is unmoving and static."""
-    def delete_navpoint_by_name(self: sbs.simulation, arg0: str) -> None:
+    def delete_navpoint_by_name(self: sbs.simulation, text: str) -> None:
         """deletes navpoint by its name"""
-    def delete_navpoint_by_reference(self: sbs.simulation, arg0: sbs.navpoint) -> None:
+    def delete_navpoint_by_reference(self: sbs.simulation, a: sbs.navpoint) -> None:
         """deletes navpoint by its reference"""
     def force_update_to_clients(self: sbs.simulation, spaceObjectID: int) -> None:
         """forces this space object to update its data to all clients"""
-    def get_navpoint_by_name(self: sbs.simulation, arg0: str) -> sbs.navpoint:
+    def get_navpoint_by_name(self: sbs.simulation, text: str) -> sbs.navpoint:
         """takes a string name, returns the associated Navpoint object"""
-    def get_navpoint_by_reference(self: sbs.simulation, arg0: sbs.navpoint) -> sbs.navpoint:
+    def get_navpoint_by_reference(self: sbs.simulation, a: sbs.navpoint) -> sbs.navpoint:
         """takes a navpoint reference, returns the ref if it's valid"""
     def get_shield_hit_index(self: sbs.simulation, sourceShip: sbs.space_object, targetShip: sbs.space_object) -> int:
-        """Given a source ship and a target ship, this returns the shield (index) that would be hit by a hypothetical beam. -1 if no shield can currently intercept such a beam."""
+        """Given a source ship and a target ship, this returns the shield (index) that would be hit by a hypothetical beam. -1 if the target ship has no shield facings."""
     def get_space_object(self: sbs.simulation, arg0: int) -> sbs.space_object:
         """returns the reference to a spaceobject, by ID"""
-    def navpoint_exists(self: sbs.simulation, arg0: str) -> bool:
+    def navpoint_exists(self: sbs.simulation, text: str) -> bool:
         """returns true if the navpoint exists, by name"""
-    def navpoint_exists_ref(self: sbs.simulation, arg0: sbs.navpoint) -> bool:
+    def navpoint_exists_ref(self: sbs.simulation, a: sbs.navpoint) -> bool:
         """returns true if the navpoint reference exists"""
     def reposition_space_object(self: sbs.simulation, arg0: sbs.space_object, arg1: float, arg2: float, arg3: float) -> None:
         """immediately changes the position of a spaceobject"""

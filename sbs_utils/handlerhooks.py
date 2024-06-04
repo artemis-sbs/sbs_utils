@@ -58,13 +58,15 @@ class ErrorPage(Page):
                 self.gui_state = "presenting"
                 print(self.message)
                 self.message = self.message.replace(",", ".")
+                self.message = self.message.replace(";", ".")
+                self.message = self.message.replace(":", ".")
                 sbs.send_gui_text(
-                    event.client_id, "text", f"text:sbs_utils runtime error^{self.message}", 0, 0, 80, 95)
+                    event.client_id,"", "text", f"text:sbs_utils runtime error^{self.message};", 0, 0, 80, 95)
                 
                 # sbs.send_gui_button(event.client_id, "back", "text:pause mission;", 0, 80, 20, 94)
-                sbs.send_gui_button(event.client_id, "resume", "text:Resume Mission;", 25, 80, 45, 99)
-                sbs.send_gui_button(event.client_id, "rerun", "text:Rerun Mission;", 50, 80, 70, 99)
-                sbs.send_gui_button(event.client_id, "startup", "text:run startup Mission;", 75, 80, 99, 99)
+                sbs.send_gui_button(event.client_id,"", "resume", "text:Resume Mission;", 25, 80, 45, 99)
+                sbs.send_gui_button(event.client_id,"", "rerun", "text:Rerun Mission;", 50, 80, 70, 99)
+                sbs.send_gui_button(event.client_id,"", "startup", "text:run startup Mission;", 75, 80, 99, 99)
                 sbs.send_gui_complete(event.client_id, "")
 
     def on_message(self, event):

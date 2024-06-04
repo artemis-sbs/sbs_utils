@@ -1,7 +1,9 @@
-from sbs_utils.engineobject import EngineObject
+from sbs_utils.agent import Agent
 from enum import Enum
-from enum import IntEnum
+from sbs_utils.helpers import FrameContext
 from zipfile import ZipFile
+def find_exp_end (s, expect_block):
+    ...
 def first_newline_index (s):
     ...
 def first_non_newline_index (s):
@@ -10,94 +12,98 @@ def first_non_space_index (s):
     ...
 def first_non_whitespace_index (s):
     ...
-def get_story_id ():
+def format_exception (message, source):
     ...
 def getmembers (object, predicate=None):
     ...
 def isfunction (object):
     ...
+def mast_print (*args, **kwargs):
+    ...
 class Assign(MastNode):
     """class Assign"""
-    def __init__ (self, scope, lhs, oper, exp, quote=None, py=None, loc=None):
+    def __init__ (self, scope, lhs, oper, exp, a_wait=None, quote=None, py=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
-class AwaitCondition(MastNode):
+class Await(MastNode):
     """waits for an existing or a new 'task' to run in parallel
     this needs to be a rule before Parallel"""
-    def __init__ (self, if_exp=None, loc=None):
+    def __init__ (self, until=None, if_exp=None, is_end=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def add_inline (self, inline_data):
+        ...
+    def create_end_node (self, loc, dedent_obj, compile_info):
+        ...
+    def is_indentable (self):
+        ...
     def parse (lines):
         ...
-class AwaitFail(MastNode):
-    """class AwaitFail"""
-    def __init__ (self, loc=None):
+class AwaitInlineLabel(MastNode):
+    """class AwaitInlineLabel"""
+    def __init__ (self, val=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def create_end_node (self, loc, dedent_obj, compile_info):
+        """cascade the dedent up to the start"""
+    def is_indentable (self):
+        ...
     def parse (lines):
         ...
-class Behavior(MastNode):
-    """Creates a new 'task' to run in parallel"""
-    def __init__ (self, yield_await=None, is_block=None, invert=None, until=None, sel_labels=None, seq_labels=None, inputs=None, loc=None):
+class Button(MastNode):
+    """class Button"""
+    def __init__ (self, message=None, button=None, color=None, if_exp=None, for_name=None, for_exp=None, clone=False, q=None, label=None, new_task=None, task_data=None, path=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def been_here (self, id_tuple):
+        ...
+    def clone (self):
+        ...
+    def create_end_node (self, loc, dedent_obj, compile_info):
+        """cascade the dedent up to the start"""
+    def expand (self):
+        ...
+    def is_indentable (self):
+        ...
     def parse (lines):
         ...
-class Cancel(MastNode):
-    """Cancels a new 'task' to run in parallel"""
-    def __init__ (self, lhs=None, name=None, loc=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
+    def should_present (self, id_tuple):
         ...
-class Change(MastNode):
-    """class Change"""
-    def __init__ (self, end=None, val=None, loc=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
+    def visit (self, id_tuple):
         ...
 class Comment(MastNode):
     """class Comment"""
-    def __init__ (self, com=None, loc=None):
+    def __init__ (self, com=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
-class Delay(MastNode):
-    """class Delay"""
-    def __init__ (self, clock, seconds=None, minutes=None, loc=None):
+class ExpParseData(object):
+    """class ExpParseData"""
+    def __init__ (self):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
+    @property
+    def in_something (self):
         ...
-class DoCommand(MastNode):
-    """class DoCommand"""
-    def __init__ (self, py_cmds=None, loc=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
+    @property
+    def is_valid (self):
         ...
-class End(MastNode):
-    """class End"""
-    def __init__ (self, if_exp=None, loc=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
-        ...
-class EndAwait(MastNode):
-    """class EndAwait"""
-    def __init__ (self, loc=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
-        ...
-class Fail(MastNode):
-    """class Fail"""
-    def __init__ (self, if_exp=None, loc=None):
+class FuncCommand(MastNode):
+    """class FuncCommand"""
+    def __init__ (self, is_await=None, py_cmds=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
 class IfStatements(MastNode):
     """class IfStatements"""
-    def __init__ (self, end=None, if_op=None, if_exp=None, loc=None):
+    def __init__ (self, end=None, if_op=None, if_exp=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def create_end_node (self, loc, dedent_obj, compile_info):
+        ...
+    def is_indentable (self):
+        ...
     def parse (lines):
         ...
 class Import(MastNode):
     """class Import"""
-    def __init__ (self, name, lib=None, loc=None):
+    def __init__ (self, name, lib=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -105,75 +111,55 @@ class InlineData(object):
     """class InlineData"""
     def __init__ (self, start, end):
         """Initialize self.  See help(type(self)) for accurate signature."""
-class Input(MastNode):
-    """class Input"""
-    def __init__ (self, name, loc=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
-        ...
 class Jump(MastNode):
     """class Jump"""
-    def __init__ (self, pop=None, jump=None, jump_name=None, if_exp=None, args=None, loc=None):
+    def __init__ (self, pop=None, jump=None, jump_name=None, if_exp=None, args=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
 class Label(MastNode):
     """class Label"""
-    def __init__ (self, name, replace=None, m=None, loc=None):
+    def __init__ (self, name, replace=None, m=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def add_child (self, cmd):
         ...
     def parse (lines):
         ...
-class Log(MastNode):
-    """class Log"""
-    def __init__ (self, message, logger=None, level=None, q=None, loc=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
-        ...
-class Logger(MastNode):
-    """class Logger"""
-    def __init__ (self, logger=None, var=None, name=None, q=None, loc=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
-        ...
 class LoopBreak(MastNode):
     """class LoopBreak"""
-    def __init__ (self, op=None, name=None, if_exp=None, loc=None):
+    def __init__ (self, op=None, name=None, if_exp=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
 class LoopEnd(MastNode):
-    """class LoopEnd"""
-    def __init__ (self, loop=None, name=None, loc=None):
+    """LoopEnd is a node that is injected to allow loops to know where the end is"""
+    def __init__ (self, start=None, name=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
 class LoopStart(MastNode):
     """class LoopStart"""
-    def __init__ (self, while_in=None, cond=None, name=None, loc=None):
+    def __init__ (self, while_in=None, cond=None, name=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def create_end_node (self, loc, dedent_obj, compile_info):
+        ...
+    def is_indentable (self):
+        ...
     def parse (lines):
         ...
-class Marker(MastNode):
-    """class Marker"""
-    def __init__ (self, loc=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
+    def post_dedent (self, compile_info):
         ...
-class Mast(EngineObject):
+class Mast(object):
     """class Mast"""
-    def __init__ (self, cmds=None):
+    def __init__ (self, cmds=None, is_import=False):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def _add (id, obj):
-        ...
-    def _remove (id):
+    def _compile (self, lines, file_name):
         ...
     def add_scheduler (self, scheduler):
         ...
-    def clear (self):
+    def clear (self, file_name):
         ...
-    def compile (self, lines):
+    def compile (self, lines, file_name):
         ...
     def content_from_lib_or_file (self, file_name, lib_name):
         ...
@@ -181,25 +167,7 @@ class Mast(EngineObject):
         ...
     def from_file (self, file_name, lib_name=None):
         """Docstring"""
-    def get (id):
-        ...
-    def get_as (id, as_cls):
-        ...
-    def get_objects_from_set (the_set):
-        ...
-    def get_role_object (link_name):
-        ...
-    def get_role_objects (role):
-        ...
-    def get_role_set (role):
-        ...
-    def has_inventory_list (collection_name):
-        ...
-    def has_inventory_set (collection_name):
-        ...
-    def has_links_list (collection_name):
-        ...
-    def has_links_set (collection_name):
+    def get_source_file_name (file_num):
         ...
     def import_content (self, filename, lib_file):
         ...
@@ -209,24 +177,24 @@ class Mast(EngineObject):
         ...
     def make_global_var (name, value):
         ...
-    def process_file_content (self, content, file_name):
-        ...
     def prune_main (self):
         ...
     def refresh_schedulers (self, source, label):
-        ...
+        """TODO: Deprecate for signals?
+        
+        Args:
+            source (_type_): _description_
+            label (_type_): _description_"""
     def remove_scheduler (self, scheduler):
         ...
-    def resolve_id (other: 'EngineObject | CloseData | int'):
+    def signal_emit (self, name, sender_task, data):
         ...
-    def resolve_py_object (other: 'EngineObject | CloseData | int'):
+    def signal_register (self, name, task, label_info):
         ...
-    def update_shared_props_by_tag (self, tag, props):
+    def signal_unregister (self, name, task):
         ...
-class MastCompilerError(object):
-    """class MastCompilerError"""
-    def __init__ (self, message, line_no):
-        """Initialize self.  See help(type(self)) for accurate signature."""
+    def update_shared_props_by_tag (self, tag, props, test):
+        ...
 class MastDataObject(object):
     """class MastDataObject"""
     def __init__ (self, dictionary):
@@ -235,22 +203,38 @@ class MastDataObject(object):
         """Return repr(self)."""
 class MastNode(object):
     """class MastNode"""
+    def __init__ (self):
+        """Initialize self.  See help(type(self)) for accurate signature."""
     def add_child (self, cmd):
         ...
     def compile_formatted_string (self, message):
         ...
+    def create_end_node (self, loc, dedent_obj, compile_info):
+        ...
+    def is_indentable (self):
+        ...
     def parse (lines):
+        ...
+    def post_dedent (self, compile_info):
         ...
 class MatchStatements(MastNode):
     """class MatchStatements"""
-    def __init__ (self, end=None, op=None, exp=None, loc=None):
+    def __init__ (self, end=None, op=None, exp=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def create_end_node (self, loc, dedent_obj, compile_info):
+        ...
+    def is_indentable (self):
+        ...
     def parse (lines):
         ...
-class Parallel(MastNode):
-    """Creates a new 'task' to run in parallel"""
-    def __init__ (self, name=None, is_block=None, await_task=None, any_labels=None, all_labels=None, label=None, inputs=None, loc=None):
+class OnChange(MastNode):
+    """class OnChange"""
+    def __init__ (self, end=None, val=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def create_end_node (self, loc, dedent_obj, compile_info):
+        """cascade the dedent up to the start"""
+    def is_indentable (self):
+        ...
     def parse (lines):
         ...
 class ParseData(object):
@@ -259,13 +243,7 @@ class ParseData(object):
         """Initialize self.  See help(type(self)) for accurate signature."""
 class PyCode(MastNode):
     """class PyCode"""
-    def __init__ (self, py_cmds=None, loc=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
-        ...
-class ReturnIf(MastNode):
-    """class ReturnIf"""
-    def __init__ (self, if_exp=None, loc=None):
+    def __init__ (self, py_cmds=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -279,15 +257,25 @@ class Scope(Enum):
     SHARED : 1
     TEMP : 99
     UNKNOWN : 100
-class Timeout(MastNode):
-    """class Timeout"""
-    def __init__ (self, minutes, seconds, loc=None):
+class WithEnd(MastNode):
+    """LoopEnd is a node that is injected to allow loops to know where the end is"""
+    def __init__ (self, start=None, name=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
+class WithStart(MastNode):
+    """class WithStart"""
+    def __init__ (self, obj=None, name=None, loc=None, compile_info=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def create_end_node (self, loc, _, compile_info):
+        ...
+    def is_indentable (self):
+        ...
     def parse (lines):
         ...
 class Yield(MastNode):
     """class Yield"""
-    def __init__ (self, res=None, if_exp=None, loc=None):
+    def __init__ (self, res=None, exp=None, if_exp=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...

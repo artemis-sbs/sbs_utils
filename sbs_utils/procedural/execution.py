@@ -122,6 +122,27 @@ def task_schedule(label, data=None, var=None):
         return t
     return None
 
+def sub_task_schedule(label, data=None, var=None):
+    """create an new task and start running at the specified label
+
+    Args:
+        label (str or label): The label to run
+        data (duct, optional): Data to initialie task variables. Defaults to None.
+        var (str, optional): Set the variable to the task created. Defaults to None.
+
+    Returns:
+        MastAsyncTask : The MAST task created
+    """    
+    task = FrameContext.task
+    #print(f"Task Before: {task} {label.__name__}")
+    if task is not None:
+        t = task.start_sub_task(label, data, var)
+        # print(f"Task After: {t} {t.done()} {label.__name__}")
+        # print(f"Task After: {t} {label.__name__}")
+        return t
+    return None
+
+
 
 def task_cancel(task):
     """ends the specified task

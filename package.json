@@ -1,0 +1,14 @@
+{
+    "name": "missions_tasks",
+    "version": "1.0.0",
+    "author": "Your Name <email@example.com>",
+    "scripts": {
+        "art_srv": "set cosmos_start_mode=server&&cd ..\\..\\.. && start .\\Artemis3-x64-release.exe && start .\\Artemis3-x64-release.exe",
+        "update": "make_lib&&copy sbs_utils_dev.sbslib ..\\tutorial_runner\\sbs_utils_dev.sbslib&&copy sbs_utils_dev.sbslib ..\\LegendaryMissions\\sbs_utils_dev.sbslib&&copy sbs_utils_dev.sbslib ..\\modding_tools\\sbs_utils_dev.sbslib&&copy sbs_utils_dev.sbslib ..\\remote_mission_pick\\sbs_utils_dev.sbslib&&copy sbs_utils_dev.sbslib ..\\field_promotion\\sbs_utils_dev.sbslib&&copy sbs_utils_dev.sbslib ..\\basic-siege-sbs\\sbs_utils_dev.sbslib&&copy sbs_utils_dev.sbslib ..\\pymast_starter\\sbs_utils_dev.sbslib&&copy sbs_utils_dev.sbslib ..\\mast_examples\\sbs_utils_dev.sbslib&&copy sbs_utils_dev.sbslib ..\\mast_starter\\sbs_utils_dev.sbslib",
+        "mklib": "make_lib",
+        "mkdocs": "cd mkdocs&&mkdocs serve",
+        "pub docs":"cd mkdocs&&mkdocs gh-deploy --force",
+        "siege mkdocs": "cd ..\\LegendaryMissions\\mkdocs&&mkdocs serve",
+        "pub siege docs":"cd ..\\LegendaryMissions\\mkdocs&&mkdocs gh-deploy --force"
+}
+  }

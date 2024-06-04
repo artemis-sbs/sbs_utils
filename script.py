@@ -13,7 +13,7 @@ from sbs_utils.pages.avatar import AvatarEditor
 from sbs_utils.pages.shippicker import ShipPicker
 from sbs_utils.pages.widgets.listbox import Listbox
 from sbs_utils.pages.start import ClientSelectPage
-from pages.layout.layout import LayoutPage, Layout, Row, Text, Face, Ship
+from sbs_utils.pages.layout.layout import LayoutPage, Row, Text, Face
 #import sbs_utils
 from sbs_utils.mast.mast import Mast
 
@@ -82,15 +82,15 @@ class ShipListDemo(Page):
         if self.gui_state == "presenting":
             return
 
-        sbs.send_gui_clear(CID)
+        sbs.send_gui_clear(CID, "")
         self.picker1.present(event)
         self.picker2.present(event)
         self.picker3.present(event)
         self.picker4.present(event)
-        sbs.send_gui_button(CID, "back", "text: back", 85,95, 99,99)
+        sbs.send_gui_button(CID, "", "back", "text: back", 85,95, 99,99)
 
         self.gui_state = "presenting"
-        sbs.send_gui_complete(CID)
+        sbs.send_gui_complete(CID, "")
 
 
     def on_message(self, event):
@@ -117,14 +117,14 @@ class GuiPage(Page):
         GuiPage.count += 1
 
     def present(self, event):
-        sbs.send_gui_clear(event.client_id)
+        sbs.send_gui_clear(event.client_id, "")
         sbs.send_gui_text(
-                    event.client_id, "text", f"text:Page: {self.pageid}",25, 30, 99, 90)
+                    event.client_id, "", "text", f"text:Page: {self.pageid}",25, 30, 99, 90)
         w = layout.wrap(99,99, 19, 4,col=1, v_dir=-1, h_dir=-1)
         
-        sbs.send_gui_button(event.client_id, "back", "text: Back", *next(w))
-        sbs.send_gui_button(event.client_id, "again", "text: Another", *next(w))
-        sbs.send_gui_complete(event.client_id)
+        sbs.send_gui_button(event.client_id,"", "back", "text: Back", *next(w))
+        sbs.send_gui_button(event.client_id, "", "again", "text: Another", *next(w))
+        sbs.send_gui_complete(event.client_id,"")
         
 
     def on_message(self, event):
@@ -182,29 +182,29 @@ class GuiMain(Page):
         return super().on_pop(sim)
 
     def present(self, event):
-        sbs.send_gui_clear(event.client_id)
+        sbs.send_gui_clear(event.client_id,"")
         sbs.send_gui_text(
-            event.client_id, "text", "text: Mission: SBS_Utils unit test.^^This is a unit test for the SBS_Utils library", 25, 30, 99, 90)
+            event.client_id, "","text", "text: Mission: SBS_Utils unit test.^^This is a unit test for the SBS_Utils library", 25, 30, 99, 90)
 
 
         w = layout.wrap(99,99, 19, 4,col=1, v_dir=-1, h_dir=-1)
         
 
-        sbs.send_gui_button(event.client_id, "start", "text: Start Mission", *next(w))
-        sbs.send_gui_button(event.client_id, "smoke", "text: smoke test", *next(w))
-        sbs.send_gui_button(event.client_id, "vec_unit", "text: Vec3 tests", *next(w))
-        sbs.send_gui_button(event.client_id, "face", "text: face test", *next(w))
-        sbs.send_gui_button(event.client_id, "face_gen", "text: face gen", *next(w))
-        sbs.send_gui_button(event.client_id, "again", "text: Gui Pages", *next(w))
-        sbs.send_gui_button(event.client_id, "avatar", "text: Avatar Editor", *next(w))
-        sbs.send_gui_button(event.client_id, "ship", "text: Ship Picker", *next(w))
-        sbs.send_gui_button(event.client_id, "shiplist", "text: Ship Lists", *next(w))
-        sbs.send_gui_button(event.client_id, "stub", "text: StubGen", *next(w))
-        sbs.send_gui_button(event.client_id, "layout", "text: Layout", *next(w))
-        sbs.send_gui_button(event.client_id, "story", "text: Mast bar", *next(w))
-        sbs.send_gui_button(event.client_id, "story_ttt", "text: Mast ttt", *next(w))
-        sbs.send_gui_button(event.client_id, "grid", "text: GridItems", *next(w))
-        sbs.send_gui_complete(event.client_id)
+        sbs.send_gui_button(event.client_id,"", "start", "text: Start Mission", *next(w))
+        sbs.send_gui_button(event.client_id,"", "smoke", "text: smoke test", *next(w))
+        sbs.send_gui_button(event.client_id,"", "vec_unit", "text: Vec3 tests", *next(w))
+        sbs.send_gui_button(event.client_id,"", "face", "text: face test", *next(w))
+        sbs.send_gui_button(event.client_id,"", "face_gen", "text: face gen", *next(w))
+        sbs.send_gui_button(event.client_id,"", "again", "text: Gui Pages", *next(w))
+        sbs.send_gui_button(event.client_id,"", "avatar", "text: Avatar Editor", *next(w))
+        sbs.send_gui_button(event.client_id,"", "ship", "text: Ship Picker", *next(w))
+        sbs.send_gui_button(event.client_id,"", "shiplist", "text: Ship Lists", *next(w))
+        sbs.send_gui_button(event.client_id,"", "stub", "text: StubGen", *next(w))
+        sbs.send_gui_button(event.client_id,"", "layout", "text: Layout", *next(w))
+        sbs.send_gui_button(event.client_id,"", "story", "text: Mast bar", *next(w))
+        sbs.send_gui_button(event.client_id,"", "story_ttt", "text: Mast ttt", *next(w))
+        sbs.send_gui_button(event.client_id,"", "grid", "text: GridItems", *next(w))
+        sbs.send_gui_complete(event.client_id,"")
 
     def on_message(self, event):
         Gui.client_start_page_class(ClientSelectPage)

@@ -1033,8 +1033,10 @@ class Mast():
         self.cmd_stack = [self.labels["main"]]
         self.indent_stack = [0]
         self.main_pruned = False
-        self.schedulers = set()
         self.lib_name = None
+        #### runtime
+        self.schedulers = set()
+        self.signal_observers = {}
 
         Mast.source_map_files.append(file_name)
         return len(Mast.source_map_files)-1
@@ -1059,10 +1061,35 @@ class Mast():
         self.schedulers.add(scheduler)
 
     def refresh_schedulers(self, source, label):
+        """TODO: Deprecate for signals?
+
+        Args:
+            source (_type_): _description_
+            label (_type_): _description_
+        """
         for scheduler in self.schedulers:
             if scheduler == source:
                 continue
             scheduler.refresh(label)
+
+
+    def signal_register(self, name, task, label_info):
+        info = self.signal_observers.get(name, {})
+        info[task] = label_info
+        self.signal_observers[name] = info
+
+    def signal_unregister(self, name, task):
+        info = self.signal_observers.get(name,None)
+        if info is None:
+            return
+        del info[task]
+        self.signal_observers[name] = info
+
+    def signal_emit(self, name, sender_task, data):
+        tasks = self.signal_observers.get(name, {})
+        for task in tasks:
+            label_info = tasks[task]
+            task.emit_signal(name, sender_task, label_info, data)
 
     def update_shared_props_by_tag(self, tag, props, test):
         for scheduler in self.schedulers:

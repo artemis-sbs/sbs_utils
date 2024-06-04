@@ -1119,13 +1119,30 @@ class MastAsyncTask(Agent, Promise):
         for st in self.sub_tasks:
             if st.run_on_change():
                 return True
-
         return False
             
     def swap_on_change(self):
         if self.is_gui_task:
+            for item in self.on_change_items:
+                item.dequeue()
+
             self.on_change_items= self.pending_on_change_items
         self.pending_on_change_items = []
+
+    def emit_signal(self, name, sender_task, label_info, data):
+        if sender_task == self:
+            return
+        if self.done():
+            return
+        
+        if label_info.is_jump:
+            for k in data:
+                self.set_inventory_value(k, data[k])
+            self.jump(label_info.label)
+        else:
+            self.push_inline_block(label_info.label, label_info.loc, data)
+        self.tick_in_context()
+        return
     
     
     def end(self):
@@ -1554,7 +1571,7 @@ class MastScheduler(Agent):
     def set_variable(self, key):
         val = self.get_value(key)
         return val[0]
-
+    
     def tick(self):
         restore = FrameContext.task
         # print(f"Task count for tick {len(self.tasks)}")

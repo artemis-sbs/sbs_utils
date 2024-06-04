@@ -1,4 +1,4 @@
-from sbs_utils.engineobject import EngineObject
+from sbs_utils.agent import Agent
 from sbs_utils.helpers import FrameContext
 def get_task_id ():
     ...
@@ -47,7 +47,7 @@ class TickDispatcher(object):
         
             def the_callback(t):
                 print(t.some_data)"""
-class TickTask(EngineObject):
+class TickTask(Agent):
     """A task that is managed by the TickDispatcher"""
     def __init__ (self, cb, delay, count):
         """new TickTask
@@ -90,9 +90,9 @@ class TickTask(EngineObject):
         ...
     def has_links_set (collection_name):
         ...
-    def resolve_id (other: 'EngineObject | CloseData | int'):
+    def resolve_id (other: 'Agent | CloseData | int'):
         ...
-    def resolve_py_object (other: 'EngineObject | CloseData | int'):
+    def resolve_py_object (other: 'Agent | CloseData | int'):
         ...
     def stop (self):
         """Stop a tasks

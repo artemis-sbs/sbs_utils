@@ -19,9 +19,9 @@ class ErrorPage(Page):
                 # keeps the existing GUI displayed
                 self.gui_state = "presenting"
                 sbs.send_gui_text(
-                    event.client_id, f"{self.message}", "text", 25, 20, 99, 90)
+                    event.client_id,"", "text", f"{self.message}",  25, 20, 99, 90)
                 sbs.send_gui_button(event.client_id, "back", "back", 80, 90, 99, 94)
-                sbs.send_gui_button(event.client_id, "Resume Mission", "resume", 80, 95, 99, 99)
+                sbs.send_gui_button(event.client_id,"",  "resume", "Resume Mission", 80, 95, 99, 99)
                 sbs.send_gui_complete(event.client_id, "")
 
     def on_message(self, event):

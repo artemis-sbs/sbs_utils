@@ -465,11 +465,11 @@ class StoryPage(Page):
             my_sbs.send_gui_clear(event.client_id,"")
             if event.client_id != 0:
                 my_sbs.send_client_widget_list(event.client_id, "", "")
-            my_sbs.send_gui_text(event.client_id, "error", message,  0,0,100,100)
-            sbs.send_gui_button(event.client_id, "$Error$resume", "text:Attempt Resume", 0, 90, 20, 99)
-            sbs.send_gui_button(event.client_id, "$Error$pause", "text:Attempt pause", 25, 90, 45, 99)
-            sbs.send_gui_button(event.client_id, "$Error$rerun", "text:Attempt Rerun", 50, 90, 70, 99)
-            sbs.send_gui_button(event.client_id, "$Error$startup", "text:Run startup", 75, 90, 99, 99)
+            my_sbs.send_gui_text(event.client_id,"", "error", message,  0,0,100,100)
+            sbs.send_gui_button(event.client_id,"", "$Error$resume", "text:Attempt Resume", 0, 90, 20, 99)
+            sbs.send_gui_button(event.client_id,"", "$Error$pause", "text:Attempt pause", 25, 90, 45, 99)
+            sbs.send_gui_button(event.client_id,"", "$Error$rerun", "text:Attempt Rerun", 50, 90, 70, 99)
+            sbs.send_gui_button(event.client_id,"", "$Error$startup", "text:Run startup", 75, 90, 99, 99)
             self.gui_state = "errors"
             my_sbs.send_gui_complete(event.client_id,"")
             return
@@ -491,12 +491,12 @@ class StoryPage(Page):
                     self.gui_state = "presenting"
                 my_sbs.send_gui_complete(event.client_id,"")
             case  "refresh":
-                #my_sbs.send_gui_clear(event.client_id,"")
+                my_sbs.send_gui_clear(event.client_id,"")
                 for layout_obj in self.layouts:
                     #layout_obj.calc(self.client_id)
                     layout_obj.invalidate_all()
                     layout_obj.represent(event)
-                #my_sbs.send_gui_complete(event.client_id,"")
+                my_sbs.send_gui_complete(event.client_id,"")
                 if len(self.layouts)==0:
                     self.gui_state = "repaint"
                 else:

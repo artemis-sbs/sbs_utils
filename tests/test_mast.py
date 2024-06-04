@@ -1,3 +1,9 @@
+import os 
+s = os.environ['PYTHONPATH']
+print(s)
+c = os.getcwd()
+print(c)
+
 from sbs_utils.mast.mast import Mast, Scope, find_exp_end
 from sbs_utils.mast.mastscheduler import MastScheduler, PollResults
 from sbs_utils.agent import clear_shared
@@ -8,10 +14,12 @@ import sbs_utils.procedural.execution as ex
 import sbs_utils.procedural.timers as timers
 import sbs_utils.procedural.behavior as behavior
 import sbs_utils.procedural.gui as gui
+import sbs_utils.procedural.signal as signal
 Mast.import_python_module('sbs_utils.procedural.execution')
 Mast.import_python_module('sbs_utils.procedural.behavior')
 Mast.import_python_module('sbs_utils.procedural.timers')
 Mast.import_python_module('sbs_utils.procedural.gui')
+Mast.import_python_module('sbs_utils.procedural.signal')
 
 from mock import sbs as sbs
 from sbs_utils.helpers import FrameContext, Context, FakeEvent
@@ -1833,6 +1841,44 @@ jump npc_comms
              print(f"{cmd.__class__}")
         assert(l>0)
 
+    def test_signals(self):
+        (errors, runner, mast) =mast_run( code = 
+"""
+logger(var="output")
+sub_task_schedule(listen_one)
+sub_task_schedule(listen_two)
+signal_emit("test_sig", {"say": "one"})
+signal_emit("test_sig", {"say": "two"})
+
+await delay_test(999)
+
+=== listen_one 
+signal_register("test_sig", respond_one)
+yield idle
+
+=== respond_one 
+log("Emitted one {say}")
+yield idle
+
+=== listen_two
+signal_register("test_sig", respond_two)
+yield idle
+
+=== respond_two
+log("Emitted two {say}")
+yield idle
+
+
+""")
+        assert(len(errors)==0)
+        for _ in range(10):
+            runner.tick()
+
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        value = st.getvalue()
+        assert(value=="Emitted one one\nEmitted two one\nEmitted one two\nEmitted two two\n")
                 
 
 if __name__ == '__main__':
@@ -2091,4 +2137,6 @@ print()
         label = mast.labels.get("test_label")
         cmds_count = len(label.cmds)
         assert(label is not None)
+
+
 

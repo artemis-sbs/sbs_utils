@@ -1,7 +1,13 @@
-from sbs_utils.engineobject import EngineObject
+from sbs_utils.agent import Agent
 from sbs_utils.helpers import FrameContext
-def get_inventory_value (so, link, default=None):
-    ...
+def get_inventory_value (id_or_object, key, default=None):
+    """get inventory value with the given key the the agent  has
+        this is the way to create a collection in inventory
+    
+    Args:
+        id_or_obj (agent): The agent id or object to check
+        key (str): The key/name of the inventory item
+        default (any): the default value data"""
 class ConsoleDispatcher(object):
     """class ConsoleDispatcher"""
     def add_always_select (console: str, cb: callable):

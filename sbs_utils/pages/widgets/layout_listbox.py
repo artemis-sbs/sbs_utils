@@ -12,7 +12,7 @@ from ...procedural.style import apply_control_styles
 class SubPage:
     """A class for use with the layout listbox to make using the procedural gui function work
     """
-    def __init__(self, tag_prefix, task, client_id) -> None:
+    def __init__(self, tag_prefix, region_tag, task, client_id) -> None:
         self.tags = set()
         self.tag_prefix = tag_prefix
         self.tag = 0
@@ -24,6 +24,7 @@ class SubPage:
         # Incase it is needed by the layout elements
         self.client_id = client_id
         self.gui_task = task
+        self.region_tag = region_tag
 
     def get_tag(self):
         self.tag += 1
@@ -82,6 +83,7 @@ class SubPage:
     
     def present(self, event):
         for sec in self.layouts:
+            sec.region_tag = self.local_region_tag,
             sec.calc(event.client_id)
             sec.present(event)
 
@@ -103,6 +105,7 @@ class LayoutListbox(layout.Column):
         self.tag  = tag_prefix
         self.gui_state = "blank"
         self.region = None
+        self.local_region_tag = tag_prefix+"$$"
         
         self.cur = 0
         # self.bottom = top
@@ -227,15 +230,14 @@ class LayoutListbox(layout.Column):
             self.extra_slot_count = extra_slot_count
             em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
             #print(f"adding scroll bar font size {em2} {self.bounds} == {self.tag} -- {self.tag_prefix}")
-            sbs.target_gui_sub_region(CID, self.tag+"$$")
             if self.horizontal:
-                sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", int(self.cur), f"low:0.0; high: {(extra_slot_count+0.5)}; show_number:no",
+                sbs.send_gui_slider(CID, self.local_region_tag,f"{self.tag_prefix}cur", int(self.cur), f"low:0.0; high: {(extra_slot_count+0.5)}; show_number:no",
                         left, bottom-em2,
                         self.bounds.right, bottom)
                 bottom-=em2
             else:
                 em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.x, 20)
-                sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", int(extra_slot_count-self.cur +0.5), f"low:0.0; high: {(extra_slot_count+0.5)}; show_number:no",
+                sbs.send_gui_slider(CID, self.local_region_tag, f"{self.tag_prefix}cur", int(extra_slot_count-self.cur +0.5), f"low:0.0; high: {(extra_slot_count+0.5)}; show_number:no",
                         (right-em2), top,
                         right, self.bounds.bottom)
                 right -= em2
@@ -252,7 +254,7 @@ class LayoutListbox(layout.Column):
         restore = FrameContext.page
         task = restore.gui_task
 
-        sub_page = SubPage(self.tag_prefix, restore.gui_task, event.client_id)
+        sub_page = SubPage(self.tag_prefix, self.local_region_tag, restore.gui_task, event.client_id)
         restore = FrameContext.page
         FrameContext.page = sub_page
 
@@ -260,6 +262,7 @@ class LayoutListbox(layout.Column):
         if self.title_template_func is not None:
             tag = f"{self.tag_prefix}"
             sec = layout.Layout(tag+":title", None, left, top, right, top+2)
+            sec.region_tag = self.local_region_tag
             apply_control_styles("", self.title_section_style, sec, task)
             #self.title_section_style
             sub_page.next_slot(-1, sec)
@@ -342,20 +345,18 @@ class LayoutListbox(layout.Column):
         # If first time create sub region
         if not is_update:
             #print("Listbox CREATE present")
-            sbs.send_gui_sub_region(CID, self.tag+"$$", "draggable:True;", 0,0,100,100)
+            sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", 0,0,100,100)
             self.region = True
-            sbs.target_gui_sub_region(CID, self.tag+"$$")
-            sbs.send_gui_clear(CID, self.tag+"$$")
+            sbs.send_gui_clear(CID, self.local_region_tag,)
             super().present(event)
-            sbs.send_gui_complete(CID, self.tag+"$$")
+            sbs.send_gui_complete(CID, self.local_region_tag,)
         else:
             #print("Listbox UPDATE present")
-            sbs.target_gui_sub_region(CID, self.tag+"$$")
-            sbs.send_gui_clear(CID, self.tag+"$$")
+            sbs.send_gui_clear(CID, self.local_region_tag,)
             super().present(event)
-            sbs.send_gui_complete(CID, self.tag+"$$")
+            sbs.send_gui_complete(CID, self.local_region_tag,)
 
-        sbs.target_gui_sub_region(CID, "")
+        #sbs.target_gui_sub_region(CID, "")
         
     def represent(self, event):
         super().represent(event)

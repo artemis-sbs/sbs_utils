@@ -1,8 +1,8 @@
-from sbs_utils.engineobject import CloseData
-from sbs_utils.engineobject import EngineObject
-from sbs_utils.engineobject import SpawnData
-from sbs_utils.engineobject import Stuff
-class GridObject(EngineObject):
+from sbs_utils.agent import Agent
+from sbs_utils.agent import CloseData
+from sbs_utils.agent import SpawnData
+from sbs_utils.agent import Stuff
+class GridObject(Agent):
     """class GridObject"""
     def __init__ (self):
         """Initialize self.  See help(type(self)) for accurate signature."""
@@ -60,9 +60,9 @@ class GridObject(EngineObject):
     @name.setter
     def name (self: 'GridObject', name):
         """str, cached version of name"""
-    def resolve_id (other: 'EngineObject | CloseData | int'):
+    def resolve_id (other: 'Agent | CloseData | int'):
         ...
-    def resolve_py_object (other: 'EngineObject | CloseData | int'):
+    def resolve_py_object (other: 'Agent | CloseData | int'):
         ...
     def set_go_type (self, go_type):
         """Set the name of the object

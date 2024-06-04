@@ -1,7 +1,8 @@
-from sbs_utils.engineobject import EngineObject
-from sbs_utils.engineobject import SpawnData
+from sbs_utils.agent import Agent
+from sbs_utils.agent import SpawnData
 from sbs_utils.helpers import FrameContext
 from enum import IntEnum
+from sbs_utils.vec import Vec3
 class MSpawn(object):
     """class MSpawn"""
     def spawn_common (self, obj, x, y, z, name, side, art_id):
@@ -134,7 +135,7 @@ class MSpawnPlayer(MSpawn):
         
         :return: spawn data
         :rtype: SpawnData"""
-class SpaceObject(EngineObject):
+class SpaceObject(Agent):
     """class SpaceObject"""
     def __init__ (self):
         """Initialize self.  See help(type(self)) for accurate signature."""
@@ -144,6 +145,9 @@ class SpaceObject(EngineObject):
         ...
     @property
     def art_id (self: 'SpaceObject') -> 'str':
+        """str, cached version of art_id"""
+    @art_id.setter
+    def art_id (self: 'SpaceObject', value: 'str'):
         """str, cached version of art_id"""
     def clear ():
         ...
@@ -215,9 +219,18 @@ class SpaceObject(EngineObject):
     @property
     def name (self: 'SpaceObject') -> 'str':
         """str, cached version of comms_id"""
-    def resolve_id (other: 'EngineObject | CloseData | int'):
+    @name.setter
+    def name (self: 'SpaceObject', value: 'str'):
+        """str, cached version of comms_id"""
+    @property
+    def pos (self: 'SpaceObject') -> 'Vec3':
+        """str, cached version of art_id"""
+    @pos.setter
+    def pos (self: 'SpaceObject', *args):
+        """str, cached version of art_id"""
+    def resolve_id (other: 'Agent | CloseData | int'):
         ...
-    def resolve_py_object (other: 'EngineObject | CloseData | int'):
+    def resolve_py_object (other: 'Agent | CloseData | int'):
         ...
     def set_art_id (self, art_id):
         """Get the name of the object
@@ -235,6 +248,9 @@ class SpaceObject(EngineObject):
         :rtype: str"""
     @property
     def side (self: 'SpaceObject') -> 'str':
+        """str, cached version of comms_id"""
+    @side.setter
+    def side (self: 'SpaceObject', value: 'str'):
         """str, cached version of comms_id"""
     def space_object (self):
         """get the simulation's space object for the object
@@ -260,7 +276,9 @@ class TickType(IntEnum):
     Base 0 means to interpret the base from the string as an integer literal.
     >>> int('0b100', base=0)
     4"""
-    ACTIVE : 1
-    PASSIVE : 0
-    PLAYER : 2
-    UNKNOWN : -1
+    ACTIVE : 16
+    ALL : 65535
+    NPC_AND_PLAYER : 48
+    PASSIVE : 1
+    PLAYER : 32
+    UNKNOWN : 0

@@ -1,6 +1,9 @@
-from sbs_utils.engineobject import EngineObject
+from sbs_utils.agent import Agent
 from sbs_utils.helpers import FakeEvent
 from sbs_utils.helpers import FrameContext
+from sbs_utils.vec import Vec3
+def get_client_aspect_ratio (cid):
+    ...
 class Gui(object):
     """class GUI
     Manages the GUI pages for all clients"""
@@ -72,7 +75,7 @@ class Gui(object):
         
         :param cls_page:  The class of the page to create
         :type class: A python class typically a Page"""
-class GuiClient(EngineObject):
+class GuiClient(Agent):
     """Manages the pages for a client
     
         """
@@ -118,6 +121,9 @@ class GuiClient(EngineObject):
         
         :param event: The event data
         :type event: event"""
+    @property
+    def page (self):
+        ...
     def pop (self):
         """pop
         
@@ -136,9 +142,9 @@ class GuiClient(EngineObject):
         
         :param page:
         :type Page: A GUI Page"""
-    def resolve_id (other: 'EngineObject | CloseData | int'):
+    def resolve_id (other: 'Agent | CloseData | int'):
         ...
-    def resolve_py_object (other: 'EngineObject | CloseData | int'):
+    def resolve_py_object (other: 'Agent | CloseData | int'):
         ...
     def tick_gui_task (self):
         """present
@@ -190,6 +196,9 @@ class Widget(object):
         :type top: float
         :param tag_prefix: Prefix to use in message tags to mak this component unique
         :type tag_prefix: str"""
+    def calc_pixels_y (self, pixels):
+        """present
+        Called to have the page create and update the gui content it is presenting"""
     def on_message (self, event):
         """on_message
         

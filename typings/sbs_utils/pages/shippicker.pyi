@@ -1,6 +1,6 @@
 from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
-from sbs_utils.widgets.shippicker import WShipPicker
+from sbs_utils.pages.widgets.shippicker import WShipPicker
 class ShipPicker(Page):
     """A interface class for creating GUI pages
     

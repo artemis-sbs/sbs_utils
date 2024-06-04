@@ -664,6 +664,10 @@ class PageRegion:
     def show(self, _show):
         self.sub_section.show(_show)
 
+    @property
+    def is_hidden(self):
+        return self.sub_section.is_hidden
+
     def represent(self, e):
         self.sub_section.represent(e)
 
@@ -944,7 +948,8 @@ def gui_show(layout_item):
     """    
     if layout_item is None:
         return
-    
+    if not layout_item.is_hidden:
+        return
     layout_item.show(True)
     page = FrameContext.page
     if page is None:
@@ -965,7 +970,8 @@ def gui_hide(layout_item):
     """    
     if layout_item is None:
         return
-    
+    if layout_item.is_hidden:
+        return
     layout_item.show(False)
     page = FrameContext.page
     if page is None:
@@ -1227,7 +1233,7 @@ def gui_change(code, label):
         return
 
     handler = ChangeTrigger(task, code, label)
-    page.add_on_change(handler)
+    task.queue_on_change(handler)
 
 
 

@@ -18,5 +18,7 @@ class PollResults(IntEnum):
     OK_ADVANCE_FALSE : 3
     OK_ADVANCE_TRUE : 2
     OK_END : 99
-    OK_JUMP : 4
-    OK_RUN_AGAIN : 1
+    OK_IDLE : 999
+    OK_JUMP : 1
+    OK_RUN_AGAIN : 4
+    OK_YIELD : 5

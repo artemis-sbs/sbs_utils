@@ -72,6 +72,7 @@ from ..procedural import cosmos
 from ..procedural import routes
 from ..procedural import execution
 from ..procedural import behavior
+from ..procedural import signal
 
 
 Mast.import_python_module('sbs_utils.procedural.query')
@@ -89,6 +90,7 @@ Mast.import_python_module('sbs_utils.procedural.cosmos')
 Mast.import_python_module('sbs_utils.procedural.routes')
 Mast.import_python_module('sbs_utils.procedural.execution')
 Mast.import_python_module('sbs_utils.procedural.behavior')
+Mast.import_python_module('sbs_utils.procedural.signal')
 
 Mast.import_python_module('sbs_utils.faces')
 Mast.import_python_module('sbs_utils.fs')

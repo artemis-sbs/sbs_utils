@@ -87,7 +87,6 @@ class ShipPicker(Control):
                 self.ships = None
 
 
-    
 
     def _present(self, event):
         """ present
@@ -108,29 +107,30 @@ class ShipPicker(Control):
         self.gui_state == "presenting"
         if self.ships is None:
             sbs.send_gui_text(
-                    CID,  f"{self.tag}error", f"text:Error {self.test}",the_bounds.left, the_bounds.top, the_bounds.right, the_bounds.top+5)
+                    CID,  self.local_region_tag, f"{self.tag}error", f"text:Error {self.test}",the_bounds.left, the_bounds.top, the_bounds.right, the_bounds.top+5)
             return
 
         ship = self.ships[self.cur]
         top = the_bounds.top
 
         sbs.send_gui_text(
-                    CID, f"{self.tag}title", f"text: {self.title_prefix} {ship['side']} {ship['name']}",  the_bounds.left, top, the_bounds.right, top+5)
+                    CID, self.local_region_tag, f"{self.tag}title", f"text: {self.title_prefix} {ship['side']} {ship['name']}",  the_bounds.left, top, the_bounds.right, top+5)
         top += 5
         if self.show_desc:
             desc = ship.get('long_desc',None)
             if desc is not None:
                 sbs.send_gui_text(
-                        CID, f"{self.tag}desc", f"text: {desc}",  the_bounds.left, top, the_bounds.right, top+15)
+                        CID, self.local_region_tag, f"{self.tag}desc", f"text: {desc}",  the_bounds.left, top, the_bounds.right, top+15)
             # Keep spacing?
             top += 15
         
         #l1 = layout.wrap(self.left, self.bottom, , 4,col=2)
         half = (the_bounds.right-the_bounds.left)/2
         
-        sbs.send_gui_button(CID,f"{self.tag}prev", "text:prev", the_bounds.left, the_bounds.bottom-5, the_bounds.left+half, the_bounds.bottom)
-        sbs.send_gui_button(CID, f"{self.tag}next", "text:next", the_bounds.right-half, the_bounds.bottom-5, the_bounds.right, the_bounds.bottom)
-        sbs.send_gui_3dship(CID,  f"{self.tag}ship", f"hull_tag:{ship['key']}",
+        sbs.send_gui_button(CID,self.local_region_tag, f"{self.tag}prev", "text:prev", the_bounds.left, the_bounds.bottom-5, the_bounds.left+half, the_bounds.bottom)
+        sbs.send_gui_button(CID,self.local_region_tag, f"{self.tag}next", "text:next", the_bounds.right-half, the_bounds.bottom-5, the_bounds.right, the_bounds.bottom)
+        #print(f"displaying {ship['key']}")
+        sbs.send_gui_3dship(CID,self.local_region_tag, f"{self.tag}ship", f"hull_tag:{ship['key']};",
             the_bounds.left, top,
             the_bounds.right, the_bounds.bottom-5 )
      
@@ -166,7 +166,7 @@ class ShipPicker(Control):
                     self.gui_state = "redraw"
                     if self.cur <0:
                         self.cur = len(self.ships)-1
-                    #self.present(event)
+                    self.present(event)
                     return True
                 
             case "next":
@@ -175,7 +175,7 @@ class ShipPicker(Control):
                     self.gui_state = "redraw"
                     if self.cur >= len(self.ships):
                         self.cur = 0
-                    #self.present(event)
+                    self.present(event)
                     return True
         return False
                 
