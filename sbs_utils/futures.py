@@ -133,4 +133,6 @@ class AwaitBlockPromise(Promise):
 class Trigger:
     def test(self):
         pass
+    def dequeue(self):
+        pass
 

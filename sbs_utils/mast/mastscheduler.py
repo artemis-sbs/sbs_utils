@@ -515,6 +515,9 @@ class OnChangeRuntimeNode(MastRuntimeNode):
         self.task.push_inline_block(self.node_label, self.node.loc+1)
         self.task.tick_in_context()
 
+    def dequeue(self):
+        pass
+
     def poll(self, mast:Mast, task:MastAsyncTask, node: OnChange):
         if node.is_end and self.is_running:
             self.task.pop_label(False)
