@@ -44,7 +44,8 @@ for func in [
         ############################
         ## sbs
         sbs.distance_id,
-        sbs.assign_client_to_ship
+        sbs.assign_client_to_ship,
+        sbs.assign_client_to_alt_ship,
     ]:
     Mast.globals[func.__name__] = func
 

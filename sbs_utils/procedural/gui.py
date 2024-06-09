@@ -721,6 +721,72 @@ def gui_widget_list(console, widgets):
         return None
     page.set_widget_list(console, widgets)
 
+def gui_update_widget_list(add_widgets, remove_widgets):
+    """ Set the engine widget list. i.e. controls engine controls
+
+    Args:
+        console (str): The console type name
+        widgets (str): The list of widgets
+
+    """    
+    """ Set the engine widget list. i.e. controls engine controls
+
+    Args:
+        console (str): The console type name
+        widgets (str): The list of widgets
+
+    """    
+    page = FrameContext.page
+    if page is None:
+        return None
+    widgets = set(page.widgets.split("^"))
+    print(f"GUI {page.widgets} {add_widgets} {remove_widgets}")
+    add_widgets = set(add_widgets.split("^"))
+    remove_widgets = set(remove_widgets.split("^"))
+    widgets = (widgets | add_widgets) - remove_widgets
+    new_widgets = ""
+    delim = ""
+    for widget in widgets:
+        if widget in ["2dview","3dview", "weapon_2d_view", "science_2d_view"]:
+            new_widgets = widget + delim + new_widgets
+            delim = "^"
+        else:
+            new_widgets = new_widgets + delim + widget
+            delim = "^"
+    print(f"GUI {new_widgets} {widgets} {add_widgets} {remove_widgets}")
+    sbs.send_client_widget_list(page.client_id, page.console, new_widgets)
+
+
+
+def gui_update_widgets(add_widgets, remove_widgets):
+    """ Set the engine widget list. i.e. controls engine controls
+
+    Args:
+        console (str): The console type name
+        widgets (str): The list of widgets
+
+    """    
+    page = FrameContext.page
+    if page is None:
+        return None
+
+    widgets = set(page.pending_widgets.split("^"))
+    add_widgets = set(add_widgets.split("^"))
+    remove_widgets = set(remove_widgets.split("^"))
+    widgets = (widgets | add_widgets) - remove_widgets
+    new_widgets = ""
+    delim = ""
+    for widget in widgets:
+        if widget in ["2dview","3dview", "weapon_2d_view", "science_2d_view"]:
+            new_widgets = widget + delim + new_widgets
+            delim = "^"
+        else:
+            new_widgets = new_widgets + delim + widget
+            delim = "^"
+    
+    page.pending_widgets = new_widgets
+
+
 
 def gui_widget_list_clear():
     """clear the widet list on the client
@@ -787,7 +853,10 @@ def gui_console(console, is_jump=False):
             widgets = "ship_internal_view^grid_object_list^grid_face^grid_control^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
         case "comms":
             console =  "normal_comm"
-            widgets = "text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
+            widgets = "2dview^text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
+        case "comms_orders":
+            console =  "normal_comm"
+            widgets = "text_waterfall^2dview^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
         case "cinematic":
             console =  "cinematic"
             widgets = "3dview"
@@ -1459,7 +1528,14 @@ class ButtonPromise(AwaitBlockPromise):
             return
         
         ButtonPromise.navigating_promise = self
+        #
+        # Make sure to use the right task
+        #
+        t = FrameContext.task 
+        FrameContext.task = self.task
         p = task_all(*path_labels, sub_tasks=True)
+        FrameContext.task = t
+
         p.poll()
         #
         # This could get into a lock

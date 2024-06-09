@@ -154,7 +154,7 @@ def cosmos_event_handler(sim, event):
                 Agent.SHARED.set_inventory_value("SIM_STATE", event.sub_tag)
                 #Agent.SHARED.set_inventory_value("SIM_STATE", "sim_running")
                 # Give a few ticks
-                for x in range(10):
+                for x in range(5):
                     TickDispatcher.dispatch_tick()
                 # after tick task handle any lifetime events
                 LifetimeDispatcher.dispatch_spawn()
@@ -185,7 +185,7 @@ def cosmos_event_handler(sim, event):
                 Gui.add_client(event)
 
             case "select_space_object":
-                #print_event(event)
+                # print_event(event)
                 handled = ConsoleDispatcher.dispatch_select(event)
                 if not handled and "comms_sorted_list" == event.value_tag:
                     face = faces.get_face(event.selected_id)

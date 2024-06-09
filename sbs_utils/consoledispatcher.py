@@ -3,7 +3,7 @@ import typing
 # using Agent since it is lighter weight than query??
 from .agent import Agent
 from .helpers import FrameContext
-from .procedural.inventory import get_inventory_value
+from .procedural.inventory import get_inventory_value, set_inventory_value
 
 
 class ConsoleDispatcher:
@@ -282,6 +282,14 @@ class ConsoleDispatcher:
             return "weapon_target_UID"
         if "sci" in event.sub_tag or event.sub_tag == "science_target_UID":
             return "science_target_UID"
+        #
+        # This is for give orders
+        #
+        if "comm" in event.sub_tag and event.value_tag == "2dview":
+            alt_ship = get_inventory_value(event.client_id, f"{event.value_tag}_alt_ship", 0)
+            # Only do this for the alt ship
+            if alt_ship is not None and alt_ship != 0:
+                return "weapon_target_UID"
         
         return None
 
@@ -292,16 +300,26 @@ class ConsoleDispatcher:
         #
         if event.extra_tag=="__init__":
             return
-        my_ship = FrameContext.context.sim.get_space_object(event.origin_id)
+        
+        ship_id = event.origin_id
+        alt_ship = get_inventory_value(event.client_id, f"{event.value_tag}_alt_ship", 0)
+        if alt_ship is not None and alt_ship != 0:
+            ship_id = alt_ship
+        my_ship = FrameContext.context.sim.get_space_object(ship_id)
 
         blob = my_ship.data_set
         target = event.selected_id
+        
 
-        disabled_count = get_inventory_value(event.origin_id, console, 0)
+        disabled_count = get_inventory_value(ship_id, console, 0)
         # if the console selection is disable don't allow selection
         if disabled_count > 0: 
             target = 0
 
+        # Previous selection
+        prev = blob.get(console, 0)
+        set_inventory_value(event.origin_id, f"prev_selection", prev)
+        
         blob.set(console, target,0)
 
             

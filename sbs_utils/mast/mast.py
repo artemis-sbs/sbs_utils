@@ -1152,7 +1152,7 @@ class Mast():
 
     def import_content(self, filename, lib_file):
         add = self.__class__(is_import=True)
-        add.basedir = self.basedir
+        #add.basedir = self.basedir
         # add.is_import = True
         errors = add.from_file(filename, lib_file)
         if len(errors)==0:
@@ -1337,7 +1337,13 @@ class Mast():
                             import importlib
                             module_name = name[:-3]
                             if sys.modules.get(module_name) is None:
-                                import_file_name = os.path.join(fs.get_mission_dir(), name)
+                                #print(f"import {self.basedir} {module_name}")
+                                # if its not in this dir try the mission script dir
+                                if os.path.isfile(os.path.join(self.basedir, name)):
+                                    import_file_name = os.path.join(self.basedir, name)
+                                else:
+                                    import_file_name = os.path.join(fs.get_mission_dir(), name)
+                                
                                 spec = importlib.util.spec_from_file_location(module_name, import_file_name)
                                 module = importlib.util.module_from_spec(spec)
                                 sys.modules[module_name] = module
