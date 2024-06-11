@@ -57,6 +57,13 @@ class MastNode:
 
     def is_indentable(self):
         return False
+    
+    def is_virtual(self):
+        """ 
+        Virtual nodes are not added to the command stack
+        instead the interact with other nodes
+        """
+        return False
 
     def create_end_node(self, loc, dedent_obj, compile_info):
         self.dedent_loc = loc
@@ -685,13 +692,15 @@ class Button(MastNode):
         # and is generally None
         self.await_node = None
         self.is_block = block is not None
+        self.new_task = new_task
         if compile_info is not None and isinstance(compile_info.label, RouteLabel):
-            pass
+            if self.is_block:
+                self.new_task = True
         elif label is None:
             self.await_node = Await.stack[-1]
             self.await_node.buttons.append(self)
         self.label = label
-        self.new_task = new_task
+        
         self.task_data = task_data
         self.path = None
         if path is not None:
@@ -1271,8 +1280,8 @@ class Mast():
                 self.is_indent = None
                 self.is_dedent = None
                 self.label = None
-
-        
+                self.prev_node = None
+                
 
         def inject_dedent(ind_level, indent_node, dedent_node, info):
             if len(indent_stack)==0:
@@ -1457,7 +1466,7 @@ class Mast():
                             info.is_dedent = is_dedent
                             info.is_indent = is_indent
                             info.label=active
-
+                            
                             obj = node_cls(compile_info=info,loc=loc, **data)
                             obj.file_num = file_num
                             obj.line_num = line_no

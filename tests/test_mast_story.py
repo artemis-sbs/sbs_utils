@@ -26,18 +26,40 @@ def mast_story_compile_file(code=None):
 
 class TestMastStoryCompile(unittest.TestCase):
 
+
+    def test_compile_button_inline_not_await(self):
+        (errors, mast)= mast_story_compile( code = """
+//comms/ if has_role(COMMS_SELECTED_ID, "friendly")
++ "Give Orders 2":
+    <<[$alert] Under attack
+        % Option one
+        " 1a
+        " 1b
+        % Second line
+        " 2a
+        " 2b
+
+""")
+        if len(errors)>0:
+            for err in errors:
+                print(err)
+        assert(len(errors) == 0)
+
+
     def test_compile_route_labels(self):
         (errors, mast)= mast_story_compile( code = """
 //comms/ if has_role(COMMS_SELECTED_ID, "friendly")
 + "Give Orders" //comms/give_orders
 + "Give Orders 2"  friendly_give_orders
- 
-#    print("It just works")
 
-await gui():
-    + "pause game" if not game_paused:
-        game_paused = True
-        sbs.pause_sim()
+=$alert red,white
+<<[$alert] Under attack
+    % Option one
+    " 1a
+    " 1b
+    % Second line
+    " 2a
+    " 2b
 
 """)
         if len(errors)>0:

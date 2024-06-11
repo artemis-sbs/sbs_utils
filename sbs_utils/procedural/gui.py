@@ -1374,6 +1374,13 @@ class ButtonPromise(AwaitBlockPromise):
         #    self.set_result(self.running_button)
         pass
 
+    def pressed_set_values(self):
+        pass
+
+    def pressed_test(self):
+        return True
+
+
     def poll(self):
         super().poll()
         if self.sub_task is not None:
@@ -1383,6 +1390,13 @@ class ButtonPromise(AwaitBlockPromise):
                 self.sub_task= None
             else:
                 return PollResults.OK_RUN_AGAIN
+
+        if not self.pressed_test():
+            # If the test fails, this is no longer needed
+            self.task.end()
+            
+            
+            
 
         self.check_for_button_done()
 
@@ -1403,6 +1417,7 @@ class ButtonPromise(AwaitBlockPromise):
             if button.for_name:
                 task.set_value(button.for_name, button.data, Scope.TEMP)
 
+            self.pressed_set_values()
             task.set_value("BUTTON_PROMISE", self, Scope.TEMP)
 
             #

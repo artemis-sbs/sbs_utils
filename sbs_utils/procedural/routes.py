@@ -73,20 +73,40 @@ class HandleConsoleSelect:
             point.x = event.source_point.x
             point.y = event.source_point.y
             point.z = event.source_point.z
-
-        task = FrameContext.task
-        t = task.start_task(self.label, {
-                    f"{console}_ORIGIN_ID": event.origin_id,
-                    f"{console}_PARENT_ID": event.parent_id,
-                    f"{console}_SELECTED_ID": event.selected_id,
+        
+        data = {
                     f"{console}_POINT": event.source_point,
                     f"EVENT": event,
                     f"{console}_ROUTED": True
-            })
-        #   if not .done():
-        #         MastAsyncTask.add_dependency(event.origin_id,t)
-        #         MastAsyncTask.add_dependency(event.selected_id,t)
+        }
+        
 
+        if event.origin_id:
+            data[f"{console}_ORIGIN_ID"] = event.origin_id
+            data[f"{console}_ORIGIN"] = to_object(event.origin_id)
+        else:
+            data[f"{console}_ORIGIN_ID"] = 0
+            data[f"{console}_ORIGIN"] = None
+
+        if event.parent_id:
+            data[f"{console}_PARENT_ID"] = event.parent_id
+            data[f"{console}_PARENT"] = to_object(event.parent_id)
+        else:
+            data[f"{console}_PARENT_ID"] = 0
+            data[f"{console}_PARENT"] = None
+
+        if event.selected_id:
+            data[f"{console}_SELECTED_ID"] = event.selected_id
+            data[f"{console}_SELECTED"] = to_object(event.selected_id)
+        else:
+            data[f"{console}_SELECTED_ID"] = 0
+            data[f"{console}_SELECTED"] = None
+
+
+
+        task = FrameContext.task
+        t = task.start_task(self.label, data)
+        
 
 
 def route_comms_focus(label):

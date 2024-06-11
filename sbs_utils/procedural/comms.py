@@ -468,6 +468,37 @@ class CommsPromise(ButtonPromise):
                     else:
                         sbs.send_comms_button_info(origin_id, color, msg, f"{i}")
 
+
+    def pressed_set_values(self):
+        oo = query.to_object(self.origin_id)
+        so = query.to_object(self.selected_id)
+        if oo is  None or so is None:
+            return
+        #
+        # Set Name Value
+        #
+        self.task.set_variable("COMMS_ORIGIN", oo)
+        self.task.set_variable("COMMS_SELECTED", so)
+
+    def pressed_test(self):
+        oo = query.to_object(self.origin_id)
+        so = query.to_object(self.selected_id)
+        if oo is  None:
+            # Player no longer valid
+            return False
+        
+        if so is  None:
+            # Other no longer valid
+            comms_message(f"Lost communications with {self.comms_id}", self.origin_id, self.origin_id, "Signal Lost", "", from_name="communication grid")
+            self.comms_id = "static"
+            self.face = ""
+            self.clear()
+            return False
+        
+            
+        return True
+
+
     def poll(self):
         super().poll()
         #

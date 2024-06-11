@@ -3,12 +3,13 @@ from .mastscheduler import PollResults, MastRuntimeNode, MastAsyncTask, MastSche
 from .mast import Mast
 import sbs
 from ..gui import Gui
-from ..procedural.gui import gui_text_area, gui_text
+from ..procedural.gui import gui_text_area
+from ..procedural.comms import comms_receive, comms_transmit
 from ..helpers import FakeEvent, FrameContext, format_exception
 
-from .maststory import AppendText,  Text
-import traceback
-from .parsers import LayoutAreaParser
+from .maststory import AppendText,  Text, CommsMessageStart
+import random
+
 # Needed to get procedural in memory
 from . import mast_sbs_procedural
 import sys
@@ -46,11 +47,20 @@ class AppendTextRuntimeNode(MastRuntimeNode):
                 text.layout_text.message += '\n'
                 text.layout_text.message += msg
 
-
+class CommsMessageStartRuntimeNode(MastRuntimeNode):
+    def enter(self, mast:Mast, task:MastAsyncTask, node: CommsMessageStart):
+        if len(node.options)==0:
+            return
+        msg = random.choice(node.options)
+        if node.receive: 
+            comms_receive(msg, node.title, color=node.body_color, title_color=node.title_color)
+        else:
+            comms_transmit(msg, node.tile)
 
 over =     {
     "Text": TextRuntimeNode,
     "AppendText": AppendTextRuntimeNode,
+    "CommsMessageStart": CommsMessageStartRuntimeNode
 }
 
 class StoryScheduler(MastScheduler):
