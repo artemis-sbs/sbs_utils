@@ -1123,7 +1123,7 @@ shared var2 = 100
 
 var2 += 100
 
-!!!  test !!!!!!!!
+### test ###
 await => Spawn # var1 is 400 var2 is 400
 await => Spawn # var1 is 500 var2 is 500
 await => Spawn {"var1": 99} # var1 still 300 on this 
@@ -1133,13 +1133,13 @@ if var1==600:
 else:
     var1 = "Don't get here"
 end_if
-!!! inner!!!!
+### inner  ####
 if var1==300:
     var1 = "Don't get here"
 else:
     ->> Push  # var1 is 800
 end_if
-!!! end inner !!!!
+### end inner ###!
 
 if var1==500:
     var1 = "Don't get here"
@@ -1148,7 +1148,7 @@ elif var1 == 800:
 else:
 var1 = "Don't get here"
 end_if
-!!!!!  end  test      !!!!!!!!!!!!!!
+###!!  end  test      ############!!
 
 var2 += 100
 
@@ -1164,12 +1164,12 @@ var2 += 100
 var1 = var1 + 100
 shared var2 = var2 + 100
 <<-
-!!!s!!!!!
+###s###!!
 === Spawn ===
 var1 = var1 + 100
 shared var2 = var2 + 100
 ->END
-!!!!!!!!! end s!!!!!!
+######### end s######
     """)
         assert(len(errors)==0)
         var1 = runner.active_task.get_value("var1", None)

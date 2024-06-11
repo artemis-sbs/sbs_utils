@@ -25,6 +25,27 @@ def mast_story_compile_file(code=None):
     
 
 class TestMastStoryCompile(unittest.TestCase):
+
+    def test_compile_route_labels(self):
+        (errors, mast)= mast_story_compile( code = """
+//comms/ if has_role(COMMS_SELECTED_ID, "friendly")
++ "Give Orders" //comms/give_orders
++ "Give Orders 2"  friendly_give_orders
+ 
+#    print("It just works")
+
+await gui():
+    + "pause game" if not game_paused:
+        game_paused = True
+        sbs.pause_sim()
+
+""")
+        if len(errors)>0:
+            for err in errors:
+                print(err)
+        assert(len(errors) == 0)
+
+
     def test_compile_on_change_no_err(self):
         (errors, mast)= mast_story_compile( code = """
 on change enemy_count:
@@ -144,7 +165,7 @@ gui_slider("low:0;high:5", var="fred")
 
 
 await gui():
-    + "{x}" for x in range(3):
+    + "{x}":
         log("well test")
 
 
@@ -154,14 +175,14 @@ await gui():
 
 
 await gui():
-    + "{x}" for x in range(3) if s==3:
+    + "{x}" if s==3:
         log("well test")
 
 
 await gui():
     + "{x}" if s==3:
         log("well test")
-    + "{x}" for x in range(3) if s==3:
+    + "{x}":
         log("well test")
     + "Test":
         log("well test")

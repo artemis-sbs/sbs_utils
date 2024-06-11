@@ -175,7 +175,11 @@ def route_comms_navigate(path, label):
         path: (str): The navigation path to extend
         label (label): The label to run
     """
-    path = f"comms/{path}"
+    
+    if path == "":
+        path = "comms"
+    elif not path.startswith("comms"):
+        path = f"comms/{path}"
     path_labels = ButtonPromise.navigation_map.get(path)
     if path_labels is None:
         path_labels = set()

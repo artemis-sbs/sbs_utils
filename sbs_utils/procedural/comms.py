@@ -274,8 +274,7 @@ class CommsPromise(ButtonPromise):
 
     def __init__(self, path, task, timeout=None) -> None:
         path = path if path is not None else ""
-        path = f"comms/{path}"
-        
+        path = f"comms"
         super().__init__(path, task, timeout)
 
 
@@ -284,10 +283,11 @@ class CommsPromise(ButtonPromise):
         self.is_unknown = False
         self.color = "white"
         self.expanded_buttons = None
+        self.path_root = "comms"
 
     def set_path(self, path):
         path = path if path is not None else ""
-        path = f"comms/{path}"
+        #path = f"comms/{path}"
         super().set_path(path)
       
 
@@ -296,8 +296,8 @@ class CommsPromise(ButtonPromise):
             return
         
         # Will Build buttons
-        if self.expanded_buttons is None:
-            self.expanded_buttons = self.get_expanded_buttons()
+        # if self.expanded_buttons is None:
+        #     self.expanded_buttons = self.get_expanded_buttons()
         self.show_buttons()
         super().initial_poll()
 
@@ -351,11 +351,18 @@ class CommsPromise(ButtonPromise):
                 rt = ChangeRuntimeNode()
                 rt.enter(self.task.main.mast, self.task, change)
                 self.on_change.append(rt)
-    
+
+    #def build_navigation_buttons(self):
+    #    return []
     #
     # This 
     #
     def show_buttons(self):
+        
+        self.selected_id = self.task.get_variable("COMMS_SELECTED_ID")
+        self.origin_id = self.task.get_variable("COMMS_ORIGIN_ID")
+        
+        # Not ready yet
         self.expanded_buttons = self.get_expanded_buttons()
         if len(self.expanded_buttons) == 0:
             return
@@ -367,9 +374,6 @@ class CommsPromise(ButtonPromise):
         #self.color = node.color if node.color else "white"
         # If this is the same ship it is known
         self.is_unknown = False
-
-        self.selected_id = self.task.get_variable("COMMS_SELECTED_ID")
-        self.origin_id = self.task.get_variable("COMMS_ORIGIN_ID")
 
         self.is_grid_comms = query.is_grid_object_id(self.selected_id)
         selected_so = query.to_object(self.selected_id)
@@ -398,13 +402,14 @@ class CommsPromise(ButtonPromise):
         #
         # Check to see if this was intended for us
         #
+
         if self.selected_id != event.selected_id or \
             self.origin_id != event.origin_id:
             return
-        
+
         prev = get_inventory_value(self.origin_id, "prev_selection", 0)
         if prev != self.selected_id and prev != 0:
-            self.set_path("")
+            self.set_path("comms")
             
 
         
@@ -525,6 +530,10 @@ def comms_add_button(message, label=None, color=None, data=None, path=None):
 def comms_navigate(path):
     task = FrameContext.task
     p = task.get_variable("BUTTON_PROMISE")
+    if path == "":
+        path = "comms"
+    elif not path.startswith("comms"):
+        path = f"comms/{path}"
     if p is None:
         return
     p.set_path(path)

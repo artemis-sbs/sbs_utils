@@ -1332,6 +1332,7 @@ class ButtonPromise(AwaitBlockPromise):
         super().__init__(timeout)
 
         self.path = path if path is not None else ""
+        self.path_root = "gui"
         self.buttons = []
         self.nav_buttons = []
         self.inlines = []
@@ -1352,13 +1353,14 @@ class ButtonPromise(AwaitBlockPromise):
         # Will Build buttons
         #print("INit pool")
         self.expand_inlines()
-        self.show_buttons()
+        #self.show_buttons()
         super().initial_poll()
 
     def set_path(self, path):
-        # typically this is overridden
-        self.path = path
-        self.show_buttons()
+        if path.startswith(self.path_root):
+            # typically this is overridden
+            self.path = path
+            self.show_buttons()
 
 
     def check_for_button_done(self):
@@ -1480,7 +1482,6 @@ class ButtonPromise(AwaitBlockPromise):
         # Note: Always use clones in layouts
         # So we can have access to the layout item
         #
-
         # Expand all the 'for' buttons
         for button in self.buttons:
             if button.__class__.__name__ != "Button":
@@ -1572,6 +1573,7 @@ class GuiPromise(ButtonPromise):
             return
         
         super().initial_poll()
+        self.show_buttons()
         self.page.set_button_layout(self.button_layout, self)
 
     #

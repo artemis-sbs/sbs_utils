@@ -472,10 +472,14 @@ class AwaitInlineLabelRuntimeNode(MastRuntimeNode):
             return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
-
+from ..procedural.gui import ButtonPromise
 class ButtonRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node: Button):
         self.node_label = task.active_label
+        if node.await_node is None:
+            p = ButtonPromise.navigating_promise
+            if p is not None:
+                p.nav_buttons.append(node)
     def poll(self, mast:Mast, task:MastAsyncTask, node: Button):
         if node.await_node:
             task.jump(self.node_label, node.await_node.end_await_node.dedent_loc)
@@ -581,7 +585,6 @@ class MastTicker:
             self.last_poll_result = PollResults.OK_END
             self.done = True
         else:
-            # label_runtime_node = Agent.SHARED.get_inventory_value(label)
             if isinstance(label, str): 
                 label_runtime_node = self.main.mast.labels.get(label)
             else:

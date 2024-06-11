@@ -32,11 +32,9 @@ OPT_ARGS_REGEX = r"""(?P<args>([ \t]*\{[^\n\r\f]+\}))?"""
 PY_EXP_REGEX = r"""((?P<py>~~)[\s\S]*?(?P=py))"""
 STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[ \t\S]*(?P=quote))"""
 
-OPT_COLOR = r"""([ \t]*color[ \t]*["'](?P<color>[ \t\S]+)["'])?"""
-IF_EXP_REGEX = r"""([ \t]+if(?P<if_exp>[^\n\r\f]+))?"""
+
+IF_EXP_REGEX = r"""([ \t]+if(?P<if_exp>[^:\n\r\f]+))?"""
 BLOCK_START = r":[ \t]*(?=\r\n|\n|\#)"
-
-
 
 
 class ParseData:
@@ -101,6 +99,58 @@ class Label(MastNode):
         self.loc = loc
         self.replace = replace is not None
 
+    def add_child(self, cmd):
+        self.cmds.append(cmd)
+
+
+class RouteLabel(Label):
+    route_label = 0
+    rule = re.compile(r'\/{2,}(?P<path>([\w\/]+))'+IF_EXP_REGEX)
+
+    def __init__(self, path, if_exp=None, loc=None, compile_info=None):
+        # Label stuff
+        name = f"__route__{path}__{RouteLabel.route_label}__" 
+        RouteLabel.route_label += 1
+
+        super().__init__(name)
+
+        self.path= path
+        self.if_exp = if_exp
+        # need to negate if
+        if self.if_exp is not None:
+            self.if_exp = if_exp.strip()
+            self.if_exp = 'not ' + self.if_exp
+
+        self.next = None
+        self.loc = loc
+        self.replace = None
+        self.cmds = []
+
+    def generate_label(self, compile_info=None):
+        from ..procedural.routes import route_comms_navigate
+        path = self.path.strip('/')
+        paths = path.split('/', 1)
+        if paths[0] == 'comms':
+            if len(paths)==1:
+                route_comms_navigate("comms", self)
+            elif len(paths)==2:
+                route_comms_navigate(paths[1], self)
+            else:
+                raise "Bad route label syntax"
+            
+        if self.if_exp:
+            cmd = Yield('success', if_exp=self.if_exp, loc=0, compile_info=compile_info)
+            cmd.file_num = self.file_num
+            cmd.line_num = self.line_num
+            cmd.line = "yield success to test RouteLabel"
+            self.add_child(cmd)
+
+    def on_end_label(self, compile_info=None):
+            cmd = Yield('success', loc=len(self.cmds), compile_info=compile_info)
+            cmd.file_num = self.file_num
+            cmd.line_num = self.line_num
+            cmd.line = "yield success to close RouteLabel"
+            self.add_child(cmd)
     def add_child(self, cmd):
         self.cmds.append(cmd)
 
@@ -398,7 +448,7 @@ class Import(MastNode):
 
 
 class Comment(MastNode):
-    #rule = re.compile(r'(#[ \t\S]*)|((?P<com>[!]{3,})[\s\S]+(?P=com))')
+    #rule = re.compile(r'#[ \t\S]*)')
     rule = re.compile(r'(#[ \t\S]*)|(/\*[^*]*\*+(?:[^/*][^*]*\*+)*/)|([!]{3,}\s*(?P<com>\w+)\s*[!]{3,}[\s\S]+[!]{3,}\s*end\s+(?P=com)\s*[!]{3,})')
 
     def __init__(self, com=None, loc=None, compile_info=None):
@@ -608,15 +658,16 @@ class OnChange(MastNode):
         return end
 
 
-
-FOR_RULE = r'([ \t]+for[ \t]+(?P<for_name>\w+)[ \t]+in[ \t]+(?P<for_exp>[ \t\S]+?))?'
+# OPT_STYLE = r"""([ \t]*style[ \t]*["'](?P<color>[ \t\S]+)["'])?"""
+# FOR_RULE = r'([ \t]+for[ \t]+(?P<for_name>\w+)[ \t]+in[ \t]+(?P<for_exp>[ \t\S]+?))?'
+OPT_BLOCK_START = r"(?P<block>\:)?[ \t]*(?=\r\n|\n|\#)"
 class Button(MastNode):
-    
-    rule = re.compile(r"""(?P<button>\*|\+)[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_COLOR+FOR_RULE+IF_EXP_REGEX+r"[ \t]*"+BLOCK_START)
+    #### Pre routeLabels rule = re.compile(r"""(?P<button>\*|\+)[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_STYLE+FOR_RULE+IF_EXP_REGEX+r"[ \t]*"+BLOCK_START)
+    rule = re.compile(r"""(?P<button>\*|\+)[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)([ \t]*(?P<path>[\w\/]+))?"""+IF_EXP_REGEX+r"[ \t]*"+OPT_BLOCK_START)
     def __init__(self, message=None, button=None,  
                 color=None, if_exp=None, 
                 for_name=None, for_exp=None, 
-                clone=False, q=None, label=None, new_task=None, task_data=None, path=None, loc=None, compile_info=None):
+                clone=False, q=None, label=None, new_task=None, task_data=None, path=None, block=None,loc=None, compile_info=None):
         super().__init__()
         #
         # Remember any field in here need to be set in clone()
@@ -633,15 +684,22 @@ class Button(MastNode):
         # Note: label is used with python buttons
         # and is generally None
         self.await_node = None
-        if label is None:
+        self.is_block = block is not None
+        if compile_info is not None and isinstance(compile_info.label, RouteLabel):
+            pass
+        elif label is None:
             self.await_node = Await.stack[-1]
             self.await_node.buttons.append(self)
         self.label = label
         self.new_task = new_task
         self.task_data = task_data
-        self.path = path
-            
-
+        self.path = None
+        if path is not None:
+            if path.startswith('//'):
+                self.path = path.strip('/')
+            else:
+                self.label = path
+                self.new_task = True
 
         if if_exp:
             if_exp = if_exp.lstrip()
@@ -703,7 +761,8 @@ class Button(MastNode):
     
     def create_end_node(self, loc, dedent_obj, compile_info):
         """ cascade the dedent up to the start"""
-        self.await_node.dedent_loc = loc
+        if self.await_node is not None:
+            self.await_node.dedent_loc = loc
 
 
 # class End(MastNode):
@@ -991,6 +1050,7 @@ class Mast():
     nodes = [
         Comment,#NO EXP
         Label,#NO EXP
+        RouteLabel,
         IfStatements,
         MatchStatements,
         LoopStart,
@@ -1210,6 +1270,7 @@ class Mast():
                 self.indent = None
                 self.is_indent = None
                 self.is_dedent = None
+                self.label = None
 
         
 
@@ -1296,6 +1357,7 @@ class Mast():
                     case "Comment":
                         pass
 
+                    
                     case "Label":
                         label_name = data['name']
                         existing_label = self.labels.get(label_name) 
@@ -1313,6 +1375,8 @@ class Mast():
 
                         next = Label(**data)
                         active.next = next
+                        if isinstance(active, RouteLabel):
+                            active.on_end_label()
                         active = next
                         active_name = label_name
                         self.labels[active_name] = active
@@ -1329,6 +1393,35 @@ class Mast():
                         self.cmd_stack.append(active)
                         prev_node = None
 
+                    case "RouteLabel":
+                        # label_name = data['name']
+                        inject_remaining_dedents()
+                        
+                        next = RouteLabel(**data)
+                        next.file_num = file_num
+                        next.line_num = line_no
+                        label_name = next.name
+                        # No fallthrough
+                        active.next = None
+                        
+                        if isinstance(active, RouteLabel):
+                            active.on_end_label()
+                        active = next
+
+                        active_name = label_name
+                        self.labels[active_name] = active
+                        _info = CompileInfo()
+                        _info.indent = indent
+                        _info.is_dedent = is_dedent
+                        _info.is_indent = is_indent
+                        _info.label = active
+                        next.generate_label(_info)
+                        # Sets a variable for the label
+                        Agent.SHARED.set_inventory_value(label_name, active)
+
+                        self.cmd_stack.pop()
+                        self.cmd_stack.append(active)
+                        prev_node = None
                     case "Import":
                         lib_name = data.get("lib")
                         name = data['name']
@@ -1363,6 +1456,7 @@ class Mast():
                             info.indent = indent
                             info.is_dedent = is_dedent
                             info.is_indent = is_indent
+                            info.label=active
 
                             obj = node_cls(compile_info=info,loc=loc, **data)
                             obj.file_num = file_num
