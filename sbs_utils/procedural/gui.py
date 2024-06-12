@@ -1426,26 +1426,19 @@ class ButtonPromise(AwaitBlockPromise):
             #
             self.running_button = self.button
             self.button = None
-
-            if button.new_task and button.label:
-                # if button.data is not None:
-                #     for k in button.data:
-                #         print(f"{k} set to {button.data[k]}")
-                self.sub_task = task.start_task(button.label, inputs=button.task_data)
-                self.sub_task.set_variable("BUTTON_PROMISE", self)
-                self.sub_task.tick_in_context()
-                return self.sub_task.poll()
-                # if self.sub_task.done:
-                #     self.task.tick_in_context()
-            elif button.path is not None:
-                self.set_path(button.path)
-            elif button.label:
-                task.push_inline_block(button.label)
-                self.task.tick_in_context()
-            else:
-                task.push_inline_block(task.active_label,button.loc+1)
-                self.task.tick_in_context()
-
+            #
+            # Code to run the button is now with the button 
+            # so the code is closer to the data
+            #
+            if self.running_button.path is not None:
+                self.set_path(self.running_button.path)
+                print(f"PATH {self.running_button.path}")
+                self.running_button = None
+                return PollResults.OK_JUMP
+            else:   
+                sub_task = self.running_button.run(self.task, self)
+                if sub_task is not None:
+                    self.sub_task = sub_task
             return PollResults.OK_JUMP
 
         if self.disconnect_label is not None:

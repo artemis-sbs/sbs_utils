@@ -692,23 +692,30 @@ class Button(MastNode):
         # and is generally None
         self.await_node = None
         self.is_block = block is not None
-        self.new_task = new_task
+        self.use_sub_task = new_task
+        self.label_to_run = None
+        if compile_info is not None:
+            self.label_to_run = compile_info.label
         if compile_info is not None and isinstance(compile_info.label, RouteLabel):
             if self.is_block:
-                self.new_task = True
+                self.use_sub_task = True
+                label = compile_info.label
         elif label is None:
             self.await_node = Await.stack[-1]
             self.await_node.buttons.append(self)
         self.label = label
         
+        
         self.task_data = task_data
         self.path = None
-        if path is not None:
-            if path.startswith('//'):
-                self.path = path.strip('/')
-            else:
-                self.label = path
-                self.new_task = True
+        #
+        # path from regex could be a path or a label
+        # paths start with //, but we don't need those later
+        #
+        if path is not None and path.startswith('//'):
+            self.path = path.strip('/')
+
+        
 
         if if_exp:
             if_exp = if_exp.lstrip()
@@ -752,9 +759,10 @@ class Button(MastNode):
         proxy.data = self.data
         proxy.for_code = self.for_code
         proxy.for_name = self.for_name
-        proxy.new_task = self.new_task
+        proxy.use_sub_task = self.use_sub_task
         proxy.task_data = self.task_data
         proxy.path = self.path
+        proxy.label_to_run = self.label_to_run
         ####
         # This is used by the gui buttons
         proxy.layout_item = None 
@@ -772,6 +780,34 @@ class Button(MastNode):
         """ cascade the dedent up to the start"""
         if self.await_node is not None:
             self.await_node.dedent_loc = loc
+
+    def run(self, task, button_promise):
+        if self.use_sub_task and self.label:
+            print("NEW TASK LABEL")
+            
+            sub_task = task.start_task(self.label, inputs=self.task_data, defer=True)
+            #
+            # Block commands in a sub task is a strait jump to the button
+            # The button should dedent to a yield_idle
+            #
+            #
+            if self.is_block:
+                print("BLOCK NEW TASK LABEL")
+                sub_task.jump(self.label, activate_cmd=self.loc+1)
+
+            sub_task.set_variable("BUTTON_PROMISE", button_promise)
+            sub_task.tick_in_context()
+            return sub_task
+        elif self.label:
+            print(f"LABEL {self.label}")
+            task.push_inline_block(self.label)
+            task.tick_in_context()
+        else:
+            print(f"INLINE {self.path} {self.label_to_run} {task.active_label}")
+            task.push_inline_block(task.active_label,self.loc+1)
+            task.tick_in_context()
+
+        return None
 
 
 # class End(MastNode):
