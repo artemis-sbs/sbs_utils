@@ -476,6 +476,9 @@ class ButtonRuntimeNode(MastRuntimeNode):
         if node.await_node:
             task.jump(self.node_label, node.await_node.end_await_node.dedent_loc)
             return PollResults.OK_JUMP
+        if node.is_block:
+            task.jump(self.node_label, node.dedent_loc)
+            return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
 class OnChangeRuntimeNode(MastRuntimeNode):

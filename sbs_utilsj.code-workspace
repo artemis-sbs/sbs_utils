@@ -8,6 +8,9 @@
 		},
 		{
 			"path": "../tutorial_runner"
+		},
+		{
+			"path": "../modding_tools"
 		}
 	],
 	"settings": {

@@ -109,7 +109,14 @@ class Label(MastNode):
         self.replace = replace is not None
 
     def add_child(self, cmd):
+        cmd.loc = len(self.cmds)
         self.cmds.append(cmd)
+
+    def generate_label_begin_cmds(self, compile_info=None):
+        pass
+
+    def generate_label_end_cmds(self, compile_info=None):
+        pass
 
 
 class RouteLabel(Label):
@@ -135,9 +142,8 @@ class RouteLabel(Label):
         self.replace = None
         self.cmds = []
 
-    def generate_label(self, compile_info=None):
+    def generate_label_begin_cmds(self, compile_info=None):
         from ..procedural import routes 
-        
 
         path = self.path.strip('/')
         paths = path.split('/', 1)
@@ -146,6 +152,9 @@ class RouteLabel(Label):
             # two parameters, nav
             case ["comms",*b]: 
                 routes.route_comms_navigate(self.path, self)
+            case ["enable","comms"]: 
+                # Just another spawn handler is disguise
+                routes.route_select_comms(self)
             case ["science",*b]: 
                 routes.route_science_navigate(self.path, self)
             case ["gui",*b]: 
@@ -205,14 +214,37 @@ class RouteLabel(Label):
             cmd.line = "yield success to test RouteLabel"
             self.add_child(cmd)
 
-    def on_end_label(self, compile_info=None):
-            cmd = Yield('success', loc=len(self.cmds), compile_info=compile_info)
-            cmd.file_num = self.file_num
-            cmd.line_num = self.line_num
-            cmd.line = "yield success to close RouteLabel"
-            self.add_child(cmd)
-    def add_child(self, cmd):
-        self.cmds.append(cmd)
+    def generate_label_end_cmds(self, compile_info=None):
+        path = self.path.strip('/')
+        paths = path.split('/', 1)
+        match paths:
+            # two parameters, nav
+            case ["enable", "comms"]: 
+                cmd = FuncCommand(is_await=True, py_cmds='comms()', compile_info=compile_info)
+                cmd.file_num = self.file_num
+                cmd.line_num = self.line_num
+                cmd.line = f"await comms() embedded in {self.name}"
+                self.add_child(cmd)
+                # cmd = Await(if_exp='comms()', compile_info=compile_info)
+                # cmd.file_num = self.file_num
+                # cmd.line_num = self.line_num
+                # cmd.line = f"await comms() embedded in {self.name}"
+                # self.add_child(cmd)
+                # cmd = cmd.create_end_node( cmd.loc, cmd, compile_info)
+                # cmd.file_num = self.file_num
+                # cmd.line_num = self.line_num
+                # cmd.line = f"end await for comms() embedded in {self.name}"
+                # self.add_child(cmd)
+
+
+        #
+        # Always have a yield                    
+        cmd = Yield('success', compile_info=compile_info)
+        cmd.file_num = self.file_num
+        cmd.line_num = self.line_num
+        cmd.line = f"yield success embedded in {self.name}"
+        self.add_child(cmd)
+
 
 
 class LoopEnd(MastNode):
@@ -721,31 +753,36 @@ class OnChange(MastNode):
 # OPT_STYLE = r"""([ \t]*style[ \t]*["'](?P<color>[ \t\S]+)["'])?"""
 # FOR_RULE = r'([ \t]+for[ \t]+(?P<for_name>\w+)[ \t]+in[ \t]+(?P<for_exp>[ \t\S]+?))?'
 OPT_BLOCK_START = r"(?P<block>\:)?[ \t]*(?=\r\n|\n|\#)"
+FORMAT_EXP = r"(\[(?P<format>([\$\#]?\w+[ \t]*(,[ \t]*\#?\w+)?))\])?"
 class Button(MastNode):
     #### Pre routeLabels rule = re.compile(r"""(?P<button>\*|\+)[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_STYLE+FOR_RULE+IF_EXP_REGEX+r"[ \t]*"+BLOCK_START)
-    rule = re.compile(r"""(?P<button>\*|\+)[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)([ \t]*(?P<path>[\w\/]+))?"""+OPT_DATA_REGEX+IF_EXP_REGEX+r"[ \t]*"+OPT_BLOCK_START)
+    rule = re.compile(r"(?P<button>\*|\+)"+FORMAT_EXP+r"""[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)([ \t]*(?P<path>[\w\/]+))?"""+OPT_DATA_REGEX+IF_EXP_REGEX+r"[ \t]*"+OPT_BLOCK_START)
     def __init__(self, message=None, button=None,  
-                color=None, if_exp=None, 
-                #for_name=None, for_exp=None, 
-                clone=False, 
-                q=None, label=None, 
+                if_exp=None, format=None, label=None, 
+                clone=False, q=None, 
                 new_task=None, data=None, path=None, block=None,loc=None, compile_info=None):
         super().__init__()
         #
         # Remember any field in here need to be set in clone()
         #
+        
         if clone:
             return
         self.message = self.compile_formatted_string(message)
         self.sticky = (button == '+' or button=="button")
-        self.color = color
-        if color is not None:
-            self.color = self.compile_formatted_string(color)
+        self.color = None
+        if format is not None:
+            from .maststory import DefineFormat
+            f = DefineFormat.resolve_colors(format)
+            if len(f)>=1:
+                self.color = f[0]
+            
         self.visited = set() if not self.sticky else None
         self.loc = loc
         # Note: label is used with python buttons
         # and is generally None
         self.await_node = None
+        self.dedent_node = None
         self.is_block = block is not None
         self.use_sub_task = new_task
         self.label_to_run = None
@@ -815,6 +852,7 @@ class Button(MastNode):
         proxy.color = self.color
         proxy.loc = self.loc
         proxy.await_node = self.await_node
+        proxy.dedent_node = self.dedent_node
         proxy.sticky = self.sticky
         proxy.visited = self.visited
         proxy.data = self.data
@@ -841,6 +879,9 @@ class Button(MastNode):
         """ cascade the dedent up to the start"""
         if self.await_node is not None:
             self.await_node.dedent_loc = loc
+        elif self.is_block:
+            self.dedent_loc = loc
+
 
     def resolve_data_context(self, task):
         if self.data is not None and not isinstance(self.data, dict):
@@ -1438,7 +1479,7 @@ class Mast():
                 # Throw comments and markers away
                 if node_cls.__name__ == "Comment":
                     pass
-                elif node_cls.__name__=="RouteLabel":
+                elif False and node_cls.__name__=="RouteLabel":
                     # label_name = data['name']
                     inject_remaining_dedents()
                     
@@ -1450,7 +1491,7 @@ class Mast():
                     active.next = None
                     
                     if isinstance(active, RouteLabel):
-                        active.on_end_label()
+                        active.generate_label_end_cmds()
                     active = next
 
                     active_name = label_name
@@ -1469,7 +1510,13 @@ class Mast():
                     prev_node = None
 
                 elif node_cls.is_label:
-                    label_name = data['name']
+                    next = node_cls(**data)
+                    next.file_num = file_num
+                    next.line_num = line_no
+                    active.next = next
+
+                    label_name = next.name
+
                     existing_label = self.labels.get(label_name) 
                     replace = data.get('replace')
                     if existing_label and not replace:
@@ -1483,12 +1530,22 @@ class Mast():
 
                     inject_remaining_dedents()
 
-                    next = Label(**data)
-                    active.next = next
-                    if isinstance(active, RouteLabel):
-                        active.on_end_label()
+
+
+                    active.generate_label_end_cmds()
+
+                    ## Allow label to generate some preabmle commands
                     active = next
                     active_name = label_name
+                    active_name = label_name
+                    self.labels[active_name] = active
+                    _info = CompileInfo()
+                    _info.indent = indent
+                    _info.is_dedent = is_dedent
+                    _info.is_indent = is_indent
+                    _info.label = active
+                    next.generate_label_begin_cmds(_info)
+                    
                     self.labels[active_name] = active
                     exists =  Agent.SHARED.get_inventory_value(label_name)
                     exists =  Mast.globals.get(label_name, exists)

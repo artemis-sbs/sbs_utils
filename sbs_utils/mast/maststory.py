@@ -32,9 +32,9 @@ class AppendText(MastNode):
             self.code = compile(if_exp, "<string>", "eval")
         else:
             self.code = None
-
+FORMAT_EXP = r"(\[(?P<format>([\$\#]?\w+[ \t]*(,[ \t]*\#?\w+)?))\])?"
 class CommsMessageStart(MastNode):
-    rule = re.compile(r"""(?P<mtype>\<\<|\>\>)(\[(?P<format>([\$\#]?\w+[ \t]*(,[ \t]*\#?\w+)?))\])?(?P<title>[^:\n\r\f]*)""")
+    rule = re.compile(r"(?P<mtype>\<\<|\>\>|\(\))"+FORMAT_EXP+r"(?P<title>[^:\n\r\f]*)")
     current_comms_message = None
 
     def is_indentable(self):

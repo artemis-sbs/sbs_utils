@@ -136,6 +136,14 @@ class Agent():
         self._data_set = None
         self._engine_object = None
 
+
+    def __getitem__(self, index):
+        if isinstance(index, str):
+            v = self.get_inventory_value(index)
+            return v
+        else:
+            raise TypeError("Invalid Argument Type")
+
     @property
     def is_player(self):
         return False
