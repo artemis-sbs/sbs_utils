@@ -109,12 +109,12 @@ class HandleConsoleSelect:
         
 
 
-def route_comms_focus(label):
+def route_focus_comms(label):
     """called when comms changes selection.
 
     Note: 
         The label called should not be long running.
-        Use route_comms_select for long running tasks.
+        Use route_select_comms for long running tasks.
 
     Args:
         label (label): The label to run
@@ -124,12 +124,12 @@ def route_comms_focus(label):
     """    
     return HandleConsoleSelect("comms", label, _FOCUS)
     
-def route_science_focus(label):
+def route_focus_science(label):
     """called when science changes selection.
 
     Note: 
         The label called should not be long running.
-        Use route_science_select for long running tasks.
+        Use route_select_science for long running tasks.
 
     Args:
         label (label): The label to run
@@ -139,12 +139,12 @@ def route_science_focus(label):
     """    
     return HandleConsoleSelect("science", label, _FOCUS)
 
-def route_weapons_focus(label):
+def route_focus_weapons(label):
     """called when weapons changes selection.
 
     Note: 
         The label called should not be long running.
-        Use route_weapons_select for long running tasks.
+        Use route_select_weapons for long running tasks.
 
     Args:
         label (label): The label to run
@@ -154,12 +154,12 @@ def route_weapons_focus(label):
     """    
     return HandleConsoleSelect("weapons", label, _FOCUS)
         
-def route_grid_focus(label):
+def route_focus_grid(label):
     """called when engineering grid changes selection.
 
     Note: 
         The label called should not be long running.
-        Use route_grid_select for long running tasks.
+        Use route_select_grid for long running tasks.
 
     Args:
         label (label): The label to run
@@ -170,7 +170,7 @@ def route_grid_focus(label):
     return HandleConsoleSelect("grid", label, _FOCUS)
 
 
-def route_comms_select(label):
+def route_select_comms(label):
     """called when comms changes selection.
     Note:
         Typically used to run a task that uses an await comms
@@ -241,7 +241,7 @@ def route_gui_navigate(path, label):
     
 
 
-def route_science_select(label):
+def route_select_science(label):
     """called when science changes selection.
 
     Note:
@@ -255,7 +255,7 @@ def route_science_select(label):
     """    
     return HandleConsoleSelect("science", label, _SELECT)
 
-def route_weapons_select(label):
+def route_select_weapons(label):
     """called when weapons changes selection.
 
     Note:
@@ -269,7 +269,7 @@ def route_weapons_select(label):
     """    
     return HandleConsoleSelect("weapons", label, _SELECT)
         
-def route_grid_select(label):
+def route_select_grid(label):
     """called when grid changes selection.
 
     Note:
@@ -283,7 +283,7 @@ def route_grid_select(label):
     """    
     return HandleConsoleSelect("grid", label, _SELECT)
 
-def route_grid_object(label):
+def route_object_grid(label):
     """called when a grid object event occurs. i.e. grid object reached a location.
 
     Note:
@@ -298,7 +298,7 @@ def route_grid_object(label):
     return HandleConsoleSelect("grid", label, _GRID_OBJECT)
 
 
-def route_comms_point(label):
+def route_point_comms(label):
     """called when a a point event occurs in comms.
 
     Note:
@@ -312,7 +312,7 @@ def route_comms_point(label):
     """    
     return HandleConsoleSelect("comms", label, _POINT)
     
-def route_science_point(label):
+def route_point_science(label):
     """called when a a point event occurs in science by clicking the 2d view.
 
     Note:
@@ -326,7 +326,7 @@ def route_science_point(label):
     """    
     return HandleConsoleSelect("science", label, _POINT)
 
-def route_weapons_point(label):
+def route_point_weapons(label):
     """called when a a point event occurs in weapons by clicking the 2d view.
 
     Note:
@@ -340,7 +340,7 @@ def route_weapons_point(label):
     """    
     return HandleConsoleSelect("weapons", label, _POINT)
         
-def route_grid_point(label):
+def route_point_grid(label):
     """called when a a point event occurs in the engineering grid.
 
     Note:
@@ -410,7 +410,7 @@ def route_spawn(label):
     """    
     return HandleLifetime(LifetimeDispatcher.SPAWN, label)
 
-def route_grid_spawn(label):
+def route_spawn_grid(label):
     """called when a grid_object is spawned.
 
     Args:
@@ -595,7 +595,7 @@ def route_change_console(label):
     page = FrameContext.page
     page.change_console_label = label
 
-def route_main_screen_change(label):
+def route_console_mainscreen_change(label):
     """called when a  change to the main screen view occurs
 
     Note:
@@ -622,7 +622,7 @@ def _follow_route_console(origin_id, selected_id, console, widget, extra_tag):
     #print(f"Following {console} {event.extra_tag}")
     ConsoleDispatcher.dispatch_select(event)
         
-def follow_route_comms_select(origin_id, selected_id):
+def follow_route_select_comms(origin_id, selected_id):
     """ cause the comms selection route to execute
 
     Args:
@@ -634,7 +634,7 @@ def follow_route_comms_select(origin_id, selected_id):
     _follow_route_console(origin_id, selected_id, console, widget, None)
         
 
-def follow_route_science_select(origin_id, selected_id):
+def follow_route_select_science(origin_id, selected_id):
     """ cause the science selection route to execute
 
     Args:
@@ -646,7 +646,7 @@ def follow_route_science_select(origin_id, selected_id):
     extra_tag = "__init__"
     _follow_route_console(origin_id, selected_id, console, widget,extra_tag)
 
-def follow_route_grid_select(origin_id, selected_id):
+def follow_route_select_grid(origin_id, selected_id):
     """ cause the engineering grid selection route to execute
 
     Args:

@@ -198,20 +198,7 @@ class JumpRuntimeNode(MastRuntimeNode):
             if not value:
                 return PollResults.OK_ADVANCE_TRUE
             
-        # if node.push:
-        #     args = node.args
-        #     if node.args is not None:
-        #         args = task.eval_code(node.args)
-        #     task.push_label(node.label, data=args)
-        # elif node.pop_jump:
-        #     task.pop_label(True,True)
-        #     task.jump(node.label)
-        # elif node.pop_push:
-        #     task.pop_label(True,True)
-        #     task.push_label(node.label)
-        # elif node.pop:
-        #     task.pop_label(True,True)
-        # else:
+        
         task.jump(node.label)
         return PollResults.OK_JUMP
 
@@ -479,7 +466,12 @@ class ButtonRuntimeNode(MastRuntimeNode):
         if node.await_node is None:
             p = ButtonPromise.navigating_promise
             if p is not None:
-                p.nav_buttons.append(node)
+                #
+                # This is clone so this should be OK
+                #
+                clone = node.clone()
+                clone.resolve_data_context(task)
+                p.nav_buttons.append(clone)
     def poll(self, mast:Mast, task:MastAsyncTask, node: Button):
         if node.await_node:
             task.jump(self.node_label, node.await_node.end_await_node.dedent_loc)

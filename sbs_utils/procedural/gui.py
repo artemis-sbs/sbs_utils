@@ -721,7 +721,7 @@ def gui_widget_list(console, widgets):
         return None
     page.set_widget_list(console, widgets)
 
-def gui_update_widget_list(add_widgets, remove_widgets):
+def gui_update_widget_list(add_widgets=None, remove_widgets= None):
     """ Set the engine widget list. i.e. controls engine controls
 
     Args:
@@ -739,6 +739,14 @@ def gui_update_widget_list(add_widgets, remove_widgets):
     page = FrameContext.page
     if page is None:
         return None
+    
+    if add_widgets is None and remove_widgets is None:
+        return
+    if add_widgets is None:
+        add_widgets = ""
+    if remove_widgets is None:
+        remove_widgets = ""
+
     widgets = set(page.widgets.split("^"))
     print(f"GUI {page.widgets} {add_widgets} {remove_widgets}")
     add_widgets = set(add_widgets.split("^"))
@@ -1357,10 +1365,15 @@ class ButtonPromise(AwaitBlockPromise):
         super().initial_poll()
 
     def set_path(self, path):
+        if path.startswith("//"):
+            path = path[2:]
         if path.startswith(self.path_root):
             # typically this is overridden
             self.path = path
             self.show_buttons()
+        else:
+
+            print(f"possible wrong path SET {self.path_root} path= {path}")
 
 
     def check_for_button_done(self):
@@ -1414,8 +1427,8 @@ class ButtonPromise(AwaitBlockPromise):
             # self.button.node.visit(self.button.client_id)
             # button = self.buttons[self.button.index]
             button = self.button
-            if button.for_name:
-                task.set_value(button.for_name, button.data, Scope.TEMP)
+            # if button.for_name:
+            #     task.set_value(button.for_name, button.data, Scope.TEMP)
 
             self.pressed_set_values()
             task.set_value("BUTTON_PROMISE", self, Scope.TEMP)
@@ -1471,16 +1484,16 @@ class ButtonPromise(AwaitBlockPromise):
 
     def expand_button(self, button):
         buttons = []
-        if button.for_code is not None:
-            iter_value = self.task.eval_code(button.for_code)
-            for data in iter_value:
-                self.task.set_value(button.for_name, data, Scope.TEMP)
-                clone = button.clone()
-                clone.data = data
-                clone.message = self.task.format_string(clone.message)
-                if clone.color:
-                    clone.color = self.task.format_string(clone.color)
-                buttons.append(clone)
+        # if button.for_code is not None:
+        #     iter_value = self.task.eval_code(button.for_code)
+        #     for data in iter_value:
+        #         self.task.set_value(button.for_name, data, Scope.TEMP)
+        #         clone = button.clone()
+        #         clone.data = data
+        #         clone.message = self.task.format_string(clone.message)
+        #         if clone.color:
+        #             clone.color = self.task.format_string(clone.color)
+        #         buttons.append(clone)
 
         return buttons
 
@@ -1494,10 +1507,10 @@ class ButtonPromise(AwaitBlockPromise):
         for button in self.buttons:
             if button.__class__.__name__ != "Button":
                 buttons.append(button)
-            elif button.for_name is None:
-                buttons.append(button.clone())
             else:
-                buttons.extend(self.expand_button(button))
+                buttons.append(button.clone())
+            # else:
+            #     buttons.extend(self.expand_button(button))
         self.build_navigation_buttons()
         buttons.extend(self.nav_buttons)
         return buttons

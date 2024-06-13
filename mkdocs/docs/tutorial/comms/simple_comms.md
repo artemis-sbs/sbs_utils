@@ -81,7 +81,7 @@ That label that uses logic to route to other labels based on certain conditions.
    .. code-tab:: py PyMast
 
        # in the __init__ of the story add 
-       self.route_comms_select(self.comms_route)
+       self.route_select_comms(self.comms_route)
     
 
 Add router label and logic 
@@ -342,8 +342,8 @@ That label that uses logic to route to other labels based on certain conditions.
       :emphasize-lines: 3
 
       # in the __init__ of the story add 
-      self.route_comms_select(self.handle_comms)
-      self.route_grid_select(self.damcon_route)
+      self.route_select_comms(self.handle_comms)
+      self.route_select_grid(self.damcon_route)
 
 
 

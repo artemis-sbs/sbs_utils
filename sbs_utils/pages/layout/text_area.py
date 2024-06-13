@@ -31,6 +31,7 @@ class TextArea(Column):
         # This needs to be before self.value=
         self.simple_text = False
         self.value = message
+        self.need_v_scroll = False
         
         self.tag = tag
         self.active_tags = set()

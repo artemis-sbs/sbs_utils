@@ -229,7 +229,7 @@ class ScanPromise(ButtonPromise):
         #     # if button.data is not None:
         #     #     for k in button.data:
         #     #         print(f"{k} set to {button.data[k]}")
-        #     self.sub_task = task.start_task(button.label, inputs=button.task_data)
+        #     self.sub_task = task.start_task(button.label, inputs=button.data)
         #     self.sub_task.set_variable("BUTTON_PROMISE", self)
         #     self.sub_task.tick_in_context()
         #     return self.sub_task.poll()
@@ -380,7 +380,7 @@ def science_add_scan(message, label=None, data=None, path=None):
     p = ButtonPromise.navigating_promise
     if p is None:
         return
-    p.nav_buttons.append(Button(message, "+", label=label, task_data=data, new_task=True, path=path, loc=0))
+    p.nav_buttons.append(Button(message, "+", label=label, data=data, new_task=True, path=path, loc=0))
 
 
 def science_navigate(path):

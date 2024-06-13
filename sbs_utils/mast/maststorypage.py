@@ -133,7 +133,10 @@ class StoryPage(Page):
         self.layouts = self.pending_layouts
         self.tag_map = self.pending_tag_map
         self.console = self.pending_console
+        # This forces them is a certain order
+        self.add_console_widget("")
         self.widgets = self.pending_widgets
+        print(f"TODO:  {self.widgets.replace('^', ',')}")
 
         # TODO: this should be one thing
         # convert console tabs to procedural
@@ -267,8 +270,21 @@ class StoryPage(Page):
     def add_console_widget(self, widget):
         if  self.pending_widgets=="":
             self.pending_widgets = widget
+        elif widget=="":
+            pass
         else:
             self.pending_widgets += "^"+widget
+        widgets = set(self.pending_widgets.split("^"))
+        new_widgets = ""
+        delim = ""
+        for widget in set(widgets):
+            if widget in ["2dview","3dview", "weapon_2d_view", "science_2d_view"]:
+                new_widgets = widget + delim + new_widgets
+                delim = "^"
+            else:
+                new_widgets = new_widgets + delim + widget
+                delim = "^"
+        self.pending_widgets = new_widgets
     
     def add_section(self, tag= None):
         if tag is None:

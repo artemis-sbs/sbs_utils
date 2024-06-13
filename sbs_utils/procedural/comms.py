@@ -556,15 +556,29 @@ def comms_add_button(message, label=None, color=None, data=None, path=None):
     p = ButtonPromise.navigating_promise
     if p is None:
         return
-    p.nav_buttons.append(Button(message, "+", color=color, label=label, task_data=data, new_task=True, path=path, loc=0))
+    if path is not None:
+        # makes sure path starts with //comms
+        path = path.strip("'//")
+        if not path.startswith("comms"):
+            path = "//comms/" + path
+        else:
+            path = "//"+path
+
+    p.nav_buttons.append(Button(message, "+", color=color, label=label, data=data, new_task=True, path=path, loc=0))
 
 def comms_navigate(path):
     task = FrameContext.task
     p = task.get_variable("BUTTON_PROMISE")
-    if path == "":
-        path = "comms"
-    elif not path.startswith("comms"):
-        path = f"comms/{path}"
+    if path is None or path == "":
+        path = "//comms"
+
+    # makes sure path starts with //comms
+    path = path.strip("'//")
+    if not path.startswith("comms"):
+        path = "//comms/" + path
+    else:
+        path = "//"+path
+
     if p is None:
         return
     p.set_path(path)

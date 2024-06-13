@@ -10,7 +10,7 @@ import math
 import itertools
 import logging
 import random
-from inspect import getmembers, isfunction  
+from inspect import getmembers, isfunction , signature
 import sys
 from ..helpers import format_exception
 
@@ -28,7 +28,7 @@ from ..helpers import format_exception
 LIST_REGEX = r"""(\[[\s\S]+?\])"""
 
 DICT_REGEX = r"""(\{[\s\S]+?\})"""
-OPT_ARGS_REGEX = r"""(?P<args>([ \t]*\{[^\n\r\f]+\}))?"""
+OPT_DATA_REGEX = r"""(?P<data>([ \t]*\{[^\n\r\f]+\}))?"""
 PY_EXP_REGEX = r"""((?P<py>~~)[\s\S]*?(?P=py))"""
 STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[ \t\S]*(?P=quote))"""
 
@@ -134,17 +134,70 @@ class RouteLabel(Label):
         self.cmds = []
 
     def generate_label(self, compile_info=None):
-        from ..procedural.routes import route_comms_navigate
+        from ..procedural import routes 
+        
+
         path = self.path.strip('/')
         paths = path.split('/', 1)
-        if paths[0] == 'comms':
-            if len(paths)==1:
-                route_comms_navigate("comms", self)
-            elif len(paths)==2:
-                route_comms_navigate(paths[1], self)
-            else:
-                raise "Bad route label syntax"
+
+        match paths:
+            # two parameters, nav
+            case ["comms",*b]: 
+                routes.route_comms_navigate(self.path, self)
+            case ["science",*b]: 
+                routes.route_science_navigate(self.path, self)
+            case ["gui",*b]: 
+                routes.route_gui_navigate(self.path, self)
+            case ["spawn"]: 
+                routes.route_spawn(self)
+            case ["spawn", "grid"]: 
+                routes.route_spawn_grid(self)
+            case ["focus", "comms"]: 
+                routes.route_focus_comms(self)
+            case ["focus", "weapons"]: 
+                routes.route_focus_weapons(self)
+            case ["focus", "science"]: 
+                routes.route_focus_science(self)
+            case ["focus", "grid"]: 
+                routes.route_focus_grid(self)
+            case ["select", "comms"]: 
+                routes.route_select_comms(self)
+            case ["select", "weapons"]: 
+                routes.route_select_weapons(self)
+            case ["select", "science"]: 
+                routes.route_select_science(self)
+            case ["select", "grid"]: 
+                routes.route_select_grid(self)
+            case ["object", "grid"]: 
+                routes.route_object_grid(self)
+            case ["point", "comms"]: 
+                routes.route_point_comms(self)
+            case ["point", "weapons"]: 
+                routes.route_point_weapons(self)
+            case ["point", "science"]: 
+                routes.route_point_science(self)
+            case ["point", "grid"]: 
+                routes.route_point_grid(self)
+            case ["collision", "object"]: 
+                routes.route_collision_object(self)
+            case ["console", "change"]: 
+                routes.route_change_console(self)
+            case ["console", "mainscreen", "change"]: 
+                routes.route_console_mainscreen_change(self)
+            case ["damage", "internal"]: 
+                routes.route_damage_internal(self)
+            case ["damage", "heat"]: 
+                routes.route_damage_heat(self)
+            case ["damage", "object"]: 
+                routes.route_damage_object(self)
+            case ["dock"]: 
+                routes.route_dock(self)
+                
             
+            
+            case _:
+                raise f"Invalid route label {self.path}"
+                    
         if self.if_exp:
             cmd = Yield('success', if_exp=self.if_exp, loc=0, compile_info=compile_info)
             cmd.file_num = self.file_num
@@ -517,8 +570,8 @@ class Assign(MastNode):
 
 class Jump(MastNode):
     #rule = re.compile(r"""(((?P<jump>jump|->|push|->>|popjump|<<->|poppush|<<->>)[ \t]*(?P<jump_name>\w+))|(?P<pop>pop|<<-))"""+OPT_ARGS_REGEX+IF_EXP_REGEX)
-    rule = re.compile(r"""(?P<jump>jump|->)[ \t]*(?P<jump_name>\w+)"""+OPT_ARGS_REGEX+IF_EXP_REGEX)
-    def __init__(self, pop=None, jump=None, jump_name=None, if_exp=None, args=None, loc=None, compile_info=None):
+    rule = re.compile(r"""(?P<jump>jump|->)[ \t]*(?P<jump_name>\w+)"""+OPT_DATA_REGEX+IF_EXP_REGEX)
+    def __init__(self, pop=None, jump=None, jump_name=None, if_exp=None, data=None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
         self.label = jump_name
@@ -526,15 +579,15 @@ class Jump(MastNode):
         # self.pop = pop is not None
         # self.pop_jump = jump == 'popjump'or jump == "<<->"
         # self.pop_push = jump == 'poppush'or jump == "<<->>"
-        self.args = args
         if if_exp:
             if_exp = if_exp.lstrip()
             self.if_code = compile(if_exp, "<string>", "eval")
         else:
             self.if_code = None
-        if args is not None:
-            args = args.lstrip()
-            self.args = compile(args, "<string>", "eval")
+        self.data = data
+        if data is not None:
+            data = data.lstrip()
+            self.data = compile(data, "<string>", "eval")
 
 
 CLOSE_FUNC = r"\)[ \t]*(?=\r\n|\n|\#)"
@@ -670,11 +723,13 @@ class OnChange(MastNode):
 OPT_BLOCK_START = r"(?P<block>\:)?[ \t]*(?=\r\n|\n|\#)"
 class Button(MastNode):
     #### Pre routeLabels rule = re.compile(r"""(?P<button>\*|\+)[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_STYLE+FOR_RULE+IF_EXP_REGEX+r"[ \t]*"+BLOCK_START)
-    rule = re.compile(r"""(?P<button>\*|\+)[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)([ \t]*(?P<path>[\w\/]+))?"""+IF_EXP_REGEX+r"[ \t]*"+OPT_BLOCK_START)
+    rule = re.compile(r"""(?P<button>\*|\+)[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)([ \t]*(?P<path>[\w\/]+))?"""+OPT_DATA_REGEX+IF_EXP_REGEX+r"[ \t]*"+OPT_BLOCK_START)
     def __init__(self, message=None, button=None,  
                 color=None, if_exp=None, 
-                for_name=None, for_exp=None, 
-                clone=False, q=None, label=None, new_task=None, task_data=None, path=None, block=None,loc=None, compile_info=None):
+                #for_name=None, for_exp=None, 
+                clone=False, 
+                q=None, label=None, 
+                new_task=None, data=None, path=None, block=None,loc=None, compile_info=None):
         super().__init__()
         #
         # Remember any field in here need to be set in clone()
@@ -694,6 +749,7 @@ class Button(MastNode):
         self.is_block = block is not None
         self.use_sub_task = new_task
         self.label_to_run = None
+        
         if compile_info is not None:
             self.label_to_run = compile_info.label
         if compile_info is not None and isinstance(compile_info.label, RouteLabel):
@@ -706,7 +762,10 @@ class Button(MastNode):
         self.label = label
         
         
-        self.task_data = task_data
+        self.data = data
+        if data is not None and isinstance(data, str):
+            data = data.lstrip()
+            self.data = compile(data, "<string>", "eval")
         self.path = None
         #
         # path from regex could be a path or a label
@@ -714,6 +773,9 @@ class Button(MastNode):
         #
         if path is not None and path.startswith('//'):
             self.path = path.strip('/')
+        elif label is None:
+            self.label = path
+            self.use_sub_task = True
 
         
 
@@ -723,13 +785,12 @@ class Button(MastNode):
         else:
             self.code = None
 
-        self.for_name = for_name
-        self.data = None
-        if for_exp:
-            for_exp = for_exp.lstrip()
-            self.for_code = compile(for_exp, "<string>", "eval")
-        else:
-            self.for_code = None
+        # self.for_name = for_name
+        # if for_exp:
+        #     for_exp = for_exp.lstrip()
+        #     self.for_code = compile(for_exp, "<string>", "eval")
+        # else:
+        #     self.for_code = None
         
 
     def visit(self, id_tuple):
@@ -757,10 +818,10 @@ class Button(MastNode):
         proxy.sticky = self.sticky
         proxy.visited = self.visited
         proxy.data = self.data
-        proxy.for_code = self.for_code
-        proxy.for_name = self.for_name
+        # proxy.for_code = self.for_code
+        # proxy.for_name = self.for_name
+        proxy.is_block = self.is_block
         proxy.use_sub_task = self.use_sub_task
-        proxy.task_data = self.task_data
         proxy.path = self.path
         proxy.label_to_run = self.label_to_run
         ####
@@ -781,29 +842,40 @@ class Button(MastNode):
         if self.await_node is not None:
             self.await_node.dedent_loc = loc
 
+    def resolve_data_context(self, task):
+        if self.data is not None and not isinstance(self.data, dict):
+            print( f"TODO: data {self.data}")
+            self.data = task.eval_code(self.data)
+            self.message = task.format_string(self.message)
+
     def run(self, task, button_promise):
+        task_data = self.data
+        if self.data is not None and not isinstance(self.data, dict):
+            print( f"TODO: data {self.data}")
+            task_data = task.eval_code(self.data)
+
         if self.use_sub_task and self.label:
-            print("NEW TASK LABEL")
+            #print(f"NEW TASK LABEL {self.message}")
             
-            sub_task = task.start_task(self.label, inputs=self.task_data, defer=True)
+            sub_task = task.start_task(self.label, inputs=task_data, defer=True)
             #
             # Block commands in a sub task is a strait jump to the button
             # The button should dedent to a yield_idle
             #
             #
             if self.is_block:
-                print("BLOCK NEW TASK LABEL")
+                #print(f"BLOCK NEW TASK LABEL {self.message}")
                 sub_task.jump(self.label, activate_cmd=self.loc+1)
 
             sub_task.set_variable("BUTTON_PROMISE", button_promise)
             sub_task.tick_in_context()
             return sub_task
         elif self.label:
-            print(f"LABEL {self.label}")
+            #print(f"LABEL {self.label} {self.message}")
             task.push_inline_block(self.label)
             task.tick_in_context()
         else:
-            print(f"INLINE {self.path} {self.label_to_run} {task.active_label}")
+            #print(f"INLINE {self.path} {self.label_to_run} {task.active_label} {self.message}")
             task.push_inline_block(task.active_label,self.loc+1)
             task.tick_in_context()
 
