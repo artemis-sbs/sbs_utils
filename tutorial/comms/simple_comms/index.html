@@ -2888,7 +2888,7 @@ That label that uses logic to route to other labels based on certain conditions.
 </code></pre>
 <p>.. code-tab:: py PyMast</p>
 <pre><code>   # in the __init__ of the story add 
-   self.route_comms_select(self.comms_route)
+   self.route_select_comms(self.comms_route)
 </code></pre>
 <p>Add router label and logic </p>
 <hr />
@@ -3108,8 +3108,8 @@ That label that uses logic to route to other labels based on certain conditions.
 <p>.. code-tab:: py PyMast
       :emphasize-lines: 3</p>
 <pre><code>  # in the __init__ of the story add 
-  self.route_comms_select(self.handle_comms)
-  self.route_grid_select(self.damcon_route)
+  self.route_select_comms(self.handle_comms)
+  self.route_select_grid(self.damcon_route)
 </code></pre>
 <p>Create routing logic for  engineering comms</p>
 <hr />

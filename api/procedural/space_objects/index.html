@@ -2712,6 +2712,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.space_objects.target_shoot" class="md-nav__link">
+    <span class="md-ellipsis">
+      target_shoot()
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3130,6 +3139,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.space_objects.target_shoot" class="md-nav__link">
+    <span class="md-ellipsis">
+      target_shoot()
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3179,7 +3197,7 @@
 
 
 <h2 id="sbs_utils.procedural.space_objects.broad_test" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">broad_test</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">z1</span><span class="p">,</span> <span class="n">x2</span><span class="p">,</span> <span class="n">z2</span><span class="p">,</span> <span class="n">broad_type</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span></code>
+          <code class="highlight language-python"><span class="n">broad_test</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">z1</span><span class="p">,</span> <span class="n">x2</span><span class="p">,</span> <span class="n">z2</span><span class="p">,</span> <span class="n">broad_type</span><span class="o">=</span><span class="mi">65520</span><span class="p">)</span></code>
 
 </h2>
 
@@ -3264,7 +3282,7 @@
             </div>
           </td>
           <td>
-                <code>-1</code>
+                <code>65520</code>
           </td>
         </tr>
     </tbody>
@@ -3304,7 +3322,7 @@
 
 
 <h2 id="sbs_utils.procedural.space_objects.broad_test_around" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">broad_test_around</span><span class="p">(</span><span class="n">id_or_obj</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">depth</span><span class="p">,</span> <span class="n">broad_type</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span></code>
+          <code class="highlight language-python"><span class="n">broad_test_around</span><span class="p">(</span><span class="n">id_or_obj</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">depth</span><span class="p">,</span> <span class="n">broad_type</span><span class="o">=</span><span class="mi">65520</span><span class="p">)</span></code>
 
 </h2>
 
@@ -3376,7 +3394,7 @@
             </div>
           </td>
           <td>
-                <code>-1</code>
+                <code>65520</code>
           </td>
         </tr>
     </tbody>
@@ -4158,7 +4176,7 @@
 
 
 <h2 id="sbs_utils.procedural.space_objects.target" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">target</span><span class="p">(</span><span class="n">set_or_object</span><span class="p">,</span> <span class="n">target_id</span><span class="p">,</span> <span class="n">shoot</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">throttle</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span></code>
+          <code class="highlight language-python"><span class="n">target</span><span class="p">(</span><span class="n">set_or_object</span><span class="p">,</span> <span class="n">target_id</span><span class="p">,</span> <span class="n">shoot</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">throttle</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">stop_dist</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -4250,7 +4268,7 @@
 
 
 <h2 id="sbs_utils.procedural.space_objects.target_pos" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">target_pos</span><span class="p">(</span><span class="n">chasers</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">throttle</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span></code>
+          <code class="highlight language-python"><span class="n">target_pos</span><span class="p">(</span><span class="n">chasers</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">throttle</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">target_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stop_dist</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -4342,8 +4360,59 @@
                 <code>1.0</code>
           </td>
         </tr>
+        <tr>
+          <td><code>target_id</code></td>
+          <td>
+                <code>id</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>What to shoot</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>stop_dist</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The distance to stop</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
     </tbody>
   </table>
+
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+<h2 id="sbs_utils.procedural.space_objects.target_shoot" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">target_shoot</span><span class="p">(</span><span class="n">chasers</span><span class="p">,</span> <span class="n">target_id</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Set the target id only
+Args:
+    chasers (agent id | agent set): the agents to set
+    target_id (id, optional): What to shoot</p>
 
   </div>
 
