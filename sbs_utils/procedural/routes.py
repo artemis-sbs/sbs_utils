@@ -214,7 +214,10 @@ def route_science_navigate(path, label):
         path: (str): The navigation path to extend
         label (label): The label to run
     """
-    path = f"sci/{path}"
+    if path == "":
+        path = "science"
+    elif not path.startswith("science"):
+        path = f"science/{path}"
     path_labels = ButtonPromise.navigation_map.get(path)
     if path_labels is None:
         path_labels = set()

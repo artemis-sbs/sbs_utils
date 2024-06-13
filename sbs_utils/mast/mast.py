@@ -47,6 +47,7 @@ class ParseData:
 class MastNode:
     file_num:int
     line_num:int
+    is_label = False
 
     def __init__(self):
         self.dedent_loc = None
@@ -96,6 +97,7 @@ class MastNode:
 
 class Label(MastNode):
     rule = re.compile(r'(?P<m>=|\?){2,}\s*(?P<replace>replace:)?[ \t]*(?P<name>\w+)[ \t]*((?P=m){2,})?')
+    is_label = True
 
     def __init__(self, name, replace=None, m=None, loc=None, compile_info=None):
         super().__init__()
@@ -192,8 +194,6 @@ class RouteLabel(Label):
                 routes.route_damage_object(self)
             case ["dock"]: 
                 routes.route_dock(self)
-                
-            
             
             case _:
                 raise f"Invalid route label {self.path}"
@@ -882,43 +882,6 @@ class Button(MastNode):
         return None
 
 
-# class End(MastNode):
-#     rule = re.compile(r'->[ \t]*(?P<res>(FAIL|SUCCESS|IDLE|END))'+IF_EXP_REGEX)
-#     def __init__(self,  if_exp=None, loc=None, compile_info=None):
-#         super().__init__()
-#         self.loc = loc
-#         if if_exp:
-#             if_exp = if_exp.lstrip()
-#             self.if_code = compile(if_exp, "<string>", "eval")
-#         else:
-#             self.if_code = None
-
-# class ReturnIf(MastNode):
-#     #
-#     # This is a 'pop' for push inline
-#     #
-#     rule = re.compile(r'->[ \t]*(RETURN|AWAIT_AGAIN)'+IF_EXP_REGEX)
-#     def __init__(self, if_exp=None,  loc=None):
-#         super().__init__()
-#         self.loc = loc
-#         if if_exp:
-#             if_exp = if_exp.lstrip()
-#             self.if_code = compile(if_exp, "<string>", "eval")
-#         else:
-#             self.if_code = None
-
-
-# class Fail(MastNode):
-#     rule = re.compile(r'->[ \t]*FAIL'+IF_EXP_REGEX)
-#     def __init__(self, if_exp=None, loc=None, compile_info=None):
-#         super().__init__()
-#         self.loc = loc
-#         if if_exp:
-#             if_exp = if_exp.lstrip()
-#             self.if_code = compile(if_exp, "<string>", "eval")
-#         else:
-#             self.if_code = None
-
 class Yield(MastNode):
     rule = re.compile(r'(->|yield[ \t])[ \t]*(?P<res>(FAIL|fail|SUCCESS|success|END|end|IDLE|idle|RESULT|result))(?P<exp>[^\n\r\f]+)?')
     def __init__(self, res= None, exp=None, if_exp=None, loc=None, compile_info=None):
@@ -1469,162 +1432,164 @@ class Mast():
                 logger = logging.getLogger("mast.compile")
                 logger.debug(f"PARSED: {node_cls.__name__:} {line}")
 
-                match node_cls.__name__:
-                    # Throw comments and markers away
-                    case "Comment":
-                        pass
 
+
+                #match node_cls.__name__:
+                # Throw comments and markers away
+                if node_cls.__name__ == "Comment":
+                    pass
+                elif node_cls.__name__=="RouteLabel":
+                    # label_name = data['name']
+                    inject_remaining_dedents()
                     
-                    case "Label":
-                        label_name = data['name']
-                        existing_label = self.labels.get(label_name) 
-                        replace = data.get('replace')
-                        if existing_label and not replace:
-                            parsed = False
-                            errors.append(f"\nERROR: duplicate label '{label_name }'. Use 'replace: {data['name']}' if this is intentional. {file_name}:{line_no} - {line}")
-                            break
-                        elif existing_label and replace:
-                            # Make the pervious version jump to the replacement
-                            # making fall through also work
-                            existing_label.cmds = [Jump(jump_name=label_name,loc=0)]
+                    next = RouteLabel(**data)
+                    next.file_num = file_num
+                    next.line_num = line_no
+                    label_name = next.name
+                    # No fallthrough
+                    active.next = None
+                    
+                    if isinstance(active, RouteLabel):
+                        active.on_end_label()
+                    active = next
 
-                        inject_remaining_dedents()
+                    active_name = label_name
+                    self.labels[active_name] = active
+                    _info = CompileInfo()
+                    _info.indent = indent
+                    _info.is_dedent = is_dedent
+                    _info.is_indent = is_indent
+                    _info.label = active
+                    next.generate_label(_info)
+                    # Sets a variable for the label
+                    Agent.SHARED.set_inventory_value(label_name, active)
 
-                        next = Label(**data)
-                        active.next = next
-                        if isinstance(active, RouteLabel):
-                            active.on_end_label()
-                        active = next
-                        active_name = label_name
-                        self.labels[active_name] = active
-                        exists =  Agent.SHARED.get_inventory_value(label_name)
-                        exists =  Mast.globals.get(label_name, exists)
-                        if exists and not replace:
-                            errors.append(f"\nERROR: label conflicts with shared name, rename label '{label_name }'. {file_name}:{line_no} - {line}")
-                            break
+                    self.cmd_stack.pop()
+                    self.cmd_stack.append(active)
+                    prev_node = None
 
-                        # Sets a variable for the label
-                        Agent.SHARED.set_inventory_value(label_name, active)
+                elif node_cls.is_label:
+                    label_name = data['name']
+                    existing_label = self.labels.get(label_name) 
+                    replace = data.get('replace')
+                    if existing_label and not replace:
+                        parsed = False
+                        errors.append(f"\nERROR: duplicate label '{label_name }'. Use 'replace: {data['name']}' if this is intentional. {file_name}:{line_no} - {line}")
+                        break
+                    elif existing_label and replace:
+                        # Make the pervious version jump to the replacement
+                        # making fall through also work
+                        existing_label.cmds = [Jump(jump_name=label_name,loc=0)]
 
-                        self.cmd_stack.pop()
-                        self.cmd_stack.append(active)
-                        prev_node = None
+                    inject_remaining_dedents()
 
-                    case "RouteLabel":
-                        # label_name = data['name']
-                        inject_remaining_dedents()
-                        
-                        next = RouteLabel(**data)
-                        next.file_num = file_num
-                        next.line_num = line_no
-                        label_name = next.name
-                        # No fallthrough
-                        active.next = None
-                        
-                        if isinstance(active, RouteLabel):
-                            active.on_end_label()
-                        active = next
+                    next = Label(**data)
+                    active.next = next
+                    if isinstance(active, RouteLabel):
+                        active.on_end_label()
+                    active = next
+                    active_name = label_name
+                    self.labels[active_name] = active
+                    exists =  Agent.SHARED.get_inventory_value(label_name)
+                    exists =  Mast.globals.get(label_name, exists)
+                    if exists and not replace:
+                        errors.append(f"\nERROR: label conflicts with shared name, rename label '{label_name }'. {file_name}:{line_no} - {line}")
+                        break
 
-                        active_name = label_name
-                        self.labels[active_name] = active
-                        _info = CompileInfo()
-                        _info.indent = indent
-                        _info.is_dedent = is_dedent
-                        _info.is_indent = is_indent
-                        _info.label = active
-                        next.generate_label(_info)
-                        # Sets a variable for the label
-                        Agent.SHARED.set_inventory_value(label_name, active)
+                    # Sets a variable for the label
+                    Agent.SHARED.set_inventory_value(label_name, active)
 
-                        self.cmd_stack.pop()
-                        self.cmd_stack.append(active)
-                        prev_node = None
-                    case "Import":
-                        lib_name = data.get("lib")
-                        name = data['name']
+                    self.cmd_stack.pop()
+                    self.cmd_stack.append(active)
+                    prev_node = None
 
-                        if name.endswith('.py'):
-                            import importlib
-                            module_name = name[:-3]
-                            if sys.modules.get(module_name) is None:
-                                #print(f"import {self.basedir} {module_name}")
-                                # if its not in this dir try the mission script dir
-                                if os.path.isfile(os.path.join(self.basedir, name)):
-                                    import_file_name = os.path.join(self.basedir, name)
-                                else:
-                                    import_file_name = os.path.join(fs.get_mission_dir(), name)
-                                
-                                spec = importlib.util.spec_from_file_location(module_name, import_file_name)
-                                module = importlib.util.module_from_spec(spec)
-                                sys.modules[module_name] = module
-                                spec.loader.exec_module(module)
-                                Mast.import_python_module(module_name)
-                        else:
-                            err = self.import_content(name, lib_name)
-                            if err is not None:
-                                errors.extend(err)
-                                for e in err:
-                                    print("import error "+e)
-                        prev_node = None
-                    case _:
-                        try:
-                            loc = len(self.cmd_stack[-1].cmds)
-                            info = CompileInfo()
-                            info.indent = indent
-                            info.is_dedent = is_dedent
-                            info.is_indent = is_indent
-                            info.label=active
+                
+                elif node_cls.__name__== "Import":
+                    lib_name = data.get("lib")
+                    name = data['name']
+
+                    if name.endswith('.py'):
+                        import importlib
+                        module_name = name[:-3]
+                        if sys.modules.get(module_name) is None:
+                            #print(f"import {self.basedir} {module_name}")
+                            # if its not in this dir try the mission script dir
+                            if os.path.isfile(os.path.join(self.basedir, name)):
+                                import_file_name = os.path.join(self.basedir, name)
+                            else:
+                                import_file_name = os.path.join(fs.get_mission_dir(), name)
                             
-                            obj = node_cls(compile_info=info,loc=loc, **data)
-                            obj.file_num = file_num
-                            obj.line_num = line_no
-                        except Exception as e:
-                            logger = logging.getLogger("mast.compile")
-                            logger.error(f"ERROR: {file_name} {line_no} - {line}")
-                            logger.error(f"Exception: {e}")
+                            spec = importlib.util.spec_from_file_location(module_name, import_file_name)
+                            module = importlib.util.module_from_spec(spec)
+                            sys.modules[module_name] = module
+                            spec.loader.exec_module(module)
+                            Mast.import_python_module(module_name)
+                    else:
+                        err = self.import_content(name, lib_name)
+                        if err is not None:
+                            errors.extend(err)
+                            for e in err:
+                                print("import error "+e)
+                    prev_node = None
+                else:
+                    try:
+                        loc = len(self.cmd_stack[-1].cmds)
+                        info = CompileInfo()
+                        info.indent = indent
+                        info.is_dedent = is_dedent
+                        info.is_indent = is_indent
+                        info.label=active
+                        
+                        obj = node_cls(compile_info=info,loc=loc, **data)
+                        obj.file_num = file_num
+                        obj.line_num = line_no
+                    except Exception as e:
+                        logger = logging.getLogger("mast.compile")
+                        logger.error(f"ERROR: {file_name} {line_no} - {line}")
+                        logger.error(f"Exception: {e}")
 
-                            errors.append(f"\nERROR: {file_name} {line_no} - {line}")
-                            errors.append(f"\nException: {e}")
+                        errors.append(f"\nERROR: {file_name} {line_no} - {line}")
+                        errors.append(f"\nException: {e}")
+                        return errors # return with first errors
+
+                    obj.line = line if Mast.include_code else None
+
+                    if is_indent:
+                        if prev_node is None or not prev_node.is_indentable():
+                            errors.append(f"\nERROR: Bad indention {file_name} {line_no} - {line}")
                             return errors # return with first errors
-
-                        obj.line = line if Mast.include_code else None
-
-                        if is_indent:
-                            if prev_node is None or not prev_node.is_indentable():
-                                errors.append(f"\nERROR: Bad indention {file_name} {line_no} - {line}")
-                                return errors # return with first errors
-                            block_node = prev_node
-                            indent_stack.append((indent,block_node))
-                        if is_dedent:
-                            if len(indent_stack)==0:
-                                errors.append(f"\nERROR: Bad indention {file_name} {line_no} - {line}")
-                                return errors # return with first errors
+                        block_node = prev_node
+                        indent_stack.append((indent,block_node))
+                    if is_dedent:
+                        if len(indent_stack)==0:
+                            errors.append(f"\nERROR: Bad indention {file_name} {line_no} - {line}")
+                            return errors # return with first errors
+                        
+                        (i_loc,_) = indent_stack[-1]
+                        while i_loc > indent:
+                            (i_loc,i_obj) = indent_stack.pop()
+                            # Should equal i_obj
+                            end_obj = i_obj.create_end_node(loc, obj,info)
+                            #
+                            # So far only loops need this
+                            # Creates the end node
+                            #
+                            if end_obj:
+                                self.cmd_stack[-1].add_child(end_obj)
+                                loc+=1
+                                end_obj.file_num = file_num
+                                end_obj.line_num = line_no
+                                end_obj.line = obj.line
+                                obj.loc += 1
                             
                             (i_loc,_) = indent_stack[-1]
-                            while i_loc > indent:
-                                (i_loc,i_obj) = indent_stack.pop()
-                                # Should equal i_obj
-                                end_obj = i_obj.create_end_node(loc, obj,info)
-                                #
-                                # So far only loops need this
-                                # Creates the end node
-                                #
-                                if end_obj:
-                                    self.cmd_stack[-1].add_child(end_obj)
-                                    loc+=1
-                                    end_obj.file_num = file_num
-                                    end_obj.line_num = line_no
-                                    end_obj.line = obj.line
-                                    obj.loc += 1
-                                
-                                (i_loc,_) = indent_stack[-1]
-                        #
-                        # This is for nesting things
-                        # like for loops, that should wait to do things 
-                        #
-                        obj.post_dedent(info)        
-                        self.cmd_stack[-1].add_child(obj)
-                        prev_node = obj
+                    #
+                    # This is for nesting things
+                    # like for loops, that should wait to do things 
+                    #
+                    obj.post_dedent(info)        
+                    self.cmd_stack[-1].add_child(obj)
+                    prev_node = obj
                 break
 
             if not parsed:
