@@ -1070,6 +1070,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#providing-comms-button-to-the-comms-branch-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      Providing comms button to the comms branch path
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#providing-choices-of-buttons" class="md-nav__link">
     <span class="md-ellipsis">
       Providing choices of buttons
@@ -3052,6 +3061,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#providing-comms-button-to-the-comms-branch-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      Providing comms button to the comms branch path
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#providing-choices-of-buttons" class="md-nav__link">
     <span class="md-ellipsis">
       Providing choices of buttons
@@ -3227,15 +3245,21 @@ COMMS_SELECTED[&quot;Oranges&quot;] = 3
 </div>
 <h2 id="providing-comms-buttons">Providing Comms buttons</h2>
 <h3 id="providing-comms-button-to-the-root-comms-path">Providing comms button to the root comms path</h3>
-<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Mast</label><label for="__tabbed_2_2">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:1"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Mast</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>//comms if COMMS_SELECTED_ID &amp; &quot;tsn, station&quot;
 + &quot;Buy&quot; //comms/buy
 </code></pre></div>
 </div>
+</div>
+</div>
+<h3 id="providing-comms-button-to-the-comms-branch-path">Providing comms button to the comms branch path</h3>
+<p>notice this branch the comms to the "buy" path</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:1"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Mast</label></div>
+<div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>//comms if COMMS_SELECTED_ID &amp; &quot;tsn, station&quot;
+<div class="highlight"><pre><span></span><code>//comms/buy if COMMS_SELECTED_ID &amp; &quot;tsn, station&quot;
 + &quot;Buy apple&quot; if COMMS_SELECTED[&quot;Apples&quot;] &gt; 0:
     COMMS_SELECTED[&quot;Apples&quot;] -= 1
 + &quot;Buy orange&quot; if COMMS_SELECTED[&quot;Apples&quot;] &gt; 0:
@@ -3245,10 +3269,10 @@ COMMS_SELECTED[&quot;Oranges&quot;] = 3
 </div>
 </div>
 <h3 id="providing-choices-of-buttons">Providing choices of buttons</h3>
-<div class="tabbed-set tabbed-alternate" data-tabs="3:1"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="4:1"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1">Mast</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>//comms if COMMS_SELECTED &amp; &quot;tsn, station&quot;
+<div class="highlight"><pre><span></span><code>//comms/buy if COMMS_SELECTED &amp; &quot;tsn, station&quot;
 + if COMMS_SELECTED.inv[&quot;Apples&quot;] &gt; 0:
     % &quot;Buy a tasty Apple&quot;
     % &quot;How about an Apple&quot;
@@ -3262,10 +3286,10 @@ COMMS_SELECTED[&quot;Oranges&quot;] = 3
 </div>
 </div>
 <h3 id="providing-choices-of-buttons-based-on-reputation">Providing choices of buttons based on reputation</h3>
-<div class="tabbed-set tabbed-alternate" data-tabs="4:1"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="5:1"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1">Mast</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>//comms if COMMS_SELECTED &amp; &quot;tsn, station&quot;
+<div class="highlight"><pre><span></span><code>//comms/buy if COMMS_SELECTED &amp; &quot;tsn, station&quot;
 + if COMMS_SELECTED.inv[&quot;Apples&quot;] &gt; 0:
     %+ &quot;Free tasty Apple&quot;
     %+ &quot;How about a free Apple&quot;
@@ -3280,10 +3304,10 @@ COMMS_SELECTED[&quot;Oranges&quot;] = 3
 </div>
 <h3 id="providing-choices-of-buttons-based-on-reputation-levels">Providing choices of buttons based on reputation levels</h3>
 <p>Multiple reputation indicators create 'bands' </p>
-<div class="tabbed-set tabbed-alternate" data-tabs="5:1"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="6:1"><input checked="checked" id="__tabbed_6_1" name="__tabbed_6" type="radio" /><div class="tabbed-labels"><label for="__tabbed_6_1">Mast</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>//comms if COMMS_SELECTED &amp; &quot;tsn, station&quot;
+<div class="highlight"><pre><span></span><code>//comms/buy if COMMS_SELECTED &amp; &quot;tsn, station&quot;
 + if COMMS_SELECTED.inv[&quot;Apples&quot;] &gt; 0:
     %+++ &quot;Free tasty Apple&quot;
     %+++ &quot;How about a free Apple&quot;
@@ -3299,10 +3323,10 @@ COMMS_SELECTED[&quot;Oranges&quot;] = 3
 <h3 id="providing-choices-of-buttons-based-on-reputation-levels-weighting">Providing choices of buttons based on reputation levels, weighting</h3>
 <p>Multiple reputation indicators create 'bands' 
 Adding a weight number increases the chances</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="6:1"><input checked="checked" id="__tabbed_6_1" name="__tabbed_6" type="radio" /><div class="tabbed-labels"><label for="__tabbed_6_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="7:1"><input checked="checked" id="__tabbed_7_1" name="__tabbed_7" type="radio" /><div class="tabbed-labels"><label for="__tabbed_7_1">Mast</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>//comms if COMMS_SELECTED &amp; &quot;tsn, station&quot;
+<div class="highlight"><pre><span></span><code>//comms/buy if COMMS_SELECTED &amp; &quot;tsn, station&quot;
 + if COMMS_SELECTED.inv[&quot;Apples&quot;] &gt; 0:
     %+++3 &quot;Free tasty Apple&quot;
     %+++ &quot;How about a free Apple&quot;
@@ -3317,10 +3341,10 @@ Adding a weight number increases the chances</p>
 </div>
 <h3 id="providing-choices-of-via-data">Providing choices of via data</h3>
 <p>What data is need tbd</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="7:1"><input checked="checked" id="__tabbed_7_1" name="__tabbed_7" type="radio" /><div class="tabbed-labels"><label for="__tabbed_7_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="8:1"><input checked="checked" id="__tabbed_8_1" name="__tabbed_8" type="radio" /><div class="tabbed-labels"><label for="__tabbed_8_1">Mast</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>//comms if COMMS_SELECTED &amp; &quot;tsn, station&quot;
+<div class="highlight"><pre><span></span><code>//comms/buy if COMMS_SELECTED &amp; &quot;tsn, station&quot;
 + apple_options if COMMS_SELECTED[&quot;Apples&quot;] &gt; 0:
     COMMS_SELECTED[&quot;Apples&quot;] -= 1
 + orange_options if COMMS_SELECTED[&quot;Apples&quot;] &gt; 0:
@@ -3331,7 +3355,9 @@ Adding a weight number increases the chances</p>
 </div>
 <h3 id="providing-via-data-with-limits-and-validity">Providing via data with limits, and validity</h3>
 <p>What data is need tbd</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="8:1"><input checked="checked" id="__tabbed_8_1" name="__tabbed_8" type="radio" /><div class="tabbed-labels"><label for="__tabbed_8_1">Mast</label></div>
+<p>You can provide a number to pick and the number of those that are valid
+You can shuffle them once or every time</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="9:1"><input checked="checked" id="__tabbed_9_1" name="__tabbed_9" type="radio" /><div class="tabbed-labels"><label for="__tabbed_9_1">Mast</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>//comms if COMMS_SELECTED &amp; &quot;tsn, station&quot;
@@ -3344,7 +3370,7 @@ Adding a weight number increases the chances</p>
 </div>
 <h2 id="comms-messages">comms messages</h2>
 <h3 id="receive-message">Receive message</h3>
-<div class="tabbed-set tabbed-alternate" data-tabs="9:1"><input checked="checked" id="__tabbed_9_1" name="__tabbed_9" type="radio" /><div class="tabbed-labels"><label for="__tabbed_9_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="10:1"><input checked="checked" id="__tabbed_10_1" name="__tabbed_10" type="radio" /><div class="tabbed-labels"><label for="__tabbed_10_1">Mast</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>&lt;&lt;[$info] Title
@@ -3356,7 +3382,7 @@ Adding a weight number increases the chances</p>
 </div>
 </div>
 <h3 id="transmit-message">Transmit message</h3>
-<div class="tabbed-set tabbed-alternate" data-tabs="10:1"><input checked="checked" id="__tabbed_10_1" name="__tabbed_10" type="radio" /><div class="tabbed-labels"><label for="__tabbed_10_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="11:1"><input checked="checked" id="__tabbed_11_1" name="__tabbed_11" type="radio" /><div class="tabbed-labels"><label for="__tabbed_11_1">Mast</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>&gt;&gt;[$info] Title
@@ -3368,7 +3394,7 @@ Adding a weight number increases the chances</p>
 </div>
 </div>
 <h3 id="speech-bubble-message">Speech Bubble message</h3>
-<div class="tabbed-set tabbed-alternate" data-tabs="11:1"><input checked="checked" id="__tabbed_11_1" name="__tabbed_11" type="radio" /><div class="tabbed-labels"><label for="__tabbed_11_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="12:1"><input checked="checked" id="__tabbed_12_1" name="__tabbed_12" type="radio" /><div class="tabbed-labels"><label for="__tabbed_12_1">Mast</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>&lt;&gt;[$info] Title
@@ -3380,7 +3406,7 @@ Adding a weight number increases the chances</p>
 </div>
 </div>
 <h3 id="message-with-options">Message with options</h3>
-<div class="tabbed-set tabbed-alternate" data-tabs="12:1"><input checked="checked" id="__tabbed_12_1" name="__tabbed_12" type="radio" /><div class="tabbed-labels"><label for="__tabbed_12_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="13:1"><input checked="checked" id="__tabbed_13_1" name="__tabbed_13" type="radio" /><div class="tabbed-labels"><label for="__tabbed_13_1">Mast</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>&lt;&lt;[$info] Title
@@ -3393,7 +3419,7 @@ Adding a weight number increases the chances</p>
 </div>
 </div>
 <h3 id="message-with-options-with-rep">Message with options with rep</h3>
-<div class="tabbed-set tabbed-alternate" data-tabs="13:1"><input checked="checked" id="__tabbed_13_1" name="__tabbed_13" type="radio" /><div class="tabbed-labels"><label for="__tabbed_13_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="14:1"><input checked="checked" id="__tabbed_14_1" name="__tabbed_14" type="radio" /><div class="tabbed-labels"><label for="__tabbed_14_1">Mast</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>&lt;&lt;[$info] Title
@@ -3408,7 +3434,7 @@ Adding a weight number increases the chances</p>
 </div>
 </div>
 <h3 id="message-with-options-with-rep-level-bands">Message with options with rep level bands</h3>
-<div class="tabbed-set tabbed-alternate" data-tabs="14:1"><input checked="checked" id="__tabbed_14_1" name="__tabbed_14" type="radio" /><div class="tabbed-labels"><label for="__tabbed_14_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="15:1"><input checked="checked" id="__tabbed_15_1" name="__tabbed_15" type="radio" /><div class="tabbed-labels"><label for="__tabbed_15_1">Mast</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>&lt;&lt;[$info] Title
@@ -3423,7 +3449,7 @@ Adding a weight number increases the chances</p>
 </div>
 </div>
 <h3 id="message-with-options-with-rep-level-bands_1">Message with options with rep level bands</h3>
-<div class="tabbed-set tabbed-alternate" data-tabs="15:1"><input checked="checked" id="__tabbed_15_1" name="__tabbed_15" type="radio" /><div class="tabbed-labels"><label for="__tabbed_15_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="16:1"><input checked="checked" id="__tabbed_16_1" name="__tabbed_16" type="radio" /><div class="tabbed-labels"><label for="__tabbed_16_1">Mast</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>&lt;&lt;[$info] Title
