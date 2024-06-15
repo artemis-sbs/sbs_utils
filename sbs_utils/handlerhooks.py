@@ -110,6 +110,10 @@ def cosmos_event_handler(sim, event):
         # e.g. Mast Story Page, Clients change
         ctx = Context(sim, sbs, event)
         FrameContext.context = ctx
+        # gui = Gui.clients.get(event.client_id):
+        # if gui is not None:
+        #     FrameContext.page = gui.page
+
         Agent.SHARED.set_inventory_value("sim", sim)
         
         #print(f"{event.sub_tag}")
@@ -179,6 +183,9 @@ def cosmos_event_handler(sim, event):
                 DamageDispatcher.dispatch_heat(event)
 
             case "passive_collision":
+                print(f"TDO Handler hooks page{event.client_id} {FrameContext.page}")
+                print(f"TDO Handler hooks task{event.client_id} {FrameContext.task}")
+
                 CollisionDispatcher.dispatch_collision(event)
 
             case "client_connect":

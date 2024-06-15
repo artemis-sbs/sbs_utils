@@ -544,18 +544,19 @@ class HandleCollision:
         #
         # Also avoid adding twice, e.g. each client can added the route
         #
-        
+        self.label = label
         if not label in HandleCollision.just_once:
-            task = FrameContext.task
             # Mast task inherit values
             # So it needs the task 
-            self.task = task
             self.label = label
             HandleCollision.just_once.add(label)
             CollisionDispatcher.add_any(self.selected)
+        
             
     def selected(self, event):
-        t = self.task.start_task(self.label, {
+        # Run on the current task
+        task = FrameContext.task
+        t = task.start_task(self.label, {
                 "COLLISION_SOURCE_ID": event.origin_id,
                 "COLLISION_PARENT_ID": event.parent_id,
                 "COLLISION_TARGET_ID": event.selected_id,

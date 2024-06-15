@@ -94,7 +94,6 @@ class MastNode:
             return None
 
 
-
 class Label(MastNode):
     rule = re.compile(r'(?P<m>=|\?){2,}\s*(?P<replace>replace:)?[ \t]*(?P<name>\w+)[ \t]*((?P=m){2,})?')
     is_label = True
@@ -112,21 +111,53 @@ class Label(MastNode):
         cmd.loc = len(self.cmds)
         self.cmds.append(cmd)
 
+    def can_fallthrough(self):
+        return True
+
     def generate_label_begin_cmds(self, compile_info=None):
         pass
 
     def generate_label_end_cmds(self, compile_info=None):
         pass
 
+class DecoratorLabel(Label):
+    decorator_label = 0
+    def next_label_id():
+        DecoratorLabel.decorator_label += 1
+        return DecoratorLabel.decorator_label
 
-class RouteLabel(Label):
-    route_label = 0
+    def __init__(self, name, loc=None):
+        super().__init__(name)
+        self.next = None
+        self.loc = loc
+        self.replace = None
+        self.cmds = []
+
+    def can_fallthrough(self):
+        return False
+
+    def generate_label_begin_cmds(self, compile_info=None):
+        pass
+
+    def generate_label_end_cmds(self, compile_info=None):
+        #
+        # Always have a yield                    
+        if not self.can_fallthrough():
+            cmd = Yield('success', compile_info=compile_info)
+            cmd.file_num = self.file_num
+            cmd.line_num = self.line_num
+            cmd.line = f"yield success embedded in {self.name}"
+            self.add_child(cmd)
+
+
+class RouteDecoratorLabel(DecoratorLabel):
     rule = re.compile(r'\/{2,}(?P<path>([\w\/]+))'+IF_EXP_REGEX)
 
     def __init__(self, path, if_exp=None, loc=None, compile_info=None):
         # Label stuff
-        name = f"__route__{path}__{RouteLabel.route_label}__" 
-        RouteLabel.route_label += 1
+        id = DecoratorLabel.next_label_id()
+        name = f"__route__{path}__{id}__" 
+        
 
         super().__init__(name)
 
@@ -141,6 +172,9 @@ class RouteLabel(Label):
         self.loc = loc
         self.replace = None
         self.cmds = []
+
+    def can_fallthrough(self):
+        return False
 
     def generate_label_begin_cmds(self, compile_info=None):
         from ..procedural import routes 
@@ -800,7 +834,7 @@ class Button(MastNode):
         
         if compile_info is not None:
             self.label_to_run = compile_info.label
-        if compile_info is not None and isinstance(compile_info.label, RouteLabel):
+        if compile_info is not None and isinstance(compile_info.label, RouteDecoratorLabel):
             if self.is_block:
                 self.use_sub_task = True
                 label = compile_info.label
@@ -1183,7 +1217,7 @@ class Mast():
     nodes = [
         Comment,#NO EXP
         Label,#NO EXP
-        RouteLabel,
+        RouteDecoratorLabel,
         IfStatements,
         MatchStatements,
         LoopStart,
@@ -1510,7 +1544,10 @@ class Mast():
                         next = node_cls(**data)
                         next.file_num = file_num
                         next.line_num = line_no
-                        active.next = next
+                        if active.can_fallthrough():
+                            active.next = next
+                        else:
+                            active.next = None
 
                         label_name = next.name
 

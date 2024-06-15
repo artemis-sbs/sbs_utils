@@ -66,6 +66,10 @@ class Page:
         """
         pass
 
+    @property
+    def task(self):
+        return None
+
     def tick_gui_task(self):
         """ tick_gui_task
 

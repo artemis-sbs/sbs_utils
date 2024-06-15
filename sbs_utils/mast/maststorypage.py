@@ -116,6 +116,11 @@ class StoryPage(Page):
             self.gui_task.tick_in_context()
 
 
+    @property
+    def task(self):
+        return self.gui_task
+
+
     def tick_gui_task(self):
         #
         # Called by gui right before present
