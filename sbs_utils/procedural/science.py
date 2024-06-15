@@ -130,9 +130,9 @@ from ..consoledispatcher import ConsoleDispatcher
 class ScanPromise(ButtonPromise):
     def __init__(self, path, task, timeout=None, auto_side=True) -> None:
         path = path if path is not None else ""
-        path = f"sci/{path}"
-
+        path = f"science"
         super().__init__(path, task, timeout)
+        self.path_root = "science"
 
         self.expanded_buttons = None
 
@@ -143,8 +143,6 @@ class ScanPromise(ButtonPromise):
         # The stuff to start the scan is now in initial_poll / show_buttons
 
     def set_path(self, path):
-        path = path if path is not None else ""
-        path = f"sci/{path}"
         super().set_path(path)
 
     def initial_poll(self):

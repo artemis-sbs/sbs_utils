@@ -55,11 +55,11 @@ class CommsMessageStart(MastNode):
                 self.title_color = f[0]
                 self.body_color = f[1]
                 
-        self.receive = mtype == "<<"
+        self.mtype = mtype 
         self.title = title
         self.options = []
         if  CommsMessageStart.current_comms_message is not None:
-            raise "Comms message indent error"
+            raise Exception("Comms message indent error")
         CommsMessageStart.current_comms_message = self
 
     def create_end_node(self, loc, dedent_obj, compile_info):
@@ -81,7 +81,7 @@ class CommsMessageOption(MastNode):
         super().__init__()
         self.loc = loc
         if CommsMessageStart.current_comms_message is None:
-            raise "Comms message text without start. or not indented properly."
+            raise Exception("Comms message text without start. or not indented properly.")
         if mtype =='"':
             CommsMessageStart.current_comms_message.append_text(text)
         else:

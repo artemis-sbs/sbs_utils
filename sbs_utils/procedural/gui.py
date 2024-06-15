@@ -1365,6 +1365,8 @@ class ButtonPromise(AwaitBlockPromise):
         super().initial_poll()
 
     def set_path(self, path):
+        if path is None:
+            path = self.path_root
         if path.startswith("//"):
             path = path[2:]
         if path.startswith(self.path_root):

@@ -136,7 +136,7 @@ class StoryPage(Page):
         # This forces them is a certain order
         self.add_console_widget("")
         self.widgets = self.pending_widgets
-        print(f"TODO:  {self.widgets.replace('^', ',')}")
+        #print(f"TODO: page_swap_layout  {self.widgets.replace('^', ',')}")
 
         # TODO: this should be one thing
         # convert console tabs to procedural

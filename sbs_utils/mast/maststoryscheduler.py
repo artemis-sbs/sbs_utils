@@ -1,10 +1,10 @@
 import logging
-from .mastscheduler import PollResults, MastRuntimeNode, MastAsyncTask, MastScheduler
+from .mastscheduler import MastRuntimeNode, MastAsyncTask, MastScheduler
 from .mast import Mast
 import sbs
 from ..gui import Gui
 from ..procedural.gui import gui_text_area
-from ..procedural.comms import comms_receive, comms_transmit
+from ..procedural.comms import comms_receive, comms_transmit, comms_speech_bubble
 from ..helpers import FakeEvent, FrameContext, format_exception
 
 from .maststory import AppendText,  Text, CommsMessageStart
@@ -52,10 +52,12 @@ class CommsMessageStartRuntimeNode(MastRuntimeNode):
         if len(node.options)==0:
             return
         msg = random.choice(node.options)
-        if node.receive: 
+        if node.mtype == "<<": 
             comms_receive(msg, node.title, color=node.body_color, title_color=node.title_color)
-        else:
-            comms_transmit(msg, node.tile)
+        elif node.mtype == ">>": 
+            comms_transmit(msg, node.tile, color=node.body_color, title_color=node.title_color)
+        elif node.mtype == "()": 
+            comms_speech_bubble(msg, color=node.title_color)
 
 over =     {
     "Text": TextRuntimeNode,

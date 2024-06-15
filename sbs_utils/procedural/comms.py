@@ -177,6 +177,41 @@ def comms_receive(msg, title=None, face=None, color="#fff", title_color=None):
     comms_message(msg, from_ids_or_obj, to_ids_or_obj,  title, face, color, title_color, True)
 
 
+def comms_speech_bubble(msg, seconds=3, color="#fff", client_id=None, selected_id=None):
+    """ Transmits a message from a player ship
+    It uses the current context to determine the sender and receiver.
+    typically from the event that it being handled provide the context.
+
+    Args:
+        msg (str): The message to send
+        title (str, optional):The title text. Defaults to None.
+        face (str, optional): The face string of the face to use. Defaults to None.
+        color (str, optional): The body text color. Defaults to "#fff".
+        title_color (str, optional): The title text color. Defaults to None.
+    """    
+    from_ids_or_obj = _comms_get_origin_id()
+    to_ids_or_obj = _comms_get_selected_id()
+    if to_ids_or_obj is None or from_ids_or_obj is None:
+        #
+        # Communicate an error
+        #
+        pass 
+    if FrameContext.context.event is None:
+         return
+    
+    client_id = FrameContext.context.event.client_id
+    selected_id = FrameContext.context.event.selected_id
+
+    # player transmits a message
+    # sbs.send_speech_bubble_to_object()   attaches a speech bubble to a space object on the 2d radar.
+    #     py::arg("clientComputerID"),     send to this client (0 = server)
+    #     py::arg("spaceObjectID"),        spaceobject to attach the bubble to
+    #     py::arg("seconds"),              set seconds to zero for an everlasting bubble.
+    #     py::arg("color"),                text, "red", "#3ff", the usual
+    #     py::arg("text"),                 text message. like "curse you terran!"
+    sbs.send_speech_bubble_to_object(client_id, selected_id, seconds, color, msg)
+
+
 def comms_transmit_internal(msg, ids_or_obj=None, to_name=None, title=None, face=None, color="#fff", title_color=None):
     """ Transmits a message within a player ship
     It uses the current context to determine the sender and receiver.
@@ -276,18 +311,16 @@ class CommsPromise(ButtonPromise):
         path = path if path is not None else ""
         path = f"comms"
         super().__init__(path, task, timeout)
-
+        self.path_root = "comms"
 
         self.task = task
         self.button = None
         self.is_unknown = False
         self.color = "white"
         self.expanded_buttons = None
-        self.path_root = "comms"
+        
 
     def set_path(self, path):
-        path = path if path is not None else ""
-        #path = f"comms/{path}"
         super().set_path(path)
       
 
