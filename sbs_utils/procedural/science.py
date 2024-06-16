@@ -12,28 +12,28 @@ def show_warning(t):
 
 
 
-def science_start_scan(origin_id_or_side, selected_id, tab):
-    """Start the scan for a a science tab
+# def science_start_scan(origin_id_or_side, selected_id, tab):
+#     """Start the scan for a a science tab
 
-    Args:
-        origin_id_or_side (agent|str): If a string is passed it used as the player side, otherwise it use this as an agent to determine side
-        selected_id (agent): Agent id or objects
-        tab (str): The tab to start
-    """
-    player_side = origin_id_or_side
-    if not isinstance(origin_id_or_side, str):
-        so = query.to_object(origin_id_or_side)
-        player_side = so.side
+#     Args:
+#         origin_id_or_side (agent|str): If a string is passed it used as the player side, otherwise it use this as an agent to determine side
+#         selected_id (agent): Agent id or objects
+#         tab (str): The tab to start
+#     """
+#     player_side = origin_id_or_side
+#     if not isinstance(origin_id_or_side, str):
+#         so = query.to_object(origin_id_or_side)
+#         player_side = so.side
 
-    so_sel = query.to_object(selected_id)
-    percent = 0.0
+#     so_sel = query.to_object(selected_id)
+#     percent = 0.0
 
-    if player_side == so_sel.side:
-        percent = 0.90
-    if so:
-        so.data_set.set("cur_scan_ID", selected_id,0)
-        so.data_set.set("cur_scan_type", tab,0)
-        so.data_set.set("cur_scan_percent", percent,)
+#     if player_side == so_sel.side:
+#         percent = 0.90
+#     if so:
+#         so.data_set.set("cur_scan_ID", selected_id,0)
+#         so.data_set.set("cur_scan_type", tab,0)
+#         so.data_set.set("cur_scan_percent", percent,)
         
 
 def science_set_scan_data(player_id_or_obj, scan_target_id_or_obj, tabs):
@@ -217,34 +217,7 @@ class ScanPromise(ButtonPromise):
 
             task = self.task
             self.task.set_variable("__SCAN_TAB__", self)
-        # if self.button is None:
-        #     return
         
-        # button = self.button
-        # self.button = None
-        
-        # if button.new_task and button.label:
-        #     # if button.data is not None:
-        #     #     for k in button.data:
-        #     #         print(f"{k} set to {button.data[k]}")
-        #     self.sub_task = task.start_task(button.label, inputs=button.data)
-        #     self.sub_task.set_variable("BUTTON_PROMISE", self)
-        #     self.sub_task.tick_in_context()
-        #     return self.sub_task.poll()
-        #     # if self.sub_task.done:
-        #     #     self.task.tick_in_context()
-        # elif button.path is not None:
-        #     self.set_path(button.path)
-        # elif button.label:
-        #     self.task.set_variable("BUTTON_PROMISE", self)
-        #     task.push_inline_block(button.label)
-        #     self.task.tick_in_context()
-        # else:
-        #     self.task.set_variable("BUTTON_PROMISE", self)
-        #     task.push_inline_block(task.active_label,button.loc+1)
-        #     self.task.tick_in_context()
-
-
     def science_selected(self, event):
         #
         # avoid if this isn't for us
@@ -255,10 +228,12 @@ class ScanPromise(ButtonPromise):
         self.run_focus = True
         self.cancel_if_no_longer_exists()
         
-        if not self.done():
-            self.start_scan(event.origin_id, event.selected_id, event.extra_tag)
+        #if not self.done():
+        #    self.start_scan(event.origin_id, event.selected_id, event.extra_tag)
 
     def start_scan(self, origin_id, selected_id, extra_tag):
+        return
+    
         if self.selected_id != selected_id or \
             self.origin_id != origin_id:
             return
@@ -329,30 +304,36 @@ class ScanPromise(ButtonPromise):
                     if value:
                         button_count += 1
                         msg = self.task.format_string(button.message).strip()
-                        if msg != "scan":
-                            if len(scan_tabs):
-                                scan_tabs += " "
+                        # scan always first
+                        if  "scan" == msg:
+                            if len(scan_tabs) >= 0:
+                                scan_tabs = msg +","+scan_tabs
+                            else:
+                                scan_tabs = "scan"
+                        else:
+                            if len(scan_tabs) >= 0:
+                                scan_tabs +=","
                             scan_tabs += msg
+
                         # Check if this has been scanned
                         has_scan = sel_so.data_set.get(origin_so.side+msg, 0)
                         if has_scan:
                             scanned_tabs += 1
                 self.scan_is_done = scanned_tabs == button_count
                 sel_so.data_set.set("scan_type_list", scan_tabs, 0)
-
         
         ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'science_target_UID', self.science_selected)
         ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'science_target_UID', self.science_message)
         
-        routed = self.task.get_variable("SCIENCE_ROUTED")
-        if routed:
-            # Clear routed???
-            routed = self.task.set_variable("SCIENCE_ROUTED", False)
-            self.event = self.task.get_variable("EVENT")
-            if self.event is not None:
-                self.start_scan(origin_so.id, sel_so.id, self.event.extra_tag)
-            else:
-                self.start_scan( origin_so.id, sel_so.id, "__init__")
+        # routed = self.task.get_variable("SCIENCE_ROUTED")
+        # if routed:
+        #     # Clear routed???
+        #     routed = self.task.set_variable("SCIENCE_ROUTED", False)
+        #     self.event = self.task.get_variable("EVENT")
+        #     if self.event is not None:
+        #         self.start_scan(origin_so.id, sel_so.id, self.event.extra_tag)
+        #     else:
+        #         self.start_scan( origin_so.id, sel_so.id, "__init__")
 
 
 def scan(path=None, buttons=None, timeout=None, auto_side=True):

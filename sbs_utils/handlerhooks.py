@@ -36,6 +36,8 @@ def print_event(event):
     print(f"Sub Tag {event.sub_tag}")
     print(f"Sub Float {event.sub_float}")
     print(f"Value Tag {event.value_tag}")
+    print(f"Extra Tag {event.extra_tag}")
+    print(f"Extra Extra Tag {event.extra_tag}")
     print(f"Point {event.source_point.x}  {event.source_point.y} {event.source_point.z}")
 
 

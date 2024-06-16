@@ -5,6 +5,7 @@ import sbs
 from ..gui import Gui
 from ..procedural.gui import gui_text_area
 from ..procedural.comms import comms_receive, comms_transmit, comms_speech_bubble
+from ..procedural.science import scan_results
 from ..helpers import FakeEvent, FrameContext, format_exception
 
 from .maststory import AppendText,  Text, CommsMessageStart
@@ -56,6 +57,8 @@ class CommsMessageStartRuntimeNode(MastRuntimeNode):
             comms_receive(msg, node.title, color=node.body_color, title_color=node.title_color)
         elif node.mtype == ">>": 
             comms_transmit(msg, node.tile, color=node.body_color, title_color=node.title_color)
+        elif node.mtype == "<scan>": 
+            scan_results(msg)
         elif node.mtype == "()": 
             comms_speech_bubble(msg, color=node.title_color)
 
