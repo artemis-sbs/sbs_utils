@@ -1,6 +1,7 @@
 import logging
 from .mastscheduler import MastRuntimeNode, MastAsyncTask, MastScheduler
-from .mast import Mast
+from .mast import Mast, Scope
+from ..agent import Agent
 import sbs
 from ..gui import Gui
 from ..procedural.gui import gui_text_area
@@ -77,6 +78,7 @@ class StoryScheduler(MastScheduler):
         
         self.paint_refresh = False
         self.errors = []
+        self.client_id = None
 
     def run(self, client_id, page, label="main", inputs=None, task_name=None, defer=False):
         self.page = page
@@ -125,4 +127,65 @@ class StoryScheduler(MastScheduler):
         if not err.startswith("NoneType"):
             #message += str(err)
             self.errors = [err]
+
+    def get_value(self, key, defa=None):
+        """_summary_
+
+        Args:
+            key (_type_): _description_
+            defa (_type_, optional): _description_. Defaults to None.
+
+        Returns:
+            _type_: _description_
+        """
+        val = Mast.globals.get(key, None) # don't use defa here
+        if val is not None:
+            return (val, Scope.SHARED)
+        # Check shared
+        val = Agent.SHARED.get_inventory_value(key, None) # don't use defa here
+        if val is not None:
+            return (val, Scope.SHARED)
+        
+        
+        val = Agent.get(self.client_id).get_inventory_value(key, None) # don't use defa here
+        if val is not None:
+            return (val, Scope.CLIENT)
+        
+        assign = Agent.get(Agent.get(self.client_id).get_inventory_value("assigned_ship", None))
+        if assign is not None:
+            val = assign.get_inventory_value(key, None) # don't use defa here
+            if val is not None:
+                return (val, Scope.ASSIGNED)
+
+        val = self.get_inventory_value(key, None) # now defa make sense
+        if val is not None:
+            #TODO: Should this no longer be NORMAL
+            return (val, Scope.NORMAL) # NORMAL is the same as TASK
+        return (val, Scope.UNKNOWN)
+    
+    def set_value(self, key, value, scope):
+        if scope == Scope.SHARED:
+            # self.main.mast.vars[key] = value
+            Agent.SHARED.set_inventory_value(key, value)
+            return scope
+        
+        if scope == Scope.CLIENT:
+            Agent.get(self.client_id).set_inventory_value(key, value) # don't use defa here
+            return scope
+        
+        if scope == Scope.ASSIGNED:
+            assign = Agent.get(Agent.get(self.client_id).get_inventory_value("assigned_ship", None))
+            if assign is not None:
+                assign.set_inventory_value(key, value) # don't use defa here
+            return scope
+    
+        return Scope.UNKNOWN
+    
+    def get_symbols(self):
+        mast_inv = super().get_symbols()
+        m1 = mast_inv | Agent.get(self.client_id).inventory.collections
+        assign = Agent.get(Agent.get(self.client_id).get_inventory_value("assigned_ship", None))
+        if assign is not None:
+            m1 = m1 | assign.inventory.collections
+        return m1
 

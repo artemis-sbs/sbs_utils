@@ -3,6 +3,7 @@ from ...helpers import FrameContext
 from ...gui import get_client_aspect_ratio
 import re
 import sbs
+from ..widgets.control import Control
 
 class TextLine:
     def __init__(self, text, style, width, height, is_sec_end) -> None:
@@ -12,7 +13,7 @@ class TextLine:
         self.width = width
         self.is_sec_end = is_sec_end
 
-class TextArea(Column):
+class TextArea(Control):
     styles = {
         "t": {"style": "font:gui-6;color:#bbb;", "prepend": "", "indent": 0, "height": 48},
         "h1":{"style":  "font:gui-5;color:#bbb;", "prepend": "1 ", "indent": 0, "height": 32},
@@ -25,7 +26,7 @@ class TextArea(Column):
         }
     
     def __init__(self, tag, message) -> None:
-        super().__init__()
+        super().__init__(0,0,0,0)
         
         self.content = []
         # This needs to be before self.value=
@@ -36,15 +37,16 @@ class TextArea(Column):
         self.tag = tag
         self.active_tags = set()
         self.lines = []
-        self.start_line = 0
+        self.scroll_line = 0
         self.last_line = 0
         self.max_tag = 0
-        self.region = None
-        self.local_region_tag = self.tag+"$$"
+        self.absolute = True
+        #self.region = None
+        #self.local_region_tag = self.tag+"$$"
 
 
-    def invalidate_regions(self):
-        self.region = None
+    # def invalidate_regions(self):
+    #     self.region = None
 
                 
     def get_style(self, key):
@@ -60,7 +62,7 @@ class TextArea(Column):
         content_lines = self.content.copy()
         self.lines = []
         calc_height = 0
-        self.start_line = 0
+        self.scroll_line = 0
 
         ar = get_client_aspect_ratio(client_id)
         # style_default = self.get_style("_")
@@ -152,7 +154,6 @@ class TextArea(Column):
             char_width = height *65 / ar.x
             max_char = int(self.bounds.width // char_width)
 
-            is_end = False
             lines = some_lines.split("\n")
             last_line = None
 
@@ -234,12 +235,14 @@ class TextArea(Column):
         CID = event.client_id
         
         ar = get_client_aspect_ratio(CID)
+        # self.calc(event.client_id)
+        first_line = self.last_line - self.scroll_line
         
         bounds = Bounds(self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+        #print(f"TODO: TextArea {bounds}")
         # Room for scrollbar always
-        bounds.right -= 20*100/ar.x
+        bounds.right -= 40*100/ar.x
         #TODO: calc line to start drawing
-        tags = set()
         text_line: TextLine
         for i, text_line in enumerate(self.lines):
             style_obj = self.get_style(text_line.style)
@@ -249,15 +252,16 @@ class TextArea(Column):
             message = f"text:{text_line.text};{style}"
             
             tag = f"{self.tag}:{i}"
-            tags.add(tag)
             # For now draw all lines 
             # draw off screen if they should not be seen.
-            if i < self.start_line:
-                bounds.top = 1000
-            elif i == self.start_line:
+            if i < first_line:
+                continue
+            elif i == first_line:
                 bounds.top = self.bounds.top
             bounds.bottom = bounds.top + text_line.height
 
+            # if bounds.top < 900:
+            #     print(f"Sending line {message} {bounds} {self.local_region_tag}")
             ctx.sbs.send_gui_text(CID, self.local_region_tag,
                 tag, message,  
                 bounds.left+indent*text_line.width, bounds.top, bounds.right, bounds.bottom)
@@ -268,42 +272,19 @@ class TextArea(Column):
             if bounds.top > self.bounds.bottom:
                 bounds.top = 1000
 
-        # This should hide any tags used prior that are no needed right now
-        hide_tags =  self.active_tags - tags
-        for t in hide_tags:
-            ctx.sbs.send_gui_text(CID, self.local_region_tag,
-                t, "text: ;",  
-                bounds.left, 1000, bounds.right, 1000)
-        self.active_tags = tags
-
         # Add Scroll if needed
         scroll_bounds = Bounds(self.bounds)
         if not self.need_v_scroll:
             scroll_bounds.top = -1000
             scroll_bounds.bottom = -1000
 
-        max = -(self.last_line+1)
-        cur = self.start_line
+        max = (self.last_line+1)
+        cur = self.scroll_line
 
-        ctx.sbs.send_gui_slider(CID,self.local_region_tag, f"{self.tag}vbar", -int(cur), f"low:{max}; high: 0; show_number:no",
-            scroll_bounds.right-20*100/ar.x, scroll_bounds.top,
+        ctx.sbs.send_gui_slider(CID,self.local_region_tag, f"{self.tag}vbar", int(cur), f"text:int;low:0; high: {max};",
+            scroll_bounds.right-40*100/ar.x, scroll_bounds.top,
             scroll_bounds.right, scroll_bounds.bottom)
 
-    def present(self, event):
-        CID = event.client_id
-        is_update = self.region is not None
-        # If first time create sub region
-        if not is_update:
-            sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:False;", 0,0,100,100)
-            self.region = True
-            super().present(event)
-        else:
-            sbs.send_gui_clear(CID, self.local_region_tag)
-            super().present(event)
-            sbs.send_gui_complete(CID, self.local_region_tag)
-
-        #sbs.target_gui_sub_region(CID, "")
-        
 
     def update(self, message):
         # print(f"{message}")
@@ -381,12 +362,14 @@ class TextArea(Column):
     def on_message(self, event):
         if event.sub_tag != f"{self.tag}vbar":
             return
-        print("TextArea")
-        value = -int(event.sub_float)
-        if value != self.start_line:
-            self.start_line = value
+        print("MESSAGE")
+        value = int(event.sub_float)
+        #value = int(-event.sub_float+self.last_line+0.5)
+        if value != self.scroll_line:
+            self.scroll_line = value
             self.gui_state = "redraw"
             self.present(event)
+            print(self.scroll_line)
         
 
 

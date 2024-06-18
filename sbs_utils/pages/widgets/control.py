@@ -9,6 +9,7 @@ class Control(layout.Column):
     def __init__(self, left, top, right, bottom) -> None:
         super().__init__(left,top, right, bottom)
         self.region = None
+        self.absolute = False
 
 
     @property
@@ -22,11 +23,18 @@ class Control(layout.Column):
         the_bounds = self.bounds
         is_update = self.region is not None
         if not is_update:
-            print(f"Ship Picker CREATE present {self.local_region_tag}")
-            sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", the_bounds.left,the_bounds.top,the_bounds.right,the_bounds.bottom)
+            print(f"Control {self.__class__.__name__} CREATE ~{self.region_tag}~ {self.local_region_tag}")
+            if self.absolute:
+                sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", 0,0,100,100)
+            else:
+                sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", the_bounds.left,the_bounds.top,the_bounds.right,the_bounds.bottom)
             self.region = True
         else:
-            print(f"Ship Picker Update present {self.local_region_tag}")
+            print(f"Control {self.__class__.__name__} UPDATE ~{self.region_tag}~  {self.local_region_tag}")
+            if self.absolute:
+                sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", 0,0,100,100)
+            else:
+                sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", the_bounds.left,the_bounds.top,the_bounds.right,the_bounds.bottom)
             
         sbs.send_gui_clear(CID, self.local_region_tag)
         super().present(event)

@@ -119,6 +119,7 @@ def cosmos_event_handler(sim, event):
         Agent.SHARED.set_inventory_value("sim", sim)
         
         #print(f"{event.sub_tag}")
+        #print_event(event)
         match(event.tag):
             #	value_tag"
             #	source_point"

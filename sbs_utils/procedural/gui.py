@@ -249,7 +249,7 @@ def gui_row(style=None):
     apply_control_styles(".row", style, layout_item, task)
     return layout_item
 
-def gui_blank(style=None):
+def gui_blank(count=1, style=None):
     """adds an empty column to the current gui ow
 
     Args:
@@ -262,11 +262,11 @@ def gui_blank(style=None):
     task = FrameContext.task
     if page is None:
         return None
-    
-    layout_item = layout.Blank()
-    apply_control_styles(".blank", style, layout_item, task)
-    # Last in case tag changed in style
-    page.add_content(layout_item, None)
+    for _ in range(count):
+        layout_item = layout.Blank()
+        apply_control_styles(".blank", style, layout_item, task)
+        # Last in case tag changed in style
+        page.add_content(layout_item, None)
     return layout_item
 
 def gui_hole(count=1, style=None):

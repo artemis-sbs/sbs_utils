@@ -352,8 +352,11 @@ class LayoutListbox(layout.Column):
             sbs.send_gui_complete(CID, self.local_region_tag,)
         else:
             #print("Listbox UPDATE present")
+            sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", 0,0,100,100)
+            self.region = True
             sbs.send_gui_clear(CID, self.local_region_tag,)
             super().present(event)
+            
             sbs.send_gui_complete(CID, self.local_region_tag,)
 
         #sbs.target_gui_sub_region(CID, "")

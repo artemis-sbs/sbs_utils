@@ -595,7 +595,9 @@ class Comment(MastNode):
 
 class Scope(Enum):
     SHARED = 1  # per mast instance
-    NORMAL = 2  # per scheduler
+    NORMAL = 2  # per task
+    CLIENT = 10 # is the client handled by scheduler
+    ASSIGNED = 20  # is the client handled by scheduler
     TEMP = 99  # Per task?
     UNKNOWN = 100
 
@@ -619,7 +621,7 @@ class Assign(MastNode):
     oper_map = {"=": EQUALS, "+=": INC,  "-=": DEC, "*=": MUL, "%=": MOD, "/=": DIV, "//=":INT_DIV }
     # '|'+STRING_REGEX+ddd
     rule = re.compile(
-        r'(?P<scope>(shared|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)(?P<a_wait>\s*await)?\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|[^\n\r\f]+))')
+        r'(?P<scope>(shared|assigned|client|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)(?P<a_wait>\s*await)?\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|[^\n\r\f]+))')
 
     """ Note this doesn't support destructuring. To do so isn't worth the effort"""
     def __init__(self, scope, lhs, oper, exp,a_wait=None,  quote=None, py=None, loc=None, compile_info=None):

@@ -1185,8 +1185,8 @@ class MastAsyncTask(Agent, Promise):
 
     def get_symbols(self):
         # m1 = self.main.mast.vars | self.main.vars
-        mast_inv = Agent.SHARED.inventory.collections
-        m1 = mast_inv | self.main.inventory.collections
+        #mast_inv = self.main.get_symbols()
+        m1 = self.main.get_symbols()
         m1 =   m1 | self.inventory.collections 
         for st in self.label_stack:
             data = st.data
@@ -1197,15 +1197,16 @@ class MastAsyncTask(Agent, Promise):
         return m1
 
     def set_value(self, key, value, scope):
-        if scope == Scope.SHARED:
-            # self.main.mast.vars[key] = value
+        if scope == Scope.SHARED: #self.main.set_value(key,value, scope) != Scope.UNKNOWN:
+            # # self.main.mast.vars[key] = value
             Agent.SHARED.set_inventory_value(key, value)
+            return scope
         elif scope == Scope.TEMP:
             self.set_inventory_value(key, value)
-            #self.vars[key] = value
+            return scope
         else:
             self.set_inventory_value(key, value)
-            #self.vars[key] = value
+            return scope
 
     def set_value_keep_scope(self, key, value):
         scoped_val = self.get_value(key, value)
@@ -1230,11 +1231,14 @@ class MastAsyncTask(Agent, Promise):
         #val = self.vars.get(key, None)
         if val is not None:
             return (val, Scope.NORMAL)
-        return self.main.get_value(key, defa)
+        val = self.main.get_value(key, defa)
+        if val[1] != Scope.UNKNOWN:
+            return val
+        return (defa, Scope.NORMAL)
     
     def get_scoped_value(self, key, defa, scope):
         if scope == Scope.SHARED:
-            return self.main.get_value(key, defa)
+            return self.main.get_scoped_value(key, defa)
         if scope == Scope.TEMP:
             data = None
             # if self.redirect:
@@ -1510,7 +1514,16 @@ class MastScheduler(Agent):
             self.test_clock += 0.2
             return self.test_clock
         return time.time()
+    
+    def set_inventory_value(self, collection_name, value):
+        #print(f"SET ON MAIN {collection_name} {len(self.inventory.collections)}")
+        return super().set_inventory_value(collection_name, value)
 
+    def get_inventory_value(self, collection_name, default=None):
+        v = super().get_inventory_value(collection_name, default)
+        #if v is not None and v != default:
+        #    print(f"GET ON MAIN {collection_name} {len(self.inventory.collections)}")
+        return v
 
     def _start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:
         #if self.inputs is None:
@@ -1554,16 +1567,35 @@ class MastScheduler(Agent):
         return True
 
     def get_value(self, key, defa=None):
+        """
+        MastStoryScheduler completely overrided this so changes here should go there
+        """
         val = Mast.globals.get(key, None) # don't use defa here
         if val is not None:
             return (val, Scope.SHARED)
-        #val = self.mast.vars.get(key, None)
+        # Check shared
         val = Agent.SHARED.get_inventory_value(key, None) # don't use defa here
         if val is not None:
             return (val, Scope.SHARED)
-        #val = self.vars.get(key, defa)
-        val = self.get_inventory_value(key, defa) # now defa make sense
-        return (val, Scope.NORMAL)
+                
+        val = self.get_inventory_value(key, None) # now defa make sense
+        if val is not None:
+            #TODO: Should this no longer be NORMAL
+            return (val, Scope.NORMAL) # NORMAL is the same as TASK
+        return (val, Scope.UNKNOWN)
+    
+    def get_symbols(self):
+        mast_inv = Agent.SHARED.inventory.collections
+        m1 = mast_inv | self.inventory.collections
+        return m1
+
+    
+    def set_value(self, key, value, scope):
+        if scope == Scope.SHARED:
+            # self.main.mast.vars[key] = value
+            Agent.SHARED.set_inventory_value(key, value)
+            return scope
+        return Scope.UNKNOWN
 
     def get_variable(self, key, defa=None):
         val = self.get_value(key, defa)

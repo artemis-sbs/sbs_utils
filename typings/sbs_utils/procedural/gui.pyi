@@ -51,7 +51,7 @@ def gui_add_console_tab (id_or_obj, console, tab_name, label):
         console (str): Console name
         tab_name (str): Tab name
         label (label): Label to run when tab selected"""
-def gui_blank (style=None):
+def gui_blank (count=1,style=None):
     """adds an empty column to the current gui ow
     
     Args:
