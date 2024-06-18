@@ -1,8 +1,35 @@
-from .mast import IF_EXP_REGEX, Mast, MastNode
+from .mast import IF_EXP_REGEX, Mast, MastNode, DecoratorLabel
 import re
 
 STYLE_REF_RULE = r"""([ \t]+style[ \t]*=[ \t]*((?P<style_name>\w+)|((?P<style_q>['"]{3}|["'])(?P<style>[^\n\r\f]+)(?P=style_q))))"""
 OPT_STYLE_REF_RULE = STYLE_REF_RULE+"""?"""
+
+
+
+class MapDecoratorLabel(DecoratorLabel):
+    rule = re.compile(r'@map[ \t]+(?P<path>([\w \t]+))'+IF_EXP_REGEX)
+
+    def __init__(self, path, if_exp=None, loc=None, compile_info=None):
+        # Label stuff
+        id = DecoratorLabel.next_label_id()
+        name = f"map/{path}/{id}"
+        super().__init__(name)
+
+        self.path= path
+        self.description = ""
+        self.if_exp = if_exp
+        # need to negate if
+        if self.if_exp is not None:
+            self.if_exp = if_exp.strip()
+            self.if_exp = 'not ' + self.if_exp
+
+        self.next = None
+        self.loc = loc
+        self.replace = None
+        self.cmds = []
+
+    def can_fallthrough(self):
+        return True
 
 
 
@@ -73,19 +100,24 @@ class CommsMessageStart(MastNode):
         if len(self.options)==0:
             self.options.append(text)
         else:
-            self.options[-1] += "\n"+text
+            self.options[-1] += text
 
 class CommsMessageOption(MastNode):
     rule = re.compile(r"""(?P<mtype>\%\d*|\")(?P<text>[^:\n\r\f]*)""")
     def __init__(self, mtype, text,  loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
-        if CommsMessageStart.current_comms_message is None:
-            raise Exception("Comms message text without start. or not indented properly.")
-        if mtype =='"':
-            CommsMessageStart.current_comms_message.append_text(text)
+        # Try to attach to a label
+        if loc == 0 and compile_info is not None and compile_info.label is not None:
+            compile_info.label.append_text(text)
+        elif CommsMessageStart.current_comms_message is not None:
+            if mtype =='"':
+                CommsMessageStart.current_comms_message.append_text(text)
+            else:
+                CommsMessageStart.current_comms_message.add_option(text)
         else:
-            CommsMessageStart.current_comms_message.add_option(text)
+            raise Exception("Comms message text without start. or not indented properly.")
+        
 
     def is_indentable(self):
         return False
@@ -103,7 +135,6 @@ class DefineFormat(MastNode):
     }
     def is_indentable(self):
         return False
-    
 
     def is_virtual(self):
         return True
@@ -134,6 +165,6 @@ class MastStory(Mast):
         AppendText,
         CommsMessageStart,
         CommsMessageOption,
-        DefineFormat
-
+        DefineFormat,
+        MapDecoratorLabel
     ] + Mast.nodes 

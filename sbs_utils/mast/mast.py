@@ -106,13 +106,22 @@ class Label(MastNode):
         self.next = None
         self.loc = loc
         self.replace = replace is not None
+        self.desc = None
 
     def add_child(self, cmd):
-        cmd.loc = len(self.cmds)
-        self.cmds.append(cmd)
+        if not cmd.is_virtual():
+            cmd.loc = len(self.cmds)
+            self.cmds.append(cmd)
 
     def can_fallthrough(self):
         return True
+    
+    def append_text(self, text):
+        if self.desc is None:
+            self.desc = text
+        else:
+            self.desc += text
+
 
     def generate_label_begin_cmds(self, compile_info=None):
         pass
@@ -1175,6 +1184,7 @@ class Mast():
     }
     inline_count = 0
     source_map_files = []
+    imported = {}
 
     def __init__(self, cmds=None, is_import=False):
         super().__init__()
@@ -1329,10 +1339,24 @@ class Mast():
     def remove_scheduler(self, scheduler):
         self.schedulers.remove(scheduler)
 
-    def from_file(self, file_name, lib_name=None):
+    def find_imports(self, folder):
+        import os
+        imports = []
+        for root, dirs, files in os.walk(os.path.join(self.basedir, folder)):
+            for name in files:
+                if name.endswith("__init__.mast"):
+                    p = os.path.join(root, name)
+                    # print(p)
+                    imports.append(p)
+        return imports
+
+            
+    def from_file(self, file_name, root, lib_name=None):
         """ Docstring"""
         content = None
         errors= None
+        if root is None:
+            root = self # I am root
 
         if self.lib_name is not None:
             content, errors = self.content_from_lib_or_file(file_name, self.lib_name)
@@ -1343,11 +1367,17 @@ class Mast():
         if errors is not None:
             return errors
         if content is not None:
-            errors = self.compile(content, file_name)
-            # if len(errors) > 0:
-            #     message = f"\nCompile errors\nCannot compile file {file_name}"
-            #     errors.append(message)
-            return errors
+            errors = self.compile(content, file_name, root)
+            if len(errors)==0:
+                if len(errors) == 0 and not self.is_import:
+                    imports = self.find_imports(".")
+                    for name in imports:
+                        errors = self.import_content(name, root, None)
+                        if len(errors)>0:
+                            return errors
+        return errors
+            
+
         return []
         
 
@@ -1384,7 +1414,11 @@ class Mast():
         
     
 
-    def import_content(self, filename, lib_file):
+    def import_content(self, filename, root, lib_file):
+        if root.imported.get(filename):
+            return
+        #print(f"importing {filename}")
+        root.imported[filename] = True
         add = self.__class__(is_import=True)
         add.parent_basedir = self.basedir
 
@@ -1416,11 +1450,11 @@ class Mast():
         return errors
 
 
-    def compile(self, lines, file_name):
+    def compile(self, lines, file_name, root):
         # Catching compiler errors lower to give better error message
         errors = []
         try:
-            return self._compile(lines, file_name)
+            return self._compile(lines, file_name, root)
         except Exception as e:
             logger = logging.getLogger("mast.compile")
             logger.error(f"Exception: {e}")
@@ -1430,7 +1464,7 @@ class Mast():
 
         
 
-    def _compile(self, lines, file_name):
+    def _compile(self, lines, file_name, root):
         file_num = self.clear(file_name)
         line_no = 1 # file line num are 1 based
         
@@ -1579,7 +1613,7 @@ class Mast():
                         _info.indent = indent
                         _info.is_dedent = is_dedent
                         _info.is_indent = is_indent
-                        _info.label = active
+                        _info.label = next
                         next.generate_label_begin_cmds(_info)
                         
                         self.labels[active_name] = active
@@ -1618,7 +1652,7 @@ class Mast():
                                 spec.loader.exec_module(module)
                                 Mast.import_python_module(module_name)
                         else:
-                            err = self.import_content(name, lib_name)
+                            err = self.import_content(name, root, lib_name)
                             if err is not None:
                                 errors.extend(err)
                                 for e in err:
@@ -1632,10 +1666,12 @@ class Mast():
                             info.is_dedent = is_dedent
                             info.is_indent = is_indent
                             info.label=active
+                            info.prev_node = prev_node
                             
                             obj = node_cls(compile_info=info,loc=loc, **data)
                             obj.file_num = file_num
                             obj.line_num = line_no
+
                         except Exception as e:
                             logger = logging.getLogger("mast.compile")
                             logger.error(f"ERROR: {file_name} {line_no} - {line}")
@@ -1680,7 +1716,7 @@ class Mast():
                         # This is for nesting things
                         # like for loops, that should wait to do things 
                         #
-                        obj.post_dedent(info)        
+                        obj.post_dedent(info)
                         self.cmd_stack[-1].add_child(obj)
                         prev_node = obj
                     break
@@ -1723,7 +1759,6 @@ class Mast():
         # for node in MatchStatements.chains:
         #     errors.append(f"\nERROR: Missing end_match prior to label '{active_name}'cmd {node.loc}")
         # MatchStatements.chains.clear()
-
         return errors
 
     def enable_logging():

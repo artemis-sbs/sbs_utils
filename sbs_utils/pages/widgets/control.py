@@ -49,5 +49,6 @@ class Control(layout.Column):
     def invalidate_regions(self):
         # print(f"Invalidate Control {self.region_tag}")
         self.region = None
+        super().invalidate_regions()
 
 

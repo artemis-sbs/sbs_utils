@@ -576,7 +576,7 @@ def gui_section(style=None):
 def gui_list_box(items, style, 
                  item_template=None, title_template=None, 
                  section_style=None, title_section_style=None,
-                 select=False, multi=False):
+                 select=False, multi=False, carousel=False):
     
     page = FrameContext.page
     task = FrameContext.task
@@ -587,7 +587,7 @@ def gui_list_box(items, style,
     layout_item = LayoutListbox(0, 0, tag, items,
                  item_template, title_template, 
                  section_style, title_section_style,
-                 select,multi)
+                 select,multi, carousel)
     # #layout_item.data = data
     # if var is not None:
     #     layout_item.var_name = var

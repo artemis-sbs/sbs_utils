@@ -15,7 +15,7 @@ def mast_story_compile(code=None):
 def mast_story_compile_file(code=None):
     mast = MastStory()
     clear_shared()
-    errors = mast.from_file(code)
+    errors = mast.from_file(code, None)
     return (errors, mast)
 
 

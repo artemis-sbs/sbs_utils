@@ -74,12 +74,11 @@ class StoryPage(Page):
             if cls.story is  None:
                 cls.story = MastStory()
                 if cls.__dict__.get("story_file"):
-                    self.errors =  cls.story.from_file(cls.story_file)
+                    self.errors =  cls.story.from_file(cls.story_file, None)
         self.story = cls.story
         self.main = cls.__dict__.get("main", "main")
         self.main_server = cls.__dict__.get("main_server", self.main)
         self.main_client = cls.__dict__.get("main_client", self.main)
-        
         
 
     def start_story(self, client_id):
@@ -522,14 +521,6 @@ class StoryPage(Page):
                     self.gui_state = "repaint"
                 else:
                     self.gui_state = "presenting"
-            # case _:
-            #     for change in self.on_change_items:
-            #         if change.test():
-            #             print("ON CHANGE - match")
-            #             change.run()
-            #             #self.gui_task.push_inline_block(self.gui_task.active_label, change.node.loc+1)
-            #             #self.gui_task.tick_in_context()
-            #             break
 
     def on_message(self, event):
         if event.client_id != self.client_id:
@@ -595,8 +586,6 @@ class StoryPage(Page):
             for click in self.on_click:
                 if click.click(clicked.click_tag):
                     return
-
-
             
         if refresh:
             self.gui_state = "refresh"
@@ -618,10 +607,10 @@ class StoryPage(Page):
             self.tick_gui_task()
         elif event.tag == "client_change":
             if event.sub_tag == "change_console":
-                    if self.change_console_label:
-                        self.gui_task.jump(self.change_console_label)
-                        self.gui_task.tick_in_context()
-                        self.present(event)
+                if self.change_console_label:
+                    self.gui_task.jump(self.change_console_label)
+                    self.gui_task.tick_in_context()
+                    self.present(event)
         elif event.tag == "main_screen_change":
             if self.main_screen_change_label:
                 ms =  linked_to(get_inventory_value(self.client_id,"assigned_ship"), "consoles") & has_inventory_value("CONSOLE_TYPE", "normal_main")

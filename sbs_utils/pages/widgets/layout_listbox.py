@@ -98,7 +98,7 @@ class LayoutListbox(layout.Column):
     def __init__(self, left, top, tag_prefix, items, 
                  item_template=None, title_template=None, 
                  section_style=None, title_section_style=None,
-                 select=False, multi=False) -> None:
+                 select=False, multi=False, carousel=False) -> None:
         super().__init__(left,top,33,44)
 
         self.tag_prefix = tag_prefix
@@ -114,6 +114,7 @@ class LayoutListbox(layout.Column):
         self.select_color = "#bbb3"
         self.click_color = "black"
         self.cur = 0
+        self.carousel = carousel
         
         self.title_background=None
         self.default_item_width = None
@@ -149,6 +150,8 @@ class LayoutListbox(layout.Column):
 
         tokens = LayoutAreaParser.lex("1em")
         self.slider_style =  LayoutAreaParser.parse_e2(tokens)
+        if self.carousel:
+            self.set_selected_index(self.cur)
         
 
     def set_row_height(self, height):
@@ -211,9 +214,9 @@ class LayoutListbox(layout.Column):
 
 
         max_slots = int(max_slots)
+        if self.carousel:
+            max_slots = 1
         extra_slot_count = len(self.items)-max_slots
-
-        
 
         if extra_slot_count <0:
             extra_slot_count = 0
@@ -225,8 +228,17 @@ class LayoutListbox(layout.Column):
         bottom = self.bounds.bottom
 
         
-
-        if extra_slot_count > 0:
+        em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
+        if self.carousel and not self.horizontal:
+            sbs.send_gui_clickregion(event.client_id, self.local_region_tag,
+                f"{self.tag_prefix}dec", "text:<<;font:gui-6;",
+                self.bounds.left, self.bounds.top, self.bounds.left+em2*5, self.bounds.bottom)
+            sbs.send_gui_clickregion(event.client_id, self.local_region_tag,
+                f"{self.tag_prefix}inc", "text:>>;font:gui-6;",
+                self.bounds.right-em2*5, self.bounds.top, self.bounds.right, self.bounds.bottom)
+        elif self.carousel and self.horizontal:
+            pass
+        elif extra_slot_count > 0:
             self.extra_slot_count = extra_slot_count
             em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
             #print(f"adding scroll bar font size {em2} {self.bounds} == {self.tag} -- {self.tag_prefix}")
@@ -278,10 +290,10 @@ class LayoutListbox(layout.Column):
             # sub_page.tags |= sec.get_tags()
 
         #draw_slots = max_slot
-        print(f"{cur=} {max_slots=}" )
+        #print(f"{cur=} {max_slots=}" )
         for slot in range(max_slots):
             if cur >= len(self.items):
-                print("BROKE")
+                #print("BROKE")
                 break
 
             item = self.items[cur]
@@ -296,7 +308,7 @@ class LayoutListbox(layout.Column):
             
             sec = layout.Layout(tag+":sec", None, left, top, this_right, this_bottom)
             #print(f"BREAK {cur}  {tag} {left=} {top=}")
-            if self.select or self.multi:
+            if (self.select or self.multi) and not self.carousel:
                 sec.click_text = "__________________"
                 sec.click_background = "white"
                 sec.click_color = "black"
@@ -371,6 +383,28 @@ class LayoutListbox(layout.Column):
         if self.client_id != event.client_id:
             return
         
+        was = self.cur
+        
+        if event.sub_tag == f"{self.tag_prefix}dec":
+            self.cur -= 1
+            if self.cur <0:
+                self.cur = 0
+            if was != self.cur:
+                self.set_selected_index(self.cur)
+                self.gui_state = "redraw"
+                self.represent(event)
+                return
+    
+        if event.sub_tag == f"{self.tag_prefix}inc":
+            self.cur += 1
+            if self.cur >= len(self.items):
+                self.cur = len(self.items)-1
+            if was != self.cur:
+                self.set_selected_index(self.cur)
+                self.gui_state = "redraw"
+                self.represent(event)
+                return
+
         if event.sub_tag == f"{self.tag_prefix}cur":
             if self.horizontal:
                 value = int(event.sub_float)
@@ -504,16 +538,13 @@ class LayoutListbox(layout.Column):
         pass
 
 
-#list_box_control(ships, text=lambda ship: ship.comms_id, ship=lambda ship: ship.art_id)
-
-
 
 def layout_list_box_control(items,
                  template_func=None, title_template=None, 
                  section_style=None, title_section_style=None,
-                 select=False, multi=False):
+                 select=False, multi=False, carousel=False):
     # The gui_content sets the values
     return LayoutListbox(0, 0, "mast", items,
                  template_func, title_template, 
                  section_style, title_section_style,
-                 select,multi)
+                 select,multi, carousel)

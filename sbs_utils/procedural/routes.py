@@ -2,9 +2,7 @@ from ..consoledispatcher import ConsoleDispatcher
 from ..griddispatcher import GridDispatcher
 from ..lifetimedispatcher import LifetimeDispatcher
 from ..damagedispatcher import DamageDispatcher, CollisionDispatcher
-from .execution import task_schedule
 from .query import to_id, to_object
-from ..mast.label import is_pymast_label
 
 from ..helpers import FrameContext, FakeEvent
 from .gui import ButtonPromise
@@ -596,8 +594,10 @@ def route_change_console(label):
     Returns:
         The route: Used rarely to cancel the route
     """    
+    
     page = FrameContext.page
     page.change_console_label = label
+    
 
 def route_console_mainscreen_change(label):
     """called when a  change to the main screen view occurs
