@@ -1,10 +1,5 @@
 from ..helpers import FrameContext
-
-
-def text_sanitize(text):
-    text = text.replace(",", "_")
-    text = text.replace(":", "_")
-    return text
+from .gui import text_sanitize
 
 
 def maps_get_list():

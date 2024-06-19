@@ -17,6 +17,14 @@ from . import screen_shot
 
 gui_screenshot = screen_shot.gui_screenshot
 
+
+
+def text_sanitize(text):
+    text = text.replace(",", "_")
+    #text = text.replace(":", "_")
+    return text
+
+
 def gui_add_console_tab(id_or_obj, console, tab_name, label):
     """adds a tab definition 
 
@@ -964,7 +972,7 @@ def gui_text_area(props, style=None):
         return
     if style is None: 
         style = ""
-    layout_item = TextArea(page.get_tag(), props)
+    layout_item = TextArea(page.get_tag(), text_sanitize(props))
     apply_control_styles(".textarea", style, layout_item, task)
 
     page.add_content(layout_item, None)

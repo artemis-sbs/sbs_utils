@@ -151,7 +151,7 @@ class TextArea(Control):
 
             # Not sure why 50 expected 100, but
             # it is proportional and a guess?
-            char_width = height *65 / ar.x
+            char_width = height *50 / ar.x
             max_char = int(self.bounds.width // char_width)
 
             lines = some_lines.split("\n")
@@ -194,6 +194,7 @@ class TextArea(Control):
         #
         self.need_v_scroll = calc_height > self.bounds.height
         self.last_line = len(self.lines)
+        self.scroll_line = self.last_line
         if not self.need_v_scroll:
             return
         
@@ -241,7 +242,8 @@ class TextArea(Control):
         bounds = Bounds(self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
         #print(f"TODO: TextArea {bounds}")
         # Room for scrollbar always
-        bounds.right -= 40*100/ar.x
+        if self.need_v_scroll:
+            bounds.right -= 20*100/ar.x
         #TODO: calc line to start drawing
         text_line: TextLine
         for i, text_line in enumerate(self.lines):
@@ -269,21 +271,18 @@ class TextArea(Control):
             if text_line.is_sec_end:
                 bounds.top += text_line.height/2
 
-            if bounds.top > self.bounds.bottom:
-                bounds.top = 1000
+            #if bounds.top > self.bounds.bottom:
+            #    bounds.top = 1000
 
         # Add Scroll if needed
-        scroll_bounds = Bounds(self.bounds)
-        if not self.need_v_scroll:
-            scroll_bounds.top = -1000
-            scroll_bounds.bottom = -1000
+        if self.need_v_scroll:
+            scroll_bounds = Bounds(self.bounds)
+            max = (self.last_line+1)
+            cur = self.scroll_line
 
-        max = (self.last_line+1)
-        cur = self.scroll_line
-
-        ctx.sbs.send_gui_slider(CID,self.local_region_tag, f"{self.tag}vbar", int(cur), f"text:int;low:0; high: {max};",
-            scroll_bounds.right-40*100/ar.x, scroll_bounds.top,
-            scroll_bounds.right, scroll_bounds.bottom)
+            ctx.sbs.send_gui_slider(CID,self.local_region_tag, f"{self.tag}vbar", int(cur), f"text:int;low:0; high: {max};",
+                scroll_bounds.right-20*100/ar.x, scroll_bounds.top,
+                scroll_bounds.right, scroll_bounds.bottom)
 
 
     def update(self, message):
@@ -362,14 +361,14 @@ class TextArea(Control):
     def on_message(self, event):
         if event.sub_tag != f"{self.tag}vbar":
             return
-        print("MESSAGE")
+        #print("MESSAGE")
         value = int(event.sub_float)
         #value = int(-event.sub_float+self.last_line+0.5)
         if value != self.scroll_line:
             self.scroll_line = value
             self.gui_state = "redraw"
             self.present(event)
-            print(self.scroll_line)
+            #print(self.scroll_line)
         
 
 
