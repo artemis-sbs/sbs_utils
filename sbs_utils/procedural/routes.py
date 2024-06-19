@@ -390,7 +390,7 @@ class HandleLifetime:
         else:
             t = task.start_task(self.label, {
                     f"{self.cycle}_ID": so.get_id(),
-                    f"{self.cycle}_OBJ": so,
+                    f"{self.cycle}": so,
                     f"{self.cycle}_ROUTED": True
             })
            #   if not .done():
