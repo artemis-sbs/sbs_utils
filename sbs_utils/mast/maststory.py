@@ -1,5 +1,6 @@
 from .mast import IF_EXP_REGEX, Mast, MastNode, DecoratorLabel
 import re
+from ..agent import Agent
 
 STYLE_REF_RULE = r"""([ \t]+style[ \t]*=[ \t]*((?P<style_name>\w+)|((?P<style_q>['"]{3}|["'])(?P<style>[^\n\r\f]+)(?P=style_q))))"""
 OPT_STYLE_REF_RULE = STYLE_REF_RULE+"""?"""
@@ -13,7 +14,7 @@ class MapDecoratorLabel(DecoratorLabel):
         # Label stuff
         id = DecoratorLabel.next_label_id()
         name = f"map/{path}/{id}"
-        super().__init__(name)
+        super().__init__(name, loc)
 
         self.path= path
         self.description = ""
@@ -31,6 +32,92 @@ class MapDecoratorLabel(DecoratorLabel):
     def can_fallthrough(self):
         return True
 
+
+class GuiTabDecoratorLabel(DecoratorLabel):
+    rule = re.compile(r'(@|\/\/)gui/tab/(?P<path>([\w]+))'+IF_EXP_REGEX)
+
+    def __init__(self, path, if_exp=None, loc=None, compile_info=None):
+
+        # Label stuff
+        id = DecoratorLabel.next_label_id()
+        name = f"gui/tab/{path}/{id}"
+        super().__init__(name, loc)
+
+        self.path= path
+        self.description = ""
+        self.if_exp = if_exp
+
+        from ..procedural.gui import gui_add_console_tab
+        for con in ["helm", "comms", "engineering", "science", "weapons"]:
+            if con != path:
+                gui_add_console_tab(Agent.SHARED, con, path, self)
+        gui_add_console_tab(Agent.SHARED, path, "__back_tab__", "console_selected")
+
+        # need to negate if
+        if self.if_exp is not None:
+            self.if_exp = if_exp.strip()
+            self.if_exp = 'not ' + self.if_exp
+
+        self.next = None
+        self.loc = loc
+        self.replace = None
+        self.cmds = []
+
+    def can_fallthrough(self):
+        return True
+
+
+class GuiConsoleDecoratorLabel(DecoratorLabel):
+    rule = re.compile(r'@gui/console/(?P<path>([\w]+))'+IF_EXP_REGEX)
+
+    def __init__(self, path, if_exp=None, loc=None, compile_info=None):
+        # Label stuff
+        id = DecoratorLabel.next_label_id()
+        name = f"gui/console/{path}/{id}"
+        super().__init__(name, loc)
+
+        self.path= path
+        self.description = ""
+        self.if_exp = if_exp
+        # need to negate if
+        if self.if_exp is not None:
+            self.if_exp = if_exp.strip()
+            self.if_exp = 'not ' + self.if_exp
+
+        self.next = None
+        self.loc = loc
+        self.replace = None
+        self.cmds = []
+
+    def can_fallthrough(self):
+        return True
+
+#
+# This would allow listbox template in MAST
+# But it was flaky
+#
+# class ItemTemplateLabel(DecoratorLabel):
+#     rule = re.compile(r'@template/item[ \t]+(?P<name>([\w]+))'+IF_EXP_REGEX)
+
+#     def __init__(self, name, if_exp=None, loc=None, compile_info=None):
+#         # Label stuff
+#         id = DecoratorLabel.next_label_id()
+#         name = name
+#         super().__init__(name)
+#         self.description = ""
+#         self.if_exp = if_exp
+#         # need to negate if
+#         if self.if_exp is not None:
+#             self.if_exp = if_exp.strip()
+#             self.if_exp = 'not ' + self.if_exp
+
+#         self.next = None
+#         self.loc = loc
+#         self.replace = None
+#         self.cmds = []
+
+#     def can_fallthrough(self):
+#         return False
 
 
 class Text(MastNode):
@@ -166,5 +253,7 @@ class MastStory(Mast):
         CommsMessageStart,
         CommsMessageOption,
         DefineFormat,
-        MapDecoratorLabel
+        MapDecoratorLabel,
+        GuiTabDecoratorLabel
+        # ItemTemplateLabel this didn't work exactly, maybe sometime post v1.0
     ] + Mast.nodes 

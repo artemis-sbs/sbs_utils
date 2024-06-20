@@ -23,24 +23,6 @@ class MastRuntimeNode:
         return PollResults.OK_ADVANCE_TRUE
 
 
-# class MastAsyncTask:
-#     pass
-
-# class EndRuntimeNode(MastRuntimeNode):
-#     def poll(self, mast, task, node:End):
-#         if node.if_code:
-#             value = task.eval_code(node.if_code)
-#             if not value:
-#                 return PollResults.OK_ADVANCE_TRUE
-#         res = node.result.upper()
-#         if res == 'FAIL':
-#             return PollResults.FAIL_END
-#         if res == 'SUCCESS':
-#             return PollResults.OK_END
-#         if res == 'END':
-#             return PollResults.OK_END
-#         if res == 'IDLE':
-#             return PollResults.OK_IDLE
     
 class YieldRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:Yield):
@@ -440,13 +422,8 @@ class AwaitRuntimeNode(MastRuntimeNode):
 
         return PollResults.OK_RUN_AGAIN
 
-    
-
-
-# class EndAwaitRuntimeNode(MastRuntimeNode):
-#     def poll(self, mast:Mast, task:MastAsyncTask, node: Await):
-#         task.pop_label(False)
-#         return PollResults.OK_JUMP
+class InlineLabelRuntimeNode(MastRuntimeNode):
+    pass
 
 
 class AwaitInlineLabelRuntimeNode(MastRuntimeNode):
@@ -581,7 +558,21 @@ class MastTicker:
             self.done = True
         else:
             if isinstance(label, str): 
+                label_runtime_node = None
+                active_node = self.main.mast.labels.get(self.active_label)
+                if active_node is not None:
+                    sub_label = active_node.labels.get(label)
+                    if sub_label is not None:
+                        #
+                        # Must set label back to true label, not inline
+                        #
+                        label = self.active_label
+                        activate_cmd = sub_label.loc
+
                 label_runtime_node = self.main.mast.labels.get(label)
+            elif isinstance(label, InlineLabel):
+                label_runtime_node = self.main.mast.labels.get(self.active_label)
+                activate_cmd=label.loc+1
             else:
                 label_runtime_node = label
                 label = label_runtime_node.name
@@ -607,7 +598,7 @@ class MastTicker:
                 self.last_poll_result = PollResults.OK_JUMP
                 self.next()
             else:
-                self.runtime_error(f"""Jump to label "{label}" not found""")
+                self.runtime_error(f"""Jump to label "{label} {activate_cmd}" not found""")
                 self.active_cmd = 0
                 self.runtime_node = None
                 self.done = True
@@ -1133,16 +1124,15 @@ class MastAsyncTask(Agent, Promise):
     def emit_signal(self, name, sender_task, label_info, data):
         if sender_task == self:
             return
-        if self.done():
+        if sender_task.done():
             return
         
         if label_info.is_jump:
-            for k in data:
-                self.set_inventory_value(k, data[k])
-            self.jump(label_info.label)
+            st = self.start_task(label_info.label, data)
+            st.tick_in_context()
         else:
             self.push_inline_block(label_info.label, label_info.loc, data)
-        self.tick_in_context()
+            self.tick_in_context()
         return
     
     
@@ -1480,6 +1470,7 @@ class MastScheduler(Agent):
         "Button": ButtonRuntimeNode,
             "OnChange": OnChangeRuntimeNode,
             "Change": ChangeRuntimeNode,
+        "InlineLabel": InlineLabelRuntimeNode
         #"EndAwait": EndAwaitRuntimeNode,
     }
 

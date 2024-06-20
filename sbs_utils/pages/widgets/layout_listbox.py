@@ -4,6 +4,7 @@ import sbs
 from ... import fs
 from ...helpers import FrameContext, FakeEvent
 from ...mast.parsers import LayoutAreaParser
+from ...mast.mast import Label
 from ...procedural.style import apply_control_styles
 
 
@@ -129,12 +130,16 @@ class LayoutListbox(layout.Column):
         if isinstance(self.template_func, str):
             self.item_template = item_template
             self.template_func = self.default_item_template
+        # elif isinstance(self.template_func, Label):
+        #     self.item_template = self.template_func
+        #     self.template_func = self.label_item_template
 
         self.title_template_func = title_template
         self.title_template = None
         if isinstance(self.title_template_func, str):
             self.title_template = title_template
             self.title_template_func = self.default_title_template
+        
 
         self.selected = set()
         self.last_tags = None
@@ -167,6 +172,13 @@ class LayoutListbox(layout.Column):
         task.set_variable("LB_ITEM", item)
         msg = task.compile_and_format_string(self.item_template)
         gui_text(msg)
+
+    # def label_item_template(self, item):
+    #     task = FrameContext.task
+    #     st = task.start_sub_task(self.item_template, {"item": item, "LB_ITEM": item}, defer=True)
+    #     for _ in range(2):
+    #         st.tick_in_context()
+
 
     def default_title_template(self):
         from ...procedural.gui import gui_row, gui_text

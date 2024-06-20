@@ -9,7 +9,7 @@ Mast.enable_logging()
 def mast_story_compile(code=None):
     mast = MastStory()
     clear_shared()
-    errors = mast.compile(code, "test")
+    errors = mast.compile(code, "test", mast)
     return (errors, mast)
 
 def mast_story_compile_file(code=None):

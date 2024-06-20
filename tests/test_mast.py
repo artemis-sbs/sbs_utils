@@ -53,7 +53,7 @@ def mast_compile(code=None):
         mast = Mast()
         clear_shared()
         if code:
-            errors = mast.compile(code, "test")
+            errors = mast.compile(code, "test", mast)
         return (errors, mast)
 
 
@@ -70,7 +70,7 @@ def mast_run(code=None, label=None):
     clear_shared()
     errors = []
     if code:
-        errors = mast.compile(code, "test")
+        errors = mast.compile(code, "test2", mast)
     else:
         mast.clear("test_code")
     

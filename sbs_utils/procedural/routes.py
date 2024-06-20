@@ -383,7 +383,9 @@ class HandleLifetime:
         if self.cycle == "DOCK":
             event = so # argument is an event
             t = task.start_task(self.label, {
-                    f"{self.cycle}_ID": event.origin_id,
+                    f"{self.cycle}_ORIGIN_ID": event.origin_id,
+                    f"{self.cycle}_PARENT_ID": event.parent_id,
+                    f"{self.cycle}_SELECTED_ID": event.origin_id,
                     f"EVENT": event,
                     f"{self.cycle}_ROUTED": True
             })

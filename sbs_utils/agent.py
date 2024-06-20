@@ -92,10 +92,6 @@ class Stuff:
         return list(self.collection_set(collection))
 
 
-
-
-
-
 class SpawnData:
     id: int
     engine_object: any

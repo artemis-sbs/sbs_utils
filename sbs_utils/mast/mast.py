@@ -48,6 +48,7 @@ class MastNode:
     file_num:int
     line_num:int
     is_label = False
+    is_inline_label = False
 
     def __init__(self):
         self.dedent_loc = None
@@ -107,11 +108,15 @@ class Label(MastNode):
         self.loc = loc
         self.replace = replace is not None
         self.desc = None
+        self.labels = {}
 
     def add_child(self, cmd):
         if not cmd.is_virtual():
             cmd.loc = len(self.cmds)
             self.cmds.append(cmd)
+
+    def add_label(self, name, label):
+        self.labels[name] = label
 
     def can_fallthrough(self):
         return True
@@ -129,6 +134,22 @@ class Label(MastNode):
     def generate_label_end_cmds(self, compile_info=None):
         pass
 
+class InlineLabel(MastNode):
+    rule = re.compile(r'(?P<m>-){2,}\s*[ \t]*(?P<name>\w+)[ \t]*((?P=m){2,})?')
+    is_label = False
+    is_inline_label = True
+
+    def __init__(self, name, m=None, loc=None, compile_info=None):
+        super().__init__()
+        self.name = name
+        self.next = None
+        self.loc = loc
+        self.desc = None
+        self.label = compile_info.label
+        compile_info.label.add_label(name, self)
+
+
+
 class DecoratorLabel(Label):
     decorator_label = 0
     def next_label_id():
@@ -137,10 +158,8 @@ class DecoratorLabel(Label):
 
     def __init__(self, name, loc=None):
         super().__init__(name)
-        self.next = None
         self.loc = loc
-        self.replace = None
-        self.cmds = []
+        
 
     def can_fallthrough(self):
         return False
@@ -166,9 +185,7 @@ class RouteDecoratorLabel(DecoratorLabel):
         # Label stuff
         id = DecoratorLabel.next_label_id()
         name = f"__route__{path}__{id}__" 
-        
-
-        super().__init__(name)
+        super().__init__(name, loc)
 
         self.path= path
         self.if_exp = if_exp
@@ -190,6 +207,15 @@ class RouteDecoratorLabel(DecoratorLabel):
 
         path = self.path.strip('/')
         paths = path.split('/')
+        front_cmds = []
+        main_cmds = []
+
+        if self.if_exp:
+            cmd = Yield('success', if_exp=self.if_exp, loc=0, compile_info=compile_info)
+            cmd.file_num = self.file_num
+            cmd.line_num = self.line_num
+            cmd.line = "yield success to test RouteLabel"
+            front_cmds.append(cmd)
 
         match paths:
             # two parameters, nav
@@ -254,16 +280,28 @@ class RouteDecoratorLabel(DecoratorLabel):
                 routes.route_dock(self)
             case ["destroy"]: 
                 routes.route_destroy(self)
+            case ["signal", *b]: 
+                #
+                # This needs to run 
+                # on the first run of main
+                #
+                cmd = FuncCommand(py_cmds=f'signal_register("{paths[1]}", "{self.name}")', compile_info=compile_info)
+                cmd.file_num = self.file_num
+                cmd.line_num = self.line_num
+                cmd.line = f"signal_register embedded in {self.name}"
+                main_cmds.append(cmd)
             
             case _:
                 raise Exception(f"Invalid route label {self.path}")
-                    
-        if self.if_exp:
-            cmd = Yield('success', if_exp=self.if_exp, loc=0, compile_info=compile_info)
-            cmd.file_num = self.file_num
-            cmd.line_num = self.line_num
-            cmd.line = "yield success to test RouteLabel"
+    
+        for cmd in front_cmds:
             self.add_child(cmd)
+
+        # Add any commands need to main
+        for cmd in main_cmds:
+            compile_info.main.add_child(cmd)
+
+
 
     def generate_label_end_cmds(self, compile_info=None):
         path = self.path.strip('/')
@@ -663,10 +701,6 @@ class Jump(MastNode):
         super().__init__()
         self.loc = loc
         self.label = jump_name
-        # self.push = jump == 'push' or jump == "->>"
-        # self.pop = pop is not None
-        # self.pop_jump = jump == 'popjump'or jump == "<<->"
-        # self.pop_push = jump == 'poppush'or jump == "<<->>"
         if if_exp:
             if_exp = if_exp.lstrip()
             self.if_code = compile(if_exp, "<string>", "eval")
@@ -1229,6 +1263,7 @@ class Mast():
     nodes = [
         Comment,#NO EXP
         Label,#NO EXP
+        InlineLabel,
         RouteDecoratorLabel,
         IfStatements,
         MatchStatements,
@@ -1326,6 +1361,9 @@ class Mast():
 
     def signal_emit(self, name, sender_task, data):
         tasks = self.signal_observers.get(name, {})
+        #
+        #TODO: This should remove finished tasks
+        #
         for task in tasks:
             label_info = tasks[task]
             task.emit_signal(name, sender_task, label_info, data)
@@ -1511,6 +1549,7 @@ class Mast():
                 info.indent = ind_level
                 info.is_indent = False
                 info.is_dedent = True
+                info.main = self.labels.get("main")
                 inject_dedent(ind_level, ind_obj, None, info)
             indent_stack = [(0,None)]
 
@@ -1614,6 +1653,7 @@ class Mast():
                         _info.is_dedent = is_dedent
                         _info.is_indent = is_indent
                         _info.label = next
+                        _info.main = self.labels.get("main")
                         next.generate_label_begin_cmds(_info)
                         
                         self.labels[active_name] = active
@@ -1667,6 +1707,7 @@ class Mast():
                             info.is_indent = is_indent
                             info.label=active
                             info.prev_node = prev_node
+                            info.main = self.labels.get("main")
                             
                             obj = node_cls(compile_info=info,loc=loc, **data)
                             obj.file_num = file_num

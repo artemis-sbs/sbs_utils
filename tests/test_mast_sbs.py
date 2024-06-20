@@ -16,7 +16,7 @@ Mast.enable_logging()
 def mast_sbs_compile(code):
     mast = Mast()
     clear_shared()
-    errors = mast.compile(code, "test")
+    errors = mast.compile(code, "test", mast)
     return (errors, mast)
 
 
