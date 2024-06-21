@@ -62,7 +62,7 @@ class GuiTabDecoratorLabel(DecoratorLabel):
                 self.code = compile(self.if_exp, "<string>", "eval")
             except:
                 raise Exception(f"Syntax error '{if_exp}'")
-
+            
         self.next = None
         self.loc = loc
         self.replace = None
@@ -158,13 +158,10 @@ class AppendText(MastNode):
             self.code = None
 FORMAT_EXP = r"(\[(?P<format>([\$\#]?\w+[ \t]*(,[ \t]*\#?\w+)?))\])?"
 class CommsMessageStart(DescribableNode):
-    rule = re.compile(r"(?P<mtype>\<\<|\>\>|\(\)|\<scan\>)"+FORMAT_EXP+r"(?P<title>[^:\n\r\f]*)")
+    rule = re.compile(r"(?P<mtype>\<\<|\>\>|\(\)|\<scan\>)"+FORMAT_EXP+"([ \t]+"+STRING_REGEX_NAMED("title")+")?")
     current_comms_message = None
 
-    def is_indentable(self):
-        return True
-    
-    def __init__(self, mtype, title,  format=None, loc=None, compile_info=None):
+    def __init__(self, mtype, title,  q=None, format=None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
         self.format = format
@@ -181,26 +178,21 @@ class CommsMessageStart(DescribableNode):
                 
         self.mtype = mtype 
         self.title = title
-        self.options = []
-        if  CommsMessageStart.current_comms_message is not None:
+        if mtype == "<scan>" and title is not None:
+            self.append_text("%", title)
+        elif  CommsMessageStart.current_comms_message is not None:
             raise Exception("Comms message indent error")
         CommsMessageStart.current_comms_message = self
+
+    def is_indentable(self):
+        return True
 
     def create_end_node(self, loc, dedent_obj, compile_info):
         self.dedent_loc = loc
         CommsMessageStart.current_comms_message = None
 
-    def add_option(self, prefix, text):
-        self.options.append(text)
-
-    def append_text(self, prefix, text):
-        if prefix =='"':
-            if len(self.options)==0:
-                self.add_option("%", text)
-            else:
-                self.options[-1] += text
-        else:
-            self.add_option(prefix, text)
+    def post_dedent(self,compile_info):
+        pass
 
         
 

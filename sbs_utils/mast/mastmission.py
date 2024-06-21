@@ -159,8 +159,8 @@ class CompleteBlock(StateBlock):
         return cmd
 
 class ObjectiveBlock(StateBlock):
-    rule = re.compile(r"""objective\/(?P<name>[\/\w]+)[ \t]+(?P<display>\w[ \w]*):""")
-    def __init__(self, name=None, display=None, loc=None, compile_info=None):
+    rule = re.compile(r"""objective\/(?P<name>[\/\w]+)[ \t]+"""+STRING_REGEX_NAMED("display_name")+"""[ \t]*:""")
+    def __init__(self, name=None, display_name=None, q=None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
         if  isinstance(compile_info.label, StateMachineLabel):
@@ -168,7 +168,7 @@ class ObjectiveBlock(StateBlock):
         else:
             raise Exception("objective block used in unsupported label")
         compile_info.label.map_cmd("objective",self)
-        self.display = display
+        self.display_name = display_name
         self.name = name
         
 

@@ -33,11 +33,11 @@ PY_EXP_REGEX = r"""((?P<py>~~)[\s\S]*?(?P=py))"""
 STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[ \t\S]*(?P=quote))"""
 MULTI_LINE_STRING_REGEX = r"""((?P<quote>(["']{3}))[\s\S]*?(?P=quote))"""
 def STRING_REGEX_NAMED(name):
-    return f"""(?P<q>(["']{3})|["'])(?P<{name}>.*?)(?P=q)"""
+    return f"""((?P<q>(["']{3})|["'])(?P<{name}>.*?)(?P=q))"""
 def STRING_REGEX_NAMED_2(name):
-    return f"""(?P<q2>(["']{3})|["'])(?P<{name}>.*?)(?P=q2)"""
+    return f"""((?P<q2>(["']{3})|["'])(?P<{name}>.*?)(?P=q2))"""
 def STRING_REGEX_NAMED_3(name):
-    return f"""(?P<q3>(["']{3})|["'])(?P<{name}">.*?)(?P=q3)"""
+    return f"""((?P<q3>(["']{3})|["'])(?P<{name}">.*?)(?P=q3))"""
 
 
 IF_EXP_REGEX = r"""([ \t]+if(?P<if_exp>[^:\n\r\f]+))?"""
@@ -105,13 +105,27 @@ class MastNode:
 class DescribableNode(MastNode):
     def __init__(self):
         super().__init__()
-        self.desc = None
+        self.options = []
+
+
+    @property
+    def desc(self):
+        if len(self.options)==0:
+            return ""
+        return random.choice(self.options)
+
+    def add_option(self, prefix, text):
+        self.options.append(text)
 
     def append_text(self, prefix, text):
-        if self.desc is None:
-            self.desc = text
+        if prefix =='"':
+            if len(self.options)==0:
+                self.add_option("%", text)
+            else:
+                self.options[-1] += text
         else:
-            self.desc += text
+            self.add_option(prefix, text)
+
 
 
 

@@ -14,9 +14,9 @@ def maps_get_list():
     for l in all_labels:
         if l.startswith("map/"):
             m = all_labels[l]
-            ret.append(
-                {"name": m.path, "description": text_sanitize(m.desc), "label": m},
-            )
+            ret.append(m)
+#                {"name": m.display_name, "description": text_sanitize(m.desc), "label": m},
+#            )
 
     if len(ret)==0:
         return  [
