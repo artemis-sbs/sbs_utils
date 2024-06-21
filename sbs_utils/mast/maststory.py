@@ -1,4 +1,4 @@
-from .mast import IF_EXP_REGEX, Mast, MastNode, DecoratorLabel
+from .mast import IF_EXP_REGEX, Mast, MastNode, DecoratorLabel, DescribableNode, STRING_REGEX_NAMED
 import re
 from ..agent import Agent
 
@@ -8,15 +8,16 @@ OPT_STYLE_REF_RULE = STYLE_REF_RULE+"""?"""
 
 
 class MapDecoratorLabel(DecoratorLabel):
-    rule = re.compile(r'@map[ \t]+(?P<path>([\w \t]+))'+IF_EXP_REGEX)
+    rule = re.compile(r'@map/(?P<path>[\/\w]+)[ \t]+'+STRING_REGEX_NAMED("display_name")+IF_EXP_REGEX)
 
-    def __init__(self, path, if_exp=None, loc=None, compile_info=None):
+    def __init__(self, path, display_name, if_exp=None, q=None, loc=None, compile_info=None):
         # Label stuff
         id = DecoratorLabel.next_label_id()
         name = f"map/{path}/{id}"
         super().__init__(name, loc)
 
         self.path= path
+        self.display_name= display_name
         self.description = ""
         self.if_exp = if_exp
         # need to negate if
@@ -156,7 +157,7 @@ class AppendText(MastNode):
         else:
             self.code = None
 FORMAT_EXP = r"(\[(?P<format>([\$\#]?\w+[ \t]*(,[ \t]*\#?\w+)?))\])?"
-class CommsMessageStart(MastNode):
+class CommsMessageStart(DescribableNode):
     rule = re.compile(r"(?P<mtype>\<\<|\>\>|\(\)|\<scan\>)"+FORMAT_EXP+r"(?P<title>[^:\n\r\f]*)")
     current_comms_message = None
 
@@ -189,30 +190,32 @@ class CommsMessageStart(MastNode):
         self.dedent_loc = loc
         CommsMessageStart.current_comms_message = None
 
-    def add_option(self, text, weight=1):
+    def add_option(self, prefix, text):
         self.options.append(text)
 
-    def append_text(self, text):
-        if len(self.options)==0:
-            self.options.append(text)
+    def append_text(self, prefix, text):
+        if prefix =='"':
+            if len(self.options)==0:
+                self.add_option("%", text)
+            else:
+                self.options[-1] += text
         else:
-            self.options[-1] += text
+            self.add_option(prefix, text)
 
-class CommsMessageOption(MastNode):
-    rule = re.compile(r"""(?P<mtype>\%\d*|\")(?P<text>[^:\n\r\f]*)""")
+        
+
+class WeightedText(MastNode):
+    rule = re.compile(r"""(?P<mtype>\%\d*|\")(?P<text>[^\n\r\f]*)""")
     def __init__(self, mtype, text,  loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
         # Try to attach to a label
         if loc == 0 and compile_info is not None and compile_info.label is not None:
-            compile_info.label.append_text(text)
-        elif CommsMessageStart.current_comms_message is not None:
-            if mtype =='"':
-                CommsMessageStart.current_comms_message.append_text(text)
-            else:
-                CommsMessageStart.current_comms_message.add_option(text)
+            compile_info.label.append_text(mtype, text)
+        elif isinstance(compile_info.prev_node, DescribableNode):
+            compile_info.prev_node.append_text(mtype, text)
         else:
-            raise Exception("Comms message text without start. or not indented properly.")
+            raise Exception("Weighted text without start. or not indented properly.")
         
 
     def is_indentable(self):
@@ -253,16 +256,18 @@ class DefineFormat(MastNode):
                 ret.append(c)
         return ret
 
-
+from .mastmission import StartBlock, InitBlock, AbortBlock, CompleteBlock, ObjectiveBlock, MissionLabel
 class MastStory(Mast):
     nodes = [
         # sbs specific
         Text,
         AppendText,
         CommsMessageStart,
-        CommsMessageOption,
+        WeightedText,
         DefineFormat,
         MapDecoratorLabel,
-        GuiTabDecoratorLabel
+        GuiTabDecoratorLabel,
         # ItemTemplateLabel this didn't work exactly, maybe sometime post v1.0
+        ## Mission Nodes
+        MissionLabel, StartBlock,InitBlock, AbortBlock, CompleteBlock, ObjectiveBlock
     ] + Mast.nodes 

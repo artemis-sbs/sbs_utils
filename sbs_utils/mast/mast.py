@@ -31,6 +31,13 @@ DICT_REGEX = r"""(\{[\s\S]+?\})"""
 OPT_DATA_REGEX = r"""(?P<data>([ \t]*\{[^\n\r\f]+\}))?"""
 PY_EXP_REGEX = r"""((?P<py>~~)[\s\S]*?(?P=py))"""
 STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[ \t\S]*(?P=quote))"""
+MULTI_LINE_STRING_REGEX = r"""((?P<quote>(["']{3}))[\s\S]*?(?P=quote))"""
+def STRING_REGEX_NAMED(name):
+    return f"""(?P<q>(["']{3})|["'])(?P<{name}>.*?)(?P=q)"""
+def STRING_REGEX_NAMED_2(name):
+    return f"""(?P<q2>(["']{3})|["'])(?P<{name}>.*?)(?P=q2)"""
+def STRING_REGEX_NAMED_3(name):
+    return f"""(?P<q3>(["']{3})|["'])(?P<{name}">.*?)(?P=q3)"""
 
 
 IF_EXP_REGEX = r"""([ \t]+if(?P<if_exp>[^:\n\r\f]+))?"""
@@ -52,7 +59,7 @@ class MastNode:
 
     def __init__(self):
         self.dedent_loc = None
-    
+
     def add_child(self, cmd):
         #print("ADD CHILD")
         pass
@@ -95,7 +102,20 @@ class MastNode:
             return None
 
 
-class Label(MastNode):
+class DescribableNode(MastNode):
+    def __init__(self):
+        super().__init__()
+        self.desc = None
+
+    def append_text(self, prefix, text):
+        if self.desc is None:
+            self.desc = text
+        else:
+            self.desc += text
+
+
+
+class Label(DescribableNode):
     rule = re.compile(r'(?P<m>=|\?){2,}\s*(?P<replace>replace:)?[ \t]*(?P<name>\w+)[ \t]*((?P=m){2,})?')
     is_label = True
 
@@ -107,7 +127,6 @@ class Label(MastNode):
         self.next = None
         self.loc = loc
         self.replace = replace is not None
-        self.desc = None
         self.labels = {}
 
     def add_child(self, cmd):
@@ -121,11 +140,6 @@ class Label(MastNode):
     def can_fallthrough(self):
         return True
     
-    def append_text(self, text):
-        if self.desc is None:
-            self.desc = text
-        else:
-            self.desc += text
 
 
     def generate_label_begin_cmds(self, compile_info=None):
@@ -667,8 +681,11 @@ class Assign(MastNode):
     INT_DIV = 7
     oper_map = {"=": EQUALS, "+=": INC,  "-=": DEC, "*=": MUL, "%=": MOD, "/=": DIV, "//=":INT_DIV }
     # '|'+STRING_REGEX+ddd
+    # (.*?)(\+=|-=)(.*)?(#\n)?
     rule = re.compile(
-        r'(?P<scope>(shared|assigned|client|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)(?P<a_wait>\s*await)?\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|[^\n\r\f]+))')
+        r'(?P<scope>(shared|assigned|client|temp)\s+)?(?P<lhs>.*?)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)(?P<a_wait>\s*await)?\s*(?P<exp>('+PY_EXP_REGEX+'|'+MULTI_LINE_STRING_REGEX+'|[^\n\r\f]+))')
+        
+        #r'(?P<scope>(shared|assigned|client|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)(?P<a_wait>\s*await)?\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|[^\n\r\f]+))')
 
     """ Note this doesn't support destructuring. To do so isn't worth the effort"""
     def __init__(self, scope, lhs, oper, exp,a_wait=None,  quote=None, py=None, loc=None, compile_info=None):
@@ -1759,7 +1776,8 @@ class Mast():
                         #
                         obj.post_dedent(info)
                         self.cmd_stack[-1].add_child(obj)
-                        prev_node = obj
+                        if not obj.is_virtual():
+                            prev_node = obj
                     break
             except Exception as e:
                 logger = logging.getLogger("mast.compile")
