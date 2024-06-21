@@ -54,9 +54,13 @@ class GuiTabDecoratorLabel(DecoratorLabel):
         gui_add_console_tab(Agent.SHARED, path, "__back_tab__", "console_selected")
 
         # need to negate if
+        self.code = None
         if self.if_exp is not None:
             self.if_exp = if_exp.strip()
-            self.if_exp = 'not ' + self.if_exp
+            try:
+                self.code = compile(self.if_exp, "<string>", "eval")
+            except:
+                raise Exception(f"Syntax error '{if_exp}'")
 
         self.next = None
         self.loc = loc
@@ -65,6 +69,11 @@ class GuiTabDecoratorLabel(DecoratorLabel):
 
     def can_fallthrough(self):
         return True
+    
+    def test(self, task):
+        if self.code is None:
+            return True
+        return task.eval_code(self.code)
 
 
 class GuiConsoleDecoratorLabel(DecoratorLabel):

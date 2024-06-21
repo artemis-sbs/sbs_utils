@@ -175,6 +175,10 @@ class Row:
         self.columns.append(col)
         return self
     
+    def add_front(self, col):
+        self.columns.insert(0,col)
+        return self
+    
     def represent(self, event):
         self.present(event)
 

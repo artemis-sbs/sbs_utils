@@ -10,7 +10,7 @@ from ..agent import Agent
 from ..pages.layout import layout
 from..fs import get_mission_name, get_startup_mission_name
 
-from .maststory import  MastStory
+from .maststory import  MastStory, GuiTabDecoratorLabel
 from .maststoryscheduler import StoryScheduler
 
 
@@ -385,17 +385,21 @@ class StoryPage(Page):
         _layout.add(_row)
 
         # Make spots for a certain amount of tabs
-        spots = 6
-        blanks = spots-len(all_tabs)
-        if blanks <0: blanks = 0
-        for _ in range(blanks):
-            _row.add(layout.Blank())
-
+        count = 0
+        tabs= set()
         for tab in all_tabs:
+            tab_label = all_tabs[tab]
+            if isinstance(tab_label, GuiTabDecoratorLabel):
+                if not tab_label.test(self.gui_task):
+                    continue
             
             tab_text = tab
             if tab == "__back_tab__":
                 tab_text = back_tab
+            if tab_text in tabs:
+                continue
+            tabs.add(tab_text)
+            count+= 1
             msg = f"justify:center;color:black;text:{tab_text};"
 
             button = TabControl(self.get_tag(),msg, all_tabs[tab], self) # Jump label all_tabs[tab]
@@ -404,12 +408,20 @@ class StoryPage(Page):
             #self.click_font = None
             button.click_tag = self.get_tag()
 
-            if tab == console:
+            if tab_text == back_tab:
                 button.background_color = "#fff9"
+                _row.add(button)        
             else:
                 button.background_color = "#fff3"
+                _row.add_front(button)
             
-            _row.add(button)
+        
+        spots = 6
+        blanks = spots-count
+        if blanks <0: blanks = 0
+        for _ in range(blanks):
+            _row.add_front(layout.Blank())
+
         #_layout.calc()
         self.pending_layouts.append(_layout)
 
