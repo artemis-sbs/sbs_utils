@@ -80,6 +80,8 @@ class AssignRuntimeNode(MastRuntimeNode):
             value = task.eval_code(node.code)
             if node.is_await and isinstance(value, Promise):
                 self.promise = value
+            elif isinstance(value, str):
+                value = task.compile_and_format_string(value)
         
             
         if self.promise:
