@@ -4,7 +4,7 @@ from ..gui import Gui, Page
 from ..helpers import FakeEvent, FrameContext
 from ..procedural.inventory import get_inventory_value, set_inventory_value, has_inventory_value
 from ..procedural.links import linked_to
-from ..procedural.gui import gui_reroute_client, apply_control_styles
+from ..procedural.gui import gui_reroute_client, apply_control_styles, get_client_aspect_ratio
 from ..procedural.execution import log
 from ..agent import Agent
 from ..pages.layout import layout
@@ -381,7 +381,11 @@ class StoryPage(Page):
         # Ok we're on a ship, on a console
         #
         _layout = layout.Layout(self.get_tag(), None, 20,0, 100, 3)
-        _row = layout.Row(height=3)
+        _row = layout.Row()
+        #
+        # MAKE the tab button 40px
+        #
+        apply_control_styles(".row", "row-height:35px", _row, self.gui_task)
         _layout.add(_row)
 
         # Make spots for a certain amount of tabs

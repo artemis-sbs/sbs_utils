@@ -232,7 +232,10 @@ def route_gui_navigate(path, label):
         path: (str): The navigation path to extend
         label (label): The label to run
     """
-    path = f"gui/{path}"
+    if path == "":
+        path = "gui"
+    elif not path.startswith("gui"):
+        path = f"gui/{path}"
     path_labels = ButtonPromise.navigation_map.get(path)
     if path_labels is None:
         path_labels = set()
