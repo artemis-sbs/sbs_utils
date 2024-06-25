@@ -10,7 +10,7 @@ footer: 'Copyleft'
 
 ![bg left:40% 80%](https://marp.app/assets/marp.svg)
 
-# **The Making of Artemis: Cosmos**
+# **Marp**
 
 Markdown Presentation Ecosystem
 
@@ -43,11 +43,11 @@ foobar
 - Three
 
 ---
-# Architecture Layers
+![bg left](https://picsum.photos/720?image=29)
 
-![auto](./assets/arch_layers.jpg)
+# Split backgrounds
 
-
+The space of a slide content will shrink to the right side.
 
 ---
 

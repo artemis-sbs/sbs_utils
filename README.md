@@ -80,3 +80,44 @@ Post EA3 stuff
 - add gui_canvas
 - add gui_text_area
 
+
+``` py
+//spawn if has_roles(SPAWNED_ID, "monster, typhon, classic")
+
+-- ai_loop
+->END if  not object_exists(SPAWNED_ID)
+
+_target = closest(SPAWNED_ID, broad_test_around(SPAWNED_ID, 5000,5000, 0xf0)-role("__terrain__")-role("monster"))
+if _target is None:
+    clear_target(SPAWNED_ID)
+else:
+    #print("Typhon hunting")
+    target(SPAWNED_ID, _target)
+
+await delay_sim(seconds=5)
+
+jump ai_loop
+```
+
+``` py
+@spawn
+def monster_ai():
+    task = FrameContext.task
+    SPAWNED_ID = task.get_variable("SPAWNED_ID")
+
+    if not has_roles(SPAWNED_ID, "monster, typhon, classic"):
+        yield PollResults.OK_FAIL
+
+    if  not object_exists(SPAWNED_ID):
+        yield POllResults.OK_END
+
+    _target = closest(SPAWNED_ID, broad_test_around(SPAWNED_ID, 5000,5000, 0xf0)-role("__terrain__")-role("monster"))
+    if _target is None:
+        clear_target(SPAWNED_ID)
+    else:
+        #print("Typhon hunting")
+        target(SPAWNED_ID, _target)
+
+    yield AWAIT(delay_sim(seconds=5))
+    yield jump(monster_ai)
+```

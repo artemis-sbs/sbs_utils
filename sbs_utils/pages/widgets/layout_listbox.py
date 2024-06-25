@@ -480,6 +480,7 @@ class LayoutListbox(layout.Column):
         self.selected = set()
         if v is not None:
             self.selected.add(v)
+            self.cur = v
 
         self.redraw_if_showing()
     
