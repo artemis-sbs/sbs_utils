@@ -26,8 +26,6 @@ def follow_route_select_science (origin_id, selected_id):
     Args:
         origin_id (agent): The agent id of the player ship
         selected_id (agent): The agent id of the target space object"""
-def is_pymast_label (func):
-    ...
 def route_change_console (label):
     """called when a  change console button is pressed.
     
@@ -50,18 +48,6 @@ def route_collision_object (label):
     
     Returns:
         The route: Used rarely to cancel the route"""
-def route_comms_focus (label):
-    """called when comms changes selection.
-    
-    Note:
-        The label called should not be long running.
-        Use route_select_comms for long running tasks.
-    
-    Args:
-        label (label): The label to run
-    
-    Returns:
-        The route: Used rarely to cancel the route"""
 def route_comms_navigate (path, label):
     """called to extend a comms navigation
     
@@ -69,25 +55,14 @@ def route_comms_navigate (path, label):
     Args:
         path: (str): The navigation path to extend
         label (label): The label to run"""
-def route_point_comms (label):
-    """called when a a point event occurs in comms.
+def route_console_mainscreen_change (label):
+    """called when a  change to the main screen view occurs
     
     Note:
-        No know use for this currently
+        Typically this redirects the console gui to a gui_console
     
     Args:
         label (label): The label to run
-    
-    Returns:
-        The route: Used rarely to cancel the route"""
-def route_select_comms (label):
-    """called when comms changes selection.
-    Note:
-        Typically used to run a task that uses an await comms
-    
-    Args:
-        label (label): The label to run
-    
     
     Returns:
         The route: Used rarely to cancel the route"""
@@ -146,7 +121,19 @@ def route_dock (label):
     
     Returns:
         The route: Used rarely to cancel the route"""
-def route_grid_focus (label):
+def route_focus_comms (label):
+    """called when comms changes selection.
+    
+    Note:
+        The label called should not be long running.
+        Use route_select_comms for long running tasks.
+    
+    Args:
+        label (label): The label to run
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
+def route_focus_grid (label):
     """called when engineering grid changes selection.
     
     Note:
@@ -158,11 +145,53 @@ def route_grid_focus (label):
     
     Returns:
         The route: Used rarely to cancel the route"""
+def route_focus_science (label):
+    """called when science changes selection.
+    
+    Note:
+        The label called should not be long running.
+        Use route_select_science for long running tasks.
+    
+    Args:
+        label (label): The label to run
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
+def route_focus_weapons (label):
+    """called when weapons changes selection.
+    
+    Note:
+        The label called should not be long running.
+        Use route_select_weapons for long running tasks.
+    
+    Args:
+        label (label): The label to run
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
+def route_gui_navigate (path, label):
+    """called to extend a gui navigation
+    
+    
+    Args:
+        path: (str): The navigation path to extend
+        label (label): The label to run"""
 def route_object_grid (label):
     """called when a grid object event occurs. i.e. grid object reached a location.
     
     Note:
         Typically not a long running task
+    
+    Args:
+        label (label): The label to run
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
+def route_point_comms (label):
+    """called when a a point event occurs in comms.
+    
+    Note:
+        No know use for this currently
     
     Args:
         label (label): The label to run
@@ -180,98 +209,11 @@ def route_point_grid (label):
     
     Returns:
         The route: Used rarely to cancel the route"""
-def route_select_grid (label):
-    """called when grid changes selection.
-    
-    Note:
-        Typically used to run a task that uses an await comms
-    
-    Args:
-        label (label): The label to run
-    
-    Returns:
-        The route: Used rarely to cancel the route"""
-def route_grid_spawn (label):
-    """called when a grid_object is spawned.
-    
-    Args:
-        label (label): The label to run
-    
-    Returns:
-        The route: Used rarely to cancel the route"""
-def route_gui_navigate (path, label):
-    """called to extend a gui navigation
-    
-    
-    Args:
-        path: (str): The navigation path to extend
-        label (label): The label to run"""
-def route_main_screen_change (label):
-    """called when a  change to the main screen view occurs
-    
-    Note:
-        Typically this redirects the console gui to a gui_console
-    
-    Args:
-        label (label): The label to run
-    
-    Returns:
-        The route: Used rarely to cancel the route"""
-def route_science_focus (label):
-    """called when science changes selection.
-    
-    Note:
-        The label called should not be long running.
-        Use route_select_science for long running tasks.
-    
-    Args:
-        label (label): The label to run
-    
-    Returns:
-        The route: Used rarely to cancel the route"""
-def route_science_navigate (path, label):
-    """called to extend a gui navigation
-    
-    
-    Args:
-        path: (str): The navigation path to extend
-        label (label): The label to run"""
 def route_point_science (label):
     """called when a a point event occurs in science by clicking the 2d view.
     
     Note:
         This is not intended for long running tasks
-    
-    Args:
-        label (label): The label to run
-    
-    Returns:
-        The route: Used rarely to cancel the route"""
-def route_select_science (label):
-    """called when science changes selection.
-    
-    Note:
-        Typically used to run a task that uses an await scan
-    
-    Args:
-        label (label): The label to run
-    
-    Returns:
-        The route: Used rarely to cancel the route"""
-def route_spawn (label):
-    """called when a space_object is spawned.
-    
-    Args:
-        label (label): The label to run
-    
-    Returns:
-        The route: Used rarely to cancel the route"""
-def route_weapons_focus (label):
-    """called when weapons changes selection.
-    
-    Note:
-        The label called should not be long running.
-        Use route_select_weapons for long running tasks.
     
     Args:
         label (label): The label to run
@@ -289,6 +231,46 @@ def route_point_weapons (label):
     
     Returns:
         The route: Used rarely to cancel the route"""
+def route_science_navigate (path, label):
+    """called to extend a gui navigation
+    
+    
+    Args:
+        path: (str): The navigation path to extend
+        label (label): The label to run"""
+def route_select_comms (label):
+    """called when comms changes selection.
+    Note:
+        Typically used to run a task that uses an await comms
+    
+    Args:
+        label (label): The label to run
+    
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
+def route_select_grid (label):
+    """called when grid changes selection.
+    
+    Note:
+        Typically used to run a task that uses an await comms
+    
+    Args:
+        label (label): The label to run
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
+def route_select_science (label):
+    """called when science changes selection.
+    
+    Note:
+        Typically used to run a task that uses an await scan
+    
+    Args:
+        label (label): The label to run
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
 def route_select_weapons (label):
     """called when weapons changes selection.
     
@@ -300,16 +282,22 @@ def route_select_weapons (label):
     
     Returns:
         The route: Used rarely to cancel the route"""
-def task_schedule (label, data=None, var=None):
-    """create an new task and start running at the specified label
+def route_spawn (label):
+    """called when a space_object is spawned.
     
     Args:
-        label (str or label): The label to run
-        data (duct, optional): Data to initialie task variables. Defaults to None.
-        var (str, optional): Set the variable to the task created. Defaults to None.
+        label (label): The label to run
     
     Returns:
-        MastAsyncTask : The MAST task created"""
+        The route: Used rarely to cancel the route"""
+def route_spawn_grid (label):
+    """called when a grid_object is spawned.
+    
+    Args:
+        label (label): The label to run
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
 def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     """converts item passed to an agent id
     

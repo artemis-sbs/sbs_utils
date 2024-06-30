@@ -51,7 +51,7 @@ def gui_add_console_tab (id_or_obj, console, tab_name, label):
         console (str): Console name
         tab_name (str): Tab name
         label (label): Label to run when tab selected"""
-def gui_blank (count=1,style=None):
+def gui_blank (count=1, style=None):
     """adds an empty column to the current gui ow
     
     Args:
@@ -298,7 +298,7 @@ def gui_layout_widget (widget):
     
     Returns:
         layout element: The layout element"""
-def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False):
+def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False):
     ...
 def gui_message (layout_item):
     """Trigger to watch when the specified layout element has a message
@@ -462,6 +462,18 @@ def gui_update (tag, props, shared=False, test=None):
         test (dict, optional): Check the variable (key) update if any value is different than the test. Defaults to None."""
 def gui_update_shared (tag, props, test=None):
     ...
+def gui_update_widget_list (add_widgets=None, remove_widgets=None):
+    """Set the engine widget list. i.e. controls engine controls
+    
+    Args:
+        console (str): The console type name
+        widgets (str): The list of widgets"""
+def gui_update_widgets (add_widgets, remove_widgets):
+    """Set the engine widget list. i.e. controls engine controls
+    
+    Args:
+        console (str): The console type name
+        widgets (str): The list of widgets"""
 def gui_vradio (msg, style=None, var=None, data=None):
     """Draw a vertical radio button list
     
@@ -498,6 +510,8 @@ def task_all (*args, **kwargs):
         data (dict): keyword arg to pass data to the tasks.
     Returns:
         Promise: A promise that is finished when all tasks are completed."""
+def text_sanitize (text):
+    ...
 def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     """converts item passed to an agent id
     
@@ -527,6 +541,10 @@ class ButtonPromise(AwaitBlockPromise):
     def poll (self):
         ...
     def press_button (self, button):
+        ...
+    def pressed_set_values (self):
+        ...
+    def pressed_test (self):
         ...
     def set_path (self, path):
         ...

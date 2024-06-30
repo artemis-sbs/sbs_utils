@@ -8,12 +8,12 @@ from sbs_utils.mast.mastscheduler import MastScheduler
 from sbs_utils.mast.mastobjects import MastSpaceObject
 from sbs_utils.pages.widgets.shippicker import ShipPicker
 def func(*argv):
-    """assign_client_to_ship(clientComputerID: int, controlledShipID: int) -> None
+    """assign_client_to_alt_ship(clientComputerID: int, controlledShipID: int) -> None
     
-    Tells a client computer which ship it should control."""
+    Tells a client computer that the 2d radar should focus on controlledShipID, instead of its assigned ship.  Turn this code off by providing zero as the second argument."""
 def handle_purge_tasks (so):
     """This will clear out all tasks related to the destroyed item"""
-def layout_list_box_control (items, template_func=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False):
+def layout_list_box_control (items, template_func=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False):
     ...
 def mast_assert (cond):
     ...

@@ -1,16 +1,17 @@
 from sbs_utils.helpers import FakeEvent
 from sbs_utils.helpers import FrameContext
+from sbs_utils.mast.mast import Label
 from sbs_utils.mast.parsers import LayoutAreaParser
 def apply_control_styles (control_name, extra_style, layout_item, task):
     ...
 def get_client_aspect_ratio (cid):
     ...
-def layout_list_box_control (items, template_func=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False):
+def layout_list_box_control (items, template_func=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False):
     ...
 class LayoutListbox(Column):
     """A widget to list things passing function/lamdas to get the data needed for option display of
     a template """
-    def __init__ (self, left, top, tag_prefix, items, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False) -> None:
+    def __init__ (self, left, top, tag_prefix, items, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
     def _present (self, event):
         """present

@@ -302,12 +302,18 @@ class ConsoleDispatcher:
             return
         
         ship_id = event.origin_id
-        alt_ship = get_inventory_value(event.client_id, f"{event.value_tag}_alt_ship", 0)
-        if alt_ship is not None and alt_ship != 0:
-            ship_id = alt_ship
-        my_ship = FrameContext.context.sim.get_space_object(ship_id)
+        main_ship = FrameContext.context.sim.get_space_object(ship_id)
 
-        blob = my_ship.data_set
+        #alt_ship = get_inventory_value(event.client_id, f"{event.value_tag}_alt_ship", 0)
+        #if alt_ship is not None and alt_ship != 0:
+        #    ship_id = alt_ship
+        #    alt_ship = FrameContext.context.sim.get_space_object(ship_id)
+
+        blob = None
+        if main_ship is None:
+            return
+        
+        blob = main_ship.data_set
         target = event.selected_id
         
 

@@ -8,6 +8,8 @@ def app_minutes() -> int:
     ...
 def app_seconds() -> int:
     ...
+def assign_client_to_alt_ship(clientComputerID: int, controlledShipID: int) -> None:
+    """Tells a client computer that the 2d radar should focus on controlledShipID, instead of its assigned ship.  Turn this code off by providing zero as the second argument."""
 def assign_client_to_ship(clientComputerID: int, controlledShipID: int) -> None:
     """Tells a client computer which ship it should control."""
 def broad_test(lx: float, lz: float, mx: float, mz: float, abits: int) -> List[sbs.space_object]:
@@ -60,6 +62,12 @@ def get_shared_string(key: str) -> str:
     """gets a shared string, given the key (itself a string).  Shared strings are automatically copied from server to all clients."""
 def get_ship_of_client(clientID: int) -> int:
     """returns the player ship ID assigned to the client computer"""
+def get_text_block_height(fontTag: str, textToMeasure: str, width: int) -> int:
+    """for a font key, a string of (possibly) multiline text, and a pixel width, this returns the height of the drawn text."""
+def get_text_line_height(fontTag: str, textToMeasure: str) -> int:
+    """for a font key and a text string (one line, no wrapping), this returns the height of the drawn text."""
+def get_text_line_width(fontTag: str, textToMeasure: str) -> int:
+    """for a font key and a text string (one line, no wrapping), this returns the width of the drawn text."""
 def get_type_of_client(clientID: int) -> str:
     """returns the consoleType perviously assigned to the client computer"""
 def hide_gui_tag(clientID: int, tag: str) -> None:
@@ -86,6 +94,12 @@ def push_to_standby_list_id(id: int) -> None:
     """moves the spaceobject from normal space to the standby list."""
 def query_client_tags() -> None:
     """stub; does nothing yet."""
+def query_client_widget_state(clientID: int, widgetName: str, fullScreenFlag: int) -> None:
+    """sends a request for the client to send a 'widget_box_state' script event back."""
+def remove_gui_hotkey(clientID: int, tag: str) -> None:
+    """tells the targeted client (0 = server screen) to delete an existing hot key for a certain retained gui element."""
+def request_client_string(clientComputerID: int, string_key: str) -> None:
+    """requests a string value from the client computer.  This results in a script message, 'client_string'"""
 def resume_sim() -> None:
     """the sim will now run; HandleStartMission() and HandleTickMission() are called."""
 def retrieve_from_standby_list(space_object: sbs.space_object) -> None:
@@ -128,6 +142,8 @@ def send_gui_dropdown(clientID: int, parent: str, tag: str, style: str, left: fl
     """Creates a dropdown GUI element, on the targeted client (0 = server screen)"""
 def send_gui_face(clientID: int, parent: str, tag: str, face_string: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a face box GUI element, on the targeted client (0 = server screen)"""
+def send_gui_hotkey(clientID: int, category: str, tag: str, keyType: str, description: str) -> None:
+    """tells the targeted client (0 = server screen) to handle a hot key for a certain retained gui element."""
 def send_gui_icon(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates an icon art GUI element, on the targeted client (0 = server screen)"""
 def send_gui_iconbutton(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
@@ -150,10 +166,14 @@ def send_message_to_client(clientID: int, colorDesc: str, text: str) -> None:
     """sends a text message to the text box, for the specific client. args:  uint64 clientID (0 = server screen), std::string color, std::string text"""
 def send_message_to_player_ship(playerID: int, colorDesc: str, text: str) -> None:
     """sends a text message to the text box, on every client for a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string text"""
+def send_speech_bubble_to_object(clientComputerID: int, spaceObjectID: int, seconds: int, color: str, text: str) -> None:
+    """attaches a speech bubble to a space object on the 2d radar."""
 def send_story_dialog(clientID: int, title: str, text: str, face: str, color: str) -> None:
     """sends a story dialog to the targeted client (0 = server screen)"""
 def set_beam_damages(clientID: int, playerBeamDamage: float, npcBeamDamage: float) -> None:
     """sets the values for player base beam damage, and npc base beam damage.  Per client, or all clients + server (if ID = 0)."""
+def set_client_string(clientComputerID: int, string_key: str, string_value: str) -> None:
+    """stores a string value (and its string key) to the client computer"""
 def set_dmx_channel(clientID: int, channel: int, behavior: int, speed: int, low: int, high: int) -> None:
     """set a color channel of dmx."""
 def set_main_view_modes(clientID: int, main_screen_view: str, cam_angle: str, cam_mode: str) -> None:
@@ -231,6 +251,9 @@ class event(object): ### from pybind
     def event_time (self: sbs.event) -> int:
         """long int, time this damage occured, compare to simulation.time_tick_counter"""
     @property
+    def extra_extra_tag (self: sbs.event) -> str:
+        """string, even more-more information"""
+    @property
     def extra_tag (self: sbs.event) -> str:
         """string, even more information"""
     @property
@@ -262,6 +285,12 @@ class grid_object(object): ### from pybind
     @property
     def data_set (self: sbs.grid_object) -> ObjectDataBlob:
         """object_data_set, read only, reference to the object_data_set of this particular grid object"""
+    @property
+    def layer (self: sbs.grid_object) -> int:
+        """int, layers to help draw different grid-objects correctly.  (recommend 0-8, with 0 being lowest)"""
+    @layer.setter
+    def layer (self: sbs.grid_object, arg0: int) -> None:
+        """int, layers to help draw different grid-objects correctly.  (recommend 0-8, with 0 being lowest)"""
     @property
     def name (self: sbs.grid_object) -> str:
         """string, text name"""
@@ -501,6 +530,8 @@ class simulation(object): ### from pybind
         """Given a source ship and a target ship, this returns the shield (index) that would be hit by a hypothetical beam. -1 if the target ship has no shield facings."""
     def get_space_object(self: sbs.simulation, arg0: int) -> sbs.space_object:
         """returns the reference to a spaceobject, by ID"""
+    def is_paused(self: sbs.simulation) -> bool:
+        """returns True if the game is currently running."""
     def navpoint_exists(self: sbs.simulation, text: str) -> bool:
         """returns true if the navpoint exists, by name"""
     def navpoint_exists_ref(self: sbs.simulation, a: sbs.navpoint) -> bool:

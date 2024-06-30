@@ -14,7 +14,6 @@ from ..procedural import query
 from ..procedural import links
 from ..procedural import inventory
 
-
 from .. import vec
 
 #

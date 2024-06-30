@@ -177,6 +177,9 @@ class Page(object):
         """present
         
         Called to have the page create and update the gui content it is presenting"""
+    @property
+    def task (self):
+        ...
     def tick_gui_task (self):
         """tick_gui_task
         

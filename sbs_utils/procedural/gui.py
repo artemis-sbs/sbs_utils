@@ -1554,7 +1554,7 @@ class ButtonPromise(AwaitBlockPromise):
 
     def build_navigation_buttons(self):
         self.nav_buttons = []
-        # print(f"Build Nav Buttons {self.path}")
+        #print(f"gui Build Nav Buttons {self.path}")
         path_labels = ButtonPromise.navigation_map.get(self.path)
         if path_labels is None:
             return

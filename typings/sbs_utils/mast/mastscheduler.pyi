@@ -4,11 +4,14 @@ from sbs_utils.mast.mast import Await
 from sbs_utils.mast.mast import AwaitInlineLabel
 from sbs_utils.mast.mast import Button
 from sbs_utils.mast.mast import Comment
+from sbs_utils.mast.mast import DecoratorLabel
+from sbs_utils.mast.mast import DescribableNode
 from sbs_utils.mast.mast import ExpParseData
 from sbs_utils.mast.mast import FuncCommand
 from sbs_utils.mast.mast import IfStatements
 from sbs_utils.mast.mast import Import
 from sbs_utils.mast.mast import InlineData
+from sbs_utils.mast.mast import InlineLabel
 from sbs_utils.mast.mast import Jump
 from sbs_utils.mast.mast import Label
 from sbs_utils.mast.mast import LoopBreak
@@ -21,11 +24,13 @@ from sbs_utils.mast.mast import MatchStatements
 from sbs_utils.mast.mast import OnChange
 from sbs_utils.mast.mast import ParseData
 from sbs_utils.mast.mast import PyCode
+from sbs_utils.mast.mast import RouteDecoratorLabel
 from sbs_utils.mast.mast import Rule
 from sbs_utils.mast.mast import Scope
 from sbs_utils.mast.mast import WithEnd
 from sbs_utils.mast.mast import WithStart
 from sbs_utils.mast.mast import Yield
+from sbs_utils.procedural.gui import ButtonPromise
 from enum import Enum
 from enum import IntEnum
 from sbs_utils.helpers import FrameContext
@@ -35,6 +40,12 @@ from sbs_utils.futures import Trigger
 from sbs_utils.futures import Waiter
 from zipfile import ZipFile
 from functools import partial
+def STRING_REGEX_NAMED (name):
+    ...
+def STRING_REGEX_NAMED_2 (name):
+    ...
+def STRING_REGEX_NAMED_3 (name):
+    ...
 def find_exp_end (s, expect_block):
     ...
 def first_newline_index (s):
@@ -56,6 +67,8 @@ def getmembers (object, predicate=None):
 def isfunction (object):
     ...
 def mast_print (*args, **kwargs):
+    ...
+def signature (obj, *, follow_wrapped=True, globals=None, locals=None, eval_str=False):
     ...
 class AssignRuntimeNode(MastRuntimeNode):
     """class AssignRuntimeNode"""
@@ -101,6 +114,8 @@ class IfStatementsRuntimeNode(MastRuntimeNode):
         ...
     def poll (self, mast, task, node: 'IfStatements'):
         ...
+class InlineLabelRuntimeNode(MastRuntimeNode):
+    """class InlineLabelRuntimeNode"""
 class JumpRuntimeNode(MastRuntimeNode):
     """class JumpRuntimeNode"""
     def poll (self, mast: 'Mast', task: 'MastAsyncTask', node: 'Jump'):
@@ -258,6 +273,8 @@ class MastScheduler(Agent):
         ...
     def get_as (id, as_cls):
         ...
+    def get_inventory_value (self, collection_name, default=None):
+        ...
     def get_objects_from_set (the_set):
         ...
     def get_role_object (link_name):
@@ -268,8 +285,10 @@ class MastScheduler(Agent):
         ...
     def get_seconds (self, clock):
         """Gets time for a given clock default is just system """
-    def get_value (self, key, defa=None):
+    def get_symbols (self):
         ...
+    def get_value (self, key, defa=None):
+        """MastStoryScheduler completely overrided this so changes here should go there"""
     def get_variable (self, key, defa=None):
         ...
     def has_inventory_list (collection_name):
@@ -289,6 +308,10 @@ class MastScheduler(Agent):
     def resolve_py_object (other: 'Agent | CloseData | int'):
         ...
     def runtime_error (self, message):
+        ...
+    def set_inventory_value (self, collection_name, value):
+        ...
+    def set_value (self, key, value, scope):
         ...
     def set_variable (self, key):
         ...
@@ -332,6 +355,8 @@ class MatchStatementsRuntimeNode(MastRuntimeNode):
         ...
 class OnChangeRuntimeNode(MastRuntimeNode):
     """class OnChangeRuntimeNode"""
+    def dequeue (self):
+        ...
     def enter (self, mast: 'Mast', task: 'MastAsyncTask', node: 'OnChange'):
         ...
     def poll (self, mast: 'Mast', task: 'MastAsyncTask', node: 'OnChange'):

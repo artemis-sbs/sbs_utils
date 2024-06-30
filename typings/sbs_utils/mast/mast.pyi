@@ -2,6 +2,12 @@ from sbs_utils.agent import Agent
 from enum import Enum
 from sbs_utils.helpers import FrameContext
 from zipfile import ZipFile
+def STRING_REGEX_NAMED (name):
+    ...
+def STRING_REGEX_NAMED_2 (name):
+    ...
+def STRING_REGEX_NAMED_3 (name):
+    ...
 def find_exp_end (s, expect_block):
     ...
 def first_newline_index (s):
@@ -19,6 +25,8 @@ def getmembers (object, predicate=None):
 def isfunction (object):
     ...
 def mast_print (*args, **kwargs):
+    ...
+def signature (obj, *, follow_wrapped=True, globals=None, locals=None, eval_str=False):
     ...
 class Assign(MastNode):
     """class Assign"""
@@ -51,7 +59,7 @@ class AwaitInlineLabel(MastNode):
         ...
 class Button(MastNode):
     """class Button"""
-    def __init__ (self, message=None, button=None, color=None, if_exp=None, for_name=None, for_exp=None, clone=False, q=None, label=None, new_task=None, task_data=None, path=None, loc=None, compile_info=None):
+    def __init__ (self, message=None, button=None, if_exp=None, format=None, label=None, clone=False, q=None, new_task=None, data=None, path=None, block=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def been_here (self, id_tuple):
         ...
@@ -65,6 +73,10 @@ class Button(MastNode):
         ...
     def parse (lines):
         ...
+    def resolve_data_context (self, task):
+        ...
+    def run (self, task, button_promise):
+        ...
     def should_present (self, id_tuple):
         ...
     def visit (self, id_tuple):
@@ -73,6 +85,33 @@ class Comment(MastNode):
     """class Comment"""
     def __init__ (self, com=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
+class DecoratorLabel(Label):
+    """class DecoratorLabel"""
+    def __init__ (self, name, loc=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def can_fallthrough (self):
+        ...
+    def generate_label_begin_cmds (self, compile_info=None):
+        ...
+    def generate_label_end_cmds (self, compile_info=None):
+        ...
+    def next_label_id ():
+        ...
+    def parse (lines):
+        ...
+class DescribableNode(MastNode):
+    """class DescribableNode"""
+    def __init__ (self):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def add_option (self, prefix, text):
+        ...
+    def append_text (self, prefix, text):
+        ...
+    @property
+    def desc (self):
+        ...
     def parse (lines):
         ...
 class ExpParseData(object):
@@ -111,17 +150,31 @@ class InlineData(object):
     """class InlineData"""
     def __init__ (self, start, end):
         """Initialize self.  See help(type(self)) for accurate signature."""
-class Jump(MastNode):
-    """class Jump"""
-    def __init__ (self, pop=None, jump=None, jump_name=None, if_exp=None, args=None, loc=None, compile_info=None):
+class InlineLabel(MastNode):
+    """class InlineLabel"""
+    def __init__ (self, name, m=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
-class Label(MastNode):
+class Jump(MastNode):
+    """class Jump"""
+    def __init__ (self, pop=None, jump=None, jump_name=None, if_exp=None, data=None, loc=None, compile_info=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def parse (lines):
+        ...
+class Label(DescribableNode):
     """class Label"""
     def __init__ (self, name, replace=None, m=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def add_child (self, cmd):
+        ...
+    def add_label (self, name, label):
+        ...
+    def can_fallthrough (self):
+        ...
+    def generate_label_begin_cmds (self, compile_info=None):
+        ...
+    def generate_label_end_cmds (self, compile_info=None):
         ...
     def parse (lines):
         ...
@@ -153,23 +206,25 @@ class Mast(object):
     """class Mast"""
     def __init__ (self, cmds=None, is_import=False):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def _compile (self, lines, file_name):
+    def _compile (self, lines, file_name, root):
         ...
     def add_scheduler (self, scheduler):
         ...
     def clear (self, file_name):
         ...
-    def compile (self, lines, file_name):
+    def compile (self, lines, file_name, root):
         ...
     def content_from_lib_or_file (self, file_name, lib_name):
         ...
     def enable_logging ():
         ...
-    def from_file (self, file_name, lib_name=None):
+    def find_imports (self, folder):
+        ...
+    def from_file (self, file_name, root, lib_name=None):
         """Docstring"""
     def get_source_file_name (file_num):
         ...
-    def import_content (self, filename, lib_file):
+    def import_content (self, filename, root, lib_file):
         ...
     def import_python_module (mod_name, prepend=None):
         ...
@@ -213,6 +268,9 @@ class MastNode(object):
         ...
     def is_indentable (self):
         ...
+    def is_virtual (self):
+        """Virtual nodes are not added to the command stack
+        instead the interact with other nodes"""
     def parse (lines):
         ...
     def post_dedent (self, compile_info):
@@ -247,12 +305,26 @@ class PyCode(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
+class RouteDecoratorLabel(DecoratorLabel):
+    """class RouteDecoratorLabel"""
+    def __init__ (self, path, if_exp=None, loc=None, compile_info=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def can_fallthrough (self):
+        ...
+    def generate_label_begin_cmds (self, compile_info=None):
+        ...
+    def generate_label_end_cmds (self, compile_info=None):
+        ...
+    def parse (lines):
+        ...
 class Rule(object):
     """class Rule"""
     def __init__ (self, re, cls):
         """Initialize self.  See help(type(self)) for accurate signature."""
 class Scope(Enum):
     """class Scope"""
+    ASSIGNED : 20
+    CLIENT : 10
     NORMAL : 2
     SHARED : 1
     TEMP : 99

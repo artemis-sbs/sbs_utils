@@ -6,6 +6,8 @@ def get_task_id ():
     ...
 class Agent(object):
     """class Agent"""
+    def __getitem__ (self, index):
+        ...
     def __init__ (self):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def _add (id, obj):

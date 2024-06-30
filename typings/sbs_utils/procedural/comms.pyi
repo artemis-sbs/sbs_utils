@@ -72,6 +72,17 @@ def comms_receive_internal (msg, ids_or_obj=None, from_name=None, title=None, fa
         face (str, optional): The face string of the face to use. Defaults to None.
         color (str, optional): The body text color. Defaults to "#fff".
         title_color (str, optional): The title text color. Defaults to None."""
+def comms_speech_bubble (msg, seconds=3, color='#fff', client_id=None, selected_id=None):
+    """Transmits a message from a player ship
+    It uses the current context to determine the sender and receiver.
+    typically from the event that it being handled provide the context.
+    
+    Args:
+        msg (str): The message to send
+        title (str, optional):The title text. Defaults to None.
+        face (str, optional): The face string of the face to use. Defaults to None.
+        color (str, optional): The body text color. Defaults to "#fff".
+        title_color (str, optional): The title text color. Defaults to None."""
 def comms_transmit (msg, title=None, face=None, color='#fff', title_color=None):
     """Transmits a message from a player ship
     It uses the current context to determine the sender and receiver.
@@ -126,6 +137,10 @@ class CommsPromise(ButtonPromise):
     def leave (self):
         ...
     def poll (self):
+        ...
+    def pressed_set_values (self):
+        ...
+    def pressed_test (self):
         ...
     def process_on_change (self):
         ...

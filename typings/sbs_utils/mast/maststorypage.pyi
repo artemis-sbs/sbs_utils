@@ -3,9 +3,12 @@ from sbs_utils.helpers import FakeEvent
 from sbs_utils.helpers import FrameContext
 from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
+from sbs_utils.mast.maststory import GuiTabDecoratorLabel
 from sbs_utils.mast.maststory import MastStory
 from sbs_utils.mast.maststoryscheduler import StoryScheduler
 def apply_control_styles (control_name, extra_style, layout_item, task):
+    ...
+def get_client_aspect_ratio (cid):
     ...
 def get_inventory_value (id_or_object, key, default=None):
     """get inventory value with the given key the the agent  has
@@ -108,6 +111,9 @@ class StoryPage(Page):
     def start_story (self, client_id):
         ...
     def swap_layout (self):
+        ...
+    @property
+    def task (self):
         ...
     def tick_gui_task (self):
         """tick_gui_task

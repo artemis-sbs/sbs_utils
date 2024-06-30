@@ -25,7 +25,9 @@ def app_seconds() -> int:
     seconds += 1
     return seconds
     ...
-def assign_client_to_ship(arg0: int, arg1: int) -> None:
+def assign_client_to_alt_ship(clientComputerID: int, controlledShipID: int) -> None:
+    """Tells a client computer that the 2d radar should focus on controlledShipID, instead of its assigned ship.  Turn this code off by providing zero as the second argument."""
+def assign_client_to_ship(clientComputerID: int, controlledShipID: int) -> None:
     """Tells a client computer which ship it should control."""
 def broad_test(x1: float, z1: float, x2: float, z2: float, tick_type: int) -> List[space_object]:
     """return a list of space objects that are currently inside an x/z 2d rect  ARGS: 2D bounding rect, and type value (0, 1, or 2, -1 = all)"""

@@ -133,7 +133,7 @@ class ScanPromise(ButtonPromise):
         path = f"science"
         super().__init__(path, task, timeout)
         self.path_root = "science"
-
+        
         self.expanded_buttons = None
 
         self.origin_id = task.get_variable("SCIENCE_ORIGIN_ID")
@@ -148,9 +148,6 @@ class ScanPromise(ButtonPromise):
     def initial_poll(self):
         if self._initial_poll:
             return
-        
-        if self.expanded_buttons is None:
-            self.expanded_buttons = self.get_expanded_buttons()
         self.show_buttons()
         super().initial_poll()
 
@@ -173,16 +170,16 @@ class ScanPromise(ButtonPromise):
 
 
     def check_for_button_done(self):
-        self.show_buttons()
-        if not self.scan_is_done:
-            return
-        #
-        # THIS sets the promise to finish 
-        # after you let the button process
-        # science will override this to 
-        # keep going until all scanned
-        if self.running_button:
-            self.set_result(self.running_button)
+        pass
+        # if not self.scan_is_done:
+        #     return
+        # #
+        # # THIS sets the promise to finish 
+        # # after you let the button process
+        # # science will override this to 
+        # # keep going until all scanned
+        # if self.running_button:
+        #     self.set_result(self.running_button)
 
     def cancel_if_no_longer_exists(self):
         oo = to_object(self.origin_id)
@@ -203,19 +200,22 @@ class ScanPromise(ButtonPromise):
         if not self.done():
             #print(f"SCIENCE MESSAGE {event.extra_tag}")
             self.process_tab()
+        else:
+            #print(f"SKIPPED SCIENCE MESSAGE {event.extra_tag}")
+            pass
 
     def process_tab(self):
         if self.tab is not None:
+            self.button = None
             for i, button in enumerate(self.expanded_buttons):
                 if self.task.format_string(button.message) == self.tab:
                     self.button = button
                     #self.button = None # Don't let default process the button
-
+            # if self.button is None:
+            #     print(f"No button for {self.tab} {len(self.expanded_buttons)}")
             so_player = query.to_object(self.origin_id)
             if so_player:
                 self.tab = so_player.side+self.tab
-
-            task = self.task
             self.task.set_variable("__SCAN_TAB__", self)
         
     def science_selected(self, event):
@@ -226,10 +226,8 @@ class ScanPromise(ButtonPromise):
             self.selected_id != event.selected_id:
             return
         self.run_focus = True
+        self.show_buttons()
         self.cancel_if_no_longer_exists()
-        
-        #if not self.done():
-        #    self.start_scan(event.origin_id, event.selected_id, event.extra_tag)
 
     def start_scan(self, origin_id, selected_id, extra_tag):
         return
@@ -283,58 +281,60 @@ class ScanPromise(ButtonPromise):
         if sel_so is None or origin_so is None:
             return
 
-        if sel_so is not None:
-            scan_tab = origin_so.side+"scan"
-            #
-            # Have scans ever occurred
-            # If so just do the scan tab
-            #
-            has_scan = sel_so.data_set.get(scan_tab,0)
-            if has_scan is None:
-                scan_tabs = "scan"
-                self.scan_is_done = False
-            else:
-                scan_tabs = ""
-                scanned_tabs = 0
-                button_count = 0
-                for button in self.expanded_buttons:
-                    value = True
-                    if button.code is not None:
-                        value = self.task.eval_code(button.code)
-                    if value:
-                        button_count += 1
-                        msg = self.task.format_string(button.message).strip()
-                        # scan always first
-                        if  "scan" == msg:
-                            if len(scan_tabs) >= 0:
-                                scan_tabs = msg +","+scan_tabs
-                            else:
-                                scan_tabs = "scan"
-                        else:
-                            if len(scan_tabs) >= 0:
-                                scan_tabs +=","
-                            scan_tabs += msg
 
-                        # Check if this has been scanned
-                        has_scan = sel_so.data_set.get(origin_so.side+msg, 0)
-                        if has_scan:
-                            scanned_tabs += 1
-                self.scan_is_done = scanned_tabs == button_count
-                sel_so.data_set.set("scan_type_list", scan_tabs, 0)
+        scan_tab = origin_so.side+"scan"
+        #
+        # Have scans ever occurred
+        # If so just do the scan tab
+        #
+        has_scan = sel_so.data_set.get(scan_tab,0)
+        self.expanded_buttons = self.get_expanded_buttons()
+
+        if has_scan is None or has_scan == "no data":
+            #print(f"has scan {has_scan}")
+            scan_tabs = "scan"
+            self.scan_is_done = False
+        else:
+            #print(f"has scan else {has_scan}")
+            
+            scan_tabs = ""
+            scanned_tabs = 0
+            button_count = 0
+            for button in self.expanded_buttons:
+                value = True
+                if button.code is not None:
+                    value = self.task.eval_code(button.code)
+                if value:
+                    button_count += 1
+                    msg = self.task.format_string(button.message).strip()
+                    # scan always first
+                    if  "scan" == msg:
+                        if len(scan_tabs) >= 0:
+                            scan_tabs = msg +","+scan_tabs
+                        else:
+                            scan_tabs = "scan"
+                    else:
+                        if len(scan_tabs) >= 0:
+                            scan_tabs +=","
+                        scan_tabs += msg
+
+                    # Check if this has been scanned
+                    has_scan = sel_so.data_set.get(origin_so.side+msg, 0)
+                    if has_scan is not None and has_scan != "no data":
+                        scanned_tabs += 1
+            
+                
+            self.scan_is_done = scanned_tabs == button_count
+            # if self.scan_is_done: 
+            #     print(f"Science scan I think I'm done")
+
+        #print(f"Science tabs {scan_tabs}")
+        sel_so.data_set.set("scan_type_list", scan_tabs, 0)
         
         ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'science_target_UID', self.science_selected)
         ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'science_target_UID', self.science_message)
         
-        # routed = self.task.get_variable("SCIENCE_ROUTED")
-        # if routed:
-        #     # Clear routed???
-        #     routed = self.task.set_variable("SCIENCE_ROUTED", False)
-        #     self.event = self.task.get_variable("EVENT")
-        #     if self.event is not None:
-        #         self.start_scan(origin_so.id, sel_so.id, self.event.extra_tag)
-        #     else:
-        #         self.start_scan( origin_so.id, sel_so.id, "__init__")
-
+        
 
 def scan(path=None, buttons=None, timeout=None, auto_side=True):
     """Start a science scan
@@ -352,7 +352,9 @@ def scan(path=None, buttons=None, timeout=None, auto_side=True):
     if buttons is not None:
         for k in buttons:
             ret .buttons.append(Button(k,button="+", label=buttons[k],loc=0))
-        
+    #origin_id = task.get_variable("SCIENCE_ORIGIN_ID")
+    #selected_id = task.get_variable("SCIENCE_SELECTED_ID")
+    #print(f"scan() {origin_id} {selected_id}")
     return ret
 
 def science_add_scan(message, label=None, data=None, path=None):

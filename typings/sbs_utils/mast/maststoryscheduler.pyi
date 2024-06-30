@@ -1,27 +1,50 @@
+from sbs_utils.agent import Agent
 from sbs_utils.mast.maststory import AppendText
+from sbs_utils.mast.maststory import CommsMessageStart
 from sbs_utils.mast.maststory import Text
 from sbs_utils.helpers import FakeEvent
 from sbs_utils.helpers import FrameContext
 from sbs_utils.gui import Gui
-from sbs_utils.mast.parsers import LayoutAreaParser
 from sbs_utils.mast.mast import Mast
+from sbs_utils.mast.mast import Scope
 from sbs_utils.mast.mastscheduler import MastAsyncTask
 from sbs_utils.mast.mastscheduler import MastRuntimeNode
 from sbs_utils.mast.mastscheduler import MastScheduler
-from sbs_utils.mast.pollresults import PollResults
+def comms_receive (msg, title=None, face=None, color='#fff', title_color=None):
+    """Receive a message on a player ship from another ship
+    It uses the current context to determine the sender and receiver.
+    typically from the event that it being handled provide the context.
+    
+    Args:
+        msg (str): The message to send
+        title (str, optional):The title text. Defaults to None.
+        face (str, optional): The face string of the face to use. Defaults to None.
+        color (str, optional): The body text color. Defaults to "#fff".
+        title_color (str, optional): The title text color. Defaults to None."""
+def comms_speech_bubble (msg, seconds=3, color='#fff', client_id=None, selected_id=None):
+    """Transmits a message from a player ship
+    It uses the current context to determine the sender and receiver.
+    typically from the event that it being handled provide the context.
+    
+    Args:
+        msg (str): The message to send
+        title (str, optional):The title text. Defaults to None.
+        face (str, optional): The face string of the face to use. Defaults to None.
+        color (str, optional): The body text color. Defaults to "#fff".
+        title_color (str, optional): The title text color. Defaults to None."""
+def comms_transmit (msg, title=None, face=None, color='#fff', title_color=None):
+    """Transmits a message from a player ship
+    It uses the current context to determine the sender and receiver.
+    typically from the event that it being handled provide the context.
+    
+    Args:
+        msg (str): The message to send
+        title (str, optional):The title text. Defaults to None.
+        face (str, optional): The face string of the face to use. Defaults to None.
+        color (str, optional): The body text color. Defaults to "#fff".
+        title_color (str, optional): The title text color. Defaults to None."""
 def format_exception (message, source):
     ...
-def gui_text (props, style=None):
-    """Add a gui text object
-    
-    valid properties
-        text
-        color
-        font
-    
-    
-    props (str): property string
-    style (style, optional): The style"""
 def gui_text_area (props, style=None):
     """Add a gui text object
     
@@ -33,9 +56,23 @@ def gui_text_area (props, style=None):
     
     props (str): property string
     style (style, optional): The style"""
+def scan_results (message, target=None, tab=None):
+    """Set the scan results for the current scan. This should be called when the scan is completed.
+       This is typically called as part of a scan()
+       This could also be called in response to a routed science message.
+       When pair with a scan() the target and tab are not need.
+       Tab is the variable __SCAN_TAB__, target is track
+    
+    Args:
+        message (str): scan text for a scan the is in progress
+        tab (str): scan tab for a scan the is in progress"""
 class AppendTextRuntimeNode(MastRuntimeNode):
     """class AppendTextRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.AppendText):
+        ...
+class CommsMessageStartRuntimeNode(MastRuntimeNode):
+    """class CommsMessageStartRuntimeNode"""
+    def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.CommsMessageStart):
         ...
 class StoryScheduler(MastScheduler):
     """class StoryScheduler"""
@@ -59,6 +96,17 @@ class StoryScheduler(MastScheduler):
         ...
     def get_role_set (role):
         ...
+    def get_symbols (self):
+        ...
+    def get_value (self, key, defa=None):
+        """_summary_
+        
+        Args:
+            key (_type_): _description_
+            defa (_type_, optional): _description_. Defaults to None.
+        
+        Returns:
+            _type_: _description_"""
     def has_inventory_list (collection_name):
         ...
     def has_inventory_set (collection_name):
@@ -76,6 +124,8 @@ class StoryScheduler(MastScheduler):
     def run (self, client_id, page, label='main', inputs=None, task_name=None, defer=False):
         ...
     def runtime_error (self, message):
+        ...
+    def set_value (self, key, value, scope):
         ...
     def story_tick_tasks (self, client_id):
         ...

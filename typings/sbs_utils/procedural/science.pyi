@@ -48,13 +48,6 @@ def science_set_scan_data (player_id_or_obj, scan_target_id_or_obj, tabs):
         player_id_or_obj (agent): The player ship agent id or object
         scan_target_id_or_obj (agent): The target ship agent id or object
         tabs (dict): A dictionary to key = tab, value = scan string"""
-def science_start_scan (origin_id_or_side, selected_id, tab):
-    """Start the scan for a a science tab
-    
-    Args:
-        origin_id_or_side (agent|str): If a string is passed it used as the player side, otherwise it use this as an agent to determine side
-        selected_id (agent): Agent id or objects
-        tab (str): The tab to start"""
 def show_warning (t):
     ...
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
