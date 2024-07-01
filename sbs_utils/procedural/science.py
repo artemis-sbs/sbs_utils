@@ -152,11 +152,6 @@ class ScanPromise(ButtonPromise):
         super().initial_poll()
 
     def poll(self):
-        # if self.task.get_inventory_value("__SCAN_DONE__", None):
-        #     self.task.set_inventory_value("__SCAN_DONE__", None)
-        #     self.show_buttons()
-        #     if self.scan_is_done:
-        #         self.set_result(True)
         super().poll()
 
     def set_scan_results(self, msg):
@@ -198,7 +193,6 @@ class ScanPromise(ButtonPromise):
         self.cancel_if_no_longer_exists()
         #print(f"SCIENCE MESSAGE {event.extra_tag} {event.tag} {event.sub_tag} ")
         if not self.done():
-            #print(f"SCIENCE MESSAGE {event.extra_tag}")
             self.process_tab()
         else:
             #print(f"SKIPPED SCIENCE MESSAGE {event.extra_tag}")
@@ -290,13 +284,15 @@ class ScanPromise(ButtonPromise):
         has_scan = sel_so.data_set.get(scan_tab,0)
         self.expanded_buttons = self.get_expanded_buttons()
 
-        if has_scan is None or has_scan == "no data":
-            #print(f"has scan {has_scan}")
+        if has_scan is None:
             scan_tabs = "scan"
             self.scan_is_done = False
+        elif has_scan == "no data":
+            scan_tabs = "scan"
+            self.tab = "scan"
+            self.process_tab()
         else:
             #print(f"has scan else {has_scan}")
-            
             scan_tabs = ""
             scanned_tabs = 0
             button_count = 0
@@ -320,6 +316,13 @@ class ScanPromise(ButtonPromise):
 
                     # Check if this has been scanned
                     has_scan = sel_so.data_set.get(origin_so.side+msg, 0)
+                    # if has_scan is None:
+                    #     print("SCAN NOT STARTED")
+                    # elif has_scan == "no data":
+                    #     print(f"SCAN {msg} FINISHED NO DATA")
+                    # else:
+                    #     print(f"SCAN {msg} {has_scan}")
+
                     if has_scan is not None and has_scan != "no data":
                         scanned_tabs += 1
             

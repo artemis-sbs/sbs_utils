@@ -15,6 +15,19 @@ import sys
 from ..helpers import format_exception
 
 
+debug_logger = None
+def DEBUG(msg):
+    global debug_logger
+    if debug_logger is None:
+        # create logger with 'spam_application'
+        debug_logger = logging.getLogger('debug')
+        debug_logger.setLevel(logging.DEBUG)
+        # create file handler which logs even debug messages
+        fh = logging.FileHandler('debug.log', mode='w')
+        fh.setLevel(logging.DEBUG)
+        debug_logger.addHandler(fh)
+    debug_logger.debug(msg)
+
 
 # tokens
 #
@@ -202,7 +215,7 @@ class DecoratorLabel(Label):
             cmd = Yield('success', compile_info=compile_info)
             cmd.file_num = self.file_num
             cmd.line_num = self.line_num
-            cmd.line = f"yield success embedded in {self.name}"
+            cmd.line = f"yield success at end {self.name}"
             self.add_child(cmd)
 
 
@@ -242,7 +255,7 @@ class RouteDecoratorLabel(DecoratorLabel):
             cmd = Yield('success', if_exp=self.if_exp, loc=0, compile_info=compile_info)
             cmd.file_num = self.file_num
             cmd.line_num = self.line_num
-            cmd.line = "yield success to test RouteLabel"
+            cmd.line = f"yield success {self.path} entry test {self.if_exp}"
             front_cmds.append(cmd)
 
         match paths:
@@ -260,6 +273,8 @@ class RouteDecoratorLabel(DecoratorLabel):
             case ["enable","science"]: 
                 # Just another spawn handler is disguise
                 routes.route_select_science(self)
+                # messages can occur first with science
+                # routes.route_message_science(self)
             case ["gui",*b]: 
                 routes.route_gui_navigate(self.path, self)
             case ["spawn"]: 
@@ -316,7 +331,7 @@ class RouteDecoratorLabel(DecoratorLabel):
                 cmd = FuncCommand(py_cmds=f'signal_register("{paths[1]}", "{self.name}")', compile_info=compile_info)
                 cmd.file_num = self.file_num
                 cmd.line_num = self.line_num
-                cmd.line = f"signal_register embedded in {self.name}"
+                cmd.line = f"signal_register in main for {self.name}"
                 main_cmds.append(cmd)
             
             case _:
@@ -355,15 +370,13 @@ class RouteDecoratorLabel(DecoratorLabel):
                 cmd.line = f"await scan() embedded in {self.name}"
                 self.add_child(cmd)
 
-
-
-        #
-        # Always have a yield                    
-        cmd = Yield('success', compile_info=compile_info)
-        cmd.file_num = self.file_num
-        cmd.line_num = self.line_num
-        cmd.line = f"yield success embedded in {self.name}"
-        self.add_child(cmd)
+        if not self.can_fallthrough():
+            # Always have a yield                    
+            cmd = Yield('success', compile_info=compile_info)
+            cmd.file_num = self.file_num
+            cmd.line_num = self.line_num
+            cmd.line = f"yield success at end of {self.name}"
+            self.add_child(cmd)
 
 
 
@@ -1415,7 +1428,7 @@ class Mast():
             for name in files:
                 if name.endswith("__init__.mast"):
                     p = os.path.join(root, name)
-                    # print(p)
+                    #DEBUG(p)
                     imports.append(p)
         return imports
 

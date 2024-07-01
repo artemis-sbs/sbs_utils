@@ -1294,9 +1294,9 @@ class MastAsyncTask(Agent, Promise):
             allowed = self.get_symbols()
             value = eval(code, {"__builtins__": Mast.globals}, allowed)
         except:
-            # err = format_exception("", "Mast eval level Runtime Error:")
-            self.runtime_error("Mast eval level Runtime Error:\n")
-            print("eval error")
+            err = format_exception("", "Mast eval level Runtime Error:")
+            # self.runtime_error(f"Mast eval level Runtime Error:\n{err}")
+            self.runtime_error(err)
             self.end()
         finally:
             pass
@@ -1316,8 +1316,10 @@ class MastAsyncTask(Agent, Promise):
         except:
             #err = traceback.format_exc()
             #err = format_exception("", "Mast exec level Runtime Error:")
-            self.runtime_error("Mast exec level Runtime Error:\n")
-            print("exec error")
+            #self.runtime_error("Mast exec level Runtime Error:\n")
+            #print("exec error")
+            err = format_exception("", "Mast eval level Runtime Error:")
+            self.runtime_error(err)
             self.end()
         finally:
             pass

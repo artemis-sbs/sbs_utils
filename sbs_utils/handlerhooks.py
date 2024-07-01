@@ -172,7 +172,8 @@ def cosmos_event_handler(sim, event):
                 LifetimeDispatcher.dispatch_damage(event)
 
             case "red_alert":
-                ship_id = get_inventory_value(event.client_id, "assigned_ship", None)
+                # get_inventory_value(event.client_id, "assigned_ship", None)
+                ship_id = sbs.get_ship_of_client(event.client_id) 
                 if ship_id is not None:
                     set_inventory_value(ship_id, "red_alert", event.value_tag == "on")
                 
@@ -209,6 +210,7 @@ def cosmos_event_handler(sim, event):
                 ConsoleDispatcher.dispatch_message(event, "comms_target_UID")
 
             case "science_scan_complete":
+                #print_event(event)
                 ConsoleDispatcher.dispatch_message(event, "science_target_UID")
 
             case "gui_message":

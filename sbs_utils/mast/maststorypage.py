@@ -348,7 +348,8 @@ class StoryPage(Page):
         all_ship_tabs = Agent.SHARED.get_inventory_value("console_tabs", {})
         # print(all_ship_tabs)
         all_tabs = all_ship_tabs.get("any", {})
-        ship_id = get_inventory_value(self.client_id, "assigned_ship", None)
+        ship_id = sbs.get_ship_of_client(self.client_id) 
+            #get_inventory_value(self.client_id, "assigned_ship", None)
         #
         # Add ship any
         #
@@ -629,7 +630,9 @@ class StoryPage(Page):
                     self.present(event)
         elif event.tag == "main_screen_change":
             if self.main_screen_change_label:
-                ms =  linked_to(get_inventory_value(self.client_id,"assigned_ship"), "consoles") & has_inventory_value("CONSOLE_TYPE", "normal_main")
+                # get_inventory_value(self.client_id,"assigned_ship")
+                _ship = sbs.get_ship_of_client(self.client_id)
+                ms =  linked_to(_ship, "consoles") & has_inventory_value("CONSOLE_TYPE", "normal_main")
                 # 3d_view, info, data - affects layout
                 # front, left, right, back - engine controlled
                 # 3d (chase, first_person, tracking) 2d (short, long) - engine controlled

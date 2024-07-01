@@ -151,7 +151,11 @@ class StoryScheduler(MastScheduler):
         if val is not None:
             return (val, Scope.CLIENT)
         
-        assign = Agent.get(Agent.get(self.client_id).get_inventory_value("assigned_ship", None))
+        assign = None
+        if self.client_id is not None:
+            _id = sbs.get_ship_of_client(self.client_id)
+            if _id:
+                assign = Agent.get(_id)
         if assign is not None:
             val = assign.get_inventory_value(key, None) # don't use defa here
             if val is not None:
@@ -174,7 +178,9 @@ class StoryScheduler(MastScheduler):
             return scope
         
         if scope == Scope.ASSIGNED:
-            assign = Agent.get(Agent.get(self.client_id).get_inventory_value("assigned_ship", None))
+            _ship = sbs.get_ship_of_client(self.client_id) 
+            _ship = None if _ship == 0 else _ship
+            assign = Agent.get(_ship)
             if assign is not None:
                 assign.set_inventory_value(key, value) # don't use defa here
             return scope
@@ -184,7 +190,9 @@ class StoryScheduler(MastScheduler):
     def get_symbols(self):
         mast_inv = super().get_symbols()
         m1 = mast_inv | Agent.get(self.client_id).inventory.collections
-        assign = Agent.get(Agent.get(self.client_id).get_inventory_value("assigned_ship", None))
+        _ship = sbs.get_ship_of_client(self.client_id) 
+        _ship = None if _ship == 0 else _ship
+        assign = Agent.get(_ship)
         if assign is not None:
             m1 = m1 | assign.inventory.collections
         return m1

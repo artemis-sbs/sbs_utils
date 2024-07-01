@@ -729,6 +729,7 @@ def gui_widget_list(console, widgets):
         return None
     page.set_widget_list(console, widgets)
 
+order_first_widgets = ["2dview","3dview", "comms_2d_view", "ship_internal_view", "weapon_2d_view", "science_2d_view"]
 def gui_update_widget_list(add_widgets=None, remove_widgets= None):
     """ Set the engine widget list. i.e. controls engine controls
 
@@ -756,14 +757,14 @@ def gui_update_widget_list(add_widgets=None, remove_widgets= None):
         remove_widgets = ""
 
     widgets = set(page.widgets.split("^"))
-    print(f"GUI {page.widgets} {add_widgets} {remove_widgets}")
+    #print(f"GUI {page.widgets} {add_widgets} {remove_widgets}")
     add_widgets = set(add_widgets.split("^"))
     remove_widgets = set(remove_widgets.split("^"))
     widgets = (widgets | add_widgets) - remove_widgets
     new_widgets = ""
     delim = ""
     for widget in widgets:
-        if widget in ["2dview","3dview", "weapon_2d_view", "science_2d_view"]:
+        if widget in order_first_widgets:
             new_widgets = widget + delim + new_widgets
             delim = "^"
         else:
@@ -793,7 +794,7 @@ def gui_update_widgets(add_widgets, remove_widgets):
     new_widgets = ""
     delim = ""
     for widget in widgets:
-        if widget in ["2dview","3dview", "weapon_2d_view", "science_2d_view"]:
+        if widget in order_first_widgets:
             new_widgets = widget + delim + new_widgets
             delim = "^"
         else:
@@ -870,9 +871,6 @@ def gui_console(console, is_jump=False):
         case "comms":
             console =  "normal_comm"
             widgets = "2dview^text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
-        case "comms_orders":
-            console =  "normal_comm"
-            widgets = "text_waterfall^2dview^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
         case "cinematic":
             console =  "cinematic"
             widgets = "3dview"

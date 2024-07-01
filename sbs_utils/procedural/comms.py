@@ -480,7 +480,7 @@ class CommsPromise(ButtonPromise):
                 scan_name = oo.side+"scan"
                 initial_scan = so.data_set.get(scan_name,0)
                 
-                if initial_scan is None or initial_scan =="":
+                if initial_scan is None or initial_scan =="no data":
                     sbs.send_comms_selection_info(origin_id, "", "white", "unknown")
                     self.is_unknown = True
                     return

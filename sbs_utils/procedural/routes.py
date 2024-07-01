@@ -42,6 +42,8 @@ class HandleConsoleSelect:
             uid = uids.get(console)
             if self.etype == _SELECT:
                 ConsoleDispatcher.add_default_select(uid, self.selected)
+            if self.etype == _MESSAGE:
+                ConsoleDispatcher.add_default_message(uid, self.selected)
             if self.etype == _POINT:
                 if console == "grid":
                     GridDispatcher.add_any_point(self.grid_selected)
@@ -258,6 +260,20 @@ def route_select_science(label):
         The route: Used rarely to cancel the route
     """    
     return HandleConsoleSelect("science", label, _SELECT)
+
+def route_message_science(label):
+    """called when science changes selection.
+
+    Note:
+        Typically used to run a task that uses an await scan
+
+    Args:
+        label (label): The label to run
+
+    Returns:
+        The route: Used rarely to cancel the route
+    """    
+    return HandleConsoleSelect("science", label, _MESSAGE)
 
 def route_select_weapons(label):
     """called when weapons changes selection.
