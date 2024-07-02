@@ -12,6 +12,7 @@ import sbs
 
 uids = {
     "comms": "comms_target_UID",
+    "comms2d": "comms_2d_target_UID",
     "science": "science_target_UID",
     "weapons": "weapon_target_UID",
     "grid": "grid_selected_UID"
@@ -108,6 +109,21 @@ class HandleConsoleSelect:
         t = task.start_task(self.label, data)
         
 
+def route_focus_comms_2d(label):
+    """called when comms changes selection.
+
+    Note: 
+        The label called should not be long running.
+        Use route_select_comms for long running tasks.
+
+    Args:
+        label (label): The label to run
+
+    Returns:
+        The route: Used rarely to cancel the route
+    """    
+    return HandleConsoleSelect("comms2d", label, _FOCUS)
+
 
 def route_focus_comms(label):
     """called when comms changes selection.
@@ -184,6 +200,20 @@ def route_select_comms(label):
     """    
     return HandleConsoleSelect("comms", label, _SELECT)
     
+def route_select_comms_2d(label):
+    """called when comms changes selection.
+    Note:
+        Typically used to run a task that uses an await comms
+    
+    Args:
+        label (label): The label to run
+
+
+    Returns:
+        The route: Used rarely to cancel the route
+    """    
+    return HandleConsoleSelect("comms2d", label, _SELECT)
+
 
 
 
@@ -317,6 +347,19 @@ def route_object_grid(label):
     """    
     return HandleConsoleSelect("grid", label, _GRID_OBJECT)
 
+def route_point_comms_2d(label):
+    """called when a a point event occurs in comms.
+
+    Note:
+        No know use for this currently
+
+    Args:
+        label (label): The label to run
+
+    Returns:
+        The route: Used rarely to cancel the route
+    """    
+    return HandleConsoleSelect("comms2d", label, _POINT)
 
 def route_point_comms(label):
     """called when a a point event occurs in comms.

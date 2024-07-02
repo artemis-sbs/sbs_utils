@@ -283,6 +283,8 @@ class RouteDecoratorLabel(DecoratorLabel):
                 routes.route_spawn_grid(self)
             case ["focus", "comms"]: 
                 routes.route_focus_comms(self)
+            case ["focus", "comms2d"]: 
+                routes.route_focus_comms_2d(self)
             case ["focus", "weapons"]: 
                 routes.route_focus_weapons(self)
             case ["focus", "science"]: 
@@ -291,6 +293,8 @@ class RouteDecoratorLabel(DecoratorLabel):
                 routes.route_focus_grid(self)
             case ["select", "comms"]: 
                 routes.route_select_comms(self)
+            case ["select", "comms2d"]: 
+                routes.route_select_comms_2d(self)                
             case ["select", "weapons"]: 
                 routes.route_select_weapons(self)
             case ["select", "science"]: 
@@ -299,8 +303,10 @@ class RouteDecoratorLabel(DecoratorLabel):
                 routes.route_select_grid(self)
             case ["object", "grid"]: 
                 routes.route_object_grid(self)
+            case ["point", "comms2d"]: 
+                routes.route_point_comms(self)                
             case ["point", "comms"]: 
-                routes.route_point_comms(self)
+                routes.route_point_comms_2d(self)
             case ["point", "weapons"]: 
                 routes.route_point_weapons(self)
             case ["point", "science"]: 

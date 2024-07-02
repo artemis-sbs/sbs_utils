@@ -760,9 +760,14 @@ class MastTicker:
                             return PollResults.FAIL_END
 
                         case PollResults.OK_RUN_AGAIN:
+                            self.last_poll_result = result
                             break
                         case PollResults.OK_JUMP:
+                            self.last_poll_result = result
                             continue
+                        case _:
+                            self.last_poll_result = result
+                            break
             return PollResults.OK_RUN_AGAIN
         except BaseException as err:
             self.main.runtime_error(str(err))

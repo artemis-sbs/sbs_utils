@@ -289,7 +289,7 @@ class ConsoleDispatcher:
             alt_ship = get_inventory_value(event.client_id, f"{event.value_tag}_alt_ship", 0)
             # Only do this for the alt ship
             if alt_ship is not None and alt_ship != 0:
-                return "weapon_target_UID"
+                return "comms_2d_target_UID"
         
         return None
 
