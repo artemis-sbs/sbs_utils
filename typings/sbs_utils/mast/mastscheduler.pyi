@@ -40,6 +40,8 @@ from sbs_utils.futures import Trigger
 from sbs_utils.futures import Waiter
 from zipfile import ZipFile
 from functools import partial
+def DEBUG (msg):
+    ...
 def STRING_REGEX_NAMED (name):
     ...
 def STRING_REGEX_NAMED_2 (name):

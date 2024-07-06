@@ -2,6 +2,8 @@ from sbs_utils.agent import Agent
 from enum import Enum
 from sbs_utils.helpers import FrameContext
 from zipfile import ZipFile
+def DEBUG (msg):
+    ...
 def STRING_REGEX_NAMED (name):
     ...
 def STRING_REGEX_NAMED_2 (name):

@@ -133,6 +133,18 @@ def route_focus_comms (label):
     
     Returns:
         The route: Used rarely to cancel the route"""
+def route_focus_comms_2d (label):
+    """called when comms changes selection.
+    
+    Note:
+        The label called should not be long running.
+        Use route_select_comms for long running tasks.
+    
+    Args:
+        label (label): The label to run
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
 def route_focus_grid (label):
     """called when engineering grid changes selection.
     
@@ -176,6 +188,17 @@ def route_gui_navigate (path, label):
     Args:
         path: (str): The navigation path to extend
         label (label): The label to run"""
+def route_message_science (label):
+    """called when science changes selection.
+    
+    Note:
+        Typically used to run a task that uses an await scan
+    
+    Args:
+        label (label): The label to run
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
 def route_object_grid (label):
     """called when a grid object event occurs. i.e. grid object reached a location.
     
@@ -188,6 +211,17 @@ def route_object_grid (label):
     Returns:
         The route: Used rarely to cancel the route"""
 def route_point_comms (label):
+    """called when a a point event occurs in comms.
+    
+    Note:
+        No know use for this currently
+    
+    Args:
+        label (label): The label to run
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
+def route_point_comms_2d (label):
     """called when a a point event occurs in comms.
     
     Note:
@@ -239,6 +273,17 @@ def route_science_navigate (path, label):
         path: (str): The navigation path to extend
         label (label): The label to run"""
 def route_select_comms (label):
+    """called when comms changes selection.
+    Note:
+        Typically used to run a task that uses an await comms
+    
+    Args:
+        label (label): The label to run
+    
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
+def route_select_comms_2d (label):
     """called when comms changes selection.
     Note:
         Typically used to run a task that uses an await comms

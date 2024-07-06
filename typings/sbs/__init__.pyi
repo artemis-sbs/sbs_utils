@@ -30,14 +30,14 @@ def delete_particle_emittor(emittorID: int) -> None:
     """deletes a particle emittor by ID."""
 def distance(arg0: sbs.space_object, arg1: sbs.space_object) -> float:
     """returns the distance between two space objects; arguments are two spaceObjects"""
-def distance_between_navpoints(arg0: str, arg1: str) -> float:
-    """returns the distance between two nav points; navpoints by name"""
+def distance_between_navpoints(arg0: int, arg1: int) -> float:
+    """returns the distance between two nav points; navpoints by ID"""
 def distance_id(arg0: int, arg1: int) -> float:
     """returns the distance between two space objects; arguments are two IDs"""
 def distance_point_line(arg0: sbs.vec3, arg1: sbs.vec3, arg2: sbs.vec3) -> tuple:
     """calulates the distance from a point to a line, for checking potential collisions. Returns a tuple, containing: distance to collision pt along line; distance from line start to point; tangent (positive == in front"""
-def distance_to_navpoint(arg0: str, arg1: int) -> float:
-    """returns the distance between a nav point and a space object; navpoint name, then object ID"""
+def distance_to_navpoint(arg0: int, arg1: int) -> float:
+    """returns the distance between a nav point and a space object; navpoint ID, then object ID"""
 def find_valid_grid_point_for_vector3(spaceObjectID: int, vecPoint: sbs.vec3, randomRadius: int) -> List[int]:
     """return a list of two integers, the grid x and y that is open and is closest.  The list is empty if the search fails."""
 def find_valid_unoccupied_grid_point_for_vector3(spaceObjectID: int, vecPoint: sbs.vec3, randomRadius: int) -> List[int]:
@@ -510,32 +510,28 @@ class simulation(object): ### from pybind
         """finds and deletes an existing tractor connection.  Args: u64 sourceID, u64 targetID"""
     def GetTractorConnection(self: sbs.simulation, arg0: int, arg1: int) -> sbs.tractor_connection:
         ...
-    def add_navarea(self: sbs.simulation, x1: float, y1: float, x2: float, y2: float, x3: float, y3: float, x4: float, y4: float, text: str, colDesc: str) -> sbs.navpoint:
-        """adds a new navarea to space; don't hold on to this Navpoint object in a global; keep the name string instead    args:  four x/y floats, std::string text, std::string colorDesc"""
-    def add_navpoint(self: sbs.simulation, x: float, y: float, z: float, text: str, colDesc: str) -> sbs.navpoint:
-        """adds a new navpoint to space; don't hold on to this Navpoint object in a global; keep the name string instead    args:  float x, float y, float z, std::string text, std::string colorDesc"""
+    def add_navarea(self: sbs.simulation, x1: float, y1: float, x2: float, y2: float, x3: float, y3: float, x4: float, y4: float, text: str, colDesc: str) -> int:
+        """adds a new navarea to space; don't hold on to this Navpoint object in a global; keep the integer ID return value instead    args:  four x/y floats, std::string text, std::string colorDesc"""
+    def add_navpoint(self: sbs.simulation, x: float, y: float, z: float, text: str, colDesc: str) -> int:
+        """adds a new navpoint to space; don't hold on to this Navpoint object in a global; keep the integer ID return value instead    args:  float x, float y, float z, std::string text, std::string colorDesc"""
     def create_space_object(self: sbs.simulation, aiTag: str, dataTag: str, abits: int) -> int:
         """creates a new spaceobject. abits is a 16-bit bitfield for further defining the object.  bit 1, when set, means the object is unmoving and static."""
-    def delete_navpoint_by_name(self: sbs.simulation, text: str) -> None:
-        """deletes navpoint by its name"""
-    def delete_navpoint_by_reference(self: sbs.simulation, a: sbs.navpoint) -> None:
-        """deletes navpoint by its reference"""
+    def delete_navpoint_by_id(self: sbs.simulation, id: int) -> None:
+        """deletes navpoint by its id"""
     def force_update_to_clients(self: sbs.simulation, spaceObjectID: int) -> None:
         """forces this space object to update its data to all clients"""
-    def get_navpoint_by_name(self: sbs.simulation, text: str) -> sbs.navpoint:
+    def get_navpoint_by_id(self: sbs.simulation, id: int) -> sbs.navpoint:
         """takes a string name, returns the associated Navpoint object"""
-    def get_navpoint_by_reference(self: sbs.simulation, a: sbs.navpoint) -> sbs.navpoint:
-        """takes a navpoint reference, returns the ref if it's valid"""
+    def get_navpoint_id_by_name(self: sbs.simulation, text: str) -> int:
+        """returns a navpoint ID, given its name as the argument"""
     def get_shield_hit_index(self: sbs.simulation, sourceShip: sbs.space_object, targetShip: sbs.space_object) -> int:
         """Given a source ship and a target ship, this returns the shield (index) that would be hit by a hypothetical beam. -1 if the target ship has no shield facings."""
     def get_space_object(self: sbs.simulation, arg0: int) -> sbs.space_object:
         """returns the reference to a spaceobject, by ID"""
-    def is_paused(self: sbs.simulation) -> bool:
+    def is_not_paused(self: sbs.simulation) -> bool:
         """returns True if the game is currently running."""
-    def navpoint_exists(self: sbs.simulation, text: str) -> bool:
-        """returns true if the navpoint exists, by name"""
-    def navpoint_exists_ref(self: sbs.simulation, a: sbs.navpoint) -> bool:
-        """returns true if the navpoint reference exists"""
+    def navpoint_exists(self: sbs.simulation, text: int) -> bool:
+        """returns true if the navpoint exists, by id"""
     def reposition_space_object(self: sbs.simulation, arg0: sbs.space_object, arg1: float, arg2: float, arg3: float) -> None:
         """immediately changes the position of a spaceobject"""
     def space_object_exists(self: sbs.simulation, arg0: int) -> bool:

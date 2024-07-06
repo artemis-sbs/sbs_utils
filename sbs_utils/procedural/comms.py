@@ -318,6 +318,8 @@ class CommsPromise(ButtonPromise):
         self.is_unknown = False
         self.color = "white"
         self.expanded_buttons = None
+        self.comms_id = "static"
+        self.is_grid_comms = False
         
 
     def set_path(self, path):
@@ -394,6 +396,15 @@ class CommsPromise(ButtonPromise):
         
         self.selected_id = self.task.get_variable("COMMS_SELECTED_ID")
         self.origin_id = self.task.get_variable("COMMS_ORIGIN_ID")
+
+        oo = query.to_object(self.origin_id)
+        if oo is None:
+            self.set_result(True)
+            return
+        selected_so = query.to_object(self.selected_id)
+        if selected_so is None:
+            self.set_result(True)
+            return
         
         # Not ready yet
         self.expanded_buttons = self.get_expanded_buttons()
@@ -547,7 +558,7 @@ class CommsPromise(ButtonPromise):
             
             scan_name = oo.side+"scan"
             initial_scan = so.data_set.get(scan_name,0)
-            self.is_unknown = (initial_scan is None or initial_scan == "")
+            self.is_unknown = (initial_scan is None or initial_scan == "" or initial_scan == "no data")
             # It is now known
             #
             if not self.is_unknown:

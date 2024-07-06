@@ -102,7 +102,11 @@ class HandleConsoleSelect:
         else:
             data[f"{console}_SELECTED_ID"] = 0
             data[f"{console}_SELECTED"] = None
-
+            # Only point selections can have a NONE
+        
+        so = to_object(event.selected_id)
+        if so is None and self.etype != _POINT:
+            return
 
 
         task = FrameContext.task

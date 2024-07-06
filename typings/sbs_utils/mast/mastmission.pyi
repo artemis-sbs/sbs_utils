@@ -13,7 +13,7 @@ def STRING_REGEX_NAMED (name):
     ...
 def mission_run (label, data=None):
     ...
-def mission_runner ():
+def mission_runner (label=None, data=None):
     """Runs a mission this runs the same task multiple times
     
     Args:

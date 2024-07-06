@@ -146,20 +146,20 @@ class StoryScheduler(MastScheduler):
         if val is not None:
             return (val, Scope.SHARED)
         
-        
-        val = Agent.get(self.client_id).get_inventory_value(key, None) # don't use defa here
-        if val is not None:
-            return (val, Scope.CLIENT)
-        
-        assign = None
         if self.client_id is not None:
-            _id = sbs.get_ship_of_client(self.client_id)
-            if _id:
-                assign = Agent.get(_id)
-        if assign is not None:
-            val = assign.get_inventory_value(key, None) # don't use defa here
+            val = Agent.get(self.client_id).get_inventory_value(key, None) # don't use defa here
             if val is not None:
-                return (val, Scope.ASSIGNED)
+                return (val, Scope.CLIENT)
+            
+            assign = None
+            if self.client_id is not None:
+                _id = sbs.get_ship_of_client(self.client_id)
+                if _id:
+                    assign = Agent.get(_id)
+            if assign is not None:
+                val = assign.get_inventory_value(key, None) # don't use defa here
+                if val is not None:
+                    return (val, Scope.ASSIGNED)
 
         val = self.get_inventory_value(key, None) # now defa make sense
         if val is not None:
@@ -172,6 +172,9 @@ class StoryScheduler(MastScheduler):
             # self.main.mast.vars[key] = value
             Agent.SHARED.set_inventory_value(key, value)
             return scope
+        
+        if self.client_id is None:
+            return Scope.UNKNOWN
         
         if scope == Scope.CLIENT:
             Agent.get(self.client_id).set_inventory_value(key, value) # don't use defa here
@@ -189,6 +192,8 @@ class StoryScheduler(MastScheduler):
     
     def get_symbols(self):
         mast_inv = super().get_symbols()
+        if self.client_id is None:        
+            return mast_inv
         m1 = mast_inv | Agent.get(self.client_id).inventory.collections
         _ship = sbs.get_ship_of_client(self.client_id) 
         _ship = None if _ship == 0 else _ship
