@@ -191,14 +191,16 @@ class StoryScheduler(MastScheduler):
         return Scope.UNKNOWN
     
     def get_symbols(self):
-        mast_inv = super().get_symbols()
-        if self.client_id is None:        
-            return mast_inv
-        m1 = mast_inv | Agent.get(self.client_id).inventory.collections
-        _ship = sbs.get_ship_of_client(self.client_id) 
-        _ship = None if _ship == 0 else _ship
-        assign = Agent.get(_ship)
-        if assign is not None:
-            m1 = m1 | assign.inventory.collections
-        return m1
+        return super().get_symbols()
+        #####
+        # mast_inv = super().get_symbols()
+        # if self.client_id is None:        
+        #     return mast_inv
+        # m1 = mast_inv | Agent.get(self.client_id).inventory.collections
+        # _ship = sbs.get_ship_of_client(self.client_id) 
+        # _ship = None if _ship == 0 else _ship
+        # assign = Agent.get(_ship)
+        # if assign is not None:
+        #     m1 = m1 | assign.inventory.collections
+        # return m1
 
