@@ -1020,7 +1020,12 @@ class Button(MastNode):
         if self.await_node is not None:
             self.await_node.dedent_loc = loc
         elif self.is_block:
-            self.dedent_loc = loc
+            # Block buttons need to end
+            end = Yield('success', compile_info=compile_info)
+            # Dedent is one passed the end node
+            self.dedent_loc = loc+1
+            return end
+    
 
 
     def resolve_data_context(self, task):
