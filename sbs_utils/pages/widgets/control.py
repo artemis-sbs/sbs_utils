@@ -23,14 +23,14 @@ class Control(layout.Column):
         the_bounds = self.bounds
         is_update = self.region is not None
         if not is_update:
-            print(f"Control {self.__class__.__name__} CREATE ~{self.region_tag}~ {self.local_region_tag}")
+            #print(f"Control {self.__class__.__name__} CREATE ~{self.region_tag}~ {self.local_region_tag}")
             if self.absolute:
                 sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", 0,0,100,100)
             else:
                 sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", the_bounds.left,the_bounds.top,the_bounds.right,the_bounds.bottom)
             self.region = True
         else:
-            print(f"Control {self.__class__.__name__} UPDATE ~{self.region_tag}~  {self.local_region_tag}")
+            #print(f"Control {self.__class__.__name__} UPDATE ~{self.region_tag}~  {self.local_region_tag}")
             if self.absolute:
                 sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", 0,0,100,100)
             else:

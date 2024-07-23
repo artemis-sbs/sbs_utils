@@ -1131,7 +1131,9 @@ class MastAsyncTask(Agent, Promise):
     def emit_signal(self, name, sender_task, label_info, data):
         if sender_task == self:
             return
-        if sender_task.done():
+        if sender_task is not None and sender_task.done():
+            return
+        if self.done():
             return
         
         if label_info.is_jump:
@@ -1505,7 +1507,7 @@ class MastScheduler(Agent):
         
 
     def runtime_error(self, message):
-        print("mast level runtime error:\n {message}")
+        print(f"mast level runtime error:\n {message}")
         pass
 
     def get_seconds(self, clock):
@@ -1607,6 +1609,8 @@ class MastScheduler(Agent):
     
     def tick(self):
         restore = FrameContext.task
+
+        FrameContext.mast = self.mast
         # print(f"Task count for tick {len(self.tasks)}")
         for task in self.tasks:
             self.active_task = task

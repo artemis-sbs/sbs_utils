@@ -1415,11 +1415,15 @@ class Mast():
         self.signal_observers[name] = info
 
     def signal_emit(self, name, sender_task, data):
-        tasks = self.signal_observers.get(name, {})
+        # Copy so we can remove if needed
+        tasks = self.signal_observers.get(name, {}).copy()
         #
         #TODO: This should remove finished tasks
         #
         for task in tasks:
+            if task.done():
+                self.signal_unregister(name, task)
+                continue
             label_info = tasks[task]
             task.emit_signal(name, sender_task, label_info, data)
 
@@ -1430,6 +1434,10 @@ class Mast():
 
 
     def remove_scheduler(self, scheduler):
+        # End and remove all tasks
+        for task in scheduler.tasks:
+            task.end()
+            scheduler.tasks.remove(task)
         self.schedulers.remove(scheduler)
 
     def find_imports(self, folder):

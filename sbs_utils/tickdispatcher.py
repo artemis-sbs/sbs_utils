@@ -140,6 +140,7 @@ class TickDispatcher:
             if t._update():
                 TickDispatcher.completed.add(t)
 
+
         # Remove tasks are completed
         for c in TickDispatcher.completed:
             TickDispatcher._dispatch_tick.remove(c)

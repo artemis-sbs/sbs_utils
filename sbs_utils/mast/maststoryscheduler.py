@@ -119,6 +119,7 @@ class StoryScheduler(MastScheduler):
 
     def runtime_error(self, message):
         sbs.pause_sim()
+        print(message)
         err = format_exception(message, "SBS Utils Page level Runtime Error:")
         task = self.active_task
         if task is not None:

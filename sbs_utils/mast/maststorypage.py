@@ -622,6 +622,8 @@ class StoryPage(Page):
             #print("event discon")
             self.disconnected = True
             self.tick_gui_task()
+            # remove scheduler
+            self.story_scheduler.mast.remove_scheduler(self.story_scheduler)
         elif event.tag == "client_change":
             if event.sub_tag == "change_console":
                 if self.change_console_label:

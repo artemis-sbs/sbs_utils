@@ -159,10 +159,11 @@ def cosmos_event_handler(sim, event):
                 # either sim_paused, or sim_running
                 #
                 Agent.SHARED.set_inventory_value("SIM_STATE", event.sub_tag)
+                #print(f"Event: {event.sub_tag}")
                 #Agent.SHARED.set_inventory_value("SIM_STATE", "sim_running")
-                # Give a few ticks
-                for x in range(5):
-                    TickDispatcher.dispatch_tick()
+                # Give a few ticks (NOT NEEDED This would not tick Gui)
+                #for x in range(5):
+                TickDispatcher.dispatch_tick()
                 # after tick task handle any lifetime events
                 LifetimeDispatcher.dispatch_spawn()
  
@@ -230,8 +231,10 @@ def cosmos_event_handler(sim, event):
                 GridDispatcher.dispatch_grid_event(event)
 
             case "sim_paused":
+                print("SIM paused")
                 Gui.send_custom_event("x_sim_paused")
             case "sim_unpaused":
+                print("SIM unpaused")
                 Gui.send_custom_event("x_sim_resume")
             case "fighter_requests_dock":
                 LifetimeDispatcher.dispatch_dock(event)
@@ -241,11 +244,10 @@ def cosmos_event_handler(sim, event):
         
     except BaseException as err:
         sbs.pause_sim()
-
-        
         text_err = format_exception("", "SBS Utils Hook level Runtime Error:")
         text_err += traceback.format_exc()
         text_err = text_err.replace(chr(94), "")
+        print(text_err)
         
         Gui.push(0, ErrorPage(text_err))
     

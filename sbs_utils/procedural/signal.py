@@ -9,10 +9,18 @@ class SignalLabelInfo:
         
 
 def signal_emit(name, data):
-    task = FrameContext.task 
-    task.main.mast.signal_emit(name, task, data)
+    mast = FrameContext.mast
+    task = FrameContext.task
+    if mast is None:
+        print("Signal emitted with non MAST")
+        return
+    mast.signal_emit(name, task, data)
 
 def signal_register(name, label):
-    task = FrameContext.task 
+    mast = FrameContext.mast
+    task = FrameContext.task
+    if mast is None:
+        print("Signal emitted with non MAST")
+        return
     info = SignalLabelInfo(True, label, 0)
-    task.main.mast.signal_register(name, task, info)
+    mast.signal_register(name, task, info)

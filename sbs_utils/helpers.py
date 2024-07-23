@@ -17,6 +17,7 @@ def show_warning(t):
 _TPS = 30.0
 class FrameContextMeta(type):
     context = None
+    mast = None #Set by the tick in a MastScheduler, No need to restore
     _page = None
     _task = None
     shared_id = -1
