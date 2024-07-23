@@ -119,8 +119,8 @@ class StoryScheduler(MastScheduler):
 
     def runtime_error(self, message):
         sbs.pause_sim()
-        print(message)
         err = format_exception(message, "SBS Utils Page level Runtime Error:")
+        print(err)
         task = self.active_task
         if task is not None:
             err = task.get_runtime_error_info(err)
@@ -128,6 +128,9 @@ class StoryScheduler(MastScheduler):
         if not err.startswith("NoneType"):
             #message += str(err)
             self.errors = [err]
+        else:
+            print(err)
+
 
     def get_value(self, key, defa=None):
         """_summary_
@@ -147,7 +150,7 @@ class StoryScheduler(MastScheduler):
         if val is not None:
             return (val, Scope.SHARED)
         
-        if self.client_id is not None:
+        if self.client_id is not None and Agent.get(self.client_id) is not None:
             val = Agent.get(self.client_id).get_inventory_value(key, None) # don't use defa here
             if val is not None:
                 return (val, Scope.CLIENT)
