@@ -101,6 +101,10 @@ class StoryPage(Page):
             #print(f"LABEL: {label}")
 
             self.story_scheduler.page = self
+            #
+            # signals need this to be set
+            #
+            FrameContext.mast = self.story
             #self.story_scheduler.set_inventory_value('sim', ctx.sim)
             self.story_scheduler.set_inventory_value('client_id', client_id)
             self.story_scheduler.set_inventory_value('IS_SERVER', client_id==0)

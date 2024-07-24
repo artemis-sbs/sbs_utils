@@ -1129,8 +1129,9 @@ class MastAsyncTask(Agent, Promise):
         self.pending_on_change_items = []
 
     def emit_signal(self, name, sender_task, label_info, data):
-        if sender_task == self:
-            return
+        # if sender_task == self:
+        # If this is needed add it to the data instead of skipping
+        #     return
         if sender_task is not None and sender_task.done():
             return
         if self.done():

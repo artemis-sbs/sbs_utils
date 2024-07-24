@@ -329,12 +329,22 @@ class RouteDecoratorLabel(DecoratorLabel):
                 routes.route_dock(self)
             case ["destroy"]: 
                 routes.route_destroy(self)
+            case ["shared", "signal", *b]: 
+                #
+                # This needs to run 
+                # on the first run of main
+                #
+                cmd = FuncCommand(py_cmds=f'signal_register("{paths[2]}", "{self.name}", True)', compile_info=compile_info)
+                cmd.file_num = self.file_num
+                cmd.line_num = self.line_num
+                cmd.line = f"signal_register in main for {self.name}"
+                main_cmds.append(cmd)
             case ["signal", *b]: 
                 #
                 # This needs to run 
                 # on the first run of main
                 #
-                cmd = FuncCommand(py_cmds=f'signal_register("{paths[1]}", "{self.name}")', compile_info=compile_info)
+                cmd = FuncCommand(py_cmds=f'signal_register("{paths[1]}", "{self.name}", False)', compile_info=compile_info)
                 cmd.file_num = self.file_num
                 cmd.line_num = self.line_num
                 cmd.line = f"signal_register in main for {self.name}"
@@ -1402,8 +1412,11 @@ class Mast():
             scheduler.refresh(label)
 
 
-    def signal_register(self, name, task, label_info):
+    def signal_register(self, name, task, label_info, once):
         info = self.signal_observers.get(name, {})
+        # Server should be first always
+        if once and len(info)>0:
+            return
         info[task] = label_info
         self.signal_observers[name] = info
 
@@ -1411,8 +1424,9 @@ class Mast():
         info = self.signal_observers.get(name,None)
         if info is None:
             return
-        del info[task]
-        self.signal_observers[name] = info
+        if task in info:
+            del info[task]
+            self.signal_observers[name] = info
 
     def signal_emit(self, name, sender_task, data):
         # Copy so we can remove if needed

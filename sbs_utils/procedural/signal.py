@@ -12,15 +12,13 @@ def signal_emit(name, data):
     mast = FrameContext.mast
     task = FrameContext.task
     if mast is None:
-        print("Signal emitted with non MAST")
         return
     mast.signal_emit(name, task, data)
 
-def signal_register(name, label):
+def signal_register(name, label, once):
     mast = FrameContext.mast
     task = FrameContext.task
     if mast is None:
-        print("Signal emitted with non MAST")
         return
     info = SignalLabelInfo(True, label, 0)
-    mast.signal_register(name, task, info)
+    mast.signal_register(name, task, info, once)
