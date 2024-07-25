@@ -350,8 +350,9 @@ class CommsPromise(ButtonPromise):
         self.run_focus = True
         this_button = int(event.sub_tag)
         self.event = event
-        self.button = self.expanded_buttons[this_button]
-        self.button.visit((self.origin_id, self.selected_id))
+        if this_button < len(self.expanded_buttons):
+            self.button = self.expanded_buttons[this_button]
+            self.button.visit((self.origin_id, self.selected_id))
         self.clear()
         self.task.tick()
         

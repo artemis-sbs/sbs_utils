@@ -45,6 +45,8 @@ class ErrorPage(Page):
     def __init__(self, msg) -> None:
         self.gui_state = 'show'
         self.message = msg
+        self.gui_task = None
+        
 
     def present(self, event):
         match self.gui_state:
