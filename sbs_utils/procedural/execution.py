@@ -18,7 +18,8 @@ def jump(label):
     task = FrameContext.task
 
     if task is not None:
-        return task.jump(label)
+        task.jump(label)
+        task.tick_in_context()
     return PollResults.OK_JUMP
 
 def END():

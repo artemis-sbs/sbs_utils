@@ -7,6 +7,7 @@ import os
 from ...helpers import FrameContext
 from ...mast.parsers import LayoutAreaParser,LayoutAreaNode
 from enum import IntEnum
+import re
 
 class Bounds:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
@@ -780,17 +781,26 @@ class Dropdown(Column):
 class TextInput(Column):
     def __init__(self, tag, props) -> None:
         super().__init__()
+        self._value = ""
         if "text:" in props:
-            #TODO: Need to parse out value    
-            pass
-        self._value = props
+            #TODO: Need to parse out value
+            #     
+            text = re.search(r"text:(?P<text>.*);", props).group('text')
+            if text:
+                self._value = text
+
+            fix_props = re.sub(r'text:\s*.*;', "", props)
+            print(f"before: '{props}' after: {fix_props}")
+            
         self.tag = tag
         self.props = props
         
     def _present(self, event):
         ctx = FrameContext.context
-        props = self.props
+        props = f"text:{self._value};"
+        props += self.props
         props += self.get_cascade_props(True, True, True)
+        print(f"TEXT INPUT {props} {self._value}")
         ctx.sbs.send_gui_typein(event.client_id, self.region_tag,
             self.tag, props,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)

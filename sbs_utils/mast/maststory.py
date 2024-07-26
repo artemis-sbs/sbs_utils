@@ -78,21 +78,27 @@ class GuiTabDecoratorLabel(DecoratorLabel):
 
 
 class GuiConsoleDecoratorLabel(DecoratorLabel):
-    rule = re.compile(r'@gui/console/(?P<path>([\w]+))'+IF_EXP_REGEX)
+    rule = re.compile(r'(@|//)console/(?P<path>([\w]+))[ \t]+'+STRING_REGEX_NAMED("display_name")+IF_EXP_REGEX)
 
-    def __init__(self, path, if_exp=None, loc=None, compile_info=None):
+    def __init__(self, path, display_name, if_exp=None, loc=None, compile_info=None, q=None):
         # Label stuff
         id = DecoratorLabel.next_label_id()
-        name = f"gui/console/{path}/{id}"
+        name = f"console/{path}/{id}"
         super().__init__(name, loc)
 
         self.path= path
-        self.description = ""
-        self.if_exp = if_exp
-        # need to negate if
-        if self.if_exp is not None:
-            self.if_exp = if_exp.strip()
-            self.if_exp = 'not ' + self.if_exp
+        self.display_name = display_name
+
+        from ..procedural.gui import gui_add_console_type
+        gui_add_console_type(path, display_name, None, self)
+
+        self.code = None
+        if if_exp is not None:
+            if_exp = if_exp.strip()
+            try:
+                self.code = compile(if_exp, "<string>", "eval")
+            except:
+                raise Exception(f"Syntax error '{if_exp}'")
 
         self.next = None
         self.loc = loc
@@ -101,6 +107,12 @@ class GuiConsoleDecoratorLabel(DecoratorLabel):
 
     def can_fallthrough(self):
         return True
+
+    def test(self, task):
+        if self.code is None:
+            return True
+        return task.eval_code(self.code)
+
 
 #
 # This would allow listbox template in MAST
@@ -259,6 +271,7 @@ class MastStory(Mast):
         DefineFormat,
         MapDecoratorLabel,
         GuiTabDecoratorLabel,
+        GuiConsoleDecoratorLabel,
         # ItemTemplateLabel this didn't work exactly, maybe sometime post v1.0
         ## Mission Nodes
         MissionLabel, StartBlock,InitBlock, AbortBlock, CompleteBlock, ObjectiveBlock

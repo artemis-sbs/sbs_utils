@@ -248,7 +248,17 @@ def cosmos_event_handler(sim, event):
         text_err += traceback.format_exc()
         text_err = text_err.replace(chr(94), "")
         print(text_err)
-        
+        #
+        # Make sure we don't show more that one error
+        #
+        FrameContext.error_message = text_err
+        #Gui.push(0, ErrorPage(text_err))
+    # 
+    # This is useful for client errors get shown on server
+    #
+    if len(FrameContext.error_message) > 0:
+        text_err = FrameContext.error_message
+        FrameContext.error_message = ""
         Gui.push(0, ErrorPage(text_err))
     
     Agent.SHARED.set_inventory_value("sim", None)

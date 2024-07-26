@@ -30,6 +30,7 @@ class ShipPicker(Control):
         self.test = fs.get_artemis_data_dir()
         self.bottom = top+50
         self.right = left+33
+        self._read_only = False
         
         data = ship_data.get_ship_data()
         #data = None
@@ -86,6 +87,14 @@ class ShipPicker(Control):
             if self.ships is None:
                 self.ships = None
 
+    @property
+    def read_only(self):
+        return self._read_only
+    
+    @read_only.setter
+    def read_only(self, value):
+        self._read_only = value
+        self.gui_state = "notpresenting"
 
 
     def _present(self, event):
@@ -127,8 +136,9 @@ class ShipPicker(Control):
         #l1 = layout.wrap(self.left, self.bottom, , 4,col=2)
         half = (the_bounds.right-the_bounds.left)/2
         
-        sbs.send_gui_button(CID,self.local_region_tag, f"{self.tag}prev", "text:prev", the_bounds.left, the_bounds.bottom-5, the_bounds.left+half, the_bounds.bottom)
-        sbs.send_gui_button(CID,self.local_region_tag, f"{self.tag}next", "text:next", the_bounds.right-half, the_bounds.bottom-5, the_bounds.right, the_bounds.bottom)
+        if not self._read_only:
+            sbs.send_gui_button(CID,self.local_region_tag, f"{self.tag}prev", "text:prev", the_bounds.left, the_bounds.bottom-5, the_bounds.left+half, the_bounds.bottom)
+            sbs.send_gui_button(CID,self.local_region_tag, f"{self.tag}next", "text:next", the_bounds.right-half, the_bounds.bottom-5, the_bounds.right, the_bounds.bottom)
         #print(f"displaying {ship['key']}")
         sbs.send_gui_3dship(CID,self.local_region_tag, f"{self.tag}ship", f"hull_tag:{ship['key']};",
             the_bounds.left, top,

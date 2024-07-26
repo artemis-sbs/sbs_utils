@@ -1,7 +1,7 @@
 from ..mast.mast import Scope, Button
 from .query import to_id
 from .inventory import get_inventory_value, set_inventory_value
-from ..helpers import FrameContext, FakeEvent
+from ..helpers import FrameContext, FakeEvent, DictionaryToObject
 from ..pages.layout import layout
 from ..mast.parsers import StyleDefinition
 from ..futures import Trigger, AwaitBlockPromise
@@ -11,6 +11,7 @@ from ..mast.pollresults import PollResults
 from ..pages.widgets.layout_listbox import LayoutListbox
 from ..pages.layout.text_area import TextArea
 from .execution import task_all, AWAIT
+from ..agent import Agent
 import re
 import sbs
 from . import screen_shot 
@@ -43,6 +44,77 @@ def gui_add_console_tab(id_or_obj, console, tab_name, label):
     #print(f"set {ship_id} {console} {tabs}")
     # set just in case this is the first time
     set_inventory_value(ship_id, "console_tabs", tabs)
+
+def gui_add_console_type(path, display_name, description, label):
+    """adds a tab definition 
+
+    Args:
+        id_or_obj (agent): agent id or object
+        console (str): Console name
+        tab_name (str): Tab name
+        label (label): Label to run when tab selected
+    """    
+    consoles = Agent.SHARED.get_inventory_value("__CONSOLE_TYPES__", {})
+    console = {"display_name": display_name, "label":label, "description": description}
+    if path in consoles:
+        print(f"Possible duplicate console {path}")
+    consoles[path] = console
+    Agent.SHARED.set_inventory_value("__CONSOLE_TYPES__", consoles)
+
+def gui_remove_console_type(path, display_name, label):
+    """adds a tab definition 
+
+    Args:
+        path (str): Console path
+        display_name (str): Display name
+        label (label): Label to run when tab selected
+    """    
+    consoles = Agent.SHARED.get_inventory_value("__CONSOLE_TYPES__", {})
+    if path not in consoles:
+        return
+    consoles.pop(path)
+    Agent.SHARED.set_inventory_value("__CONSOLE_TYPES__", consoles)
+
+
+def gui_get_console_types():
+    """ Get the list of consoles defined by @console decorator labels
+
+    """    
+    return Agent.SHARED.get_inventory_value("__CONSOLE_TYPES__", {})
+
+def gui_get_console_type(key):
+    """ Get the list of consoles defined by @console decorator labels
+
+    """    
+    consoles = Agent.SHARED.get_inventory_value("__CONSOLE_TYPES__", {})
+    console = consoles.get(key, None)
+    if console is None:
+        DictionaryToObject({"display_name": "No consoles found", "description": "The script did not define consoles", "path": "none", "label": None})
+    else:
+        console = DictionaryToObject(console)
+        # Try using the label description if not supplied
+    if console.description is None:
+        console.description = console.label.desc
+
+    return console
+
+
+def gui_get_console_type_list():
+    """ Get the list of consoles defined by @console decorator labels
+        path is added as a value
+    """    
+    consoles = Agent.SHARED.get_inventory_value("__CONSOLE_TYPES__", {})
+    if len(consoles)==0:
+        return [{"display_name": "No consoles found", "description": "The script did not define consoles", "path": "none", "label": None}]
+    ret = []
+    for k in consoles:
+        console  = DictionaryToObject(consoles[k], path = k)
+        if console.description is None:
+            console.description = console.label.desc
+        ret.append(console)
+    return ret
+
+
 
 def gui_remove_console_tab(id_or_obj, console, tab_name):
     """removes a tab definition 

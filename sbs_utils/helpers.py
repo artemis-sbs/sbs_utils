@@ -22,6 +22,7 @@ class FrameContextMeta(type):
     _task = None
     shared_id = -1
     aspect_ratios = {}
+    error_message = ""
 
     @property
     def page(self):
@@ -88,3 +89,15 @@ def format_exception(message, source):
         filename, lineno, func_name, line = lines[-1]
         return f"{source}\n\n{message}\n{error}\n{line}\nfunction: {func_name}\nline: {lineno}\nFile: {filename}"
     return f"{source}\n\n{message}\n"
+
+
+class DictionaryToObject(object):
+    def __init__(self, *initial_data, **kwargs):
+        for dictionary in initial_data:
+            for key in dictionary:
+                setattr(self, key, dictionary[key])
+        for key in kwargs:
+            setattr(self, key, kwargs[key])
+
+    def __repr__(self) -> str:
+        return repr(self.__dict__)

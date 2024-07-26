@@ -151,7 +151,7 @@ class LayoutListbox(layout.Column):
 
         self.title_section_style = title_section_style
         if title_section_style is None:
-            self.title_section_style = "padding: 2px,2px,2px,2px;"
+            self.title_section_style = "row-height: 1.2em;padding: 2px,2px,2px,2px;"
 
         tokens = LayoutAreaParser.lex("1em")
         self.slider_style =  LayoutAreaParser.parse_e2(tokens)
@@ -502,7 +502,7 @@ class LayoutListbox(layout.Column):
             return
         self.gui_state = "redraw"
         # Pure hackery or brilliant, time will tell
-        e = FakeEvent(FrameContext.client_id)
+        e = FakeEvent(self.client_id)
         self.present(e)
 
     def select_none(self):
@@ -524,7 +524,8 @@ class LayoutListbox(layout.Column):
         ret = []
         if self.convert_value:
             for item in self.selected:
-                ret.append(self.convert_value(self.items[item]))
+                if item < len(self.items):
+                    ret.append(self.convert_value(self.items[item]))
         else:
             ret = self.get_selected()
 
