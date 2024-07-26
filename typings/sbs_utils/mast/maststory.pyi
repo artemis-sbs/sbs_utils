@@ -44,11 +44,13 @@ class DefineFormat(MastNode):
         ...
 class GuiConsoleDecoratorLabel(DecoratorLabel):
     """class GuiConsoleDecoratorLabel"""
-    def __init__ (self, path, if_exp=None, loc=None, compile_info=None):
+    def __init__ (self, path, display_name, if_exp=None, loc=None, compile_info=None, q=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def can_fallthrough (self):
         ...
     def parse (lines):
+        ...
+    def test (self, task):
         ...
 class GuiTabDecoratorLabel(DecoratorLabel):
     """class GuiTabDecoratorLabel"""

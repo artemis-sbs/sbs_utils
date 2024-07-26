@@ -282,6 +282,14 @@ class ConsoleDispatcher:
             return "weapon_target_UID"
         if "sci" in event.sub_tag or event.sub_tag == "science_target_UID":
             return "science_target_UID"
+        
+        if "admiral" in event.sub_tag or event.sub_tag == "science_target_UID":
+            return "science_target_UID"
+        if "admiral" in event.sub_tag or event.sub_tag == "science_2d_view":
+            return "science_target_UID"
+        if "admiral" in event.sub_tag or event.sub_tag == "2dview":
+            return "science_target_UID"
+        
         #
         # This is for give orders
         #

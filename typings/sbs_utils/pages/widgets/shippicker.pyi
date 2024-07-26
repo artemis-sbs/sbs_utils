@@ -50,6 +50,12 @@ class ShipPicker(Control):
         :type CID: int
         :param data: unused no component use data
         :type data: any"""
+    @property
+    def read_only (self):
+        ...
+    @read_only.setter
+    def read_only (self, value):
+        ...
     def set_selected (self, key):
         """set selected
         

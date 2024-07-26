@@ -8,6 +8,12 @@ class Context(object):
     """class Context"""
     def __init__ (self, sim, _sbs, _event):
         """Initialize self.  See help(type(self)) for accurate signature."""
+class DictionaryToObject(object):
+    """class DictionaryToObject"""
+    def __init__ (self, *initial_data, **kwargs):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def __repr__ (self) -> str:
+        """Return repr(self)."""
 class FakeEvent(object):
     """class FakeEvent"""
     def __init__ (self, client_id=0, tag='', sub_tag='', origin_id=0, selected_id=0, parent_id=0, extra_tag='', value_tag=''):

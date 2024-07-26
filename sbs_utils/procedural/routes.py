@@ -49,7 +49,7 @@ class HandleConsoleSelect:
                 if console == "grid":
                     GridDispatcher.add_any_point(self.grid_selected)
                 else:
-                    ConsoleDispatcher.add_select(uid, self.selected)
+                    ConsoleDispatcher.add_select(uid, console, self.selected)
             if self.etype == _FOCUS:
                 ConsoleDispatcher.add_always_select(uid, self.selected)
             if self.etype == _GRID_OBJECT:
