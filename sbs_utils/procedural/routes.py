@@ -111,6 +111,7 @@ class HandleConsoleSelect:
 
         task = FrameContext.task
         t = task.start_task(self.label, data)
+        t.tick_in_context()
         
 
 def route_focus_comms_2d(label):
@@ -455,12 +456,14 @@ class HandleLifetime:
                     f"EVENT": event,
                     f"{self.cycle}_ROUTED": True
             })
+            t.tick_in_context()
         else:
             t = task.start_task(self.label, {
                     f"{self.cycle}_ID": so.get_id(),
                     f"{self.cycle}": so,
                     f"{self.cycle}_ROUTED": True
             })
+            t.tick_in_context()
            #   if not .done():
         #         MastAsyncTask.add_dependency(event.origin_id,t)
 
@@ -553,6 +556,7 @@ class HandleDamage:
                 "EVENT": event,
                 "DAMAGE_ROUTED": True
             })
+        t.tick_in_context()
            #   if not .done():
         #         MastAsyncTask.add_dependency(event.origin_id,t)
         #         MastAsyncTask.add_dependency(event.selected_id,t)
@@ -631,6 +635,7 @@ class HandleCollision:
                 #"EVENT": event,
                 "COLLISION_ROUTED": True
             })
+        t.tick_in_context()
         #   if not .done():
         #         MastAsyncTask.add_dependency(event.origin_id,t)
         #         MastAsyncTask.add_dependency(event.selected_id,t)

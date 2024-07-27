@@ -23,7 +23,7 @@ class MapDecoratorLabel(DecoratorLabel):
         # need to negate if
         if self.if_exp is not None:
             self.if_exp = if_exp.strip()
-            self.if_exp = 'not ' + self.if_exp
+            self.if_exp = f'not ({self.if_exp})'
 
         self.next = None
         self.loc = loc
