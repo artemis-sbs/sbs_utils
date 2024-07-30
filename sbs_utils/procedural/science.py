@@ -364,7 +364,7 @@ def science_add_scan(message, label=None, data=None, path=None):
     p = ButtonPromise.navigating_promise
     if p is None:
         return
-    p.nav_buttons.append(Button(message, "+", label=label, data=data, new_task=True, path=path, loc=0))
+    p.add_nav_button(Button(message, "+", label=label, data=data, new_task=True, path=path, loc=0))
 
 
 def science_navigate(path):

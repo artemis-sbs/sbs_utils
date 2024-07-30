@@ -450,7 +450,7 @@ class ButtonRuntimeNode(MastRuntimeNode):
                 #
                 clone = node.clone()
                 clone.resolve_data_context(task)
-                p.nav_buttons.append(clone)
+                p.add_nav_button(clone)
     def poll(self, mast:Mast, task:MastAsyncTask, node: Button):
         if node.await_node:
             task.jump(self.node_label, node.await_node.end_await_node.dedent_loc)

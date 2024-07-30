@@ -1421,6 +1421,7 @@ class ButtonPromise(AwaitBlockPromise):
         self.path_root = "gui"
         self.buttons = []
         self.nav_buttons = []
+        self.nav_button_map = {}
         self.inlines = []
         self.button = None
         self.var = None
@@ -1622,8 +1623,21 @@ class ButtonPromise(AwaitBlockPromise):
         for inline in self.inlines:
             self.expand_inline(inline)
 
+    def add_nav_button(self, button):
+        dup = self.nav_button_map.get(button.message)
+        if dup is not None and not dup.is_block:
+            if dup.path is not None and dup.path == button.path:
+                return
+            if dup.label is not None and dup.label == button.label:
+                return
+
+        self.nav_buttons.append(button)
+        self.nav_button_map[button.message] = button
+
+
     def build_navigation_buttons(self):
         self.nav_buttons = []
+        self.nav_button_map = {}
         #print(f"gui Build Nav Buttons {self.path}")
         path_labels = ButtonPromise.navigation_map.get(self.path)
         if path_labels is None:

@@ -609,7 +609,8 @@ def comms_add_button(message, label=None, color=None, data=None, path=None):
         else:
             path = "//"+path
 
-    p.nav_buttons.append(Button(message, "+", color=color, label=label, data=data, new_task=True, path=path, loc=0))
+    p.add_nav_button(Button(message, "+", color=color, label=label, data=data, new_task=True, path=path, loc=0))
+    
 
 def comms_navigate(path):
     task = FrameContext.task
