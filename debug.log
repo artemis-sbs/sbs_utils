@@ -1,0 +1,3 @@
+DEBUG: tests/mast/internal_comms.zip internal_comms/__init__.mast
+DEBUG: tests/mast/internal_comms.zip internal_comms/player_internal.mast
+DEBUG: tests/mast/internal_comms.zip internal_comms/crew_management.mast

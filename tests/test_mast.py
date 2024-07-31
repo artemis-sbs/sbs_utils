@@ -130,6 +130,8 @@ import tests/mast/imp.mast
 import tests\mast\imp.mast
 from tests/mast/implib.zip import imp.mast
 from tests\mast\\implib.zip import imp.mast
+
+                                      
 """)
         assert(len(errors)==0)
     

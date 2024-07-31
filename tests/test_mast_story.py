@@ -84,6 +84,12 @@ on change len(role(players)):
         assert(len(errors) == 0)
 
 
+    def test_import_compile_err(self):
+        (errors, mast) = mast_story_compile( code = """
+from tests/mast/internal_comms.zip import internal_comms/__init__.mast
+""")
+        assert(len(errors)==0)
+
     def test_compile_no_err(self):
         (errors, mast)= mast_story_compile( code = """
 await gui()

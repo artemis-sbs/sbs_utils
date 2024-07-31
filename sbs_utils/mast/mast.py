@@ -2,6 +2,7 @@ from enum import Enum
 import re
 import ast
 import os
+from pathlib import Path
 from .. import fs
 from zipfile import ZipFile
 from .. import faces, scatter
@@ -1325,6 +1326,61 @@ class Mast():
                     Mast.globals[f"{prepend}_{name}"] = func
 
 
+    def import_python_module_for_source(self, name, lib_name):
+        import importlib, importlib.abc
+
+        class StringLoader(importlib.abc.SourceLoader):
+            def __init__(self, data):
+                self.data = data
+
+            def get_source(self, fullname):
+                return self.data
+            
+            def get_data(self, path):
+                return self.data.encode("utf-8")
+            
+            def get_filename(self, fullname):
+                return "<not a real path>/" + fullname + ".py"
+
+        module_name = name[:-3]
+        if sys.modules.get(module_name) is None:
+            spec = None
+            if self.lib_name is not None:
+                module_parent = str(Path(self.lib_name).stem)
+                if self.basedir is not  None:
+                    module_name = str(Path().joinpath(module_parent, self.basedir, module_name).as_posix()).replace("/", ".")
+                elif self.parent_basedir is not None:
+                    module_name = str(Path().joinpath(module_parent, self.parent_basedir, module_name).as_posix()).replace("/", ".")
+                #print(f"zip python import {module_parent}") # {os.path.join(self.basedir, name)}")
+
+                #module_name = self.lib_name
+                content, errors = self.content_from_lib_or_file(name)
+                if content is None:
+                    raise Exception(f"Failed to import python in mast library {name} {self.lib_name}")
+                loader = StringLoader(content)
+                spec = importlib.util.spec_from_loader(module_name, loader, origin="built-in")
+            else:
+                #print(f"python import {os.path.join(self.basedir, name)}")
+                # if its not in this dir try the mission script dir
+                if os.path.isfile(os.path.join(self.basedir, name)):
+                    import_file_name = os.path.join(self.basedir, name)
+                else:
+                    import_file_name = os.path.join(fs.get_mission_dir(), name)
+                spec = importlib.util.spec_from_file_location(module_name, import_file_name)
+            
+            if spec is not None:
+                module = importlib.util.module_from_spec(spec)
+                #print(f"MODULE: NAME -{module_name}-")
+                sys.modules[module_name] = module
+                spec.loader.exec_module(module)
+                Mast.import_python_module(module_name)
+            else:
+                lib_name = lib_name if self.lib_name is None else lib_name
+                raise Exception(f"Failed to import python in mast library {name} {lib_name}")
+
+
+
+
     nodes = [
         Comment,#NO EXP
         Label,#NO EXP
@@ -1372,7 +1428,7 @@ class Mast():
         self.cmd_stack = [self.labels["main"]]
         self.indent_stack = [0]
         self.main_pruned = False
-        self.lib_name = None
+        #self.lib_name = None
         #### runtime
         self.schedulers = set()
         self.signal_observers = {}
@@ -1466,22 +1522,31 @@ class Mast():
         return imports
 
             
-    def from_file(self, file_name, root, lib_name=None):
+    def from_file(self, file_name, root):
         """ Docstring"""
-        content = None
-        errors= None
         if root is None:
             root = self # I am root
 
-        if self.lib_name is not None:
-            content, errors = self.content_from_lib_or_file(file_name, self.lib_name)
-        else:
-            content, errors = self.content_from_lib_or_file(file_name, lib_name)
-            if lib_name is not None and content is not None:
-                self.lib_name = lib_name
+        if self.lib_name is None and root.imported.get(file_name):
+            return
+        elif self.lib_name is not None and root.imported.get(f"{self.lib_name}::{file_name}"):
+            return
+        
+        if self.lib_name is None:
+            root.imported[file_name] = True
+        else: 
+            root.imported[f"{self.lib_name}::{file_name}"] = True
+
+        content = None
+        errors= None
+
+
+        content, errors = self.content_from_lib_or_file(file_name)
+      
         if errors is not None:
             return errors
         if content is not None:
+            content = content.replace("\r","")
             errors = self.compile(content, file_name, root)
             if len(errors)==0:
                 if len(errors) == 0 and not self.is_import:
@@ -1496,13 +1561,23 @@ class Mast():
         return []
         
 
-    def content_from_lib_or_file(self, file_name, lib_name):
+    def content_from_lib_or_file(self, file_name):
         try:
-            if lib_name is not None:
-                lib_name = os.path.join(fs.get_mission_dir(), lib_name)
+            if self.lib_name is not None:
+                lib_name = os.path.join(fs.get_mission_dir(), self.lib_name)
                 with ZipFile(lib_name) as lib_file:
+                    #
+                    # NOTE: Zip files must use /
+                    #
+                    if self.basedir is not  None:
+                        file_name = os.path.join(self.basedir, file_name).replace("\\", '/')
+                    elif self.parent_basedir is not None:
+                        file_name = os.path.join(self.parent_basedir, file_name).replace("\\", '/')
+
                     with lib_file.open(file_name) as f:
+                        DEBUG(f"DEBUG: {self.lib_name} {file_name}")
                         content = f.read().decode('UTF-8')
+                        self.basedir = os.path.dirname(file_name)
                         return content, None
 
             else:
@@ -1523,22 +1598,30 @@ class Mast():
                     content = f.read()
                 return content, None
         except:
-            message = f"File load error\nCannot load file {file_name}"
+            if self.lib_name is not None:
+                message = f"File load error\nCannot load file {file_name} from library {self.lib_name}"
+            else:
+                message = f"File load error\nCannot load file {file_name}"
             return None, [message]
             
         
     
 
-    def import_content(self, filename, root, lib_file):
-        if root.imported.get(filename):
-            return
-        #print(f"importing {filename}")
-        root.imported[filename] = True
+    def import_content(self, filename, root, lib_name):
         add = self.__class__(is_import=True)
         add.parent_basedir = self.basedir
+        #
+        # Only the nest file needs to know about 
+        # lib name
+        #
+        if self.lib_name is not None:
+            add.lib_name = self.lib_name
+        elif lib_name is not None:
+            add.lib_name = lib_name
+            add.parent_basedir = None
 
         # add.is_import = True
-        errors = add.from_file(filename, lib_file)
+        errors = add.from_file(filename, root)
         if len(errors)==0:
             for label, node in add.labels.items():
                 if label == "main":
@@ -1753,21 +1836,11 @@ class Mast():
                         name = data['name']
 
                         if name.endswith('.py'):
-                            import importlib
-                            module_name = name[:-3]
-                            if sys.modules.get(module_name) is None:
-                                #print(f"import {os.path.join(self.basedir, name)}")
-                                # if its not in this dir try the mission script dir
-                                if os.path.isfile(os.path.join(self.basedir, name)):
-                                    import_file_name = os.path.join(self.basedir, name)
-                                else:
-                                    import_file_name = os.path.join(fs.get_mission_dir(), name)
-                                
-                                spec = importlib.util.spec_from_file_location(module_name, import_file_name)
-                                module = importlib.util.module_from_spec(spec)
-                                sys.modules[module_name] = module
-                                spec.loader.exec_module(module)
-                                Mast.import_python_module(module_name)
+                            self.import_python_module_for_source(name, lib_name)
+                        elif name.endswith('.zip') or name.endswith('.mastlib'):
+                            err = self.import_content("__init__.mast", root, name)
+                            if err is not None:
+                                errors.extend(err)
                         else:
                             err = self.import_content(name, root, lib_name)
                             if err is not None:
