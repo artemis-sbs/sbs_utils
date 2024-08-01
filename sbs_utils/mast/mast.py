@@ -1514,12 +1514,30 @@ class Mast():
         import os
         imports = []
         for root, dirs, files in os.walk(os.path.join(self.basedir, folder)):
+            # Avoids dev .git or .build, .add_ons etc.
+            if os.path.basename(root).startswith("."):
+                continue
             for name in files:
                 if name.endswith("__init__.mast"):
                     p = os.path.join(root, name)
                     #DEBUG(p)
                     imports.append(p)
         return imports
+    
+    def find_add_ons(self, folder):
+        import os
+        addons = []
+        for root, dirs, files in os.walk(os.path.join(self.basedir, folder)):
+            # Avoids dev .git or .build, .add_ons etc.
+            if os.path.basename(root).startswith("."):
+                continue
+
+            for name in files:
+                if name.endswith(".mastlib") or name.endswith(".zip"):
+                    p = os.path.join(root, name)
+                    #DEBUG(p)
+                    addons.append(p)
+        return addons
 
             
     def from_file(self, file_name, root):
@@ -1548,13 +1566,22 @@ class Mast():
         if content is not None:
             content = content.replace("\r","")
             errors = self.compile(content, file_name, root)
-            if len(errors)==0:
-                if len(errors) == 0 and not self.is_import:
-                    imports = self.find_imports(".")
-                    for name in imports:
-                        errors = self.import_content(name, root, None)
-                        if len(errors)>0:
-                            return errors
+
+                
+            if len(errors) == 0 and not self.is_import:
+                addons = self.find_add_ons(".")
+                for name in addons:
+                    errors = self.import_content("__init__.mast", root, name)
+                    if len(errors)>0:
+                        return errors
+
+                imports = self.find_imports(".")
+                for name in imports:
+                    errors = self.import_content(name, root, None)
+                    if len(errors)>0:
+                        return errors
+                    
+
         return errors
             
 
