@@ -109,19 +109,22 @@ def filter_ship_data_by_side(test_key, sides, role=None, ret_key_only=False):
     ret = []
     if data is None:
         return ret
+    
     if sides is not None:
         if isinstance(sides, str):
-            sides=sides.lower()
-            sides = {sides}
+            sides=sides.replace(" ","").lower()
+            sides_list = sides.split(",")
+            sides = set(sides_list)
+            
     
     for ship in data["#ship-list"]:
         if role:
             roles = ship.get("roles", None)
             if roles is None:
                 continue
-            roles = roles.lower()
+            roles = roles.replace(" ","").lower()
             roles = set(roles.split(","))
-            role = role.lower()
+            role = role.lower().strip()
             if not (role in roles):
                 continue
 
