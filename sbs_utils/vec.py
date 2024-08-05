@@ -290,7 +290,10 @@ class Vec3:
         Returns:
             (Vec3):  new vector 
         """
-        return self.divide(self.length())
+        length = self.length()
+        if length==0:
+            return Vec3()
+        return self.divide(length)
 
     def min(self):
         """min of x,y,z

@@ -928,7 +928,7 @@ def gui_console(console, is_jump=False):
         case "helm":
             console =  "normal_helm"
             if is_jump:
-                widgets = "2dview^helm_movement^helm_jump^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+                widgets = "2dview^helm_movement^helm_jump^quick_jump^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
             else:
                 widgets = "2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
         case "weapons":

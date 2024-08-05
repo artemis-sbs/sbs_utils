@@ -121,7 +121,8 @@ def cosmos_event_handler(sim, event):
         Agent.SHARED.set_inventory_value("sim", sim)
         
         #print(f"{event.sub_tag}")
-        #print_event(event)
+        # if event.tag != "mission_tick":
+        #     print_event(event)
         match(event.tag):
             #	value_tag"
             #	source_point"
@@ -190,9 +191,6 @@ def cosmos_event_handler(sim, event):
                 DamageDispatcher.dispatch_heat(event)
 
             case "passive_collision":
-                print(f"TDO Handler hooks page{event.client_id} {FrameContext.page}")
-                print(f"TDO Handler hooks task{event.client_id} {FrameContext.task}")
-
                 CollisionDispatcher.dispatch_collision(event)
 
             case "client_connect":
@@ -200,14 +198,9 @@ def cosmos_event_handler(sim, event):
 
             case "select_space_object":
                 # print_event(event)
-                handled = ConsoleDispatcher.dispatch_select(event)
-                if not handled and "comms_sorted_list" == event.value_tag:
-                    face = faces.get_face(event.selected_id)
-                    so = Agent.get(event.selected_id)
-                    comms_id = "static"
-                    if so:
-                        comms_id = so.comms_id#(sim)
-                    sbs.send_comms_selection_info(event.origin_id, face, "green", comms_id)
+                if "comms_sorted_list" == event.value_tag:
+                    sbs.send_comms_selection_info(event.origin_id, "", "white", "static")
+                ConsoleDispatcher.dispatch_select(event)
 
             case "press_comms_button":
                 ConsoleDispatcher.dispatch_message(event, "comms_target_UID")
@@ -223,13 +216,14 @@ def cosmos_event_handler(sim, event):
             case "grid_object":
                 GridDispatcher.dispatch_grid_event(event)
             case "grid_object_selection":
-                #print_event(event)
+                # Set Comms info to empty
+                sbs.send_grid_selection_info(event.parent_id, "", "white", "")
                 ConsoleDispatcher.dispatch_select(event)
             case "press_grid_button":
                 ConsoleDispatcher.dispatch_message(event, "grid_selected_UID")
                 
             case "grid_point_selection":
-                #print_event(event)
+                sbs.send_grid_selection_info(event.parent_id, "", "white", "")
                 GridDispatcher.dispatch_grid_event(event)
 
             case "sim_paused":

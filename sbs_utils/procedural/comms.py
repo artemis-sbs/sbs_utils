@@ -108,7 +108,7 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
 
 def _comms_get_origin_id():
     #
-    # Event 
+    # Event, Event origin is the best guess when the button is pressed
     #
     if FrameContext.context.event is not None:
         if FrameContext.context.event.tag == "press_comms_button":
@@ -117,7 +117,9 @@ def _comms_get_origin_id():
     # 
     #
     if FrameContext.task is not None:
-        return FrameContext.task.get_variable("COMMS_ORIGIN_ID")
+        # This will attempt to default to the client ship if all else fails
+        _ship_id = sbs.get_ship_of_client(FrameContext.context.event.client_id)
+        return FrameContext.task.get_variable("COMMS_ORIGIN_ID", _ship_id)
 
 def _comms_get_selected_id():
     #
@@ -128,7 +130,7 @@ def _comms_get_selected_id():
             return FrameContext.context.event.selected_id
     
     if FrameContext.task is not None:
-        return FrameContext.task.get_variable("COMMS_SELECTED_ID")
+        return FrameContext.task.get_variable("COMMS_SELECTED_ID", 0)
 
 
 
@@ -343,7 +345,7 @@ class CommsPromise(ButtonPromise):
         if self.selected_id != event.selected_id or \
             self.origin_id != event.origin_id:
             return
-
+        
         #
         # Set the client so it knows the selected console
         #
@@ -524,6 +526,8 @@ class CommsPromise(ButtonPromise):
         #
         self.task.set_variable("COMMS_ORIGIN", oo)
         self.task.set_variable("COMMS_SELECTED", so)
+        self.task.set_variable("COMMS_ORIGIN_ID", self.origin_id)
+        self.task.set_variable("COMMS_SELECTED_ID", self.selected_id)
 
     def pressed_test(self):
         oo = query.to_object(self.origin_id)

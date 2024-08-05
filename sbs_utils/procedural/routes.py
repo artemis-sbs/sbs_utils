@@ -104,8 +104,13 @@ class HandleConsoleSelect:
             data[f"{console}_SELECTED"] = None
             # Only point selections can have a NONE
         
+        # Don't run if the selection doesn't exist
         so = to_object(event.selected_id)
         if so is None and self.etype != _POINT:
+            return
+        
+        # Don't run if the selection doesn't exist
+        if event.origin_id !=0 and to_object(event.origin_id) is None:
             return
 
 

@@ -1,4 +1,5 @@
 from random import randrange,uniform
+from .procedural.query import to_id
 
 # ter Terran_Big-revised
 #* tor Torgoth_Set
@@ -18,7 +19,7 @@ def get_face(ship_id):
     Returns:
         str: A Face string
     """
-    return faces_map.get(ship_id, "")
+    return faces_map.get(to_id(ship_id), "")
 
 def set_face(ship_id, face):
     """ sets a face string for a specified ID
@@ -27,7 +28,7 @@ def set_face(ship_id, face):
         ship_id (agent): The id of the ship/object
         face (str): A Face string
     """
-    faces_map[ship_id] = face
+    faces_map[to_id(ship_id)] = face
 
 def clear_face(ship_id):
     """ Removes a face string for a specified ID
@@ -35,7 +36,7 @@ def clear_face(ship_id):
     Args:
         ship_id (agent): The id of the ship/object
     """
-    faces_map.pop(ship_id, None)
+    faces_map.pop(to_id(ship_id), None)
 
 
 skaraan_map = {
