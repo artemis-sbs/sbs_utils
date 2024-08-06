@@ -60,6 +60,7 @@ from ..procedural import query
 from ..procedural import spawn
 from ..procedural import timers
 from ..procedural import grid
+from ..procedural import internal_damage
 from ..procedural import space_objects
 from ..procedural import ship_data
 from ..procedural import roles
@@ -80,6 +81,7 @@ Mast.import_python_module('sbs_utils.procedural.query')
 Mast.import_python_module('sbs_utils.procedural.spawn')
 Mast.import_python_module('sbs_utils.procedural.timers')
 Mast.import_python_module('sbs_utils.procedural.grid')
+Mast.import_python_module('sbs_utils.procedural.internal_damage')
 Mast.import_python_module('sbs_utils.procedural.space_objects')
 Mast.import_python_module('sbs_utils.procedural.roles')
 Mast.import_python_module('sbs_utils.procedural.inventory')

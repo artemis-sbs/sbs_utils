@@ -63,7 +63,9 @@ def format_time_remaining(id_or_obj, name):
         str: A formatted string with the minutes and seconds left on the timer
     """    
     time = get_time_remaining(id_or_obj, name)
-    if time is None or time ==0:
+    if time is None:
+        return ""
+    if time <=0:
         return ""
     minutes = time // 60
     seconds = str(time % 60).zfill(2)
