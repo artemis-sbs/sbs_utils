@@ -7,6 +7,7 @@ from sbs_utils.procedural.spawn import grid_spawn
 from sbs_utils.procedural.comms import comms_broadcast
 from sbs_utils.procedural.gui import gui_reroute_client
 from sbs_utils.procedural.space_objects import get_pos
+from sbs_utils.procedural.signal import signal_emit
 from sbs_utils.helpers import FrameContext
 from sbs_utils.tickdispatcher import TickDispatcher
 
@@ -263,18 +264,23 @@ def grid_apply_system_damage(id_or_obj):
 
     if should_explode:
         explode_player_ship(ship_id)
-        def _delete_ship(t):
-            if get_shared_inventory_value("game_ended", False):
-                return
-            for cid in linked_to(ship_id, "consoles") -  role("mainscreen"):
-                gui_reroute_client(cid, "show_hangar")
 
-            so = to_object(t.ship_id)
-            if so is not None:
-                sbs.delete_object(t.ship_id)
 
-        t = TickDispatcher.do_once(_delete_ship, 3)
-        t.ship_id = ship_id
+        # def _delete_ship(t):
+        #     if get_shared_inventory_value("game_ended", False):
+        #         return
+        #     for cid in linked_to(ship_id, "consoles") -  role("mainscreen"):
+        #         gui_reroute_client(cid, "show_hangar")
+
+        #     so = to_object(t.ship_id)
+        #     if so is not None:
+        #         sbs.delete_object(t.ship_id)
+
+        # t = TickDispatcher.do_once(_delete_ship, 3)
+        # t.ship_id = ship_id
+
+
+
         # respawn_seconds = get_inventory_value(ship_id, "respawn_time", None)
         # if respawn_seconds is not None:
         #     def _do_respawn(t):
@@ -307,6 +313,9 @@ def explode_player_ship(id_or_obj):
     # Reset the systems to no damage
     for sys in range(4):
         blob.set('system_damage', 0, sys)
+    # Send Signal that the ship has been destroyed
+    signal_emit("player_ship_destroyed", {"DESTROYED_ID": ship_id})
+
 
 def respawn_player_ship(id_or_obj):
     ship_id = to_id(id_or_obj)

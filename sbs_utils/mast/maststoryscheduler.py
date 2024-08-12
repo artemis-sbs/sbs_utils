@@ -80,6 +80,9 @@ class StoryScheduler(MastScheduler):
         self.errors = []
         self.client_id = None
 
+    def is_server(self):
+        return self.client_id == 0
+
     def run(self, client_id, page, label="main", inputs=None, task_name=None, defer=False):
         self.page = page
         self.client_id = client_id

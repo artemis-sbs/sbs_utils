@@ -1137,6 +1137,9 @@ class MastAsyncTask(Agent, Promise):
         if self.done():
             return
         
+        if label_info.server and not self.main.is_server:
+            return
+        
         if label_info.is_jump:
             st = self.start_task(label_info.label, data)
             st.tick_in_context()
@@ -1506,6 +1509,8 @@ class MastScheduler(Agent):
         self.active_task = None
         self.page = None
         
+    def is_server(self):
+        return False
 
     def runtime_error(self, message):
         print(f"mast level runtime error:\n {message}")

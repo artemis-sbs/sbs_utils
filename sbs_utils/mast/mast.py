@@ -1468,11 +1468,8 @@ class Mast():
             scheduler.refresh(label)
 
 
-    def signal_register(self, name, task, label_info, once):
+    def signal_register(self, name, task, label_info):
         info = self.signal_observers.get(name, {})
-        # Server should be first always
-        if once and len(info)>0:
-            return
         info[task] = label_info
         self.signal_observers[name] = info
 
@@ -1495,6 +1492,8 @@ class Mast():
                 self.signal_unregister(name, task)
                 continue
             label_info = tasks[task]
+            if label_info.server and not task.main.is_server():
+                continue
             task.emit_signal(name, sender_task, label_info, data)
 
     def update_shared_props_by_tag(self, tag, props, test):
