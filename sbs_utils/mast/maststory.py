@@ -18,7 +18,6 @@ class MapDecoratorLabel(DecoratorLabel):
 
         self.path= path
         self.display_name= display_name
-        self.description = ""
         self.if_exp = if_exp
         # need to negate if
         if self.if_exp is not None:

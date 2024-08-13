@@ -66,6 +66,8 @@ class StateBlock(DescribableNode):
     def is_indentable(self):
         return True
 
+
+
 class StartBlock(StateBlock):
     rule = re.compile(r"""start:""")
     def __init__(self, is_end=None, loc=None, compile_info=None):
