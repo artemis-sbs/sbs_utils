@@ -99,7 +99,7 @@ class LayoutListbox(layout.Column):
     def __init__(self, left, top, tag_prefix, items, 
                  item_template=None, title_template=None, 
                  section_style=None, title_section_style=None,
-                 select=False, multi=False, carousel=False) -> None:
+                 select=False, multi=False, carousel=False, read_only=False) -> None:
         super().__init__(left,top,33,44)
 
         self.tag_prefix = tag_prefix
@@ -116,6 +116,7 @@ class LayoutListbox(layout.Column):
         self.click_color = "black"
         self.cur = 0
         self.carousel = carousel
+        self.read_only = read_only
         
         self.title_background=None
         self.default_item_width = None
@@ -394,10 +395,12 @@ class LayoutListbox(layout.Column):
     def on_message(self, event):
         if self.client_id != event.client_id:
             return
-        
+        # Listbox can have selection, but is readonly
         was = self.cur
         
         if event.sub_tag == f"{self.tag_prefix}dec":
+            if self.read_only:
+                return
             self.cur -= 1
             if self.cur <0:
                 self.cur = 0
@@ -408,6 +411,8 @@ class LayoutListbox(layout.Column):
                 return
     
         if event.sub_tag == f"{self.tag_prefix}inc":
+            if self.read_only:
+                return
             self.cur += 1
             if self.cur >= len(self.items):
                 self.cur = len(self.items)-1
@@ -429,6 +434,8 @@ class LayoutListbox(layout.Column):
                 return
 
         if not self.select and not self.multi:
+            return
+        if self.read_only:
             return
         if not event.sub_tag.startswith(self.tag_prefix):
             return
@@ -556,9 +563,9 @@ class LayoutListbox(layout.Column):
 def layout_list_box_control(items,
                  template_func=None, title_template=None, 
                  section_style=None, title_section_style=None,
-                 select=False, multi=False, carousel=False):
+                 select=False, multi=False, carousel=False, read_only=False):
     # The gui_content sets the values
     return LayoutListbox(0, 0, "mast", items,
                  template_func, title_template, 
                  section_style, title_section_style,
-                 select,multi, carousel)
+                 select,multi, carousel, read_only)

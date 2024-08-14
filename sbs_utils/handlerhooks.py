@@ -3,6 +3,7 @@ from .damagedispatcher import DamageDispatcher, CollisionDispatcher
 from .consoledispatcher import ConsoleDispatcher
 from .tickdispatcher import TickDispatcher
 from .lifetimedispatcher import LifetimeDispatcher
+from .extra_dispatcher import HotkeyDispatcher, ClientStringDispatcher
 from .procedural.inventory import get_inventory_value, set_inventory_value
 
 from .gui import Gui, Page
@@ -204,6 +205,10 @@ def cosmos_event_handler(sim, event):
 
             case "press_comms_button":
                 ConsoleDispatcher.dispatch_message(event, "comms_target_UID")
+
+            case "client_string":
+                # print_event(event)
+                ClientStringDispatcher.dispatch(event)
 
             case "science_scan_complete":
                 #print_event(event)

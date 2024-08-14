@@ -656,7 +656,7 @@ def gui_section(style=None):
 def gui_list_box(items, style, 
                  item_template=None, title_template=None, 
                  section_style=None, title_section_style=None,
-                 select=False, multi=False, carousel=False):
+                 select=False, multi=False, carousel=False, read_only=False):
     
     page = FrameContext.page
     task = FrameContext.task
@@ -667,7 +667,7 @@ def gui_list_box(items, style,
     layout_item = LayoutListbox(0, 0, tag, items,
                  item_template, title_template, 
                  section_style, title_section_style,
-                 select,multi, carousel)
+                 select,multi, carousel, read_only)
     # #layout_item.data = data
     # if var is not None:
     #     layout_item.var_name = var
@@ -2035,3 +2035,43 @@ def gui_clipboard_put(s):
     CloseClipboard()
 
 gui_clipboard_copy = gui_clipboard_put
+
+
+# class HotkeyTrigger(Trigger):
+#     def __init__(self, task, label, loc):
+#         # This will remap to include this as the message handler
+#         self.label = label
+#         if label is None:
+#             self.label = task.active_label 
+#         # 0 for python the node loc of the on in Mast
+#         self.loc = 0
+        
+
+
+#     def on_message(self, event):
+#         if event.sub_tag == self.layout_item.tag:
+#             # print(f"ON MESSAGE: {event.sub_tag} {self.label} {self.loc} {self.task.is_sub_task}")
+#             self.task.set_value_keep_scope("__ITEM__", self.layout_item)
+#             data = self.layout_item.data
+#             self.task.push_inline_block(self.label, self.loc, data)
+#             self.task.tick_in_context()
+
+from ..extra_dispatcher import ClientStringDispatcher
+class ClientStringPromise(AwaitBlockPromise):
+    def __init__(self, client_id, key, timeout=None) -> None:
+        super().__init__(timeout)
+        self.client_id = client_id
+        self.key =key
+        FrameContext.context.sbs.request_client_string(client_id, key)
+        ClientStringDispatcher.add_any(self.on_event)
+
+
+    def on_event(self, event):
+        if self.client_id != event.client_id or self.key != event.sub_tag:
+            return
+        self.set_result(event.value_tag)
+        ClientStringDispatcher.remove_any(self.on_event)
+
+def gui_request_client_string(client_id, key, timeout=None):
+    return ClientStringPromise(client_id, key, timeout )
+
