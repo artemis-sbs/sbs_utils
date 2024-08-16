@@ -131,7 +131,7 @@ class SpaceObject(Agent):
             self.update_comms_id()
             if so is not None:
                 so.side = side
-                FrameContext.context.sim.force_update_to_clients(self.id)
+                FrameContext.context.sim.force_update_to_clients(self.id,0)
 
     def set_name(self, name):
         """ Get the name of the object
@@ -156,7 +156,7 @@ class SpaceObject(Agent):
             so = self.space_object()
             if so is not None:
                 so.data_tag = art_id
-                FrameContext.context.sim.force_update_to_clients(self.id)
+                FrameContext.context.sim.force_update_to_clients(self.id,0)
             self._art_id = art_id
 
     def update_comms_id(self):
