@@ -125,8 +125,10 @@ class AwaitBlockPromise(Promise):
 
     def poll(self):
         self.initial_poll()
-        if self.timeout and self.timeout.done():
-            self.set_result(True)
+        if self.timeout:
+            self.timeout.poll()
+            if self.timeout.done():
+                self.set_result(True)
         return super().poll()
 
 

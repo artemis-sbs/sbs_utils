@@ -810,7 +810,7 @@ class Await(MastNode):
         self.buttons = None
         self.until = until
 
-        self.timeout_label = None
+        #####self.timeout_label = None
         self.on_change = None
         self.fail_label = None
         self.is_end = is_end

@@ -1476,7 +1476,10 @@ class ButtonPromise(AwaitBlockPromise):
 
 
     def poll(self):
-        super().poll()
+        res = super().poll()
+        if res != PollResults.OK_RUN_AGAIN and self.done():
+            return res
+        
         if self.sub_task is not None:
             self.sub_task.poll()
             if self.sub_task.done:
