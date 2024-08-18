@@ -229,8 +229,8 @@ class Agent():
         role = role.strip().lower()
         return self.roles.collection_has(role, self.id)
 
-    def get_roles(self, id):
-        return self.roles.get_collections_in(id)
+    def get_roles(self):
+        return self.roles.get_collections_in(self.id)
 
     @classmethod
     def get_role_objects(cls,role):
