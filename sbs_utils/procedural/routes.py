@@ -43,7 +43,10 @@ class HandleConsoleSelect:
             uid = uids.get(console)
             if self.etype == _SELECT:
                 ConsoleDispatcher.add_default_select(uid, self.selected)
+                # This is the default handler so allow a message before select
+                ConsoleDispatcher.add_default_message(uid, self.selected)
             if self.etype == _MESSAGE:
+                print("HANDLE ESSAGE")
                 ConsoleDispatcher.add_default_message(uid, self.selected)
             if self.etype == _POINT:
                 if console == "grid":
