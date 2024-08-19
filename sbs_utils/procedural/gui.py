@@ -104,11 +104,15 @@ def gui_get_console_type_list():
         path is added as a value
     """    
     consoles = Agent.SHARED.get_inventory_value("__CONSOLE_TYPES__", {})
+    task = FrameContext.task
     if len(consoles)==0:
         return [{"display_name": "No consoles found", "description": "The script did not define consoles", "path": "none", "label": None}]
     ret = []
     for k in consoles:
         console  = DictionaryToObject(consoles[k], path = k)
+        if task and not console.label.test(task):
+            continue
+        
         if console.description is None:
             console.description = console.label.desc
         ret.append(console)
