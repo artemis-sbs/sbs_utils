@@ -1503,7 +1503,6 @@ class Mast():
             label_info_list = tasks[task]
             for label_info in label_info_list:
                 if label_info.server and not task.main.is_server():
-                    print(f"signal_emit skipped?  {name}")
                     continue
                 task.emit_signal(name, sender_task, label_info, data)
 

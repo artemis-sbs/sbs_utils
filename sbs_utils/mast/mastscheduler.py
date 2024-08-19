@@ -1132,6 +1132,7 @@ class MastAsyncTask(Agent, Promise):
         # if sender_task == self:
         # If this is needed add it to the data instead of skipping
         #     return
+        #print(f"emit_signal {name}")
         if sender_task is not None and sender_task.done():
             return
         if self.done():
@@ -1140,8 +1141,9 @@ class MastAsyncTask(Agent, Promise):
         if label_info.server and not self.main.is_server:
             return
         
+        #print(f"emit_signal is go {name}")
         if label_info.is_jump:
-            st = self.start_task(label_info.label, data)
+            st = self.start_task(label_info.label, data, defer=False)
             st.tick_in_context()
         else:
             self.push_inline_block(label_info.label, label_info.loc, data)
@@ -1547,7 +1549,11 @@ class MastScheduler(Agent):
         t = self._start_task(label, inputs, task_name)
         if task_name is not None:
             t.set_value(task_name, t, Scope.NORMAL)
+
+        restore = FrameContext.task
+        FrameContext.task = t
         t.jump(label)
+        FrameContext.task = restore
         self.tasks.append(t)
         b4 = len(self.tasks)
         
