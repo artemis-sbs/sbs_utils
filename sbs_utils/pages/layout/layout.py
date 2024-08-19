@@ -790,7 +790,7 @@ class TextInput(Column):
                 self._value = text
 
             fix_props = re.sub(r'text:\s*.*;', "", props)
-            print(f"before: '{props}' after: {fix_props}")
+            #print(f"before: '{props}' after: {fix_props}")
             
         self.tag = tag
         self.props = props
@@ -800,7 +800,7 @@ class TextInput(Column):
         props = f"text:{self._value};"
         props += self.props
         props += self.get_cascade_props(True, True, True)
-        print(f"TEXT INPUT {props} {self._value}")
+        #print(f"TEXT INPUT {props} {self._value}")
         ctx.sbs.send_gui_typein(event.client_id, self.region_tag,
             self.tag, props,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
@@ -1179,7 +1179,7 @@ class Layout:
         self.default_font = v
 
     def set_orientation(self, s):
-        print(f"orientation {s}")
+        #print(f"orientation {s}")
         s = s.strip().upper()
         if s == "TB":
             self.orientation = 0

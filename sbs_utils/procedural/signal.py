@@ -21,6 +21,5 @@ def signal_register(name, label, server):
     task = FrameContext.task
     if mast is None:
         return
-    print(f"signal registered {name} {task.get_id() & 0x0000FFFFFFF} {server}")
     info = SignalLabelInfo(True, label, 0, server)
     mast.signal_register(name, task, info)

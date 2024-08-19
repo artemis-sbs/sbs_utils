@@ -166,7 +166,7 @@ class Listbox(Control):
                 for icon_item in icons_to_display:
                     tag = f"{self.tag}icon:{slot}:{i}"
                     tags.add(tag)
-                    print (f"ICON PROPS: {icon_item}")
+                    #print (f"ICON PROPS: {icon_item}")
                     sbs.send_gui_icon(CID, self.local_region_tag, tag, icon_item,
                         left, top,
                         left+square_width_percent, top+square_height_percent )

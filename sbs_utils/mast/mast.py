@@ -1469,11 +1469,20 @@ class Mast():
 
 
     def signal_register(self, name, task, label_info):
-        info = self.signal_observers.get(name, {})
-        info[task] = label_info
-        self.signal_observers[name] = info
+        if label_info.server and not task.main.is_server():
+            return
+        print(f"signal registered {name} {task.get_id() & 0x0000FFFFFFF} {label_info.server}")
+        task_map = self.signal_observers.get(name, {})
+        info_list = task_map.get(task, [])
+        info_list.append(label_info)
+        task_map[task] = info_list
+        self.signal_observers[name] = task_map
 
     def signal_unregister(self, name, task):
+        #
+        # note:
+        #    Not sure this is written logically correct
+        #
         info = self.signal_observers.get(name,None)
         if info is None:
             return
@@ -1491,10 +1500,12 @@ class Mast():
             if task.done():
                 self.signal_unregister(name, task)
                 continue
-            label_info = tasks[task]
-            if label_info.server and not task.main.is_server():
-                continue
-            task.emit_signal(name, sender_task, label_info, data)
+            label_info_list = tasks[task]
+            for label_info in label_info_list:
+                if label_info.server and not task.main.is_server():
+                    print(f"signal_emit skipped?  {name}")
+                    continue
+                task.emit_signal(name, sender_task, label_info, data)
 
     def update_shared_props_by_tag(self, tag, props, test):
         for scheduler in self.schedulers:
