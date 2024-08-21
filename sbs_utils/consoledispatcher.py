@@ -178,7 +178,7 @@ class ConsoleDispatcher:
         :type other_id: int
         """
         console = ConsoleDispatcher.convert_to_console_id(event)
-        print(f"ConDisp {console}")
+        #print(f"ConDisp {console}")
         if console is None:
             return False
         ConsoleDispatcher.do_select(event, console)

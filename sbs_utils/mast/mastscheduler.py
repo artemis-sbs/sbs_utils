@@ -1141,9 +1141,9 @@ class MastAsyncTask(Agent, Promise):
         if label_info.server and not self.main.is_server:
             return
         
-        #print(f"emit_signal is go {name}")
+        # print(f"emit_signal is go {name}")
         if label_info.is_jump:
-            st = self.start_task(label_info.label, data, defer=False)
+            st = self.start_task(label_info.label, data, defer=True)
             st.tick_in_context()
         else:
             self.push_inline_block(label_info.label, label_info.loc, data)
