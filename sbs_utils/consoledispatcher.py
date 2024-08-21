@@ -178,6 +178,7 @@ class ConsoleDispatcher:
         :type other_id: int
         """
         console = ConsoleDispatcher.convert_to_console_id(event)
+        print(f"ConDisp {console}")
         if console is None:
             return False
         ConsoleDispatcher.do_select(event, console)
@@ -270,24 +271,37 @@ class ConsoleDispatcher:
 
         
     def convert(event):
-        if "science_sorted_list" in event.value_tag or event.sub_tag == "science_target_UID":
+        #
+        # sub_tag is the console
+        # Value_tag has the widget
+        # Extra_tag will now have the blob 
+        # Extra_extra_tag may have data e.g. tab selection has some data
+        #
+        # science_data
+        #
+        # normal_target_UID
+        #
+        if "science_sorted_list" in event.value_tag or event.extra_tag == "science_target_UID":
             return "science_target_UID"
-        if "comms_sorted_list" == event.value_tag or event.sub_tag == "comms_target_UID":
+        if "comms_sorted_list" == event.value_tag or event.extra_tag == "comms_target_UID":
             return "comms_target_UID"
-        if "grid_object_list" == event.value_tag or event.sub_tag == "grid_selected_UID":
+        if "grid_object_list" == event.value_tag or event.extra_tag == "grid_selected_UID":
             return "grid_selected_UID"
         
         # Catch the 2dview
-        if "weap" in event.sub_tag or event.sub_tag == "weapon_target_UID":
+        if "weap" in event.sub_tag or event.extra_tag == "weapon_target_UID":
             return "weapon_target_UID"
-        if "sci" in event.sub_tag or event.sub_tag == "science_target_UID":
+        if "sci" in event.sub_tag or event.extra_tag == "science_target_UID":
             return "science_target_UID"
-        
-        if "admiral" in event.sub_tag or event.sub_tag == "science_target_UID":
+
+        #
+        # may not be needed after v0.3.29
+        #   
+        if "admiral" in event.sub_tag or event.extra_tag == "science_target_UID":
             return "science_target_UID"
-        if "admiral" in event.sub_tag or event.sub_tag == "science_2d_view":
+        if "admiral" in event.sub_tag or event.value_tag == "science_2d_view":
             return "science_target_UID"
-        if "admiral" in event.sub_tag or event.sub_tag == "2dview":
+        if "admiral" in event.sub_tag and event.value_tag == "2dview":
             return "science_target_UID"
         
         #
@@ -298,6 +312,11 @@ class ConsoleDispatcher:
             # Only do this for the alt ship
             if alt_ship is not None and alt_ship != 0:
                 return "comms_2d_target_UID"
+            
+
+        # A basic 2d view
+        if event.extra_tag == "normal_target_UID":
+            return "normal_target_UID"
         
         return None
 

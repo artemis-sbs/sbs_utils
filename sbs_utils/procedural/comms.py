@@ -26,6 +26,9 @@ def comms_broadcast(ids_or_obj, msg, color="#fff"):
         # default to the 
         ids_or_obj = FrameContext.context.event.parent_id
 
+    if FrameContext.task:
+        msg = FrameContext.task.compile_and_format_string(msg)
+
     _ids = query.to_id_list(ids_or_obj)
     if _ids:
         for id in _ids:

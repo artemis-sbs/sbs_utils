@@ -5,7 +5,7 @@ from ..agent import Agent
 import sbs
 from ..gui import Gui
 from ..procedural.gui import gui_text_area
-from ..procedural.comms import comms_receive, comms_transmit, comms_speech_bubble
+from ..procedural.comms import comms_receive, comms_transmit, comms_speech_bubble, comms_broadcast
 from ..procedural.science import scan_results
 from ..helpers import FakeEvent, FrameContext, format_exception
 
@@ -60,6 +60,13 @@ class CommsMessageStartRuntimeNode(MastRuntimeNode):
             comms_transmit(msg, node.tile, color=node.body_color, title_color=node.title_color)
         elif node.mtype == "<scan>": 
             scan_results(msg)
+        elif node.mtype == "<client>": 
+            comms_broadcast(task.maim.client_id, msg, node.body_color)
+        elif node.mtype == "<ship>":
+            player_id = sbs.get_ship_of_client(task.maim.client_id) 
+            comms_broadcast(player_id, msg, node.body_color)
+        elif node.mtype == "<all>": 
+            comms_broadcast(0, msg, node.body_color)
         elif node.mtype == "()": 
             comms_speech_bubble(msg, color=node.title_color)
 

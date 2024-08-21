@@ -12,7 +12,7 @@ class LifetimeDispatcher:
     GRID_SPAWN = 1
     DESTROYED = 2
     DOCK = 3
-
+    
     
     def add_spawn(cb: typing.Callable):
         LifetimeDispatcher._dispatch_spawn.add(cb)
@@ -26,6 +26,7 @@ class LifetimeDispatcher:
     def add_dock(cb: typing.Callable):
         LifetimeDispatcher._dispatch_dock.add(cb)
 
+    
     def remove_spawn(cb: typing.Callable):
         # Callback should have arguments of other object's id, message
         LifetimeDispatcher._dispatch_spawn.discard(cb)
@@ -91,6 +92,12 @@ class LifetimeDispatcher:
             so:Agent = Agent.get(damage_event.selected_id)
             if so is not None:
                 for func in LifetimeDispatcher._dispatch_destroy:
+                    func(so)
+                so.destroyed()
+        elif damage_event.tag == 'npc_killed':
+            so:Agent = Agent.get(damage_event.selected_id)
+            if so is not None:
+                for func in LifetimeDispatcher._dispatch_killed:
                     func(so)
                 so.destroyed()
             

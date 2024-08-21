@@ -286,6 +286,8 @@ class RouteDecoratorLabel(DecoratorLabel):
                 routes.route_focus_comms(self)
             case ["focus", "comms2d"]: 
                 routes.route_focus_comms_2d(self)
+            case ["focus", "normal"]: 
+                routes.route_focus_normal(self)
             case ["focus", "weapons"]: 
                 routes.route_focus_weapons(self)
             case ["focus", "science"]: 
@@ -296,6 +298,8 @@ class RouteDecoratorLabel(DecoratorLabel):
                 routes.route_select_comms(self)
             case ["select", "comms2d"]: 
                 routes.route_select_comms_2d(self)                
+            case ["select", "normal"]: 
+                routes.route_select_normal(self)                
             case ["select", "weapons"]: 
                 routes.route_select_weapons(self)
             case ["select", "science"]: 
@@ -305,17 +309,21 @@ class RouteDecoratorLabel(DecoratorLabel):
             case ["object", "grid"]: 
                 routes.route_object_grid(self)
             case ["point", "comms2d"]: 
-                routes.route_point_comms(self)                
+                routes.route_point_comms_2d(self)                
+            case ["point", "normal"]: 
+                routes.route_point_normal(self)                
             case ["point", "comms"]: 
-                routes.route_point_comms_2d(self)
+                routes.route_point_comms(self)
             case ["point", "weapons"]: 
                 routes.route_point_weapons(self)
             case ["point", "science"]: 
                 routes.route_point_science(self)
             case ["point", "grid"]: 
                 routes.route_point_grid(self)
-            case ["collision", "object"]: 
-                routes.route_collision_object(self)
+            case ["collision", "passive"]: 
+                routes.route_collision_passive(self)
+            case ["collision", "interaction"]: 
+                routes.route_collision_interaction(self)
             case ["console", "change"]: 
                 routes.route_change_console(self)
             case ["console", "mainscreen", "change"]: 
@@ -326,10 +334,12 @@ class RouteDecoratorLabel(DecoratorLabel):
                 routes.route_damage_heat(self)
             case ["damage", "object"]: 
                 routes.route_damage_object(self)
-            case ["dock"]: 
-                routes.route_dock(self)
-            case ["destroy"]: 
-                routes.route_destroy(self)
+            case ["damage","destroy"]: 
+                routes.route_damage_destroy(self)
+            case ["damage","killed"]: 
+                routes.route_damage_killed(self)
+            case ["dock", "hangar"]: 
+                routes.route_dock_hangar(self)
             case ["shared", "signal", *b]: 
                 #
                 # This needs to run 

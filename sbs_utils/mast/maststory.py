@@ -169,7 +169,7 @@ class AppendText(MastNode):
             self.code = None
 FORMAT_EXP = r"(\[(?P<format>([\$\#]?\w+[ \t]*(,[ \t]*\#?\w+)?))\])?"
 class CommsMessageStart(DescribableNode):
-    rule = re.compile(r"(?P<mtype>\<\<|\>\>|\(\)|\<scan\>)"+FORMAT_EXP+"([ \t]+"+STRING_REGEX_NAMED("title")+")?")
+    rule = re.compile(r"(?P<mtype>\<\<|\>\>|\(\)|\<scan\>|\<all\>|\<client\>|\<ship\>)"+FORMAT_EXP+"([ \t]+"+STRING_REGEX_NAMED("title")+")?")
     current_comms_message = None
 
     def __init__(self, mtype, title,  q=None, format=None, loc=None, compile_info=None):

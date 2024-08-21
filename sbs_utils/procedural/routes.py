@@ -15,7 +15,8 @@ uids = {
     "comms2d": "comms_2d_target_UID",
     "science": "science_target_UID",
     "weapons": "weapon_target_UID",
-    "grid": "grid_selected_UID"
+    "grid": "grid_selected_UID",
+    "normal": "normal_target_UID"
 }
 _SELECT = 1
 _POINT = 2
@@ -137,6 +138,21 @@ def route_focus_comms_2d(label):
     """    
     return HandleConsoleSelect("comms2d", label, _FOCUS)
 
+def route_focus_normal(label):
+    """called when comms changes selection.
+
+    Note: 
+        The label called should not be long running.
+        Use route_select_comms for long running tasks.
+
+    Args:
+        label (label): The label to run
+
+    Returns:
+        The route: Used rarely to cancel the route
+    """    
+    return HandleConsoleSelect("normal", label, _FOCUS)
+
 
 def route_focus_comms(label):
     """called when comms changes selection.
@@ -227,6 +243,19 @@ def route_select_comms_2d(label):
     """    
     return HandleConsoleSelect("comms2d", label, _SELECT)
 
+def route_select_normal(label):
+    """called when comms changes selection.
+    Note:
+        Typically used to run a task that uses an await comms
+    
+    Args:
+        label (label): The label to run
+
+
+    Returns:
+        The route: Used rarely to cancel the route
+    """    
+    return HandleConsoleSelect("normal", label, _SELECT)
 
 
 
@@ -374,6 +403,20 @@ def route_point_comms_2d(label):
     """    
     return HandleConsoleSelect("comms2d", label, _POINT)
 
+def route_point_normal(label):
+    """called when a a point event occurs in comms.
+
+    Note:
+        No know use for this currently
+
+    Args:
+        label (label): The label to run
+
+    Returns:
+        The route: Used rarely to cancel the route
+    """    
+    return HandleConsoleSelect("normal", label, _POINT)
+
 def route_point_comms(label):
     """called when a a point event occurs in comms.
 
@@ -434,7 +477,7 @@ def route_point_grid(label):
 
 class HandleLifetime:
     just_once = set()
-    cycles = ["SPAWNED", "SPAWNED", "DESTROYED", "DOCK"]
+    cycles = ["SPAWNED", "SPAWNED", "DESTROYED", "DOCK", "KILLED"]
     def __init__(self, lifecycle, label, filter_func=None) -> None:
         #
         #
@@ -502,7 +545,7 @@ def route_spawn_grid(label):
 
     return HandleLifetime(LifetimeDispatcher.GRID_SPAWN, label)
 
-def route_destroy(label):
+def route_damage_destroy(label):
     """called when a space_object is destroyed.
 
     Note:
@@ -517,7 +560,36 @@ def route_destroy(label):
 
     return HandleLifetime(LifetimeDispatcher.DESTROYED, label)
 
-def route_dock(label):
+
+def route_damage_destroy(label):
+    """called when a space_object is destroyed.
+
+    Note:
+        This is not intended for long running tasks
+
+    Args:
+        label (label): The label to run
+
+    Returns:
+        The route: Used rarely to cancel the route
+    """    
+    return HandleLifetime(LifetimeDispatcher.DESTROYED, label)
+
+def route_damage_killed(label):
+    """called when a space_object is about to be removed from the engine.
+
+    Note:
+        This is not intended for long running tasks
+
+    Args:
+        label (label): The label to run
+
+    Returns:
+        The route: Used rarely to cancel the route
+    """    
+    return HandleDamage(DamageDispatcher._KILLED, label)
+
+def route_dock_hangar(label):
     """called when a space_object docks.
 
     Note:
@@ -549,6 +621,8 @@ class HandleDamage:
                 DamageDispatcher.add_any_heat(self.selected)
             elif damage_type==DamageDispatcher._INTERNAL:
                 DamageDispatcher.add_any_internal(self.selected)
+            elif damage_type==DamageDispatcher._KILLED:
+                DamageDispatcher.add_any_killed(self.selected)
             else:
                 DamageDispatcher.add_any(self.selected)
             
@@ -617,7 +691,7 @@ def route_damage_object(label):
 class HandleCollision:
     just_once = set()
 
-    def __init__(self, label) -> None:
+    def __init__(self, coll_type, label ) -> None:
         #
         #
         # Also avoid adding twice, e.g. each client can added the route
@@ -628,7 +702,10 @@ class HandleCollision:
             # So it needs the task 
             self.label = label
             HandleCollision.just_once.add(label)
-            CollisionDispatcher.add_any(self.selected)
+            if coll_type == CollisionDispatcher._PASSIVE:
+                CollisionDispatcher.add_passive(self.selected)
+            else:
+                CollisionDispatcher.add_passive(self.selected)
         
             
     def selected(self, event):
@@ -649,7 +726,7 @@ class HandleCollision:
         #         MastAsyncTask.add_dependency(event.selected_id,t)
 
 
-def route_collision_object(label):
+def route_collision_passive(label):
     """called when a space_object takes a collision.
 
     Note:
@@ -661,7 +738,21 @@ def route_collision_object(label):
     Returns:
         The route: Used rarely to cancel the route
     """    
-    return HandleCollision(label)
+    return HandleCollision(CollisionDispatcher._PASSIVE, label)
+
+def route_collision_interaction(label):
+    """called when a space_object takes a collision.
+
+    Note:
+        This is not intended for long running tasks
+
+    Args:
+        label (label): The label to run
+
+    Returns:
+        The route: Used rarely to cancel the route
+    """    
+    return HandleCollision(CollisionDispatcher._INTERACTION, label)
 
 def route_change_console(label):
     """called when a  change console button is pressed.
@@ -803,7 +894,7 @@ class RouteGridSpawn(RouteLifetime):
     def __init__(self, method):
         super().__init__(method, LifetimeDispatcher.GRID_SPAWN)
 
-class RouteDestroy(RouteLifetime):
+class RouteDamageDestroy(RouteLifetime):
     """ decorator for routing to a python function or python class method
 
     Note:
@@ -822,7 +913,7 @@ class RouteDestroy(RouteLifetime):
     def __init__(self, method):
         super().__init__(method, LifetimeDispatcher.DESTROYED)
 
-class RouteDock(RouteLifetime):
+class RouteDamageKilled(RouteLifetime):
     """ decorator for routing to a python function or python class method
 
     Note:
@@ -830,7 +921,26 @@ class RouteDock(RouteLifetime):
 
     ??? Example
         ``` py
-        @RouteDock
+        @RouteDestroy
+        @label
+        def handle_destroy():
+            ....
+            yield PollResults.OK_YIELD
+        ```
+
+    """        
+    def __init__(self, method):
+        super().__init__(method, LifetimeDispatcher.KILLED)
+
+class RouteDockHangar(RouteLifetime):
+    """ decorator for routing to a python function or python class method
+
+    Note:
+        The route is expected to be a label
+
+    ??? Example
+        ``` py
+        @RouteDockHangar
         @label
         def handle_dock():
             ....

@@ -38,7 +38,7 @@ def print_event(event):
     print(f"Sub Float {event.sub_float}")
     print(f"Value Tag {event.value_tag}")
     print(f"Extra Tag {event.extra_tag}")
-    print(f"Extra Extra Tag {event.extra_tag}")
+    print(f"Extra Extra Tag {event.extra_extra_tag}")
     print(f"Point {event.source_point.x}  {event.source_point.y} {event.source_point.z}")
 
 
@@ -176,6 +176,13 @@ def cosmos_event_handler(sim, event):
                 DamageDispatcher.dispatch_damage(event)
                 LifetimeDispatcher.dispatch_damage(event)
 
+            case "npc_killed":
+                print_event(event)
+                DamageDispatcher.dispatch_killed(event)
+                #LifetimeDispatcher.dispatch_damage(event)
+                pass
+
+
             case "red_alert":
                 # get_inventory_value(event.client_id, "assigned_ship", None)
                 ship_id = sbs.get_ship_of_client(event.client_id) 
@@ -192,13 +199,16 @@ def cosmos_event_handler(sim, event):
                 DamageDispatcher.dispatch_heat(event)
 
             case "passive_collision":
-                CollisionDispatcher.dispatch_collision(event)
+                CollisionDispatcher.dispatch_passive(event)
+
+            case "interaction_collision":
+                CollisionDispatcher.dispatch_interaction(event)
 
             case "client_connect":
                 Gui.add_client(event)
 
             case "select_space_object":
-                # print_event(event)
+                #print_event(event)
                 if "comms_sorted_list" == event.value_tag:
                     sbs.send_comms_selection_info(event.origin_id, "", "white", "static")
                 ConsoleDispatcher.dispatch_select(event)
