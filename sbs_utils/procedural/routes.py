@@ -705,7 +705,7 @@ class HandleCollision:
             if coll_type == CollisionDispatcher._PASSIVE:
                 CollisionDispatcher.add_passive(self.selected)
             else:
-                CollisionDispatcher.add_passive(self.selected)
+                CollisionDispatcher.add_interactive(self.selected)
         
             
     def selected(self, event):
@@ -740,7 +740,7 @@ def route_collision_passive(label):
     """    
     return HandleCollision(CollisionDispatcher._PASSIVE, label)
 
-def route_collision_interaction(label):
+def route_collision_interactive(label):
     """called when a space_object takes a collision.
 
     Note:

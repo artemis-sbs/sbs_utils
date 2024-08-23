@@ -127,7 +127,7 @@ class DamageDispatcher:
 
 class CollisionDispatcher:
     _dispatch_passive = set()
-    _dispatch_interaction = set()
+    _dispatch_interactive = set()
 
     _PASSIVE = 1
     _INTERACTION = 2
@@ -144,15 +144,18 @@ class CollisionDispatcher:
         for func in CollisionDispatcher._dispatch_passive:
             func(collision_event)
 
-    def add_interaction(cb: typing.Callable):
-        CollisionDispatcher._dispatch_interaction.add(cb)
+    def add_interactive(cb: typing.Callable):
+        CollisionDispatcher._dispatch_interactive.add(cb)
 
-    def remove_interaction(cb: typing.Callable):
-        CollisionDispatcher._dispatch_interaction.discard(cb)
+    def remove_interactive(cb: typing.Callable):
+        CollisionDispatcher._dispatch_interactive.discard(cb)
 
     def dispatch_collision(collision_event):
-        for func in CollisionDispatcher._dispatch_interaction:
+        for func in CollisionDispatcher._dispatch_passive:
             func(collision_event)
         
+    def dispatch_interactive(collision_event):
+        for func in CollisionDispatcher._dispatch_interactive:
+            func(collision_event)
             
     

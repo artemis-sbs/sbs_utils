@@ -322,8 +322,8 @@ class RouteDecoratorLabel(DecoratorLabel):
                 routes.route_point_grid(self)
             case ["collision", "passive"]: 
                 routes.route_collision_passive(self)
-            case ["collision", "interaction"]: 
-                routes.route_collision_interaction(self)
+            case ["collision", "interactive"]: 
+                routes.route_collision_interactive(self)
             case ["console", "change"]: 
                 routes.route_change_console(self)
             case ["console", "mainscreen", "change"]: 

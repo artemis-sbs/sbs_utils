@@ -47,7 +47,7 @@ class Widget:
 
         :param message_tag: The tag name of the control interacted with
         :type message_tag: str
-        :param clientID: The client ID that had the interaction
+        :param clientID: The client ID that had the interactive
         :type clientID: int
         :param data: Any data associated with the control e.g. slider float value of current value
         :type clientID: None or str or float

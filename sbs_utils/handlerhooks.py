@@ -201,8 +201,8 @@ def cosmos_event_handler(sim, event):
             case "passive_collision":
                 CollisionDispatcher.dispatch_passive(event)
 
-            case "interaction_collision":
-                CollisionDispatcher.dispatch_interaction(event)
+            case "interactive_collision":
+                CollisionDispatcher.dispatch_interactive(event)
 
             case "client_connect":
                 Gui.add_client(event)
