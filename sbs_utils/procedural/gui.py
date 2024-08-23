@@ -748,6 +748,10 @@ class PageRegion:
     def show(self, _show):
         self.sub_section.show(_show)
 
+    def rebuild(self):
+        self.sub_section.rebuild()
+        return self
+
     @property
     def is_hidden(self):
         return self.sub_section.is_hidden

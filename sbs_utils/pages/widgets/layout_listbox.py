@@ -84,7 +84,8 @@ class SubPage:
     
     def present(self, event):
         for sec in self.layouts:
-            sec.region_tag = self.local_region_tag,
+            #print(f"SubPage {self.region_tag}")
+            sec.region_tag = self.region_tag
             sec.calc(event.client_id)
             sec.present(event)
 
@@ -118,7 +119,6 @@ class LayoutListbox(layout.Column):
         self.carousel = carousel
         self.read_only = read_only
         
-        self.title_background=None
         self.default_item_width = None
         self.default_item_height = None
         self.select = select
@@ -200,14 +200,12 @@ class LayoutListbox(layout.Column):
         """
         CID = event.client_id
         self.client_id = CID
-        
-        
 
+        
         item_width = self.bounds.width 
         item_height = self.bounds.height
         aspect_ratio = get_client_aspect_ratio(event.client_id)
         
-
         if self.default_item_width:
             item_width = LayoutAreaParser.compute(self.default_item_width, None, aspect_ratio.x, 20)
             if self.horizontal is None:
@@ -320,6 +318,7 @@ class LayoutListbox(layout.Column):
             
             
             sec = layout.Layout(tag+":sec", None, left, top, this_right, this_bottom)
+            sec.region_tag = self.local_region_tag
             #print(f"BREAK {cur}  {tag} {left=} {top=}")
             if (self.select or self.multi) and not self.carousel:
                 sec.click_text = "__________________"
@@ -340,6 +339,7 @@ class LayoutListbox(layout.Column):
             sec.calc(CID)
             sec.present(event)
             sec.resize_to_content()
+            # print(f"LISTBOX Present slots {CID} {sec.bounds} {self.local_region_tag}")
             #sub_page.tags |= sec.get_tags()
 
             cur += 1
@@ -366,28 +366,33 @@ class LayoutListbox(layout.Column):
 
     def present(self, event):
         CID = event.client_id
-        is_update = self.region is not None
-        # If first time create sub region
-        if not is_update:
-            #print("Listbox CREATE present")
-            sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", 0,0,100,100)
-            self.region = True
-            sbs.send_gui_clear(CID, self.local_region_tag,)
-            super().present(event)
-            sbs.send_gui_complete(CID, self.local_region_tag,)
-        else:
-            #print("Listbox UPDATE present")
-            sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", 0,0,100,100)
-            self.region = True
-            sbs.send_gui_clear(CID, self.local_region_tag,)
-            super().present(event)
-            
-            sbs.send_gui_complete(CID, self.local_region_tag,)
+        # #is_update = self.region is not None
+        # is_update = True
+        # # If first time create sub region
+        # if not is_update:
+        #     print("Listbox CREATE present")
+        #     sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", 0,0,100,100)
+        #     self.region = True
+        #     sbs.send_gui_clear(CID, self.local_region_tag)
+        #     super().present(event)
+        #     sbs.send_gui_complete(CID, self.local_region_tag)
+        # else:
+        # print(f"Listbox UPDATE present {event.client_id}")
+        sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", 0,0,100,100)
+        self.region = True
+        sbs.send_gui_clear(CID, self.local_region_tag)
+        super().present(event)
+        sbs.send_gui_complete(CID, self.local_region_tag)
+        #print(f"Listbox present complete {CID} {self.client_id} R-{self.region_tag}- L-{self.local_region_tag}-")
 
         #sbs.target_gui_sub_region(CID, "")
         
     def represent(self, event):
+        # sbs.get_debug_gui_tree(event.client_id, "pre off state", False)
+        # sbs.get_debug_gui_tree(event.client_id, "pre ON state", True)
         super().represent(event)
+        # sbs.get_debug_gui_tree(event.client_id, "post off state", False)
+        # sbs.get_debug_gui_tree(event.client_id, "post ON state", True)
         
     def invalidate_regions(self):
         self.region = None

@@ -1481,7 +1481,7 @@ class Mast():
     def signal_register(self, name, task, label_info):
         if label_info.server and not task.main.is_server():
             return
-        print(f"signal registered {name} {task.get_id() & 0x0000FFFFFFF} {label_info.server}")
+        # print(f"signal registered {name} {task.get_id() & 0x0000FFFFFFF} {label_info.server}")
         task_map = self.signal_observers.get(name, {})
         info_list = task_map.get(task, [])
         info_list.append(label_info)
