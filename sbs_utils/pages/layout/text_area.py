@@ -260,7 +260,12 @@ class TextArea(Control):
                 continue
             elif i == first_line:
                 bounds.top = self.bounds.top
-            bounds.bottom = bounds.top + text_line.height
+
+            new_bottom = bounds.top + text_line.height
+            if new_bottom  > self.bounds.bottom:
+                break
+            
+            bounds.bottom = new_bottom 
 
             # if bounds.top < 900:
             #     print(f"Sending line {message} {bounds} {self.local_region_tag}")
@@ -271,7 +276,6 @@ class TextArea(Control):
             if text_line.is_sec_end:
                 bounds.top += text_line.height/2
 
-            #if bounds.top > self.bounds.bottom:
             #    bounds.top = 1000
 
         # Add Scroll if needed
@@ -287,12 +291,12 @@ class TextArea(Control):
 
     def update(self, message):
         # print(f"{message}")
-        self.message = message
+        self.value = message
 
     
     @property
     def value(self):
-         return self.message
+         return self.content
        
     @value.setter
     def value(self, message):

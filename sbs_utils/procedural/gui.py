@@ -947,7 +947,7 @@ def gui_console(console, is_jump=False):
             widgets = "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list"
         case "engineering":
             console =  "normal_engi"
-            widgets = "ship_internal_view^grid_object_list^grid_face^grid_control^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
+            widgets = "ship_internal_view^eng_presets^grid_object_list^grid_face^grid_control^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
         case "comms":
             console =  "normal_comm"
             widgets = "2dview^text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
@@ -1024,6 +1024,11 @@ def gui_text(props, style=None):
         return
     if style is None: 
         style = ""
+    else:
+        style = task.compile_and_format_string(style)
+
+    props = task.compile_and_format_string(props)
+    
     layout_item = layout.Text(page.get_tag(), props)
     apply_control_styles(".text", style, layout_item, task)
 
@@ -1046,10 +1051,15 @@ def gui_text_area(props, style=None):
     page = FrameContext.page
     task = FrameContext.task
 
+    props = task.compile_and_format_string(props)
+
     if page is None:
         return
     if style is None: 
         style = ""
+    else:
+        style = task.compile_and_format_string(style)
+
     layout_item = TextArea(page.get_tag(), text_sanitize(props))
     apply_control_styles(".textarea", style, layout_item, task)
 
