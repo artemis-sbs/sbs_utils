@@ -658,3 +658,23 @@ def grid_repair_grid_objects(player_ship, id_or_set, who_repaired=None):
     if something_healed:
         set_damage_coefficients(player_ship_id )
     
+def grid_count_grid_data(ship_key, role, default):
+    """
+    Count the amount of grid items with the give role(from the json data)
+    for the given ship 
+    """
+    grid_data = grid_get_grid_data()
+    ship_data = grid_data.get(ship_key)
+    if ship_data is None:
+        return default
+    
+    internal_items = ship_data.get("grid_objects")
+    if internal_items is None:
+        return default
+    count = 0
+    for item in internal_items:
+        role_set = set([x.strip() for x in item["roles"].split(',')])
+        if role in role_set:
+            count += 1
+    
+    return count

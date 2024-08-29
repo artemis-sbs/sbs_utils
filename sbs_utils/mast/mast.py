@@ -1354,13 +1354,14 @@ class Mast():
 
         module_name = name[:-3]
         if sys.modules.get(module_name) is None:
+            #print(f"MODULE: START NAME -{module_name}-")
             spec = None
             if self.lib_name is not None:
-                module_parent = str(Path(self.lib_name).stem)
-                if self.basedir is not  None:
-                    module_name = str(Path().joinpath(module_parent, self.basedir, module_name).as_posix()).replace("/", ".")
-                elif self.parent_basedir is not None:
-                    module_name = str(Path().joinpath(module_parent, self.parent_basedir, module_name).as_posix()).replace("/", ".")
+                #module_parent = str(Path(self.lib_name).stem)
+                #if self.basedir is not  None:
+                #    module_name = str(Path().joinpath(module_parent, self.basedir, module_name).as_posix()).replace("/", ".")
+                #elif self.parent_basedir is not None:
+                #    module_name = str(Path().joinpath(module_parent, self.parent_basedir, module_name).as_posix()).replace("/", ".")
                 #print(f"zip python import {module_parent}") # {os.path.join(self.basedir, name)}")
 
                 #module_name = self.lib_name
@@ -1825,7 +1826,7 @@ class Mast():
                         next = node_cls(**data)
                         next.file_num = file_num
                         next.line_num = line_no
-                        if active.can_fallthrough():
+                        if active.can_fallthrough() and next.can_fallthrough():
                             active.next = next
                         else:
                             active.next = None

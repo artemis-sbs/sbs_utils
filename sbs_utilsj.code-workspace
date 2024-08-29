@@ -10,12 +10,11 @@
 			"path": "../tutorial_runner"
 		},
 		{
-			"path": "../modding_tools"
+			"path": "../WalkTheLine"
 		}
 	],
 	"settings": {
 		"python.testing.unittestEnabled": true,
-		"python.test"
-		
+
 	}
 }
