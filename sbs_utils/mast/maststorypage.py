@@ -297,7 +297,6 @@ class StoryPage(Page):
                 new_widgets = new_widgets + delim + widget
                 delim = "^"
         self.pending_widgets = widgets_3d+ widgets_2d+new_widgets
-        print(f"PENDING WIDGETS: {self.pending_widgets}")
     
     def add_section(self, tag= None):
         if tag is None:
