@@ -518,8 +518,8 @@ class simulation(object): ### from pybind
         """creates a new spaceobject. abits is a 16-bit bitfield for further defining the object.  bit 1, when set, means the object is unmoving and static."""
     def delete_navpoint_by_id(self: sbs.simulation, id: int) -> None:
         """deletes navpoint by its id"""
-    def force_update_to_clients(self: sbs.simulation, spaceObjectID: int) -> None:
-        """forces this space object to update its data to all clients"""
+    def force_update_to_clients(self: sbs.simulation, spaceObjectID: int, playerShipID: int) -> None:
+        """forces this space object to update its data to the clients attached to the playerShipID (all clients, if playerShipID is zero)"""
     def get_navpoint_by_id(self: sbs.simulation, id: int) -> sbs.navpoint:
         """takes a string name, returns the associated Navpoint object"""
     def get_navpoint_id_by_name(self: sbs.simulation, text: str) -> int:

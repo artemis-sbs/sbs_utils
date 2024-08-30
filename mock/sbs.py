@@ -24,7 +24,9 @@ def app_seconds() -> int:
     global seconds
     seconds += 1
     return seconds
-    ...
+
+def get_ship_of_client(id):
+    return 0
 def assign_client_to_alt_ship(clientComputerID: int, controlledShipID: int) -> None:
     """Tells a client computer that the 2d radar should focus on controlledShipID, instead of its assigned ship.  Turn this code off by providing zero as the second argument."""
 def assign_client_to_ship(clientComputerID: int, controlledShipID: int) -> None:

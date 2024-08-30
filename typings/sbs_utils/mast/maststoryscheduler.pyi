@@ -10,6 +10,15 @@ from sbs_utils.mast.mast import Scope
 from sbs_utils.mast.mastscheduler import MastAsyncTask
 from sbs_utils.mast.mastscheduler import MastRuntimeNode
 from sbs_utils.mast.mastscheduler import MastScheduler
+from sbs_utils.mast.pollresults import PollResults
+def comms_broadcast (ids_or_obj, msg, color='#fff'):
+    """Send text to the text waterfall
+    The ids can be player ship ids or client/console ids
+    
+    Args:
+        ids_or_obj (id or objecr): A set or single id or object to send to,
+        msg (str): The text to send
+        color (str, optional): The Color for the text. Defaults to "#fff"."""
 def comms_receive (msg, title=None, face=None, color='#fff', title_color=None):
     """Receive a message on a player ship from another ship
     It uses the current context to determine the sender and receiver.
@@ -74,6 +83,10 @@ class CommsMessageStartRuntimeNode(MastRuntimeNode):
     """class CommsMessageStartRuntimeNode"""
     def enter (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node: sbs_utils.mast.maststory.CommsMessageStart):
         ...
+class SkipBlockRuntimeNode(MastRuntimeNode):
+    """class SkipBlockRuntimeNode"""
+    def poll (self, mast: sbs_utils.mast.mast.Mast, task: sbs_utils.mast.mastscheduler.MastAsyncTask, node):
+        ...
 class StoryScheduler(MastScheduler):
     """class StoryScheduler"""
     def __init__ (self, mast: sbs_utils.mast.mast.Mast, overrides=None):
@@ -114,6 +127,8 @@ class StoryScheduler(MastScheduler):
     def has_links_list (collection_name):
         ...
     def has_links_set (collection_name):
+        ...
+    def is_server (self):
         ...
     def refresh (self, label):
         ...

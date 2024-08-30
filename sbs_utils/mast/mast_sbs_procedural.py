@@ -75,6 +75,7 @@ from ..procedural import execution
 from ..procedural import behavior
 from ..procedural import signal
 from ..procedural import maps
+from ..procedural import mission
 
 
 Mast.import_python_module('sbs_utils.procedural.query')
@@ -95,6 +96,7 @@ Mast.import_python_module('sbs_utils.procedural.execution')
 Mast.import_python_module('sbs_utils.procedural.behavior')
 Mast.import_python_module('sbs_utils.procedural.signal')
 Mast.import_python_module('sbs_utils.procedural.maps')
+Mast.import_python_module('sbs_utils.procedural.mission')
 
 Mast.import_python_module('sbs_utils.faces')
 Mast.import_python_module('sbs_utils.fs')

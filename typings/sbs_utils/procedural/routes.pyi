@@ -37,7 +37,18 @@ def route_change_console (label):
     
     Returns:
         The route: Used rarely to cancel the route"""
-def route_collision_object (label):
+def route_collision_interactive (label):
+    """called when a space_object takes a collision.
+    
+    Note:
+        This is not intended for long running tasks
+    
+    Args:
+        label (label): The label to run
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
+def route_collision_passive (label):
     """called when a space_object takes a collision.
     
     Note:
@@ -66,6 +77,17 @@ def route_console_mainscreen_change (label):
     
     Returns:
         The route: Used rarely to cancel the route"""
+def route_damage_destroy (label):
+    """called when a space_object is destroyed.
+    
+    Note:
+        This is not intended for long running tasks
+    
+    Args:
+        label (label): The label to run
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
 def route_damage_heat (label):
     """called when a player ship takes heat damage.
     
@@ -88,6 +110,17 @@ def route_damage_internal (label):
     
     Returns:
         The route: Used rarely to cancel the route"""
+def route_damage_killed (label):
+    """called when a space_object is about to be removed from the engine.
+    
+    Note:
+        This is not intended for long running tasks
+    
+    Args:
+        label (label): The label to run
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
 def route_damage_object (label):
     """called when a space_object takes hull damage.
     
@@ -99,18 +132,7 @@ def route_damage_object (label):
     
     Returns:
         The route: Used rarely to cancel the route"""
-def route_destroy (label):
-    """called when a space_object is destroyed.
-    
-    Note:
-        This is not intended for long running tasks
-    
-    Args:
-        label (label): The label to run
-    
-    Returns:
-        The route: Used rarely to cancel the route"""
-def route_dock (label):
+def route_dock_hangar (label):
     """called when a space_object docks.
     
     Note:
@@ -151,6 +173,18 @@ def route_focus_grid (label):
     Note:
         The label called should not be long running.
         Use route_select_grid for long running tasks.
+    
+    Args:
+        label (label): The label to run
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
+def route_focus_normal (label):
+    """called when comms changes selection.
+    
+    Note:
+        The label called should not be long running.
+        Use route_select_comms for long running tasks.
     
     Args:
         label (label): The label to run
@@ -243,6 +277,17 @@ def route_point_grid (label):
     
     Returns:
         The route: Used rarely to cancel the route"""
+def route_point_normal (label):
+    """called when a a point event occurs in comms.
+    
+    Note:
+        No know use for this currently
+    
+    Args:
+        label (label): The label to run
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
 def route_point_science (label):
     """called when a a point event occurs in science by clicking the 2d view.
     
@@ -305,6 +350,17 @@ def route_select_grid (label):
     
     Returns:
         The route: Used rarely to cancel the route"""
+def route_select_normal (label):
+    """called when comms changes selection.
+    Note:
+        Typically used to run a task that uses an await comms
+    
+    Args:
+        label (label): The label to run
+    
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
 def route_select_science (label):
     """called when science changes selection.
     
@@ -364,7 +420,7 @@ def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
         agent | None: The agent or None"""
 class HandleCollision(object):
     """class HandleCollision"""
-    def __init__ (self, label) -> None:
+    def __init__ (self, coll_type, label) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
     def selected (self, event):
         ...
@@ -442,6 +498,22 @@ class RouteConsole(object):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def filter_cls (self, event):
         ...
+class RouteDamageDestroy(RouteLifetime):
+    """decorator for routing to a python function or python class method
+    
+    Note:
+        The route is expected to be a label
+    
+    ??? Example
+        ``` py
+        @RouteDestroy
+        @label
+        def handle_destroy():
+            ....
+            yield PollResults.OK_YIELD
+        ```"""
+    def __init__ (self, method):
+        """Initialize self.  See help(type(self)) for accurate signature."""
 class RouteDamageHeat(RouteDamageSource):
     """decorator for routing to a python function or python class method
     
@@ -474,6 +546,22 @@ class RouteDamageInternal(RouteDamageSource):
         ```"""
     def __init__ (self, method):
         """Initialize self.  See help(type(self)) for accurate signature."""
+class RouteDamageKilled(RouteLifetime):
+    """decorator for routing to a python function or python class method
+    
+    Note:
+        The route is expected to be a label
+    
+    ??? Example
+        ``` py
+        @RouteDestroy
+        @label
+        def handle_destroy():
+            ....
+            yield PollResults.OK_YIELD
+        ```"""
+    def __init__ (self, method):
+        """Initialize self.  See help(type(self)) for accurate signature."""
 class RouteDamageObject(RouteDamageSource):
     """decorator for routing to a python function or python class method
     
@@ -496,7 +584,7 @@ class RouteDamageSource(object):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def filter_func (self, event):
         ...
-class RouteDestroy(RouteLifetime):
+class RouteDockHangar(RouteLifetime):
     """decorator for routing to a python function or python class method
     
     Note:
@@ -504,23 +592,7 @@ class RouteDestroy(RouteLifetime):
     
     ??? Example
         ``` py
-        @RouteDestroy
-        @label
-        def handle_destroy():
-            ....
-            yield PollResults.OK_YIELD
-        ```"""
-    def __init__ (self, method):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-class RouteDock(RouteLifetime):
-    """decorator for routing to a python function or python class method
-    
-    Note:
-        The route is expected to be a label
-    
-    ??? Example
-        ``` py
-        @RouteDock
+        @RouteDockHangar
         @label
         def handle_dock():
             ....

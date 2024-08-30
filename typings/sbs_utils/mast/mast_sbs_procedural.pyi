@@ -13,7 +13,7 @@ def func(*argv):
     Tells a client computer that the 2d radar should focus on controlledShipID, instead of its assigned ship.  Turn this code off by providing zero as the second argument."""
 def handle_purge_tasks (so):
     """This will clear out all tasks related to the destroyed item"""
-def layout_list_box_control (items, template_func=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False):
+def layout_list_box_control (items, template_func=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, read_only=False):
     ...
 def mast_assert (cond):
     ...

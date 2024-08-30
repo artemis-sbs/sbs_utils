@@ -138,6 +138,14 @@ def terran (face_i, eye_i, mouth_i, hair_i, longhair_i, facial_i, extra_i, unifo
     
     Returns:
         (str):   A Face string"""
+def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
+    """converts item passed to an agent id
+    
+    Args:
+        other (Agent | CloseData | int): The agent
+    
+    Returns:
+        id: The agent id"""
 def torgoth (face_i, eye_i, mouth_i, hair_i, extra_i, hat_i):
     """Create a torgoth face
     

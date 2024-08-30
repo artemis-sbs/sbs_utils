@@ -1177,7 +1177,6 @@ class MastAsyncTask(Agent, Promise):
     def is_observable(self):
         # Allows to yield multiple times
         self.yields_once = False
-        self.yields_once = False
 
 
     @property
@@ -1401,6 +1400,14 @@ class MastAsyncTask(Agent, Promise):
                     self.sub_tasks.remove(rem)
             done = []
 
+    def jump_restart_task(self, label = "main", activate_cmd=0):
+        """
+        Used by the mission runner to run multiple labels
+        """
+        self.set_result(None)
+        self.active_ticker.done = False
+        self.jump(label, activate_cmd)
+        self.tick_in_context()
 
 
     def tick(self):

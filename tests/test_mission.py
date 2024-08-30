@@ -3,7 +3,7 @@ sys.modules['script'] = "This is a"
 from sbs_utils.mast.mast import Mast
 from sbs_utils.mast.maststory import MastStory
 from sbs_utils.mast.maststoryscheduler import StoryScheduler
-from sbs_utils.mast.mastmission import mission_run, mission_runner
+from sbs_utils.procedural.mission import mission_run, mission_runner
 from mock import sbs as sbs
 from sbs_utils.helpers import FrameContext, Context, FakeEvent
 import unittest
@@ -53,9 +53,7 @@ def mast_story_run(code=None, label=None):
         task = runner.start_task(label)
     return (errors,runner, mast, task)
 
-
-from sbs_utils.mast.mastmission import mission_run
-    
+   
     
 
 class TestMastMission(unittest.TestCase):
@@ -70,27 +68,34 @@ await delay_test(2)
 
 //mission/test "Test"
 
+#yield success
+
 init:
     x = 0
     log("Init")
+
     # Dedent should return succcess
 
 start:
-    yield fail if x <2
-    x +=1 
     log("Start")
     # Dedent should return succcess
 
 abort:
-    log("Fail")
+    log("Abort")
+    # yield success
     #dedent should fail i.e. not abort
 
 objective/test "Test":
     log("Objective")
+    x +=1 
     # dedent should yield success
 
 complete:
-    log("complete")
+    if x <2:                                                     
+        log("Complete no")
+        yield fail
+    else:
+        log("Complete yes")
     # dedent should yield success
 
 """)
@@ -112,6 +117,10 @@ complete:
         task.set_variable("__START__", True)
         for _ in m_task:
             pass
-        print()
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        value = st.getvalue()
+        assert(value=="Init\nStart\nAbort\nObjective\nComplete no\nAbort\nObjective\nComplete yes\n")
 
 

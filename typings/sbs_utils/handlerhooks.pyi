@@ -1,4 +1,6 @@
 from sbs_utils.agent import Agent
+from sbs_utils.extra_dispatcher import ClientStringDispatcher
+from sbs_utils.extra_dispatcher import HotkeyDispatcher
 from sbs_utils.damagedispatcher import CollisionDispatcher
 from sbs_utils.damagedispatcher import DamageDispatcher
 from sbs_utils.consoledispatcher import ConsoleDispatcher

@@ -70,10 +70,22 @@ class CommsMessageStartRuntimeNode(MastRuntimeNode):
         elif node.mtype == "()": 
             comms_speech_bubble(msg, color=node.title_color)
 
+from .pollresults import PollResults
+
+class SkipBlockRuntimeNode(MastRuntimeNode):
+    def poll(self, mast:Mast, task:MastAsyncTask, node):
+        return PollResults.OK_SUCCESS
+
+
 over =     {
     "Text": TextRuntimeNode,
     "AppendText": AppendTextRuntimeNode,
-    "CommsMessageStart": CommsMessageStartRuntimeNode
+    "CommsMessageStart": CommsMessageStartRuntimeNode,
+    "StartBlock": SkipBlockRuntimeNode,
+    "InitBlock": SkipBlockRuntimeNode,
+    "AbortBlock": SkipBlockRuntimeNode,
+    "CompleteBlock": SkipBlockRuntimeNode,
+    "ObjectiveBlock": SkipBlockRuntimeNode,
 }
 
 class StoryScheduler(MastScheduler):

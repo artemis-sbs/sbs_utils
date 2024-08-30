@@ -1,5 +1,4 @@
 from .mast import MastNode, DecoratorLabel, DescribableNode, Yield, IF_EXP_REGEX, STRING_REGEX_NAMED
-from .pollresults import PollResults
 import re
 
 
@@ -55,9 +54,21 @@ class MissionLabel(StateMachineLabel):
         self.loc = loc
         self.replace = None
         self.cmds = []
+        if self.if_exp is not None:
+            self.if_exp = if_exp.strip()
+            try:
+                self.code = compile(self.if_exp, "<string>", "eval")
+            except:
+                raise Exception(f"Syntax error '{if_exp}'")
 
     def can_fallthrough(self):
-        return True
+        return False
+    
+    def test(self, task):
+        if self.code is None:
+            return True
+        return task.eval_code(self.code)
+
 
 class StateBlock(DescribableNode):
     def __init__(self):
@@ -89,6 +100,10 @@ class StartBlock(StateBlock):
         self.dedent_loc = loc+1
 
         return cmd
+    
+    def never_indent(self):
+        return True
+
 
 class InitBlock(StateBlock):
     rule = re.compile(r"""init:""")
@@ -187,101 +202,3 @@ class ObjectiveBlock(StateBlock):
 
         return cmd
 
-
-
-
-
-from ..procedural.execution import task_schedule, AWAIT
-from ..helpers import FrameContext
-
-
-def mission_runner(label=None, data=None):
-    """Runs a mission this runs the same task multiple times
-
-    Args:
-        label (_type_): a Mission Label
-        data (_type_, optional): _Data to pass to the mission task. Defaults to None.
-
-    Yields:
-        PollResults: Sucess or Failure
-    """
-    if label is None:
-        task = FrameContext.task
-        label = task.get_variable("label")
-        data = task.get_variable("data")
-
-    # Run the label itself just in case
-    abort_cmds = label.cmd_map.get("abort", [])
-    init_cmds = label.cmd_map.get("init", [])
-    start_cmds = label.cmd_map.get("start", [])
-    objectives = label.cmd_map.get("objective", [])
-    complete_cmd = label.cmd_map.get("complete", [])
-
-    # run the label, gets any onchange etc.
-    # it should skip the cmd block
-    task = task_schedule(label, data)
-    # Run the init command block
-    yield AWAIT(task)
-    res = task.result()
-
-    for cmd in init_cmds:
-        task.set_result(None)
-        task.jump(label, cmd.loc+1)
-        yield AWAIT(task)
-        res = task.result()
-        if res != PollResults.OK_SUCCESS:
-            yield PollResults.OK_END
-
-    # wait for the start     
-    # Keep running until start, set else where
-    while True:
-        start = task.get_variable("__START__")
-        if start:
-            break
-        yield PollResults.OK_RUN_AGAIN
-
-    # Run the start command block
-    for cmd in start_cmds:
-        task.set_result(None)
-        task.jump(label, cmd.loc+1)
-        yield AWAIT(task)
-        res = task.result()
-        if res != PollResults.OK_SUCCESS:
-            yield PollResults.OK_END
-
-    # Continue to loop until failure or completion
-
-    done = False
-    while not done:
-        # Success of an abort is end task
-        for cmd in abort_cmds:
-            task.set_result(None)
-            task.jump(label, cmd.loc+1)
-            yield AWAIT(task)
-            res = task.result()
-            if res == PollResults.OK_SUCCESS:
-                yield PollResults.OK_END
-
-        # Fail or success is OK
-        # success means it is currently completed
-        for cmd in objectives:
-            task.set_result(None)
-            task.jump(label, cmd.loc+1)
-            yield AWAIT(task)
-            res = task.result()
-            if res == PollResults.OK_SUCCESS:
-                pass
-
-        done = True
-        # If any fail, we're not done
-        for cmd in complete_cmd:
-            task.set_result(None)
-            task.jump(label, cmd.loc+1)
-            yield AWAIT(task)
-            res = task.result()
-            if res != PollResults.OK_SUCCESS:
-                done = False
-
-
-def mission_run(label, data= None):
-    return task_schedule(mission_runner, {"label": label, "data": data})

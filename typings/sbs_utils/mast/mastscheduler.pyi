@@ -34,6 +34,7 @@ from sbs_utils.procedural.gui import ButtonPromise
 from enum import Enum
 from enum import IntEnum
 from sbs_utils.helpers import FrameContext
+from pathlib import Path
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.futures import Promise
 from sbs_utils.futures import Trigger
@@ -202,6 +203,8 @@ class MastAsyncTask(Agent, Promise):
         ...
     def jump (self, label='main', activate_cmd=0):
         ...
+    def jump_restart_task (self, label='main', activate_cmd=0):
+        """Used by the mission runner to run multiple labels"""
     def poll (self):
         ...
     def pop_label (self, inc_loc=True, true_pop=False):
@@ -302,6 +305,8 @@ class MastScheduler(Agent):
     def has_links_set (collection_name):
         ...
     def is_running (self):
+        ...
+    def is_server (self):
         ...
     def on_start_task (self, t):
         ...

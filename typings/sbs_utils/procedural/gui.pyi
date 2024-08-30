@@ -3,6 +3,7 @@ from sbs_utils.futures import AwaitBlockPromise
 from sbs_utils.futures import Trigger
 from sbs_utils.mast.mast import Button
 from sbs_utils.mast.mast import Scope
+from sbs_utils.extra_dispatcher import ClientStringDispatcher
 from sbs_utils.helpers import DictionaryToObject
 from sbs_utils.helpers import FakeEvent
 from sbs_utils.helpers import FrameContext
@@ -319,7 +320,7 @@ def gui_layout_widget (widget):
     
     Returns:
         layout element: The layout element"""
-def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False):
+def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, read_only=False):
     ...
 def gui_message (layout_item):
     """Trigger to watch when the specified layout element has a message
@@ -384,6 +385,8 @@ def gui_represent (layout_item):
     
     Args:
         layout_item (layout_item): """
+def gui_request_client_string (client_id, key, timeout=None):
+    ...
 def gui_reroute_client (client_id, label, data=None):
     ...
 def gui_reroute_clients (label, data=None, exclude=None):
@@ -552,6 +555,8 @@ class ButtonPromise(AwaitBlockPromise):
     """class ButtonPromise"""
     def __init__ (self, path, task, timeout=None) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def add_nav_button (self, button):
+        ...
     def build_navigation_buttons (self):
         ...
     def check_for_button_done (self):
@@ -596,6 +601,12 @@ class ClickableTrigger(Trigger):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def click (self, click_tag):
         ...
+class ClientStringPromise(AwaitBlockPromise):
+    """class ClientStringPromise"""
+    def __init__ (self, client_id, key, timeout=None) -> None:
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def on_event (self, event):
+        ...
 class GuiPromise(ButtonPromise):
     """class GuiPromise"""
     def __init__ (self, page, timeout=None) -> None:
@@ -626,6 +637,8 @@ class PageRegion(object):
         """Initialize self.  See help(type(self)) for accurate signature."""
     @property
     def is_hidden (self):
+        ...
+    def rebuild (self):
         ...
     def represent (self, e):
         ...

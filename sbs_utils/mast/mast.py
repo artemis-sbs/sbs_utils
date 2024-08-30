@@ -81,6 +81,9 @@ class MastNode:
     def is_indentable(self):
         return False
     
+    def never_indent(self):
+        return False
+
     def is_virtual(self):
         """ 
         Virtual nodes are not added to the command stack
@@ -189,6 +192,10 @@ class InlineLabel(MastNode):
         self.desc = None
         self.label = compile_info.label
         compile_info.label.add_label(name, self)
+
+    def never_indent(self):
+        return True
+
 
 
 
@@ -867,6 +874,9 @@ class AwaitInlineLabel(MastNode):
 
     def is_indentable(self):
         return True
+    def never_indent(self):
+        return False
+
 
     def create_end_node(self, loc, dedent_obj, compile_info):
         """ cascade the dedent up to the start"""
@@ -1826,7 +1836,8 @@ class Mast():
                         next = node_cls(**data)
                         next.file_num = file_num
                         next.line_num = line_no
-                        if active.can_fallthrough() and next.can_fallthrough():
+                        #if active.can_fallthrough() and next.can_fallthrough():
+                        if next.can_fallthrough():
                             active.next = next
                         else:
                             active.next = None
@@ -1920,7 +1931,10 @@ class Mast():
                             return errors # return with first errors
 
                         obj.line = line if Mast.include_code else None
-
+                        if obj.never_indent() and indent>0:
+                            errors.append(f"\nERROR: Bad indention {file_name} {line_no} - {line}")
+                            return errors # return with first errors
+                        
                         if is_indent:
                             if prev_node is None or not prev_node.is_indentable():
                                 errors.append(f"\nERROR: Bad indention {file_name} {line_no} - {line}")
