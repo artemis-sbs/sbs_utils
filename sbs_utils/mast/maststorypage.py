@@ -284,15 +284,20 @@ class StoryPage(Page):
             self.pending_widgets += "^"+widget
         widgets = set(self.pending_widgets.split("^"))
         new_widgets = ""
+        widgets_2d = ""
+        widgets_3d = ""
         delim = ""
         for widget in set(widgets):
-            if widget in ["2dview","3dview", "weapon_2d_view", "science_2d_view"]:
-                new_widgets = widget + delim + new_widgets
+            if widget == "3dview":
+                widgets_3d = widget+"^"
+            elif widget in ["2dview","weapon_2d_view", "science_2d_view"]:
+                widgets_2d = widget + delim + widgets_2d
                 delim = "^"
             else:
                 new_widgets = new_widgets + delim + widget
                 delim = "^"
-        self.pending_widgets = new_widgets
+        self.pending_widgets = widgets_3d+ widgets_2d+new_widgets
+        print(f"PENDING WIDGETS: {self.pending_widgets}")
     
     def add_section(self, tag= None):
         if tag is None:
