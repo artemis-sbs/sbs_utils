@@ -116,20 +116,20 @@ class ShipPicker(Control):
         self.gui_state == "presenting"
         if self.ships is None:
             sbs.send_gui_text(
-                    CID,  self.local_region_tag, f"{self.tag}error", f"text:Error {self.test}",the_bounds.left, the_bounds.top, the_bounds.right, the_bounds.top+5)
+                    CID,  self.local_region_tag, f"{self.tag}error", f"$text:Error {self.test}",the_bounds.left, the_bounds.top, the_bounds.right, the_bounds.top+5)
             return
 
         ship = self.ships[self.cur]
         top = the_bounds.top
 
         sbs.send_gui_text(
-                    CID, self.local_region_tag, f"{self.tag}title", f"text: {self.title_prefix} {ship['side']} {ship['name']}",  the_bounds.left, top, the_bounds.right, top+5)
+                    CID, self.local_region_tag, f"{self.tag}title", f"$text: {self.title_prefix} {ship['side']} {ship['name']}",  the_bounds.left, top, the_bounds.right, top+5)
         top += 5
         if self.show_desc:
             desc = ship.get('long_desc',None)
             if desc is not None:
                 sbs.send_gui_text(
-                        CID, self.local_region_tag, f"{self.tag}desc", f"text: {desc}",  the_bounds.left, top, the_bounds.right, top+15)
+                        CID, self.local_region_tag, f"{self.tag}desc", f"$text: {desc}",  the_bounds.left, top, the_bounds.right, top+15)
             # Keep spacing?
             top += 15
         
@@ -137,8 +137,8 @@ class ShipPicker(Control):
         half = (the_bounds.right-the_bounds.left)/2
         
         if not self._read_only:
-            sbs.send_gui_button(CID,self.local_region_tag, f"{self.tag}prev", "text:prev", the_bounds.left, the_bounds.bottom-5, the_bounds.left+half, the_bounds.bottom)
-            sbs.send_gui_button(CID,self.local_region_tag, f"{self.tag}next", "text:next", the_bounds.right-half, the_bounds.bottom-5, the_bounds.right, the_bounds.bottom)
+            sbs.send_gui_button(CID,self.local_region_tag, f"{self.tag}prev", "$text:prev", the_bounds.left, the_bounds.bottom-5, the_bounds.left+half, the_bounds.bottom)
+            sbs.send_gui_button(CID,self.local_region_tag, f"{self.tag}next", "$text:next", the_bounds.right-half, the_bounds.bottom-5, the_bounds.right, the_bounds.bottom)
         #print(f"displaying {ship['key']}")
         sbs.send_gui_3dship(CID,self.local_region_tag, f"{self.tag}ship", f"hull_tag:{ship['key']};",
             the_bounds.left, top,

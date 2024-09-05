@@ -17,7 +17,7 @@ class StartPage(Page):
         sbs.send_gui_text(
                     CID,"",  "text", self.desc, 25, 30, 99, 90)
         
-        sbs.send_gui_button(CID,"", "start", "text: Start", 80,90, 99,99)
+        sbs.send_gui_button(CID,"", "start", "$text: Start", 80,90, 99,99)
         sbs.send_gui_complete(CID, "")
         
 
@@ -49,7 +49,7 @@ class ClientSelectPage(Page):
             sbs.send_client_widget_list(event.client_id, "","")
             i = 0
             for console in ["Helm", "Weapons", "Science", "Engineering", "Comms", "Main Screen"]:
-                sbs.send_gui_checkbox(CID,"", console, f"text: {console};state:{'on' if console==self.console else 'off'}", 80,75-i*5, 99,79-i*5)
+                sbs.send_gui_checkbox(CID,"", console, f"$text: {console};state:{'on' if console==self.console else 'off'}", 80,75-i*5, 99,79-i*5)
                 i+=1
 
             i = 0
@@ -57,11 +57,11 @@ class ClientSelectPage(Page):
                 name = player.name
                 if self.player_id is None:
                     self.player_id = player.id
-                sbs.send_gui_checkbox(CID,"", str(player.id), f"text:{name};state:{'on' if self.player_id == player.id else 'off'}", 20,75-i*5, 39,79-i*5)
+                sbs.send_gui_checkbox(CID,"", str(player.id), f"$text:{name};state:{'on' if self.player_id == player.id else 'off'}", 20,75-i*5, 39,79-i*5)
                 i+=1
 
             if self.player_id is not None:
-                sbs.send_gui_button(CID,"", "select", "text:Select", 80,95-i*5, 99,99-i*5)
+                sbs.send_gui_button(CID,"", "select", "$text:Select", 80,95-i*5, 99,99-i*5)
             self.state = "skip"
             sbs.send_gui_complete(CID,"")
             

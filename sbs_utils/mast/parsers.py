@@ -167,6 +167,8 @@ class StyleDefinition:
                     ret[key]=value
                 case "click_text":
                     ret[key]=value
+                case "click_background":
+                    ret[key]=value
                 case "click_color":
                     ret[key]=value
                 case "click_font":

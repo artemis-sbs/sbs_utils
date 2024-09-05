@@ -103,7 +103,7 @@ class Listbox(Control):
         
         if self.items is None:
             sbs.send_gui_text(
-                    CID, self.local_region_tag, f"{self.tag}error", f"text:Error no items;", the_bounds.left, the_bounds.top, the_bounds.right, the_bounds.top+5)
+                    CID, self.local_region_tag, f"{self.tag}error", f"$text:Error no items;", the_bounds.left, the_bounds.top, the_bounds.right, the_bounds.top+5)
             return
 
         left = the_bounds.left
@@ -209,8 +209,8 @@ class Listbox(Control):
             text = ""
             if self.text:
                 text = self.text(item)
-                if "text:" not in text:
-                    text = f"text:{text};justify:center;"
+                if "$text:" not in text:
+                    text = f"$text:{text};justify:center;"
             tag = f"{self.tag}name:{slot}"
             tags.add(tag)
             sbs.send_gui_text(
@@ -260,7 +260,7 @@ class Listbox(Control):
             #print(f"tags {len(self.last_tags)} {len(tags)} {len(diff)}")
             for t in diff:
                 sbs.send_gui_text(
-                    CID, self.local_region_tag,  t, "text:_",
+                    CID, self.local_region_tag,  t, "$text:_",
                         -1000, -1000, -999,-999)
         self.last_tags = tags
         self.gui_state = "presenting"

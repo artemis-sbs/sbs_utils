@@ -207,20 +207,20 @@ if IS_SERVER:
 else:
     gui_section(style="area: 100-500px, 0, 100, 30px;")
 
-button = gui_drop_down("text: ship;list:Artemis,Hera,Atlas", var= "ship_select")
+button = gui_drop_down("$text: ship;list:Artemis,Hera,Atlas", var= "ship_select")
 on gui_message(button):
     jump PickedShip
 
-dd = gui_drop_down("text: console;list:Helm,Weapons,Science,Engineering,Comms,Medical,Main Screen", var="console")
+dd = gui_drop_down("$text: console;list:Helm,Weapons,Science,Engineering,Comms,Medical,Main Screen", var="console")
 on gui_message(dd):
     view = "Main"
     gui_history_jump(PickedView)
 
-dd2 = gui_drop_down("text: view;list:Main,Auxiliary,Crafting,Quarters,P.A.D.D.,Broadcast,Bar", var="view")
+dd2 = gui_drop_down("$text: view;list:Main,Auxiliary,Crafting,Quarters,P.A.D.D.,Broadcast,Bar", var="view")
 on gui_message(dd2):
     gui_history_jump(PickedView)
 
-dd3=gui_drop_down("text: Mast;list:Variables,Debug,restart", "mast_view")
+dd3=gui_drop_down("$text: Mast;list:Variables,Debug,restart", "mast_view")
 on gui_message(dd3):
     gui_history_jump(PickedMast)
 

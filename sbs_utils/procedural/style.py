@@ -120,6 +120,11 @@ def apply_style_def(style_def, layout_item, task):
         click_color = compile_formatted_string(click_color)
         layout_item.click_color = task.format_string(click_color)
 
+    click_bk = style_def.get("click_background")
+    if click_bk is not None:
+        click_bk = compile_formatted_string(click_bk)
+        layout_item.click_background = task.format_string(click_bk)
+
     click_tag = style_def.get("click_tag")
     if click_tag is not None:
         click_tag = compile_formatted_string(click_tag)

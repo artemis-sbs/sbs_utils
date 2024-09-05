@@ -215,8 +215,8 @@ class TextArea(Control):
     def _present_simple(self, event):
         ctx = FrameContext.context
         message = self.content[0]
-        if "text:" not in message:
-            message = f"text:{message};"
+        if "$text:" not in message:
+            message = f"$text:{message};"
 
         message += self.get_cascade_props(True, True, True)
 
@@ -251,7 +251,7 @@ class TextArea(Control):
             style = style_obj.get("style")
             indent = style_obj.get("indent", 0) 
 
-            message = f"text:{text_line.text};{style}"
+            message = f"$text:{text_line.text};{style}"
             
             tag = f"{self.tag}:{i}"
             # For now draw all lines 
@@ -284,7 +284,7 @@ class TextArea(Control):
             max = (self.last_line+1)
             cur = self.scroll_line
 
-            ctx.sbs.send_gui_slider(CID,self.local_region_tag, f"{self.tag}vbar", int(cur), f"text:int;low:0; high: {max};",
+            ctx.sbs.send_gui_slider(CID,self.local_region_tag, f"{self.tag}vbar", int(cur), f"$text:int;low:0; high: {max};",
                 scroll_bounds.right-20*100/ar.x, scroll_bounds.top,
                 scroll_bounds.right, scroll_bounds.bottom)
 
@@ -306,7 +306,7 @@ class TextArea(Control):
         message = re.split(r"\n\n+", message)
 
         if len(message)==1:
-            # if "text:" in message[0]:
+            # if "$text:" in message[0]:
             self.simple_text = True
             self.content = message
             return

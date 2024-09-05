@@ -77,19 +77,19 @@ class AvatarEditor(Page):
             return
         sbs.send_gui_clear(CID)
         sbs.send_gui_text(
-                    0, "title", f"text:Avatar Editor",  25, 5, 99, 9)
+                    0, "title", f"$text:Avatar Editor",  25, 5, 99, 9)
         sbs.send_gui_face(CID,  "face", self.face, 35, 0, 65, 1)
         l1 = layout.wrap(25, 50, 19, 4,col=3)
         
-        sbs.send_gui_button(CID,  "arv","text: Arvonian", *next(l1))
-        sbs.send_gui_button(CID,  "kra","text: Kralien", *next(l1))
-        sbs.send_gui_button(CID,  "ska","text: Skaraan", *next(l1))
-        sbs.send_gui_button(CID,  "ter","text: Terran", *next(l1))
-        sbs.send_gui_button(CID,  "tor","text: Torgoth", *next(l1))
-        sbs.send_gui_button(CID,  "xim","text: Ximni", *next(l1))
+        sbs.send_gui_button(CID,  "arv","$text: Arvonian", *next(l1))
+        sbs.send_gui_button(CID,  "kra","$text: Kralien", *next(l1))
+        sbs.send_gui_button(CID,  "ska","$text: Skaraan", *next(l1))
+        sbs.send_gui_button(CID,  "ter","$text: Terran", *next(l1))
+        sbs.send_gui_button(CID,  "tor","$text: Torgoth", *next(l1))
+        sbs.send_gui_button(CID,  "xim","$text: Ximni", *next(l1))
 
         w = layout.wrap(99, 99, 19, 4,col=1, v_dir=-1, h_dir=-1)
-        sbs.send_gui_button(CID, "back", "text:back", *next(w))
+        sbs.send_gui_button(CID, "back", "$text:back", *next(w))
         
         # Get bottom of the race buttons
         (l,t,r,b) = next(l1)
@@ -105,14 +105,14 @@ class AvatarEditor(Page):
                 if "optional" in widget:
                     enable = 1 if widget["optional"] == True else 0
                     #enable = 0
-                    sbs.send_gui_checkbox(CID,  f"op:{v}", f"text: {label};state: {'on' if enable else 'off'}", *loc)
+                    sbs.send_gui_checkbox(CID,  f"op:{v}", f"$text: {label};state: {'on' if enable else 'off'}", *loc)
                     if enable and widget["max"]>0:
                         sbs.send_gui_slider(CID, f"{v}", self.cur[v], f"low: {widget['min']}; high: {widget['max']}", *next(l2))
                     else:
                         next(l2)
 
                 else:
-                    sbs.send_gui_text(CID, label, f"text:{label}", *loc)
+                    sbs.send_gui_text(CID, label, f"$text:{label}", *loc)
                     sbs.send_gui_slider(CID, f"{v}", self.cur[v], f"low: {widget['min']}; high: {widget['max']}; show_number: no", *next(l2))
                     #sbs.send_gui_slider(CID, f"{v}",  widget["min"],widget["max"],self.cur[v], *next(l2), True)
 

@@ -413,7 +413,7 @@ class StoryPage(Page):
                 continue
             tabs.add(tab_text)
             count+= 1
-            msg = f"justify:center;color:black;text:{tab_text};"
+            msg = f"justify:center;color:black;$text:{tab_text};"
 
             button = TabControl(self.get_tag(),msg, all_tabs[tab], self) # Jump label all_tabs[tab]
             button.click_text = tab_text
@@ -506,15 +506,15 @@ class StoryPage(Page):
         if len(self.errors) > 0:
             message = "".join(self.errors)
             message = message.replace(";", "~")
-            message = "text: Mast Compiler Errors\n" + message.replace(",", ".")
+            message = "$text: Mast Compiler Errors\n" + message.replace(",", ".")
             my_sbs.send_gui_clear(event.client_id,"")
             if event.client_id != 0:
                 my_sbs.send_client_widget_list(event.client_id, "", "")
             my_sbs.send_gui_text(event.client_id,"", "error", message,  0,0,100,100)
-            sbs.send_gui_button(event.client_id,"", "$Error$resume", "text:Attempt Resume", 0, 90, 20, 99)
-            sbs.send_gui_button(event.client_id,"", "$Error$pause", "text:Attempt pause", 25, 90, 45, 99)
-            sbs.send_gui_button(event.client_id,"", "$Error$rerun", "text:Attempt Rerun", 50, 90, 70, 99)
-            sbs.send_gui_button(event.client_id,"", "$Error$startup", "text:Run startup", 75, 90, 99, 99)
+            sbs.send_gui_button(event.client_id,"", "$Error$resume", "$text:Attempt Resume", 0, 90, 20, 99)
+            sbs.send_gui_button(event.client_id,"", "$Error$pause", "$text:Attempt pause", 25, 90, 45, 99)
+            sbs.send_gui_button(event.client_id,"", "$Error$rerun", "$text:Attempt Rerun", 50, 90, 70, 99)
+            sbs.send_gui_button(event.client_id,"", "$Error$startup", "$text:Run startup", 75, 90, 99, 99)
             self.gui_state = "errors"
             my_sbs.send_gui_complete(event.client_id,"")
             return

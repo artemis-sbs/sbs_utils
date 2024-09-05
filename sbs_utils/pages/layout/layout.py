@@ -121,6 +121,7 @@ class Row:
         self.click_tag  = None
         self.click_font  = None
         self.click_color  = None
+        self.click_background = None
         self.clicked = False
 
 
@@ -223,13 +224,17 @@ class Row:
     def _post_present(self, event):
         if self.click_text is not None:
             ctx = FrameContext.context
-            click_props = f"text:{self.click_text};"
+            click_props = f"$text:{self.click_text};"
             if self.click_color is not None:
                 click_props += f"color: {self.click_color};"
             if self.click_font is not None:
                 click_props += f"font: {self.click_font};"
             if self.click_tag is None:
                 self.click_tag = f"__click:{self.tag}"
+            if self.click_background is not None:
+                click_props += f"background_color:{self.click_background};"
+            else:
+                click_props += f"background_color: white;"
 
             #TODO: This looks wrong
             ctx.sbs.send_gui_clickregion(event.client_id, self.region_tag,
@@ -281,6 +286,7 @@ class Column:
         self.region_tag = ""
         self.click_text = None
         self.click_color = None
+        self.click_background = None
         self.click_font = None
         self.click_tag = None
         self.data = None
@@ -403,13 +409,17 @@ class Column:
 
     def _post_present(self, event):
         if self.click_text is not None:
-            click_props = f"text:{self.click_text};"
+            click_props = f"$text:{self.click_text};"
             if self.click_color:
                 click_props += f"color: {self.click_color};"
             if self.click_font:
                 click_props += f"font: {self.click_font};"
             if self.click_tag is None:
                 self.click_tag = f"__click:{self.tag}"
+            if self.click_background is not None:
+                click_props += f"background_color:{self.click_background};"
+            else:
+                click_props += f"background_color: white;"
 
             ctx = FrameContext.context
             #
@@ -470,8 +480,8 @@ class Text(Column):
     def _present(self, event):
         ctx = FrameContext.context
         message = self.message
-        if "text:" not in message:
-            message = f"text:{message};"
+        if "$text:" not in message:
+            message = f"$text:{message};"
 
         message += self.get_cascade_props(True, True, True)
 
@@ -497,8 +507,8 @@ class Button(Column):
     def __init__(self, tag, message) -> None:
         super().__init__()
         self.tag = tag
-        if "text:" not in message:
-            self.message = f"text:{message};"
+        if "$text:" not in message:
+            self.message = f"$text:{message};"
         else:
             self.message = message
 
@@ -512,8 +522,8 @@ class Button(Column):
         
 
     def update(self, message):
-        if "text:" not in message:
-            message = f"text:{message};"
+        if "$text:" not in message:
+            message = f"$text:{message};"
         self.message = message
 
 
@@ -523,8 +533,8 @@ class Button(Column):
 
     @value.setter
     def value(self, v):
-        if "text:" not in v:
-            v = f"text:{v}"
+        if "$text:" not in v:
+            v = f"$text:{v}"
 
         self.message = v
 
@@ -575,8 +585,8 @@ class Slider(Column):
 class Checkbox(Column):
     def __init__(self, tag, message, value=False) -> None:
         super().__init__()
-        if "text:" not in message:
-            message = f"text:{message};"
+        if "$text:" not in message:
+            message = f"$text:{message};"
         self.message = message
         self.tag = tag
         self._value = value
@@ -601,8 +611,8 @@ class Checkbox(Column):
             #self.value = int(event.sub_float)
 
     def update(self, message):
-        if "text:" not in message:
-            message = f"text:{message};"
+        if "$text:" not in message:
+            message = f"$text:{message};"
         self.message = message
 
 
@@ -679,7 +689,7 @@ class Image(Column):
     def _present(self, event):
         ctx = FrameContext.context
         if self.width == -1:
-            message = f"text: IMAGE NOT FOUND {self.file}"
+            message = f"$text: IMAGE NOT FOUND {self.file}"
             ctx.sbs.send_gui_text(event.client_id, self.region_tag,
                 self.tag, message,
                 self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
@@ -785,11 +795,11 @@ class TextInput(Column):
         if "text:" in props:
             #TODO: Need to parse out value
             #     
-            text = re.search(r"text:(?P<text>.*);", props).group('text')
+            text = re.search(r"\$?text:(?P<text>.*);", props).group('text')
             if text:
                 self._value = text
 
-            fix_props = re.sub(r'text:\s*.*;', "", props)
+            fix_props = re.sub(r'\$?text:\s*.*;', "", props)
             #print(f"before: '{props}' after: {fix_props}")
             
         self.tag = tag
@@ -797,7 +807,7 @@ class TextInput(Column):
         
     def _present(self, event):
         ctx = FrameContext.context
-        props = f"text:{self._value};"
+        props = f"$text:{self._value};"
         props += self.props
         props += self.get_cascade_props(True, True, True)
         #print(f"TEXT INPUT {props} {self._value}")
@@ -1567,7 +1577,7 @@ class Layout:
 
     def _post_present(self, event):
         if self.click_text is not None:
-            click_props = f"text:{self.click_text};"
+            click_props = f"$text:{self.click_text};"
             if self.click_color is not None:
                 click_props += f"color: {self.click_color};"
             if self.click_font is not None:
@@ -1576,7 +1586,8 @@ class Layout:
                 self.click_tag = f"__click:{self.tag}"
             if self.click_background is not None:
                 click_props += f"background_color:{self.click_background};"
-            click_props += f"background_color: white;"
+            else:
+                click_props += f"background_color: white;"
 
             bounds = Bounds(self.bounds)
             bounds.shrink(self.margin)
@@ -1610,7 +1621,7 @@ class RadioButton(Column):
         
     def _present(self, event):
         ctx = FrameContext.context
-        props = f"state:{self._value==1};text:{self.message};"
+        props = f"state:{self._value==1};$text:{self.message};"
         ctx.sbs.send_gui_checkbox(event.client_id, self.region_tag,
             self.tag, props,
             # 1 if self._value else 0,

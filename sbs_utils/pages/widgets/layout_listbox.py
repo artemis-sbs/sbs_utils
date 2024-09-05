@@ -242,10 +242,10 @@ class LayoutListbox(layout.Column):
         em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
         if self.carousel and not self.horizontal:
             sbs.send_gui_clickregion(event.client_id, self.local_region_tag,
-                f"{self.tag_prefix}dec", "text:<<;font:gui-6;",
+                f"{self.tag_prefix}dec", "$text:<<;font:gui-6;",
                 self.bounds.left, self.bounds.top, self.bounds.left+em2*5, self.bounds.bottom)
             sbs.send_gui_clickregion(event.client_id, self.local_region_tag,
-                f"{self.tag_prefix}inc", "text:>>;font:gui-6;",
+                f"{self.tag_prefix}inc", "$text:>>;font:gui-6;",
                 self.bounds.right-em2*5, self.bounds.top, self.bounds.right, self.bounds.bottom)
         elif self.carousel and self.horizontal:
             pass
@@ -321,8 +321,9 @@ class LayoutListbox(layout.Column):
             sec.region_tag = self.local_region_tag
             #print(f"BREAK {cur}  {tag} {left=} {top=}")
             if (self.select or self.multi) and not self.carousel:
-                sec.click_text = "__________________"
-                sec.click_background = "white"
+                #sec.click_text = "__________________"
+                sec.click_text = ""
+                sec.click_background = "#aaaa"
                 sec.click_color = "black"
                 if cur in self.selected:
                     sec.background_color = self.select_color
@@ -359,7 +360,7 @@ class LayoutListbox(layout.Column):
         #     #print(f"tags {len(self.last_tags)} {len(sub_page.tags)} {len(diff)}")
         #     for t in diff:
         #         sbs.send_gui_text(
-        #             CID, t, "text:_",
+        #             CID, t, "$text:_",
         #                 -1000, -1000, -999,-999)
         # self.last_tags = sub_page.tags
         #sbs.target_gui_sub_region(CID, "")

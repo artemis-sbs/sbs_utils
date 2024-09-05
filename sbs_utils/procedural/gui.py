@@ -21,7 +21,7 @@ gui_screenshot = screen_shot.gui_screenshot
 
 
 def text_sanitize(text):
-    text = text.replace(",", "_")
+    # text = text.replace(",", "_")
     #text = text.replace(":", "_")
     return text
 
@@ -620,8 +620,8 @@ def gui_input(props, style=None, var=None, data=None):
     if var is not None:
         val = task.get_variable(var, "")
 
-    if "text:" not in props:
-        props = f"text:{val};{props}"
+    if "$text:" not in props:
+        props = f"$text:{val};{props}"
 
     layout_item = layout.TextInput(tag, props)
     layout_item.data = data
