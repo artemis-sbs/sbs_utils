@@ -242,10 +242,10 @@ class LayoutListbox(layout.Column):
         em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
         if self.carousel and not self.horizontal:
             sbs.send_gui_clickregion(event.client_id, self.local_region_tag,
-                f"{self.tag_prefix}dec", "$text:<<;font:gui-6;",
+                f"{self.tag_prefix}dec", "background_color:#6666",
                 self.bounds.left, self.bounds.top, self.bounds.left+em2*5, self.bounds.bottom)
             sbs.send_gui_clickregion(event.client_id, self.local_region_tag,
-                f"{self.tag_prefix}inc", "$text:>>;font:gui-6;",
+                f"{self.tag_prefix}inc", "background_color:#6666",
                 self.bounds.right-em2*5, self.bounds.top, self.bounds.right, self.bounds.bottom)
         elif self.carousel and self.horizontal:
             pass
