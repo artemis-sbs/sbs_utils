@@ -23,6 +23,8 @@ def linked_to(link_source, link_name: str):
         set | None: set of ids
     """
     link_source = Agent.resolve_py_object(link_source)
+    if link_source is None:
+        return set()
     return link_source.get_link_set(link_name)
 
 def has_link_to(link_source, link_name: str, link_target):
@@ -36,6 +38,8 @@ def has_link_to(link_source, link_name: str, link_target):
         set | None: set of ids
     """
     link_source = Agent.resolve_py_object(link_source)
+    if link_source is None:
+        return set()
     return  link_source.has_link_to(link_name,link_target)
 
 def link(set_holder, link, set_to):
