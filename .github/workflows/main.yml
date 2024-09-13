@@ -16,7 +16,7 @@ jobs:
       uses: thedoctor0/zip-release@main
       with:
         type: 'zip'
-        filename: 'sbs_utils_${{ steps.get_version.outputs.VERSION }}.sbslib'
+        filename: '${{ github.event.repository.owner }}.${{ github.event.repository.name }}.${{ steps.get_version.outputs.VERSION }}.sbslib'
         #directory: 'sbs_utils'
         #exclusions: 'LICENSE. *.* .* *. *.git* /docs/* /mock/* /typings/* /sphinx/* /tests/* *.py .nojekyll'
         path: "sbs_utils"
@@ -25,7 +25,7 @@ jobs:
       uses: thedoctor0/zip-release@main
       with:
         type: 'zip'
-        filename: 'sbs_utils_${{ steps.get_version.outputs.VERSION }}_types.zip'
+        filename: '${{ github.event.repository.name }}.${{ steps.get_version.outputs.VERSION }}.types.zip'
         # directory: 'typings'
         #exclusions: 'LICENSE. *.* *.git* .* *. /docs/* /mock/* /sbs_utils/* /sphinx/* /tests/*'
         path: "typings"
@@ -33,6 +33,6 @@ jobs:
     - name: Upload Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "sbs_utils_${{ steps.get_version.outputs.VERSION }}.sbslib,sbs_utils_${{ steps.get_version.outputs.VERSION }}_types.zip"
+        artifacts: "${{ github.event.repository.owner }}.${{ github.event.repository.name }}.${{ steps.get_version.outputs.VERSION }}.sbslib,${{ github.event.repository.name }}.${{ steps.get_version.outputs.VERSION }}.types.zip"
         token: ${{ secrets.GITHUB_TOKEN }}
 

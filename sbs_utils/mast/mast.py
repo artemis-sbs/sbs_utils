@@ -14,6 +14,7 @@ import random
 from inspect import getmembers, isfunction , signature
 import sys
 from ..helpers import format_exception
+import json
 
 
 debug_logger = None
@@ -1567,6 +1568,23 @@ class Mast():
                     p = os.path.join(root, name)
                     #DEBUG(p)
                     addons.append(p)
+        #
+        # look in the story.json
+        #
+        script_dir = os.path.dirname(sys.modules['script'].__file__)
+        mission_dir = os.path.dirname(script_dir)
+        story_settings = os.path.join(script_dir,"story.json")
+        lib_dir = os.path.join(mission_dir,"__lib__")
+        with open(story_settings, 'r') as file:
+            data = json.load(file)
+            # No file that's OK
+            if data is None:
+                return addons
+            mastlibs = data.get("mastlib", [])
+            for file in mastlibs:
+                f = os.path.join(lib_dir, file)
+                addons.append(f)
+            
         return addons
 
             
@@ -1621,7 +1639,11 @@ class Mast():
     def content_from_lib_or_file(self, file_name):
         try:
             if self.lib_name is not None:
-                lib_name = os.path.join(fs.get_mission_dir(), self.lib_name)
+                lib_name = self.lib_name
+                if ":" not in self.lib_name:
+                    lib_name = os.path.join(fs.get_mission_dir(), self.lib_name)
+
+                #print(f"IMPORT: {lib_name}")
                 with ZipFile(lib_name) as lib_file:
                     #
                     # NOTE: Zip files must use /
