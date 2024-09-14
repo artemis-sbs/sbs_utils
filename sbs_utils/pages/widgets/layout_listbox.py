@@ -241,12 +241,24 @@ class LayoutListbox(layout.Column):
         
         em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
         if self.carousel and not self.horizontal:
-            sbs.send_gui_clickregion(event.client_id, self.local_region_tag,
-                f"{self.tag_prefix}dec", "background_color:#6666",
-                self.bounds.left, self.bounds.top, self.bounds.left+em2*5, self.bounds.bottom)
-            sbs.send_gui_clickregion(event.client_id, self.local_region_tag,
-                f"{self.tag_prefix}inc", "background_color:#6666",
-                self.bounds.right-em2*5, self.bounds.top, self.bounds.right, self.bounds.bottom)
+            icon_size = em2*2
+            if self.cur>0:
+                sbs.send_gui_icon(event.client_id, self.local_region_tag, f"{self.tag_prefix}idec",
+                    "icon_index:152;color:#aaa;draw_layer:1000;",
+                    self.bounds.left, self.bounds.bottom-icon_size*2, self.bounds.left+icon_size, self.bounds.bottom)
+                    #self.bounds.left, self.bounds.top, self.bounds.left+icon_size, self.bounds.bottom)
+                sbs.send_gui_clickregion(event.client_id, self.local_region_tag, 
+                    f"{self.tag_prefix}dec", "background_color:#6663",
+                    self.bounds.left, self.bounds.top, self.bounds.left+em2*5, self.bounds.bottom)
+            max_item = len(self.items)-1
+            if self.cur<max_item:
+                sbs.send_gui_icon(event.client_id, self.local_region_tag, f"{self.tag_prefix}iinc",
+                    "icon_index:153;color:#aaa;draw_layer:1000;",
+                    self.bounds.right-icon_size , self.bounds.bottom-icon_size*2, self.bounds.right, self.bounds.bottom)
+                    #self.bounds.right-icon_size , self.bounds.top, self.bounds.right, self.bounds.bottom)
+                sbs.send_gui_clickregion(event.client_id, self.local_region_tag,
+                    f"{self.tag_prefix}inc", "background_color:#6663",
+                    self.bounds.right-em2*5, self.bounds.top, self.bounds.right, self.bounds.bottom)
         elif self.carousel and self.horizontal:
             pass
         elif extra_slot_count > 0:
