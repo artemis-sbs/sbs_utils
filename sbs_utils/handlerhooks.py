@@ -123,7 +123,7 @@ def cosmos_event_handler(sim, event):
         
         #print(f"{event.sub_tag}")
         # if event.tag != "mission_tick":
-        #     print_event(event)
+        #print_event(event)
         match(event.tag):
             #	value_tag"
             #	source_point"
@@ -211,6 +211,13 @@ def cosmos_event_handler(sim, event):
                 #print_event(event)
                 if "comms_sorted_list" == event.value_tag:
                     sbs.send_comms_selection_info(event.origin_id, "", "white", "static")
+                #
+                # Avoid obscure bug, waterfall send selected_id == 0
+                #
+                if event.selected_id==0 and "comms_waterfall" == event.value_tag:
+                    return
+                    # sbs.send_comms_selection_info(event.origin_id, "", "white", "static")
+
                 ConsoleDispatcher.dispatch_select(event)
 
             case "press_comms_button":

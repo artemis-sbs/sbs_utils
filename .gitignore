@@ -4,3 +4,4 @@
 /sphinx/_build/
 *.sbslib
 /mkdocs/site/
+sbs_utils_dev.zip

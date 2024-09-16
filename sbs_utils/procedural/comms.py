@@ -402,11 +402,18 @@ class CommsPromise(ButtonPromise):
         
         self.selected_id = self.task.get_variable("COMMS_SELECTED_ID")
         self.origin_id = self.task.get_variable("COMMS_ORIGIN_ID")
+        #
+        # Odd sometimes a zero slip though
+        #
+        if self.selected_id == 0:
+            self.clear()
+            return
 
         oo = query.to_object(self.origin_id)
         if oo is None:
             self.set_result(True)
             return
+        
         selected_so = query.to_object(self.selected_id)
         if selected_so is None:
             self.set_result(True)
@@ -426,6 +433,13 @@ class CommsPromise(ButtonPromise):
         self.is_unknown = False
 
         self.is_grid_comms = query.is_grid_object_id(self.selected_id)
+        #
+        # Handle case where the selection is not a grid or space object
+        #
+        is_space_object = query.is_space_object_id(self.selected_id)
+        if not self.is_grid_comms and not is_space_object:
+            self.set_result(True)
+            return
         selected_so = query.to_object(self.selected_id)
         if selected_so is None:
             return

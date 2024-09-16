@@ -1,4 +1,4 @@
-set VERSION=v3.9.35a
+set VERSION=v3.9.35b
 
 del sbs_utils_dev.sbslib
 tar -caf sbs_utils_dev.zip --exclude="__pycache__" sbs_utils 
