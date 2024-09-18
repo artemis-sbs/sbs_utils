@@ -154,6 +154,20 @@ def task_cancel(task):
     if FrameContext.task is None:
         FrameContext.task.main.cancel_task(task)
 
+class TaskPromiseAllAny(PromiseAllAny):
+    def __init__(self, proms, all) -> None:
+        super().__init__(proms, all)
+
+    @property
+    def is_idle(self):
+        for t in self.promises:
+            if t.tick_result != PollResults.OK_IDLE:
+                return False
+        return True
+
+    def end_all(self):
+        for t in self.promises:
+            t.cancel()
 
 
 #
@@ -184,7 +198,7 @@ def task_all(*args, **kwargs):
         else:
             t = FrameContext.task.start_sub_task(label, data)
         tasks.append(t)
-    return PromiseAllAny(tasks, True)
+    return TaskPromiseAllAny(tasks, True)
 
 #
 # Args are labels or task
@@ -209,7 +223,7 @@ def sub_task_all(*args, **kwargs):
     for label in args:
         t = FrameContext.task.start_task(label, data)
         tasks.append(t)
-    return PromiseAllAny(tasks, True)
+    return TaskPromiseAllAny(tasks, True)
 
 
 
@@ -238,7 +252,7 @@ def task_any(*args, **kwargs):
     for label in args:
         t = FrameContext.task.start_task(label, data)
         tasks.append(t)
-    return PromiseAllAny(tasks, False)
+    return TaskPromiseAllAny(tasks, False)
 
 
 

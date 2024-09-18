@@ -1450,6 +1450,7 @@ class ButtonPromise(AwaitBlockPromise):
         self.run_focus = False
         self.running_button = None
         self.sub_task = None
+        self.nav_sub_task_promise = None 
         #print("INit ")
         
     def initial_poll(self):
@@ -1492,6 +1493,12 @@ class ButtonPromise(AwaitBlockPromise):
     def pressed_test(self):
         return True
 
+
+    def cancel(self, msg=None):
+        #print("BUTTONS CANCELED")
+        if self.nav_sub_task_promise is not None:
+            self.nav_sub_task_promise.cancel()
+            self.nav_sub_task_promise = None
 
     def poll(self):
         res = super().poll()
@@ -1547,7 +1554,7 @@ class ButtonPromise(AwaitBlockPromise):
             #
             if self.running_button.path is not None:
                 self.set_path(self.running_button.path)
-                print(f"PATH {self.running_button.path}")
+                # print(f"PATH {self.running_button.path}")
                 self.running_button = None
                 return PollResults.OK_JUMP
             else:   
@@ -1659,6 +1666,10 @@ class ButtonPromise(AwaitBlockPromise):
     def build_navigation_buttons(self):
         self.nav_buttons = []
         self.nav_button_map = {}
+        # if self.nav_sub_task_promise is not None:
+        #     print("Buttons canceled")
+        #     self.nav_sub_task_promise.cancel()
+        #     self.nav_sub_task_promise = None
         #print(f"gui Build Nav Buttons {self.path}")
         path_labels = ButtonPromise.navigation_map.get(self.path)
         if path_labels is None:
@@ -1681,10 +1692,18 @@ class ButtonPromise(AwaitBlockPromise):
         count = 0
         while not p.done():
             p.poll()
+
+            if p.is_idle:
+                break
+
             if count > 100000:
-                print(f"Comms path {self.path} caused hang")
+                print(f"path {self.path} caused hang build navigation {self.__class__.__name__}")
                 break
             count += 1
+        #
+        # Sub Tasks are still running
+        #
+        self.nav_sub_task_promise = p # if not p.done() else None
         ButtonPromise.navigating_promise = None
         
     
@@ -1800,7 +1819,7 @@ def gui(buttons=None, timeout=None):
     if buttons is not None:
         for k in buttons:
             ret .buttons.append(Button(k, label=buttons[k],loc=0))
-        
+    page.swap_gui_promise(ret)
     return ret
     
 def gui_history_jump(to_label, back_name=None, back_label=None, back_data=None):

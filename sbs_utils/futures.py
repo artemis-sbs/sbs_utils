@@ -81,7 +81,7 @@ class PromiseAllAny(Promise):
     def cancelled(self):
         return self.canceled is not None
     
-    def cancel(self, msg):
+    def cancel(self, msg=None):
         if self.done() or self.canceled:
             return False
         

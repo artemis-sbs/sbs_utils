@@ -65,6 +65,7 @@ class StoryPage(Page):
         self.change_console_label = None
         self.main_screen_change_label = None
         self.disconnected = False
+        self.gui_promise = None
 
         
         self.errors = []
@@ -131,6 +132,10 @@ class StoryPage(Page):
         if self.story_scheduler:
             self.story_scheduler.story_tick_tasks(self.client_id)
 
+    def swap_gui_promise(self, pending):
+        if self.gui_promise is not None:
+            self.gui_promise.cancel()
+        self.gui_promise = pending
 
     def swap_layout(self):
         # self.on_change_items= self.pending_on_change_items

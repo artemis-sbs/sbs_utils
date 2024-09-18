@@ -177,10 +177,10 @@ def cosmos_event_handler(sim, event):
                 LifetimeDispatcher.dispatch_damage(event)
 
             case "npc_killed":
-                print_event(event)
+                # print_event(event)
                 DamageDispatcher.dispatch_killed(event)
                 #LifetimeDispatcher.dispatch_damage(event)
-                pass
+                
 
 
             case "red_alert":
@@ -208,15 +208,16 @@ def cosmos_event_handler(sim, event):
                 Gui.add_client(event)
 
             case "select_space_object":
-                #print_event(event)
+                # print_event(event)
                 if "comms_sorted_list" == event.value_tag:
                     sbs.send_comms_selection_info(event.origin_id, "", "white", "static")
                 #
                 # Avoid obscure bug, waterfall send selected_id == 0
                 #
                 if event.selected_id==0 and "comms_waterfall" == event.value_tag:
+                    sbs.send_comms_selection_info(event.origin_id, "", "white", "static")
                     return
-                    # sbs.send_comms_selection_info(event.origin_id, "", "white", "static")
+                    
 
                 ConsoleDispatcher.dispatch_select(event)
 

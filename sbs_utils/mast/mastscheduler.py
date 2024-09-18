@@ -383,6 +383,11 @@ class MatchStatementsRuntimeNode(MastRuntimeNode):
 
 
 class AwaitRuntimeNode(MastRuntimeNode):
+    def leave(self, mast:Mast, task:MastAsyncTask, node: Await):
+        #print("AWAIT Leave")
+        if self.promise is not None:
+            self.promise.cancel("Canceled by Await leave")
+    
     def enter(self, mast:Mast, task:MastAsyncTask, node: Await):
         self.promise = None
         if node.is_end:
@@ -429,6 +434,9 @@ class InlineLabelRuntimeNode(MastRuntimeNode):
 
 
 class AwaitInlineLabelRuntimeNode(MastRuntimeNode):
+    def leave(self, mast:Mast, task:MastAsyncTask, node: AwaitInlineLabel):
+        print("INline Await leave")
+
     def enter(self, mast:Mast, task:MastAsyncTask, node: AwaitInlineLabel):
         self.node_label = self.task.active_label
     def poll(self, mast:Mast, task:MastAsyncTask, node: AwaitInlineLabel):
@@ -552,7 +560,9 @@ class MastTicker:
     
     
     def do_jump(self, label = "main", activate_cmd=0):
-
+        # Should call leave, but inline might trigger 
+        # so don't do it until post 1.0
+        ### self.call_leave()
         if label == "END" or label is None:
             self.active_cmd = 0
             self.runtime_node = None
@@ -1150,6 +1160,15 @@ class MastAsyncTask(Agent, Promise):
             self.tick_in_context()
         return
     
+    #
+    # Promise cancel
+    #
+    def cancel(self, msg=None):
+        self.end()
+        #print("Task canceled")
+        super().cancel(msg)
+        self._canceled = True
+
     
     def end(self):
         # if self.name is not None:

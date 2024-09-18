@@ -470,12 +470,9 @@ class CommsPromise(ButtonPromise):
         if self.selected_id != event.selected_id or \
             self.origin_id != event.origin_id:
             return
-
-        prev = get_inventory_value(self.origin_id, "prev_selection", 0)
-        if prev != self.selected_id and prev != 0:
-            self.set_path("comms")
-            
-
+        
+        #if prev != self.selected_id and prev != 0:
+        self.set_path("comms")
         
         # If the button block is running do not set the buttons
         if not self.is_running:

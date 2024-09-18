@@ -272,9 +272,7 @@ def route_comms_navigate(path, label):
         path = "comms"
     elif not path.startswith("comms"):
         path = f"comms/{path}"
-    path_labels = ButtonPromise.navigation_map.get(path)
-    if path_labels is None:
-        path_labels = set()
+    path_labels = ButtonPromise.navigation_map.get(path, set())
     path_labels.add(label)
     ButtonPromise.navigation_map[path] = path_labels
 
@@ -310,9 +308,7 @@ def route_gui_navigate(path, label):
         path = "gui"
     elif not path.startswith("gui"):
         path = f"gui/{path}"
-    path_labels = ButtonPromise.navigation_map.get(path)
-    if path_labels is None:
-        path_labels = set()
+    path_labels = ButtonPromise.navigation_map.get(path, set())
     path_labels.add(label)
     ButtonPromise.navigation_map[path] = path_labels
     

@@ -332,7 +332,7 @@ def grid_damage_hallway(id_or_obj, loc_x, loc_y, damage_color):
     icon = 45 #fire   # 113 - Door
 
     name_tag = f"hallway:{loc_x},{loc_y}"
-    dam_go = grid_spawn(ship_id, name_tag, name_tag, loc_x,loc_y, icon, damage_color, "#,hallway, __damaged__") 
+    dam_go = grid_spawn(ship_id, name_tag, name_tag, loc_x,loc_y, icon, damage_color, "#,hallway,__damaged__") 
     link(ship_id, "damage", to_id(dam_go))
 
 
