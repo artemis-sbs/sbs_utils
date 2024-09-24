@@ -5,6 +5,7 @@ from .. import faces
 from ..agent import Agent
 from ..helpers import FrameContext
 from ..mast.mast import Button
+from ..garbagecollector import GarbageCollector
 import sbs
 
 def show_warning(t):
@@ -265,7 +266,18 @@ class ScanPromise(ButtonPromise):
             self.leave()
         super().set_result(result)
 
+    def collect(self):
+        oo = query.to_object(self.origin_id)
+        selected_so = query.to_object(self.selected_id)
+        if oo is not None and selected_so is not None:
+            return False
+        # print("GARBAGE COLLECTION science promise")
+        self.leave()
+        self.task.end()
+        return True
+
     def leave(self):
+        GarbageCollector.remove_garbage_collect(self.collect)
         ConsoleDispatcher.remove_select_pair(self.origin_id, self.selected_id, 'science_target_UID')
         ConsoleDispatcher.remove_message_pair(self.origin_id, self.selected_id, 'science_target_UID')
      
@@ -336,6 +348,7 @@ class ScanPromise(ButtonPromise):
         
         ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'science_target_UID', self.science_selected)
         ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'science_target_UID', self.science_message)
+        GarbageCollector.add_garbage_collect(self.collect)
         
         
 

@@ -62,7 +62,7 @@ def line(count, start_x,start_y,start_z, end_x,end_y,end_z, random=False):
             yield v1 + (delta * i)
 
 
-def rect_fill(cw, cd, x, y, z, w, d, random=False):
+def rect_fill(cw, cd, x, y, z, w, d, random=False, ax=0,ay=0,az=0, degrees=True):
     """Calculate the points within a rect
 
     This assumes it to be on y
@@ -79,9 +79,9 @@ def rect_fill(cw, cd, x, y, z, w, d, random=False):
     Returns:
         points (generator): A generator of Vec3
     """
-    return box_fill(cw, 1, cd, x, y, z, w, 1, d, random)
+    return box_fill(cw, 1, cd, x, y, z, w, 1, d, random,ax,ay,az,degrees)
    
-def box_fill(cw, ch, cd, x, y, z, w, h, d, random=False):
+def box_fill(cw, ch, cd, x, y, z, w, h, d, random=False, ax=0,ay=0,az=0, degrees=True):
     """Calculate the points within a box
         the box is subdivide to ideally avoid overlap
         
@@ -98,6 +98,7 @@ def box_fill(cw, ch, cd, x, y, z, w, h, d, random=False):
     Returns:
         points (generator): A generator of Vec3    
     """
+    rotate = ax!=0 or ay != 0 or az != 0
     front = z-d/2
     bottom = y-h/2
     left = x-w/2
@@ -126,6 +127,9 @@ def box_fill(cw, ch, cd, x, y, z, w, h, d, random=False):
                     _z =  front + uniform(0,cd) * d_diff
                 else:
                     _x = left + col * w_diff
+                v = Vec3(_x,_y,_z)
+                if rotate:
+                    v = v.rotate_around(origin, ax,ay,az, degrees)
                 yield Vec3(_x,_y,_z)
 
 def box(count, x,y, z, x2, y2, z2, centered=False, ax=0,ay=0,az=0, degrees=True):

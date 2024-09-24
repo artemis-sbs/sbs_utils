@@ -4,6 +4,7 @@ from .roles import has_role
 from .. import faces
 from ..agent import Agent
 from ..helpers import FrameContext
+from ..garbagecollector import GarbageCollector
 from ..mast.mastscheduler import ChangeRuntimeNode
 from ..mast.pollresults import PollResults
 from ..mast.mast import Button
@@ -318,13 +319,14 @@ class CommsPromise(ButtonPromise):
         super().__init__(path, task, timeout)
         self.path_root = "comms"
 
-        self.task = task
+        #in super self.task = task
         self.button = None
         self.is_unknown = False
         self.color = "white"
         self.expanded_buttons = None
         self.comms_id = "static"
         self.is_grid_comms = False
+        self.assign = None
         
 
     def set_path(self, path):
@@ -361,6 +363,15 @@ class CommsPromise(ButtonPromise):
         self.clear()
         self.task.tick()
         
+    def collect(self):
+        oo = query.to_object(self.origin_id)
+        selected_so = query.to_object(self.selected_id)
+        if oo is not None and selected_so is not None:
+            return False
+        #print("GARBAGE COLLECTION comms promise")
+        self.leave()
+        self.task.end()
+        return True
 
 
     def clear(self):
@@ -371,6 +382,7 @@ class CommsPromise(ButtonPromise):
 
     def leave(self):
         self.clear()
+        GarbageCollector.remove_garbage_collect(self.collect)
         if self.is_grid_comms:
             ConsoleDispatcher.remove_select_pair(self.origin_id, self.selected_id, 'grid_selected_UID')
             ConsoleDispatcher.remove_message_pair(self.origin_id, self.selected_id, 'grid_selected_UID')
@@ -452,10 +464,12 @@ class CommsPromise(ButtonPromise):
         if self.is_grid_comms:        
             ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'grid_selected_UID', self.comms_selected)
             ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'grid_selected_UID', self.comms_message)
+            GarbageCollector.add_garbage_collect(self.collect)
             selection = query.get_grid_selection(self.origin_id)
         else:
             ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'comms_target_UID', self.comms_selected)
             ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'comms_target_UID', self.comms_message)
+            GarbageCollector.add_garbage_collect(self.collect)
             selection = query.get_comms_selection(self.origin_id)
 
         if selection == self.selected_id:

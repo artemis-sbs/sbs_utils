@@ -1105,6 +1105,7 @@ class MastAsyncTask(Agent, Promise):
         self.yields_once = True
         self.is_sub_task = False
         self.sub_tasks = []
+        self.root_task = self
 
         self.add()
 
@@ -1207,6 +1208,8 @@ class MastAsyncTask(Agent, Promise):
 
 
     def get_symbols(self):
+        if self.root_task != self:
+            return self.root_task.get_symbols()
         # m1 = self.main.mast.vars | self.main.vars
         #mast_inv = self.main.get_symbols()
         m1 = self.main.get_symbols()
@@ -1220,6 +1223,8 @@ class MastAsyncTask(Agent, Promise):
         return m1
 
     def set_value(self, key, value, scope):
+        if self.root_task != self:
+            return self.root_task.set_value(key, value, scope)
         if scope == Scope.SHARED: #self.main.set_value(key,value, scope) != Scope.UNKNOWN:
             # # self.main.mast.vars[key] = value
             Agent.SHARED.set_inventory_value(key, value)
@@ -1232,6 +1237,8 @@ class MastAsyncTask(Agent, Promise):
             return scope
 
     def set_value_keep_scope(self, key, value):
+        if self.root_task != self:
+            return self.root_task.set_value_keep_scope(key, value)
         scoped_val = self.get_value(key, value)
         scope = scoped_val[1]
         if scope is None:
@@ -1241,6 +1248,8 @@ class MastAsyncTask(Agent, Promise):
         self.set_value(key,value, scope)
 
     def get_value(self, key, defa=None):
+        if self.root_task != self:
+            return self.root_task.get_value(key, defa)
         data = None
         # if self.redirect:
         #     data = self.redirect.data
@@ -1260,6 +1269,8 @@ class MastAsyncTask(Agent, Promise):
         return (defa, Scope.NORMAL)
     
     def get_scoped_value(self, key, defa, scope):
+        if self.root_task != self:
+            return self.root_task.get_scoped_value(key, defa, scope)
         if scope == Scope.SHARED:
             return self.main.get_scoped_value(key, defa)
         if scope == Scope.TEMP:
@@ -1372,6 +1383,7 @@ class MastAsyncTask(Agent, Promise):
             inputs = self.inventory.collections | {}
         t= MastAsyncTask(self.main, inputs, task_name)
         t.is_sub_task = True
+        t.root_task = self
         if task_name is not None:
             t.set_value(task_name, t, Scope.NORMAL)
         t.jump(label)

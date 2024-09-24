@@ -3,6 +3,7 @@ from .damagedispatcher import DamageDispatcher, CollisionDispatcher
 from .consoledispatcher import ConsoleDispatcher
 from .tickdispatcher import TickDispatcher
 from .lifetimedispatcher import LifetimeDispatcher
+from .garbagecollector import GarbageCollector
 from .extra_dispatcher import HotkeyDispatcher, ClientStringDispatcher
 from .procedural.inventory import get_inventory_value, set_inventory_value
 
@@ -260,7 +261,13 @@ def cosmos_event_handler(sim, event):
         
             case _:
                 print (f"Unhandled event {event.client_id} {event.tag} {event.sub_tag}")
-        
+        #
+        # Call the garbage collector
+        # Well behaved things will register 
+        # with the garbage collector
+        # with IDs and a callback
+        # When the ID is no longer valid the callback is called
+        GarbageCollector.collect()
     except BaseException as err:
         sbs.pause_sim()
         text_err = format_exception("", "SBS Utils Hook level Runtime Error:")

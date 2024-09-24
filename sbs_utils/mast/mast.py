@@ -718,9 +718,9 @@ class Comment(MastNode):
 
 class Scope(Enum):
     SHARED = 1  # per mast instance
-    NORMAL = 2  # per task
+    NORMAL = 2  # per task/subtask
     CLIENT = 10 # is the client handled by scheduler
-    ASSIGNED = 20  # is the client handled by scheduler
+    ASSIGNED = 20  # is the assigned ship
     TEMP = 99  # Per task?
     UNKNOWN = 100
 
