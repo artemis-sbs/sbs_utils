@@ -1377,11 +1377,14 @@ class MastAsyncTask(Agent, Promise):
       
     
     def start_sub_task(self, label = "main", inputs=None, task_name=None, defer=False)->MastAsyncTask:
+        #
+        # Sub task share task data
+        #
         if inputs is not None:
-            inputs = self.inventory.collections | inputs
-        else:
-            inputs = self.inventory.collections | {}
-        t= MastAsyncTask(self.main, inputs, task_name)
+            for k in inputs:
+                self.set_inventory_value(k, inputs[k])
+        t= MastAsyncTask(self.main, None, task_name)
+
         t.is_sub_task = True
         t.root_task = self
         if task_name is not None:

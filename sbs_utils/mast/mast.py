@@ -1075,7 +1075,7 @@ class Button(MastNode):
         if self.use_sub_task and self.label:
             #print(f"NEW TASK LABEL {self.message}")
             
-            sub_task = task.start_task(self.label, inputs=task_data, defer=True)
+            sub_task = task.start_sub_task(self.label, inputs=task_data, defer=True)
             #
             # Block commands in a sub task is a strait jump to the button
             # The button should dedent to a yield_idle
