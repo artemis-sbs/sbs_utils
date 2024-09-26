@@ -76,6 +76,7 @@ from ..procedural import behavior
 from ..procedural import signal
 from ..procedural import maps
 from ..procedural import mission
+from ..procedural import media
 
 
 Mast.import_python_module('sbs_utils.procedural.query')
@@ -97,10 +98,13 @@ Mast.import_python_module('sbs_utils.procedural.behavior')
 Mast.import_python_module('sbs_utils.procedural.signal')
 Mast.import_python_module('sbs_utils.procedural.maps')
 Mast.import_python_module('sbs_utils.procedural.mission')
-
+Mast.import_python_module('sbs_utils.procedural.media')
 Mast.import_python_module('sbs_utils.faces')
 Mast.import_python_module('sbs_utils.fs')
 Mast.import_python_module('sbs_utils.vec')
+#
+# These are exposed with a prepended module name
+#
 Mast.import_python_module('sbs_utils.scatter', 'scatter')
 Mast.import_python_module('sbs_utils.names', 'names')
 Mast.import_python_module('sbs_utils.procedural.ship_data', 'ship_data')

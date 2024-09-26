@@ -92,6 +92,7 @@ from tests/mast/internal_comms.zip import internal_comms/__init__.mast
 
     def test_compile_no_err(self):
         (errors, mast)= mast_story_compile( code = """
+@media/skybox/red "Red"
 await gui()
 
 await gui(timeout=timeout(5))
