@@ -231,9 +231,9 @@ def clear_target(chasers: set | int | CloseData|SpawnData, throttle=0):
     for chaser in all:
         chaser = Agent.resolve_py_object(chaser)
         this = FrameContext.context.sim.get_space_object(chaser.id)
-        chaser.data_set.set("target_pos_x", 0,0)
-        chaser.data_set.set("target_pos_y", 0,0)
-        chaser.data_set.set("target_pos_z", 0,0)
+        chaser.data_set.set("target_pos_x", this.pos.x,0)
+        chaser.data_set.set("target_pos_y", this.pos.y,0)
+        chaser.data_set.set("target_pos_z", this.pos.z,0)
         chaser.data_set.set("target_id", 0,0)
         chaser.data_set.set("throttle", throttle, 0)
 
