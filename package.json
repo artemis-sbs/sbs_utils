@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "author": "Your Name <email@example.com>",
     "scripts": {
-        "art_srv": "set cosmos_start_mode=server&&cd ..\\..\\.. && start .\\Artemis3-x64-release.exe && start .\\Artemis3-x64-release.exe",
+        "auto_run": "python auto_run.py",
         "update": "make_lib",
         "mklib": "make_lib",
         "mkdocs": "cd mkdocs&&mkdocs serve",

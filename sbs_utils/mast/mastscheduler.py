@@ -837,8 +837,8 @@ class MastTicker:
                 active = self.main.mast.labels.get(self.active_label)
                 next = active.next
                 if next is None:
-                    if not self.task.is_sub_task:
-                        self.done = True
+                    #if not self.task.is_sub_task:
+                    self.done = True
                     return False
                 return self.jump(next.name)
                 
@@ -1372,14 +1372,18 @@ class MastAsyncTask(Agent, Promise):
             inputs = self.inventory.collections | inputs
         else:
             inputs = self.inventory.collections | {}
+        if self.is_sub_task and self.root_task != self:
+            return self.root_task.start_task(label, inputs, task_name, defer)
         return self.main.start_task(label, inputs, task_name, defer)
             
       
     
-    def start_sub_task(self, label = "main", inputs=None, task_name=None, defer=False)->MastAsyncTask:
+    def start_sub_task(self, label = "main", inputs=None, task_name=None, defer=False, active_cmd=0)->MastAsyncTask:
         #
         # Sub task share task data
         #
+        if self.is_sub_task and self.root_task != self:
+            return self.root_task.start_sub_task(label, inputs, task_name, defer, active_cmd)
         if inputs is not None:
             for k in inputs:
                 self.set_inventory_value(k, inputs[k])
@@ -1389,7 +1393,7 @@ class MastAsyncTask(Agent, Promise):
         t.root_task = self
         if task_name is not None:
             t.set_value(task_name, t, Scope.NORMAL)
-        t.jump(label)
+        t.jump(label,active_cmd)
         self.sub_tasks.append(t)
         if not defer:
             t.tick_in_context()
