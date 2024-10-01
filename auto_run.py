@@ -27,7 +27,7 @@ f = open(client_strings, "r")
 cl_contents =f.read()
 f.close()
 #
-windows = ["Server", "comms", "weapons", "science" ] 
+windows = ["Server", "comms", "weapons", "science", "engineering", "cinematic" ] 
 x = 0
 y = 0
 c = 0
