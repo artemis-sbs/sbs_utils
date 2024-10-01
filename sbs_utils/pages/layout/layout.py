@@ -801,6 +801,7 @@ class TextInput(Column):
 
             fix_props = re.sub(r'\$?text:\s*.*;', "", props)
             #print(f"before: '{props}' after: {fix_props}")
+            props = fix_props
             
         self.tag = tag
         self.props = props
@@ -810,7 +811,7 @@ class TextInput(Column):
         props = f"$text:{self._value};"
         props += self.props
         props += self.get_cascade_props(True, True, True)
-        #print(f"TEXT INPUT {props} {self._value}")
+        # print(f"TEXT INPUT {props} {self._value} {self.region_tag} {self.tag} {self.bounds.left}")
         ctx.sbs.send_gui_typein(event.client_id, self.region_tag,
             self.tag, props,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
@@ -1244,21 +1245,25 @@ class Layout:
 
     def represent(self, event):
         #self.representing = True
-        if self.region_type == RegionType.SECTION_AREA_ABSOLUTE:
-            self.calc(event.client_id)
-            self.present(event)
-            #self.representing = False
-            return
-        elif not self.is_hidden:
+        # if self.region_type == RegionType.SECTION_AREA_ABSOLUTE:
+        #     self.calc(event.client_id)
+        #     self.present(event)
+        #     #self.representing = False
+        #     return
+        # el
+        if not self.is_hidden:
             self.calc(event.client_id)
             self.present(event)
             #self.representing = False
             return
         else:  # is_hidden 
-            #self.calc(event.client_id)
-            self.region_begin(event.client_id)
-            self.invalidate_children()
-            self.region_end(event.client_id)
+            # print(f"HIDDEN {self.tag} {self.bounds.left}" )
+            self.calc(event.client_id)
+            self.present(event)
+            # #self.calc(event.client_id)
+            # self.region_begin(event.client_id)
+            # self.invalidate_children()
+            # self.region_end(event.client_id)
         #self.representing = False
 
         
@@ -1546,11 +1551,11 @@ class Layout:
 
     def region_begin(self, client_id):
         #if self.representing and self.region:
-        if self.region:
-            if self.region_type != RegionType.SECTION_AREA_ABSOLUTE:
-                #print(f"clear {self.region_tag}")
-                sbs.send_gui_clear(client_id, self.drawing_region_tag)
-        elif not self.region:
+        # if self.region:
+        #     if self.region_type != RegionType.SECTION_AREA_ABSOLUTE:
+        #         print(f"clear {self.region_tag}")
+        #         sbs.send_gui_clear(client_id, self.drawing_region_tag)
+        # elif not self.region:
             if self.region_type == RegionType.REGION_ABSOLUTE:
                 self.region = True
                 sbs.send_gui_sub_region(client_id, self.region_tag, self.drawing_region_tag, "draggable:True;", 0.0,0.0,100.0,100.0)
