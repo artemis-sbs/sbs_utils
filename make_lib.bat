@@ -1,4 +1,4 @@
-set VERSION=v3.9.39
+call make_version
 
 del sbs_utils_dev.sbslib
 tar -caf sbs_utils_dev.zip --exclude="__pycache__" sbs_utils 
