@@ -745,16 +745,17 @@ class Assign(MastNode):
     # '|'+STRING_REGEX+ddd
     # (.*?)(\+=|-=)(.*)?(#\n)?
     rule = re.compile(
-        r'(?P<scope>(shared|assigned|client|temp)\s+)?(?P<lhs>.*?)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)(?P<a_wait>\s*await)?\s*(?P<exp>('+PY_EXP_REGEX+'|'+MULTI_LINE_STRING_REGEX+'|[^\n\r\f]+))')
+        r'(?P<is_default>(default[ \t]+))?(?P<scope>(shared|assigned|client|temp)\s+)?(?P<lhs>.*?)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)(?P<a_wait>\s*await)?\s*(?P<exp>('+PY_EXP_REGEX+'|'+MULTI_LINE_STRING_REGEX+'|[^\n\r\f]+))')
         
         #r'(?P<scope>(shared|assigned|client|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)(?P<a_wait>\s*await)?\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|[^\n\r\f]+))')
 
     """ Note this doesn't support destructuring. To do so isn't worth the effort"""
-    def __init__(self, scope, lhs, oper, exp,a_wait=None,  quote=None, py=None, loc=None, compile_info=None):
+    def __init__(self, is_default, scope, lhs, oper, exp,a_wait=None,  quote=None, py=None, loc=None, compile_info=None):
         super().__init__()
         self.lhs = lhs
         self.loc = loc
         self.oper = Assign.oper_map.get(oper)
+        self.is_default = is_default
         self.scope = None if scope is None else Scope[scope.strip(
         ).upper()]
         

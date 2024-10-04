@@ -91,8 +91,17 @@ class AssignRuntimeNode(MastRuntimeNode):
                 value = self.promise.result()
             else:
                 return PollResults.OK_RUN_AGAIN
-        # Value should be set by here
-        start = task.get_variable(node.lhs) 
+            
+        start = None
+        if node.oper != Assign.EQUALS or node.is_default:
+            # Value should be set by here
+            if "." in node.lhs or "[" in node.lhs:
+                start = task.eval_code(f"""{node.lhs}""")
+            else:
+                start = task.get_variable(node.lhs, (None,))
+                if node.is_default and start!= (None,): 
+                    return PollResults.OK_ADVANCE_TRUE     
+
         match node.oper:
             case Assign.EQUALS:
                 pass
@@ -108,7 +117,6 @@ class AssignRuntimeNode(MastRuntimeNode):
                 value = start / value
             case Assign.INT_DIV:
                 value = start // value
-
 
         if "." in node.lhs or "[" in node.lhs:
             task.exec_code(f"""{node.lhs} = __mast_value""",{"__mast_value": value}, None )

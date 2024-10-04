@@ -5,7 +5,7 @@
     "scripts": {
         "auto_run": "python auto_run.py",
         "update": "make_lib",
-        "mklib": "make_lib",
+        "build_addons": "cd ..\\LegendaryMissions&&build_addons,",
         "mkdocs": "cd mkdocs&&mkdocs serve",
         "pub docs":"cd mkdocs&&mkdocs gh-deploy --force",
         "siege mkdocs": "cd ..\\LegendaryMissions\\mkdocs&&mkdocs serve",

@@ -373,6 +373,20 @@ var6.HP = 40
 # var6.HP = 400 comments
 var7 = var2 / var1 * var5
 var8 = ~~ [[2,3],[4,5]] ~~
+=== test                                       
+default shared var_def = 4
+var_def += 1
+jump test if var_def < 6
+
+svar_def = var_def
+=== test2
+default var_def = 4
+var_def += 1
+jump test2 if var_def < 6
+
+var_inc_field = MastDataObject({"x": 10, "y": 20})
+var_inc_field.x += 2
+
 """)
         assert(len(errors)==0)
         task = runner.active_task
@@ -383,10 +397,15 @@ var8 = ~~ [[2,3],[4,5]] ~~
         assert(task.get_value("var3", None) == ("This is a string",Scope.NORMAL))
         assert(task.get_value("var4", None) == ("This is a string 200",Scope.NORMAL))
         assert(task.get_value("var5", None) == (300,Scope.NORMAL))
+        assert(task.get_value("var_def", None) == (7,Scope.SHARED))
+        assert(task.get_value("svar_def", None) == (6,Scope.NORMAL))
         struct = task.get_value("var6", None) 
         assert(struct[1] == Scope.NORMAL)
         assert(struct[0].HP == 40)
         assert(struct[0].XP == 20)
+        struct = task.get_value("var_inc_field", None) 
+        assert(struct[1] == Scope.NORMAL)
+        assert(struct[0].x == 12)
         assert(task.get_value("var7", None)==(600, Scope.NORMAL))
         list_tup = task.get_value("var8", None)
         list_value = list_tup[0]
