@@ -1994,6 +1994,9 @@ class Mast():
                             
                             (i_loc,_) = indent_stack[-1]
                             while i_loc > indent:
+                                if len(indent_stack)==1 and obj.is_inline_label:
+                                    break
+
                                 (i_loc,i_obj) = indent_stack.pop()
                                 if len(indent_stack)==0:
                                     errors.append(f"\nERROR: Bad indention {file_name} {line_no} - {line}")
