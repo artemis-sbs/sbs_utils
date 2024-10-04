@@ -29,7 +29,7 @@ class MapDecoratorLabel(DecoratorLabel):
         self.replace = None
         self.cmds = []
 
-    def can_fallthrough(self):
+    def can_fallthrough(self, parent):
         return True
 
 
@@ -67,7 +67,7 @@ class GuiTabDecoratorLabel(DecoratorLabel):
         self.replace = None
         self.cmds = []
 
-    def can_fallthrough(self):
+    def can_fallthrough(self, parent):
         return True
     
     def test(self, task):
@@ -104,7 +104,7 @@ class GuiConsoleDecoratorLabel(DecoratorLabel):
         self.replace = None
         self.cmds = []
 
-    def can_fallthrough(self):
+    def can_fallthrough(self, parent):
         return True
 
     def test(self, task):
@@ -295,7 +295,7 @@ class MediaLabel(DecoratorLabel):
         self.replace = None
         self.cmds = []
 
-    def can_fallthrough(self):
+    def can_fallthrough(self, parent):
         return False
     
     def get_of_type(kind, task):
@@ -364,7 +364,7 @@ class MediaLabel(DecoratorLabel):
 
 
 
-from .mastmission import StartBlock, InitBlock, AbortBlock, CompleteBlock, ObjectiveBlock, MissionLabel
+from .mastmission import MissionLabel, StateLabel# , StartBlock, InitBlock, AbortBlock, CompleteBlock, ObjectiveBlock, 
 class MastStory(Mast):
     nodes = [
         # sbs specific
@@ -378,6 +378,7 @@ class MastStory(Mast):
         GuiConsoleDecoratorLabel,
         # ItemTemplateLabel this didn't work exactly, maybe sometime post v1.0
         ## Mission Nodes
-        MissionLabel, StartBlock,InitBlock, AbortBlock, CompleteBlock, ObjectiveBlock,
+        MissionLabel,# StartBlock,InitBlock, AbortBlock, CompleteBlock, ObjectiveBlock,
+        StateLabel,
         MediaLabel
     ] + Mast.nodes 

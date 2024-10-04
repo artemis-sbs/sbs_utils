@@ -67,36 +67,38 @@ logger(var="output")
 await delay_test(2)
 
 //mission/test "Test"
+                                                     
+                                                     
+    #yield success
 
-#yield success
-
-init:
+    &&& init " w"
     x = 0
     log("Init")
 
-    # Dedent should return succcess
+# Dedent should return succcess
 
-start:
-    log("Start")
-    # Dedent should return succcess
+&&& start
+log("Start")
+# Dedent should return succcess
 
-abort:
-    log("Abort")
-    # yield success
-    #dedent should fail i.e. not abort
+&&& abort
+log("Abort")
+# yield success
+#dedent should fail i.e. not abort
 
-objective/test "Test":
-    log("Objective")
-    x +=1 
-    # dedent should yield success
+&&& objective/test "Test"
+log("Objective")
+x +=1 
+# dedent should yield success
 
-complete:
-    if x <2:                                                     
-        log("Complete no")
-        yield fail
-    else:
-        log("Complete yes")
-    # dedent should yield success
+&&& complete
+
+if x <2:                                                     
+    log("Complete no")
+    yield fail
+else:
+    log("Complete yes")
+# dedent should yield success
 
 """)
         if len(errors)>0:

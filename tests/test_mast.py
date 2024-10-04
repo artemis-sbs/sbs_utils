@@ -373,7 +373,12 @@ var6.HP = 40
 # var6.HP = 400 comments
 var7 = var2 / var1 * var5
 var8 = ~~ [[2,3],[4,5]] ~~
-=== test                                       
+
+=== test
+# This only run the first time 
+# the task runs this line
+# so it will not set it to 4
+# again 
 default shared var_def = 4
 var_def += 1
 jump test if var_def < 6

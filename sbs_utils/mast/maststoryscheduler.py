@@ -81,11 +81,11 @@ over =     {
     "Text": TextRuntimeNode,
     "AppendText": AppendTextRuntimeNode,
     "CommsMessageStart": CommsMessageStartRuntimeNode,
-    "StartBlock": SkipBlockRuntimeNode,
-    "InitBlock": SkipBlockRuntimeNode,
-    "AbortBlock": SkipBlockRuntimeNode,
-    "CompleteBlock": SkipBlockRuntimeNode,
-    "ObjectiveBlock": SkipBlockRuntimeNode,
+    # "StartBlock": SkipBlockRuntimeNode,
+    # "InitBlock": SkipBlockRuntimeNode,
+    # "AbortBlock": SkipBlockRuntimeNode,
+    # "CompleteBlock": SkipBlockRuntimeNode,
+    # "ObjectiveBlock": SkipBlockRuntimeNode,
 }
 
 class StoryScheduler(MastScheduler):

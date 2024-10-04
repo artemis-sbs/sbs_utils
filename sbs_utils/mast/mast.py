@@ -169,7 +169,7 @@ class Label(DescribableNode):
     def add_label(self, name, label):
         self.labels[name] = label
 
-    def can_fallthrough(self):
+    def can_fallthrough(self, parent):
         return True
     
 
@@ -211,7 +211,7 @@ class DecoratorLabel(Label):
         self.loc = loc
         
 
-    def can_fallthrough(self):
+    def can_fallthrough(self, parent):
         return False
 
     def generate_label_begin_cmds(self, compile_info=None):
@@ -219,8 +219,11 @@ class DecoratorLabel(Label):
 
     def generate_label_end_cmds(self, compile_info=None):
         #
-        # Always have a yield                    
-        if not self.can_fallthrough():
+        # Always have a yield        
+        #
+        
+        p = compile_info.label if compile_info is not None else None
+        if not self.can_fallthrough(p):
             cmd = Yield('success', compile_info=compile_info)
             cmd.file_num = self.file_num
             cmd.line_num = self.line_num
@@ -249,7 +252,7 @@ class RouteDecoratorLabel(DecoratorLabel):
         self.replace = None
         self.cmds = []
 
-    def can_fallthrough(self):
+    def can_fallthrough(self, p):
         return False
 
     def generate_label_begin_cmds(self, compile_info=None):
@@ -405,7 +408,8 @@ class RouteDecoratorLabel(DecoratorLabel):
                 cmd.line = f"await scan() embedded in {self.name}"
                 self.add_child(cmd)
 
-        if not self.can_fallthrough():
+        p = compile_info.label if compile_info is not None else None
+        if not self.can_fallthrough(p):
             # Always have a yield                    
             cmd = Yield('success', compile_info=compile_info)
             cmd.file_num = self.file_num
@@ -1754,6 +1758,7 @@ class Mast():
         active_name = "main"
         indent_stack = [(0,None)]
         prev_node = None
+        label_first_cmd = 0
 
         class CompileInfo:
             def __init__(self) -> None:
@@ -1772,7 +1777,14 @@ class Mast():
                 errors.append(error)
                 return
             
-            if ind_level == 0:
+            if ind_level < indent_stack[0][0]:
+                logger = logging.getLogger("mast.compile")
+                error = f"\nERROR: Indention Error {line_no} - {file_name}\n\n"
+                logger.error(error )
+                errors.append(error)
+                return
+
+            if ind_level == indent_stack[0][0]:
                 return
             loc = len(self.cmd_stack[-1].cmds)
             end_obj = indent_node.create_end_node(loc, dedent_node, info)
@@ -1804,6 +1816,12 @@ class Mast():
             lines = lines[mo[0]:]
             indent = max((mo[0] - mo[2]) -1,0)
             #Mast.current_indent = indent  # Replaced with compile_info
+
+            #
+            # Allow labels to optionally indent?
+            #
+            if indent != 0 and active is not None and len(active.cmds) <= label_first_cmd:
+                indent_stack = [(indent,None)]
          
             # Keep location in file
             parsed = False
@@ -1863,7 +1881,7 @@ class Mast():
                         next.file_num = file_num
                         next.line_num = line_no
                         #if active.can_fallthrough() and next.can_fallthrough():
-                        if next.can_fallthrough():
+                        if next.can_fallthrough(active):
                             active.next = next
                         else:
                             active.next = None
@@ -1899,6 +1917,7 @@ class Mast():
                         _info.label = next
                         _info.main = self.labels.get("main")
                         next.generate_label_begin_cmds(_info)
+                        label_first_cmd = len(next.cmds)
                         
                         self.labels[active_name] = active
                         exists =  Agent.SHARED.get_inventory_value(label_name)
@@ -1957,7 +1976,8 @@ class Mast():
                             return errors # return with first errors
 
                         obj.line = line if Mast.include_code else None
-                        if obj.never_indent() and indent>0:
+                        base_indent= indent_stack[0][0]
+                        if obj.never_indent() and indent>base_indent:
                             errors.append(f"\nERROR: Bad indention {file_name} {line_no} - {line}")
                             return errors # return with first errors
                         
@@ -1975,6 +1995,10 @@ class Mast():
                             (i_loc,_) = indent_stack[-1]
                             while i_loc > indent:
                                 (i_loc,i_obj) = indent_stack.pop()
+                                if len(indent_stack)==0:
+                                    errors.append(f"\nERROR: Bad indention {file_name} {line_no} - {line}")
+                                    return errors # return with first errors
+
                                 # Should equal i_obj
                                 end_obj = i_obj.create_end_node(loc, obj,info)
                                 #
