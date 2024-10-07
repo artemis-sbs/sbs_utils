@@ -70,7 +70,7 @@ class MissionLabel(StateMachineLabel):
         return task.eval_code(self.code)
 
 
-class StateLabel(DecoratorLabel):
+class StateLabel(DescribableNode):
     is_inline_label = True
 
     rule = re.compile(r'\&{3}[ \t]*(?P<path>[\/\w]+)([ \t]+'+STRING_REGEX_NAMED("display_name")+')?')
@@ -78,7 +78,7 @@ class StateLabel(DecoratorLabel):
         # Label stuff
         id = DecoratorLabel.next_label_id()
         name = f"state/{path}/{id}"
-        super().__init__(name, loc=loc)
+        super().__init__() #name, loc=loc)
 
         self.path= path
         self.display_name = display_name
