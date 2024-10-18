@@ -80,6 +80,7 @@ class FakeEvent:
         self.extra_tag = extra_tag
         self.value_tag = value_tag
         self.selected_id = selected_id
+        self.extra_extra_tag = ""
         self.source_point = Vec3()
 
 def format_exception(message, source):

@@ -325,6 +325,7 @@ class CommsPromise(ButtonPromise):
         self.color = "white"
         self.expanded_buttons = None
         self.comms_id = "static"
+        self.face = ""
         self.is_grid_comms = False
         self.assign = None
         

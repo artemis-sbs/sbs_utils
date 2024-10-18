@@ -37,7 +37,7 @@ for w in windows:
 {w}
 """)
     f.close()
-    time.sleep(1)
+    #time.sleep(0.1)
     subprocess.Popen(["Artemis3-x64-release.exe"]) ###, "your", "arguments", "comma", "separated"])
     time.sleep(1)
     hwnd = FindWindow(None, "Engine")
@@ -47,7 +47,7 @@ for w in windows:
     MoveWindow(hwnd, x, y, rect.right-rect.left, rect.bottom-rect.top, False)
     x += rect.right-rect.left + 50
     if c%2:
-        y += 600
+        y += (rect.bottom-rect.top) // 3
         x = 0
     c+=1
     
