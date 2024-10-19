@@ -158,6 +158,7 @@ class LayoutListbox(layout.Column):
         self.slider_style =  LayoutAreaParser.parse_e2(tokens)
         if self.carousel:
             self.set_selected_index(self.cur)
+        self.sections = []
         
 
     def set_row_height(self, height):
@@ -314,6 +315,7 @@ class LayoutListbox(layout.Column):
 
         #draw_slots = max_slot
         #print(f"{cur=} {max_slots=}" )
+        self.sections = []
         for slot in range(max_slots):
             if cur >= len(self.items):
                 #print("BROKE")
@@ -352,6 +354,7 @@ class LayoutListbox(layout.Column):
             sec.calc(CID)
             sec.present(event)
             sec.resize_to_content()
+            self.sections.append(sec)
             # print(f"LISTBOX Present slots {CID} {sec.bounds} {self.local_region_tag}")
             #sub_page.tags |= sec.get_tags()
 
@@ -415,6 +418,8 @@ class LayoutListbox(layout.Column):
             return
         # Listbox can have selection, but is readonly
         was = self.cur
+        for sec in self.sections:
+            sec.on_message(event)
         
         if event.sub_tag == f"{self.tag_prefix}dec":
             if self.read_only:
