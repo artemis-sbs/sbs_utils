@@ -69,6 +69,8 @@ class StoryPage(Page):
 
         
         self.errors = []
+        self.compiler_errors = []
+
         cls = self.__class__
         
         if cls.story is None:
@@ -76,6 +78,11 @@ class StoryPage(Page):
                 cls.story = MastStory()
                 if cls.__dict__.get("story_file"):
                     self.errors =  cls.story.from_file(cls.story_file, None)
+                    self.compiler_errors = self.errors
+                    #if len(self.errors)>0:
+                    #    cls.story = None
+        
+                    
         self.story = cls.story
         self.main = cls.__dict__.get("main", "main")
         self.main_server = cls.__dict__.get("main_server", self.main)
@@ -87,7 +94,7 @@ class StoryPage(Page):
             return
         cls = self.__class__
         self.client_id == client_id
-        if len(self.errors)==0:
+        if len(self.compiler_errors)==0:
             self.story_scheduler = StoryScheduler(self.story)
             #
             # Get a label from the story class or us main
@@ -489,6 +496,20 @@ class StoryPage(Page):
         #     if change.test():
         #         change.run()
         #         return
+        if len(self.compiler_errors) > 0:
+            message = "".join(self.compiler_errors)
+            message = message.replace(";", "~")
+            message = "$text: Mast Compiler Errors\n" + message.replace(",", ".")
+            my_sbs.send_gui_clear(event.client_id,"")
+            if event.client_id != 0:
+                my_sbs.send_client_widget_list(event.client_id, "", "")
+            my_sbs.send_gui_text(event.client_id,"", "error", message,  0,0,100,100)
+            sbs.send_gui_button(event.client_id,"", "$Error$rerun", "$text:Attempt Rerun", 50, 90, 70, 99)
+            sbs.send_gui_button(event.client_id,"", "$Error$startup", "$text:Run startup", 75, 90, 99, 99)
+            self.gui_state = "errors"
+            my_sbs.send_gui_complete(event.client_id,"")
+            return
+        
 
         if self.story_scheduler is None:
             self.start_story(event.client_id)

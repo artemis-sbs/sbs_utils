@@ -151,8 +151,7 @@ def task_cancel(task):
     Args:
         task (MastAsyncTAsk): The task to end
     """    
-    if FrameContext.task is None:
-        FrameContext.task.main.cancel_task(task)
+    task.cancel()
 
 class TaskPromiseAllAny(PromiseAllAny):
     def __init__(self, proms, all) -> None:

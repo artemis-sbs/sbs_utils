@@ -1430,6 +1430,9 @@ class MastAsyncTask(Agent, Promise):
         restore = FrameContext.task
         done = []
         for task in self.sub_tasks:
+            if task.done():
+                done.append(task)
+                continue
             self.active_task = task
             FrameContext.task = task
             res = task.tick()
@@ -1625,7 +1628,7 @@ class MastScheduler(Agent):
             data = name
         # Assuming its OK to cancel none
         if data is not None:
-            data.end()
+            data.cancel()
             self.done.append(data)
 
     def is_running(self):

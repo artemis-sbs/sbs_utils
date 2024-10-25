@@ -31,7 +31,7 @@ class TestMastStoryCompile(unittest.TestCase):
         (errors, mast)= mast_story_compile( code = """
 //comms/ if has_role(COMMS_SELECTED_ID, "friendly")
 + "Give Orders 2":
-    <<[$alert] Under attack
+    <<[$alert] "Under attack"
         % Option one
         " 1a
         " 1b
@@ -53,7 +53,7 @@ class TestMastStoryCompile(unittest.TestCase):
 + "Give Orders 2"  friendly_give_orders
 
 =$alert red,white
-<<[$alert] Under attack
+<<[$alert] "Under attack"
     % Option one
     " 1a
     " 1b

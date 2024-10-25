@@ -1049,9 +1049,9 @@ shared var2 = 100
 ==== loop ====
 data = MastDataObject({"var1": 100})
 other = MastDataObject({"var1": 900000})
-->> PushTest  # var1 is 200 # var2 200
+await sub_task_schedule(PushTest)  # var1 is 200 # var2 200
 log("v2 200?={var2}")
-->> PushTest  # var1 is 300 # var2 300
+await sub_task_schedule(PushTest)  # var1 is 300 # var2 300
 log("v2 300?={var2}")
 
 await task_schedule(Spawn, data={"data": data})  # var1 is 400 var2 is 400
@@ -1060,7 +1060,7 @@ await task_schedule(Spawn, data={"data": other}) # var1 still 500 on this
 log("v2 600?={var2}")
 
 if data.var1==500:
-    ->> PushTest  # var1 is 600
+    await sub_task_schedule(PushTest)  # var1 is 600
 else:
     data.var1 = 10000000
 
@@ -1068,7 +1068,7 @@ else:
 if data.var1==300:
     data.var1 = 20000000
 else:
-    ->> PushTest  # var1 is 700
+    await sub_task_schedule(PushTest)  # var1 is 700
 
 
 if data.var1==500:
@@ -1083,7 +1083,7 @@ else:
 === PushTest ===
 data.var1 = data.var1 + 100
 var2 = var2 + 100
-<<-
+->END
 
 === Spawn ===
 data.var1 = data.var1 + 100
@@ -1140,8 +1140,8 @@ log("{var1}")
         (errors, runner, _) = mast_run( code = """
 var1 = 100
 shared var2 = 100
-->> Push  # var1 is 200 # var2 200
-->> Push  # var1 is 300 # var2 300
+await sub_task_schedule(Push)  # var1 is 200 # var2 200
+await sub_task_schedule(Push)  # var1 is 300 # var2 300
 
 /*
 ->> Push  # var1 is 300 # var2 300
@@ -1150,21 +1150,21 @@ shared var2 = 100
 var2 += 100
 
 ### test ###
-await => Spawn # var1 is 400 var2 is 400
-await => Spawn # var1 is 500 var2 is 500
-await => Spawn {"var1": 99} # var1 still 300 on this 
+await task_schedule(Spawn) # var1 is 400 var2 is 400
+await task_schedule(Spawn) # var1 is 500 var2 is 500
+await task_schedule(Spawn, {"var1": 99}) # var1 still 300 on this 
 
 if var1==600:
-    ->> Push  # var1 is 700
+    await sub_task_schedule(Push)  # var1 is 700
 else:
     var1 = "Don't get here"
-end_if
+
 ### inner  ####
 if var1==300:
     var1 = "Don't get here"
 else:
-    ->> Push  # var1 is 800
-end_if
+    await sub_task_schedule(Push)  # var1 is 800
+
 ### end inner ###!
 
 if var1==500:
@@ -1172,8 +1172,7 @@ if var1==500:
 elif var1 == 800:
     var1 = var1+ 100
 else:
-var1 = "Don't get here"
-end_if
+    var1 = "Don't get here"
 ###!!  end  test      ############!!
 
 var2 += 100
@@ -1189,7 +1188,7 @@ var2 += 100
 === Push ===
 var1 = var1 + 100
 shared var2 = var2 + 100
-<<-
+->END
 ###s###!!
 === Spawn ===
 var1 = var1 + 100

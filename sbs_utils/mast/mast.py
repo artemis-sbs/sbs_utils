@@ -1944,12 +1944,15 @@ class Mast():
                             err = self.import_content("__init__.mast", root, name)
                             if err is not None:
                                 errors.extend(err)
+                                for e in err:
+                                    print("import error "+e)
                         else:
                             err = self.import_content(name, root, lib_name)
                             if err is not None:
                                 errors.extend(err)
                                 for e in err:
                                     print("import error "+e)
+                                    return errors
                         prev_node = None
                     else:
                         try:

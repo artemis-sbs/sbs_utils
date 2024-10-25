@@ -5,7 +5,8 @@ from ..agent import Agent
 import sbs
 from ..gui import Gui
 from ..procedural.gui import gui_text_area
-from ..procedural.comms import comms_receive, comms_transmit, comms_speech_bubble, comms_broadcast
+from ..procedural.roles import role
+from ..procedural.comms import comms_receive, comms_transmit, comms_speech_bubble, comms_broadcast, comms_message
 from ..procedural.science import scan_results
 from ..helpers import FakeEvent, FrameContext, format_exception
 
@@ -54,10 +55,14 @@ class CommsMessageStartRuntimeNode(MastRuntimeNode):
         if len(node.options)==0:
             return
         msg = random.choice(node.options)
+        npc_face = None
+        if node.npc_face:
+            npc_face = task.get_variable(node.npc_face)
+
         if node.mtype == "<<": 
-            comms_receive(msg, node.title, color=node.body_color, title_color=node.title_color)
+            comms_receive(msg, node.title, color=node.body_color, title_color=node.title_color,face=npc_face)
         elif node.mtype == ">>": 
-            comms_transmit(msg, node.tile, color=node.body_color, title_color=node.title_color)
+            comms_transmit(msg, node.tile, color=node.body_color, title_color=node.title_color,face=npc_face)
         elif node.mtype == "<scan>": 
             scan_results(msg)
         elif node.mtype == "<client>": 
@@ -69,6 +74,24 @@ class CommsMessageStartRuntimeNode(MastRuntimeNode):
             comms_broadcast(0, msg, node.body_color)
         elif node.mtype == "()": 
             comms_speech_bubble(msg, color=node.title_color)
+        elif node.mtype == "<dialog>": 
+            sbs.send_story_dialog(task.maim.client_id, node.title,msg, npc_face, node.title_color)
+            player_id = sbs.get_ship_of_client(task.maim.client_id) 
+            comms_message(msg, player_id, player_id,  node.title, npc_face, node.body_color, node.title_color, True)
+        elif node.mtype == "<dialog_ships>": 
+            sbs.send_story_dialog(task.maim.client_id, node.title,msg, npc_face, node.title_color)
+            for p in role("__player__"):
+                comms_message(msg, p, p,  node.title, npc_face, node.body_color, node.title_color, True)
+        elif node.mtype == "<dialog_consoles>":
+            player_id = sbs.get_ship_of_client(task.maim.client_id)
+            for c in role("console"):
+                if c.get_inventory_value("assigned_ship") == player_id:
+                    sbs.send_story_dialog(c, node.title,msg, npc_face, node.title_color)
+        elif node.mtype == "<dialog_consoles_all>":
+            for c in role("console"):
+                sbs.send_story_dialog(c, node.title,msg, npc_face, node.title_color)
+            
+            
 
 from .pollresults import PollResults
 

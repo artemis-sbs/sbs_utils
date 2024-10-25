@@ -167,7 +167,8 @@ class AppendText(MastNode):
             self.code = compile(if_exp, "<string>", "eval")
         else:
             self.code = None
-FORMAT_EXP = r"(\[(?P<format>([\$\#]?\w+[ \t]*(,[ \t]*\#?\w+)?))\])?"
+FORMAT_EXP = r"(\[(?P<format>([\$\#]?\w+[ \t]*(,[ \t]*\#?\w+)*))\])?"
+#FORMAT_EXP = r"(\[(?P<format>(\$\w+)|(\#?\w+[ \t]*(,[ \t]*\#?\w+)*)|((\w+[ \t]*:[ \t]*([^;\]]*;)*)))\])"
 class CommsMessageStart(DescribableNode):
     rule = re.compile(r"(?P<mtype>\<\<|\>\>|\(\)|\<scan\>|\<all\>|\<client\>|\<ship\>)"+FORMAT_EXP+"([ \t]+"+STRING_REGEX_NAMED("title")+")?")
     current_comms_message = None
@@ -178,14 +179,17 @@ class CommsMessageStart(DescribableNode):
         self.format = format
         self.title_color = "white"
         self.body_color = "white"
+        self.npc_face = None
 
         if format is not None:
             f = DefineFormat.resolve_colors(format)
-            if len(f)==1:
+            if len(f)>=1:
                 self.title_color = f[0]
-            if len(f)==2:
-                self.title_color = f[0]
+            if len(f)>=2:
                 self.body_color = f[1]
+            if len(f)>=3:
+                self.npc_face = f[2]
+                
                 
         self.mtype = mtype 
         self.title = title
@@ -229,7 +233,7 @@ class WeightedText(MastNode):
 
 
 class DefineFormat(MastNode):
-    rule = re.compile(r"""\=\$(?P<name>\w+)(?P<format>[^:\n\r\f]*)""")
+    rule = re.compile(r"""\=\$(?P<name>\w+)(?P<format>[^\n\r\f]*)""")
     colors = {
         "alert": ["red", "white"],
         "info": ["blue", "white"],
