@@ -88,9 +88,13 @@ class CommsMessageStartRuntimeNode(MastRuntimeNode):
                 if c.get_inventory_value("assigned_ship") == player_id:
                     sbs.send_story_dialog(c, node.title,msg, npc_face, node.title_color)
         elif node.mtype == "<dialog_consoles_all>":
+            sbs.send_story_dialog(0, node.title,msg, npc_face, node.title_color)
             for c in role("console"):
                 sbs.send_story_dialog(c, node.title,msg, npc_face, node.title_color)
-            
+        elif node.mtype == "<dialog_main>":
+            sbs.send_story_dialog(0, node.title,msg, npc_face, node.title_color)
+            for c in role("mainscreen") & role("console"):
+                sbs.send_story_dialog(c, node.title,msg, npc_face, node.title_color)
             
 
 from .pollresults import PollResults
