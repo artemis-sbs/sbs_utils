@@ -11,6 +11,12 @@ extra:
       link: https://store.steampowered.com/app/2467840/Artemis_Cosmos/
     - icon: material/forum
       link: https://artemis.forumchitchat.com/
+  ab:
+    ac: "Artemis: Cosmos"
+    sbs: "Artemis: Spaceship Bridge Simulator"
+    m: "MAST"
+
+  
 
 
 theme:
@@ -45,11 +51,12 @@ nav:
 
   - Mast:
     - mast/index.md
-    - Language: mast/overview.md
-    - Python: mast/python.md
+    - Getting Started: mast/tutorial.md
+    - MAST Language: mast/overview.md
     - Syntax: mast/syntax.md
     - Agent Model: mast/model.md
-    - Behavior trees: mast/behavior.md
+    - Routes: mast/routes.md
+    - PyMAST: mast/python.md
 
   - Cosmos:
     - cosmos/index.md
@@ -150,6 +157,7 @@ markdown_extensions:
 
 plugins:
   - search
+  - macros
   - mkdocstrings:
       handlers:
         python:

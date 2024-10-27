@@ -17,9 +17,11 @@ When adding to this library, the documentation should be updated in the mkdocs f
 To use the doc you need to install several python libraries:
 
 ```
+pip install mkdocs
 pip install mkdocs-material
 pip install mkdocstrings
 pip install mkdocstrings[python]
+pip install mkdocs-markdownextradata-plugin
 
 ```
 

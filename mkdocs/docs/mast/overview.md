@@ -1,19 +1,19 @@
 
-## Mast execution flow 
+## {{ab.m}} execution flow 
 
-The goal of Mast is to enable non-programmers to be productive in creating interactive narratives.
+The goal of {{ab.m}} is to enable non-programmers to be productive in creating interactive narratives.
 
-The Mast language is a programming language that strips many of the programming language concepts that make writing interactive narratives difficult as well a simplified syntax.
+The {{ab.m}} language is a programming language that strips many of the programming language concepts that make writing interactive narratives difficult as well a simplified syntax.
 
 The intent is to be approachable to non-programmers. It is not intended to be 'structured' programming language like C++ or Python. 
 
-The flow of mast is similar to the original BASIC programming langauge. The code executes moving forward, it can branch by jumping to new locations (labels). This can be called 'unstructured' programming. Mast was also influenced by choice script, Inkle's Ink, and others.
+The flow of {{ab.m}} is similar to the original BASIC programming langauge. The code executes moving forward, it can branch by jumping to new locations (labels). This can be called 'unstructured' programming. {{ab.m}} was also influenced by choice script, Inkle's Ink, and others.
 
 
 
-=== "mast"
+=== "{{ab.m}}"
 
-    ``` mast
+    ``` {{ab.m}}
     ========= start =======
     log "Hello, world"
     -> goodbye
@@ -30,14 +30,14 @@ The flow of mast is similar to the original BASIC programming langauge. The code
     ```
 
 
-## Mast and PyMast
+## {{ab.m}} and PyMast
 
-Mast is a standalone language running inside of the python system provided by Artemis Cosmos.
+{{ab.m}} is a standalone language running inside of the python system provided by Artemis Cosmos.
 
-PyMast is python code that runs using the Mast execution flow. This gives python programmers the benefits of Mast's simple flow while enabling greater access to the native python.
+PyMast is python code that runs using the {{ab.m}} execution flow. This gives python programmers the benefits of {{ab.m}}'s simple flow while enabling greater access to the native python.
 
 
-=== "Mast"
+=== "{{ab.m}}"
 
     ```
     ========= start =======
@@ -49,48 +49,44 @@ PyMast is python code that runs using the Mast execution flow. This gives python
     log "Goodbye"
     ```
 
-=== "Python Mast"
+=== "Python {{ab.m}}"
 
     ```
-    class Story(PyMastStory):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            
-        @label()
-        def start(self):
-            print("Hello, world")
-            yield self.jump(self.goodbye)
+    @label()
+    def start(self):
+        print("Hello, world")
+        yield self.jump(self.goodbye)
 
-        @label()
-        def not_here(self):
-            print("I get jumped over")
+    @label()
+    def not_here(self):
+        print("I get jumped over")
 
-        @label()
-        def goodbye(self):
-            print("Goodbye")
+    @label()
+    def goodbye(self):
+        print("Goodbye")
     ```
 
 === "Output"
 
     ```
-    |    Hello, world
-    |    Goodbye
+        Hello, world
+        Goodbye
     ```        
 
 
 
-## Mast and pausing the flow
+## {{ab.m}} and pausing the flow
 
-Mast is running as part of a game engine. The engine only give Mast a small amount of time to run. If Mast ran unconditionally it would not allow the engine to run and stall the game. However, there are times a story cannot continue until conditions are met. e.g. A comms button is press, a science scan it started etc.
+{{ab.m}} is running as part of a game engine. The engine only give {{ab.m}} a small amount of time to run. If {{ab.m}} ran unconditionally it would not allow the engine to run and stall the game. However, there are times a story cannot continue until conditions are met. e.g. A comms button is press, a science scan it started etc.
 
-Mast can "pause" execution and yield control back to the engine. The engine keeps calling MAst and it yields until the condition is met teh the flow can continue.
+{{ab.m}} can "pause" execution and yield control back to the engine. The engine keeps calling {{ab.m}} and it yields until the condition is met teh the flow can continue.
 
-This example prints "Hello, world" and five seconds later it prints "Goodbye". During that five seconds the engine is able to run because Mast yields control back since it cannot move forward.
+This example prints "Hello, world" and five seconds later it prints "Goodbye". During that five seconds the engine is able to run because {{ab.m}} yields control back since it cannot move forward.
 
-This ability to yield control back to the engine is a reason that Mast flow can be enable users to focus on the flow of the story and not how to get the programming lanuage to deal with this.
+This ability to yield control back to the engine is a reason that {{ab.m}} flow can be enable users to focus on the flow of the story and not how to get the programming lanuage to deal with this.
 
 
-=== "Mast"
+=== "{{ab.m}}"
 
     ```      
     ========= start =======
@@ -117,10 +113,10 @@ This ability to yield control back to the engine is a reason that Mast flow can 
     |    Goodbye
     ```    
 
-Yielding control is handled by Mast. If there ever is a time you need to force a yield you can us the Mast 'yeild' command. In PyMast the python keyword yield is used, however you must specify how to yield by providing a PollResults.OK_RUN_AGAIN. There are other types of yields in PyMast. This is not the time to detail those uses. 
+Yielding control is handled by {{ab.m}}. If there ever is a time you need to force a yield you can us the {{ab.m}} 'yeild' command. In PyMast the python keyword yield is used, however you must specify how to yield by providing a PollResults.OK_RUN_AGAIN. There are other types of yields in PyMast. This is not the time to detail those uses. 
 
 
-=== "mast"
+=== "{{ab.m}}"
     ```
     ========= start =======
     log "Hello, world"
@@ -149,7 +145,7 @@ Yielding control is handled by Mast. If there ever is a time you need to force a
     |    Goodbye
     ```
 
-In future topics there will be other times descibed when Mast yields. Typically this is when MAst is waiting for something to occur. For example:
+In future topics there will be other times descibed when {{ab.m}} yields. Typically this is when {{ab.m}} is waiting for something to occur. For example:
 
 * time (e.g. the delay used in the examples)
 * awaiting a choice to be made in the gui 
@@ -158,21 +154,21 @@ In future topics there will be other times descibed when Mast yields. Typically 
 
 
 ## Sub plots aka Tasks
-Mast is MULTI Agent Story Telling so each agent has their own story or event stories.
+{{ab.m}} is MULTI Agent Story Telling so each agent has their own story or event stories.
 
-Mast allows multiple storylines to run in "parallel". 
+{{ab.m}} allows multiple storylines to run in "parallel". 
 
-Mast in Artemis Cosmos is inherently a single thread of execution. These storylines do not run exactly in parallel, but you can run multiple things and make sure they run. These are called Tasks, and tasks can be scheduled so that multiple task can run.
+{{ab.m}} in Artemis Cosmos is inherently a single thread of execution. These storylines do not run exactly in parallel, but you can run multiple things and make sure they run. These are called Tasks, and tasks can be scheduled so that multiple task can run.
 
 For example a Player Ship can run a Task for handling Comms messages, another for Science scan. This player ship could in fact run multiple tasks for handling comms with different sets of ships.
 
 These tasks themselves act as small side stories, They run as long as needed.
 
-In mast tasks are scheduled in mast with a parallel jump, and in PyMast with a schedule_task
+In {{ab.m}} tasks are scheduled in {{ab.m}} with a parallel jump, and in PyMast with a schedule_task
 
 If you have programmed Artemis 2.x scripts, tasks are similar to the <event> tags. Unlike the <event> tags, task only run when needed. They are scheduled, and when they end they are unscheduled they can also be canceled.
 
-=== "mast"
+=== "{{ab.m}}"
 
     ```
     ===== start ====
@@ -226,7 +222,7 @@ If you have programmed Artemis 2.x scripts, tasks are similar to the <event> tag
 
 
 ## Schedulers
-Mast and PyMast run all the tasks using schedulers. This process is mostly hidden to the writer of Mast and PyMast code.
+{{ab.m}} and PyMast run all the tasks using schedulers. This process is mostly hidden to the writer of {{ab.m}} and PyMast code.
 
 Tasks are run on 'Schedulers' and to put it simply for now, the server and each Console has a scheduler. Additional scheduler can be created but typically the schedulers run associated with a console with the server running a large number of the tasks.
 
@@ -234,7 +230,7 @@ For example, the server runs a scheduler it may have a task for presenting its U
 
 The more complex the script, the more tasks that will run. And if the complexity warrants more schedulers can be created. e.g. schedulers for each player ships etc.
 
-When Artemis Cosmos calls the scripting engine, Mast/PyMast will run al the Schedulers and each scheduler runs all of its Tasks. 
+When Artemis Cosmos calls the scripting engine, {{ab.m}}/PyMast will run al the Schedulers and each scheduler runs all of its Tasks. 
 
 As tasks are finished, they are removed. If a scheduler runs and no longer has tasks it is removed.
 
@@ -260,7 +256,7 @@ XML is NOT supported, but used as examples for those familiar with Artemis 2.x s
     </event>
     ```
  
-=== "mast"   
+=== "{{ab.m}}"   
     ```
     # To schedule the task
     schedule do_some_thing
@@ -291,7 +287,7 @@ XML is NOT supported, but used as examples for those familiar with Artemis 2.x s
 
 ### Setting data vs. XML Variable
 
-Mast you can set data that is shared by the se:rver, all client consoles and all tasks.
+{{ab.m}} you can set data that is shared by the server, all client consoles and all tasks.
 You can scope data to the task. You can pass data to a task. This allows task to be scheduled multiple times.
 PyMast has the added ability to scope data to a label since it is a function in python.
 
@@ -309,7 +305,7 @@ In contrast to XML event, you could <set_variable> that variable was always shar
     ```
 
 
-=== "Mast"
+=== "{{ab.m}}"
     ```  
     # create shared data
     shared say_what = "Hello"
@@ -399,7 +395,7 @@ Example one delaying credits.
         </event>
     ```
 
-=== "mast"
+=== "{{ab.m}}"
     ```
     
     ==== show_credits ====
@@ -434,7 +430,7 @@ The XML for this would be very verbose.
     <Skipping/>
     ```
         
-=== "mast"
+=== "{{ab.m}}"
     ```
     ==== spawn_wave ====
     enemyTypeNameList = ["kralien_dreadnaught","kralien_battleship","skaraan_defiler","cargo_ship","arvonian_carrier","torgoth_behemoth"]
