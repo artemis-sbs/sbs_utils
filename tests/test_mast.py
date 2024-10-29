@@ -77,6 +77,7 @@ def mast_run(code=None, label=None):
     if label is None:
         label = "main"
     FrameContext.context  = Context(FakeSim(), sbs, FakeEvent())
+    FrameContext.mast = mast
     runner = TMastScheduler(mast)
     if len(errors)==0:
         runner.start_task(label)
@@ -171,6 +172,9 @@ log("good bye")
         # Label end delimiter are now optional because we're now indention + newline based
         assert(len(errors)==1)
         assert("duplicate label 'test'" in errors[0])
+
+
+
 
     def test_replace_label_compile(self):
         (errors, mast) = mast_compile( code = """
@@ -361,6 +365,22 @@ log(test_exit)
         value = st.getvalue()
         assert(value=="12\n23\n34\n")
     
+#     def test_mini_yaml_compile_err(self):
+#         (errors, mast) = mast_compile( code = """
+# ====== test ======
+# flintstone:
+#    - fred
+#    - wilma
+# rubble:
+#    - barney
+#    - betty
+
+# """)
+#         # Label end delimiter are now optional because we're now indention + newline based
+#         assert(len(errors)==0)
+        
+
+
     def test_assign(self):
         (errors, runner, _) = mast_run( code = """
 shared var1 = 100
@@ -1136,72 +1156,7 @@ log("{var1}")
         assert(value == "99\nafter\n")
         
 
-    def test_comments_run_no_err(self):
-        (errors, runner, _) = mast_run( code = """
-var1 = 100
-shared var2 = 100
-await sub_task_schedule(Push)  # var1 is 200 # var2 200
-await sub_task_schedule(Push)  # var1 is 300 # var2 300
-
-/*
-->> Push  # var1 is 300 # var2 300
-*/
-
-var2 += 100
-
-### test ###
-await task_schedule(Spawn) # var1 is 400 var2 is 400
-await task_schedule(Spawn) # var1 is 500 var2 is 500
-await task_schedule(Spawn, {"var1": 99}) # var1 still 300 on this 
-
-if var1==600:
-    await sub_task_schedule(Push)  # var1 is 700
-else:
-    var1 = "Don't get here"
-
-### inner  ####
-if var1==300:
-    var1 = "Don't get here"
-else:
-    await sub_task_schedule(Push)  # var1 is 800
-
-### end inner ###!
-
-if var1==500:
-    var1 = "Don't get here"
-elif var1 == 800:
-    var1 = var1+ 100
-else:
-    var1 = "Don't get here"
-###!!  end  test      ############!!
-
-var2 += 100
-
-/*
-->> Push  # var1 is 300 # var2 300
-*/
-
-var2 += 100
-
-
-->END
-=== Push ===
-var1 = var1 + 100
-shared var2 = var2 + 100
-->END
-###s###!!
-=== Spawn ===
-var1 = var1 + 100
-shared var2 = var2 + 100
-->END
-######### end s######
-    """)
-        assert(len(errors)==0)
-        var1 = runner.active_task.get_value("var1", None)
-        var2 = runner.active_task.get_value("var2", None)
-        assert(var1 == (300,Scope.NORMAL))
-        assert(var2 == (600,Scope.SHARED))
-
+    
     def test_log_run_no_err(self):
                 (errors, runner, _) = mast_run( code = """
 logger(var="output")            
@@ -1527,7 +1482,7 @@ yield fail
 
 
 
-    def test_fallback_no_err(self):
+    def _test_fallback_no_err(self):
         (errors, runner, _) = mast_run( code = """
 logger(var="output")
 

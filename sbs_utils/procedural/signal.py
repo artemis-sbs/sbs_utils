@@ -16,7 +16,7 @@ def signal_emit(name, data):
         return
     mast.signal_emit(name, task, data)
 
-def signal_register(name, label, server):
+def signal_register(name, label, server=False):
     mast = FrameContext.mast
     task = FrameContext.task
     if mast is None:

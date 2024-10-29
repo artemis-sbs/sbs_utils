@@ -1579,6 +1579,10 @@ class Mast():
         #
         # look in the story.json
         #
+        is_test = sys.modules['script']
+        if is_test is None or isinstance(is_test, str):
+            return []
+        
         script_dir = os.path.dirname(sys.modules['script'].__file__)
         mission_dir = os.path.dirname(script_dir)
         story_settings = os.path.join(script_dir,"story.json")
