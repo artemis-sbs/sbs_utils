@@ -76,7 +76,8 @@ The {{ab.sbs}} XML language is inefficient in that all events always, and it had
 
 Even in other programming languages State Machines require boiler plate code to add new states and transitions. This also requires copy and pasting code.
 
-{{ab.m}} is intended to enabling creating state driven programming that:
+{{ab.m}} is intended to enabling creating state driven programming that is:
+
 - More efficient because only needed things are executed
 - script writers do not write state machine and management code
 
