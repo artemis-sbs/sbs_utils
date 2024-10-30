@@ -45,6 +45,7 @@ LIST_REGEX = r"""(\[[\s\S]+?\])"""
 DICT_REGEX = r"""(\{[\s\S]+?\})"""
 OPT_DATA_REGEX = r"""(?P<data>([ \t]*\{[^\n\r\f]+\}))?"""
 PY_EXP_REGEX = r"""((?P<py>~~)[\s\S]*?(?P=py))"""
+YAML_REGEX = r"""((?P<y_data>```)[ \t]*(?P<doc>\w*)?[ \t]*[\n\r\f](?P<doc_body>[\s\S]*?)(?P=y_data))"""
 STRING_REGEX = r"""((?P<quote>((["']{3})|["']))[ \t\S]*(?P=quote))"""
 MULTI_LINE_STRING_REGEX = r"""((?P<quote>(["']{3}))[\s\S]*?(?P=quote))"""
 def STRING_REGEX_NAMED(name):
@@ -749,12 +750,14 @@ class Assign(MastNode):
     # '|'+STRING_REGEX+ddd
     # (.*?)(\+=|-=)(.*)?(#\n)?
     rule = re.compile(
-        r'(?P<is_default>(default[ \t]+))?(?P<scope>(shared|assigned|client|temp)\s+)?(?P<lhs>.*?)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)(?P<a_wait>\s*await)?\s*(?P<exp>('+PY_EXP_REGEX+'|'+MULTI_LINE_STRING_REGEX+'|[^\n\r\f]+))')
+        r'(?P<is_default>(default[ \t]+))?(?P<scope>(shared|assigned|client|temp)\s+)?(?P<lhs>.*?)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)(?P<a_wait>\s*await)?\s*(?P<exp>('+PY_EXP_REGEX+'|'+MULTI_LINE_STRING_REGEX+'|'+YAML_REGEX+'|[^\n\r\f]+))')
         
         #r'(?P<scope>(shared|assigned|client|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)(?P<a_wait>\s*await)?\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|[^\n\r\f]+))')
 
     """ Note this doesn't support destructuring. To do so isn't worth the effort"""
-    def __init__(self, is_default, scope, lhs, oper, exp,a_wait=None,  quote=None, py=None, loc=None, compile_info=None):
+    def __init__(self, is_default, scope, lhs, oper, exp,a_wait=None,  
+                 quote=None, py=None, doc=None, y_data=None, doc_body=None,
+                 loc=None, compile_info=None):
         super().__init__()
         self.lhs = lhs
         self.loc = loc
@@ -767,9 +770,19 @@ class Assign(MastNode):
         exp = exp.lstrip()
         if quote:
             exp = 'f'+exp        
-        if py:
+        elif py:
             exp = exp[2:-2]
             exp = exp.strip()
+        elif doc_body:
+            import sbs_utils.yaml as yaml
+            #
+            # This could be slow, but I like the format
+            #
+            try:
+                data = yaml.safe_load(doc_body)
+                exp = json.dumps(data)
+            except:
+                raise Exception(f"Variable assignment {lhs} bad document")
         self.code = compile(exp, "<string>", "eval")
         self.is_await = a_wait is not None
 

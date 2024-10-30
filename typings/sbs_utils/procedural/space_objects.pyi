@@ -26,7 +26,7 @@ def broad_test_around (id_or_obj, width: float, depth: float, broad_type=65520):
     
     Returns:
         set: A set of ids"""
-def clear_target (chasers: set | int | sbs_utils.agent.CloseData | sbs_utils.agent.SpawnData):
+def clear_target (chasers: set | int | sbs_utils.agent.CloseData | sbs_utils.agent.SpawnData, throttle=0):
     """clear the target on an agent or set of agents
     
     Args:

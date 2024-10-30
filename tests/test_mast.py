@@ -365,19 +365,26 @@ log(test_exit)
         value = st.getvalue()
         assert(value=="12\n23\n34\n")
     
-#     def test_mini_yaml_compile_err(self):
-#         (errors, mast) = mast_compile( code = """
-# ====== test ======
-# flintstone:
-#    - fred
-#    - wilma
-# rubble:
-#    - barney
-#    - betty
+    def test_mini_yaml_compile_err(self):
+        (errors, runner, mast) = mast_run( code = """
+====== test ======
+test = ```
+        flintstone:
+            - fred
+            - wilma
+        rubble:
+            - barney
+            - betty
+        ```
 
-# """)
-#         # Label end delimiter are now optional because we're now indention + newline based
-#         assert(len(errors)==0)
+""")
+        # Label end delimiter are now optional because we're now indention + newline based
+        assert(len(errors)==0)
+        task = runner.active_task
+        while runner.is_running():
+            runner.tick()
+        test = task.get_value("test", None)
+        print(test)
         
 
 

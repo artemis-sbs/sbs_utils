@@ -33,7 +33,7 @@ def signature (obj, *, follow_wrapped=True, globals=None, locals=None, eval_str=
     ...
 class Assign(MastNode):
     """class Assign"""
-    def __init__ (self, scope, lhs, oper, exp, a_wait=None, quote=None, py=None, loc=None, compile_info=None):
+    def __init__ (self, is_default, scope, lhs, oper, exp, a_wait=None, quote=None, py=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -96,7 +96,7 @@ class DecoratorLabel(Label):
     """class DecoratorLabel"""
     def __init__ (self, name, loc=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def can_fallthrough (self):
+    def can_fallthrough (self, parent):
         ...
     def generate_label_begin_cmds (self, compile_info=None):
         ...
@@ -177,7 +177,7 @@ class Label(DescribableNode):
         ...
     def add_label (self, name, label):
         ...
-    def can_fallthrough (self):
+    def can_fallthrough (self, parent):
         ...
     def generate_label_begin_cmds (self, compile_info=None):
         ...
@@ -322,7 +322,7 @@ class RouteDecoratorLabel(DecoratorLabel):
     """class RouteDecoratorLabel"""
     def __init__ (self, path, if_exp=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def can_fallthrough (self):
+    def can_fallthrough (self, p):
         ...
     def generate_label_begin_cmds (self, compile_info=None):
         ...

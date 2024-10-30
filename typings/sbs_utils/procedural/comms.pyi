@@ -4,6 +4,7 @@ from sbs_utils.procedural.gui import ButtonPromise
 from sbs_utils.mast.mastscheduler import ChangeRuntimeNode
 from sbs_utils.consoledispatcher import ConsoleDispatcher
 from sbs_utils.helpers import FrameContext
+from sbs_utils.garbagecollector import GarbageCollector
 from sbs_utils.mast.pollresults import PollResults
 def _comms_get_origin_id ():
     ...
@@ -127,6 +128,8 @@ class CommsPromise(ButtonPromise):
     def __init__ (self, path, task, timeout=None) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
     def clear (self):
+        ...
+    def collect (self):
         ...
     def comms_message (self, event):
         ...

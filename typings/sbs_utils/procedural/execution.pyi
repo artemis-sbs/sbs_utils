@@ -114,3 +114,12 @@ def task_schedule (label, data=None, var=None):
     
     Returns:
         MastAsyncTask : The MAST task created"""
+class TaskPromiseAllAny(PromiseAllAny):
+    """class TaskPromiseAllAny"""
+    def __init__ (self, proms, all) -> None:
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def end_all (self):
+        ...
+    @property
+    def is_idle (self):
+        ...

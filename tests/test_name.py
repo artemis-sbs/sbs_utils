@@ -23,6 +23,19 @@ class TestNames(unittest.TestCase):
                 sys.stdout.write('\n')
         self.assertEqual(3, 3)
 
+    def test_yaml(self):
+        import sbs_utils.yaml as yaml
+
+        names_yaml = """
+            - 'eric'
+            - 'justin'
+            - 'mary-kate'
+"""
+        names = yaml.safe_load(names_yaml)
+        assert(len(names)==3)
+
+
+
     def test_filter_ship_data(self):
         test_set_exe_dir()
         ast = ship_data.asteroid_keys()

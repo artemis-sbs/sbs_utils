@@ -19,6 +19,18 @@ def comms_broadcast (ids_or_obj, msg, color='#fff'):
         ids_or_obj (id or objecr): A set or single id or object to send to,
         msg (str): The text to send
         color (str, optional): The Color for the text. Defaults to "#fff"."""
+def comms_message (msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, color='#fff', title_color=None, is_receive=True, from_name=None):
+    """Send a Comms message
+    This is a lower level function that lets you have more control the sender and receiver
+    
+    Args:
+        msg (str): The message to send
+        from_ids_or_obj (idset): The senders of the message
+        to_ids_or_obj (idset): The set or receivers
+        title (str, optional): The title text. Defaults to None.
+        face (str, optional): The face string to use. Defaults to None.
+        color (str, optional): The color of the body text. Defaults to "#fff".
+        title_color (str, optional): The color of the title text. Defaults to None."""
 def comms_receive (msg, title=None, face=None, color='#fff', title_color=None):
     """Receive a message on a player ship from another ship
     It uses the current context to determine the sender and receiver.
@@ -65,6 +77,14 @@ def gui_text_area (props, style=None):
     
     props (str): property string
     style (style, optional): The style"""
+def role (role: str):
+    """returns a set of all the agents with a given role.
+    
+    Args:
+        role (str): The role
+    
+    Returns:
+        agent id set: a set of agent IDs"""
 def scan_results (message, target=None, tab=None):
     """Set the scan results for the current scan. This should be called when the scan is completed.
        This is typically called as part of a scan()
