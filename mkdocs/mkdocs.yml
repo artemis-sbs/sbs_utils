@@ -54,10 +54,19 @@ nav:
     - mast/index.md
     - Getting Started: mast/tutorial.md
     - MAST Language: mast/overview.md
-    - Syntax: mast/syntax.md
-    - Agent Model: mast/model.md
-    - Routes: mast/routes.md
     - PyMAST: mast/python.md
+    - Agent Model: mast/model.md
+    - Syntax: mast/syntax.md
+    - Routes: 
+      - mast/routes/index.md
+      - Comms: mast/routes/comms.md
+      - Science: mast/routes/science.md
+      - Lifetime: mast/routes/lifetime.md
+      - User Interface: mast/routes/user_interact.md
+      - Gui: mast/routes/gui.md
+      - Signals: mast/routes/signals.md
+      - Maps: mast/routes/maps.md
+    
 
   - Cosmos:
     - cosmos/index.md

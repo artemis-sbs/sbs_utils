@@ -91,7 +91,7 @@ This ability to yield control back to the engine is a reason that {{ab.m}} flow 
     ```      
     ========= start =======
     log("Hello, world")
-    delay_app(5)
+    await delay_app(5)
     log("Goodbye")
     ```
 
@@ -101,7 +101,7 @@ This ability to yield control back to the engine is a reason that {{ab.m}} flow 
     @label()
     def start():
         log("Hello, world")
-        yield delay_app(5)
+        yield AWAIT(delay_app(5))
         log("Goodbye")
     ```
 === "Output"
@@ -207,6 +207,19 @@ If you have programmed Artemis 2.x scripts, tasks are similar to the <event> tag
     |    done
     ```
 
+## Route labels
+
+Route labels are special labels that get automatically run when their conditions are met. A task (or subtask) is scheduled by the system to run the label. There is much more detail section about [route labels](./routes/index.md) 
+
+=== ":mast-icon: {{ab.m}}"   
+    ```
+    # Automatically scheduled when a TSN, player is spawned
+    // spawn if has_roles(SPAWNED_ID, "tsn, player")
+        print("A new TSN player spawned")
+        ->END
+
+    ```             
+
 
 ## Schedulers
 {{ab.m}} and {{ab.pm}} run all the tasks using schedulers. This process is mostly hidden to the writer of {{ab.m}} and {{ab.pm}} code.
@@ -221,8 +234,10 @@ When Artemis Cosmos calls the scripting engine, {{ab.m}}/{{ab.pm}} will run al t
 
 As tasks are finished, they are removed. If a scheduler runs and no longer has tasks it is removed.
 
+Route labels are special labels that get automatically run when their conditions are met. A task (or subtask) is scheduled by the system to run the label.
 
-### XML Events vs label, and tasks
+
+### XML Events vs label, tasks and routes
 If you ever programmed Artemis 2.x, Tasks are similar to events.
 XML is NOT supported, but used as examples for those familiar with Artemis 2.x scripting.
  
@@ -235,6 +250,11 @@ XML is NOT supported, but used as examples for those familiar with Artemis 2.x s
     * need to be scheduled or they don't run
     * They can end
     * They can be canceled
+
+* Route labels
+    * Schedule as task and run the label
+    * The only get scheduled when their condition is met
+    * They run like any other label after that
 
  
 === "XML"
@@ -254,7 +274,17 @@ XML is NOT supported, but used as examples for those familiar with Artemis 2.x s
     ==== do_some_thing ====
     log("Hello")
     ```             
-        
+
+=== ":mast-icon: {{ab.m}}"   
+    ```
+    # Automatically scheduled when a TSN, player is spawned
+    // spawn if has_roles(SPAWNED_ID, "tsn, player")
+        # To end a task
+        print("An new TSN player spawned")
+        ->END
+
+    ```             
+
 
 === ":simple-python: {{ab.pm}}"
 
