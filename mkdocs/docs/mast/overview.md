@@ -51,7 +51,7 @@ The flow of {{ab.m}} is similar to the original BASIC programming language. The 
 
 === ":simple-python: {{ab.pm}}"
 
-    ```
+    ``` py
     @label()
     def start():
         print("Hello, world")
@@ -96,7 +96,8 @@ This ability to yield control back to the engine is a reason that {{ab.m}} flow 
     ```
 
 === ":simple-python: {{ab.pm}}"
-    ```
+
+    ``` py
     @label()
     def start():
         log("Hello, world")
@@ -122,7 +123,7 @@ Yielding control is handled by {{ab.m}}. If there ever is a time you need to for
 
 === ":simple-python: {{ab.pm}}"
 
-    ```
+    ``` py
     @label()
     def start():
         log("Hello, world")
@@ -176,7 +177,7 @@ If you have programmed Artemis 2.x scripts, tasks are similar to the <event> tag
 
 === ":simple-python: {{ab.pm}}"
 
-    ```
+    ``` py
     @label()
     def start():
         yield AWAIT(task_schedule(count_to_ten))
@@ -257,7 +258,7 @@ XML is NOT supported, but used as examples for those familiar with Artemis 2.x s
 
 === ":simple-python: {{ab.pm}}"
 
-    ```
+    ``` py
     @label()
     def start():
         task_schedule(do_some_thing)
@@ -314,7 +315,8 @@ In contrast to an XML event, every variable was always shared. Also, events did 
         
 
 === ":simple-python: {{ab.pm}}"
-    ```
+
+    ``` py
     @label()
     def start():
         # Shared data is added to the story
@@ -399,7 +401,8 @@ Example one delaying credits.
         
 
 === ":simple-python: {{ab.pm}}"
-    ```
+
+    ``` py
     @label()
     def start():
         gui_text("this is the first page of credits")
@@ -443,7 +446,8 @@ The XML for this would be very verbose.
         
 
 === ":simple-python: {{ab.pm}}"
-    ```
+
+    ``` py
     @label()
     def spawn_wave():
         enemyTypeNameList = ["kralien_dreadnaught","kralien_battleship","skaraan_defiler","cargo_ship","arvonian_carrier","torgoth_behemoth"]

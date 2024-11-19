@@ -155,7 +155,7 @@ Jump to end looks like a Jump with a thin arrow and the label "END"
 
 === ":simple-python: {{ab.pm}}"
 
-    ```
+    ``` py
     @label()
     def start(self):
         print("See you later")
@@ -196,7 +196,8 @@ The difference is another task begins, and the original task continues on.
     ```
 
 === ":simple-python: {{ab.pm}}"
-    ```    
+
+    ``` py   
     @label()
     def start(self):
         logger()
@@ -234,7 +235,8 @@ You can pass data to a new task. The data passed is different than the original 
 
 
 === ":simple-python: {{ab.pm}}"
-    ```
+
+    ``` py
     @label()
     def start():
         logger()
@@ -353,7 +355,8 @@ You can cancel a tasks by name from another task.
     ```
 
 === ":simple-python: {{ab.pm}}"
-    ```        
+
+    ``` py
     @label()
     def start(self):
         logger()
@@ -387,6 +390,7 @@ You can cancel a tasks by name from another task.
 If conditionals can be nested as well.
 
 === ":mast-icon: {{ab.m}}"
+    
     ```
     ===== start ====
     value = 300
@@ -397,24 +401,20 @@ If conditionals can be nested as well.
     log("more")
     else:
         log("equal")
-
     ```
 
 === ":simple-python: {{ab.pm}}"
-    ```
-    class Story(PyMastStory):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            
-        @label()
-        def start(self):
-            value = 300
-            if value < 300:
-                log("less")
-            elif value > 300:
-                log("more")
-            else:
-                log("equal")
+
+    ``` py
+    @label()
+    def start():
+        value = 300
+        if value < 300:
+            log("less")
+        elif value > 300:
+            log("more")
+        else:
+            log("equal")
     ```
     
 === "Output"
@@ -442,7 +442,8 @@ If conditionals can be nested as well.
     ```
 
 === ":simple-python: {{ab.pm}}"
-    ```
+
+    ``` py
     @label()
     def start(self):
         value = 300
@@ -481,7 +482,8 @@ However, {{ab.m}} support a for ... in loop and a for .. while loop.
     
 
 === ":simple-python: {{ab.pm}}"
-    ```
+
+    ``` py
     for x in range(3):
         log("{x}")
 
@@ -582,7 +584,8 @@ Logging can enabled for stdout, to a string stream (stringIO) variable, and a fi
     ```
 
 === ":simple-python: {{ab.pm}}"
-    ```
+
+    ``` py
     @label
     def some_label(self):
         # Logging to stdout
@@ -607,8 +610,9 @@ To create a new loggers by using the logger command specifying a name
     logger(name="tonnage",file="{get_mission_dir()}/tonnage.txt")
     ```
 
-==== ":simple-python: {{ab.pm}}"
-    ```
+=== ":simple-python: {{ab.pm}}"
+
+    ``` py
 
     # this import is needed for get_mission_dir
     from sbs_utils.fs import get_mission_dir
@@ -633,7 +637,8 @@ The log command is how you send messages to the log.
     ```
         
 === ":simple-python: {{ab.pm}}"
-    ```
+
+    ```py
     @label
     def some_label(self):
         # no logger name defaults to name "mast"
@@ -654,7 +659,8 @@ The log command can accept levels. These are visible is the stdout messages.
     ```
 
 === ":simple-python: {{ab.pm}}"
-    ```
+
+    ```py
     @label
     def some_label(self):
 
@@ -687,7 +693,8 @@ Delay can specify minutes and seconds.
     ```
 
 === ":simple-python: {{ab.pm}}"           
-    ```
+
+    ```py
     yield AWAIT(delay_app(minutes=1))
     yield AWAIT(delay_app(seconds=10))
     yield AWAIT(delay_app(seconds=5, minutes=1))
@@ -705,11 +712,11 @@ Delay can delay the flow of the code
     ```
 
 === ":simple-python: {{ab.pm}}"
-    ```
+
+    ```py
     for x in range(3):
         log("{x}")
         yield AWAIT(delay_app(1))
-    
     ```
 
     

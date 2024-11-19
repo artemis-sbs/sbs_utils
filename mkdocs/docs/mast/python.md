@@ -24,7 +24,8 @@ Many example do not list the imports. But the example below does.
     ```
         
 === ":simple-python: {{ab.pm}}"
-    ```
+
+    ``` py
     # need to import from library
     from sbs_utils.procedural.execution import log
 
