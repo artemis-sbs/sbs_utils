@@ -9,7 +9,7 @@
 
 ## Data
 You can create data that is any valid python type.
-This data can be used in you mast tasks.
+This data can be used in your {{ab.m}} tasks.
 
 ### Simple assignment
 
@@ -39,14 +39,14 @@ You need at least 2 'snakes' (the tilde character), before and after the python 
 
 ### Shared data assignment
 
-Data has multiple scopes. Data can be at the scope of a Mast story, For a scheduler, A task, and block
+Data has multiple scopes. Data can be at the scope of a {{ab.m}} story, a scheduler, a task, or a label.
 
 There are times you want data to be shared by all tasks within a story. To share data you add the 'shared' marked in front of the assignment::
 
     shared enemy_count = 20
     shared beer_count = 8
 
-When using Data, scope is automatically handled you only need to specify shared at assignment::
+When using Data, scope is automatically handled. You only need to specify shared at assignment::
 
     shared beer_count = 8
     my_beer = 0
@@ -58,7 +58,7 @@ When using Data, scope is automatically handled you only need to specify shared 
 
 ## Task Flow: Story sections via labels
 
-A mast story is broken into sections using labels.
+A {{ab.m}} story is broken into sections using labels.
 You also can have comments, and there are also other 'markers' that can help organizing sections and help have them stand out in the file.
 
 ### Labels
@@ -402,13 +402,13 @@ You can cancel a tasks by name from another task.
 
 ## Conditional Statements
 
-Mast supports both a if and match statements similar to python's.
+{{ab.m}} supports both if and match statements similar to python syntax.
 PyMast simply uses the python statements.
 
 ### If statements
 
-Mast supports if statements similar to python with if, elif, and else.
-Mast is not a whitespace language so you need to close an if with and end_if
+{{ab.m}} supports if statements similar to python with if, elif, and else.
+{{ab.m}} is not a whitespace language so you need to close an if with and end_if
 
 If conditionals can be nested as well.
 
@@ -450,8 +450,8 @@ If conditionals can be nested as well.
 
 ### Match statements
 
-Mast supports match statements similar to python with match, case.
-Mast is not a whitespace language so you need to close an if with and end_match
+{{ab.m}} supports match statements similar to python with match, case.
+{{ab.m}} is not a whitespace language so you need to close an if with and end_match
 
 === "Mast"
     ````
@@ -489,12 +489,12 @@ Mast is not a whitespace language so you need to close an if with and end_match
 
 ### For loops
 
-Mast supports for loop similar to python with for, break, continue .
-Mast is not a whitespace language so you need to close an if with and next.
+{{ab.m}} supports for loop similar to python with for, break, continue .
+{{ab.m}} is not a whitespace language so you need to close an if with and next.
 
 PyMast uses the standard python for or while loop.
 
-However, mast support a for ... in loop and a for .. while loop.
+However, {{ab.m}} support a for ... in loop and a for .. while loop.
 
 === "Mast"
     ```
@@ -585,7 +585,7 @@ One use of the zip file concept it to create a sharable library of things.
 
 ## Logging
 
-Mast supports syntax to simplify pythons logging features.
+{{ab.m}} supports syntax to simplify pythons logging features.
 
 
 ### logger command
@@ -697,8 +697,8 @@ The log command can accept levels. These are visible is the stdout messages.
 
 The delay command continues to execute for a period of time.
 
-A Delay needs a clock to use Artemis Cosmos has two clocks and sim.
-The gui clock is running continuously (realtime), the sim clock can be paused when the simulation is not running(game time).
+A Delay needs a clock to use. Artemis Cosmos has two clocks: gui and sim.
+The gui clock is running continuously (realtime). The sim clock can be paused when the simulation is not running (game time).
 
 For gui and other things use the gui clock.
 If you want to delay 10s of game time use sim.
