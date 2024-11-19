@@ -156,7 +156,7 @@ For example a Player Ship can run a Task for handling Comms messages, another fo
 
 These tasks themselves act as small side stories, They run as long as needed.
 
-In {{ab.m}} tasks are scheduled in {{ab.m}} with a parallel jump, and in PyMast with a schedule_task
+In {{ab.m}} tasks are scheduled in {{ab.m}} with a parallel jump, and in PyMast with a task_schedule
 
 If you have programmed Artemis 2.x scripts, tasks are similar to the <event> tags. Unlike the <event> tags, task only run when needed. They are scheduled, and when they end they are unscheduled they can also be canceled.
 
@@ -165,7 +165,7 @@ If you have programmed Artemis 2.x scripts, tasks are similar to the <event> tag
     ```
     ===== start ====
     # Run another task
-    await schedule_task(count_to_ten)
+    await task_schedule(count_to_ten)
     log("done")
 
     ===== count_to_ten ======
@@ -179,7 +179,7 @@ If you have programmed Artemis 2.x scripts, tasks are similar to the <event> tag
     ```
     @label()
     def start():
-        yield AWAIT(schedule_task(count_to_ten))
+        yield AWAIT(task_schedule(count_to_ten))
         log("done")
 
     @label()
@@ -245,7 +245,7 @@ XML is NOT supported, but used as examples for those familiar with Artemis 2.x s
 === "{{ab.m}}"   
     ```
     # To schedule the task
-    schedule_task(do_some_thing)
+    task_schedule(do_some_thing)
     # To end a task
     ->END
 
@@ -260,7 +260,7 @@ XML is NOT supported, but used as examples for those familiar with Artemis 2.x s
     ```
     @label()
     def start():
-        schedule_task(do_some_thing)
+        task_schedule(do_some_thing)
 
     @label()
     def do_some_thing():
@@ -298,9 +298,9 @@ In contrast to an XML event, every variable was always shared. Also, events did 
     local_data = "I'm different"
 
     # When run outputs Hello, World So Long Goodbye
-    schedule_task(do_some_thing, {"passed_data": "World"})
+    task_schedule(do_some_thing, {"passed_data": "World"})
     # When run outputs Hello, Cosmos So Long Goodbye
-    schedule_task(do_some_thing, {"passed_data": "Cosmos"})
+    task_schedule(do_some_thing, {"passed_data": "Cosmos"})
 
     ->END
 
@@ -321,9 +321,9 @@ In contrast to an XML event, every variable was always shared. Also, events did 
         set_shared_variable("say_what", "Hello")
 
         # When run out puts Hello, World So Long Goodbye
-        schedule_task(do_some_thing, {"passed_data": "World"})
+        task_schedule(do_some_thing, {"passed_data": "World"})
         # When run out puts Hello, Cosmos So Long Goodbye
-        schedule_task(do_some_thing, {"passed_data": "Cosmos"})
+        task_schedule(do_some_thing, {"passed_data": "Cosmos"})
 
     @label()
     def do_some_thing():
