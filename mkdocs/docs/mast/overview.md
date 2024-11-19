@@ -53,16 +53,16 @@ PyMast is python code that runs using the {{ab.m}} execution flow. This gives py
 
     ```
     @label()
-    def start(self):
+    def start():
         print("Hello, world")
-        yield self.jump(self.goodbye)
+        yield jump(goodbye)
 
     @label()
-    def not_here(self):
+    def not_here():
         print("I get jumped over")
 
     @label()
-    def goodbye(self):
+    def goodbye():
         print("Goodbye")
     ```
 
@@ -98,7 +98,7 @@ This ability to yield control back to the engine is a reason that {{ab.m}} flow 
 === "py PyMast"
     ```
     @label()
-    def start(self):
+    def start():
         log("Hello, world")
         yield delay_app(5)
         log("Goodbye")
@@ -124,7 +124,7 @@ Yielding control is handled by {{ab.m}}. If there ever is a time you need to for
 
     ```
     @label()
-    def start(self):
+    def start():
         log("Hello, world")
         yield PollResults.OK_RUN_AGAIN
         log("Goodbye")
@@ -178,12 +178,12 @@ If you have programmed Artemis 2.x scripts, tasks are similar to the <event> tag
 
     ```
     @label()
-    def start(self):
-        yield AWAIT(schedule_task(self.count_to_ten))
+    def start():
+        yield AWAIT(schedule_task(count_to_ten))
         log("done")
 
     @label()
-    def count_to_ten(self):
+    def count_to_ten():
         for x in range(10):
             print(x)
             yield PollResults.OK_RUN_AGAIN
@@ -259,12 +259,12 @@ XML is NOT supported, but used as examples for those familiar with Artemis 2.x s
 
     ```
     @label()
-    def start(self):
+    def start():
         schedule_task(do_some_thing)
 
     @label()
-    def do_some_thing(self):
-        self.log("Hello")
+    def do_some_thing():
+        log("Hello")
     ```
 
 
@@ -316,28 +316,29 @@ In contrast to an XML event, every variable was always shared. Also, events did 
 === "PyMast"
     ```
     @label()
-    def start(self):
+    def start():
         # Shared data is added to the story
-        self.say_what = "Hello"
+        set_shared_variable("say_what", "Hello")
 
         # When run out puts Hello, World So Long Goodbye
-        schedule_task(self.do_some_thing, {"passed_data": "World"})
+        schedule_task(do_some_thing, {"passed_data": "World"})
         # When run out puts Hello, Cosmos So Long Goodbye
-        schedule_task(self.do_some_thing, {"passed_data": "Cosmos"})
+        schedule_task(do_some_thing, {"passed_data": "Cosmos"})
 
     @label()
-    def do_some_thing(self):
+    def do_some_thing():
+        say_what = get_shared_variable("say_what")
         # To share with the task
         # so it can be used in other labels run by this task
-        FrameContext.task.set_variable("local_data", "So Long")
-        local_data = FrameContext.task.get_variable("local_data")
+        set_variable("local_data", "So Long")
+        task_local_data = get_variable("local_data")
         # a label is a function in python so it can also have
         # data local to the function/label
         label_data = "Goodbye"
 
-        self.task.local_data = "Goodbye"
+        
         log(f"{say_what}, {passed_data}")
-        log(f"{self.task.local_data}")
+        log(f"{task_local_data}")
         log(f"{label_data}")
     ```
 
@@ -400,12 +401,12 @@ Example one delaying credits.
 === "PyMast"
     ```
     @label()
-    def start(self):
-        self.gui_text("this is the first page of credits")
+    def start():
+        gui_text("this is the first page of credits")
         yield AWAIT(gui(timeout=delay_sim(10)))
-        self.gui_text("this is the second page of credits")
+        gui_text("this is the second page of credits")
         yield AWAIT(gui(timeout=delay_sim(10)))
-        self.gui_text("this is the third page of credits")
+        gui_text("this is the third page of credits")
         yield AWAIT(gui(timeout=delay_sim(10)))
     ```
 
@@ -444,11 +445,11 @@ The XML for this would be very verbose.
 === "PyMAst"
     ```
     @label()
-    def spawn_wave(self):
+    def spawn_wave():
         enemyTypeNameList = ["kralien_dreadnaught","kralien_battleship","skaraan_defiler","cargo_ship","arvonian_carrier","torgoth_behemoth"]
         enemy_prefix = "KLMNQ"
 
-        # this gets a radom span location just outside the view of the sctor 
+        # this gets a radom span location just outside the view of the sector 
         spawn_points = scatter_sphere(int(enemy_count), 0,0,0, 6000, 6000+250*enemy_count, ring=True)
 
         for v in spawn_points:
