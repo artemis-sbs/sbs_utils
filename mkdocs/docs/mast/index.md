@@ -55,24 +55,24 @@ Inspiration for {{ab.m}} are languages like [Inkle Ink](https://www.inklestudios
 ### Reuse and add-ons
 The {{ab.m}} system makes it easy to extend things and package these extensions to be shared by other missions.
 
-For example, {{ab.ac}} ships with the Secret Meeting and Walk the Line missions. They appear very small, but they use code from Legendary Missions that are packages as mastlib addons (found in the \__lib__ folder)
+For example, {{ab.ac}} ships with the Secret Meeting and Walk the Line missions. They appear very small, but they use code from Legendary Missions that are packaged as mastlib add-ons (found in the \__lib__ folder)
 
 As more scripts are written it should be easy to create a side mission as an add on and allow it to be dropped into many other missions to share.
 
 
 ### Hierarchical flow vs. Sequential flow
-Early programming language like BASIC. Were approachable to hobbyist and non-programmer. The would run in a sequential flow from beginning to end in a simple script that was easier to follow. However, reuse and code organization was difficult to manage as project grew large and more complex.
+Early programming languages like BASIC were more approachable to hobbyists and non-programmers. They would run in a sequential flow from beginning to end in a simple script that was easier to follow. However, reusing and reorganizing code was difficult to manage as projects grew larger and more complex.
 
-Python and other object oriented languages tend to have a hierarchical execution flow with functions calling functions into a deep hierarchy of execution. 
+Python and other object oriented languages tend to have a complicated interconnected execution flow, where the hierarchy of which functions are calling other functions isn’t always clear. 
 
 ### State and State machine
 Games in general tend to manage the state of items in the world and respond to changes to change the state. 
 
 Programmers often create a pattern called a [State Machine](https://en.wikipedia.org/wiki/Finite-state_machine) to deal with this.
 
-The {{ab.sbs}} XML language was a markup 'language' that all it did was run multiple state machines. i.e. the ```<event>``` tags in are state machines. The state conditions are checked and if met the event runs.
+The {{ab.sbs}} XML language was a simplified markup 'language' that ran a series of state machines, where each ```<event>``` tag was its own state machine. The state conditions are checked in order, and if the conditions are met the event runs.
 
-The {{ab.sbs}} XML language is inefficient in that all events always, and it had no concept of reuse. Script writers copy and pasted events to 'reuse' them. 
+The {{ab.sbs}} XML language is inefficient in that all events always run every tick, and it had no concept of reuse. Script writers copy and pasted events to 'reuse' them. 
 
 Even in other programming languages State Machines require boiler plate code to add new states and transitions. This also requires copy and pasting code.
 
