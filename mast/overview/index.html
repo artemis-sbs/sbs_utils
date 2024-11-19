@@ -3128,18 +3128,18 @@ log(&quot;Goodbye&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>@label()
-def start():
-    print(&quot;Hello, world&quot;)
-    yield jump(goodbye)
+<div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hello, world&quot;</span><span class="p">)</span>
+    <span class="k">yield</span> <span class="n">jump</span><span class="p">(</span><span class="n">goodbye</span><span class="p">)</span>
 
-@label()
-def not_here():
-    print(&quot;I get jumped over&quot;)
+<span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">not_here</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;I get jumped over&quot;</span><span class="p">)</span>
 
-@label()
-def goodbye():
-    print(&quot;Goodbye&quot;)
+<span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">goodbye</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Goodbye&quot;</span><span class="p">)</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -3181,11 +3181,11 @@ log(&quot;Goodbye&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>@label()
-def start():
-    log(&quot;Hello, world&quot;)
-    yield delay_app(5)
-    log(&quot;Goodbye&quot;)
+<div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Hello, world&quot;</span><span class="p">)</span>
+    <span class="k">yield</span> <span class="n">delay_app</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Goodbye&quot;</span><span class="p">)</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -3223,11 +3223,11 @@ log(&quot;Goodbye&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>@label()
-def start():
-    log(&quot;Hello, world&quot;)
-    yield PollResults.OK_RUN_AGAIN
-    log(&quot;Goodbye&quot;)
+<div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Hello, world&quot;</span><span class="p">)</span>
+    <span class="k">yield</span> <span class="n">PollResults</span><span class="o">.</span><span class="n">OK_RUN_AGAIN</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Goodbye&quot;</span><span class="p">)</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -3284,16 +3284,16 @@ for x in range(10):
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>@label()
-def start():
-    yield AWAIT(task_schedule(count_to_ten))
-    log(&quot;done&quot;)
+<div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+    <span class="k">yield</span> <span class="n">AWAIT</span><span class="p">(</span><span class="n">task_schedule</span><span class="p">(</span><span class="n">count_to_ten</span><span class="p">))</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;done&quot;</span><span class="p">)</span>
 
-@label()
-def count_to_ten():
-    for x in range(10):
-        print(x)
-        yield PollResults.OK_RUN_AGAIN
+<span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">count_to_ten</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">PollResults</span><span class="o">.</span><span class="n">OK_RUN_AGAIN</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -3376,13 +3376,13 @@ log(&quot;Hello&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>@label()
-def start():
-    task_schedule(do_some_thing)
+<div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+    <span class="n">task_schedule</span><span class="p">(</span><span class="n">do_some_thing</span><span class="p">)</span>
 
-@label()
-def do_some_thing():
-    log(&quot;Hello&quot;)
+<span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">do_some_thing</span><span class="p">():</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Hello&quot;</span><span class="p">)</span>
 </code></pre></div>
 </div>
 </div>
@@ -3440,31 +3440,31 @@ log(f&quot;{local_data}&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>@label()
-def start():
-    # Shared data is added to the story
-    set_shared_variable(&quot;say_what&quot;, &quot;Hello&quot;)
+<div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+    <span class="c1"># Shared data is added to the story</span>
+    <span class="n">set_shared_variable</span><span class="p">(</span><span class="s2">&quot;say_what&quot;</span><span class="p">,</span> <span class="s2">&quot;Hello&quot;</span><span class="p">)</span>
 
-    # When run out puts Hello, World So Long Goodbye
-    task_schedule(do_some_thing, {&quot;passed_data&quot;: &quot;World&quot;})
-    # When run out puts Hello, Cosmos So Long Goodbye
-    task_schedule(do_some_thing, {&quot;passed_data&quot;: &quot;Cosmos&quot;})
+    <span class="c1"># When run out puts Hello, World So Long Goodbye</span>
+    <span class="n">task_schedule</span><span class="p">(</span><span class="n">do_some_thing</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;passed_data&quot;</span><span class="p">:</span> <span class="s2">&quot;World&quot;</span><span class="p">})</span>
+    <span class="c1"># When run out puts Hello, Cosmos So Long Goodbye</span>
+    <span class="n">task_schedule</span><span class="p">(</span><span class="n">do_some_thing</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;passed_data&quot;</span><span class="p">:</span> <span class="s2">&quot;Cosmos&quot;</span><span class="p">})</span>
 
-@label()
-def do_some_thing():
-    say_what = get_shared_variable(&quot;say_what&quot;)
-    # To share with the task
-    # so it can be used in other labels run by this task
-    set_variable(&quot;local_data&quot;, &quot;So Long&quot;)
-    task_local_data = get_variable(&quot;local_data&quot;)
-    # a label is a function in python so it can also have
-    # data local to the function/label
-    label_data = &quot;Goodbye&quot;
+<span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">do_some_thing</span><span class="p">():</span>
+    <span class="n">say_what</span> <span class="o">=</span> <span class="n">get_shared_variable</span><span class="p">(</span><span class="s2">&quot;say_what&quot;</span><span class="p">)</span>
+    <span class="c1"># To share with the task</span>
+    <span class="c1"># so it can be used in other labels run by this task</span>
+    <span class="n">set_variable</span><span class="p">(</span><span class="s2">&quot;local_data&quot;</span><span class="p">,</span> <span class="s2">&quot;So Long&quot;</span><span class="p">)</span>
+    <span class="n">task_local_data</span> <span class="o">=</span> <span class="n">get_variable</span><span class="p">(</span><span class="s2">&quot;local_data&quot;</span><span class="p">)</span>
+    <span class="c1"># a label is a function in python so it can also have</span>
+    <span class="c1"># data local to the function/label</span>
+    <span class="n">label_data</span> <span class="o">=</span> <span class="s2">&quot;Goodbye&quot;</span>
 
 
-    log(f&quot;{say_what}, {passed_data}&quot;)
-    log(f&quot;{task_local_data}&quot;)
-    log(f&quot;{label_data}&quot;)
+    <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">say_what</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">passed_data</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">task_local_data</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label_data</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </code></pre></div>
 </div>
 </div>
@@ -3535,14 +3535,14 @@ await gui(timeout=delay_sim(10))
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>@label()
-def start():
-    gui_text(&quot;this is the first page of credits&quot;)
-    yield AWAIT(gui(timeout=delay_sim(10)))
-    gui_text(&quot;this is the second page of credits&quot;)
-    yield AWAIT(gui(timeout=delay_sim(10)))
-    gui_text(&quot;this is the third page of credits&quot;)
-    yield AWAIT(gui(timeout=delay_sim(10)))
+<div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+    <span class="n">gui_text</span><span class="p">(</span><span class="s2">&quot;this is the first page of credits&quot;</span><span class="p">)</span>
+    <span class="k">yield</span> <span class="n">AWAIT</span><span class="p">(</span><span class="n">gui</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">delay_sim</span><span class="p">(</span><span class="mi">10</span><span class="p">)))</span>
+    <span class="n">gui_text</span><span class="p">(</span><span class="s2">&quot;this is the second page of credits&quot;</span><span class="p">)</span>
+    <span class="k">yield</span> <span class="n">AWAIT</span><span class="p">(</span><span class="n">gui</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">delay_sim</span><span class="p">(</span><span class="mi">10</span><span class="p">)))</span>
+    <span class="n">gui_text</span><span class="p">(</span><span class="s2">&quot;this is the third page of credits&quot;</span><span class="p">)</span>
+    <span class="k">yield</span> <span class="n">AWAIT</span><span class="p">(</span><span class="n">gui</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">delay_sim</span><span class="p">(</span><span class="mi">10</span><span class="p">)))</span>
 </code></pre></div>
 </div>
 </div>
@@ -3595,23 +3595,23 @@ delay_sim(minutes=8)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>@label()
-def spawn_wave():
-    enemyTypeNameList = [&quot;kralien_dreadnaught&quot;,&quot;kralien_battleship&quot;,&quot;skaraan_defiler&quot;,&quot;cargo_ship&quot;,&quot;arvonian_carrier&quot;,&quot;torgoth_behemoth&quot;]
-    enemy_prefix = &quot;KLMNQ&quot;
+<div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">spawn_wave</span><span class="p">():</span>
+    <span class="n">enemyTypeNameList</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;kralien_dreadnaught&quot;</span><span class="p">,</span><span class="s2">&quot;kralien_battleship&quot;</span><span class="p">,</span><span class="s2">&quot;skaraan_defiler&quot;</span><span class="p">,</span><span class="s2">&quot;cargo_ship&quot;</span><span class="p">,</span><span class="s2">&quot;arvonian_carrier&quot;</span><span class="p">,</span><span class="s2">&quot;torgoth_behemoth&quot;</span><span class="p">]</span>
+    <span class="n">enemy_prefix</span> <span class="o">=</span> <span class="s2">&quot;KLMNQ&quot;</span>
 
-    # this gets a radom span location just outside the view of the sector 
-    spawn_points = scatter_sphere(int(enemy_count), 0,0,0, 6000, 6000+250*enemy_count, ring=True)
+    <span class="c1"># this gets a radom span location just outside the view of the sector </span>
+    <span class="n">spawn_points</span> <span class="o">=</span> <span class="n">scatter_sphere</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">enemy_count</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span> <span class="mi">6000</span><span class="p">,</span> <span class="mi">6000</span><span class="o">+</span><span class="mi">250</span><span class="o">*</span><span class="n">enemy_count</span><span class="p">,</span> <span class="n">ring</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    for v in spawn_points:
-        r_type = random.choice(enemyTypeNameList)
-        r_name = f&quot;{random.choice(enemy_prefix)}_{enemy}&quot;
-        spawn_data = npc_spawn(v.x, v.y, v.z, r_name, &quot;RAIDER&quot;, r_type, &quot;behav_npcship&quot;)
-        raider = spawn_data.py_object
-        set_face(raider.id, random_kralien())
-        add_role(raider.id, &quot;Raider&quot;)
-        enemy = enemy + 1
-    yield AWAIT(delay_sim(minutes=8))
+    <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">spawn_points</span><span class="p">:</span>
+        <span class="n">r_type</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">enemyTypeNameList</span><span class="p">)</span>
+        <span class="n">r_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">enemy_prefix</span><span class="p">)</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">enemy</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">spawn_data</span> <span class="o">=</span> <span class="n">npc_spawn</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">v</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">v</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="n">r_name</span><span class="p">,</span> <span class="s2">&quot;RAIDER&quot;</span><span class="p">,</span> <span class="n">r_type</span><span class="p">,</span> <span class="s2">&quot;behav_npcship&quot;</span><span class="p">)</span>
+        <span class="n">raider</span> <span class="o">=</span> <span class="n">spawn_data</span><span class="o">.</span><span class="n">py_object</span>
+        <span class="n">set_face</span><span class="p">(</span><span class="n">raider</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">random_kralien</span><span class="p">())</span>
+        <span class="n">add_role</span><span class="p">(</span><span class="n">raider</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="s2">&quot;Raider&quot;</span><span class="p">)</span>
+        <span class="n">enemy</span> <span class="o">=</span> <span class="n">enemy</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="k">yield</span> <span class="n">AWAIT</span><span class="p">(</span><span class="n">delay_sim</span><span class="p">(</span><span class="n">minutes</span><span class="o">=</span><span class="mi">8</span><span class="p">))</span>
 </code></pre></div>
 </div>
 </div>

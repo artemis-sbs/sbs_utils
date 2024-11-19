@@ -3609,10 +3609,10 @@ log(&quot;Never gets here&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>@label()
-def start(self):
-    print(&quot;See you later&quot;)
-    yield END()
+<div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;See you later&quot;</span><span class="p">)</span>
+    <span class="k">yield</span> <span class="n">END</span><span class="p">()</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -3660,16 +3660,16 @@ log(&quot;in task&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>@label()
-def start(self):
-    logger()
-    log(&quot;before&quot;)
-    task_schedule(self.a_task)
-    log(&quot;after&quot;)
+<div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">logger</span><span class="p">()</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="n">task_schedule</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">a_task</span><span class="p">)</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
 
-@label()
-def a_task(self):
-    log(&quot;in task&quot;)
+<span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">a_task</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;in task&quot;</span><span class="p">)</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -3712,18 +3712,18 @@ message = &quot;Who cares&quot;
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>@label()
-def start():
-    logger()
+<div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+    <span class="n">logger</span><span class="p">()</span>
 
-    task_schedule(a_task, {&quot;message&quot;: &quot;Hello&quot;})
-    message = get_variable(&quot;message&quot;)
-    log(f&quot;{message}&quot;)
+    <span class="n">task_schedule</span><span class="p">(</span><span class="n">a_task</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Hello&quot;</span><span class="p">})</span>
+    <span class="n">message</span> <span class="o">=</span> <span class="n">get_variable</span><span class="p">(</span><span class="s2">&quot;message&quot;</span><span class="p">)</span>
+    <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-@label()
-def a_task():
-    log(task.message)
-    set_variable(&quot;message&quot;, &quot;Should not change original&quot;)
+<span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">a_task</span><span class="p">():</span>
+    <span class="n">log</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
+    <span class="n">set_variable</span><span class="p">(</span><span class="s2">&quot;message&quot;</span><span class="p">,</span> <span class="s2">&quot;Should not change original&quot;</span><span class="p">)</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -3889,17 +3889,17 @@ log(&quot;May not run&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>@label()
-def start(self):
-    logger()
-    log(&quot;Start&quot;)
-    task1 = task_schedule(a_task)
-    task_cancel(task1)
-    log(&quot;Done&quot;)
+<div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">logger</span><span class="p">()</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Start&quot;</span><span class="p">)</span>
+    <span class="n">task1</span> <span class="o">=</span> <span class="n">task_schedule</span><span class="p">(</span><span class="n">a_task</span><span class="p">)</span>
+    <span class="n">task_cancel</span><span class="p">(</span><span class="n">task1</span><span class="p">)</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Done&quot;</span><span class="p">)</span>
 
-@label()
-def a_task(self):
-    log(&quot;May not run&quot;)
+<span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">a_task</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;May not run&quot;</span><span class="p">)</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -3946,19 +3946,15 @@ else:
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>class Story(PyMastStory):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    @label()
-    def start(self):
-        value = 300
-        if value &lt; 300:
-            log(&quot;less&quot;)
-        elif value &gt; 300:
-            log(&quot;more&quot;)
-        else:
-            log(&quot;equal&quot;)
+<div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="mi">300</span>
+    <span class="k">if</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="mi">300</span><span class="p">:</span>
+        <span class="n">log</span><span class="p">(</span><span class="s2">&quot;less&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">value</span> <span class="o">&gt;</span> <span class="mi">300</span><span class="p">:</span>
+        <span class="n">log</span><span class="p">(</span><span class="s2">&quot;more&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">log</span><span class="p">(</span><span class="s2">&quot;equal&quot;</span><span class="p">)</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -4002,16 +3998,16 @@ value = 300</p>
 ```</p>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>@label()
-def start(self):
-    value = 300
-    match value:
-        case 200:
-            log(&quot;200&quot;)
-        case 300:
-            log(&quot;300&quot;)
-        case _:
-            log(&quot;something else&quot;)
+<div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="mi">300</span>
+    <span class="k">match</span> <span class="n">value</span><span class="p">:</span>
+        <span class="k">case</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="n">log</span><span class="p">(</span><span class="s2">&quot;200&quot;</span><span class="p">)</span>
+        <span class="k">case</span> <span class="mi">300</span><span class="p">:</span>
+            <span class="n">log</span><span class="p">(</span><span class="s2">&quot;300&quot;</span><span class="p">)</span>
+        <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+            <span class="n">log</span><span class="p">(</span><span class="s2">&quot;something else&quot;</span><span class="p">)</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -4053,15 +4049,15 @@ for z while y &lt; 30:
     y += 10</p>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>for x in range(3):
-    log(&quot;{x}&quot;)
+<div class="highlight"><pre><span></span><code><span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{x}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-y = 10
-z = 0
-while y &lt; 30:
-    log(&quot;{z} {y}&quot;)
-    y += 10
-    z += 1
+<span class="n">y</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">z</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">while</span> <span class="n">y</span> <span class="o">&lt;</span> <span class="mi">30</span><span class="p">:</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{z}</span><span class="s2"> </span><span class="si">{y}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">y</span> <span class="o">+=</span> <span class="mi">10</span>
+    <span class="n">z</span> <span class="o">+=</span> <span class="mi">1</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -4226,15 +4222,15 @@ logger(var=&quot;my_string_logger&quot;, file=&quot;{mission_dir}/my_log.log&quo
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>@label
-def some_label(self):
-    # Logging to stdout
-    logger()
-    # Logging to string IO
-    logger(var=&quot;my_string_logger&quot;)
-    # Logging to file
-    logger(file=&quot;{mission_dir}/my_log.log&quot;)
-    logger()
+<div class="highlight"><pre><span></span><code><span class="nd">@label</span>
+<span class="k">def</span> <span class="nf">some_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Logging to stdout</span>
+    <span class="n">logger</span><span class="p">()</span>
+    <span class="c1"># Logging to string IO</span>
+    <span class="n">logger</span><span class="p">(</span><span class="n">var</span><span class="o">=</span><span class="s2">&quot;my_string_logger&quot;</span><span class="p">)</span>
+    <span class="c1"># Logging to file</span>
+    <span class="n">logger</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{mission_dir}</span><span class="s2">/my_log.log&quot;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="p">()</span>
 </code></pre></div>
 </div>
 </div>
@@ -4242,7 +4238,7 @@ def some_label(self):
 <p>You can have multiple loggers, each logger can have separate strings, or files.</p>
 <p>The default logger does not need to specify the name.</p>
 <p>To create a new loggers by using the logger command specifying a name</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="15:1"><input checked="checked" id="__tabbed_15_1" name="__tabbed_15" type="radio" /><div class="tabbed-labels"><label for="__tabbed_15_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<div class="tabbed-set tabbed-alternate" data-tabs="15:2"><input checked="checked" id="__tabbed_15_1" name="__tabbed_15" type="radio" /><input id="__tabbed_15_2" name="__tabbed_15" type="radio" /><div class="tabbed-labels"><label for="__tabbed_15_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
 	 viewBox="0 0 512 512" xml:space="preserve">
@@ -4259,7 +4255,7 @@ def some_label(self):
 			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
 	</g>
 </g>
-</svg></span> MAST</label></div>
+</svg></span> MAST</label><label for="__tabbed_15_2"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.25.18.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></svg></span> pyMAST</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>logger(name=&quot;tonnage&quot;)
@@ -4267,18 +4263,19 @@ logger(name=&quot;tonnage&quot;, var=&quot;tonnage&quot;)
 logger(name=&quot;tonnage&quot;,file=&quot;{get_mission_dir()}/tonnage.txt&quot;)
 </code></pre></div>
 </div>
-</div>
-</div>
-<p>==== "<span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.25.18.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></svg></span> pyMAST"
-    <div class="highlight"><pre><span></span><code># this import is needed for get_mission_dir
-from sbs_utils.fs import get_mission_dir
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="c1"># this import is needed for get_mission_dir</span>
+<span class="kn">from</span> <span class="nn">sbs_utils.fs</span> <span class="kn">import</span> <span class="n">get_mission_dir</span>
 
-@label
-def some_label(self):
-    logger(name=&quot;tonnage&quot;)
-    logger(name=&quot;tonnage&quot;, var=&quot;tonnage&quot;)
-    logger(name=&quot;tonnage&quot;,file=&quot;{get_mission_dir()}/tonnage.txt&quot;)
-</code></pre></div></p>
+<span class="nd">@label</span>
+<span class="k">def</span> <span class="nf">some_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">logger</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;tonnage&quot;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;tonnage&quot;</span><span class="p">,</span> <span class="n">var</span><span class="o">=</span><span class="s2">&quot;tonnage&quot;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;tonnage&quot;</span><span class="p">,</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;{get_mission_dir()}/tonnage.txt&quot;</span><span class="p">)</span>
+</code></pre></div>
+</div>
+</div>
+</div>
 <h3 id="log-command">log command</h3>
 <p>The log command is how you send messages to the log.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="16:2"><input checked="checked" id="__tabbed_16_1" name="__tabbed_16" type="radio" /><input id="__tabbed_16_2" name="__tabbed_16" type="radio" /><div class="tabbed-labels"><label for="__tabbed_16_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
@@ -4308,12 +4305,12 @@ log(&quot;Tonnage score {tonnage}&quot;, name=&quot;tonnage&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>@label
-def some_label(self):
-    # no logger name defaults to name &quot;mast&quot;
-    log(&quot;Hello, World&quot;)
-    # Specify a name to log to a secondary logger
-    log(&quot;Tonnage score {tonnage}&quot;, name=&quot;tonnage&quot;)
+<div class="highlight"><pre><span></span><code><span class="nd">@label</span>
+<span class="k">def</span> <span class="nf">some_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># no logger name defaults to name &quot;mast&quot;</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Hello, World&quot;</span><span class="p">)</span>
+    <span class="c1"># Specify a name to log to a secondary logger</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Tonnage score </span><span class="si">{tonnage}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;tonnage&quot;</span><span class="p">)</span>
 </code></pre></div>
 </div>
 </div>
@@ -4345,12 +4342,12 @@ log(&quot;Hello, World&quot;, level= &quot;error&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>@label
-def some_label(self):
+<div class="highlight"><pre><span></span><code><span class="nd">@label</span>
+<span class="k">def</span> <span class="nf">some_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 
-    log(&quot;Hello, World&quot;, level=&quot;info&quot;)
-    log(&quot;Hello, World&quot;, level= &quot;debug&quot;)
-    log(&quot;Hello, World&quot;, level= &quot;error&quot;)
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Hello, World&quot;</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s2">&quot;info&quot;</span><span class="p">)</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Hello, World&quot;</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span> <span class="s2">&quot;debug&quot;</span><span class="p">)</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Hello, World&quot;</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span> <span class="s2">&quot;error&quot;</span><span class="p">)</span>
 </code></pre></div>
 </div>
 </div>
@@ -4389,10 +4386,10 @@ await delay_sim(0, 10)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>yield AWAIT(delay_app(minutes=1))
-yield AWAIT(delay_app(seconds=10))
-yield AWAIT(delay_app(seconds=5, minutes=1))
-yield AWAIT(delay_sim(0, 10))
+<div class="highlight"><pre><span></span><code><span class="k">yield</span> <span class="n">AWAIT</span><span class="p">(</span><span class="n">delay_app</span><span class="p">(</span><span class="n">minutes</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+<span class="k">yield</span> <span class="n">AWAIT</span><span class="p">(</span><span class="n">delay_app</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="mi">10</span><span class="p">))</span>
+<span class="k">yield</span> <span class="n">AWAIT</span><span class="p">(</span><span class="n">delay_app</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">minutes</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+<span class="k">yield</span> <span class="n">AWAIT</span><span class="p">(</span><span class="n">delay_sim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
 </code></pre></div>
 </div>
 </div>
@@ -4424,9 +4421,9 @@ yield AWAIT(delay_sim(0, 10))
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>for x in range(3):
-    log(&quot;{x}&quot;)
-    yield AWAIT(delay_app(1))
+<div class="highlight"><pre><span></span><code><span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+    <span class="n">log</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{x}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">yield</span> <span class="n">AWAIT</span><span class="p">(</span><span class="n">delay_app</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
