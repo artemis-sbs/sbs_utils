@@ -1,6 +1,6 @@
 This tutorial is intended to create a small mission in {{ab.ac}}. It will describe the folder structure and files required to create the mission. The tutorial leverages the [sbs_utils](https://github.com/artemis-sbs/sbs_utils) library and the {{ab.m}} scripting language.
 
-The map created will result in the small version the siege mission that ships with the game. It leverages a lot of reusable code provided by addons that are created from the LegendaryMissions that ship with the game.
+The map created will result in a smaller version of the Siege scenario included as part of the Legendary Missions. It leverages a lot of reusable code provided by add-ons that are created from the Legendary Missions files that ship with the game.
 
 ## Mission structure
 
@@ -48,11 +48,11 @@ A {{ab.m}} mission script requires a couple more files.
 
 It is recommended to start with the [script.py](https://github.com/artemis-sbs/LegendaryMissions/blob/main/script.py) from another {{ab.m}} mission like the one linked.
 
-It provides all the code needed to load the sbs_utils library, provide a default cosmos_event_handler, and will bootstrap the {{ab.m}} runtime by running story.mast. It also provides a top level exception handler which help stop crashing the application from python and {{ab.m}} errors.
+It provides all the code needed to load the sbs_utils library, provide a default cosmos_event_handler, and bootstraps the {{ab.m}} runtime by running story.mast. It also provides a top level exception handler which helps prevent bugs from crashing the application from python and {{ab.m}} errors.
 
 story.mast can be were your mission script is written. Later in this tutorial it is recommended to create a folder to hold most of mission script code.
 
-story.json specifies the libraries and addons the mission is dependent on. Mission written using {{ab.m}} require and least the sbs_utils library. Many missions will also use items from the core addons created by Legendary Missions.
+story.json specifies the libraries and addons the mission is dependent on. Missions written using {{ab.m}} require at least the sbs_utils library. Many missions will also use items from the core add-ons created by Legendary Missions.
 
 A mission can copy the Secret Meeting [story.json](https://github.com/artemis-sbs/SecretMeeting/blob/main/story.json) as a good start. 
 
@@ -135,7 +135,7 @@ Create a module for the mission.
     " and it's description
     ```
 
-story.mast should now be empty, but keep it for later since the system expects it to exist. It can also be used for code in the future.
+story.mast should now be empty except for those three lines, but keep it for later since the system expects it to exist. It can also be used for code in the future.
 
 
 ### Fished step two: Modular map
@@ -202,7 +202,7 @@ To spawn at a lower level see the [spawn](../api/procedural/spawn.md) module.
 
 ### Creating some stations
 
-To create a spread of stations, use the terrain_spawn_stations. Passing it the difficulty level and the lethal terrain value. 
+To create a spread of stations, use the terrain_spawn_stations, passing it the difficulty level and the lethal terrain value. The higher the difficulty, the fewer stations that will spawn. The lethal terrain value tells the function how many mines to generate around the station.
 
 === ":mast-icon: {{ab.m}}"
 
@@ -211,7 +211,7 @@ To create a spread of stations, use the terrain_spawn_stations. Passing it the d
     ```
 
 ### Handle the player ships
-The following schedule a {{ab.m}} label that handles spawning the player ships.
+The following task schedules a {{ab.m}} label that handles spawning the player ships.
 
 === ":mast-icon: {{ab.m}}"
 
@@ -235,12 +235,12 @@ and a position. This example picks random points in a ring around 0,0,0.
 
 ### End game conditions
 
-Script writers can create their own end game logic or use the Game master Admiral console. The Admiral has a command to end the game.
+Script writers can create their own end game logic or use the Admiral (Game Master) console. The Admiral has a command to end the game.
 
 
-The [default end game logic](https://github.com/artemis-sbs/LegendaryMissions/blob/main/maps/watch_for_end.mast) for Legendary Missions watches for loss when all stations or players are destroyed, and wins if enemies are defeated. Explaining this code goes beyond the intent of a simple tutorial like this.
+The [default end game logic](https://github.com/artemis-sbs/LegendaryMissions/blob/main/maps/watch_for_end.mast) for Legendary Missions watches for failure when all stations or players are destroyed, and victory if all enemies are defeated. It will also end the game if the mission timer runs out. Explaining this code goes beyond the intent of a simple tutorial like this.
 
-The code is not in an addon, so it needs to be copied.
+The code is not in an add-on, so it needs to be copied.
 
 To have an end game like this:
 
@@ -257,7 +257,7 @@ To have an end game like this:
 ??? Note "Taunts may not work"
 
     At this time taunts will not work unless the taunt.json file is in the mission. The taunt.json can be copied from Legendary Missions.
-    This will be addressed in a future release.
+    This will be addressed in a future update.
 
 
 ### Finish: Step four simple game
