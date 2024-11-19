@@ -221,6 +221,44 @@ Route labels are special labels that get automatically run when their conditions
     ```             
 
 
+## Sub labels
+Sub labels allow the script to have labels that are part of another label.
+
+The labels and Route Labels defined above could be called major labels to group them. Labels have to be unique. Route labels are specific to the route.
+
+Sub labels are only unique to it the major label is contained in. This is useful for having labels that are also descriptive while not worrying about name conflicts.
+
+While labels start with ===, sub labels start with at least 3 dashes ---. They can be used for jumps etc. but the jump will only work within the major label it is defined in.
+
+
+
+=== ":mast-icon: {{ab.m}}"   
+    ```
+    # Automatically scheduled when a TSN, player is spawned
+    
+    === some_label
+
+        --- ai_loop
+        print("A new TSN player spawned")
+        . . .
+
+    
+    // spawn if has_roles(SPAWNED_ID, "raider")
+
+        --- ai_loop
+
+        print("A new TSN player spawned")
+        ->END
+
+    ```             
+
+See the [Secret Meeting mission](https://github.com/artemis-sbs/SecretMeeting/blob/main/SecretMaps/ambassador_ship.mast) for an example that demonstrates good use of indention and sub_labels.
+
+??? note "This is an updated secret meeting"
+    The link is to git hub copy of Secret Meeting and may be different than the shipped version.The code was updated to use as this example.
+
+
+
 ## Schedulers
 {{ab.m}} and {{ab.pm}} run all the tasks using schedulers. This process is mostly hidden to the writer of {{ab.m}} and {{ab.pm}} code.
 
@@ -248,6 +286,7 @@ XML is NOT supported, but used as examples for those familiar with Artemis 2.x s
 
 * Tasks 
     * need to be scheduled or they don't run
+    * They start running a specified label
     * They can end
     * They can be canceled
 

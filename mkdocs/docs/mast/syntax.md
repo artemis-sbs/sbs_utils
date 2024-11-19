@@ -65,7 +65,9 @@ You also can have comments, and there are also other 'markers' that can help org
 
 Labels have a Name with no spaces and are  enclosed in 2 or more equals
 
-````
+=== ":mast-icon: {{ab.m}}"
+
+    ```
     ====== GotoBar ====
      . . .
     == ShowHelm ==
@@ -73,7 +75,7 @@ Labels have a Name with no spaces and are  enclosed in 2 or more equals
 
     ========================================== MoreStuff ===========================
      . . .
-```
+    ```
 
 There are two labels that are implied: main and END.
 
@@ -83,23 +85,24 @@ The label "END" end the current task.
 They are predefined and don't need to be defined in script.
 
 Labels are not 'functions', one label passes into the next label
+=== ":mast-icon: {{ab.m}}"
 
-```
+    ```
     ======== One =====
     log("One")
     ======== Two =====
     log("Two")
     ===== Three ====
     log("Three")
-````
+    ```
 
-Expected output
+=== "Output"
 
-```
- One
- Two
- Three
-```
+    ```
+    One
+    Two
+    Three
+    ```
 
 ## State/Flow changes: Jump
 
@@ -110,7 +113,8 @@ This is done by redirecting the flow to a label.
 
 This can be done by a Jump command. Which is a 'thin arrow' followed by the label name.::
 
-```
+=== ":mast-icon: {{ab.m}}"
+    ```
     -> Here
 
     ======== NotHere =====
@@ -126,15 +130,14 @@ This can be done by a Jump command. Which is a 'thin arrow' followed by the labe
     ->END
     ======== Never =====
     log("Can never reach")
-```
+    ```
 
-The expected output
-
-```
-First
-Got Here later
-Done
-```
+=== "Output"
+    ```
+    First
+    Got Here later
+    Done
+    ```
 
 
 ### Jump to End
@@ -313,6 +316,8 @@ Example await all
     Done
     ```
 
+Await any
+
 === ":mast-icon: {{ab.m}}"
     ```
     log("Start")
@@ -428,7 +433,7 @@ If conditionals can be nested as well.
 
 
 === ":mast-icon: {{ab.m}}"
-    ````
+    ```
     ===== start ====
     value = 300
 
@@ -470,6 +475,7 @@ If conditionals can be nested as well.
 However, {{ab.m}} support a for ... in loop and a for .. while loop.
 
 === ":mast-icon: {{ab.m}}"
+
     ```
     for x in range(3):
         log("{x}")
@@ -479,6 +485,7 @@ However, {{ab.m}} support a for ... in loop and a for .. while loop.
     for z while y < 30:
         log("{z} {y}")
         y += 10
+    ```
     
 
 === ":simple-python: {{ab.pm}}"
@@ -498,13 +505,14 @@ However, {{ab.m}} support a for ... in loop and a for .. while loop.
 
     
 === "Output"
+    ```
     1
     2
     3
     0 10
     1 20
     2 30
-
+    ```
 
 
 

@@ -1,18 +1,17 @@
-########################
-SBS Utils Object Model
-########################
 
-Sbs Utils creates an oObject model. This Object Model is used by Mast and PyMast.
+# SBS Utils Object Model
 
-Mast needs participants in the story. In stories Artemis Cosmos these participants are:
+Sbs Utils creates an Object model. This Object Model is used by {{ab.m}} and {{ab.pm}}.
 
-* The Story itself (aka the server, the game, the engine or the world)
-* Bridge Crew (The player consoles)
-* The Player ships (Ships control by the Bridge Crew)
-* Non-Player ships Starbases, Enemy Ships, Friendly Ships (Things controled by script)
-* The terrain element asteroids, pickups, nebula etc.
-* Non-Player Crew and Characters (Seen as faces in engineering, Comms etc.)
-* Internals ship location (Rooms and other things)
+{{ab.m}} needs participants in the story. In stories {{ab.ac}} these participants are:
+
+- The Story itself (aka the server, the game, the engine or the world)
+- Bridge Crew (The player consoles)
+- The Player ships (Ships control by the Bridge Crew)
+- Non-Player ships Starbases, Enemy Ships, Friendly Ships (Things controled by script)
+- The terrain element asteroids, pickups, nebula etc.
+- Non-Player Crew and Characters (Seen as faces in engineering, Comms etc.)
+- Internals ship location (Rooms and other things)
 
 These agents/participants are the things in the Artemis Cosmos world. Each of this agents can have stories and tasks associated with them. 
 
@@ -25,8 +24,8 @@ These agents/participants are the things in the Artemis Cosmos world. Each of th
     * Linked
 
 
-Engine, script and persisted
-*****************************
+## Engine, script and persisted
+
 
 The object model is designed to work with three sets of the model data: 
 
@@ -34,8 +33,7 @@ The object model is designed to work with three sets of the model data:
 * Script
 * Persisted
 
-Engine data
-====================
+### Engine data
 
 Engine data are in memory objects that the engine manages.
 
@@ -49,15 +47,14 @@ Engine data has:
 * tick type / behavior
 * A data set
 
-Engine object 
--------------------
+### Engine object 
 
 The engine object provides the raw object in the engine.
 
 There are two types of engine objects 
 
-*  :py:class:`~sbs.space_object`
-*  :py:class:`~sbs.grid_object`
+* [sbs.space_object](../api/engine/sbs.md/#sbs.space_object)
+* [sbs.grid_object](../api/engine/sbs.md/#sbs.grid_object)
 
 
  It has data the is common to all engine objects.
@@ -78,20 +75,17 @@ The data tag relates to the artwork and other properties that are assigned to th
 
 The tick type is a engine level behavior setting. For example specifying the object is a player ship, npc ship, vs. a space dock.
 
-
-
 that script can get and set data that the engine uses. Scripts can change this data and see those change reflected in the engine (e.g. Add torpedoes to a ship.)
 
 
-Script data
-====================
-
+## Script data
 
 Script data are python object in memory that script manages.
 
 Script data is a reflection of the Engine Data, and can also be used to synchronize with a persisted model.
 
 
+* [sbs_utils.spaceobject.SpaceObject](../api/engine/sbs.md/#sbs.space_object)
 *  :py:class:`~sbs_utils.spaceobject.SpaceObject`
 *  :py:class:`~sbs_utils.gridobject.GridObject`
 
@@ -103,19 +97,16 @@ Script data is a reflection of the Engine Data, and can also be used to synchron
 - :py:class:`~sbs_utils.objects.Terrain`
 - :py:class:`~sbs_utils.objects.Passive`
 
-role
----------
+### role
 
 Script object can have multiple "roles". Roles are similar to 'hashtags' in social media apps. You can tag script objects with a role. 
 
-Links 
--------------
+### Links 
 
 Links are named relationship between two objects.
 
 
-Inventory
-------------
+### Inventory
 
 Inventory is data that can be added to any object.
 
@@ -123,11 +114,11 @@ Inventory is data that can be added to any object.
 
 
 
-Persisted data 
-====================
+### Persisted data (obsolete, needs adjust to Card Grid)
 
 NOTE: This is speculative of how the persisted data will work in the future.
 NOTE: This is just really notes on what is hoped to accomplish
+
 
 
 Persistence will persist:
@@ -145,70 +136,77 @@ sector_objects = db_query.broadtest(100000, 100000, 150000, 150000, -1)
 db_query.spawn(sector_objects)
 
 
+Object
 
+=== ":simple-python: {{ab.pm}}"
 
-.. tabs::
-
-   .. code-tab:: sqlite3 SqlLite
-
-
+    ```
         CREATE TABLE engine_object (
             db_id INTEGER NOT NULL PRIMARY KEY,
             data JSON NOT NULL
             -- What else 
         );
+    ```
 
-   .. code-tab:: js Firebase
+=== ":simple-python: {{ab.pm}}"
 
+    ```
      "engine_objects": {
         "<db_id>": {
             "data": { . . .}
         }
      }
+    ```
 
+Roles
 
+=== ":simple-python: {{ab.pm}}"
 
-.. tabs::
-
-   .. code-tab:: sqlite3 SqlLite
-
+    ```
         CREATE TABLE role (
         role TEXT NOT NULL,
         FOREIGN KEY (db_id) REFERENCES engine_object (db_id) 
                     ON DELETE CASCADE ON UPDATE NO ACTION,
         PRIMARY KEY(role, db_id)
         );
+    ```
 
-   .. code-tab:: js Firebase
+=== ":simple-python: {{ab.pm}}"
+
+   ```
 
         "roles": {
             "<role>": {1,2,3,}
          }
 
-.. tabs::
+    ```
 
-   .. code-tab:: sqlite3 SqlLite
+Links
 
-        CREATE TABLE link (
-        link TEXT NOT NULL,
-        FOREIGN KEY (from_db_id) REFERENCES engine_object (db_id) 
-                    ON DELETE CASCADE ON UPDATE NO ACTION,
-        FOREIGN KEY (to_db_id) REFERENCES engine_object (db_id) 
-                    ON DELETE CASCADE ON UPDATE NO ACTION,
-        PRIMARY KEY(role, from_db_id, to_db_id)
-        );
+=== ":simple-python: {{ab.pm}}"
+    ```
+    CREATE TABLE link (
+    link TEXT NOT NULL,
+    FOREIGN KEY (from_db_id) REFERENCES engine_object (db_id) 
+                ON DELETE CASCADE ON UPDATE NO ACTION,
+    FOREIGN KEY (to_db_id) REFERENCES engine_object (db_id) 
+                ON DELETE CASCADE ON UPDATE NO ACTION,
+    PRIMARY KEY(role, from_db_id, to_db_id)
+    );
+    ```
 
-   .. code-tab:: js Firebase
+=== ":simple-python: {{ab.pm}}"
+    ```
 
         "links":{
             "<link>":  {(1,9), (2,7) , (3,8)}
         }     
+    ```
 
+Inventory
 
-.. tabs::
-
-   .. code-tab:: sqlite3 SqlLite
-
+=== ":simple-python: {{ab.pm}}"
+    ```
         CREATE TABLE inventory (
         name TEXT NOT NULL,
         FOREIGN KEY (db_id) REFERENCES engine_object (db_id) 
@@ -216,8 +214,9 @@ db_query.spawn(sector_objects)
         value JSON NOT NULL,
         PRIMARY KEY(role, db_id, value)
         );
-
-   .. code-tab:: js Firebase
+    ```
+=== ":simple-python: {{ab.pm}}"
+    ```
 
     // Not sure this one is right
     "inventory":{
@@ -225,3 +224,4 @@ db_query.spawn(sector_objects)
             "<db_id>": <value>
         }
     }     
+    ```
