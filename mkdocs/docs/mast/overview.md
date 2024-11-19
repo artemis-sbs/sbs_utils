@@ -15,12 +15,12 @@ The flow of {{ab.m}} is similar to the original BASIC programming language. The 
 
     ``` {{ab.m}}
     ========= start =======
-    log "Hello, world"
+    log("Hello, world")
     -> goodbye
     ====== not_here =======
-    log "I get jumped over"
+    log("I get jumped over")
     ======= goodbye =======
-    log "Goodbye"
+    log("Goodbye")
     ```
 === "Output"
 
@@ -44,7 +44,7 @@ PyMast is python code that runs using the {{ab.m}} execution flow. This gives py
     log("Hello, world")
     -> goodbye
     ====== not_here =======
-    log "I get jumped over"
+    log("I get jumped over")
     ======= goodbye =======
     log("Goodbye")
     ```
