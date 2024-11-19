@@ -1,8 +1,8 @@
-# PyMAST
+# {{ab.pm}}
 
 The MAST Runtime is written in python.
 
-PyMAST is a version where you do not need to write in mast.
+{{ab.pm}} is a version where you do not need to write in mast.
 You can write in just native python.
 
 The remote_mission_pick mission is written this way.

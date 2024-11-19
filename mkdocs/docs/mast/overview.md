@@ -11,7 +11,7 @@ The flow of {{ab.m}} is similar to the original BASIC programming language. The 
 
 
 
-=== "{{ab.m}}"
+=== ":mast-icon: {{ab.m}}"
 
     ``` {{ab.m}}
     ========= start =======
@@ -30,14 +30,14 @@ The flow of {{ab.m}} is similar to the original BASIC programming language. The 
     ```
 
 
-## {{ab.m}} and PyMast
+## {{ab.m}} and {{ab.pm}}
 
 {{ab.m}} is a standalone language running inside of the python system provided by Artemis Cosmos.
 
-PyMast is python code that runs using the {{ab.m}} execution flow. This gives python programmers the benefits of {{ab.m}}'s simple flow while enabling greater access to the native python.
+{{ab.pm}} is python code that runs using the {{ab.m}} execution flow. This gives python programmers the benefits of {{ab.m}}'s simple flow while enabling greater access to the native python.
 
 
-=== "{{ab.m}}"
+=== ":mast-icon: {{ab.m}}"
 
     ```
     ========= start =======
@@ -49,7 +49,7 @@ PyMast is python code that runs using the {{ab.m}} execution flow. This gives py
     log("Goodbye")
     ```
 
-=== "Python {{ab.m}}"
+=== ":simple-python: py{{ab.m}}"
 
     ```
     @label()
@@ -86,7 +86,7 @@ This example prints "Hello, world" and five seconds later it prints "Goodbye". D
 This ability to yield control back to the engine is a reason that {{ab.m}} flow can be enable users to focus on the flow of the story and not how to get the programming language to deal with this.
 
 
-=== "{{ab.m}}"
+=== ":mast-icon: {{ab.m}}"
 
     ```      
     ========= start =======
@@ -95,7 +95,7 @@ This ability to yield control back to the engine is a reason that {{ab.m}} flow 
     log("Goodbye")
     ```
 
-=== "py PyMast"
+=== ":simple-python: py{{ab.m}}"
     ```
     @label()
     def start():
@@ -109,10 +109,10 @@ This ability to yield control back to the engine is a reason that {{ab.m}} flow 
     |    Goodbye
     ```    
 
-Yielding control is handled by {{ab.m}}. If there ever is a time you need to force a yield you can us the {{ab.m}} 'yeild' command. In PyMast the python keyword yield is used, however you must specify how to yield by providing a PollResults.OK_RUN_AGAIN. There are other types of yields in PyMast. This is not the time to detail those uses. 
+Yielding control is handled by {{ab.m}}. If there ever is a time you need to force a yield you can us the {{ab.m}} 'yeild' command. In {{ab.pm}} the python keyword yield is used, however you must specify how to yield by providing a PollResults.OK_RUN_AGAIN. There are other types of yields in {{ab.pm}}. This is not the time to detail those uses. 
 
 
-=== "{{ab.m}}"
+=== ":mast-icon: {{ab.m}}"
     ```
     ========= start =======
     log("Hello, world")
@@ -120,7 +120,7 @@ Yielding control is handled by {{ab.m}}. If there ever is a time you need to for
     log("Goodbye")
     ```      
 
-=== "PyMast"
+=== ":simple-python: py{{ab.m}}"
 
     ```
     @label()
@@ -156,11 +156,11 @@ For example a Player Ship can run a Task for handling Comms messages, another fo
 
 These tasks themselves act as small side stories, They run as long as needed.
 
-In {{ab.m}} tasks are scheduled in {{ab.m}} with a parallel jump, and in PyMast with a task_schedule
+In {{ab.m}} tasks are scheduled in {{ab.m}} with a parallel jump, and in {{ab.pm}} with a task_schedule
 
 If you have programmed Artemis 2.x scripts, tasks are similar to the <event> tags. Unlike the <event> tags, task only run when needed. They are scheduled, and when they end they are unscheduled they can also be canceled.
 
-=== "{{ab.m}}"
+=== ":mast-icon: {{ab.m}}"
 
     ```
     ===== start ====
@@ -174,7 +174,7 @@ If you have programmed Artemis 2.x scripts, tasks are similar to the <event> tag
         yield
     ```
 
-=== "PyMast"
+=== ":simple-python: py{{ab.m}}"
 
     ```
     @label()
@@ -208,7 +208,7 @@ If you have programmed Artemis 2.x scripts, tasks are similar to the <event> tag
 
 
 ## Schedulers
-{{ab.m}} and PyMast run all the tasks using schedulers. This process is mostly hidden to the writer of {{ab.m}} and PyMast code.
+{{ab.m}} and {{ab.pm}} run all the tasks using schedulers. This process is mostly hidden to the writer of {{ab.m}} and {{ab.pm}} code.
 
 Tasks are run on 'Schedulers' and to put it simply for now, the Server and each Console has a scheduler. Additional schedulers can be created but typically the Server runs most of the tasks and the Consoles run a few tasks associated with that particular Console.
 
@@ -216,7 +216,7 @@ For example, the Server runs a scheduler that may have a task for presenting its
 
 The more complex the script, the more tasks that will run. And if the complexity warrants it, more schedulers can be created. e.g. schedulers for each player ships etc.
 
-When Artemis Cosmos calls the scripting engine, {{ab.m}}/PyMast will run al the Schedulers and each scheduler runs all of its Tasks. 
+When Artemis Cosmos calls the scripting engine, {{ab.m}}/{{ab.pm}} will run al the Schedulers and each scheduler runs all of its Tasks. 
 
 As tasks are finished, they are removed. If a scheduler runs and no longer has tasks it is removed.
 
@@ -242,7 +242,7 @@ XML is NOT supported, but used as examples for those familiar with Artemis 2.x s
     </event>
     ```
  
-=== "{{ab.m}}"   
+=== ":mast-icon: {{ab.m}}"   
     ```
     # To schedule the task
     task_schedule(do_some_thing)
@@ -255,7 +255,7 @@ XML is NOT supported, but used as examples for those familiar with Artemis 2.x s
     ```             
         
 
-=== "PyMast"
+=== ":simple-python: py{{ab.m}}"
 
     ```
     @label()
@@ -275,7 +275,7 @@ XML is NOT supported, but used as examples for those familiar with Artemis 2.x s
 
 With {{ab.m}} you can set data that is shared by the server, all client consoles and all tasks.
 You can scope variables or pass data to a specific task. This allows tasks to be scheduled multiple times.
-PyMast has the added ability to scope data to a label since it is a function in python.
+{{ab.pm}} has the added ability to scope data to a label since it is a function in python.
 
 In contrast to an XML event, every variable was always shared. Also, events did not have scoped data. Events could not be reused. This meant to schedule events multiple times, you had to copy and paste the event and create new variables. 
 
@@ -291,7 +291,7 @@ In contrast to an XML event, every variable was always shared. Also, events did 
     ```
 
 
-=== "{{ab.m}}"
+=== ":mast-icon: {{ab.m}}"
     ```  
     # create shared data
     shared say_what = "Hello"
@@ -313,7 +313,7 @@ In contrast to an XML event, every variable was always shared. Also, events did 
     ```            
         
 
-=== "PyMast"
+=== ":simple-python: py{{ab.m}}"
     ```
     @label()
     def start():
@@ -383,7 +383,7 @@ Example one delaying credits.
         </event>
     ```
 
-=== "{{ab.m}}"
+=== ":mast-icon: {{ab.m}}"
     ```
     
     ==== show_credits ====
@@ -398,7 +398,7 @@ Example one delaying credits.
                   
         
 
-=== "PyMast"
+=== ":simple-python: py{{ab.m}}"
     ```
     @label()
     def start():
@@ -418,7 +418,7 @@ The XML for this would be very verbose.
     <Skipping/>
     ```
         
-=== "{{ab.m}}"
+=== ":mast-icon: {{ab.m}}"
     ```
     ==== spawn_wave ====
     enemyTypeNameList = ["kralien_dreadnaught","kralien_battleship","skaraan_defiler","cargo_ship","arvonian_carrier","torgoth_behemoth"]
@@ -442,7 +442,7 @@ The XML for this would be very verbose.
     ```            
         
 
-=== "PyMAst"
+=== ":simple-python: py{{ab.m}}"
     ```
     @label()
     def spawn_wave():

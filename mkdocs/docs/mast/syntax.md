@@ -403,7 +403,7 @@ You can cancel a tasks by name from another task.
 ## Conditional Statements
 
 {{ab.m}} supports both if and match statements similar to python syntax.
-PyMast simply uses the python statements.
+{{ab.pm}} simply uses the python statements.
 
 ### If statements
 
@@ -492,7 +492,7 @@ If conditionals can be nested as well.
 {{ab.m}} supports for loop similar to python with for, break, continue .
 {{ab.m}} is not a whitespace language so you need to close an if with and next.
 
-PyMast uses the standard python for or while loop.
+{{ab.pm}} uses the standard python for or while loop.
 
 However, {{ab.m}} support a for ... in loop and a for .. while loop.
 
