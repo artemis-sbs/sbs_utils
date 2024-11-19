@@ -273,7 +273,9 @@ The finished code for this step is here:
 The Legendary Mission, Secret Meeting and the WalkTheLine have their own maps and are a good reference.
 
 - [Legendary Mission maps](https://github.com/artemis-sbs/LegendaryMissions/blob/main/maps)
+- [Legendary Mission Admiral Comms](https://github.com/artemis-sbs/LegendaryMissions/blob/main/zadmiral/admiral_comms.mast)
 - [Secret Meeting map](https://github.com/artemis-sbs/SecretMeeting/tree/main/SecretMaps)
 - [Walk The Line map](https://github.com/artemis-sbs/WalkTheLine/tree/main/WalkLine)
+
 
 
