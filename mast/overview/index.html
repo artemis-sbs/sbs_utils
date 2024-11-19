@@ -3056,7 +3056,7 @@
 
 <h2 id="mast-execution-flow">MAST execution flow</h2>
 <p>The goal of MAST is to enable non-programmers to be productive in creating interactive narratives.</p>
-<p>The MAST language is a programming language that strips many of the programming language concepts that make writing interactive narratives difficult as well a simplified syntax.</p>
+<p>The MAST language is a programming language that simplifies many of the programming language concepts to help make writing interactive narratives easier as well as provide an easier-to-follow syntax.</p>
 <p>The intent is to be approachable to non-programmers. It is not intended to be 'structured' programming language like C++ or Python. </p>
 <p>The flow of MAST is similar to the original BASIC programming langauge. The code executes moving forward, it can branch by jumping to new locations (labels). This can be called 'unstructured' programming. MAST was also influenced by choice script, Inkle's Ink, and others.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">MAST</label><label for="__tabbed_1_2">Output</label></div>
@@ -3187,7 +3187,7 @@ log &quot;Goodbye&quot;
 <h2 id="sub-plots-aka-tasks">Sub plots aka Tasks</h2>
 <p>MAST is MULTI Agent Story Telling so each agent has their own story or event stories.</p>
 <p>MAST allows multiple storylines to run in "parallel". </p>
-<p>MAST in Artemis Cosmos is inherently a single thread of execution. These storylines do not run exactly in parallel, but you can run multiple things and make sure they run. These are called Tasks, and tasks can be scheduled so that multiple task can run.</p>
+<p>MAST in Artemis Cosmos is inherently a single thread of execution. These storylines do not run exactly in parallel, but you can run multiple things and make sure they run at the same time. These are called Tasks, and tasks can be scheduled so that multiple tasks can run on the same tick. A 'tick' is a very short piece of time where the game engine checks for input from the clients, calculates how everything in the game is supposed to move, processes damage and other internal logic, and then sends updated information to the clients. </p>
 <p>For example a Player Ship can run a Task for handling Comms messages, another for Science scan. This player ship could in fact run multiple tasks for handling comms with different sets of ships.</p>
 <p>These tasks themselves act as small side stories, They run as long as needed.</p>
 <p>In MAST tasks are scheduled in MAST with a parallel jump, and in PyMast with a schedule_task</p>
@@ -3243,9 +3243,9 @@ next x
 </div>
 <h2 id="schedulers">Schedulers</h2>
 <p>MAST and PyMast run all the tasks using schedulers. This process is mostly hidden to the writer of MAST and PyMast code.</p>
-<p>Tasks are run on 'Schedulers' and to put it simply for now, the server and each Console has a scheduler. Additional scheduler can be created but typically the schedulers run associated with a console with the server running a large number of the tasks.</p>
-<p>For example, the server runs a scheduler it may have a task for presenting its User Interface/GUI, and maybe have other task to manage the world creation, handing comms, science etc. Consoles typically have a scheduler an mostly as single task for the User Interface/GUI.</p>
-<p>The more complex the script, the more tasks that will run. And if the complexity warrants more schedulers can be created. e.g. schedulers for each player ships etc.</p>
+<p>Tasks are run on 'Schedulers' and to put it simply for now, the Server and each Console has a scheduler. Additional schedulers can be created but typically the Server runs most of the tasks and the Consoles run a few tasks associated with that particular Console.</p>
+<p>For example, the Server runs a scheduler that may have a task for presenting its User Interface/GUI, and maybe have other tasks to manage the world creation, handling comms, science etc. Consoles typically have a scheduler as a single task for handling the User Interface/GUI.</p>
+<p>The more complex the script, the more tasks that will run. And if the complexity warrants it, more schedulers can be created. e.g. schedulers for each player ships etc.</p>
 <p>When Artemis Cosmos calls the scripting engine, MAST/PyMast will run al the Schedulers and each scheduler runs all of its Tasks. </p>
 <p>As tasks are finished, they are removed. If a scheduler runs and no longer has tasks it is removed.</p>
 <h3 id="xml-events-vs-label-and-tasks">XML Events vs label, and tasks</h3>
@@ -3300,10 +3300,10 @@ def do_some_thing(self):
 </div>
 </div>
 <h3 id="setting-data-vs-xml-variable">Setting data vs. XML Variable</h3>
-<p>MAST you can set data that is shared by the server, all client consoles and all tasks.
-You can scope data to the task. You can pass data to a task. This allows task to be scheduled multiple times.
+<p>With MAST you can set data that is shared by the server, all client consoles and all tasks.
+You can scope variables or pass data to a specific task. This allows tasks to be scheduled multiple times.
 PyMast has the added ability to scope data to a label since it is a function in python.</p>
-<p>In contrast to XML event, you could <set_variable> that variable was always shared. Also, event did not have scoped data. Event could not be reused. This meant to schedule events multiple times, you had to copy and paste the event and create new variables. </p>
+<p>In contrast to an XML event, every variable was always shared. Also, events did not have scoped data. Events could not be reused. This meant to schedule events multiple times, you had to copy and paste the event and create new variables. </p>
 <div class="tabbed-set tabbed-alternate" data-tabs="7:3"><input checked="checked" id="__tabbed_7_1" name="__tabbed_7" type="radio" /><input id="__tabbed_7_2" name="__tabbed_7" type="radio" /><input id="__tabbed_7_3" name="__tabbed_7" type="radio" /><div class="tabbed-labels"><label for="__tabbed_7_1">XML</label><label for="__tabbed_7_2">MAST</label><label for="__tabbed_7_3">PyMast</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
