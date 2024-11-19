@@ -3058,17 +3058,17 @@
 <p>The goal of MAST is to enable non-programmers to be productive in creating interactive narratives.</p>
 <p>The MAST language is a programming language that simplifies many of the programming language concepts to help make writing interactive narratives easier as well as provide an easier-to-follow syntax.</p>
 <p>The intent is to be approachable to non-programmers. It is not intended to be 'structured' programming language like C++ or Python. </p>
-<p>The flow of MAST is similar to the original BASIC programming langauge. The code executes moving forward, it can branch by jumping to new locations (labels). This can be called 'unstructured' programming. MAST was also influenced by choice script, Inkle's Ink, and others.</p>
+<p>The flow of MAST is similar to the original BASIC programming language. The code executes moving forward, it can branch by jumping to new locations (labels). This can be called 'unstructured' programming. MAST was also influenced by choice script, Inkle's Ink, and others.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">MAST</label><label for="__tabbed_1_2">Output</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>========= start =======
-log &quot;Hello, world&quot;
+log(&quot;Hello, world&quot;)
 -&gt; goodbye
 ====== not_here =======
-log &quot;I get jumped over&quot;
+log(&quot;I get jumped over&quot;)
 ======= goodbye =======
-log &quot;Goodbye&quot;
+log(&quot;Goodbye&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -3085,26 +3085,26 @@ Goodbye
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>========= start =======
-log &quot;Hello, world&quot;
+log(&quot;Hello, world&quot;)
 -&gt; goodbye
 ====== not_here =======
-log &quot;I get jumped over&quot;
+log(&quot;I get jumped over&quot;)
 ======= goodbye =======
-log &quot;Goodbye&quot;
+log(&quot;Goodbye&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>@label()
-def start(self):
+def start():
     print(&quot;Hello, world&quot;)
-    yield self.jump(self.goodbye)
+    yield jump(goodbye)
 
 @label()
-def not_here(self):
+def not_here():
     print(&quot;I get jumped over&quot;)
 
 @label()
-def goodbye(self):
+def goodbye():
     print(&quot;Goodbye&quot;)
 </code></pre></div>
 </div>
@@ -3116,29 +3116,25 @@ def goodbye(self):
 </div>
 </div>
 <h2 id="mast-and-pausing-the-flow">MAST and pausing the flow</h2>
-<p>MAST is running as part of a game engine. The engine only give MAST a small amount of time to run. If MAST ran unconditionally it would not allow the engine to run and stall the game. However, there are times a story cannot continue until conditions are met. e.g. A comms button is press, a science scan it started etc.</p>
-<p>MAST can "pause" execution and yield control back to the engine. The engine keeps calling MAST and it yields until the condition is met teh the flow can continue.</p>
+<p>MAST is running as part of a game engine. The engine only gives MAST a small amount of time to run. If MAST ran unconditionally it would not allow the engine to run and stall the game. However, there are times a story cannot continue until conditions are met. e.g. A comms button is press, a science scan it started etc.</p>
+<p>MAST can "pause" execution and yield control back to the engine. The engine keeps calling MAST and it yields until the condition is met then the flow can continue.</p>
 <p>This example prints "Hello, world" and five seconds later it prints "Goodbye". During that five seconds the engine is able to run because MAST yields control back since it cannot move forward.</p>
-<p>This ability to yield control back to the engine is a reason that MAST flow can be enable users to focus on the flow of the story and not how to get the programming lanuage to deal with this.</p>
+<p>This ability to yield control back to the engine is a reason that MAST flow can be enable users to focus on the flow of the story and not how to get the programming language to deal with this.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="3:3"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><input id="__tabbed_3_3" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">MAST</label><label for="__tabbed_3_2">py PyMast</label><label for="__tabbed_3_3">Output</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>========= start =======
-log &quot;Hello, world&quot;
-delay gui 5s
-log &quot;Goodbye&quot;
+log(&quot;Hello, world&quot;)
+delay_app(5)
+log(&quot;Goodbye&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>class Story(PyMastStory):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    @label()
-    def start(self):
-        print(&quot;Hello, world&quot;)
-        yield self.delay(5)
-        print(&quot;Goodbye&quot;)
+<div class="highlight"><pre><span></span><code>@label()
+def start():
+    log(&quot;Hello, world&quot;)
+    yield delay_app(5)
+    log(&quot;Goodbye&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -3153,21 +3149,17 @@ log &quot;Goodbye&quot;
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>========= start =======
-log &quot;Hello, world&quot;
+log(&quot;Hello, world&quot;)
 yield
-log &quot;Goodbye&quot;
+log(&quot;Goodbye&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>class Story(PyMastStory):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    @label()
-    def start(self):
-        print(&quot;Hello, world&quot;)
-        yield PollResults.OK_RUN_AGAIN
-        print(&quot;Goodbye&quot;)
+<div class="highlight"><pre><span></span><code>@label()
+def start():
+    log(&quot;Hello, world&quot;)
+    yield PollResults.OK_RUN_AGAIN
+    log(&quot;Goodbye&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -3190,39 +3182,33 @@ log &quot;Goodbye&quot;
 <p>MAST in Artemis Cosmos is inherently a single thread of execution. These storylines do not run exactly in parallel, but you can run multiple things and make sure they run at the same time. These are called Tasks, and tasks can be scheduled so that multiple tasks can run on the same tick. A 'tick' is a very short piece of time where the game engine checks for input from the clients, calculates how everything in the game is supposed to move, processes damage and other internal logic, and then sends updated information to the clients. </p>
 <p>For example a Player Ship can run a Task for handling Comms messages, another for Science scan. This player ship could in fact run multiple tasks for handling comms with different sets of ships.</p>
 <p>These tasks themselves act as small side stories, They run as long as needed.</p>
-<p>In MAST tasks are scheduled in MAST with a parallel jump, and in PyMast with a schedule_task</p>
+<p>In MAST tasks are scheduled in MAST with a parallel jump, and in PyMast with a task_schedule</p>
 <p>If you have programmed Artemis 2.x scripts, tasks are similar to the <event> tags. Unlike the <event> tags, task only run when needed. They are scheduled, and when they end they are unscheduled they can also be canceled.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="5:3"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><input id="__tabbed_5_2" name="__tabbed_5" type="radio" /><input id="__tabbed_5_3" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1">MAST</label><label for="__tabbed_5_2">PyMast</label><label for="__tabbed_5_3">Output</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>===== start ====
 # Run another task
-=&gt; count_to_ten
-delay gui 15s
-log &quot;done&quot;
+await task_schedule(count_to_ten)
+log(&quot;done&quot;)
 
 ===== count_to_ten ======
 for x in range(10):
-    log &quot;{x}&quot;
+    log(&quot;{x}&quot;)
     yield
-next x
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>class Story(PyMastStory):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+<div class="highlight"><pre><span></span><code>@label()
+def start():
+    yield AWAIT(task_schedule(count_to_ten))
+    log(&quot;done&quot;)
 
-    @label()
-    def start(self):
-        self.schedule_task(self.count_to_ten)
-        yield self.delay(15)
-
-    @label()
-    def count_to_ten(self):
-        for x in range(10):
-            print(x)
-            yield PollResults.OK_RUN_AGAIN
+@label()
+def count_to_ten():
+    for x in range(10):
+        print(x)
+        yield PollResults.OK_RUN_AGAIN
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -3278,23 +3264,23 @@ XML is NOT supported, but used as examples for those familiar with Artemis 2.x s
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code># To schedule the task
-schedule do_some_thing
+task_schedule(do_some_thing)
 # To end a task
 -&gt;END
 
 
 ==== do_some_thing ====
-log &quot;Hello&quot;
+log(&quot;Hello&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>@label()
-def start(self):
-    self.schedule_task(self.do_some_thing)
+def start():
+    task_schedule(do_some_thing)
 
 @label()
-def do_some_thing(self):
-    self.log(&quot;Hello&quot;)
+def do_some_thing():
+    log(&quot;Hello&quot;)
 </code></pre></div>
 </div>
 </div>
@@ -3320,9 +3306,9 @@ shared say_what = &quot;Hello&quot;
 local_data = &quot;I&#39;m different&quot;
 
 # When run outputs Hello, World So Long Goodbye
-schedule do_some_thing {&quot;passed_data&quot;: &quot;World&quot;}
+task_schedule(do_some_thing, {&quot;passed_data&quot;: &quot;World&quot;})
 # When run outputs Hello, Cosmos So Long Goodbye
-schedule do_some_thing {&quot;passed_data&quot;: &quot;Cosmos&quot;}
+task_schedule(do_some_thing, {&quot;passed_data&quot;: &quot;Cosmos&quot;})
 
 -&gt;END
 
@@ -3330,34 +3316,36 @@ schedule do_some_thing {&quot;passed_data&quot;: &quot;Cosmos&quot;}
 # set a local variable 
 local_data = &quot;Goodbye&quot;
 
-log &quot;{say_what}, {passed_data}&quot;
-log &quot;{local_data}&quot;
+log(f&quot;{say_what}, {passed_data}&quot;)
+log(f&quot;{local_data}&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>@label()
-def start(self):
+def start():
     # Shared data is added to the story
-    self.say_what = &quot;Hello&quot;
+    set_shared_variable(&quot;say_what&quot;, &quot;Hello&quot;)
 
     # When run out puts Hello, World So Long Goodbye
-    self.schedule_task(self.do_some_thing, {&quot;passed_data&quot;: &quot;World&quot;})
+    task_schedule(do_some_thing, {&quot;passed_data&quot;: &quot;World&quot;})
     # When run out puts Hello, Cosmos So Long Goodbye
-    self.schedule_task(self.do_some_thing, {&quot;passed_data&quot;: &quot;Cosmos&quot;})
+    task_schedule(do_some_thing, {&quot;passed_data&quot;: &quot;Cosmos&quot;})
 
 @label()
-def do_some_thing(self):
+def do_some_thing():
+    say_what = get_shared_variable(&quot;say_what&quot;)
     # To share with the task
     # so it can be used in other labels run by this task
-    self.task.local_data = &quot;So Long&quot;
+    set_variable(&quot;local_data&quot;, &quot;So Long&quot;)
+    task_local_data = get_variable(&quot;local_data&quot;)
     # a label is a function in python so it can also have
     # data local to the function/label
     label_data = &quot;Goodbye&quot;
 
-    self.task.local_data = &quot;Goodbye&quot;
-    self.log(&quot;{say_what}, {passed_data}&quot;)
-    self.log(&quot;{self.task.local_data}&quot;)
-    self.log(&quot;{label_data}&quot;)
+
+    log(f&quot;{say_what}, {passed_data}&quot;)
+    log(f&quot;{task_local_data}&quot;)
+    log(f&quot;{label_data}&quot;)
 </code></pre></div>
 </div>
 </div>
@@ -3403,22 +3391,22 @@ There are multiple reasons for this:</p>
 <div class="highlight"><pre><span></span><code>==== show_credits ====
 
 &quot;&quot;&quot; This is the first page of credits&quot;&quot;&quot;
-await gui timeout 10s
+await gui(timeout=delay_sim(10))
 &quot;&quot;&quot; This is the second page of credits&quot;&quot;&quot;
-await gui timeout 10s
+await gui(timeout=delay_sim(10))
 &quot;&quot;&quot; This is the third page of credits&quot;&quot;&quot;
-await gui timeout 10s
+await gui(timeout=delay_sim(10))
 </code></pre></div>
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>@label()
-def start(self):
-    self.gui_text(&quot;this is the first page of credits&quot;)
-    yield self.await_gui(timeout=10)
-    self.gui_text(&quot;this is the second page of credits&quot;)
-    yield self.await_gui(timeout=10)
-    self.gui_text(&quot;this is the third page of credits&quot;)
-    yield self.await_gui(timeout=10)
+def start():
+    gui_text(&quot;this is the first page of credits&quot;)
+    yield AWAIT(gui(timeout=delay_sim(10)))
+    gui_text(&quot;this is the second page of credits&quot;)
+    yield AWAIT(gui(timeout=delay_sim(10)))
+    gui_text(&quot;this is the third page of credits&quot;)
+    yield AWAIT(gui(timeout=delay_sim(10)))
 </code></pre></div>
 </div>
 </div>
@@ -3445,21 +3433,21 @@ for v in spawn_points:
     r_name = f&quot;{random.choice(enemy_prefix)}_{enemy}&quot;
     spawn_data = npc_spawn(v.x, v.y, v.z, r_name, &quot;RAIDER&quot;, r_type, &quot;behav_npcship&quot;)
     raider = spawn_data.py_object
-    do set_face(raider.id, random_kralien())
-    do add_role(raider.id, &quot;Raider&quot;)
+    set_face(raider.id, random_kralien())
+    add_role(raider.id, &quot;Raider&quot;)
     enemy = enemy + 1
-next v
 
-delay sim 8m
+
+delay_sim(minutes=8)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>@label()
-def spawn_wave(self):
+def spawn_wave():
     enemyTypeNameList = [&quot;kralien_dreadnaught&quot;,&quot;kralien_battleship&quot;,&quot;skaraan_defiler&quot;,&quot;cargo_ship&quot;,&quot;arvonian_carrier&quot;,&quot;torgoth_behemoth&quot;]
     enemy_prefix = &quot;KLMNQ&quot;
 
-    # this gets a radom span location just outside the view of the sctor 
+    # this gets a radom span location just outside the view of the sector 
     spawn_points = scatter_sphere(int(enemy_count), 0,0,0, 6000, 6000+250*enemy_count, ring=True)
 
     for v in spawn_points:
@@ -3470,7 +3458,7 @@ def spawn_wave(self):
         set_face(raider.id, random_kralien())
         add_role(raider.id, &quot;Raider&quot;)
         enemy = enemy + 1
-    yield self.delay(8*60)
+    yield AWAIT(delay_sim(minutes=8))
 </code></pre></div>
 </div>
 </div>

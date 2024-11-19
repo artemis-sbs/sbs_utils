@@ -3500,7 +3500,7 @@
 </ul>
 <h2 id="data">Data</h2>
 <p>You can create data that is any valid python type.
-This data can be used in you mast tasks.</p>
+This data can be used in your MAST tasks.</p>
 <h3 id="simple-assignment">Simple assignment</h3>
 <p>To do so you use the assignment statement::</p>
 <pre><code>fred = 3
@@ -3521,12 +3521,12 @@ To allow more complex assignments you can wrap the value in 'snakes' to have the
     ~~~~~~
 </code></pre>
 <h3 id="shared-data-assignment">Shared data assignment</h3>
-<p>Data has multiple scopes. Data can be at the scope of a Mast story, For a scheduler, A task, and block</p>
+<p>Data has multiple scopes. Data can be at the scope of a MAST story, a scheduler, a task, or a label.</p>
 <p>There are times you want data to be shared by all tasks within a story. To share data you add the 'shared' marked in front of the assignment::</p>
 <pre><code>shared enemy_count = 20
 shared beer_count = 8
 </code></pre>
-<p>When using Data, scope is automatically handled you only need to specify shared at assignment::</p>
+<p>When using Data, scope is automatically handled. You only need to specify shared at assignment::</p>
 <pre><code>shared beer_count = 8
 my_beer = 0
 
@@ -3535,7 +3535,7 @@ my_beer = my_beer + beer_count
 share beer_count = 0
 </code></pre>
 <h2 id="task-flow-story-sections-via-labels">Task Flow: Story sections via labels</h2>
-<p>A mast story is broken into sections using labels.
+<p>A MAST story is broken into sections using labels.
 You also can have comments, and there are also other 'markers' that can help organizing sections and help have them stand out in the file.</p>
 <h3 id="labels">Labels</h3>
 <p>Labels have a Name with no spaces and are  enclosed in 2 or more equals</p>
@@ -3824,11 +3824,11 @@ Done</p>
 </div>
 </div>
 <h2 id="conditional-statements">Conditional Statements</h2>
-<p>Mast supports both a if and match statements similar to python's.
+<p>MAST supports both if and match statements similar to python syntax.
 PyMast simply uses the python statements.</p>
 <h3 id="if-statements">If statements</h3>
-<p>Mast supports if statements similar to python with if, elif, and else.
-Mast is not a whitespace language so you need to close an if with and end_if</p>
+<p>MAST supports if statements similar to python with if, elif, and else.
+MAST is not a whitespace language so you need to close an if with and end_if</p>
 <p>If conditionals can be nested as well.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="7:3"><input checked="checked" id="__tabbed_7_1" name="__tabbed_7" type="radio" /><input id="__tabbed_7_2" name="__tabbed_7" type="radio" /><input id="__tabbed_7_3" name="__tabbed_7" type="radio" /><div class="tabbed-labels"><label for="__tabbed_7_1">Mast</label><label for="__tabbed_7_2">Python</label><label for="__tabbed_7_3">Output</label></div>
 <div class="tabbed-content">
@@ -3868,8 +3868,8 @@ end_if
 </div>
 </div>
 <h3 id="match-statements">Match statements</h3>
-<p>Mast supports match statements similar to python with match, case.
-Mast is not a whitespace language so you need to close an if with and end_match</p>
+<p>MAST supports match statements similar to python with match, case.
+MAST is not a whitespace language so you need to close an if with and end_match</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="8:3"><input checked="checked" id="__tabbed_8_1" name="__tabbed_8" type="radio" /><input id="__tabbed_8_2" name="__tabbed_8" type="radio" /><input id="__tabbed_8_3" name="__tabbed_8" type="radio" /><div class="tabbed-labels"><label for="__tabbed_8_1">Mast</label><label for="__tabbed_8_2">Python</label><label for="__tabbed_8_3">Output</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
@@ -3906,10 +3906,10 @@ def start(self):
 </div>
 </div>
 <h3 id="for-loops">For loops</h3>
-<p>Mast supports for loop similar to python with for, break, continue .
-Mast is not a whitespace language so you need to close an if with and next.</p>
+<p>MAST supports for loop similar to python with for, break, continue .
+MAST is not a whitespace language so you need to close an if with and next.</p>
 <p>PyMast uses the standard python for or while loop.</p>
-<p>However, mast support a for ... in loop and a for .. while loop.</p>
+<p>However, MAST support a for ... in loop and a for .. while loop.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="9:3"><input checked="checked" id="__tabbed_9_1" name="__tabbed_9" type="radio" /><input id="__tabbed_9_2" name="__tabbed_9" type="radio" /><input id="__tabbed_9_3" name="__tabbed_9" type="radio" /><div class="tabbed-labels"><label for="__tabbed_9_1">Mast</label><label for="__tabbed_9_2">Python</label><label for="__tabbed_9_3">Output</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
@@ -3993,7 +3993,7 @@ This is the tricky part
 </div>
 <p>One use of the zip file concept it to create a sharable library of things.</p>
 <h2 id="logging">Logging</h2>
-<p>Mast supports syntax to simplify pythons logging features.</p>
+<p>MAST supports syntax to simplify pythons logging features.</p>
 <h3 id="logger-command">logger command</h3>
 <p>The logger command sets up logging. </p>
 <p>Logging needs to be enabled</p>
@@ -4092,8 +4092,8 @@ def some_label(self):
 </div>
 <h2 id="delay-commands">Delay commands</h2>
 <p>The delay command continues to execute for a period of time.</p>
-<p>A Delay needs a clock to use Artemis Cosmos has two clocks and sim.
-The gui clock is running continuously (realtime), the sim clock can be paused when the simulation is not running(game time).</p>
+<p>A Delay needs a clock to use. Artemis Cosmos has two clocks: gui and sim.
+The gui clock is running continuously (realtime). The sim clock can be paused when the simulation is not running (game time).</p>
 <p>For gui and other things use the gui clock.
 If you want to delay 10s of game time use sim.</p>
 <p>Delay can specify minutes and seconds.</p>
