@@ -49,7 +49,7 @@ The flow of {{ab.m}} is similar to the original BASIC programming language. The 
     log("Goodbye")
     ```
 
-=== ":simple-python: py{{ab.m}}"
+=== ":simple-python: {{ab.pm}}"
 
     ```
     @label()
@@ -95,7 +95,7 @@ This ability to yield control back to the engine is a reason that {{ab.m}} flow 
     log("Goodbye")
     ```
 
-=== ":simple-python: py{{ab.m}}"
+=== ":simple-python: {{ab.pm}}"
     ```
     @label()
     def start():
@@ -120,7 +120,7 @@ Yielding control is handled by {{ab.m}}. If there ever is a time you need to for
     log("Goodbye")
     ```      
 
-=== ":simple-python: py{{ab.m}}"
+=== ":simple-python: {{ab.pm}}"
 
     ```
     @label()
@@ -174,7 +174,7 @@ If you have programmed Artemis 2.x scripts, tasks are similar to the <event> tag
         yield
     ```
 
-=== ":simple-python: py{{ab.m}}"
+=== ":simple-python: {{ab.pm}}"
 
     ```
     @label()
@@ -255,7 +255,7 @@ XML is NOT supported, but used as examples for those familiar with Artemis 2.x s
     ```             
         
 
-=== ":simple-python: py{{ab.m}}"
+=== ":simple-python: {{ab.pm}}"
 
     ```
     @label()
@@ -313,7 +313,7 @@ In contrast to an XML event, every variable was always shared. Also, events did 
     ```            
         
 
-=== ":simple-python: py{{ab.m}}"
+=== ":simple-python: {{ab.pm}}"
     ```
     @label()
     def start():
@@ -398,7 +398,7 @@ Example one delaying credits.
                   
         
 
-=== ":simple-python: py{{ab.m}}"
+=== ":simple-python: {{ab.pm}}"
     ```
     @label()
     def start():
@@ -442,7 +442,7 @@ The XML for this would be very verbose.
     ```            
         
 
-=== ":simple-python: py{{ab.m}}"
+=== ":simple-python: {{ab.pm}}"
     ```
     @label()
     def spawn_wave():
