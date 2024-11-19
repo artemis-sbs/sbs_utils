@@ -7,7 +7,6 @@
         "update": "make_lib",
         "build_addons": "cd ..\\LegendaryMissions&&build_addons,",
         "mkdocs": "cd mkdocs&&mkdocs serve",
-        "pmkdocs": "python --version",
         "pub docs":"cd mkdocs&&mkdocs gh-deploy --force",
         "siege mkdocs": "cd ..\\LegendaryMissions\\mkdocs&&mkdocs serve",
         "pub siege docs":"cd ..\\LegendaryMissions\\mkdocs&&mkdocs gh-deploy --force"

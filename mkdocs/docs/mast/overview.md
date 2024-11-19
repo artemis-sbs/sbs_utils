@@ -7,7 +7,7 @@ The {{ab.m}} language is a programming language that simplifies many of the prog
 
 The intent is to be approachable to non-programmers. It is not intended to be 'structured' programming language like C++ or Python. 
 
-The flow of {{ab.m}} is similar to the original BASIC programming langauge. The code executes moving forward, it can branch by jumping to new locations (labels). This can be called 'unstructured' programming. {{ab.m}} was also influenced by choice script, Inkle's Ink, and others.
+The flow of {{ab.m}} is similar to the original BASIC programming language. The code executes moving forward, it can branch by jumping to new locations (labels). This can be called 'unstructured' programming. {{ab.m}} was also influenced by choice script, Inkle's Ink, and others.
 
 
 
@@ -41,12 +41,12 @@ PyMast is python code that runs using the {{ab.m}} execution flow. This gives py
 
     ```
     ========= start =======
-    log "Hello, world"
+    log("Hello, world")
     -> goodbye
     ====== not_here =======
     log "I get jumped over"
     ======= goodbye =======
-    log "Goodbye"
+    log("Goodbye")
     ```
 
 === "Python {{ab.m}}"
@@ -77,35 +77,31 @@ PyMast is python code that runs using the {{ab.m}} execution flow. This gives py
 
 ## {{ab.m}} and pausing the flow
 
-{{ab.m}} is running as part of a game engine. The engine only give {{ab.m}} a small amount of time to run. If {{ab.m}} ran unconditionally it would not allow the engine to run and stall the game. However, there are times a story cannot continue until conditions are met. e.g. A comms button is press, a science scan it started etc.
+{{ab.m}} is running as part of a game engine. The engine only gives {{ab.m}} a small amount of time to run. If {{ab.m}} ran unconditionally it would not allow the engine to run and stall the game. However, there are times a story cannot continue until conditions are met. e.g. A comms button is press, a science scan it started etc.
 
-{{ab.m}} can "pause" execution and yield control back to the engine. The engine keeps calling {{ab.m}} and it yields until the condition is met teh the flow can continue.
+{{ab.m}} can "pause" execution and yield control back to the engine. The engine keeps calling {{ab.m}} and it yields until the condition is met then the flow can continue.
 
 This example prints "Hello, world" and five seconds later it prints "Goodbye". During that five seconds the engine is able to run because {{ab.m}} yields control back since it cannot move forward.
 
-This ability to yield control back to the engine is a reason that {{ab.m}} flow can be enable users to focus on the flow of the story and not how to get the programming lanuage to deal with this.
+This ability to yield control back to the engine is a reason that {{ab.m}} flow can be enable users to focus on the flow of the story and not how to get the programming language to deal with this.
 
 
 === "{{ab.m}}"
 
     ```      
     ========= start =======
-    log "Hello, world"
-    delay gui 5s
-    log "Goodbye"
+    log("Hello, world")
+    delay_app(5)
+    log("Goodbye")
     ```
 
 === "py PyMast"
     ```
-    class Story(PyMastStory):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            
-        @label()
-        def start(self):
-            print("Hello, world")
-            yield self.delay(5)
-            print("Goodbye")
+    @label()
+    def start(self):
+        log("Hello, world")
+        yield delay_app(5)
+        log("Goodbye")
     ```
 === "Output"
     ```
@@ -119,23 +115,19 @@ Yielding control is handled by {{ab.m}}. If there ever is a time you need to for
 === "{{ab.m}}"
     ```
     ========= start =======
-    log "Hello, world"
+    log("Hello, world")
     yield
-    log "Goodbye"
+    log("Goodbye")
     ```      
 
 === "PyMast"
 
     ```
-    class Story(PyMastStory):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            
-        @label()
-        def start(self):
-            print("Hello, world")
-            yield PollResults.OK_RUN_AGAIN
-            print("Goodbye")
+    @label()
+    def start(self):
+        log("Hello, world")
+        yield PollResults.OK_RUN_AGAIN
+        log("Goodbye")
     ```
 
 === "Output"
@@ -173,34 +165,28 @@ If you have programmed Artemis 2.x scripts, tasks are similar to the <event> tag
     ```
     ===== start ====
     # Run another task
-    => count_to_ten
-    delay gui 15s
-    log "done"
+    await schedule_task(count_to_ten)
+    log("done")
 
     ===== count_to_ten ======
     for x in range(10):
-        log "{x}"
+        log("{x}")
         yield
-    next x
     ```
 
 === "PyMast"
 
     ```
-    class Story(PyMastStory):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            
-        @label()
-        def start(self):
-            self.schedule_task(self.count_to_ten)
-            yield self.delay(15)
+    @label()
+    def start(self):
+        yield AWAIT(schedule_task(self.count_to_ten))
+        log("done")
 
-        @label()
-        def count_to_ten(self):
-            for x in range(10):
-                print(x)
-                yield PollResults.OK_RUN_AGAIN
+    @label()
+    def count_to_ten(self):
+        for x in range(10):
+            print(x)
+            yield PollResults.OK_RUN_AGAIN
     ```
 
 === "Output"
@@ -259,13 +245,13 @@ XML is NOT supported, but used as examples for those familiar with Artemis 2.x s
 === "{{ab.m}}"   
     ```
     # To schedule the task
-    schedule do_some_thing
+    schedule_task(do_some_thing)
     # To end a task
     ->END
 
 
     ==== do_some_thing ====
-    log "Hello"
+    log("Hello")
     ```             
         
 
@@ -274,7 +260,7 @@ XML is NOT supported, but used as examples for those familiar with Artemis 2.x s
     ```
     @label()
     def start(self):
-        self.schedule_task(self.do_some_thing)
+        schedule_task(do_some_thing)
 
     @label()
     def do_some_thing(self):
@@ -312,9 +298,9 @@ In contrast to an XML event, every variable was always shared. Also, events did 
     local_data = "I'm different"
 
     # When run outputs Hello, World So Long Goodbye
-    schedule do_some_thing {"passed_data": "World"}
+    schedule_task(do_some_thing, {"passed_data": "World"})
     # When run outputs Hello, Cosmos So Long Goodbye
-    schedule do_some_thing {"passed_data": "Cosmos"}
+    schedule_task(do_some_thing, {"passed_data": "Cosmos"})
 
     ->END
 
@@ -322,8 +308,8 @@ In contrast to an XML event, every variable was always shared. Also, events did 
     # set a local variable 
     local_data = "Goodbye"
 
-    log "{say_what}, {passed_data}"
-    log "{local_data}"
+    log(f"{say_what}, {passed_data}")
+    log(f"{local_data}")
     ```            
         
 
@@ -335,23 +321,24 @@ In contrast to an XML event, every variable was always shared. Also, events did 
         self.say_what = "Hello"
 
         # When run out puts Hello, World So Long Goodbye
-        self.schedule_task(self.do_some_thing, {"passed_data": "World"})
+        schedule_task(self.do_some_thing, {"passed_data": "World"})
         # When run out puts Hello, Cosmos So Long Goodbye
-        self.schedule_task(self.do_some_thing, {"passed_data": "Cosmos"})
+        schedule_task(self.do_some_thing, {"passed_data": "Cosmos"})
 
     @label()
     def do_some_thing(self):
         # To share with the task
         # so it can be used in other labels run by this task
-        self.task.local_data = "So Long"
+        FrameContext.task.set_variable("local_data", "So Long")
+        local_data = FrameContext.task.get_variable("local_data")
         # a label is a function in python so it can also have
         # data local to the function/label
         label_data = "Goodbye"
 
         self.task.local_data = "Goodbye"
-        self.log("{say_what}, {passed_data}")
-        self.log("{self.task.local_data}")
-        self.log("{label_data}")
+        log(f"{say_what}, {passed_data}")
+        log(f"{self.task.local_data}")
+        log(f"{label_data}")
     ```
 
             
@@ -401,11 +388,11 @@ Example one delaying credits.
     ==== show_credits ====
     
     """ This is the first page of credits"""
-    await gui timeout 10s
+    await gui(timeout=delay_sim(10))
     """ This is the second page of credits"""
-    await gui timeout 10s
+    await gui(timeout=delay_sim(10))
     """ This is the third page of credits"""
-    await gui timeout 10s
+    await gui(timeout=delay_sim(10))
     ```
                   
         
@@ -415,11 +402,11 @@ Example one delaying credits.
     @label()
     def start(self):
         self.gui_text("this is the first page of credits")
-        yield self.await_gui(timeout=10)
+        yield AWAIT(gui(timeout=delay_sim(10)))
         self.gui_text("this is the second page of credits")
-        yield self.await_gui(timeout=10)
+        yield AWAIT(gui(timeout=delay_sim(10)))
         self.gui_text("this is the third page of credits")
-        yield self.await_gui(timeout=10)
+        yield AWAIT(gui(timeout=delay_sim(10)))
     ```
 
 Another use is to spawn enemy waves.
@@ -445,12 +432,12 @@ The XML for this would be very verbose.
         r_name = f"{random.choice(enemy_prefix)}_{enemy}"
         spawn_data = npc_spawn(v.x, v.y, v.z, r_name, "RAIDER", r_type, "behav_npcship")
         raider = spawn_data.py_object
-        do set_face(raider.id, random_kralien())
-        do add_role(raider.id, "Raider")
+        set_face(raider.id, random_kralien())
+        add_role(raider.id, "Raider")
         enemy = enemy + 1
-    next v
+    
 
-    delay sim 8m
+    delay_sim(minutes=8)
     ```            
         
 
@@ -472,7 +459,7 @@ The XML for this would be very verbose.
             set_face(raider.id, random_kralien())
             add_role(raider.id, "Raider")
             enemy = enemy + 1
-        yield self.delay(8*60)
+        yield AWAIT(delay_sim(minutes=8))
     ```
 
 
