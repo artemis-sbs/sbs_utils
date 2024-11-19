@@ -3,7 +3,7 @@
 
 The goal of {{ab.m}} is to enable non-programmers to be productive in creating interactive narratives.
 
-The {{ab.m}} language is a programming language that strips many of the programming language concepts that make writing interactive narratives difficult as well a simplified syntax.
+The {{ab.m}} language is a programming language that simplifies many of the programming language concepts to help make writing interactive narratives easier as well as provide an easier-to-follow syntax.
 
 The intent is to be approachable to non-programmers. It is not intended to be 'structured' programming language like C++ or Python. 
 
@@ -158,7 +158,7 @@ In future topics there will be other times descibed when {{ab.m}} yields. Typica
 
 {{ab.m}} allows multiple storylines to run in "parallel". 
 
-{{ab.m}} in Artemis Cosmos is inherently a single thread of execution. These storylines do not run exactly in parallel, but you can run multiple things and make sure they run. These are called Tasks, and tasks can be scheduled so that multiple task can run.
+{{ab.m}} in Artemis Cosmos is inherently a single thread of execution. These storylines do not run exactly in parallel, but you can run multiple things and make sure they run at the same time. These are called Tasks, and tasks can be scheduled so that multiple tasks can run on the same tick. A 'tick' is a very short piece of time where the game engine checks for input from the clients, calculates how everything in the game is supposed to move, processes damage and other internal logic, and then sends updated information to the clients. 
 
 For example a Player Ship can run a Task for handling Comms messages, another for Science scan. This player ship could in fact run multiple tasks for handling comms with different sets of ships.
 
@@ -224,11 +224,11 @@ If you have programmed Artemis 2.x scripts, tasks are similar to the <event> tag
 ## Schedulers
 {{ab.m}} and PyMast run all the tasks using schedulers. This process is mostly hidden to the writer of {{ab.m}} and PyMast code.
 
-Tasks are run on 'Schedulers' and to put it simply for now, the server and each Console has a scheduler. Additional scheduler can be created but typically the schedulers run associated with a console with the server running a large number of the tasks.
+Tasks are run on 'Schedulers' and to put it simply for now, the Server and each Console has a scheduler. Additional schedulers can be created but typically the Server runs most of the tasks and the Consoles run a few tasks associated with that particular Console.
 
-For example, the server runs a scheduler it may have a task for presenting its User Interface/GUI, and maybe have other task to manage the world creation, handing comms, science etc. Consoles typically have a scheduler an mostly as single task for the User Interface/GUI.
+For example, the Server runs a scheduler that may have a task for presenting its User Interface/GUI, and maybe have other tasks to manage the world creation, handling comms, science etc. Consoles typically have a scheduler as a single task for handling the User Interface/GUI.
 
-The more complex the script, the more tasks that will run. And if the complexity warrants more schedulers can be created. e.g. schedulers for each player ships etc.
+The more complex the script, the more tasks that will run. And if the complexity warrants it, more schedulers can be created. e.g. schedulers for each player ships etc.
 
 When Artemis Cosmos calls the scripting engine, {{ab.m}}/PyMast will run al the Schedulers and each scheduler runs all of its Tasks. 
 
@@ -287,11 +287,11 @@ XML is NOT supported, but used as examples for those familiar with Artemis 2.x s
 
 ### Setting data vs. XML Variable
 
-{{ab.m}} you can set data that is shared by the server, all client consoles and all tasks.
-You can scope data to the task. You can pass data to a task. This allows task to be scheduled multiple times.
+With {{ab.m}} you can set data that is shared by the server, all client consoles and all tasks.
+You can scope variables or pass data to a specific task. This allows tasks to be scheduled multiple times.
 PyMast has the added ability to scope data to a label since it is a function in python.
 
-In contrast to XML event, you could <set_variable> that variable was always shared. Also, event did not have scoped data. Event could not be reused. This meant to schedule events multiple times, you had to copy and paste the event and create new variables. 
+In contrast to an XML event, every variable was always shared. Also, events did not have scoped data. Events could not be reused. This meant to schedule events multiple times, you had to copy and paste the event and create new variables. 
 
 
 === "XML"
