@@ -977,28 +977,19 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#stateflow-changes-jump-push-pop" class="md-nav__link">
+  <a href="#stateflow-changes-jump" class="md-nav__link">
     <span class="md-ellipsis">
-      State/Flow changes: Jump, Push, Pop
+      State/Flow changes: Jump
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="State/Flow changes: Jump, Push, Pop">
+    <nav class="md-nav" aria-label="State/Flow changes: Jump">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#jump" class="md-nav__link">
     <span class="md-ellipsis">
       Jump
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#pushpop" class="md-nav__link">
-    <span class="md-ellipsis">
-      Push/Pop
     </span>
   </a>
   
@@ -3245,28 +3236,19 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#stateflow-changes-jump-push-pop" class="md-nav__link">
+  <a href="#stateflow-changes-jump" class="md-nav__link">
     <span class="md-ellipsis">
-      State/Flow changes: Jump, Push, Pop
+      State/Flow changes: Jump
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="State/Flow changes: Jump, Push, Pop">
+    <nav class="md-nav" aria-label="State/Flow changes: Jump">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#jump" class="md-nav__link">
     <span class="md-ellipsis">
       Jump
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#pushpop" class="md-nav__link">
-    <span class="md-ellipsis">
-      Push/Pop
     </span>
   </a>
   
@@ -3559,18 +3541,18 @@ Labels are not &#39;functions&#39;, one label passes into the next label
 
 ```
     ======== One =====
-    log &quot;One&quot;
+    log(&quot;One&quot;)
     ======== Two =====
-    log &quot;Two&quot;
+    log(&quot;Two&quot;)
     ===== Three ====
-    log &quot;Three&quot;
+    log(&quot;Three&quot;)
 </code></pre></div>
 <p>Expected output</p>
 <div class="highlight"><pre><span></span><code> One
  Two
  Three
 </code></pre></div>
-<h2 id="stateflow-changes-jump-push-pop">State/Flow changes: Jump, Push, Pop</h2>
+<h2 id="stateflow-changes-jump">State/Flow changes: Jump</h2>
 <p>There are times you will want to change what part of a task is running.
 This is done by redirecting the flow to a label.</p>
 <h3 id="jump">Jump</h3>
@@ -3578,46 +3560,45 @@ This is done by redirecting the flow to a label.</p>
 <div class="highlight"><pre><span></span><code>    -&gt; Here
 
     ======== NotHere =====
-    log &quot;Got here later&quot;
+    log(&quot;Got here later&quot;)
     -&gt; End
 
     ======== Here =====
-    log &quot;First&quot;
+    log(&quot;First&quot;)
     -&gt; NotHere
 
     ======== End =====
-    log &quot;Done&quot;
+    log(&quot;Done&quot;)
     -&gt;END
     ======== Never =====
-    log &quot;Can never reach&quot;
+    log(&quot;Can never reach&quot;)
 </code></pre></div>
 <p>The expected output</p>
 <div class="highlight"><pre><span></span><code>First
 Got Here later
 Done
 </code></pre></div>
-<h3 id="pushpop">Push/Pop</h3>
-<p>Push is kind of the "Hold my Beer" of jump. When you Push it remembers the current location. Pop returns back to that location.</p>
-<p>Push is a 'thin double arrow' followed by the label name.</p>
-<p>Pop returns back to the previous location. Pop is a backwards thin double arrow.</p>
-<p>For example
-<div class="highlight"><pre><span></span><code>log &quot;See you later&quot;
--&gt;&gt; PushHere
-log &quot;and we&#39;re back&quot;
--&gt;END
-======== PushHere =====
-log &quot;Going back&quot;
-&lt;&lt;-
-</code></pre></div></p>
-<p>The expected output</p>
-<div class="highlight"><pre><span></span><code>See you later
-Going Back
-and we&#39;re back
-</code></pre></div>
 <h3 id="jump-to-end">Jump to End</h3>
 <p>To immediately end a task you can use a Jump to End.</p>
 <p>Jump to end looks like a Jump with a thin arrow and the label "END"</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">mast</label><label for="__tabbed_1_2">Python</label><label for="__tabbed_1_3">Output</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label><label for="__tabbed_1_2"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.25.18.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></svg></span> pyMAST</label><label for="__tabbed_1_3">Output</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>===== start ====
@@ -3649,7 +3630,24 @@ One tracking it comms, several for its client consoles, and several related to '
 <h3 id="scheduling-tasks-in-mast">Scheduling tasks in mast</h3>
 <p>Schedule a task is similar to a Jump, but it uses the Fat arrow.
 The difference is another task begins, and the original task continues on.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><input id="__tabbed_2_3" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Mast</label><label for="__tabbed_2_2">Python</label><label for="__tabbed_2_3">Output</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><input id="__tabbed_2_3" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label><label for="__tabbed_2_2"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.25.18.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></svg></span> pyMAST</label><label for="__tabbed_2_3">Output</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>log(&quot;before&quot;)
@@ -3684,30 +3682,48 @@ in task
 </div>
 <h3 id="passing-data-to-a-task">passing data to a task</h3>
 <p>You can pass data to a new task. The data passed is different than the original task.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="3:3"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><input id="__tabbed_3_3" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Mast</label><label for="__tabbed_3_2">Python</label><label for="__tabbed_3_3">Output</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:3"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><input id="__tabbed_3_3" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label><label for="__tabbed_3_2"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.25.18.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></svg></span> pyMAST</label><label for="__tabbed_3_3">Output</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>message = &quot;Different&quot;
-schedule ATask {&quot;message&quot;: &quot;Hello&quot;}
-log &quot;{message}&quot;
+task_schedule(ATask, {&quot;message&quot;: &quot;Hello&quot;})
+log(f&quot;{message}&quot;)
 
 === ATask ===
-log &quot;{message}&quot;
+log(f&quot;{message}&quot;)
 message = &quot;Who cares&quot;
 </code></pre></div>
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>@label()
-def start(self):
-    self.logger()
+def start():
+    logger()
 
-    self.schedule_task(self.a_task, {&quot;message&quot;: &quot;Hello&quot;})
-    self.log(f&quot;{self.task.message}&quot;)
+    task_schedule(a_task, {&quot;message&quot;: &quot;Hello&quot;})
+    message = get_variable(&quot;message&quot;)
+    log(f&quot;{message}&quot;)
 
 @label()
-def a_task(self):
-    self.log(self.task.message)
-    self.task.message = &quot;Should not change original&quot;
+def a_task():
+    log(task.message)
+    set_variable(&quot;message&quot;, &quot;Should not change original&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -3721,38 +3737,90 @@ Hello
 <p>You can assign a task to a variable by putting a name in front of the fat arrow.</p>
 <p>This can be used to await the task later.</p>
 <p>Example scheduling a task</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="4:1"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="4:2"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><input id="__tabbed_4_2" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label><label for="__tabbed_4_2">Output</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>log &quot;Start&quot;
-task1 =&gt; ATask
+<div class="highlight"><pre><span></span><code>log(&quot;Start&quot;)
+task1 task_schedule(ATask)
 await task1
-log &quot;Done&quot;
+log(&quot;Done&quot;)
 
 === ATask ===
-log &quot;task run&quot;
+log(&quot;task run&quot;)
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>Start
+task run
+Done
 </code></pre></div>
 </div>
 </div>
 </div>
-<p>=== "Output":
-    <div class="highlight"><pre><span></span><code>Start
-task run
-Done
-</code></pre></div></p>
 <h3 id="awaiting-for-any-or-all-tasks">Awaiting for any or all tasks</h3>
 <p>This can be used to await a list of tasks.
 You can await for ay task to complete.
 And you can await for all tasks to finish.</p>
 <p>Example await all</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="5:4"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><input id="__tabbed_5_2" name="__tabbed_5" type="radio" /><input id="__tabbed_5_3" name="__tabbed_5" type="radio" /><input id="__tabbed_5_4" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1">Mast</label><label for="__tabbed_5_2">Output</label><label for="__tabbed_5_3">Mast</label><label for="__tabbed_5_4">Output</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="5:4"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><input id="__tabbed_5_2" name="__tabbed_5" type="radio" /><input id="__tabbed_5_3" name="__tabbed_5" type="radio" /><input id="__tabbed_5_4" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label><label for="__tabbed_5_2">Output</label><label for="__tabbed_5_3"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label><label for="__tabbed_5_4">Output</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>log(&quot;Start&quot;)
 task1 = task_schedule(ATask, data= {&quot;say&quot;: &quot;Task1&quot;})
 task2 = task_schedule(ATask, data= {&quot;say&quot;: &quot;Task2&quot;})
-#### This needs to be refactored
-await join_all(task1,task2]
+#### This needs to be refactored it isn&#39;t valid yet
+await task_all(task1,task2)
 log(&quot;Done&quot;)
 
 === ATask ===
@@ -3771,7 +3839,7 @@ Done
 task1 = task_schedule(ATask, data= {&quot;say&quot;: &quot;Task1&quot;})
 task2 = task_schedule(ATask, data= {&quot;say&quot;: &quot;Task2&quot;})
 #### This needs to be refactored
-await join_any(task1,task2]
+await task_any(task1,task2)
 log(&quot;Done&quot;)
 
 === ATask ===
@@ -3791,7 +3859,24 @@ Done
 <p>For an await any if any task end, the await is satisfied.</p>
 <h3 id="canceling-a-task">Canceling a task</h3>
 <p>You can cancel a tasks by name from another task.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="6:3"><input checked="checked" id="__tabbed_6_1" name="__tabbed_6" type="radio" /><input id="__tabbed_6_2" name="__tabbed_6" type="radio" /><input id="__tabbed_6_3" name="__tabbed_6" type="radio" /><div class="tabbed-labels"><label for="__tabbed_6_1">Mast</label><label for="__tabbed_6_2">Python</label><label for="__tabbed_6_3">Output</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="6:3"><input checked="checked" id="__tabbed_6_1" name="__tabbed_6" type="radio" /><input id="__tabbed_6_2" name="__tabbed_6" type="radio" /><input id="__tabbed_6_3" name="__tabbed_6" type="radio" /><div class="tabbed-labels"><label for="__tabbed_6_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label><label for="__tabbed_6_2"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.25.18.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></svg></span> pyMAST</label><label for="__tabbed_6_3">Output</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>log(&quot;Start&quot;)
@@ -3808,7 +3893,7 @@ log(&quot;May not run&quot;)
 def start(self):
     logger()
     log(&quot;Start&quot;)
-    task1 = task_schedule_task(a_task)
+    task1 = task_schedule(a_task)
     task_cancel(task1)
     log(&quot;Done&quot;)
 
@@ -3827,22 +3912,37 @@ Done</p>
 <p>MAST supports both if and match statements similar to python syntax.
 pyMAST simply uses the python statements.</p>
 <h3 id="if-statements">If statements</h3>
-<p>MAST supports if statements similar to python with if, elif, and else.
-MAST is not a whitespace language so you need to close an if with and end_if</p>
+<p>MAST supports if statements similar to python with if, elif, and else.</p>
 <p>If conditionals can be nested as well.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="7:3"><input checked="checked" id="__tabbed_7_1" name="__tabbed_7" type="radio" /><input id="__tabbed_7_2" name="__tabbed_7" type="radio" /><input id="__tabbed_7_3" name="__tabbed_7" type="radio" /><div class="tabbed-labels"><label for="__tabbed_7_1">Mast</label><label for="__tabbed_7_2">Python</label><label for="__tabbed_7_3">Output</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="7:3"><input checked="checked" id="__tabbed_7_1" name="__tabbed_7" type="radio" /><input id="__tabbed_7_2" name="__tabbed_7" type="radio" /><input id="__tabbed_7_3" name="__tabbed_7" type="radio" /><div class="tabbed-labels"><label for="__tabbed_7_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label><label for="__tabbed_7_2"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.25.18.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></svg></span> pyMAST</label><label for="__tabbed_7_3">Output</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>===== start ====
 value = 300
 
 if value &lt; 300:
-    log &quot;less&quot;
+    log(&quot;less&quot;)
 elif value &gt; 300:
-log &quot;more&quot;
+log(&quot;more&quot;)
 else:
-    log &quot;equal&quot;
-end_if
+    log(&quot;equal&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -3854,11 +3954,11 @@ end_if
     def start(self):
         value = 300
         if value &lt; 300:
-            log &quot;less&quot;
+            log(&quot;less&quot;)
         elif value &gt; 300:
-            log &quot;more&quot;
+            log(&quot;more&quot;)
         else:
-            log &quot;equal&quot;
+            log(&quot;equal&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -3868,9 +3968,25 @@ end_if
 </div>
 </div>
 <h3 id="match-statements">Match statements</h3>
-<p>MAST supports match statements similar to python with match, case.
-MAST is not a whitespace language so you need to close an if with and end_match</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="8:3"><input checked="checked" id="__tabbed_8_1" name="__tabbed_8" type="radio" /><input id="__tabbed_8_2" name="__tabbed_8" type="radio" /><input id="__tabbed_8_3" name="__tabbed_8" type="radio" /><div class="tabbed-labels"><label for="__tabbed_8_1">Mast</label><label for="__tabbed_8_2">Python</label><label for="__tabbed_8_3">Output</label></div>
+<p>MAST supports match statements similar to python with match, case.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="8:3"><input checked="checked" id="__tabbed_8_1" name="__tabbed_8" type="radio" /><input id="__tabbed_8_2" name="__tabbed_8" type="radio" /><input id="__tabbed_8_3" name="__tabbed_8" type="radio" /><div class="tabbed-labels"><label for="__tabbed_8_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label><label for="__tabbed_8_2"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.25.18.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></svg></span> pyMAST</label><label for="__tabbed_8_3">Output</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <p>````
@@ -3883,7 +3999,6 @@ value = 300</p>
         log("300")
     case _:
         log*("something else")
-end_match
 ```</p>
 </div>
 <div class="tabbed-block">
@@ -3892,11 +4007,11 @@ def start(self):
     value = 300
     match value:
         case 200:
-            log &quot;200&quot;
+            log(&quot;200&quot;)
         case 300:
-            log &quot;300&quot;
+            log(&quot;300&quot;)
         case _:
-            log &quot;something else&quot;
+            log(&quot;something else&quot;)
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -3906,31 +4021,45 @@ def start(self):
 </div>
 </div>
 <h3 id="for-loops">For loops</h3>
-<p>MAST supports for loop similar to python with for, break, continue .
-MAST is not a whitespace language so you need to close an if with and next.</p>
+<p>MAST supports for loop similar to python with for, break, continue .</p>
 <p>pyMAST uses the standard python for or while loop.</p>
 <p>However, MAST support a for ... in loop and a for .. while loop.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="9:3"><input checked="checked" id="__tabbed_9_1" name="__tabbed_9" type="radio" /><input id="__tabbed_9_2" name="__tabbed_9" type="radio" /><input id="__tabbed_9_3" name="__tabbed_9" type="radio" /><div class="tabbed-labels"><label for="__tabbed_9_1">Mast</label><label for="__tabbed_9_2">Python</label><label for="__tabbed_9_3">Output</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="9:3"><input checked="checked" id="__tabbed_9_1" name="__tabbed_9" type="radio" /><input id="__tabbed_9_2" name="__tabbed_9" type="radio" /><input id="__tabbed_9_3" name="__tabbed_9" type="radio" /><div class="tabbed-labels"><label for="__tabbed_9_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label><label for="__tabbed_9_2"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.25.18.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></svg></span> pyMAST</label><label for="__tabbed_9_3">Output</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <p>```
 for x in range(3):
-    log("{x}")
-next x</p>
+    log("{x}")</p>
 <p>y = 10
 for z while y &lt; 30:
     log("{z} {y}")
-    y += 10
-next z</p>
+    y += 10</p>
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>for x in range(3):
-    log &quot;{x}&quot;
+    log(&quot;{x}&quot;)
 
 y = 10
 z = 0
 while y &lt; 30:
-    log &quot;{z} {y}&quot;
+    log(&quot;{z} {y}&quot;)
     y += 10
     z += 1
 </code></pre></div>
@@ -3950,7 +4079,24 @@ while y &lt; 30:
 <h3 id="comments_1">Comments</h3>
 <p>Single line comments start with a # and go until the end of the line.</p>
 <p>Comments use the # like python does</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="10:1"><input checked="checked" id="__tabbed_10_1" name="__tabbed_10" type="radio" /><div class="tabbed-labels"><label for="__tabbed_10_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="10:1"><input checked="checked" id="__tabbed_10_1" name="__tabbed_10" type="radio" /><div class="tabbed-labels"><label for="__tabbed_10_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>fred = 10 # set fred to 10
@@ -3960,7 +4106,24 @@ while y &lt; 30:
 </div>
 <h3 id="multi-line-comments-aka-block-comments">Multi line Comments aka block comments</h3>
 <p>You can have a c style block comment</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="11:1"><input checked="checked" id="__tabbed_11_1" name="__tabbed_11" type="radio" /><div class="tabbed-labels"><label for="__tabbed_11_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="11:1"><input checked="checked" id="__tabbed_11_1" name="__tabbed_11" type="radio" /><div class="tabbed-labels"><label for="__tabbed_11_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>/*********
@@ -3974,7 +4137,24 @@ This is the tricky part
 <p>Using block comments to 'disable' code it can quickly get confusing. Therefore, an additional block comment is supported.</p>
 <h2 id="importing">Importing</h2>
 <p>You can break up mast content into multiple files and use import to included them</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="12:1"><input checked="checked" id="__tabbed_12_1" name="__tabbed_12" type="radio" /><div class="tabbed-labels"><label for="__tabbed_12_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="12:1"><input checked="checked" id="__tabbed_12_1" name="__tabbed_12" type="radio" /><div class="tabbed-labels"><label for="__tabbed_12_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>import story_two.mast
@@ -3983,7 +4163,24 @@ This is the tricky part
 </div>
 </div>
 <p>The import command also supports importing from a zip fill</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="13:1"><input checked="checked" id="__tabbed_13_1" name="__tabbed_13" type="radio" /><div class="tabbed-labels"><label for="__tabbed_13_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="13:1"><input checked="checked" id="__tabbed_13_1" name="__tabbed_13" type="radio" /><div class="tabbed-labels"><label for="__tabbed_13_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>from my_lib.zip import bar.mast
@@ -3998,7 +4195,24 @@ This is the tricky part
 <p>The logger command sets up logging. </p>
 <p>Logging needs to be enabled</p>
 <p>Logging can enabled for stdout, to a string stream (stringIO) variable, and a file</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="14:2"><input checked="checked" id="__tabbed_14_1" name="__tabbed_14" type="radio" /><input id="__tabbed_14_2" name="__tabbed_14" type="radio" /><div class="tabbed-labels"><label for="__tabbed_14_1">Mast</label><label for="__tabbed_14_2">Python</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="14:2"><input checked="checked" id="__tabbed_14_1" name="__tabbed_14" type="radio" /><input id="__tabbed_14_2" name="__tabbed_14" type="radio" /><div class="tabbed-labels"><label for="__tabbed_14_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label><label for="__tabbed_14_2"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.25.18.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></svg></span> pyMAST</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code># enable logging to stdout
@@ -4028,7 +4242,24 @@ def some_label(self):
 <p>You can have multiple loggers, each logger can have separate strings, or files.</p>
 <p>The default logger does not need to specify the name.</p>
 <p>To create a new loggers by using the logger command specifying a name</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="15:1"><input checked="checked" id="__tabbed_15_1" name="__tabbed_15" type="radio" /><div class="tabbed-labels"><label for="__tabbed_15_1">Mast</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="15:1"><input checked="checked" id="__tabbed_15_1" name="__tabbed_15" type="radio" /><div class="tabbed-labels"><label for="__tabbed_15_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>logger(name=&quot;tonnage&quot;)
@@ -4038,7 +4269,7 @@ logger(name=&quot;tonnage&quot;,file=&quot;{get_mission_dir()}/tonnage.txt&quot;
 </div>
 </div>
 </div>
-<p>==== "Python"
+<p>==== "<span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.25.18.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></svg></span> pyMAST"
     <div class="highlight"><pre><span></span><code># this import is needed for get_mission_dir
 from sbs_utils.fs import get_mission_dir
 
@@ -4050,7 +4281,24 @@ def some_label(self):
 </code></pre></div></p>
 <h3 id="log-command">log command</h3>
 <p>The log command is how you send messages to the log.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="16:2"><input checked="checked" id="__tabbed_16_1" name="__tabbed_16" type="radio" /><input id="__tabbed_16_2" name="__tabbed_16" type="radio" /><div class="tabbed-labels"><label for="__tabbed_16_1">Mast</label><label for="__tabbed_16_2">Python</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="16:2"><input checked="checked" id="__tabbed_16_1" name="__tabbed_16" type="radio" /><input id="__tabbed_16_2" name="__tabbed_16" type="radio" /><div class="tabbed-labels"><label for="__tabbed_16_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label><label for="__tabbed_16_2"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.25.18.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></svg></span> pyMAST</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code># no logger name defaults to name &quot;mast&quot;
@@ -4071,7 +4319,24 @@ def some_label(self):
 </div>
 </div>
 <p>The log command can accept levels. These are visible is the stdout messages.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="17:2"><input checked="checked" id="__tabbed_17_1" name="__tabbed_17" type="radio" /><input id="__tabbed_17_2" name="__tabbed_17" type="radio" /><div class="tabbed-labels"><label for="__tabbed_17_1">Mast</label><label for="__tabbed_17_2">Python</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="17:2"><input checked="checked" id="__tabbed_17_1" name="__tabbed_17" type="radio" /><input id="__tabbed_17_2" name="__tabbed_17" type="radio" /><div class="tabbed-labels"><label for="__tabbed_17_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label><label for="__tabbed_17_2"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.25.18.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></svg></span> pyMAST</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>log(&quot;Hello, World&quot;, level=&quot;info&quot;)
@@ -4097,7 +4362,24 @@ The gui clock is running continuously (realtime). The sim clock can be paused wh
 <p>For gui and other things use the gui clock.
 If you want to delay 10s of game time use sim.</p>
 <p>Delay can specify minutes and seconds.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="18:2"><input checked="checked" id="__tabbed_18_1" name="__tabbed_18" type="radio" /><input id="__tabbed_18_2" name="__tabbed_18" type="radio" /><div class="tabbed-labels"><label for="__tabbed_18_1">Mast</label><label for="__tabbed_18_2">Python</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="18:2"><input checked="checked" id="__tabbed_18_1" name="__tabbed_18" type="radio" /><input id="__tabbed_18_2" name="__tabbed_18" type="radio" /><div class="tabbed-labels"><label for="__tabbed_18_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label><label for="__tabbed_18_2"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.25.18.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></svg></span> pyMAST</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>await delay_app(minutes=1)
@@ -4116,20 +4398,35 @@ yield AWAIT(delay_sim(0, 10))
 </div>
 </div>
 <p>Delay can delay the flow of the code</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="19:3"><input checked="checked" id="__tabbed_19_1" name="__tabbed_19" type="radio" /><input id="__tabbed_19_2" name="__tabbed_19" type="radio" /><input id="__tabbed_19_3" name="__tabbed_19" type="radio" /><div class="tabbed-labels"><label for="__tabbed_19_1">Mast</label><label for="__tabbed_19_2">Python</label><label for="__tabbed_19_3">Output</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="19:3"><input checked="checked" id="__tabbed_19_1" name="__tabbed_19" type="radio" /><input id="__tabbed_19_2" name="__tabbed_19" type="radio" /><input id="__tabbed_19_3" name="__tabbed_19" type="radio" /><div class="tabbed-labels"><label for="__tabbed_19_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label><label for="__tabbed_19_2"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.25.18.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></svg></span> pyMAST</label><label for="__tabbed_19_3">Output</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>for x in range(3):
     log(&quot;{x}&quot;)
     await delay_app(1)
-next x
 </code></pre></div>
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>for x in range(3):
     log(&quot;{x}&quot;)
     yield AWAIT(delay_app(1))
-next x
 </code></pre></div>
 </div>
 <div class="tabbed-block">
