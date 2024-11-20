@@ -116,7 +116,7 @@ Create a module for the mission.
 - Create a folder in the mission folder called maps
 - create an \__init__.mast file
 - create one or more {{ab.m}} files or python files in the folder
-- move the code from story.mast to map.mast if the module folder maps
+- move the code from story.mast to map.mast in the module folder maps
 - add an import statement 
 
 ### \___import___.mast
@@ -135,7 +135,7 @@ Create a module for the mission.
     " and it's description
     ```
 
-story.mast should now be empty except for those three lines, but keep it for later since the system expects it to exist. It can also be used for code in the future.
+story.mast should now be empty, but keep it for later since the system expects it to exist. It can also be used for code in the future.
 
 
 ### Fished step two: Modular map
@@ -147,7 +147,7 @@ The finished code for this step is here:
 
 ## Multiple maps and a mission overview
 
-Multiple map labels can be create. Each of these will be discovered and presented as option in the mission selection carousel.
+Multiple map labels can be created. Each of these will be discovered and presented as option in the mission selection carousel.
 
 Additionally, the mission overview text (the title and description at the top of the selections screen) can be set using a specific __overview_ map label.
 
