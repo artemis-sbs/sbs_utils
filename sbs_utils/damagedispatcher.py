@@ -46,25 +46,25 @@ class DamageDispatcher:
     
     def remove_source(id: int):
         # Callback should have arguments of other object's id, message
-        DamageDispatcher._dispatch_source.pop(id)
+        DamageDispatcher._dispatch_source.pop(id, None)
 
     def remove_target(id: int):
         # Callback should have arguments of other object's id, message
-        DamageDispatcher._dispatch_target.pop(id)
+        DamageDispatcher._dispatch_target.pop(id, None)
 
     def remove_any(cb: typing.Callable):
         DamageDispatcher._dispatch_any.discard(cb)
 
     def remove_internal(id: int):
         # Callback should have arguments of other object's id, message
-        DamageDispatcher._dispatch_internal.pop(id)
+        DamageDispatcher._dispatch_internal.pop(id, None)
 
     def remove_any_internal(cb: typing.Callable):
         DamageDispatcher._dispatch_any_internal.discard(cb)
 
     def remove_heat(id: int):
         # Callback should have arguments of other object's id, message
-        DamageDispatcher._dispatch_heat.pop(id)
+        DamageDispatcher._dispatch_heat.pop(id, None)
 
     def remove_any_heat(cb: typing.Callable):
         DamageDispatcher._dispatch_any_heat.discard(cb)
@@ -74,7 +74,7 @@ class DamageDispatcher:
 
     def remove_killed(id :int):
         # Callback should have arguments of other object's id, message
-        DamageDispatcher._dispatch_killed.pop(id)
+        DamageDispatcher._dispatch_killed.pop(id, None)
 
     def add_any_killed(cb: typing.Callable):
         DamageDispatcher._dispatch_any_killed.add(cb)

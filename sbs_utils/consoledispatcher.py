@@ -117,12 +117,12 @@ class ConsoleDispatcher:
         if not key in ConsoleDispatcher._dispatch_select:
             return
         if cb is None:
-            ConsoleDispatcher._dispatch_select.pop((an_id, console))
+            ConsoleDispatcher._dispatch_select.pop((an_id, console),None)
         else:
             collection = ConsoleDispatcher._dispatch_select.get(key, set())
             collection.discard(cb)
             if len(collection) == 0:
-                ConsoleDispatcher._dispatch_select.pop((an_id, console))
+                ConsoleDispatcher._dispatch_select.pop((an_id, console), None)
             else:
                 ConsoleDispatcher._dispatch_select[key] = collection
 
@@ -134,7 +134,7 @@ class ConsoleDispatcher:
         :param console: The consoles unique ID
         :type console: string
         """
-        ConsoleDispatcher._dispatch_select.pop((an_id, another_id, console))
+        ConsoleDispatcher._dispatch_select.pop((an_id, another_id, console), None)
 
     def remove_message(an_id: int, console: str, cb=None):
         """ remove a target for console messages
@@ -148,12 +148,12 @@ class ConsoleDispatcher:
         if not key in ConsoleDispatcher._dispatch_messages:
             return
         if cb is None:
-            ConsoleDispatcher._dispatch_messages.pop((an_id, console))
+            ConsoleDispatcher._dispatch_messages.pop((an_id, console), None)
         else:
             collection = ConsoleDispatcher._dispatch_messages.get(key, set())
             collection.discard(cb)
             if len(collection) == 0:
-                ConsoleDispatcher._dispatch_messages.pop((an_id, console))
+                ConsoleDispatcher._dispatch_messages.pop((an_id, console), None)
             else:
                 ConsoleDispatcher._dispatch_messages[key] = collection
 
@@ -165,7 +165,7 @@ class ConsoleDispatcher:
         :param console: The consoles unique ID
         :type console: string
         """
-        ConsoleDispatcher._dispatch_messages.pop((an_id, another_id, console))
+        ConsoleDispatcher._dispatch_messages.pop((an_id, another_id, console), None)
 
     def dispatch_select(event):
         """ dispatches a console selection
