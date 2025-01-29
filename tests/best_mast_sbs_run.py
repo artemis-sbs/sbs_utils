@@ -1,5 +1,4 @@
 from sbs_utils.mast.mast import Mast
-from sbs_utils.mast.mastsbs import MastSbs
 from sbs_utils.mast.mastsbsrunner import MastSbsRunner
 import unittest
 

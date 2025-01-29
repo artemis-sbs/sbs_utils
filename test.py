@@ -21,4 +21,3 @@ print("R"+str(random_bits(6,3)))
 print("R"+str(random_bits(6,3)))
 print("R"+str(random_bits(6,3)))
 print("R"+str(random_bits(6,3)))
-

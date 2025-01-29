@@ -2,6 +2,7 @@ from ..agent import Agent, CloseData, SpawnData
 from .query import to_set, to_list, to_object, to_id, object_exists
 from ..helpers import FrameContext
 from ..vec import Vec3
+from .roles import all_roles
 import sbs
 
 
@@ -313,3 +314,60 @@ def set_engineering_value(id_or_obj, name, value):
         if label.lower() == name.lower():
             return so.data_set.set("eng_control_value", value, x)
     return
+
+
+
+def remove_objects_sphere(x,y,z, radius, abits=0x0F, roles=None):
+    """ Removes items from an area
+        
+    Args:
+        x,y,z (float,float,float): the start point/origin
+        radius (float): the radius 
+        abits = the engine level bit test for broadtest
+        roles = limit to specified roles
+    """
+    ids = broad_test(x-radius, z-radius, x+radius, z+radius, abits)
+    if roles is not None:
+        ids = ids & all_roles(roles)
+
+    r = radius * radius
+    mid = Vec3(x,y,z)
+    for id in ids:
+        obj = to_object(id)
+        if obj is None:
+            continue
+        pos = Vec3(obj.pos)
+        diff = mid-pos
+        if diff.dot(diff) <= r:
+            obj.remove()
+            sbs.delete_object(id)
+
+
+
+def remove_objects_box(x,y,z, w,h,d, abits=0x0F, roles=None):
+    """ Removes items from an area
+        
+    Args:
+        x,y,z (float,float,float): the start point/origin
+        radius (float): the radius 
+        abits = the engine level bit test for broadtest
+        roles = limit to specified roles
+    """
+    ids = broad_test(x-w, z-d, x+w, z+d, abits)
+    if roles is not None:
+        ids = ids & all_roles(roles)
+
+    for id in ids:
+        obj = to_object(id)
+        if obj is None:
+            continue
+        pos = Vec3(obj.pos)
+
+        if abs(pos.y-y) <= h:
+            obj.remove()
+            sbs.delete_object(id)
+
+
+    
+
+

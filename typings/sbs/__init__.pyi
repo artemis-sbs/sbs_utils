@@ -178,7 +178,7 @@ def set_dmx_channel(clientID: int, channel: int, behavior: int, speed: int, low:
     """set a color channel of dmx."""
 def set_main_view_modes(clientID: int, main_screen_view: str, cam_angle: str, cam_mode: str) -> None:
     """sets the three modes of the main screen view for the specified client.  main_screen_view = (3d_view, info, data);  cam_angle = (front, back, left, right); cam_mode = (first_person, chase, tracking)"""
-def set_music_folder(ID: int, filename: str) -> None:
+def set_music_folder(ID: int, filename: str, baseDir:str or None) -> None:
     """Sets the folder from which music is streamed; ID is ship, OR client, OR zero for server."""
 def set_music_tension(ID: int, tensionValue: float) -> None:
     """Sets the tension value of ambient music (0-100); ID is ship, OR client, OR zero for server."""

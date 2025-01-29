@@ -77,6 +77,7 @@ from ..procedural import signal
 from ..procedural import maps
 from ..procedural import mission
 from ..procedural import media
+from ..cards import card
 
 
 Mast.import_python_module('sbs_utils.procedural.query')
@@ -99,6 +100,7 @@ Mast.import_python_module('sbs_utils.procedural.signal')
 Mast.import_python_module('sbs_utils.procedural.maps')
 Mast.import_python_module('sbs_utils.procedural.mission')
 Mast.import_python_module('sbs_utils.procedural.media')
+Mast.import_python_module('sbs_utils.cards.card')
 Mast.import_python_module('sbs_utils.faces')
 Mast.import_python_module('sbs_utils.fs')
 Mast.import_python_module('sbs_utils.vec')
