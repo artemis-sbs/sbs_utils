@@ -92,3 +92,106 @@ class LoopBreak(MastNode):
         else:
             self.if_code = None
 
+from ..pollresults import PollResults
+from ..mast_runtime_node import MastRuntimeNode, mast_runtime_node
+from ..mast import Scope
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ..mast import Mast
+    from ..mastscheduler import MastAsyncTask
+
+@mast_runtime_node(LoopStart)
+class LoopStartRuntimeNode(MastRuntimeNode):
+    def enter(self, mast, task:'MastAsyncTask', node:LoopStart):
+        #scoped_val = task.get_scoped_value(node.name, Scope.TEMP, None)
+        scoped_cond = task.get_scoped_value(node.name+"__iter", None, Scope.TEMP)
+        # The loop is running if cond
+        if scoped_cond is None:
+            # set cond to true to show we have initialized
+            # setting to -1 to start it will be made 0 in poll
+            if node.is_while:
+                task.set_value(node.name, -1, Scope.TEMP)
+                task.set_value(node.name+"__iter", True, Scope.TEMP)
+            else:
+                value = task.eval_code(node.code)
+                try:
+                    _iter = iter(value)
+                    task.set_value(node.name+"__iter", _iter, Scope.TEMP)
+                except TypeError:
+                    task.set_value(node.name+"__iter", False, Scope.TEMP)
+
+    def poll(self, mast, task, node:LoopStart):
+        # All the time if iterable
+        # Value is an index
+        current = task.get_scoped_value(node.name, None, Scope.TEMP)
+        scoped_cond = task.get_scoped_value(node.name+"__iter", None, Scope.TEMP)
+        if node.is_while:
+            current += 1
+            task.set_value(node.name, current, Scope.TEMP)
+            if node.code:
+                value = task.eval_code(node.code)
+                if value == False:
+                    inline_label = f"{task.active_label}:{node.name}"
+                    # End loop clear value
+                    task.set_value(node.name, None, Scope.TEMP)
+                    task.set_value(node.name+"__iter", None, Scope.TEMP)
+                    task.jump(task.active_label, node.dedent_loc)
+                    return PollResults.OK_JUMP
+
+            
+        elif scoped_cond == False:
+            print("Possible badly formed for")
+            # End loop clear value
+            task.set_value(node.name, None, Scope.TEMP)
+            task.set_value(node.name+"__iter", None, Scope.TEMP)
+            task.jump(task.active_label, node.dedent_loc)
+            #task.jump_inline_end(inline_label, False)
+            return PollResults.OK_JUMP
+        else:
+            try:
+                current = next(scoped_cond)
+                task.set_value(node.name, current, Scope.TEMP)
+            except StopIteration:
+                # done iterating jump to end
+                task.set_value(node.name, None, Scope.TEMP)
+                task.set_value(node.name+"__iter", None, Scope.TEMP)
+                task.jump(task.active_label, node.dedent_loc)
+                return PollResults.OK_JUMP
+        return PollResults.OK_ADVANCE_TRUE
+
+@mast_runtime_node(LoopEnd)
+class LoopEndRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task, node:LoopEnd):
+        task.jump(task.active_label, node.start.loc)
+        return PollResults.OK_JUMP
+        # return PollResults.OK_ADVANCE_TRUE
+
+@mast_runtime_node(LoopBreak)
+class LoopBreakRuntimeNode(MastRuntimeNode):
+    def enter(self, mast, task:'MastAsyncTask', node:LoopBreak):
+        scoped_val = task.get_value(node.start.name, None)
+        index = scoped_val[0]
+        scope = scoped_val[1]
+        if index is None:
+            scope = Scope.TEMP
+        self.scope = scope
+
+    def poll(self, mast, task, node:LoopBreak):
+        if node.if_code:
+            value = task.eval_code(node.if_code)
+            if not value:
+                return PollResults.OK_ADVANCE_TRUE
+            
+        if node.op == 'break':
+            #task.jump_inline_end(inline_label, True)
+            task.set_value(node.start.name, None, self.scope)
+            task.set_value(node.start.name+"__iter", None, Scope.TEMP)
+            task.jump(task.active_label, node.start.dedent_loc)
+            # End loop clear value
+            
+            return PollResults.OK_JUMP
+        elif node.op == 'continue':
+            task.jump(task.active_label, node.start.loc)
+            #task.jump_inline_start(inline_label)
+            return PollResults.OK_JUMP
+        return PollResults.OK_ADVANCE_TRUE

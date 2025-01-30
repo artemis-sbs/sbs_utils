@@ -67,3 +67,74 @@ class AwaitInlineLabel(MastNode):
         """ cascade the dedent up to the start"""
         self.dedent_loc = loc+1
         
+   
+from ..pollresults import PollResults
+from ..mast_runtime_node import MastRuntimeNode, mast_runtime_node
+from ..mast import Scope
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ..mast import Mast
+    from ..mastscheduler import MastAsyncTask
+from ...futures import Promise
+
+@mast_runtime_node(Await)
+class AwaitRuntimeNode(MastRuntimeNode):
+    def leave(self, mast:'Mast', task:'MastAsyncTask', node: Await):
+        #print("AWAIT Leave")
+        if self.promise is not None:
+            self.promise.cancel("Canceled by Await leave")
+    
+    def enter(self, mast:'Mast', task:'MastAsyncTask', node: Await):
+        self.promise = None
+        if node.is_end:
+            return
+        value = task.eval_code(node.code)
+        if isinstance(value, Promise):
+            self.promise = value
+            self.promise.inlines = node.inlines
+            self.promise.buttons = node.buttons
+
+        
+    def poll(self, mast:'Mast', task:'MastAsyncTask', node: Await):
+        if node.is_end:
+            task.jump(task.active_label, node.dedent_loc)
+            return PollResults.OK_JUMP
+        
+      
+        if self.promise:
+            res = self.promise.poll()
+            if res == PollResults.OK_JUMP:
+                return PollResults.OK_JUMP
+            
+            if self.promise.done():
+                #print(f"{self.promise.__class__.__name__} {task.active_label} {node.end_await_node.loc+1}")
+                #print("Promise Done")
+                task.jump(task.active_label, node.dedent_loc)
+                return PollResults.OK_JUMP
+            else:
+                return PollResults.OK_RUN_AGAIN
+        
+        value = task.eval_code(node.code)
+        if value:
+            #print("Value related")
+            #print(f"value {node.end_await_node.loc+1}")
+            task.jump(task.active_label, node.dedent_loc)
+            return PollResults.OK_JUMP
+
+      
+
+        return PollResults.OK_RUN_AGAIN
+
+@mast_runtime_node(AwaitInlineLabel)
+class AwaitInlineLabelRuntimeNode(MastRuntimeNode):
+    def leave(self, mast:'Mast', task:'MastAsyncTask', node: AwaitInlineLabel):
+        print("INline Await leave")
+
+    def enter(self, mast:'Mast', task:'MastAsyncTask', node: AwaitInlineLabel):
+        self.node_label = self.task.active_label
+    def poll(self, mast:'Mast', task:'MastAsyncTask', node: AwaitInlineLabel):
+        if node.await_node:
+            task.jump(self.node_label, node.await_node.end_await_node.dedent_loc)
+            #task.jump(task.active_label,node.await_node.loc)
+            return PollResults.OK_JUMP
+        return PollResults.OK_ADVANCE_TRUE

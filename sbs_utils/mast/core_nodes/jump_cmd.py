@@ -21,4 +21,24 @@ class Jump(MastNode):
             data = data.lstrip()
             self.data = compile(data, "<string>", "eval")
 
+from ..pollresults import PollResults
+from ..mast_runtime_node import MastRuntimeNode, mast_runtime_node
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ..mast import Mast
+    from ..mastscheduler import MastAsyncTask
+   
+
+@mast_runtime_node(Jump)
+class JumpRuntimeNode(MastRuntimeNode):
+    def poll(self, mast:'Mast', task:'MastAsyncTask', node:Jump):
+        if node.if_code:
+            value = task.eval_code(node.if_code)
+            if not value:
+                return PollResults.OK_ADVANCE_TRUE
+        
+        task.jump(node.label)
+        return PollResults.OK_JUMP
+
+
 

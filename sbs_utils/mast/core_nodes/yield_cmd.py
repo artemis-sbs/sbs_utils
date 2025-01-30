@@ -1,4 +1,6 @@
 from ..mast import MastNode, mast_node, ParseData
+from ..mast_runtime_node import MastRuntimeNode, mast_runtime_node
+from ..pollresults import PollResults
 import re
 
 
@@ -49,4 +51,25 @@ class Yield(MastNode):
         
 
 
-
+@mast_runtime_node(Yield)
+class YieldRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task, node:Yield):
+        if node.if_code:
+            value = task.eval_code(node.if_code)
+            if not value:
+                return PollResults.OK_ADVANCE_TRUE
+        if node.code is not None:
+            value = task.eval_code(node.code)
+            task.yield_results = value
+        if node.result.lower() == 'fail':
+            return PollResults.FAIL_END
+        if node.result.lower() == 'success':
+            return PollResults.OK_END
+        if node.result.lower() == 'end':
+            return PollResults.OK_END
+        if node.result.lower() == 'idle':
+            return PollResults.OK_IDLE
+        if node.result.lower() == 'result':
+            return PollResults.OK_YIELD
+        print("GONE ASTRAY")
+        return PollResults.OK_RUN_AGAIN

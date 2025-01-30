@@ -19,3 +19,10 @@ class InlineLabel(MastNode):
     def never_indent(self):
         return True
     
+
+
+from ..mast_runtime_node import MastRuntimeNode, mast_runtime_node
+
+@mast_runtime_node(InlineLabel)
+class InlineLabelRuntimeNode(MastRuntimeNode):
+    pass

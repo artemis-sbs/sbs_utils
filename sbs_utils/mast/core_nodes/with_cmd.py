@@ -70,3 +70,43 @@ class WithStart(MastNode):
         self.dedent_loc = loc+1
         return end
    
+from ..pollresults import PollResults
+from ..mast_runtime_node import MastRuntimeNode, mast_runtime_node
+from ..mast import Scope
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ..mast import Mast
+    from ..mastscheduler import MastAsyncTask
+
+@mast_runtime_node(WithStart)
+class WithStartRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task, node:WithStart):
+        value = task.eval_code(node.code)
+        if value is None:
+            return PollResults.OK_ADVANCE_TRUE
+        
+        if node.name is not None:
+            task.set_value(node.name, value, Scope.NORMAL)
+        task.set_value(node.with_name, value, Scope.NORMAL)
+
+        if not hasattr(value, '__enter__'):
+            return PollResults.OK_ADVANCE_TRUE
+        value.__enter__()
+        
+        return PollResults.OK_ADVANCE_TRUE
+    
+    
+@mast_runtime_node(WithEnd)
+class WithEndRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task, node:WithEnd):
+        value = task.get_variable(node.start.with_name)
+        if value is None:
+            return PollResults.OK_ADVANCE_TRUE
+        if not hasattr(value, '__exit__'):
+            return PollResults.OK_ADVANCE_TRUE
+        value.__exit__()
+        # In case then WithEnd runs again?
+        #task.set_variable(node.start.with_name, None)
+        return PollResults.OK_ADVANCE_TRUE
+
+

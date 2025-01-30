@@ -1,62 +1,24 @@
 from __future__ import annotations
-from enum import IntEnum
 from functools import partial
 import inspect
-from typing import List
 from .mast import *
 import time
-import traceback
 from ..agent import Agent, get_task_id
 from ..helpers import FrameContext, format_exception
-from ..futures import Promise, Waiter, Trigger
+from ..futures import Promise, Waiter
 from .label import get_fall_through
 from .pollresults import PollResults
+
 from .core_nodes.label import Label
 from .core_nodes.inline_label import InlineLabel
 
-
-class MastRuntimeNode:
-    def enter(self, mast, scheduler, node):
-        pass
-    def leave(self, mast, scheduler, node):
-        pass
-    
-    def poll(self, mast, scheduler, node):
-        return PollResults.OK_ADVANCE_TRUE
-
-def mast_runtime_node(parser_node):
-    def dec_args(cls):
-        MastScheduler.runtime_nodes[parser_node.__name__] = cls
-        print(f"MAST RUNTIME NODE {parser_node.__name__}")
-        return cls
-    return dec_args
+from .mast_runtime_node import MastRuntimeNode
 
     
-class YieldRuntimeNode(MastRuntimeNode):
-    def poll(self, mast, task, node:Yield):
-        if node.if_code:
-            value = task.eval_code(node.if_code)
-            if not value:
-                return PollResults.OK_ADVANCE_TRUE
-        if node.code is not None:
-            value = task.eval_code(node.code)
-            task.yield_results = value
-        if node.result.lower() == 'fail':
-            return PollResults.FAIL_END
-        if node.result.lower() == 'success':
-            return PollResults.OK_END
-        if node.result.lower() == 'end':
-            return PollResults.OK_END
-        if node.result.lower() == 'idle':
-            return PollResults.OK_IDLE
-        if node.result.lower() == 'result':
-            return PollResults.OK_YIELD
-        print("GONE ASTRAY")
-        return PollResults.OK_RUN_AGAIN
     
     
 class ChangeRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Change):
+    def enter(self, mast:Mast, task:MastAsyncTask, node):
         self.task = task
         self.node = node
         self.value = task.eval_code(node.value) 
@@ -68,471 +30,13 @@ class ChangeRuntimeNode(MastRuntimeNode):
         return prev!=self.value
         
 
-    def poll(self, mast:Mast, task:MastAsyncTask, node: Change):
+    def poll(self, mast:Mast, task:MastAsyncTask, node):
         if node.await_node and node.await_node.dedent_loc:
             task.jump(self.node_label,node.await_node.dedent_loc)
             return PollResults.OK_JUMP
         return PollResults.OK_RUN_AGAIN
 
 
-
-from .core_nodes.assign import Assign
-class AssignRuntimeNode(MastRuntimeNode):
-    def __init__(self) -> None:
-        super().__init__()
-        self.promise = None
-
-    def poll(self, mast, task:MastAsyncTask, node:Assign):
-        #try:
-        if not self.promise:
-            value = task.eval_code(node.code)
-            if node.is_await and isinstance(value, Promise):
-                self.promise = value
-            elif isinstance(value, str):
-                value = task.compile_and_format_string(value)
-        
-            
-        if self.promise:
-            self.promise.poll()
-            # The assumes the promise is a task
-            if self.promise.done():
-                value = self.promise.result()
-            else:
-                return PollResults.OK_RUN_AGAIN
-            
-        start = None
-        if node.oper != Assign.EQUALS or node.is_default:
-            # Value should be set by here
-            if "." in node.lhs or "[" in node.lhs:
-                start = task.eval_code(f"""{node.lhs}""")
-            else:
-                start = task.get_variable(node.lhs, (None,))
-                if node.is_default and start!= (None,): 
-                    return PollResults.OK_ADVANCE_TRUE     
-
-        match node.oper:
-            case Assign.EQUALS:
-                pass
-            case Assign.INC:
-                value = start + value
-            case Assign.DEC:
-                value = start - value
-            case Assign.MUL:
-                value = start * value
-            case Assign.MOD:
-                value = start % value
-            case Assign.DIV:
-                value = start / value
-            case Assign.INT_DIV:
-                value = start // value
-
-        if "." in node.lhs or "[" in node.lhs:
-            task.exec_code(f"""{node.lhs} = __mast_value""",{"__mast_value": value}, None )
-            
-        elif node.scope: 
-            task.set_value(node.lhs, value, node.scope)
-        else:
-            task.set_value_keep_scope(node.lhs, value)
-            
-        # except:
-        #     task.main.runtime_error(f"assignment error {node.lhs}")
-        #     return PollResults.OK_END
-
-        return PollResults.OK_ADVANCE_TRUE
-
-class PyCodeRuntimeNode(MastRuntimeNode):
-    def poll(self, mast, task:MastAsyncTask, node:PyCode):
-        def export(cls):
-            add_to = task.main.inventory.collections
-            def decorator(*args, **kwargs):
-                # if 'task' in inspect.signature(cls).parameters:
-                #     kwargs['task'] = task
-                #add_to[cls.__name__] = cls
-                return cls(*args, **kwargs)
-            add_to[cls.__name__] = decorator
-            return decorator
-
-        def export_var(name, value, shared=False):
-            if shared:
-                #
-                #task.main.mast.vars[name] = value
-                Agent.SHARED.set_inventory_value(name, value, None)
-            else:
-                # task.main.vars[name] = value
-                task.main.set_inventory_value(name, value, None)
-        task.exec_code(node.code,{"export": export, "export_var": export_var}, None )
-        return PollResults.OK_ADVANCE_TRUE
-
-class FuncCommandRuntimeNode(MastRuntimeNode):
-    def enter(self, mast, task:MastAsyncTask, node:FuncCommand):
-        self.is_await = node.is_await
-        value = task.eval_code(node.code)
-        self.promise = None
-        if isinstance(value, Promise):
-            self.promise = value
-
-    def poll(self, mast, task:MastAsyncTask, node:FuncCommand):
-        if not node.is_await:
-            return PollResults.OK_ADVANCE_TRUE
-    
-        if self.promise:
-            res = self.promise.poll()
-            if res == PollResults.OK_JUMP:
-                return PollResults.OK_JUMP
-
-            if self.promise.done():
-                return PollResults.OK_ADVANCE_TRUE
-            else:
-                return PollResults.OK_RUN_AGAIN
-
-        value = task.eval_code(node.code)
-        if value:
-            return PollResults.OK_ADVANCE_TRUE
-
-        return PollResults.OK_RUN_AGAIN    
-
-class JumpRuntimeNode(MastRuntimeNode):
-    def poll(self, mast:Mast, task:MastAsyncTask, node:Jump):
-        if node.if_code:
-            value = task.eval_code(node.if_code)
-            if not value:
-                return PollResults.OK_ADVANCE_TRUE
-            
-        
-        task.jump(node.label)
-        return PollResults.OK_JUMP
-
-
-
-class LoopStartRuntimeNode(MastRuntimeNode):
-    def enter(self, mast, task:MastAsyncTask, node:LoopStart):
-        #scoped_val = task.get_scoped_value(node.name, Scope.TEMP, None)
-        scoped_cond = task.get_scoped_value(node.name+"__iter", None, Scope.TEMP)
-        # The loop is running if cond
-        if scoped_cond is None:
-            # set cond to true to show we have initialized
-            # setting to -1 to start it will be made 0 in poll
-            if node.is_while:
-                task.set_value(node.name, -1, Scope.TEMP)
-                task.set_value(node.name+"__iter", True, Scope.TEMP)
-            else:
-                value = task.eval_code(node.code)
-                try:
-                    _iter = iter(value)
-                    task.set_value(node.name+"__iter", _iter, Scope.TEMP)
-                except TypeError:
-                    task.set_value(node.name+"__iter", False, Scope.TEMP)
-
-    def poll(self, mast, task, node:LoopStart):
-        # All the time if iterable
-        # Value is an index
-        current = task.get_scoped_value(node.name, None, Scope.TEMP)
-        scoped_cond = task.get_scoped_value(node.name+"__iter", None, Scope.TEMP)
-        if node.is_while:
-            current += 1
-            task.set_value(node.name, current, Scope.TEMP)
-            if node.code:
-                value = task.eval_code(node.code)
-                if value == False:
-                    inline_label = f"{task.active_label}:{node.name}"
-                    # End loop clear value
-                    task.set_value(node.name, None, Scope.TEMP)
-                    task.set_value(node.name+"__iter", None, Scope.TEMP)
-                    task.jump(task.active_label, node.dedent_loc)
-                    return PollResults.OK_JUMP
-
-            
-        elif scoped_cond == False:
-            print("Possible badly formed for")
-            # End loop clear value
-            task.set_value(node.name, None, Scope.TEMP)
-            task.set_value(node.name+"__iter", None, Scope.TEMP)
-            task.jump(task.active_label, node.dedent_loc)
-            #task.jump_inline_end(inline_label, False)
-            return PollResults.OK_JUMP
-        else:
-            try:
-                current = next(scoped_cond)
-                task.set_value(node.name, current, Scope.TEMP)
-            except StopIteration:
-                # done iterating jump to end
-                task.set_value(node.name, None, Scope.TEMP)
-                task.set_value(node.name+"__iter", None, Scope.TEMP)
-                task.jump(task.active_label, node.dedent_loc)
-                return PollResults.OK_JUMP
-        return PollResults.OK_ADVANCE_TRUE
-
-class LoopEndRuntimeNode(MastRuntimeNode):
-    def poll(self, mast, task, node:LoopEnd):
-        task.jump(task.active_label, node.start.loc)
-        return PollResults.OK_JUMP
-        # return PollResults.OK_ADVANCE_TRUE
-
-
-class LoopBreakRuntimeNode(MastRuntimeNode):
-    def enter(self, mast, task:MastAsyncTask, node:LoopBreak):
-        scoped_val = task.get_value(node.start.name, None)
-        index = scoped_val[0]
-        scope = scoped_val[1]
-        if index is None:
-            scope = Scope.TEMP
-        self.scope = scope
-
-    def poll(self, mast, task, node:LoopBreak):
-        if node.if_code:
-            value = task.eval_code(node.if_code)
-            if not value:
-                return PollResults.OK_ADVANCE_TRUE
-            
-        if node.op == 'break':
-            #task.jump_inline_end(inline_label, True)
-            task.set_value(node.start.name, None, self.scope)
-            task.set_value(node.start.name+"__iter", None, Scope.TEMP)
-            task.jump(task.active_label, node.start.dedent_loc)
-            # End loop clear value
-            
-            return PollResults.OK_JUMP
-        elif node.op == 'continue':
-            task.jump(task.active_label, node.start.loc)
-            #task.jump_inline_start(inline_label)
-            return PollResults.OK_JUMP
-        return PollResults.OK_ADVANCE_TRUE
-
-class WithStartRuntimeNode(MastRuntimeNode):
-    def poll(self, mast, task, node:WithStart):
-        value = task.eval_code(node.code)
-        if value is None:
-            return PollResults.OK_ADVANCE_TRUE
-        
-        if node.name is not None:
-            task.set_value(node.name, value, Scope.NORMAL)
-        task.set_value(node.with_name, value, Scope.NORMAL)
-
-        if not hasattr(value, '__enter__'):
-            return PollResults.OK_ADVANCE_TRUE
-        value.__enter__()
-        
-        return PollResults.OK_ADVANCE_TRUE
-
-class WithEndRuntimeNode(MastRuntimeNode):
-    def poll(self, mast, task, node:WithEnd):
-        value = task.get_variable(node.start.with_name)
-        if value is None:
-            return PollResults.OK_ADVANCE_TRUE
-        if not hasattr(value, '__exit__'):
-            return PollResults.OK_ADVANCE_TRUE
-        value.__exit__()
-        # In case then WithEnd runs again?
-        #task.set_variable(node.start.with_name, None)
-        return PollResults.OK_ADVANCE_TRUE
-
-
-
-class IfStatementsRuntimeNode(MastRuntimeNode):
-    def poll(self, mast, task, node:IfStatements):
-        """ """
-        # if this is THE if, find the first true branch
-        if node.if_op == "if":
-            activate = self.first_true(task, node)
-            if activate is not None:
-                task.jump(task.active_label, activate.loc+1)
-                return PollResults.OK_JUMP
-
-        # Everything else jumps to past all things involved in this chain
-        if node.if_node.dedent_loc is not None:
-            task.jump(task.active_label, node.if_node.dedent_loc)
-            return PollResults.OK_JUMP
-        else:
-            print("DEDENT IS NONE IN AN IF")
-
-    def first_true(self, task: MastAsyncTask, node: IfStatements):
-        cmd_to_run = None
-        for i in node.if_chain:
-            test_node = i # task.mast_ticker.cmds[i]
-            if test_node.code:
-                value = task.eval_code(test_node.code)
-                if value:
-                    cmd_to_run = i
-                    break
-            elif test_node.end == 'else:':
-                cmd_to_run = i
-                break
-            elif test_node.end == 'end_if':
-                cmd_to_run = i
-                break
-
-        return cmd_to_run
-
-class MatchStatementsRuntimeNode(MastRuntimeNode):
-    def poll(self, mast, task, node:MatchStatements):
-        """ """
-        # if this is THE if, find the first true branch
-        if node.op == "match":
-            activate = self.first_true(task, node)
-            if activate is not None:
-                task.jump(task.active_label, activate.loc+1)
-                return PollResults.OK_JUMP
-            
-        task.jump(task.active_label, node.match_node.dedent_loc)
-        return PollResults.OK_JUMP
-
-    def first_true(self, task: MastAsyncTask, node: MatchStatements):
-        cmd_to_run = None
-        for i in node.chain:
-            test_node = i # task.mast_ticker.cmds[i]
-            if test_node.code:
-                value = task.eval_code(test_node.code)
-                if value:
-                    cmd_to_run = i
-                    break
-            elif test_node.end == 'case_:':
-                cmd_to_run = i
-                break
-            elif test_node.end == 'end_match':
-                cmd_to_run = i
-                break
-
-        return cmd_to_run
-
-
-    
-
-
-class AwaitRuntimeNode(MastRuntimeNode):
-    def leave(self, mast:Mast, task:MastAsyncTask, node: Await):
-        #print("AWAIT Leave")
-        if self.promise is not None:
-            self.promise.cancel("Canceled by Await leave")
-    
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Await):
-        self.promise = None
-        if node.is_end:
-            return
-        value = task.eval_code(node.code)
-        if isinstance(value, Promise):
-            self.promise = value
-            self.promise.inlines = node.inlines
-            self.promise.buttons = node.buttons
-
-        
-    def poll(self, mast:Mast, task:MastAsyncTask, node: Await):
-        if node.is_end:
-            task.jump(task.active_label, node.dedent_loc)
-            return PollResults.OK_JUMP
-        
-      
-        if self.promise:
-            res = self.promise.poll()
-            if res == PollResults.OK_JUMP:
-                return PollResults.OK_JUMP
-            
-            if self.promise.done():
-                #print(f"{self.promise.__class__.__name__} {task.active_label} {node.end_await_node.loc+1}")
-                #print("Promise Done")
-                task.jump(task.active_label, node.dedent_loc)
-                return PollResults.OK_JUMP
-            else:
-                return PollResults.OK_RUN_AGAIN
-        
-        value = task.eval_code(node.code)
-        if value:
-            #print("Value related")
-            #print(f"value {node.end_await_node.loc+1}")
-            task.jump(task.active_label, node.dedent_loc)
-            return PollResults.OK_JUMP
-
-      
-
-        return PollResults.OK_RUN_AGAIN
-
-class InlineLabelRuntimeNode(MastRuntimeNode):
-    pass
-
-
-class AwaitInlineLabelRuntimeNode(MastRuntimeNode):
-    def leave(self, mast:Mast, task:MastAsyncTask, node: AwaitInlineLabel):
-        print("INline Await leave")
-
-    def enter(self, mast:Mast, task:MastAsyncTask, node: AwaitInlineLabel):
-        self.node_label = self.task.active_label
-    def poll(self, mast:Mast, task:MastAsyncTask, node: AwaitInlineLabel):
-        if node.await_node:
-            task.jump(self.node_label, node.await_node.end_await_node.dedent_loc)
-            #task.jump(task.active_label,node.await_node.loc)
-            return PollResults.OK_JUMP
-        return PollResults.OK_ADVANCE_TRUE
-
-from ..procedural.gui import ButtonPromise
-class ButtonRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Button):
-        self.node_label = task.active_label
-        if node.await_node is None:
-            p = ButtonPromise.navigating_promise
-            if p is not None:
-                #
-                # This is clone so this should be OK
-                #
-                clone = node.clone()
-                clone.resolve_data_context(task)
-                p.add_nav_button(clone)
-    def poll(self, mast:Mast, task:MastAsyncTask, node: Button):
-        if node.await_node:
-            task.jump(self.node_label, node.await_node.end_await_node.dedent_loc)
-            return PollResults.OK_JUMP
-        if node.is_block:
-            task.jump(self.node_label, node.dedent_loc)
-            return PollResults.OK_JUMP
-        return PollResults.OK_ADVANCE_TRUE
-
-class OnChangeRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: OnChange):
-        self.task = task
-        self.node = node
-        self.is_running = False
-        self.node_label = self.task.active_label
-        if not node.is_end:
-            self.value = task.eval_code(node.value)
-            # Triggers handle things themselves
-            if not isinstance(self.value, Trigger):  
-                task.queue_on_change(self)
-            # If the label is set don't override it
-            # Python must have set it
-            else:
-                self.value.loc = node.loc+1
-                self.value.label = task.active_label
-
-            # TODO
-            # Hmmm A little leakage that it uses PAGE
-            # Move this to Task>
-            #
-
-    def test(self):
-        prev = self.value
-        self.is_running = False
-        self.value = self.task.eval_code(self.node.value) 
-        return prev!=self.value
-    
-    def run(self):
-        self.is_running = True
-        self.task.push_inline_block(self.node_label, self.node.loc+1)
-        self.task.tick_in_context()
-
-    def dequeue(self):
-        pass
-
-    def poll(self, mast:Mast, task:MastAsyncTask, node: OnChange):
-        if node.is_end and self.is_running:
-            self.task.pop_label(False)
-            self.is_running = False
-            # This is run again intentionally
-            # The change aspect is done, no need to run anything 
-            # again for this fork of the task 
-            #
-            return PollResults.OK_RUN_AGAIN
-        if node.end_node:
-            self.task.jump(self.node_label, node.dedent_loc+1)
-            return PollResults.OK_JUMP
-        return PollResults.OK_RUN_AGAIN
 
 
 
@@ -1532,28 +1036,7 @@ class MastAsyncTask(Agent, Promise):
 
 
 class MastScheduler(Agent):
-    runtime_nodes = {
-        #"End": EndRuntimeNode,
-        "Yield": YieldRuntimeNode,
-        "Jump": JumpRuntimeNode,
-        "IfStatements": IfStatementsRuntimeNode,
-        "MatchStatements": MatchStatementsRuntimeNode,
-        "LoopStart": LoopStartRuntimeNode,
-        "LoopEnd": LoopEndRuntimeNode,
-        "WithStart": WithStartRuntimeNode,
-        "WithEnd": WithEndRuntimeNode,
-        "LoopBreak": LoopBreakRuntimeNode,
-        "PyCode": PyCodeRuntimeNode,
-        "FuncCommand": FuncCommandRuntimeNode,
-        "Assign": AssignRuntimeNode,
-        "Await": AwaitRuntimeNode,
-        "AwaitInlineLabel": AwaitInlineLabelRuntimeNode,
-        "Button": ButtonRuntimeNode,
-            "OnChange": OnChangeRuntimeNode,
-            "Change": ChangeRuntimeNode,
-        "InlineLabel": InlineLabelRuntimeNode
-        #"EndAwait": EndAwaitRuntimeNode,
-    }
+    
 
     def __init__(self, mast: Mast, overrides=None):
         super().__init__()
@@ -1562,7 +1045,7 @@ class MastScheduler(Agent):
         self.add()
         if overrides is None:
             overrides = {}
-        self.nodes = MastScheduler.runtime_nodes | overrides
+        self.nodes = MastRuntimeNode.nodes | overrides
         self.mast = mast
         self.tasks = []
         self.name_tasks = {}
@@ -1713,4 +1196,5 @@ class MastScheduler(Agent):
             return True
         else:
             return False
+
 

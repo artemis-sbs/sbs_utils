@@ -5,7 +5,8 @@ import re
 #
 #
 from ...mast.mast import Mast
-from ...mast.mastscheduler import MastRuntimeNode, MastAsyncTask, mast_runtime_node
+from ...mast.mastscheduler import MastAsyncTask
+from ...mast.mast_runtime_node import MastRuntimeNode, mast_runtime_node
 from ...procedural.roles import role
 from ...procedural.comms import comms_receive, comms_transmit, comms_speech_bubble, comms_broadcast, comms_message
 from ...procedural.science import scan_results

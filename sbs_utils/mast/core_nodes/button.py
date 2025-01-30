@@ -193,3 +193,38 @@ class Button(MastNode):
         return None
 
 
+   
+from ..pollresults import PollResults
+from ..mast_runtime_node import MastRuntimeNode, mast_runtime_node
+from ..mast import Scope
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ..mast import Mast
+    from ..mastscheduler import MastAsyncTask
+
+
+
+@mast_runtime_node(Button)
+class ButtonRuntimeNode(MastRuntimeNode):
+    def enter(self, mast:'Mast', task:'MastAsyncTask', node: Button):
+        from ...procedural.gui import ButtonPromise
+
+        self.node_label = task.active_label
+        if node.await_node is None:
+            p = ButtonPromise.navigating_promise
+            if p is not None:
+                #
+                # This is clone so this should be OK
+                #
+                clone = node.clone()
+                clone.resolve_data_context(task)
+                p.add_nav_button(clone)
+    def poll(self, mast:'Mast', task:'MastAsyncTask', node: Button):
+        if node.await_node:
+            task.jump(self.node_label, node.await_node.end_await_node.dedent_loc)
+            return PollResults.OK_JUMP
+        if node.is_block:
+            task.jump(self.node_label, node.dedent_loc)
+            return PollResults.OK_JUMP
+        return PollResults.OK_ADVANCE_TRUE

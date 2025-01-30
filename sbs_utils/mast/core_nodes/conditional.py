@@ -52,6 +52,50 @@ class IfStatements(MastNode):
         self.if_node.dedent_loc = loc
 
         return None
+    
+from ..pollresults import PollResults
+from ..mast_runtime_node import MastRuntimeNode, mast_runtime_node
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ..mast import Mast
+    from ..mastscheduler import MastAsyncTask
+   
+@mast_runtime_node(IfStatements)
+class IfStatementsRuntimeNode(MastRuntimeNode):
+    def poll(self, mast:'Mast', task:'MastAsyncTask', node:IfStatements):
+        """ """
+        # if this is THE if, find the first true branch
+        if node.if_op == "if":
+            activate = self.first_true(task, node)
+            if activate is not None:
+                task.jump(task.active_label, activate.loc+1)
+                return PollResults.OK_JUMP
+
+        # Everything else jumps to past all things involved in this chain
+        if node.if_node.dedent_loc is not None:
+            task.jump(task.active_label, node.if_node.dedent_loc)
+            return PollResults.OK_JUMP
+        else:
+            print("DEDENT IS NONE IN AN IF")
+
+    def first_true(self, task: 'MastAsyncTask', node: IfStatements):
+        cmd_to_run = None
+        for i in node.if_chain:
+            test_node = i # task.mast_ticker.cmds[i]
+            if test_node.code:
+                value = task.eval_code(test_node.code)
+                if value:
+                    cmd_to_run = i
+                    break
+            elif test_node.end == 'else:':
+                cmd_to_run = i
+                break
+            elif test_node.end == 'end_if':
+                cmd_to_run = i
+                break
+
+        return cmd_to_run
+
 
 @mast_node()
 class MatchStatements(MastNode):
@@ -115,4 +159,37 @@ class MatchStatements(MastNode):
                 MatchStatements.chains.pop()
 
         return None
+
+@mast_runtime_node(MatchStatements)
+class MatchStatementsRuntimeNode(MastRuntimeNode):
+    def poll(self, mast, task, node:MatchStatements):
+        """ """
+        # if this is THE if, find the first true branch
+        if node.op == "match":
+            activate = self.first_true(task, node)
+            if activate is not None:
+                task.jump(task.active_label, activate.loc+1)
+                return PollResults.OK_JUMP
+            
+        task.jump(task.active_label, node.match_node.dedent_loc)
+        return PollResults.OK_JUMP
+
+    def first_true(self, task: 'MastAsyncTask', node: MatchStatements):
+        cmd_to_run = None
+        for i in node.chain:
+            test_node = i # task.mast_ticker.cmds[i]
+            if test_node.code:
+                value = task.eval_code(test_node.code)
+                if value:
+                    cmd_to_run = i
+                    break
+            elif test_node.end == 'case_:':
+                cmd_to_run = i
+                break
+            elif test_node.end == 'end_match':
+                cmd_to_run = i
+                break
+
+        return cmd_to_run
+
 

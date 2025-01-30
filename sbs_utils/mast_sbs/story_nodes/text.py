@@ -4,8 +4,8 @@ import re
 # Runtime import
 #
 from ...procedural.gui import gui_text_area
-from ...mast.mastscheduler import MastRuntimeNode, MastAsyncTask, mast_runtime_node
-
+from ...mast.mastscheduler import MastAsyncTask
+from ...mast.mast_runtime_node import MastRuntimeNode, mast_runtime_node
 
 
 STYLE_REF_RULE = r"""([ \t]+style[ \t]*=[ \t]*((?P<style_name>\w+)|((?P<style_q>['"]{3}|["'])(?P<style>[^\n\r\f]+)(?P=style_q))))"""
