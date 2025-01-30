@@ -1,4 +1,6 @@
-from ..mast.mast import MastNode, DecoratorLabel, DescribableNode, Yield, IF_EXP_REGEX, STRING_REGEX_NAMED, mast_node
+from ..mast.mast import MastNode, DescribableNode, STRING_REGEX_NAMED, mast_node, IF_EXP_REGEX
+from ..mast.core_nodes.decorator_label import DecoratorLabel
+from ..mast.core_nodes import Yield
 import re
 
 

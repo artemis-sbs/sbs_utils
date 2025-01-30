@@ -1,4 +1,5 @@
-from ..mast.mast import Scope, Button
+from ..mast.mast import Scope
+from ..mast.core_nodes.button import Button
 from .query import to_id
 from .inventory import get_inventory_value, set_inventory_value
 from ..helpers import FrameContext, FakeEvent, DictionaryToObject

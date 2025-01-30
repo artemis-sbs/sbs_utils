@@ -11,6 +11,8 @@ from ..helpers import FrameContext, format_exception
 from ..futures import Promise, Waiter, Trigger
 from .label import get_fall_through
 from .pollresults import PollResults
+from .core_nodes.label import Label
+from .core_nodes.inline_label import InlineLabel
 
 
 class MastRuntimeNode:
@@ -74,7 +76,7 @@ class ChangeRuntimeNode(MastRuntimeNode):
 
 
 
-
+from .core_nodes.assign import Assign
 class AssignRuntimeNode(MastRuntimeNode):
     def __init__(self) -> None:
         super().__init__()

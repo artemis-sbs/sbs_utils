@@ -4,7 +4,7 @@ import sbs
 from ... import fs
 from ...helpers import FrameContext, FakeEvent
 from ...mast.parsers import LayoutAreaParser
-from ...mast.mast import Label
+#from ...mast.core_nodes.label import Label
 from ...procedural.style import apply_control_styles
 
 

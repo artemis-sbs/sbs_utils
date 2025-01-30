@@ -7,7 +7,7 @@ from ..helpers import FrameContext
 from ..garbagecollector import GarbageCollector
 from ..mast.mastscheduler import ChangeRuntimeNode
 from ..mast.pollresults import PollResults
-from ..mast.mast import Button
+from ..mast.core_nodes.button import Button
 
 import sbs
 

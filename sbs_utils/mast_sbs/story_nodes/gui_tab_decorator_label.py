@@ -1,4 +1,5 @@
-from ...mast.mast import IF_EXP_REGEX, DecoratorLabel, mast_node
+from ...mast.mast import IF_EXP_REGEX, mast_node
+from ...mast.core_nodes.decorator_label import DecoratorLabel
 from ...procedural.gui import gui_add_console_tab
 import re
 from ...agent import Agent
