@@ -1,4 +1,4 @@
-from .mast import IF_EXP_REGEX, MastNode, DecoratorLabel, STRING_REGEX_NAMED, mast_node
+from ..mast.mast import IF_EXP_REGEX, MastNode, DecoratorLabel, STRING_REGEX_NAMED, mast_node
 import re
 from ..agent import Agent
 

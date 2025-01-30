@@ -1,5 +1,5 @@
-from .mast import Mast
-from .mastscheduler import MastScheduler,  MastAsyncTask
+from ..mast.mast import Mast
+from ..mast.mastscheduler import MastAsyncTask
 import sbs
 from .mastobjects import  MastSpaceObject
 

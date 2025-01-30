@@ -1,4 +1,4 @@
-from sbs_utils.mast.maststory import MediaLabel
+from sbs_utils.mast_sbs.story_nodes.media import MediaLabel
 from sbs_utils.fs import load_json_data, get_mission_dir_filename
 from random import choice
 from sbs_utils.procedural.execution import sub_task_schedule

@@ -997,7 +997,7 @@ class Button(MastNode):
         self.sticky = (button == '+' or button=="button")
         self.color = None
         if format is not None:
-            from .maststory import DefineFormat
+            from ..mast_sbs.story_nodes.comms_message import DefineFormat
             f = DefineFormat.resolve_colors(format)
             if len(f)>=1:
                 self.color = f[0]

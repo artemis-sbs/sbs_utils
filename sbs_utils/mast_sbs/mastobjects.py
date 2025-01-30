@@ -1,5 +1,5 @@
 from ..spaceobject import MSpawnPlayer, SpaceObject, MSpawnActive, MSpawnPassive
-from .mastscheduler import MastAsyncTask, MastScheduler
+from ..mast.mastscheduler import MastAsyncTask, MastScheduler
 from ..gridobject import GridObject as TheGridObject
 
 

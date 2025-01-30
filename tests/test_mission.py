@@ -2,7 +2,7 @@ import sys
 sys.modules['script'] = "This is a"
 from sbs_utils.mast.mast import Mast
 from sbs_utils.mast.maststory import MastStory
-from sbs_utils.mast.maststoryscheduler import StoryScheduler
+from sbs_utils.mast_sbs.maststoryscheduler import StoryScheduler
 from sbs_utils.procedural.mission import mission_run, mission_runner
 from mock import sbs as sbs
 from sbs_utils.helpers import FrameContext, Context, FakeEvent
@@ -53,7 +53,7 @@ def mast_story_run(code=None, label=None):
         task = runner.start_task(label)
     return (errors,runner, mast, task)
 
-   
+
     
 
 class TestMastMission(unittest.TestCase):

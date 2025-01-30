@@ -22,6 +22,12 @@ class MastRuntimeNode:
     def poll(self, mast, scheduler, node):
         return PollResults.OK_ADVANCE_TRUE
 
+def mast_runtime_node(parser_node):
+    def dec_args(cls):
+        MastScheduler.runtime_nodes[parser_node.__name__] = cls
+        print(f"MAST RUNTIME NODE {parser_node.__name__}")
+        return cls
+    return dec_args
 
     
 class YieldRuntimeNode(MastRuntimeNode):
