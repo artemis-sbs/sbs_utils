@@ -251,6 +251,21 @@ on change menu.value:
 """)
         assert(len(errors)==0)
 
+    def test_yaml_data_block(self):
+        (errors,  mast) = mast_story_compile( code =  """
+@card/station "Station"
+---
+foo: 
+    bar: hello
+...
+""")
+        assert(len(errors)==0)
+        #label = mast.labels.get("test_label")
+        #cmds_count = len(label.cmds)
+        #assert(label is not None)
+
+
+
 if __name__ == '__main__':
     try:
         unittest.main(exit=False)

@@ -1,12 +1,17 @@
-from .mast import IF_EXP_REGEX, Mast, MastNode, DecoratorLabel, DescribableNode, STRING_REGEX_NAMED
+from .mast import IF_EXP_REGEX, Mast, MastNode, DecoratorLabel, DescribableNode, STRING_REGEX_NAMED, mast_node
 import re
 from ..agent import Agent
+
+# Import these so the node get registered
+
+from . import mastmission #import MissionLabel, StateLabel# , StartBlock, InitBlock, AbortBlock, CompleteBlock, ObjectiveBlock, 
+from . import mast_cards  # import CardLabel, ObjectiveLabel, InlineRoute, UpgradeLabel
 
 STYLE_REF_RULE = r"""([ \t]+style[ \t]*=[ \t]*((?P<style_name>\w+)|((?P<style_q>['"]{3}|["'])(?P<style>[^\n\r\f]+)(?P=style_q))))"""
 OPT_STYLE_REF_RULE = STYLE_REF_RULE+"""?"""
 
 
-
+@mast_node()
 class MapDecoratorLabel(DecoratorLabel):
     rule = re.compile(r'@map/(?P<path>[\/\w]+)[ \t]+'+STRING_REGEX_NAMED("display_name")+IF_EXP_REGEX)
 
@@ -30,9 +35,13 @@ class MapDecoratorLabel(DecoratorLabel):
         self.cmds = []
 
     def can_fallthrough(self, parent):
-        return True
+        return False
+    
+    def generate_label_end_cmds(self, compile_info=None):
+        # Allow this to follow into === labels
+        pass
 
-
+@mast_node()
 class GuiTabDecoratorLabel(DecoratorLabel):
     rule = re.compile(r'(@|\/\/)gui/tab/(?P<path>([\w]+))'+IF_EXP_REGEX)
 
@@ -68,14 +77,18 @@ class GuiTabDecoratorLabel(DecoratorLabel):
         self.cmds = []
 
     def can_fallthrough(self, parent):
-        return True
+        return False
+    
+    def generate_label_end_cmds(self, compile_info=None):
+        # Allow this to follow into === labels
+        pass
     
     def test(self, task):
         if self.code is None:
             return True
         return task.eval_code(self.code)
 
-
+@mast_node()
 class GuiConsoleDecoratorLabel(DecoratorLabel):
     rule = re.compile(r'(@|//)console/(?P<path>([\w]+))[ \t]+'+STRING_REGEX_NAMED("display_name")+IF_EXP_REGEX)
 
@@ -105,7 +118,11 @@ class GuiConsoleDecoratorLabel(DecoratorLabel):
         self.cmds = []
 
     def can_fallthrough(self, parent):
-        return True
+        return False
+    
+    def generate_label_end_cmds(self, compile_info=None):
+        # Allow this to follow into === labels
+        pass
 
     def test(self, task):
         if self.code is None:
@@ -140,35 +157,9 @@ class GuiConsoleDecoratorLabel(DecoratorLabel):
 #     def can_fallthrough(self):
 #         return False
 
-
-class Text(MastNode):
-    rule = re.compile(r"""((['"]{3,})(\n)?(?P<message>[\s\S]+?)(\n)?(['"]{3,}))"""+OPT_STYLE_REF_RULE+IF_EXP_REGEX)
-    def __init__(self, message, if_exp, style_name=None, style=None, style_q=None, loc=None, compile_info=None):
-        super().__init__()
-        self.loc = loc
-        self.message = self.compile_formatted_string(message)
-        if if_exp is not None:
-            if_exp = if_exp.lstrip()
-            self.code = compile(if_exp, "<string>", "eval")
-        else:
-            self.code = None
-        self.style = style 
-        self.style_name = style_name
-
-class AppendText(MastNode):
-    rule = re.compile(r"""(([\^]{3,})(\n)?(?P<message>[\s\S]+?)(\n)?([\^]{3,}))"""+IF_EXP_REGEX)
-    def __init__(self, message, if_exp, loc=None, compile_info=None):
-        super().__init__()
-        self.loc = loc
-        #TODO: This needs to be smart with the 'text: ' stuff
-        self.message = self.compile_formatted_string(message)
-        if if_exp is not None:
-            if_exp = if_exp.lstrip()
-            self.code = compile(if_exp, "<string>", "eval")
-        else:
-            self.code = None
 FORMAT_EXP = r"(\[(?P<format>([\$\#]?\w+[ \t]*(,[ \t]*\#?\w+)*))\])?"
 #FORMAT_EXP = r"(\[(?P<format>(\$\w+)|(\#?\w+[ \t]*(,[ \t]*\#?\w+)*)|((\w+[ \t]*:[ \t]*([^;\]]*;)*)))\])"
+@mast_node()
 class CommsMessageStart(DescribableNode):
     rule = re.compile(r"(?P<mtype>\<\<|\>\>|\(\)|\<(all|scan|client|ship|dialog|dialog_main|dialog_consoles_all|dialog_consoles|dialog_ships)\>)"+FORMAT_EXP+"([ \t]+"+STRING_REGEX_NAMED("title")+")?")
     current_comms_message = None
@@ -210,7 +201,7 @@ class CommsMessageStart(DescribableNode):
         pass
 
         
-
+@mast_node(append=False)
 class WeightedText(MastNode):
     rule = re.compile(r"""(?P<mtype>\%\d*|\")(?P<text>[^\n\r\f]*)""")
     def __init__(self, mtype, text,  loc=None, compile_info=None):
@@ -231,7 +222,7 @@ class WeightedText(MastNode):
     def is_virtual(self):
         return True    
 
-
+@mast_node(append=False)
 class DefineFormat(MastNode):
     rule = re.compile(r"""\=\$(?P<name>\w+)(?P<format>[^\n\r\f]*)""")
     colors = {
@@ -265,6 +256,8 @@ class DefineFormat(MastNode):
     
 from ..fs import get_artemis_graphics_dir, get_artemis_audio_dir, get_mod_dir, get_script_dir
 import os.path as path
+
+@mast_node()
 class MediaLabel(DecoratorLabel):
     rule = re.compile(r'@media/(?P<kind>\w+)/(?P<path>[\/\w-]+)[ \t]+'+STRING_REGEX_NAMED("display_name")+IF_EXP_REGEX)
     folders = {}
@@ -363,26 +356,63 @@ class MediaLabel(DecoratorLabel):
                 return False
         return self.test_file()
 
+@mast_node(append=False)
+class Text(MastNode):
+    rule = re.compile(r"""((['"]{3,})(\n)?(?P<message>[\s\S]+?)(\n)?(['"]{3,}))"""+OPT_STYLE_REF_RULE+IF_EXP_REGEX)
+    def __init__(self, message, if_exp, style_name=None, style=None, style_q=None, loc=None, compile_info=None):
+        super().__init__()
+        self.loc = loc
+        self.message = self.compile_formatted_string(message)
+        if if_exp is not None:
+            if_exp = if_exp.lstrip()
+            self.code = compile(if_exp, "<string>", "eval")
+        else:
+            self.code = None
+        self.style = style 
+        self.style_name = style_name
+
+
+@mast_node(append=False)
+class AppendText(MastNode):
+    rule = re.compile(r"""(([\^]{3,})(\n)?(?P<message>[\s\S]+?)(\n)?([\^]{3,}))"""+IF_EXP_REGEX)
+    def __init__(self, message, if_exp, loc=None, compile_info=None):
+        super().__init__()
+        self.loc = loc
+        #TODO: This needs to be smart with the 'text: ' stuff
+        self.message = self.compile_formatted_string(message)
+        if if_exp is not None:
+            if_exp = if_exp.lstrip()
+            self.code = compile(if_exp, "<string>", "eval")
+        else:
+            self.code = None
 
 
 
 
-
-from .mastmission import MissionLabel, StateLabel# , StartBlock, InitBlock, AbortBlock, CompleteBlock, ObjectiveBlock, 
 class MastStory(Mast):
-    nodes = [
-        # sbs specific
-        Text,
-        AppendText,
-        CommsMessageStart,
-        WeightedText,
-        DefineFormat,
-        MapDecoratorLabel,
-        GuiTabDecoratorLabel,
-        GuiConsoleDecoratorLabel,
-        # ItemTemplateLabel this didn't work exactly, maybe sometime post v1.0
-        ## Mission Nodes
-        MissionLabel,# StartBlock,InitBlock, AbortBlock, CompleteBlock, ObjectiveBlock,
-        StateLabel,
-        MediaLabel
-    ] + Mast.nodes 
+    pass
+    #
+    # The node list is now built with a label mast_node
+    #
+    #
+
+    # nodes = [
+    #     # sbs specific
+    #     Text,
+    #     AppendText,
+    #     CommsMessageStart,
+    #     WeightedText,
+    #     DefineFormat,
+    #     MapDecoratorLabel,
+    #     GuiTabDecoratorLabel,
+    #     GuiConsoleDecoratorLabel,
+    #     # CardLabel,
+    #     # ObjectiveLabel,
+    #     # UpgradeLabel,
+    #     # InlineRoute,
+    #     # ItemTemplateLabel this didn't work exactly, maybe sometime post v1.0
+    #     ## Mission Nodes
+    #     MissionLabel,# StartBlock,InitBlock, AbortBlock, CompleteBlock, ObjectiveBlock,
+    #     StateLabel,
+    #     MediaLabel
+    # ] + Mast.nodes 

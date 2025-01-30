@@ -1,4 +1,4 @@
-from .mast import MastNode, DecoratorLabel, DescribableNode, Yield, IF_EXP_REGEX, STRING_REGEX_NAMED
+from .mast import MastNode, DecoratorLabel, DescribableNode, Yield, IF_EXP_REGEX, STRING_REGEX_NAMED, mast_node
 import re
 
 
@@ -38,7 +38,7 @@ class StateMachineLabel(DecoratorLabel):
             return True
         return task.eval_code(self.code)
 
-
+@mast_node(append=False)
 class MissionLabel(StateMachineLabel):
     rule = re.compile(r'(@|\/\/)mission/(?P<path>[\/\w]+)[ \t]+'+STRING_REGEX_NAMED("display_name")+IF_EXP_REGEX)
 
@@ -69,7 +69,7 @@ class MissionLabel(StateMachineLabel):
             return True
         return task.eval_code(self.code)
 
-
+@mast_node()
 class StateLabel(DescribableNode):
     is_inline_label = True
 

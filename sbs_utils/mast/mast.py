@@ -15,6 +15,7 @@ from inspect import getmembers, isfunction , signature
 import sys
 from ..helpers import format_exception
 import json
+from .. import yaml 
 
 
 debug_logger = None
@@ -67,6 +68,7 @@ class ParseData:
 
 
 class MastNode:
+    nodes = []
     file_num:int
     line_num:int
     is_label = False
@@ -118,6 +120,16 @@ class MastNode:
             return ParseData(span[0], span[1], data)
         else:
             return None
+        
+def mast_node(append=True):
+    def dec_args(cls):
+        if append:
+            Mast.nodes.append(cls)
+        else:
+            Mast.nodes.insert(0,cls)
+        return cls
+    return dec_args
+
 
 
 class DescribableNode(MastNode):
@@ -143,8 +155,8 @@ class DescribableNode(MastNode):
                 self.options[-1] += text
         else:
             self.add_option(prefix, text)
-
-
+    def apply_meta_data(self, data):
+        return False
 
 
 class Label(DescribableNode):
@@ -172,6 +184,9 @@ class Label(DescribableNode):
     def can_fallthrough(self, parent):
         return True
     
+    def can_fall_into(self, parent):
+        return True
+    
 
 
     def generate_label_begin_cmds(self, compile_info=None):
@@ -181,7 +196,7 @@ class Label(DescribableNode):
         pass
 
 class InlineLabel(MastNode):
-    rule = re.compile(r'(?P<m>-){2,}\s*[ \t]*(?P<name>\w+)[ \t]*((?P=m){2,})?')
+    rule = re.compile(r'(?P<m>-){2,}[ \t]*(?P<name>\w+)[ \t]*((?P=m){2,})?')
     is_label = False
     is_inline_label = True
 
@@ -196,9 +211,17 @@ class InlineLabel(MastNode):
 
     def never_indent(self):
         return True
-
-
-
+    
+# import functools
+# def mast_node(cls, **kwargs):
+#     def dec(func):
+#         @functools.wraps(func)
+#         def inner(*args, **kwargs):
+#             return func(*args, **kwargs)
+        
+#         Mast.nodes.append(func)
+#         return inner
+#     return dec
 
 class DecoratorLabel(Label):
     decorator_label = 0
@@ -232,7 +255,7 @@ class DecoratorLabel(Label):
 
 
 class RouteDecoratorLabel(DecoratorLabel):
-    rule = re.compile(r'\/{2,}(?P<path>([\w\/]+))'+IF_EXP_REGEX)
+    rule = re.compile(r'//(?P<path>(\w[\w\/]*))'+IF_EXP_REGEX)
 
     def __init__(self, path, if_exp=None, loc=None, compile_info=None):
         # Label stuff
@@ -700,6 +723,31 @@ class PyCode(MastNode):
         if py_cmds:
             py_cmds= py_cmds.lstrip()
             self.code = compile(py_cmds, "<string>", "exec")
+
+class YamlBlock(MastNode):
+    rule = re.compile(r'\s*---(\s*!(?P<tag>(\w+)))?\n(?P<data>([\s\S]*?))\n\.\.\.')
+    def __init__(self, tag=None, data=None, loc=None, compile_info=None):
+        super().__init__()
+        
+        self.tag = tag
+        self.is_label_meta_data = True
+
+        self.loc = loc
+        # compile_info label is Card etc.
+        # tag tag = label?
+        # Process now
+        self.data = yaml.safe_load(data)
+        if self.is_label_meta_data:
+            supported = compile_info.label.apply_meta_data(self.data)
+            #if not supported:
+            #    raise Exception("meta data not supported here.")
+        
+
+    def is_virtual(self):
+        return self.is_label_meta_data
+    
+    def is_indentable(self):
+        return False
 
 class Import(MastNode):
     rule = re.compile(r'(from[ \t]+(?P<lib>[\w\.\\\/-]+)[ \t]+)?import\s+(?P<name>[\w\.\\\/-]+)')
@@ -1416,12 +1464,14 @@ class Mast():
         Label,#NO EXP
         InlineLabel,
         RouteDecoratorLabel,
+        #InlineRoute,
         IfStatements,
         MatchStatements,
         LoopStart,
         WithStart,
         LoopBreak,
         PyCode,
+        YamlBlock,
         Import, #NO EXP
         Await,  # New Await Block
         FuncCommand,
@@ -2083,3 +2133,5 @@ class Mast():
         # fh = logging.FileHandler('mast.log')
         # fh.setLevel(logging.DEBUG)
         # logger.addHandler(fh)
+
+
