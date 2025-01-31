@@ -75,7 +75,7 @@ class TestMastStoryCompile(unittest.TestCase):
 on change enemy_count:
    jump label
 
- 
+
 on change len(role(players)):
    jump label
 

@@ -9,11 +9,11 @@ from .loader import *
 from .dumper import *
 
 __version__ = '7.0.0.dev0'
-try:
-    from .cyaml import *
-    __with_libyaml__ = True
-except ImportError:
-    __with_libyaml__ = False
+# try:
+#     from .cyaml import *
+#     __with_libyaml__ = True
+# except ImportError:
+__with_libyaml__ = False
 
 import io
 

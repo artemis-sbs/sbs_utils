@@ -1,9 +1,9 @@
-from ..mast import MastNode, mast_node, BLOCK_START, OPT_DATA_REGEX, IF_EXP_REGEX, ParseData
-from .await_cmd import Await
-from .yield_cmd import Yield
+from ...mast.mast import MastNode, mast_node, BLOCK_START, OPT_DATA_REGEX, IF_EXP_REGEX, ParseData
+from ...mast.core_nodes.await_cmd import Await
+from ...mast.core_nodes.yield_cmd import Yield
 import re
 
-from .route_label import RouteDecoratorLabel
+
     
 
 
@@ -15,7 +15,7 @@ from .route_label import RouteDecoratorLabel
 OPT_BLOCK_START = r"(?P<block>\:)?[ \t]*(?=\r\n|\n|\#)"
 FORMAT_EXP = r"(\[(?P<format>([\$\#]?\w+[ \t]*(,[ \t]*\#?\w+)?))\])?"
 
-@mast_node()
+@mast_node(append=False)
 class Button(MastNode):
     #### Pre routeLabels rule = re.compile(r"""(?P<button>\*|\+)[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_STYLE+FOR_RULE+IF_EXP_REGEX+r"[ \t]*"+BLOCK_START)
     rule = re.compile(r"(?P<button>\*|\+)"+FORMAT_EXP+r"""[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)([ \t]*(?P<path>[\w\/]+))?"""+OPT_DATA_REGEX+IF_EXP_REGEX+r"[ \t]*"+OPT_BLOCK_START)
@@ -27,7 +27,7 @@ class Button(MastNode):
         #
         # Remember any field in here need to be set in clone()
         #
-        
+        from ...mast_sbs.story_nodes.route_label import RouteDecoratorLabel
         if clone:
             return
         self.message = self.compile_formatted_string(message)
@@ -194,14 +194,14 @@ class Button(MastNode):
 
 
    
-from ..pollresults import PollResults
-from ..mast_runtime_node import MastRuntimeNode, mast_runtime_node
-from ..mast import Scope
+from ...mast.pollresults import PollResults
+from ...mast.mast_runtime_node import MastRuntimeNode, mast_runtime_node
+
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from ..mast import Mast
-    from ..mastscheduler import MastAsyncTask
+    from ...mast.mast import Mast
+    from ...mast.mastscheduler import MastAsyncTask
 
 
 

@@ -4,7 +4,7 @@ from .roles import has_role
 from .. import faces
 from ..agent import Agent
 from ..helpers import FrameContext
-from ..mast.core_nodes.button import Button
+from ..mast_sbs.story_nodes.button import Button
 from ..garbagecollector import GarbageCollector
 import sbs
 

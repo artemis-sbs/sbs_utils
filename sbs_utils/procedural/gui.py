@@ -1,5 +1,4 @@
 from ..mast.mast import Scope
-from ..mast.core_nodes.button import Button
 from .query import to_id
 from .inventory import get_inventory_value, set_inventory_value
 from ..helpers import FrameContext, FakeEvent, DictionaryToObject
@@ -1813,6 +1812,7 @@ def gui(buttons=None, timeout=None):
     Returns:
         Promise: The promise for the gui, promise is done when a button is selected
     """    
+    from ..mast_sbs.story_nodes.button import Button
     page = FrameContext.page
     #sbs.send_gui_sub_region(page.client_id, "FULL", "", 0, 0, 100, 100)
     #sbs.target_gui_sub_region(page.client_id, "FULL")

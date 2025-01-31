@@ -1,6 +1,5 @@
 from ...mast.mast import IF_EXP_REGEX, mast_node
 from ...mast.core_nodes.decorator_label import DecoratorLabel
-from ...procedural.gui import gui_add_console_tab
 import re
 from ...agent import Agent
 
@@ -9,7 +8,7 @@ class GuiTabDecoratorLabel(DecoratorLabel):
     rule = re.compile(r'(@|\/\/)gui/tab/(?P<path>([\w]+))'+IF_EXP_REGEX)
 
     def __init__(self, path, if_exp=None, loc=None, compile_info=None):
-
+        from ...procedural.gui import gui_add_console_tab
         # Label stuff
         id = DecoratorLabel.next_label_id()
         name = f"gui/tab/{path}/{id}"

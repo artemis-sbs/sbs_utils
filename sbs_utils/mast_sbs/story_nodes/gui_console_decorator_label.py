@@ -1,7 +1,7 @@
 from ...mast.mast import IF_EXP_REGEX, STRING_REGEX_NAMED, mast_node
 from ...mast.core_nodes.decorator_label import DecoratorLabel
 import re
-from ...procedural.gui import gui_add_console_type
+
 
 
 
@@ -11,6 +11,7 @@ class GuiConsoleDecoratorLabel(DecoratorLabel):
 
     def __init__(self, path, display_name, if_exp=None, loc=None, compile_info=None, q=None):
         # Label stuff
+        from ...procedural.gui import gui_add_console_type
         id = DecoratorLabel.next_label_id()
         name = f"console/{path}/{id}"
         super().__init__(name, loc)
