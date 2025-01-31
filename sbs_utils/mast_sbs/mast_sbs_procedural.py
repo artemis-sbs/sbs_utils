@@ -2,6 +2,7 @@ from ..mast.mast import Mast
 from ..mast.mastscheduler import MastAsyncTask
 import sbs
 from .mastobjects import  MastSpaceObject
+from ..mast.mast_globals import MastGlobals
 
 
 from ..lifetimedispatcher import LifetimeDispatcher
@@ -33,12 +34,12 @@ def mast_format_string(s):
     if FrameContext.task is not None:
         return FrameContext.task.compile_and_format_string(s)
 
-Mast.globals["mast_format_string"] = mast_format_string
+MastGlobals.globals["mast_format_string"] = mast_format_string
 
-Mast.globals["SpaceObject"] =MastSpaceObject
-Mast.globals["script"] = sys.modules['script']
-Mast.globals["sbs"] = sbs
-Mast.globals['Vec3'] = vec.Vec3
+MastGlobals.globals["SpaceObject"] =MastSpaceObject
+MastGlobals.globals["script"] = sys.modules['script']
+MastGlobals.globals["sbs"] = sbs
+MastGlobals.globals['Vec3'] = vec.Vec3
 for func in [
         ############################
         ## sbs
@@ -46,7 +47,7 @@ for func in [
         sbs.assign_client_to_ship,
         sbs.assign_client_to_alt_ship,
     ]:
-    Mast.globals[func.__name__] = func
+    MastGlobals.globals[func.__name__] = func
 
 def mast_assert(cond):
       assert(cond)

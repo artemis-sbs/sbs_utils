@@ -5,16 +5,15 @@ import os
 from pathlib import Path
 from .. import fs
 from zipfile import ZipFile
-from .. import faces, scatter
+
 from ..agent import Agent
-import math
-import itertools
 import logging
 import random
 from inspect import getmembers, isfunction , signature
 import sys
 from ..helpers import format_exception
 import json
+from .mast_globals import MastGlobals
 
 
 debug_logger = None
@@ -145,6 +144,7 @@ class MastDataObject(object):
     def __repr__(self):
         return repr(vars(self))
 
+MastGlobals.globals["MastDataObject"] = MastDataObject
 
 class DescribableNode(MastNode):
     def __init__(self):
@@ -306,56 +306,14 @@ class InlineData:
     def __init__(self, start, end):
         self.start = start
         self.end = end
-import builtins as __builtin__
-from ..helpers import FrameContext
-def mast_print(*args, **kwargs):
-    task = FrameContext.task 
-    if len(args)==1 and task is not None:
-        return __builtin__.print(task.compile_and_format_string(args[0]))
-    #    args[0] = ">>>"+args[0]
-    return __builtin__.print(*args, **kwargs)
+
 
 
 
 class Mast():
     include_code = False
 
-    globals = {
-        "math": math, 
-        "faces": faces,
-        "scatter": scatter,
-        "random": random,
-        "print": mast_print, 
-        "dir":dir, 
-        "itertools": itertools,
-        "next": next,
-        "len": len,
-        "reversed": reversed,
-        "int": int,
-        "str": str,
-        "hex": hex,
-        "min": min,
-        "max": max,
-        "abs": abs,
-        "sim": None,
-        "map": map,
-        "filter": filter,
-        "list": list,
-        "set": set,
-        "iter": iter,
-        "sorted": sorted,
-        "mission_dir": fs.get_mission_dir(),
-        "data_dir": fs.get_artemis_data_dir(),
-        "MastDataObject": MastDataObject,
-        "range": range,
-        "INFO": logging.INFO,
-        "DEBUG": logging.DEBUG,
-        "WARNING": logging.WARNING,
-        "ERROR": logging.ERROR,
-        "CRITICAL": logging.CRITICAL,
-        "__build_class__":__build_class__, # ability to define classes
-        "__name__":__name__ # needed to define classes?
-    }
+    
     inline_count = 0
     source_map_files = []
     imported = {}
@@ -379,12 +337,12 @@ class Mast():
         
 
     def make_global(func):
-        add_to = Mast.globals
+        add_to = MastGlobals.globals
         add_to[func.__name__] = func
 
 
     def make_global_var(name, value):
-        Mast.globals[name] = value
+        MastGlobals.globals[name] = value
         
     def import_python_module(mod_name, prepend=None):
         #print(f"{mod_name}")
@@ -393,11 +351,11 @@ class Mast():
             for (name, func) in getmembers(sca,isfunction):
                 #print(f"IMPORT {name}")
                 if prepend == None:
-                    Mast.globals[name] = func
+                    MastGlobals.globals[name] = func
                 elif prepend == True:
-                    Mast.globals[f"{mod_name}_{name}"] = func
+                    MastGlobals.globals[f"{mod_name}_{name}"] = func
                 elif isinstance(prepend, str):
-                    Mast.globals[f"{prepend}_{name}"] = func
+                    MastGlobals.globals[f"{prepend}_{name}"] = func
 
 
     def import_python_module_for_source(self, name, lib_name):
@@ -953,7 +911,7 @@ class Mast():
                         
                         self.labels[active_name] = active
                         exists =  Agent.SHARED.get_inventory_value(label_name)
-                        exists =  Mast.globals.get(label_name, exists)
+                        exists =  MastGlobals.globals.get(label_name, exists)
                         if exists and not replace:
                             errors.append(f"\nERROR: label conflicts with shared name, rename label '{label_name }'. {file_name}:{line_no} - {line}")
                             break

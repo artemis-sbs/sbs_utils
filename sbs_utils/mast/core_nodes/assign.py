@@ -2,6 +2,7 @@ from ..mast import MastNode, mast_node, Scope, Mast,  MULTI_LINE_STRING_REGEX
 from ..mast_runtime_node import MastRuntimeNode, mast_runtime_node
 from ..pollresults import PollResults
 from ...futures import Promise
+from ..mast_globals import MastGlobals
 import re
 
 
@@ -44,7 +45,7 @@ class Assign(MastNode):
         self.code = compile(exp, "<string>", "eval")
         self.is_await = a_wait is not None
 
-        if lhs in Mast.globals:
+        if lhs in MastGlobals.globals:
             raise Exception(f"Variable assignment to a keyword {lhs}")
 
 class MastAsyncTask:

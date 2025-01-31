@@ -13,7 +13,7 @@ from .core_nodes.label import Label
 from .core_nodes.inline_label import InlineLabel
 
 from .mast_runtime_node import MastRuntimeNode
-
+from .mast_globals import MastGlobals
     
     
     
@@ -832,7 +832,7 @@ class MastAsyncTask(Agent, Promise):
         #     if k == "myslot":
         #         logger.info(f"{k}: {v}")
         try:
-            value = eval(message, {"__builtins__": Mast.globals}, allowed)
+            value = eval(message, {"__builtins__": MastGlobals.globals}, allowed)
             return value
         except BaseException as err:
             s =  f"FORMAT String error:\n\t f'{message}'\n"
@@ -854,7 +854,7 @@ class MastAsyncTask(Agent, Promise):
         value = None
         try:
             allowed = self.get_symbols()
-            value = eval(code, {"__builtins__": Mast.globals}, allowed)
+            value = eval(code, {"__builtins__": MastGlobals.globals}, allowed)
         except:
             err = format_exception("", "Mast eval level Runtime Error:")
             # self.runtime_error(f"Mast eval level Runtime Error:\n{err}")
@@ -871,9 +871,9 @@ class MastAsyncTask(Agent, Promise):
             else:                
                 allowed = self.get_symbols()
             if gbls is not None:
-                g = Mast.globals | gbls
+                g = MastGlobals.globals | gbls
             else:
-                g = Mast.globals
+                g = MastGlobals.globals
             exec(code, {"__builtins__": g}, allowed)
         except:
             #err = traceback.format_exc()
@@ -1131,7 +1131,7 @@ class MastScheduler(Agent):
         """
         MastStoryScheduler completely overrided this so changes here should go there
         """
-        val = Mast.globals.get(key, None) # don't use defa here
+        val = MastGlobals.globals.get(key, None) # don't use defa here
         if val is not None:
             return (val, Scope.SHARED)
         # Check shared

@@ -4,6 +4,7 @@ from ..agent import Agent
 import sbs
 from ..gui import Gui
 from ..helpers import FakeEvent, FrameContext, format_exception
+from ..mast.mast_globals import MastGlobals
 
 #
 # Makes sure these get registered
@@ -97,7 +98,7 @@ class StoryScheduler(MastScheduler):
         Returns:
             _type_: _description_
         """
-        val = Mast.globals.get(key, None) # don't use defa here
+        val = MastGlobals.globals.get(key, None) # don't use defa here
         if val is not None:
             return (val, Scope.SHARED)
         # Check shared
