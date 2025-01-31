@@ -1,4 +1,4 @@
-from ..mast import MastNode, mast_node, BLOCK_START
+from ..mast_node import MastNode, mast_node, BLOCK_START
 from .await_cmd import Await
 import re
 

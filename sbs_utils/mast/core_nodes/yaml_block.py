@@ -1,4 +1,4 @@
-from ..mast import MastNode, mast_node, BLOCK_START
+from ..mast_node import MastNode, mast_node, BLOCK_START
 import re
 from ... import yaml
 

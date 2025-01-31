@@ -30,11 +30,9 @@ class Card(CardList):
 
     def spawn(self, x,y,z, size_x, size_y, size_z):
         if self.label == None:
-            sys.stdout.write("..")
             return None
         
         #print(f"spawn {self.label} {x},{y}, {z}")
-        sys.stdout.write(f"{self.label}")
         # This should return something to 
         # Like the task 
         # A task should be executed
@@ -180,7 +178,18 @@ class Tilemap(CardList):
         self.deck_map[char]= deck
 
 
-    def fill(self, tile_string, layer=None, x_count=0, scale_tile=1, x_offset=0, z_offset=0):
+    def fill(self, tile_string, layer=None, x_count=0, scale_tile=1, x_offset=0, z_offset=0, shift=0):
+        """_summary_
+
+        Args:
+            tile_string (_type_): _description_
+            layer (_type_, optional): _description_. Defaults to None.
+            x_count (int, optional): _description_. Defaults to 0.
+            scale_tile (int, optional): _description_. Defaults to 1.
+            x_offset (int, optional): _description_. Defaults to 0.
+            z_offset (int, optional): _description_. Defaults to 0.
+            shift (int, optional): Offset every n line by 1/2 width. Helps simulate hex like grid with n=2. Default = 0
+        """
         # Convert to on long string
         # calculate the line length if needed
         # Replace spaces and tabs
@@ -192,9 +201,13 @@ class Tilemap(CardList):
         tile_string = "".join(the_split)
 
         cur_count = 0
+        # x going right is positive
         cur_x = self.min_x + x_offset
-        cur_z = self.min_z + z_offset
+        # z going up is negative
+        # so flip z
+        cur_z = self.min_z -z_offset 
         cur_y = self.y
+        line = 1
 
         for tile in tile_string:
             if tile in self.deck_map:
@@ -203,13 +216,26 @@ class Tilemap(CardList):
                 card.spawn(cur_x, cur_y, cur_z, self.tile_size_x*scale_tile, self.tile_size_x/10, self.tile_size_z*scale_tile)
             
             cur_count += 1
+            line += 1
             cur_x += self.tile_size_x * scale_tile
+            
             if cur_count>= x_count:
                 cur_count=0
-                cur_z += self.tile_size_z * scale_tile
+                # remember z is paint down, from the end to start
+                cur_z -= self.tile_size_z * scale_tile
                 cur_x = self.min_x
-                sys.stdout.write("\n")
+                if shift>1 and line % shift == 0:
+                    cur_x += (self.tile_size_x * scale_tile)/2
 
+    def fill_hex_rings(self, tile_string, layer=None):
+        """fill_hex_rings creates a hex map
+        
+        Args:
+            tile_string (_type_): The string of contents
+            layer (_type_, optional): name of the layer
+        """
+        # Hex fill grabs 1, 6, 12, 18, 30, 48
+        pass
 
 def shuffle_string(s):
     l = list(s)
@@ -217,51 +243,6 @@ def shuffle_string(s):
     return "".join(l)
 
 
-def cmd_line_test():
-    asteroid_deck = Deck()
-    for x in range(0,6):
-        asteroid_deck.add_card(Card(f"a{x+1}"))
-
-    station_deck = Deck()
-    for x in range(0,5):
-        station_deck.add_card(Card(f"s{x+1}"))
-
-    nebula_deck = Deck()
-    for x in range(0,5):
-        nebula_deck.add_card(Card(f"n{x+1}"))
-
-    tile_map = Tilemap(-50_000, -50_000, 10000)
-    tile_map.map_deck("a", asteroid_deck)
-    tile_map.map_deck("s", station_deck)
-
-    tile_map.map_deck("n", nebula_deck)
-
-
-
-    from contextlib import redirect_stdout
-
-    with open('out.txt', 'w') as f:
-        with redirect_stdout(f):
-            fill = shuffle_string("a"*45 + "s"*5 +"." * 50)
-            tile_map.fill(fill, x_count=10)
-            sys.stdout.write("\nNEBULA LAYER\n")
-            fill = shuffle_string("n"*30 + "." * 70)
-            tile_map.fill(fill, layer="Nebula", x_count=10)
-
-            sys.stdout.write("\nHard coded\n")
-            fill = """..........
-    .a........
-    .a........
-    .....s....
-    ..........
-    ...a......
-    ......a...
-    ..........
-    ..a..s....
-    ..........
-            """
-            tile_map.fill(fill, x_count=10)
-            
 
 
 def maps_deck_create():

@@ -1,15 +1,19 @@
-from ...mast.mast import  MastNode, DescribableNode, STRING_REGEX_NAMED, mast_node
+from ...mast.mast_node import  MastNode, DescribableNode, STRING_REGEX_NAMED, mast_node
 import re
 
 #
 #
 #
-from ...mast.mast import Mast
-from ...mast.mastscheduler import MastAsyncTask
 from ...mast.mast_runtime_node import MastRuntimeNode, mast_runtime_node
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ...mast.mast import Mast
+    from ...mast.mastscheduler import MastAsyncTask
+
 from ...procedural.roles import role
 from ...procedural.comms import comms_receive, comms_transmit, comms_speech_bubble, comms_broadcast, comms_message
 from ...procedural.science import scan_results
+from .define_format import DefineFormat
 import sbs
 import random
 
@@ -58,63 +62,11 @@ class CommsMessageStart(DescribableNode):
     def post_dedent(self,compile_info):
         pass
 
-        
-@mast_node(append=False)
-class WeightedText(MastNode):
-    rule = re.compile(r"""(?P<mtype>\%\d*|\")(?P<text>[^\n\r\f]*)""")
-    def __init__(self, mtype, text,  loc=None, compile_info=None):
-        super().__init__()
-        self.loc = loc
-        # Try to attach to a label
-        if loc == 0 and compile_info is not None and compile_info.label is not None:
-            compile_info.label.append_text(mtype, text)
-        elif isinstance(compile_info.prev_node, DescribableNode):
-            compile_info.prev_node.append_text(mtype, text)
-        else:
-            raise Exception("Weighted text without start. or not indented properly.")
-        
 
-    def is_indentable(self):
-        return False
-        
-    def is_virtual(self):
-        return True    
-
-@mast_node(append=False)
-class DefineFormat(MastNode):
-    rule = re.compile(r"""\=\$(?P<name>\w+)(?P<format>[^\n\r\f]*)""")
-    colors = {
-        "alert": ["red", "white"],
-        "info": ["blue", "white"],
-        "status": ["orange", "white"]
-    }
-    def is_indentable(self):
-        return False
-
-    def is_virtual(self):
-        return True
-    
-    def __init__(self, name, format, loc=None, compile_info=None):
-        super().__init__()
-        self.loc = loc
-        DefineFormat.colors[name] = [c.strip() for c in format.split(",")]
-        
-
-    @staticmethod
-    def resolve_colors(c):
-        colors = c.split(",")
-        ret = []
-        for c in colors:
-            c = c.strip()
-            if c.startswith("$"):
-                ret.extend(DefineFormat.colors.get(c[1:], ["white", "white"]))
-            else:
-                ret.append(c)
-        return ret
     
 @mast_runtime_node(CommsMessageStart)
 class CommsMessageStartRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: CommsMessageStart):
+    def enter(self, mast:'Mast', task:'MastAsyncTask', node: CommsMessageStart):
         if len(node.options)==0:
             return
         msg = random.choice(node.options)

@@ -1,4 +1,4 @@
-from ..mast import MastNode, mast_node
+from ..mast_node  import MastNode, mast_node
 import re
 
 

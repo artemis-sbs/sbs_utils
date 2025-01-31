@@ -3,6 +3,7 @@ sys.modules['script'] = "This is a"
 from sbs_utils.mast.mast import Mast
 from sbs_utils.mast.maststory import MastStory
 from sbs_utils.mast_sbs.maststoryscheduler import StoryScheduler
+from sbs_utils.mast_sbs.mastmission import MissionLabel, StateMachineLabel
 from sbs_utils.procedural.mission import mission_run, mission_runner
 from mock import sbs as sbs
 from sbs_utils.helpers import FrameContext, Context, FakeEvent

@@ -1,4 +1,4 @@
-from ..mast import MastNode, mast_node, BLOCK_START, OPT_DATA_REGEX, IF_EXP_REGEX
+from ..mast_node  import MastNode, mast_node, BLOCK_START, OPT_DATA_REGEX, IF_EXP_REGEX
 import re
 
 

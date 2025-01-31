@@ -1,7 +1,6 @@
 from ..mast.mast import Mast
 from ..mast.mastscheduler import MastAsyncTask
 import sbs
-from .mastobjects import  MastSpaceObject
 from ..mast.mast_globals import MastGlobals
 
 
@@ -35,8 +34,6 @@ def mast_format_string(s):
         return FrameContext.task.compile_and_format_string(s)
 
 MastGlobals.globals["mast_format_string"] = mast_format_string
-
-MastGlobals.globals["SpaceObject"] =MastSpaceObject
 MastGlobals.globals["script"] = sys.modules['script']
 MastGlobals.globals["sbs"] = sbs
 MastGlobals.globals['Vec3'] = vec.Vec3
@@ -81,37 +78,37 @@ from ..procedural import media
 from ..cards import card
 
 
-Mast.import_python_module('sbs_utils.procedural.query')
-Mast.import_python_module('sbs_utils.procedural.spawn')
-Mast.import_python_module('sbs_utils.procedural.timers')
-Mast.import_python_module('sbs_utils.procedural.grid')
-Mast.import_python_module('sbs_utils.procedural.internal_damage')
-Mast.import_python_module('sbs_utils.procedural.space_objects')
-Mast.import_python_module('sbs_utils.procedural.roles')
-Mast.import_python_module('sbs_utils.procedural.inventory')
-Mast.import_python_module('sbs_utils.procedural.links')
-Mast.import_python_module('sbs_utils.procedural.gui')
-Mast.import_python_module('sbs_utils.procedural.comms')
-Mast.import_python_module('sbs_utils.procedural.science')
-Mast.import_python_module('sbs_utils.procedural.cosmos')
-Mast.import_python_module('sbs_utils.procedural.routes')
-Mast.import_python_module('sbs_utils.procedural.execution')
-Mast.import_python_module('sbs_utils.procedural.behavior')
-Mast.import_python_module('sbs_utils.procedural.signal')
-Mast.import_python_module('sbs_utils.procedural.maps')
-Mast.import_python_module('sbs_utils.procedural.mission')
-Mast.import_python_module('sbs_utils.procedural.media')
-Mast.import_python_module('sbs_utils.cards.card')
-Mast.import_python_module('sbs_utils.faces')
-Mast.import_python_module('sbs_utils.fs')
-Mast.import_python_module('sbs_utils.vec')
+MastGlobals.import_python_module('sbs_utils.procedural.query')
+MastGlobals.import_python_module('sbs_utils.procedural.spawn')
+MastGlobals.import_python_module('sbs_utils.procedural.timers')
+MastGlobals.import_python_module('sbs_utils.procedural.grid')
+MastGlobals.import_python_module('sbs_utils.procedural.internal_damage')
+MastGlobals.import_python_module('sbs_utils.procedural.space_objects')
+MastGlobals.import_python_module('sbs_utils.procedural.roles')
+MastGlobals.import_python_module('sbs_utils.procedural.inventory')
+MastGlobals.import_python_module('sbs_utils.procedural.links')
+MastGlobals.import_python_module('sbs_utils.procedural.gui')
+MastGlobals.import_python_module('sbs_utils.procedural.comms')
+MastGlobals.import_python_module('sbs_utils.procedural.science')
+MastGlobals.import_python_module('sbs_utils.procedural.cosmos')
+MastGlobals.import_python_module('sbs_utils.procedural.routes')
+MastGlobals.import_python_module('sbs_utils.procedural.execution')
+MastGlobals.import_python_module('sbs_utils.procedural.behavior')
+MastGlobals.import_python_module('sbs_utils.procedural.signal')
+MastGlobals.import_python_module('sbs_utils.procedural.maps')
+MastGlobals.import_python_module('sbs_utils.procedural.mission')
+MastGlobals.import_python_module('sbs_utils.procedural.media')
+MastGlobals.import_python_module('sbs_utils.cards.card')
+MastGlobals.import_python_module('sbs_utils.faces')
+MastGlobals.import_python_module('sbs_utils.fs')
+MastGlobals.import_python_module('sbs_utils.vec')
 #
 # These are exposed with a prepended module name
 #
-Mast.import_python_module('sbs_utils.scatter', 'scatter')
-Mast.import_python_module('sbs_utils.names', 'names')
-Mast.import_python_module('sbs_utils.procedural.ship_data', 'ship_data')
-Mast.import_python_module('sbs', 'sbs')
+MastGlobals.import_python_module('sbs_utils.scatter', 'scatter')
+MastGlobals.import_python_module('sbs_utils.names', 'names')
+MastGlobals.import_python_module('sbs_utils.procedural.ship_data', 'ship_data')
+MastGlobals.import_python_module('sbs', 'sbs')
 
 #
 # These are needed so the import later works, domn't remove
@@ -122,6 +119,6 @@ from sbs_utils.pages.widgets.shippicker import ShipPicker
 
 ######################
 ## Mast extensions
-Mast.import_python_module('sbs_utils.pages.widgets.shippicker')
-Mast.import_python_module('sbs_utils.pages.widgets.listbox')
-Mast.import_python_module('sbs_utils.pages.widgets.layout_listbox')
+MastGlobals.import_python_module('sbs_utils.pages.widgets.shippicker')
+MastGlobals.import_python_module('sbs_utils.pages.widgets.listbox')
+MastGlobals.import_python_module('sbs_utils.pages.widgets.layout_listbox')

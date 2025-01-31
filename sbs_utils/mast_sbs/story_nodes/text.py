@@ -1,12 +1,14 @@
-from ...mast.mast import IF_EXP_REGEX, Mast, MastNode, mast_node
+from ...mast.mast_node import IF_EXP_REGEX, MastNode, mast_node
 import re
 #
 # Runtime import
 #
 from ...procedural.gui import gui_text_area
-from ...mast.mastscheduler import MastAsyncTask
 from ...mast.mast_runtime_node import MastRuntimeNode, mast_runtime_node
-
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ...mast.mast import Mast
+    from ...mast.mastscheduler import MastAsyncTask
 
 STYLE_REF_RULE = r"""([ \t]+style[ \t]*=[ \t]*((?P<style_name>\w+)|((?P<style_q>['"]{3}|["'])(?P<style>[^\n\r\f]+)(?P=style_q))))"""
 OPT_STYLE_REF_RULE = STYLE_REF_RULE+"""?"""
@@ -31,7 +33,7 @@ class Text(MastNode):
 @mast_runtime_node(Text)
 class TextRuntimeNode(MastRuntimeNode):
     current = None
-    def enter(self, mast:Mast, task:MastAsyncTask, node: Text):
+    def enter(self, mast:'Mast', task:'MastAsyncTask', node: Text):
         self.tag = task.main.page.get_tag()
         msg = ""
         self.task = task 
@@ -62,7 +64,7 @@ class AppendText(MastNode):
             self.code = None
 @mast_runtime_node(AppendText)
 class AppendTextRuntimeNode(MastRuntimeNode):
-    def enter(self, mast:Mast, task:MastAsyncTask, node: AppendText):
+    def enter(self, mast:'Mast', task:'MastAsyncTask', node: AppendText):
         msg = ""
         value = True
         if node.code is not None:

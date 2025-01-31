@@ -1,7 +1,6 @@
-from ..mast.mast import IF_EXP_REGEX, MastNode, STRING_REGEX_NAMED, mast_node
+from ..mast.mast_node import IF_EXP_REGEX, MastNode, STRING_REGEX_NAMED, mast_node
 from ..mast.core_nodes.decorator_label import DecoratorLabel
 import re
-from ..agent import Agent
 
 @mast_node()
 class InlineRoute(MastNode):

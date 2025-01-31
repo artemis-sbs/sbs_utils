@@ -4,6 +4,8 @@ import itertools
 import logging
 import random
 from .. import fs
+import sys
+from inspect import getmembers, isfunction
 
 import builtins as __builtin__
 from ..helpers import FrameContext
@@ -52,3 +54,16 @@ class MastGlobals:
         "__build_class__":__build_class__, # ability to define classes
         "__name__":__name__ # needed to define classes?
     }
+
+    def import_python_module(mod_name, prepend=None):
+        #print(f"{mod_name}")
+        sca = sys.modules.get(mod_name)
+        if sca:
+            for (name, func) in getmembers(sca,isfunction):
+                #print(f"IMPORT {name}")
+                if prepend == None:
+                    MastGlobals.globals[name] = func
+                elif prepend == True:
+                    MastGlobals.globals[f"{mod_name}_{name}"] = func
+                elif isinstance(prepend, str):
+                    MastGlobals.globals[f"{prepend}_{name}"] = func

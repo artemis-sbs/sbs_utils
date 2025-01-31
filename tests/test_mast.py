@@ -17,11 +17,12 @@ import sbs_utils.procedural.timers as timers
 import sbs_utils.procedural.behavior as behavior
 import sbs_utils.procedural.gui as gui
 import sbs_utils.procedural.signal as signal
-Mast.import_python_module('sbs_utils.procedural.execution')
-Mast.import_python_module('sbs_utils.procedural.behavior')
-Mast.import_python_module('sbs_utils.procedural.timers')
-Mast.import_python_module('sbs_utils.procedural.gui')
-Mast.import_python_module('sbs_utils.procedural.signal')
+from sbs_utils.mast.mast_globals import MastGlobals
+MastGlobals.import_python_module('sbs_utils.procedural.execution')
+MastGlobals.import_python_module('sbs_utils.procedural.behavior')
+MastGlobals.import_python_module('sbs_utils.procedural.timers')
+MastGlobals.import_python_module('sbs_utils.procedural.gui')
+MastGlobals.import_python_module('sbs_utils.procedural.signal')
 
 from mock import sbs as sbs
 from sbs_utils.helpers import FrameContext, Context, FakeEvent

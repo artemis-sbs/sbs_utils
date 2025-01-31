@@ -1,6 +1,10 @@
-from ...mast.mast import mast_node, IF_EXP_REGEX
+from ...mast.mast_node import mast_node, IF_EXP_REGEX
 import re
 from ...mast.core_nodes.decorator_label import DecoratorLabel
+from ...mast.core_nodes.yield_cmd import Yield
+from ...procedural import routes 
+from ...mast.core_nodes.inline_function import FuncCommand
+
 
 @mast_node(append=False)
 class RouteDecoratorLabel(DecoratorLabel):
@@ -28,9 +32,6 @@ class RouteDecoratorLabel(DecoratorLabel):
         return False
 
     def generate_label_begin_cmds(self, compile_info=None):
-        from ...mast.core_nodes.yield_cmd import Yield
-        from ...procedural import routes 
-        from ...mast.core_nodes.inline_function import FuncCommand
 
         path = self.path.strip('/')
         paths = path.split('/')
@@ -158,9 +159,6 @@ class RouteDecoratorLabel(DecoratorLabel):
 
 
     def generate_label_end_cmds(self, compile_info=None):
-        from ...mast.core_nodes.yield_cmd import Yield
-        from ...mast.core_nodes.inline_function import FuncCommand
-        
         path = self.path.strip('/')
         paths = path.split('/')
         match paths:

@@ -1,4 +1,4 @@
-from ..mast import MastNode, mast_node, Scope, Mast,  MULTI_LINE_STRING_REGEX
+from ..mast_node import MastNode, mast_node, Scope, MULTI_LINE_STRING_REGEX
 from ..mast_runtime_node import MastRuntimeNode, mast_runtime_node
 from ..pollresults import PollResults
 from ...futures import Promise

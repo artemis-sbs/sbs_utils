@@ -3,6 +3,9 @@ from sbs_utils.mast.maststory import MastStory
 from sbs_utils.mast_sbs import story_nodes
 import unittest
 from sbs_utils.agent import clear_shared
+from sbs_utils.mast_sbs.mast_cards import CardLabel, ObjectiveLabel, UpgradeLabel
+
+
 
 
 Mast.enable_logging()

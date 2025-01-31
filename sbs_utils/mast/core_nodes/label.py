@@ -1,4 +1,4 @@
-from ..mast import DescribableNode, mast_node
+from ..mast_node  import DescribableNode, mast_node
 import re
 
 @mast_node()

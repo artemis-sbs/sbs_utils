@@ -14,6 +14,7 @@ from .story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
 from . import story_nodes
 from .mast_cards import CardLabel, ObjectiveLabel, UpgradeLabel
 from .mastmission import MissionLabel, StateMachineLabel
+from . import mast_sbs_procedural
 
 from ..mast.maststory import  MastStory
 from .maststoryscheduler import StoryScheduler

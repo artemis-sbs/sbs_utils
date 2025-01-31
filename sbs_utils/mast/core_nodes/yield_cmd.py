@@ -1,4 +1,4 @@
-from ..mast import MastNode, mast_node, ParseData
+from ..mast_node import MastNode, mast_node, ParseData
 from ..mast_runtime_node import MastRuntimeNode, mast_runtime_node
 from ..pollresults import PollResults
 import re

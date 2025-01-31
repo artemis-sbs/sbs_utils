@@ -1,23 +1,15 @@
-from ...mast.mast import MastNode, mast_node, BLOCK_START, OPT_DATA_REGEX, IF_EXP_REGEX, ParseData
+from ...mast.mast_node import MastNode, mast_node, BLOCK_START, OPT_DATA_REGEX, IF_EXP_REGEX, ParseData
 from ...mast.core_nodes.await_cmd import Await
 from ...mast.core_nodes.yield_cmd import Yield
 import re
+from ...mast_sbs.story_nodes.route_label import RouteDecoratorLabel
+from ...mast_sbs.story_nodes.define_format import DefineFormat
 
-
-    
-
-
-
-
-
-# OPT_STYLE = r"""([ \t]*style[ \t]*["'](?P<color>[ \t\S]+)["'])?"""
-# FOR_RULE = r'([ \t]+for[ \t]+(?P<for_name>\w+)[ \t]+in[ \t]+(?P<for_exp>[ \t\S]+?))?'
 OPT_BLOCK_START = r"(?P<block>\:)?[ \t]*(?=\r\n|\n|\#)"
 FORMAT_EXP = r"(\[(?P<format>([\$\#]?\w+[ \t]*(,[ \t]*\#?\w+)?))\])?"
 
 @mast_node(append=False)
 class Button(MastNode):
-    #### Pre routeLabels rule = re.compile(r"""(?P<button>\*|\+)[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)"""+OPT_STYLE+FOR_RULE+IF_EXP_REGEX+r"[ \t]*"+BLOCK_START)
     rule = re.compile(r"(?P<button>\*|\+)"+FORMAT_EXP+r"""[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)([ \t]*(?P<path>[\w\/]+))?"""+OPT_DATA_REGEX+IF_EXP_REGEX+r"[ \t]*"+OPT_BLOCK_START)
     def __init__(self, message=None, button=None,  
                 if_exp=None, format=None, label=None, 
@@ -27,14 +19,13 @@ class Button(MastNode):
         #
         # Remember any field in here need to be set in clone()
         #
-        from ...mast_sbs.story_nodes.route_label import RouteDecoratorLabel
+        
         if clone:
             return
         self.message = self.compile_formatted_string(message)
         self.sticky = (button == '+' or button=="button")
         self.color = None
         if format is not None:
-            from ...mast_sbs.story_nodes.comms_message import DefineFormat
             f = DefineFormat.resolve_colors(format)
             if len(f)>=1:
                 self.color = f[0]
@@ -196,8 +187,6 @@ class Button(MastNode):
    
 from ...mast.pollresults import PollResults
 from ...mast.mast_runtime_node import MastRuntimeNode, mast_runtime_node
-
-
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ...mast.mast import Mast

@@ -1,4 +1,4 @@
-from ..mast.mastscheduler import MastRuntimeNode, MastAsyncTask, MastScheduler
+from ..mast.mastscheduler import MastScheduler
 from ..mast.mast import Mast, Scope
 from ..agent import Agent
 import sbs
@@ -6,22 +6,6 @@ from ..gui import Gui
 from ..helpers import FakeEvent, FrameContext, format_exception
 from ..mast.mast_globals import MastGlobals
 
-#
-# Makes sure these get registered
-#
-from . import story_nodes
-from . import mast_cards # import CardLabel, UpgradeLabel, ObjectiveLabel
-from . import mastmission # import MissionLabel, StateLabel
-# from .story_nodes.text import AppendText,  Text
-# from .story_nodes.comms_message import CommsMessageStart
-# Needed to get procedural in memory
-from . import mast_sbs_procedural
-import sys
-from ..mast.pollresults import PollResults
-
-class SkipBlockRuntimeNode(MastRuntimeNode):
-    def poll(self, mast:Mast, task:MastAsyncTask, node):
-        return PollResults.OK_SUCCESS
 
 
 

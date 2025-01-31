@@ -1,4 +1,4 @@
-from ..mast import mast_node
+from ..mast_node import mast_node
 import re
 from .label import Label
 
