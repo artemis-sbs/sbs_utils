@@ -2,7 +2,6 @@ import os
 import sys
 import json
 import re
-import sbs
 
 # the script module should be the startup script
 exe_dir = os.path.dirname(sys.executable)
@@ -38,7 +37,8 @@ def get_mission_name():
 
 def get_startup_mission_name():
     # TODO: get the preference data
-    return sbs.get_preference_string("default_mission_folder")
+    from .helpers import FrameContext
+    return FrameContext.context.sbs.get_preference_string("default_mission_folder")
 
 def get_missions_dir():
     return get_artemis_data_dir()+"/missions"

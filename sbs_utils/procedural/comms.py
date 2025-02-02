@@ -9,7 +9,6 @@ from ..mast.mastscheduler import ChangeRuntimeNode
 from ..mast.pollresults import PollResults
 from ..mast_sbs.story_nodes.button import Button
 
-import sbs
 
 
 
@@ -34,12 +33,12 @@ def comms_broadcast(ids_or_obj, msg, color="#fff"):
     if _ids:
         for id in _ids:
             if query.is_client_id(id):
-                sbs.send_message_to_client(id, color, msg)
+                FrameContext.context.sbs.send_message_to_client(id, color, msg)
             else:
                 # Just verify the id
                 obj = Agent.get(id)
                 if obj is not None or id==0:
-                    sbs.send_message_to_player_ship(id, color, msg)
+                    FrameContext.context.sbs.send_message_to_player_ship(id, color, msg)
 
 def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, color="#fff", title_color=None, is_receive=True, from_name=None):
     """ Send a Comms message 
@@ -91,7 +90,7 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
 
             # Only player ships send messages
             if has_role(from_obj.id, "__PLAYER__"):
-                sbs.send_comms_message_to_player_ship(
+                FrameContext.context.sbs.send_comms_message_to_player_ship(
                     from_obj.id,
                     to_obj.id,
                     face, 
@@ -100,7 +99,7 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                     msg,
                     color)
             else:
-                sbs.send_comms_message_to_player_ship(
+                FrameContext.context.sbs.send_comms_message_to_player_ship(
                     to_obj.id,
                     from_obj.id,
                     face, 
@@ -122,7 +121,7 @@ def _comms_get_origin_id():
     #
     if FrameContext.task is not None:
         # This will attempt to default to the client ship if all else fails
-        _ship_id = sbs.get_ship_of_client(FrameContext.context.event.client_id)
+        _ship_id = FrameContext.context.sbs.get_ship_of_client(FrameContext.context.event.client_id)
         return FrameContext.task.get_variable("COMMS_ORIGIN_ID", _ship_id)
 
 def _comms_get_selected_id():
@@ -215,7 +214,7 @@ def comms_speech_bubble(msg, seconds=3, color="#fff", client_id=None, selected_i
     #     py::arg("seconds"),              set seconds to zero for an everlasting bubble.
     #     py::arg("color"),                text, "red", "#3ff", the usual
     #     py::arg("text"),                 text message. like "curse you terran!"
-    sbs.send_speech_bubble_to_object(client_id, selected_id, seconds, color, msg)
+    FrameContext.context.sbs.send_speech_bubble_to_object(client_id, selected_id, seconds, color, msg)
 
 
 def comms_transmit_internal(msg, ids_or_obj=None, to_name=None, title=None, face=None, color="#fff", title_color=None):
@@ -302,10 +301,10 @@ def comms_info(name, face=None, color=None):
     
     if to_so.is_grid_object:
         #print("Comms Info grid")
-        sbs.send_grid_selection_info(from_so.id, face, color, name)
+        FrameContext.context.sbs.send_grid_selection_info(from_so.id, face, color, name)
     else:
         #print(f"Comms Info comms nn{name} i{from_so.id} f{face} c{color} n{comms_id}")
-        sbs.send_comms_selection_info(from_so.id, face, color, name)
+        FrameContext.context.sbs.send_comms_selection_info(from_so.id, face, color, name)
 
 
 
@@ -377,9 +376,9 @@ class CommsPromise(ButtonPromise):
 
     def clear(self):
         if self.is_grid_comms:
-            sbs.send_grid_selection_info(self.origin_id, self.face, self.color, self.comms_id)
+            FrameContext.context.sbs.send_grid_selection_info(self.origin_id, self.face, self.color, self.comms_id)
         else:
-            sbs.send_comms_selection_info(self.origin_id, self.face, self.color, self.comms_id)
+            FrameContext.context.sbs.send_comms_selection_info(self.origin_id, self.face, self.color, self.comms_id)
 
     def leave(self):
         self.clear()
@@ -508,9 +507,9 @@ class CommsPromise(ButtonPromise):
             if len(self.path)>6:
                 title = f"{self.comms_id} {self.path[6:]}"
             if self.is_grid_comms:
-                sbs.send_grid_selection_info(origin_id, self.face, self.color, title)
+                FrameContext.context.sbs.send_grid_selection_info(origin_id, self.face, self.color, title)
             elif origin_id == selected_id:
-                sbs.send_comms_selection_info(origin_id, self.face, self.color, title)
+                FrameContext.context.sbs.send_comms_selection_info(origin_id, self.face, self.color, title)
             else:
                 #
                 # Check for unknown 
@@ -524,11 +523,11 @@ class CommsPromise(ButtonPromise):
                 initial_scan = so.data_set.get(scan_name,0)
                 
                 if initial_scan is None or initial_scan =="no data":
-                    sbs.send_comms_selection_info(origin_id, "", "white", "unknown")
+                    FrameContext.context.sbs.send_comms_selection_info(origin_id, "", "white", "unknown")
                     self.is_unknown = True
                     return
                 else:
-                    sbs.send_comms_selection_info(origin_id, self.face, self.color, title)
+                    FrameContext.context.sbs.send_comms_selection_info(origin_id, self.face, self.color, title)
 
             for i, button in enumerate(self.expanded_buttons):
                 value = True
@@ -540,9 +539,9 @@ class CommsPromise(ButtonPromise):
                 if value and button.should_present((origin_id, selected_id)):
                     msg = self.task.format_string(button.message)
                     if self.is_grid_comms:
-                        sbs.send_grid_button_info(origin_id, color, msg, f"{i}")
+                        FrameContext.context.sbs.send_grid_button_info(origin_id, color, msg, f"{i}")
                     else:
-                        sbs.send_comms_button_info(origin_id, color, msg, f"{i}")
+                        FrameContext.context.sbs.send_comms_button_info(origin_id, color, msg, f"{i}")
 
 
     def pressed_set_values(self):

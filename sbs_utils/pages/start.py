@@ -1,5 +1,5 @@
 from ..gui import Page
-import sbs
+from ..helpers import FrameContext
 from ..spaceobject import SpaceObject
 
 
@@ -12,13 +12,14 @@ class StartPage(Page):
 
     def present(self, event):
         CID = event.client_id
+        SBS = FrameContext.context.sbs
 
-        sbs.send_gui_clear(CID,"")
-        sbs.send_gui_text(
+        SBS.send_gui_clear(CID,"")
+        SBS.send_gui_text(
                     CID,"",  "text", self.desc, 25, 30, 99, 90)
         
-        sbs.send_gui_button(CID,"", "start", "$text: Start", 80,90, 99,99)
-        sbs.send_gui_complete(CID, "")
+        SBS.send_gui_button(CID,"", "start", "$text: Start", 80,90, 99,99)
+        SBS.send_gui_complete(CID, "")
         
 
     def on_message(self, event):
@@ -38,6 +39,7 @@ class ClientSelectPage(Page):
 
     def present(self, event):
         CID = event.client_id
+        SBS = FrameContext.context.sbs
 
         players = SpaceObject.get_role_objects("__PLAYER__")
         if self.player_count != len(players):
@@ -45,11 +47,11 @@ class ClientSelectPage(Page):
            self.player_count == len(players)
 
         if self.state == "choose":
-            sbs.send_gui_clear(CID,"")
-            sbs.send_client_widget_list(event.client_id, "","")
+            SBS.send_gui_clear(CID,"")
+            SBS.send_client_widget_list(event.client_id, "","")
             i = 0
             for console in ["Helm", "Weapons", "Science", "Engineering", "Comms", "Main Screen"]:
-                sbs.send_gui_checkbox(CID,"", console, f"$text: {console};state:{'on' if console==self.console else 'off'}", 80,75-i*5, 99,79-i*5)
+                SBS.send_gui_checkbox(CID,"", console, f"$text: {console};state:{'on' if console==self.console else 'off'}", 80,75-i*5, 99,79-i*5)
                 i+=1
 
             i = 0
@@ -57,18 +59,18 @@ class ClientSelectPage(Page):
                 name = player.name
                 if self.player_id is None:
                     self.player_id = player.id
-                sbs.send_gui_checkbox(CID,"", str(player.id), f"$text:{name};state:{'on' if self.player_id == player.id else 'off'}", 20,75-i*5, 39,79-i*5)
+                SBS.send_gui_checkbox(CID,"", str(player.id), f"$text:{name};state:{'on' if self.player_id == player.id else 'off'}", 20,75-i*5, 39,79-i*5)
                 i+=1
 
             if self.player_id is not None:
-                sbs.send_gui_button(CID,"", "select", "$text:Select", 80,95-i*5, 99,99-i*5)
+                SBS.send_gui_button(CID,"", "select", "$text:Select", 80,95-i*5, 99,99-i*5)
             self.state = "skip"
-            sbs.send_gui_complete(CID,"")
+            SBS.send_gui_complete(CID,"")
             
         
 
     def on_message(self, event):
-
+        SBS = FrameContext.context.sbs
         match event.sub_tag:
             case "Helm":
                 self.console_name = "normal_helm" 
@@ -99,12 +101,12 @@ class ClientSelectPage(Page):
                 self.state = "choose"
                 self.present(sim, event)
             case "select":
-                sbs.send_gui_clear(event.client_id,"")
-                sbs.send_client_widget_list(event.client_id, self.console_name, self.widget_list)
+                SBS.send_gui_clear(event.client_id,"")
+                SBS.send_client_widget_list(event.client_id, self.console_name, self.widget_list)
                 self.state = "main"
                 self.present(event)
-                sbs.assign_client_to_ship(event.client_id, self.player_id)
-                sbs.send_gui_complete(event.client_id,"")
+                SBS.assign_client_to_ship(event.client_id, self.player_id)
+                SBS.send_gui_complete(event.client_id,"")
                 return
             case _:
                 self.player_id = int(event.sub_tag)

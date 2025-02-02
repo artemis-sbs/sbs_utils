@@ -4,8 +4,8 @@ from ..tickdispatcher import TickDispatcher
 from .inventory import get_inventory_value, set_inventory_value
 from ..fs import load_json_data, get_artemis_data_dir_filename, get_mission_dir_filename
 import functools
-import sbs
 from ..vec import Vec3
+from ..helpers import FrameContext
 
 def grid_objects(so_id):
     """get a set of agent ids of the grid objects on the specified ship
@@ -17,7 +17,7 @@ def grid_objects(so_id):
         set: a set of agent ids
     """    
     gos = set()
-    hm = sbs.get_hull_map(to_id(so_id))
+    hm = FrameContext.context.sbs.get_hull_map(to_id(so_id))
     if hm is None:
         return gos
     count = hm.get_grid_object_count()
@@ -38,7 +38,7 @@ def grid_objects_at(so_id, x,y):
         set: a set of agent ids
     """    
     gos = set()
-    hm = sbs.get_hull_map(to_id(so_id))
+    hm = FrameContext.context.sbs.get_hull_map(to_id(so_id))
     if hm is None:
         return gos
     return to_set(hm.get_objects_at_point(x,y))
@@ -223,7 +223,7 @@ def get_open_grid_points(id_or_obj):
         set: a set of Vec3 with x and y set
     """    
     the_set = []
-    hull_map = sbs.get_hull_map(to_id(id_or_obj))
+    hull_map = FrameContext.context.sbs.get_hull_map(to_id(id_or_obj))
     if hull_map is not None:
         for x in range(hull_map.w):
             for y in range(hull_map.w):

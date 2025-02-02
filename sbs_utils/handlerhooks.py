@@ -8,7 +8,6 @@ from .extra_dispatcher import HotkeyDispatcher, ClientStringDispatcher
 from .procedural.inventory import get_inventory_value, set_inventory_value
 
 from .gui import Gui, Page
-import sbs
 import traceback
 from . import faces
 from .fs import get_mission_name, get_startup_mission_name
@@ -51,14 +50,15 @@ class ErrorPage(Page):
         
 
     def present(self, event):
+        SBS = FrameContext.context.sbs
         match self.gui_state:
             case  "sim_on":
                 self.gui_state = "blank"
-                sbs.send_gui_clear(event.client_id, "")
-                sbs.send_gui_complete(event.client_id, "")
+                SBS.send_gui_clear(event.client_id, "")
+                SBS.send_gui_complete(event.client_id, "")
 
             case  "show":
-                sbs.send_gui_clear(event.client_id, "")
+                SBS.send_gui_clear(event.client_id, "")
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
                 self.gui_state = "presenting"
@@ -66,16 +66,17 @@ class ErrorPage(Page):
                 self.message = self.message.replace(",", ".")
                 self.message = self.message.replace(";", ".")
                 self.message = self.message.replace(":", ".")
-                sbs.send_gui_text(
+                SBS.send_gui_text(
                     event.client_id,"", "text", f"$text:sbs_utils runtime error^{self.message};", 0, 0, 80, 95)
                 
-                # sbs.send_gui_button(event.client_id, "back", "$text:pause mission;", 0, 80, 20, 94)
-                sbs.send_gui_button(event.client_id,"", "resume", "$text:Resume Mission;", 25, 80, 45, 99)
-                sbs.send_gui_button(event.client_id,"", "rerun", "$text:Rerun Mission;", 50, 80, 70, 99)
-                sbs.send_gui_button(event.client_id,"", "startup", "$text:run startup Mission;", 75, 80, 99, 99)
-                sbs.send_gui_complete(event.client_id, "")
+                # SBS.send_gui_button(event.client_id, "back", "$text:pause mission;", 0, 80, 20, 94)
+                SBS.send_gui_button(event.client_id,"", "resume", "$text:Resume Mission;", 25, 80, 45, 99)
+                SBS.send_gui_button(event.client_id,"", "rerun", "$text:Rerun Mission;", 50, 80, 70, 99)
+                SBS.send_gui_button(event.client_id,"", "startup", "$text:run startup Mission;", 75, 80, 99, 99)
+                SBS.send_gui_complete(event.client_id, "")
 
     def on_message(self, event):
+        SBS = FrameContext.context.sbs
         match event.sub_tag:
             # case "back":
             #     self.gui_state = "sim_on"
@@ -89,7 +90,7 @@ class ErrorPage(Page):
                 self.present(event)
 
                 Gui.pop(event.client_id)
-                FrameContext.context.sbs.resume_sim()
+                SBS.resume_sim()
 
             case "rerun":
                 self.gui_state = "sim_on"
@@ -97,7 +98,7 @@ class ErrorPage(Page):
 
                 Gui.pop(event.client_id)
                 start_mission = get_mission_name()
-                sbs.run_next_mission(start_mission)
+                SBS.run_next_mission(start_mission)
 
             case "startup":
                 self.gui_state = "sim_on"
@@ -106,16 +107,18 @@ class ErrorPage(Page):
                 Gui.pop(event.client_id)
                 start_mission = get_startup_mission_name()
                 if start_mission is not None:
-                    sbs.run_next_mission(start_mission)
+                    SBS.run_next_mission(start_mission)
 
 
 def cosmos_event_handler(sim, event):
     try:
         t = time.process_time()
+        import sbs
         # Allow guis more direct access to events
         # e.g. Mast Story Page, Clients change
         ctx = Context(sim, sbs, event)
         FrameContext.context = ctx
+        SBS = FrameContext.context.sbs
         # gui = Gui.clients.get(event.client_id):
         # if gui is not None:
         #     FrameContext.page = gui.page
@@ -186,7 +189,7 @@ def cosmos_event_handler(sim, event):
 
             case "red_alert":
                 # get_inventory_value(event.client_id, "assigned_ship", None)
-                ship_id = sbs.get_ship_of_client(event.client_id) 
+                ship_id = SBS.get_ship_of_client(event.client_id) 
                 if ship_id is not None:
                     set_inventory_value(ship_id, "red_alert", event.value_tag == "on")
                 
@@ -211,12 +214,12 @@ def cosmos_event_handler(sim, event):
             case "select_space_object":
                 # print_event(event)
                 if "comms_sorted_list" == event.value_tag:
-                    sbs.send_comms_selection_info(event.origin_id, "", "white", "static")
+                    SBS.send_comms_selection_info(event.origin_id, "", "white", "static")
                 #
                 # Avoid obscure bug, waterfall send selected_id == 0
                 #
                 if event.selected_id==0 and "comms_waterfall" == event.value_tag:
-                    sbs.send_comms_selection_info(event.origin_id, "", "white", "static")
+                    SBS.send_comms_selection_info(event.origin_id, "", "white", "static")
                     return
                     
 
@@ -241,13 +244,13 @@ def cosmos_event_handler(sim, event):
                 GridDispatcher.dispatch_grid_event(event)
             case "grid_object_selection":
                 # Set Comms info to empty
-                sbs.send_grid_selection_info(event.parent_id, "", "white", "")
+                SBS.send_grid_selection_info(event.parent_id, "", "white", "")
                 ConsoleDispatcher.dispatch_select(event)
             case "press_grid_button":
                 ConsoleDispatcher.dispatch_message(event, "grid_selected_UID")
                 
             case "grid_point_selection":
-                sbs.send_grid_selection_info(event.parent_id, "", "white", "")
+                SBS.send_grid_selection_info(event.parent_id, "", "white", "")
                 GridDispatcher.dispatch_grid_event(event)
 
             case "sim_paused":
@@ -269,7 +272,7 @@ def cosmos_event_handler(sim, event):
         # When the ID is no longer valid the callback is called
         GarbageCollector.collect()
     except BaseException as err:
-        sbs.pause_sim()
+        SBS.pause_sim()
         text_err = format_exception("", "SBS Utils Hook level Runtime Error:")
         text_err += traceback.format_exc()
         text_err = text_err.replace(chr(94), "")

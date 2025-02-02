@@ -2,6 +2,7 @@ import random
 import sys
 import re
 from sbs_utils.procedural.execution import task_schedule
+from sbs_utils.vec import Vec3
 
 class CardList:
     def __init__(self):
@@ -236,6 +237,37 @@ class Tilemap(CardList):
         """
         # Hex fill grabs 1, 6, 12, 18, 30, 48
         pass
+
+    def calc_hex_points(center_x,center_z, rings, size):
+        center = Vec3(center_x, center_z, 0)
+        max_radius = size /2
+        diameter = max_radius / rings 
+        points = {center}
+        previous_points = {center}
+        next_points = set()
+        for ring in range(rings):
+            for point in previous_points:
+                for j in range(6):
+                    # Above Left, right
+                    next_points = Vec3(point) + Vec3(-diameter/2, -diameter)
+                    next_points = Vec3(point) + Vec3(diameter/2, -diameter)
+                    # left, right 
+                    next_points = Vec3(point) + Vec3(-diameter, 0)
+                    next_points = Vec3(point) + Vec3(diameter, 0)
+                    # below Left, right
+                    next_points = Vec3(point) + Vec3(-diameter/2, -diameter)
+                    next_points = Vec3(point) + Vec3(diameter/2, -diameter)
+            points & next_points
+            previous_points = next_points
+            next_points = set()
+
+
+
+            
+
+
+
+
 
 def shuffle_string(s):
     l = list(s)

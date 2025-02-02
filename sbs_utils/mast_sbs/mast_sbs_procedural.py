@@ -1,6 +1,5 @@
 from ..mast.mast import Mast
 from ..mast.mastscheduler import MastAsyncTask
-import sbs
 from ..mast.mast_globals import MastGlobals
 
 
@@ -35,6 +34,8 @@ def mast_format_string(s):
 
 MastGlobals.globals["mast_format_string"] = mast_format_string
 MastGlobals.globals["script"] = sys.modules['script']
+
+import sbs
 MastGlobals.globals["sbs"] = sbs
 MastGlobals.globals['Vec3'] = vec.Vec3
 for func in [

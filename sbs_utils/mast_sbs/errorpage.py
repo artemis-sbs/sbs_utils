@@ -1,5 +1,5 @@
 from ..gui import Gui, Page
-import sbs
+from ..helpers import FrameContext
 
 class ErrorPage(Page):
     def __init__(self, msg) -> None:
@@ -7,6 +7,7 @@ class ErrorPage(Page):
         self.message = msg
 
     def present(self, event):
+        sbs = FrameContext.context.sbs
         match self.gui_state:
             case  "sim_on":
                 self.gui_state = "blank"
@@ -31,6 +32,6 @@ class ErrorPage(Page):
 
             case "resume":
                 Gui.pop(event.client_id)
-                sbs.resume_sim()
+                FrameContext.context.sbs.resume_sim()
 
 

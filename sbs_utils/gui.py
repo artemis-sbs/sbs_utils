@@ -1,4 +1,3 @@
-import sbs
 from .agent import Agent
 from .helpers import FakeEvent, FrameContext
 from .vec import Vec3
@@ -126,7 +125,6 @@ class GuiClient(Agent):
         """
         event = FakeEvent(self.client_id, "gui_push")
         #print(f"Pushing {self.client_id}")
-        # page.aspect_ratio = sbs.vec3(self.aspect_ratio.x,self.aspect_ratio.y,self.aspect_ratio.z)
         self.page_stack.append(page)
         self.present(event)
         #print(f"After Pushing {self.client_id} {page.task.done()}")
@@ -138,7 +136,7 @@ class GuiClient(Agent):
 
         """
         ret = None
-        sbs.send_gui_clear(self.client_id, "")
+        FrameContext.context.sbs.send_gui_clear(self.client_id, "")
         if len(self.page_stack) > 0:
             ret = self.page_stack.pop()
             if ret:
@@ -307,7 +305,6 @@ class Gui:
         """
         #
         # This is a list of what the engine thinks are clients
-
         client_list = set(FrameContext.context.sbs.get_client_ID_list())
         disconnect = []
         Gui.represent = set()

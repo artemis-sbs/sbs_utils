@@ -1,6 +1,5 @@
 from ...gui import Page, get_client_aspect_ratio
 from ...agent import Agent
-import sbs
 import struct # for images sizes
 from ... import fs
 import os
@@ -1556,27 +1555,29 @@ class Layout:
         #         print(f"clear {self.region_tag}")
         #         sbs.send_gui_clear(client_id, self.drawing_region_tag)
         # elif not self.region:
-            if self.region_type == RegionType.REGION_ABSOLUTE:
-                self.region = True
-                sbs.send_gui_sub_region(client_id, self.region_tag, self.drawing_region_tag, "draggable:True;", 0.0,0.0,100.0,100.0)
-                sbs.send_gui_clear(client_id, self.drawing_region_tag)
-            elif self.region_type == RegionType.REGION_RELATIVE:
-                #
-                # TODO: This should be bounds
-                #
-                self.region = True
-                sbs.send_gui_sub_region(client_id, self.region_tag, self.drawing_region_tag, "draggable:True;", 0,0,50,50)
-                sbs.send_gui_clear(client_id, self.drawing_region_tag)
-       
+        SBS = FrameContext.context.sbs
+        if self.region_type == RegionType.REGION_ABSOLUTE:
+            self.region = True
+            SBS.send_gui_sub_region(client_id, self.region_tag, self.drawing_region_tag, "draggable:True;", 0.0,0.0,100.0,100.0)
+            SBS.send_gui_clear(client_id, self.drawing_region_tag)
+        elif self.region_type == RegionType.REGION_RELATIVE:
+            #
+            # TODO: This should be bounds
+            #
+            self.region = True
+            SBS.send_gui_sub_region(client_id, self.region_tag, self.drawing_region_tag, "draggable:True;", 0,0,50,50)
+            SBS.send_gui_clear(client_id, self.drawing_region_tag)
+    
         
     def region_end(self, client_id):
         # There should always be the root
 
         #if self.representing:
         #    self.representing = False
+        SBS = FrameContext.context.sbs
         if self.region_type != RegionType.SECTION_AREA_ABSOLUTE:
             #print(f"complete {self.region_tag}")
-            sbs.send_gui_complete(client_id, self.drawing_region_tag)
+            SBS.send_gui_complete(client_id, self.drawing_region_tag)
 
         
 
@@ -1728,7 +1729,8 @@ class LayoutPage(Page):
         super().__init__()
         self.gui_state = 'repaint'
         self.layout = Layout()
-        self.aspect_ratio = sbs.vec3(1024,768,0)
+        SBS = FrameContext.context.sbs
+        self.aspect_ratio = SBS.vec3(1024,768,0)
         
 
     def _present(self, event):

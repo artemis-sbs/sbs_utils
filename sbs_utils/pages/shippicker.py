@@ -1,7 +1,7 @@
 from ..gui import Page, Gui
 from .. import layout as layout
 from .widgets.shippicker import ShipPicker as WShipPicker
-import sbs
+from ..helpers import FrameContext
 
 
 class ShipPicker(Page):
@@ -13,14 +13,15 @@ class ShipPicker(Page):
 
     def present(self, event):
         CID = event.client_id
+        SBS = FrameContext.context.sbs
         if self.gui_state == "presenting":
             return
 
-        sbs.send_gui_clear(CID,"")
+        SBS.send_gui_clear(CID,"")
         self.picker1.present(event)
         self.picker2.present(event)
-        sbs.send_gui_button(CID, "","back", "$text:Back", 85,95, 99,99)
-        sbs.send_gui_complete(CID,"")
+        SBS.send_gui_button(CID, "","back", "$text:Back", 85,95, 99,99)
+        SBS.send_gui_complete(CID,"")
 
         self.gui_state = "presenting"
 

@@ -1,18 +1,16 @@
-from sbs_utils.procedural.query import to_id, to_blob, to_object, to_list, to_set
-from sbs_utils.procedural.roles import role, add_role, remove_role, all_roles,has_role
-from sbs_utils.procedural.links import link,unlink, linked_to
-from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value, get_shared_inventory_value, has_inventory_value
-from sbs_utils.procedural.grid import grid_objects, grid_objects_at, grid_closest, grid_get_grid_data, grid_get_item_theme_data, grid_get_grid_current_theme, grid_set_grid_current_theme
-from sbs_utils.procedural.spawn import grid_spawn
-from sbs_utils.procedural.comms import comms_broadcast
-from sbs_utils.procedural.gui import gui_reroute_client
-from sbs_utils.procedural.space_objects import get_pos
-from sbs_utils.procedural.signal import signal_emit
-from sbs_utils.helpers import FrameContext
-from sbs_utils.tickdispatcher import TickDispatcher
+from ..procedural.query import to_id, to_blob, to_object, to_list, to_set
+from ..procedural.roles import role, add_role, remove_role, all_roles,has_role
+from ..procedural.links import link,unlink
+from ..procedural.inventory import get_inventory_value, set_inventory_value
+from ..procedural.grid import grid_objects, grid_objects_at, grid_closest, grid_get_grid_data, grid_get_item_theme_data, grid_get_grid_current_theme
+from ..procedural.spawn import grid_spawn
+from ..procedural.comms import comms_broadcast
+
+from ..procedural.space_objects import get_pos
+from ..procedural.signal import signal_emit
+from ..helpers import FrameContext
 
 import random
-import sbs
 
 
 _MAX_HP = 6
@@ -41,6 +39,7 @@ Wally
 
 
 def grid_rebuild_grid_objects(id_or_obj, grid_data=None):
+    SBS = FrameContext.context.sbs
     if grid_data is None:
         grid_data = grid_get_grid_data()
 
@@ -69,7 +68,7 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None):
     items =grid_objects(ship_id)
     for k in items:
         # delete by id
-        sbs.delete_grid_object(ship_id, k)
+        SBS.delete_grid_object(ship_id, k)
 
 
     #
@@ -125,14 +124,14 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None):
         if "weapon" in roles:
             weapons += 1
 
-    blob.set('system_max_damage', weapons, sbs.SHPSYS.WEAPONS)
-    blob.set('system_max_damage', engines, sbs.SHPSYS.ENGINES)
-    blob.set('system_max_damage', sensors, sbs.SHPSYS.SENSORS)
-    blob.set('system_max_damage', shields, sbs.SHPSYS.SHIELDS)
-    blob.set('system_damage', 0, sbs.SHPSYS.WEAPONS)
-    blob.set('system_damage', 0, sbs.SHPSYS.ENGINES)
-    blob.set('system_damage', 0, sbs.SHPSYS.SENSORS)
-    blob.set('system_damage', 0, sbs.SHPSYS.SHIELDS)
+    blob.set('system_max_damage', weapons, SBS.SHPSYS.WEAPONS)
+    blob.set('system_max_damage', engines, SBS.SHPSYS.ENGINES)
+    blob.set('system_max_damage', sensors, SBS.SHPSYS.SENSORS)
+    blob.set('system_max_damage', shields, SBS.SHPSYS.SHIELDS)
+    blob.set('system_damage', 0, SBS.SHPSYS.WEAPONS)
+    blob.set('system_damage', 0, SBS.SHPSYS.ENGINES)
+    blob.set('system_damage', 0, SBS.SHPSYS.SENSORS)
+    blob.set('system_damage', 0, SBS.SHPSYS.SHIELDS)
 
     #
     # This is needed to reset the coefficients after an explosion
@@ -144,8 +143,8 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None):
     #
     # Create marker
     #
-    v = sbs.vec3(0.5,0,0.5)
-    loc = sbs.find_valid_grid_point_for_vector3(ship_id, v, 5)
+    v = SBS.vec3(0.5,0,0.5)
+    loc = SBS.find_valid_grid_point_for_vector3(ship_id, v, 5)
     if len(loc)==0:
         return
     loc_x = loc[0]
@@ -160,8 +159,8 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None):
     marker_go_id =  to_id(marker_go)
     set_inventory_value(ship_id, "marker_id", marker_go_id)
     # Create EPAD
-    v = sbs.vec3(0.5,0,0.5)
-    loc = sbs.find_valid_grid_point_for_vector3(ship_id, v, 5)
+    v = SBS.vec3(0.5,0,0.5)
+    loc = SBS.find_valid_grid_point_for_vector3(ship_id, v, 5)
     if len(loc)==0:
         return
     loc_x = loc[0]
@@ -177,11 +176,12 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None):
 
 
 def grid_restore_damcons(id_or_obj):
+    SBS = FrameContext.context.sbs
     ship_id = to_id(id_or_obj)
     if has_role(ship_id, "cockpit"):
         return
 
-    hm = sbs.get_hull_map(ship_id)
+    hm = SBS.get_hull_map(ship_id)
     if hm is None: return
 
     item_theme_data = grid_get_item_theme_data("damcons")
@@ -206,8 +206,8 @@ def grid_restore_damcons(id_or_obj):
             # Hit points == MAX_HP
             set_inventory_value(_id, "HP", grid_get_max_hp() )
         else:
-            v = sbs.vec3(0.5,0,0.5)
-            point = sbs.find_valid_unoccupied_grid_point_for_vector3(ship_id, v, 5)
+            v = SBS.vec3(0.5,0,0.5)
+            point = SBS.find_valid_unoccupied_grid_point_for_vector3(ship_id, v, 5)
             
             if len(point) == 0:
                 break
@@ -240,6 +240,8 @@ def grid_restore_damcons(id_or_obj):
 
 
 def grid_apply_system_damage(id_or_obj):
+    SBS = FrameContext.context.sbs
+
     ship_id = to_id(id_or_obj)
     if has_role(ship_id, "exploded"):
         return
@@ -250,7 +252,7 @@ def grid_apply_system_damage(id_or_obj):
     the_roles =  ["weapon", "engine", "sensor", "shield"]
 
 
-    for x in range(sbs.SHPSYS.MAX):
+    for x in range(SBS.SHPSYS.MAX):
         # system_damaged = damaged_grid_objects & role(the_roles[x])
         system_damage = damaged_grid_objects & role(the_roles[x])
         cur = len(system_damage)
@@ -400,9 +402,10 @@ def grid_damage_grid_object(ship_id, grid_id, damage_color):
 
 
 def convert_system_to_string(the_system):
+    SBS = FrameContext.context.sbs
     if isinstance(the_system, str):
         return the_system
-    elif isinstance(the_system, sbs.SHPSYS):
+    elif isinstance(the_system, SBS.SHPSYS):
         the_system = the_system.value
     
     the_roles =  ["weapon", "engine", "sensor", "shield"]
@@ -458,18 +461,19 @@ def grid_damage_pos(id_or_obj, loc_x, loc_y):
 
 
 def grid_take_internal_damage_at(id_or_obj, source_point, system_hit, damage_amount):
+    SBS = FrameContext.context.sbs
     ship_id = to_id(id_or_obj)
     # Make sure you don't take further damage
     if has_role(ship_id, "exploded"): return
     # Host is no more 
-    hm = sbs.get_hull_map(ship_id)
+    hm = SBS.get_hull_map(ship_id)
     if hm is None: return
 
     loc_x = 0
     loc_y = 0
     damage_radius = int(((hm.w+hm.h) / 2 / 2) + 2) # Average halved + 2
 
-    loc = sbs.find_valid_grid_point_for_vector3(ship_id, source_point, damage_radius)
+    loc = SBS.find_valid_grid_point_for_vector3(ship_id, source_point, damage_radius)
     # Nothing to do END
     if len(loc)== 0: return
     #
@@ -559,7 +563,7 @@ def grid_take_internal_damage_at(id_or_obj, source_point, system_hit, damage_amo
 
         blob.set("icon_color", dc_damage_color, 0)
         if hp <= 0:
-            sbs.delete_grid_object(go.host_id, d)
+            SBS.delete_grid_object(go.host_id, d)
             comms_broadcast(ship_id, f"{go.name} has perished", dc_damage_color)
             if go is not None:
                 go.destroyed()
@@ -588,6 +592,7 @@ def grid_repair_system_damage(id_or_obj, the_system=None):
 
 
 def grid_repair_grid_objects(player_ship, id_or_set, who_repaired=None):
+    SBS = FrameContext.context.sbs
     at_point = to_set(id_or_set)
     damcon_repairer = to_id(who_repaired)
     player_ship_id = to_id(player_ship)
@@ -617,7 +622,7 @@ def grid_repair_grid_objects(player_ship, id_or_set, who_repaired=None):
         # else restore color and repair system
         system_heal = None
         if has_role(id, "hallway"):
-            sbs.delete_grid_object(go.host_id, id)
+            SBS.delete_grid_object(go.host_id, id)
             go.destroyed()
         #
         # This is a room, fix
@@ -630,13 +635,13 @@ def grid_repair_grid_objects(player_ship, id_or_set, who_repaired=None):
                 color = "purple"
             blob.set("icon_color", color, 0)
             if has_role(id, "sensor"):
-                system_heal = sbs.SHPSYS.SENSORS
+                system_heal = SBS.SHPSYS.SENSORS
             elif has_role(id, "weapon"):
-                system_heal = sbs.SHPSYS.WEAPONS
+                system_heal = SBS.SHPSYS.WEAPONS
             elif has_role(id, "engine"):
-                system_heal = sbs.SHPSYS.ENGINES
+                system_heal = SBS.SHPSYS.ENGINES
             elif has_role(id, "shield"):
-                system_heal = sbs.SHPSYS.SHIELDS
+                system_heal = SBS.SHPSYS.SHIELDS
         #
         # 
         #

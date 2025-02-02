@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import Callable
-import sbs
 from enum import IntEnum
 from .agent import Agent, SpawnData
 from .helpers import FrameContext
@@ -218,7 +217,7 @@ class SpaceObject(Agent):
 
 class MSpawn:
     def spawn_common(self, obj, x, y, z, name, side, art_id):
-        self.spawn_pos = sbs.vec3(x,y,z)
+        self.spawn_pos = FrameContext.context.sbs.vec3(x,y,z)
         self._engine_object = obj
 
         FrameContext.context.sim.reposition_space_object(obj, x, y, z)

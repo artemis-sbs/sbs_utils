@@ -1,4 +1,4 @@
-import sbs
+from ..helpers import FrameContext
 
 """
 Functions to the engine
@@ -7,18 +7,18 @@ Functions to the engine
 def sim_create():
     """ Creates a new simulation
     """    
-    sbs.create_new_sim()
+    FrameContext.context.sbs.create_new_sim()
     
 
 def sim_pause():
     """pauses the simulation
     """    
-    sbs.pause_sim()
+    FrameContext.context.sbs.pause_sim()
 
 
 
 def sim_resume():
     """resume the simulation
     """    
-    sbs.resume_sim()
+    FrameContext.context.sbs.resume_sim()
 

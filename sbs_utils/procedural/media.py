@@ -1,8 +1,8 @@
-from sbs_utils.mast_sbs.story_nodes.media import MediaLabel
-from sbs_utils.fs import load_json_data, get_mission_dir_filename
+from ..mast_sbs.story_nodes.media import MediaLabel
+from ..fs import load_json_data, get_mission_dir_filename
 from random import choice
 from sbs_utils.procedural.execution import sub_task_schedule
-import sbs
+from ..helpers import FrameContext
 
 
 def media_schedule_random(kind, ID=0):
@@ -37,10 +37,10 @@ def _media_schedule(kind, label, ID=0):
     """ Sets the folder from which music is streamed; ID is ship, OR client, OR zero for server.
     """
     if kind == "skybox":
-        sbs.set_sky_box(ID, label.true_path())
+        FrameContext.context.sbs.set_sky_box(ID, label.true_path())
         sub_task_schedule(label)
     elif kind == "music":
-        sbs.set_music_folder(ID, label.true_path())
+        FrameContext.context.sbs.set_music_folder(ID, label.true_path())
         sub_task_schedule(label)
     return label
 

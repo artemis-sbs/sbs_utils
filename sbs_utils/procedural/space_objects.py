@@ -3,7 +3,6 @@ from .query import to_set, to_list, to_object, to_id, object_exists
 from ..helpers import FrameContext
 from ..vec import Vec3
 from .roles import all_roles
-import sbs
 
 
 
@@ -21,7 +20,7 @@ def broad_test(x1: float, z1: float, x2: float, z2: float, broad_type=0xfff0):
     Returns:
         set: A set of ids
     """    
-    obj_list = sbs.broad_test(x1, z1, x2, z2, broad_type)
+    obj_list = FrameContext.context.sbs.broad_test(x1, z1, x2, z2, broad_type)
     return {so.unique_ID for so in obj_list}
 
 def broad_test_around(id_or_obj, width: float, depth: float, broad_type=0xfff0):
@@ -40,7 +39,7 @@ def broad_test_around(id_or_obj, width: float, depth: float, broad_type=0xfff0):
     if so is None:
         return {}
     _pos = so.engine_object.pos
-    obj_list = sbs.broad_test(_pos.x-(width/2), _pos.z-(depth/2), _pos.x+(width/2), _pos.z+(depth/2), broad_type)
+    obj_list = FrameContext.context.sbs.broad_test(_pos.x-(width/2), _pos.z-(depth/2), _pos.x+(width/2), _pos.z+(depth/2), broad_type)
     return {so.unique_ID for so in obj_list}
 
 
@@ -68,7 +67,7 @@ def closest_list(source: int | CloseData | SpawnData | Agent, the_set, max_dist=
         if filter_func is not None and not filter_func(other_obj):
             continue
         # test distance
-        test = sbs.distance_id(source_id, other_id)
+        test = FrameContext.context.sbs.distance_id(source_id, other_id)
         if max_dist is None:
             ret.append(CloseData(other_id, other_obj, test))
             continue
@@ -105,7 +104,7 @@ def closest(the_ship, the_set, max_dist=None, filter_func=None) -> CloseData:
             continue
 
         # test distance
-        test = sbs.distance_id(source_id, other_id)
+        test = FrameContext.context.sbs.distance_id(source_id, other_id)
         if max_dist is None:
             ret = CloseData(other_id, other_obj, test)
             max_dist = test
@@ -340,7 +339,7 @@ def remove_objects_sphere(x,y,z, radius, abits=0x0F, roles=None):
         diff = mid-pos
         if diff.dot(diff) <= r:
             obj.remove()
-            sbs.delete_object(id)
+            FrameContext.context.sbs.delete_object(id)
 
 
 
@@ -365,7 +364,7 @@ def remove_objects_box(x,y,z, w,h,d, abits=0x0F, roles=None):
 
         if abs(pos.y-y) <= h:
             obj.remove()
-            sbs.delete_object(id)
+            FrameContext.context.sbs.delete_object(id)
 
 
     

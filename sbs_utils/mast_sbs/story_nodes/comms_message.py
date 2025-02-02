@@ -1,4 +1,4 @@
-from ...mast.mast_node import  MastNode, DescribableNode, STRING_REGEX_NAMED, mast_node
+from ...mast.mast_node import  DescribableNode, STRING_REGEX_NAMED, mast_node
 import re
 
 #
@@ -14,7 +14,6 @@ from ...procedural.roles import role
 from ...procedural.comms import comms_receive, comms_transmit, comms_speech_bubble, comms_broadcast, comms_message
 from ...procedural.science import scan_results
 from .define_format import DefineFormat
-import sbs
 import random
 
 
@@ -62,11 +61,12 @@ class CommsMessageStart(DescribableNode):
     def post_dedent(self,compile_info):
         pass
 
-
+from ...helpers import FrameContext
     
 @mast_runtime_node(CommsMessageStart)
 class CommsMessageStartRuntimeNode(MastRuntimeNode):
     def enter(self, mast:'Mast', task:'MastAsyncTask', node: CommsMessageStart):
+        SBS = FrameContext.context.sbs
         if len(node.options)==0:
             return
         msg = random.choice(node.options)
@@ -83,30 +83,30 @@ class CommsMessageStartRuntimeNode(MastRuntimeNode):
         elif node.mtype == "<client>": 
             comms_broadcast(task.maim.client_id, msg, node.body_color)
         elif node.mtype == "<ship>":
-            player_id = sbs.get_ship_of_client(task.maim.client_id) 
+            player_id = SBS.get_ship_of_client(task.maim.client_id) 
             comms_broadcast(player_id, msg, node.body_color)
         elif node.mtype == "<all>": 
             comms_broadcast(0, msg, node.body_color)
         elif node.mtype == "()": 
             comms_speech_bubble(msg, color=node.title_color)
         elif node.mtype == "<dialog>": 
-            sbs.send_story_dialog(task.maim.client_id, node.title,msg, npc_face, node.title_color)
-            player_id = sbs.get_ship_of_client(task.maim.client_id) 
+            SBS.send_story_dialog(task.maim.client_id, node.title,msg, npc_face, node.title_color)
+            player_id = SBS.get_ship_of_client(task.maim.client_id) 
             comms_message(msg, player_id, player_id,  node.title, npc_face, node.body_color, node.title_color, True)
         elif node.mtype == "<dialog_ships>": 
-            sbs.send_story_dialog(task.maim.client_id, node.title,msg, npc_face, node.title_color)
+            SBS.send_story_dialog(task.maim.client_id, node.title,msg, npc_face, node.title_color)
             for p in role("__player__"):
                 comms_message(msg, p, p,  node.title, npc_face, node.body_color, node.title_color, True)
         elif node.mtype == "<dialog_consoles>":
-            player_id = sbs.get_ship_of_client(task.maim.client_id)
+            player_id = SBS.get_ship_of_client(task.maim.client_id)
             for c in role("console"):
                 if c.get_inventory_value("assigned_ship") == player_id:
-                    sbs.send_story_dialog(c, node.title,msg, npc_face, node.title_color)
+                    SBS.send_story_dialog(c, node.title,msg, npc_face, node.title_color)
         elif node.mtype == "<dialog_consoles_all>":
-            sbs.send_story_dialog(0, node.title,msg, npc_face, node.title_color)
+            SBS.send_story_dialog(0, node.title,msg, npc_face, node.title_color)
             for c in role("console"):
-                sbs.send_story_dialog(c, node.title,msg, npc_face, node.title_color)
+                SBS.send_story_dialog(c, node.title,msg, npc_face, node.title_color)
         elif node.mtype == "<dialog_main>":
-            sbs.send_story_dialog(0, node.title,msg, npc_face, node.title_color)
+            SBS.send_story_dialog(0, node.title,msg, npc_face, node.title_color)
             for c in role("mainscreen") & role("console"):
-                sbs.send_story_dialog(c, node.title,msg, npc_face, node.title_color)
+                SBS.send_story_dialog(c, node.title,msg, npc_face, node.title_color)

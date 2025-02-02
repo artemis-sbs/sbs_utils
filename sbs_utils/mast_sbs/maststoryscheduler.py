@@ -1,7 +1,6 @@
 from ..mast.mastscheduler import MastScheduler
 from ..mast.mast import Mast, Scope
 from ..agent import Agent
-import sbs
 from ..gui import Gui
 from ..helpers import FakeEvent, FrameContext, format_exception
 from ..mast.mast_globals import MastGlobals
@@ -57,7 +56,7 @@ class StoryScheduler(MastScheduler):
 
 
     def runtime_error(self, message):
-        sbs.pause_sim()
+        FrameContext.context.sbs.pause_sim()
         err = format_exception(message, "SBS Utils Page level Runtime Error:")
         print(err)
         FrameContext.error_message = err
@@ -97,7 +96,7 @@ class StoryScheduler(MastScheduler):
             
             assign = None
             if self.client_id is not None:
-                _id = sbs.get_ship_of_client(self.client_id)
+                _id = FrameContext.context.sbs.get_ship_of_client(self.client_id)
                 if _id:
                     assign = Agent.get(_id)
             if assign is not None:
@@ -125,7 +124,7 @@ class StoryScheduler(MastScheduler):
             return scope
         
         if scope == Scope.ASSIGNED:
-            _ship = sbs.get_ship_of_client(self.client_id) 
+            _ship = FrameContext.context.sbs.get_ship_of_client(self.client_id) 
             _ship = None if _ship == 0 else _ship
             assign = Agent.get(_ship)
             if assign is not None:
@@ -141,7 +140,7 @@ class StoryScheduler(MastScheduler):
         # if self.client_id is None:        
         #     return mast_inv
         # m1 = mast_inv | Agent.get(self.client_id).inventory.collections
-        # _ship = sbs.get_ship_of_client(self.client_id) 
+        # _ship = FrameContext.context.sbs.get_ship_of_client(self.client_id) 
         # _ship = None if _ship == 0 else _ship
         # assign = Agent.get(_ship)
         # if assign is not None:

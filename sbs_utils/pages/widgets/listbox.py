@@ -1,6 +1,5 @@
 from ...gui import Widget, get_client_aspect_ratio
 from ..layout import layout as layout
-import sbs
 import struct # for images sizes
 import os
 from ... import fs
@@ -70,6 +69,7 @@ class Listbox(Control):
         :type CID: int
         """
         CID = event.client_id
+        SBS = FrameContext.context.sbs
 
         the_bounds = layout.Bounds(0,0,100,100)
         #print(f"LB _present {self.region_tag} {self.bounds}")
@@ -102,7 +102,7 @@ class Listbox(Control):
            
         
         if self.items is None:
-            sbs.send_gui_text(
+            SBS.send_gui_text(
                     CID, self.local_region_tag, f"{self.tag}error", f"$text:Error no items;", the_bounds.left, the_bounds.top, the_bounds.right, the_bounds.top+5)
             return
 
@@ -112,16 +112,16 @@ class Listbox(Control):
             title = self.title()
             if self.title_background is not None:
                 props = f"image:smallWhite; color:{self.title_background};" # sub_rect: 0,0,etc"
-                sbs.send_gui_image(CID, self.local_region_tag, 
+                SBS.send_gui_image(CID, self.local_region_tag, 
                     f"{self.tag}tbg", props,
                     the_bounds.left, the_bounds.top, the_bounds.right, top+self.item_height)
-            sbs.send_gui_text(
+            SBS.send_gui_text(
                     CID,self.local_region_tag,  f"{self.tag}title", f"{title}",the_bounds.left, top, the_bounds.right, top+self.item_height)
             top += self.item_height
 
         if self.background is not None:
             props = f"image:smallWhite; color:{self.background};" # sub_rect: 0,0,etc"
-            sbs.send_gui_image(CID, self.local_region_tag, 
+            SBS.send_gui_image(CID, self.local_region_tag, 
                 f"{self.tag}bg", props,
                 the_bounds.left, the_bounds.top, the_bounds.right, the_bounds.bottom)
 
@@ -134,7 +134,7 @@ class Listbox(Control):
         slot_count = len(self.items)-max_slot
         if slot_count > 0:
             self.slot_count = slot_count
-            sbs.send_gui_slider(CID, self.local_region_tag, f"{self.tag}cur", int(slot_count-self.cur +0.5), f"low:0.0; high: {(slot_count+0.5)}; show_number:no",
+            SBS.send_gui_slider(CID, self.local_region_tag, f"{self.tag}cur", int(slot_count-self.cur +0.5), f"low:0.0; high: {(slot_count+0.5)}; show_number:no",
                         (the_bounds.right-1), top,
                         the_bounds.right, the_bounds.bottom)
         else:
@@ -167,7 +167,7 @@ class Listbox(Control):
                     tag = f"{self.tag}icon:{slot}:{i}"
                     tags.add(tag)
                     #print (f"ICON PROPS: {icon_item}")
-                    sbs.send_gui_icon(CID, self.local_region_tag, tag, icon_item,
+                    SBS.send_gui_icon(CID, self.local_region_tag, tag, icon_item,
                         left, top,
                         left+square_width_percent, top+square_height_percent )
                     left += square_width_percent
@@ -182,7 +182,7 @@ class Listbox(Control):
                     image_to_display = layout.merge_props(props)
                     tag = f"{self.tag}image:{slot}"
                     tags.add(tag)
-                    sbs.send_gui_image(CID,tag, image_to_display, 
+                    SBS.send_gui_image(CID,tag, image_to_display, 
                         # cell_left, cell_top, cell_right, cell_bottom,
                         left, top, the_bounds.left+square_width_percent,  top+square_height_percent
                     )
@@ -194,7 +194,7 @@ class Listbox(Control):
 
                 tag = f"{self.tag}ship:{slot}"
                 tags.add(tag)
-                sbs.send_gui_3dship(CID,self.local_region_tag,  tag, ship_to_display,
+                SBS.send_gui_3dship(CID,self.local_region_tag,  tag, ship_to_display,
                     left, top,
                     left+square_width_percent, top+square_height_percent )
                 left += square_width_percent
@@ -202,7 +202,7 @@ class Listbox(Control):
                 face = self.face(item)
                 tag = f"{self.tag}face:{slot}"
                 tags.add(tag)
-                sbs.send_gui_face(CID, self.local_region_tag, tag,  face,
+                SBS.send_gui_face(CID, self.local_region_tag, tag,  face,
                     left, top,
                     left+square_width_percent, top+square_height_percent )
                 left += square_width_percent
@@ -213,12 +213,12 @@ class Listbox(Control):
                     text = f"$text:{text};justify:center;"
             tag = f"{self.tag}name:{slot}"
             tags.add(tag)
-            sbs.send_gui_text(
+            SBS.send_gui_text(
                     CID, self.local_region_tag, tag, text,
                         left, top, the_bounds.right, top+self.item_height)
             if self.select or self.multi:
                 #print(f"{cur} selected {1 if cur in self.selected else 0}")
-                # sbs.send_gui_checkbox(
+                # SBS.send_gui_checkbox(
                 #     CID, f"{self.tag_prefix}name:{slot}", f"state: {'on' if cur in self.selected else 'off'}; {text}",
                 #         left, top, self.right-1.5, top+self.item_height)
                 myright = left
@@ -228,7 +228,7 @@ class Listbox(Control):
 
                 tag = f"{self.tag}bk:{slot}"
                 tags.add(tag)
-                sbs.send_gui_image(CID, self.local_region_tag, 
+                SBS.send_gui_image(CID, self.local_region_tag, 
                     tag, props,
                     left, 
                     top, 
@@ -237,7 +237,7 @@ class Listbox(Control):
                 
                 tag = f"{self.tag}click:{slot}"
                 tags.add(tag)
-                sbs.send_gui_clickregion(CID, self.local_region_tag, 
+                SBS.send_gui_clickregion(CID, self.local_region_tag, 
                     #text = self.text(item)
                     tag,
                     f"font:gui-2;color:blue;{text}",
@@ -259,7 +259,7 @@ class Listbox(Control):
             diff = self.last_tags - tags
             #print(f"tags {len(self.last_tags)} {len(tags)} {len(diff)}")
             for t in diff:
-                sbs.send_gui_text(
+                SBS.send_gui_text(
                     CID, self.local_region_tag,  t, "$text:_",
                         -1000, -1000, -999,-999)
         self.last_tags = tags

@@ -7,9 +7,6 @@ from .query import to_id, to_object
 from ..helpers import FrameContext, FakeEvent
 from .gui import ButtonPromise
 
-import sbs
-
-
 uids = {
     "comms": "comms_target_UID",
     "comms2d": "comms_2d_target_UID",
@@ -74,7 +71,7 @@ class HandleConsoleSelect:
             console = self.console.upper()
         point = None
         if event.selected_id == 0:
-            point = sbs.vec3()
+            point = FrameContext.context.sbs.vec3()
             point.x = event.source_point.x
             point.y = event.source_point.y
             point.z = event.source_point.z

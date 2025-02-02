@@ -13,7 +13,6 @@ from ..pages.layout.text_area import TextArea
 from .execution import task_all, AWAIT
 from ..agent import Agent
 import re
-import sbs
 from . import screen_shot 
 
 gui_screenshot = screen_shot.gui_screenshot
@@ -851,7 +850,7 @@ def gui_update_widget_list(add_widgets=None, remove_widgets= None):
             new_widgets = new_widgets + delim + widget
             delim = "^"
     print(f"GUI {new_widgets} {widgets} {add_widgets} {remove_widgets}")
-    sbs.send_client_widget_list(page.client_id, page.console, new_widgets)
+    FrameContext.context.sbs.send_client_widget_list(page.client_id, page.console, new_widgets)
 
 
 
@@ -1940,13 +1939,15 @@ def gui_cinematic_auto(client_id):
     Args:
         client_id (id): the console's client ID
     """
-    no_offset = sbs.vec3()
-    sbs.set_main_view_modes(client_id, "3dview", "front", "cinematic")
-    sbs.cinematic_control(client_id, 0, 0, no_offset, 0, no_offset)
+    SBS = FrameContext.context.sbs
+    no_offset = SBS.vec3()
+    SBS.set_main_view_modes(client_id, "3dview", "front", "cinematic")
+    SBS.cinematic_control(client_id, 0, 0, no_offset, 0, no_offset)
 
 def gui_cinematic_full_control(client_id, camera_id, camera_offset, tracked_id, tracked_offset):
+    SBS = FrameContext.context.sbs
     if camera_offset is not None:
-        _camera_offset = sbs.vec3()
+        _camera_offset = SBS.vec3()
         _camera_offset.x = camera_offset.x
         _camera_offset.y = camera_offset.y
         _camera_offset.z = camera_offset.z
@@ -1954,7 +1955,7 @@ def gui_cinematic_full_control(client_id, camera_id, camera_offset, tracked_id, 
     #else:
     #     camera_offset = sbs.vec3()
     if tracked_offset is not None:
-        _offset = sbs.vec3()
+        _offset = SBS.vec3()
         _offset.x = tracked_offset.x
         _offset.y = tracked_offset.y
         _offset.z = tracked_offset.z
@@ -1962,8 +1963,8 @@ def gui_cinematic_full_control(client_id, camera_id, camera_offset, tracked_id, 
     # else:
     #     tracked_offset = sbs.vec3()
 
-    sbs.set_main_view_modes(client_id, "3dview", "front", "cinematic")
-    sbs.cinematic_control(client_id, 1, camera_id, camera_offset, tracked_id, tracked_offset)
+    SBS.set_main_view_modes(client_id, "3dview", "front", "cinematic")
+    SBS.cinematic_control(client_id, 1, camera_id, camera_offset, tracked_id, tracked_offset)
 
 
     

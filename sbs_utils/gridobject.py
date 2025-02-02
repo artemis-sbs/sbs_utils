@@ -1,7 +1,6 @@
 from __future__ import annotations
-import sbs
-import functools
-from .agent import Agent, SpawnData, CloseData, Stuff
+from .helpers import FrameContext
+from .agent import Agent, SpawnData
 
   
 
@@ -18,7 +17,7 @@ class GridObject(Agent):
         self._tag =""
         self._go_type = ""
         self._comms_id = ""
-        self.spawn_pos = sbs.vec2()
+        self.spawn_pos = FrameContext.context.sbs.vec2()
 
     @property
     def is_grid_object(self):
@@ -31,8 +30,9 @@ class GridObject(Agent):
         :return: simulation space object
         :rtype: simulation space object
         """
-        hullMap: sbs.hullmap
-        hullMap = sbs.get_hull_map(self.host_id)
+        SBS = FrameContext.context.sbs
+        #hullMap: 'sbs.hullmap'
+        hullMap = SBS.get_hull_map(self.host_id)
         return  hullMap.get_grid_object_by_id(self.id)
         
     def set_name(self, name):
@@ -41,7 +41,7 @@ class GridObject(Agent):
         :param name: The object name
         :type str: The object name
         """
-        go : sbs.grid_object
+        # go : sbs.grid_object
         go = self.grid_object()
         if go is None:
             return ""
@@ -56,7 +56,6 @@ class GridObject(Agent):
         :param name: The object name
         :type str: The object name
         """
-        go : sbs.grid_object
         go = self.grid_object()
         if go is None:
             return ""
@@ -71,7 +70,6 @@ class GridObject(Agent):
         :param name: The object name
         :type str: The object name
         """
-        go : sbs.grid_object
         go = self.grid_object()
         if go is None:
             return ""
@@ -140,8 +138,8 @@ class GridObject(Agent):
     
     def spawn(self, host_id, name, tag, x, y, icon_index, color,  go_type=None):
         self.host_id = host_id
-        hullMap: sbs.hullmap
-        hullMap = sbs.get_hull_map(self.host_id)
+        SBS = FrameContext.context.sbs
+        hullMap = SBS.get_hull_map(self.host_id)
         if hullMap is None:
             print(f"No Hull map {host_id&0xfffff} {name} {tag} {go_type}")
             return None
@@ -157,7 +155,7 @@ class GridObject(Agent):
 
         self._name = name
         self._tag = tag
-        go : sbs.grid_object
+        #go : sbs.grid_object
         go   = hullMap.create_grid_object(name, tag, go_type)
         self.id = go.unique_ID
         self._go_type = go_type

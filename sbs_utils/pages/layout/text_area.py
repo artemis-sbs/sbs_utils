@@ -2,7 +2,7 @@ from .layout import Column, Bounds, get_font_size
 from ...helpers import FrameContext
 from ...gui import get_client_aspect_ratio
 import re
-import sbs
+
 from ..widgets.control import Control
 
 class TextLine:

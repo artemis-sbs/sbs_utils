@@ -1,6 +1,5 @@
 from ...gui import get_client_aspect_ratio
 from ..layout import layout as layout
-import sbs
 from ... import fs
 from ...helpers import FrameContext, FakeEvent
 from ...mast.parsers import LayoutAreaParser
@@ -201,6 +200,7 @@ class LayoutListbox(layout.Column):
         """
         CID = event.client_id
         self.client_id = CID
+        SBS = FrameContext.context.sbs
 
         
         item_width = self.bounds.width 
@@ -244,20 +244,20 @@ class LayoutListbox(layout.Column):
         if self.carousel and not self.horizontal:
             icon_size = em2*2
             if self.cur>0:
-                sbs.send_gui_icon(event.client_id, self.local_region_tag, f"{self.tag_prefix}idec",
+                SBS.send_gui_icon(event.client_id, self.local_region_tag, f"{self.tag_prefix}idec",
                     "icon_index:152;color:#aaa;draw_layer:1000;",
                     self.bounds.left, self.bounds.bottom-icon_size*2, self.bounds.left+icon_size, self.bounds.bottom)
                     #self.bounds.left, self.bounds.top, self.bounds.left+icon_size, self.bounds.bottom)
-                sbs.send_gui_clickregion(event.client_id, self.local_region_tag, 
+                SBS.send_gui_clickregion(event.client_id, self.local_region_tag, 
                     f"{self.tag_prefix}dec", "background_color:#6663",
                     self.bounds.left, self.bounds.top, self.bounds.left+em2*5, self.bounds.bottom)
             max_item = len(self.items)-1
             if self.cur<max_item:
-                sbs.send_gui_icon(event.client_id, self.local_region_tag, f"{self.tag_prefix}iinc",
+                SBS.send_gui_icon(event.client_id, self.local_region_tag, f"{self.tag_prefix}iinc",
                     "icon_index:153;color:#aaa;draw_layer:1000;",
                     self.bounds.right-icon_size , self.bounds.bottom-icon_size*2, self.bounds.right, self.bounds.bottom)
                     #self.bounds.right-icon_size , self.bounds.top, self.bounds.right, self.bounds.bottom)
-                sbs.send_gui_clickregion(event.client_id, self.local_region_tag,
+                SBS.send_gui_clickregion(event.client_id, self.local_region_tag,
                     f"{self.tag_prefix}inc", "background_color:#6663",
                     self.bounds.right-em2*5, self.bounds.top, self.bounds.right, self.bounds.bottom)
         elif self.carousel and self.horizontal:
@@ -267,23 +267,17 @@ class LayoutListbox(layout.Column):
             em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
             #print(f"adding scroll bar font size {em2} {self.bounds} == {self.tag} -- {self.tag_prefix}")
             if self.horizontal:
-                sbs.send_gui_slider(CID, self.local_region_tag,f"{self.tag_prefix}cur", int(self.cur), f"low:0.0; high: {(extra_slot_count+0.5)}; show_number:no",
+                SBS.send_gui_slider(CID, self.local_region_tag,f"{self.tag_prefix}cur", int(self.cur), f"low:0.0; high: {(extra_slot_count+0.5)}; show_number:no",
                         left, bottom-em2,
                         self.bounds.right, bottom)
                 bottom-=em2
             else:
                 em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.x, 20)
-                sbs.send_gui_slider(CID, self.local_region_tag, f"{self.tag_prefix}cur", int(extra_slot_count-self.cur +0.5), f"low:0.0; high: {(extra_slot_count+0.5)}; show_number:no",
+                SBS.send_gui_slider(CID, self.local_region_tag, f"{self.tag_prefix}cur", int(extra_slot_count-self.cur +0.5), f"low:0.0; high: {(extra_slot_count+0.5)}; show_number:no",
                         (right-em2), top,
                         right, self.bounds.bottom)
                 right -= em2
-        #else:
-        #    print("No scrollbar needed")
-            # sbs.send_gui_slider(CID, f"{self.tag_prefix}cur", 0, f"low:0.0; high: 1.0; show_number:no",
-            #             -1000, -1000,
-            #             -1000, -1000)
 
-        #self.cur = 0
         slot = 0
         cur = self.cur
 
@@ -307,7 +301,6 @@ class LayoutListbox(layout.Column):
             # Set the task values
             #
             sec.calc(CID)
-            #sbs.target_gui_sub_region(CID, self.tag)
             sec.present(event)
             sec.resize_to_content()
             top += sec.bounds.height
@@ -368,17 +361,7 @@ class LayoutListbox(layout.Column):
         
         # sub_page.present(event)   
         FrameContext.page = restore
-        #
-        # I the slot should not show
-        # if self.last_tags is not None:
-        #     diff = self.last_tags - sub_page.tags
-        #     #print(f"tags {len(self.last_tags)} {len(sub_page.tags)} {len(diff)}")
-        #     for t in diff:
-        #         sbs.send_gui_text(
-        #             CID, t, "$text:_",
-        #                 -1000, -1000, -999,-999)
-        # self.last_tags = sub_page.tags
-        #sbs.target_gui_sub_region(CID, "")
+        
 
     def present(self, event):
         CID = event.client_id
@@ -394,11 +377,12 @@ class LayoutListbox(layout.Column):
         #     sbs.send_gui_complete(CID, self.local_region_tag)
         # else:
         # print(f"Listbox UPDATE present {event.client_id}")
-        sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", 0,0,100,100)
+        SBS = FrameContext.context.sbs
+        SBS.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", 0,0,100,100)
         self.region = True
-        sbs.send_gui_clear(CID, self.local_region_tag)
+        SBS.send_gui_clear(CID, self.local_region_tag)
         super().present(event)
-        sbs.send_gui_complete(CID, self.local_region_tag)
+        SBS.send_gui_complete(CID, self.local_region_tag)
         #print(f"Listbox present complete {CID} {self.client_id} R-{self.region_tag}- L-{self.local_region_tag}-")
 
         #sbs.target_gui_sub_region(CID, "")

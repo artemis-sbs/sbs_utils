@@ -1,5 +1,3 @@
-
-import sbs
 from ..gui import Gui, Page
 from ..helpers import FakeEvent, FrameContext
 from ..procedural.inventory import get_inventory_value, set_inventory_value, has_inventory_value
@@ -374,7 +372,7 @@ class StoryPage(Page):
         all_ship_tabs = Agent.SHARED.get_inventory_value("console_tabs", {})
         # print(all_ship_tabs)
         all_tabs = all_ship_tabs.get("any", {})
-        ship_id = sbs.get_ship_of_client(self.client_id) 
+        ship_id = FrameContext.context.sbs.get_ship_of_client(self.client_id) 
             #get_inventory_value(self.client_id, "assigned_ship", None)
         #
         # Add ship any
@@ -510,8 +508,8 @@ class StoryPage(Page):
             if event.client_id != 0:
                 my_sbs.send_client_widget_list(event.client_id, "", "")
             my_sbs.send_gui_text(event.client_id,"", "error", message,  0,0,100,100)
-            sbs.send_gui_button(event.client_id,"", "$Error$rerun", "$text:Attempt Rerun", 50, 90, 70, 99)
-            sbs.send_gui_button(event.client_id,"", "$Error$startup", "$text:Run startup", 75, 90, 99, 99)
+            my_sbs.send_gui_button(event.client_id,"", "$Error$rerun", "$text:Attempt Rerun", 50, 90, 70, 99)
+            my_sbs.send_gui_button(event.client_id,"", "$Error$startup", "$text:Run startup", 75, 90, 99, 99)
             self.gui_state = "errors"
             my_sbs.send_gui_complete(event.client_id,"")
             return
@@ -543,10 +541,10 @@ class StoryPage(Page):
             if event.client_id != 0:
                 my_sbs.send_client_widget_list(event.client_id, "", "")
             my_sbs.send_gui_text(event.client_id,"", "error", message,  0,0,100,100)
-            sbs.send_gui_button(event.client_id,"", "$Error$resume", "$text:Attempt Resume", 0, 90, 20, 99)
-            sbs.send_gui_button(event.client_id,"", "$Error$pause", "$text:Attempt pause", 25, 90, 45, 99)
-            sbs.send_gui_button(event.client_id,"", "$Error$rerun", "$text:Attempt Rerun", 50, 90, 70, 99)
-            sbs.send_gui_button(event.client_id,"", "$Error$startup", "$text:Run startup", 75, 90, 99, 99)
+            my_sbs.send_gui_button(event.client_id,"", "$Error$resume", "$text:Attempt Resume", 0, 90, 20, 99)
+            my_sbs.send_gui_button(event.client_id,"", "$Error$pause", "$text:Attempt pause", 25, 90, 45, 99)
+            my_sbs.send_gui_button(event.client_id,"", "$Error$rerun", "$text:Attempt Rerun", 50, 90, 70, 99)
+            my_sbs.send_gui_button(event.client_id,"", "$Error$startup", "$text:Run startup", 75, 90, 99, 99)
             self.gui_state = "errors"
             my_sbs.send_gui_complete(event.client_id,"")
             return
@@ -673,7 +671,7 @@ class StoryPage(Page):
         elif event.tag == "main_screen_change":
             if self.main_screen_change_label:
                 # get_inventory_value(self.client_id,"assigned_ship")
-                _ship = sbs.get_ship_of_client(self.client_id)
+                _ship = FrameContext.context.sbs.get_ship_of_client(self.client_id)
                 ms =  linked_to(_ship, "consoles") & has_inventory_value("CONSOLE_TYPE", "normal_main")
                 # 3d_view, info, data - affects layout
                 # front, left, right, back - engine controlled

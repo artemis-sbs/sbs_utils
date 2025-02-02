@@ -6,7 +6,6 @@ from ..agent import Agent
 from ..helpers import FrameContext
 from ..mast_sbs.story_nodes.button import Button
 from ..garbagecollector import GarbageCollector
-import sbs
 
 def show_warning(t):
     print(t)
