@@ -1,4 +1,5 @@
 from sbs_utils.agent import CloseData
+from sbs_utils.helpers import FrameContext
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.vec import Vec3
 def get_artemis_data_dir_filename (filename):

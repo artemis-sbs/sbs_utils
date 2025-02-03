@@ -141,6 +141,9 @@ def set_music_folder(arg0: str, arg1: int, arg2: int) -> None:
     """Sets the folder from which music is streamed, for the specified ship."""
 def set_music_tension(arg0: float, arg1: int, arg2: int) -> None:
     """Sets the tension value of ambient music (0-100), for the specified ship."""
+def set_shared_string(key: str, value: str):
+    pass
+
 class SHPSYS(object): ### from pybind
     """One of four ship systems to track damage
     

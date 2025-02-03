@@ -1,6 +1,5 @@
 from sbs_utils.helpers import FakeEvent
 from sbs_utils.helpers import FrameContext
-from sbs_utils.mast.mast import Label
 from sbs_utils.mast.parsers import LayoutAreaParser
 def apply_control_styles (control_name, extra_style, layout_item, task):
     ...

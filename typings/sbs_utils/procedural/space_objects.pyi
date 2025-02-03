@@ -3,6 +3,14 @@ from sbs_utils.agent import CloseData
 from sbs_utils.agent import SpawnData
 from sbs_utils.helpers import FrameContext
 from sbs_utils.vec import Vec3
+def all_roles (roles: str):
+    """returns a set of all the agents with a given role.
+    
+    Args:
+        roles (str): The roles comma separated
+    
+    Returns:
+        agent id set: a set of agent IDs"""
 def broad_test (x1: float, z1: float, x2: float, z2: float, broad_type=65520):
     """returns a set of ids that are in the target rect
     
@@ -26,7 +34,7 @@ def broad_test_around (id_or_obj, width: float, depth: float, broad_type=65520):
     
     Returns:
         set: A set of ids"""
-def clear_target (chasers: set | int | sbs_utils.agent.CloseData | sbs_utils.agent.SpawnData):
+def clear_target (chasers: set | int | sbs_utils.agent.CloseData | sbs_utils.agent.SpawnData, throttle=0):
     """clear the target on an agent or set of agents
     
     Args:
@@ -90,6 +98,22 @@ def object_exists (so_id):
     
     Returns:
         bool: if the object exists in the engine"""
+def remove_objects_box (x, y, z, w, h, d, abits=15, roles=None):
+    """Removes items from an area
+    
+    Args:
+        x,y,z (float,float,float): the start point/origin
+        radius (float): the radius
+        abits = the engine level bit test for broadtest
+        roles = limit to specified roles"""
+def remove_objects_sphere (x, y, z, radius, abits=15, roles=None):
+    """Removes items from an area
+    
+    Args:
+        x,y,z (float,float,float): the start point/origin
+        radius (float): the radius
+        abits = the engine level bit test for broadtest
+        roles = limit to specified roles"""
 def set_engineering_value (id_or_obj, name, value):
     """sets an engineering value by name
     

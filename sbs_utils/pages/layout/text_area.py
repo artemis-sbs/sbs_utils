@@ -99,7 +99,7 @@ class TextArea(Control):
             if style_key == "t":
                 style_key = "h0"
                 
-            suffix = re.split('[^\d]', style_key)
+            suffix = re.split(r'[^\d]', style_key)
             # title clears all headings
             
                 

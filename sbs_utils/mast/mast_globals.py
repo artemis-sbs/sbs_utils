@@ -55,6 +55,13 @@ class MastGlobals:
         "__name__":__name__ # needed to define classes?
     }
 
+    def import_python_function(func, name=None):
+        if name:
+            MastGlobals.globals[name] = func
+        else:
+            MastGlobals.globals[func.__name__] = func
+        
+
     def import_python_module(mod_name, prepend=None):
         #print(f"{mod_name}")
         sca = sys.modules.get(mod_name)
@@ -67,3 +74,5 @@ class MastGlobals:
                     MastGlobals.globals[f"{mod_name}_{name}"] = func
                 elif isinstance(prepend, str):
                     MastGlobals.globals[f"{prepend}_{name}"] = func
+
+

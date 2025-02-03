@@ -33,7 +33,7 @@ class PromiseAllAny(Promise):
     """class PromiseAllAny"""
     def __init__ (self, proms, all) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def cancel (self, msg):
+    def cancel (self, msg=None):
         ...
     def cancelled (self):
         ...

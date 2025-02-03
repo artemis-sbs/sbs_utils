@@ -73,6 +73,17 @@ class TestMastStoryCompile(unittest.TestCase):
         assert(len(errors) == 0)
 
 
+    def test_compile_gui_tab(self):
+        (errors, mast)= mast_story_compile( code = """
+//gui/tab/test
+
+""")
+        if len(errors)>0:
+            for err in errors:
+                print(err)
+        assert(len(errors) == 0)
+
+
     def test_compile_on_change_no_err(self):
         (errors, mast)= mast_story_compile( code = """
 on change enemy_count:

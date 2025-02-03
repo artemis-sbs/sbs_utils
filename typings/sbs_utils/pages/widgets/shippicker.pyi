@@ -1,5 +1,5 @@
 from sbs_utils.pages.widgets.control import Control
-from sbs_utils.gui import Widget
+from sbs_utils.helpers import FrameContext
 def ship_picker_control (title_prefix='Ship:', cur=None, ship_keys=None, roles=None, sides=None, show_desc=True):
     ...
 class ShipPicker(Control):

@@ -1,7 +1,6 @@
 from sbs_utils.agent import Agent
-from sbs_utils.agent import CloseData
 from sbs_utils.agent import SpawnData
-from sbs_utils.agent import Stuff
+from sbs_utils.helpers import FrameContext
 class GridObject(Agent):
     """class GridObject"""
     def __init__ (self):

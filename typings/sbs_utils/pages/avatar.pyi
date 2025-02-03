@@ -1,3 +1,4 @@
+from sbs_utils.helpers import FrameContext
 from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
 class AvatarEditor(Page):

@@ -6,6 +6,7 @@ from sbs_utils.damagedispatcher import DamageDispatcher
 from sbs_utils.consoledispatcher import ConsoleDispatcher
 from sbs_utils.helpers import Context
 from sbs_utils.helpers import FrameContext
+from sbs_utils.garbagecollector import GarbageCollector
 from sbs_utils.griddispatcher import GridDispatcher
 from sbs_utils.gui import Gui
 from sbs_utils.gui import Page

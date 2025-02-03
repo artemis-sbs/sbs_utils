@@ -8,6 +8,8 @@ SetWindowText = ctypes.windll.user32.SetWindowTextW
 MoveWindow = ctypes.windll.user32.MoveWindow
 GetWindowRect = ctypes.windll.user32.GetWindowRect
 
+
+
 #
 # get mission from args
 # update setup.json

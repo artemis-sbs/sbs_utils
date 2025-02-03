@@ -5,7 +5,7 @@ import re
 
 
 
-@mast_node()
+@mast_node(append=False)
 class GuiConsoleDecoratorLabel(DecoratorLabel):
     rule = re.compile(r'(@|//)console/(?P<path>([\w]+))[ \t]+'+STRING_REGEX_NAMED("display_name")+IF_EXP_REGEX)
 

@@ -76,6 +76,8 @@ def in_standby_list(space_object: sbs.space_object) -> bool:
     """returns true if the spaceobject is in the standby list."""
 def in_standby_list_id(id: int) -> bool:
     """returns true if the spaceobject is in the standby list."""
+def is_demo() -> bool:
+    """Returns true if the EXE is marked as a demo version."""
 def particle_at(position: sbs.vec3, descriptorString: str) -> None:
     """emit some particles in space."""
 def particle_emittor_exists(emittorID: int) -> bool:
@@ -88,6 +90,10 @@ def play_audio_file(clientID: int, filename: str, volume: float, pitch: float) -
     """Plays a WAV audio file now, for just the specified client, OR zero for server."""
 def play_music_file(ID: int, filename: str) -> None:
     """Plays a music file now; ID is ship, OR client, OR zero for server."""
+def player_ship_setup_defaults(space_object: sbs.space_object) -> None:
+    """Rebuilds the default blob data of this player ship."""
+def player_ship_setup_from_data(space_object: sbs.space_object) -> None:
+    """Rebuilds the blob data of this player ship from the shipdata.json and the preferences.json."""
 def push_to_standby_list(space_object: sbs.space_object) -> None:
     """moves the spaceobject from normal space to the standby list."""
 def push_to_standby_list_id(id: int) -> None:
@@ -178,7 +184,7 @@ def set_dmx_channel(clientID: int, channel: int, behavior: int, speed: int, low:
     """set a color channel of dmx."""
 def set_main_view_modes(clientID: int, main_screen_view: str, cam_angle: str, cam_mode: str) -> None:
     """sets the three modes of the main screen view for the specified client.  main_screen_view = (3d_view, info, data);  cam_angle = (front, back, left, right); cam_mode = (first_person, chase, tracking)"""
-def set_music_folder(ID: int, filename: str, baseDir:str or None) -> None:
+def set_music_folder(ID: int, filename: str) -> None:
     """Sets the folder from which music is streamed; ID is ship, OR client, OR zero for server."""
 def set_music_tension(ID: int, tensionValue: float) -> None:
     """Sets the tension value of ambient music (0-100); ID is ship, OR client, OR zero for server."""
@@ -526,6 +532,8 @@ class simulation(object): ### from pybind
         """returns a navpoint ID, given its name as the argument"""
     def get_shield_hit_index(self: sbs.simulation, sourceShip: sbs.space_object, targetShip: sbs.space_object) -> int:
         """Given a source ship and a target ship, this returns the shield (index) that would be hit by a hypothetical beam. -1 if the target ship has no shield facings."""
+    def get_shield_hit_index_source(self: sbs.simulation, sourcePoint: sbs.vec3, targetShip: sbs.space_object) -> int:
+        """Given a source position (vec3) and a target ship, this returns the shield (index) that would be hit by a hypothetical beam. -1 if the target ship has no shield facings."""
     def get_space_object(self: sbs.simulation, arg0: int) -> sbs.space_object:
         """returns the reference to a spaceobject, by ID"""
     def is_not_paused(self: sbs.simulation) -> bool:

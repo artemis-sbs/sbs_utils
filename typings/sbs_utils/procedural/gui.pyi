@@ -1,8 +1,6 @@
 from sbs_utils.agent import Agent
 from sbs_utils.futures import AwaitBlockPromise
 from sbs_utils.futures import Trigger
-from sbs_utils.mast.mast import Button
-from sbs_utils.mast.mast import Scope
 from sbs_utils.extra_dispatcher import ClientStringDispatcher
 from sbs_utils.helpers import DictionaryToObject
 from sbs_utils.helpers import FakeEvent
@@ -10,6 +8,7 @@ from sbs_utils.helpers import FrameContext
 from sbs_utils.gui import Gui
 from sbs_utils.pages.widgets.layout_listbox import LayoutListbox
 from sbs_utils.mast.pollresults import PollResults
+from sbs_utils.mast.mast_node import Scope
 from sbs_utils.mast.parsers import StyleDefinition
 from sbs_utils.pages.layout.text_area import TextArea
 from builtins import unicode_type
@@ -558,6 +557,8 @@ class ButtonPromise(AwaitBlockPromise):
     def add_nav_button (self, button):
         ...
     def build_navigation_buttons (self):
+        ...
+    def cancel (self, msg=None):
         ...
     def check_for_button_done (self):
         ...

@@ -1,4 +1,4 @@
-from sbs_utils.gui import Widget
+from sbs_utils.helpers import FrameContext
 class Control(Column):
     """class Control"""
     def __init__ (self, left, top, right, bottom) -> None:

@@ -369,5 +369,15 @@ class GenStubs:
             self.pop_dir()
 
 
-
+if __name__ == "__main__":
+    import sbs_utils.yaml
+    import sbs_utils.cards
+    import sbs_utils.mast
+    import sbs_utils.mast_sbs
+    import sbs_utils.pages
+    import sbs_utils.procedural
+    gen = GenStubs()
+    #gen.stub_module("sbs")
+    print("updating typings for sbs_utils")
+    gen.stub_module("sbs_utils")
 

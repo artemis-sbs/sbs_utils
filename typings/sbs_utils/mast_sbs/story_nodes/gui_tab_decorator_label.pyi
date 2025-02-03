@@ -1,0 +1,16 @@
+from sbs_utils.agent import Agent
+from sbs_utils.mast.core_nodes.decorator_label import DecoratorLabel
+def mast_node (append=True):
+    ...
+class GuiTabDecoratorLabel(DecoratorLabel):
+    """class GuiTabDecoratorLabel"""
+    def __init__ (self, path, if_exp=None, loc=None, compile_info=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def can_fallthrough (self, parent):
+        ...
+    def generate_label_end_cmds (self, compile_info=None):
+        ...
+    def parse (lines):
+        ...
+    def test (self, task):
+        ...

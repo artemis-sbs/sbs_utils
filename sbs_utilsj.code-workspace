@@ -20,10 +20,12 @@
 		},
 		{
 			"path": "../LegndaryTNG"
+		},
+		{
+			"path": "../mast_console_example"
 		}
 	],
 	"settings": {
-		"python.testing.unittestEnabled": true,
-
+		"python.testing.unittestEnabled": true
 	}
 }

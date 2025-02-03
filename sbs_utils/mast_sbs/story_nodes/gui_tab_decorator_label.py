@@ -3,7 +3,7 @@ from ...mast.core_nodes.decorator_label import DecoratorLabel
 import re
 from ...agent import Agent
 
-@mast_node()
+@mast_node(append=False)
 class GuiTabDecoratorLabel(DecoratorLabel):
     rule = re.compile(r'(@|\/\/)gui/tab/(?P<path>([\w]+))'+IF_EXP_REGEX)
 

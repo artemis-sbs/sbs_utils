@@ -1,8 +1,9 @@
 from sbs_utils.agent import Agent
-from sbs_utils.mast.mast import Button
+from sbs_utils.mast_sbs.story_nodes.button import Button
 from sbs_utils.procedural.gui import ButtonPromise
 from sbs_utils.consoledispatcher import ConsoleDispatcher
 from sbs_utils.helpers import FrameContext
+from sbs_utils.garbagecollector import GarbageCollector
 def _science_get_origin_id ():
     ...
 def _science_get_selected_id ():
@@ -68,6 +69,8 @@ class ScanPromise(ButtonPromise):
     def cancel_if_no_longer_exists (self):
         ...
     def check_for_button_done (self):
+        ...
+    def collect (self):
         ...
     def initial_poll (self):
         ...

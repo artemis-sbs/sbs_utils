@@ -30,7 +30,7 @@ def box (count, x, y, z, x2, y2, z2, centered=False, ax=0, ay=0, az=0, degrees=T
     
     Returns:
         points (generator): A generator of Vec3"""
-def box_fill (cw, ch, cd, x, y, z, w, h, d, random=False):
+def box_fill (cw, ch, cd, x, y, z, w, h, d, random=False, ax=0, ay=0, az=0, degrees=True):
     """Calculate the points within a box
         the box is subdivide to ideally avoid overlap
     
@@ -61,7 +61,7 @@ def line (count, start_x, start_y, start_z, end_x, end_y, end_z, random=False):
     
     Returns:
         points (generator): A generator of Vec3"""
-def rect_fill (cw, cd, x, y, z, w, d, random=False):
+def rect_fill (cw, cd, x, y, z, w, d, random=False, ax=0, ay=0, az=0, degrees=True):
     """Calculate the points within a rect
     
     This assumes it to be on y

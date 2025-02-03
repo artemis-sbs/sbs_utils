@@ -1,0 +1,9 @@
+from sbs_utils.helpers import FrameContext
+class GarbageCollector(object):
+    """class GarbageCollector"""
+    def add_garbage_collect (cb):
+        ...
+    def collect ():
+        ...
+    def remove_garbage_collect (cb):
+        ...

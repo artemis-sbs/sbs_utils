@@ -1,3 +1,4 @@
+from sbs_utils.helpers import FrameContext
 def sim_create ():
     """Creates a new simulation
         """

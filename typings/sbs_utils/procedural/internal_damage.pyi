@@ -1,5 +1,4 @@
 from sbs_utils.helpers import FrameContext
-from sbs_utils.tickdispatcher import TickDispatcher
 def add_role (set_holder, role):
     """add a role to a set of agents
     
@@ -42,12 +41,6 @@ def get_pos (id_or_obj):
     
     Returns:
         Vec3: _description_"""
-def get_shared_inventory_value (key, default=None):
-    """get inventory value from the shared data agent
-    
-    Args:
-        key (str): The key/name of the inventory item
-        default (any): the value to return if not found"""
 def grid_apply_system_damage (id_or_obj):
     ...
 def grid_closest (grid_obj, target_set=None, max_dist=None, filter_func=None) -> sbs_utils.agent.CloseData:
@@ -117,8 +110,6 @@ def grid_repair_system_damage (id_or_obj, the_system=None):
     ...
 def grid_restore_damcons (id_or_obj):
     ...
-def grid_set_grid_current_theme (i):
-    ...
 def grid_set_max_hp (max_hp):
     ...
 def grid_spawn (id, name, tag, x, y, icon, color, roles):
@@ -138,16 +129,6 @@ def grid_spawn (id, name, tag, x, y, icon, color, roles):
         GridObject: The grid object"""
 def grid_take_internal_damage_at (id_or_obj, source_point, system_hit, damage_amount):
     ...
-def gui_reroute_client (client_id, label, data=None):
-    ...
-def has_inventory_value (key: str, value):
-    """get the object that have a inventory item with the given key
-    
-    Args:
-        key (str): The key/name of the inventory item
-    
-    Returns:
-        set: set of ids"""
 def has_role (so, role):
     """check if an agent has a role
     
@@ -164,13 +145,6 @@ def link (set_holder, link, set_to):
         set_holder (agent | agent set): The host (set) of the link
         link (str): The link name
         set_to (agent|agent set): The items to link to"""
-def linked_to (link_source, link_name: str):
-    """get the set that inventor the source is linked to for the given key
-    
-    Args:
-        link_source(id): The id object to check
-        link_name (str): The key/name of the inventory item
-        set | None: set of ids"""
 def remove_role (agents, role):
     """remove a role from a set of agents
     
