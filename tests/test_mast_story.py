@@ -53,7 +53,9 @@ class TestMastStoryCompile(unittest.TestCase):
 
     def test_compile_route_labels(self):
         (errors, mast)= mast_story_compile( code = """
-//comms/ if has_role(COMMS_SELECTED_ID, "friendly")
+//enable/comms if has_role(COMMS_SELECTED_ID, "friendly")
+
+//comms if has_role(COMMS_SELECTED_ID, "friendly")
 + "Give Orders" //comms/give_orders
 + "Give Orders 2"  friendly_give_orders
 

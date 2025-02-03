@@ -81,7 +81,12 @@ class StoryPage(Page):
             if cls.story is  None:
                 cls.story = MastStory()
                 if cls.__dict__.get("story_file"):
+                    # import time
+                    # t = time.perf_counter()
                     self.errors =  cls.story.from_file(cls.story_file, None)
+                    # elapsed_time = time.perf_counter() - t
+                    # print(f"TIME: {elapsed_time}")
+
                     self.compiler_errors = self.errors
                     #if len(self.errors)>0:
                     #    cls.story = None
