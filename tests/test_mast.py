@@ -131,9 +131,9 @@ dsdds
     def test_import_compile_err(self):
         (errors, mast) = mast_compile( code = """
 import tests/mast/imp.mast
-import tests\mast\imp.mast
+import tests\\mast\\imp.mast
 from tests/mast/implib.zip import imp.mast
-from tests\mast\\implib.zip import imp.mast
+from tests\\mast\\implib.zip import imp.mast
 
                                       
 """)

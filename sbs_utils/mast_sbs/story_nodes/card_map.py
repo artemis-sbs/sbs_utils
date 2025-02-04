@@ -1,16 +1,15 @@
 from ...mast.mast_node  import IF_EXP_REGEX, STRING_REGEX_NAMED, mast_node
-from ...mast.core_nodes.decorator_label import DecoratorLabel
+from .card_base import CardLabelBase
 import re
 
 
 @mast_node()
-class MapDecoratorLabel(DecoratorLabel):
+class MapCardLabel(CardLabelBase):
     rule = re.compile(r'@map/(?P<path>[\/\w]+)[ \t]+'+STRING_REGEX_NAMED("display_name")+IF_EXP_REGEX)
 
     def __init__(self, path, display_name, if_exp=None, q=None, loc=None, compile_info=None):
         # Label stuff
-        id = DecoratorLabel.next_label_id()
-        name = f"map/{path}/{id}"
+        name = f"map/{path}"
         super().__init__(name, loc)
 
         self.path= path

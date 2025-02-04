@@ -3,7 +3,7 @@ from sbs_utils.mast.maststory import MastStory
 from sbs_utils.mast_sbs import story_nodes
 import unittest
 from sbs_utils.agent import clear_shared
-from sbs_utils.mast_sbs.mast_cards import CardLabel, ObjectiveLabel, UpgradeLabel
+
 
 
 
@@ -271,17 +271,48 @@ on change menu.value:
 
     def test_yaml_data_block(self):
         (errors,  mast) = mast_story_compile( code =  """
-@card/station "Station"
+@prefab/base "Station"
 ---
 foo: 
     bar: hello
 ...
 """)
         assert(len(errors)==0)
-        #label = mast.labels.get("test_label")
-        #cmds_count = len(label.cmds)
-        #assert(label is not None)
 
+    def test_cards(self):
+        (errors,  mast) = mast_story_compile( code =  
+"""
+
+@admiral/ai/raider "A Basic raider AI Admiral"
+
+@card/damcon/sleepy "Generic"
+
+@character/damcon/sleepy "Sleepy"
+
+@fleet/arvonian/standard "Standard Arvonian fleet"
+" Test
+---
+key: value
+...
+
+@map/siege "Siege"
+
+@objective/players/survive "Survive"
+
+@player/mine "Command Station" 
+
+
+@tile/station/beachwood "Beachwood Station"
+
+
+@unit/cargo "Cargo"
+" A unit that goes from station to station moving stuff 
+
+@upgrade/more "Get More"
+
+""")
+        assert(len(errors)==0)
+    
 
 
 if __name__ == '__main__':

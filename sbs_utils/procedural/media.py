@@ -60,7 +60,7 @@ def settings_get_defaults():
     if setting_defaults is not None:
         return setting_defaults
     
-    defaults = {
+    setting_defaults = {
         "operator_mode": {
             "enable": False,
             "logo": "media/operator",
@@ -141,7 +141,7 @@ def settings_get_defaults():
     }
     setup_data = load_json_data(get_mission_dir_filename("setup.json"))
     if setup_data is not None:
-        setting_defaults = defaults | setup_data
+        setting_defaults = setting_defaults | setup_data
     return setting_defaults
 
 

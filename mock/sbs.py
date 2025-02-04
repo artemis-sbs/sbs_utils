@@ -92,9 +92,11 @@ def distance_to_navpoint(arg0: str, arg1: int) -> float:
     return 1000
 
 def get_client_ID_list() -> List[int]:
+    return [0]
     """return a list of client ids, for the computers that are currently connected to this server."""
 def get_screen_size() -> vec2:
     """returns a VEC2, with the width and height of the display in pixels"""
+    return vec2(1024,78)
 def pause_sim() -> None:
     """the sim will now pause; HandlePresentGUI() and HandlePresentGUIMessage() are called."""
 def play_music_file(arg0: str, arg1: int, arg2: int) -> None:
@@ -103,35 +105,59 @@ def query_client_tags() -> None:
     """return a list of client ids, for the computers that are currently connected to this server."""
 def resume_sim() -> None:
     """the sim will now run; HandleStartMission() and HandleTickMission() are called."""
-def send_client_widget_list(arg0: int, arg1: str, arg2: str) -> None:
+def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) -> None:
     """sends the gameplay widgets to draw, on the targeted client (0 = server screen)"""
+def send_client_widget_rects(arg0: int, arg1: str, arg2: float, arg3: float, arg4: float, arg5: float, arg6: float, arg7: float, arg8: float, arg9: float) -> None:
+    """changes the rects of a gameplay widget, on the targeted client (0 = server screen)."""
 def send_comms_button_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
-    """sends a complex message to the comms console of a certain ship. args:  uint32_t playerID (0 = all ships), std::string color, std::string bodyText"""
-def send_comms_message_to_player_ship(playerID: int, sourceID: int, colorDesc: str, faceDesc: str, titleText: str, bodyText: str, messageTagSet: str = '') -> None:
-    """sends a complex message to the comms console of a certain ship. args:  uint32_t playerID (0 = all ships), std::string color, std::string bodyText"""
+    """sends a complex message to the comms console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
+def send_comms_message_to_player_ship(playerID: int, otherID: int, faceDesc: str, titleText: str, titleColor: str, bodyText: str, bodyColor: str) -> None:
+    """sends a complex message to the comms console of a certain ship. args:  uint64 playerID (0 = all ships), uint64 otherID, std::string titleText, std::string titleColor, std::string bodyText, std::string bodyColor"""
 def send_comms_selection_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
-    """sends a complex message to the comms console of a certain ship. args:  uint32_t playerID (0 = all ships), std::string color, std::string bodyText"""
-def send_gui_3dship(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
+    """sends a complex message to the comms console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
+def send_grid_button_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
+    """sends a complex message to the engineering console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
+def send_grid_selection_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
+    """sends a complex message to the engineering console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
+def send_gui_3dship(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a 3D ship box GUI element, on the targeted client (0 = server screen)"""
-def send_gui_button(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
+def send_gui_button(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a button GUI element, on the targeted client (0 = server screen)"""
-def send_gui_checkbox(arg0: int, arg1: str, arg2: str, arg3: int, arg4: float, arg5: float, arg6: float, arg7: float) -> None:
+def send_gui_checkbox(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a checkbox GUI element, on the targeted client (0 = server screen)"""
-def send_gui_clear(arg0: int) -> None:
-    """Clears all GUI elements from screen, on the targeted client (0 = server screen)"""
-def send_gui_dropdown(arg0: int, arg1: str, arg2: str, arg3: str, arg4: float, arg5: float, arg6: float, arg7: float) -> None:
+def send_gui_clear(clientID: int, tag: str) -> None:
+    """Clears all GUI elements from screen, on the targeted client (0 = server screen).  remember to use send_gui_complete after adding widgets."""
+def send_gui_clickregion(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+    """Creates a click-region GUI element, on the targeted client (0 = server screen)"""
+def send_gui_colorbutton(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+    """Creates a color button GUI element, on the targeted client (0 = server screen)"""
+def send_gui_colorcheckbox(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+    """Creates a color checkbox GUI element, on the targeted client (0 = server screen)"""
+def send_gui_complete(clientID: int, tag: str) -> None:
+    """Flips double-buffered GUI display list, on the targeted client (0 = server screen).  Use after a send_gui_clear() and some send_gui* calls"""
+def send_gui_dropdown(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a dropdown GUI element, on the targeted client (0 = server screen)"""
-def send_gui_face(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
+def send_gui_face(clientID: int, parent: str, tag: str, face_string: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a face box GUI element, on the targeted client (0 = server screen)"""
-def send_gui_icon(arg0: int, arg1: str, arg2: str, arg3: int, arg4: float, arg5: float, arg6: float) -> None:
+def send_gui_hotkey(clientID: int, category: str, tag: str, keyType: str, description: str) -> None:
+    """tells the targeted client (0 = server screen) to handle a hot key for a certain retained gui element."""
+def send_gui_icon(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates an icon art GUI element, on the targeted client (0 = server screen)"""
-def send_gui_image(arg0: int, arg1: str, arg2: str, arg3: str, arg4: float, arg5: float, arg6: float, arg7: float, arg8: float, arg9: float, arg10: float, arg11: float) -> None:
-    """Creates an icon art GUI element, on the targeted client (0 = server screen)"""
-def send_gui_slider(arg0: int, arg1: str, arg2: float, arg3: float, arg4: float, arg5: float, arg6: float, arg7: float, arg8: float, arg9:bool) -> None:
-    """Creates a slider bar GUI element, on the targeted client (0 = server screen) (long clientID, std::string tag, float low, float high, float current, float left, float top, float right, float bottom)"""
-def send_gui_text(arg0: int, arg1: str, arg2: str, arg3: float, arg4: float, arg5: float, arg6: float) -> None:
+def send_gui_iconbutton(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+    """Creates an icon-button GUI element, on the targeted client (0 = server screen)"""
+def send_gui_iconcheckbox(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+    """Creates an icon-checkbox GUI element, on the targeted client (0 = server screen)"""
+def send_gui_image(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+    """Creates a 2d art image GUI element, on the targeted client (0 = server screen)"""
+def send_gui_rawiconbutton(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+    """Creates a simple clickable icon GUI element, on the targeted client (0 = server screen)"""
+def send_gui_slider(clientID: int, parent: str, tag: str, current: float, style: str, left: float, top: float, right: float, bottom: float) -> None:
+    """Creates a slider bar GUI element, on the targeted client (0 = server screen) (long clientID, std::string tag, float low, float high, float current, float left, float top, float right, float bottom, bool showNumberFlag)"""
+def send_gui_sub_region(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+    """Creates a subregion GUI element, on the targeted client (0 = server screen)"""
+def send_gui_text(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a text box GUI element, on the targeted client (0 = server screen)"""
-def send_gui_typein(arg0: int, arg1: str, arg2: str, arg3: str, arg4: float, arg5: float, arg6: float, arg7: float) -> None:
+def send_gui_typein(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a text entry GUI element, on the targeted client (0 = server screen)"""
 def send_message_to_player_ship(arg0: int, arg1: str, arg2: str) -> None:
     """sends a text message to the text box, on every client for a certain ship. args:  uint32_t playerID (0 = all ships), std::string color, std::string text"""

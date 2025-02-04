@@ -10,7 +10,6 @@ from..fs import get_mission_name, get_startup_mission_name
 
 from .story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
 from . import story_nodes
-from .mast_cards import CardLabel, ObjectiveLabel, UpgradeLabel
 from .mastmission import MissionLabel, StateMachineLabel
 from . import mast_sbs_procedural
 

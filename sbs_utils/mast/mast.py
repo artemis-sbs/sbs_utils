@@ -388,11 +388,11 @@ class Mast():
         is_test = sys.modules['script']
         if is_test is None or isinstance(is_test, str):
             return []
-        
-        script_dir = os.path.dirname(sys.modules['script'].__file__)
-        mission_dir = os.path.dirname(script_dir)
+
+        script_dir = fs.get_script_dir()
+        missions_dir = fs.get_missions_dir()
         story_settings = os.path.join(script_dir,"story.json")
-        lib_dir = os.path.join(mission_dir,"__lib__")
+        lib_dir = os.path.join(missions_dir,"__lib__")
         with open(story_settings, 'r') as file:
             data = json.load(file)
             # No file that's OK
@@ -459,7 +459,7 @@ class Mast():
             if self.lib_name is not None:
                 lib_name = self.lib_name
                 if ":" not in self.lib_name:
-                    lib_name = os.path.join(fs.get_mission_dir(), self.lib_name)
+                    lib_name = os.path.join(fs.get_missions_dir(), self.lib_name)
 
                 #print(f"IMPORT: {lib_name}")
                 with ZipFile(lib_name) as lib_file:
