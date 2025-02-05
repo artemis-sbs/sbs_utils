@@ -90,10 +90,39 @@ def distance_id(arg0: int, arg1: int) -> float:
 def distance_to_navpoint(arg0: str, arg1: int) -> float:
     """returns the distance between a nav point and a space object; navpoint name, then object ID"""
     return 1000
+def find_valid_grid_point_for_vector3(spaceObjectID: int, vecPoint: sbs.vec3, randomRadius: int) -> List[int]:
+    """return a list of two integers, the grid x and y that is open and is closest.  The list is empty if the search fails."""
+    return [0,0]
+def find_valid_unoccupied_grid_point_for_vector3(spaceObjectID: int, vecPoint: sbs.vec3, randomRadius: int) -> List[int]:
+    """return a list of two integers, the grid x and y that is open and is closest.  The list is empty if the search fails."""
+    return [0,0]
 
 def get_client_ID_list() -> List[int]:
     return [0]
     """return a list of client ids, for the computers that are currently connected to this server."""
+def get_debug_gui_tree(clientID: int, tag: str, displayListFlag: int) -> None:
+    """sends a GUI debug message from the targeted client (0 = server screen)"""
+def get_game_version() -> str:
+    """returns the version of the game EXE currently operating this script, as a string."""
+
+hull_map_objects = {}
+def get_hull_map(spaceObjectID: int, forceCreate: bool = False) -> sbs.hullmap:
+    """gets the hull map object for this space object; setting forceCreate to True will erase and rebuild the grid (and gridObjects) of this spaceobject"""
+    hull_map = hull_map_objects.get(spaceObjectID)
+    if not hull_map or forceCreate:
+        hull_map = hullmap()
+        hull_map_objects[spaceObjectID]=hull_map
+    return hull_map
+
+def get_preference_float(key: str) -> float:
+    """Gets a value from preferences.json"""
+    return 0
+def get_preference_int(key: str) -> int:
+    """Gets a value from preferences.json"""
+    return 0
+def get_preference_string(key: str) -> str:
+    """Gets a value from preferences.json"""
+    return ""
 def get_screen_size() -> vec2:
     """returns a VEC2, with the width and height of the display in pixels"""
     return vec2(1024,78)
@@ -114,6 +143,17 @@ def pause_sim() -> None:
     """the sim will now pause; HandlePresentGUI() and HandlePresentGUIMessage() are called."""
 def play_music_file(arg0: str, arg1: int, arg2: int) -> None:
     """Plays a music file now, for the specified ship."""
+def player_ship_setup_defaults(space_object: sbs.space_object) -> None:
+    """Rebuilds the default blob data of this player ship."""
+def player_ship_setup_from_data(space_object: sbs.space_object) -> None:
+    """Rebuilds the blob data of this player ship from the shipdata.json and the preferences.json."""
+standby_list = {}
+def push_to_standby_list(space_object: sbs.space_object) -> None:
+    """moves the spaceobject from normal space to the standby list."""
+    push_to_standby_list_id(space_object.unique_ID)
+def push_to_standby_list_id(id: int) -> None:
+    """moves the spaceobject from normal space to the standby list."""
+    standby_list[id] = True
 def query_client_tags() -> None:
     """return a list of client ids, for the computers that are currently connected to this server."""
 def resume_sim() -> None:
@@ -182,8 +222,8 @@ def set_music_tension(arg0: float, arg1: int, arg2: int) -> None:
     """Sets the tension value of ambient music (0-100), for the specified ship."""
 def set_shared_string(key: str, value: str):
     pass
-
-class SHPSYS(object): ### from pybind
+from enum import Enum
+class SHPSYS(Enum): ### from pybind
     """One of four ship systems to track damage
     
     Members:
@@ -195,10 +235,10 @@ class SHPSYS(object): ### from pybind
       SENSORS : the sensors index for *system_damage*
     
       SHIELDS : the shields index for *system_damage*"""
-    ENGINES : 1
-    SENSORS : 2
-    SHIELDS : 3
-    WEAPONS : 0
+    ENGINES = 1
+    SENSORS = 2
+    SHIELDS = 3
+    WEAPONS = 0
 class TORPEDO(object): ### from pybind
     """enum of torpedo types
     
@@ -258,14 +298,17 @@ class event(object): ### from pybind
     @property
     def value_tag (self: event) -> str:
         """string, more information"""
+_grid_object_ids =  0x2000000000000000
 class grid_object(object): ### from pybind
     """class grid_object"""
     def __init__(self) -> None:
+        global _grid_object_ids
         self._data_set = object_data_set()
         self._name = ""
         self._tag = ""
         self._type = ""
-        self._id = 0
+        self._id = _grid_object_ids
+        _grid_object_ids +=1
     @property
     def data_set (self: grid_object) -> object_data_set:
         """object_data_set, read only, reference to the object_data_set of this particular grid object"""
@@ -330,6 +373,7 @@ class hullmap(object): ### from pybind
         go._id = sim.grid_object_ids
         sim.grid_objects[go._id] = go
         self.grid_items.append(go)
+        return go
 
     def delete_grid_object(self: hullmap, arg0: grid_object) -> bool:
         """deletes the grid object, returns true if deletion actually occured"""
@@ -351,6 +395,7 @@ class hullmap(object): ### from pybind
         return sim.grid_objects.get(arg0)
     def get_grid_object_by_index(self: hullmap, arg0: int) -> grid_object:
         """returns a gridobject, by position in the list"""
+        return self.grid_items[arg0]
     def get_grid_object_by_name(*args, **kwargs):
         """Overloaded function.
         
@@ -363,6 +408,11 @@ class hullmap(object): ### from pybind
         returns a gridobject, by text tag"""
     def get_grid_object_count(self: hullmap) -> int:
         """get the number of grid objects in the list, within this hullmap"""
+        return len(self.grid_items)
+    def get_objects_at_point(self: sbs.hullmap, x: int, y: int) -> List[int]:
+        """returns a list of grid object IDs that are currently at the x/y point."""
+        return []
+    
     @property
     def grid_scale (self: hullmap) -> float:
         """float, space between grid points"""
@@ -455,6 +505,7 @@ class object_data_set(object): ### from pybind
         2. get(self: object_data_set, arg0: int, arg1: int) -> object
         
         Get a value, by ID"""
+        return 0
     def set(*args, **kwargs):
         """Overloaded function.
         
@@ -549,9 +600,9 @@ class quaternion(object): ### from pybind
 class simulation(object): ### from pybind
     def __init__(self):
         
-        self.object_ids = 0
+        self.object_ids = 0x4000000000000000
         self.space_objects = {}
-        self.grid_object_ids = 0
+        self.grid_object_ids =  0x2000000000000000
         self.grid_objects = {}
         self.nav_points = {}
         self.hull_map_objects = {}
@@ -598,13 +649,6 @@ class simulation(object): ### from pybind
         """deletes navpoint by its reference"""
         self.nav_points.pop(arg0.text, None)
 
-    def get_hull_map(self: simulation, arg0: int) -> hullmap:
-        """gets the hull map object for this space object"""
-        hull_map = self.hull_map_objects.get(arg0)
-        if not hull_map:
-            hull_map = hullmap()
-            self.hull_map_objects[arg0]=hull_map
-        return hullmap
 
     def get_navpoint_by_name(self: simulation, arg0: str) -> navpoint:
         """takes a string name, returns the associated Navpoint object"""
@@ -799,7 +843,7 @@ class tractor_connection(object): ### from pybind
         return self._target_id
 class vec2(object): ### from pybind
     """class vec2"""
-    def __init__(self, x, y=None):
+    def __init__(self, x=None, y=None):
         """Overloaded function.
         
         1. __init__(self: vec2, arg0: float, arg1: float) -> None
@@ -810,6 +854,9 @@ class vec2(object): ### from pybind
         if isinstance(x, vec2):
             self._x = x.x
             self._y = x.y
+        elif x is None:
+            self._x = 0
+            self._y = 0
         else:
             self._x = x
             self._y = y
