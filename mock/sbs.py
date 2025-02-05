@@ -505,6 +505,12 @@ class object_data_set(object): ### from pybind
         2. get(self: object_data_set, arg0: int, arg1: int) -> object
         
         Get a value, by ID"""
+        s_value = ["torpedo_types_available", "tsnscan", "tsnintel", "tsnbio", "tsnstatus"]
+        if args[1] == "torpedo_types_available":
+            return "Homing,Nuke,EMP,Mine"
+        if args[1] in s_value:
+            return ""
+
         return 0
     def set(*args, **kwargs):
         """Overloaded function.
@@ -627,6 +633,24 @@ class simulation(object): ### from pybind
         self.tractor_connections.pop((arg0,arg1))
     def GetTractorConnection(self: simulation, arg0: int, arg1: int) -> tractor_connection:
         self.tractor_connections.get((arg0,arg1))
+    def add_navarea(self: sbs.simulation, x1: float, y1: float, x2: float, y2: float, x3: float, y3: float, x4: float, y4: float, text: str, colDesc: str) -> int:
+        """adds a new navarea to space; don't hold on to this Navpoint object in a global; keep the integer ID return value instead    args:  four x/y floats, std::string text, std::string colorDesc"""
+    def add_navpoint(self: sbs.simulation, x: float, y: float, z: float, text: str, colDesc: str) -> int:
+        """adds a new navpoint to space; don't hold on to this Navpoint object in a global; keep the integer ID return value instead    args:  float x, float y, float z, std::string text, std::string colorDesc"""
+    def create_space_object(self: sbs.simulation, aiTag: str, dataTag: str, abits: int) -> int:
+        """creates a new spaceobject. abits is a 16-bit bitfield for further defining the object.  bit 1, when set, means the object is unmoving and static."""
+    def delete_navpoint_by_id(self: sbs.simulation, id: int) -> None:
+        """deletes navpoint by its id"""
+    def force_update_to_clients(self: sbs.simulation, spaceObjectID: int, playerShipID: int) -> None:
+        """forces this space object to update its data to the clients attached to the playerShipID (all clients, if playerShipID is zero)"""
+    def get_navpoint_by_id(self: sbs.simulation, id: int) -> sbs.navpoint:
+        """takes a string name, returns the associated Navpoint object"""
+    def get_navpoint_id_by_name(self: sbs.simulation, text: str) -> int:
+        """returns a navpoint ID, given its name as the argument"""
+    def get_shield_hit_index(self: sbs.simulation, sourceShip: sbs.space_object, targetShip: sbs.space_object) -> int:
+        """Given a source ship and a target ship, this returns the shield (index) that would be hit by a hypothetical beam. -1 if the target ship has no shield facings."""
+    def get_shield_hit_index_source(self: sbs.simulation, sourcePoint: sbs.vec3, targetShip: sbs.space_object) -> int:
+        """Given a source position (vec3) and a target ship, this returns the shield (index) that would be hit by a hypothetical beam. -1 if the target ship has no shield facings."""        
     def add_navpoint(self: simulation, arg0: float, arg1: float, arg2: float, arg3: str, arg4: str) -> navpoint:
         """adds a new navpoint to space; don't hold on to this Navpoint object in a global; 
         keep the name string instead    
