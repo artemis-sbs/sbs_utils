@@ -21,7 +21,6 @@ class MastNode:
         self.dedent_loc = None
 
     def add_child(self, cmd):
-        #print("ADD CHILD")
         pass
 
     def is_indentable(self):

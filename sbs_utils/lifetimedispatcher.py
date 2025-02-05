@@ -76,7 +76,6 @@ class LifetimeDispatcher:
 
         objects = Agent.get_role_objects("__grid_spawn__")
         for so in objects:
-            #print("A grid object spawned")
             for func in LifetimeDispatcher._dispatch_spawn_grid:
                 func(so)
             so.remove_role("__grid_spawn__")

@@ -40,7 +40,6 @@ def gui_add_console_tab(id_or_obj, console, tab_name, label):
     console_tabs = tabs.get(console, {})
     console_tabs[tab_name] = label
     tabs[console] = console_tabs
-    #print(f"set {ship_id} {console} {tabs}")
     # set just in case this is the first time
     set_inventory_value(ship_id, "console_tabs", tabs)
 
@@ -836,7 +835,6 @@ def gui_update_widget_list(add_widgets=None, remove_widgets= None):
         remove_widgets = ""
 
     widgets = set(page.widgets.split("^"))
-    #print(f"GUI {page.widgets} {add_widgets} {remove_widgets}")
     add_widgets = set(add_widgets.split("^"))
     remove_widgets = set(remove_widgets.split("^"))
     widgets = (widgets | add_widgets) - remove_widgets
@@ -1102,7 +1100,6 @@ def gui_represent(layout_item):
     if page is None:
         return
     event = FakeEvent(page.client_id)
-    #print(f"Page {event.client_id}")
     #sbs.target_gui_sub_region(page.client_id, "FULL")
     layout_item.represent(event)
     #sbs.send_gui_complete(event.client_id)
@@ -1287,7 +1284,6 @@ class MessageTrigger(Trigger):
 
     def on_message(self, event):
         if event.sub_tag == self.layout_item.tag:
-            # print(f"ON MESSAGE: {event.sub_tag} {self.label} {self.loc} {self.task.is_sub_task}")
             self.task.set_value_keep_scope("__ITEM__", self.layout_item)
             data = self.layout_item.data
             self.task.push_inline_block(self.label, self.loc, data)
@@ -1321,7 +1317,6 @@ class ClickableTrigger(Trigger):
         if self.name is not None:     
             if click_tag != self.name:
                     return False
-        #print(click_tag)
         self.task.set_value("__CLICKED__", click_tag, Scope.TEMP)
         self.task.push_inline_block(self.label, self.loc)
         self.task.tick_in_context()
@@ -1450,13 +1445,11 @@ class ButtonPromise(AwaitBlockPromise):
         self.running_button = None
         self.sub_task = None
         self.nav_sub_task_promise = None 
-        #print("INit ")
         
     def initial_poll(self):
         if self._initial_poll:
             return
         # Will Build buttons
-        #print("INit pool")
         self.expand_inlines()
         #self.show_buttons()
         super().initial_poll()
@@ -1494,7 +1487,6 @@ class ButtonPromise(AwaitBlockPromise):
 
 
     def cancel(self, msg=None):
-        #print("BUTTONS CANCELED")
         if self.nav_sub_task_promise is not None:
             self.nav_sub_task_promise.cancel()
             self.nav_sub_task_promise = None
@@ -1553,7 +1545,6 @@ class ButtonPromise(AwaitBlockPromise):
             #
             if self.running_button.path is not None:
                 self.set_path(self.running_button.path)
-                # print(f"PATH {self.running_button.path}")
                 self.running_button = None
                 return PollResults.OK_JUMP
             else:   
@@ -1626,7 +1617,6 @@ class ButtonPromise(AwaitBlockPromise):
     def expand_inline(self, inline):
         if inline.inline is  None:
             return
-        #print(f"__{inline.inline}__")
         # Handle =disconnect:
         if ButtonPromise.disconnect_rule.match(inline.inline):
             self.disconnect_label = inline
@@ -1666,10 +1656,9 @@ class ButtonPromise(AwaitBlockPromise):
         self.nav_buttons = []
         self.nav_button_map = {}
         # if self.nav_sub_task_promise is not None:
-        #     print("Buttons canceled")
         #     self.nav_sub_task_promise.cancel()
         #     self.nav_sub_task_promise = None
-        #print(f"gui Build Nav Buttons {self.path}")
+
         path_labels = ButtonPromise.navigation_map.get(self.path)
         if path_labels is None:
             return
@@ -2092,7 +2081,6 @@ gui_clipboard_copy = gui_clipboard_put
 
 #     def on_message(self, event):
 #         if event.sub_tag == self.layout_item.tag:
-#             # print(f"ON MESSAGE: {event.sub_tag} {self.label} {self.loc} {self.task.is_sub_task}")
 #             self.task.set_value_keep_scope("__ITEM__", self.layout_item)
 #             data = self.layout_item.data
 #             self.task.push_inline_block(self.label, self.loc, data)

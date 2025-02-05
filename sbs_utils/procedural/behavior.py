@@ -15,7 +15,7 @@ class PromiseBehave(AwaitBlockPromise):
         if self._initial_poll:
             return
         # Will Build buttons
-        #print("INit pool")
+        
         for inline in self.inlines:
             if inline.inline.startswith("fail"):
                 self.fail_label = inline

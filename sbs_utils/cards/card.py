@@ -33,7 +33,6 @@ class Card(CardList):
         if self.label == None:
             return None
         
-        #print(f"spawn {self.label} {x},{y}, {z}")
         # This should return something to 
         # Like the task 
         # A task should be executed

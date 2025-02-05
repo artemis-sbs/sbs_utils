@@ -233,7 +233,6 @@ def ring_density(counts, x,y,z,  outer_r, inner_r=0, start=0.0, end=90.0, random
     for r in range(0, len(counts)):
         dist = inner_r + (r* r_diff)
         ca = counts[r]
-        #print(f'count {ca}')
         for i in range(0,ca):
             if random:
                 angle = uniform(a_start, a_end)

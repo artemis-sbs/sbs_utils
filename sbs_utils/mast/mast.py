@@ -202,7 +202,6 @@ class Mast():
 
         module_name = name[:-3]
         if sys.modules.get(module_name) is None:
-            #print(f"MODULE: START NAME -{module_name}-")
             spec = None
             if self.lib_name is not None:
                 #module_parent = str(Path(self.lib_name).stem)
@@ -210,7 +209,6 @@ class Mast():
                 #    module_name = str(Path().joinpath(module_parent, self.basedir, module_name).as_posix()).replace("/", ".")
                 #elif self.parent_basedir is not None:
                 #    module_name = str(Path().joinpath(module_parent, self.parent_basedir, module_name).as_posix()).replace("/", ".")
-                #print(f"zip python import {module_parent}") # {os.path.join(self.basedir, name)}")
 
                 #module_name = self.lib_name
                 content, errors = self.content_from_lib_or_file(name)
@@ -219,7 +217,6 @@ class Mast():
                 loader = StringLoader(content)
                 spec = importlib.util.spec_from_loader(module_name, loader, origin="built-in")
             else:
-                #print(f"python import {os.path.join(self.basedir, name)}")
                 # if its not in this dir try the mission script dir
                 if os.path.isfile(os.path.join(self.basedir, name)):
                     import_file_name = os.path.join(self.basedir, name)
@@ -229,7 +226,6 @@ class Mast():
             
             if spec is not None:
                 module = importlib.util.module_from_spec(spec)
-                #print(f"MODULE: NAME -{module_name}-")
                 sys.modules[module_name] = module
                 spec.loader.exec_module(module)
                 MastGlobals.import_python_module(module_name)
@@ -255,7 +251,7 @@ class Mast():
             #self.set_inventory_value("mast", self)
             Agent.SHARED.set_inventory_value("SHARED", Agent.SHARED.get_id())
             Mast.source_map_files = []
-            # print("Multi Shares")
+            
 
         # self.vars = {"mast": self}
         self.labels = {}
@@ -307,7 +303,7 @@ class Mast():
     def signal_register(self, name, task, label_info):
         if label_info.server and not task.main.is_server():
             return
-        # print(f"signal registered {name} {task.get_id() & 0x0000FFFFFFF} {label_info.server}")
+
         task_map = self.signal_observers.get(name, {})
         info_list = task_map.get(task, [])
         info_list.append(label_info)
@@ -461,7 +457,6 @@ class Mast():
                 if ":" not in self.lib_name:
                     lib_name = os.path.join(fs.get_missions_dir(), self.lib_name)
 
-                #print(f"IMPORT: {lib_name}")
                 with ZipFile(lib_name) as lib_file:
                     #
                     # NOTE: Zip files must use /
@@ -671,11 +666,9 @@ class Mast():
                     if node_cls.__name__ != "Comment":
                         (cur_indent, _)  = indent_stack[-1] 
                         if indent > cur_indent:
-                            #print(f"INDENT {indent}")
                             is_indent = True
                             # indent_stack.append(indent)
                         elif indent < cur_indent:
-                            #print(f"DEDENT {indent}")
                             is_dedent = True
                     
                     logger = logging.getLogger("mast.compile")

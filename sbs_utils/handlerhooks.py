@@ -124,8 +124,6 @@ def cosmos_event_handler(sim, event):
         #     FrameContext.page = gui.page
 
         Agent.SHARED.set_inventory_value("sim", sim)
-        
-        #print(f"{event.sub_tag}")
         # if event.tag != "mission_tick":
         #print_event(event)
         match(event.tag):
@@ -142,8 +140,6 @@ def cosmos_event_handler(sim, event):
             #     Gui.present(event)
 
             case "screen_size":
-                # print(f"{event.client_id}")
-                #print(f"Point {event.source_point.x}  {event.source_point.y} {event.source_point.z}")
                 # gui = Gui.clients.get(event.client_id)
                 # if gui is not None:
                 #     gui.present(Context(sim, sbs, None), event)
@@ -167,7 +163,6 @@ def cosmos_event_handler(sim, event):
                 # either sim_paused, or sim_running
                 #
                 Agent.SHARED.set_inventory_value("SIM_STATE", event.sub_tag)
-                #print(f"Event: {event.sub_tag}")
                 #Agent.SHARED.set_inventory_value("SIM_STATE", "sim_running")
                 # Give a few ticks (NOT NEEDED This would not tick Gui)
                 #for x in range(5):

@@ -128,7 +128,6 @@ class GenStubs:
                 continue
             
             if inspect.isclass(cls) and isinstance(obj, cls) and issubclass(cls, enum.Enum):
-                #print(f"{name} class: {cls.__name__}")
                 self.stub_enum_value(obj, name)
                 in_enum = True
             elif in_enum:

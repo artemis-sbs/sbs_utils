@@ -449,7 +449,6 @@ class Column:
         if self.var_scope_id:
             scope = Agent.get(self.var_scope_id)
             if scope is not None:
-                # print(f"{self.var_name} {self.value}")
                 scope.set_variable(self.var_name, self.value)
 
     def get_variable(self, default):
@@ -489,7 +488,6 @@ class Text(Column):
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
 
     def update(self, message):
-        # print(f"{message}")
         self.message = message
 
     
@@ -593,7 +591,6 @@ class Checkbox(Column):
     def _present(self, event):
         message = f"state: {self._value};{self.message}"
         message += self.get_cascade_props(True, True, True)
-        #print(f"{self.tag} {message}")
         ctx = FrameContext.context
         ctx.sbs.send_gui_checkbox(event.client_id, self.region_tag,
             self.tag, message, 
@@ -679,7 +676,6 @@ class Image(Column):
         rel_file = os.path.relpath(props["image"].strip(), fs.get_artemis_data_dir()+"\\graphics")
         props["image"] = rel_file
         self.props = merge_props(props)
-        #print(f"{self.file} \n>>\n{rel_file}\nPROPS: {self.props} ")
 
         self.width = -1
         self.height = -1
@@ -737,13 +733,12 @@ class Image(Column):
         try:
             with open(self.file+".png", 'rb') as f:
                 data = f.read(26)
-                #print("Opened")
                 # Chck if is png
                 #if (data[:8] == '\211PNG\r\n\032\n'and (data[12:16] == 'IHDR')):
                 w, h = struct.unpack('>LL', data[16:24])
                 self.width = int(w)
                 self.height = int(h)
-                #print(f"Images size {w} {h}")
+
         except Exception:
             self.width = -1
             self.height = -1
@@ -799,7 +794,6 @@ class TextInput(Column):
                 self._value = text
 
             fix_props = re.sub(r'\$?text:\s*.*;', "", props)
-            #print(f"before: '{props}' after: {fix_props}")
             props = fix_props
             
         self.tag = tag
@@ -810,7 +804,6 @@ class TextInput(Column):
         props = f"$text:{self._value};"
         props += self.props
         props += self.get_cascade_props(True, True, True)
-        # print(f"TEXT INPUT {props} {self._value} {self.region_tag} {self.tag} {self.bounds.left}")
         ctx.sbs.send_gui_typein(event.client_id, self.region_tag,
             self.tag, props,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
@@ -867,7 +860,6 @@ class Face(Column):
 
     def _present(self, event):
         ctx = FrameContext.context
-        # print(f"r: {self.region_tag} t:{self.tag} f:{self.face}")
         ctx.sbs.send_gui_face(event.client_id, self.region_tag,
             self.tag, self.face,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
@@ -1189,7 +1181,6 @@ class Layout:
         self.default_font = v
 
     def set_orientation(self, s):
-        #print(f"orientation {s}")
         s = s.strip().upper()
         if s == "TB":
             self.orientation = 0
@@ -1256,7 +1247,6 @@ class Layout:
             #self.representing = False
             return
         else:  # is_hidden 
-            # print(f"HIDDEN {self.tag} {self.bounds.left}" )
             self.calc(event.client_id)
             self.present(event)
             # #self.calc(event.client_id)
@@ -1269,7 +1259,6 @@ class Layout:
 
     def calc(self, client_id):
         aspect_ratio = get_client_aspect_ratio(client_id)
-        # print(f"Calc AR: {aspect_ratio.x},{aspect_ratio.y}")
         self.client_id = client_id
         
         sec_font_size = get_font_size(self.default_font)
@@ -1323,7 +1312,6 @@ class Layout:
             row : Row
             row_top = bounds_area.top
             row_bottom = bounds_area.bottom
-            #print(f"SEC Bounds {bounds_area}")
             
             for row in rows:
                 #
@@ -1343,11 +1331,9 @@ class Layout:
                 # This is for drawing background and border?
                 if row.default_height is not None:
                     row_height = calc_float_attribute("default_height", None, row, None,  aspect_ratio.y, row_font_height)
-                    #print(f"RRR {row_height} {row_font_height}")
                 else:
                     row_height = layout_row_height
 
-                #print(f"RRR {row_height}")
                 row_bounds_area = Bounds(bounds_area)
                 # row_bounds_area.height = row_height
                 #row.left = bounds_area.left
@@ -1423,8 +1409,6 @@ class Layout:
                 else:
                     rect_col_width = square_width
 
-                #print(f"   ROW Bounds {row_bounds_area} RCW {rect_col_width}")
-
                 # bit of a hack to make sure face aren't the biggest things
                 col_left = row_bounds_area.left
                 hole_size = 0
@@ -1488,7 +1472,6 @@ class Layout:
 
                     
                     ##################
-                    #print(f"       COL Bounds {col_bounds_area}")
                     col.set_bounds(col_bounds_area)
                     #
                     # REGION STUFF
@@ -1576,7 +1559,6 @@ class Layout:
         #    self.representing = False
         SBS = FrameContext.context.sbs
         if self.region_type != RegionType.SECTION_AREA_ABSOLUTE:
-            #print(f"complete {self.region_tag}")
             SBS.send_gui_complete(client_id, self.drawing_region_tag)
 
         
@@ -1709,7 +1691,6 @@ class RadioButtonGroup(Column):
         self.group.update_variable()
 
     def update(self, props):
-        #print(f"update {props}")
         if props is None:
             return
         buts = props.split(",")

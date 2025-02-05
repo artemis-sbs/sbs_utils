@@ -72,10 +72,10 @@ class Listbox(Control):
         SBS = FrameContext.context.sbs
 
         the_bounds = layout.Bounds(0,0,100,100)
-        #print(f"LB _present {self.region_tag} {self.bounds}")
+        
         
         aspect_ratio = get_client_aspect_ratio(CID) 
-        #print(f"list box {aspect_ratio.x} {aspect_ratio.y} ")
+
         if aspect_ratio.x == 0 or aspect_ratio.y == 1:
             square_ratio = 1.0
         elif aspect_ratio.x > aspect_ratio.y:
@@ -89,7 +89,6 @@ class Listbox(Control):
         # force redraw of on size change
         if square_width_percent != self.square_width_percent:
             self.gui_state = "redraw"
-            #print("Changed listbox ratio")
             self.square_width_percent = square_width_percent
 
         # Not sure this is needed, 
@@ -161,12 +160,10 @@ class Listbox(Control):
                 if isinstance(icons_to_display, str):
                     icons_to_display = [icons_to_display]
                 i=0
-                #print(f"Icon count {icons_to_display}")
 
                 for icon_item in icons_to_display:
                     tag = f"{self.tag}icon:{slot}:{i}"
                     tags.add(tag)
-                    #print (f"ICON PROPS: {icon_item}")
                     SBS.send_gui_icon(CID, self.local_region_tag, tag, icon_item,
                         left, top,
                         left+square_width_percent, top+square_height_percent )
@@ -217,7 +214,6 @@ class Listbox(Control):
                     CID, self.local_region_tag, tag, text,
                         left, top, the_bounds.right, top+self.item_height)
             if self.select or self.multi:
-                #print(f"{cur} selected {1 if cur in self.selected else 0}")
                 # SBS.send_gui_checkbox(
                 #     CID, f"{self.tag_prefix}name:{slot}", f"state: {'on' if cur in self.selected else 'off'}; {text}",
                 #         left, top, self.right-1.5, top+self.item_height)
@@ -257,7 +253,6 @@ class Listbox(Control):
         #
         if self.last_tags is not None:
             diff = self.last_tags - tags
-            #print(f"tags {len(self.last_tags)} {len(tags)} {len(diff)}")
             for t in diff:
                 SBS.send_gui_text(
                     CID, self.local_region_tag,  t, "$text:_",

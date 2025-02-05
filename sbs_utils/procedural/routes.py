@@ -788,7 +788,6 @@ def _follow_route_console(origin_id, selected_id, console, widget, extra_tag):
     # A bit of a hack directly using dispatchers data
     # forcing the default handlers
     #
-    #print(f"Following {console} {event.extra_tag}")
     ConsoleDispatcher.dispatch_select(event)
         
 def follow_route_select_comms(origin_id, selected_id):

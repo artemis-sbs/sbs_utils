@@ -102,7 +102,6 @@ class PromiseWaiter(Waiter):
         while True:
             res = self.promise.poll()
             yield res
-            #print(f"Waiter tick {res}")
             #yield self.promise.poll()
             if self.promise.done():
                 break

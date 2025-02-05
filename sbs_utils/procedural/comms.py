@@ -284,7 +284,6 @@ def comms_info(name, face=None, color=None):
     from_so = query.to_object(_comms_get_origin_id())
 
     if to_so is None or from_so is None:
-        #print("Comms Info escaped")
         return
     # Just in case swap if from is not a player
     if not from_so.is_player:
@@ -300,10 +299,8 @@ def comms_info(name, face=None, color=None):
 
     
     if to_so.is_grid_object:
-        #print("Comms Info grid")
         FrameContext.context.sbs.send_grid_selection_info(from_so.id, face, color, name)
     else:
-        #print(f"Comms Info comms nn{name} i{from_so.id} f{face} c{color} n{comms_id}")
         FrameContext.context.sbs.send_comms_selection_info(from_so.id, face, color, name)
 
 
@@ -368,7 +365,6 @@ class CommsPromise(ButtonPromise):
         selected_so = query.to_object(self.selected_id)
         if oo is not None and selected_so is not None:
             return False
-        #print("GARBAGE COLLECTION comms promise")
         self.leave()
         self.task.end()
         return True

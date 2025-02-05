@@ -83,7 +83,6 @@ class SubPage:
     
     def present(self, event):
         for sec in self.layouts:
-            #print(f"SubPage {self.region_tag}")
             sec.region_tag = self.region_tag
             sec.calc(event.client_id)
             sec.present(event)
@@ -265,7 +264,6 @@ class LayoutListbox(layout.Column):
         elif extra_slot_count > 0:
             self.extra_slot_count = extra_slot_count
             em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
-            #print(f"adding scroll bar font size {em2} {self.bounds} == {self.tag} -- {self.tag_prefix}")
             if self.horizontal:
                 SBS.send_gui_slider(CID, self.local_region_tag,f"{self.tag_prefix}cur", int(self.cur), f"low:0.0; high: {(extra_slot_count+0.5)}; show_number:no",
                         left, bottom-em2,
@@ -307,11 +305,9 @@ class LayoutListbox(layout.Column):
             # sub_page.tags |= sec.get_tags()
 
         #draw_slots = max_slot
-        #print(f"{cur=} {max_slots=}" )
         self.sections = []
         for slot in range(max_slots):
             if cur >= len(self.items):
-                #print("BROKE")
                 break
 
             item = self.items[cur]
@@ -326,7 +322,7 @@ class LayoutListbox(layout.Column):
             
             sec = layout.Layout(tag+":sec", None, left, top, this_right, this_bottom)
             sec.region_tag = self.local_region_tag
-            #print(f"BREAK {cur}  {tag} {left=} {top=}")
+            
             if (self.select or self.multi) and not self.carousel:
                 #sec.click_text = "__________________"
                 sec.click_text = ""
@@ -348,7 +344,6 @@ class LayoutListbox(layout.Column):
             sec.present(event)
             sec.resize_to_content()
             self.sections.append(sec)
-            # print(f"LISTBOX Present slots {CID} {sec.bounds} {self.local_region_tag}")
             #sub_page.tags |= sec.get_tags()
 
             cur += 1
@@ -369,21 +364,20 @@ class LayoutListbox(layout.Column):
         # is_update = True
         # # If first time create sub region
         # if not is_update:
-        #     print("Listbox CREATE present")
         #     sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", 0,0,100,100)
         #     self.region = True
         #     sbs.send_gui_clear(CID, self.local_region_tag)
         #     super().present(event)
         #     sbs.send_gui_complete(CID, self.local_region_tag)
         # else:
-        # print(f"Listbox UPDATE present {event.client_id}")
+
         SBS = FrameContext.context.sbs
         SBS.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", 0,0,100,100)
         self.region = True
         SBS.send_gui_clear(CID, self.local_region_tag)
         super().present(event)
         SBS.send_gui_complete(CID, self.local_region_tag)
-        #print(f"Listbox present complete {CID} {self.client_id} R-{self.region_tag}- L-{self.local_region_tag}-")
+        
 
         #sbs.target_gui_sub_region(CID, "")
         
@@ -453,7 +447,6 @@ class LayoutListbox(layout.Column):
             return
         if sec[2] != "__click":
             return
-        #print(sec[1])
         if not sec[1].isdigit():
             return
         slot = int(sec[1])+self.cur

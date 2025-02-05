@@ -61,7 +61,6 @@ def science_set_scan_data(player_id_or_obj, scan_target_id_or_obj, tabs):
         if tab != "scan":
             scan_tabs += f"{tab},"
         message = tabs.get(tab)
-        #print(f"sci scan {tab} {message}")
         target_blob.set(f"{player_obj.side}{tab}", message, 0)
     target_blob.set("scan_type_list", scan_tabs, 0)
 
@@ -117,7 +116,6 @@ def scan_results(message, target=None, tab = None):
         return
     
     msg = task.compile_and_format_string(message)
-    #print(f"{scan.tab} scan {msg}")
     
     p = task.get_variable("BUTTON_PROMISE")
     p.set_scan_results(msg) 
@@ -191,11 +189,9 @@ class ScanPromise(ButtonPromise):
         self.tab = event.extra_tag
         self.event = event
         self.cancel_if_no_longer_exists()
-        #print(f"SCIENCE MESSAGE {event.extra_tag} {event.tag} {event.sub_tag} ")
         if not self.done():
             self.process_tab()
         else:
-            #print(f"SKIPPED SCIENCE MESSAGE {event.extra_tag}")
             pass
 
     def process_tab(self):
@@ -270,7 +266,6 @@ class ScanPromise(ButtonPromise):
         selected_so = query.to_object(self.selected_id)
         if oo is not None and selected_so is not None:
             return False
-        # print("GARBAGE COLLECTION science promise")
         self.leave()
         self.task.end()
         return True
@@ -303,7 +298,6 @@ class ScanPromise(ButtonPromise):
             self.tab = "scan"
             self.process_tab()
         else:
-            #print(f"has scan else {has_scan}")
             scan_tabs = ""
             scanned_tabs = 0
             button_count = 0
@@ -342,7 +336,6 @@ class ScanPromise(ButtonPromise):
             # if self.scan_is_done: 
             #     print(f"Science scan I think I'm done")
 
-        #print(f"Science tabs {scan_tabs}")
         sel_so.data_set.set("scan_type_list", scan_tabs, 0)
         
         ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'science_target_UID', self.science_selected)
@@ -369,7 +362,6 @@ def scan(path=None, buttons=None, timeout=None, auto_side=True):
             ret .buttons.append(Button(k,button="+", label=buttons[k],loc=0))
     #origin_id = task.get_variable("SCIENCE_ORIGIN_ID")
     #selected_id = task.get_variable("SCIENCE_SELECTED_ID")
-    #print(f"scan() {origin_id} {selected_id}")
     return ret
 
 def science_add_scan(message, label=None, data=None, path=None):

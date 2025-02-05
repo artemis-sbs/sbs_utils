@@ -19,7 +19,6 @@ class GarbageCollector:
         GarbageCollector.next_run = now + 30
         GarbageCollector._items -= GarbageCollector._done
         GarbageCollector._done = set()
-        # print(f"GARBAGE COLLECT {len(GarbageCollector._items)}")
         for cb in GarbageCollector._items:
             if cb():
                 GarbageCollector._done.add(cb)

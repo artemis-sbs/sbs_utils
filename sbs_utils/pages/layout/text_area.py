@@ -115,7 +115,6 @@ class TextArea(Control):
                 cur = heading_numbers.get(sk, None)
                 if cur is None:
                     break
-                #print(f"clearing {sk}")
                 heading_numbers[sk]=1
 
 
@@ -209,7 +208,6 @@ class TextArea(Control):
 
             if self.lines[self.last_line].is_sec_end:
                 calc_height += 0.5*height
-            # print(f"LL {height}")
             calc_height += height
             
     def _present_simple(self, event):
@@ -240,7 +238,6 @@ class TextArea(Control):
         first_line = self.last_line - self.scroll_line
         
         bounds = Bounds(self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
-        #print(f"TODO: TextArea {bounds}")
         # Room for scrollbar always
         if self.need_v_scroll:
             bounds.right -= 20*100/ar.x
@@ -290,7 +287,6 @@ class TextArea(Control):
 
 
     def update(self, message):
-        # print(f"{message}")
         self.value = message
 
     
@@ -365,14 +361,12 @@ class TextArea(Control):
     def on_message(self, event):
         if event.sub_tag != f"{self.tag}vbar":
             return
-        #print("MESSAGE")
         value = int(event.sub_float)
         #value = int(-event.sub_float+self.last_line+0.5)
         if value != self.scroll_line:
             self.scroll_line = value
             self.gui_state = "redraw"
             self.present(event)
-            #print(self.scroll_line)
         
 
 

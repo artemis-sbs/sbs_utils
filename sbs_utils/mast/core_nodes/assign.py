@@ -35,7 +35,6 @@ class Assign(MastNode):
         self.scope = None if scope is None else Scope[scope.strip(
         ).upper()]
         
-        #print(f"quote: {quote}")
         exp = exp.lstrip()
         if quote:
             exp = 'f'+exp        

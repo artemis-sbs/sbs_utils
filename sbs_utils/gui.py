@@ -124,10 +124,8 @@ class GuiClient(Agent):
         :type Page: A GUI Page
         """
         event = FakeEvent(self.client_id, "gui_push")
-        #print(f"Pushing {self.client_id}")
         self.page_stack.append(page)
         self.present(event)
-        #print(f"After Pushing {self.client_id} {page.task.done()}")
 
     def pop(self):
         """ pop
@@ -145,7 +143,6 @@ class GuiClient(Agent):
 
 
         event = FakeEvent(self.client_id, "gui_pop")
-        #print(f"popping {self.client_id}")
         self.present(event)
         return ret
 
@@ -214,7 +211,6 @@ class GuiClient(Agent):
 
         #             self.aspect_ratio.x = sz.x - crap
         #             self.aspect_ratio.y = sz.y
-        #         #print(f"client told {aspect_ratio.x} {aspect_ratio.y} ")
         
 
         if len(self.page_stack) > 0:
@@ -431,12 +427,10 @@ def get_client_aspect_ratio(cid):
         ar = Vec3(ar)
         if ar.x == 0 or ar.y == 0:
             ar = Vec3(1020,768,99)
-            #print("0  0")
             
         if cid == 0 and Agent.SHARED.get_inventory_value("SIM_STATE",None) != "sim_running":
             ar.x -= 300
-            #print("AR CALC Paused (gui.py)")
-        # print("Found client gui")
+
         return ar
     # v = get_server_win()
     # if v.x == 0 or v.y==0:
@@ -454,6 +448,4 @@ def get_client_aspect_ratio(cid):
 #     hwnd = ctypes.windll.user32.GetForegroundWindow()
 #     rect = ctypes.wintypes.RECT()
 #     ctypes.windll.user32.GetWindowRect(hwnd, ctypes.pointer(rect))
-#     # print(hwnd)
-#     # print(rect)
 #     return Vec3(rect.right-rect.left, rect.bottom-rect.top, 88)

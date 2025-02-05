@@ -80,7 +80,6 @@ from ...futures import Promise
 @mast_runtime_node(Await)
 class AwaitRuntimeNode(MastRuntimeNode):
     def leave(self, mast:'Mast', task:'MastAsyncTask', node: Await):
-        #print("AWAIT Leave")
         if self.promise is not None:
             self.promise.cancel("Canceled by Await leave")
     
@@ -107,8 +106,6 @@ class AwaitRuntimeNode(MastRuntimeNode):
                 return PollResults.OK_JUMP
             
             if self.promise.done():
-                #print(f"{self.promise.__class__.__name__} {task.active_label} {node.end_await_node.loc+1}")
-                #print("Promise Done")
                 task.jump(task.active_label, node.dedent_loc)
                 return PollResults.OK_JUMP
             else:
@@ -116,8 +113,6 @@ class AwaitRuntimeNode(MastRuntimeNode):
         
         value = task.eval_code(node.code)
         if value:
-            #print("Value related")
-            #print(f"value {node.end_await_node.loc+1}")
             task.jump(task.active_label, node.dedent_loc)
             return PollResults.OK_JUMP
 

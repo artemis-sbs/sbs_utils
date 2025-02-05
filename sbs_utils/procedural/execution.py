@@ -115,11 +115,8 @@ def task_schedule(label, data=None, var=None):
         MastAsyncTask : The MAST task created
     """    
     task = FrameContext.task
-    #print(f"Task Before: {task} {label.__name__}")
     if task is not None:
         t = task.start_task(label, data, var)
-        # print(f"Task After: {t} {t.done()} {label.__name__}")
-        # print(f"Task After: {t} {label.__name__}")
         return t
     return None
 
@@ -135,11 +132,8 @@ def sub_task_schedule(label, data=None, var=None):
         MastAsyncTask : The MAST task created
     """    
     task = FrameContext.task
-    #print(f"Task Before: {task} {label.__name__}")
     if task is not None:
         t = task.start_sub_task(label, data, var)
-        # print(f"Task After: {t} {t.done()} {label.__name__}")
-        # print(f"Task After: {t} {label.__name__}")
         return t
     return None
 

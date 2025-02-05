@@ -70,13 +70,13 @@ class MastTicker:
         # if self.pending_jump:
         #     print("PENDING")
         self.pending_jump = (label,activate_cmd)
-        # print(f"{label} {activate_cmd}")
+
         while self.pop_on_jump>0:
             # if this is a jump and there are tested push
             # get back to the main flow
             self.pop_on_jump-=1
             push_data = self.task.label_stack.pop()
-            # print(f"IN JUMP POP: {push_data.label} {len(self.task.label_stack)}")
+            
     
     
     def do_jump(self, label = "main", activate_cmd=0):
@@ -136,15 +136,11 @@ class MastTicker:
                 self.done = True
 
     def do_resume(self, label, activate_cmd, runtime_node):
-        #print("I am RESUMING")
         label_runtime_node = self.main.mast.labels.get(label)
         if label_runtime_node is not None:
             self.cmds = self.main.mast.labels[label].cmds
             self.active_label = label
             self.active_cmd = activate_cmd
-            #print(f"ACTIVE_CMD {self.cmds[self.active_cmd]}")
-
-            #print(f"RUNTIME NODE {runtime_node}")
             self.runtime_node = runtime_node
             self.done = False
         else:
@@ -153,7 +149,6 @@ class MastTicker:
             self.runtime_node = None
             self.done = True
     def push_label(self, label, activate_cmd=0, data=None):
-        #print("PUSH")
         if self.active_label:
             pending_push = PushData(self.active_label, self.active_cmd, data)
             self.task.label_stack.append(pending_push)
@@ -191,24 +186,19 @@ class MastTicker:
                 # return
             push_data: PushData
             push_data = self.task.label_stack.pop()
-            #print(f"POP: {push_data.label}")
-            #print(f"POP DATA {push_data.label} {push_data.active_cmd} len {len(self.task.label_stack)}")
             if self.pending_jump is None:
                 if inc_loc:
                     # TREAT THIS LIKE A JUMP
                     # I think this is a True POP in an inline
                     # So don't resume
-                    #print(f"I inc'd {true_pop}")
                     self.pending_pop = (push_data.label, push_data.active_cmd+1, None)
                 else:
                     #
                     # We didn't inc so the hope is to resume 
                     #
-                    #print(f"I DID NOT inc {push_data.runtime_node}")
                     self.pending_pop = (push_data.label, push_data.active_cmd, push_data.runtime_node)
     def tick(self):
         cmd = None
-        #print(f"tick Mast task {self.task.id & 0xFFFFF}")
         is_sub_task = self.task.is_sub_task
 
         try:
@@ -258,8 +248,6 @@ class MastTicker:
                     if cmd.__class__== "Comment":
                         self.next()
                         continue
-
-                    #print(f"{cmd.__class__} running {self.runtime_node.__class__}")
                     result = self.runtime_node.poll(self.main.mast, self.task, cmd)
                     match result:
                         case PollResults.OK_ADVANCE_TRUE:
@@ -367,7 +355,6 @@ class MastTicker:
             runtime_node_cls = self.main.nodes.get(cmd.__class__.__name__, MastRuntimeNode)
             
             self.runtime_node = runtime_node_cls()
-            #print(f"RUNNER {self.runtime_node.__class__.__name__}")
             self.runtime_node.enter(self.main.mast, self.task, cmd)
         except BaseException as err:
             self.main.runtime_error(str(err))
@@ -400,18 +387,15 @@ class PyTicker():
         # Keep running until told to defer or you've jump 100 time
         # Arbitrary number
         throttle = 0
-        #print(f"tick task {self.task.id & 0xFFFFF}")
         
         while not self.done and throttle < 100:
             throttle += 1
             if self.pending_jump:
-                #print(f"jump to {self.pending_jump}")
                 res = self.do_jump()
                 self.pending_pop = None
                 
             elif self.pending_pop:
                 # Pending jump trumps pending pop
-                # print(f"pending pop to {self.pending_pop.__name__}")
                 self.current_gen = self.pending_pop
                 self.pending_pop = None
 
@@ -420,7 +404,6 @@ class PyTicker():
             # It is possible that the label
             # did not Yield, which is OK just End 
             if gen is None:
-                #print("Gen None")
                 #self.last_poll_result = PollResults.OK_END
                 self.end()
                 return self.last_poll_result
@@ -432,7 +415,6 @@ class PyTicker():
             for res in gen:
                 is_new_jump = False
                 if res is None:
-                    #print("Label yielded None")
                     gen_done = True
                     break
                 gen_done = False
@@ -446,14 +428,13 @@ class PyTicker():
                 elif res == PollResults.OK_END:
                     gen_done = True
                     fallthrough = False
-                    #print("Res is OK_END")
                     self.end()
                     break
                 elif isinstance(res, Waiter):
                     if self.current_gen is not None:
                         self.stack.append(self.current_gen)
                     self.current_gen = res.get_waiter()
-                    # print("Handling waiter")
+
                     self.last_poll_result = PollResults.OK_JUMP
                     break
 
@@ -492,7 +473,6 @@ class PyTicker():
                 else:
                     self.current_gen = self.pending_pop
                     if self.current_gen is None:
-                        #print("Popped weird")
                         self.end()
                         self.last_poll_result = PollResults.OK_END
                     else:
@@ -516,16 +496,13 @@ class PyTicker():
         
             
         if inspect.ismethod(label):
-            #print(f"IS METHOD {label.__name__}")
             self.fall_through_label = get_fall_through(label)
             gen = label()
             res = PollResults.OK_JUMP
         elif inspect.isfunction(label):
-            #print(f"IS func {label.__name__}")
             self.fall_through_label = get_fall_through(label)
             gen = label()
             res = PollResults.OK_JUMP
-            #print(f"IS method {label.__name__} {gen}")
         elif isinstance(label, partial):
             #
             # Not sure this will work right?
@@ -540,7 +517,6 @@ class PyTicker():
     
     def jump(self, label):
         while self.pop_on_jump>0:
-            #print(f"I popped {label.__name__}")
             #self.pop_on_jump -= 1
             #self.stack.pop()
             self.pop()
@@ -663,7 +639,6 @@ class MastAsyncTask(Agent, Promise):
         # if sender_task == self:
         # If this is needed add it to the data instead of skipping
         #     return
-        #print(f"emit_signal {name}")
         if sender_task is not None and sender_task.done():
             return
         if self.done():
@@ -672,7 +647,7 @@ class MastAsyncTask(Agent, Promise):
         if label_info.server and not self.main.is_server:
             return
         
-        # print(f"emit_signal is go {name}")
+
         if label_info.is_jump:
             st = self.start_task(label_info.label, data, defer=True)
             st.tick_in_context()
@@ -686,7 +661,6 @@ class MastAsyncTask(Agent, Promise):
     #
     def cancel(self, msg=None):
         self.end()
-        #print("Task canceled")
         super().cancel(msg)
         self._canceled = True
 
@@ -879,7 +853,6 @@ class MastAsyncTask(Agent, Promise):
             #err = traceback.format_exc()
             #err = format_exception("", "Mast exec level Runtime Error:")
             #self.runtime_error("Mast exec level Runtime Error:\n")
-            #print("exec error")
             err = format_exception("", "Mast eval level Runtime Error:")
             self.runtime_error(err)
             self.end()
@@ -1026,7 +999,6 @@ class MastAsyncTask(Agent, Promise):
     @classmethod
     def stop_for_dependency(cls, id):
         the_set = MastAsyncTask.dependent_tasks.get(id, set())
-        #print("Unlikely")
         for task in the_set:
             task.end()
         MastAsyncTask.dependent_tasks.pop(id, None)
@@ -1073,13 +1045,10 @@ class MastScheduler(Agent):
         return time.time()
     
     def set_inventory_value(self, collection_name, value):
-        #print(f"SET ON MAIN {collection_name} {len(self.inventory.collections)}")
         return super().set_inventory_value(collection_name, value)
 
     def get_inventory_value(self, collection_name, default=None):
         v = super().get_inventory_value(collection_name, default)
-        #if v is not None and v != default:
-        #    print(f"GET ON MAIN {collection_name} {len(self.inventory.collections)}")
         return v
 
     def _start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:
@@ -1106,7 +1075,7 @@ class MastScheduler(Agent):
         
         if not defer:
             self.on_start_task(t)
-        # print(f"Task count {b4} =? {len(self.tasks)}")
+
         return t
 
     def on_start_task(self, t):
@@ -1170,7 +1139,7 @@ class MastScheduler(Agent):
         restore = FrameContext.task
 
         FrameContext.mast = self.mast
-        # print(f"Task count for tick {len(self.tasks)}")
+
         for task in self.tasks:
             self.active_task = task
             FrameContext.task = task

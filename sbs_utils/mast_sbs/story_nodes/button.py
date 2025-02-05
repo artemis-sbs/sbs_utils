@@ -143,41 +143,32 @@ class Button(MastNode):
 
     def resolve_data_context(self, task):
         if self.data is not None and not isinstance(self.data, dict):
-            #print( f"TODO: data {self.data}")
             self.data = task.eval_code(self.data)
             self.message = task.format_string(self.message)
 
     def run(self, task, button_promise):
         task_data = self.data
         if self.data is not None and not isinstance(self.data, dict):
-            #print( f"TODO: data {self.data}")
             task_data = task.eval_code(self.data)
 
         if self.use_sub_task and self.label:
-            #print(f"NEW TASK LABEL {self.message}")
-            
-            
             #
             # Block commands in a sub task is a strait jump to the button
             # The button should dedent to a yield_idle
             #
             #
             if self.is_block:
-                #print(f"BLOCK NEW TASK LABEL {self.message} {self.label.name} {self.loc}")
                 sub_task = task.start_sub_task(self.label, inputs=task_data, defer=True, active_cmd=self.loc+1)
             else:
-                #print(f"NEW TASK LABEL {self.message} {self.label} {self.loc}")
                 sub_task = task.start_sub_task(self.label, inputs=task_data, defer=True)
 
             sub_task.set_variable("BUTTON_PROMISE", button_promise)
             sub_task.tick_in_context()
             return sub_task
         elif self.label:
-            #print(f"LABEL {self.label} {self.message}")
             task.push_inline_block(self.label)
             task.tick_in_context()
         else:
-            #print(f"INLINE {self.path} {self.label_to_run} {task.active_label} {self.message}")
             task.push_inline_block(task.active_label,self.loc+1)
             task.tick_in_context()
 

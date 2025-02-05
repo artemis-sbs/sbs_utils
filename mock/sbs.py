@@ -97,6 +97,19 @@ def get_client_ID_list() -> List[int]:
 def get_screen_size() -> vec2:
     """returns a VEC2, with the width and height of the display in pixels"""
     return vec2(1024,78)
+def in_standby_list(space_object: sbs.space_object) -> bool:
+    """returns true if the spaceobject is in the standby list."""
+def in_standby_list_id(id: int) -> bool:
+    """returns true if the spaceobject is in the standby list."""
+def is_demo() -> bool:
+    """Returns true if the EXE is marked as a demo version."""
+    return False
+def particle_at(position: sbs.vec3, descriptorString: str) -> None:
+    """emit some particles in space."""
+def particle_emittor_exists(emittorID: int) -> bool:
+    """checks for the existance of a particle emittor."""
+def particle_on(spaceObject: sbs.space_object, descriptorString: str) -> None:
+    """emit some particles in space from a space object."""
 def pause_sim() -> None:
     """the sim will now pause; HandlePresentGUI() and HandlePresentGUIMessage() are called."""
 def play_music_file(arg0: str, arg1: int, arg2: int) -> None:
@@ -612,15 +625,14 @@ class simulation(object): ### from pybind
 
     def create_space_object(self: simulation, arg0: str, arg1: str, abits:int) -> int:
         """creates a new spaceobject"""
-        global sim
-        sim.object_ids += 1
-        id = sim.object_ids
+        self.object_ids += 1
+        id = self.object_ids
         obj  = space_object()
         obj._id = id
         obj._type = abits # """int, 0=passive, 1=active, 2=playerShip""" #
         obj._data_tag = arg1
         obj._tick_type = arg0
-        sim.space_objects[id] = obj
+        self.space_objects[id] = obj
         return id
 
     def navpoint_exists(self: simulation, arg0: str) -> bool:

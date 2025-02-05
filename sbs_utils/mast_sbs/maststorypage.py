@@ -84,7 +84,6 @@ class StoryPage(Page):
                     # t = time.perf_counter()
                     self.errors =  cls.story.from_file(cls.story_file, None)
                     # elapsed_time = time.perf_counter() - t
-                    # print(f"TIME: {elapsed_time}")
 
                     self.compiler_errors = self.errors
                     #if len(self.errors)>0:
@@ -114,7 +113,7 @@ class StoryPage(Page):
             # Look for client specific main
             if client_id != 0:
                 label = self.__dict__.get("main_client", label)
-            #print(f"LABEL: {label}")
+
 
             self.story_scheduler.page = self
             #
@@ -164,7 +163,6 @@ class StoryPage(Page):
         # This forces them is a certain order
         self.add_console_widget("")
         self.widgets = self.pending_widgets
-        #print(f"TODO: page_swap_layout  {self.widgets.replace('^', ',')}")
 
         # TODO: this should be one thing
         # convert console tabs to procedural
@@ -250,7 +248,7 @@ class StoryPage(Page):
             self.is_processing_rebuild = False
             self.tag_map.update(self.pending_tag_map)
             self.pending_tag_map = {}
-            # print(f"Len click {len(self.pending_on_click)}")
+            
             self.on_click.extend(self.pending_on_click)
             self.pending_on_click = []
         # Finish the layout for the sub section
@@ -374,7 +372,6 @@ class StoryPage(Page):
         # tabs can be for all ships or single
         #
         all_ship_tabs = Agent.SHARED.get_inventory_value("console_tabs", {})
-        # print(all_ship_tabs)
         all_tabs = all_ship_tabs.get("any", {})
         ship_id = FrameContext.context.sbs.get_ship_of_client(self.client_id) 
             #get_inventory_value(self.client_id, "assigned_ship", None)
@@ -656,12 +653,10 @@ class StoryPage(Page):
         if event.client_id != self.client_id:
             return
         
-        #print (f"Story event {event.client_id} {event.tag} {event.sub_tag}")
         if self.story_scheduler is None:
             return
         
         if event.tag =="mast:client_disconnect":
-            #print("event discon")
             self.disconnected = True
             self.tick_gui_task()
             # remove scheduler
@@ -696,4 +691,4 @@ class StoryPage(Page):
             self.gui_state = "refresh"
             self.present(event)
             FrameContext.page = save
-            # print(f"Aspect Event {self.aspect_ratio.x} {self.aspect_ratio .y}")
+            

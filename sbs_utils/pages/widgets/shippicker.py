@@ -140,7 +140,6 @@ class ShipPicker(Control):
         if not self._read_only:
             SBS.send_gui_button(CID,self.local_region_tag, f"{self.tag}prev", "$text:prev", the_bounds.left, the_bounds.bottom-5, the_bounds.left+half, the_bounds.bottom)
             SBS.send_gui_button(CID,self.local_region_tag, f"{self.tag}next", "$text:next", the_bounds.right-half, the_bounds.bottom-5, the_bounds.right, the_bounds.bottom)
-        #print(f"displaying {ship['key']}")
         SBS.send_gui_3dship(CID,self.local_region_tag, f"{self.tag}ship", f"hull_tag:{ship['key']};",
             the_bounds.left, top,
             the_bounds.right, the_bounds.bottom-5 )
