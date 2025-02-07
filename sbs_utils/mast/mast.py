@@ -792,8 +792,9 @@ class Mast():
                         
                         if is_indent:
                             if prev_node is None or not prev_node.is_indentable():
-                                errors.append(f"\nERROR: Bad indention {file_name} {line_no} - {line}")
-                                return errors # return with first errors
+                                if not prev_node.is_inline_label:
+                                    errors.append(f"\nERROR: Bad indention {file_name} {line_no} - {line}")
+                                    return errors # return with first errors
                             block_node = prev_node
                             indent_stack.append((indent,block_node))
                         if is_dedent:
