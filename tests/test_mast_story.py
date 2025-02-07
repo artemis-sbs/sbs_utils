@@ -243,6 +243,23 @@ await gui():
                 print(err)
         assert(len(errors) == 0)
 
+    def test_compile_Comms_message(self):
+        (errors, mast)= mast_story_compile( code = """
+//science if is_dev_build()
+"
+"
++ "Debug":
+    <scan> 
+        " This is a debug string.
++ "Debug":
+    <scan> 
+        " This is a debug string.
+""")
+        if len(errors)>0:
+            for err in errors:
+                print(err)
+        assert(len(errors) == 0)
+
     def test_weird(self):
         (errors,  _) = mast_story_compile( code = """
 #import grid_editor.mast
@@ -285,7 +302,7 @@ foo:
 
 @admiral/ai/raider "A Basic raider AI Admiral"
 
-@card/damcon/sleepy "Generic"
+@prefab/damcon/sleepy "Generic"
 
 @character/damcon/sleepy "Sleepy"
 

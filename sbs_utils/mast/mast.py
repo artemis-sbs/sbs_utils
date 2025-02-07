@@ -737,7 +737,7 @@ class Mast():
 
                         self.cmd_stack.pop()
                         self.cmd_stack.append(active)
-                        prev_node = None
+                        prev_node = active
 
                     
                     elif node_cls.__name__== "Import":

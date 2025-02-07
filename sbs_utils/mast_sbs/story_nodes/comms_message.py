@@ -59,7 +59,7 @@ class CommsMessageStart(DescribableNode):
         CommsMessageStart.current_comms_message = None
 
     def post_dedent(self,compile_info):
-        pass
+        CommsMessageStart.current_comms_message = None
 
 from ...helpers import FrameContext
     

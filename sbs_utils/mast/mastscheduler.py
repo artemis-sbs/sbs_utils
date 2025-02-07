@@ -130,7 +130,7 @@ class MastTicker:
                 self.last_poll_result = PollResults.OK_JUMP
                 self.next()
             else:
-                self.runtime_error(f"""Jump to label "{label} {activate_cmd}" not found""")
+                self.runtime_error(f"""Jump to label "{label}" command {activate_cmd} not found""")
                 self.active_cmd = 0
                 self.runtime_node = None
                 self.done = True
