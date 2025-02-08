@@ -40,27 +40,27 @@ class SpaceObject(Agent):
         self._engine_object = None
     
     @property
-    def is_player(self):
+    def is_player(self) -> bool:
         return self.tick_type & TickType.PLAYER
 
     @property
-    def is_npc(self):
+    def is_npc(self) -> bool:
         return self.tick_type & TickType.ACTIVE
 
     @property
-    def is_terrain(self):
+    def is_terrain(self) -> bool:
         return self.tick_type & TickType.PASSIVE
 
     @property
-    def is_active(self):
+    def is_active(self) -> bool:
         return self.tick_type & TickType.ACTIVE
 
     @property
-    def is_passive(self):
+    def is_passive(self) -> bool:
         return self.tick_type & TickType.PASSIVE
 
 
-    def get_space_object(self):
+    def get_space_object(self) -> SpaceObject:
         """ Gets the simulation space object
 
         :return: The simulation space object
@@ -69,7 +69,7 @@ class SpaceObject(Agent):
 
         return FrameContext.context.sim.get_space_object(self.id)
 
-    def get_engine_object(self):
+    def get_engine_object(self) -> SpaceObject:
         """ Gets the simulation space object
 
         :return: The simulation space object
@@ -103,11 +103,11 @@ class SpaceObject(Agent):
             return FrameContext.context.sim.delete_navpoint_by_name(name)
         return None
 
-    def log(s: str):
+    def log(s: str) -> None:
         if SpaceObject.debug:
             print(s)
 
-    def space_object(self):
+    def space_object(self) -> SpaceObject:
         """ get the simulation's space object for the object
 
         :return: simulation space object
@@ -132,7 +132,7 @@ class SpaceObject(Agent):
                 so.side = side
                 FrameContext.context.sim.force_update_to_clients(self.id,0)
 
-    def set_name(self, name):
+    def set_name(self, name) -> str:
         """ Get the name of the object
         :return: name
         :rtype: str
@@ -175,7 +175,7 @@ class SpaceObject(Agent):
         return self._name
 
     @name.setter
-    def name(self: SpaceObject, value: str):
+    def name(self: SpaceObject, value: str) -> None:
         self.set_name(value)
 
     @property
@@ -184,7 +184,7 @@ class SpaceObject(Agent):
         return self._side
     
     @side.setter
-    def side(self: SpaceObject, value: str):
+    def side(self: SpaceObject, value: str) -> None:
         self.set_side(value)
 
 
@@ -199,7 +199,7 @@ class SpaceObject(Agent):
         return self._art_id
 
     @art_id.setter
-    def art_id(self: SpaceObject, value: str):
+    def art_id(self: SpaceObject, value: str) -> None:
         self.set_art_id(value)
 
 
@@ -266,7 +266,7 @@ class MSpawnPlayer(MSpawn):
         self.tick_type = TickType.PLAYER
         return FrameContext.context.sim.get_space_object(self.id)
 
-    def _spawn(self, x, y, z, name, side, art_id):
+    def _spawn(self, x, y, z, name, side, art_id) -> SpawnData:
         # playerID will be a NUMBER, a unique value for every space object that you create.
         ship = self._make_new_player("behav_playership", art_id)
         blob = self.spawn_common(ship, x, y, z, name, side, art_id)
@@ -274,7 +274,7 @@ class MSpawnPlayer(MSpawn):
         self._art_id = art_id
         return SpawnData(self.id, ship, blob, self)
 
-    def spawn(self, x, y, z, name, side, art_id):
+    def spawn(self, x, y, z, name, side, art_id) -> SpawnData:
         """ Spawn a new player
 
         :param sim: The simulation
@@ -298,7 +298,7 @@ class MSpawnPlayer(MSpawn):
         """
         return self._spawn(x, y, z, name, side, art_id)
 
-    def spawn_v(self, v, name, side, art_id):
+    def spawn_v(self, v, name, side, art_id) -> SpawnData:
         """ Spawn a new player
 
         :param sim: The simulation
@@ -335,7 +335,7 @@ class MSpawnActive(MSpawn):
         self.add_role("__NPC__")
         return SpawnData(self.id, ship, blob, self)
 
-    def spawn(self, x, y, z, name, side, art_id, behave_id):
+    def spawn(self, x, y, z, name, side, art_id, behave_id) -> SpawnData:
         """ Spawn a new active object e.g. npc, station
 
         :param sim: The simulation
@@ -360,7 +360,7 @@ class MSpawnActive(MSpawn):
         """
         return self._spawn(x, y, z, name, side, art_id, behave_id)
 
-    def spawn_v(self, sim, v, name, side, art_id, behave_id):
+    def spawn_v(self, sim, v, name, side, art_id, behave_id) -> SpawnData:
         """ Spawn a new Active Object e.g. npc, station
 
         :param v: location
@@ -390,14 +390,14 @@ class MSpawnPassive(MSpawn):
         self.tick_type = TickType.PASSIVE
         return self.get_space_object()
 
-    def _spawn(self, x, y, z, name, side, art_id, behave_id):
+    def _spawn(self, x, y, z, name, side, art_id, behave_id) -> SpawnData:
         ship = self._make_new_passive(behave_id, art_id)
         blob = self.spawn_common(ship, x, y, z, name, side, art_id)
         self._art_id = art_id
         self.add_role("__TERRAIN__")
         return SpawnData(self.id, ship, blob, self)
 
-    def spawn(self, x, y, z, name, side, art_id, behave_id):
+    def spawn(self, x, y, z, name, side, art_id, behave_id) -> SpawnData:
         """ Spawn a new passive object e.g. Asteroid, etc.
 
         :param x: x location
@@ -420,7 +420,7 @@ class MSpawnPassive(MSpawn):
         """
         return self._spawn(x, y, z, name, side, art_id, behave_id)
 
-    def spawn_v(self, v, name, side, art_id, behave_id):
+    def spawn_v(self, v, name, side, art_id, behave_id) -> SpawnData:
         """ Spawn a new passive object e.g. asteroid, etc.
 
         :param v: location

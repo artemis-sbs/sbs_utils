@@ -6,7 +6,7 @@ from ..futures import Promise, PromiseAllAny, PromiseWaiter
 from ..mast.pollresults import PollResults
 from .. import fs
 
-def jump(label):
+def jump(label) -> PollResults:
     """reset the program flow to a label
 
     Args:
@@ -22,7 +22,7 @@ def jump(label):
         task.tick_in_context()
     return PollResults.OK_JUMP
 
-def END():
+def END() -> PollResults:
     """ End the current task
     Returns:
         PollResults: The poll results of the jump. used by the task.
@@ -34,7 +34,7 @@ def END():
     return PollResults.OK_END
 
 
-def log(message, name=None, level=None):
+def log(message: str, name: str=None, level: str=None) -> None:
     """ generate a log message
 
     Args:
@@ -57,7 +57,7 @@ def log(message, name=None, level=None):
         level = logging.getLevelName(level)
     _logger.log(level, message)
 
-def logger(name=None, file=None, var=None, std_err=False):
+def logger(name: str=None, file: str=None, var: str=None, std_err:bool=False) -> None:
     """create or retreive a looger
 
     Args:
@@ -103,7 +103,7 @@ def logger(name=None, file=None, var=None, std_err=False):
 
 
 
-def task_schedule(label, data=None, var=None):
+def task_schedule(label: str | Label, data=None, var:str=None) -> "MastAsyncTask":
     """create an new task and start running at the specified label
 
     Args:
@@ -120,7 +120,7 @@ def task_schedule(label, data=None, var=None):
         return t
     return None
 
-def sub_task_schedule(label, data=None, var=None):
+def sub_task_schedule(label, data=None, var=None) -> "MastAsyncTask":
     """create an new task and start running at the specified label
 
     Args:
@@ -139,11 +139,11 @@ def sub_task_schedule(label, data=None, var=None):
 
 
 
-def task_cancel(task):
+def task_cancel(task:MastAsyncTask) -> None:
     """ends the specified task
 
     Args:
-        task (MastAsyncTAsk): The task to end
+        task (MastAsyncTask): The task to end
     """    
     task.cancel()
 
@@ -152,13 +152,13 @@ class TaskPromiseAllAny(PromiseAllAny):
         super().__init__(proms, all)
 
     @property
-    def is_idle(self):
+    def is_idle(self) -> bool:
         for t in self.promises:
             if t.tick_result != PollResults.OK_IDLE:
                 return False
         return True
 
-    def end_all(self):
+    def end_all(self) -> None:
         for t in self.promises:
             t.cancel()
 
@@ -168,7 +168,7 @@ class TaskPromiseAllAny(PromiseAllAny):
 #
 # Doesn't return until all success, or any fail
 #
-def task_all(*args, **kwargs):
+def task_all(*args, **kwargs) -> TaskPromiseAllAny:
     """Creates a task for each argument that is a label. Also supports a data named argument to pass the data to all the tasks.
 
     Args:
@@ -198,7 +198,7 @@ def task_all(*args, **kwargs):
 #
 # Doesn't return until all success, or any fail
 #
-def sub_task_all(*args, **kwargs):
+def sub_task_all(*args, **kwargs) -> TaskPromiseAllAny:
     """Creates a task for each argument that is a label. Also supports a data named argument to pass the data to all the tasks.
 
     Args:
@@ -227,7 +227,7 @@ def sub_task_all(*args, **kwargs):
 #
 # Doesn't return until any success, or all fail
 #
-def task_any(*args, **kwargs):
+def task_any(*args, **kwargs) -> TaskPromiseAllAny:
     """Creates a task for each argument that is a label. Also supports a data named argument to pass the data to all the tasks.
 
     Args:
@@ -249,7 +249,7 @@ def task_any(*args, **kwargs):
 
 
 
-def set_variable(key, value):
+def set_variable(key, value) -> None:
     """set the value of a variable at task scope. Or returns the passed default if it doesn't exist.
 
     Args:
@@ -261,7 +261,7 @@ def set_variable(key, value):
         return
     FrameContext.task.set_variable(key,value)
 
-def get_variable(key, default=None):
+def get_variable(key, default=None) -> any:
     """get the value of a variable at task scope. Or returns the passed default if it doesn't exist.
 
     Args:
@@ -277,7 +277,7 @@ def get_variable(key, default=None):
     return FrameContext.task.get_variable(key,default)
 
 
-def get_shared_variable(key, default=None):
+def get_shared_variable(key, default=None) -> any:
     """get the value of a variable at shared scope. Or returns the passed default if it doesn't exist.
 
     Args:
@@ -290,7 +290,7 @@ def get_shared_variable(key, default=None):
     return Agent.SHARED.get_inventory_value(key, default)
     
 
-def set_shared_variable(key, value):
+def set_shared_variable(key, value) -> any:
     """set the value of a variable at shared scope. Or returns the passed default if it doesn't exist.
 
     Args:
@@ -301,7 +301,7 @@ def set_shared_variable(key, value):
 
 
 
-def AWAIT(promise: Promise):
+def AWAIT(promise: Promise) -> PromiseWaiter:
     """ Creates a entity to wait (non-blocking) for a promise to complete
 
     Args:
