@@ -11,6 +11,9 @@
 		},
 		{
 			"path": "../mast_console_example"
+		},
+		{
+			"path": "../WalkTheLine"
 		}
 	],
 	"settings": {
