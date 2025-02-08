@@ -13,7 +13,7 @@ from ..mast_sbs.story_nodes.button import Button
 
 
 
-def comms_broadcast(ids_or_obj, msg, color="#fff"):
+def comms_broadcast(ids_or_obj, msg, color="#fff") -> None:
     """Send text to the text waterfall
     The ids can be player ship ids or client/console ids
 
@@ -40,7 +40,7 @@ def comms_broadcast(ids_or_obj, msg, color="#fff"):
                 if obj is not None or id==0:
                     FrameContext.context.sbs.send_message_to_player_ship(id, color, msg)
 
-def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, color="#fff", title_color=None, is_receive=True, from_name=None):
+def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, color="#fff", title_color=None, is_receive=True, from_name=None) -> None:
     """ Send a Comms message 
     This is a lower level function that lets you have more control the sender and receiver
 
@@ -109,7 +109,7 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                     color
                     )
 
-def _comms_get_origin_id():
+def _comms_get_origin_id() -> int:
     #
     # Event, Event origin is the best guess when the button is pressed
     #
@@ -124,7 +124,7 @@ def _comms_get_origin_id():
         _ship_id = FrameContext.context.sbs.get_ship_of_client(FrameContext.context.event.client_id)
         return FrameContext.task.get_variable("COMMS_ORIGIN_ID", _ship_id)
 
-def _comms_get_selected_id():
+def _comms_get_selected_id() -> int:
     #
     # Event 
     #
@@ -137,7 +137,7 @@ def _comms_get_selected_id():
 
 
 
-def comms_transmit(msg, title=None, face=None, color="#fff", title_color=None):
+def comms_transmit(msg, title=None, face=None, color="#fff", title_color=None) -> None:
     """ Transmits a message from a player ship
     It uses the current context to determine the sender and receiver.
     typically from the event that it being handled provide the context.
@@ -159,7 +159,7 @@ def comms_transmit(msg, title=None, face=None, color="#fff", title_color=None):
     # player transmits a message
     comms_message(msg, from_ids_or_obj, to_ids_or_obj,  title, face, color, title_color, False)
 
-def comms_receive(msg, title=None, face=None, color="#fff", title_color=None):
+def comms_receive(msg, title=None, face=None, color="#fff", title_color=None) -> None:
     """ Receive a message on a player ship from another ship
     It uses the current context to determine the sender and receiver.
     typically from the event that it being handled provide the context.
@@ -182,7 +182,7 @@ def comms_receive(msg, title=None, face=None, color="#fff", title_color=None):
     comms_message(msg, from_ids_or_obj, to_ids_or_obj,  title, face, color, title_color, True)
 
 
-def comms_speech_bubble(msg, seconds=3, color="#fff", client_id=None, selected_id=None):
+def comms_speech_bubble(msg, seconds=3, color="#fff", client_id=None, selected_id=None) -> None:
     """ Transmits a message from a player ship
     It uses the current context to determine the sender and receiver.
     typically from the event that it being handled provide the context.
@@ -217,7 +217,7 @@ def comms_speech_bubble(msg, seconds=3, color="#fff", client_id=None, selected_i
     FrameContext.context.sbs.send_speech_bubble_to_object(client_id, selected_id, seconds, color, msg)
 
 
-def comms_transmit_internal(msg, ids_or_obj=None, to_name=None, title=None, face=None, color="#fff", title_color=None):
+def comms_transmit_internal(msg, ids_or_obj=None, to_name=None, title=None, face=None, color="#fff", title_color=None) -> None:
     """ Transmits a message within a player ship
     It uses the current context to determine the sender and receiver.
     typically from the event that it being handled provide the context.
@@ -242,7 +242,7 @@ def comms_transmit_internal(msg, ids_or_obj=None, to_name=None, title=None, face
         comms_message(msg, ship, ship,  title, face, color, title_color, False, to_name)
 
 
-def comms_receive_internal(msg, ids_or_obj=None, from_name=None,  title=None, face=None, color="#fff", title_color=None):
+def comms_receive_internal(msg, ids_or_obj=None, from_name=None,  title=None, face=None, color="#fff", title_color=None) -> None:
     """ Receiver a message within a player ship
     It uses the current context to determine the sender and receiver.
     typically from the event that it being handled provide the context.
@@ -268,7 +268,7 @@ def comms_receive_internal(msg, ids_or_obj=None, from_name=None,  title=None, fa
         comms_message(msg, ship, ship,  title, face, color, title_color, True, from_name)
         
         
-def comms_info(name, face=None, color=None):
+def comms_info(name, face=None, color=None) -> None:
     """Set the communication information status in the comms console
 
     Args:
@@ -326,11 +326,11 @@ class CommsPromise(ButtonPromise):
         self.assign = None
         
 
-    def set_path(self, path):
+    def set_path(self, path) -> None:
         super().set_path(path)
       
 
-    def initial_poll(self):
+    def initial_poll(self) -> None:
         if self._initial_poll:
             return
         
@@ -340,7 +340,7 @@ class CommsPromise(ButtonPromise):
         self.show_buttons()
         super().initial_poll()
 
-    def comms_message(self, event):
+    def comms_message(self, event) -> None:
         #
         # Check to see if this was intended for us
         #
@@ -360,7 +360,7 @@ class CommsPromise(ButtonPromise):
         self.clear()
         self.task.tick()
         
-    def collect(self):
+    def collect(self) -> bool:
         oo = query.to_object(self.origin_id)
         selected_so = query.to_object(self.selected_id)
         if oo is not None and selected_so is not None:
@@ -370,13 +370,13 @@ class CommsPromise(ButtonPromise):
         return True
 
 
-    def clear(self):
+    def clear(self) -> None:
         if self.is_grid_comms:
             FrameContext.context.sbs.send_grid_selection_info(self.origin_id, self.face, self.color, self.comms_id)
         else:
             FrameContext.context.sbs.send_comms_selection_info(self.origin_id, self.face, self.color, self.comms_id)
 
-    def leave(self):
+    def leave(self) -> None:
         self.clear()
         GarbageCollector.remove_garbage_collect(self.collect)
         if self.is_grid_comms:
@@ -389,7 +389,7 @@ class CommsPromise(ButtonPromise):
         if self.assign is not None:
             self.task.set_value_keep_scope(self.assign, self.button)        
 
-    def process_on_change(self):
+    def process_on_change(self) -> None:
         # Check for on change nodes
         #
         self.on_change = None
@@ -406,7 +406,7 @@ class CommsPromise(ButtonPromise):
     #
     # This 
     #
-    def show_buttons(self):
+    def show_buttons(self) -> None:
         
         self.selected_id = self.task.get_variable("COMMS_SELECTED_ID")
         self.origin_id = self.task.get_variable("COMMS_ORIGIN_ID")
@@ -472,7 +472,7 @@ class CommsPromise(ButtonPromise):
             self.set_buttons(self.origin_id, selection)
         # from_so.face_desc
 
-    def comms_selected(self, event):
+    def comms_selected(self, event) -> None:
         #
         # Check to see if this was intended for us
         #
@@ -491,7 +491,7 @@ class CommsPromise(ButtonPromise):
             self.set_buttons(origin_id, selected_id)
             self.run_focus = True
 
-    def set_buttons(self, origin_id, selected_id):
+    def set_buttons(self, origin_id, selected_id) -> None:
         if self.selected_id != selected_id or \
             self.origin_id != origin_id:
             return
@@ -540,7 +540,7 @@ class CommsPromise(ButtonPromise):
                         FrameContext.context.sbs.send_comms_button_info(origin_id, color, msg, f"{i}")
 
 
-    def pressed_set_values(self):
+    def pressed_set_values(self) -> None:
         oo = query.to_object(self.origin_id)
         so = query.to_object(self.selected_id)
         if oo is  None or so is None:
@@ -553,7 +553,7 @@ class CommsPromise(ButtonPromise):
         self.task.set_variable("COMMS_ORIGIN_ID", self.origin_id)
         self.task.set_variable("COMMS_SELECTED_ID", self.selected_id)
 
-    def pressed_test(self):
+    def pressed_test(self) -> bool:
         oo = query.to_object(self.origin_id)
         so = query.to_object(self.selected_id)
         if oo is  None:
@@ -601,7 +601,7 @@ class CommsPromise(ButtonPromise):
         
         
 
-def comms(path=None, buttons=None, timeout=None):
+def comms(path=None, buttons=None, timeout=None) -> CommsPromise:
     """Present the comms buttons. and wait for a choice.
     The timeout can be any promise, but typically is a made using the timeout function.
 
@@ -625,7 +625,7 @@ def comms(path=None, buttons=None, timeout=None):
     return ret
 
 
-def comms_add_button(message, label=None, color=None, data=None, path=None):
+def comms_add_button(message, label=None, color=None, data=None, path=None) -> None:
     p = ButtonPromise.navigating_promise
     if p is None:
         return
@@ -640,7 +640,7 @@ def comms_add_button(message, label=None, color=None, data=None, path=None):
     p.add_nav_button(Button(message, "+", color=color, label=label, data=data, new_task=True, path=path, loc=0))
     
 
-def comms_navigate(path):
+def comms_navigate(path) -> None:
     task = FrameContext.task
     p = task.get_variable("BUTTON_PROMISE")
     if path is None or path == "":
