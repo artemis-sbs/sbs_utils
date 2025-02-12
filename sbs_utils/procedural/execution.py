@@ -5,6 +5,8 @@ from io import StringIO
 from ..futures import Promise, PromiseAllAny, PromiseWaiter
 from ..mast.pollresults import PollResults
 from .. import fs
+from ..mast.core_nodes.label import Label
+from ..mast.mastscheduler import MastAsyncTask
 
 def jump(label) -> PollResults:
     """reset the program flow to a label
