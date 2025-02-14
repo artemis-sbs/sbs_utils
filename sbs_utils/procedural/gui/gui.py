@@ -1,3 +1,35 @@
+"""
+The gui module
+
+This module exposes the gui function
+
+The gui function is used to present the queued gui layout.
+
+gui() returns  Promise and therefore an await should be used to allow the gui to run. 
+
+
+=== ":mast-icon: MAST"
+    ```
+    gui_text("Hello, World")
+    await gui()
+
+    ```
+
+Example:
+    To insert a blank part of the layout just call gui_blank::
+
+        gui_blank()
+
+    Proving a count will allow inserting multiple blanks::
+
+        gui_blank(4)
+
+    One use of blanks it to help center an element but also adding space::
+
+        gui_blank()
+        gui_icon(...)
+        gui_blank()
+"""
 from ...mast.mast import Scope
 
 from ...helpers import FrameContext

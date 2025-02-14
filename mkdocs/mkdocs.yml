@@ -173,4 +173,5 @@ plugins:
         python:
           options:
             show_source: false
+            show_symbol_type_toc: true
           paths: ["..", "../mock"]

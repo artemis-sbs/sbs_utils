@@ -1,5 +1,27 @@
+"""
+This module exposes the gui_blank function
+
+The gui_blank function is used to insert a black space in a layout.
+Blanks are useful to add space.
+
+Example:
+    To insert a blank part of the layout just call gui_blank::
+
+        gui_blank()
+
+    Proving a count will allow inserting multiple blanks::
+
+        gui_blank(4)
+
+    One use of blanks it to help center an element but also adding space::
+
+        gui_blank()
+        gui_icon(...)
+        gui_blank()
+"""
 from ...helpers import FrameContext
 from ..style import apply_control_styles
+
 
 from ...pages.layout.blank import Blank
 def gui_blank(count=1, style=None):
