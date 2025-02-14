@@ -1142,14 +1142,19 @@ class Layout:
         if bounds.left != -1000:
             self.restore_bounds = self.bounds
 
-    def get_content_bounds(self):
-        b = Bounds(self.bounds)
+    
+    
+    def get_content_bounds(self, merge_self):
+        b = Bounds()
+        if merge_self:
+            b = Bounds(self.bounds)
+
         for row in self.rows:
             b.merge(row.bounds)
         return b
-    
+        
     def resize_to_content(self):
-        self.bounds = self.get_content_bounds()
+        self.bounds = self.get_content_bounds(True)
 
 
     @property
@@ -1445,12 +1450,13 @@ class Layout:
                         col_bounds_area.width =  assigned_space + hole_size
                         hole_size = 0
 
+                    col_left = col_bounds_area.right
 
                     col_bounds_area.shrink(col.margin)
                     col_bounds_area.shrink(col.border)
                     col_bounds_area.shrink(col.padding)
 
-                    col_left = col_bounds_area.right
+                    
 
                     ##############
                     ### Cascade other attributes
@@ -1515,7 +1521,7 @@ class Layout:
             bounds.shrink(self.border)
 
             ctx = FrameContext.context
-            props = f"image:{self.background_image}; color:{self.background_color};" # sub_rect: 0,0,etc"
+            props = f"image:{self.background_image}; color:{self.background_color};draw_layer:1000;" # sub_rect: 0,0,etc"
             ctx.sbs.send_gui_image(event.client_id, self.drawing_region_tag,
                     "__bg:"+self.tag, props,
                     bounds.left, bounds.top, bounds.right, bounds.bottom)

@@ -5,7 +5,7 @@ from .conditional import  IfStatements, MatchStatements
 from .loop import LoopStart, LoopBreak
 from .with_cmd import WithStart
 from .inline_python import PyCode        
-from .yaml_block import YamlBlock
+from .meta_data_block import MetaDataBlock
 from .import_cmd import Import
 from .await_cmd import Await, AwaitInlineLabel
 from .inline_function import FuncCommand        

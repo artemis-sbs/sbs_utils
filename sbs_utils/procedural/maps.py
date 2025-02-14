@@ -53,3 +53,14 @@ def maps_get_init():
     return init_label
 
 
+def map_get_properties(map):
+    meta_data = getattr(map, "meta_data", None)
+    if meta_data is None:
+        return None
+    # Try Properties and properties
+    ret = meta_data.get("Properties", meta_data.get("properties"))
+
+    return ret
+
+
+

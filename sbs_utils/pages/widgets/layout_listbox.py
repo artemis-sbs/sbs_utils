@@ -89,6 +89,7 @@ class SubPage:
 
 
 
+
 class LayoutListbox(layout.Column):
     """
       A widget to list things passing function/lamdas to get the data needed for option display of
@@ -160,9 +161,11 @@ class LayoutListbox(layout.Column):
         
 
     def set_row_height(self, height):
+        # Row_height for a listbox is the gap height
         self.default_item_height = height
 
     def set_col_width(self, width):
+        # col_width for a listbox is the gap width
         self.default_item_width = width
 
     def default_item_template(self, item):
@@ -187,6 +190,34 @@ class LayoutListbox(layout.Column):
         msg = task.compile_and_format_string(self.title_template)
         gui_text(msg)
 
+    def calc_max(self, CID):
+        max_width = 0
+        max_height = 0
+
+        restore = FrameContext.page
+        sub_page = SubPage(self.tag_prefix, self.local_region_tag, restore.gui_task, CID)
+        FrameContext.page = sub_page
+        
+        
+        slot = 0        
+        for item in self.items:
+            sec = layout.Layout("unused", None, 0, 0, 100, 100)
+            sub_page.next_slot(slot, sec)
+            slot+=1
+            size = self.template_func(item)
+            sec.calc(CID)
+            b = sec.get_content_bounds(False)
+            max_height = max(max_height, b.height)
+            max_width = max(max_width, b.height)
+
+        FrameContext.page = restore
+        return max_width, max_height
+
+
+
+        
+
+
     def _present(self, event):
         """ present
 
@@ -197,31 +228,52 @@ class LayoutListbox(layout.Column):
         :param CID: Client ID
         :type CID: int
         """
+        
         CID = event.client_id
         self.client_id = CID
         SBS = FrameContext.context.sbs
 
         
-        item_width = self.bounds.width 
-        item_height = self.bounds.height
+        item_width = 0# self.bounds.width 
+        item_height = 0 #self.bounds.height
         aspect_ratio = get_client_aspect_ratio(event.client_id)
+        if not self.horizontal:
+            item_width = self.bounds.width 
+            item_height = 0 #self.bounds.height
+        else:
+            item_width = 0 #self.bounds.width 
+            item_height = self.bounds.height
         
         if self.default_item_width:
             item_width = LayoutAreaParser.compute(self.default_item_width, None, aspect_ratio.x, 20)
             if self.horizontal is None:
                 self.horizontal = True
-        
         if self.default_item_height:
             item_height = LayoutAreaParser.compute(self.default_item_height, None, aspect_ratio.y, 20)
 
+
+     
+        
         # At this point is should assume it is vertical
         if self.horizontal is None:
             self.horizontal = False
 
+
+        max_item_width, max_item_height = self.calc_max(CID)
+        max_item_width += item_width
+        max_item_height += item_height
+        
+        # This can be because len items == 0
+        if max_item_width == 0:
+            max_item_width = 1
+        if max_item_height == 0:
+            max_item_height = 1
+
+
         if self.horizontal:
-            max_slots = (self.bounds.right - self.bounds.left) // max(item_width,1) 
+            max_slots = (self.bounds.right - self.bounds.left) // max_item_width #max(item_width,5) 
         else:
-            max_slots = (self.bounds.bottom - self.bounds.top) // max(item_height,1) 
+            max_slots = (self.bounds.bottom - self.bounds.top) // max_item_height #max(item_height,5) 
 
 
         max_slots = int(max_slots)
@@ -294,14 +346,20 @@ class LayoutListbox(layout.Column):
             apply_control_styles("", self.title_section_style, sec, task)
             #self.title_section_style
             sub_page.next_slot(-1, sec)
-            self.title_template_func()
+            #
+            # Allow item to force size
+            #
+            size = self.title_template_func()
             #
             # Set the task values
             #
             sec.calc(CID)
+            if size is None:
+                sec.resize_to_content()
+                top += sec.bounds.height
+            else:
+                top+= size
             sec.present(event)
-            sec.resize_to_content()
-            top += sec.bounds.height
             # sub_page.tags |= sec.get_tags()
 
         #draw_slots = max_slot
@@ -312,8 +370,8 @@ class LayoutListbox(layout.Column):
 
             item = self.items[cur]
             tag = f"{self.tag_prefix}:{slot}"
-            this_right =   left+item_width
-            this_bottom =   top+item_height
+            this_right =   left #+item_width
+            this_bottom =   top #+item_height
             if self.horizontal:
                 this_bottom = bottom
             else:
@@ -336,21 +394,32 @@ class LayoutListbox(layout.Column):
                 
                 
             sub_page.next_slot(slot, sec)
-            self.template_func(item)
-            #
-            # Set the task values
-            #
+            size = self.template_func(item)
             sec.calc(CID)
+
+            # if self.horizontal:
+            #     left+= item_width
+            # else:
+            #     top+= item_height
+
+            if size is None:
+                sec.resize_to_content()
+                if self.horizontal:
+                    size = sec.bounds.width + item_width
+                else:
+                    size = sec.bounds.height + item_height
+            if self.horizontal:
+                left+= size
+            else:
+                top+= size
+
             sec.present(event)
-            sec.resize_to_content()
+            
             self.sections.append(sec)
             #sub_page.tags |= sec.get_tags()
 
             cur += 1
-            if self.horizontal:
-                left+= item_width
-            else:
-                top+= item_height
+            
 
             
         

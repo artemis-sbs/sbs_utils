@@ -824,16 +824,19 @@ class MastAsyncTask(Agent, Promise):
 
 
 
-    def eval_code(self, code):
+    def eval_code(self, code, end_on_exception=True):
         value = None
         try:
             allowed = self.get_symbols()
             value = eval(code, {"__builtins__": MastGlobals.globals}, allowed)
         except:
             err = format_exception("", "Mast eval level Runtime Error:")
-            # self.runtime_error(f"Mast eval level Runtime Error:\n{err}")
-            self.runtime_error(err)
-            self.end()
+            if end_on_exception:
+                # self.runtime_error(f"Mast eval level Runtime Error:\n{err}")
+                self.runtime_error(err)
+                self.end()
+            else:
+                print(err)
         finally:
             pass
         return value

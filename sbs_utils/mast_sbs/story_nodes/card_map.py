@@ -24,6 +24,7 @@ class MapCardLabel(CardLabelBase):
         self.loc = loc
         self.replace = None
         self.cmds = []
+        self.meta_data = {}
 
     def can_fallthrough(self, parent):
         return False
@@ -31,3 +32,6 @@ class MapCardLabel(CardLabelBase):
     def generate_label_end_cmds(self, compile_info=None):
         # Allow this to follow into === labels
         pass
+    def apply_meta_data(self, data):
+        self.meta_data |= data
+        return True

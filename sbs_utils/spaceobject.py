@@ -223,7 +223,6 @@ class MSpawn:
         FrameContext.context.sim.reposition_space_object(obj, x, y, z)
         self.add()
         self.add_role(self.__class__.__name__)
-        self.add_role("__space_spawn__")
         self.add_role("__SPACE_OBJECT__")
         #
         # Add default roles
@@ -271,6 +270,7 @@ class MSpawnPlayer(MSpawn):
         ship = self._make_new_player("behav_playership", art_id)
         blob = self.spawn_common(ship, x, y, z, name, side, art_id)
         self.add_role("__PLAYER__")
+        self.add_role("__space_spawn__")
         self._art_id = art_id
         return SpawnData(self.id, ship, blob, self)
 
@@ -333,6 +333,7 @@ class MSpawnActive(MSpawn):
         blob = self.spawn_common(ship, x, y, z, name, side, art_id)
         self._art_id = art_id
         self.add_role("__NPC__")
+        self.add_role("__space_spawn__")
         return SpawnData(self.id, ship, blob, self)
 
     def spawn(self, x, y, z, name, side, art_id, behave_id) -> SpawnData:
