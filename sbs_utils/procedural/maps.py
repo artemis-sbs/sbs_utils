@@ -1,5 +1,5 @@
 from ..helpers import FrameContext
-from .gui import text_sanitize
+#from .gui import text_sanitize
 
 
 def maps_get_list():

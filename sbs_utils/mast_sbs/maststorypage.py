@@ -2,11 +2,16 @@ from ..gui import Gui, Page
 from ..helpers import FakeEvent, FrameContext
 from ..procedural.inventory import get_inventory_value, set_inventory_value, has_inventory_value
 from ..procedural.links import linked_to
-from ..procedural.gui import gui_reroute_client, apply_control_styles
+from ..procedural.gui.navigation import gui_reroute_client
+from ..procedural.style import apply_control_styles
+
 from ..procedural.execution import log
 from ..agent import Agent
-from ..pages.layout import layout
+#from ..pages.layout import layout
+from ..pages.layout.layout import Layout
+from ..pages.layout.row import Row
 from ..pages.layout.text import Text
+from ..pages.layout.blank import Blank
 from..fs import get_mission_name, get_startup_mission_name
 
 from .story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
@@ -47,10 +52,10 @@ class StoryPage(Page):
         self.tag = 10000
         self.rebuild_tag = 20000
         self.is_processing_rebuild = False
-        section = layout.Layout(None, None, 0,0, 100, 90)
+        section = Layout(None, None, 0,0, 100, 90)
         section.tag = self.get_tag()
         self.pending_layouts = self.pending_layouts = []
-        self.pending_row = self.pending_row = layout.Row()
+        self.pending_row = self.pending_row = Row()
         self.pending_row.tag = self.get_tag()
         self.pending_tag_map = {}
         self.tag_map = {}
@@ -178,10 +183,10 @@ class StoryPage(Page):
             for layout_obj in self.layouts:
                 layout_obj.calc(self.client_id)
             
-            section = layout.Layout(None, None, 0,0, 100, 90)
+            section = Layout(None, None, 0,0, 100, 90)
             section.tag = self.get_tag()
             self.pending_layouts = [section]
-            self.pending_row = layout.Row()
+            self.pending_row = Row()
             self.pending_row.tag = self.get_tag()
             self.pending_tag_map = {}
             self.pending_console = ""
@@ -201,13 +206,13 @@ class StoryPage(Page):
 
     def add_row(self):
         if not self.pending_layouts:
-            self.pending_layouts = [layout.Layout(self.get_tag(), None, 0,0, 100, 90)]
+            self.pending_layouts = [Layout(self.get_tag(), None, 0,0, 100, 90)]
         if self.pending_row:
             if len(self.pending_row.columns):
                 self.pending_layouts[-1].add(self.pending_row)
         if self.pending_tag_map is None:
             self.pending_tag_map = {}
-        self.pending_row = layout.Row()
+        self.pending_row = Row()
         # Rows have tags for background and/or clickable
         self.pending_row.tag = self.get_tag()
 
@@ -323,7 +328,7 @@ class StoryPage(Page):
         if tag is None:
             tag = self.get_tag()
 
-        section = layout.Layout(tag, None, 0,0, 100, 90)
+        section = Layout(tag, None, 0,0, 100, 90)
         
         if not self.pending_layouts:
             self.pending_layouts = [section]
@@ -409,8 +414,8 @@ class StoryPage(Page):
         #
         # Ok we're on a ship, on a console
         #
-        _layout = layout.Layout(self.get_tag(), None, 20,0, 100, 3)
-        _row = layout.Row()
+        _layout = Layout(self.get_tag(), None, 20,0, 100, 3)
+        _row = Row()
         #
         # MAKE the tab button 40px
         #
@@ -453,7 +458,7 @@ class StoryPage(Page):
         blanks = spots-count
         if blanks <0: blanks = 0
         for _ in range(blanks):
-            _row.add_front(layout.Blank())
+            _row.add_front(Blank())
 
         #_layout.calc()
         self.pending_layouts.append(_layout)
@@ -624,7 +629,7 @@ class StoryPage(Page):
         for section in self.layouts:
             section.on_message(event)
 
-        clicked = layout.Layout.clicked.get(self.client_id)
+        clicked = Layout.clicked.get(self.client_id)
 
         runtime_node = self.tag_map.get(message_tag)
         
@@ -641,7 +646,7 @@ class StoryPage(Page):
         self.gui_task.run_on_change()
             
         if clicked is not None:
-            layout.Layout.clicked[self.client_id] = None
+            Layout.clicked[self.client_id] = None
             for click in self.on_click:
                 if click.click(clicked.click_tag):
                     return
