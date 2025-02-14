@@ -2,22 +2,25 @@ from ..gui import Gui, Page
 from ..helpers import FakeEvent, FrameContext
 from ..procedural.inventory import get_inventory_value, set_inventory_value, has_inventory_value
 from ..procedural.links import linked_to
-from ..procedural.gui import gui_reroute_client, apply_control_styles, get_client_aspect_ratio
+from ..procedural.gui import gui_reroute_client, apply_control_styles
 from ..procedural.execution import log
 from ..agent import Agent
 from ..pages.layout import layout
+from ..pages.layout.text import Text
 from..fs import get_mission_name, get_startup_mission_name
 
 from .story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
-from . import story_nodes
-from .mastmission import MissionLabel, StateMachineLabel
-from . import mast_sbs_procedural
 
 from ..mast.maststory import  MastStory
 from .maststoryscheduler import StoryScheduler
 
+# Keep for runtime supprt
+from . import story_nodes
+from .mastmission import MissionLabel, StateMachineLabel
+from . import mast_sbs_procedural
 
-class TabControl(layout.Text):
+
+class TabControl(Text):
     def __init__(self, tag, message, label, page) -> None:
         super().__init__(tag,message)
         self.page = page

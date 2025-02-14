@@ -1,20 +1,19 @@
-from ..mast.mast import Scope
-from .query import to_id
-from .inventory import get_inventory_value, set_inventory_value
-from ..helpers import FrameContext, FakeEvent, DictionaryToObject
-from ..pages.layout import layout
-from ..mast.parsers import StyleDefinition
-from ..futures import Trigger, AwaitBlockPromise
-from ..gui import get_client_aspect_ratio
-from .style import apply_control_styles
-from ..mast.pollresults import PollResults
-from ..pages.widgets.layout_listbox import LayoutListbox
-from ..pages.layout.text_area import TextArea
-from .execution import task_all, AWAIT
-from ..agent import Agent
+from ...mast.mast import Scope
+from ..query import to_id
+from ..inventory import get_inventory_value, set_inventory_value
+from ...helpers import FrameContext, FakeEvent, DictionaryToObject
+from ...mast.parsers import StyleDefinition
+from ...futures import Trigger, AwaitBlockPromise
+from ...gui import get_client_aspect_ratio
+from ..style import apply_control_styles
+from ...mast.pollresults import PollResults
+from ...pages.widgets.layout_listbox import LayoutListbox
+from ...pages.layout.text_area import TextArea
+from ..execution import task_all, AWAIT
+from ...agent import Agent
 import re
-from . import screen_shot 
-from .. import yaml
+from .. import screen_shot 
+from ... import yaml
 
 gui_screenshot = screen_shot.gui_screenshot
 
@@ -137,7 +136,7 @@ def gui_remove_console_tab(id_or_obj, console, tab_name):
         tabs.pop(console)
     #set_inventory_value(ship_id, "console_tabs", tabs)
 
-
+from ...pages.layout.face import Face
 def gui_face(face, style=None):
     """queue a gui face element
 
@@ -154,13 +153,13 @@ def gui_face(face, style=None):
         return None
     
     tag = page.get_tag()
-    layout_item = layout.Face(tag,face)
+    layout_item = Face(tag,face)
     apply_control_styles(".face", style, layout_item, task)
     # Last in case tag changed in style
     page.add_content(layout_item, None)
     return layout_item
 
-
+from ...pages.layout.icon import Icon
 def gui_icon(props, style=None):
     """queue a gui icon element
 
@@ -178,12 +177,13 @@ def gui_icon(props, style=None):
         return None
     
     tag = page.get_tag()
-    layout_item = layout.Icon(tag,props)
+    layout_item = Icon(tag,props)
     apply_control_styles(".icon", style, layout_item, task)
     # Last in case tag changed in style
     page.add_content(layout_item, None)
     return layout_item
 
+from ...pages.layout.icon_button import IconButton
 def gui_icon_button(props, style=None):
     """queue a gui icon element
 
@@ -201,7 +201,7 @@ def gui_icon_button(props, style=None):
         return None
     
     tag = page.get_tag()
-    layout_item = layout.IconButton(tag,props)
+    layout_item = IconButton(tag,props)
     apply_control_styles(".icon_button", style, layout_item, task)
     # Last in case tag changed in style
     page.add_content(layout_item, None)
@@ -255,6 +255,7 @@ def gui_image_keep_aspect_ratio_center(props, style=None):
     """                
     return gui_image(props, style=style, fit=3)
 
+from ...pages.layout.image import Image
 def gui_image(props, style=None, fit=0):
     """queue a gui image element that draw based on the fit argument. Default is stretch
 
@@ -279,13 +280,13 @@ def gui_image(props, style=None, fit=0):
         props+="color:white;"
     
     tag = page.get_tag()
-    layout_item = layout.Image(tag,props, fit)
+    layout_item = Image(tag,props, fit)
     apply_control_styles(".image", style, layout_item, task)
     # Last in case tag changed in style
     page.add_content(layout_item, None)
     return layout_item
 
-
+from ...pages.layout.ship import Ship
 def gui_ship(props, style=None):
     """renders a 3d image of the ship 
 
@@ -305,13 +306,13 @@ def gui_ship(props, style=None):
     
     # Log warning
     tag = page.get_tag()
-    layout_item = layout.Ship(tag,props)
+    layout_item = Ship(tag,props)
     apply_control_styles(".ship", style, layout_item, task)
     # Last in case tag changed in style
     page.add_content(layout_item, None)
     return layout_item
 
-
+from ...pages.layout.row import Row
 def gui_row(style=None):
     """queue a gui row
 
@@ -332,6 +333,7 @@ def gui_row(style=None):
     apply_control_styles(".row", style, layout_item, task)
     return layout_item
 
+from ...pages.layout.blank import Blank
 def gui_blank(count=1, style=None):
     """adds an empty column to the current gui ow
 
@@ -346,12 +348,13 @@ def gui_blank(count=1, style=None):
     if page is None:
         return None
     for _ in range(count):
-        layout_item = layout.Blank()
+        layout_item = Blank()
         apply_control_styles(".blank", style, layout_item, task)
         # Last in case tag changed in style
         page.add_content(layout_item, None)
     return layout_item
 
+from ...pages.layout.hole import Hole
 def gui_hole(count=1, style=None):
     """adds an empty column that is used by the next item
 
@@ -369,7 +372,7 @@ def gui_hole(count=1, style=None):
     layout_item = None
     for _ in range(count):
         # Log warning
-        layout_item = layout.Hole()
+        layout_item = Hole()
         apply_control_styles(".hole", style, layout_item, task)
         # Last in case tag changed in style
         page.add_content(layout_item, None)
@@ -394,6 +397,7 @@ class MessageHandler:
                 
             FrameContext.task = restore
 
+from ...pages.layout.button import Button
 def gui_button(props, style=None, data=None, on_message=None, jump=None ):
     """Add a gui button
 
@@ -414,7 +418,7 @@ def gui_button(props, style=None, data=None, on_message=None, jump=None ):
         return None
     tag = page.get_tag()
     props = task.compile_and_format_string(props)
-    layout_item = layout.Button(tag, props)
+    layout_item = Button(tag, props)
     layout_item.data = data
     apply_control_styles(".button", style, layout_item, task)
     # Last in case tag changed in style
@@ -427,7 +431,7 @@ def gui_button(props, style=None, data=None, on_message=None, jump=None ):
     page.add_content(layout_item, runtime_item)
     return layout_item
 
-
+from ...pages.layout.dropdown import Dropdown
 def gui_drop_down(props, style=None, var=None, data=None):
     """ Draw a gui drop down list 
 
@@ -446,7 +450,7 @@ def gui_drop_down(props, style=None, var=None, data=None):
         return None
     tag = page.get_tag()
     props = task.compile_and_format_string(props)
-    layout_item = layout.Dropdown(tag, props)
+    layout_item = Dropdown(tag, props)
     layout_item.data = data
     if var is not None:
         layout_item.var_name = var
@@ -456,7 +460,7 @@ def gui_drop_down(props, style=None, var=None, data=None):
     page.add_content(layout_item, None)
     return layout_item
 
-
+from ...pages.layout.checkbox import Checkbox
 def gui_checkbox(msg, style=None, var=None, data=None):
     """ Draw a checkbox 
 
@@ -476,7 +480,7 @@ def gui_checkbox(msg, style=None, var=None, data=None):
     tag = page.get_tag()
     msg = task.compile_and_format_string(msg)
 
-    layout_item = layout.Checkbox(tag, msg)
+    layout_item = Checkbox(tag, msg)
     layout_item.data = data
     if var is not None:
         layout_item.var_name = var
@@ -488,6 +492,7 @@ def gui_checkbox(msg, style=None, var=None, data=None):
     page.add_content(layout_item, None)
     return layout_item
 
+from ...pages.layout.radio_button_group import RadioButtonGroup
 def gui_radio(msg, style=None, var=None, data=None, vertical=False):
     """ Draw a radio button list 
 
@@ -511,7 +516,7 @@ def gui_radio(msg, style=None, var=None, data=None, vertical=False):
     if var is not None:
         val = task.get_variable(var, "")
 
-    layout_item = layout.RadioButtonGroup(tag, msg, val, vertical)
+    layout_item = RadioButtonGroup(tag, msg, val, vertical)
     layout_item.data = data
     if var is not None:
         layout_item.var_name = var
@@ -540,6 +545,7 @@ def gui_vradio(msg, style=None, var=None, data=None):
     """        
     return gui_radio(msg, style, var, data, True)
 
+from ...pages.layout.slider import Slider
 def gui_slider(msg, style=None, var=None, data=None, is_int=False):
     """ Draw a slider control
 
@@ -563,7 +569,7 @@ def gui_slider(msg, style=None, var=None, data=None, is_int=False):
     if var is not None:
         val = task.get_variable(var, 0)
 
-    layout_item = layout.Slider(tag, val, msg, is_int)
+    layout_item = Slider(tag, val, msg, is_int)
     layout_item.data = data
     if var is not None:
         layout_item.var_name = var
@@ -591,7 +597,7 @@ def gui_int_slider(msg, style=None, var=None, data=None):
     """    
     return gui_slider(msg, style, var,  data, True)
 
-
+from ...pages.layout.text_input import TextInput
 def gui_input(props, style=None, var=None, data=None):
     """ Draw a text type in
 
@@ -622,7 +628,7 @@ def gui_input(props, style=None, var=None, data=None):
     if "$text:" not in props:
         props = f"$text:{val};{props}"
 
-    layout_item = layout.TextInput(tag, props)
+    layout_item = TextInput(tag, props)
     layout_item.data = data
     if var is not None:
         layout_item.var_name = var
@@ -823,7 +829,7 @@ def gui_sub_section(style=None):
     """    
     return PageSubSection(style)
 
-
+from ...pages.layout.layout import RegionType
 class PageRegion:
     def __init__(self, style) -> None:
         page = FrameContext.page
@@ -839,7 +845,7 @@ class PageRegion:
     def __enter__(self):
         # Allow reentering
         self.sub_section = self.page.push_sub_section(self.style, self.sub_section, self.sub_section.region)
-        self.sub_section.region_type = layout.RegionType.REGION_ABSOLUTE
+        self.sub_section.region_type = RegionType.REGION_ABSOLUTE
         
 
     # Pythons expects 4 args, mast only 1
@@ -1004,7 +1010,8 @@ def gui_activate_console(console):
     if page is None:
         return None
     page.activate_console(console)
-        
+
+from ...pages.layout.console_widget import ConsoleWidget
 def gui_layout_widget(widget):
     """Places a specific console widget in the a layout section. Placing it at a specific location
 
@@ -1019,7 +1026,7 @@ def gui_layout_widget(widget):
         return None
     
     page.add_console_widget(widget)
-    control = layout.ConsoleWidget(widget)
+    control = ConsoleWidget(widget)
     page.add_content(control, None)
     return control
     
@@ -1077,7 +1084,7 @@ def gui_console(console, is_jump=False):
 
     page.set_widget_list(console, widgets)
 
-
+from ...pages.layout.gui_control import GuiControl
 def gui_content(content, style=None, var=None):
     """Place a python code widget e.g. list box using the layout system
 
@@ -1096,7 +1103,7 @@ def gui_content(content, style=None, var=None):
 
     tag = page.get_tag()
     # gui control ShipPicker(0,0,"mast", "Your Ship")
-    layout_item = layout.GuiControl(tag, content)
+    layout_item = GuiControl(tag, content)
     if var is not None:
         layout_item.var_name = var
         layout_item.var_scope_id = task.get_id()
@@ -1108,6 +1115,7 @@ def gui_content(content, style=None, var=None):
     page.add_content(layout_item, None)
     return layout_item
 
+from ...pages.layout.text import Text
 def gui_text(props, style=None):
     """ Add a gui text object
 
@@ -1132,7 +1140,7 @@ def gui_text(props, style=None):
 
     props = task.compile_and_format_string(props)
     
-    layout_item = layout.Text(page.get_tag(), props)
+    layout_item = Text(page.get_tag(), props)
     apply_control_styles(".text", style, layout_item, task)
 
     page.add_content(layout_item, None)
@@ -1323,7 +1331,7 @@ def _gui_reroute_main(label, server):
     main_label_obj.next = jump_label_obj
     return True
 
-from ..gui import Gui
+from ...gui import Gui
 def gui_reroute_client(client_id, label, data=None):
     client = Gui.clients.get(client_id, None)
     if client is None:
@@ -1806,7 +1814,10 @@ class ButtonPromise(AwaitBlockPromise):
         
     
     
-
+from ...pages.layout.layout import Layout
+from ...pages.layout.row import Row
+from ...pages.layout.button import Button
+from ...pages.layout.blank import Blank
 class GuiPromise(ButtonPromise):
     button_height_px = 40
 
@@ -1842,13 +1853,13 @@ class GuiPromise(ButtonPromise):
         #
         top = ((aspect_ratio.y - GuiPromise.button_height_px)/aspect_ratio.y)*100
 
-        button_layout = layout.Layout(None, None, 0,top,100,100)
+        button_layout = Layout(None, None, 0,top,100,100)
         button_layout.tag = task.main.page.get_tag()
 
         active = 0
         index = 0
-        layout_row: layout.Row
-        layout_row = layout.Row()
+        layout_row: Row
+        layout_row = Row()
         layout_row.tag = task.main.page.get_tag()
 
         buttons = self.get_expanded_buttons()
@@ -1868,7 +1879,7 @@ class GuiPromise(ButtonPromise):
                         runtime_node = ChoiceButtonRuntimeNode(self, button, task.main.page.get_tag())
                         #runtime_node.enter(mast, task, button)
                         msg = task.format_string(button.message)
-                        layout_button = layout.Button(runtime_node.tag, msg)
+                        layout_button = Button(runtime_node.tag, msg)
                         button.layout_item = layout_button
                         layout_row.add(layout_button)
 
@@ -1879,7 +1890,7 @@ class GuiPromise(ButtonPromise):
                         active += 1
                 case "Separator":
                     # Handle face expression
-                    layout_row.add(layout.Blank())
+                    layout_row.add(Blank())
             index+=1
         
         if active>0:
@@ -1906,7 +1917,7 @@ def gui(buttons=None, timeout=None):
     Returns:
         Promise: The promise for the gui, promise is done when a button is selected
     """    
-    from ..mast_sbs.story_nodes.button import Button
+    from ...mast_sbs.story_nodes.button import Button
     page = FrameContext.page
     #sbs.send_gui_sub_region(page.client_id, "FULL", "", 0, 0, 100, 100)
     #sbs.target_gui_sub_region(page.client_id, "FULL")
@@ -2192,7 +2203,7 @@ gui_clipboard_copy = gui_clipboard_put
 #             self.task.push_inline_block(self.label, self.loc, data)
 #             self.task.tick_in_context()
 
-from ..extra_dispatcher import ClientStringDispatcher
+from ...extra_dispatcher import ClientStringDispatcher
 class ClientStringPromise(AwaitBlockPromise):
     def __init__(self, client_id, key, timeout=None) -> None:
         super().__init__(timeout)
