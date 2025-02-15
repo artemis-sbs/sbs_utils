@@ -102,6 +102,7 @@ def box_fill(cw, ch, cd, x, y, z, w, h, d, random=False, ax=0,ay=0,az=0, degrees
     front = z-d/2
     bottom = y-h/2
     left = x-w/2
+    origin = Vec3(x,y,z)
     # right = x+w/2
     if cw >1:
         w_diff = w/(cw-1)
@@ -168,8 +169,8 @@ def box(count, x,y, z, x2, y2, z2, centered=False, ax=0,ay=0,az=0, degrees=True)
 
     for _ in range(0,count):
         _x =  uniform(origin.x-w/2,origin.x+w/2)
-        _y =  uniform(origin.y-h/2,y+h/2)
-        _z =  uniform(origin.z-d/2,z+d/2)
+        _y =  uniform(origin.y-h/2,origin.y+h/2)
+        _z =  uniform(origin.z-d/2,origin.z+d/2)
         v = Vec3(_x,_y,_z)
         if rotate:
             v = v.rotate_around(origin, ax,ay,az, degrees)

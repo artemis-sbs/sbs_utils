@@ -213,10 +213,6 @@ class LayoutListbox(layout.Column):
         return max_width, max_height
 
 
-
-        
-
-
     def _present(self, event):
         """ present
 
