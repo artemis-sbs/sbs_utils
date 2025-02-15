@@ -19,6 +19,7 @@ def _get_property_list(values):
             item = {}
             item['label'] = k
             item['control'] = 0 # is basically 
+            item['collapse'] = False
             ret.append(item)
             ret.extend(_get_property_list(v))
             continue
@@ -63,7 +64,15 @@ def _property_lb_item_template_one_line(item):
     if gui_c == 0:
         gui_row("row-height: 1em;padding:5px,0,5px,0;")
         #gui_row("row-height: 1.2em;padding:13px;")
-        gui_text(f"$text:{item['label']};justify: center;color:#02FF;", "background: #FFFC")
+        collapsable =  "collapse" in item
+        
+        if not collapsable:
+            gui_text(f"$text:{item['label']};justify: center;color:#02FF;", "background: #FFFC")
+        else:
+            if not item.get("collapse"):
+                gui_text(f"$text:{item['label']};justify: center;color:#02FF;", "background: #FFFC")
+            else:
+                gui_text(f"$text:{item['label']};justify: center;color:#FFF;", "background: #0173")
     else:
         gui_row("row-height: 1.5em;padding:5px,0,5px,0;")
         #gui_row("row-height: 1.2em;padding:13px;")

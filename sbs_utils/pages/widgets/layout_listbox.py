@@ -1,6 +1,5 @@
 from ...gui import get_client_aspect_ratio
 from ..layout import layout as layout
-from ... import fs
 from ...helpers import FrameContext, FakeEvent
 from ...mast.parsers import LayoutAreaParser
 #from ...mast.core_nodes.label import Label
@@ -199,7 +198,7 @@ class LayoutListbox(layout.Column):
         FrameContext.page = sub_page
         
         
-        slot = 0        
+        slot = 0
         for item in self.items:
             sec = layout.Layout("unused", None, 0, 0, 100, 100)
             sub_page.next_slot(slot, sec)
@@ -364,11 +363,26 @@ class LayoutListbox(layout.Column):
 
         #draw_slots = max_slot
         self.sections = []
-        for slot in range(max_slots):
-            if cur >= len(self.items):
-                break
+        collapse = False
 
+        while slot < max_slots and cur < len(self.items):
             item = self.items[cur]
+            #
+            # Look for the next header
+            #
+            if collapse:
+                # if not a header - skip
+                if not isinstance(item, dict):
+                    cur += 1
+                    continue
+                if "collapse" not in item:
+                    cur += 1
+                    continue
+            #
+            #  Should be header or non-collapsed item
+            #     
+
+
             tag = f"{self.tag_prefix}:{slot}"
             this_right =   left #+item_width
             this_bottom =   top #+item_height
@@ -380,6 +394,8 @@ class LayoutListbox(layout.Column):
             
             sec = layout.Layout(tag+":sec", None, left, top, this_right, this_bottom)
             sec.region_tag = self.local_region_tag
+            sec.item_index = cur
+            
             
             if (self.select or self.multi) and not self.carousel:
                 #sec.click_text = "__________________"
@@ -391,7 +407,14 @@ class LayoutListbox(layout.Column):
                 else:
                     sec.background_color = "#0000"
                 sec.click_tag = f"{tag}:__click"
-                
+            
+            if isinstance(item, dict) and "collapse" in item:
+                sec.click_text = ""
+                sec.click_background = "#aaaa"
+                sec.click_color = "black"
+                sec.background_color = self.select_color
+                sec.click_tag = f"{tag}:__collapse"
+                collapse = item.get("collapse")
                 
             sub_page.next_slot(slot, sec)
             size = self.template_func(item)
@@ -419,6 +442,7 @@ class LayoutListbox(layout.Column):
             #sub_page.tags |= sec.get_tags()
 
             cur += 1
+            slot += 1
             
 
             
@@ -463,11 +487,41 @@ class LayoutListbox(layout.Column):
     def on_message(self, event):
         if self.client_id != event.client_id:
             return
+        if not event.sub_tag.startswith(self.tag_prefix):
+            return
+
         # Listbox can have selection, but is readonly
-        was = self.cur
         for sec in self.sections:
             sec.on_message(event)
+            
+        if event.sub_tag.endswith("cur"):
+            return self.on_scroll(event)
+
+        if event.sub_tag.endswith("__collapse"):
+            return self.on_collapse_header(event)
         
+        if event.sub_tag.endswith("__click"):
+            return self.on_click(event)
+        
+        if self.carousel:
+            return self.on_carousel_click(event)
+
+    def on_scroll(self, event):
+        # Scroll bar
+        if event.sub_tag == f"{self.tag_prefix}cur":
+            if self.horizontal:
+                value = int(event.sub_float)
+            else:
+                value = int(-event.sub_float+self.extra_slot_count+0.5)
+            if value != self.cur:
+                self.cur = value
+                self.gui_state = "redraw"
+                self.represent(event)
+                return
+        
+
+    def on_carousel_click(self, event):
+        was = self.cur
         if event.sub_tag == f"{self.tag_prefix}dec":
             if self.read_only:
                 return
@@ -492,17 +546,9 @@ class LayoutListbox(layout.Column):
                 self.represent(event)
                 return
 
-        if event.sub_tag == f"{self.tag_prefix}cur":
-            if self.horizontal:
-                value = int(event.sub_float)
-            else:
-                value = int(-event.sub_float+self.extra_slot_count+0.5)
-            if value != self.cur:
-                self.cur = value
-                self.gui_state = "redraw"
-                self.represent(event)
-                return
+        
 
+    def on_click(self, event):
         if not self.select and not self.multi:
             return
         if self.read_only:
@@ -514,11 +560,12 @@ class LayoutListbox(layout.Column):
             return
         if sec[0] != self.tag_prefix:
             return
-        if sec[2] != "__click":
-            return
         if not sec[1].isdigit():
             return
         slot = int(sec[1])+self.cur
+
+        if sec[2] != "__click":
+            return
         # TODO: Resolver slot to offsets
         if self.multi:
             if slot in self.selected:
@@ -530,6 +577,23 @@ class LayoutListbox(layout.Column):
         else:
             return
         self.represent(event)
+
+    def on_collapse_header(self, event):
+        sec = event.sub_tag.split(":")
+        if len(sec) != 3:
+            return
+        if sec[0] != self.tag_prefix:
+            return
+        if not sec[1].isdigit():
+            return
+        slot = int(sec[1])+self.cur
+
+        header = self.sections[slot]
+        item = self.items[header.item_index]
+        collapse = item.get("collapse", False)
+        item["collapse"] = not collapse
+        self.represent(event)
+        return
 
 
         
