@@ -12,7 +12,8 @@ class Text(Column):
         ctx = FrameContext.context
         message = self.message
         if "$text:" not in message:
-            message = f"$text:{message};"
+            if "text:" not in message:
+                message = f"$text:{message};"
 
         message += self.get_cascade_props(True, True, True)
 

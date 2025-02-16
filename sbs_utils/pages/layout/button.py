@@ -6,7 +6,8 @@ class Button(Column):
         super().__init__()
         self.tag = tag
         if "$text:" not in message:
-            self.message = f"$text:{message};"
+            if "text:" not in message:
+                self.message = f"$text:{message};"
         else:
             self.message = message
 

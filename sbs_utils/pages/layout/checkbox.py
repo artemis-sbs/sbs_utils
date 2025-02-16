@@ -5,7 +5,8 @@ class Checkbox(Column):
     def __init__(self, tag, message, value=False) -> None:
         super().__init__()
         if "$text:" not in message:
-            message = f"$text:{message};"
+            if "text:" not in message:
+                message = f"$text:{message};"
         self.message = message
         self.tag = tag
         self._value = value

@@ -214,7 +214,8 @@ class TextArea(Control):
         ctx = FrameContext.context
         message = self.content[0]
         if "$text:" not in message:
-            message = f"$text:{message};"
+            if "text:" not in message:
+                message = f"$text:{message};"
 
         message += self.get_cascade_props(True, True, True)
 

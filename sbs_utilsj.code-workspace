@@ -10,10 +10,7 @@
 			"path": "../LegndaryTNG"
 		},
 		{
-			"path": "../mast_console_example"
-		},
-		{
-			"path": "../WalkTheLine"
+			"path": "../modding_tools"
 		}
 	],
 	"settings": {

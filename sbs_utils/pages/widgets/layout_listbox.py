@@ -612,7 +612,7 @@ class LayoutListbox(layout.Column):
             return ret[0]
         return None
     
-    def set_selected_index(self, v):
+    def set_selected_index(self, v, set_cur=True):
         self.selected = set()
         if v is not None:
             self.selected.add(v)
