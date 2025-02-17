@@ -6,7 +6,7 @@ from ...pages.widgets.layout_listbox import LayoutListbox
 def gui_list_box(items, style, 
                  item_template=None, title_template=None, 
                  section_style=None, title_section_style=None,
-                 select=False, multi=False, carousel=False, read_only=False):
+                 select=False, multi=False, carousel=False,  collapsible=False,read_only=False):
     
     page = FrameContext.page
     task = FrameContext.task
@@ -17,7 +17,7 @@ def gui_list_box(items, style,
     layout_item = LayoutListbox(0, 0, tag, items,
                  item_template, title_template, 
                  section_style, title_section_style,
-                 select,multi, carousel, read_only)
+                 select,multi, carousel,  collapsible, read_only)
     # #layout_item.data = data
     # if var is not None:
     #     layout_item.var_name = var

@@ -3,6 +3,7 @@ from ..griddispatcher import GridDispatcher
 from ..lifetimedispatcher import LifetimeDispatcher
 from ..damagedispatcher import DamageDispatcher, CollisionDispatcher
 from .query import to_id, to_object
+from .inventory import get_inventory_value
 
 from ..helpers import FrameContext, FakeEvent
 from .gui import ButtonPromise
@@ -113,9 +114,9 @@ class HandleConsoleSelect:
         # Don't run if the selection doesn't exist
         if event.origin_id !=0 and to_object(event.origin_id) is None:
             return
-
-
-        task = FrameContext.task
+        
+        # Run console related things ON the console's GUI Task!
+        task = get_inventory_value(event.client_id, "GUI_TASK", FrameContext.task)
         t = task.start_task(self.label, data)
         t.tick_in_context()
         

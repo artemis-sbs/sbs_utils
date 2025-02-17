@@ -98,7 +98,7 @@ class LayoutListbox(layout.Column):
     def __init__(self, left, top, tag_prefix, items, 
                  item_template=None, title_template=None, 
                  section_style=None, title_section_style=None,
-                 select=False, multi=False, carousel=False, read_only=False) -> None:
+                 select=False, multi=False, carousel=False, collapsible=False, read_only=False) -> None:
         super().__init__(left,top,33,44)
 
         self.tag_prefix = tag_prefix
@@ -110,11 +110,13 @@ class LayoutListbox(layout.Column):
         self.cur = 0
         # self.bottom = top
         # self.right = left+33
-        self.items = items
+        self.unfiltered_items = items
+        self._items = items
         self.select_color = "#bbb3"
         self.click_color = "black"
         self.cur = 0
         self.carousel = carousel
+        self.collapsible = collapsible
         self.read_only = read_only
         
         self.default_item_width = None
@@ -157,7 +159,15 @@ class LayoutListbox(layout.Column):
         if self.carousel:
             self.set_selected_index(self.cur)
         self.sections = []
-        
+
+    @property
+    def items(self):
+        return self._items
+
+    @items.setter
+    def items(self, items):
+        self.unfiltered_items = items
+        self._items = items
 
     def set_row_height(self, height):
         # Row_height for a listbox is the gap height
@@ -199,7 +209,21 @@ class LayoutListbox(layout.Column):
         
         
         slot = 0
-        for item in self.items:
+        collapsed = False
+        if self.collapsible:
+            self._items = []
+
+        for item in self.unfiltered_items:
+            if self.collapsible:
+                collapse = item.get("collapse", None)
+                if collapsed and collapse is None:
+                    continue
+                if collapse is not None:
+                    collapsed = collapse
+                
+                self._items.append(item)
+
+            
             sec = layout.Layout("unused", None, 0, 0, 100, 100)
             sub_page.next_slot(slot, sec)
             slot+=1
@@ -210,6 +234,9 @@ class LayoutListbox(layout.Column):
             max_width = max(max_width, b.height)
 
         FrameContext.page = restore
+        f = len(self._items)
+        uf = len(self.unfiltered_items)
+        print(f"LISTBOX  {self.collapsible} {uf} {f}")
         return max_width, max_height
 
 
@@ -255,6 +282,8 @@ class LayoutListbox(layout.Column):
 
 
         max_item_width, max_item_height = self.calc_max(CID)
+        
+
         max_item_width += item_width
         max_item_height += item_height
         
@@ -274,7 +303,7 @@ class LayoutListbox(layout.Column):
         max_slots = int(max_slots)
         if self.carousel:
             max_slots = 1
-        extra_slot_count = len(self.items)-max_slots
+        extra_slot_count = len(self._items)-max_slots
 
         if extra_slot_count <0:
             extra_slot_count = 0
@@ -297,7 +326,7 @@ class LayoutListbox(layout.Column):
                 SBS.send_gui_clickregion(event.client_id, self.local_region_tag, 
                     f"{self.tag_prefix}dec", "background_color:#6663",
                     self.bounds.left, self.bounds.top, self.bounds.left+em2*5, self.bounds.bottom)
-            max_item = len(self.items)-1
+            max_item = len(self._items)-1
             if self.cur<max_item:
                 SBS.send_gui_icon(event.client_id, self.local_region_tag, f"{self.tag_prefix}iinc",
                     "icon_index:153;color:#aaa;draw_layer:1000;",
@@ -361,8 +390,9 @@ class LayoutListbox(layout.Column):
         self.sections = []
         collapse = False
 
-        while slot < max_slots and cur < len(self.items):
-            item = self.items[cur]
+
+        while slot < max_slots and cur < len(self._items):
+            item = self._items[cur]
             #
             # Look for the next header
             #
@@ -534,8 +564,8 @@ class LayoutListbox(layout.Column):
             if self.read_only:
                 return
             self.cur += 1
-            if self.cur >= len(self.items):
-                self.cur = len(self.items)-1
+            if self.cur >= len(self._items):
+                self.cur = len(self._items)-1
             if was != self.cur:
                 self.set_selected_index(self.cur)
                 self.gui_state = "redraw"
@@ -585,7 +615,7 @@ class LayoutListbox(layout.Column):
         slot = int(sec[1])+self.cur
 
         header = self.sections[slot]
-        item = self.items[header.item_index]
+        item = self._items[header.item_index]
         collapse = item.get("collapse", False)
         item["collapse"] = not collapse
         self.represent(event)
@@ -596,7 +626,7 @@ class LayoutListbox(layout.Column):
     def get_selected(self):
         ret = []
         for item in self.selected:
-            ret.append(self.items[item])
+            ret.append(self._items[item])
         if self.multi:
             return ret
         if len(ret)==1:
@@ -623,7 +653,7 @@ class LayoutListbox(layout.Column):
     def select_all(self):
         if self.multi:
             self.selected = set()
-            for item in range(len(self.items)):
+            for item in range(len(self._items)):
                 self.selected.add(item)
 
             self.redraw_if_showing()
@@ -660,8 +690,8 @@ class LayoutListbox(layout.Column):
         ret = []
         if self.convert_value:
             for item in self.selected:
-                if item < len(self.items):
-                    ret.append(self.convert_value(self.items[item]))
+                if item < len(self._items):
+                    ret.append(self.convert_value(self._items[item]))
         else:
             ret = self.get_selected()
 
@@ -675,7 +705,7 @@ class LayoutListbox(layout.Column):
     def set_value(self, value):
         self.selected = set()
         i = 0
-        for item in self.items:
+        for item in self._items:
             if self.convert_value:
                 v = self.convert_value(item)
                 if v == value:
@@ -692,9 +722,9 @@ class LayoutListbox(layout.Column):
 def layout_list_box_control(items,
                  template_func=None, title_template=None, 
                  section_style=None, title_section_style=None,
-                 select=False, multi=False, carousel=False, read_only=False):
+                 select=False, multi=False, carousel=False, collapsible=False,read_only=False):
     # The gui_content sets the values
     return LayoutListbox(0, 0, "mast", items,
                  template_func, title_template, 
                  section_style, title_section_style,
-                 select,multi, carousel, read_only)
+                 select,multi, carousel, collapsible, read_only)

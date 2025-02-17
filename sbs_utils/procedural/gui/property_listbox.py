@@ -104,7 +104,7 @@ def gui_property_list_box_stacked(name=None, tag=None):
 
     props_lb = gui_list_box([],
                 "row-height: 0.5em; background:#1572;", 
-                item_template=_property_lb_item_template_two_line, title_template=name)
+                item_template=_property_lb_item_template_two_line, title_template=name, collapsible=True)
     
     props_lb.title_section_style += "background:#1578;"
     set_inventory_value(page.client_id, tag, props_lb)    
@@ -117,7 +117,7 @@ def gui_property_list_box(name=None, tag=None, temp = _property_lb_item_template
 
     props_lb = gui_list_box([],
                 "row-height: 0.5em; background:#1572;", 
-                item_template=temp, title_template=name)
+                item_template=temp, title_template=name, collapsible=True)
     
     props_lb.title_section_style += "background:#1578;"
     set_inventory_value(page.client_id, tag, props_lb)    
