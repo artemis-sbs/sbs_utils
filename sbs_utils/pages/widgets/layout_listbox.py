@@ -427,7 +427,7 @@ class LayoutListbox(layout.Column):
                 sec.click_text = ""
                 sec.click_background = "#aaaa"
                 sec.click_color = "black"
-                if cur in self.selected:
+                if item in self.selected:
                     sec.background_color = self.select_color
                 else:
                     sec.background_color = "#0000"
@@ -587,18 +587,18 @@ class LayoutListbox(layout.Column):
             return
         if not sec[1].isdigit():
             return
-        slot = int(sec[1])+self.cur
+        index = int(sec[1]) +self.cur
 
         if sec[2] != "__click":
             return
-        # TODO: Resolver slot to offsets
+        item = self.items[index]
         if self.multi:
-            if slot in self.selected:
-                self.selected.discard(slot)
+            if item in self.selected:
+                self.selected.discard(item)
             else:
-                self.selected.add(slot)
+                self.selected.add(item)
         elif self.select:
-            self.selected = {slot}
+            self.selected = {item}
         else:
             return
         self.represent(event)
@@ -611,20 +611,18 @@ class LayoutListbox(layout.Column):
             return
         if not sec[1].isdigit():
             return
-        slot = int(sec[1])+self.cur
-
-        header = self.sections[slot]
-        item = self._items[header.item_index]
-        item.collapse = not item.collapse
-        self.represent(event)
+        index = int(sec[1]) +self.cur
+        #item = self.sections[index]
+        item = self._items[index]
+        if isinstance(item, LayoutListBoxHeader):
+            item.collapse = not item.collapse
+            self.represent(event)
         return
 
 
         
     def get_selected(self):
-        ret = []
-        for item in self.selected:
-            ret.append(self._items[item])
+        ret = list(self.selected)
         if self.multi:
             return ret
         if len(ret)==1:
@@ -633,26 +631,35 @@ class LayoutListbox(layout.Column):
         
 
     def get_selected_index(self):
-        ret = list(self.selected)
+        ret = []
+        i = 0
+        for item in self.unfiltered_items:
+            if item in self.selected:
+                ret.append(i)
+            i+=1
+
         if self.multi:
             return ret
         if len(ret)==1:
             return ret[0]
         return None
+
     
-    def set_selected_index(self, v, set_cur=True):
+    def set_selected_index(self, i, set_cur=True):
         self.selected = set()
-        if v is not None:
-            self.selected.add(v)
-            self.cur = v
+        if i is not None and i < len(self.unfiltered_items):
+            self.selected.add(self.unfiltered_items[i])
+            if set_cur:
+                self.cur = i
+
 
         self.redraw_if_showing()
     
     def select_all(self):
         if self.multi:
-            self.selected = set()
-            for item in range(len(self._items)):
-                self.selected.add(item)
+            self.selected = set(self.unfiltered_items)
+            # for item in self._items:
+            #     self.selected.add(item)
 
             self.redraw_if_showing()
 
@@ -685,36 +692,43 @@ class LayoutListbox(layout.Column):
         self.set_value(v)
 
     def get_value(self):
-        ret = []
-        if self.convert_value:
-            for item in self.selected:
-                if item < len(self._items):
-                    ret.append(self.convert_value(self._items[item]))
-        else:
-            ret = self.get_selected()
-
+        ret = list(self.selected)
         if self.multi:
             return ret
         elif len(ret):
             return ret[0]
-        else:
-            return None
+
+
+        
+        # if self.convert_value:
+        #     for item in self.selected:
+        #         if item < len(self._items):
+        #             ret.append(self.convert_value(self._items[item]))
+        # else:
+        #     ret = self.get_selected()
+
+        # if self.multi:
+        #     return ret
+        # elif len(ret):
+        #     return ret[0]
+        # else:
+        #     return None
     
     def set_value(self, value):
         self.selected = set()
-        i = 0
-        for item in self._items:
-            if self.convert_value:
-                v = self.convert_value(item)
-                if v == value:
-                    self.selected.add(i)
-            elif item == value:
-                self.selected.add(i)
-            i+=1
+        self.selected.add(value)
+        # i = 0
+        # for item in self._items:
+        #     if self.convert_value:
+        #         v = self.convert_value(item)
+        #         if v == value:
+        #             self.selected.add(i)
+        #     elif item == value:
+        #         self.selected.add(i)
+        #     i+=1
     
     def update(self, props):
         pass
-
 
 
 def layout_list_box_control(items,
