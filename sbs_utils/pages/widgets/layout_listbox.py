@@ -87,6 +87,10 @@ class SubPage:
             sec.present(event)
 
 
+class LayoutListBoxHeader:
+    def __init__(self, label, collapse):
+        self.label = label
+        self.collapse = collapse
 
 
 class LayoutListbox(layout.Column):
@@ -215,13 +219,11 @@ class LayoutListbox(layout.Column):
 
         for item in self.unfiltered_items:
             if self.collapsible:
-                collapse = item.get("collapse", None)
-                if collapsed and collapse is None:
+                is_header = isinstance(item, LayoutListBoxHeader)
+                if collapsed and not is_header:
                     continue
-                if collapse is not None:
-                    collapsed = collapse
-                
                 self._items.append(item)
+                collapsed =  is_header and item.collapse
 
             
             sec = layout.Layout("unused", None, 0, 0, 100, 100)
@@ -398,10 +400,7 @@ class LayoutListbox(layout.Column):
             #
             if collapse:
                 # if not a header - skip
-                if not isinstance(item, dict):
-                    cur += 1
-                    continue
-                if "collapse" not in item:
+                if not isinstance(item, LayoutListBoxHeader):
                     cur += 1
                     continue
             #
@@ -434,13 +433,13 @@ class LayoutListbox(layout.Column):
                     sec.background_color = "#0000"
                 sec.click_tag = f"{tag}:__click"
             
-            if isinstance(item, dict) and "collapse" in item:
+            if isinstance(item, LayoutListBoxHeader):
                 sec.click_text = ""
                 sec.click_background = "#aaaa"
                 sec.click_color = "black"
                 sec.background_color = self.select_color
                 sec.click_tag = f"{tag}:__collapse"
-                collapse = item.get("collapse")
+                collapse = item.collapse
                 
             sub_page.next_slot(slot, sec)
             size = self.template_func(item)
@@ -616,8 +615,7 @@ class LayoutListbox(layout.Column):
 
         header = self.sections[slot]
         item = self._items[header.item_index]
-        collapse = item.get("collapse", False)
-        item["collapse"] = not collapse
+        item.collapse = not item.collapse
         self.represent(event)
         return
 

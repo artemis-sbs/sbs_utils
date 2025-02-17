@@ -6,7 +6,12 @@ from .row import gui_row
 from .listbox import gui_list_box
 from .text import gui_text
 from .update import gui_represent
+from ...pages.widgets.layout_listbox import LayoutListBoxHeader
 
+class PropertyControlItem:
+    def __init__(self, label, control):
+        self.label = label
+        self.control = control
 
 
 def _get_property_list(values):
@@ -16,18 +21,18 @@ def _get_property_list(values):
     for k in values:
         v = values[k]
         if isinstance(v,dict):
-            item = {}
-            item['label'] = k
-            item['control'] = 0 # is basically 
-            item['collapse'] = False
-            ret.append(item)
+            collapse = False
+            if k.startswith("+"):
+                k = k[1:]
+            if k.startswith("-"):
+                k = k[1:]
+                collapse = True
+
+            ret.append(LayoutListBoxHeader(k, collapse))
             ret.extend(_get_property_list(v))
             continue
 
-        item = {}
-        item['label'] = k
-        item['control'] = v
-        ret.append(item)
+        ret.append(PropertyControlItem(k,v))
 
     return ret
 
@@ -60,40 +65,37 @@ def gui_properties_set(p=None, tag=None):
 
 def _property_lb_item_template_one_line(item):
     
-    gui_c = item['control']
-    if gui_c == 0:
+    collapsable =  isinstance(item, LayoutListBoxHeader)
+    if collapsable:
         gui_row("row-height: 1em;padding:5px,0,5px,0;")
-        #gui_row("row-height: 1.2em;padding:13px;")
-        collapsable =  "collapse" in item
-        
-        if not collapsable:
-            gui_text(f"$text:{item['label']};justify: center;color:#02FF;", "background: #FFFC")
+        if not item.collapse:
+            gui_text(f"$text:{item.label};justify: center;color:#02FF;", "background: #FFFC")
         else:
-            if not item.get("collapse"):
-                gui_text(f"$text:{item['label']};justify: center;color:#02FF;", "background: #FFFC")
-            else:
-                gui_text(f"$text:{item['label']};justify: center;color:#FFF;", "background: #0173")
+            gui_text(f"$text:{item.label};justify: center;color:#FFF;", "background: #0173")
     else:
         gui_row("row-height: 1.5em;padding:5px,0,5px,0;")
         #gui_row("row-height: 1.2em;padding:13px;")
-        gui_text(f"$text:{item['label']};justify: right;","padding:0,0,1em,0;")
+        gui_text(f"$text:{item.label};justify: right;","padding:0,0,1em,0;")
         gui_hole()
-        gui_c = FrameContext.task.eval_code(gui_c, False)
+        gui_c = FrameContext.task.eval_code(item.control, False)
         if gui_c is None:
             gui_text(f"Invalid code")
     
 
 def _property_lb_item_template_two_line(item):
-    gui_c = item['control']
-    if gui_c == 0:
-        gui_row("row-height: 1.2em;")
-        gui_text(f"$text:{item['label']};justify: center;color:#02FF;", "background: #FFFC")
+    collapsable =  isinstance(item, LayoutListBoxHeader)
+    if collapsable:
+        gui_row("row-height: 1em;padding:5px,0,5px,0;")
+        if not item.collapse:
+            gui_text(f"$text:{item.label};justify: center;color:#02FF;", "background: #FFFC")
+        else:
+            gui_text(f"$text:{item.label};justify: center;color:#FFF;", "background: #0173")
     else:
         gui_row("row-height: 1.2em;")
-        gui_text(f"$text:{item['label']};justify: left;")
+        gui_text(f"$text:{item.label};justify: left;")
         gui_row("row-height: 2em;")
 
-        gui_c = FrameContext.task.eval_code(gui_c, False)
+        gui_c = FrameContext.task.eval_code(item.control, False)
         if gui_c is None:
             gui_text(f"Invalid code")
     
