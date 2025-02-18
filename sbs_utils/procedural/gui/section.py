@@ -43,6 +43,9 @@ class PageSubSection:
         self.page.pop_sub_section(self.add, False)
         self.add = False
 
+    def represent(self, event):
+        self.sub_section.represent(event)
+
 
 def gui_sub_section(style=None):
     """ Create a new gui section that uses the area specified in the style

@@ -139,6 +139,10 @@ class MastDataObject(object):
 
     def __repr__(self):
         return repr(vars(self))
+    
+    def get(self, key, defa):
+        return getattr(self, key, defa)
+        
 
 MastGlobals.globals["MastDataObject"] = MastDataObject
 
