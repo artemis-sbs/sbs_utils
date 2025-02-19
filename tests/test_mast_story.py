@@ -289,10 +289,10 @@ on change menu.value:
     def test_yaml_data_block(self):
         (errors,  mast) = mast_story_compile( code =  """
 @prefab/base "Station"
----
+metadata: ``` yaml
 foo: 
     bar: hello
-...
+```
 """)
         assert(len(errors)==0)
 
@@ -308,9 +308,9 @@ foo:
 
 @fleet/arvonian/standard "Standard Arvonian fleet"
 " Test
----
+metadata: ``` yaml
 key: value
-...
+```
 
 @map/siege "Siege"
 

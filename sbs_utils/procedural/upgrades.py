@@ -1,12 +1,14 @@
 """ Manage all objective
 """
 from sbs_utils.helpers import FrameContext
-from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
-from sbs_utils.agent import Agent
-from sbs_utils.procedural.query import to_set
+from sbs_utils.agent import Agent, get_story_id
+from sbs_utils.procedural.query import to_set, to_object
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.mast.mastscheduler import MastAsyncTask
+from sbs_utils.procedural.roles import add_role, role, remove_role
+from sbs_utils.procedural.links import linked_to,unlink, has_link_to
+from sbs_utils.procedural.inventory import get_inventory_value
 
 
 
@@ -20,47 +22,19 @@ def upgrade_schedule():
         __upgrades_tick_task = TickDispatcher.do_interval(objectives_run_all, 5)
 
 
-class Upgrade:
-    ids = 0
-    # Just by ID
-    all = {}
-    # Set algebra will be used to 
-    # get the subset
-    active = set()
-    timed = set()
-    # These are run when it changes
-    available = {}
-    # these need to run via task
-    # These will be set by agent
-    by_agent ={}
-    # 
-    changed_agents = set()
-    
-    def __init__(self, agent, label, data, client_id):
-        self.agent = agent
-        self.label = label #Label could have meta_data
+class Upgrade(Agent):
+    def __init__(self, agent_id, label, data, client_id):
+        self.agent_id = agent_id
+        self.label = label #Label could have metadata
         self.data = data
         self._done = False
         self._result = PollResults.OK_IDLE
         # Ability to have console/client based objectives
         self.client_id = client_id
-        self.scratch = {}
-        self.id = Upgrade.ids+1
-        Upgrade.ids = self.id
-
-        Upgrade.all[self.id] = self
-        # Not active by default
-        Upgrade.available.add(self.id)
-        # Add quick look up by agent
-        ba = Upgrade.by_agent.get(agent, set())
-        ba.add(self.id)
-        Upgrade.by_agent[agent]=ba
-
-    def set_scratch_value(self, key, value):
-        self.scratch[key] = value
-
-    def get_scratch_value(self, key, defa):
-        return self.scratch.get(key, defa)
+        self.id = get_story_id()
+        self.add()
+        self.add_role("__UPGRADE__")
+        self.add_link(self.agent_id, "__UPGRADE__", self.id)
 
     @property
     def done(self):
@@ -81,32 +55,21 @@ class Upgrade:
             self.discard()
 
     def discard(self):
-        Upgrade.changed_agents.add(self)
+        add_role(self.agent_id, "__UPGRADE_CHANGED__")
+        unlink(self.agent_id, "__UPGRADE__", self.id)
         self.remove()
 
-    def remove(self):
-        del Upgrade.all[self.id]
-        # Not active by default
-        Upgrade.available.discard(self.id)
-        Upgrade.timed.discard(self.id)
-        # Add quick look up by agent
-        ba = Upgrade.by_agent.get(self.agent, None)
-        if ba is not  None:
-            ba.discard(self.id)
-            Upgrade.by_agent[self.agent]=ba
-
     def activate(self):
-        Upgrade.active.add(self.id)
-        # If timed add it
-        Upgrade.changed_agents.add(self.agent)
+        self.add_role("__UPGRADE_ACTIVE__")
 
 
     def deactivate(self):
-        Upgrade.active.discard(self.id)
+        self.remove_role("__UPGRADE_ACTIVE__")
         # If timed add it
         #....
+        self.remove_role("__UPGRADE_TIMED__")
         # Schedule agent to recalculate
-        Upgrade.changed_agents.add(self.agent)
+        add_role(self.agent_id, "__UPGRADE_CHANGED__")
 
 
 
@@ -121,15 +84,9 @@ def upgrade_add(agent_id_or_set, label, data=None, client_id=0, activate=False):
             up.activate()
 
 def upgrade_remove_for_agent(agent):
-    by_agent = Upgrade.by_agent.get(agent)
-    if by_agent is None:
-        return 
+    by_agent = linked_to(agent, "__UPGRADE__")
     for ob_id in by_agent:
-        obj : Upgrade
-        obj = Upgrade.all.get(ob_id)
-        if obj is None:
-            continue
-        obj.remove()
+        Agent.remove_id(ob_id)
 
 __upgrades_is_running = False
 def objectives_run_all(tick_task):
@@ -144,37 +101,37 @@ def objectives_run_all(tick_task):
         # to see if they remain active
 
         # Roll though all changed agents
-        
-        for agent in Upgrade.changed_agents:
-            
-            # Reset set the important value
-            # ??
-            by_agent = Upgrade.by_agent.get(agent, set())
-            agent = Agent.get(agent)
+        # use copy so it can be altered
+        changed_agents = set(role("__UPGRADE_CHANGED__"))
+        for agent_id in changed_agents:
+            #
+            agent = Agent.get(agent_id)
             if agent is None:
-                upgrade_remove_for_agent(agent)
+                upgrade_remove_for_agent(agent_id)
                 continue
             # This should be a list of upgrades by agent and active
-            active = Upgrade.activate & by_agent
+            active = role("__UPGRADE_ACTIVE__") & linked_to(agent_id, "__UPGRADE__")
             for up_id in active:
-                obj = Upgrade.all.get(up_id)
+                obj = to_object(up_id)
                 if obj is None:
                     continue
 
                 task = get_inventory_value(obj.client_id, "GUI_TASK", FrameContext.task)
                 t : MastAsyncTask
                 t = task.start_task(obj.label, obj.data, defer=True)
-                t.set_variable("__OBJECTIVE__", obj)
-                t.set_variable("OBJECTIVE_AGENT_ID", agent)
+                t.set_variable("UPGRADE", obj)
+                t.set_variable("UPGRADE_ID", up_id)
+                t.set_variable("UPGRADE_AGENT_ID", agent)
                 t.tick_in_context()
                 obj.result = t.tick_result
+            remove_role(agent_id, "__UPGRADE_CHANGED__")
             
         
     except Exception as e:
         msg = e
-        print(f"Exception in objective processing {msg}")
+        print(f"Uncaught exception in upgrades processing {msg}")
 
-    Upgrade.changed_agents = set()
+        
     __upgrades_is_running = False
 
 

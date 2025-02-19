@@ -126,9 +126,8 @@ class DescribableNode(MastNode):
                 self.options[-1] += text
         else:
             self.add_option(prefix, text)
-    def apply_meta_data(self, data):
+    def apply_metadata(self, data):
         return False
-
 
 
 class MastDataObject(object):

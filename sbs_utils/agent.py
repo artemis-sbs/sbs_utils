@@ -193,10 +193,15 @@ class Agent():
         Agent.all[id] = obj
 
     @classmethod
+    def remove_id(cls, id):
+        Agent._remove(id)
+
+
+    @classmethod
     def _remove(cls, id):
         Agent.all.pop(id, None) #Allow remove if not added
         ## TODO: Remove from inventory, and links
-        return Agent.roles.remove_every_collection(id)
+        Agent.roles.remove_every_collection(id)
 
     ########## ROLES ########################
     def add_role(self, role: str):

@@ -17,6 +17,6 @@ class PrefabCardLabel(CardLabelBase):
         # Spawn any sub tasks
         #
 
-    def apply_meta_data(self, data):
-        return super().apply_meta_data(data)
+    def apply_metadata(self, data):
+        return super().apply_metadata(data)
 

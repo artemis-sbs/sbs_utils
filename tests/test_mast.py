@@ -414,7 +414,10 @@ jump test2 if var_def < 6
 
 var_inc_field = MastDataObject({"x": 10, "y": 20})
 var_inc_field.x += 2
-
+                                       
+test_y = ``` yaml 
+test: 2
+```
 """)
         assert(len(errors)==0)
         task = runner.active_task
@@ -443,6 +446,9 @@ var_inc_field.x += 2
         assert(list_value[0][1]==3)
         assert(list_value[1][0]==4)
         assert(list_value[1][1]==5)
+        test_y = task.get_value("test_y", None)
+        assert(test_y[1] == Scope.NORMAL)
+        assert(test_y[0].get("test") == 2)
 
     def test_if_comp(self):
         (errors,  _) = mast_compile( code = """

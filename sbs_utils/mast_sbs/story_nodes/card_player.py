@@ -17,8 +17,8 @@ class PlayerCardLabel(CardLabelBase):
         # Spawn any sub tasks
         #
 
-    def apply_meta_data(self, data):
-        return super().apply_meta_data(data)
+    def apply_metadata(self, data):
+        return super().apply_metadata(data)
 
 @mast_node()
 class ObjectiveLabel(CardLabelBase):
@@ -33,8 +33,8 @@ class ObjectiveLabel(CardLabelBase):
         # Spawn any sub tasks
         #
 
-    def apply_meta_data(self, data):
-        return super().apply_meta_data(data)
+    def apply_metadata(self, data):
+        return super().apply_metadata(data)
 
 @mast_node()
 class UpgradeLabel(CardLabelBase):
@@ -49,5 +49,5 @@ class UpgradeLabel(CardLabelBase):
         # Spawn any sub tasks
         #
 
-    def apply_meta_data(self, data):
-        return super().apply_meta_data(data)
+    def apply_metadata(self, data):
+        return super().apply_metadata(data)

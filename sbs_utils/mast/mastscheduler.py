@@ -604,6 +604,7 @@ class MastAsyncTask(Agent, Promise):
         self.root_task = self
 
         self.add()
+        self.add_role("__MAST_TASK__")
 
         self.pending_on_change_items = []
         self.on_change_items = []
@@ -1018,6 +1019,7 @@ class MastScheduler(Agent):
         # Schedulers use task Id
         self.id = get_task_id()
         self.add()
+        self.add_role("__MAST_SCHEDULER__")
         if overrides is None:
             overrides = {}
         self.nodes = MastRuntimeNode.nodes | overrides

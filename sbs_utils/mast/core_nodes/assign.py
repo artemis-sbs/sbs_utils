@@ -7,6 +7,7 @@ import re
 
 
 PY_EXP_REGEX = r"""((?P<py>~~)[\s\S]*?(?P=py))"""
+YAML_EXP_REGEX = r"""((?P<yaml>```)\s*yaml\s*[\s\S]*?(?P=yaml))"""
     
 @mast_node()
 class Assign(MastNode):
@@ -21,19 +22,18 @@ class Assign(MastNode):
     # '|'+STRING_REGEX+ddd
     # (.*?)(\+=|-=)(.*)?(#\n)?
     rule = re.compile(
-        r'(?P<is_default>(default[ \t]+))?(?P<scope>(shared|assigned|client|temp)\s+)?(?P<lhs>.*?)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)(?P<a_wait>\s*await)?\s*(?P<exp>('+PY_EXP_REGEX+'|'+MULTI_LINE_STRING_REGEX+'|[^\n\r\f]+))')
+        r'(?P<is_default>(default[ \t]+))?(?P<scope>(shared|assigned|client|temp)\s+)?(?P<lhs>.*?)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)(?P<a_wait>\s*await)?\s*(?P<exp>('+PY_EXP_REGEX+'|'+MULTI_LINE_STRING_REGEX+'|'+YAML_EXP_REGEX+'|[^\n\r\f]+))')
         
         #r'(?P<scope>(shared|assigned|client|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)(?P<a_wait>\s*await)?\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|[^\n\r\f]+))')
 
     """ Note this doesn't support destructuring. To do so isn't worth the effort"""
-    def __init__(self, is_default, scope, lhs, oper, exp,a_wait=None,  quote=None, py=None, loc=None, compile_info=None):
+    def __init__(self, is_default, scope, lhs, oper, exp,a_wait=None,  quote=None, py=None, yaml=None,loc=None, compile_info=None):
         super().__init__()
         self.lhs = lhs
         self.loc = loc
         self.oper = Assign.oper_map.get(oper)
         self.is_default = is_default
-        self.scope = None if scope is None else Scope[scope.strip(
-        ).upper()]
+        self.scope = None if scope is None else Scope[scope.strip().upper()]
         
         exp = exp.lstrip()
         if quote:
@@ -41,9 +41,19 @@ class Assign(MastNode):
         if py:
             exp = exp[2:-2]
             exp = exp.strip()
-        self.code = compile(exp, "<string>", "eval")
+        
+        self.yaml = None
+        if yaml:
+            self.yaml = exp.strip('`')
+            self.yaml = self.yaml.strip()
+            self.yaml = self.yaml[4:]
+            self.yaml = self.yaml.strip()
+            self.code = None
+        else:
+            self.code = compile(exp, "<string>", "eval")
         self.is_await = a_wait is not None
-
+        
+                
         if lhs in MastGlobals.globals:
             raise Exception(f"Variable assignment to a keyword {lhs}")
 
@@ -56,8 +66,30 @@ class AssignRuntimeNode(MastRuntimeNode):
         super().__init__()
         self.promise = None
 
+    def _set_value(self, value, node, task):
+        if "." in node.lhs or "[" in node.lhs:
+            task.exec_code(f"""{node.lhs} = __mast_value""",{"__mast_value": value}, None )
+        elif node.scope: 
+            task.set_value(node.lhs, value, node.scope)
+        else:
+            task.set_value_keep_scope(node.lhs, value)
+
     def poll(self, mast, task:MastAsyncTask, node:Assign):
         #try:
+        if node.yaml is not None:
+            value = task.compile_and_format_string(node.yaml)
+            if node.oper != Assign.EQUALS:
+                raise "Assign for yaml only support = not {node.oper}"
+        
+            try:
+                from ... import yaml
+                value = yaml.safe_load(value)
+                self._set_value(value, node, task)
+                
+            except Exception as e:
+                raise f"Invalid yaml expression\n{e}"
+            return PollResults.OK_ADVANCE_TRUE
+
         if not self.promise:
             value = task.eval_code(node.code)
             if node.is_await and isinstance(value, Promise):
@@ -99,13 +131,7 @@ class AssignRuntimeNode(MastRuntimeNode):
             case Assign.INT_DIV:
                 value = start // value
 
-        if "." in node.lhs or "[" in node.lhs:
-            task.exec_code(f"""{node.lhs} = __mast_value""",{"__mast_value": value}, None )
-            
-        elif node.scope: 
-            task.set_value(node.lhs, value, node.scope)
-        else:
-            task.set_value_keep_scope(node.lhs, value)
+        self._set_value(value, node, task)
             
         # except:
         #     task.main.runtime_error(f"assignment error {node.lhs}")
