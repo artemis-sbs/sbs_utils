@@ -54,13 +54,9 @@ def maps_get_init():
 
 
 def map_get_properties(map):
-    metadata = getattr(map, "metadata", None)
-    if metadata is None:
-        return None
     # Try Properties and properties
-    ret = metadata.get("Properties", metadata.get("properties"))
+    return map.get_inventory_value("Properties", map.get_inventory_value("properties"))
 
-    return ret
 
 
 

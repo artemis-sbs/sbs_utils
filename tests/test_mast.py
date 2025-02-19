@@ -418,6 +418,10 @@ var_inc_field.x += 2
 test_y = ``` yaml 
 test: 2
 ```
+fred =                                        
+test_y2 = ``` yaml 
+test: {}
+```
 """)
         assert(len(errors)==0)
         task = runner.active_task
