@@ -76,6 +76,7 @@ from ..procedural import signal
 from ..procedural import maps
 from ..procedural import mission
 from ..procedural import media
+from ..procedural import objective
 from ..cards import card
 
 
@@ -99,6 +100,7 @@ MastGlobals.import_python_module('sbs_utils.procedural.signal')
 MastGlobals.import_python_module('sbs_utils.procedural.maps')
 MastGlobals.import_python_module('sbs_utils.procedural.mission')
 MastGlobals.import_python_module('sbs_utils.procedural.media')
+MastGlobals.import_python_module('sbs_utils.procedural.objective')
 MastGlobals.import_python_module('sbs_utils.cards.card')
 MastGlobals.import_python_module('sbs_utils.faces')
 MastGlobals.import_python_module('sbs_utils.fs')

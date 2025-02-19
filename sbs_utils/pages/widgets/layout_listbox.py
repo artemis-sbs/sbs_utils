@@ -238,7 +238,7 @@ class LayoutListbox(layout.Column):
         FrameContext.page = restore
         f = len(self._items)
         uf = len(self.unfiltered_items)
-        print(f"LISTBOX  {self.collapsible} {uf} {f}")
+        #print(f"LISTBOX  {self.collapsible} {uf} {f}")
         return max_width, max_height
 
 

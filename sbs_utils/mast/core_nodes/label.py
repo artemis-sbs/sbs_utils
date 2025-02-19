@@ -15,6 +15,7 @@ class Label(DescribableNode):
         self.loc = loc
         self.replace = replace is not None
         self.labels = {}
+        self.meta_data = {}
 
     def add_child(self, cmd):
         if not cmd.is_virtual():
@@ -37,3 +38,8 @@ class Label(DescribableNode):
 
     def generate_label_end_cmds(self, compile_info=None):
         pass
+    
+    def apply_meta_data(self, data):
+        self.meta_data |= data
+        return True
+
