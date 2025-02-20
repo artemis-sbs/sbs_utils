@@ -573,18 +573,27 @@ class Mast():
                 self.label = None
                 self.prev_node = None
                 
+        def buildErrorMessage(file_name, line_no, line, error):
+            if line != "":
+                line = f"- '{line}'"
+            return f"\nError: {error}\nat {file_name} Line {line_no} {line}\n\n"
+        
+        def buildExceptionMessage(file_name, line_no, line, error):
+            if line != "":
+                line = f"- '{line}'"
+            return f"\nException: {error}\nat {file_name} Line {line_no} {line}\n\n"
 
         def inject_dedent(ind_level, indent_node, dedent_node, info):
             if len(indent_stack)==0:
                 logger = logging.getLogger("mast.compile")
-                error = f"\nERROR: Indention Error {line_no} - {file_name}\n\n"
+                error = buildErrorMessage(file_name,line_no,"","Indentation Error")
                 logger.error(error )
                 errors.append(error)
                 return
             
             if ind_level < indent_stack[0][0]:
                 logger = logging.getLogger("mast.compile")
-                error = f"\nERROR: Indention Error {line_no} - {file_name}\n\n"
+                error = buildErrorMessage(file_name,line_no,"","Indentation Error")
                 logger.error(error )
                 errors.append(error)
                 return
@@ -696,7 +705,8 @@ class Mast():
                         replace = data.get('replace')
                         if existing_label and not replace:
                             parsed = False
-                            errors.append(f"\nERROR: duplicate label '{label_name }'. Use 'replace: {data['name']}' if this is intentional. {file_name}:{line_no} - {line}")
+                            error = buildErrorMessage(file_name, line_no, line, f"Duplicate label '{label_name }'. Use 'replace: {data['name']}' if this is intentional.")
+                            errors.append(error)
                             break
                         elif existing_label and replace:
                             from .core_nodes.jump_cmd import Jump
@@ -729,7 +739,8 @@ class Mast():
                         exists =  Agent.SHARED.get_inventory_value(label_name)
                         exists =  MastGlobals.globals.get(label_name, exists)
                         if exists and not replace:
-                            errors.append(f"\nERROR: label conflicts with shared name, rename label '{label_name }'. {file_name}:{line_no} - {line}")
+                            error = buildErrorMessage(file_name,line_no,line,f"Label conflicts with shared name, rename label '{label_name}'.")
+                            errors.append(error)
                             break
 
                         # Sets a variable for the label
@@ -777,29 +788,30 @@ class Mast():
 
                         except Exception as e:
                             logger = logging.getLogger("mast.compile")
-                            logger.error(f"ERROR: {file_name} {line_no} - {line}")
+                            error = buildExceptionMessage(file_name,line_no,line,f"{e}")
+                            logger.error(error)
                             logger.error(f"Exception: {e}")
 
-                            errors.append(f"\nERROR: {file_name} {line_no} - {line}")
+                            errors.append(error)
                             errors.append(f"\nException: {e}")
                             return errors # return with first errors
 
                         obj.line = line if Mast.include_code else None
                         base_indent= indent_stack[0][0]
                         if obj.never_indent() and indent>base_indent:
-                            errors.append(f"\nERROR: Bad indention {file_name} {line_no} - {line}")
+                            errors.append(buildErrorMessage(file_name,line_no,line,"Bad indentation"))
                             return errors # return with first errors
                         
                         if is_indent:
                             if prev_node is None or not prev_node.is_indentable():
                                 if not prev_node.is_inline_label:
-                                    errors.append(f"\nERROR: Bad indention {file_name} {line_no} - {line}")
+                                    errors.append(buildErrorMessage(file_name,line_no,line,"Bad indentation"))
                                     return errors # return with first errors
                             block_node = prev_node
                             indent_stack.append((indent,block_node))
                         if is_dedent:
                             if len(indent_stack)==0:
-                                errors.append(f"\nERROR: Bad indention {file_name} {line_no} - {line}")
+                                errors.append(buildErrorMessage(file_name,line_no,line,"Bad indentation"))
                                 return errors # return with first errors
                             
                             (i_loc,_) = indent_stack[-1]
@@ -809,7 +821,7 @@ class Mast():
 
                                 (i_loc,i_obj) = indent_stack.pop()
                                 if len(indent_stack)==0:
-                                    errors.append(f"\nERROR: Bad indention {file_name} {line_no} - {line}")
+                                    errors.append(buildErrorMessage(file_name,line_no,line,"Bad indentation"))
                                     return errors # return with first errors
 
                                 # Should equal i_obj
@@ -838,10 +850,11 @@ class Mast():
                     break
             except Exception as e:
                 logger = logging.getLogger("mast.compile")
-                logger.error(f"ERROR: {file_name} {line_no} - {line}")
+                error = buildExceptionMessage(file_name,line_no,line,f"{e}")
+                logger.error(error)
                 logger.error(f"Exception: {e}")
 
-                errors.append(f"\nERROR: {file_name} {line_no} - {line}")
+                errors.append(error)
                 errors.append(f"\nException: {e}")
                 return errors # return with first errors
 
@@ -858,7 +871,7 @@ class Mast():
                     mo = first_newline_index(lines)
 
                     logger = logging.getLogger("mast.compile")
-                    error = f"\nERROR: {line_no} - {file_name}\n\n    {lines[0:mo]}\n"
+                    error = buildErrorMessage(file_name,line_no, "", "Error at first newline index")
                     logger.error(error )
                     errors.append(error)
                     lines = lines[mo+1:]
