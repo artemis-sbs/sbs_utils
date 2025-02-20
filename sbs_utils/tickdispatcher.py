@@ -20,6 +20,7 @@ class TickTask(Agent):
         self.cb = cb
         self.delay = delay
         self.id = get_task_id()
+        self.add()
 
         # capture the start time
         

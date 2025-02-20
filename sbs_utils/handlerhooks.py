@@ -247,13 +247,6 @@ def cosmos_event_handler(sim, event):
             case "grid_point_selection":
                 SBS.send_grid_selection_info(event.parent_id, "", "white", "")
                 GridDispatcher.dispatch_grid_event(event)
-
-            case "sim_paused":
-                print("SIM paused")
-                Gui.send_custom_event("x_sim_paused")
-            case "sim_unpaused":
-                print("SIM unpaused")
-                Gui.send_custom_event("x_sim_resume")
             case "fighter_requests_dock":
                 LifetimeDispatcher.dispatch_dock(event)
         
