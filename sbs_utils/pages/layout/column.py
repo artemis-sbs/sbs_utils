@@ -161,8 +161,10 @@ class Column:
                 bg.left, bg.top, bg.right, bg.bottom)
 
     def _post_present(self, event):
-        if self.click_text is not None:
-            click_props = f"$text:{self.click_text};"
+        if self.click_text is not None or self.click_tag is not None:
+            click_props = ""
+            if self.click_text is not None:
+                click_props = f"$text:{self.click_text};"
             if self.click_color:
                 click_props += f"color: {self.click_color};"
             if self.click_font:
@@ -181,7 +183,7 @@ class Column:
             bounds = Bounds(self.bounds)
             if self.padding is not None:
                 bounds.grow(self.padding)
-
+            
             ctx.sbs.send_gui_clickregion(event.client_id, self.region_tag,
                 self.click_tag, click_props,
                 bounds.left, bounds.top, bounds.right, bounds.bottom)

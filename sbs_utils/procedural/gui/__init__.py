@@ -11,6 +11,7 @@ from .section import gui_section, gui_region, gui_sub_section
 from .button import gui_button
 from .checkbox import gui_checkbox
 from .cinematic import gui_cinematic_auto, gui_cinematic_full_control
+from .clickable import gui_click
 from .content import gui_content
 from .dropdown import gui_drop_down
 from .face import gui_face
