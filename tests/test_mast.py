@@ -174,7 +174,7 @@ log("good bye")
 """)
         # Label end delimiter are now optional because we're now indention + newline based
         assert(len(errors)==1)
-        assert("duplicate label 'test'" in errors[0])
+        assert("Duplicate label 'test'" in errors[0])
 
 
 
@@ -418,9 +418,9 @@ var_inc_field.x += 2
 test_y = ``` yaml 
 test: 2
 ```
-fred =                                        
-test_y2 = ``` yaml 
-test: {}
+fred = 45
+test_y2 = ```yaml
+test: {fred}
 ```
 """)
         assert(len(errors)==0)
