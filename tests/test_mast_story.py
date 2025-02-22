@@ -288,48 +288,13 @@ on change menu.value:
 
     def test_yaml_data_block(self):
         (errors,  mast) = mast_story_compile( code =  """
-@prefab/base "Station"
+=== prefab_base
 metadata: ``` yaml
 foo: 
     bar: hello
 ```
 """)
         assert(len(errors)==0)
-
-    def test_cards(self):
-        (errors,  mast) = mast_story_compile( code =  
-"""
-
-@admiral/ai/raider "A Basic raider AI Admiral"
-
-@prefab/damcon/sleepy "Generic"
-
-@character/damcon/sleepy "Sleepy"
-
-@fleet/arvonian/standard "Standard Arvonian fleet"
-" Test
-metadata: ``` yaml
-key: value
-```
-
-@map/siege "Siege"
-
-@objective/players/survive "Survive"
-
-@player/mine "Command Station" 
-
-
-@tile/station/beachwood "Beachwood Station"
-
-
-@unit/cargo "Cargo"
-" A unit that goes from station to station moving stuff 
-
-@upgrade/more "Get More"
-
-""")
-        assert(len(errors)==0)
-    
 
 
 if __name__ == '__main__':

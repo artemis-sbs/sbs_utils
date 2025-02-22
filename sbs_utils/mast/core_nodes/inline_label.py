@@ -16,6 +16,10 @@ class InlineLabel(MastNode):
         self.loc = loc
         self.desc = None
         self.label = compile_info.label
+
+        exists = compile_info.label.labels.get(name)
+        if exists is not None:
+            raise Exception(f"Duplicate inline label {name}")
         compile_info.label.add_label(name, self)
 
     def never_indent(self):

@@ -684,9 +684,25 @@ class MastAsyncTask(Agent, Promise):
     
     @property
     def active_label(self):
+        #
+        # PyMast will fail on this
+        #
         if self.active_ticker is None:
             return "main"
         return self.active_ticker.active_label
+
+    @property
+    def active_label_object(self):
+        #
+        # PyMast will fail on this
+        #
+        if self.active_ticker is None:
+            return self.main.mast.labels.get("main")
+        label = self.active_ticker.active_label
+        if isinstance(label, str):
+            return self.main.mast.labels.get(label)
+        return label
+
 
     @property
     def is_observable(self):

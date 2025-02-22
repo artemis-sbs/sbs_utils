@@ -36,6 +36,19 @@ def END() -> PollResults:
     return PollResults.OK_END
 
 
+def LABEL():
+    task = FrameContext.task
+    if task is not None:
+        return task.active_label_object
+    return None
+
+def metadata_get_value(k, defa=None):
+    label = LABEL()
+    if label is None:
+        return defa
+    return label.get_inventory_value(k, defa)
+
+
 def log(message: str, name: str=None, level: str=None) -> None:
     """ generate a log message
 
