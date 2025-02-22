@@ -7,6 +7,7 @@ from .listbox import gui_list_box
 from .text import gui_text
 from .update import gui_represent
 from ...pages.widgets.layout_listbox import LayoutListBoxHeader
+from ...agent import Agent
 
 class PropertyControlItem:
     def __init__(self, label, control):
@@ -52,15 +53,34 @@ def _gui_properties_items(values=None):
 
 
 def gui_properties_set(p=None, tag=None):
-    client_id = FrameContext.client_id
-    tag = tag if tag is not None else "__PROPS_LB__"
+    # 
+    # This is confusing because of COMMS
+    # Comms runs on the sever task, but the GUI needs 
+    # to be the client for the comms operations
+    # So COMMS is setting the page to the client
+    # and the server task is the task
+    #
+    page = FrameContext.page
+    task = FrameContext.task
+    FrameContext.page = None
 
-    props_lb = get_inventory_value(client_id, tag)
+    true_page = FrameContext.page
+    if true_page is None:
+        return
+    gui_task = true_page.gui_task
+
+    
+    tag = tag if tag is not None else "__PROPS_LB__"
+    props_lb = gui_task.get_inventory_value(tag)
     if props_lb is None:
         return
     
     props_lb.items = _gui_properties_items(p)
     gui_represent(props_lb)
+    FrameContext.page = page
+    FrameContext.task = task
+    
+
 
 
 def _property_lb_item_template_one_line(item):
@@ -100,7 +120,7 @@ def _property_lb_item_template_two_line(item):
             gui_text(f"Invalid code")
     
 def gui_property_list_box_stacked(name=None, tag=None):
-    page = FrameContext.page
+    task = FrameContext.task
     tag = tag if tag is not None else "__PROPS_LB__"
     name = name if name is not None else "Properties"
 
@@ -109,11 +129,11 @@ def gui_property_list_box_stacked(name=None, tag=None):
                 item_template=_property_lb_item_template_two_line, title_template=name, collapsible=True)
     
     props_lb.title_section_style += "background:#1578;"
-    set_inventory_value(page.client_id, tag, props_lb)    
+    task.set_inventory_value(tag, props_lb)    
     return props_lb
 
 def gui_property_list_box(name=None, tag=None, temp = _property_lb_item_template_one_line):
-    page = FrameContext.page
+    task = FrameContext.task
     tag = tag if tag is not None else "__PROPS_LB__"
     name = name if name is not None else "Properties"
 
@@ -122,5 +142,5 @@ def gui_property_list_box(name=None, tag=None, temp = _property_lb_item_template
                 item_template=temp, title_template=name, collapsible=True)
     
     props_lb.title_section_style += "background:#1578;"
-    set_inventory_value(page.client_id, tag, props_lb)    
+    task.set_inventory_value(tag, props_lb)    
     return props_lb

@@ -176,6 +176,7 @@ class StoryPage(Page):
         # convert console tabs to procedural
         self.gui_queue_console_tabs()
         
+        
         self.rebuild_tag = self.tag
         self.tag = 10000
         

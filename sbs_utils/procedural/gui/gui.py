@@ -85,7 +85,8 @@ class ButtonPromise(AwaitBlockPromise):
         self.run_focus = False
         self.running_button = None
         self.sub_task = None
-        self.nav_sub_task_promise = None 
+        self.nav_sub_task_promise = None
+        self.event = None 
         
     def initial_poll(self):
         if self._initial_poll:

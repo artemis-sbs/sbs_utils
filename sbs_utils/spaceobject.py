@@ -5,6 +5,7 @@ from .agent import Agent, SpawnData
 from .helpers import FrameContext
 from .procedural import ship_data as SHIP_DATA
 from .vec import Vec3
+from .procedural.ship_data import get_ship_data_for
 
 
 class TickType(IntEnum):
@@ -201,6 +202,18 @@ class SpaceObject(Agent):
     @art_id.setter
     def art_id(self: SpaceObject, value: str) -> None:
         self.set_art_id(value)
+
+
+    @property
+    def race(self):
+        data = get_ship_data_for(self._art_id)
+        if data is None:
+            return self.side
+        test = data.get("side", self.side)
+        if test is None:
+            return "unknown"
+        return test.lower()
+    
 
 
     @property

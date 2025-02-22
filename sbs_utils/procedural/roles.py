@@ -1,6 +1,6 @@
 from ..agent import Agent
 from .query import to_object_list, to_set, to_object
-import random
+
 
 def role(role: str):
     """returns a set of all the agents with a given role.
@@ -102,20 +102,5 @@ def has_roles(so, roles):
             if not so.has_role(role):
                 return False
     return True
-
-def get_race(id_or_obj):
-    """ get the race of the specified agent
-
-    Args:
-        id_or_obj (agent): an agent id or object
-
-    Returns:
-        str: The race of the object or None
-    """    
-    races = ["kralien", "arvonian", "torgoth", "skaraan", "ximni"]
-    for test in races:
-        if has_role(id_or_obj, test):
-            return test
-    return None
 
 

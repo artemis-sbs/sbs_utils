@@ -150,7 +150,13 @@ class ScanPromise(ButtonPromise):
         super().initial_poll()
 
     def poll(self):
+        # This is in case a gui is used in the can
+        # But it won't
+        event = FrameContext.context.event
+        FrameContext.context.event = self.event
         super().poll()
+        FrameContext.context.event = event
+
 
     def set_scan_results(self, msg):
         selected_id = self.selected_id

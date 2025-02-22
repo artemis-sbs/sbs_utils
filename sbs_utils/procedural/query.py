@@ -1,4 +1,4 @@
-from random import randrange, choice, choices
+from random import choice, choices
 from ..agent import Agent, CloseData, SpawnData
 from ..helpers import FrameContext
 
@@ -438,6 +438,25 @@ def get_side(id_or_obj):
     if so is not None:
         return so.side
     return ""
+
+def get_race(id_or_obj):
+    """ get the race of the specified agent
+        race by default is the side from ship_data
+        
+    Args:
+        id_or_obj (agent): an agent id or object
+
+    Returns:
+        str: The race of the object or None
+    """
+    obj = to_object(id_or_obj)
+    if obj is None:
+        return ""
+    
+    return obj.race
+    
+
+
 
 def random_id(the_set):
     """ get the object from the set provide

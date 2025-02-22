@@ -34,7 +34,7 @@ class FrameContextMeta(type):
     
     @property
     def client_id(self):
-        if self.context is None:
+        if self.context is None or self.context.event is None:
             return 0
         return self.context.event.client_id
     

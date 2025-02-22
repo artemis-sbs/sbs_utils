@@ -3,14 +3,11 @@ from .inventory import get_inventory_value
 from .roles import has_role
 from .. import faces
 from ..agent import Agent
-from ..helpers import FrameContext
+from ..helpers import FrameContext, FakeEvent
 from ..garbagecollector import GarbageCollector
 from ..mast.mastscheduler import ChangeRuntimeNode
 from ..mast.pollresults import PollResults
 from ..mast_sbs.story_nodes.button import Button
-
-
-
 
 
 def comms_broadcast(ids_or_obj, msg, color="#fff") -> None:
@@ -359,6 +356,7 @@ class CommsPromise(ButtonPromise):
             self.button.visit((self.origin_id, self.selected_id))
         self.clear()
         self.task.tick()
+
         
     def collect(self) -> bool:
         oo = query.to_object(self.origin_id)
@@ -573,7 +571,13 @@ class CommsPromise(ButtonPromise):
 
 
     def poll(self):
+        event = FrameContext.context.event
+        #if self.event is not None:
+        FrameContext.context.event = self.event
+        # else:
+        #     FrameContext.context.event = FakeEvent(client_id=1)
         super().poll()
+        FrameContext.context.event = event
         #
         # If the ship was unknown, but now is known
         #

@@ -10,10 +10,17 @@ def gui_represent(layout_item):
     Args:
         layout_item (layout_item): 
     """    
-    page = FrameContext.page
-    if page is None:
+    
+    #
+    # This get the client ID from the event
+    # To get the true client ID
+    # There was confusion when comms runs on  client_id 0
+    # but want to update the client's GUI
+    #
+    frame_event = FrameContext.context.event
+    if frame_event is None:
         return
-    event = FakeEvent(page.client_id)
+    event = FakeEvent(frame_event.client_id)
     #sbs.target_gui_sub_region(page.client_id, "FULL")
     layout_item.represent(event)
     #sbs.send_gui_complete(event.client_id)
