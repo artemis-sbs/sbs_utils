@@ -79,6 +79,7 @@ from ..procedural import media
 from ..procedural import objective
 from ..procedural import upgrades
 from ..procedural import docking
+from ..procedural import brain
 from ..procedural import extra_scan_sources
 from ..cards import card
 
@@ -106,6 +107,7 @@ MastGlobals.import_python_module('sbs_utils.procedural.media')
 MastGlobals.import_python_module('sbs_utils.procedural.objective')
 MastGlobals.import_python_module('sbs_utils.procedural.upgrades')
 MastGlobals.import_python_module('sbs_utils.procedural.docking')
+MastGlobals.import_python_module('sbs_utils.procedural.brain')
 MastGlobals.import_python_module('sbs_utils.procedural.extra_scan_sources')
 MastGlobals.import_python_module('sbs_utils.cards.card')
 MastGlobals.import_python_module('sbs_utils.faces')
