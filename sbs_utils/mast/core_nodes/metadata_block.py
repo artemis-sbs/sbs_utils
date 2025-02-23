@@ -2,11 +2,11 @@ from ..mast_node import MastNode, mast_node, BLOCK_START
 import re
 from ... import yaml
 
-MAST_CODE_BLOCK = r"\s*```(\s*(?P<tag>(\w+))\s*)?\n(?P<data>([\s\S]*?))\n```"
+MAST_CODE_BLOCK = r"[ \t]*```([ \t]*(?P<tag>(\w+)))?[ \t]*\n(?P<data>([\s\S]*?))\n```"
 
 @mast_node()
 class MetaDataBlock(MastNode):
-    rule = re.compile(r"metadata:\s*"+MAST_CODE_BLOCK)
+    rule = re.compile(r"metadata:"+MAST_CODE_BLOCK)
     def __init__(self, tag=None, data=None, loc=None, compile_info=None):
         super().__init__()
         
@@ -17,7 +17,9 @@ class MetaDataBlock(MastNode):
         # compile_info label is Card etc.
         # tag tag = label?
         # Process now
-        match tag:
+        if self.tag is None:
+            self.tag = tag = 'yaml'
+        match self.tag:
             case "yaml":
                 self.data = yaml.safe_load(data)
                 if self.is_label_metadata:

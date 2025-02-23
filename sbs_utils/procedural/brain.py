@@ -1,9 +1,8 @@
 """ Manage all brains
 """
 from sbs_utils.helpers import FrameContext
-from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
-from sbs_utils.procedural.links import linked_to,unlink, has_link_to, link
-from sbs_utils.agent import Agent, get_story_id
+from sbs_utils.procedural.inventory import get_inventory_value
+from sbs_utils.agent import Agent
 from sbs_utils.procedural.query import to_set, to_object
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.mast.pollresults import PollResults
@@ -60,6 +59,10 @@ class Brain:
 
 
     def run(self):
+        # Convert label string to label object
+        if isinstance(self.label, str):
+            task = get_inventory_value(self.client_id, "GUI_TASK", FrameContext.task)    
+            self.label = task.main.mast.labels.get(self.label, None)
         if not self._started:
             self._started = True
             enter = self.label.labels.get("enter")
@@ -85,7 +88,7 @@ class Brain:
     def run_sub_label(self, loc):
         task = get_inventory_value(self.client_id, "GUI_TASK", FrameContext.task)
         t : MastAsyncTask
-        t = task.start_task(self.label, self.data, defer=True)
+        t = task.start_task(self.label, self.data, defer=True, inherit=False)
         t.jump(self.label, loc)
         t.set_variable("BRAIN", self)
         #t.set_variable("BRAIN_ID", self.id)
@@ -100,12 +103,32 @@ def brain_add(agent_id_or_set, label, data=None, client_id=0):
 
     # Make sure a tick task is running
     brain_schedule()
-
-    
-    agent_id_or_set = to_set(agent_id_or_set)
-    for agent in agent_id_or_set:
-        # Added to __all in init
-        Brain(agent, label, data, client_id)
+    label_list = [(label, data)]
+    if isinstance(label, list):
+        label_list = []
+        for l in label:
+            if isinstance(l, str):
+                this_label = l
+                this_data = data
+            elif isinstance(l, dict):
+                this_label = l.get("label")
+                this_data = l.get("data")
+            else:
+                this_label = l
+                this_data = data
+            if this_label is None:
+                continue # Bad data
+            if this_data is not None and data is not None and data != this_data:
+                this_data = data | this_data
+            elif this_data is None:
+                this_data = data
+            label_list.append((this_label, this_data))
+    for ld in label_list:
+        label, data = ld
+        agent_id_or_set = to_set(agent_id_or_set)
+        for agent in agent_id_or_set:
+            # Added to __all in init
+            Brain(agent, label, data, client_id)
 
 
 

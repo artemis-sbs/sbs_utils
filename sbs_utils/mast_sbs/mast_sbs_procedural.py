@@ -4,17 +4,8 @@ from ..mast.mast_globals import MastGlobals
 
 
 from ..lifetimedispatcher import LifetimeDispatcher
-from ..gui import Gui
-from .. import faces
 import sys
-
-import re
-from ..procedural import query
-from ..procedural import links
-from ..procedural import inventory
-
-from .. import vec
-
+from ..gui import Gui
 #
 #
 #
@@ -36,6 +27,7 @@ MastGlobals.globals["mast_format_string"] = mast_format_string
 MastGlobals.globals["script"] = sys.modules['script']
 
 import sbs
+from .. import vec
 MastGlobals.globals["sbs"] = sbs
 MastGlobals.globals['Vec3'] = vec.Vec3
 for func in [
@@ -55,81 +47,93 @@ Mast.make_global_var("ASSERT", mast_assert)
 #
 # Expose procedural methods to script
 #
+
 from ..procedural import query
-from ..procedural import spawn
-from ..procedural import timers
-from ..procedural import grid
-from ..procedural import internal_damage
-from ..procedural import space_objects
-from ..procedural import ship_data
-from ..procedural import roles
-from ..procedural import inventory
-from ..procedural import links
-from ..procedural import gui
-from ..procedural import comms
-from ..procedural import science
-from ..procedural import cosmos
-from ..procedural import routes
-from ..procedural import execution
-from ..procedural import behavior
-from ..procedural import signal
-from ..procedural import maps
-from ..procedural import mission
-from ..procedural import media
-from ..procedural import objective
-from ..procedural import upgrades
-from ..procedural import docking
-from ..procedural import brain
-from ..procedural import extra_scan_sources
-from ..cards import card
-
-
 MastGlobals.import_python_module('sbs_utils.procedural.query')
+from ..procedural import spawn
 MastGlobals.import_python_module('sbs_utils.procedural.spawn')
+from ..procedural import timers
 MastGlobals.import_python_module('sbs_utils.procedural.timers')
+from ..procedural import grid
 MastGlobals.import_python_module('sbs_utils.procedural.grid')
+from ..procedural import internal_damage
 MastGlobals.import_python_module('sbs_utils.procedural.internal_damage')
+from ..procedural import space_objects
 MastGlobals.import_python_module('sbs_utils.procedural.space_objects')
+from ..procedural import roles
 MastGlobals.import_python_module('sbs_utils.procedural.roles')
+from ..procedural import inventory
 MastGlobals.import_python_module('sbs_utils.procedural.inventory')
+from ..procedural import links
 MastGlobals.import_python_module('sbs_utils.procedural.links')
+from ..procedural import gui
 MastGlobals.import_python_module('sbs_utils.procedural.gui')
+from ..procedural import comms
 MastGlobals.import_python_module('sbs_utils.procedural.comms')
+from ..procedural import science
 MastGlobals.import_python_module('sbs_utils.procedural.science')
+from ..procedural import cosmos
 MastGlobals.import_python_module('sbs_utils.procedural.cosmos')
+from ..procedural import routes
 MastGlobals.import_python_module('sbs_utils.procedural.routes')
+from ..procedural import execution
 MastGlobals.import_python_module('sbs_utils.procedural.execution')
+from ..procedural import behavior
 MastGlobals.import_python_module('sbs_utils.procedural.behavior')
+from ..procedural import signal
 MastGlobals.import_python_module('sbs_utils.procedural.signal')
+from ..procedural import maps
 MastGlobals.import_python_module('sbs_utils.procedural.maps')
+from ..procedural import mission
 MastGlobals.import_python_module('sbs_utils.procedural.mission')
+from ..procedural import media
 MastGlobals.import_python_module('sbs_utils.procedural.media')
+from ..procedural import objective
 MastGlobals.import_python_module('sbs_utils.procedural.objective')
+from ..procedural import upgrades
 MastGlobals.import_python_module('sbs_utils.procedural.upgrades')
+from ..procedural import docking
 MastGlobals.import_python_module('sbs_utils.procedural.docking')
+from ..procedural import brain
 MastGlobals.import_python_module('sbs_utils.procedural.brain')
+from ..procedural import prefab
+MastGlobals.import_python_module('sbs_utils.procedural.prefab')
+from ..procedural import settings
+MastGlobals.import_python_module('sbs_utils.procedural.settings')
+from ..procedural import extra_scan_sources
 MastGlobals.import_python_module('sbs_utils.procedural.extra_scan_sources')
+from ..procedural import ship_data
+MastGlobals.import_python_module('sbs_utils.procedural.ship_data', 'ship_data')
+
+from ..cards import card
 MastGlobals.import_python_module('sbs_utils.cards.card')
+from .. import faces
 MastGlobals.import_python_module('sbs_utils.faces')
 MastGlobals.import_python_module('sbs_utils.fs')
+from .. import vec
 MastGlobals.import_python_module('sbs_utils.vec')
+
+
 #
 # These are exposed with a prepended module name
 #
+from .. import scatter
 MastGlobals.import_python_module('sbs_utils.scatter', 'scatter')
+from .. import names
 MastGlobals.import_python_module('sbs_utils.names', 'names')
-MastGlobals.import_python_module('sbs_utils.procedural.ship_data', 'ship_data')
+
+
 MastGlobals.import_python_module('sbs', 'sbs')
 
 #
 # These are needed so the import later works, domn't remove
 #
-from sbs_utils.pages.widgets.listbox import Listbox
-from sbs_utils.pages.widgets.layout_listbox import layout_list_box_control
-from sbs_utils.pages.widgets.shippicker import ShipPicker
 
 ######################
 ## Mast extensions
+from sbs_utils.pages.widgets.shippicker import ShipPicker
 MastGlobals.import_python_module('sbs_utils.pages.widgets.shippicker')
+from sbs_utils.pages.widgets.listbox import Listbox
 MastGlobals.import_python_module('sbs_utils.pages.widgets.listbox')
+from sbs_utils.pages.widgets.layout_listbox import layout_list_box_control
 MastGlobals.import_python_module('sbs_utils.pages.widgets.layout_listbox')

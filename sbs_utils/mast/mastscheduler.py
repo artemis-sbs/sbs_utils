@@ -1080,7 +1080,7 @@ class MastScheduler(Agent):
         #    self.inputs = inputs
         label_name = label
         if isinstance(label, str):
-            label =  self.mast.labels.get(label,  None)
+            label =  self.mast.labels.get(label, None)
         if label is None:
             raise Exception(f"Calling undefined label {label_name}")
         # Add Meta data, but the task and passed data overrides it

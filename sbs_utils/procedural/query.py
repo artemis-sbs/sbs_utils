@@ -73,6 +73,8 @@ def to_set(other: Agent | CloseData | int):
             set of things
         """
     if isinstance(other, list):
+        # Convert to a list of IDs
+        other = [y for x in other if (y:=Agent.resolve_id(x)) is not None]
         return set(other)
     elif isinstance(other, set):
         return other
