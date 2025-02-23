@@ -880,13 +880,16 @@ class MastAsyncTask(Agent, Promise):
             pass
         
 
-    def start_task(self, label = "main", inputs=None, task_name=None, defer=False)->MastAsyncTask:
-        if inputs is not None:
-            inputs = self.inventory.collections | inputs
-        else:
-            inputs = self.inventory.collections | {}
+    def start_task(self, label = "main", inputs=None, task_name=None, defer=False, inherit=True)->MastAsyncTask:
+        # Sub task share data noe need to inherit
         if self.is_sub_task and self.root_task != self:
             return self.root_task.start_task(label, inputs, task_name, defer)
+        # Inherit mean it inherits copies of the calling task's value
+        if inherit:
+            if inputs is not None:
+                inputs = self.inventory.collections | inputs
+            else:
+                inputs = self.inventory.collections | {}
         return self.main.start_task(label, inputs, task_name, defer)
             
       
@@ -1075,9 +1078,17 @@ class MastScheduler(Agent):
     def _start_task(self, label = "main", inputs=None, task_name=None)->MastAsyncTask:
         #if self.inputs is None:
         #    self.inputs = inputs
-
-        # if self.mast and self.mast.labels.get(label,  None) is None:
-        #     raise Exception(f"Calling undefined label {label}")
+        label_name = label
+        if isinstance(label, str):
+            label =  self.mast.labels.get(label,  None)
+        if label is None:
+            raise Exception(f"Calling undefined label {label_name}")
+        # Add Meta data, but the task and passed data overrides it
+        if hasattr(label, "inventory"):
+            if inputs is None:
+                inputs = label.inventory.collections
+            else:
+                inputs = label.inventory.collections | inputs
         t= MastAsyncTask(self, inputs, task_name)
         return t
 
