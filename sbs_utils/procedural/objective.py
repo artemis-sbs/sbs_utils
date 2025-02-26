@@ -35,6 +35,10 @@ class Objective(Agent):
         self.scratch = {}
         self.id = get_story_id()
         self.add()
+        desc = self.label.get_inventory_value("desc")
+        if desc is None:
+            desc = self.label.name
+        self.set_inventory_value("desc", desc)
         self.add_role("OBJECTIVE")
         self.add_role("OBJECTIVE_RUN")
         link(self.agent, "OBJECTIVE", self.id)
@@ -59,7 +63,8 @@ class Objective(Agent):
 
 
     def run(self):
-        
+        if self.done:
+            return
         if not self._started:
             self._started = True
             enter = self.label.labels.get("enter")
@@ -77,8 +82,11 @@ class Objective(Agent):
             if leave is not None:
                 self.run_sub_label(leave.loc+1)
         
+            self.remove_role("OBJECTIVE")
+            unlink(self.agent, "OBJECTIVE", self.id)
             self.remove_role("OBJECTIVE_RUN")
             unlink(self.agent, "OBJECTIVE_RUN", self.id)
+        
         
 
 
