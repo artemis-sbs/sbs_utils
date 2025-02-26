@@ -20,7 +20,23 @@ def gui_represent(layout_item):
     frame_event = FrameContext.context.event
     if frame_event is None:
         return
-    event = FakeEvent(frame_event.client_id)
+    
+
+    event = frame_event
+    event_cl = FrameContext.context.event.client_id
+    page_cl = FrameContext.page.client_id
+    # Sometimes the event and page don' match
+    # if one is 0 the other is more likely correct
+    # Example: Manual beams Event is 0, but page is right
+    # Property Grid event is right, Page is wrong
+    if event_cl != page_cl:
+        actual_cl = max(event_cl, page_cl)
+        event = FakeEvent(actual_cl)
+
+    
+    #print(f"E: {event_cl} P: {page_cl}")
+    # region_cl = region.page.client_id
+
     #sbs.target_gui_sub_region(page.client_id, "FULL")
     layout_item.represent(event)
     #sbs.send_gui_complete(event.client_id)
