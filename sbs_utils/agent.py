@@ -286,6 +286,7 @@ class Agent():
         :type id: str
         """
         id = Agent.resolve_id(other)
+        link_name = link_name.strip().lower()
         self.links.remove_from_collection(link_name,id)
         # Remove any empty from has links
         collections = link_name.split(",")

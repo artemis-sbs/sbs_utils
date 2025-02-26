@@ -60,6 +60,12 @@ class Objective(Agent):
             return
         self._result = res
         self._done = self._result != PollResults.OK_IDLE
+        if self._done:
+            self.remove_role("OBJECTIVE")
+            unlink(self.agent, "OBJECTIVE", self.id)
+            self.remove_role("OBJECTIVE_RUN")
+            unlink(self.agent, "OBJECTIVE_RUN", self.id)
+
 
 
     def run(self):
@@ -82,10 +88,6 @@ class Objective(Agent):
             if leave is not None:
                 self.run_sub_label(leave.loc+1)
         
-            self.remove_role("OBJECTIVE")
-            unlink(self.agent, "OBJECTIVE", self.id)
-            self.remove_role("OBJECTIVE_RUN")
-            unlink(self.agent, "OBJECTIVE_RUN", self.id)
         
         
 
