@@ -59,6 +59,7 @@ class Objective(Agent):
 
 
     def run(self):
+        
         if not self._started:
             self._started = True
             enter = self.label.labels.get("enter")
@@ -82,6 +83,9 @@ class Objective(Agent):
 
 
     def run_sub_label(self, loc):
+        agent_object = Agent.get(self.agent)
+        if agent_object is None:
+            return PollResults.FAIL_END
         task = get_inventory_value(self.client_id, "GUI_TASK", FrameContext.task)
         t : MastAsyncTask
         t = task.start_task(self.label, self.data, defer=True)
@@ -89,6 +93,7 @@ class Objective(Agent):
         t.set_variable("OBJECTIVE", self)
         t.set_variable("OBJECTIVE_ID", self.id)
         t.set_variable("OBJECTIVE_AGENT_ID", self.agent)
+        t.set_variable("OBJECTIVE_AGENT", agent_object)
         t.tick_in_context()
         return t.tick_result
             
@@ -98,11 +103,59 @@ def objective_add(agent_id_or_set, label, data=None, client_id=0):
     # Make sure a tick task is running
     objective_schedule()
 
-    
-    agent_id_or_set = to_set(agent_id_or_set)
-    for agent in agent_id_or_set:
-        Objective(agent, label, data, client_id)
+    if isinstance(label, dict):
+        data =  label.get("data",data)
+        label = label.get("label")
+        
 
+    if isinstance(label, str) or label is None:
+        task = FrameContext.task
+        l = label
+        label = task.main.mast.labels.get(label, None)
+        if label is None:
+            print(f"Ignoring objective configured with invalid label {l}")
+            return
+
+    label_list = [(label, data)]
+    
+    if isinstance(label, list):
+        label_list = []
+        for l in label:
+            if isinstance(l, str):
+                this_label = l
+                this_data = data
+            elif isinstance(l, dict):
+                this_label = l.get("label")
+                this_data = l.get("data")
+            else:
+                this_label = l
+                this_data = data
+            if this_label is None:
+                continue # Bad data
+            if this_data is not None and data is not None and data != this_data:
+                this_data = data | this_data
+            elif this_data is None:
+                this_data = data
+
+            if isinstance(this_label, str) or label is None:
+                task = FrameContext.task
+                l = this_label
+                this_label = task.main.mast.labels.get(this_label, None)
+                if this_label is None:
+                    print(f"Ignoring objective configured with invalid label {l}")
+                    continue
+            
+            label_list.append((this_label, this_data))
+    ret = []
+    for ld in label_list:
+        label, data = ld
+        agent_id_or_set = to_set(agent_id_or_set)
+        for agent in agent_id_or_set:
+            # Added to __all in init
+            ret.append(Objective(agent, label, data, client_id))
+    if len(ret)==1:
+        return ret[0]
+    return ret
 
 __objectives_is_running = False
 def objectives_run_all(tick_task):
@@ -115,7 +168,7 @@ def objectives_run_all(tick_task):
     try:
         remove_obj = []
         # Don't care about the key here
-        for obj_id in Agent.get_role_set("OBJECTIVE_RUN"):
+        for obj_id in list(Agent.get_role_set("OBJECTIVE_RUN")):
             obj = Agent.get(obj_id)
             # Verify the agent is valid
             agent = obj.agent

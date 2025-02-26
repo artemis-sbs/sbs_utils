@@ -104,6 +104,18 @@ def brain_add(agent_id_or_set, label, data=None, client_id=0):
     # Make sure a tick task is running
     brain_schedule()
     label_list = [(label, data)]
+    if isinstance(label, dict):
+        data = label.get("data",data)
+        label = label.get("label")
+
+    if isinstance(label, str) or label is None:
+        task = FrameContext.task
+        l = label
+        label = task.main.mast.labels.get(label, None)
+        if label is None:
+            print(f"Ignoring objective configured with invalid label {l}")
+            return
+        
     if isinstance(label, list):
         label_list = []
         for l in label:
@@ -122,6 +134,16 @@ def brain_add(agent_id_or_set, label, data=None, client_id=0):
                 this_data = data | this_data
             elif this_data is None:
                 this_data = data
+
+            if isinstance(this_label, str) or label is None:
+                task = FrameContext.task
+                l = this_label
+                this_label = task.main.mast.labels.get(this_label, None)
+                if this_label is None:
+                    print(f"Ignoring brain configured with invalid label {l}")
+                    continue
+          
+
             label_list.append((this_label, this_data))
     for ld in label_list:
         label, data = ld

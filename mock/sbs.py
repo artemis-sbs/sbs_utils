@@ -59,10 +59,14 @@ def broad_test(x1: float, z1: float, x2: float, z2: float, tick_type: int) -> Li
 
 def clear_client_tags() -> None:
     """return a list of client ids, for the computers that are currently connected to this server."""
+
 def create_new_sim() -> None:
     """all space objects are deleted; a blank slate is born."""
     global sim
-    sim = simulation()
+    if sim is None:
+        sim = simulation()
+    return sim
+    
 
 def create_transient(arg0: int, arg1: int, arg2: int, arg3: int, arg4: float, arg5: float, arg6: float, arg7: str) -> None:
     """Generates a temporary graphical object, like an explosion."""
@@ -605,7 +609,8 @@ class quaternion(object): ### from pybind
         self._z = arg0
 class simulation(object): ### from pybind
     def __init__(self):
-        
+        global sim
+        sim = self
         self.object_ids = 0x4000000000000000
         self.space_objects = {}
         self.grid_object_ids =  0x2000000000000000
@@ -637,8 +642,6 @@ class simulation(object): ### from pybind
         """adds a new navarea to space; don't hold on to this Navpoint object in a global; keep the integer ID return value instead    args:  four x/y floats, std::string text, std::string colorDesc"""
     def add_navpoint(self: sbs.simulation, x: float, y: float, z: float, text: str, colDesc: str) -> int:
         """adds a new navpoint to space; don't hold on to this Navpoint object in a global; keep the integer ID return value instead    args:  float x, float y, float z, std::string text, std::string colorDesc"""
-    def create_space_object(self: sbs.simulation, aiTag: str, dataTag: str, abits: int) -> int:
-        """creates a new spaceobject. abits is a 16-bit bitfield for further defining the object.  bit 1, when set, means the object is unmoving and static."""
     def delete_navpoint_by_id(self: sbs.simulation, id: int) -> None:
         """deletes navpoint by its id"""
     def force_update_to_clients(self: sbs.simulation, spaceObjectID: int, playerShipID: int) -> None:

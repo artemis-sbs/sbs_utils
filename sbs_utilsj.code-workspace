@@ -11,6 +11,9 @@
 		},
 		{
 			"path": "../modding_tools"
+		},
+		{
+			"path": "../WalkTheLine"
 		}
 	],
 	"settings": {
