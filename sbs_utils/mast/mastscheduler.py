@@ -1086,9 +1086,9 @@ class MastScheduler(Agent):
         # Add Meta data, but the task and passed data overrides it
         if hasattr(label, "inventory"):
             if inputs is None:
-                inputs = label.inventory.collections
+                inputs = label.inventory.collections.copy()
             else:
-                inputs = label.inventory.collections | inputs
+                inputs = label.inventory.collections.copy() | inputs
         t= MastAsyncTask(self, inputs, task_name)
         return t
 
