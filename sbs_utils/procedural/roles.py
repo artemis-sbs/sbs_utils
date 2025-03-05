@@ -13,6 +13,30 @@ def role(role: str):
     """
     return Agent.get_role_set(role)
 
+def role_allies(id_or_obj):
+    """returns a set of all the ids from allies.
+
+    Args:
+        id_or_obj (id | object): The item to get allies
+
+    Returns:
+        agent id set: a set of agent IDs
+    """
+    ret = set()
+    obj = to_object(id_or_obj)
+    if obj is None or obj.id==0:
+        return ret
+    allies = obj.data_set.get("ally_list",0)
+    ret = role(obj.side)
+    if allies is None or allies=="":
+        return ret
+    # Make sure side is included
+    items = allies.split(",")
+    for _role in items:
+        ret |= role(_role)
+    return ret
+
+
 def any_role(roles: str):
     """returns a set of all the agents with a any of the given roles.
 

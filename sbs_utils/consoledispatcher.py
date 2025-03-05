@@ -307,10 +307,7 @@ class ConsoleDispatcher:
         # This is for give orders
         #
         if "comm" in event.sub_tag and event.value_tag == "2dview":
-            alt_ship = get_inventory_value(event.client_id, f"{event.value_tag}_alt_ship", 0)
-            # Only do this for the alt ship
-            if alt_ship is not None and alt_ship != 0:
-                return "comms_2d_target_UID"
+            return "comms_2d_target_UID"
             
 
         # A basic 2d view
