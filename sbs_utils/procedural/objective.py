@@ -4,7 +4,7 @@ from sbs_utils.helpers import FrameContext
 from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
 from sbs_utils.procedural.links import linked_to,unlink, has_link_to, link
 from sbs_utils.agent import Agent, get_story_id
-from sbs_utils.procedural.query import to_set
+from sbs_utils.procedural.query import to_set, to_object_list
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.mast.mastscheduler import MastAsyncTask
@@ -84,13 +84,13 @@ class Objective(Agent):
             self.result = self.run_sub_label(0)
 
         if self.done:
-            leave = self.label.labels.get("leave", None)
-            if leave is not None:
-                self.run_sub_label(leave.loc+1)
-        
-        
-        
+            self.stop_and_leave(self.result)
 
+    def stop_and_leave(self, result=PollResults.FAIL_END):
+        leave = self.label.labels.get("leave", None)
+        self.result = result
+        if leave is not None:
+            self.run_sub_label(leave.loc+1)
 
     def run_sub_label(self, loc):
         agent_object = Agent.get(self.agent)
@@ -106,8 +106,15 @@ class Objective(Agent):
         t.set_variable("OBJECTIVE_AGENT", agent_object)
         t.tick_in_context()
         return t.tick_result
-            
 
+def objective_clear(agent_id_or_set):
+    agent_id_or_set = to_set(agent_id_or_set)
+    for agent in agent_id_or_set:
+        for obj in to_object_list(linked_to(agent, "OBJECTIVE")):
+            if obj is not None:
+                obj.stop_and_leave()
+
+        
 
 def objective_add(agent_id_or_set, label, data=None, client_id=0):
     # Make sure a tick task is running

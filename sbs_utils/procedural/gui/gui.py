@@ -45,6 +45,10 @@ from .change import ChangeTrigger
 import re
 
 
+def gui_screen_size(client_id):
+    return get_client_aspect_ratio(client_id)
+
+
 class ChoiceButtonRuntimeNode:
     def __init__(self, promise, button, tag):
         self.promise = promise

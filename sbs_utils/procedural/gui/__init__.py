@@ -44,5 +44,5 @@ from .change import gui_change
 
 
 from .gui import ButtonPromise
-from .gui import gui, gui_hide_choice
+from .gui import gui, gui_hide_choice, gui_screen_size
 

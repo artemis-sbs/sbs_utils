@@ -32,7 +32,6 @@ class Brain:
         self._result = PollResults.OK_IDLE
         # Ability to have console/client based brains
         self.client_id = client_id
-        self.scratch = {}
 
         brains = Brain.all.get(agent, [])
         brains.append(self)
@@ -97,6 +96,13 @@ class Brain:
         t.tick_in_context()
         return t.tick_result
             
+
+def brain_clear(agent_id_or_set):
+    agent_id_or_set = to_set(agent_id_or_set)
+    for agent in agent_id_or_set:
+        brains = Brain.all.get(agent, None)
+        if brains is not None:
+            del Brain.all[agent] 
 
 
 def brain_add(agent_id_or_set, label, data=None, client_id=0):

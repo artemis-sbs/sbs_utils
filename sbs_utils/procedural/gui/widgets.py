@@ -54,7 +54,7 @@ def gui_update_widget_list(add_widgets=None, remove_widgets= None):
         else:
             new_widgets = new_widgets + delim + widget
             delim = "^"
-    print(f"GUI {new_widgets} {widgets} {add_widgets} {remove_widgets}")
+    #print(f"GUI {new_widgets} {widgets} {add_widgets} {remove_widgets}")
     FrameContext.context.sbs.send_client_widget_list(page.client_id, page.console, new_widgets)
 
 

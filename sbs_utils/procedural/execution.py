@@ -324,3 +324,24 @@ def AWAIT(promise: Promise) -> PromiseWaiter:
     """    
     return PromiseWaiter(promise)
     
+def labels_get_type(label_type):
+    ret = []
+    page = FrameContext.page
+    if page is None:
+        return []
+    #
+    # Walk all labels looking for map Labels
+    #
+    all_labels = page.story.labels
+    for l in all_labels:
+        label = all_labels.get(l)
+        if label is None:
+            continue # Bad Label??
+        test = label.get_inventory_value("type")
+        if test is None:
+            test = l
+        if not test.startswith(label_type):
+            continue
+        m = all_labels[l]
+        ret.append(m)
+    return ret
