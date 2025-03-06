@@ -182,6 +182,7 @@ def brains_run_all(tick_task):
                     break
                 brain.run()
                 if brain.result == PollResults.OK_SUCCESS:
+                    agent_obj.set_inventory_value("brain_active", brain.label.name)
                     break
             if len(Brain.all[agent])==0:
                 remove_obj.append(agent)
