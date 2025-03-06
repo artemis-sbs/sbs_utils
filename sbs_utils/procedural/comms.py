@@ -10,6 +10,33 @@ from ..mast.pollresults import PollResults
 from ..mast_sbs.story_nodes.button import Button
 
 
+class CommsOverride:
+    active_overrides = []
+    def __init__(self, origin_id=None, selected_id=None, face=None, from_name=None):
+        self.origin_id = origin_id
+        self.selected_id = selected_id
+        self.face = face
+        self.from_name = from_name
+
+    def __enter__(self):
+        CommsOverride.active_overrides.append(self)
+        return self
+
+    def __exit__(self):
+        if len(CommsOverride.active_overrides)>0:
+            CommsOverride.active_overrides.pop()
+
+    @classmethod
+    def active(cls):
+        if len(CommsOverride.active_overrides)>0:
+            return CommsOverride.active_overrides[-1]
+        return None
+
+        
+def comms_override(origin_id=None, selected_id=None, face=None, from_name=None):
+    return CommsOverride(origin_id, selected_id, face, from_name)
+
+
 def comms_broadcast(ids_or_obj, msg, color="#fff") -> None:
     """Send text to the text waterfall
     The ids can be player ship ids or client/console ids
@@ -49,7 +76,18 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
         face (str, optional): The face string to use. Defaults to None.
         color (str, optional): The color of the body text. Defaults to "#fff".
         title_color (str, optional): The color of the title text. Defaults to None.
-    """    
+    """ 
+    _override = CommsOverride.active()
+    if _override is not None:
+        if _override.face is not None:
+            face = _override.face
+        if _override.from_name is not None:
+            from_name = _override.from_name
+        if _override.origin_id is not None:
+            to_ids_or_obj = _override.origin_id
+        if _override.selected_id is not None:
+            from_ids_or_obj = _override.selected_id
+
     if to_ids_or_obj is None:
         # internal message
         to_ids_or_obj = from_ids_or_obj
@@ -57,6 +95,9 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
         title_color = color
     if FrameContext.task:
         msg = FrameContext.task.compile_and_format_string(msg)
+
+    
+
     
     from_objs = query.to_object_list(from_ids_or_obj)
     to_objs = query.to_object_list(to_ids_or_obj)

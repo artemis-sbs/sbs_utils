@@ -94,11 +94,13 @@ class StoryPage(Page):
                     # elapsed_time = time.perf_counter() - t
 
                     self.compiler_errors = self.errors
+                    cls.story.compiler_errors = self.errors
                     #if len(self.errors)>0:
                     #    cls.story = None
         
                     
         self.story = cls.story
+        self.compiler_errors = self.story.compiler_errors
         self.main = cls.__dict__.get("main", "main")
         self.main_server = cls.__dict__.get("main_server", self.main)
         self.main_client = cls.__dict__.get("main_client", self.main)

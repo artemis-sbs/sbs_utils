@@ -163,6 +163,7 @@ class Mast():
         self.is_import = is_import
         self.basedir = None
         self.parent_basedir = None
+        self.compiler_errors = []
                 
 
         if cmds is None:
@@ -172,6 +173,7 @@ class Mast():
             cmds = self.compile(cmds, "<string>")
         # else:
         #     self.build(cmds)
+
         
 
     def make_global(func):

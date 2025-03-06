@@ -720,13 +720,16 @@ class MastAsyncTask(Agent, Promise):
 
     def get_symbols(self):
         if self.root_task != self:
-            return self.root_task.get_symbols()
-        # m1 = self.main.mast.vars | self.main.vars
-        #mast_inv = self.main.get_symbols()
-        m1 = self.main.get_symbols()
-        m1 =   m1 | self.inventory.collections 
+            m1 = self.root_task.get_symbols()
+        else:
+            # m1 = self.main.mast.vars | self.main.vars
+            #mast_inv = self.main.get_symbols()
+            m1 = self.main.get_symbols()
+            m1 =   m1 | self.inventory.collections 
+
         for st in self.label_stack:
             data = st.data
+            # print(f"GET SYMBOLS {data}")
             if data is not None:
                 m1 =   m1 | data
         # if self.redirect and self.redirect.data:
@@ -983,9 +986,11 @@ class MastAsyncTask(Agent, Promise):
         return res
         
 
-    def jump(self, label = "main", activate_cmd=0):
+    def jump(self, label = "main", activate_cmd=0, respect_inline=False):
         if isinstance(label, str) or isinstance(label, Label):
             self.active_ticker = self.mast_ticker
+            if respect_inline:
+                return self.mast_ticker.do_jump(label, activate_cmd)
             return self.mast_ticker.jump(label, activate_cmd)
         else:
             self.active_ticker = self.py_ticker

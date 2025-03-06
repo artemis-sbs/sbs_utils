@@ -505,6 +505,8 @@ class Agent():
 
     @classmethod
     def get(cls, id):
+        if id is None:
+            return None
         o = cls.all.get(id)
         if o is None:
             return None
