@@ -499,57 +499,27 @@ class navpoint(object): ### from pybind
 
 class object_data_set(object): ### from pybind
     """class object_data_set"""
-    def get(*args, **kwargs):
-        """Overloaded function.
-        
-        1. get(self: object_data_set, arg0: str, arg1: int) -> object
-        
-        Get a value, by name
-        
-        2. get(self: object_data_set, arg0: int, arg1: int) -> object
-        
-        Get a value, by ID"""
-        s_value = ["torpedo_types_available", "tsnscan", "tsnintel", "tsnbio", "tsnstatus"]
-        if args[1] == "torpedo_types_available":
+    def __init__(self):
+        self.values = {}
+
+    def get(self, name, index=0): #*args, **kwargs):
+        values = self.values.get(name, {})
+        value = values.get(index, None)
+        if value is not None:
+            return value
+
+        s_value = ["torpedo_types_available", "tsnscan", "tsnintel", "tsnbio", "tsnstatus", "ally_list"]
+        if name == "torpedo_types_available":
             return "Homing,Nuke,EMP,Mine"
-        if args[1] in s_value:
+        if name in s_value:
             return ""
 
         return 0
-    def set(*args, **kwargs):
-        """Overloaded function.
-        
-        1. set(self: object_data_set, tag: str, in: int, index: int = 0, extraDocText: str = 'a') -> int
-        
-        Set an int value, by name
-        
-        2. set(self: object_data_set, tag: str, in: int, index: int = 0, extraDocText: str = 'a') -> int
-        
-        Set an int64 value, by name
-        
-        3. set(self: object_data_set, tag: str, in: float, index: int = 0, extraDocText: str = 'a') -> int
-        
-        Set a float value, by name
-        
-        4. set(self: object_data_set, tag: str, in: str, index: int = 0, extraDocText: str = 'a') -> int
-        
-        Set a string value, by name
-        
-        5. set(self: object_data_set, arg0: int, arg1: int, arg2: int) -> int
-        
-        Set an int value, by ID
-        
-        6. set(self: object_data_set, arg0: int, arg1: int, arg2: int) -> int
-        
-        Set an int64 value, by ID
-        
-        7. set(self: object_data_set, arg0: int, arg1: float, arg2: int) -> int
-        
-        Set a float value, by ID
-        
-        8. set(self: object_data_set, arg0: int, arg1: str, arg2: int) -> int
-        
-        Set a string value, by ID"""
+    def set(self, tag, value, index=0):
+        values = self.values.get(tag, {})
+        values [index] = value
+        self.values[tag]= values
+
 class quaternion(object): ### from pybind
     """class quaternion"""
     def __init__(self, w, x=None, y=None, z=None, **kwargs):

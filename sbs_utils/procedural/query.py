@@ -121,6 +121,8 @@ def to_object(other: Agent | CloseData | int):
         py_object = other.py_object
     elif isinstance(other, SpawnData):
         py_object = other.py_object
+    elif other==0:
+        return None
     else:
         # should return space object or grid object
         py_object = Agent.get(other)

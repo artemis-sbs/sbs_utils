@@ -37,7 +37,7 @@ def broad_test_around(id_or_obj, width: float, depth: float, broad_type=0xfff0):
     """    
     so = to_object(id_or_obj)
     if so is None:
-        return {}
+        return set()
     _pos = so.engine_object.pos
     obj_list = FrameContext.context.sbs.broad_test(_pos.x-(width/2), _pos.z-(depth/2), _pos.x+(width/2), _pos.z+(depth/2), broad_type)
     return {so.unique_ID for so in obj_list}

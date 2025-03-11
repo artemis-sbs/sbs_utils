@@ -87,6 +87,20 @@ def set_inventory_value(so, key, value):
         if obj is not None:
             obj.set_inventory_value(key, value)
 
+def remove_inventory_value(so, key):
+    """ set inventory value with the given key the the agent  has
+        this is the way to create a collection in inventory
+        
+    Args:
+        id_or_obj (agent): The agent id or object to check
+        key (str): The key/name of the inventory item
+        value (any): the value
+    """
+    obj_list = to_object_list(so)
+    for obj in obj_list:
+        if obj is not None:
+            obj.set_inventory_value(key)
+
 def get_shared_inventory_value(key, default=None):
     """ get inventory value from the shared data agent
         

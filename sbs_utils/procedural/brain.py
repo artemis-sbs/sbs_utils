@@ -1,12 +1,15 @@
 """ Manage all brains
 """
 from sbs_utils.helpers import FrameContext
-from sbs_utils.procedural.inventory import get_inventory_value
+from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value, has_inventory
 from sbs_utils.agent import Agent
 from sbs_utils.procedural.query import to_set, to_object
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.mast.mastscheduler import MastAsyncTask
+from sbs_utils.mast.mast_node import MastNode
+
+from enum import IntFlag
 
 
 __brain_tick_task = None
@@ -18,11 +21,19 @@ def brain_schedule():
     if __brain_tick_task is None:
         __brain_tick_task = TickDispatcher.do_interval(brains_run_all, 3)
 
+class BrainType(IntFlag):
+    # Alters result
+    Invert = 0x02
+    AlwayFail = 0x04
+    AlwaySuccess = 0x08
+    #
+    Simple = 0x100
+    Sequence = 0x200
+    Select = 0x400
+
 
 class Brain:
-    ids = 0
-    all = {}
-    def __init__(self, agent, label, data, client_id):
+    def __init__(self, agent, label, data, client_id, brain_type=BrainType.Simple):
         super().__init__()
         self.agent = agent
         self.label = label #Label could have metadata
@@ -30,16 +41,27 @@ class Brain:
         self._done = False
         self._started = False
         self._result = PollResults.OK_IDLE
+        self._active = None
         # Ability to have console/client based brains
         self.client_id = client_id
+        self.brain_type = brain_type
+        self.children = []
 
-        brains = Brain.all.get(agent, [])
-        brains.append(self)
-        Brain.all[agent] = brains
+    def add_child(self, child):
+        self.children.append(child)
 
     @property
     def done(self):
         return self._done
+    
+    @property
+    def active(self):
+        if self.brain_type & BrainType.Simple:
+            if self.label is not None:
+                return self.label.name
+        elif self._active is not None:
+            return self._active.active
+        return "idle"
     
     @done.setter
     def done(self, _done):
@@ -54,10 +76,58 @@ class Brain:
         # Don't overwrite when done
         if self._done:
             return
+        if self.brain_type & BrainType.AlwayFail:
+            res = PollResults.BT_FAIL
+        elif self.brain_type & BrainType.AlwaySuccess:
+            res = PollResults.BT_SUCCESS
+        elif self.brain_type & BrainType.Invert:
+            if res == PollResults.BT_FAIL:
+                res  = PollResults.BT_SUCCESS
+            elif res == PollResults.BT_SUCCESS:
+                res  = PollResults.BT_FAIL
+
         self._result = res
 
-
     def run(self):
+        match self.brain_type&0xFF00:
+            case BrainType.Simple:
+                self.run_simple()
+            case BrainType.Sequence:
+                self.run_sequence()
+            case BrainType.Select:
+                self.run_select()
+
+    def run_select(self):
+        # Select runs until a success
+        # Otherwise it fails
+        self._active = None
+        for child in self.children:
+            child.run()
+            if child.result == PollResults.BT_SUCCESS:
+                self.result =  PollResults.BT_SUCCESS
+                self.done = True
+                self._active = child
+                set_inventory_value(self.agent, "brain_active", child.active)
+                return
+        
+        self.result =  PollResults.BT_FAIL
+        self.done = True
+
+    def run_sequence(self):
+        # Sequence needs all to succeed
+        # Otherwise it fails
+        for child in self.children:
+            child.run()
+            if child.result == PollResults.BT_FAIL:
+                self.result =  PollResults.BT_FAIL
+                self.done = True
+                return
+        
+        self.result =  PollResults.BT_SUCCESS
+        self.done = True
+
+
+    def run_simple(self):
         # Convert label string to label object
         if isinstance(self.label, str):
             task = get_inventory_value(self.client_id, "GUI_TASK", FrameContext.task)    
@@ -78,11 +148,6 @@ class Brain:
             leave = self.label.labels.get("leave", None)
             if leave is not None:
                 self.run_sub_label(leave.loc+1)
-            brains = Brain.all.get(self.agent, [])
-            brains = [b for b in brains if b != self]
-            Brain.all[self.agent] = brains
-        
-
 
     def run_sub_label(self, loc):
         task = get_inventory_value(self.client_id, "GUI_TASK", FrameContext.task)
@@ -95,26 +160,22 @@ class Brain:
         t.set_variable("BRAIN_AGENT_ID", self.agent)
         t.tick_in_context()
         return t.tick_result
+        
+
+
             
 
 def brain_clear(agent_id_or_set):
     agent_id_or_set = to_set(agent_id_or_set)
     for agent in agent_id_or_set:
-        brains = Brain.all.get(agent, None)
-        if brains is not None:
-            del Brain.all[agent] 
+        set_inventory_value(agent, "__BRAIN__", None)
+        
 
+def brain_add_parent(parent, agent, label, data=None, client_id=0):
+    if isinstance(label, str):
+        label = label.strip()
 
-def brain_add(agent_id_or_set, label, data=None, client_id=0):
-
-    # Make sure a tick task is running
-    brain_schedule()
-    label_list = [(label, data)]
-    if isinstance(label, dict):
-        data = label.get("data",data)
-        label = label.get("label")
-
-    if isinstance(label, str) or label is None:
+    if isinstance(label, str):
         task = FrameContext.task
         l = label
         label = task.main.mast.labels.get(label, None)
@@ -122,42 +183,49 @@ def brain_add(agent_id_or_set, label, data=None, client_id=0):
             print(f"Ignoring objective configured with invalid label {l}")
             return
         
+        child = Brain(agent, label, data, client_id, BrainType.Simple)
+        parent.add_child(child)
+        
+    if isinstance(label, MastNode):
+        child = Brain(agent, label, data, client_id, BrainType.Simple)
+        parent.add_child(child)
+        
+        
     if isinstance(label, list):
-        label_list = []
         for l in label:
-            if isinstance(l, str):
-                this_label = l
-                this_data = data
-            elif isinstance(l, dict):
-                this_label = l.get("label")
-                this_data = l.get("data")
-            else:
-                this_label = l
-                this_data = data
-            if this_label is None:
-                continue # Bad data
-            if this_data is not None and data is not None and data != this_data:
-                this_data = data | this_data
-            elif this_data is None:
-                this_data = data
+            brain_add_parent(parent, agent, l, None)
 
-            if isinstance(this_label, str) or label is None:
-                task = FrameContext.task
-                l = this_label
-                this_label = task.main.mast.labels.get(this_label, None)
-                if this_label is None:
-                    print(f"Ignoring brain configured with invalid label {l}")
-                    continue
-          
+    if isinstance(label, dict):
+        seq = label.get("SEQ")
+        sel = label.get("SEL")
 
-            label_list.append((this_label, this_data))
-    for ld in label_list:
-        label, data = ld
-        agent_id_or_set = to_set(agent_id_or_set)
-        for agent in agent_id_or_set:
-            # Added to __all in init
-            Brain(agent, label, data, client_id)
+        data = label.get("data")
+        # Car
+        the_label = label.get("label")
+        
+        if the_label is not None:
+            brain_add_parent(parent, agent, the_label, data, client_id)
+        elif sel is not None:
+            child = Brain(agent, None, None, client_id, BrainType.Select)
+            parent.add_child(child)
+            brain_add_parent(child, agent, sel, None, client_id)
+        elif seq is not None:
+            child = Brain(agent, None, None, client_id, BrainType.Sequence)
+            parent.add_child(child)
+            brain_add_parent(child, agent, seq, None, client_id)
 
+
+def brain_add(agent_id_or_set, label, data=None, client_id=0, parent=None):
+    brain_schedule()
+    agent_id_or_set = to_set(agent_id_or_set)
+    for agent in agent_id_or_set:
+        if parent is None:
+            parent = get_inventory_value(agent, "__BRAIN__", None)
+            if parent is None:
+                # Default brain is Select
+                parent = Brain(agent, None, None, client_id, BrainType.Select)
+                set_inventory_value(agent, "__BRAIN__", parent)
+        brain_add_parent(parent, agent, label, data, client_id)
 
 
 __brains_is_running = False
@@ -169,29 +237,18 @@ def brains_run_all(tick_task):
 
 
     try:
-        remove_obj = []
-        # Don't care about the key here
-        for agent in Brain.all:
-            brains = list(Brain.all[agent])
-            for brain in brains:
-                # Verify the agent is valid
-                agent = brain.agent
-                agent_obj = Agent.get(agent)
-                if agent_obj is None:
-                    remove_obj.append(agent)
-                    break
-                brain.run()
-                if brain.result == PollResults.OK_SUCCESS:
-                    agent_obj.set_inventory_value("brain_active", brain.label.name)
-                    break
-            if len(Brain.all[agent])==0:
-                remove_obj.append(agent)
-
-        for agent in remove_obj:        
-            Brain.all.pop(agent, None)
-
-
-            
+        all = has_inventory("__BRAIN__")
+        for agent in all:
+            agent_root = get_inventory_value(agent, "__BRAIN__")
+            # Verify the agent is valid
+            agent_obj = Agent.get(agent)
+            if agent_obj is None:
+                break
+            agent_root.run()
+            # Move this to select?
+            # if agent_root.result == PollResults.OK_SUCCESS:
+            #     # agent_obj.set_inventory_value("brain_active", agent_root.label.name)
+            #     break
         
     except Exception as e:
         msg = e
@@ -200,5 +257,11 @@ def brains_run_all(tick_task):
 
 
 
+#  list
+#  dictionary
+#  str
+    # Make sure a tick task is running
+    
 
+    
 
