@@ -108,7 +108,7 @@ class HandleConsoleSelect:
         
         # Don't run if the selection doesn't exist
         so = to_object(event.selected_id)
-        if so is None and self.etype != _POINT:
+        if event.selected_id != 0 and so is None:
             return
         
         # Don't run if the selection doesn't exist
