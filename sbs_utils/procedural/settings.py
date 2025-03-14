@@ -24,6 +24,7 @@ def settings_get_defaults():
         "GAME_STARTED": False,
         "GAME_ENDED": False,
         "DIFFICULTY": 5,
+        "PLAYER_CREATE_DEFAULT": True,
         "PLAYER_COUNT": 1,
         "GRID_THEME": 0,
         "PLAYER_LIST": [
