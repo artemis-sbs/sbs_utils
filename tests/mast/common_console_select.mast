@@ -22,7 +22,7 @@ section style="area: 60,50, 75,90;"
 vradio ship "{ship_list}"
 
 section style="area: 85,50, 99,90;"
-vradio console_select "helm,weapons, comms,science,engineering"
+vradio CONSOLE_SELECT "helm,weapons, comms,science,engineering"
 blank
 row
 button "accept":
@@ -42,7 +42,7 @@ for player_ship in to_object_list(role("__PLAYER__")):
 next player_ship
 
 
-console console_select
+console CONSOLE_SELECT
 
 await gui()
 

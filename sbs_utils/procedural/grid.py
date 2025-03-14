@@ -336,7 +336,7 @@ def grid_get_grid_theme():
     """    
     global _grid_theme
     if _grid_theme is None:
-        _grid_theme = load_json_data(get_artemis_data_dir_filename("grid_theme.json"))
+        _grid_theme = load_json_data(get_artemis_data_dir_filename("GRID_THEME.json"))
         if _grid_theme is None:
             _grid_theme = []
         script_grid_data = load_json_data(get_mission_dir_filename("extra_grid_theme.json"))

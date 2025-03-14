@@ -269,7 +269,7 @@ def grid_apply_system_damage(id_or_obj):
 
 
         # def _delete_ship(t):
-        #     if get_shared_inventory_value("game_ended", False):
+        #     if get_shared_inventory_value("GAME_ENDED", False):
         #         return
         #     for cid in linked_to(ship_id, "consoles") -  role("mainscreen"):
         #         gui_reroute_client(cid, "show_hangar")

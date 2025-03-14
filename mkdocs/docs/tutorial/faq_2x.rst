@@ -402,7 +402,7 @@ COMMAND: warning_popup_message (sends a very short message to the screens specif
 
 ----------------------------------------------------------------------------------------------------
 
-COMMAND: set_difficulty_level (overrides the difficulty level set on the server control screen)
+COMMAND: set_difficulty_level (overrides the DIFFICULTY level set on the server control screen)
 
 
 ----------------------------------------------------------------------------------------------------
@@ -549,7 +549,7 @@ CONDITION: if_fleet_count (tests an indexed fleet's membership count against a c
 
 ----------------------------------------------------------------------------------------------------
 
-CONDITION: if_difficulty (tests the current game's difficulty level against a condition)
+CONDITION: if_difficulty (tests the current game's DIFFICULTY level against a condition)
 
 ----------------------------------------------------------------------------------------------------
 

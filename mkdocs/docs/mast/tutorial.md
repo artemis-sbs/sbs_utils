@@ -202,7 +202,7 @@ To spawn at a lower level see the [spawn](../api/procedural/spawn.md) module.
 
 ### Creating some stations
 
-To create a spread of stations, use the terrain_spawn_stations, passing it the difficulty level and the lethal terrain value. The higher the difficulty, the fewer stations that will spawn. The lethal terrain value tells the function how many mines to generate around the station.
+To create a spread of stations, use the terrain_spawn_stations, passing it the DIFFICULTY level and the lethal terrain value. The higher the DIFFICULTY, the fewer stations that will spawn. The lethal terrain value tells the function how many mines to generate around the station.
 
 === ":mast-icon: {{ab.m}}"
 

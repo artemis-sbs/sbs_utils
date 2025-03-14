@@ -35,16 +35,16 @@ class ClientSelectPage(Page):
         self.player_id = None
         self.console_name = "normal_helm" 
         self.widget_list =  "3dview^2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
-        self.player_count = 0
+        self.PLAYER_COUNT = 0
 
     def present(self, event):
         CID = event.client_id
         SBS = FrameContext.context.sbs
 
         players = SpaceObject.get_role_objects("__PLAYER__")
-        if self.player_count != len(players):
+        if self.PLAYER_COUNT != len(players):
            self.state == "choose"
-           self.player_count == len(players)
+           self.PLAYER_COUNT == len(players)
 
         if self.state == "choose":
             SBS.send_gui_clear(CID,"")

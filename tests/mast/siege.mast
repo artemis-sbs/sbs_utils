@@ -10,7 +10,7 @@ enemy_count=20
 if IS_SERVER:
 ->StartMenu 
 else: 
-# client_main is in console_select
+# client_main is in CONSOLE_SELECT
 -> client_main
 end_if
 

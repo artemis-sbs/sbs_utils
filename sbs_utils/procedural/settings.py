@@ -7,26 +7,26 @@ def settings_get_defaults():
         return setting_defaults
     
     setting_defaults = {
-        "operator_mode": {
+        "OPERATOR_MODE": {
             "enable": False,
             "logo": "media/operator",
             "show_logo_on_main": True,
             "pin": "000000"
         },
-        "auto_start": False,
-        "world_select": "siege",
-        "terrain_select": "some",
-        "lethal_select": "none",
-        "friendly_select": "few",
-        "monster_select": "none",
-        "upgrade_select": "many",
+        "AUTO_START": False,
+        "WORLD_SELECT": "siege",
+        "TERRAIN_SELECT": "some",
+        "LETHAL_SELECT": "none",
+        "FRIENDLY_SELECT": "few",
+        "MONSTER_SELECT": "none",
+        "UPGRADE_SELECT": "many",
         "seed_value": 0,
-        "game_started": False,
-        "game_ended": False,
-        "difficulty": 5,
-        "player_count": 1,
-        "grid_theme": 0,
-        "player_list": [
+        "GAME_STARTED": False,
+        "GAME_ENDED": False,
+        "DIFFICULTY": 5,
+        "PLAYER_COUNT": 1,
+        "GRID_THEME": 0,
+        "PLAYER_LIST": [
             {
                 "name": "Artemis",
                 "id": None,

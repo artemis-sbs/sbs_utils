@@ -49,15 +49,15 @@ Blah Blah Blah
    .. code-tab:: mast
         
      enemy_count=5
-     start_text = "Mission: Basic Siege written in Mast"
+     START_TEXT = "Mission: Basic Siege written in Mast"
 
    .. code-tab:: py PyMast
 
      def __init__(self):
           super().__init__()
-          self.start_text = "Mission: Basic Siege written in PyMast"
+          self.START_TEXT = "Mission: Basic Siege written in PyMast"
           self.enemy_count = 5
-          self.player_count = 0
+          self.PLAYER_COUNT = 0
 
         
 
@@ -67,14 +67,14 @@ Blah Blah Blah
      if IS_SERVER:
           ->start_server 
      else: 
-          # client_main is in console_select
+          # client_main is in CONSOLE_SELECT
           -> client_main
      end_if
 
      ========== start_server ===============
 
      section style="area: 50, 10, 99, 90;"
-     """""{start_text}"""""
+     """""{START_TEXT}"""""
 
      section style="area: 60, 75, 99, 89;"
 
@@ -100,7 +100,7 @@ Blah Blah Blah
      @label()
     def start_server(self):
         self.gui_section("area: 0, 10, 99, 90;")
-        self.gui_text(self.start_text)
+        self.gui_text(self.START_TEXT)
         self.gui_section("area: 60, 75, 99, 89;row-height: 30px")
         slider = self.gui_slider(self.enemy_count, 0, 20, False, None)
         self.gui_row()
@@ -148,7 +148,7 @@ Probably need to break each step out
      vradio ship "{ship_list}"
 
      section style="area: 85,50, 99,90;"
-     vradio console_select "helm,weapons, comms,science,engineering"
+     vradio CONSOLE_SELECT "helm,weapons, comms,science,engineering"
      blank
      row
      button "accept":
@@ -167,7 +167,7 @@ Probably need to break each step out
      end_if
      next player_ship
 
-     console console_select
+     console CONSOLE_SELECT
      await gui
 
         
@@ -182,7 +182,7 @@ Probably need to break each step out
           pick_player = None
           for player in query.to_object_list(query.role("__PLAYER__")):
                players.append(player.name)
-          if self.player_count != players:
+          if self.PLAYER_COUNT != players:
                if len(players):
                     player = players[0]
                     players = ",".join(players)
@@ -429,13 +429,13 @@ Probably need to break each step out
           ============ task_end_game ======= 
           players = role('PlayerShip')
           if len(players)==0:
-               start_text = "Mission is lost!  All yer base are belong to us, dammit."
+               START_TEXT = "Mission is lost!  All yer base are belong to us, dammit."
                -> start_server
           end_if
 
           raiders = role('Raider')
           if len(raiders)==0:
-               start_text = "Mission is won!  All the enemies have been destroyed."
+               START_TEXT = "Mission is won!  All the enemies have been destroyed."
                -> start_server
           end_if
 
@@ -450,14 +450,14 @@ Probably need to break each step out
                #-------------------------------------------------------------------------------
                if len(query.role("Raider")) <= 0:
                     # no enemy ships left in list!
-                    self.start_text = "You have won!^All enemies have been destroyed."
+                    self.START_TEXT = "You have won!^All enemies have been destroyed."
                     sbs.pause_sim()
                     yield self.jump(self.start_server)
                     return
 
                #-------------------------------------------------------------------------------
                if len(query.role("__PLAYER__")) <= 0:
-                    self.start_text = "All your base are belong to us. All PLayer ships have been lost!"
+                    self.START_TEXT = "All your base are belong to us. All PLayer ships have been lost!"
                     sbs.pause_sim()
                     yield self.jump(self.start_server)
                     return
