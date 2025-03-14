@@ -38,7 +38,6 @@ class Brain:
         self.agent = agent
         self.label = label #Label could have metadata
         self.data = data
-        self._done = False
         self._started = False
         self._result = PollResults.OK_IDLE
         self._active = None
@@ -50,9 +49,6 @@ class Brain:
     def add_child(self, child):
         self.children.append(child)
 
-    @property
-    def done(self):
-        return self._done
     
     @property
     def active(self):
@@ -62,10 +58,16 @@ class Brain:
         elif self._active is not None:
             return self._active.active
         return "idle"
+
+    ### Brains are never Done
+    # @property
+    # def done(self):
+    #     #return self._done
+    #     return False
     
-    @done.setter
-    def done(self, _done):
-        self._done = _done
+    # @done.setter
+    # def done(self, _done):
+    #     self._done = _done
     
     @property
     def result(self):
@@ -73,9 +75,6 @@ class Brain:
     
     @result.setter
     def result(self, res):
-        # Don't overwrite when done
-        if self._done:
-            return
         if self.brain_type & BrainType.AlwayFail:
             res = PollResults.BT_FAIL
         elif self.brain_type & BrainType.AlwaySuccess:
@@ -101,30 +100,31 @@ class Brain:
         # Select runs until a success
         # Otherwise it fails
         self._active = None
+        self.result =  PollResults.BT_FAIL
+        for child in self.children:
+            child.result = PollResults.OK_IDLE
         for child in self.children:
             child.run()
             if child.result == PollResults.BT_SUCCESS:
                 self.result =  PollResults.BT_SUCCESS
-                self.done = True
                 self._active = child
                 set_inventory_value(self.agent, "brain_active", child.active)
                 return
-        
         self.result =  PollResults.BT_FAIL
-        self.done = True
 
     def run_sequence(self):
         # Sequence needs all to succeed
         # Otherwise it fails
         for child in self.children:
+            child.result = PollResults.OK_IDLE
+        for child in self.children:
             child.run()
             if child.result == PollResults.BT_FAIL:
                 self.result =  PollResults.BT_FAIL
-                self.done = True
                 return
         
         self.result =  PollResults.BT_SUCCESS
-        self.done = True
+
 
 
     def run_simple(self):
@@ -144,10 +144,6 @@ class Brain:
         else:
             self.result = self.run_sub_label(0)
 
-        if self.done:
-            leave = self.label.labels.get("leave", None)
-            if leave is not None:
-                self.run_sub_label(leave.loc+1)
 
     def run_sub_label(self, loc):
         task = get_inventory_value(self.client_id, "GUI_TASK", FrameContext.task)
@@ -185,10 +181,12 @@ def brain_add_parent(parent, agent, label, data=None, client_id=0):
         
         child = Brain(agent, label, data, client_id, BrainType.Simple)
         parent.add_child(child)
+        return
         
     if isinstance(label, MastNode):
         child = Brain(agent, label, data, client_id, BrainType.Simple)
         parent.add_child(child)
+        return
         
         
     if isinstance(label, list):
@@ -235,33 +233,19 @@ def brains_run_all(tick_task):
         return
     __brains_is_running = True
 
-
-    try:
-        all = has_inventory("__BRAIN__")
-        for agent in all:
+    all = has_inventory("__BRAIN__")
+    for agent in all:
+        try:
             agent_root = get_inventory_value(agent, "__BRAIN__")
             # Verify the agent is valid
             agent_obj = Agent.get(agent)
             if agent_obj is None:
-                break
+                continue
             agent_root.run()
-            # Move this to select?
-            # if agent_root.result == PollResults.OK_SUCCESS:
-            #     # agent_obj.set_inventory_value("brain_active", agent_root.label.name)
-            #     break
         
-    except Exception as e:
-        msg = e
-        print(f"Exception in brain processing {msg}")
+        except Exception as e:
+            msg = e
+            print(f"Exception in brain processing {msg}")
     __brains_is_running = False
-
-
-
-#  list
-#  dictionary
-#  str
-    # Make sure a tick task is running
-    
-
     
 
