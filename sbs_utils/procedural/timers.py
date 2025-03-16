@@ -130,7 +130,7 @@ def start_counter(id_or_obj, name):
 
     set_inventory_value(id_or_obj, f"__counter__{name}", FrameContext.context.sim.time_tick_counter)
 
-def get_counter_elapsed_seconds(id_or_obj, name):
+def get_counter_elapsed_seconds(id_or_obj, name, default_value= None):
     """returns the number of seconds since the counter started
 
     Args:
@@ -143,7 +143,7 @@ def get_counter_elapsed_seconds(id_or_obj, name):
     start = get_inventory_value(id_or_obj, f"__counter__{name}")
     now =  FrameContext.context.sim.time_tick_counter
     if start is None:
-        return None
+        return default_value
     return int((now-start) / TICK_PER_SECONDS)
     
 

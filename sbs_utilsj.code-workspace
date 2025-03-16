@@ -17,6 +17,9 @@
 		},
 		{
 			"path": "../SecretMeeting"
+		},
+		{
+			"path": "../remote_mission_pick"
 		}
 	],
 	"settings": {
