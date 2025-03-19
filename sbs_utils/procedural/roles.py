@@ -11,7 +11,7 @@ def role(role: str):
     Returns:
         agent id set: a set of agent IDs
     """
-    return Agent.get_role_set(role)
+    return set(Agent.get_role_set(role))
 
 def role_allies(id_or_obj):
     """returns a set of all the ids from allies.
