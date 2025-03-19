@@ -129,6 +129,65 @@ def to_object(other: Agent | CloseData | int):
     return py_object
 
 
+def to_client_object(other: Agent | int):
+    """converts the item passed to an gui client
+
+    ??? note
+        Retrun of None could mean the agent no longer exists
+    
+    Args:
+        other (Agent | CloseData | int): The agent ID or other agent like data
+
+    Returns:
+        agent | None: The agent or None
+    """    
+    if isinstance(other, Agent):
+        py_object = other
+        if is_client_id(other.get_id()):
+            return py_object
+    else:
+        if is_client_id(other) or other == 0:
+            # should return space object or grid object
+            return Agent.get(other)
+    return None
+
+def to_space_object(other: Agent | int):
+    """converts the item passed to an gui client
+
+    ??? note
+        Retrun of None could mean the agent no longer exists
+    
+    Args:
+        other (Agent | CloseData | int): The agent ID or other agent like data
+
+    Returns:
+        agent | None: The agent or None
+    """    
+    other = to_object(other)
+    if is_space_object_id(other):
+            # should return space object or grid object
+            return other
+    return None
+
+def to_grid_object(other: Agent | int):
+    """converts the item passed to an gui client
+
+    ??? note
+        Retrun of None could mean the agent no longer exists
+    
+    Args:
+        other (Agent | CloseData | int): The agent ID or other agent like data
+
+    Returns:
+        agent | None: The agent or None
+    """    
+    other = to_object(other)
+    if is_grid_object_id(other):
+            # should return space object or grid object
+            return other
+    return None
+
+
 def object_exists(so_id):
     """check the engine to see if the item exists
 

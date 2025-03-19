@@ -5,6 +5,7 @@ from ..procedural.links import linked_to
 from ..procedural.gui.navigation import gui_reroute_client
 from ..procedural.style import apply_control_styles
 
+from ..procedural.signal import signal_emit
 from ..procedural.execution import log
 from ..agent import Agent
 #from ..pages.layout import layout
@@ -668,6 +669,7 @@ class StoryPage(Page):
             return
         
         if event.tag =="mast:client_disconnect":
+            signal_emit("client_disconnect", {"client_id": self.client_id})
             self.disconnected = True
             self.tick_gui_task()
             # remove scheduler
