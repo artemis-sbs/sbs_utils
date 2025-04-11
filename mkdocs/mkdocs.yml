@@ -57,6 +57,12 @@ nav:
     - PyMAST: mast/python.md
     - Agent Model: mast/model.md
     - Syntax: mast/syntax.md
+    - Prefabs: mast/prefabs.md
+    - AI:
+      - mast/ai/index.md
+      - Simple AI: mast/ai/simple.md
+      - Brain Trees: mast/ai/brains.md
+    - Objectives: mast/objectives.md
     - Routes: 
       - mast/routes/index.md
       - Comms: mast/routes/comms.md

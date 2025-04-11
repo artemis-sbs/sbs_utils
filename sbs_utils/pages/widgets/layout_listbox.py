@@ -591,6 +591,11 @@ class LayoutListbox(layout.Column):
 
         if sec[2] != "__click":
             return
+        
+        if index > len(self.items):
+            self.represent(event)
+            return
+        
         item = self.items[index]
         if self.multi:
             if item in self.selected:
@@ -612,6 +617,9 @@ class LayoutListbox(layout.Column):
         if not sec[1].isdigit():
             return
         index = int(sec[1]) +self.cur
+        if index > len(self.items):
+            self.represent(event)
+            return
         #item = self.sections[index]
         item = self._items[index]
         if isinstance(item, LayoutListBoxHeader):

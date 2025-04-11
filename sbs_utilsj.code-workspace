@@ -20,6 +20,9 @@
 		},
 		{
 			"path": "../remote_mission_pick"
+		},
+		{
+			"path": "../MiningDays"
 		}
 	],
 	"settings": {
