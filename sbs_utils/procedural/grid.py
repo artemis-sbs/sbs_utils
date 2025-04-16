@@ -1,11 +1,12 @@
-from .query import to_blob, to_id, to_object, to_object_list, to_set
-from ..agent import CloseData
+from .query import to_blob, to_id, to_object, to_object_list, to_set, to_space_object
+from ..agent import CloseData, Agent
 from ..tickdispatcher import TickDispatcher
 from .inventory import get_inventory_value, set_inventory_value
 from ..fs import load_json_data, get_artemis_data_dir_filename, get_mission_dir_filename
 import functools
 from ..vec import Vec3
 from ..helpers import FrameContext
+
 
 def grid_objects(so_id):
     """get a set of agent ids of the grid objects on the specified ship
@@ -418,3 +419,12 @@ def grid_get_item_theme_data(roles, name=None):
     
     return r
 
+def grid_delete_objects(ship_id_or_obj):
+    craft_id = to_id(ship_id_or_obj)
+    if craft_id is None:
+        return
+    items =grid_objects(craft_id)
+    for k in items:
+        # delete by id
+        FrameContext.context.sbs.delete_grid_object(craft_id, k)
+        Agent.remove_id(k)
