@@ -9,6 +9,7 @@ from ..procedural.comms import comms_broadcast
 from ..procedural.space_objects import get_pos
 from ..procedural.signal import signal_emit
 from ..helpers import FrameContext
+from ..agent import Agent
 
 import random
 
@@ -69,6 +70,7 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None):
     for k in items:
         # delete by id
         SBS.delete_grid_object(ship_id, k)
+        Agent.remove_id(k)
 
 
     #
