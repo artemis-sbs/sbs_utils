@@ -128,3 +128,16 @@ def has_roles(so, roles):
     return True
 
 
+def are_allies(player_id_or_obj, target_id_or_obj):
+    player_obj = to_object(player_id_or_obj)
+    target_obj = to_object(target_id_or_obj)
+    if player_obj is None or target_obj is None:
+        return False
+    if player_obj.side == target_obj.side:
+        return True
+    allies = player_obj.data_set.get("ally_list",0)
+    if allies is None:
+        return False
+    if target_obj.side in allies:
+        return True
+    return False
