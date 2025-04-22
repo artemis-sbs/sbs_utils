@@ -49,11 +49,11 @@ Each line starting with % is one one the choices that could be displayed.
                 % Wreckage of a destroyed starship. 
         + "status":
             <scan> 
-                % WARNING<colon> Radiation leak detected! Do not board this derelict!
+                % WARNING: Radiation leak detected! Do not board this derelict!
                 % Readings indicate this ship was destroyed by weapons fire.
                 % Cause of this ship's destruction cannot be determined by sensor scan.
-                % WARNING<colon> high radiation levels! This ship might have been destroyed by an accidental reactor leak.
-                % WARNING<colon> high radiation level warning for the entire crew! This ship might have been destroyed by an accidental reactor leak.
+                % WARNING: high radiation levels! This ship might have been destroyed by an accidental reactor leak.
+                % WARNING: high radiation level warning for the entire crew! This ship might have been destroyed by an accidental reactor leak.
 
         + "bio":
             <scan>
