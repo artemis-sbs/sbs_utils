@@ -144,4 +144,4 @@ class TickDispatcher:
 
         # Remove tasks are completed
         for c in TickDispatcher.completed:
-            TickDispatcher._dispatch_tick.remove(c)
+            TickDispatcher._dispatch_tick.discard(c)
