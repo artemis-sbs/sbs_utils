@@ -104,6 +104,8 @@ from ..procedural import extra_scan_sources
 MastGlobals.import_python_module('sbs_utils.procedural.extra_scan_sources')
 from ..procedural import ship_data
 MastGlobals.import_python_module('sbs_utils.procedural.ship_data', 'ship_data')
+from ..procedural import lifeform
+MastGlobals.import_python_module('sbs_utils.procedural.lifeform')
 
 from ..cards import card
 MastGlobals.import_python_module('sbs_utils.cards.card')

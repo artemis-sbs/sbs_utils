@@ -360,13 +360,16 @@ class CommsPromise(ButtonPromise):
         self.expanded_buttons = None
         self.comms_id = "static"
         self.face = ""
+        self.face_override = None
         self.is_grid_comms = False
         self.assign = None
         
 
     def set_path(self, path) -> None:
         super().set_path(path)
-      
+
+    def set_face_override(self, face):
+        self.face_override = face
 
     def initial_poll(self) -> None:
         if self._initial_poll:
@@ -389,6 +392,7 @@ class CommsPromise(ButtonPromise):
         #
         # Set the client so it knows the selected console
         #
+        self.face_override = None
         self.run_focus = True
         this_button = int(event.sub_tag)
         self.event = event
@@ -492,7 +496,11 @@ class CommsPromise(ButtonPromise):
             return
         
         self.comms_id = selected_so.comms_id
-        self.face = faces.get_face(self.selected_id)
+        if self.face_override is None: 
+            self.face = faces.get_face(self.selected_id)
+        else: 
+            self.face = self.face_override
+        
         
 
         selection = None
@@ -522,6 +530,8 @@ class CommsPromise(ButtonPromise):
         
         #if prev != self.selected_id and prev != 0:
         self.set_path("comms")
+        self.set_face_override(None)
+        self.face = faces.get_face(event.selected_id)
         
         # If the button block is running do not set the buttons
         if not self.is_running:
@@ -683,9 +693,16 @@ def comms_add_button(message, label=None, color=None, data=None, path=None) -> N
             path = "//"+path
 
     p.add_nav_button(Button(message, "+", color=color, label=label, data=data, new_task=True, path=path, loc=0))
-    
 
-def comms_navigate(path) -> None:
+def comms_info_face_override(face=None) -> None:    
+    task = FrameContext.task
+    p = task.get_variable("BUTTON_PROMISE")
+    if p is None:
+        return
+    p.set_face_override(face)
+
+
+def comms_navigate(path, face=None) -> None:
     task = FrameContext.task
     p = task.get_variable("BUTTON_PROMISE")
     if path is None or path == "":
@@ -701,4 +718,5 @@ def comms_navigate(path) -> None:
     if p is None:
         return
     p.set_path(path)
+    p.set_face_override(face)
 
