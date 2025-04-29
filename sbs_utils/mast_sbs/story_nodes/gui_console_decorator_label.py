@@ -7,9 +7,11 @@ import re
 
 @mast_node(append=False)
 class GuiConsoleDecoratorLabel(DecoratorLabel):
-    rule = re.compile(r'(@|//)console/(?P<path>([\w]+))[ \t]+'+STRING_REGEX_NAMED("display_name")+IF_EXP_REGEX)
+    rule = re.compile(r'(@|//)console/(?P<path>([\w]+))(?P<priority>([ \t]*!\d+))?(?P<weight>([ \t]*\^\d+))?[ \t]+'+STRING_REGEX_NAMED("display_name")+IF_EXP_REGEX)
 
-    def __init__(self, path, display_name, if_exp=None, loc=None, compile_info=None, q=None):
+    def __init__(self, path, display_name, weight=None,priority=None,
+                 if_exp=None, loc=None, 
+                 compile_info=None, q=None):
         # Label stuff
         from ...procedural.gui import gui_add_console_type
         id = DecoratorLabel.next_label_id()
@@ -19,6 +21,23 @@ class GuiConsoleDecoratorLabel(DecoratorLabel):
 
         self.path= path
         self.display_name = display_name
+
+        self.raw_weight = 101
+        if weight is not None:
+            try:
+                weight = weight.strip()
+                weight = weight[1:]
+                self.raw_weight = int(weight)
+            except:
+                self.raw_weight = 101
+        self.priority = 100
+        if priority is not None:
+            try:
+                priority  = priority.strip()
+                priority  = priority[1:]
+                self.priority  = int(priority)
+            except:
+                self.priority  = 101
 
         
         gui_add_console_type(path, display_name, None, self)

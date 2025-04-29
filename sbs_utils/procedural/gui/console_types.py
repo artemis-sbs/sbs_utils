@@ -13,7 +13,13 @@ def gui_add_console_type(path, display_name, description, label):
     consoles = Agent.SHARED.get_inventory_value("__CONSOLE_TYPES__", {})
     console = {"display_name": display_name, "label":label, "description": description}
     if path in consoles:
-        print(f"Possible duplicate console {path}")
+        dup = consoles.get(path)
+        if console.label.priority > console.label.priority:
+            pass
+        if dup.label.priority > console.label.priority:
+            return
+        else: 
+            print(f"Possible duplicate console same priority {path}")
     consoles[path] = console
     Agent.SHARED.set_inventory_value("__CONSOLE_TYPES__", consoles)
 
@@ -72,4 +78,5 @@ def gui_get_console_type_list():
         if console.description is None:
             console.description = console.label.desc
         ret.append(console)
+    ret.sort(key=lambda c: c.label.raw_weight)
     return ret
