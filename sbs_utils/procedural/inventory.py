@@ -56,7 +56,11 @@ def get_inventory_value(id_or_object, key, default=None):
         key (str): The key/name of the inventory item
         default (any): the default value data
     """
-    id_or_object = to_object(id_or_object)
+    if id_or_object != 0:
+        id_or_object = to_object(id_or_object)
+    else:
+        id_or_object = Agent.get(0)
+        
     if id_or_object is not None:
         return id_or_object.get_inventory_value(key, default)
     return default
