@@ -19,6 +19,7 @@ class MediaLabel(DecoratorLabel):
     def __init__(self, kind, path, display_name, if_exp=None, q=None, loc=None, compile_info=None):
         # Label stuff
         id = DecoratorLabel.next_label_id()
+        self.label_weight = id
         path = path.lower()
         kind = kind.lower()
         name = f"media/{kind}/{path}/{id}"

@@ -229,17 +229,6 @@ class ButtonPromise(AwaitBlockPromise):
 
     def expand_button(self, button):
         buttons = []
-        # if button.for_code is not None:
-        #     iter_value = self.task.eval_code(button.for_code)
-        #     for data in iter_value:
-        #         self.task.set_value(button.for_name, data, Scope.TEMP)
-        #         clone = button.clone()
-        #         clone.data = data
-        #         clone.message = self.task.format_string(clone.message)
-        #         if clone.color:
-        #             clone.color = self.task.format_string(clone.color)
-        #         buttons.append(clone)
-
         return buttons
 
     def get_expanded_buttons(self):
@@ -251,14 +240,31 @@ class ButtonPromise(AwaitBlockPromise):
         # Expand all the 'for' buttons
         for button in self.buttons:
             if button.__class__.__name__ != "Button":
+                # This could mess with order in gui?
+                # if their are separators?
                 buttons.append(button)
             else:
                 buttons.append(button.clone())
+
             # else:
             #     buttons.extend(self.expand_button(button))
         self.build_navigation_buttons()
         buttons.extend(self.nav_buttons)
+        i = 0
+        order_weights = {}
+        for button in buttons:
+            weight = getattr(button, "weight", 0)
+            order_weights[button] = weight * 1000 + i
+            i +=1 
+        
+        def sort_by_weight(button):
+            weight = order_weights.get(button, -1)
+            print(f"Button Promise {button.raw_weight} {weight} {button.message}")
+            return weight
+
+        buttons.sort(key=sort_by_weight)
         return buttons
+    
     
     def expand_inline(self, inline):
         if inline.inline is  None:
@@ -288,10 +294,19 @@ class ButtonPromise(AwaitBlockPromise):
 
     def add_nav_button(self, button):
         dup = self.nav_button_map.get(button.message)
-        if dup is not None and not dup.is_block:
+        if dup is not None: # and not dup.is_block:
             if dup.path is not None and dup.path == button.path:
                 return
             if dup.label is not None and dup.label == button.label:
+                return
+            # If the weight is greater
+            # It overrides the other button
+            # 0 Means it is overridable
+            if button.priority > dup.priority:
+                self.nav_buttons = [x for x in self.nav_buttons if x != dup]
+            elif button.label_weight > dup.label_weight:
+                self.nav_buttons = [x for x in self.nav_buttons if x != dup]
+            else:
                 return
 
         self.nav_buttons.append(button)

@@ -13,6 +13,7 @@ class GuiConsoleDecoratorLabel(DecoratorLabel):
         # Label stuff
         from ...procedural.gui import gui_add_console_type
         id = DecoratorLabel.next_label_id()
+        self.label_weight = id
         name = f"console/{path}/{id}"
         super().__init__(name, loc)
 

@@ -2,18 +2,22 @@ from ...mast.mast_node import MastNode, mast_node, BLOCK_START, OPT_DATA_REGEX, 
 from ...mast.core_nodes.await_cmd import Await
 from ...mast.core_nodes.yield_cmd import Yield
 import re
-from ...mast_sbs.story_nodes.route_label import RouteDecoratorLabel
+from ...mast_sbs.story_nodes.route_label import RouteDecoratorLabel, DecoratorLabel
 from ...mast_sbs.story_nodes.define_format import DefineFormat
 
 OPT_BLOCK_START = r"(?P<block>\:)?[ \t]*(?=\r\n|\n|\#)"
-FORMAT_EXP = r"(\[(?P<format>([\$\#]?\w+[ \t]*(,[ \t]*\#?\w+)?))\])?"
+FORMAT_EXP = r"([ \t]*\[(?P<format>([\$\#]?\w+[ \t]*(,[ \t]*\#?\w+)?))\])?"
+WEIGHT_EXP = r"(?P<weight>([ \t]*\^\d+[ \t]*))?"
+PRIORITY_EXP = r"(?P<priority>([ \t]*!\d+[ \t]*))?"
+
+
 
 @mast_node(append=False)
 class Button(MastNode):
-    rule = re.compile(r"(?P<button>\*|\+)"+FORMAT_EXP+r"""[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)([ \t]*(?P<path>[\w\/]+))?"""+OPT_DATA_REGEX+IF_EXP_REGEX+r"[ \t]*"+OPT_BLOCK_START)
+    rule = re.compile(r"(?P<button>\*|\+)"+PRIORITY_EXP+WEIGHT_EXP+FORMAT_EXP+r"""[ \t]*(?P<q>["'])(?P<message>[ \t\S]+?)(?P=q)([ \t]*(?P<path>[\w\/]+))?"""+OPT_DATA_REGEX+IF_EXP_REGEX+r"[ \t]*"+OPT_BLOCK_START)
     def __init__(self, message=None, button=None,  
                 if_exp=None, format=None, label=None, 
-                clone=False, q=None, 
+                clone=False, q=None, weight=None,priority=None,
                 new_task=None, data=None, path=None, block=None,loc=None, compile_info=None):
         super().__init__()
         #
@@ -38,14 +42,33 @@ class Button(MastNode):
         self.dedent_node = None
         self.is_block = block is not None
         self.use_sub_task = new_task
-        self.label_to_run = None
+        self.label_weight = 0
+        self.raw_weight = 100
+        if weight is not None:
+            try:
+                weight = weight.strip()
+                weight = weight[1:]
+                self.raw_weight = int(weight)
+            except:
+                self.raw_weight = 101
+        self.priority = 100
+        if priority is not None:
+            try:
+                priority  = priority.strip()
+                priority  = priority[1:]
+                self.priority  = int(priority)
+            except:
+                self.priority  = 101
+        #self.label_to_run = None
         
-        if compile_info is not None:
-            self.label_to_run = compile_info.label
+        if compile_info is not None and isinstance(compile_info.label, DecoratorLabel):
+        #    self.label_to_run = compile_info.label
+            self.label_weight = compile_info.label.label_weight
         if compile_info is not None and isinstance(compile_info.label, RouteDecoratorLabel):
             if self.is_block:
                 self.use_sub_task = True
                 label = compile_info.label
+                
         elif label is None:
             self.await_node = Await.stack[-1]
             self.await_node.buttons.append(self)
@@ -67,21 +90,19 @@ class Button(MastNode):
             self.label = path
             self.use_sub_task = True
 
-        
-
         if if_exp:
             if_exp = if_exp.lstrip()
             self.code = compile(if_exp, "<string>", "eval")
         else:
             self.code = None
 
-        # self.for_name = for_name
-        # if for_exp:
-        #     for_exp = for_exp.lstrip()
-        #     self.for_code = compile(for_exp, "<string>", "eval")
-        # else:
-        #     self.for_code = None
         
+    @property
+    def weight(self):
+        # Negative to make higher weights first
+        # Then label_weight groups by label if raw_weight is the same
+        # The order in which they were built is the final
+        return self.raw_weight * 1000 + self.label_weight * 1000
 
     def visit(self, id_tuple):
         if self.visited is not None:
@@ -114,7 +135,10 @@ class Button(MastNode):
         proxy.is_block = self.is_block
         proxy.use_sub_task = self.use_sub_task
         proxy.path = self.path
-        proxy.label_to_run = self.label_to_run
+        proxy.label_weight = self.label_weight
+        proxy.raw_weight = self.raw_weight
+        proxy.priority = self.priority
+        #proxy.label_to_run = self.label_to_run
         ####
         # This is used by the gui buttons
         proxy.layout_item = None 

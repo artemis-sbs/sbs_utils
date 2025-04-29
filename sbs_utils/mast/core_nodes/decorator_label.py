@@ -13,6 +13,7 @@ class DecoratorLabel(Label):
     def __init__(self, name, loc=None):
         super().__init__(name)
         self.loc = loc
+        self.label_weight = 0
         
 
     def can_fallthrough(self, parent):

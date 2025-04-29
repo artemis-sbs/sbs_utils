@@ -11,6 +11,7 @@ class GuiTabDecoratorLabel(DecoratorLabel):
         from ...procedural.gui import gui_add_console_tab
         # Label stuff
         id = DecoratorLabel.next_label_id()
+        self.label_weight = id
         name = f"gui/tab/{path}/{id}"
         super().__init__(name, loc)
 

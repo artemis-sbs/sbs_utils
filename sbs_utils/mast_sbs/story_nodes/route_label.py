@@ -15,6 +15,7 @@ class RouteDecoratorLabel(DecoratorLabel):
         name = f"__route__{path}__{id}__" 
         super().__init__(name, loc)
 
+        self.label_weight = id
         self.path= path
         self.if_exp = if_exp
         # need to negate if
