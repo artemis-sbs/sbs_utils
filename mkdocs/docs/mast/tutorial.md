@@ -222,7 +222,11 @@ The following task schedules a {{ab.m}} label that handles spawning the player s
 
 ### Creating some enemies
 
-The create_siege_fleet function. This function takes a race for the fleet to spawn. The difficult level 0 - 10.
+The prefab_spawn function is used to create one or more objects that are define by a prefab label. 
+
+prefab_fleet_raider is a label for creating enemy fleets.
+
+This function takes a race for the fleet to spawn. The difficult level 0 - 10.
 and a position. This example picks random points in a ring around 0,0,0. 
 
 === ":mast-icon: {{ab.m}}"
@@ -230,7 +234,7 @@ and a position. This example picks random points in a ring around 0,0,0.
     ```
     for a in range(10):
         fleet_pos = Vec3.rand_in_sphere(39990, 40000, False, True)
-        create_siege_fleet("Kralien", 5, fleet_pos.x, fleet_pos.y, fleet_pos.z)
+        prefab_spawn(prefab_fleet_raider, {"race": "skaraan", "fleet_difficulty": DIFFICULTY,"START_X": fleet_pos.x, "START_Y": fleet_pos.y, "START_Z": fleet_pospos.z})
     ```
 
 ### End game conditions

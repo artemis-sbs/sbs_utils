@@ -62,25 +62,69 @@ def gui_properties_set(p=None, tag=None):
     #
     page = FrameContext.page
     task = FrameContext.task
+    # Force it to use the client ID of the event?
     FrameContext.page = None
 
     true_page = FrameContext.page
     if true_page is None:
         return
     gui_task = true_page.gui_task
-
+    
     
     tag = tag if tag is not None else "__PROPS_LB__"
     props_lb = gui_task.get_inventory_value(tag)
     if props_lb is None:
         return
-    
+    FrameContext.task = gui_task 
     props_lb.items = _gui_properties_items(p)
     gui_represent(props_lb)
     FrameContext.page = page
     FrameContext.task = task
     
 
+def gui_properties_get_value(key, defa=None):
+    # 
+    # This is confusing because of COMMS
+    # Comms runs on the sever task, but the GUI needs 
+    # to be the client for the comms operations
+    # So COMMS is setting the page to the client
+    # and the server task is the task
+    #
+    page = FrameContext.page
+    # Force it to use the client ID of the event?
+    FrameContext.page = None
+    true_page = FrameContext.page
+    FrameContext.page = page
+
+    if true_page is None:
+        return
+    gui_task = true_page.gui_task
+    if gui_task is not None:
+        v = gui_task.get_variable(key, defa)
+        return v
+    
+    return defa
+
+def gui_properties_set_value(key, value=None):
+    # 
+    # This is confusing because of COMMS
+    # Comms runs on the sever task, but the GUI needs 
+    # to be the client for the comms operations
+    # So COMMS is setting the page to the client
+    # and the server task is the task
+    #
+    page = FrameContext.page
+    # Force it to use the client ID of the event?
+    FrameContext.page = None
+    true_page = FrameContext.page
+    FrameContext.page = page
+    
+    if true_page is None:
+        return
+    gui_task = true_page.gui_task
+    if gui_task is not None:
+        return gui_task.set_variable(key, value)
+    return value
 
 
 def _property_lb_item_template_one_line(item):
