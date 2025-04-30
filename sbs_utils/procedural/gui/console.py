@@ -43,6 +43,7 @@ def gui_console(console, is_jump=False):
         case "comms":
             console =  "normal_comm"
             widgets = "2dview^text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
+            #widgets = "2dview^text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^red_alert"
         case "cinematic":
             console =  "cinematic"
             widgets = "3dview"

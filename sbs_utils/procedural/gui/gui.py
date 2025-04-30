@@ -41,6 +41,7 @@ from ...mast.pollresults import PollResults
 
 from ..execution import task_all
 from .change import ChangeTrigger
+from ...agent import Agent
 
 import re
 
@@ -259,7 +260,7 @@ class ButtonPromise(AwaitBlockPromise):
         
         def sort_by_weight(button):
             weight = order_weights.get(button, -1)
-            print(f"Button Promise {button.raw_weight} {weight} {button.message}")
+            #print(f"Button Promise {button.raw_weight} {weight} {button.message}")
             return weight
 
         buttons.sort(key=sort_by_weight)
@@ -495,4 +496,27 @@ def gui_hide_choice():
     gui_represent(button_layout)
 
 
+from ...vec import Vec3
+def gui_percent_from_pixels(client_id, pixels):
+    aspect_ratio = get_client_aspect_ratio(client_id)
+    x = (pixels/aspect_ratio.x)*100
+    y = (pixels/aspect_ratio.y)*100
+    return Vec3(x,y,0)
+
+def gui_percent_from_ems(client_id, ems, font):
+    h = FrameContext.context.sbs.get_text_line_height(font, "X")
+    w = FrameContext.context.sbs.get_text_line_width(font, "X")
+    aspect_ratio = get_client_aspect_ratio(client_id)
+    x = ((ems*w)/aspect_ratio.x)*100
+    y = ((ems*h)/aspect_ratio.y)*100
+    return Vec3(x,y,0)
+
+def gui_task_for_client(client_id):
+    gui = Agent.get(client_id)
+    if gui is None:
+        return None
+    page = gui.page
+    if page is None:
+        return None
+    return page.gui_task
 

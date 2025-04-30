@@ -440,6 +440,7 @@ def get_client_aspect_ratio(cid):
     return Vec3(1024,768,99) # 99 Means the client hasn't set the aspect ratio
 
 
+
 # import ctypes
 # #import os
 # from ctypes.wintypes import HWND, DWORD, RECT
