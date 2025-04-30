@@ -1,7 +1,10 @@
 from ..layout import layout as layout
 from ...helpers import FrameContext, FakeEvent
-from ...procedural.gui.gui import gui_percent_from_ems, gui_percent_from_pixels
+from ...procedural.gui.gui import gui_percent_from_ems, gui_percent_from_pixels, gui_task_for_client
 from ...agent import Agent
+from ...tickdispatcher import TickDispatcher
+from .layout_listbox import SubPage
+
 
 #
 # 350 x 270
@@ -31,12 +34,11 @@ class TabbedPanel(layout.Column):
         self.icon_size = icon_size if icon_size >0 else 30
         
         self.panels = panels
+        self.flash_task = None
 
     def present_panel(self, event, panel, icon_size):
         CID = event.client_id
         self.client_id = CID
-        SBS = FrameContext.context.sbs
-
 
         top = self.bounds.top
         left = self.bounds.left + icon_size.x
@@ -57,10 +59,22 @@ class TabbedPanel(layout.Column):
             top = self.bounds.top
 
         show = panel.get("show")
+        
         if show is not None:
+            #restore = gui_task_for_client(event.client_id)
+            restore = FrameContext.page 
+            sub_page = SubPage(self.tag_prefix, self.local_region_tag, restore.gui_task, CID)
+            FrameContext.page = sub_page
+            sec = layout.Layout(self.tag_prefix+":subsec", None, left, top, left+width, top+height)
+            sec.region_tag = self.local_region_tag
+            sec.item_index = 0
+            sub_page.next_slot(0, sec)
             show(event.client_id, left, top, width, height)
+            #
+            sec.calc(CID)
+            sec.present(event)
 
-    
+            FrameContext.page = restore
 
     def present_icon(self, event, icon, index, icon_size):
         CID = event.client_id
@@ -79,8 +93,12 @@ class TabbedPanel(layout.Column):
             top = self.bounds.bottom - icon_size.y
             left = self.bounds.left + index * icon_size.x
 
+        color = "#aaa"
+        if index == self.current:
+            color = "#0a0"
+
         SBS.send_gui_icon(event.client_id, self.local_region_tag, f"{self.tag_prefix}:icon_",
-                    f"icon_index:{icon};color:#aaa;draw_layer:1000;",
+                    f"icon_index:{icon};color:{color};draw_layer:1000;",
                     left, top, left+icon_size.x, top+icon_size.y)
         SBS.send_gui_clickregion(event.client_id, self.local_region_tag, 
                     f"{self.tag_prefix}icon:{index}", "background_color:#6663",
@@ -112,7 +130,6 @@ class TabbedPanel(layout.Column):
                 self.present_panel(event, panel, icon_size)
 
     def set_tab(self, tab):
-
         if tab == self.current:
             return
         cur = self.panels[self.current]
@@ -125,6 +142,11 @@ class TabbedPanel(layout.Column):
 
         e = FakeEvent(self.client_id)
         self.represent(e)
+        # Clear any flash_task
+        if self.flash_task is not None:
+            self.flash_task.stop()
+            self.flash_task = None
+
     
     def present(self, event):
         CID = event.client_id
@@ -147,6 +169,41 @@ class TabbedPanel(layout.Column):
             n = event.sub_tag[chop:].strip()
             icon = int(n)
             self.set_tab(icon)
-            
+
+    def unflash_tab(self, t):
+        set_to = t.prev_tab
+        self.set_tab(set_to)
+        t.stop()
+
+    def find_tab(self, tab):
+        if not isinstance(tab, str):
+            return tab
+        for index, p in enumerate(self.panels):
+            path = p.get("path")
+            if path == tab:
+                return index
+        return tab
+
+
+    def flash_tab(self, tab, time):
+        tab = self.find_tab(tab)
+        if tab == self.current:
+            e = FakeEvent(self.client_id)
+            self.represent(e)
+
+        remember = self.current
+        if self.flash_task is not None:
+            self.flash_task.stop()
+            self.flash_task = None
+
+        self.set_tab(tab)
+        if time==0:
+            return
+        
+        self.flash_task = TickDispatcher.do_once(self.unflash_tab, time)
+        self.flash_task.prev_tab = remember
+
+
+
 def tabbed_panel_control(tag_prefix, items, tab=0, tab_location=0):
     return TabbedPanel(0, 0, 10,10, tag_prefix, items, tab, tab_location)

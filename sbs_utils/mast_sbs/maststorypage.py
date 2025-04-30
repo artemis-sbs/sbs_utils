@@ -78,6 +78,8 @@ class StoryPage(Page):
         self.main_screen_change_label = None
         self.disconnected = False
         self.gui_promise = None
+        self.info_panel = None
+        self.pending_info_panel = None
 
         
         self.errors = []
@@ -171,6 +173,7 @@ class StoryPage(Page):
         self.layouts = self.pending_layouts
         self.tag_map = self.pending_tag_map
         self.console = self.pending_console
+        self.info_panel = self.pending_info_panel
         # This forces them is a certain order
         self.add_console_widget("")
         self.widgets = self.pending_widgets
@@ -195,6 +198,7 @@ class StoryPage(Page):
             self.pending_tag_map = {}
             self.pending_console = ""
             self.pending_widgets = ""
+            self.pending_info_panel = None
         
         self.gui_state = 'repaint'
         Gui.dirty(self.client_id)

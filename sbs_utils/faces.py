@@ -1,4 +1,4 @@
-from random import randrange,uniform
+from random import randrange,uniform, choice
 from .procedural.query import to_id
 
 # ter Terran_Big-revised
@@ -632,7 +632,7 @@ def random_terran_fluid(civilian=None):
     return random_terran(randrange(0, 10)%2+2, civilian)
 
 
-def random_face(race):
+def random_face(race=None):
     """Returns a random face for the specified race
 
     Args:
@@ -641,6 +641,8 @@ def random_face(race):
     Returns:
         str: The Face String
     """
+    if race is None:
+        race = choice(["kralien", "arvonian", "skaraan", "torgoth", "ximni", "terran", "civilian" ] )
     race = race.lower()    
     if "kralien" in race:
         return random_kralien()
@@ -654,6 +656,8 @@ def random_face(race):
         return random_ximni()
     elif "xim" in race:
         return random_ximni()
+    if "civilian" in race:
+        return random_terran(civilian=True)
     return random_terran()
 
 #class Characters(StrEnum): # Python 3.11 will have StrEnum
