@@ -329,10 +329,11 @@ class ButtonPromise(AwaitBlockPromise):
         #
         # Make sure to use the right task
         #
-        t = FrameContext.task 
+        t = FrameContext.task
+        restore_page = FrameContext.page 
         FrameContext.task = self.task
+        FrameContext.page= self.task.main.page
         p = task_all(*path_labels, sub_tasks=True)
-        FrameContext.task = t
 
         p.poll()
         #
@@ -355,6 +356,9 @@ class ButtonPromise(AwaitBlockPromise):
         #
         self.nav_sub_task_promise = p # if not p.done() else None
         ButtonPromise.navigating_promise = None
+        FrameContext.task = t
+        FrameContext.page = restore_page
+
         
     
 
