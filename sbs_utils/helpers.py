@@ -33,6 +33,34 @@ class FrameContextMeta(type):
         return self._page
     
     @property
+    def server_page(self):
+        gui = Agent.get(0)
+        if gui is not None:
+            return gui.page
+        return None
+    
+    @property
+    def client_page(self):
+        gui = Agent.get(self.client_id)
+        if gui is not None:
+            return gui.page
+        return None
+    
+    @property
+    def server_task(self):
+        gui = Agent.get(0)
+        if gui is not None:
+            return gui.page.gui_task
+        return None
+    
+    @property
+    def client_task(self):
+        gui = Agent.get(self.client_id)
+        if gui is not None and gui.page is not None:
+            return gui.page.gui_task
+        return None
+    
+    @property
     def client_id(self):
         if self.context is None or self.context.event is None:
             return 0
@@ -69,6 +97,30 @@ class FrameContextMeta(type):
 
 class FrameContext(metaclass=FrameContextMeta):
     pass
+
+class FrameContextOverride:
+    def __init__(self, task=None, page=None):
+        self.task = task
+        self.page = page
+
+        self.restore_task = None
+        self.restore_page = None
+
+    def __enter__(self):
+        self.restore_task = FrameContext.task
+        self.restore_page = FrameContext.page
+
+        FrameContext.task = self.task
+        FrameContext.page = self.page
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        FrameContext.task = self.restore_task
+        FrameContext.page = self.restore_page
+        if exc_type:
+            return False #Reraise the exception
+        return True
+
 
 class FakeEvent:
     def __init__(self, client_id=0, tag="", sub_tag="", origin_id=0, selected_id=0, parent_id=0, extra_tag="", value_tag=""):

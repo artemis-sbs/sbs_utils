@@ -115,8 +115,8 @@ class HandleConsoleSelect:
         if event.origin_id !=0 and to_object(event.origin_id) is None:
             return
         
-        # Run console related things ON the console's GUI Task!
-        task = get_inventory_value(event.client_id, "GUI_TASK", FrameContext.task)
+        # Run console related things ON the server, unscheduled
+        task = FrameContext.server_task
         t = task.start_task(self.label, data)
         t.tick_in_context()
         
@@ -491,7 +491,7 @@ class HandleLifetime:
             if not self.filer_func(so):
                 return
             
-        task = FrameContext.task
+        task = FrameContext.server_task
         if self.cycle == "DOCK":
             event = so # argument is an event
             t = task.start_task(self.label, {
@@ -621,7 +621,7 @@ class HandleDamage:
                 DamageDispatcher.add_any(self.selected)
             
     def selected(self, event):
-        task = FrameContext.task
+        task = FrameContext.server_task
         
         t = task.start_task(self.label, {
                 "DAMAGE_SOURCE_ID": event.origin_id,
@@ -704,7 +704,7 @@ class HandleCollision:
             
     def selected(self, event):
         # Run on the current task
-        task = FrameContext.task
+        task = FrameContext.server_task
         t = task.start_task(self.label, {
                 "COLLISION_SOURCE_ID": event.origin_id,
                 "COLLISION_PARENT_ID": event.parent_id,

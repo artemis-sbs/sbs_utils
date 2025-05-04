@@ -1,4 +1,4 @@
-from ...helpers import FrameContext
+from ...helpers import FrameContext, FrameContextOverride
 from ..inventory import get_inventory_value, set_inventory_value
 from ... import yaml
 from .hole import gui_hole
@@ -60,27 +60,23 @@ def gui_properties_set(p=None, tag=None):
     # So COMMS is setting the page to the client
     # and the server task is the task
     #
-    page = FrameContext.page
-    task = FrameContext.task
-    # Force it to use the client ID of the event?
-    FrameContext.page = None
+    # print(f"PROP SET")
+    gui_task = FrameContext.client_task
+    gui_page = FrameContext.client_page
+    changes = set(gui_task.get_variable("__PROP_CHANGES__", []))
+    gui_task.on_change_items = [change for change in gui_task.on_change_items if change not in changes]
+    gui_task.set_variable("__PROP_CHANGES__", [])
 
-    true_page = FrameContext.page
-    if true_page is None:
-        return
-    gui_task = true_page.gui_task
-    
-    
-    tag = tag if tag is not None else "__PROPS_LB__"
-    props_lb = gui_task.get_inventory_value(tag)
-    if props_lb is None:
-        return
-    FrameContext.task = gui_task 
-    props_lb.items = _gui_properties_items(p)
-    gui_represent(props_lb)
-    FrameContext.page = page
-    FrameContext.task = task
-    
+
+    with FrameContextOverride(FrameContext.client_task, FrameContext.client_page):
+        tag = tag if tag is not None else "__PROPS_LB__"
+        props_lb = gui_task.get_inventory_value(tag)
+        if props_lb is None:
+            return
+        props_lb.items = _gui_properties_items(p)
+        # Clear the on changes
+        gui_represent(props_lb)
+        
 
 def gui_properties_get_value(key, defa=None):
     # 
@@ -90,15 +86,8 @@ def gui_properties_get_value(key, defa=None):
     # So COMMS is setting the page to the client
     # and the server task is the task
     #
-    page = FrameContext.page
-    # Force it to use the client ID of the event?
-    FrameContext.page = None
-    true_page = FrameContext.page
-    FrameContext.page = page
-
-    if true_page is None:
-        return
-    gui_task = true_page.gui_task
+    gui_task = FrameContext.client_task
+    
     if gui_task is not None:
         v = gui_task.get_variable(key, defa)
         return v
@@ -113,15 +102,7 @@ def gui_properties_set_value(key, value=None):
     # So COMMS is setting the page to the client
     # and the server task is the task
     #
-    page = FrameContext.page
-    # Force it to use the client ID of the event?
-    FrameContext.page = None
-    true_page = FrameContext.page
-    FrameContext.page = page
-    
-    if true_page is None:
-        return
-    gui_task = true_page.gui_task
+    gui_task = FrameContext.client_task
     if gui_task is not None:
         return gui_task.set_variable(key, value)
     return value
@@ -164,7 +145,7 @@ def _property_lb_item_template_two_line(item):
             gui_text(f"Invalid code")
     
 def gui_property_list_box_stacked(name=None, tag=None):
-    task = FrameContext.task
+    task = FrameContext.client_task
     tag = tag if tag is not None else "__PROPS_LB__"
     name = name if name is not None else "Properties"
 
@@ -177,7 +158,8 @@ def gui_property_list_box_stacked(name=None, tag=None):
     return props_lb
 
 def gui_property_list_box(name=None, tag=None, temp = _property_lb_item_template_one_line):
-    task = FrameContext.task
+    gui_task = FrameContext.client_task
+
     tag = tag if tag is not None else "__PROPS_LB__"
     name = name if name is not None else "Properties"
 
@@ -186,5 +168,5 @@ def gui_property_list_box(name=None, tag=None, temp = _property_lb_item_template
                 item_template=temp, title_template=name, collapsible=True)
     
     props_lb.title_section_style += "background:#1578;"
-    task.set_inventory_value(tag, props_lb)    
+    gui_task.set_inventory_value(tag, props_lb)    
     return props_lb

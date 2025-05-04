@@ -8,6 +8,7 @@ from ..garbagecollector import GarbageCollector
 from ..mast.mastscheduler import ChangeRuntimeNode
 from ..mast.pollresults import PollResults
 from ..mast_sbs.story_nodes.button import Button
+from .gui import gui_properties_set
 
 
 class CommsOverride:
@@ -22,9 +23,13 @@ class CommsOverride:
         CommsOverride.active_overrides.append(self)
         return self
 
-    def __exit__(self):
+    def __exit__(self, ex_type=None, ex_val=None, ex_tb=None):
         if len(CommsOverride.active_overrides)>0:
             CommsOverride.active_overrides.pop()
+        if ex_type:
+            return False
+        return True
+        
 
     @classmethod
     def active(cls):
@@ -363,10 +368,24 @@ class CommsPromise(ButtonPromise):
         self.face_override = None
         self.is_grid_comms = False
         self.assign = None
+        # Unschedule from scheduler
+        # Task needs to run the await comms()
+        # Which is here, then we unschedule it
+        # System makes sure it runs
+        self.task.main.tasks.remove(self.task)
         
 
     def set_path(self, path) -> None:
+        # Always clear properties
+        page = FrameContext.page 
+        task = FrameContext.task
+        FrameContext.page = self.task.main.page
+        FrameContext.task = self.task
+        gui_properties_set(None)
+        FrameContext.page = page
+        FrameContext.task = task
         super().set_path(path)
+        
 
     def set_face_override(self, face):
         self.face_override = face
@@ -401,7 +420,7 @@ class CommsPromise(ButtonPromise):
             self.button.visit((self.origin_id, self.selected_id))
         self.clear()
         self.task.tick()
-
+       
         
     def collect(self) -> bool:
         oo = query.to_object(self.origin_id)
@@ -435,6 +454,7 @@ class CommsPromise(ButtonPromise):
     def process_on_change(self) -> None:
         # Check for on change nodes
         #
+        print("ProcessOnChangeComms")
         self.on_change = None
         if self.on_change is not None:
             self.on_change=[]
@@ -628,6 +648,7 @@ class CommsPromise(ButtonPromise):
         # else:
         #     FrameContext.context.event = FakeEvent(client_id=1)
         super().poll()
+        #print("COMMS POLL")
         FrameContext.context.event = event
         #
         # If the ship was unknown, but now is known
@@ -666,8 +687,12 @@ def comms(path=None, buttons=None, timeout=None) -> CommsPromise:
 
     Returns:
         Promise: A Promise that finishes when a comms button is selected
-    """    
+    """
+    # 
+    # This should be running on the server task    
     task = FrameContext.task
+    if task.main.client_id != 0:
+        raise Exception("Comms is not on Server")
     ret = CommsPromise(path, task, timeout)
  
     
@@ -719,4 +744,5 @@ def comms_navigate(path, face=None) -> None:
         return
     p.set_path(path)
     p.set_face_override(face)
+    
 

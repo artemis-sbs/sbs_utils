@@ -32,9 +32,9 @@ Example:
 """
 from ...mast.mast import Scope
 
-from ...helpers import FrameContext
+from ...helpers import FrameContext, FakeEvent
 
-from ...futures import AwaitBlockPromise
+from ...futures import AwaitBlockPromise, Trigger
 from ...gui import get_client_aspect_ratio
 from ..style import apply_control_styles
 from ...mast.pollresults import PollResults
@@ -155,15 +155,12 @@ class ButtonPromise(AwaitBlockPromise):
         if not self.pressed_test():
             # If the test fails, this is no longer needed
             self.task.end()
-            
-            
-            
 
         self.check_for_button_done()
 
         task = self.task
         if self.task is None:
-            self.task = self.page.gui_task
+            self.task = self.server_task
             # First run could have no gui_task
             if self.task is None:
                 self.task = FrameContext.task
@@ -172,12 +169,6 @@ class ButtonPromise(AwaitBlockPromise):
             if self.var:
                 task.set_value_keep_scope(self.var, self.button.index)
              
-            # self.button.node.visit(self.button.client_id)
-            # button = self.buttons[self.button.index]
-            button = self.button
-            # if button.for_name:
-            #     task.set_value(button.for_name, button.data, Scope.TEMP)
-
             self.pressed_set_values()
             task.set_value("BUTTON_PROMISE", self, Scope.TEMP)
 
@@ -200,6 +191,17 @@ class ButtonPromise(AwaitBlockPromise):
                 sub_task = self.running_button.run(self.task, self)
                 if sub_task is not None:
                     self.sub_task = sub_task
+                    if sub_task.done:
+                        #
+                        # OK Since we are no longer scheduled
+                        # We check if buttons were not built
+                        # from the button run, if not try 
+                        # to build them now
+                        #
+                        if len(self.buttons) == 0:
+                            self.show_buttons()
+                    else:
+                        print("WARNING: Button Handlers should not have any awaits")
             return PollResults.OK_JUMP
 
         if self.disconnect_label is not None:
@@ -362,7 +364,47 @@ class ButtonPromise(AwaitBlockPromise):
         FrameContext.task = t
         FrameContext.page = restore_page
 
+class PropertyChangeTrigger(Trigger):
+    def __init__(self, task, var, label=None):
+        self.task = task
+        self.value = self.task.get_variable(var)
+        self.label = label
+        self.var = var
+
+    def test(self):
+        prev = self.value
+        self.value = self.task.get_variable(self.var)
+        return prev!=self.value
+    
+    def run(self):
+        event = FrameContext.context.event
+        fake_event = FakeEvent(self.task.main.client_id, "gui_change")
+        FrameContext.context.event = fake_event
         
+        self.task.push_inline_block(self.label, 0)
+        self.task.tick_in_context()
+        FrameContext.context.event = event
+
+
+        
+def gui_properties_change(var, label):
+    """create an on change on the client GUI for a property
+
+    Args:
+        var (str): The variable to watch
+        label (str or label): The label to run
+    """    
+    if FrameContext.client_page is None:
+        return
+    
+    task = FrameContext.client_task
+    changes = task.get_variable("__PROP_CHANGES__", [])
+    trig = PropertyChangeTrigger(task, var, label)
+    changes.append(trig)
+    task.set_variable("__PROP_CHANGES__", changes)
+    task.on_change_items.append(trig)
+    # Need to track and remove
+    return None
     
 
         

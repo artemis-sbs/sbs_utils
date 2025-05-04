@@ -42,6 +42,9 @@ class PageSubSection:
     def __exit__(self, ex=None, value=None, tb=None):
         self.page.pop_sub_section(self.add, False)
         self.add = False
+        if ex:
+            return False
+        return True
 
     def represent(self, event):
         self.sub_section.represent(event)

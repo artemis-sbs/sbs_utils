@@ -139,6 +139,7 @@ class ScanPromise(ButtonPromise):
         self.auto_side = auto_side
         self.scan_is_done = False
         # The stuff to start the scan is now in initial_poll / show_buttons
+        self.task.main.tasks.remove(self.task)
 
     def set_path(self, path):
         super().set_path(path)
@@ -154,6 +155,7 @@ class ScanPromise(ButtonPromise):
         # But it won't
         event = FrameContext.context.event
         FrameContext.context.event = self.event
+        print("SCIENCE POLL")
         super().poll()
         FrameContext.context.event = event
 
@@ -199,6 +201,7 @@ class ScanPromise(ButtonPromise):
             self.process_tab()
         else:
             pass
+        self.task.tick()
 
     def process_tab(self):
         if self.tab is not None:
@@ -224,6 +227,8 @@ class ScanPromise(ButtonPromise):
         self.run_focus = True
         self.show_buttons()
         self.cancel_if_no_longer_exists()
+        if not self.done:
+            self.task.tick()
 
     def start_scan(self, origin_id, selected_id, extra_tag):
         return

@@ -883,17 +883,17 @@ class MastAsyncTask(Agent, Promise):
             pass
         
 
-    def start_task(self, label = "main", inputs=None, task_name=None, defer=False, inherit=True)->MastAsyncTask:
+    def start_task(self, label = "main", inputs=None, task_name=None, defer=False, inherit=True, unscheduled=False)->MastAsyncTask:
         # Sub task share data noe need to inherit
         if self.is_sub_task and self.root_task != self:
-            return self.root_task.start_task(label, inputs, task_name, defer)
+            return self.root_task.start_task(label, inputs, task_name, defer, unscheduled=unscheduled)
         # Inherit mean it inherits copies of the calling task's value
         if inherit:
             if inputs is not None:
                 inputs = self.inventory.collections | inputs
             else:
                 inputs = self.inventory.collections | {}
-        return self.main.start_task(label, inputs, task_name, defer)
+        return self.main.start_task(label, inputs, task_name, defer, unscheduled)
             
       
     
@@ -938,8 +938,11 @@ class MastAsyncTask(Agent, Promise):
         return res
 
     def tick_subtasks(self):
+        _page = FrameContext.page
+        FrameContext.page = self.main.page
         restore = FrameContext.task
         done = []
+        
         for task in self.sub_tasks:
             if task.done():
                 done.append(task)
@@ -953,6 +956,7 @@ class MastAsyncTask(Agent, Promise):
             elif task.done():
                 done.append(task)
         FrameContext.task = restore
+        FrameContext.page = _page
         
         if len(done):
             for rem in done:
@@ -974,9 +978,12 @@ class MastAsyncTask(Agent, Promise):
         # if self.name is not None:
         #     print(f"ticking {self.name}")
         restore = FrameContext.task
+        page = FrameContext.page
         FrameContext.task = self
+        FrameContext.page = self.main.page
         res = self.active_ticker.tick()
         FrameContext.task = restore
+        FrameContext.page = page
         if self.active_ticker.done:
             if self.active_ticker.last_poll_result == PollResults.OK_YIELD:
                 self.set_result(self.yield_results)
@@ -1098,7 +1105,7 @@ class MastScheduler(Agent):
         return t
 
 
-    def start_task(self, label = "main", inputs=None, task_name=None, defer=False)->MastAsyncTask:
+    def start_task(self, label = "main", inputs=None, task_name=None, defer=False, unscheduled=False)->MastAsyncTask:
         t = self._start_task(label, inputs, task_name)
         if task_name is not None:
             t.set_value(task_name, t, Scope.NORMAL)
@@ -1107,9 +1114,8 @@ class MastScheduler(Agent):
         FrameContext.task = t
         t.jump(label)
         FrameContext.task = restore
-        self.tasks.append(t)
-        b4 = len(self.tasks)
-        
+        if not unscheduled:
+            self.tasks.append(t)
         if not defer:
             self.on_start_task(t)
 
