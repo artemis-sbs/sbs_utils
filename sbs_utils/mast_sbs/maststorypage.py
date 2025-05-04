@@ -144,7 +144,13 @@ class StoryPage(Page):
             self.gui_task.is_gui_task = True
             set_inventory_value(self.client_id, "GUI_TASK", self.gui_task)
             set_inventory_value(self.client_id, "GUI_PAGE", self)
+
+            # Use a Fake event so the client_id and client page are correct
+            e_restore = FrameContext.context.event
+            e = FakeEvent(client_id, "__STORY_PAGE_INIT")
+            FrameContext.context.event = e
             self.gui_task.tick_in_context()
+            FrameContext.context.event = e_restore
 
 
     @property

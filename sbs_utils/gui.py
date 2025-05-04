@@ -321,15 +321,21 @@ class Gui:
                 # since we know about it
                 client_list.discard(client_id)
                 event = FakeEvent(client_id, "gui_present")
+                e_restore = FrameContext.context.event
+                FrameContext.context.event = event
                 gui.tick_gui_task()
                 gui.present(event)
+                FrameContext.context.event = e_restore
             else:
                 disconnect.append(client_id)
         for cid in disconnect:
             gui = Gui.clients.get(cid)
             if gui is not None:
+                e_restore = FrameContext.context.event
+                FrameContext.context.event = event
                 event = FakeEvent(cid,"mast:client_disconnect")
                 gui.on_event(event)
+                FrameContext.context.event = e_restore
                 gui.destroyed()
                 Gui.clients.pop(cid, None)
                 FrameContext.aspect_ratios.pop(cid, None)
@@ -368,7 +374,10 @@ class Gui:
             # Gui could have disconnected
             if gui:
                 event = FakeEvent(client_id, "gui_represent")
+                e_restore = FrameContext.context.event 
+                FrameContext.context.event = event
                 gui.present(event)
+                FrameContext.context.event = e_restore
         #Gui.present_dirty()
 
         

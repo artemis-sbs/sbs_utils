@@ -155,7 +155,7 @@ class ScanPromise(ButtonPromise):
         # But it won't
         event = FrameContext.context.event
         FrameContext.context.event = self.event
-        print("SCIENCE POLL")
+        #print("SCIENCE POLL")
         super().poll()
         FrameContext.context.event = event
 

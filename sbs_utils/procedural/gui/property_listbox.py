@@ -48,6 +48,7 @@ def _gui_properties_items(values=None):
         # Initially trying flat 
         return _get_property_list(values)
     except yaml.YAMLError:
+        print(f"GUI Properties Invalid YAML\n     {values}")
         return []
     
 
@@ -60,7 +61,6 @@ def gui_properties_set(p=None, tag=None):
     # So COMMS is setting the page to the client
     # and the server task is the task
     #
-    # print(f"PROP SET")
     gui_task = FrameContext.client_task
     gui_page = FrameContext.client_page
     changes = set(gui_task.get_variable("__PROP_CHANGES__", []))
@@ -72,6 +72,7 @@ def gui_properties_set(p=None, tag=None):
         tag = tag if tag is not None else "__PROPS_LB__"
         props_lb = gui_task.get_inventory_value(tag)
         if props_lb is None:
+            print("No properties found")
             return
         props_lb.items = _gui_properties_items(p)
         # Clear the on changes
