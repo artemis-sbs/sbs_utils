@@ -143,7 +143,8 @@ class ButtonPromise(AwaitBlockPromise):
         if res != PollResults.OK_RUN_AGAIN and self.done():
             return res
         
-        if self.sub_task is not None:
+
+        if self.sub_task is not None and not self.sub_task.done:
             self.sub_task.poll()
             if self.sub_task.done:
                 self.show_buttons()
@@ -193,6 +194,7 @@ class ButtonPromise(AwaitBlockPromise):
             if self.running_button.path is not None:
                 self.set_path(self.running_button.path)
                 self.running_button = None
+                self.sub_task = None
                 return PollResults.OK_JUMP
             else:   
                 sub_task = self.running_button.run(self.task, self)
@@ -233,6 +235,7 @@ class ButtonPromise(AwaitBlockPromise):
         return buttons
 
     def get_expanded_buttons(self):
+        # The sub task is for a running button
         buttons = []
         #
         # Note: Always use clones in layouts
