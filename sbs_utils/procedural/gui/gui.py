@@ -569,3 +569,6 @@ def gui_task_for_client(client_id):
         return None
     return page.gui_task
 
+def gui_client_id():
+    return FrameContext.client_id
+

@@ -44,13 +44,18 @@ from .face import gui_face
 from .row import gui_row
 
 
-def tabbed_panel_send_message(client_id, message, title=None, face=None, icon_index=None, icon_color=None, time=-1):
+def panel_info_send_message(client_id, message, message_color=None, title=None, title_color=None, face=None, icon_index=None, icon_color=None, time=-1):
     task = gui_task_for_client(client_id)
     if task is None:
         return
     message = {"message": message}
+    if message_color:
+        message["message_color"] = message_color
+
     if title:
         message["title"] = title
+    if title_color:
+        message["title_color"] = title_color
     if icon_index:
         message["icon_index"] = icon_index
     if icon_color:

@@ -22,10 +22,10 @@ FORMAT_EXP = r"(\[(?P<format>([\$\#]?\w+[ \t]*(,[ \t]*\#?\w+)*))\])?"
 #FORMAT_EXP = r"(\[(?P<format>(\$\w+)|(\#?\w+[ \t]*(,[ \t]*\#?\w+)*)|((\w+[ \t]*:[ \t]*([^;\]]*;)*)))\])"
 @mast_node()
 class CommsMessageStart(DescribableNode):
-    rule = re.compile(r"(?P<mtype>\<\<|\>\>|\(\)|\<(all|scan|client|ship|dialog|dialog_main|dialog_consoles_all|dialog_consoles|dialog_ships)\>)"+FORMAT_EXP+"([ \t]+"+STRING_REGEX_NAMED("title")+")?")
+    rule = re.compile(r"(?P<mtype>\<\<|\>\>|\(\)|\<(all|scan|client|ship|dialog|dialog_main|dialog_consoles_all|dialog_consoles|dialog_ships|var[ \t]+(?P<var>\w+))\>)"+FORMAT_EXP+"([ \t]+"+STRING_REGEX_NAMED("title")+")?")
     current_comms_message = None
 
-    def __init__(self, mtype, title,  q=None, format=None, loc=None, compile_info=None):
+    def __init__(self, mtype, title,  q=None, var=None, format=None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
         self.format = format
@@ -45,11 +45,17 @@ class CommsMessageStart(DescribableNode):
                 
         self.mtype = mtype 
         self.title = title
+        self.var = var
         if mtype == "<scan>" and title is not None:
             self.append_text("%", title)
         elif  CommsMessageStart.current_comms_message is not None:
             raise Exception("Comms message indent error")
+        elif var is not None:
+            self.mtype = "var"
         CommsMessageStart.current_comms_message = self
+
+    def __str__(self):
+        return random.choice(self.options)
 
     def is_indentable(self):
         return True
@@ -80,6 +86,8 @@ class CommsMessageStartRuntimeNode(MastRuntimeNode):
             comms_transmit(msg, node.tile, color=node.body_color, title_color=node.title_color,face=npc_face)
         elif node.mtype == "<scan>": 
             scan_results(msg)
+        elif node.mtype == "var": 
+            task.set_variable(node.var, node)
         elif node.mtype == "<client>": 
             comms_broadcast(task.maim.client_id, msg, node.body_color)
         elif node.mtype == "<ship>":
