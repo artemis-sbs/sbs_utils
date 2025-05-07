@@ -100,6 +100,8 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
         title_color = color
     if FrameContext.task:
         msg = FrameContext.task.compile_and_format_string(msg)
+        if title is not None:
+            title = FrameContext.task.compile_and_format_string(title)
 
     
 
