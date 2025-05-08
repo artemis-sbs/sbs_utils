@@ -146,7 +146,7 @@ def panel_console_message(cid, left, top, width, height):
     title = task.compile_and_format_string(title)
     message = message_obj.get("message")
     message = task.compile_and_format_string(message)
-    button = message_obj.get("button")
+    buttons = message_obj.get("button", [])
     button_label = message_obj.get("button_label")
 
     gui_row(style="row-height:4em;")
@@ -163,14 +163,19 @@ def panel_console_message(cid, left, top, width, height):
         gui_row()
         gui_text(f"$text: {message};font:gui-2")
 
-    if button and button_label:
+    if buttons and button_label and not isinstance(buttons, list):
+        buttons = [(buttons, button_label)]
+    
+    for button in buttons:
         gui_row(style="row-height:2em;")
-        b = gui_button(button,data={"__MESSAGE__": message_obj}, jump=button_label)
-        #gui_message(b, button_label)
-        #  Buttons draw too big, add space
+        gui_button(button[0],data={"__MESSAGE__": message_obj}, jump=button[1])
         gui_blank(style="col-width:1.5em")
+        
+    if buttons:
         gui_row(style="row-height:1em;")
         gui_blank()
+    
+
 
 
 
