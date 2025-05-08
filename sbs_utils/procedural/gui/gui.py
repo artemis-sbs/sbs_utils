@@ -569,6 +569,13 @@ def gui_task_for_client(client_id):
         return None
     return page.gui_task
 
+def gui_page_for_client(client_id):
+    gui = Agent.get(client_id)
+    if gui is None:
+        return None
+    return gui.page
+
+
 def gui_client_id():
     return FrameContext.client_id
 

@@ -14,7 +14,8 @@ class MessageHandler:
             FrameContext.task = self.task
             self.task.set_variable("__ITEM__", self.layout_item)
             if self.jump:
-                self.task.jump(self.label)
+                sub_task = self.task.start_sub_task(self.label, inputs=self.layout_item.data, defer=True)
+                sub_task.tick_in_context()
             else:
                 self.label()
                 

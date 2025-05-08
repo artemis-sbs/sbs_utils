@@ -46,4 +46,5 @@ from .change import gui_change
 from .gui import ButtonPromise, gui_properties_change
 from .gui import gui, gui_hide_choice, gui_screen_size, gui_percent_from_pixels, gui_percent_from_ems, gui_task_for_client, gui_client_id
 
-from .tabbed_panel import gui_tabbed_panel, gui_info_panel, panel_widget_show, panel_widget_hide, panel_info_send_message
+from .tabbed_panel import gui_tabbed_panel, panel_widget_show, panel_widget_hide
+from .tabbed_panel import gui_info_panel, gui_info_panel_send_message, gui_info_panel_add, gui_info_panel_remove

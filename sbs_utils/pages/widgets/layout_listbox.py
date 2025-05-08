@@ -24,6 +24,7 @@ class SubPage:
         self.client_id = client_id
         self.gui_task = task
         self.region_tag = region_tag
+        self.tag_map = {}
 
     def get_tag(self):
         self.tag += 1
@@ -32,7 +33,7 @@ class SubPage:
         return tag
     
     def add_tag(self, layout_item, runtime_node):
-        pass
+        self.tag_map[layout_item.tag] = (layout_item, runtime_node)
     
     def next_slot(self, slot, section):
         self.active_layout = section

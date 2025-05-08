@@ -1,6 +1,6 @@
 from ..layout import layout as layout
 from ...helpers import FrameContext, FakeEvent
-from ...procedural.gui.gui import gui_percent_from_ems, gui_percent_from_pixels, gui_task_for_client
+from ...procedural.gui.gui import gui_percent_from_pixels, gui_page_for_client
 from ...agent import Agent
 from ...tickdispatcher import TickDispatcher
 from .layout_listbox import SubPage
@@ -73,8 +73,16 @@ class TabbedPanel(layout.Column):
             #
             sec.calc(CID)
             sec.present(event)
-
+            #
+            # Add tags to the client_page
+            # May needs this for click?
+            #
             FrameContext.page = restore
+            page = gui_page_for_client(CID)
+            page.tag_map |= sub_page.tag_map
+            
+            
+            
 
     def present_icon(self, event, icon, index, icon_size):
         CID = event.client_id

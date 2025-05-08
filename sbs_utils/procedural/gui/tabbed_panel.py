@@ -2,11 +2,12 @@ from ...helpers import FrameContext
 from ..style import apply_control_styles
 from ...pages.widgets.tabbed_panel import TabbedPanel
 from sbs_utils.procedural.gui import gui_task_for_client
+from .update import gui_represent
 
 
 def gui_tabbed_panel(items=None, style=None, tab=0, tab_location=0, icon_size=0):
     
-    page = FrameContext.page
+    page = FrameContext.client_page
     task = FrameContext.task
     if page is None:
         return None
@@ -20,7 +21,7 @@ def gui_tabbed_panel(items=None, style=None, tab=0, tab_location=0, icon_size=0)
     return layout_item
 
 
-def gui_info_panel(tab=0, tab_location=0, icon_size=0):
+def gui_info_panel(tab=0, tab_location=0, icon_size=0, var=None):
     page = FrameContext.page
 
     panels =  [
@@ -33,25 +34,76 @@ def gui_info_panel(tab=0, tab_location=0, icon_size=0):
                     "hide":  None} 
             ]
     tp =  gui_tabbed_panel(panels, tab=tab, tab_location=tab_location, icon_size=icon_size)
+    if var is None:
+        var = "__INFO_PANEL__"
+
+    page.gui_task.set_variable(var, tp)
+
     page.pending_info_panel = tp
     return tp
-        
+
+
+def gui_info_panel_add(path, icon_index, show, hide=None, var=None):
+    page = FrameContext.page
+    if var is None:
+        var = "__INFO_PANEL__"
+
+    tp = page.gui_task.get_variable(var)
+    if tp is None:
+        return
+    panel =  {"path": path, "icon": icon_index, "show": show, "hide": hide}
+    tp.panels.append(panel)
+    #
+    # If this panel is the active panel it needs to be represented
+    #
+    if page.info_panel == tp:
+        gui_represent(tp)
+
+    return tp
+
+
+def gui_info_panel_remove(path):
+    page = FrameContext.page
+    if var is None:
+        var = "__INFO_PANEL__"
+
+    tp = page.gui_task.get_variable(var)
+    if tp is None:
+        return
+    st = len(tp.panels)
+    panels = [panel for panel in tp.panels if panel.get("path") != path]
+    tp.panels = panels
+    #
+    # If this panel is the active panel it needs to be represented
+    #
+    if page.info_panel == tp and st > len(tp.panels):
+        gui_represent(tp)
+
+    return tp
+
+
+
+
 
 from .section import gui_sub_section
 from .text import gui_text
 from .icon import gui_icon
 from .face import gui_face
 from .row import gui_row
+from .button import gui_button
+from .message import gui_message
+from .blank import gui_blank
 
 
-def panel_info_send_message(client_id, message, message_color=None, title=None, title_color=None, face=None, icon_index=None, icon_color=None, time=-1):
+
+def gui_info_panel_send_message(client_id, message=None, message_color=None, title=None, title_color=None, face=None, icon_index=None, icon_color=None, button=None, button_label=None, history=True, time=-1):
     task = gui_task_for_client(client_id)
     if task is None:
         return
-    message = {"message": message}
+    if message:
+        message = {"message": message}
     if message_color:
         message["message_color"] = message_color
-
     if title:
         message["title"] = title
     if title_color:
@@ -62,6 +114,13 @@ def panel_info_send_message(client_id, message, message_color=None, title=None, 
         message["icon_color"] = icon_color
     if face:
         message["face"] = face
+    if button:
+        message["button"] = button
+    if button_label:
+        message["button_label"] = button_label
+    if history:
+        message["history"] = history
+
     task.set_variable("$MESSAGE", message)
     if time>=0:
         info_panel = task.main.page.info_panel
@@ -72,17 +131,24 @@ def panel_info_send_message(client_id, message, message_color=None, title=None, 
 
 def panel_console_message(cid, left, top, width, height):
     task = gui_task_for_client(cid)
+    
     if task is None:
         return
-    message = task.get_variable("$MESSAGE") #, {"icon_index":69, "face": random_terran(civilian=True), "title": "Title", "message": "This will be the message"})
-
-    if message is None:
+    message_obj = task.get_variable("$MESSAGE") #, {"icon_index":69, "face": random_terran(civilian=True), "title": "Title", "message": "This will be the message"})
+    if message_obj is None:
         return
-    icon = message.get("icon_index")
-    color = message.get("icon_color", "white")
-    face = message.get("face")
-    title = message.get("title")
-    message = message.get("message")
+    
+    
+    icon = message_obj.get("icon_index")
+    color = message_obj.get("icon_color", "white")
+    face = message_obj.get("face")
+    title = message_obj.get("title")
+    title = task.compile_and_format_string(title)
+    message = message_obj.get("message")
+    message = task.compile_and_format_string(message)
+    button = message_obj.get("button")
+    button_label = message_obj.get("button_label")
+
     gui_row(style="row-height:4em;")
     if icon is not None:
         gui_icon(f"icon_index:{icon};color:{color};")
@@ -92,8 +158,21 @@ def panel_console_message(cid, left, top, width, height):
     if title:
         gui_row(style="row-height:2em;")
         gui_text(f"$text: {title};font:gui-4")
-    gui_row()
-    gui_text(f"$text: {message};font:gui-2")
+
+    if message:
+        gui_row()
+        gui_text(f"$text: {message};font:gui-2")
+
+    if button and button_label:
+        gui_row(style="row-height:2em;")
+        b = gui_button(button,data={"__MESSAGE__": message_obj}, jump=button_label)
+        #gui_message(b, button_label)
+        #  Buttons draw too big, add space
+        gui_blank(style="col-width:1.5em")
+        gui_row(style="row-height:1em;")
+        gui_blank()
+
+
 
     
 
