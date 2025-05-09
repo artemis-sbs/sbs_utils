@@ -1,10 +1,10 @@
 from ..layout import layout as layout
 from ...helpers import FrameContext, FakeEvent
-from ...procedural.gui.gui import gui_percent_from_pixels, gui_page_for_client
+from ...procedural.gui.gui import gui_percent_from_pixels, gui_page_for_client, gui_task_for_client
 from ...agent import Agent
 from ...tickdispatcher import TickDispatcher
 from .layout_listbox import SubPage
-
+import traceback
 
 #
 # 350 x 270
@@ -35,31 +35,38 @@ class TabbedPanel(layout.Column):
         
         self.panels = panels
         self.flash_task = None
+        self.sec = None
 
     def present_panel(self, event, panel, icon_size):
         CID = event.client_id
         self.client_id = CID
-
+        space = 1.1
+        
         top = self.bounds.top
-        left = self.bounds.left + icon_size.x
-        width = self.bounds.width - icon_size.x
+        left = self.bounds.left + icon_size.x * space
+        width = self.bounds.width - icon_size.x * space
         height = self.bounds.height
 
         if self.tab_location ==1:        
-            left = self.bounds.left
+            left = self.bounds.left 
         if self.tab_location == 2: # top
             left = self.bounds.left
-            top = self.bounds.top + icon_size.y
+            top = self.bounds.top + icon_size.y  * space
             width = self.bounds.width
-            height = self.bounds.height - icon_size.y
+            height = self.bounds.height - icon_size.y * space
         if self.tab_location == 3: # bottom
-            height = self.bounds.height - icon_size.y
+            height = self.bounds.height - icon_size.y * space
             width = self.bounds.width
             left = self.bounds.left
             top = self.bounds.top
 
         show = panel.get("show")
-        
+        path = panel.get("path")
+        task = gui_task_for_client(CID)
+        if task is not None:
+            task.set_variable("$INFO_PATH", path) 
+
+        self.sec = None
         if show is not None:
             #restore = gui_task_for_client(event.client_id)
             restore = FrameContext.page 
@@ -69,7 +76,13 @@ class TabbedPanel(layout.Column):
             sec.region_tag = self.local_region_tag
             sec.item_index = 0
             sub_page.next_slot(0, sec)
-            show(event.client_id, left, top, width, height)
+            self.sec = sec
+            try:
+                show(event.client_id, left, top, width, height)
+            except Exception as e:
+               print(e)
+               print(traceback.format_exc())
+
             #
             sec.calc(CID)
             sec.present(event)
@@ -88,18 +101,19 @@ class TabbedPanel(layout.Column):
         CID = event.client_id
         self.client_id = CID
         SBS = FrameContext.context.sbs
+        space = 1.1
         
-        top = self.bounds.top + index*icon_size.y
+        top = self.bounds.top + index*(icon_size.y*space)
         left = self.bounds.left
         if self.tab_location == 1:        
-            top = self.bounds.top + index*icon_size.y
+            top = self.bounds.top + index*(icon_size.y*space)
             left = self.bounds.right - icon_size.x
         if self.tab_location == 2: # top
             top = self.bounds.top
-            left = self.bounds.left + index * icon_size.x
+            left = self.bounds.left + index * (icon_size.x*space)
         if self.tab_location == 3: # bottom
             top = self.bounds.bottom - icon_size.y
-            left = self.bounds.left + index * icon_size.x
+            left = self.bounds.left + index * (icon_size.x*space)
 
         color = "#aaa"
         if index == self.current:
@@ -127,7 +141,13 @@ class TabbedPanel(layout.Column):
             for p in self.panels:
                 hide = p.get("hide")
                 if hide is not None:
-                    hide(event.client_id, 0,0,0,0)
+                    try:
+                        hide(event.client_id, 0,0,0,0)
+                    except Exception as e:
+                        print(e.message)
+                        print(traceback.format_exc())
+                        
+
         left = self.bounds.left
         top = self.bounds.top
         icon_size = gui_percent_from_pixels(event.client_id, self.icon_size)
@@ -177,6 +197,10 @@ class TabbedPanel(layout.Column):
             n = event.sub_tag[chop:].strip()
             icon = int(n)
             self.set_tab(icon)
+
+        if self.sec is not None:
+            self.sec.on_message(event)
+        
 
     def unflash_tab(self, t):
         set_to = t.prev_tab

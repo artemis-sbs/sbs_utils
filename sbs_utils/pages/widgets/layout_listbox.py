@@ -75,7 +75,7 @@ class SubPage:
 
     def pop_sub_section(self, add, is_rebuild):
         (sec,p_row) = self.sub_sections.pop()
-        if add:
+        if add and p_row is not None:
             p_row.add(self.active_layout)
         self.active_layout = sec
         self.pending_row = p_row
