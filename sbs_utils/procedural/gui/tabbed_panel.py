@@ -354,46 +354,52 @@ def gui_panel_console_message_list(cid, left, top, width, height):
     messages_objs = task.get_variable(var)
     if messages_objs is None:
         return
-
-    for message_obj in messages_objs:
-        icon = message_obj.get("icon_index")
-        color = message_obj.get("icon_color", "white")
-        face = message_obj.get("face")
-        title = message_obj.get("title")
-        title = task.compile_and_format_string(title)
-        message = message_obj.get("message")
-        message = task.compile_and_format_string(message)
-
-        title_color = message_obj.get("title_color", "white")
-        title_color = task.compile_and_format_string(title_color)
-        message_color = message_obj.get("message_color", "white")
-        message_color = task.compile_and_format_string(message_color)
+    gui_list_box(messages_objs, "", item_template=gui_panel_console_message_list_item, select=False)
+    # avoid bleeding out 
+    gui_blank(style="col-width:0.5em")
 
 
-        # Need this for the flacky sub_section
-        # if icon is not None or face is not None:
+def gui_panel_console_message_list_item(message_obj):
+    task = FrameContext.client_task
 
-        #
-        # Title
-        #
-        gui_row(style="row-height:2.1em;")
-        with gui_sub_section():
-            gui_row(style="row-height:2em;")
-            if icon is not None or face is not None:
-                with gui_sub_section(style="row-height:2em;col-width:2em;"):
-                    gui_row(style="row-height:1.8em;col-width:1.8em;")
-                    with gui_sub_section():
-                        if icon is not None:
-                            gui_row()
-                            gui_icon(f"icon_index:{icon};color:{color};")
-                        if face is not None:
-                            gui_row()
-                            gui_face(face)
+    icon = message_obj.get("icon_index")
+    color = message_obj.get("icon_color", "white")
+    face = message_obj.get("face")
+    title = message_obj.get("title")
+    title = task.compile_and_format_string(title)
+    message = message_obj.get("message")
+    message = task.compile_and_format_string(message)
 
-            if title:
-                gui_text(f"$text: {title};font:gui-2;color:{title_color};")
-            elif message:
-                gui_text(f"$text: {message};font:gui-2;color:{message_color};")
+    title_color = message_obj.get("title_color", "white")
+    title_color = task.compile_and_format_string(title_color)
+    message_color = message_obj.get("message_color", "white")
+    message_color = task.compile_and_format_string(message_color)
+
+
+    # Need this for the flacky sub_section
+    # if icon is not None or face is not None:
+
+    #
+    # Title
+    #
+    gui_row(style="row-height:2.1em;")
+    with gui_sub_section():
+        gui_row(style="row-height:2em;")
+        if icon is not None or face is not None:
+            with gui_sub_section(style="row-height:2em;col-width:2em;"):
+                gui_row(style="row-height:1.8em;col-width:1.8em;")
+                with gui_sub_section():
+                    if icon is not None:
+                        gui_row()
+                        gui_icon(f"icon_index:{icon};color:{color};")
+                    if face is not None:
+                        gui_row()
+                        gui_face(face)
+
+        if title:
+            gui_text(f"$text: {title};font:gui-2;color:{title_color};")
+        elif message:
+            gui_text(f"$text: {message};font:gui-2;color:{message_color};")
 
 from .listbox import gui_list_box
 

@@ -88,33 +88,35 @@ class CommsMessageStartRuntimeNode(MastRuntimeNode):
             scan_results(msg)
         elif node.mtype == "var": 
             task.set_variable(node.var, node)
-        elif node.mtype == "<client>": 
-            comms_broadcast(task.maim.client_id, msg, node.body_color)
-        elif node.mtype == "<ship>":
-            player_id = SBS.get_ship_of_client(task.maim.client_id) 
-            comms_broadcast(player_id, msg, node.body_color)
         elif node.mtype == "<all>": 
             comms_broadcast(0, msg, node.body_color)
         elif node.mtype == "()": 
             comms_speech_bubble(msg, color=node.title_color)
-        elif node.mtype == "<dialog>": 
-            SBS.send_story_dialog(task.maim.client_id, node.title,msg, npc_face, node.title_color)
-            player_id = SBS.get_ship_of_client(task.maim.client_id) 
-            comms_message(msg, player_id, player_id,  node.title, npc_face, node.body_color, node.title_color, True)
-        elif node.mtype == "<dialog_ships>": 
-            SBS.send_story_dialog(task.maim.client_id, node.title,msg, npc_face, node.title_color)
-            for p in role("__player__"):
-                comms_message(msg, p, p,  node.title, npc_face, node.body_color, node.title_color, True)
-        elif node.mtype == "<dialog_consoles>":
-            player_id = SBS.get_ship_of_client(task.maim.client_id)
-            for c in role("console"):
-                if c.get_inventory_value("assigned_ship") == player_id:
-                    SBS.send_story_dialog(c, node.title,msg, npc_face, node.title_color)
-        elif node.mtype == "<dialog_consoles_all>":
-            SBS.send_story_dialog(0, node.title,msg, npc_face, node.title_color)
-            for c in role("console"):
-                SBS.send_story_dialog(c, node.title,msg, npc_face, node.title_color)
-        elif node.mtype == "<dialog_main>":
-            SBS.send_story_dialog(0, node.title,msg, npc_face, node.title_color)
-            for c in role("mainscreen") & role("console"):
-                SBS.send_story_dialog(c, node.title,msg, npc_face, node.title_color)
+
+        # elif node.mtype == "<client>": 
+        #     comms_broadcast(task.main.client_id, msg, node.body_color)
+        # elif node.mtype == "<ship>":
+        #     player_id = SBS.get_ship_of_client(task.main.client_id) 
+        #     comms_broadcast(player_id, msg, node.body_color)
+        
+        # elif node.mtype == "<dialog>": 
+        #     SBS.send_story_dialog(task.main.client_id, node.title,msg, npc_face, node.title_color)
+        #     player_id = SBS.get_ship_of_client(task.main.client_id) 
+        #     comms_message(msg, player_id, player_id,  node.title, npc_face, node.body_color, node.title_color, True)
+        # elif node.mtype == "<dialog_ships>": 
+        #     SBS.send_story_dialog(task.main.client_id, node.title,msg, npc_face, node.title_color)
+        #     for p in role("__player__"):
+        #         comms_message(msg, p, p,  node.title, npc_face, node.body_color, node.title_color, True)
+        # elif node.mtype == "<dialog_consoles>":
+        #     player_id = SBS.get_ship_of_client(task.main.client_id)
+        #     for c in role("console"):
+        #         if c.get_inventory_value("assigned_ship") == player_id:
+        #             SBS.send_story_dialog(c, node.title,msg, npc_face, node.title_color)
+        # elif node.mtype == "<dialog_consoles_all>":
+        #     SBS.send_story_dialog(0, node.title,msg, npc_face, node.title_color)
+        #     for c in role("console"):
+        #         SBS.send_story_dialog(c, node.title,msg, npc_face, node.title_color)
+        # elif node.mtype == "<dialog_main>":
+        #     SBS.send_story_dialog(0, node.title,msg, npc_face, node.title_color)
+        #     for c in role("mainscreen") & role("console"):
+        #         SBS.send_story_dialog(c, node.title,msg, npc_face, node.title_color)
