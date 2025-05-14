@@ -25,8 +25,7 @@ class Slider(Column):
     def on_message(self, event):
         if event.sub_tag == self.tag:
             self.value = event.sub_float
-        else:
-            super().on_message(event)
+        super().on_message(event)
 
     def update(self, props):
         self.props = props

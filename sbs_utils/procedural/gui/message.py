@@ -51,3 +51,21 @@ def gui_message(layout_item, label=None):
     """    
     task = FrameContext.task
     return MessageTrigger(task, layout_item, label)
+
+
+def gui_message_callback(layout_item, cb):
+    """Trigger to watch when the specified layout element has a message
+
+    Args:
+        layout_item (layout object): The object to watch
+
+    Returns:
+        trigger: A trigger watches something and runs something when the trigger is reached
+    """    
+    layout_item.on_message_cb = cb
+
+
+def gui_message_label(layout_item, label):
+    from ..execution import gui_sub_task_schedule
+    layout_item.on_message_cb = lambda e: gui_sub_task_schedule(label)
+

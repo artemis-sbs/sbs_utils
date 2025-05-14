@@ -30,8 +30,7 @@ class RadioButton(Column):
             #
             #
             self.parent.update_variable()
-        else:
-            super().on_message(event)
+        super().on_message(event)
 
     @property
     def value(self):

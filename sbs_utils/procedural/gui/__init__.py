@@ -39,7 +39,7 @@ from .screen_shot import gui_screenshot
 from .clipboard import gui_clipboard_copy, gui_clipboard_get, gui_clipboard_put
 from .client_string import gui_request_client_string
 
-from .message import gui_message
+from .message import gui_message, gui_message_label, gui_message_callback
 from .change import gui_change
 
 

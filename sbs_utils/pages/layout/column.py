@@ -45,6 +45,7 @@ class Column:
         self.data = None
         self.var_scope_id = None
         self.var_name = None
+        self.on_message_cb = None
 
     def set_bounds(self, bounds) -> None:
         self.bounds.left=bounds.left
@@ -194,6 +195,8 @@ class Column:
     def on_message(self, event):
         if event.sub_tag == self.click_tag:
             Clickable.clicked[event.client_id] = self
+        elif self.on_message_cb is not None:
+            self.on_message_cb(event)
 
     def update(self, props):
         pass

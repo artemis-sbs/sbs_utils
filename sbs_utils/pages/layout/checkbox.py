@@ -25,8 +25,7 @@ class Checkbox(Column):
             self.value= not self.value
             
             self.present(event)
-        else:
-            super().on_message(event)
+        super().on_message(event)
             #self.value = int(event.sub_float)
 
     def update(self, message):
