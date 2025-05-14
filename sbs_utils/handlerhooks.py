@@ -112,7 +112,8 @@ class ErrorPage(Page):
 
 def cosmos_event_handler(sim, event):
     try:
-        t = time.process_time()
+        #t = time.process_time()
+        t = time.perf_counter()
         import sbs
         # Allow guis more direct access to events
         # e.g. Mast Story Page, Clients change
@@ -281,8 +282,9 @@ def cosmos_event_handler(sim, event):
     Agent.SHARED.set_inventory_value("sim", None)
     Agent.context = None
     
-    et = time.process_time() - t
-    if et > 0.03:
+    #et = time.process_time() - t
+    et = time.perf_counter() - t
+    if et > 0.033:
         print(f"Elapsed time: {et} {event.tag}-{event.sub_tag}")
 
 
