@@ -105,7 +105,7 @@ def terrain_asteroid_clusters(terrain_value, center=None):
 
         terrain_spawn_asteroid_scatter(cluster_spawn_points, 1000)
 
-def terrain_spawn_asteroid_box(x,y,z, size_x=10000,size_z=None, density_scale=1.0, density=1, height=1000):
+def terrain_spawn_asteroid_box(x,y,z, size_x=10000,size_z=None, density_scale=1.0, density=1, height=1000, is_tiled=False):
     """
         density is per 1000. Defaults to 0.5.
     """
@@ -115,16 +115,21 @@ def terrain_spawn_asteroid_box(x,y,z, size_x=10000,size_z=None, density_scale=1.
         size_z = size_x
     
     grid = size_x/1000 + abs(size_z/1000)
+    grid = grid * density_scale
     amount = max(int(grid * density), 1)
-    amount = random.randrange(int(amount/2), int(amount* density_scale))
+    amount = random.randrange(amount//2, amount)
 
-    cz = z+size_z/2
-    # Map editor send size_z as negative for flipping
-    if size_z <0:
-        cz = (z-size_z/2)
-        size_z = -size_z
-    
-    cluster_spawn_points = scatter.box(amount,  x + size_x/2, -height/2, cz, size_x, height/2, size_z, True, 0, 0, 0 )
+    # Tiled send top, left and z are flipped
+    if is_tiled:
+        cz = z+size_z/2
+        # Map editor send size_z as negative for flipping
+        if size_z <0:
+            cz = (z-size_z/2)
+            size_z = -size_z
+        
+        cluster_spawn_points = scatter.box(amount,  x + size_x/2, -height/2, cz, size_x, height/2, size_z, True, 0, 0, 0 )
+    else:
+        cluster_spawn_points = scatter.box(amount,  x, -height/2, z, size_x, height/2, size_z, True, 0, 0, 0 )
     terrain_spawn_asteroid_scatter(cluster_spawn_points, height)
 
 
@@ -132,11 +137,10 @@ def terrain_spawn_asteroid_sphere(x,y,z, radius=10000, density_scale=1.0, densit
     if density_scale==0:
         return
     grid = radius/1000
-    grid = grid + grid
-
+    grid = grid * density_scale
     amount = max(int(grid * density), 1)
-    amount = random.randrange(int(amount* density_scale))
-
+    amount = random.randrange(amount//2, amount)
+    
     cluster_spawn_points = scatter.sphere(amount,  x, y,z, radius)
     terrain_spawn_asteroid_scatter(cluster_spawn_points, height)
 
@@ -315,30 +319,34 @@ def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=Non
         else:
             terrain_setup_nebula_yellow(nebula)
 
-def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0, density= 0.25, height=1000):
+def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0, density= 0.25, height=1000, is_tiled=False):
     if density_scale==0:
         return
     if size_z is None:
         size_z = size_x
     
     grid = size_x/100 + size_z/100
-    #amount = max(int(grid * density), 1)
-    amount = max(int(grid), 1)
+    grid = grid * density_scale
 
+    amount = max(int(grid * density), 1)
+    amount = random.randrange(amount//2, amount)
 
-    amount = random.randrange(int(amount), int(amount* density_scale))
-
-    cluster_spawn_points = scatter.box(amount,  x + size_x/2, -height/2, z+size_z/2, size_x, height/2, size_z, True, 0, 0, 0 )
+    if is_tiled:
+        cluster_spawn_points = scatter.box(amount,  x + size_x/2, -height/2, z+size_z/2, size_x, height/2, size_z, True, 0, 0, 0 )
+    else:
+        cluster_spawn_points = scatter.box(amount,  x, -height/2, z, size_x, height/2, size_z, True, 0, 0, 0 )
     terrain_spawn_nebula_scatter(cluster_spawn_points, height)
 
 def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=0.25, height=1000):
     if density_scale==0:
         return
     
-    grid = radius/1000 + radius/1000
+    grid = radius/100
+    grid = grid * density_scale
+
     amount = max(int(grid * density), 1)
-    amount = random.randrange(int(amount* density_scale))
-    
+    amount = random.randrange(amount//2, amount)
+
     cluster_spawn_points = scatter.sphere(amount, x, y, z, radius)
     terrain_spawn_nebula_scatter(cluster_spawn_points, height)
 
