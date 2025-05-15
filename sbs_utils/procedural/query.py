@@ -580,3 +580,9 @@ def safe_int(s, defa=0):
     if s.isdigit():
         return int(s)
     return defa
+
+def are_variables_defined(keys):
+    task = FrameContext.task
+    if task is None:
+        return False
+    return task.are_variables_defined(keys)

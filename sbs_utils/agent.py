@@ -104,6 +104,10 @@ class SpawnData:
         self.blob = blob
         self.py_object = py_obj
 
+    @property
+    def data_set(self):
+        return self.blob
+
 
 class CloseData:
     id: int

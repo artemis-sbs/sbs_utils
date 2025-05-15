@@ -15,7 +15,8 @@ def gui_slider(msg, style=None, var=None, data=None, is_int=False):
         layout object: The Layout object created
     """    
     page = FrameContext.page
-    task = FrameContext.task
+    task = FrameContext.page.gui_task
+    
     if page is None:
         return None
     tag = page.get_tag()

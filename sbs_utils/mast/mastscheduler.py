@@ -805,6 +805,16 @@ class MastAsyncTask(Agent, Promise):
         value = self.get_value(key, default)
         return value[0]
     
+    def are_variables_defined(self, keys):
+        keys = keys.split(",")
+        for key in keys:
+            value = self.get_value(key, None)
+            if value[1] == Scope.UNKNOWN:
+                return False
+        return True
+
+        
+    
     def set_variable(self, key, value):
         self.set_value_keep_scope(key,value)
 

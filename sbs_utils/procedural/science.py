@@ -388,3 +388,32 @@ def science_navigate(path):
     if p is None:
         return
     p.set_path(path)
+
+
+from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
+from sbs_utils.helpers import FrameContext
+from sbs_utils.procedural.query import to_object
+import sbs
+
+
+#
+# NOTE: These all could be moved to the sbs_utils library
+#
+
+def science_set_2dview_focus(client_id, focus_id=0):
+    if focus_id is None:
+        return
+    
+    follow = get_inventory_value(client_id, "2d_follow")
+    on_ship =  sbs.get_ship_of_client(client_id)
+    set_inventory_value(client_id, "science_2dview_alt_ship", focus_id)
+    set_inventory_value(on_ship, "science_2dview_alt_ship", focus_id)
+    set_id = focus_id
+    if not follow:
+        set_id = 0
+
+    previous = get_inventory_value(client_id, "science_2dview_alt_ship_prev", 0)
+    if previous != set_id:
+        sbs.assign_client_to_alt_ship(client_id, set_id)
+        set_inventory_value(client_id, "science_2dview_alt_ship_prev", set_id)
+

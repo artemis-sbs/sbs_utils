@@ -492,6 +492,9 @@ class HandleLifetime:
                 return
             
         task = FrameContext.server_task
+        if task is None:
+            task = FrameContext.task
+            print(f"STRANGE NO SERVER TASK? {task.main.page.client_id}")
         if self.cycle == "DOCK":
             event = so # argument is an event
             t = task.start_task(self.label, {

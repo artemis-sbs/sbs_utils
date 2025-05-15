@@ -24,15 +24,17 @@ def gui_tabbed_panel(items=None, style=None, tab=0, tab_location=0, icon_size=0)
 def gui_info_panel(tab=0, tab_location=0, icon_size=0, var=None):
     page = FrameContext.page
 
-    panels = [
-        {"path": "hide", "icon": 121, "show": None, "hide": None},  # off
-        {
-            "path": "ship_data",
-            "icon": 140,
-            "show": gui_panel_ship_data_show,
-            "hide": gui_panel_ship_data_hide,
-        },
-    ]
+    panels = []
+    if var == "__INFO_PANEL__":
+        panels = [
+            {"path": "hide", "icon": 121, "show": None, "hide": None},  # off
+            {
+                "path": "ship_data",
+                "icon": 140,
+                "show": gui_panel_ship_data_show,
+                "hide": gui_panel_ship_data_hide,
+            },
+        ]
 
     tp = gui_tabbed_panel(
         panels, tab=tab, tab_location=tab_location, icon_size=icon_size
@@ -50,8 +52,9 @@ def gui_info_panel_add(path, icon_index, show, hide=None, var=None):
     page = FrameContext.page
     if var is None:
         var = "__INFO_PANEL__"
-
-    tp = page.gui_task.get_variable(var)
+    tp = var
+    if isinstance(var, str):
+        tp = page.gui_task.get_variable(var)
     if tp is None:
         return
     panel = {"path": path, "icon": icon_index, "show": show, "hide": hide}
@@ -65,12 +68,13 @@ def gui_info_panel_add(path, icon_index, show, hide=None, var=None):
     return tp
 
 
-def gui_info_panel_remove(path):
+def gui_info_panel_remove(path, var = None):
     page = FrameContext.page
     if var is None:
         var = "__INFO_PANEL__"
-
-    tp = page.gui_task.get_variable(var)
+    tp = var
+    if isinstance(var, str):
+        tp = page.gui_task.get_variable(var)
     if tp is None:
         return
     st = len(tp.panels)

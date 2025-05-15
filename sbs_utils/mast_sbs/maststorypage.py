@@ -1,5 +1,5 @@
 from ..gui import Gui, Page
-from ..helpers import FakeEvent, FrameContext
+from ..helpers import FakeEvent, FrameContext, FrameContextOverride
 from ..procedural.inventory import get_inventory_value, set_inventory_value, has_inventory_value
 from ..procedural.links import linked_to
 from ..procedural.gui.navigation import gui_reroute_client
@@ -640,8 +640,9 @@ class StoryPage(Page):
 
         clicked = None
         # Process layout first
-        for section in self.layouts:
-            section.on_message(event)
+        with FrameContextOverride(self.gui_task, self):
+            for section in self.layouts:
+                section.on_message(event)
 
         clicked = Layout.clicked.get(self.client_id)
 
@@ -651,7 +652,8 @@ class StoryPage(Page):
         if runtime_node is not None and runtime_node[1] is not None:
             # tuple layout and runtime node
             runtime_node = runtime_node[1]
-            runtime_node.on_message(event)
+            with FrameContextOverride(self.gui_task, self):
+                runtime_node.on_message(event)
           
         # for change in self.on_change_items:
         #     if change.test():
