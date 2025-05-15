@@ -28,7 +28,7 @@ def role_allies(id_or_obj):
         return ret
     allies = obj.data_set.get("ally_list",0)
     ret = role(obj.side)
-    if allies is None or allies=="":
+    if allies is None or allies=="" or allies==0:
         return ret
     # Make sure side is included
     items = allies.split(",")
@@ -36,6 +36,58 @@ def role_allies(id_or_obj):
         ret |= role(_role)
     return ret
 
+def role_are_allies(id_or_obj, other_id_or_obj):
+    a = role_allies(id_or_obj)
+    if len(a)==0:
+        return False
+    o = to_set(other_id_or_obj)
+    t = a & o
+    return len(t)>0
+
+def role_ally_add(id_or_obj, side):
+    """adds an side as an ally
+
+    Args:
+        id_or_obj (id | object): The item to get allies
+        side (str): The side string
+    """
+    side = side.strip().lower()
+    ret = set()
+    obj = to_object(id_or_obj)
+    if obj is None or obj.id==0:
+        return ret
+    
+    allies = obj.data_set.get("ally_list",0)
+    if allies is None or allies=="":
+        allies = side
+    # Make sure side is included
+    items = set(allies.split(","))
+    items.add(side)
+    allies = ",".join(items)
+    obj.data_set.set("ally_list",allies, 0)
+
+def role_ally_remove(id_or_obj, side):
+    """adds an side as an ally
+
+    Args:
+        id_or_obj (id | object): The item to get allies
+        side (str): The side string
+    """
+    side = side.strip().lower()
+    ret = set()
+    obj = to_object(id_or_obj)
+    if obj is None or obj.id==0:
+        return ret
+    allies = obj.data_set.get("ally_list",0)
+    if allies is None or allies=="":
+        return
+    # Make sure side is included
+    items = set(allies.split(","))
+    items = [x for x in items if x != side]
+    allies = ",".join(items)
+    obj.data_set.set("ally_list", allies, 0)
+
+    
 
 def any_role(roles: str):
     """returns a set of all the agents with a any of the given roles.
@@ -127,17 +179,3 @@ def has_roles(so, roles):
                 return False
     return True
 
-
-def are_allies(player_id_or_obj, target_id_or_obj):
-    player_obj = to_object(player_id_or_obj)
-    target_obj = to_object(target_id_or_obj)
-    if player_obj is None or target_obj is None:
-        return False
-    if player_obj.side == target_obj.side:
-        return True
-    allies = player_obj.data_set.get("ally_list",0)
-    if allies is None:
-        return False
-    if target_obj.side in allies:
-        return True
-    return False
