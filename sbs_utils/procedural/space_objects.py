@@ -6,7 +6,6 @@ from .roles import all_roles
 
 
 
-
 def broad_test(x1: float, z1: float, x2: float, z2: float, broad_type=0xfff0):
     """returns a set of ids that are in the target rect
 
@@ -15,7 +14,13 @@ def broad_test(x1: float, z1: float, x2: float, z2: float, broad_type=0xfff0):
         z1(float): z location (top)
         x2(float): x location (right)
         z2(float): z location (bottom)
-        broad_type (int, optional): -1=All, 0=player, 1=Active, 2=Passive. Defaults to -1.
+        broad_type (int, optional): 
+            TERRAIN = 0x01,
+            NPC = 0x10,
+            PLAYER = 0x20,
+            ALL = 0xffff,
+            NPC_AND_PLAYER = 0x30,
+            DEFAULT is 0xFFF0
 
     Returns:
         set: A set of ids
@@ -30,7 +35,14 @@ def broad_test_around(id_or_obj, width: float, depth: float, broad_type=0xfff0):
         id_obj(agent): The ID or object of an agent
         w(float): width
         d(float): depth
-        broad_type (int, optional): -1=All, 0=player, 1=Active, 2=Passive. Defaults to -1.
+        broad_type (int, optional): 
+            TERRAIN = 0x01,
+            NPC = 0x10,
+            PLAYER = 0x20,
+            ALL = 0xffff,
+            NPC_AND_PLAYER = 0x30,
+            DEFAULT is 0xFFF0
+
 
     Returns:
         set: A set of ids
@@ -316,7 +328,7 @@ def set_engineering_value(id_or_obj, name, value):
 
 
 
-def remove_objects_sphere(x,y,z, radius, abits=0x0F, roles=None):
+def delete_objects_sphere(x,y,z, radius, abits=0x0F, roles=None):
     """ Removes items from an area
         
     Args:
@@ -343,7 +355,7 @@ def remove_objects_sphere(x,y,z, radius, abits=0x0F, roles=None):
 
 
 
-def remove_objects_box(x,y,z, w,h,d, abits=0x0F, roles=None):
+def delete_objects_box(x,y,z, w,h,d, abits=0x0F, roles=None):
     """ Removes items from an area
         
     Args:
@@ -366,7 +378,17 @@ def remove_objects_box(x,y,z, w,h,d, abits=0x0F, roles=None):
             obj.remove()
             FrameContext.context.sbs.delete_object(id)
 
-
+def delete_object(id_or_objs):
+    """ Removes items from an area
+        
+    """
+    ids = to_set(id_or_objs)
     
+    for id in ids:
+        obj = to_object(id)
+        if obj is None:
+            continue
+        obj.delete_object()
+
 
 

@@ -78,6 +78,11 @@ class SpaceObject(Agent):
         """
         return FrameContext.context.sim.get_space_object(self.id)
 
+    def delete_object(self):
+        FrameContext.context.sbs.delete_object(self.id)
+        self.destroyed()
+
+        
     
     
 

@@ -293,7 +293,7 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None):
         cluster_color = random.randrange(3)
         terrain_spawn_nebula_scatter(cluster_spawn_points, 1000, cluster_color)
 
-def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=0):
+def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=None):
     for v2 in cluster_spawn_points:
         # v2.y = v2.y % 500.0 Mod doesn't work like you think
         v2.y = random.random() * (height/2)-(height/4)
@@ -303,6 +303,9 @@ def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=0):
         nebula.blob.set("local_scale_x_coeff", random.uniform(1.0, 5.5))
         nebula.blob.set("local_scale_y_coeff", random.uniform(2.0, 5.5))
         nebula.blob.set("local_scale_z_coeff", random.uniform(1.0, 5.5))
+
+        if cluster_color is None:
+            cluster_color = random.randint(0,2)
 
         #terrain_setup_nebula_blue(nebula)
         if cluster_color == 1:
