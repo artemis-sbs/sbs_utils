@@ -319,7 +319,7 @@ def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=Non
         else:
             terrain_setup_nebula_yellow(nebula)
 
-def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0, density= 0.25, height=1000, is_tiled=False):
+def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0, density= 0.25, height=1000, cluster_color=None, is_tiled=False):
     if density_scale==0:
         return
     if size_z is None:
@@ -335,9 +335,9 @@ def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0
         cluster_spawn_points = scatter.box(amount,  x + size_x/2, -height/2, z+size_z/2, size_x, height/2, size_z, True, 0, 0, 0 )
     else:
         cluster_spawn_points = scatter.box(amount,  x, -height/2, z, size_x, height/2, size_z, True, 0, 0, 0 )
-    terrain_spawn_nebula_scatter(cluster_spawn_points, height)
+    terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color)
 
-def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=0.25, height=1000):
+def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=0.25, height=1000, cluster_color=None):
     if density_scale==0:
         return
     
@@ -348,7 +348,7 @@ def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=
     amount = random.randrange(amount//2, amount)
 
     cluster_spawn_points = scatter.sphere(amount, x, y, z, radius)
-    terrain_spawn_nebula_scatter(cluster_spawn_points, height)
+    terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color)
 
 
             

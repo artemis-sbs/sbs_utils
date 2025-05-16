@@ -1,7 +1,7 @@
 import random 
 import sys
 import re
-from sbs_utils.procedural.execution import task_schedule
+from sbs_utils.procedural.prefab import prefab_spawn
 from sbs_utils.vec import Vec3
 
 class CardList:
@@ -18,9 +18,10 @@ class Card(CardList):
     """
     A card is not the space objects
     """
-    def __init__(self, label, cost=0):
+    def __init__(self, label, data=None, cost=0):
         super().__init__()
         self.label = label
+        self.data = data
         self.cost = cost
 
 
@@ -37,8 +38,10 @@ class Card(CardList):
         # Like the task 
         # A task should be executed
         # on the card label
-        return task_schedule(self.label, data={"START_X": x, "START_Y": y, "START_Z": z,
-                "SIZE_X": size_x, "SIZE_Y": size_y, "SIZE_Z": size_z})
+        data={"START_X": x, "START_Y": y, "START_Z": z,"SIZE_X": size_x, "SIZE_Y": size_y, "SIZE_Z": size_z}
+        if self.data is not None:
+            data |= self.data
+        return prefab_spawn(self.label, data)
     
 
 
@@ -57,12 +60,12 @@ class Deck(CardList):
         self.budget = budget
 
 
-    def add_card(self, card, count=1, cost=0):
+    def add_card(self, card, data=None, count=1, cost=0):
         for _ in range(0,count):
             if isinstance(card, Card):
                 self.cards.append(card)
             else:
-                self.cards.append(Card(card, cost))
+                self.cards.append(Card(card, data,cost))
                 
 
     def shuffle(self):
