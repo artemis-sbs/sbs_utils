@@ -364,7 +364,7 @@ def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=
             return
         amount = random.randrange(min(raw_amount, min_amount), max(raw_amount, min_amount))
 
-    print(f"TER SPHERE {amount} {radius} {grid} {raw_amount}")
+    # print(f"TER SPHERE {amount} {radius} {grid} {raw_amount}")
     cluster_spawn_points = scatter.sphere(amount, x, y, z, radius)
     terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color, diameter=(radius*4), density=density)
 
