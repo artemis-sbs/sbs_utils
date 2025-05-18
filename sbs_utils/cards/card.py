@@ -1,8 +1,9 @@
 import random 
 import sys
 import re
-from sbs_utils.procedural.prefab import prefab_spawn
-from sbs_utils.vec import Vec3
+
+from ..procedural.prefab import prefab_spawn, PrefabAll
+from ..vec import Vec3
 
 class CardList:
     def __init__(self):
@@ -158,6 +159,7 @@ class Hand(CardList):
         super().__init__()
 
 
+
 class Tilemap(CardList):
     def __init__(self, min_x, min_z, tile_size_x, tile_size_z=0, y=0):
         super().__init__()
@@ -212,11 +214,16 @@ class Tilemap(CardList):
         cur_y = self.y
         line = 1
 
+        tasks = []
+
         for tile in tile_string:
             if tile in self.deck_map:
                 deck = self.deck_map[tile]
                 card = deck.deal()
-                card.spawn(cur_x, cur_y, cur_z, self.tile_size_x*scale_tile, self.tile_size_x/10, self.tile_size_z*scale_tile)
+                t = card.spawn(cur_x, cur_y, cur_z, self.tile_size_x*scale_tile, self.tile_size_x/10, self.tile_size_z*scale_tile)
+                if t is not None:
+                    tasks.append(t)
+
             
             cur_count += 1
             line += 1
@@ -229,6 +236,9 @@ class Tilemap(CardList):
                 cur_x = self.min_x
                 if shift>1 and line % shift == 0:
                     cur_x += (self.tile_size_x * scale_tile)/2
+
+        return PrefabAll(tasks)
+
 
     def fill_hex_rings(self, tile_string, layer=None):
         """fill_hex_rings creates a hex map
