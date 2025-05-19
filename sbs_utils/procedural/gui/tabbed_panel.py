@@ -3,6 +3,7 @@ from ..style import apply_control_styles
 from ...pages.widgets.tabbed_panel import TabbedPanel
 from sbs_utils.procedural.gui import gui_task_for_client
 from .update import gui_represent
+from ..query import to_set
 
 
 def gui_tabbed_panel(items=None, style=None, tab=0, tab_location=0, icon_size=0):
@@ -25,6 +26,9 @@ def gui_info_panel(tab=0, tab_location=0, icon_size=0, var=None):
     page = FrameContext.page
 
     panels = []
+    if var is None:
+        var = "__INFO_PANEL__"
+
     if var == "__INFO_PANEL__":
         panels = [
             {"path": "hide", "icon": 121, "show": None, "hide": None},  # off
@@ -39,8 +43,6 @@ def gui_info_panel(tab=0, tab_location=0, icon_size=0, var=None):
     tp = gui_tabbed_panel(
         panels, tab=tab, tab_location=tab_location, icon_size=icon_size
     )
-    if var is None:
-        var = "__INFO_PANEL__"
 
     page.gui_task.set_variable(var, tp)
 
@@ -116,10 +118,8 @@ def gui_info_panel_send_message(
     history=True,
     time=-1,
 ):
+    client_ids = to_set(client_id)
 
-    task = gui_task_for_client(client_id)
-    if task is None:
-        return
     if message:
         message = {"message": message}
     if message_color:
@@ -148,20 +148,27 @@ def gui_info_panel_send_message(
 
     var = f"${path.upper()}"
 
-    if history:
-        # Only keep 10 items
-        all = task.get_variable(var + "S", [])
-        all.append(message)
-        MAX_LINES = 9
-        if len(all) > MAX_LINES:
-            all = all[-MAX_LINES:]
-        task.set_variable(var + "S", all)
 
-    task.set_variable(var, message)
-    if time >= 0:
-        info_panel = task.main.page.info_panel
-        if info_panel is not None:
-            info_panel.flash_tab(path, time)
+    for client_id in client_ids:
+        task = gui_task_for_client(client_id)
+        if task is None:
+            return
+        
+
+        if history:
+            # Only keep 10 items
+            all = task.get_variable(var + "S", [])
+            all.append(message)
+            MAX_LINES = 9
+            if len(all) > MAX_LINES:
+                all = all[-MAX_LINES:]
+            task.set_variable(var + "S", all)
+
+        task.set_variable(var, message)
+        if time >= 0:
+            info_panel = task.main.page.info_panel
+            if info_panel is not None:
+                info_panel.flash_tab(path, time)
 
 
 def gui_panel_console_message(cid, left, top, width, height):
@@ -365,6 +372,8 @@ def gui_panel_console_message_list(cid, left, top, width, height):
 
 def gui_panel_console_message_list_item(message_obj):
     task = FrameContext.client_task
+    if message_obj is None:
+        return
 
     icon = message_obj.get("icon_index")
     color = message_obj.get("icon_color", "white")

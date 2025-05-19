@@ -1,4 +1,26 @@
 from ...helpers import FrameContext
+from ..roles import role, all_roles
+from ..query import to_set
+from ..links import linked_to
+
+
+def gui_console_clients(path, for_ships=None):
+    """ gets a set of IDs for matching consoles
+
+    Args:
+        console (str): The console name
+
+    """
+    if for_ships is None:
+        for_ships = role("__player__")
+    else:
+        for_ships = to_set(for_ships)
+    ret = set()
+    for _ship in for_ships:
+        ret.update(linked_to(_ship, "consoles") & all_roles(f"console,{path}"))
+    return ret
+
+
 
 def gui_activate_console(console):
     """set the console name for the client

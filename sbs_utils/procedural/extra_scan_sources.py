@@ -46,9 +46,10 @@ def extra_scan_sources_run_all(tick_task:TickTask):
         
         last_crc = get_inventory_value(scanner_id, "scan_source_crc", 0)
 
-        #print(f"extra_scan_sources {name} {last_crc}")
+        
         # copy so it can be modified
         friends = set(linked_to(scanner_id, "extra_scan_source"))
+        #print(f"extra_scan_sources {name} {last_crc} {len(friends)}")
         crc = 0
         for v in friends:
             crc += v & 0x00FF_FFFF_FFFF_FFFF
