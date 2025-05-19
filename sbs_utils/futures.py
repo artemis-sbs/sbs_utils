@@ -138,6 +138,9 @@ class Trigger:
         pass
 
 
+def promise():
+    return Promise()
+
 def promise_all(proms):
     return PromiseAllAny(proms, True)
 

@@ -4,6 +4,7 @@ from ...pages.widgets.tabbed_panel import TabbedPanel
 from sbs_utils.procedural.gui import gui_task_for_client
 from .update import gui_represent
 from ..query import to_set
+from ...futures import Promise
 
 
 def gui_tabbed_panel(items=None, style=None, tab=0, tab_location=0, icon_size=0):
@@ -114,7 +115,7 @@ def gui_info_panel_send_message(
     icon_index=None,
     icon_color=None,
     button=None,
-    button_label=None,
+    button_press=None, # label or promise
     history=True,
     time=-1,
 ):
@@ -138,10 +139,15 @@ def gui_info_panel_send_message(
         message["icon_color"] = icon_color
     if face:
         message["face"] = face
+
+    button_press_promise = None
     if button:
         message["button"] = button
-    if button_label:
-        message["button_label"] = button_label
+        button_press_promise = Promise()
+    if button_press:
+        message["button_press"] = button_press
+    if button and button_press is None:
+        message["button_press"] = button_press_promise
 
     if path is None:
         path = "message"
@@ -154,7 +160,6 @@ def gui_info_panel_send_message(
         if task is None:
             return
         
-
         if history:
             # Only keep 10 items
             all = task.get_variable(var + "S", [])
@@ -169,6 +174,7 @@ def gui_info_panel_send_message(
             info_panel = task.main.page.info_panel
             if info_panel is not None:
                 info_panel.flash_tab(path, time)
+    return button_press_promise
 
 
 def gui_panel_console_message(cid, left, top, width, height):
@@ -203,7 +209,7 @@ def gui_panel_console_message(cid, left, top, width, height):
     message_color = task.compile_and_format_string(message_color)
 
     buttons = message_obj.get("button", [])
-    button_label = message_obj.get("button_label")
+    button_press = message_obj.get("button_press")
 
     if banner:
         gui_row(style="row-height:2.1em;")
@@ -232,17 +238,25 @@ def gui_panel_console_message(cid, left, top, width, height):
         gui_row()
         gui_text(f"$text: {message};font:gui-2;color:{message_color}")
 
-    if buttons and button_label and not isinstance(buttons, list):
-        buttons = [(buttons, button_label)]
+    if buttons and not isinstance(buttons, list):
+        buttons = [(buttons, button_press)]
 
-    for button in buttons:
+
+    for button_tuple in buttons:
         gui_row(style="row-height:2em;")
-        gui_button(button[0], data={"__MESSAGE__": message_obj}, jump=button[1])
+        button = button_tuple
+        if isinstance(button_tuple, tuple):
+            button = button_tuple[0]
+            button_press = button_tuple[1]
+            gui_button(button, data={"__MESSAGE__": message_obj}, on_press=button_press)
+        
+        
         gui_blank(style="col-width:1.5em")
 
     if buttons:
         gui_row(style="row-height:1em;")
         gui_blank()
+
 
 
 from .gui import gui_percent_from_pixels
