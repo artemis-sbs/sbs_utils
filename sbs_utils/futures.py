@@ -137,3 +137,12 @@ class Trigger:
     def dequeue(self):
         pass
 
+
+def promise():
+    return Promise()
+
+def promise_all(proms):
+    return PromiseAllAny(proms, True)
+
+def promise_any(proms):
+    return PromiseAllAny(proms, False)

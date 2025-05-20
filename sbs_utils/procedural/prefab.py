@@ -1,5 +1,37 @@
 from .execution import task_schedule
+from ..futures import PromiseAllAny
 import re
+
+class PrefabAll(PromiseAllAny):
+    def __init__(self, proms) -> None:
+        super().__init__(proms, True)
+        self.set_built = False
+
+    def result(self):
+        #
+        # Return just the results in order they finished
+        #
+        if len(self.promises) >0:
+            return None
+        if self.set_built:
+            return self._results
+
+        results = set()
+        
+        for p in self._result:
+            if p is None:
+                continue
+            r = p.result()
+            if isinstance(r, int):
+                results.add(r)
+            else:
+                results.update(r)
+        self.set_built = True
+        self._result = results
+        return self._result
+
+
+
 
 def prefab_spawn(label, data=None, OFFSET_X=None, OFFSET_Y= None, OFFSET_Z= None):
 

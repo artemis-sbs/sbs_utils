@@ -293,11 +293,13 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None):
     spawn_points = scatter.box(random.randint(t_min,t_max), center.x, center.y, center.z, 100000, 1000, 100000, centered=True)
     
     for v in spawn_points:
-        cluster_spawn_points = scatter.sphere(random.randint(terrain_value*2,terrain_value*4), v.x, 0,v.z, 1000, 10000, ring=False)
+        #cluster_spawn_points = scatter.sphere(random.randint(terrain_value*6,terrain_value*10), v.x, 0,v.z, 1000, 10000, ring=False)
         cluster_color = random.randrange(3)
-        terrain_spawn_nebula_scatter(cluster_spawn_points, 1000, cluster_color)
+        #terrain_spawn_nebula_scatter(cluster_spawn_points, 1000, cluster_color)
+        # 10000 = radius 5000
+        terrain_spawn_nebula_sphere(v.x,v.y, v.z, 5000,terrain_value, cluster_color=cluster_color)
 
-def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=None):
+def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=None, diameter=4000, density=1.0):
     for v2 in cluster_spawn_points:
         # v2.y = v2.y % 500.0 Mod doesn't work like you think
         v2.y = random.random() * (height/2)-(height/4)
@@ -313,42 +315,58 @@ def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=Non
 
         #terrain_setup_nebula_blue(nebula)
         if cluster_color == 1:
-            terrain_setup_nebula_red(nebula)
+            terrain_setup_nebula_red(nebula, diameter, density)
         elif cluster_color == 2:
-            terrain_setup_nebula_blue(nebula)
+            terrain_setup_nebula_blue(nebula, diameter, density)
         else:
-            terrain_setup_nebula_yellow(nebula)
+            terrain_setup_nebula_yellow(nebula, diameter, density)
 
-def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0, density= 0.25, height=1000, is_tiled=False):
+def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0, density= 1, height=1000, cluster_color=None, is_tiled=False):
     if density_scale==0:
         return
     if size_z is None:
         size_z = size_x
     
-    grid = size_x/100 + size_z/100
-    grid = grid * density_scale
+    grid = (size_x/4000 + size_z/4000)/2 * density_scale
+    raw_amount = max(int(grid), 1)
+    min_amount = max(raw_amount//2, 1)
+    if raw_amount == min_amount:
+        amount = raw_amount
+    else:
+        # if density is already 1 or 2, then randomize whether 
+        # a nebula is spawned
+        if raw_amount<=2 and random.randrange(0,5)==3:
+            return
+        amount = random.randrange(min(raw_amount, min_amount), max(raw_amount, min_amount))
 
-    amount = max(int(grid * density), 1)
-    amount = random.randrange(amount//2, amount)
 
     if is_tiled:
         cluster_spawn_points = scatter.box(amount,  x + size_x/2, -height/2, z+size_z/2, size_x, height/2, size_z, True, 0, 0, 0 )
     else:
         cluster_spawn_points = scatter.box(amount,  x, -height/2, z, size_x, height/2, size_z, True, 0, 0, 0 )
-    terrain_spawn_nebula_scatter(cluster_spawn_points, height)
+    terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color, diameter=size_x*2, density=density)
 
-def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=0.25, height=1000):
+def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=1.0, height=1000, cluster_color=None):
     if density_scale==0:
         return
     
-    grid = radius/100
+    grid = (radius*2)/2000
     grid = grid * density_scale
 
-    amount = max(int(grid * density), 1)
-    amount = random.randrange(amount//2, amount)
+    raw_amount = max(int(grid * density), 1)
+    min_amount = max(raw_amount//2, 1)
+    if raw_amount == min_amount:
+        amount = raw_amount
+    else:
+        # if density is already 1 or 2, then randomize whether 
+        # a nebula is spawned
+        if raw_amount<=2 and random.randrange(0,5)==3:
+            return
+        amount = random.randrange(min(raw_amount, min_amount), max(raw_amount, min_amount))
 
+    # print(f"TER SPHERE {amount} {radius} {grid} {raw_amount}")
     cluster_spawn_points = scatter.sphere(amount, x, y, z, radius)
-    terrain_spawn_nebula_scatter(cluster_spawn_points, height)
+    terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color, diameter=(radius*4), density=density)
 
 
             
@@ -398,14 +416,14 @@ def terrain_spawn_black_holes(lethal_value, center=None):
         terrain_spawn_black_hole(*v.xyz)
 
 
-def terrain_setup_nebula_red(nebula):
+def terrain_setup_nebula_red(nebula, diameter=4000, density_coef=1.0):
     blob = to_data_set(nebula)
     blob.set("radar_color_override", "#e0e")    
     #blob.set("radar_color_override", "#0ff")    
-    size = 1000 * random.uniform(1.0, 5.5)
-    size = 4000.0
+    #size = 1000 * random.uniform(1.0, 5.5)
+    size = min(diameter, 4000.0)
     blob.set("size", size)
-    density = 9.24
+    density = 9.24 * density_coef
     blob.set("density", density)
     # 0 to 10000
     seed = random.randint(2,99999)
@@ -439,13 +457,13 @@ def terrain_setup_nebula_red(nebula):
     blob.set("nebula_data_change", 1)
 
 
-def terrain_setup_nebula_yellow(nebula):
+def terrain_setup_nebula_yellow(nebula, diameter=4000, density_coef=1.0):
     blob = to_data_set(nebula)
     blob.set("radar_color_override", "#aa0")    
-    size = 1000 * random.uniform(1.0, 5.5)
-    size = 4000.0
+    #size = 1000 * random.uniform(1.0, 5.5)
+    size = min(diameter, 4000.0)
     blob.set("size", size)
-    density = 9.24
+    density = 9.24 * density_coef
     blob.set("density", density)
     # 0 to 10000
     seed = random.randint(2,99999)
@@ -478,13 +496,13 @@ def terrain_setup_nebula_yellow(nebula):
     # Need to tell the engine we changed the values
     blob.set("nebula_data_change", 1)
 
-def terrain_setup_nebula_blue(nebula):
+def terrain_setup_nebula_blue(nebula, diameter=4000, density_coef=1.0):
     blob = to_data_set(nebula)
     blob.set("radar_color_override", "#0ff")    
-    size = 1000 * random.uniform(1.0, 5.5)
-    size = 4000.0
+    # size = 1000 * random.uniform(1.0, 5.5)
+    size = min(diameter, 4000.0)
     blob.set("size", size)
-    density = 9.24
+    density = 9.24 * density_coef
     blob.set("density", density)
     # 0 to 10000
     seed = random.randint(2,99999)
