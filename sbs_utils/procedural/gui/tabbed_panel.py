@@ -102,6 +102,8 @@ from .message import gui_message
 from .blank import gui_blank
 
 
+
+
 def gui_info_panel_send_message(
     client_id,
     message=None,
@@ -511,3 +513,4 @@ def gui_panel_upgrade_list(cid, left, top, width, height):
     gui_blank(style="col-width:0.5em")
 
     
+# Clear the info panel message on comms

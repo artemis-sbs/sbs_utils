@@ -179,3 +179,20 @@ def has_roles(so, roles):
                 return False
     return True
 
+def has_any_role(so, roles):
+    """check if an agent has any the roles specified
+
+    Args:
+        so (an agent): an agent id or object
+        role (str): a string comma separated roles
+
+    Returns:
+        bool: if the agent has that role
+    """        
+    so = to_object(so)
+    if so:
+        roles = roles.split(",")
+        for role in roles:
+            if so.has_role(role):
+                return True
+    return False
