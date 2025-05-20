@@ -13,8 +13,9 @@ Upon completion of this tutorial, you will have learned to:
 8. [Utilize Roles](#8-utilizing-roles)
 9. [Add science scans](#9-science)
 10. [Detect damage and destruction](#10-damage-and-destruction)
-11. [Recurring Tasks](#11-recurring-tasks)
-12. [Build comms buttons]
+11. [Testing the mission](#11-testing-our-mission)
+12. [Recurring Tasks](#12-recurring-tasks)
+13. [Build comms buttons]
 
 ### Specific Goals
 For this tutorial, we are writing a mission about finding and recovering a lost treasure.  
@@ -89,12 +90,12 @@ There are multiple kinds of labels:
 * Main Labels  
 * Inline Labels (also known as sublabels)  
 
-We've already encountered a map label - `@map/first_map "Treasure Hunt"` Media labels are very similar in syntax and meaning. They start with `@media`, followed by the type of media, followed by the desired filename or directory. Note that the name at the end, unlike that of a map label, currently has no bearing on the mission.
+We've already encountered a map label - `@map/first_map "Treasure Hunt"`. In practice, most of the startup code in your mission script will be part of this map label. Media labels are very similar in syntax and meaning. They start with `@media`, followed by the type of media, followed by the desired filename or directory. Note that the name at the end, unlike that of a map label, currently has no bearing on the mission.
 ```
 @media/music/default "Cosmos Default Music"
 @media/skybox/sky1-bored-alice "borealis"
 ```
-This will set the mission's music and skybox to whichever you specify. If you use more than one, a random skybox or music will be used.
+This will set the mission's music and skybox to whichever you specify. If you use more than one, a random skybox or music will be used. While not strictly necessary, I recommend that media labels be used at the very beginning of your mast file, before any functional code.
 We will cover route labels in later sections, so we will focus now on the last two types of labels.
 Main labels (which will hereafter be referred to as just labels) are the mainstay of a mission. Let's dissect the following example:
 ````python
@@ -299,8 +300,8 @@ We have another important step before we begin adding science scans:
 ```python
 //science if has_role(SCIENCE_SELECTED_ID, "treasure")
 ```
-The `//enable/science` route is a necessary flag for MAST that prevents it from using too much computation time. We don't need to know how or why it works in any detail, but it is very important to include for science.
-Now, on the scan text area of the science console, there are some buttons: "scan", "status", or "info", for example. Buttons are easily added to scan info using the plus sign, followed by the name, in quotes:
+The `//enable/science` route is necessary whenever we need to use a `//science` route. We don't need to know how or why it works in any detail (and I honestly don't understand nhow it works myself), but just know that it is very important to include.
+Now, on the scan text area of the science console, there are some buttons: "scan", "status", or "info", for example. Buttons are easily added to scan info using the plus sign, followed by the name in quotes:
 ```python
     + "scan"
     + "status"
@@ -323,15 +324,15 @@ And what's really cool is that we can have multiple choices for scan text to use
 I'm going to add this as well, to guide the players towards shooting the asteroid:
 ```python
     + "status":
-        <scan># Give a hint as to how to access the treasure
+        <scan> # Give a hint as to how to access the treasure
             % The asteroid has a dense core, surrounded by large quantities of normal asteroid material. Maybe we can blast some of it away...
 ```
-Go ahead and add at least one more button with some more scan information to your own. This is a good time to remind you, if you haven't noticed it out already, that python and MAST, use indentation to designate blocks of code. Note that the button, scan, and scan text sections are seqeuentially indented. All of these scan buttons should have the same indentation.
+Go ahead and add at least one more button with some more scan information of your own. This is a good time to remind you, if you haven't noticed it out already, that python and MAST, use indentation to designate blocks of code. Note that the button, scan, and scan text sections are seqeuentially indented. All of these scan buttons should have the same indentation.
 
 ## 10. Damage and Destruction
 In the last section, we learned about route labels. Remember how I said that routes run whenever the conditions are met? Well, there's routes for damage - several, in fact. Here's the list of damage routes:
 ```python
-# When an object is destroyed
+# When an object takes damage and is destroyed
 //damage/destroy
 # When damage is taken due to overheating
 //damage/heat
@@ -344,7 +345,7 @@ In the last section, we learned about route labels. Remember how I said that rou
 ```
 We want the players for our mission to shoot at the asteroid, and to detect when that happens, we'll use the `//damage/object` route. Once it's been hit, we're going to get rid of the asteroid and replace it with the treasure.
 ```python
-//damage/object if has_role("treasure")
+//damage/object if has_role(DAMAGE_SELECTED_ID, "treasure")
     sbs.delete_object(DAMAGE_TARGET_ID)
 ```
 This is the first time we've encountered a function that is part of a [module](https://www.w3schools.com/python/python_modules.asp). The `sbs` module is a set of functions that are directly mapped to C++ functions in the Cosmos game engine. There are a bunch of modules that are built into python and are available for us to use, such as `math` and `random`. There's also a few MAST-specific ones, such as [`faces`](https://github.com/artemis-sbs/sbs_utils/blob/master/sbs_utils/faces.py) and [`scatter`](https://github.com/artemis-sbs/sbs_utils/blob/master/sbs_utils/scatter.py).
@@ -355,30 +356,38 @@ pickup_spawn(x, y, z, "tauron_focuser")
 ```
 But wait, how do we know what coordinates to use? Let's go back to right before we delete the asteroid and get its position:
 ```python
-//damage/object if has_role("treasure")
-    position = get_pos(DAMAGE_SELECTED_ID)
+//damage/object if has_role(DAMAGE_SELECTED_ID, "treasure")
+    pos = get_pos(DAMAGE_SELECTED_ID)  # This line gets the position of an object.
     sbs.delete_object(DAMAGE_SELECTED_ID)
     pickup_spawn(pos.x, pos.y, pos.z, "tauron_focuser")
 ```
-Great, let's test what we've got so far! To simplify our testing, let's only spawn one asteroid by changing one line and adding a couple more:
+## 11. Testing our mission
+Great, let's test what we've got so far! To simplify our testing, let's only spawn one asteroid by changing one line:
 ```python
-terrain_asteroid_clusters(terrain_value)
-```
-To:
-```python
-# This is a comment. Very helpful for disabling sections of code.
+# Let's just comment this line out while we test
 # terrain_asteroid_clusters(terrain_value)
 
-treasure = terrain_spawn(200,0,150,"","#,asteroid","plain_asteroid_9","behav_asteroid")
-add_role(treasure.id, "treasure")
+# And we'll add this line instead
+treasure = terrain_spawn(200,0,150,None,"#,asteroid","plain_asteroid_9","behav_asteroid")
 ```
-Now only one asteroid will spawn, and it'll be right next to the ship, so we don't need to warp around trying to find it while we test.
-Fire up Cosmos, check the science scans, flip over to weapons and target the asteroid... and we get an error like this, with a whole lot more in addition.  
+Now only one asteroid will spawn, and it'll be right next to the ship, so we don't need to warp around trying to find it while we test.  
+Fire up Cosmos, check the science scans. All good?  
+Now flip over to weapons and target the asteroid... and we get an error like this, with a whole lot more in addition.  
 ![The Error](image.png)  
-Errors are an unavoidable part of mission writing for Cosmos. Fortunately, crashes are very rare, and we can easily restart the mission after we fix the issue. This particular error is a bit of an edge case. It's caused by resource_gather.py, which is part of the commerce addon in LegendaryMissions. There's a couple ways to get around this, but the simplest is to go into story.json and remove the commerce module. It's not used for anything yet anyways.  
-If you're not feeling adventurous about bugfixes yet, you can [skip](#back-to-mission-writing) past this next section for now.  
+Errors are an unavoidable part of mission writing for Cosmos. Fortunately, crashes are very rare, and we can easily restart the mission after we fix the issue. This particular error is a bit of an edge case. It's caused by `resource_gather.py`, which is part of the commerce addon in LegendaryMissions. There's a couple ways to get around this, but for now the simplest is to go into story.json and remove the commerce module. It's not used for anything yet anyways.  
+Note that if we use `terrain_asteroid_clusters()`, this is not an issue and we can use the commerce addon as normal.  
+### Debug logging
+It is often useful to log the value of variable or other bits of information to verify that your code works properly, or to help isolate the cause of an issue. MAST has a built-in [logger](https://artemis-sbs.github.io/sbs_utils/mast/syntax/#logging) system, but I prefer to get a message in-game. I usually use the `comms_broadcast()` function. This function can send a message to the server (and all clients), or it can send the message to only a specific client if necessary.
+```python
+test_var = 10
+comms_broadcast(0, "My test var: {test_var}")
+# All clients and the server will show: "My test var: 10"
+```
+If debugging code for a particular client, you can use an id other than 0, but that's a bit more advanced than we need to get into today.  
+
+If you're not feeling adventurous about bugfixes yet, you can [skip](#back-to-mission-writing) this next section for now.  
 ### For the adventurous
-If you dig open up [resource_gather.py](https://github.com/artemis-sbs/LegendaryMissions/blob/main/commerce/resource_gather.py), and compare with the error message, you'll see that line 31 is where the issue lies. It's actually pretty simple - the value of `x` is `None`. If we look up a few lines, we see `x = blob.get("local_scale_x_coeff",0)`. Blob data can be useful in many situations, but now isn't the time to go into it too much. Basically, the commerce module expects that the blob information contains the "local_scale_x_coeff" value. But since it's returning `None`, the value isn't set. We just need to set the local scale coefficients for our asteroid:
+If you open [resource_gather.py](https://github.com/artemis-sbs/LegendaryMissions/blob/main/commerce/resource_gather.py), and compare with the error message, you'll see that line 31 is where the issue lies. It's actually pretty simple - the value of `x` is `None`. If we look up a few lines earlier, we see `x = blob.get("local_scale_x_coeff",0)`. Blob data can be useful in many situations, but now isn't the time to go into it too much. Basically, the commerce module expects that the blob information contains the "local_scale_x_coeff" value. But since it's returning `None`, the value hasn't been set. `terrain_asteroid_clusters()` does this, but `terrain_spawn()` does not. We just need to set the local scale coefficients for our asteroid:
 ```python
 blob = to_blob(treasure.id)
 blob.set("local_scale_x_coeff",1)
@@ -399,7 +408,7 @@ We'll give instructions to the specialist team in a later section.
 Before we move on, use what you know about roles and route labels to give the treasure some scan information.
 
 
-## 11. Recurring Tasks
+## 12. Recurring Tasks
 Let's recap what we've done so far in our mission.  
 * Spawned player ships and terrain
 * Determined the asteroid that has the treasure
@@ -414,5 +423,12 @@ First, we need to identify what should happen within the label. The way I see it
 * Determine where the players are
 * Determine where the enemies should spawn
 * Spawn the enemies
-To determine the location of the players, you'll need to know that the role for player ships is `"__player__"`.
+To determine the location of the players, you'll need to know that the role for player ships is `"__player__"`. We'll assume that there is only one player ship. Go ahead and see if you can get the id of the player ship on your own!  
+  
+Now that you've given that a shot, let's see if you did what I did:
+??? info "Get the player ship"
+    ```python
+    players = role("__player__") # a set of all the players
+    ship = random_id(players) # Since there's only one (we assume), this returns the id of that ship.
+    ```
 
