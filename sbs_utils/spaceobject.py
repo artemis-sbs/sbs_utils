@@ -264,7 +264,7 @@ class MSpawn:
                 roles = side.split(",")
             else:
                 roles = side
-            side = roles[0].strip()
+            side = roles[0].strip().lower()
             if side != "#":
                 obj.side = side
                 self._side = side

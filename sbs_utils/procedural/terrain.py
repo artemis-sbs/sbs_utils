@@ -413,7 +413,7 @@ def terrain_spawn_black_holes(lethal_value, center=None):
 
     spawn_points = scatter.box(lethal_value, center.x,center.y, center.z, 75000, 500, 75000, centered=True)
     for v in spawn_points:
-        terrain_spawn_black_hole(*v.xyz)
+        terrain_spawn_black_hole(*v.xyz, 5000, 4.0, 2.0)
 
 
 def terrain_setup_nebula_red(nebula, diameter=4000, density_coef=1.0):

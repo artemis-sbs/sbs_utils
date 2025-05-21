@@ -61,7 +61,7 @@ def lifeform_spawn(name, face, roles, host=None, comms_id=None, path=None):
 
     set_face(a.id, face)
 
-    host = to_id(host)
+    a.host = to_id(host)
     a.path = path
     return a
 
