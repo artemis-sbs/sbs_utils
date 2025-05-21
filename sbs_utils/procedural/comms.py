@@ -16,7 +16,7 @@ class CommsOverride:
     def __init__(self, origin_id=None, selected_id=None, face=None, from_name=None):
         self.origin_id = query.to_set(origin_id) if origin_id is not None else origin_id
         self.selected_id = query.to_set(selected_id) if selected_id is not None else selected_id
-        print(f"OVERRIDE {self.origin_id} {self.selected_id} ")
+
         self.face = face
         self.from_name = from_name
 
