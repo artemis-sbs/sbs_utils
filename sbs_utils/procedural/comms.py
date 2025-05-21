@@ -14,8 +14,9 @@ from .gui import gui_properties_set
 class CommsOverride:
     active_overrides = []
     def __init__(self, origin_id=None, selected_id=None, face=None, from_name=None):
-        self.origin_id = origin_id
-        self.selected_id = selected_id
+        self.origin_id = query.to_set(origin_id) if origin_id is not None else origin_id
+        self.selected_id = query.to_set(selected_id) if selected_id is not None else selected_id
+        print(f"OVERRIDE {self.origin_id} {self.selected_id} ")
         self.face = face
         self.from_name = from_name
 
@@ -132,6 +133,32 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
 
             if face is None:
                 face = faces.get_face(from_obj.get_id())
+            
+            # Handle life forms at this low level
+            from .lifeform import Lifeform
+            from ..gridobject import GridObject
+            life = False
+            if isinstance(from_obj, (Lifeform, GridObject)):
+                from_obj = to_object(from_obj.host)
+                life = True
+
+            if isinstance(to_obj, (Lifeform, GridObject)):
+                to_obj = to_object(to_obj.host)
+                life = True
+
+            # This happens if two life form and neither is hosted
+            if to_obj is None and from_obj is None:
+                continue
+            # Make sure life forms have an object
+            if life:
+                if from_obj is None:
+                    from_obj = to_obj
+                elif to_obj is None:
+                    to_obj = from_obj
+
+            if to_obj is None or from_obj is None:
+                continue
+
 
             # Only player ships send messages
             if has_role(from_obj.id, "__PLAYER__"):
@@ -158,6 +185,11 @@ def _comms_get_origin_id() -> int:
     #
     # Event, Event origin is the best guess when the button is pressed
     #
+    _override = CommsOverride.active()
+    if _override is not None:
+        if _override.origin_id is not None:
+            return _override.origin_id
+
     if FrameContext.context.event is not None:
         if FrameContext.context.event.tag == "press_comms_button":
             return FrameContext.context.event.origin_id
@@ -173,6 +205,11 @@ def _comms_get_selected_id() -> int:
     #
     # Event 
     #
+    _override = CommsOverride.active()
+    if _override is not None:
+        if _override.selected_id is not None:
+            return _override.selected_id
+
     if FrameContext.context.event is not None:
         if FrameContext.context.event.tag == "press_comms_button":
             return FrameContext.context.event.selected_id

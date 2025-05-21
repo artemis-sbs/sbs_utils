@@ -77,6 +77,11 @@ class GridObject(Agent):
         go.type= go_type
 
     @property
+    def host(self: GridObject) -> int:
+        """the host id of the grid object"""
+        return self.host_id
+
+    @property
     def name(self: GridObject) -> str:
         """str, cached version of name"""
         return self._name
