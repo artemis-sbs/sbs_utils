@@ -82,6 +82,12 @@ class Vec3:
         ret._set(v)
         return ret
     
+    @staticmethod
+    def from2x_coord(x,y,z):
+        ret = Vec3(100_000-x, y, 100_000-z)
+        return ret
+
+
     def _set(self, v):
         self.x = v.x
         self.y = v.y
