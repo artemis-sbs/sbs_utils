@@ -9,7 +9,7 @@ class SignalLabelInfo:
         self.server = server
         
 
-def signal_emit(name, data):
+def signal_emit(name, data=None):
     mast = FrameContext.mast
     task = FrameContext.task
     if mast is None:

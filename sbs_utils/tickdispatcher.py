@@ -128,6 +128,11 @@ class TickDispatcher:
         and if it is completed
         """
         TickDispatcher.current = FrameContext.context.sim.time_tick_counter
+        # Remove tasks are completed
+        # script could have stopped it
+        for c in TickDispatcher.completed:
+            TickDispatcher._dispatch_tick.discard(c)
+
         TickDispatcher.completed = set()
         # Before running add items that are new
         # these would have been added last time

@@ -16,6 +16,7 @@ class CommsOverride:
     def __init__(self, origin_id=None, selected_id=None, face=None, from_name=None):
         self.origin_id = query.to_set(origin_id) if origin_id is not None else origin_id
         self.selected_id = query.to_set(selected_id) if selected_id is not None else selected_id
+        print(f"OVERRIDE {self.origin_id} {self.selected_id} ")
         self.face = face
         self.from_name = from_name
 
@@ -136,14 +137,23 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             # Handle life forms at this low level
             from .lifeform import Lifeform
             from ..gridobject import GridObject
+            life = False
             if isinstance(from_obj, (Lifeform, GridObject)):
                 from_obj = to_object(from_obj.host)
-                if from_obj is None:
-                    from_obj = to_obj
+                life = True
 
             if isinstance(to_obj, (Lifeform, GridObject)):
                 to_obj = to_object(to_obj.host)
-                if to_obj is None:
+                life = True
+
+            # This happens if two life form and neither is hosted
+            if to_obj is None and from_obj is None:
+                continue
+            # Make sure life forms have an object
+            if life:
+                if from_obj is None:
+                    from_obj = to_obj
+                elif to_obj is None:
                     to_obj = from_obj
 
             if to_obj is None or from_obj is None:

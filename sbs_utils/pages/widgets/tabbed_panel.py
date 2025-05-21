@@ -223,8 +223,10 @@ class TabbedPanel(layout.Column):
             e = FakeEvent(self.client_id)
             self.represent(e)
 
-        remember = self.current
+        prev_tab = self.current
+        back_tab = None
         if self.flash_task is not None:
+            back_tab = self.flash_task.prev_tab
             self.flash_task.stop()
             self.flash_task = None
 
@@ -233,7 +235,10 @@ class TabbedPanel(layout.Column):
             return
         
         self.flash_task = TickDispatcher.do_once(self.unflash_tab, time)
-        self.flash_task.prev_tab = remember
+        if back_tab is not None and prev_tab == self.current:
+            self.flash_task.prev_tab = back_tab
+        else:
+            self.flash_task.prev_tab = prev_tab
 
 
 
