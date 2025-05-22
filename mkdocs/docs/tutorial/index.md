@@ -120,7 +120,8 @@ Sublabels have the same rules, but use a minus sign:
 The second line in our label example above you will recognize from the map labels - it is a description of the label. This is mostly used for documentation purposes, so that you (and any mission writer who might be trying to learn from your mission) can more easily follow the intent and use of the label.  
 The third line and onwards defines the metadata associated with this label. Within the set of triple backticks, you can define keys, and set the default value for that key. This is very useful, because when you schedule a task, you can include different values for each key. This allows a label to not only run multiple times, but use different information while doing so.
 For both main and sublabels, the description and metadata lines are optional.  
-You might be able to guess what is special about sublabels. They are defined inside of a main label, and are only applicable to the their parent label. Sublabels with the same parent may not share a name, but if their parent labels are different, sublabel names can be reused.
+You might be able to guess what is special about sublabels. They are defined inside of a main label, and are only applicable to the their parent label. Sublabels with the same parent may not share a name, but if their parent labels are different, sublabel names can be reused.  
+More details on [tasks](https://artemis-sbs.github.io/sbs_utils/mast/overview/#sub-plots-aka-tasks) and [labels](https://artemis-sbs.github.io/sbs_utils/mast/syntax/#task-flow-story-sections-via-labels).
 
 ## 4. Spawning Player Ships
 Moving on from all that technical stuff, let's get into actual mission writing! … Which requires some technical stuff.  
@@ -348,7 +349,7 @@ We want the players for our mission to shoot at the asteroid, and to detect when
 //damage/object if has_role(DAMAGE_SELECTED_ID, "treasure")
     sbs.delete_object(DAMAGE_TARGET_ID)
 ```
-This is the first time we've encountered a function that is part of a [module](https://www.w3schools.com/python/python_modules.asp). The `sbs` module is a set of functions that are directly mapped to C++ functions in the Cosmos game engine. There are a bunch of modules that are built into python and are available for us to use, such as `math` and `random`. There's also a few MAST-specific ones, such as [`faces`](https://github.com/artemis-sbs/sbs_utils/blob/master/sbs_utils/faces.py) and [`scatter`](https://github.com/artemis-sbs/sbs_utils/blob/master/sbs_utils/scatter.py).
+This is the first time we've encountered a function that is part of a [module](https://www.w3schools.com/python/python_modules.asp). The `sbs` module is a set of functions that are directly mapped to C++ functions in the Cosmos game engine. There are a bunch of modules that are built into python and are available for us to use, such as `math` and `random`. There's also a few MAST-specific ones, such as [`faces`](https://github.com/artemis-sbs/sbs_utils/blob/master/sbs_utils/faces.py) and [`scatter`](https://github.com/artemis-sbs/sbs_utils/blob/master/sbs_utils/scatter.py).  
 We've now gotten rid of our asteroid. How do we replace it with treasure? Let's say we want the treasure to be an upgrade.
 We can use the `pickup_spawn()` function:
 ```python
@@ -424,11 +425,46 @@ First, we need to identify what should happen within the label. The way I see it
 * Determine where the enemies should spawn
 * Spawn the enemies
 To determine the location of the players, you'll need to know that the role for player ships is `"__player__"`. We'll assume that there is only one player ship. Go ahead and see if you can get the id of the player ship on your own!  
-  
-Now that you've given that a shot, let's see if you did what I did:
-??? info "Get the player ship"
+
+Now that you've given that a shot, let's see if you did what I did:  
+??? info "Get the player ship"  
+    ```python  
+    players = role("__player__") # a set of all the players  
+    ship = random_id(players) # Since there's only one (we assume), this returns the id of that ship.  
+    ```  
+Now let's figure out where enemies should spawn. We want them to spawn about 15k away from the ship, and we haven't specified any particular direction. You could find a random distance in one axis, then use some trig to figure out the distance in the other axis, but we've got other options. I'm looking at the `scatter_arc()` function:
+```python
+pos = get_pos(ship)
+points = scatter_arc(1, pos.x, pos.y, pos.z, 15000, 280, 320)
+```
+The various scatter functions return a number of locations, specified by the first arguemnt. In this case, we only want one spawn location. The last two arguments here are the start and end of the arc, in degrees, and it will choose a random location between this arc.  
+We can now spawn our enemies. We've learned a couple different ways to do this, but for now we'll stick with using the existing `prefab_fleet_raider` prefab. This is only slightly more complicated because we used a scatter function:
+```python
+for point in points:
+    prefab_spawn(prefab_fleet_raider,{"START_X":point.x, "START_Y": point.y, "START_Z": point.z, "fleet_difficulty": DIFFICULTY})
+```
+Since we've identified everything that needs to happen in this label, let's put it all together. Define a label with the name "spawn_treasure_hunters" and add all of the functionality we've discussed in this section to the label.
+??? info "What it should look like"
     ```python
-    players = role("__player__") # a set of all the players
-    ship = random_id(players) # Since there's only one (we assume), this returns the id of that ship.
+    == spawn_treasure_hunters
+    " A label to help us spawn new enemies throughout the mission
+        python players = role("__player__") # a set of all the players 
+        ship = random_id(players) # Since there's only one (we assume), this returns the id of that ship.
+        pos = get_pos(ship)
+        points = scatter_arc(1, pos.x, pos.y, pos.z, 15000, 280, 320)  
+        for point in points:
+            prefab_spawn(prefab_fleet_raider,{"START_X":point.x, "START_Y": point.y, "START_Z": point.z, "fleet_difficulty": DIFFICULTY})
     ```
+### Scheduling the label
+Now we need to schedule the task. We know how to use the `task_schedule()` function. But we need to have the enemies spawn periodically. You can get pretty creative with how to do this - you could trigger the label when the last enemy is destroyed. You could set timers for every 5 minutes until the mission ends. Probably the simplest is to use the `delay_sim()` function at the end of the label and then jump back to the beginning of the label:
+```python
+await delay_sim(minutes=5)
+jump spawn_treasure_hunters
+```
+You'll notice that we're using `await` again here. This pauses task execution until the [delay](https://artemis-sbs.github.io/sbs_utils/mast/syntax/#delay-commands) is complete.  
+I'm sure you've also seen that we're using the `jump` keyword instead of `task_schedule()`. This is a MAST-specific keyword, and it works very similarly to the `GOTO` keyword in BASIC. There is a difference between using `task_schedule()` and `jump` - the `jump` keyword keeps the execution flow on the same task, while `task_schedule()` creates a new, separate task. This can be useful in a situation where you want to use the same metadata. An example of this can be found in [station_prefabs.mast](https://github.com/artemis-sbs/LegendaryMissions/blob/main/prefabs/station_prefabs.mast) in Legendary Missions.  
+`jump` could also be replaced with `->`. Its meaning and use are identical:
+```python
+-> spawn_treasure_hunters
+```
 
