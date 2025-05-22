@@ -1,5 +1,5 @@
-from .links import link, linked_to, unlink, get_dedicated_link, set_dedicated_link
-from .query import is_space_object_id, to_id
+from .links import link, unlink
+from .query import is_space_object_id, to_id, to_object
 from ..faces import set_face, get_face
 from ..agent import Agent, get_story_id
 
@@ -11,6 +11,8 @@ class Lifeform(Agent):
         self.add()
         self.add_role("lifeform")
         self._comms_id = None
+        self._path = "//comms/lifeform"
+        self._host_id = None 
 
     @property
     def face(self):
@@ -25,22 +27,32 @@ class Lifeform(Agent):
     @comms_id.setter
     def comms_id(self, v):
         self._comms_id = v
-        
+
+    @property
+    def path(self):
+        return self._path
+    
+    @path.setter
+    def path(self, v):
+        self.remove_role("comms_badge")
+        self._path = v
+        if self._path is not None:
+            self.add_role("comms_badge")
 
     @property
     def host(self):
-        return get_dedicated_link(self.id, "onboard")
+        return self._host_id
     
     @host.setter
     def host(self, host_id):
-        host_id = to_id(host_id)
+        if self._host_id:
+            unlink(self._host_id, "onboard", self.id)
+        self.host_id = to_id(host_id)
         if host_id is not None and is_space_object_id(host_id):
-            set_dedicated_link(self.id, "onboard", host_id)
-        else:
-            set_dedicated_link(self.id, "onboard", None)
+            link(self.host_id, "onboard", self.id)
 
 
-def lifeform_spawn(name, face, roles, host, comms_id=None):
+def lifeform_spawn(name, face, roles, host=None, comms_id=None, path=None):
     a = Lifeform()
     a.name = name
     a.comms_id = comms_id
@@ -49,25 +61,17 @@ def lifeform_spawn(name, face, roles, host, comms_id=None):
 
     set_face(a.id, face)
 
-    host = to_id(host)
-    if is_space_object_id(host):
-        link(host, "onboard", a.id)
-        set_dedicated_link(a.id, "onboard", host)
+    a.host = to_id(host)
+    a.path = path
     return a
 
 
 def lifeform_transfer(lifeform, new_host):
-    lifeform = to_id(lifeform)
+    lifeform = to_object(lifeform)
+    if lifeform is None:
+        return
 
-    old_host = get_dedicated_link("onboard")
-    if is_space_object_id(old_host):
-        unlink(old_host, "onboard", lifeform)
-        # Remove deicated link
-        unlink(lifeform, "onboard", old_host)
-
-    new_host = to_id(new_host)
-    if is_space_object_id(new_host):
-        link(new_host, "onboard", lifeform)
-        set_dedicated_link(lifeform, "onboard", new_host)
+    new_host = to_object(new_host)
+    lifeform.host = new_host
 
     # Emit signal?
