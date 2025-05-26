@@ -124,7 +124,7 @@ MastGlobals.import_python_module('sbs_utils.vec')
 from .. import scatter
 MastGlobals.import_python_module('sbs_utils.scatter', 'scatter')
 from .. import names
-MastGlobals.import_python_module('sbs_utils.names', 'names')
+MastGlobals.import_python_module('sbs_utils.names')
 
 
 MastGlobals.import_python_module('sbs', 'sbs')

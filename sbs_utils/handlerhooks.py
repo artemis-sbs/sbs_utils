@@ -124,6 +124,18 @@ def cosmos_event_handler(sim, event):
         # if gui is not None:
         #     FrameContext.page = gui.page
 
+        ### If there is a top level exception
+        ### Only run the error page
+        ### Any other event will likely cause an error
+        ### and clear this error, 
+        ### and could queue up a bunch of error pages
+        server = FrameContext.server_page
+        if isinstance(server, ErrorPage):
+            if event.tag == "gui_message":
+                server.on_message(event)
+            return
+
+
         Agent.SHARED.set_inventory_value("sim", sim)
         # if event.tag != "mission_tick":
         #print_event(event)
