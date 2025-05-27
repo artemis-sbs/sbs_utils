@@ -24,7 +24,7 @@ pirate_first = [
 ]
 
 
-def kralien_ship(id:int, key:str):
+def name_kralien_ship(id:int, key:str):
     trim = (id % (1295))
     trim1 = id % 6
     trim2 = ((trim/6) % 6) 
@@ -38,14 +38,14 @@ def kralien_ship(id:int, key:str):
 
 
 
-def random_pirate_ship():
+def name_random_pirate_ship():
     first = randrange(len(pirate_first))
     second = randrange(len(pirate_first)) 
     while first == second:
         first = randrange(len(pirate_first))
         second = randrange(len(pirate_first))
 
-    return pirate_ship(
+    return name_pirate_ship(
         randrange(len(pirate_titles)), 
         first,
         second,
@@ -53,7 +53,7 @@ def random_pirate_ship():
         )
 
 
-def pirate_ship(v1,v2,v3, of_the):
+def name_pirate_ship(v1,v2,v3, of_the):
     name = pirate_titles[v1%len(pirate_titles)]
     name += " " + pirate_first[v2%len(pirate_first)]
     if of_the:
@@ -88,7 +88,7 @@ for i in range(1296):
 for key in id_pool:
     shuffle(id_pool[key])
 
-def random_kralien_name(id):
+def name_random_kralien(id):
      # 15
      cons = "dghklmnqrsŝtyz "
      # 6
@@ -107,7 +107,7 @@ def random_kralien_name(id):
      return f"{first}-{last}"
      
 
-def kralien_name(id):
+def name_kralien(id):
      id += 1296 // 2 
      # 15
      cons = "dghklmnqrsŝtyz "
@@ -132,7 +132,7 @@ def kralien_name(id):
      return f"{first}-{last}"
 
 
-def canonical_kralien_comms_id(id, key:str):
+def name_canonical_kralien_comms_id(id, key:str):
     key = key.lower()
     length = 4
     ship_name = ship_data.get_ship_name(key)
@@ -149,26 +149,26 @@ def canonical_kralien_comms_id(id, key:str):
         return f"{ship_name} {trim2}{trim1} "
     return f"{ship_name} {trim4}{trim3}{trim2}{trim1} "
 
-def random_canonical_kralien_comms_id(id, key:str):
+def name_random_canonical_kralien_comms_id(id, key:str):
     key = key.lower()
     this_id_pool = id_pool.get(key, id_pool["kralien_cruiser"])
     this_id = this_id_pool.pop(0)
     this_id_pool.append(this_id)
     trim = (this_id% 1296)
-    return canonical_kralien_comms_id(trim,key)
+    return name_canonical_kralien_comms_id(trim,key)
 
 
 # Guaranteed unique for 1295 calls
-def random_common_kralien(key:str):
+def name_random_common_kralien(key:str):
     global kralien_id
     id = kralien_id
     kralien_id += 1
     name = random_kralien_name(id)
-    comms_id = canonical_kralien_comms_id(id, key)
+    comms_id = name_canonical_kralien_comms_id(id, key)
     face = ""
     return (name, comms_id, face)
 
-def arvonian_name(id):
+def name_arvonian(id):
     cons = "b,br,bl,by,d,dr,dl,dy,k,kl,kr,ky,l,l,l,l,ly,ly,m,m,my,n,ny,p,pr,pl,py,r,r,ry,s,s,sl,sr,st,sy,t,ty,v,vr,vy,w,w,wy,y,y, , "
     cons = cons.split(",")
     vows = "a,e,i,o,u,ay,ay,ah,ah"
@@ -186,3 +186,23 @@ def arvonian_name(id):
 def arvonian_comms_id(id):
     pass
 
+
+_call_signs = []
+_enemy_name_number = 0
+_call_signs.extend(range(1,100))
+import random
+random.shuffle(_call_signs)
+
+def name_random_hostile(race):
+    global _enemy_name_number
+
+    enemy_prefix = "KLMNQ"
+    if race == "skaraan":
+        enemy_prefix = "TR"
+    r_name = f"{random.choice(enemy_prefix)}{str(_call_signs[_enemy_name_number]).zfill(2)}"
+    _enemy_name_number = (_enemy_name_number+1)%99
+    return r_name
+
+def get_random_npc_call_sign(race):
+    print("get_random_npc_call_sign is depricated in v1.1.0 use name_random_hostile")
+    return name_random_hostile(race)

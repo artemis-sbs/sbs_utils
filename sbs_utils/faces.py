@@ -641,24 +641,47 @@ def random_face(race=None):
     Returns:
         str: The Face String
     """
-    if race is None:
+    if race is None or race.lower() == "random":
         race = choice(["kralien", "arvonian", "skaraan", "torgoth", "ximni", "terran", "civilian" ] )
     race = race.lower()    
-    if "kralien" in race:
-        return random_kralien()
-    if "arvonian" in race:
-        return random_arvonian()
-    if "skaraan" in race:
-        return random_skaraan()
-    if "torgoth" in race:
-        return random_torgoth()
-    if "ximni" in race:
-        return random_ximni()
-    elif "xim" in race:
-        return random_ximni()
-    if "civilian" in race:
-        return random_terran(civilian=True)
+    match race:
+        case "terran":
+            return random_terran()
+        case "terran_male":
+            return random_terran_male()
+        case "terran_female":
+            return random_terran_female()
+        case "terran_fluid":
+            return random_terran_fluid()
+        case "terran_civilian":
+            return random_terran_fluid()
+        case "torgoth":
+            return random_torgoth()
+        case "skaraan":
+            return random_skaraan()
+        case "ximni":
+            return random_ximni()
+        case "arvonian":
+            return random_arvonian()
+        case "kralien":
+            return random_kralien()
     return random_terran()
+
+
+
+def get_face_from_data(race):
+    """depricated in v1.1.0
+    use random_race instead
+
+    Args:
+        race (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    print("get_face_from_data is depricated in v1.1.0 use random_race instead")
+    return random_face(race)
+
 
 #class Characters(StrEnum): # Python 3.11 will have StrEnum
 class Characters:

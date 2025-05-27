@@ -40,7 +40,7 @@ def role_are_allies(id_or_obj, other_id_or_obj):
     a = role_allies(id_or_obj)
     if len(a)==0:
         return False
-    o = to_set(other_id_or_obj)
+    o = role_allies(other_id_or_obj)
     t = a & o
     return len(t)>0
 
