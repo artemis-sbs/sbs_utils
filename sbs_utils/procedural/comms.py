@@ -423,6 +423,9 @@ class CommsPromise(ButtonPromise):
         gui_properties_set(None)
         FrameContext.page = page
         FrameContext.task = task
+        if len(path)<len(self.path_root):
+            path = self.path_root
+
         super().set_path(path)
         
 
@@ -439,7 +442,7 @@ class CommsPromise(ButtonPromise):
         self.show_buttons()
         super().initial_poll()
 
-    def comms_message(self, event) -> None:
+    def message(self, event) -> None:
         #
         # Check to see if this was intended for us
         #
@@ -564,13 +567,13 @@ class CommsPromise(ButtonPromise):
 
         selection = None
         if self.is_grid_comms:        
-            ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'grid_selected_UID', self.comms_selected)
-            ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'grid_selected_UID', self.comms_message)
+            ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'grid_selected_UID', self.selected)
+            ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'grid_selected_UID', self.message)
             GarbageCollector.add_garbage_collect(self.collect)
             selection = query.get_grid_selection(self.origin_id)
         else:
-            ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'comms_target_UID', self.comms_selected)
-            ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'comms_target_UID', self.comms_message)
+            ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'comms_target_UID', self.selected)
+            ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'comms_target_UID', self.message)
             GarbageCollector.add_garbage_collect(self.collect)
             selection = query.get_comms_selection(self.origin_id)
 
@@ -578,7 +581,7 @@ class CommsPromise(ButtonPromise):
             self.set_buttons(self.origin_id, selection)
         # from_so.face_desc
 
-    def comms_selected(self, event) -> None:
+    def selected(self, event) -> None:
         #
         # Check to see if this was intended for us
         #
@@ -713,8 +716,168 @@ class CommsPromise(ButtonPromise):
                 return PollResults.OK_JUMP
         return PollResults.OK_RUN_AGAIN
 
-        
-        
+
+from .execution import AWAIT, task_all, labels_get_type
+################
+## This is a PyMAST label used to run comms
+def create_comms_label():
+    c = comms()
+    yield AWAIT(c)
+
+def create_grid_comms_label():
+    c = comms()
+    c.path_root = "comms/grid"
+    c.path = "comms/grid"
+    c.is_grid_comms = True
+    yield AWAIT(c)
+
+__comms_promises = {}
+def start_comms_common_selected(event, is_grid):
+    # Don't run if the selection doesn't exist
+    so = to_object(event.selected_id)
+    if event.selected_id != 0 and so is None:
+        return
+    
+    # Don't run if the selection doesn't exist
+    if event.origin_id !=0 and to_object(event.origin_id) is None:
+        return
+    
+    #
+    # If we're already running
+    #
+    #
+    test = (event.origin_id, event.selected_id)
+    promise = __comms_promises.get(test)
+    if promise is not None:
+        #
+        # This is not expected to be called
+        #
+        print ("__COMMS_PROMISE creation already exists")
+        return
+    
+    
+
+    console = "COMMS"
+    point = None
+    if event.selected_id == 0:
+        point = FrameContext.context.sbs.vec3()
+        point.x = event.source_point.x
+        point.y = event.source_point.y
+        point.z = event.source_point.z
+    
+    data = {
+                f"{console}_POINT": event.source_point,
+                f"EVENT": event,
+                f"{console}_ROUTED": True
+    }
+    
+
+    if event.origin_id:
+        data[f"{console}_ORIGIN_ID"] = event.origin_id
+        data[f"{console}_ORIGIN"] = to_object(event.origin_id)
+    else:
+        data[f"{console}_ORIGIN_ID"] = 0
+        data[f"{console}_ORIGIN"] = None
+
+    if event.parent_id:
+        data[f"{console}_PARENT_ID"] = event.parent_id
+        data[f"{console}_PARENT"] = to_object(event.parent_id)
+    else:
+        data[f"{console}_PARENT_ID"] = 0
+        data[f"{console}_PARENT"] = None
+
+    if event.selected_id:
+        data[f"{console}_SELECTED_ID"] = event.selected_id
+        data[f"{console}_SELECTED"] = to_object(event.selected_id)
+    else:
+        data[f"{console}_SELECTED_ID"] = 0
+        data[f"{console}_SELECTED"] = None
+        # Only point selections can have a NONE
+    #
+    #
+    #
+    #
+    task = FrameContext.server_task
+    #
+    # May need a null label
+    #
+    label = create_comms_label
+    if is_grid:
+        label = create_grid_comms_label
+    t = task.start_task(label, data, defer=True)
+    #
+    restore_task =  FrameContext.task
+    restore_page =  FrameContext.page
+
+    path_labels = []
+    if is_grid:
+        path_labels = labels_get_type("enable/grid/comms")
+    else:
+        path_labels = labels_get_type("enable/comms")
+    #
+    # Run all the valid enables
+    #
+
+    FrameContext.task = t
+    FrameContext.page= t.main.page
+    p = task_all(*path_labels, data=data, sub_tasks=True)
+
+    p.poll()
+    #
+    # This could get into a lock
+    # but the expectation is this runs in one pass
+    #
+    count = 0
+    while not p.done():
+        p.poll()
+
+        if p.is_idle:
+            break
+
+        if count > 100000:
+            print(f"Comms enables caused hang build")
+            break
+        count += 1
+
+    legit = False
+    for r in p.result():
+        if r != PollResults.FAIL_END:
+            legit = True
+            break
+    if legit == False:
+        t.end()
+        FrameContext.task = restore_task
+        FrameContext.page = restore_page
+        return
+    
+    #
+    # After all the sub task have run, NOW the 
+    # actual task can run
+    #
+    __comms_promises[test] = t
+    t.tick_in_context()
+
+    FrameContext.task = restore_task
+    FrameContext.page = restore_page
+
+    
+def start_comms_selected(event):
+    return start_comms_common_selected(event, False)
+    
+ConsoleDispatcher.add_default_select("comms_target_UID", start_comms_selected)
+ConsoleDispatcher.add_default_message("comms_target_UID", start_comms_selected)
+
+
+def start_grid_comms_selected(event):
+    return start_comms_common_selected(event, True)
+
+
+ConsoleDispatcher.add_default_select("grid_selected_UID", start_grid_comms_selected)
+ConsoleDispatcher.add_default_message("grid_selected_UID", start_grid_comms_selected)
+
+
+
+
 
 def comms(path=None, buttons=None, timeout=None) -> CommsPromise:
     """Present the comms buttons. and wait for a choice.
@@ -770,7 +933,7 @@ def comms_navigate(path, face=None) -> None:
     task = FrameContext.task
     p = task.get_variable("BUTTON_PROMISE")
     if path is None or path == "":
-        path = "//comms"
+        path = p.path_root
 
     # makes sure path starts with //comms
     path = path.strip("'//")

@@ -23,6 +23,26 @@ _GRID_OBJECT = 4
 _MESSAGE = 5
 
 
+
+#
+# No longer have a task that calls comms
+# Instead on handler for console dispatcher
+# routes to here that manages the objects
+# If ith doesn't exist. Test via all enables
+# if any enables exist, create task, create promise
+# run the enable, send event to promise
+#
+# If it does exist, send event to promise
+# Add a garbage collection to purge un needed things
+# enable no longer routes, it is just runs once the first time
+# it is part of a match
+# 
+# Maybe deprecate the comms() and scan() functions.
+# No need to enable or await in PyMAST either
+#
+
+
+
 class HandleConsoleSelect:
     just_once = set()
     def __init__(self, console, label, etype, filter=None) -> None:
@@ -45,7 +65,6 @@ class HandleConsoleSelect:
                 # This is the default handler so allow a message before select
                 ConsoleDispatcher.add_default_message(uid, self.selected)
             if self.etype == _MESSAGE:
-                print("HANDLE ESSAGE")
                 ConsoleDispatcher.add_default_message(uid, self.selected)
             if self.etype == _POINT:
                 if console == "grid":

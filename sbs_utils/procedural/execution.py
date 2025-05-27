@@ -354,6 +354,8 @@ def labels_get_type(label_type):
         if label is None:
             continue # Bad Label??
         test = label.get_inventory_value("type")
+        if test is None and hasattr(label, "path"):
+            test = label.path
         if test is None:
             test = l
         if not test.startswith(label_type):
@@ -361,3 +363,6 @@ def labels_get_type(label_type):
         m = all_labels[l]
         ret.append(m)
     return ret
+
+
+
