@@ -61,7 +61,8 @@ class RouteDecoratorLabel(DecoratorLabel):
                 routes.route_science_navigate(self.path, self)
             case ["enable","science"]: 
                 # Just another spawn handler is disguise
-                routes.route_select_science(self)
+                #routes.route_select_science(self)
+                pass
                 # messages can occur first with science
                 # routes.route_message_science(self)
             case ["gui",*b]: 
@@ -163,7 +164,7 @@ class RouteDecoratorLabel(DecoratorLabel):
     def generate_label_end_cmds(self, compile_info=None):
         path = self.path.strip('/')
         paths = path.split('/')
-        match paths:
+        #match paths:
             # two parameters, nav
             # case ["enable", "comms"]: 
             #     cmd = FuncCommand(is_await=True, py_cmds='comms()', compile_info=compile_info)
@@ -177,12 +178,12 @@ class RouteDecoratorLabel(DecoratorLabel):
             #     cmd.line_num = self.line_num
             #     cmd.line = f"await comms() embedded in {self.name}"
             #     self.add_child(cmd)
-            case ["enable", "science"]: 
-                cmd = FuncCommand(is_await=True, py_cmds='scan()', compile_info=compile_info)
-                cmd.file_num = self.file_num
-                cmd.line_num = self.line_num
-                cmd.line = f"await scan() embedded in {self.name}"
-                self.add_child(cmd)
+            # case ["enable", "science"]: 
+            #     cmd = FuncCommand(is_await=True, py_cmds='scan()', compile_info=compile_info)
+            #     cmd.file_num = self.file_num
+            #     cmd.line_num = self.line_num
+            #     cmd.line = f"await scan() embedded in {self.name}"
+            #     self.add_child(cmd)
 
         p = compile_info.label if compile_info is not None else None
         if not self.can_fallthrough(p):

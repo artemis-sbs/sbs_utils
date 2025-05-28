@@ -555,6 +555,9 @@ class PyTicker():
             return PollResults.OK_JUMP
         return PollResults.FAIL_END
     
+    def pop_label(self, inc_loc=True, true_pop=False):
+        pass
+    
 
     def get_runtime_error_info(self, rte):
         s = "mast python RUNTIME ERROR\n" 
