@@ -16,6 +16,14 @@ import json
 from .mast_globals import MastGlobals
 from .mast_node import MastNode, Scope
 
+class SourceMapData:
+    def __init__(self, file_name, basedir):
+        self.file_name = file_name
+        self.basedir = basedir
+        self.is_lib = False
+
+    def __str__(self):
+        return f"{self.file_name} ({self.basedir})"
 
 debug_logger = None
 def DEBUG(msg):
@@ -244,7 +252,7 @@ class Mast():
             return "<string>"
         if file_num >= len(Mast.source_map_files):
             return "<unknown>"
-        return Mast.source_map_files[file_num]
+        return str(Mast.source_map_files[file_num])
 
     def clear(self, file_name):
         
@@ -267,7 +275,13 @@ class Mast():
         self.schedulers = set()
         self.signal_observers = {}
 
-        Mast.source_map_files.append(file_name)
+        map_data = SourceMapData(file_name, self.basedir)
+        if self.lib_name is not None:
+            map_data.basedir = self.lib_name
+            map_data.is_lib = True
+
+
+        Mast.source_map_files.append(map_data)
         return len(Mast.source_map_files)-1
                 
     
@@ -574,21 +588,30 @@ class Mast():
                 self.is_dedent = None
                 self.label = None
                 self.prev_node = None
+                self.file_num = None
                 
         def buildErrorMessage(file_name, line_no, line, error):
             if line != "":
                 line = f"- '{line}'"
-            return f"\nError: {error}\nat {file_name} Line {line_no} {line}\n\n"
+            basedir = f"module {self.basedir}"
+            if self.lib_name is not None:
+                basedir = f"addon {self.lib_name}/{self.basedir}"
+
+            return f"\nError: {error}\nat {file_name} Line {line_no} {line}\n{basedir}\n\n"
         
         def buildExceptionMessage(file_name, line_no, line, error):
             if line != "":
                 line = f"- '{line}'"
-            return f"\nException: {error}\nat {file_name} Line {line_no} {line}\n\n"
+            basedir = f"module {self.basedir}"
+            if self.lib_name is not None:
+                basedir = f"addon {self.lib_name}/{self.basedir}"
+            
+            return f"\nException: {error}\nat {file_name} Line {line_no} {line}\n{basedir}\n\n"
 
         def inject_dedent(ind_level, indent_node, dedent_node, info):
             if len(indent_stack)==0:
                 logger = logging.getLogger("mast.compile")
-                error = buildErrorMessage(file_name,line_no,"","Indentation Error")
+                error = buildErrorMessage(file_name, line_no,"","Indentation Error")
                 logger.error(error )
                 errors.append(error)
                 return
@@ -692,6 +715,8 @@ class Mast():
                     if node_cls.__name__ == "Comment":
                         pass
                     elif node_cls.is_label:
+                        _info = CompileInfo()
+                        data["compile_info"] = _info
                         next = node_cls(**data)
                         next.file_num = file_num
                         next.line_num = line_no
@@ -783,6 +808,8 @@ class Mast():
                             info.label=active
                             info.prev_node = prev_node
                             info.main = self.labels.get("main")
+                            info.basedir = root.basedir
+
                             
                             obj = node_cls(compile_info=info,loc=loc, **data)
                             obj.file_num = file_num
@@ -790,7 +817,7 @@ class Mast():
 
                         except Exception as e:
                             logger = logging.getLogger("mast.compile")
-                            error = buildExceptionMessage(file_name,line_no,line,f"{e}")
+                            error = buildExceptionMessage(file_name, line_no,line,f"{e}")
                             logger.error(error)
                             logger.error(f"Exception: {e}")
 
@@ -801,7 +828,7 @@ class Mast():
                         obj.line = line if Mast.include_code else None
                         base_indent= indent_stack[0][0]
                         if obj.never_indent() and indent>base_indent:
-                            errors.append(buildErrorMessage(file_name,line_no,line,"Bad indentation"))
+                            errors.append(buildErrorMessage(file_name, line_no,line,"Bad indentation"))
                             return errors # return with first errors
                         
                         if is_indent:
@@ -813,7 +840,7 @@ class Mast():
                             indent_stack.append((indent,block_node))
                         if is_dedent:
                             if len(indent_stack)==0:
-                                errors.append(buildErrorMessage(file_name,line_no,line,"Bad indentation"))
+                                errors.append(buildErrorMessage(file_name, line_no,line,"Bad indentation"))
                                 return errors # return with first errors
                             
                             (i_loc,_) = indent_stack[-1]
@@ -823,7 +850,7 @@ class Mast():
 
                                 (i_loc,i_obj) = indent_stack.pop()
                                 if len(indent_stack)==0:
-                                    errors.append(buildErrorMessage(file_name,line_no,line,"Bad indentation"))
+                                    errors.append(buildErrorMessage(file_name, line_no,line,"Bad indentation"))
                                     return errors # return with first errors
 
                                 # Should equal i_obj
@@ -852,7 +879,7 @@ class Mast():
                     break
             except Exception as e:
                 logger = logging.getLogger("mast.compile")
-                error = buildExceptionMessage(file_name,line_no,line,f"{e}")
+                error = buildExceptionMessage(file_name, line_no,line,f"{e}")
                 logger.error(error)
                 logger.error(f"Exception: {e}")
 
@@ -873,7 +900,7 @@ class Mast():
                     mo = first_newline_index(lines)
 
                     logger = logging.getLogger("mast.compile")
-                    error = buildErrorMessage(file_name,line_no, "", "Error at first newline index")
+                    error = buildErrorMessage(file_name, line_no, "", "Error at first newline index")
                     logger.error(error )
                     errors.append(error)
                     lines = lines[mo+1:]
