@@ -1,9 +1,5 @@
-from . import query 
-from .inventory import to_object
-from .roles import has_role
-from .. import faces
-from ..agent import Agent
-from ..helpers import FrameContext
+from .query  import to_object, to_object_list, to_id, to_blob
+from ..helpers import FrameContext, FakeEvent
 from ..mast_sbs.story_nodes.button import Button
 from ..garbagecollector import GarbageCollector
 
@@ -22,10 +18,10 @@ def show_warning(t):
 #     """
 #     player_side = origin_id_or_side
 #     if not isinstance(origin_id_or_side, str):
-#         so = query.to_object(origin_id_or_side)
+#         so = to_object(origin_id_or_side)
 #         player_side = so.side
 
-#     so_sel = query.to_object(selected_id)
+#     so_sel = to_object(selected_id)
 #     percent = 0.0
 
 #     if player_side == so_sel.side:
@@ -45,10 +41,10 @@ def science_set_scan_data(player_id_or_obj, scan_target_id_or_obj, tabs):
         scan_target_id_or_obj (agent): The target ship agent id or object
         tabs (dict): A dictionary to key = tab, value = scan string
     """    
-    player_id = query.to_id(player_id_or_obj)
-    scan_target_id = query.to_id(scan_target_id_or_obj)
-    player_obj = query.to_object(player_id)
-    target_blob = query.to_blob(scan_target_id)
+    player_id = to_id(player_id_or_obj)
+    scan_target_id = to_id(scan_target_id_or_obj)
+    player_obj = to_object(player_id)
+    target_blob = to_blob(scan_target_id)
     
 
     if player_obj is None: return
@@ -106,7 +102,6 @@ def scan_results(message, target=None, tab = None):
         return
     
     task = FrameContext.task
-    print("SCIENCE SCAN RESULTS")
     scan = tab
     if tab is None:
         scan = task.get_variable("__SCAN_TAB__")
@@ -138,6 +133,7 @@ class ScanPromise(ButtonPromise):
         self.selected_id = task.get_variable("SCIENCE_SELECTED_ID")
         self.auto_side = auto_side
         self.scan_is_done = False
+        self.task.set_variable("BUTTON_PROMISE", self)
         # The stuff to start the scan is now in initial_poll / show_buttons
         self.task.main.tasks.remove(self.task)
 
@@ -162,7 +158,7 @@ class ScanPromise(ButtonPromise):
 
     def set_scan_results(self, msg):
         selected_id = self.selected_id
-        so = query.to_object(selected_id)
+        so = to_object(selected_id)
         if so:
             so.data_set.set(self.tab, msg,0)
             so.set_inventory_value("SCANNED", True)
@@ -190,13 +186,14 @@ class ScanPromise(ButtonPromise):
 
 
 
-    def science_message(self, event):
+    def message(self, event):
         # makes sure this was for us
         if event.selected_id != self.selected_id or self.origin_id != event.origin_id:
             return
         self.tab = event.extra_tag
         self.event = event
         self.cancel_if_no_longer_exists()
+        
         if not self.done():
             self.process_tab()
         else:
@@ -212,12 +209,13 @@ class ScanPromise(ButtonPromise):
                     #self.button = None # Don't let default process the button
             # if self.button is None:
             #     print(f"No button for {self.tab} {len(self.expanded_buttons)}")
-            so_player = query.to_object(self.origin_id)
+            so_player = to_object(self.origin_id)
             if so_player:
                 self.tab = so_player.side+self.tab
+            
             self.task.set_variable("__SCAN_TAB__", self)
         
-    def science_selected(self, event):
+    def selected(self, event):
         #
         # avoid if this isn't for us
         #
@@ -244,8 +242,8 @@ class ScanPromise(ButtonPromise):
             return
 
             
-        so = query.to_object(origin_id)
-        so_sel = query.to_object(selected_id)
+        so = to_object(origin_id)
+        so_sel = to_object(selected_id)
         percent = 0.0
 
         if so.side == so_sel.side:
@@ -273,8 +271,8 @@ class ScanPromise(ButtonPromise):
         super().set_result(result)
 
     def collect(self):
-        oo = query.to_object(self.origin_id)
-        selected_so = query.to_object(self.selected_id)
+        oo = to_object(self.origin_id)
+        selected_so = to_object(self.selected_id)
         if oo is not None and selected_so is not None:
             return False
         self.leave()
@@ -287,8 +285,8 @@ class ScanPromise(ButtonPromise):
         ConsoleDispatcher.remove_message_pair(self.origin_id, self.selected_id, 'science_target_UID')
      
     def show_buttons(self):
-        sel_so = query.to_object(self.selected_id)
-        origin_so = query.to_object(self.origin_id)
+        sel_so = to_object(self.selected_id)
+        origin_so = to_object(self.origin_id)
         if sel_so is None or origin_so is None:
             return
 
@@ -349,8 +347,8 @@ class ScanPromise(ButtonPromise):
 
         sel_so.data_set.set("scan_type_list", scan_tabs, 0)
         
-        ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'science_target_UID', self.science_selected)
-        ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'science_target_UID', self.science_message)
+        ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'science_target_UID', self.selected)
+        ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'science_target_UID', self.message)
         GarbageCollector.add_garbage_collect(self.collect)
         
         
@@ -418,11 +416,8 @@ def start_science_selected(event):
     test = (event.origin_id, event.selected_id)
     promise = __science_promises.get(test)
     if promise is not None:
-        #
-        # This is not expected to be called
-        #
-        print ("__SCIENCE_PROMISE creation already exists")
-        return
+        #print ("__SCIENCE_PROMISE creation already exists")
+        return promise
     
     
 
@@ -518,17 +513,82 @@ def start_science_selected(event):
     # After all the sub task have run, NOW the 
     # actual task can run
     #
-    __science_promises[test] = t
+    
     t.tick_in_context()
+    #
+    # Kind of a round about way, but the variable
+    # BUTTON_PROMISE is set in __init__ of the promise
+    #
+    promise = t.get_variable("BUTTON_PROMISE")
+    if promise is None:
+        print("SCIENCE SYSTEM Unexpected missing promise")
+    __science_promises[test] = promise
 
     FrameContext.task = restore_task
     FrameContext.page = restore_page
-
+    return promise
     
+def start_science_message(event):
+    """This is how AUTOSCAN AUTO SCAN is accomplished
+
+    Args:
+        event (_type_): _description_
+    """
+    if event.sub_tag != "":
+        from .signal import signal_emit
+        signal_emit("science_auto_scan", {
+            "SCIENCE_PARENT_ID": event.parent_id,
+            "SCIENCE_ORIGIN_ID": event.origin_id,
+            "SCIENCE_SELECTED_ID": event.selected_id,
+        })
+        
     
 ConsoleDispatcher.add_default_select("science_target_UID", start_science_selected)
-#ConsoleDispatcher.add_default_message("science_target_UID", start_science_selected)
+ConsoleDispatcher.add_default_message("science_target_UID", start_science_message)
 
+def science_ensure_scan(ids_or_objs, target_ids_or_objs, tabs="scan"):
+    players = to_object_list(ids_or_objs)
+    targets = to_object_list(target_ids_or_objs)
+    
+
+    def do_tab(p, t, tab, promise):
+        value_tag = p.side
+        extra_tag = tab
+        event = FakeEvent(0, "science_scan_complete", "", p.get_id(), t.get_id(), 0,extra_tag, value_tag)
+        #print(f"DOING TAB {tab}")
+        promise.message(event)
+
+    for p in players:
+        if p is None:
+            continue
+        for t in targets:
+            scan_tabs = tabs
+            if t is None:
+                continue
+            event = FakeEvent(0, "science_scan_complete", "", p.get_id(), t.get_id())
+            promise = start_science_selected(event)
+            if promise is None:
+                continue
+
+            skip = False
+            if tabs=="*":
+                # Have to make sure initial scan occurred
+                do_tab(p,t, "scan", promise)
+                scan_tabs = t.data_set.get("scan_type_list", 0)
+                if scan_tabs is None:
+                    continue
+                skip = True
+
+
+            scan_tabs = scan_tabs.split(",")
+            for tab in scan_tabs:
+                extra_tag = tab.strip()
+                if len(extra_tag) == 0:
+                    continue
+                if skip and extra_tag=="scan":
+                    continue
+                do_tab(p,t,tab, promise)
+                
 
 
 
