@@ -39,10 +39,10 @@ class RouteDecoratorLabel(DecoratorLabel):
         main_cmds = []
 
         if self.if_exp:
-            cmd = Yield('success', if_exp=self.if_exp, loc=0, compile_info=compile_info)
+            cmd = Yield('fail', if_exp=self.if_exp, loc=0, compile_info=compile_info)
             cmd.file_num = self.file_num
             cmd.line_num = self.line_num
-            cmd.line = f"yield success {self.path} entry test {self.if_exp}"
+            cmd.line = f"yield fail {self.path} entry test {self.if_exp}"
             front_cmds.append(cmd)
 
         match paths:
@@ -51,15 +51,18 @@ class RouteDecoratorLabel(DecoratorLabel):
                 routes.route_comms_navigate(self.path, self)
             case ["enable","comms"]: 
                 # Just another spawn handler is disguise
-                routes.route_select_comms(self)
+                #routes.route_select_comms(self)
+                pass
             case ["enable","grid","comms"]: 
                 # Just another spawn handler is disguise
-                routes.route_select_grid(self)
+                #routes.route_select_grid(self)
+                pass
             case ["science"]: 
                 routes.route_science_navigate(self.path, self)
             case ["enable","science"]: 
                 # Just another spawn handler is disguise
-                routes.route_select_science(self)
+                #routes.route_select_science(self)
+                pass
                 # messages can occur first with science
                 # routes.route_message_science(self)
             case ["gui",*b]: 
@@ -161,26 +164,26 @@ class RouteDecoratorLabel(DecoratorLabel):
     def generate_label_end_cmds(self, compile_info=None):
         path = self.path.strip('/')
         paths = path.split('/')
-        match paths:
+        #match paths:
             # two parameters, nav
-            case ["enable", "comms"]: 
-                cmd = FuncCommand(is_await=True, py_cmds='comms()', compile_info=compile_info)
-                cmd.file_num = self.file_num
-                cmd.line_num = self.line_num
-                cmd.line = f"await comms() embedded in {self.name}"
-                self.add_child(cmd)
-            case ["enable", "grid", "comms"]: 
-                cmd = FuncCommand(is_await=True, py_cmds='comms()', compile_info=compile_info)
-                cmd.file_num = self.file_num
-                cmd.line_num = self.line_num
-                cmd.line = f"await comms() embedded in {self.name}"
-                self.add_child(cmd)
-            case ["enable", "science"]: 
-                cmd = FuncCommand(is_await=True, py_cmds='scan()', compile_info=compile_info)
-                cmd.file_num = self.file_num
-                cmd.line_num = self.line_num
-                cmd.line = f"await scan() embedded in {self.name}"
-                self.add_child(cmd)
+            # case ["enable", "comms"]: 
+            #     cmd = FuncCommand(is_await=True, py_cmds='comms()', compile_info=compile_info)
+            #     cmd.file_num = self.file_num
+            #     cmd.line_num = self.line_num
+            #     cmd.line = f"await comms() embedded in {self.name}"
+            #     self.add_child(cmd)
+            # case ["enable", "grid", "comms"]: 
+            #     cmd = FuncCommand(is_await=True, py_cmds='comms()', compile_info=compile_info)
+            #     cmd.file_num = self.file_num
+            #     cmd.line_num = self.line_num
+            #     cmd.line = f"await comms() embedded in {self.name}"
+            #     self.add_child(cmd)
+            # case ["enable", "science"]: 
+            #     cmd = FuncCommand(is_await=True, py_cmds='scan()', compile_info=compile_info)
+            #     cmd.file_num = self.file_num
+            #     cmd.line_num = self.line_num
+            #     cmd.line = f"await scan() embedded in {self.name}"
+            #     self.add_child(cmd)
 
         p = compile_info.label if compile_info is not None else None
         if not self.can_fallthrough(p):

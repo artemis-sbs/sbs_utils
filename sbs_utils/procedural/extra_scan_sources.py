@@ -74,8 +74,8 @@ def extra_scan_sources_run_all(tick_task:TickTask):
 
             has_initial = f_data.get(f"{side}scan", 0)
 
-            if not has_initial:
-                follow_route_select_science(scanner_id, friend)
+            #if not has_initial:
+            #    follow_route_select_science(scanner_id, friend)
         data_set.set("num_extra_scan_sources",num_ids,0)
 
         #print(f"extra_scan_sources {num_ids}")

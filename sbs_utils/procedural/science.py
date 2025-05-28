@@ -106,7 +106,7 @@ def scan_results(message, target=None, tab = None):
         return
     
     task = FrameContext.task
-
+    print("SCIENCE SCAN RESULTS")
     scan = tab
     if tab is None:
         scan = task.get_variable("__SCAN_TAB__")
@@ -155,9 +155,9 @@ class ScanPromise(ButtonPromise):
         # But it won't
         event = FrameContext.context.event
         FrameContext.context.event = self.event
-        #print("SCIENCE POLL")
-        super().poll()
+        ret = super().poll()
         FrameContext.context.event = event
+        return ret
 
 
     def set_scan_results(self, msg):
@@ -388,6 +388,150 @@ def science_navigate(path):
     if p is None:
         return
     p.set_path(path)
+
+
+from ..mast.pollresults import PollResults
+from .execution import AWAIT, task_all, labels_get_type
+################
+## This is a PyMAST label used to run comms
+def create_scan_label():
+    c = scan()
+    yield AWAIT(c)
+    print("SCAN ENDED?")
+
+
+__science_promises = {}
+def start_science_selected(event):
+    # Don't run if the selection doesn't exist
+    so = to_object(event.selected_id)
+    if event.selected_id != 0 and so is None:
+        return
+    
+    # Don't run if the selection doesn't exist
+    if event.origin_id !=0 and to_object(event.origin_id) is None:
+        return
+    
+    #
+    # If we're already running
+    #
+    #
+    test = (event.origin_id, event.selected_id)
+    promise = __science_promises.get(test)
+    if promise is not None:
+        #
+        # This is not expected to be called
+        #
+        print ("__SCIENCE_PROMISE creation already exists")
+        return
+    
+    
+
+    console = "SCIENCE"
+    point = None
+    if event.selected_id == 0:
+        point = FrameContext.context.sbs.vec3()
+        point.x = event.source_point.x
+        point.y = event.source_point.y
+        point.z = event.source_point.z
+    
+    data = {
+                f"{console}_POINT": event.source_point,
+                f"EVENT": event,
+                f"{console}_ROUTED": True
+    }
+    
+
+    if event.origin_id:
+        data[f"{console}_ORIGIN_ID"] = event.origin_id
+        data[f"{console}_ORIGIN"] = to_object(event.origin_id)
+    else:
+        data[f"{console}_ORIGIN_ID"] = 0
+        data[f"{console}_ORIGIN"] = None
+
+    if event.parent_id:
+        data[f"{console}_PARENT_ID"] = event.parent_id
+        data[f"{console}_PARENT"] = to_object(event.parent_id)
+    else:
+        data[f"{console}_PARENT_ID"] = 0
+        data[f"{console}_PARENT"] = None
+
+    if event.selected_id:
+        data[f"{console}_SELECTED_ID"] = event.selected_id
+        data[f"{console}_SELECTED"] = to_object(event.selected_id)
+    else:
+        data[f"{console}_SELECTED_ID"] = 0
+        data[f"{console}_SELECTED"] = None
+        # Only point selections can have a NONE
+    #
+    #
+    #
+    #
+    task = FrameContext.server_task
+    #
+    # May need a null label
+    #
+    label = create_scan_label
+    t = task.start_task(label, data, defer=True)
+    #
+    restore_task =  FrameContext.task
+    restore_page =  FrameContext.page
+
+    path_labels = []
+    path_labels = labels_get_type("enable/science")
+    #
+    # Run all the valid enables
+    #
+
+    FrameContext.task = t
+    FrameContext.page= t.main.page
+    p = task_all(*path_labels, data=data, sub_tasks=True)
+
+    p.poll()
+    #
+    # This could get into a lock
+    # but the expectation is this runs in one pass
+    #
+    count = 0
+    while not p.done():
+        p.poll()
+
+        if p.is_idle:
+            break
+
+        if count > 100000:
+            print(f"Science enables caused hang build")
+            break
+        count += 1
+
+    legit = False
+    for r in p.result():
+        if r != PollResults.FAIL_END:
+            legit = True
+            break
+    if legit == False:
+        t.end()
+        FrameContext.task = restore_task
+        FrameContext.page = restore_page
+        return
+    
+    #
+    # After all the sub task have run, NOW the 
+    # actual task can run
+    #
+    __science_promises[test] = t
+    t.tick_in_context()
+
+    FrameContext.task = restore_task
+    FrameContext.page = restore_page
+
+    
+    
+ConsoleDispatcher.add_default_select("science_target_UID", start_science_selected)
+#ConsoleDispatcher.add_default_message("science_target_UID", start_science_selected)
+
+
+
+
 
 
 from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
