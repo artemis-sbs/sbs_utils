@@ -51,7 +51,7 @@ class StoryPage(Page):
         self.story_scheduler = None
         self.layouts = []
         self.tag = 100
-        self.rebuild_tag = 2000
+        self.rebuild_tag = 200
         self.is_processing_rebuild = False
         section = Layout(None, None, 0,0, 100, 90)
         section.tag = self.get_tag()
@@ -190,7 +190,7 @@ class StoryPage(Page):
         
         
         
-        self.tag = self.tag + 100 % 100000
+        self.tag = self.rebuild_tag + 100 % 100000
         self.rebuild_tag = self.tag + 2000
         
         if self.layouts:
