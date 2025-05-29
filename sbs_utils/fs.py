@@ -144,46 +144,28 @@ def save_json_data(file, data):
 def add_to_path(dir):
     sys.path.insert(0, dir) 
 
-# import zipfile
-# import json
-# import io
-# import importlib.resources as pkg_resources
 
-# def load_json_from_zip(module_name, resource_path):
-#     """
-#     Loads a JSON resource from a zip file, whether the module is zipped or not.
 
-#     Args:
-#         module_name (str): The name of the module containing the resource.
-#         resource_path (str): The path to the JSON resource within the module.
+import zipfile
+def expand_zip(zip_filepath, extract_to_path, overwrite=False):
+    """
+    Expands a zip file to a specified directory.
 
-#     Returns:
-#         dict: The JSON data as a Python dictionary, or None if an error occurs.
-#     """
-#     try:
-#         # Try to access the resource directly (for non-zipped modules)
-#         with pkg_resources.open_text(module_name, resource_path) as f:
-#             return json.load(f)
-#     except FileNotFoundError:
-#         # If not found directly, assume it's in a zip file
-#         try:
-#             # Open the module's zip file
-#             module_spec = pkg_resources.import_module(module_name).__spec__
-#             if module_spec is None or module_spec.origin is None:
-#               return None
-#             zip_path = module_spec.origin
-#             if not zip_path.endswith(".zip"):
-#               return None
-#             with zipfile.ZipFile(zip_path, 'r') as zf:
-#                 # Read the JSON file from the zip
-#                 with zf.open(resource_path, 'r') as f:
-#                     # Decode bytes to string before loading JSON
-#                     file_content = f.read().decode('utf-8')
-#                     return json.loads(file_content)
-#         except (zipfile.BadZipFile, KeyError) as e:
-#             print(f"Error opening or reading from zip: {e}")
-#             return None
-#     except Exception as e:
-#          print(f"An unexpected error occurred: {e}")
-#          return None
-
+    Args:
+        zip_filepath (str): The path to the zip file.
+        extract_to_path (str): The directory to extract the contents to.
+                           If the directory does not exist, it will be created.
+    """
+    try:
+        with zipfile.ZipFile(zip_filepath, 'r') as zip_ref:
+            for member in zip_ref.infolist():
+                file_path = os.path.join(extract_to_path, member.filename)
+                if not os.path.exists(file_path) or overwrite:
+                    zip_ref.extract(member, extract_to_path)
+    except FileNotFoundError:
+        print(f"Error: Zip file '{zip_filepath}' not found.")
+    except zipfile.BadZipFile:
+         print(f"Error: '{zip_filepath}' is not a valid zip file.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    

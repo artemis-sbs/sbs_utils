@@ -416,12 +416,32 @@ class Mast():
                 addons.append(f)
             
         return addons
+    
+
+    def expand_resources(self):
+        script_dir = fs.get_script_dir()
+        missions_dir = fs.get_missions_dir()
+        story_settings = os.path.join(script_dir,"story.json")
+        lib_dir = os.path.join(missions_dir,"__lib__")
+        with open(story_settings, 'r') as file:
+            data = json.load(file)
+            res_zips = data.get("resources", {})
+            for folder, zip_name in res_zips.items():
+                z = os.path.join(lib_dir, zip_name)
+                f = os.path.join(script_dir, folder)
+                fs.expand_zip(z, f)
+                
+        
 
             
     def from_file(self, file_name, root):
         """ Docstring"""
         if root is None:
             root = self # I am root
+            #
+            # Expand any dependant resources
+            #
+            self.expand_resources()
 
         if self.lib_name is None and root.imported.get(file_name):
             return
