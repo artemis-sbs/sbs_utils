@@ -59,7 +59,7 @@ def media_read_relative_file(file):
     source_map = task.get_active_node_source_map()
     if source_map is None:
         return 
-    print(f"TEST FILE RELATIVE {source_map.file_name} {source_map.basedir}" )
+    #print(f"TEST FILE RELATIVE {source_map.file_name} {source_map.basedir}" )
     if source_map.is_lib:
         return media_read_from_zip(source_map.basedir, file)
     return media_read_file(source_map.basedir, file)

@@ -510,7 +510,12 @@ class LayoutListbox(layout.Column):
     def invalidate_regions(self):
         self.region = None
 
+
     def on_message(self, event):
+        self._on_message(event)
+        super().on_message(event)
+        
+    def _on_message(self, event):
         if self.client_id != event.client_id:
             return
         if not event.sub_tag.startswith(self.tag_prefix):
