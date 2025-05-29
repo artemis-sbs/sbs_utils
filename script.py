@@ -11,9 +11,12 @@ import sbs_utils.layout as layout
 from sbs_utils.gui import Page, Gui
 from sbs_utils.pages.avatar import AvatarEditor
 from sbs_utils.pages.shippicker import ShipPicker
-from sbs_utils.pages.widgets.listbox import Listbox
+
 from sbs_utils.pages.start import ClientSelectPage
-from sbs_utils.pages.layout.layout import LayoutPage, Row, Text, Face
+from sbs_utils.pages.layout.row import Row
+from sbs_utils.pages.layout.layout_page import LayoutPage
+from sbs_utils.pages.layout.text import Text
+from sbs_utils.pages.layout.face import Face
 #import sbs_utils
 from sbs_utils.mast.mast import Mast
 
@@ -34,38 +37,38 @@ class ShipListDemo(Page):
     def __init__(self, ships) -> None:
         self.gui_state = "blank"
         self.aspect_ratio = sbs.vec3(0,0,0)
-        self.picker1 = Listbox(5,5, "pick1:", ships, 
-                               text=lambda item: item.comms_id,
-                               face=lambda item: faces.get_face(item.id), 
-                               ship=lambda item: item.art_id, 
-                               item_height=5,
-                               select=True)
-        self.picker1.bounds.bottom = 45
-        self.picker1.bounds.right = 45
-        self.picker4 = Listbox(5,50, "pick4:", ships, 
-                               text=lambda item: item.comms_id,
-                               #face=lambda item: faces.get_face(item.id), 
-                               #ship=lambda item: item.art_id, 
-                               item_height=5,
-                               multi=True)
-        self.picker4.bounds.bottom = 95
-        self.picker4.bounds.right = 45
-        self.picker2 = Listbox(50,5, "pick2:", ships, 
-                               text=lambda item: item.comms_id,
-                               face=lambda item: faces.get_face(item.id), 
-                               #ship=lambda item: item.art_id, 
-                               item_height=5,
-                               select=False)
-        self.picker2.bounds.bottom = 95
-        self.picker2.bounds.right = 65
-        self.picker3 = Listbox(75,5, "pick3:", ships, 
-                               text=lambda item: item.comms_id,
-                               #face=lambda item: faces.get_face(item.id), 
-                               ship=lambda item: item.art_id, 
-                               item_height=5,
-                               select=False)
-        self.picker3.bounds.bottom = 95
-        self.picker3.bounds.right = 95
+        # self.picker1 = Listbox(5,5, "pick1:", ships, 
+        #                        text=lambda item: item.comms_id,
+        #                        face=lambda item: faces.get_face(item.id), 
+        #                        ship=lambda item: item.art_id, 
+        #                        item_height=5,
+        #                        select=True)
+        # self.picker1.bounds.bottom = 45
+        # self.picker1.bounds.right = 45
+        # self.picker4 = Listbox(5,50, "pick4:", ships, 
+        #                        text=lambda item: item.comms_id,
+        #                        #face=lambda item: faces.get_face(item.id), 
+        #                        #ship=lambda item: item.art_id, 
+        #                        item_height=5,
+        #                        multi=True)
+        # self.picker4.bounds.bottom = 95
+        # self.picker4.bounds.right = 45
+        # self.picker2 = Listbox(50,5, "pick2:", ships, 
+        #                        text=lambda item: item.comms_id,
+        #                        face=lambda item: faces.get_face(item.id), 
+        #                        #ship=lambda item: item.art_id, 
+        #                        item_height=5,
+        #                        select=False)
+        # self.picker2.bounds.bottom = 95
+        # self.picker2.bounds.right = 65
+        # self.picker3 = Listbox(75,5, "pick3:", ships, 
+        #                        text=lambda item: item.comms_id,
+        #                        #face=lambda item: faces.get_face(item.id), 
+        #                        ship=lambda item: item.art_id, 
+        #                        item_height=5,
+        #                        select=False)
+        # self.picker3.bounds.bottom = 95
+        # self.picker3.bounds.right = 95
 
 
     def present(self, event):
@@ -83,10 +86,10 @@ class ShipListDemo(Page):
             return
 
         sbs.send_gui_clear(CID, "")
-        self.picker1.present(event)
-        self.picker2.present(event)
-        self.picker3.present(event)
-        self.picker4.present(event)
+        # self.picker1.present(event)
+        # self.picker2.present(event)
+        # self.picker3.present(event)
+        # self.picker4.present(event)
         sbs.send_gui_button(CID, "", "back", "$text: back", 85,95, 99,99)
 
         self.gui_state = "presenting"
