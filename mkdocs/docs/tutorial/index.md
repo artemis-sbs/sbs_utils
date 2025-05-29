@@ -16,6 +16,7 @@ Upon completion of this tutorial, you will have learned to:
 11. [Testing the mission](#11-testing-our-mission)
 12. [Recurring Tasks](#12-recurring-tasks)
 13. [Build comms buttons]
+14. [Handle game end]
 
 ### Specific Goals
 For this tutorial, we are writing a mission about finding and recovering a lost treasure.  
@@ -443,12 +444,12 @@ We can now spawn our enemies. We've learned a couple different ways to do this, 
 for point in points:
     prefab_spawn(prefab_fleet_raider,{"START_X":point.x, "START_Y": point.y, "START_Z": point.z, "fleet_difficulty": DIFFICULTY})
 ```
-Since we've identified everything that needs to happen in this label, let's put it all together. Define a label with the name "spawn_treasure_hunters" and add all of the functionality we've discussed in this section to the label.
+Since we've identified everything that needs to happen in this label, let's put it all together. Define a label with the name "spawn_area_defenders" and add all of the functionality we've discussed in this section to the label.
 ??? info "What it should look like"
     ```python
-    == spawn_treasure_hunters
+    == spawn_area_defenders
     " A label to help us spawn new enemies throughout the mission
-        python players = role("__player__") # a set of all the players 
+        players = role("__player__") # a set of all the players 
         ship = random_id(players) # Since there's only one (we assume), this returns the id of that ship.
         pos = get_pos(ship)
         points = scatter_arc(1, pos.x, pos.y, pos.z, 15000, 280, 320)  
@@ -459,12 +460,18 @@ Since we've identified everything that needs to happen in this label, let's put 
 Now we need to schedule the task. We know how to use the `task_schedule()` function. But we need to have the enemies spawn periodically. You can get pretty creative with how to do this - you could trigger the label when the last enemy is destroyed. You could set timers for every 5 minutes until the mission ends. Probably the simplest is to use the `delay_sim()` function at the end of the label and then jump back to the beginning of the label:
 ```python
 await delay_sim(minutes=5)
-jump spawn_treasure_hunters
+jump spawn_area_defenders
 ```
 You'll notice that we're using `await` again here. This pauses task execution until the [delay](https://artemis-sbs.github.io/sbs_utils/mast/syntax/#delay-commands) is complete.  
-I'm sure you've also seen that we're using the `jump` keyword instead of `task_schedule()`. This is a MAST-specific keyword, and it works very similarly to the `GOTO` keyword in BASIC. There is a difference between using `task_schedule()` and `jump` - the `jump` keyword keeps the execution flow on the same task, while `task_schedule()` creates a new, separate task. This can be useful in a situation where you want to use the same metadata. An example of this can be found in [station_prefabs.mast](https://github.com/artemis-sbs/LegendaryMissions/blob/main/prefabs/station_prefabs.mast) in Legendary Missions.  
+I'm sure you've also seen that we're using the `jump` keyword instead of `task_schedule()`. This is a MAST-specific keyword, and it works very similarly to the `GOTO` keyword in BASIC. There is a difference between using `task_schedule()` and `jump` - `task_schedule()` creates a new, separate task, but continues the execution of the original task, while the `jump` keyword keeps the execution flow in the same task. This can be useful in a situation where you want to use the same metadata. An example of this can be found in [station_prefabs.mast](https://github.com/artemis-sbs/LegendaryMissions/blob/main/prefabs/station_prefabs.mast) in Legendary Missions.  
 `jump` could also be replaced with `->`. Its meaning and use are identical:
 ```python
--> spawn_treasure_hunters
+-> spawn_area_defenders
 ```
+
+## 13. Using comms
+We now need to learn how to interact with our specialists, who will collect and analyze the treasure. To do this, we need to learn about comms buttons and lifeforms.  
+### Lifeforms
+Lifeforms are a pretty flexible way to handle communication with an NPC character. They are tied to a host space object, like a ship or station, and comms can communicate with specific lifeforms by selecting the ship/station/etc that the desired lifeform is on.
+
 
