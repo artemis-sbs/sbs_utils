@@ -68,7 +68,7 @@ def gui_properties_set(p=None, tag=None):
     # And it runs on the server not a true comms console
     if event.tag == "gui_present":
         return
-    print(f"TAG {event.tag}")
+    #print(f"TAG {event.tag}")
     changes = set(gui_task.get_variable("__PROP_CHANGES__", []))
     gui_task.on_change_items = [change for change in gui_task.on_change_items if change not in changes]
     gui_task.set_variable("__PROP_CHANGES__", [])

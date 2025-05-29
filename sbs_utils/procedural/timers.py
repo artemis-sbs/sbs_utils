@@ -144,7 +144,7 @@ def get_counter_elapsed_seconds(id_or_obj, name, default_value= None):
     now =  FrameContext.context.sim.time_tick_counter
     if start is None:
         return default_value
-    return int((now-start) / TICK_PER_SECONDS)
+    return (now-start) / TICK_PER_SECONDS
     
 
 def clear_counter(id_or_obj, name):
