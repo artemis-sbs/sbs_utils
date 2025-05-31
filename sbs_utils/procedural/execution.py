@@ -365,4 +365,12 @@ def labels_get_type(label_type):
     return ret
 
 
+def promise_all(*proms):
+    if len(proms)==1:
+        return PromiseAllAny(*proms, True)
+    return PromiseAllAny(proms, True)
 
+def promise_any(*proms):
+    if len(proms)==1:
+        return PromiseAllAny(*proms, False)
+    return PromiseAllAny(proms, False)
