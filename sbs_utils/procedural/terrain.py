@@ -82,7 +82,7 @@ def terrain_spawn_stations(DIFFICULTY, lethal_value, x_min=-32500, x_max=32500, 
 
 
 # make a few random clusters of Asteroids
-def terrain_asteroid_clusters(terrain_value, center=None):
+def terrain_asteroid_clusters(terrain_value, center=None, selectable=False):
     if center is None:
         center = Vec3(0,0,0)
 
@@ -103,9 +103,9 @@ def terrain_asteroid_clusters(terrain_value, center=None):
         #cluster_spawn_points = scatter_box(amount, v.x, 0,v.z, amount*50, amount*20,amount*200, centered=True, ax, ay, az )
         cluster_spawn_points = scatter.box(amount,  v.x, 0,v.z, size*150, size*50,size*200, True, 0, ay, 0 )
 
-        terrain_spawn_asteroid_scatter(cluster_spawn_points, 1000)
+        terrain_spawn_asteroid_scatter(cluster_spawn_points, 1000, selectable=selectable)
 
-def terrain_spawn_asteroid_box(x,y,z, size_x=10000,size_z=None, density_scale=1.0, density=1, height=1000, is_tiled=False):
+def terrain_spawn_asteroid_box(x,y,z, size_x=10000,size_z=None, density_scale=1.0, density=1, height=1000, selectable=False, is_tiled=False):
     """
         density is per 1000. Defaults to 0.5.
     """
@@ -130,10 +130,10 @@ def terrain_spawn_asteroid_box(x,y,z, size_x=10000,size_z=None, density_scale=1.
         cluster_spawn_points = scatter.box(amount,  x + size_x/2, -height/2, cz, size_x, height/2, size_z, True, 0, 0, 0 )
     else:
         cluster_spawn_points = scatter.box(amount,  x, -height/2, z, size_x, height/2, size_z, True, 0, 0, 0 )
-    terrain_spawn_asteroid_scatter(cluster_spawn_points, height)
+    terrain_spawn_asteroid_scatter(cluster_spawn_points, height, selectable=selectable)
 
 
-def terrain_spawn_asteroid_sphere(x,y,z, radius=10000, density_scale=1.0, density=1, height=1000):
+def terrain_spawn_asteroid_sphere(x,y,z, radius=10000, density_scale=1.0, density=1, height=1000, selectable=False):
     if density_scale==0:
         return
     grid = radius/1000
@@ -142,9 +142,9 @@ def terrain_spawn_asteroid_sphere(x,y,z, radius=10000, density_scale=1.0, densit
     amount = random.randrange(amount//2, amount)
     
     cluster_spawn_points = scatter.sphere(amount,  x, y,z, radius)
-    terrain_spawn_asteroid_scatter(cluster_spawn_points, height)
+    terrain_spawn_asteroid_scatter(cluster_spawn_points, height, selectable=selectable)
 
-def terrain_spawn_asteroid_points(x,y,z, points, radius=10000, density_scale=1.0, density=1, height=1000):
+def terrain_spawn_asteroid_points(x,y,z, points, radius=10000, density_scale=1.0, density=1, height=1000, selectable=False):
     
     if density_scale==0:
         return
@@ -180,9 +180,9 @@ def terrain_spawn_asteroid_points(x,y,z, points, radius=10000, density_scale=1.0
         #print(f"POLYLINE {x1},{z1} {x2},{z2} {length} {amount}" )
 
         cluster_spawn_points = scatter.line(amount, x1, y1, z1, x2,y2, z2, True)
-        terrain_spawn_asteroid_scatter(cluster_spawn_points, height)
+        terrain_spawn_asteroid_scatter(cluster_spawn_points, height, selectable=selectable)
 
-def terrain_spawn_asteroid_scatter(cluster_spawn_points, height):
+def terrain_spawn_asteroid_scatter(cluster_spawn_points, height, selectable=False):
     asteroid_types = plain_asteroid_keys()
     a_type = random.choice(asteroid_types)
 
@@ -197,6 +197,7 @@ def terrain_spawn_asteroid_scatter(cluster_spawn_points, height):
         asteroid.engine_object.steer_yaw = random.uniform(0.0001, 0.003)
         asteroid.engine_object.steer_pitch = -random.uniform(0.0001, 0.003)
         asteroid.engine_object.steer_roll = random.uniform(0.0001, 0.003)
+        asteroid.blob.set("unselectable", 0 if selectable else 1)
 
         # Some big, some small
         # big are more spherical
@@ -252,6 +253,8 @@ def terrain_spawn_asteroid_scatter(cluster_spawn_points, height):
             asteroid.engine_object.steer_yaw = random.uniform(0.0001, 0.003)
             asteroid.engine_object.steer_pitch = -random.uniform(0.0001, 0.003)
             asteroid.engine_object.steer_roll = random.uniform(0.0001, 0.003)
+            asteroid.blob.set("unselectable", 0 if selectable else 1)
+
             sx1 = random.uniform(0.3, 1.0)
             sy1 = random.uniform(0.3, 1.0)
             sz1 = random.uniform(0.3, 1.0)
@@ -284,7 +287,7 @@ def terrain_to_value(dropdown_select, default=0):
     return default
 
 
-def terrain_spawn_nebula_clusters(terrain_value, center=None):
+def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False):
     if center is None:
         center = Vec3(0,0,0)
 
@@ -297,9 +300,9 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None):
         cluster_color = random.randrange(3)
         #terrain_spawn_nebula_scatter(cluster_spawn_points, 1000, cluster_color)
         # 10000 = radius 5000
-        terrain_spawn_nebula_sphere(v.x,v.y, v.z, 5000,terrain_value, cluster_color=cluster_color)
+        terrain_spawn_nebula_sphere(v.x,v.y, v.z, 5000,terrain_value, cluster_color=cluster_color, selectable=selectable)
 
-def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=None, diameter=4000, density=1.0):
+def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=None, diameter=4000, density=1.0, selectable=False):
     for v2 in cluster_spawn_points:
         # v2.y = v2.y % 500.0 Mod doesn't work like you think
         v2.y = random.random() * (height/2)-(height/4)
@@ -309,6 +312,7 @@ def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=Non
         nebula.blob.set("local_scale_x_coeff", random.uniform(1.0, 5.5))
         nebula.blob.set("local_scale_y_coeff", random.uniform(2.0, 5.5))
         nebula.blob.set("local_scale_z_coeff", random.uniform(1.0, 5.5))
+        nebula.blob.set("unselectable", 0 if selectable else 1)
 
         if cluster_color is None:
             cluster_color = random.randint(0,2)
@@ -321,7 +325,7 @@ def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=Non
         else:
             terrain_setup_nebula_yellow(nebula, diameter, density)
 
-def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0, density= 1, height=1000, cluster_color=None, is_tiled=False):
+def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0, density= 1, height=1000, cluster_color=None, selectable=False, is_tiled=False):
     if density_scale==0:
         return
     if size_z is None:
@@ -344,9 +348,9 @@ def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0
         cluster_spawn_points = scatter.box(amount,  x + size_x/2, -height/2, z+size_z/2, size_x, height/2, size_z, True, 0, 0, 0 )
     else:
         cluster_spawn_points = scatter.box(amount,  x, -height/2, z, size_x, height/2, size_z, True, 0, 0, 0 )
-    terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color, diameter=size_x*2, density=density)
+    terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color, diameter=size_x*2, density=density, selectable=selectable)
 
-def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=1.0, height=1000, cluster_color=None):
+def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=1.0, height=1000, cluster_color=None, selectable=False):
     if density_scale==0:
         return
     
@@ -366,7 +370,7 @@ def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=
 
     # print(f"TER SPHERE {amount} {radius} {grid} {raw_amount}")
     cluster_spawn_points = scatter.sphere(amount, x, y, z, radius)
-    terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color, diameter=(radius*4), density=density)
+    terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color, diameter=(radius*4), density=density, selectable=selectable)
 
 
             

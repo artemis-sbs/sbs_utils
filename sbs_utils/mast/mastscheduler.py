@@ -309,6 +309,13 @@ class MastTicker:
                 s += "\nNOTE: to see code Set Mast.include_code to True is script.py only during development.\n\n"
         s += '\n'+rte
         return s
+    
+    def get_active_node(self):
+        if self.cmds is None:
+            return None
+        if self.active_cmd >= len(self.cmds):
+            return None
+        return self.cmds[self.active_cmd]
 
     def runtime_error(self, rte):
         cmd = None
@@ -537,7 +544,9 @@ class PyTicker():
         #gen, res = self.get_gen(func)
         self.pending_jump = func 
         return PollResults.OK_JUMP
-
+    
+    def get_active_node(self):
+        return self.current_gen
     
     def push_inline_block(self, label, _loc=0, data=None):
         if self.current_gen is not None:
@@ -719,6 +728,20 @@ class MastAsyncTask(Agent, Promise):
     
     def poll(self):
         return self.tick_result
+    
+    def get_active_node(self):
+        return self.active_ticker.get_active_node()
+    
+    def get_active_node_source_map(self):
+        node= self.active_ticker.get_active_node()
+        if node is None:
+            return None
+        file_num = node.file_num
+        if file_num is None:
+            return None
+        if file_num>= len(Mast.source_map_files):
+            return None
+        return Mast.source_map_files[file_num]
 
 
     def get_symbols(self):

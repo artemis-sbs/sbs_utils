@@ -113,6 +113,18 @@ def load_json_data(file):
     except Exception as e:
         return None
     
+def load_json_string(contents):
+    try:
+        f = contents.split("\n")
+        # remove comments
+        contents = ''.join(line.strip() for line in f if not line.strip().startswith('//'))
+        
+        # remove trailing commas
+        contents = re.sub(r',(\s*(?=[]}]|$))|("(?:[^\\"]|\\.)*"|[^"])', r'\1\2', contents)
+        return json.loads(contents)
+    except Exception as e:
+        return None
+    
 def save_json_data(file, data):
     with open(file, 'w') as f:
         #f.write(json.dumps(data).replace("},", "},\n"))
@@ -132,4 +144,28 @@ def save_json_data(file, data):
 def add_to_path(dir):
     sys.path.insert(0, dir) 
 
+
+
+import zipfile
+def expand_zip(zip_filepath, extract_to_path, overwrite=False):
+    """
+    Expands a zip file to a specified directory.
+
+    Args:
+        zip_filepath (str): The path to the zip file.
+        extract_to_path (str): The directory to extract the contents to.
+                           If the directory does not exist, it will be created.
+    """
+    try:
+        with zipfile.ZipFile(zip_filepath, 'r') as zip_ref:
+            for member in zip_ref.infolist():
+                file_path = os.path.join(extract_to_path, member.filename)
+                if not os.path.exists(file_path) or overwrite:
+                    zip_ref.extract(member, extract_to_path)
+    except FileNotFoundError:
+        print(f"Error: Zip file '{zip_filepath}' not found.")
+    except zipfile.BadZipFile:
+         print(f"Error: '{zip_filepath}' is not a valid zip file.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
     

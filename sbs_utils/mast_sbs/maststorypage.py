@@ -50,8 +50,8 @@ class StoryPage(Page):
         self.gui_state = 'repaint'
         self.story_scheduler = None
         self.layouts = []
-        self.tag = 10000
-        self.rebuild_tag = 20000
+        self.tag = 100
+        self.rebuild_tag = 200
         self.is_processing_rebuild = False
         section = Layout(None, None, 0,0, 100, 90)
         section.tag = self.get_tag()
@@ -189,8 +189,9 @@ class StoryPage(Page):
         self.gui_queue_console_tabs()
         
         
-        self.rebuild_tag = self.tag
-        self.tag = 10000
+        
+        self.tag = self.rebuild_tag + 100 % 100000
+        self.rebuild_tag = self.tag + 2000
         
         if self.layouts:
             for layout_obj in self.layouts:

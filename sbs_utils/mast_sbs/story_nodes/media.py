@@ -27,6 +27,7 @@ class MediaLabel(DecoratorLabel):
         self.path= path
         self.kind = kind
         
+        
         folder = MediaLabel.folders.get(kind, [])
         folder.append(self)
         MediaLabel.folders[kind] = folder

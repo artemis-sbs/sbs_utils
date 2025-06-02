@@ -137,7 +137,5 @@ MastGlobals.import_python_module('sbs', 'sbs')
 ## Mast extensions
 from sbs_utils.pages.widgets.shippicker import ShipPicker
 MastGlobals.import_python_module('sbs_utils.pages.widgets.shippicker')
-from sbs_utils.pages.widgets.listbox import Listbox
-MastGlobals.import_python_module('sbs_utils.pages.widgets.listbox')
 from sbs_utils.pages.widgets.layout_listbox import layout_list_box_control
 MastGlobals.import_python_module('sbs_utils.pages.widgets.layout_listbox')

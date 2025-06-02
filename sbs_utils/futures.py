@@ -37,6 +37,19 @@ class Promise:
         
         self._canceled = True
 
+    def __and__(self, other):
+        if isinstance(other, Promise):
+            return promise_all([self, other])
+        else:
+            raise TypeError("Unsupported operand type(s) for & and Promise")
+
+    def __or__(self, other):
+        if isinstance(other, Promise):
+            return promise_any([self, other])
+        else:
+            raise TypeError("Unsupported operand type(s) for & and Promise")
+
+
     
 
 

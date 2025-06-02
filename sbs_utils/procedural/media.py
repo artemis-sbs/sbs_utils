@@ -54,5 +54,36 @@ def music_schedule(name, ID=0):
     return media_schedule("music", name, ID)
 
 
+def media_read_relative_file(file):
+    task = FrameContext.task
+    source_map = task.get_active_node_source_map()
+    if source_map is None:
+        return 
+    #print(f"TEST FILE RELATIVE {source_map.file_name} {source_map.basedir}" )
+    if source_map.is_lib:
+        return media_read_from_zip(source_map.basedir, file)
+    return media_read_file(source_map.basedir, file)
 
+import os
+import zipfile
+
+def media_read_from_zip(zip_file, file, as_utf8=True):
+    with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+        with zip_ref.open(file) as file:
+            content = file.read()
+            if as_utf8:
+                content = content.decode('utf-8')
+                #content = content.replace("\r", "")
+            return content
+
+def media_read_file(basedir, file):
+    with open(os.path.join(basedir, file), 'r') as file:
+        content = file.read()
+        return content
+    return None
+    
+
+
+    
+    
 
