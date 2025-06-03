@@ -12,14 +12,16 @@ from sbs_utils.mast.mast_node import MastNode
 from enum import IntFlag
 
 
-__brain_tick_task = None
+#__brain_tick_task = None
 def brain_schedule():
+    pass
+    # This is handled in Objectives NOW
     #
     # Schedule a simple tick task 
     #
-    global __brain_tick_task
-    if __brain_tick_task is None:
-        __brain_tick_task = TickDispatcher.do_interval(brains_run_all, 3)
+    # global __brain_tick_task
+    # if __brain_tick_task is None:
+    #     __brain_tick_task = TickDispatcher.do_interval(brains_run_all, 3)
 
 class BrainType(IntFlag):
     # Alters result

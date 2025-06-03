@@ -17,7 +17,27 @@ def objective_schedule():
     #
     global __objective_tick_task
     if __objective_tick_task is None:
-        __objective_tick_task = TickDispatcher.do_interval(objectives_run_all, 5)
+        __objective_tick_task = TickDispatcher.do_interval(objectives_run_everything, 1)
+        __objective_tick_task.state = 0
+
+from .brain import brains_run_all
+from .extra_scan_sources import extra_scan_sources_run_all
+import time
+
+def objectives_run_everything(tick_task):
+    state = tick_task.state % 3
+    tick_task.state += 1
+    t = time.perf_counter()
+    if state == 0:
+        objectives_run_all(tick_task)
+    elif state == 1:
+        brains_run_all(tick_task)
+    elif state == 2:
+        extra_scan_sources_run_all(tick_task)
+
+    et = time.perf_counter() - t
+    if et > 0.033:
+        print(f"Elapsed time: {et} shared task state {state} ")
 
 
 class Objective(Agent):
