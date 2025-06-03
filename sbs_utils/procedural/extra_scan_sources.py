@@ -10,14 +10,18 @@ from sbs_utils.helpers import FrameContext
 import random
 
 
-__extra_scan_sources_tick_task = None
+#__extra_scan_sources_tick_task = None
 def extra_scan_sources_schedule():
+    pass
+    # this is handled in objective which manages 
+    # a number of these systems
+    
     #
     # Schedule a simple tick task 
     #
-    global __extra_scan_sources_tick_task
-    if __extra_scan_sources_tick_task is None:
-        __extra_scan_sources_tick_task = TickDispatcher.do_interval(extra_scan_sources_run_all, 5)
+    # global __extra_scan_sources_tick_task
+    # if __extra_scan_sources_tick_task is None:
+    #     __extra_scan_sources_tick_task = TickDispatcher.do_interval(extra_scan_sources_run_all, 5)
 
 
 
