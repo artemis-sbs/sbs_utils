@@ -950,6 +950,12 @@ def comms_info_face_override(face=None) -> None:
 
 
 def comms_navigate(path, face=None) -> None:
+    """ Change the comms path for what buttons to present
+
+    Args:
+        path (str): _description_
+        face (str, optional): _description_. Defaults to None.
+    """
     task = FrameContext.task
     p = task.get_variable("BUTTON_PROMISE")
     if p is None:
@@ -970,7 +976,19 @@ def comms_navigate(path, face=None) -> None:
     p.set_face_override(face)
 
 
-def comms_navigate_override(path, ids_or_obj, sel_ids_or_obj, path_must_match=True) -> None:
+def comms_navigate_override(ids_or_obj, sel_ids_or_obj, path=None, path_must_match=True) -> None:
+    """ Change the comms path for what buttons to present for specific comms 
+    pair. You need the two things in the relationship.
+    If the things are selected in comms, this is a way to refresh the buttons.
+    If the code is in the comms for the things involved, just use comms_navigate
+    This is for a non comms task
+
+    Args:
+        ids_or_obj(id| set| list): The id, set of ids, or list of objects of player ships
+        sel_ids_or_obj(id| set| list): The id, set of ids, or list of objects of other ship
+        path (str): if none it will use the current path
+        path_must_match (bool): Typically the path must match to avoid player confusion
+    """
 
     players = to_object_list(ids_or_obj)
     targets = to_object_list(sel_ids_or_obj)
@@ -990,7 +1008,7 @@ def comms_navigate_override(path, ids_or_obj, sel_ids_or_obj, path_must_match=Tr
                 return
             
             if path is None or path == "":
-                path = prom.path_root
+                path = prom.path
 
             # makes sure path starts with //comms
             path = path.strip("'//")
@@ -1000,10 +1018,7 @@ def comms_navigate_override(path, ids_or_obj, sel_ids_or_obj, path_must_match=Tr
                 path = "//"+path
 
             if (path_must_match and path.strip("//")==prom.path) or not path_must_match:
-                print("I SET THE PATH")
                 prom.set_path(path)
-            else:
-                print(f"I DID NOT SET THE PATH {path} {prom.path}")
             
 
 
