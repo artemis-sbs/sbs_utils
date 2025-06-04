@@ -113,12 +113,37 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
     for from_obj in from_objs:
         for to_obj in to_objs:
             # From face should be used
+            # Handle life forms at this low level
+            from .lifeform import Lifeform
+            from ..gridobject import GridObject
+            from ..gui import GuiClient
+            life = False
+
+
+            if isinstance(from_obj, (Lifeform, GridObject)):
+                from_obj = to_object(from_obj.host)
+                life = True
+
+            if isinstance(to_obj, (Lifeform, GridObject)):
+                to_obj = to_object(to_obj.host)
+                life = True
+
+            # This happens if one of them is id 0
+            if isinstance(to_obj, GuiClient) or isinstance(from_obj, GuiClient) is None:
+                print("COMMS Message set to ID 0")
+                continue
+
+            if to_obj is None and from_obj is None:
+                print("COMMS Message set to ID 0")
+                continue
+
             from_name_now = from_name
             if from_name is None:
                 if is_receive:
                     from_name_now = from_obj.comms_id
                 else:
                     from_name_now = to_obj.comms_id
+                    
 
             if title is None:
                 title = from_name_now # +" > "+to_obj.comms_id
@@ -134,21 +159,7 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             if face is None:
                 face = faces.get_face(from_obj.get_id())
             
-            # Handle life forms at this low level
-            from .lifeform import Lifeform
-            from ..gridobject import GridObject
-            life = False
-            if isinstance(from_obj, (Lifeform, GridObject)):
-                from_obj = to_object(from_obj.host)
-                life = True
-
-            if isinstance(to_obj, (Lifeform, GridObject)):
-                to_obj = to_object(to_obj.host)
-                life = True
-
-            # This happens if two life form and neither is hosted
-            if to_obj is None and from_obj is None:
-                continue
+            
             # Make sure life forms have an object
             if life:
                 if from_obj is None:
@@ -198,6 +209,9 @@ def _comms_get_origin_id() -> int:
     #
     if FrameContext.task is not None:
         # This will attempt to default to the client ship if all else fails
+        event = FrameContext.context.event.client_id
+        if event is None:
+            return 0
         _ship_id = FrameContext.context.sbs.get_ship_of_client(FrameContext.context.event.client_id)
         return FrameContext.task.get_variable("COMMS_ORIGIN_ID", _ship_id)
 
@@ -721,15 +735,21 @@ from .execution import AWAIT, task_all, labels_get_type
 ################
 ## This is a PyMAST label used to run comms
 def create_comms_label():
-    c = comms()
-    yield AWAIT(c)
+    try:
+        c = comms()
+        yield AWAIT(c)
+    except Exception as e:
+        print ("COMMS Exception")
 
 def create_grid_comms_label():
-    c = comms()
-    c.path_root = "comms/grid"
-    c.path = "comms/grid"
-    c.is_grid_comms = True
-    yield AWAIT(c)
+    try:
+        c = comms()
+        c.path_root = "comms/grid"
+        c.path = "comms/grid"
+        c.is_grid_comms = True
+        yield AWAIT(c)
+    except Exception as e:
+        print ("COMMS, grid Exception")
 
 __comms_promises = {}
 def start_comms_common_selected(event, is_grid):
