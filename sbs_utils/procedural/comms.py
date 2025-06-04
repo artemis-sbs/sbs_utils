@@ -952,6 +952,9 @@ def comms_info_face_override(face=None) -> None:
 def comms_navigate(path, face=None) -> None:
     task = FrameContext.task
     p = task.get_variable("BUTTON_PROMISE")
+    if p is None:
+        return
+    
     if path is None or path == "":
         path = p.path_root
 
@@ -962,14 +965,51 @@ def comms_navigate(path, face=None) -> None:
     else:
         path = "//"+path
 
-    if p is None:
-        return
+    
     p.set_path(path)
     p.set_face_override(face)
-    
+
+
+def comms_navigate_override(path, ids_or_obj, sel_ids_or_obj, path_must_match=True) -> None:
+
+    players = to_object_list(ids_or_obj)
+    targets = to_object_list(sel_ids_or_obj)
+
+    for p in players:
+        for s in targets:
+            if p is None or s is None:
+                continue
+            if p.id == 0 or s.id == 0:
+                continue
+
+            t = __comms_promises.get((p.id, s.id))
+            if t is None:
+                return
+            prom = t.get_variable("BUTTON_PROMISE")
+            if prom is None:
+                return
+            
+            if path is None or path == "":
+                path = prom.path_root
+
+            # makes sure path starts with //comms
+            path = path.strip("'//")
+            if not path.startswith("comms"):
+                path = "//comms/" + path
+            else:
+                path = "//"+path
+
+            if (path_must_match and path.strip("//")==prom.path) or not path_must_match:
+                print("I SET THE PATH")
+                prom.set_path(path)
+            else:
+                print(f"I DID NOT SET THE PATH {path} {prom.path}")
+            
+
+
 from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
 from sbs_utils.helpers import FrameContext
-from sbs_utils.procedural.query import to_object, get_comms_selection
+from sbs_utils.procedural.query import to_object, get_comms_selection, to_object_list
 from sbs_utils.procedural.roles import role_are_allies
 from sbs_utils.vec import Vec3
 import sbs
