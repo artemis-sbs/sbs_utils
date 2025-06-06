@@ -428,6 +428,7 @@ class CommsPromise(ButtonPromise):
         # System makes sure it runs
         self.task.main.tasks.remove(self.task)
         self.promise_buttons = []
+        self.comms_badge = None
         
 
     def set_path(self, path) -> None:
@@ -441,6 +442,15 @@ class CommsPromise(ButtonPromise):
         FrameContext.task = task
         if len(path)<len(self.path_root):
             path = self.path_root
+
+        p = path.strip("/")
+        # 
+        # This may not be enough, but should cover 
+        # resetting the comms badge
+        if p == "comms/comms_badge" or p == "comms":
+            self.set_comms_badge(None)
+
+        #self.set_comms_badge(None)
 
         super().set_path(path)
         
@@ -747,10 +757,14 @@ class CommsPromise(ButtonPromise):
                 data = {}
             data["COMMS_ORIGIN_ID"] = self.origin_id
             data["COMMS_SELECTED_ID"] = self.selected_id
+            data["COMMS_LIFEFORM_ID"] = self.comms_badge
             button.data = data
         return super().pre_button_run(button)
     def post_button_run(self, button):
         return super().post_button_run(button)
+    
+    def set_comms_badge(self, comms_badge):
+        self.comms_badge = query.to_id(comms_badge)
 
 
 
@@ -973,7 +987,7 @@ def comms_info_face_override(face=None) -> None:
     p.set_face_override(face)
 
 
-def comms_navigate(path, face=None) -> None:
+def comms_navigate(path, face=None, comms_badge=None) -> None:
     """ Change the comms path for what buttons to present
 
     Args:
@@ -998,6 +1012,7 @@ def comms_navigate(path, face=None) -> None:
     
     p.set_path(path)
     p.set_face_override(face)
+    p.set_comms_badge(comms_badge)
 
 
 def comms_navigate_override(ids_or_obj, sel_ids_or_obj, path=None, path_must_match=True) -> None:
