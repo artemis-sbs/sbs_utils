@@ -1182,7 +1182,9 @@ class CommsChoiceButtonPromise(Promise):
         for button in buttons:
             self.buttons.append(Button(button,"+", promise=self))
         self.path = path.strip("/")
-        self.path_root = self.path.rpartition('/')[0]
+        self.path_root = self.path
+        if nav_button:
+            self.path_root = self.path.rpartition('/')[0]
         self.nav_button = nav_button
         self.hosts = []
         self.origin_id = None
@@ -1199,13 +1201,13 @@ class CommsChoiceButtonPromise(Promise):
     def get_buttons(self, path):
         if path == self.path:
             return self.buttons
-        if path == self.path_root:
+        if self.nav_button is not None and path == self.path_root:
             return [Button(self.nav_button,"+", path="//"+self.path)]
         return None
 
 
 
-def comms_story_buttons(ids, sel_ids, buttons, path, nav_button):
+def comms_story_buttons(ids, sel_ids, buttons, path, nav_button=None):
 
     
     
