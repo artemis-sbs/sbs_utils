@@ -35,10 +35,6 @@ def extra_scan_sources_run_all(tick_task:TickTask):
         return
     __extra_scan_sourcess_is_running = True
     
-
-    # Give it some variability of when run
-    tick_task.delay = 5*(1+random.randrange(4))
-
     player_and_others = role("__player__") | role("has_science_scan")
     l = len(player_and_others)
     #print(f"extra_scan_sources {l}")
