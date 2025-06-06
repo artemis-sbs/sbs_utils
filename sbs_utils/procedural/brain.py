@@ -14,7 +14,8 @@ from enum import IntFlag
 
 #__brain_tick_task = None
 def brain_schedule():
-    pass
+    from .objective import objective_schedule
+    objective_schedule()
     # This is handled in Objectives NOW
     #
     # Schedule a simple tick task 

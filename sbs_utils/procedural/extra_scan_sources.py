@@ -12,7 +12,8 @@ import random
 
 #__extra_scan_sources_tick_task = None
 def extra_scan_sources_schedule():
-    pass
+    from .objective import objective_schedule
+    objective_schedule()
     # this is handled in objective which manages 
     # a number of these systems
     

@@ -55,18 +55,18 @@ class Promise:
 
 class PromiseAllAny(Promise):
     def __init__(self, proms, all) -> None:
-        self._result = []
+        
         self.canceled = None
         self.exception = None
         self.all = all
         self.promises = proms
-
+        self._result = [None for _ in range(len(self.promises))]
 
     def result(self):
         #
         # Return just the results in order they finished
         #
-        return [p.result() for p in self._result]
+        return self._result
     
     def set_result(self, result):
         self._result = result
@@ -76,18 +76,25 @@ class PromiseAllAny(Promise):
 
     def done(self):
         prev = self.promises
-        self.promises = []
-        for p in prev:
-            if p.done():
-                self._result.append(p)
+        self.promises = [None for _ in range(len(prev))]
+        any_done = False
+        any_left = False
+        for i, p in enumerate(prev):
+            if p is None:
+                self.promises[i] = None
+            elif p.done():
+                self.promises[i] = None
+                any_done = True
+                self._result[i] = p.result()
             else:
                 # Rebuild the promises, 
                 # without the finished ones
                 p.poll()
-                self.promises.append(p)
-        is_done = len(self._result) > 0
+                self.promises[i] = p
+                any_left = True
+        is_done = any_done
         if self.all:
-            is_done = len(self.promises) == 0
+            is_done = not any_left
 
         return is_done or self.canceled is not None or self.exception is not None 
     
@@ -101,6 +108,22 @@ class PromiseAllAny(Promise):
         for p in self.promises:
             p.cancel(msg)
         self.canceled = True
+
+    def __and__(self, other):
+        if self.all:
+            self.promises.append(other)
+            self._result = [None for _ in range(len(self.promises))]
+            return self
+        return super().__and__(other)
+
+    def __or__(self, other):
+        if not self.all:
+            self.promises.append(other)
+            self._result = [None for _ in range(len(self.promises))]
+            return self
+        return super().__or__(other)
+
+
 
 
 class Waiter:
