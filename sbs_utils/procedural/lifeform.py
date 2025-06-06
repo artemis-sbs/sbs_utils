@@ -47,9 +47,9 @@ class Lifeform(Agent):
     def host(self, host_id):
         if self._host_id:
             unlink(self._host_id, "onboard", self.id)
-        self.host_id = to_id(host_id)
+        self._host_id = to_id(host_id)
         if host_id is not None and is_space_object_id(host_id):
-            link(self.host_id, "onboard", self.id)
+            link(self._host_id, "onboard", self.id)
 
 
 def lifeform_spawn(name, face, roles, host=None, comms_id=None, path=None):

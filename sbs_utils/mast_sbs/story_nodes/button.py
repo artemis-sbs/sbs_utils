@@ -18,7 +18,8 @@ class Button(MastNode):
     def __init__(self, message=None, button=None,  
                 if_exp=None, format=None, label=None, 
                 clone=False, q=None, weight=None,priority=None,
-                new_task=None, data=None, path=None, block=None,loc=None, compile_info=None):
+                new_task=None, data=None, path=None, block=None, promise=None,
+                loc=None, compile_info=None):
         super().__init__()
         #
         # Remember any field in here need to be set in clone()
@@ -73,6 +74,7 @@ class Button(MastNode):
             self.await_node = Await.stack[-1]
             self.await_node.buttons.append(self)
         self.label = label
+        self.promise = promise
         
         
         self.data = data
@@ -122,6 +124,7 @@ class Button(MastNode):
         proxy = Button(clone=True)
         proxy.message = self.message
         proxy.label = self.label
+        proxy.promise = self.promise
         proxy.code = self.code
         proxy.color = self.color
         proxy.loc = self.loc
@@ -174,6 +177,9 @@ class Button(MastNode):
         task_data = self.data
         if self.data is not None and not isinstance(self.data, dict):
             task_data = task.eval_code(self.data)
+        if self.promise is not None:
+            self.promise.set_result(self)
+            return None
 
         if self.use_sub_task and self.label:
             #

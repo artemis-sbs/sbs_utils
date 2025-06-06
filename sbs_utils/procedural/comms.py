@@ -4,6 +4,7 @@ from .roles import has_role
 from .. import faces
 from ..agent import Agent
 from ..helpers import FrameContext, FakeEvent
+from ..futures import Promise
 from ..garbagecollector import GarbageCollector
 from ..mast.mastscheduler import ChangeRuntimeNode
 from ..mast.pollresults import PollResults
@@ -103,9 +104,6 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
         msg = FrameContext.task.compile_and_format_string(msg)
         if title is not None:
             title = FrameContext.task.compile_and_format_string(title)
-
-    
-
     
     from_objs = query.to_object_list(from_ids_or_obj)
     to_objs = query.to_object_list(to_ids_or_obj)
@@ -121,8 +119,11 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
 
 
             if isinstance(from_obj, (Lifeform, GridObject)):
+                if from_name is None:
+                    from_name = from_obj.name
                 from_obj = to_object(from_obj.host)
                 life = True
+                
 
             if isinstance(to_obj, (Lifeform, GridObject)):
                 to_obj = to_object(to_obj.host)
@@ -426,6 +427,7 @@ class CommsPromise(ButtonPromise):
         # Which is here, then we unschedule it
         # System makes sure it runs
         self.task.main.tasks.remove(self.task)
+        self.promise_buttons = []
         
 
     def set_path(self, path) -> None:
@@ -729,6 +731,27 @@ class CommsPromise(ButtonPromise):
                     self.set_buttons(self.origin_id, self.selected_id)
                 return PollResults.OK_JUMP
         return PollResults.OK_RUN_AGAIN
+    
+    def build_promise_buttons(self):
+        ret = []
+        for cp in self.promise_buttons:
+            new_buttons = cp.get_buttons(self.path)
+            if new_buttons is not None:
+                ret.extend(new_buttons)
+        return ret
+    
+    def pre_button_run(self, button):
+        if button.promise is not None:
+            data = button.data
+            if data is None:
+                data = {}
+            data["COMMS_ORIGIN_ID"] = self.origin_id
+            data["COMMS_SELECTED_ID"] = self.selected_id
+            button.data = data
+        return super().pre_button_run(button)
+    def post_button_run(self, button):
+        return super().post_button_run(button)
+
 
 
 from .execution import AWAIT, task_all, labels_get_type
@@ -767,13 +790,13 @@ def start_comms_common_selected(event, is_grid):
     #
     #
     test = (event.origin_id, event.selected_id)
-    promise = __comms_promises.get(test)
-    if promise is not None:
+    promise_task = __comms_promises.get(test)
+    if promise_task is not None:
         #
         # This is not expected to be called
         #
         print ("__COMMS_PROMISE creation already exists")
-        return
+        return promise_task
     
     
 
@@ -880,6 +903,8 @@ def start_comms_common_selected(event, is_grid):
     FrameContext.task = restore_task
     FrameContext.page = restore_page
 
+    return t
+
     
 def start_comms_selected(event):
     return start_comms_common_selected(event, False)
@@ -916,8 +941,7 @@ def comms(path=None, buttons=None, timeout=None) -> CommsPromise:
     if task.main.client_id != 0:
         raise Exception("Comms is not on Server")
     ret = CommsPromise(path, task, timeout)
- 
-    
+    task.set_variable("BUTTON_PROMISE", ret)
 
     if buttons is not None:
         for k in buttons:
@@ -1136,3 +1160,57 @@ def comms_set_2dview_focus(client_id, focus_id=0, EVENT=None):
         nav.visibleToShip = this_ship
         set_inventory_value(this_ship, "ORDERS_SELECTED_NAV", nav_id)
 
+class CommsChoiceButtonPromise(Promise):
+    def __init__(self, buttons, path, nav_button):
+        super().__init__()
+        self.buttons = []
+        for button in buttons:
+            self.buttons.append(Button(button,"+", promise=self))
+        self.path = path.strip("/")
+        self.path_root = self.path.rpartition('/')[0]
+        self.nav_button = nav_button
+        self.hosts = []
+        self.origin_id = None
+        self.selected_id = None
+
+    def set_result(self, result):
+        self._result = result
+        for bp in self.hosts:
+            bp.promise_buttons.remove(self)
+            if bp.path == self.path:
+                bp.set_path(self.path_root)
+
+
+    def get_buttons(self, path):
+        if path == self.path:
+            return self.buttons
+        if path == self.path_root:
+            return [Button(self.nav_button,"+", path="//"+self.path)]
+        return None
+
+
+
+def comms_story_buttons(ids, sel_ids, buttons, path, nav_button):
+
+    
+    
+    comms_promise = CommsChoiceButtonPromise(buttons, path, nav_button)
+    players = to_object_list(ids)
+    selects = to_object_list(sel_ids)
+    for p in players:
+        if p is None:
+            continue
+        for s in selects:
+            if s is None:
+                continue
+
+            event = FakeEvent(0,origin_id=p.id, selected_id=s.id)
+            promise_task = start_comms_selected(event)
+            if promise_task is None:
+                continue
+            button_promise = promise_task.get_variable("BUTTON_PROMISE")
+            if button_promise is None:
+                continue
+            button_promise.promise_buttons.append(comms_promise)
+            comms_promise.hosts.append(button_promise)
+    return comms_promise
