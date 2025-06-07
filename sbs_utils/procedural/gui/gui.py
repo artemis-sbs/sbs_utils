@@ -34,7 +34,7 @@ from ...mast.mast import Scope
 
 from ...helpers import FrameContext, FakeEvent
 
-from ...futures import AwaitBlockPromise, Trigger
+from ...futures import AwaitBlockPromise, Trigger, awaitable
 from ...gui import get_client_aspect_ratio
 from ..style import apply_control_styles
 from ...mast.pollresults import PollResults
@@ -514,7 +514,7 @@ class GuiPromise(ButtonPromise):
         self.button = None
 
 
-
+@awaitable
 def gui(buttons=None, timeout=None):
     """present the gui that has been queued up
 

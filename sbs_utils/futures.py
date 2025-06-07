@@ -174,11 +174,25 @@ class Trigger:
         pass
 
 
-def promise():
+# defining a decorator that can take anything
+
+def awaitable(func):
+    def inner(*args, **kwargs):
+        return func(*args, **kwargs)
+    return inner
+
+
+
+@awaitable
+def promise() -> Promise:
     return Promise()
 
-def promise_all(proms):
-    return PromiseAllAny(proms, True)
+# @awaitable
+# def promise_all(proms) -> PromiseAllAny:
+#     return PromiseAllAny(proms, True)
 
-def promise_any(proms):
-    return PromiseAllAny(proms, False)
+# @awaitable
+# def promise_any(proms) -> PromiseAllAny:
+#     return PromiseAllAny(proms, False)
+
+

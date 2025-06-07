@@ -120,6 +120,8 @@ def scan_results(message, target=None, tab = None):
 
 from .gui import ButtonPromise
 from ..consoledispatcher import ConsoleDispatcher
+from ..futures import awaitable
+
 class ScanPromise(ButtonPromise):
     def __init__(self, path, task, timeout=None, auto_side=True) -> None:
         path = path if path is not None else ""
@@ -352,7 +354,7 @@ class ScanPromise(ButtonPromise):
         GarbageCollector.add_garbage_collect(self.collect)
         
         
-
+@awaitable
 def scan(path=None, buttons=None, timeout=None, auto_side=True):
     """Start a science scan
 

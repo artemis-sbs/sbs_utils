@@ -1,4 +1,4 @@
-from ..futures import Promise
+from ..futures import Promise, awaitable
 from ..mast.pollresults import PollResults
 from ..helpers import FrameContext
 from .query import to_set, to_object
@@ -16,16 +16,19 @@ class TestPromise(Promise):
             return PollResults.OK_ADVANCE_TRUE
         return super().poll()
     
+@awaitable
 def distance_less(id1, id2, distance):
     def test():
         return FrameContext.context.sbs.distance_id(id1, id2) < distance
     return TestPromise(test)
-    
+
+@awaitable    
 def distance_greater(id1, id2, distance):
     def test():
         return FrameContext.context.sbs.distance_id(id1, id2) > distance
     return TestPromise(test)
 
+@awaitable
 def distance_point_less(id1, point, distance):
     def test():
         obj = to_object(id1)
@@ -34,7 +37,8 @@ def distance_point_less(id1, point, distance):
         diff = Vec3(obj.pos) - point
         return diff.length() < distance
     return TestPromise(test)
-    
+
+@awaitable   
 def distance_point_greater(id1, point, distance):
     def test():
         obj = to_object(id1)
@@ -45,6 +49,7 @@ def distance_point_greater(id1, point, distance):
 
     return TestPromise(test)
 
+@awaitable
 def destroyed_any(the_set, snapshot=False):
     the_set = to_set(the_set)
     if snapshot:
@@ -56,6 +61,7 @@ def destroyed_any(the_set, snapshot=False):
         return False
     return TestPromise(test)
 
+@awaitable
 def destroyed_all(the_set, snapshot=False):
     the_set = to_set(the_set)
     if snapshot:

@@ -4,7 +4,7 @@ from .roles import has_role
 from .. import faces
 from ..agent import Agent
 from ..helpers import FrameContext, FakeEvent
-from ..futures import Promise
+from ..futures import Promise, awaitable
 from ..garbagecollector import GarbageCollector
 from ..mast.mastscheduler import ChangeRuntimeNode
 from ..mast.pollresults import PollResults
@@ -936,8 +936,7 @@ ConsoleDispatcher.add_default_message("grid_selected_UID", start_grid_comms_sele
 
 
 
-
-
+@awaitable
 def comms(path=None, buttons=None, timeout=None) -> CommsPromise:
     """Present the comms buttons. and wait for a choice.
     The timeout can be any promise, but typically is a made using the timeout function.
@@ -1206,8 +1205,8 @@ class CommsChoiceButtonPromise(Promise):
         return None
 
 
-
-def comms_story_buttons(ids, sel_ids, buttons, path, nav_button=None):
+@awaitable
+def comms_story_buttons(ids, sel_ids, buttons, path, nav_button=None) -> CommsChoiceButtonPromise:
 
     
     
