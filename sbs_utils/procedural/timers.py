@@ -191,7 +191,7 @@ class Delay(Promise):
         return PollResults.OK_RUN_AGAIN
     
 @awaitable    
-def delay_sim(seconds=0, minutes=0):
+def delay_sim(seconds=0, minutes=0) ->Delay:
     """creates a Promise that waits for the specified time to elapse
     this is in simulation time (i.e. it could get paused)
 
@@ -205,7 +205,7 @@ def delay_sim(seconds=0, minutes=0):
     return Delay(seconds, minutes, True)
 
 @awaitable
-def delay_app(seconds=0, minutes=0):
+def delay_app(seconds=0, minutes=0)->Delay:
     """creates a Promise that waits for the specified time to elapse
     this is in app time (i.e. it could NOT get paused)
 
@@ -219,7 +219,7 @@ def delay_app(seconds=0, minutes=0):
     return Delay(seconds, minutes, False)
 
 @awaitable
-def timeout(seconds=0, minutes=0):
+def timeout(seconds=0, minutes=0)->Delay:
     """creates a Promise that waits for the specified time to elapse
     this is in simulation time (i.e. it could NOT get paused)
 
@@ -233,7 +233,7 @@ def timeout(seconds=0, minutes=0):
     return Delay(seconds, minutes, False)
 
 @awaitable
-def timeout_sim(seconds=0, minutes=0):
+def timeout_sim(seconds=0, minutes=0)->Delay:
     """creates a Promise that waits for the specified time to elapse
     this is in simulation time (i.e. it could get paused)
 
