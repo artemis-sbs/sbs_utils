@@ -108,6 +108,12 @@ from ..procedural import lifeform
 MastGlobals.import_python_module('sbs_utils.procedural.lifeform')
 from ..procedural import terrain
 MastGlobals.import_python_module('sbs_utils.procedural.terrain')
+from ..procedural import promise_functions
+MastGlobals.import_python_module('sbs_utils.procedural.promise_functions')
+
+# Load, but so far no functions to export
+from ..procedural import popup
+
 
 from ..cards import card
 MastGlobals.import_python_module('sbs_utils.cards.card')

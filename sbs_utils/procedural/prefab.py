@@ -1,5 +1,5 @@
 from .execution import task_schedule
-from ..futures import PromiseAllAny
+from ..futures import PromiseAllAny, awaitable
 import re
 
 class PrefabAll(PromiseAllAny):
@@ -32,7 +32,7 @@ class PrefabAll(PromiseAllAny):
 
 
 
-
+@awaitable
 def prefab_spawn(label, data=None, OFFSET_X=None, OFFSET_Y= None, OFFSET_Z= None):
 
     name = ""

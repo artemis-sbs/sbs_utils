@@ -1,6 +1,6 @@
 from .inventory import get_inventory_value, set_inventory_value
 from ..helpers import FrameContext
-from ..futures import Promise
+from ..futures import Promise, awaitable
 from ..mast.pollresults import PollResults
 
 TICK_PER_SECONDS = 30
@@ -190,7 +190,8 @@ class Delay(Promise):
             return None
         return PollResults.OK_RUN_AGAIN
     
-def delay_sim(seconds=0, minutes=0):
+@awaitable    
+def delay_sim(seconds=0, minutes=0) ->Delay:
     """creates a Promise that waits for the specified time to elapse
     this is in simulation time (i.e. it could get paused)
 
@@ -203,7 +204,8 @@ def delay_sim(seconds=0, minutes=0):
     """    
     return Delay(seconds, minutes, True)
 
-def delay_app(seconds=0, minutes=0):
+@awaitable
+def delay_app(seconds=0, minutes=0)->Delay:
     """creates a Promise that waits for the specified time to elapse
     this is in app time (i.e. it could NOT get paused)
 
@@ -216,7 +218,8 @@ def delay_app(seconds=0, minutes=0):
     """
     return Delay(seconds, minutes, False)
 
-def timeout(seconds=0, minutes=0):
+@awaitable
+def timeout(seconds=0, minutes=0)->Delay:
     """creates a Promise that waits for the specified time to elapse
     this is in simulation time (i.e. it could NOT get paused)
 
@@ -229,7 +232,8 @@ def timeout(seconds=0, minutes=0):
     """    
     return Delay(seconds, minutes, False)
 
-def timeout_sim(seconds=0, minutes=0):
+@awaitable
+def timeout_sim(seconds=0, minutes=0)->Delay:
     """creates a Promise that waits for the specified time to elapse
     this is in simulation time (i.e. it could get paused)
 
@@ -265,7 +269,7 @@ class DelayForTests(Promise):
             return PollResults.OK_ADVANCE_TRUE
         return PollResults.OK_RUN_AGAIN
     
-    
+@awaitable
 def delay_test(seconds=0, minutes=0):
     """creates a Promise that waits for the specified time to elapse
     this is for unit testing and not realtime

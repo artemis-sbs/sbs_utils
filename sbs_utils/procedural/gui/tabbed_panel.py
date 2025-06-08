@@ -4,7 +4,7 @@ from ...pages.widgets.tabbed_panel import TabbedPanel
 from sbs_utils.procedural.gui import gui_task_for_client
 from .update import gui_represent
 from ..query import to_set
-from ...futures import Promise
+from ...futures import Promise, awaitable
 
 
 def gui_tabbed_panel(items=None, style=None, tab=0, tab_location=0, icon_size=0):
@@ -103,7 +103,7 @@ from .blank import gui_blank
 
 
 
-
+@awaitable
 def gui_info_panel_send_message(
     client_id,
     message=None,

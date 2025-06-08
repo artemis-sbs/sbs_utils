@@ -388,6 +388,13 @@ class PyTicker():
     def end(self):
         self.last_poll_result = PollResults.OK_END
         self.done = True
+
+    @property
+    def active_label(self):
+        label = "PyMAST code"
+        if self.current_gen is not None:
+            label = self.current_gen
+        return label
             
 
     def tick(self):
@@ -517,8 +524,10 @@ class PyTicker():
             self.fall_through_label = get_fall_through(label)
             gen = label()
             res = PollResults.OK_JUMP
+        elif label == self.current_gen:
+            res = PollResults.OK_ADVANCE_TRUE
         else:
-            print("Unexpected label type: not function, method or partial")
+            print(f"Unexpected label type: not function, method or partial {label} {label.__class__}")
         
         return (gen, res)
     

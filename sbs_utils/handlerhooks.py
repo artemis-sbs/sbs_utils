@@ -233,6 +233,14 @@ def cosmos_event_handler(sim, event):
 
                 ConsoleDispatcher.dispatch_select(event)
 
+            case "hold_button_pressed":
+                #print_event(event)
+                ConsoleDispatcher.dispatch_message(event, f"{event.sub_tag}_popup")
+
+            case "hold_click":
+                #print_event(event)
+                ConsoleDispatcher.dispatch_select(event)
+
             case "press_comms_button":
                 ConsoleDispatcher.dispatch_message(event, "comms_target_UID")
 

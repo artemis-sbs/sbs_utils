@@ -4,6 +4,7 @@ from .roles import has_role
 from .. import faces
 from ..agent import Agent
 from ..helpers import FrameContext, FakeEvent
+from ..futures import Promise, awaitable
 from ..garbagecollector import GarbageCollector
 from ..mast.mastscheduler import ChangeRuntimeNode
 from ..mast.pollresults import PollResults
@@ -103,9 +104,6 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
         msg = FrameContext.task.compile_and_format_string(msg)
         if title is not None:
             title = FrameContext.task.compile_and_format_string(title)
-
-    
-
     
     from_objs = query.to_object_list(from_ids_or_obj)
     to_objs = query.to_object_list(to_ids_or_obj)
@@ -113,12 +111,40 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
     for from_obj in from_objs:
         for to_obj in to_objs:
             # From face should be used
+            # Handle life forms at this low level
+            from .lifeform import Lifeform
+            from ..gridobject import GridObject
+            from ..gui import GuiClient
+            life = False
+
+
+            if isinstance(from_obj, (Lifeform, GridObject)):
+                if from_name is None:
+                    from_name = from_obj.name
+                from_obj = to_object(from_obj.host)
+                life = True
+                
+
+            if isinstance(to_obj, (Lifeform, GridObject)):
+                to_obj = to_object(to_obj.host)
+                life = True
+
+            # This happens if one of them is id 0
+            if isinstance(to_obj, GuiClient) or isinstance(from_obj, GuiClient) is None:
+                print("COMMS Message set to ID 0")
+                continue
+
+            if to_obj is None and from_obj is None:
+                print("COMMS Message set to ID 0")
+                continue
+
             from_name_now = from_name
             if from_name is None:
                 if is_receive:
                     from_name_now = from_obj.comms_id
                 else:
                     from_name_now = to_obj.comms_id
+                    
 
             if title is None:
                 title = from_name_now # +" > "+to_obj.comms_id
@@ -134,21 +160,7 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             if face is None:
                 face = faces.get_face(from_obj.get_id())
             
-            # Handle life forms at this low level
-            from .lifeform import Lifeform
-            from ..gridobject import GridObject
-            life = False
-            if isinstance(from_obj, (Lifeform, GridObject)):
-                from_obj = to_object(from_obj.host)
-                life = True
-
-            if isinstance(to_obj, (Lifeform, GridObject)):
-                to_obj = to_object(to_obj.host)
-                life = True
-
-            # This happens if two life form and neither is hosted
-            if to_obj is None and from_obj is None:
-                continue
+            
             # Make sure life forms have an object
             if life:
                 if from_obj is None:
@@ -198,6 +210,9 @@ def _comms_get_origin_id() -> int:
     #
     if FrameContext.task is not None:
         # This will attempt to default to the client ship if all else fails
+        event = FrameContext.context.event.client_id
+        if event is None:
+            return 0
         _ship_id = FrameContext.context.sbs.get_ship_of_client(FrameContext.context.event.client_id)
         return FrameContext.task.get_variable("COMMS_ORIGIN_ID", _ship_id)
 
@@ -412,6 +427,8 @@ class CommsPromise(ButtonPromise):
         # Which is here, then we unschedule it
         # System makes sure it runs
         self.task.main.tasks.remove(self.task)
+        self.promise_buttons = []
+        self.comms_badge = None
         
 
     def set_path(self, path) -> None:
@@ -425,6 +442,15 @@ class CommsPromise(ButtonPromise):
         FrameContext.task = task
         if len(path)<len(self.path_root):
             path = self.path_root
+
+        p = path.strip("/")
+        # 
+        # This may not be enough, but should cover 
+        # resetting the comms badge
+        if p == "comms/comms_badge" or p == "comms":
+            self.set_comms_badge(None)
+
+        #self.set_comms_badge(None)
 
         super().set_path(path)
         
@@ -715,21 +741,52 @@ class CommsPromise(ButtonPromise):
                     self.set_buttons(self.origin_id, self.selected_id)
                 return PollResults.OK_JUMP
         return PollResults.OK_RUN_AGAIN
+    
+    def build_promise_buttons(self):
+        ret = []
+        for cp in self.promise_buttons:
+            new_buttons = cp.get_buttons(self.path)
+            if new_buttons is not None:
+                ret.extend(new_buttons)
+        return ret
+    
+    def pre_button_run(self, button):
+        if button.promise is not None:
+            data = button.data
+            if data is None:
+                data = {}
+            data["COMMS_ORIGIN_ID"] = self.origin_id
+            data["COMMS_SELECTED_ID"] = self.selected_id
+            data["COMMS_LIFEFORM_ID"] = self.comms_badge
+            button.data = data
+        return super().pre_button_run(button)
+    def post_button_run(self, button):
+        return super().post_button_run(button)
+    
+    def set_comms_badge(self, comms_badge):
+        self.comms_badge = query.to_id(comms_badge)
+
 
 
 from .execution import AWAIT, task_all, labels_get_type
 ################
 ## This is a PyMAST label used to run comms
 def create_comms_label():
-    c = comms()
-    yield AWAIT(c)
+    try:
+        c = comms()
+        yield AWAIT(c)
+    except Exception as e:
+        print ("COMMS Exception")
 
 def create_grid_comms_label():
-    c = comms()
-    c.path_root = "comms/grid"
-    c.path = "comms/grid"
-    c.is_grid_comms = True
-    yield AWAIT(c)
+    try:
+        c = comms()
+        c.path_root = "comms/grid"
+        c.path = "comms/grid"
+        c.is_grid_comms = True
+        yield AWAIT(c)
+    except Exception as e:
+        print ("COMMS, grid Exception")
 
 __comms_promises = {}
 def start_comms_common_selected(event, is_grid):
@@ -747,13 +804,13 @@ def start_comms_common_selected(event, is_grid):
     #
     #
     test = (event.origin_id, event.selected_id)
-    promise = __comms_promises.get(test)
-    if promise is not None:
+    promise_task = __comms_promises.get(test)
+    if promise_task is not None:
         #
         # This is not expected to be called
         #
         print ("__COMMS_PROMISE creation already exists")
-        return
+        return promise_task
     
     
 
@@ -860,6 +917,8 @@ def start_comms_common_selected(event, is_grid):
     FrameContext.task = restore_task
     FrameContext.page = restore_page
 
+    return t
+
     
 def start_comms_selected(event):
     return start_comms_common_selected(event, False)
@@ -877,8 +936,7 @@ ConsoleDispatcher.add_default_message("grid_selected_UID", start_grid_comms_sele
 
 
 
-
-
+@awaitable
 def comms(path=None, buttons=None, timeout=None) -> CommsPromise:
     """Present the comms buttons. and wait for a choice.
     The timeout can be any promise, but typically is a made using the timeout function.
@@ -896,8 +954,7 @@ def comms(path=None, buttons=None, timeout=None) -> CommsPromise:
     if task.main.client_id != 0:
         raise Exception("Comms is not on Server")
     ret = CommsPromise(path, task, timeout)
- 
-    
+    task.set_variable("BUTTON_PROMISE", ret)
 
     if buttons is not None:
         for k in buttons:
@@ -929,9 +986,18 @@ def comms_info_face_override(face=None) -> None:
     p.set_face_override(face)
 
 
-def comms_navigate(path, face=None) -> None:
+def comms_navigate(path, face=None, comms_badge=None) -> None:
+    """ Change the comms path for what buttons to present
+
+    Args:
+        path (str): _description_
+        face (str, optional): _description_. Defaults to None.
+    """
     task = FrameContext.task
     p = task.get_variable("BUTTON_PROMISE")
+    if p is None:
+        return
+    
     if path is None or path == "":
         path = p.path_root
 
@@ -942,14 +1008,61 @@ def comms_navigate(path, face=None) -> None:
     else:
         path = "//"+path
 
-    if p is None:
-        return
+    
     p.set_path(path)
     p.set_face_override(face)
-    
+    p.set_comms_badge(comms_badge)
+
+
+def comms_navigate_override(ids_or_obj, sel_ids_or_obj, path=None, path_must_match=True) -> None:
+    """ Change the comms path for what buttons to present for specific comms 
+    pair. You need the two things in the relationship.
+    If the things are selected in comms, this is a way to refresh the buttons.
+    If the code is in the comms for the things involved, just use comms_navigate
+    This is for a non comms task
+
+    Args:
+        ids_or_obj(id| set| list): The id, set of ids, or list of objects of player ships
+        sel_ids_or_obj(id| set| list): The id, set of ids, or list of objects of other ship
+        path (str): if none it will use the current path
+        path_must_match (bool): Typically the path must match to avoid player confusion
+    """
+
+    players = to_object_list(ids_or_obj)
+    targets = to_object_list(sel_ids_or_obj)
+
+    for p in players:
+        for s in targets:
+            if p is None or s is None:
+                continue
+            if p.id == 0 or s.id == 0:
+                continue
+
+            t = __comms_promises.get((p.id, s.id))
+            if t is None:
+                return
+            prom = t.get_variable("BUTTON_PROMISE")
+            if prom is None:
+                return
+            
+            if path is None or path == "":
+                path = prom.path
+
+            # makes sure path starts with //comms
+            path = path.strip("'//")
+            if not path.startswith("comms"):
+                path = "//comms/" + path
+            else:
+                path = "//"+path
+
+            if (path_must_match and path.strip("//")==prom.path) or not path_must_match:
+                prom.set_path(path)
+            
+
+
 from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
 from sbs_utils.helpers import FrameContext
-from sbs_utils.procedural.query import to_object, get_comms_selection
+from sbs_utils.procedural.query import to_object, get_comms_selection, to_object_list
 from sbs_utils.procedural.roles import role_are_allies
 from sbs_utils.vec import Vec3
 import sbs
@@ -1061,3 +1174,59 @@ def comms_set_2dview_focus(client_id, focus_id=0, EVENT=None):
         nav.visibleToShip = this_ship
         set_inventory_value(this_ship, "ORDERS_SELECTED_NAV", nav_id)
 
+class CommsChoiceButtonPromise(Promise):
+    def __init__(self, buttons, path, nav_button):
+        super().__init__()
+        self.buttons = []
+        for button in buttons:
+            self.buttons.append(Button(button,"+", promise=self))
+        self.path = path.strip("/")
+        self.path_root = self.path
+        if nav_button:
+            self.path_root = self.path.rpartition('/')[0]
+        self.nav_button = nav_button
+        self.hosts = []
+        self.origin_id = None
+        self.selected_id = None
+
+    def set_result(self, result):
+        self._result = result
+        for bp in self.hosts:
+            bp.promise_buttons.remove(self)
+            if bp.path == self.path:
+                bp.set_path(self.path_root)
+
+
+    def get_buttons(self, path):
+        if path == self.path:
+            return self.buttons
+        if self.nav_button is not None and path == self.path_root:
+            return [Button(self.nav_button,"+", path="//"+self.path)]
+        return None
+
+
+@awaitable
+def comms_story_buttons(ids, sel_ids, buttons, path, nav_button=None) -> CommsChoiceButtonPromise:
+
+    
+    
+    comms_promise = CommsChoiceButtonPromise(buttons, path, nav_button)
+    players = to_object_list(ids)
+    selects = to_object_list(sel_ids)
+    for p in players:
+        if p is None:
+            continue
+        for s in selects:
+            if s is None:
+                continue
+
+            event = FakeEvent(0,origin_id=p.id, selected_id=s.id)
+            promise_task = start_comms_selected(event)
+            if promise_task is None:
+                continue
+            button_promise = promise_task.get_variable("BUTTON_PROMISE")
+            if button_promise is None:
+                continue
+            button_promise.promise_buttons.append(comms_promise)
+            comms_promise.hosts.append(button_promise)
+    return comms_promise

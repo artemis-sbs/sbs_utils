@@ -34,7 +34,7 @@ from ...mast.mast import Scope
 
 from ...helpers import FrameContext, FakeEvent
 
-from ...futures import AwaitBlockPromise, Trigger
+from ...futures import AwaitBlockPromise, Trigger, awaitable
 from ...gui import get_client_aspect_ratio
 from ..style import apply_control_styles
 from ...mast.pollresults import PollResults
@@ -187,8 +187,10 @@ class ButtonPromise(AwaitBlockPromise):
                 self.running_button = None
                 self.sub_task = None
                 return PollResults.OK_JUMP
-            else:   
+            else:
+                self.pre_button_run(self.running_button)
                 sub_task = self.running_button.run(self.task, self)
+                self.post_button_run(self.running_button)
                 if sub_task is not None:
                     self.sub_task = sub_task
                     if sub_task.done:
@@ -256,6 +258,8 @@ class ButtonPromise(AwaitBlockPromise):
             #     buttons.extend(self.expand_button(button))
         self.build_navigation_buttons()
         buttons.extend(self.nav_buttons)
+        promise_buttons = self.build_promise_buttons()
+        buttons.extend(promise_buttons)
         i = 0
         order_weights = {}
         for button in buttons:
@@ -363,6 +367,13 @@ class ButtonPromise(AwaitBlockPromise):
         ButtonPromise.navigating_promise = None
         FrameContext.task = t
         FrameContext.page = restore_page
+
+    def build_promise_buttons(self):
+        return []
+    def pre_button_run(self, button):
+        return
+    def post_button_run(self, button):
+        return
 
 class PropertyChangeTrigger(Trigger):
     def __init__(self, task, var, label=None):
@@ -503,7 +514,7 @@ class GuiPromise(ButtonPromise):
         self.button = None
 
 
-
+@awaitable
 def gui(buttons=None, timeout=None):
     """present the gui that has been queued up
 

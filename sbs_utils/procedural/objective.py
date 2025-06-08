@@ -8,6 +8,7 @@ from sbs_utils.procedural.query import to_set, to_object_list
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.mast.mastscheduler import MastAsyncTask
+from sbs_utils.procedural.signal import signal_emit
 
 
 __objective_tick_task = None
@@ -24,20 +25,74 @@ from .brain import brains_run_all
 from .extra_scan_sources import extra_scan_sources_run_all
 import time
 
+
+
+
+__end_game_promise = []
+__end_game_ids = 100
+def game_end_condition_add(promise, message, is_win, music=None, signal=None):
+    global __end_game_ids
+    global __end_game_promise
+# Make sure low level task runner is running
+    objective_schedule()
+
+    id = __end_game_ids
+    __end_game_ids += 1
+    tup = (id, promise, message, is_win, music, signal)
+    __end_game_promise.append(tup)
+    return id
+
+def game_end_condition_remove(id):
+    global __end_game_promise
+    new_cond = [cond for cond in __end_game_promise if cond[0]!=id]
+    __end_game_promise = new_cond
+
+
+def game_end_run_all(tt):
+    for cond in __end_game_promise:
+        id, promise, message, is_win, music, signal = cond
+        promise.poll()
+        if promise.done():
+            ## play music
+            if music is not None:
+                FrameContext.context.sbs.play_music_file(0,music)
+            if is_win:
+                FrameContext.context.sbs.play_music_file(0,"music/default/failure")
+            else:
+                FrameContext.context.sbs.play_music_file(0,"music/default/victory")
+
+            ## show the end screen by notifying the system
+            ## with a signal
+            Agent.SHARED.set_inventory_value("GAME_STARTED",  False)
+            Agent.SHARED.set_inventory_value("GAME_ENDED",  True)
+            Agent.SHARED.set_inventory_value("START_TEXT",  message)
+            data = {"promise": promise, "message": message, "is_win": is_win}
+            if signal is None:
+                signal_emit("show_game_results", data)
+            else:
+                signal_emit(signal, data)
+
+
 def objectives_run_everything(tick_task):
     state = tick_task.state % 3
     tick_task.state += 1
-    t = time.perf_counter()
+    #t = time.perf_counter()
     if state == 0:
         objectives_run_all(tick_task)
     elif state == 1:
         brains_run_all(tick_task)
     elif state == 2:
         extra_scan_sources_run_all(tick_task)
+        game_end_run_all(tick_task)
+        
 
-    et = time.perf_counter() - t
-    if et > 0.033:
-        print(f"Elapsed time: {et} shared task state {state} ")
+    # Cycle this every 5 seconds
+    tick_task.state = tick_task.state % 5
+    
+
+    # et = time.perf_counter() - t
+    # if et > 0.033:
+    #     print(f"Elapsed time: {et} shared task state {state} ")
 
 
 class Objective(Agent):

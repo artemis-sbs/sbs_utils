@@ -1,5 +1,5 @@
 from ..agent import Agent
-from .query import to_object_list, to_set, to_object
+from .query import to_object_list, to_set, to_object, to_space_object
 
 
 def role(role: str):
@@ -23,7 +23,7 @@ def role_allies(id_or_obj):
         agent id set: a set of agent IDs
     """
     ret = set()
-    obj = to_object(id_or_obj)
+    obj = to_space_object(id_or_obj)
     if obj is None or obj.id==0:
         return ret
     allies = obj.data_set.get("ally_list",0)

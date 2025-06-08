@@ -47,6 +47,8 @@ class RouteDecoratorLabel(DecoratorLabel):
 
         match paths:
             # two parameters, nav
+            case ["popup",*b]: 
+                routes.route_common_navigate(path, self)
             case ["comms",*b]: 
                 routes.route_comms_navigate(self.path, self)
             case ["enable","comms"]: 
@@ -163,27 +165,7 @@ class RouteDecoratorLabel(DecoratorLabel):
 
     def generate_label_end_cmds(self, compile_info=None):
         path = self.path.strip('/')
-        paths = path.split('/')
-        #match paths:
-            # two parameters, nav
-            # case ["enable", "comms"]: 
-            #     cmd = FuncCommand(is_await=True, py_cmds='comms()', compile_info=compile_info)
-            #     cmd.file_num = self.file_num
-            #     cmd.line_num = self.line_num
-            #     cmd.line = f"await comms() embedded in {self.name}"
-            #     self.add_child(cmd)
-            # case ["enable", "grid", "comms"]: 
-            #     cmd = FuncCommand(is_await=True, py_cmds='comms()', compile_info=compile_info)
-            #     cmd.file_num = self.file_num
-            #     cmd.line_num = self.line_num
-            #     cmd.line = f"await comms() embedded in {self.name}"
-            #     self.add_child(cmd)
-            # case ["enable", "science"]: 
-            #     cmd = FuncCommand(is_await=True, py_cmds='scan()', compile_info=compile_info)
-            #     cmd.file_num = self.file_num
-            #     cmd.line_num = self.line_num
-            #     cmd.line = f"await scan() embedded in {self.name}"
-            #     self.add_child(cmd)
+        #paths = path.split('/')
 
         p = compile_info.label if compile_info is not None else None
         if not self.can_fallthrough(p):

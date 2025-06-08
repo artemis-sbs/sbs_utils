@@ -22,8 +22,6 @@ _FOCUS = 3
 _GRID_OBJECT = 4
 _MESSAGE = 5
 
-
-
 #
 # No longer have a task that calls comms
 # Instead on handler for console dispatcher
@@ -276,6 +274,18 @@ def route_select_normal(label):
 
 
 
+def route_common_navigate(path, label):
+    """ called to extend a comms navigation
+
+    
+    Args:
+        path: (str): The navigation path to extend
+        label (label): The label to run
+    """
+    path_labels = ButtonPromise.navigation_map.get(path, set())
+    path_labels.add(label)
+    ButtonPromise.navigation_map[path] = path_labels
+
 def route_comms_navigate(path, label):
     """ called to extend a comms navigation
 
@@ -485,6 +495,80 @@ def route_point_grid(label):
         The route: Used rarely to cancel the route
     """    
     return HandleConsoleSelect("grid", label, _POINT)
+
+################################
+# POPUP HANDLERS
+
+def route_popup_comms_2d(label):
+    """called when a a point event occurs in comms.
+
+    Note:
+        No know use for this currently
+
+    Args:
+        label (label): The label to run
+
+    Returns:
+        The route: Used rarely to cancel the route
+    """    
+    return HandleConsoleSelect("comms", label, _POPUP)
+
+def route_point_normal(label):
+    """called when a a point event occurs in comms.
+
+    Note:
+        No know use for this currently
+
+    Args:
+        label (label): The label to run
+
+    Returns:
+        The route: Used rarely to cancel the route
+    """    
+    return HandleConsoleSelect("normal", label, _POINT)
+
+def route_point_comms(label):
+    """called when a a point event occurs in comms.
+
+    Note:
+        No know use for this currently
+
+    Args:
+        label (label): The label to run
+
+    Returns:
+        The route: Used rarely to cancel the route
+    """    
+    return HandleConsoleSelect("comms", label, _POINT)
+    
+def route_point_science(label):
+    """called when a a point event occurs in science by clicking the 2d view.
+
+    Note:
+        This is not intended for long running tasks
+
+    Args:
+        label (label): The label to run
+
+    Returns:
+        The route: Used rarely to cancel the route
+    """    
+    return HandleConsoleSelect("science", label, _POINT)
+
+def route_point_weapons(label):
+    """called when a a point event occurs in weapons by clicking the 2d view.
+
+    Note:
+        This is not intended for long running tasks
+
+    Args:
+        label (label): The label to run
+
+    Returns:
+        The route: Used rarely to cancel the route
+    """    
+    return HandleConsoleSelect("weapons", label, _POINT)
+
 
 
 
@@ -1338,4 +1422,3 @@ class RouteDamageInternal(RouteDamageSource):
     def __init__(self, method):
         super().__init__(method, DamageDispatcher._INTERNAL)
 
-        

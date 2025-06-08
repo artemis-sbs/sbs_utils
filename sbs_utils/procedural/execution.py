@@ -2,7 +2,7 @@ from ..helpers import FrameContext
 import logging as logging
 from ..agent import Agent
 from io import StringIO
-from ..futures import Promise, PromiseAllAny, PromiseWaiter
+from ..futures import Promise, PromiseAllAny, PromiseWaiter, awaitable
 from ..mast.pollresults import PollResults
 from .. import fs
 from ..mast.core_nodes.label import Label
@@ -117,7 +117,7 @@ def logger(name: str=None, file: str=None, var: str=None, std_err:bool=False) ->
         _logger.addHandler(handler)
 
 
-
+@awaitable
 def task_schedule(label: str | Label, data=None, var:str=None) -> "MastAsyncTask":
     """create an new task and start running at the specified label
 
@@ -135,6 +135,7 @@ def task_schedule(label: str | Label, data=None, var:str=None) -> "MastAsyncTask
         return t
     return None
 
+@awaitable
 def sub_task_schedule(label, data=None, var=None) -> "MastAsyncTask":
     """create an new task and start running at the specified label
 
@@ -152,6 +153,7 @@ def sub_task_schedule(label, data=None, var=None) -> "MastAsyncTask":
         return t
     return None
 
+@awaitable
 def gui_sub_task_schedule(label, data=None, var=None) -> "MastAsyncTask":
     """create an new task and start running at the specified label
 
@@ -199,6 +201,7 @@ class TaskPromiseAllAny(PromiseAllAny):
 #
 # Doesn't return until all success, or any fail
 #
+@awaitable
 def task_all(*args, **kwargs) -> TaskPromiseAllAny:
     """Creates a task for each argument that is a label. Also supports a data named argument to pass the data to all the tasks.
 
@@ -229,6 +232,7 @@ def task_all(*args, **kwargs) -> TaskPromiseAllAny:
 #
 # Doesn't return until all success, or any fail
 #
+@awaitable
 def sub_task_all(*args, **kwargs) -> TaskPromiseAllAny:
     """Creates a task for each argument that is a label. Also supports a data named argument to pass the data to all the tasks.
 
@@ -258,6 +262,7 @@ def sub_task_all(*args, **kwargs) -> TaskPromiseAllAny:
 #
 # Doesn't return until any success, or all fail
 #
+@awaitable
 def task_any(*args, **kwargs) -> TaskPromiseAllAny:
     """Creates a task for each argument that is a label. Also supports a data named argument to pass the data to all the tasks.
 
@@ -364,12 +369,13 @@ def labels_get_type(label_type):
         ret.append(m)
     return ret
 
-
+@awaitable
 def promise_all(*proms):
     if len(proms)==1:
         return PromiseAllAny(*proms, True)
     return PromiseAllAny(proms, True)
 
+@awaitable
 def promise_any(*proms):
     if len(proms)==1:
         return PromiseAllAny(*proms, False)

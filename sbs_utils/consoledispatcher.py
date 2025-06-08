@@ -287,6 +287,9 @@ class ConsoleDispatcher:
         if "grid_object_list" == event.value_tag or event.extra_tag == "grid_selected_UID":
             return "grid_selected_UID"
         
+        if event.tag.startswith("hold"):
+            return f"{event.sub_tag}_popup"
+        
         # Catch the 2dview
         if "weap" in event.sub_tag or event.extra_tag == "weapon_target_UID":
             return "weapon_target_UID"
