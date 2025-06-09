@@ -161,7 +161,9 @@ def gui_property_list_box_stacked(name=None, tag=None):
                 item_template=_property_lb_item_template_two_line, title_template=name, collapsible=True)
     
     props_lb.title_section_style += "background:#1578;"
-    task.set_inventory_value(tag, props_lb)    
+    task.set_inventory_value(tag, props_lb)
+    gui_reset_variables_add(gui_task, tag)
+
     return props_lb
 
 def gui_property_list_box(name=None, tag=None, temp = _property_lb_item_template_one_line):
@@ -175,5 +177,18 @@ def gui_property_list_box(name=None, tag=None, temp = _property_lb_item_template
                 item_template=temp, title_template=name, collapsible=True)
     
     props_lb.title_section_style += "background:#1578;"
-    gui_task.set_inventory_value(tag, props_lb)    
+    gui_task.set_inventory_value(tag, props_lb)
+    gui_reset_variables_add(gui_task, tag)
+
     return props_lb
+
+def gui_reset_variables_add(task, var_name):
+    tags = task.get_inventory_value("__CLEAR_ON_CHANGE__", set())
+    tags.add(var_name)
+    task.set_inventory_value("__CLEAR_ON_CHANGE__", tags)
+
+def gui_reset_variables(task):
+    tags = task.get_inventory_value("__CLEAR_ON_CHANGE__", set())
+    for tag in tags:
+        task.set_inventory_value(tag, None)
+    task.set_inventory_value("__CLEAR_ON_CHANGE__", set())

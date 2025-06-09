@@ -690,6 +690,10 @@ class StoryPage(Page):
         elif event.tag == "client_change":
             if event.sub_tag == "change_console":
                 if self.change_console_label:
+                    # This is a bit of a hack to clear the properties
+                    # List box
+                    from ..procedural.gui.property_listbox import gui_reset_variables
+                    gui_reset_variables(self.gui_task)
                     self.gui_task.jump(self.change_console_label)
                     self.gui_task.tick_in_context()
                     self.present(event)
