@@ -187,12 +187,16 @@ class TaskPromiseAllAny(PromiseAllAny):
     @property
     def is_idle(self) -> bool:
         for t in self.promises:
+            if t is None:
+                continue
             if t.tick_result != PollResults.OK_IDLE:
                 return False
         return True
 
     def end_all(self) -> None:
         for t in self.promises:
+            if t is None:
+                continue
             t.cancel()
 
 
@@ -348,7 +352,7 @@ def AWAIT(promise: Promise) -> PromiseWaiter:
 def labels_get_type(label_type):
     ret = []
     page = FrameContext.page
-    if page is None:
+    if page is None or label_type is None:
         return []
     #
     # Walk all labels looking for map Labels
