@@ -1,18 +1,20 @@
-from .query  import to_object, to_object_list, to_id, to_blob
+from .query  import to_object, get_comms_selection, get_science_selection, get_weapons_selection
 from ..helpers import FrameContext, FakeEvent
 from ..mast_sbs.story_nodes.button import Button
 from ..garbagecollector import GarbageCollector
 from .gui import ButtonPromise
 from ..consoledispatcher import ConsoleDispatcher
+from ..vec import Vec3
 #from ..futures import awaitable
 
 class PopupPromise(ButtonPromise):
     def __init__(self, event) -> None:
 
         path = f"popup/{event.sub_tag}"
-
-        # I think this is OK, it runs 
-        task = FrameContext.server_task
+        #
+        # Small stub task to hold scope variables
+        # 
+        task = FrameContext.server_task.start_task("$NOOP$", defer=True, inherit=False, unscheduled=True)
 
 
         super().__init__(path, task, None)
@@ -21,6 +23,7 @@ class PopupPromise(ButtonPromise):
         self.expanded_buttons = None
         self.origin_id = event.origin_id
         self.selected_id = event.selected_id
+        self.title = "options"
 
         # Add this as the thing to call 
         # for this pair of IDs
@@ -46,8 +49,6 @@ class PopupPromise(ButtonPromise):
         FrameContext.context.event = event
         return ret
 
-
-
     def collect(self) -> bool:
         oo = to_object(self.origin_id)
         selected_so = to_object(self.selected_id)
@@ -56,20 +57,55 @@ class PopupPromise(ButtonPromise):
         self.leave()
         self.task.end()
         return True
+    
+    def set_variables(self, event):
+        console = event.sub_tag.upper()
+        # 
+        self.task.set_variable("EVENT", event)
+        self.task.set_variable("client_id", event.client_id)
+        self.task.set_variable(f"{console}_POPUP_ID", event.selected_id)
+        self.task.set_variable(f"{console}_SELECTED_ID", event.origin_id)
+        # Set focus id
+        ship_id = FrameContext.context.sbs.get_ship_of_client(event.client_id)
+        self.task.set_variable(f"{console}_ORIGIN_ID", ship_id)
+        #
+        self.task.set_variable(f"{console}_POPUP_POINT", Vec3(event.source_point))
 
+        # 
+        # console selected is popup origin
+        # console origin is the ship the client is on
+        # popup selected is the things click on
+        cs = None if event.origin_id == 0 else to_object(event.origin_id)
+        ps = None if event.selected_id == 0 else to_object(event.selected_id)
+        co = None if ship_id == 0 else to_object(ship_id)
 
+        self.task.set_variable(f"{console}_ORIGIN", co)
+        self.task.set_variable(f"{console}_SELECTED", cs)
+        self.task.set_variable(f"{console}_POPUP", ps)
 
+        self.title = "Location"
+        if ps is not None: 
+            self.title =  ps.name
+            
 
     def message(self, event):
         # makes sure this was for us
         if event.selected_id != self.selected_id or self.origin_id != event.origin_id:
             return
         
+        self.set_variables(event)
+        self.event = event
+
+        
         self.button = None
         for i, button in enumerate(self.expanded_buttons):
             if self.task.format_string(button.message) == event.extra_tag:
                 self.button = button
+                self.set_path(self.path_root+"/hide")
                 self.poll()
+
+        #FrameContext.context.sbs.send_hold_menu(event.client_id, self.origin_id, self.selected_id, "")
+        
         
     def selected(self, event):
         #
@@ -79,10 +115,14 @@ class PopupPromise(ButtonPromise):
             self.selected_id != event.selected_id:
             return
         self.run_focus = True
+        self.event = event
+        self.set_variables(event)
+        self.path = self.path_root
+
         self.show_buttons()
         
-        if not self.done:
-            self.task.tick()
+        # if not self.done:
+        #     self.task.tick()
 
     def collect(self):
         oo = to_object(self.origin_id)
@@ -90,7 +130,7 @@ class PopupPromise(ButtonPromise):
         if oo is not None and selected_so is not None:
             return False
         self.leave()
-        self.task.end()
+        # self.task.end()
         return True
 
     def leave(self):
@@ -101,7 +141,12 @@ class PopupPromise(ButtonPromise):
     def show_buttons(self):
         sel_so = to_object(self.selected_id)
         origin_so = to_object(self.origin_id)
-        if sel_so is None or origin_so is None:
+        if (self.selected_id != 0 and sel_so is None) or origin_so is None:
+            return
+        
+        CID = FrameContext.client_id        
+        if self.path == self.path_root+"/hide":
+            FrameContext.context.sbs.send_hold_menu(CID, self.origin_id, self.selected_id, "")
             return
         #
         # Have scans ever occurred
@@ -121,8 +166,11 @@ class PopupPromise(ButtonPromise):
 
         self.button_string = ";".join(button_msg)
 
-        #self.button_string = "hello;world"
-        CID = FrameContext.client_id
+        #self.button_string = "Protect;Attack;"
+        # Add Title
+        if len(self.button_string)>0:
+            self.button_string = self.title+";" + self.button_string
+
         FrameContext.context.sbs.send_hold_menu(CID, self.origin_id, self.selected_id, self.button_string)
 
 
@@ -144,9 +192,9 @@ def popup_navigate(path):
 __popup_promises = {}
 def start_popup_selected(event):
     # Don't run if the selection doesn't exist
-    so = to_object(event.selected_id)
-    if event.selected_id != 0 and so is None:
-        return
+    # so = to_object(event.selected_id)
+    # if event.selected_id != 0 and so is None:
+    #     return
     
     # Don't run if the selection doesn't exist
     if event.origin_id !=0 and to_object(event.origin_id) is None:
@@ -172,5 +220,7 @@ def start_popup_selected(event):
     
 ConsoleDispatcher.add_default_select("science_popup", start_popup_selected)
 ConsoleDispatcher.add_default_select("comms_popup", start_popup_selected)
+ConsoleDispatcher.add_default_select("comms2d_popup", start_popup_selected)
+ConsoleDispatcher.add_default_select("weapons_popup", start_popup_selected)
 
 

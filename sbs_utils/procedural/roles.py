@@ -172,6 +172,8 @@ def has_roles(so, roles):
         bool: if the agent has that role
     """        
     so = to_object(so)
+    if so is None:
+        return False
     if so:
         roles = roles.split(",")
         for role in roles:

@@ -106,6 +106,8 @@ class PromiseAllAny(Promise):
             return False
         
         for p in self.promises:
+            if p is None:
+                continue
             p.cancel(msg)
         self.canceled = True
 

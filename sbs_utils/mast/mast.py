@@ -267,6 +267,7 @@ class Mast():
         self.labels = {}
         self.inline_labels = {}
         self.labels["main"] = Label("main")
+        self.labels["$NOOP$"] = Label("$NOOP$")
         self.cmd_stack = [self.labels["main"]]
         self.indent_stack = [0]
         self.main_pruned = False
