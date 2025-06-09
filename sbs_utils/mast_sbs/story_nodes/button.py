@@ -192,11 +192,11 @@ class Button(MastNode):
             #
             if self.is_block:
                 sub_task = task.start_sub_task(self.label, inputs=task_data, defer=True, active_cmd=self.loc+1)
+                sub_task.set_variable("BUTTON_PROMISE", button_promise)
+                sub_task.tick_in_context()
             else:
                 sub_task = task.start_sub_task(self.label, inputs=task_data, defer=True)
-
-            sub_task.set_variable("BUTTON_PROMISE", button_promise)
-            sub_task.tick_in_context()
+                sub_task.set_variable("BUTTON_PROMISE", button_promise)
             return sub_task
         elif self.label:
             task.push_inline_block(self.label)

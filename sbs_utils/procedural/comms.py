@@ -115,18 +115,23 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             from .lifeform import Lifeform
             from ..gridobject import GridObject
             from ..gui import GuiClient
+            from ..faces import get_face
             life = False
 
 
             if isinstance(from_obj, (Lifeform, GridObject)):
                 if from_name is None:
                     from_name = from_obj.name
-                from_obj = to_object(from_obj.host)
+                    face = get_face(from_obj.id)
+                if from_obj.host==0:
+                    from_obj = to_obj
+                
                 life = True
                 
 
             if isinstance(to_obj, (Lifeform, GridObject)):
-                to_obj = to_object(to_obj.host)
+                if to_obj.host==0:
+                    to_obj = from_obj
                 life = True
 
             # This happens if one of them is id 0
@@ -595,7 +600,7 @@ class CommsPromise(ButtonPromise):
                 self.face = faces.get_face(self.origin_id)
             else: 
                 self.face = self.face_override
-            self.comms_id = "Long range comms"
+            self.comms_id = ""
             # TODO: This should check console type
             self.is_grid_comms = False
             
@@ -691,7 +696,7 @@ class CommsPromise(ButtonPromise):
                         FrameContext.context.sbs.send_comms_button_info(origin_id, color, msg, f"{i}")
 
 
-    def pressed_set_values(self) -> None:
+    def pressed_set_values(self, task) -> None:
         oo = query.to_object(self.origin_id)
         so = query.to_object(self.selected_id)
         if oo is  None: # or so is None:
@@ -699,10 +704,11 @@ class CommsPromise(ButtonPromise):
         #
         # Set Name Value
         #
-        self.task.set_variable("COMMS_ORIGIN", oo)
-        self.task.set_variable("COMMS_SELECTED", so)
-        self.task.set_variable("COMMS_ORIGIN_ID", self.origin_id)
-        self.task.set_variable("COMMS_SELECTED_ID", self.selected_id)
+        task.set_variable("COMMS_ORIGIN", oo)
+        task.set_variable("COMMS_SELECTED", so)
+        task.set_variable("COMMS_ORIGIN_ID", self.origin_id)
+        task.set_variable("COMMS_SELECTED_ID", self.selected_id)
+        task.set_variable("COMMS_LIFEFORM_ID", self.comms_badge)
 
     def pressed_test(self) -> bool:
         oo = query.to_object(self.origin_id)
