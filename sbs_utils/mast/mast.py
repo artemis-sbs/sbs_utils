@@ -852,6 +852,10 @@ class Mast():
                             errors.append(buildErrorMessage(file_name, line_no,line,"Bad indentation"))
                             return errors # return with first errors
                         
+                        if not is_indent:
+                            if prev_node is not None and prev_node.must_indent():
+                                errors.append(buildErrorMessage(file_name, line_no,line,"Bad indentation"))
+                                return errors # return with first errors
                         if is_indent:
                             if prev_node is None or not prev_node.is_indentable():
                                 if not prev_node.is_inline_label:

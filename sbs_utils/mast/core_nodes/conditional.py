@@ -48,6 +48,9 @@ class IfStatements(MastNode):
     def is_indentable(self):
         return True
     
+    def must_indent(self):
+        return True
+    
     def create_end_node(self, loc, dedent_obj, compile_info):
         self.if_node.dedent_loc = loc
 
@@ -134,6 +137,9 @@ class MatchStatements(MastNode):
             self.code = None
 
     def is_indentable(self):
+        return True
+    
+    def must_indent(self):
         return True
     
     def create_end_node(self, loc, dedent_obj, compile_info):
