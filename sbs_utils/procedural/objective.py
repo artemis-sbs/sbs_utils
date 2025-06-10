@@ -136,10 +136,13 @@ class Objective(Agent):
         self._result = res
         self._done = self._result != PollResults.OK_IDLE
         if self._done:
-            self.remove_role("OBJECTIVE")
-            unlink(self.agent, "OBJECTIVE", self.id)
-            self.remove_role("OBJECTIVE_RUN")
-            unlink(self.agent, "OBJECTIVE_RUN", self.id)
+            self.force_clear()
+
+    def force_clear(self):
+        self.remove_role("OBJECTIVE")
+        unlink(self.agent, "OBJECTIVE", self.id)
+        self.remove_role("OBJECTIVE_RUN")
+        unlink(self.agent, "OBJECTIVE_RUN", self.id)
 
 
 
@@ -166,6 +169,7 @@ class Objective(Agent):
         self.result = result
         if leave is not None:
             self.run_sub_label(leave.loc+1)
+        self.force_clear()
 
     def run_sub_label(self, loc):
         agent_object = Agent.get(self.agent)
@@ -188,6 +192,7 @@ def objective_clear(agent_id_or_set):
         for obj in to_object_list(linked_to(agent, "OBJECTIVE")):
             if obj is not None:
                 obj.stop_and_leave()
+                obj.force_clear()
 
         
 
