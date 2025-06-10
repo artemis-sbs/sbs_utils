@@ -186,13 +186,13 @@ class ButtonPromise(AwaitBlockPromise):
                 return PollResults.OK_JUMP
             else:
                 self.pre_button_run(self.running_button)
-                if self.running_button.is_block:
-                    sub_task = self.running_button.run(self.task, self)
-                else:
-                    # if button has a label to run instead of a block
-                    # the task needs to be scheduled to allow long running
-                    #
-                    sub_task = self.running_button.run(FrameContext.server_task, self)
+                
+                sub_task = self.running_button.run(self.task, self)
+                #
+                # Move the sub task out to the schedule
+                #
+                if not self.running_button.is_block:
+                    FrameContext.server_task.main.tasks.append(sub_task)
 
                 if sub_task is not None:
                     self.pressed_set_values(sub_task)

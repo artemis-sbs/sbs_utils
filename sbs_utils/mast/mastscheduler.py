@@ -1167,6 +1167,10 @@ class MastScheduler(Agent):
 
         return t
 
+    def schedule(self, task):
+        self.tasks.append(task)
+
+
     def on_start_task(self, t):
         self.active_task = t
         t.tick()
