@@ -7,7 +7,11 @@ from ..consoledispatcher import ConsoleDispatcher
 from ..vec import Vec3
 #from ..futures import awaitable
 
+
+
 class PopupPromise(ButtonPromise):
+    popup_promises = {}
+
     def __init__(self, event) -> None:
 
         path = f"popup/{event.sub_tag}"
@@ -20,6 +24,7 @@ class PopupPromise(ButtonPromise):
         super().__init__(path, task, None)
         self.path_root = path
         self.uid = f"{event.sub_tag}_popup"
+
         self.expanded_buttons = None
         self.origin_id = event.origin_id
         self.selected_id = event.selected_id
@@ -49,43 +54,47 @@ class PopupPromise(ButtonPromise):
         FrameContext.context.event = event
         return ret
 
-    def collect(self) -> bool:
-        oo = to_object(self.origin_id)
-        selected_so = to_object(self.selected_id)
-        if oo is not None and selected_so is not None:
-            return False
-        self.leave()
-        self.task.end()
-        return True
+   
     
-    def set_variables(self, event):
+
+    def pressed_set_values(self, task) -> None:
+        event = self.event
         console = event.sub_tag.upper()
-        # 
+
         self.task.set_variable("EVENT", event)
         self.task.set_variable("client_id", event.client_id)
-        self.task.set_variable(f"{console}_POPUP_ID", event.selected_id)
-        self.task.set_variable(f"{console}_SELECTED_ID", event.origin_id)
+        # 
+        task.set_variable(f"{console}_POPUP_ID", event.selected_id)
+        task.set_variable(f"{console}_SELECTED_ID", event.origin_id)
         # Set focus id
         ship_id = FrameContext.context.sbs.get_ship_of_client(event.client_id)
-        self.task.set_variable(f"{console}_ORIGIN_ID", ship_id)
+        task.set_variable(f"{console}_ORIGIN_ID", ship_id)
         #
-        self.task.set_variable(f"{console}_POPUP_POINT", Vec3(event.source_point))
+        task.set_variable(f"{console}_POPUP_POINT", Vec3(event.source_point))
+        task.set_variable("client_id", event.client_id)
 
         # 
         # console selected is popup origin
         # console origin is the ship the client is on
         # popup selected is the things click on
-        cs = None if event.origin_id == 0 else to_object(event.origin_id)
-        ps = None if event.selected_id == 0 else to_object(event.selected_id)
+        cs = None if self.origin_id == 0 else to_object(event.origin_id)
+        ps = None if self.selected_id == 0 else to_object(event.selected_id)
         co = None if ship_id == 0 else to_object(ship_id)
 
-        self.task.set_variable(f"{console}_ORIGIN", co)
-        self.task.set_variable(f"{console}_SELECTED", cs)
-        self.task.set_variable(f"{console}_POPUP", ps)
+        task.set_variable(f"{console}_ORIGIN", co)
+        task.set_variable(f"{console}_SELECTED", cs)
+        task.set_variable(f"{console}_POPUP", ps)
 
         self.title = "Location"
         if ps is not None: 
             self.title =  ps.name
+        
+  
+    
+    def set_variables(self, event):
+        self.event = event
+        self.pressed_set_values(self.task)
+
             
 
     def message(self, event):
@@ -96,7 +105,7 @@ class PopupPromise(ButtonPromise):
         self.set_variables(event)
         self.event = event
 
-        
+        #print(f"POPUP MESSAGE {event.extra_tag}")
         self.button = None
         for i, button in enumerate(self.expanded_buttons):
             if self.task.format_string(button.message) == event.extra_tag:
@@ -125,18 +134,28 @@ class PopupPromise(ButtonPromise):
         #     self.task.tick()
 
     def collect(self):
+        #
+        # Remember Origin is the ALT ship
+        # Selection is the popup ID
+        #
         oo = to_object(self.origin_id)
         selected_so = to_object(self.selected_id)
+        if oo is not None and self.selected_id == 0:
+            return False
         if oo is not None and selected_so is not None:
             return False
+
         self.leave()
-        # self.task.end()
+        self.task.end()
         return True
 
     def leave(self):
+        #print("POPUP LEAVE")
         GarbageCollector.remove_garbage_collect(self.collect)
         ConsoleDispatcher.remove_select_pair(self.origin_id, self.selected_id, self.uid)
         ConsoleDispatcher.remove_message_pair(self.origin_id, self.selected_id, self.uid)
+        test = (self.origin_id, self.selected_id, self.uid)
+        PopupPromise.popup_promises.pop(test, None)
      
     def show_buttons(self):
         sel_so = to_object(self.selected_id)
@@ -189,7 +208,6 @@ def popup_navigate(path):
 #     yield AWAIT(c)
 
 
-__popup_promises = {}
 def start_popup_selected(event):
     # Don't run if the selection doesn't exist
     # so = to_object(event.selected_id)
@@ -203,8 +221,9 @@ def start_popup_selected(event):
     # If we're already running
     #
     #
-    test = (event.origin_id, event.selected_id, event.sub_tag)
-    promise = __popup_promises.get(test)
+    uid = f"{event.sub_tag}_popup"
+    test = (event.origin_id, event.selected_id, uid)
+    promise = PopupPromise.popup_promises.get(test)
     if promise is not None:
         promise.selected(event)
         #print ("__SCIENCE_PROMISE creation already exists")
@@ -212,7 +231,7 @@ def start_popup_selected(event):
     else:
         promise = PopupPromise(event)
         
-        __popup_promises[test] = promise
+        PopupPromise.popup_promises[test] = promise
         promise.selected(event)
 
     return promise

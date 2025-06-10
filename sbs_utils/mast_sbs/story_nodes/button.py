@@ -155,6 +155,9 @@ class Button(MastNode):
     def is_indentable(self):
         return True
     
+    def must_indent(self):
+        return self.is_block
+    
     def create_end_node(self, loc, dedent_obj, compile_info):
         """ cascade the dedent up to the start"""
         if self.await_node is not None:
@@ -189,11 +192,11 @@ class Button(MastNode):
             #
             if self.is_block:
                 sub_task = task.start_sub_task(self.label, inputs=task_data, defer=True, active_cmd=self.loc+1)
+                sub_task.set_variable("BUTTON_PROMISE", button_promise)
+                sub_task.tick_in_context()
             else:
                 sub_task = task.start_sub_task(self.label, inputs=task_data, defer=True)
-
-            sub_task.set_variable("BUTTON_PROMISE", button_promise)
-            sub_task.tick_in_context()
+                sub_task.set_variable("BUTTON_PROMISE", button_promise)
             return sub_task
         elif self.label:
             task.push_inline_block(self.label)
@@ -235,6 +238,9 @@ class ButtonRuntimeNode(MastRuntimeNode):
             task.jump(self.node_label, node.await_node.end_await_node.dedent_loc)
             return PollResults.OK_JUMP
         if node.is_block:
-            task.jump(self.node_label, node.dedent_loc)
-            return PollResults.OK_JUMP
+            if node.dedent_loc is None:
+                print("GOT IT ITS DEDENT")
+            else:
+                task.jump(self.node_label, node.dedent_loc)
+                return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE

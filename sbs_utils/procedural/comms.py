@@ -115,18 +115,23 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             from .lifeform import Lifeform
             from ..gridobject import GridObject
             from ..gui import GuiClient
+            from ..faces import get_face
             life = False
 
 
             if isinstance(from_obj, (Lifeform, GridObject)):
                 if from_name is None:
                     from_name = from_obj.name
-                from_obj = to_object(from_obj.host)
+                    face = get_face(from_obj.id)
+                if from_obj.host==0:
+                    from_obj = to_obj
+                
                 life = True
                 
 
             if isinstance(to_obj, (Lifeform, GridObject)):
-                to_obj = to_object(to_obj.host)
+                if to_obj.host==0:
+                    to_obj = from_obj
                 life = True
 
             # This happens if one of them is id 0
@@ -494,6 +499,8 @@ class CommsPromise(ButtonPromise):
     def collect(self) -> bool:
         oo = query.to_object(self.origin_id)
         selected_so = query.to_object(self.selected_id)
+        if oo is not None and self.selected_id == 0:
+            return False
         if oo is not None and selected_so is not None:
             return False
         self.leave()
@@ -545,20 +552,17 @@ class CommsPromise(ButtonPromise):
         #
         # Odd sometimes a zero slip though
         #
-        if self.selected_id == 0:
-            self.clear()
-            return
-
         oo = query.to_object(self.origin_id)
         if oo is None:
             self.set_result(True)
             return
-        
+
+
         selected_so = query.to_object(self.selected_id)
-        if selected_so is None:
+        if selected_so is None and self.selected_id != 0:
             self.set_result(True)
             return
-        
+            
         # Not ready yet
         self.expanded_buttons = self.get_expanded_buttons()
         if len(self.expanded_buttons) == 0:
@@ -576,20 +580,30 @@ class CommsPromise(ButtonPromise):
         #
         # Handle case where the selection is not a grid or space object
         #
-        is_space_object = query.is_space_object_id(self.selected_id)
-        if not self.is_grid_comms and not is_space_object:
-            self.set_result(True)
-            return
-        selected_so = query.to_object(self.selected_id)
-        if selected_so is None:
-            return
-        
-        self.comms_id = selected_so.comms_id
-        if self.face_override is None: 
-            self.face = faces.get_face(self.selected_id)
-        else: 
-            self.face = self.face_override
-        
+        if self.selected_id != 0:
+            is_space_object = query.is_space_object_id(self.selected_id)
+            if not self.is_grid_comms and not is_space_object:
+                self.set_result(True)
+                return
+            
+            selected_so = query.to_object(self.selected_id)
+            if selected_so is None:
+                return
+            
+            self.comms_id = selected_so.comms_id
+            if self.face_override is None: 
+                self.face = faces.get_face(self.selected_id)
+            else: 
+                self.face = self.face_override
+        else:
+            if self.face_override is None: 
+                self.face = faces.get_face(self.origin_id)
+            else: 
+                self.face = self.face_override
+            self.comms_id = ""
+            # TODO: This should check console type
+            self.is_grid_comms = False
+            
         
 
         selection = None
@@ -621,6 +635,8 @@ class CommsPromise(ButtonPromise):
         self.set_path("comms")
         self.set_face_override(None)
         self.face = faces.get_face(event.selected_id)
+        if event.selected_id == 0:
+            self.face = faces.get_face(event.origin_id)
         
         # If the button block is running do not set the buttons
         if not self.is_running:
@@ -643,6 +659,8 @@ class CommsPromise(ButtonPromise):
             if self.is_grid_comms:
                 FrameContext.context.sbs.send_grid_selection_info(origin_id, self.face, self.color, title)
             elif origin_id == selected_id:
+                FrameContext.context.sbs.send_comms_selection_info(origin_id, self.face, self.color, title)
+            elif selected_id == 0:
                 FrameContext.context.sbs.send_comms_selection_info(origin_id, self.face, self.color, title)
             else:
                 #
@@ -678,18 +696,19 @@ class CommsPromise(ButtonPromise):
                         FrameContext.context.sbs.send_comms_button_info(origin_id, color, msg, f"{i}")
 
 
-    def pressed_set_values(self) -> None:
+    def pressed_set_values(self, task) -> None:
         oo = query.to_object(self.origin_id)
         so = query.to_object(self.selected_id)
-        if oo is  None or so is None:
+        if oo is  None: # or so is None:
             return
         #
         # Set Name Value
         #
-        self.task.set_variable("COMMS_ORIGIN", oo)
-        self.task.set_variable("COMMS_SELECTED", so)
-        self.task.set_variable("COMMS_ORIGIN_ID", self.origin_id)
-        self.task.set_variable("COMMS_SELECTED_ID", self.selected_id)
+        task.set_variable("COMMS_ORIGIN", oo)
+        task.set_variable("COMMS_SELECTED", so)
+        task.set_variable("COMMS_ORIGIN_ID", self.origin_id)
+        task.set_variable("COMMS_SELECTED_ID", self.selected_id)
+        task.set_variable("COMMS_LIFEFORM_ID", self.comms_badge)
 
     def pressed_test(self) -> bool:
         oo = query.to_object(self.origin_id)
@@ -698,7 +717,7 @@ class CommsPromise(ButtonPromise):
             # Player no longer valid
             return False
         
-        if so is  None:
+        if so is  None and self.selected_id != 0:
             # Other no longer valid
             comms_message(f"Lost communications with {self.comms_id}", self.origin_id, self.origin_id, "Signal Lost", "", from_name="communication grid")
             self.comms_id = "static"
@@ -720,6 +739,11 @@ class CommsPromise(ButtonPromise):
         #print("COMMS POLL")
         FrameContext.context.event = event
         #
+        # Selecting 0 now mean Long Range Comms
+        #
+        if self.selected_id == 0:
+            self.is_unknown = False
+        #
         # If the ship was unknown, but now is known
         #
         if self.is_unknown:
@@ -733,6 +757,7 @@ class CommsPromise(ButtonPromise):
             scan_name = oo.side+"scan"
             initial_scan = so.data_set.get(scan_name,0)
             self.is_unknown = (initial_scan is None or initial_scan == "" or initial_scan == "no data")
+            
             # It is now known
             #
             if not self.is_unknown:
@@ -792,7 +817,7 @@ def create_grid_comms_label():
 __comms_promises = {}
 def start_comms_common_selected(event, is_grid):
     # Don't run if the selection doesn't exist
-    if event.selected_id == 0:
+    if event.origin_id == 0:
         return
     
     so = to_object(event.selected_id)
@@ -865,7 +890,7 @@ def start_comms_common_selected(event, is_grid):
     label = create_comms_label
     if is_grid:
         label = create_grid_comms_label
-    t = task.start_task(label, data, defer=True)
+    t = task.start_task(label, data, inherit=False, defer=True)
     #
     restore_task =  FrameContext.task
     restore_page =  FrameContext.page

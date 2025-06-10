@@ -34,6 +34,9 @@ class WithStart(MastNode):
     def is_indentable(self):
         return True
     
+    def must_indent(self):
+        return True
+    
     @classmethod
     def parse(cls, lines):
         mo = cls.rule.match(lines)

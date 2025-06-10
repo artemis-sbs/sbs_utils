@@ -33,6 +33,9 @@ class OnChange(MastNode):
 
     def is_indentable(self):
         return True
+    
+    def mus_indent(self):
+        return True
 
     def create_end_node(self, loc, dedent_obj, compile_info):
         """ cascade the dedent up to the start"""

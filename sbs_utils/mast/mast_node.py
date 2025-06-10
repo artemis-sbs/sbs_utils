@@ -28,6 +28,9 @@ class MastNode:
     
     def never_indent(self):
         return False
+    
+    def must_indent(self):
+        return False
 
     def is_virtual(self):
         """ 

@@ -126,7 +126,7 @@ class ButtonPromise(AwaitBlockPromise):
         #    self.set_result(self.running_button)
         pass
 
-    def pressed_set_values(self):
+    def pressed_set_values(self, task):
         pass
 
     def pressed_test(self):
@@ -168,9 +168,6 @@ class ButtonPromise(AwaitBlockPromise):
         if self.button is not None:
             if self.var:
                 task.set_value_keep_scope(self.var, self.button.index)
-             
-            self.pressed_set_values()
-            task.set_value("BUTTON_PROMISE", self, Scope.TEMP)
 
             #
             # If the button doesn't jump, make sure the 
@@ -189,21 +186,31 @@ class ButtonPromise(AwaitBlockPromise):
                 return PollResults.OK_JUMP
             else:
                 self.pre_button_run(self.running_button)
+                
                 sub_task = self.running_button.run(self.task, self)
-                self.post_button_run(self.running_button)
+                #
+                # Move the sub task out to the schedule
+                #
+                if not self.running_button.is_block:
+                    FrameContext.server_task.main.tasks.append(sub_task)
+
                 if sub_task is not None:
+                    self.pressed_set_values(sub_task)
                     self.sub_task = sub_task
-                    if sub_task.done:
-                        #
-                        # OK Since we are no longer scheduled
-                        # We check if buttons were not built
-                        # from the button run, if not try 
-                        # to build them now
-                        #
-                        if len(self.buttons) == 0:
-                            self.show_buttons()
-                    else:
-                        print("WARNING: Button Handlers should not have any awaits")
+                    if self.running_button.is_block:
+                        if not sub_task.done:
+                            #
+                            # OK Since we are no longer scheduled
+                            # We check if buttons were not built
+                            # from the button run, if not try 
+                            # to build them now
+                            #
+                            print("WARNING: Button Handlers should not have any awaits")
+                    #
+                    if len(self.buttons) == 0:
+                        self.show_buttons()
+
+                self.post_button_run(self.running_button)
             return PollResults.OK_JUMP
 
         if self.disconnect_label is not None:

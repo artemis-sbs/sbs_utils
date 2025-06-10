@@ -957,6 +957,7 @@ class MastAsyncTask(Agent, Promise):
         t.root_task = self
         if task_name is not None:
             t.set_value(task_name, t, Scope.NORMAL)
+            
         t.jump(label,active_cmd)
         self.sub_tasks.append(t)
         if not defer:
@@ -1165,6 +1166,10 @@ class MastScheduler(Agent):
             self.on_start_task(t)
 
         return t
+
+    def schedule(self, task):
+        self.tasks.append(task)
+
 
     def on_start_task(self, t):
         self.active_task = t

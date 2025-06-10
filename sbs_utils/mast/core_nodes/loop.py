@@ -40,6 +40,9 @@ class LoopStart(MastNode):
         
     def is_indentable(self):
         return True
+    
+    def must_indent(self):
+        return True
 
     def create_end_node(self, loc, dedent_obj, compile_info):
         end =  LoopEnd(self, loc=loc, compile_info=compile_info)
