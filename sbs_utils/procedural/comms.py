@@ -44,7 +44,7 @@ def comms_override(origin_id=None, selected_id=None, face=None, from_name=None):
     return CommsOverride(origin_id, selected_id, face, from_name)
 
 
-def comms_broadcast(ids_or_obj, msg, color="#fff") -> None:
+def comms_broadcast(ids_or_obj, msg, color=None) -> None:
     """Send text to the text waterfall
     The ids can be player ship ids or client/console ids
 
@@ -52,7 +52,9 @@ def comms_broadcast(ids_or_obj, msg, color="#fff") -> None:
         ids_or_obj (id or objecr): A set or single id or object to send to, 
         msg (str): The text to send
         color (str, optional): The Color for the text. Defaults to "#fff".
-    """    
+    """
+    if color is None:
+        color="#fff"
     if ids_or_obj is None:
         # default to the 
         ids_or_obj = FrameContext.context.event.parent_id
@@ -71,7 +73,38 @@ def comms_broadcast(ids_or_obj, msg, color="#fff") -> None:
                 if obj is not None or id==0:
                     FrameContext.context.sbs.send_message_to_player_ship(id, color, msg)
 
-def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, color="#fff", title_color=None, is_receive=True, from_name=None) -> None:
+def _comms_get_colors(to_obj, from_obj, is_receive, title_color, color):
+    from .lifeform import Lifeform
+
+    if title_color is None and isinstance(to_obj, Lifeform):
+        title_color = to_obj.title_color
+
+    if color is None and isinstance(to_obj, Lifeform):
+        color = to_obj.message_color
+
+    if title_color is None and isinstance(from_obj, Lifeform):
+        title_color = from_obj.title_color
+
+    if color is None and isinstance(from_obj, Lifeform):
+        color = from_obj.message_color
+
+    if title_color is None:
+        allies = role_are_allies(to_obj.id, from_obj.id)
+        if not allies:
+            title_color = "red"
+        else:
+            title_color = "green"
+
+    if color is None:
+        color = "#fff"
+    if title_color is None:
+        title_color = color
+        
+
+    return title_color, color
+
+
+def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, color=None, title_color=None, is_receive=True, from_name=None) -> None:
     """ Send a Comms message 
     This is a lower level function that lets you have more control the sender and receiver
 
@@ -98,8 +131,6 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
     if to_ids_or_obj is None:
         # internal message
         to_ids_or_obj = from_ids_or_obj
-    if title_color is None:
-        title_color = color
     if FrameContext.task:
         msg = FrameContext.task.compile_and_format_string(msg)
         if title is not None:
@@ -118,6 +149,9 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             from ..faces import get_face
             life = False
 
+            print(f"{to_obj} {to_obj} {title_color} {color}")
+            # Make sure life forms have an object
+            title_color, color = _comms_get_colors(to_obj, from_obj, is_receive, title_color, color)
 
             if isinstance(from_obj, (Lifeform, GridObject)):
                 if from_name is None:
@@ -125,14 +159,20 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                     face = get_face(from_obj.id)
                 if from_obj.host==0:
                     from_obj = to_obj
-                
+                else:
+                    from_obj = to_object(from_obj.host)
                 life = True
+
                 
 
             if isinstance(to_obj, (Lifeform, GridObject)):
                 if to_obj.host==0:
                     to_obj = from_obj
+                else:
+                    to_obj = to_object(to_obj.host)
                 life = True
+
+
 
             # This happens if one of them is id 0
             if isinstance(to_obj, GuiClient) or isinstance(from_obj, GuiClient) is None:
@@ -166,7 +206,7 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                 face = faces.get_face(from_obj.get_id())
             
             
-            # Make sure life forms have an object
+            
             if life:
                 if from_obj is None:
                     from_obj = to_obj
@@ -176,7 +216,7 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             if to_obj is None or from_obj is None:
                 continue
 
-
+            
             # Only player ships send messages
             if has_role(from_obj.id, "__PLAYER__"):
                 FrameContext.context.sbs.send_comms_message_to_player_ship(
@@ -188,6 +228,7 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                     msg,
                     color)
             else:
+
                 FrameContext.context.sbs.send_comms_message_to_player_ship(
                     to_obj.id,
                     from_obj.id,
@@ -240,7 +281,7 @@ def _comms_get_selected_id() -> int:
 
 
 
-def comms_transmit(msg, title=None, face=None, color="#fff", title_color=None) -> None:
+def comms_transmit(msg, title=None, face=None, color=None, title_color=None) -> None:
     """ Transmits a message from a player ship
     It uses the current context to determine the sender and receiver.
     typically from the event that it being handled provide the context.
@@ -262,7 +303,7 @@ def comms_transmit(msg, title=None, face=None, color="#fff", title_color=None) -
     # player transmits a message
     comms_message(msg, from_ids_or_obj, to_ids_or_obj,  title, face, color, title_color, False)
 
-def comms_receive(msg, title=None, face=None, color="#fff", title_color=None) -> None:
+def comms_receive(msg, title=None, face=None, color=None, title_color=None) -> None:
     """ Receive a message on a player ship from another ship
     It uses the current context to determine the sender and receiver.
     typically from the event that it being handled provide the context.
@@ -285,7 +326,7 @@ def comms_receive(msg, title=None, face=None, color="#fff", title_color=None) ->
     comms_message(msg, from_ids_or_obj, to_ids_or_obj,  title, face, color, title_color, True)
 
 
-def comms_speech_bubble(msg, seconds=3, color="#fff", client_id=None, selected_id=None) -> None:
+def comms_speech_bubble(msg, seconds=3, color=None, client_id=None, selected_id=None) -> None:
     """ Transmits a message from a player ship
     It uses the current context to determine the sender and receiver.
     typically from the event that it being handled provide the context.
@@ -296,7 +337,9 @@ def comms_speech_bubble(msg, seconds=3, color="#fff", client_id=None, selected_i
         face (str, optional): The face string of the face to use. Defaults to None.
         color (str, optional): The body text color. Defaults to "#fff".
         title_color (str, optional): The title text color. Defaults to None.
-    """    
+    """
+    if color is None:
+        color="#fff"    
     from_ids_or_obj = _comms_get_origin_id()
     to_ids_or_obj = _comms_get_selected_id()
     if to_ids_or_obj is None or from_ids_or_obj is None:
@@ -320,7 +363,7 @@ def comms_speech_bubble(msg, seconds=3, color="#fff", client_id=None, selected_i
     FrameContext.context.sbs.send_speech_bubble_to_object(client_id, selected_id, seconds, color, msg)
 
 
-def comms_transmit_internal(msg, ids_or_obj=None, to_name=None, title=None, face=None, color="#fff", title_color=None) -> None:
+def comms_transmit_internal(msg, ids_or_obj=None, to_name=None, title=None, face=None, color=None, title_color=None) -> None:
     """ Transmits a message within a player ship
     It uses the current context to determine the sender and receiver.
     typically from the event that it being handled provide the context.
@@ -345,7 +388,7 @@ def comms_transmit_internal(msg, ids_or_obj=None, to_name=None, title=None, face
         comms_message(msg, ship, ship,  title, face, color, title_color, False, to_name)
 
 
-def comms_receive_internal(msg, ids_or_obj=None, from_name=None,  title=None, face=None, color="#fff", title_color=None) -> None:
+def comms_receive_internal(msg, ids_or_obj=None, from_name=None,  title=None, face=None, color=None, title_color=None) -> None:
     """ Receiver a message within a player ship
     It uses the current context to determine the sender and receiver.
     typically from the event that it being handled provide the context.
@@ -728,6 +771,9 @@ class CommsPromise(ButtonPromise):
             
         return True
 
+    def handle_button_sub_task(self, sub_task):
+        FrameContext.server_task.main.tasks.append(sub_task)
+        self.show_buttons()
 
     def poll(self):
         event = FrameContext.context.event
