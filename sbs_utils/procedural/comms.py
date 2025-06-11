@@ -149,7 +149,6 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             from ..faces import get_face
             life = False
 
-            print(f"{to_obj} {to_obj} {title_color} {color}")
             # Make sure life forms have an object
             title_color, color = _comms_get_colors(to_obj, from_obj, is_receive, title_color, color)
 

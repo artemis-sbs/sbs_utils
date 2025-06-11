@@ -60,24 +60,40 @@ class PopupPromise(ButtonPromise):
     def pressed_set_values(self, task) -> None:
         event = self.event
         console = event.sub_tag.upper()
+        #
+        # Can't trust the IDs
+        #
+        # TODO: Fix this when Thom changes things
+        # Don't forget to send the proper event in messaage()
+        #
+        ship_id = FrameContext.context.sbs.get_ship_of_client(event.client_id)
+        sel_id = 0
+        if console=="SCIENCE":
+            sel_id = get_science_selection(ship_id)
+        if console=="COMMS":
+            sel_id = get_comms_selection(ship_id)
+        if console.startswith("WEAPONS"):
+            sel_id = get_weapons_selection(ship_id)
+
+        point = Vec3(event.source_point)
+        print(f"console {console} ORIGIN {ship_id} SEL {sel_id} POPUP {event.selected_id} {point.xyz}")
+
 
         self.task.set_variable("EVENT", event)
         self.task.set_variable("client_id", event.client_id)
         # 
         task.set_variable(f"{console}_POPUP_ID", event.selected_id)
-        task.set_variable(f"{console}_SELECTED_ID", event.origin_id)
+        task.set_variable(f"{console}_SELECTED_ID", sel_id)
         # Set focus id
-        ship_id = FrameContext.context.sbs.get_ship_of_client(event.client_id)
         task.set_variable(f"{console}_ORIGIN_ID", ship_id)
         #
-        task.set_variable(f"{console}_POPUP_POINT", Vec3(event.source_point))
-        task.set_variable("client_id", event.client_id)
-
+        if event.tag == "hold_click":
+            task.set_variable(f"{console}_POPUP_POINT", Vec3(event.source_point))
         # 
         # console selected is popup origin
         # console origin is the ship the client is on
         # popup selected is the things click on
-        cs = None if self.origin_id == 0 else to_object(event.origin_id)
+        cs = None if sel_id == 0 else to_object(sel_id)
         ps = None if self.selected_id == 0 else to_object(event.selected_id)
         co = None if ship_id == 0 else to_object(ship_id)
 
@@ -101,9 +117,9 @@ class PopupPromise(ButtonPromise):
         # makes sure this was for us
         if event.selected_id != self.selected_id or self.origin_id != event.origin_id:
             return
-        
-        self.set_variables(event)
-        self.event = event
+        #TODO: This is using the select event for the point
+        self.set_variables(self.event)
+        #self.event = event
 
         #print(f"POPUP MESSAGE {event.extra_tag}")
         self.button = None
@@ -191,6 +207,10 @@ class PopupPromise(ButtonPromise):
             self.button_string = self.title+";" + self.button_string
 
         FrameContext.context.sbs.send_hold_menu(CID, self.origin_id, self.selected_id, self.button_string)
+
+    def handle_button_sub_task(self, sub_task):
+        FrameContext.server_task.main.tasks.append(sub_task)
+        self.show_buttons()
 
 
 def popup_navigate(path):
