@@ -1,4 +1,4 @@
-from .query import to_blob, to_id, to_object, to_object_list, to_set, to_space_object
+from .query import to_blob, to_id, to_object, to_object_list, to_set, to_data_set
 from ..agent import CloseData, Agent
 from ..tickdispatcher import TickDispatcher
 from .inventory import get_inventory_value, set_inventory_value
@@ -186,7 +186,7 @@ def grid_target_pos(grid_obj_or_set, x:float, y:float, speed=0.01):
         cury=blob.get("cury",  0)
 
         pathx = blob.get("pathx", 0)
-        pathy = blob.set("pathy", 0)
+        pathy = blob.get("pathy", 0)
         
         if pathx==x and pathy == y:
             blob.set("move_speed", 0, 0)
@@ -428,3 +428,24 @@ def grid_delete_objects(ship_id_or_obj):
         # delete by id
         FrameContext.context.sbs.delete_grid_object(craft_id, k)
         Agent.remove_id(k)
+
+
+def grid_pos_data(id):
+    """get a set of agent ids of the grid objects on the specified ship, at the location specified
+
+    Args:
+        so_id (agent): agent id or object 
+        x (int): The x grid location
+        y (int): The y grid location
+
+    Returns:
+        (float,float,float) : x, y, path_length
+    """
+    blob = to_data_set(to_id(id))
+    if blob is None:
+        (None, None, None)
+    path_length = blob.get("path_length", 0)
+    curx= blob.get("curx", 0)
+    cury=blob.get("cury",  0)
+    return (curx, cury, path_length)
+

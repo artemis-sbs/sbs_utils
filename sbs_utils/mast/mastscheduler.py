@@ -756,6 +756,10 @@ class MastAsyncTask(Agent, Promise):
     def get_symbols(self):
         if self.root_task != self:
             m1 = self.root_task.get_symbols()
+            #
+            # Sub task can have a small set of overrides
+            #
+            m1 =   m1 | self.inventory.collections
         else:
             # m1 = self.main.mast.vars | self.main.vars
             #mast_inv = self.main.get_symbols()
@@ -948,10 +952,14 @@ class MastAsyncTask(Agent, Promise):
         #
         if self.is_sub_task and self.root_task != self:
             return self.root_task.start_sub_task(label, inputs, task_name, defer, active_cmd)
+        
+        t= MastAsyncTask(self.main, None, task_name)
+        #
+        # Sub tasks can have their inputs
+        #
         if inputs is not None:
             for k in inputs:
-                self.set_inventory_value(k, inputs[k])
-        t= MastAsyncTask(self.main, None, task_name)
+                t.set_inventory_value(k, inputs[k])
 
         t.is_sub_task = True
         t.root_task = self
