@@ -75,8 +75,8 @@ class PopupPromise(ButtonPromise):
         if console.startswith("WEAPONS"):
             sel_id = get_weapons_selection(ship_id)
 
-        point = Vec3(event.source_point)
-        print(f"console {console} ORIGIN {ship_id} SEL {sel_id} POPUP {event.selected_id} {point.xyz}")
+        #point = Vec3(event.source_point)
+        #print(f"console {console} ORIGIN {ship_id} SEL {sel_id} POPUP {event.selected_id} {point.xyz}")
 
 
         self.task.set_variable("EVENT", event)
