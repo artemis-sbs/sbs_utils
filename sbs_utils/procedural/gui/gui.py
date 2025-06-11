@@ -138,6 +138,9 @@ class ButtonPromise(AwaitBlockPromise):
             self.nav_sub_task_promise.cancel()
             self.nav_sub_task_promise = None
 
+    def handle_button_sub_task(self, sub_task):
+        pass
+
     def poll(self):
         res = super().poll()
         if res != PollResults.OK_RUN_AGAIN and self.done():
@@ -189,10 +192,11 @@ class ButtonPromise(AwaitBlockPromise):
                 
                 sub_task = self.running_button.run(self.task, self)
                 #
-                # Move the sub task out to the schedule
+                # GUI sub_task run themselves
+                # COMMS and Science are on an unscheduled task
+                # So they need to handle it differently
                 #
-                if not self.running_button.is_block:
-                    FrameContext.server_task.main.tasks.append(sub_task)
+                self.handle_button_sub_task(sub_task)
 
                 if sub_task is not None:
                     self.pressed_set_values(sub_task)

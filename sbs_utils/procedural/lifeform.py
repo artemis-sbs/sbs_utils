@@ -12,7 +12,9 @@ class Lifeform(Agent):
         self.add_role("lifeform")
         self._comms_id = None
         self._path = "//comms/lifeform"
-        self._host_id = None 
+        self._host_id = None
+        self.title_color = "green"
+        self.message_color = "white"
 
     @property
     def face(self):
@@ -55,11 +57,12 @@ class Lifeform(Agent):
             self.add_role("long_range")
 
 
-def lifeform_spawn(name, face, roles, host=None, comms_id=None, path=None):
+def lifeform_spawn(name, face, roles, host=None, comms_id=None, path=None, title_color="green", message_color="white"):
     a = Lifeform()
     a.name = name
     a.comms_id = comms_id
-    
+    a.title_color = title_color
+    a.message_color = message_color
     a.add_role(roles)
 
     set_face(a.id, face)

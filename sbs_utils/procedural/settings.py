@@ -1,4 +1,4 @@
-from ..fs import load_json_data, get_mission_dir_filename
+from ..fs import load_json_data, get_mission_dir_filename, load_yaml_data
 
 setting_defaults = None
 def settings_get_defaults():
@@ -86,7 +86,9 @@ def settings_get_defaults():
             },
         ],
     }
-    setup_data = load_json_data(get_mission_dir_filename("setup.json"))
+    setup_data = load_yaml_data(get_mission_dir_filename("settings.yaml"))
+    if setup_data is None:
+        setup_data = load_json_data(get_mission_dir_filename("setup.json"))
     if setup_data is not None:
         setting_defaults = setting_defaults | setup_data
     return setting_defaults

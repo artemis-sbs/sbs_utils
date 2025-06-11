@@ -29,8 +29,8 @@ class CommsMessageStart(DescribableNode):
         super().__init__()
         self.loc = loc
         self.format = format
-        self.title_color = "white"
-        self.body_color = "white"
+        self.title_color = None
+        self.body_color = None
         self.npc_face = None
 
         if format is not None:
