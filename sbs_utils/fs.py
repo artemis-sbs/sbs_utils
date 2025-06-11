@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+from . import yaml
 import re
 
 # the script module should be the startup script
@@ -99,6 +100,15 @@ def get_artemis_dir():
 
 def get_mission_dir_filename(filename):
     return get_script_dir()+"\\"+filename        
+
+
+def load_yaml_data(file):
+    try:
+        with open(file, 'r') as f:
+            # remove comments
+            return yaml.safe_load(f)
+    except Exception as e:
+        return None
 
 
 def load_json_data(file):
