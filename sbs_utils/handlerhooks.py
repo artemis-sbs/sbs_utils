@@ -257,17 +257,21 @@ def cosmos_event_handler(sim, event):
                 Gui.on_message(event)
 
             case "grid_object":
+                #print_event(event)
                 GridDispatcher.dispatch_grid_event(event)
+
             case "grid_object_selection":
                 # Set Comms info to empty
                 SBS.send_grid_selection_info(event.parent_id, "", "white", "")
                 ConsoleDispatcher.dispatch_select(event)
+
             case "press_grid_button":
                 ConsoleDispatcher.dispatch_message(event, "grid_selected_UID")
                 
             case "grid_point_selection":
                 SBS.send_grid_selection_info(event.parent_id, "", "white", "")
                 GridDispatcher.dispatch_grid_event(event)
+
             case "fighter_requests_dock":
                 LifetimeDispatcher.dispatch_dock(event)
         

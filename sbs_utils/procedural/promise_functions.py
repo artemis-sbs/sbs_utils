@@ -4,6 +4,7 @@ from ..helpers import FrameContext
 from .query import to_set, to_object, to_data_set, to_id
 from ..vec import Vec3
 from .grid import grid_pos_data
+from .roles import has_role
 
 
 class TestPromise(Promise):
@@ -87,13 +88,7 @@ def grid_arrive_location(the_set, x, y, snapshot=False):
         the_set = set(the_set)
     def test():
         for id in the_set:
-            curx, cury, path_length = grid_pos_data(id)
-            if curx is None:
-                return None
-            if path_length is not None:
-                if path_length > 0.001:
-                    return False
-            return curx == x and cury ==y
+            return not has_role(id, "_moving_")
         return True
     return TestPromise(test)
 

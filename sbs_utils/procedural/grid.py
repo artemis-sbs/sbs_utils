@@ -6,6 +6,7 @@ from ..fs import load_json_data, get_artemis_data_dir_filename, get_mission_dir_
 import functools
 from ..vec import Vec3
 from ..helpers import FrameContext
+from .roles import remove_role, add_role
 
 
 def grid_objects(so_id):
@@ -143,7 +144,8 @@ def grid_target_closest(grid_obj_or_set, target_set=None, max_dist=None, filter_
         grid_obj=to_object(grid_obj)
         close = grid_closest(grid_obj, target_set, max_dist, filter_func)
         if close.id is not None:
-            grid_obj.target(close.id)
+            #grid_obj.target(close.id)
+            grid_target(grid_obj, close.id)
         return close
 
 def grid_target(grid_obj_or_set, target_id: int, speed=0.01):
@@ -169,6 +171,7 @@ def grid_target(grid_obj_or_set, target_id: int, speed=0.01):
                 this_blob.set("pathx", x, 0)
                 this_blob.set("pathy", y, 0)
                 this_blob.set("move_speed", speed, 0)
+                add_role(grid_obj, "_moving_")
 
 def grid_target_pos(grid_obj_or_set, x:float, y:float, speed=0.01):
     """ Set the grid object go to the target location
@@ -196,6 +199,7 @@ def grid_target_pos(grid_obj_or_set, x:float, y:float, speed=0.01):
             blob.set("pathx", x, 0)
             blob.set("pathy", y, 0)
             blob.set("move_speed", speed, 0)
+            add_role(grid_obj, "_moving_")
         else:
             blob.set("move_speed", 0, 0)
 
@@ -212,6 +216,7 @@ def grid_clear_target(grid_obj_or_set):
         x= blob.get("curx", 0)
         y=blob.get("cury",  0)
         grid_target_pos(grid_obj_or_set, x,y)
+        remove_role(grid_obj, "_moving_")
 
         
 def get_open_grid_points(id_or_obj):
@@ -449,3 +454,11 @@ def grid_pos_data(id):
     cury=blob.get("cury",  0)
     return (curx, cury, path_length)
 
+from ..griddispatcher import GridDispatcher
+
+def grid_remove_move_role(event):
+    if event.sub_tag == "finished_path":
+        remove_role(event.origin_id, "_moving_")
+    
+
+GridDispatcher.add_any_object(grid_remove_move_role)
