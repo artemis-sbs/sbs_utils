@@ -1,8 +1,10 @@
 from ..futures import Promise, awaitable
 from ..mast.pollresults import PollResults
 from ..helpers import FrameContext
-from .query import to_set, to_object
+from .query import to_set, to_object, to_data_set, to_id
 from ..vec import Vec3
+from .grid import grid_pos_data
+from .roles import has_role
 
 
 class TestPromise(Promise):
@@ -11,8 +13,12 @@ class TestPromise(Promise):
         self.test = test_func
     
     def poll(self):
-        if self.test():
+        t = self.test()
+        if t:
             self.set_result(True)
+            return PollResults.OK_ADVANCE_TRUE
+        elif t is None:
+            self.cancel("Promise no longer valid")
             return PollResults.OK_ADVANCE_TRUE
         return super().poll()
     
@@ -72,3 +78,28 @@ def destroyed_all(the_set, snapshot=False):
                 return False
         return True
     return TestPromise(test)
+
+
+
+@awaitable
+def grid_arrive_location(the_set, x, y, snapshot=False):
+    the_set = to_set(the_set)
+    if snapshot:
+        the_set = set(the_set)
+    def test():
+        for id in the_set:
+            return not has_role(id, "_moving_")
+        return True
+    return TestPromise(test)
+
+@awaitable
+def grid_arrive_id(the_set, target_id, snapshot=False):
+    curx, cury, _ = grid_pos_data(target_id)
+    if curx is None:
+        p = Promise()
+        p.cancel("Promise no longer valid")
+        return p
+    return grid_arrive_location(the_set, curx, cury, snapshot)
+    
+    
+
