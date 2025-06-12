@@ -168,8 +168,7 @@ def cosmos_event_handler(sim, event):
                 Gui.on_event(event)
             
             case "mission_tick":
-                # Run Guis, tick task
-                Gui.present(event)
+                
                 #
                 # set the simulation state variable
                 #
@@ -182,6 +181,8 @@ def cosmos_event_handler(sim, event):
                 TickDispatcher.dispatch_tick()
                 # after tick task handle any lifetime events
                 LifetimeDispatcher.dispatch_spawn()
+                # Run Guis, tick task
+                Gui.present(event)
  
             case "damage":
                 #print_event(event)

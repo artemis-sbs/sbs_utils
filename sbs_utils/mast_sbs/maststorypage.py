@@ -170,9 +170,25 @@ class StoryPage(Page):
             self.gui_promise.cancel()
         self.gui_promise = pending
 
+    def on_end_presenting(self):
+        if self.layouts:
+            for layout_obj in self.layouts:
+                layout_obj.on_end_presenting(self.client_id)
+
+    def on_begin_presenting(self):
+        if self.layouts:
+            for layout_obj in self.layouts:
+                layout_obj.on_begin_presenting(self.client_id)
+
+
     def swap_layout(self):
         # self.on_change_items= self.pending_on_change_items
         # self.pending_on_change_items = []
+        if self.layouts:
+            for layout_obj in self.layouts:
+                layout_obj.on_end_presenting(self.client_id)
+
+
         self.gui_task.swap_on_change()
         self.on_click = self.pending_on_click
         self.pending_on_click = []
@@ -195,7 +211,8 @@ class StoryPage(Page):
         
         if self.layouts:
             for layout_obj in self.layouts:
-                layout_obj.calc(self.client_id)
+                layout_obj.calc(self)
+                layout_obj.on_begin_presenting(self.client_id)
             
             section = Layout(None, None, 0,0, 100, 90)
             section.tag = self.get_tag()

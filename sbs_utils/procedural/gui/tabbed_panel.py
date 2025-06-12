@@ -46,12 +46,13 @@ def gui_info_panel(tab=0, tab_location=0, icon_size=0, var=None):
     )
 
     page.gui_task.set_variable(var, tp)
+    tp.default_tab = 1
 
     page.pending_info_panel = tp
     return tp
 
 
-def gui_info_panel_add(path, icon_index, show, hide=None, var=None):
+def gui_info_panel_add(path, icon_index, show, hide=None, tick=None, var=None):
     page = FrameContext.page
     if var is None:
         var = "__INFO_PANEL__"
@@ -60,7 +61,7 @@ def gui_info_panel_add(path, icon_index, show, hide=None, var=None):
         tp = page.gui_task.get_variable(var)
     if tp is None:
         return
-    panel = {"path": path, "icon": icon_index, "show": show, "hide": hide}
+    panel = {"path": path, "icon": icon_index, "show": show, "hide": hide, "tick": tick}
     tp.panels.append(panel)
     #
     # If this panel is the active panel it needs to be represented
@@ -100,8 +101,17 @@ from .row import gui_row
 from .button import gui_button
 from .message import gui_message
 from .blank import gui_blank
+from ..timers import delay_sim
 
 
+class InfoButtonPromise(Promise):
+    def __init__(self, message_data) -> None:
+        super().__init__()
+        self.message_data = message_data
+    
+    def set_result(self, result):
+        self._result = result
+        self.message_data["done"] = True
 
 @awaitable
 def gui_info_panel_send_message(
@@ -117,67 +127,97 @@ def gui_info_panel_send_message(
     icon_index=None,
     icon_color=None,
     button=None,
-    button_press=None, # label or promise
+    # button_press=None, # label or promise
     history=True,
     time=-1,
 ):
     client_ids = to_set(client_id)
 
+    message_data = {}
     if message:
-        message = {"message": message}
+        message_data["message"] = message
     if message_color:
-        message["message_color"] = message_color
+        message_data["message_color"] = message_color
     if title:
-        message["title"] = title
+        message_data["title"] = title
     if title_color:
-        message["title_color"] = title_color
+        message_data["title_color"] = title_color
     if banner:
-        message["banner"] = banner
+        message_data["banner"] = banner
     if banner_color:
-        message["banner_color"] = banner_color
+        message_data["banner_color"] = banner_color
     if icon_index:
-        message["icon_index"] = icon_index
+        message_data["icon_index"] = icon_index
     if icon_color:
-        message["icon_color"] = icon_color
+        message_data["icon_color"] = icon_color
     if face:
-        message["face"] = face
+        message_data["face"] = face
+    if time >0:
+        message_data["time"] = time
 
     button_press_promise = None
     if button:
-        message["button"] = button
-        button_press_promise = Promise()
-    if button_press:
-        message["button_press"] = button_press
-    if button and button_press is None:
-        message["button_press"] = button_press_promise
+        message_data["button"] = button
+        button_press_promise = InfoButtonPromise(message_data)
+        message_data["button_press"] = button_press_promise
+    # if button_press:
+    #     message_data["button_press"] = button_press
+    # if button and button_press is None:
+    #     message_data["button_press"] = button_press_promise
 
     if path is None:
         path = "message"
 
     var = f"${path.upper()}"
-
-
     for client_id in client_ids:
         task = gui_task_for_client(client_id)
         if task is None:
             return
         
+        all = task.get_variable(var, [])
+        all.append(message_data)
+        task.set_variable(var, all)
+
+        
         if history:
             # Only keep 10 items
             all = task.get_variable(var + "S", [])
-            all.append(message)
+            all.append(message_data)
             MAX_LINES = 9
             if len(all) > MAX_LINES:
                 all = all[-MAX_LINES:]
             task.set_variable(var + "S", all)
 
-        task.set_variable(var, message)
-        if time >= 0:
-            info_panel = task.main.page.info_panel
-            if info_panel is not None:
-                info_panel.flash_tab(path, time)
+        info_panel = task.main.page.info_panel
+        if info_panel is not None:
+            info_panel.set_tab(path)
+        
     return button_press_promise
 
+def gui_panel_console_message_tick(info_panel):
+    task = gui_task_for_client(info_panel.client_id)
+    if task is None:
+        return 0
+
+    path = task.get_variable("$INFO_PATH")
+    var = f"${path.upper()}"
+    message_obj_list = task.get_variable(var)
+    if message_obj_list is None:
+        return 0
+    if len(message_obj_list) == 0:
+        return 0
+    message_obj = message_obj_list[0]
+    prom = message_obj.get("button_press")
+    if prom is not None:
+        prom.poll()
+    else:
+        return 2
+    # Let the draw update the list
+    # Keep showing until there is no more content
+    if prom.done():
+        return 2
+    return 1
+    
 
 def gui_panel_console_message(cid, left, top, width, height):
     task = gui_task_for_client(cid)
@@ -187,11 +227,39 @@ def gui_panel_console_message(cid, left, top, width, height):
 
     path = task.get_variable("$INFO_PATH")
     var = f"${path.upper()}"
-    message_obj = task.get_variable(
-        var
-    )  # , {"icon_index":69, "face": random_terran(civilian=True), "title": "Title", "message": "This will be the message"})
-    if message_obj is None:
+    
+    message_obj_list = task.get_variable(var)
+    if message_obj_list is None:
         return
+    new_msgs = []
+    # Remove objects that are no longer valid
+    for message_obj in message_obj_list:
+        prom = message_obj.get("button_press")
+        if prom is None: 
+            new_msgs.append(message_obj)
+        else:
+            prom.poll()
+            if not prom.done():
+                new_msgs.append(message_obj)
+        
+
+    message_obj_list = new_msgs
+    task.set_variable(var, new_msgs)
+
+    if len(message_obj_list) == 0:
+        return
+    message_obj = message_obj_list[0]
+    prom = message_obj.get("button_press")
+    #
+    # If there is no Promise, then create one to timeout
+    #
+    if prom is None:
+        time = message_obj.get("time", 10)
+        if time <= 0:
+            time = 10
+        message_obj["button_press"] = delay_sim(time)
+
+    
 
     icon = message_obj.get("icon_index")
     color = message_obj.get("icon_color", "white")
