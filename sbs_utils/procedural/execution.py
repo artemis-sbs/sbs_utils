@@ -199,6 +199,15 @@ class TaskPromiseAllAny(PromiseAllAny):
                 continue
             t.cancel()
 
+    def tick_all(self) -> None:
+        for t in self.promises:
+            if t is None:
+                continue
+            if t.done():
+                continue
+            t.tick_in_context()
+
+
 
 #
 # Args are labels or task

@@ -47,14 +47,14 @@ class Lifeform(Agent):
     
     @host.setter
     def host(self, host_id):
-        self.remove_role("long_range")
+        self.remove_role("ultra_beam")
         if self._host_id:
             unlink(self._host_id, "onboard", self.id)
         self._host_id = to_id(host_id)
         if host_id is not None and is_space_object_id(host_id):
             link(self._host_id, "onboard", self.id)
         else:
-            self.add_role("long_range")
+            self.add_role("ultra_beam")
 
 
 def lifeform_spawn(name, face, roles, host=None, comms_id=None, path=None, title_color="green", message_color="white"):
