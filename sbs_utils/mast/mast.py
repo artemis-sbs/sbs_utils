@@ -768,6 +768,15 @@ class Mast():
                         # THEN
                         # Generate any close block command
                         active.generate_label_end_cmds()
+                        #
+                        #
+                        #
+                        from .core_nodes import Await
+                        if len(Await.stack)>0:
+                            Await.stack.clear()
+                        ##
+                        ##
+
 
                         ## Allow label to generate some preabmle commands
                         active = next
@@ -930,11 +939,13 @@ class Mast():
                     errors.append(error)
                     lines = lines[mo+1:]
 
+        # from .core_nodes import Await
         # for node in Await.stack:
         #     errors.append(f"\nERROR: Missing end_await prior to label '{active_name}'cmd {node.loc}")
         # Await.stack.clear()
+        # from .core_nodes import LoopStart
         # for node in LoopStart.loop_stack:
-        #     errors.append(f"\nERROR: Missing next of loop prior to label''{active_name}'cmd {node.loc}")
+        #     errors.append(f"\nERROR: Missing next of loop prior to label''{active_name}'")
         # LoopStart.loop_stack.clear()
         # for node in IfStatements.if_chains:
         #     errors.append(f"\nERROR: Missing end_if prior to label '{active_name}'cmd {node.loc}")
