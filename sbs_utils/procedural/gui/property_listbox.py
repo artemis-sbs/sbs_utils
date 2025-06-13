@@ -162,7 +162,7 @@ def gui_property_list_box_stacked(name=None, tag=None):
     
     props_lb.title_section_style += "background:#1578;"
     task.set_inventory_value(tag, props_lb)
-    gui_reset_variables_add(gui_task, tag)
+    gui_reset_variables_add(task, tag)
 
     return props_lb
 
