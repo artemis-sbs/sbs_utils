@@ -771,7 +771,8 @@ class CommsPromise(ButtonPromise):
         return True
 
     def handle_button_sub_task(self, sub_task):
-        FrameContext.server_task.main.tasks.append(sub_task)
+        if sub_task is not None:
+            FrameContext.server_task.main.tasks.append(sub_task)
         self.show_buttons()
 
     def poll(self):

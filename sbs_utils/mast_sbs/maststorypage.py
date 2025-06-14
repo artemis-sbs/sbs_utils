@@ -60,6 +60,7 @@ class StoryPage(Page):
         self.pending_row.tag = self.get_tag()
         self.pending_tag_map = {}
         self.tag_map = {}
+        self.pending_gui = True
 
         #self.aspect_ratio = sbs.vec2(1024,768)
         self.client_id = None
@@ -170,9 +171,25 @@ class StoryPage(Page):
             self.gui_promise.cancel()
         self.gui_promise = pending
 
+    def on_end_presenting(self):
+        if self.layouts:
+            for layout_obj in self.layouts:
+                layout_obj.on_end_presenting(self.client_id)
+
+    def on_begin_presenting(self):
+        if self.layouts:
+            for layout_obj in self.layouts:
+                layout_obj.on_begin_presenting(self.client_id)
+
+
     def swap_layout(self):
         # self.on_change_items= self.pending_on_change_items
         # self.pending_on_change_items = []
+        if self.layouts:
+            for layout_obj in self.layouts:
+                layout_obj.on_end_presenting(self.client_id)
+
+
         self.gui_task.swap_on_change()
         self.on_click = self.pending_on_click
         self.pending_on_click = []
@@ -195,7 +212,8 @@ class StoryPage(Page):
         
         if self.layouts:
             for layout_obj in self.layouts:
-                layout_obj.calc(self.client_id)
+                layout_obj.calc(self)
+                layout_obj.on_begin_presenting(self.client_id)
             
             section = Layout(None, None, 0,0, 100, 90)
             section.tag = self.get_tag()
@@ -206,9 +224,17 @@ class StoryPage(Page):
             self.pending_console = ""
             self.pending_widgets = ""
             self.pending_info_panel = None
+            self.pending_gui = True
         
         self.gui_state = 'repaint'
         Gui.dirty(self.client_id)
+
+    def on_new_gui(self):
+        # print("NEW GUI")
+        self.pending_gui = False
+        from ..procedural.gui.property_listbox import gui_reset_variables
+        gui_reset_variables(self.gui_task)
+
 
 
     def get_tag(self):
@@ -227,6 +253,7 @@ class StoryPage(Page):
                 self.pending_layouts[-1].add(self.pending_row)
         if self.pending_tag_map is None:
             self.pending_tag_map = {}
+            self.pending_gui = True
         self.pending_row = Row()
         # Rows have tags for background and/or clickable
         self.pending_row.tag = self.get_tag()
@@ -234,6 +261,12 @@ class StoryPage(Page):
     def add_tag(self, layout_item, runtime_node):
         if self.pending_tag_map is None:
             self.pending_tag_map = {}
+            self.pending_gui = True
+
+        if self.pending_gui == True:
+            self.on_new_gui()
+        
+
         if hasattr(layout_item, 'tag'):
             self.pending_tag_map[layout_item.tag] = (layout_item, runtime_node)
 

@@ -70,9 +70,13 @@ class Button(MastNode):
                 self.use_sub_task = True
                 label = compile_info.label
                 
-        elif label is None:
-            self.await_node = Await.stack[-1]
-            self.await_node.buttons.append(self)
+        elif label is None and path is None:
+            if len(Await.stack) >0:
+                self.await_node = Await.stack[-1]
+                self.await_node.buttons.append(self)
+            else:
+                self.use_sub_task = True
+                label = compile_info.label
         self.label = label
         self.promise = promise
         

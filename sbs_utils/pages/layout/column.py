@@ -204,6 +204,11 @@ class Column:
     def calc(self, client_id):
         pass # Unused but here to be compatible with sub sections
 
+    def on_end_presenting(self, client_id):
+        pass
+    def on_begin_presenting(self, client_id):
+        pass
+
     def update_variable(self):
         if self.var_scope_id:
             scope = Agent.get(self.var_scope_id)

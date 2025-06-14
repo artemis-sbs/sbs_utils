@@ -601,6 +601,18 @@ class Layout(Clickable):
         for row in self.rows:
             row.on_message(event)
 
+    def on_end_presenting(self, client_id):
+        # Else propagate messages
+        row:Row
+        for row in self.rows:
+            row.on_end_presenting(client_id)
+
+    def on_begin_presenting(self, client_id):
+        # Else propagate messages
+        row:Row
+        for row in self.rows:
+            row.on_begin_presenting(client_id)
+
 
 
 

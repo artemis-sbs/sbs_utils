@@ -28,6 +28,8 @@ class Await(MastNode):
             Await.stack.append(self)
         else:
             Await.stack[-1].end_await_node = self
+            Await.stack.pop()
+
 
         if if_exp:
             if_exp = if_exp.lstrip()

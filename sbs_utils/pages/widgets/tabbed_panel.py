@@ -32,10 +32,12 @@ class TabbedPanel(layout.Column):
         self.current = tab
         self.tab_location = tab_location
         self.icon_size = icon_size if icon_size >0 else 30
+        self.default_tab = 0
         
         self.panels = panels
-        self.flash_task = None
         self.sec = None
+        self.tick_task = None
+        self.tab_tick_cb = None
 
     def present_panel(self, event, panel, icon_size):
         CID = event.client_id
@@ -62,6 +64,8 @@ class TabbedPanel(layout.Column):
 
         show = panel.get("show")
         path = panel.get("path")
+        self.set_tab_tick_cb(panel.get("tick"))
+
         task = gui_task_for_client(CID)
         if task is not None:
             task.set_variable("$INFO_PATH", path) 
@@ -158,6 +162,8 @@ class TabbedPanel(layout.Column):
                 self.present_panel(event, panel, icon_size)
 
     def set_tab(self, tab):
+        # Convert string if needed
+        tab = self.find_tab(tab)
         if tab == self.current:
             return
         cur = self.panels[self.current]
@@ -170,10 +176,6 @@ class TabbedPanel(layout.Column):
 
         e = FakeEvent(self.client_id)
         self.represent(e)
-        # Clear any flash_task
-        if self.flash_task is not None:
-            self.flash_task.stop()
-            self.flash_task = None
 
     
     def present(self, event):
@@ -202,10 +204,27 @@ class TabbedPanel(layout.Column):
             self.sec.on_message(event)
         
 
-    def unflash_tab(self, t):
-        set_to = t.prev_tab
-        self.set_tab(set_to)
-        t.stop()
+    def tick_tab(self, t):
+        if self.tab_tick_cb is None:
+            return
+        #
+        # Only run if there is a tick task
+        # The point of the tick task is
+        # to return to the default tab
+        # when this tab has nothing important
+        has_more = self.tab_tick_cb(self)
+        # 0 == done
+        # 1 == More, but no redraw
+        # 2 = redraw
+        if has_more==1:
+            return
+        elif has_more==2:
+            e = FakeEvent(self.client_id)
+            self.represent(e)
+        elif has_more == 0:
+            self.set_tab(self.default_tab)
+        
+        
 
     def find_tab(self, tab):
         if not isinstance(tab, str):
@@ -217,29 +236,26 @@ class TabbedPanel(layout.Column):
         return tab
 
 
-    def flash_tab(self, tab, time):
-        tab = self.find_tab(tab)
-        if tab == self.current:
-            e = FakeEvent(self.client_id)
-            self.represent(e)
-
-        prev_tab = self.current
-        back_tab = None
-        if self.flash_task is not None:
-            back_tab = self.flash_task.prev_tab
-            self.flash_task.stop()
-            self.flash_task = None
-
-        self.set_tab(tab)
-        if time==0:
+    def set_tab_tick_cb(self, cb):
+        if cb is None and self.tick_task is None:
             return
         
-        self.flash_task = TickDispatcher.do_once(self.unflash_tab, time)
-        if back_tab is not None and prev_tab == self.current:
-            self.flash_task.prev_tab = back_tab
-        else:
-            self.flash_task.prev_tab = prev_tab
+        # Stop task, not needed
+        if cb is None and self.tick_task is not None:
+            self.tick_task.stop()
+            self.tick_task = None
+            self.tab_tick_cb = None
+            return
+        self.tab_tick_cb = cb
+        # Start task 
+        if self.tick_task is None:
+            self.tick_task = TickDispatcher.do_interval(self.tick_tab, 1)
 
+    def on_end_presenting(self, client_id):
+        if self.tick_task is not None:
+            self.tick_task.stop()
+            self.tick_task = None
+            self.tab_tick_cb = None
 
 
 def tabbed_panel_control(tag_prefix, items, tab=0, tab_location=0):

@@ -167,3 +167,13 @@ class Row:
         col:Column
         for col in self.columns:
             col.on_message(event)
+
+    def on_end_presenting(self, client_id):
+        col:Column
+        for col in self.columns:
+            col.on_end_presenting(client_id)
+
+    def on_begin_presenting(self, client_id):
+        col:Column
+        for col in self.columns:
+            col.on_begin_presenting(client_id)

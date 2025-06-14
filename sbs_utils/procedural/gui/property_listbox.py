@@ -66,7 +66,7 @@ def gui_properties_set(p=None, tag=None):
     event = FrameContext.context.event
     # This happens in a follow_route_select_comms
     # And it runs on the server not a true comms console
-    if event.tag == "gui_present":
+    if event is None or event.tag == "gui_present":
         return
     #print(f"TAG {event.tag}")
     changes = set(gui_task.get_variable("__PROP_CHANGES__", []))
@@ -162,7 +162,7 @@ def gui_property_list_box_stacked(name=None, tag=None):
     
     props_lb.title_section_style += "background:#1578;"
     task.set_inventory_value(tag, props_lb)
-    gui_reset_variables_add(gui_task, tag)
+    gui_reset_variables_add(task, tag)
 
     return props_lb
 
