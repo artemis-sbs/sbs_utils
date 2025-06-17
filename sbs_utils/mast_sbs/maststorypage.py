@@ -234,6 +234,9 @@ class StoryPage(Page):
         self.pending_gui = False
         from ..procedural.gui.property_listbox import gui_reset_variables
         gui_reset_variables(self.gui_task)
+        for sub_task in self.gui_task.sub_tasks:
+            if sub_task.has_role("end_on_new_gui"):
+                sub_task.end()
 
 
 
