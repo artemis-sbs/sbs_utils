@@ -393,3 +393,17 @@ def promise_any(*proms):
     if len(proms)==1:
         return PromiseAllAny(*proms, False)
     return PromiseAllAny(proms, False)
+
+
+def gui_task_jump(label):
+    """ Will redirect the gui_task to a new label
+
+    Args:
+        label (str or label): The label to run
+    """    
+    if FrameContext.page is None:
+        return PollResults.OK_ADVANCE_TRUE
+    task = FrameContext.page.gui_task
+    if task is not None:
+        task.jump(label)
+    return PollResults.OK_ADVANCE_TRUE
