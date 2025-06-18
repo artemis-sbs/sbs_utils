@@ -965,6 +965,17 @@ class MastAsyncTask(Agent, Promise):
         t.root_task = self
         if task_name is not None:
             t.set_value(task_name, t, Scope.NORMAL)
+
+                # 
+        # Look for sub label
+        #
+        if isinstance(label, str) and active_cmd == 0:
+            label_obj = self.active_label_object 
+            if label_obj is not None:
+                sub_label = label_obj.labels.get(label)
+                if sub_label is not None:
+                    label = label_obj
+                    active_cmd = sub_label.loc
             
         t.jump(label,active_cmd)
         self.sub_tasks.append(t)
@@ -1159,14 +1170,14 @@ class MastScheduler(Agent):
         return t
 
 
-    def start_task(self, label = "main", inputs=None, task_name=None, defer=False, unscheduled=False)->MastAsyncTask:
+    def start_task(self, label = "main", inputs=None, task_name=None, defer=False, unscheduled=False, loc=0)->MastAsyncTask:
         t = self._start_task(label, inputs, task_name)
         if task_name is not None:
             t.set_value(task_name, t, Scope.NORMAL)
 
         restore = FrameContext.task
         FrameContext.task = t
-        t.jump(label)
+        t.jump(label, loc)
         FrameContext.task = restore
         if not unscheduled:
             self.tasks.append(t)

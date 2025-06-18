@@ -156,6 +156,8 @@ def sub_task_schedule(label, data=None, var=None) -> "MastAsyncTask":
 @awaitable
 def gui_sub_task_schedule(label, data=None, var=None) -> "MastAsyncTask":
     """create an new task and start running at the specified label
+    This is a GUI sub task. It will be marked to end if a new GUI is presented.
+
 
     Args:
         label (str or label): The label to run
@@ -165,9 +167,24 @@ def gui_sub_task_schedule(label, data=None, var=None) -> "MastAsyncTask":
     Returns:
         MastAsyncTask : The MAST task created
     """    
-    task = FrameContext.client_task
+    gui_task = FrameContext.client_task
+    task = FrameContext.task
+
+        # 
+    # Look for sub label
+    #
+    active_cmd = 0
+    if isinstance(label, str):
+        label_obj = task.active_label_object 
+        if label_obj is not None:
+            sub_label = label_obj.labels.get(label)
+            if sub_label is not None:
+                label = label_obj
+                active_cmd = sub_label.loc
+    
     if task is not None:
-        t = task.start_sub_task(label, data, var)
+        t = gui_task.start_sub_task(label, data, var, False, active_cmd)
+        t.add_role("end_on_new_gui")
         return t
     return None
 
@@ -393,3 +410,17 @@ def promise_any(*proms):
     if len(proms)==1:
         return PromiseAllAny(*proms, False)
     return PromiseAllAny(proms, False)
+
+
+def gui_task_jump(label):
+    """ Will redirect the gui_task to a new label
+
+    Args:
+        label (str or label): The label to run
+    """    
+    if FrameContext.page is None:
+        return PollResults.OK_ADVANCE_TRUE
+    task = FrameContext.page.gui_task
+    if task is not None:
+        task.jump(label)
+    return PollResults.OK_ADVANCE_TRUE

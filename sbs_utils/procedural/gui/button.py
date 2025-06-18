@@ -18,10 +18,11 @@ class ButtonResult:
         
 
 class MessageHandler:
-    def __init__(self, layout_item, task, handler) -> None:
+    def __init__(self, layout_item, task, handler, is_sub_task) -> None:
         self.layout_item = layout_item
         self.handler = handler
         self.task = task
+        self.is_sub_task = is_sub_task
         
 
     def on_message(self, event):
@@ -34,15 +35,17 @@ class MessageHandler:
                 self.handler.set_result(ButtonResult(self.layout_item, event.client_id))
             elif callable(self.handler):
                 self.handler()
+            elif not self.is_sub_task:
+                self.task.jump(self.handler)
             else:
-                sub_task = self.task.start_sub_task(self.label, inputs=self.layout_item.data, defer=True)
+                sub_task = self.task.start_sub_task(self.handler, inputs=self.layout_item.data, defer=True)
                 sub_task.tick_in_context()
             
                 
             FrameContext.task = restore
 
 from ...pages.layout.button import Button
-def gui_button(props, style=None, data=None, on_press=None ):
+def gui_button(props, style=None, data=None, on_press=None, is_sub_task=False):
     """Add a gui button
 
     Args:
@@ -66,7 +69,7 @@ def gui_button(props, style=None, data=None, on_press=None ):
     apply_control_styles(".button", style, layout_item, task)
     # Last in case tag changed in style
     runtime_item = None
-    runtime_item = MessageHandler(layout_item, task, on_press)
+    runtime_item = MessageHandler(layout_item, task, on_press, is_sub_task)
 
     page.add_content(layout_item, runtime_item)
     return layout_item
