@@ -220,12 +220,25 @@ def send_message_to_player_ship(arg0: int, arg1: str, arg2: str) -> None:
     """sends a text message to the text box, on every client for a certain ship. args:  uint32_t playerID (0 = all ships), std::string color, std::string text"""
 def send_story_dialog(arg0: int, arg1: str, arg2: str, arg3: str, arg4: str) -> None:
     """sends a story dialog to the targeted client (0 = server screen)"""
-def set_music_folder(arg0: str, arg1: int, arg2: int) -> None:
-    """Sets the folder from which music is streamed, for the specified ship."""
-def set_music_tension(arg0: float, arg1: int, arg2: int) -> None:
-    """Sets the tension value of ambient music (0-100), for the specified ship."""
-def set_shared_string(key: str, value: str):
-    pass
+def set_beam_damages(clientID: int, playerBeamDamage: float, npcBeamDamage: float) -> None:
+    """sets the values for player base beam damage, and npc base beam damage.  Per client, or all clients + server (if ID = 0)."""
+def set_client_string(clientComputerID: int, string_key: str, string_value: str) -> None:
+    """stores a string value (and its string key) to the client computer"""
+def set_dmx_channel(clientID: int, channel: int, behavior: int, speed: int, low: int, high: int) -> None:
+    """set a color channel of dmx."""
+def set_main_view_modes(clientID: int, main_screen_view: str, cam_angle: str, cam_mode: str) -> None:
+    """sets the three modes of the main screen view for the specified client.  main_screen_view = (3d_view, info, data);  cam_angle = (front, back, left, right); cam_mode = (first_person, chase, tracking)"""
+def set_music_folder(ID: int, filename: str) -> None:
+    """Sets the folder from which music is streamed; ID is ship, OR client, OR zero for server."""
+def set_music_tension(ID: int, tensionValue: float) -> None:
+    """Sets the tension value of ambient music (0-100); ID is ship, OR client, OR zero for server."""
+def set_shared_string(key: str, value: str) -> None:
+    """sets (or changes) a shared string, given a key and a value (both strings).  The shared strings are automatically copied from server to all clients."""
+def set_sky_box(clientID: int, artFileName: str) -> None:
+    """sets the skybox art for a clientID (0 = server)."""
+def set_sky_box_all(artFileName: str) -> None:
+    """sets the skybox art for all connected computers."""
+
 from enum import Enum
 class SHPSYS(Enum): ### from pybind
     """One of four ship systems to track damage
