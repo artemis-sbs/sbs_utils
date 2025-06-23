@@ -971,7 +971,7 @@ class MastAsyncTask(Agent, Promise):
         #
         if isinstance(label, str) and active_cmd == 0:
             label_obj = self.active_label_object 
-            if label_obj is not None:
+            if label_obj is not None and isinstance(label_obj, Label):
                 sub_label = label_obj.labels.get(label)
                 if sub_label is not None:
                     label = label_obj
