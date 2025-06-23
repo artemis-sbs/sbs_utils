@@ -212,7 +212,7 @@ class StoryPage(Page):
         
         if self.layouts:
             for layout_obj in self.layouts:
-                layout_obj.calc(self)
+                layout_obj.calc(self.client_id)
                 layout_obj.on_begin_presenting(self.client_id)
             
             section = Layout(None, None, 0,0, 100, 90)
@@ -729,10 +729,11 @@ class StoryPage(Page):
                     # This is a bit of a hack to clear the properties
                     # List box
                     from ..procedural.gui.property_listbox import gui_reset_variables
-                    gui_reset_variables(self.gui_task)
-                    self.gui_task.jump(self.change_console_label)
-                    self.gui_task.tick_in_context()
-                    self.present(event)
+                    with FrameContextOverride(self.gui_task, self):
+                        gui_reset_variables(self.gui_task)
+                        self.gui_task.jump(self.change_console_label)
+                        self.gui_task.tick_in_context()
+                        self.present(event)
         elif event.tag == "main_screen_change":
             if self.main_screen_change_label:
                 # get_inventory_value(self.client_id,"assigned_ship")
