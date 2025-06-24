@@ -275,6 +275,11 @@ def cosmos_event_handler(sim, event):
 
             case "fighter_requests_dock":
                 LifetimeDispatcher.dispatch_dock(event)
+
+            case "docking_change":
+                # print_event(event)
+                from .procedural.docking import docking_run_all
+                docking_run_all(event)
         
             case _:
                 print (f"Unhandled event {event.client_id} {event.tag} {event.sub_tag}")

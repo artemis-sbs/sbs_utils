@@ -3,7 +3,7 @@ from sbs_utils.procedural.query import to_id, to_set, to_object
 from sbs_utils.procedural.roles import role
 from sbs_utils.procedural.inventory import set_inventory_value
 from sbs_utils.procedural.space_objects import closest
-from sbs_utils.tickdispatcher import TickDispatcher
+from sbs_utils.tickdispatcher import TickDispatcher, TickTask
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.procedural.signal import signal_emit
 from sbs_utils.helpers import FrameContext
@@ -43,6 +43,12 @@ def docking_run_all(tick_task):
         return
     __docking_is_running = True
 
+    undocking_id = None
+    if not isinstance(tick_task, TickTask):
+        if tick_task.sub_tag == "undocked":
+            undocking_id = tick_task.origin_id 
+
+
 
     try:
         # Don't care about the key here
@@ -66,6 +72,12 @@ def docking_run_all(tick_task):
             
 
             dock_state_string = player.data_set.get("dock_state", 0)
+            if undocking_id == player_id:
+                brain = pairs.get(tick_task.selected_id)
+                npc = to_object(tick_task.selected_id)
+                if brain is not None and npc is not None:
+                    _docking_handle_undocking(player, npc, brain)
+
             if "undocked" == dock_state_string:
                 _docking_handle_undocked(player_id, player, pairs)
                 # Let any state change be processed next go
@@ -195,7 +207,12 @@ def _docking_handle_docking(player, npc, brain):
     closeEnough = closeEnough * 1.1
     if distanceValue <= closeEnough:
         player.data_set.set("dock_state", "dock_start",0)
-    
+
+
+def _docking_handle_undocking(player, npc, brain):
+    result = _docking_run_task(player, npc, brain, "undocking")
+
+
     
     
 def _docking_handle_dock_start(player, npc, brain):
