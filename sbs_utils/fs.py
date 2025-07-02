@@ -115,7 +115,7 @@ def load_json_data(file):
     try:
         with open(file, 'r') as f:
             # remove comments
-            contents = ''.join(line.strip() for line in f if not line.strip().startswith('#') and line.strip().startswith('//'))
+            contents = ''.join(line.strip() for line in f if not (line.strip().startswith('#') or line.strip().startswith('//')))
             
             # remove trailing commas
             contents = re.sub(r',(\s*(?=[]}]|$))|("(?:[^\\"]|\\.)*"|[^"])', r'\1\2', contents)
