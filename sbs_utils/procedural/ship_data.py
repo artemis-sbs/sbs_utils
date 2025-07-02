@@ -8,7 +8,9 @@ def get_ship_data():
     if ship_data_cache is not None:
         return ship_data_cache
     
-    ship_data_cache = load_json_data( os.path.join(get_artemis_data_dir(), "shipData.json"))
+    ship_data_cache = load_json_data( os.path.join(get_artemis_data_dir(), "shipData.yaml"))
+    if ship_data_cache is None:
+        ship_data_cache = load_json_data( os.path.join(get_artemis_data_dir(), "shipData.json"))
     
     script_ship_data = load_json_data( os.path.join(get_mission_dir(), "extraShipData.json"))
     if script_ship_data is not None:
@@ -19,7 +21,8 @@ def get_ship_data():
 
 def merge_mod_ship_data(mod):
     global ship_data_cache
-    ship_data_cache = load_json_data( os.path.join(get_artemis_data_dir(), "shipData.json"))
+
+    ship_data_cache = get_ship_data()
     
     script_ship_data = load_json_data( os.path.join(get_mod_dir(mod), "extraShipData.json"))
     if script_ship_data is not None:

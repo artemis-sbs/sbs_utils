@@ -115,7 +115,7 @@ def load_json_data(file):
     try:
         with open(file, 'r') as f:
             # remove comments
-            contents = ''.join(line.strip() for line in f if not line.strip().startswith('//'))
+            contents = ''.join(line.strip() for line in f if not line.strip().startswith('#') and line.strip().startswith('//'))
             
             # remove trailing commas
             contents = re.sub(r',(\s*(?=[]}]|$))|("(?:[^\\"]|\\.)*"|[^"])', r'\1\2', contents)
@@ -125,12 +125,12 @@ def load_json_data(file):
     
 def load_json_string(contents):
     try:
-        f = contents.split("\n")
+        #f = contents.split("\n")
         # remove comments
-        contents = ''.join(line.strip() for line in f if not line.strip().startswith('//'))
+        # contents = ''.join(line.strip() for line in f if not line.strip().startswith('//'))
         
-        # remove trailing commas
-        contents = re.sub(r',(\s*(?=[]}]|$))|("(?:[^\\"]|\\.)*"|[^"])', r'\1\2', contents)
+        # # remove trailing commas
+        # contents = re.sub(r',(\s*(?=[]}]|$))|("(?:[^\\"]|\\.)*"|[^"])', r'\1\2', contents)
         return json.loads(contents)
     except Exception as e:
         return None
