@@ -104,14 +104,41 @@ def get_mission_dir_filename(filename):
 
 def load_yaml_data(file):
     try:
+        import ryaml
+        with open(file, 'r') as f:
+            return ryaml.load(f)
+    except Exception as e:
+        pass
+
+    try:
         with open(file, 'r') as f:
             # remove comments
             return yaml.safe_load(f)
     except Exception as e:
         return None
 
+def load_yaml_string(s):
+    try:
+        import ryaml
+        return ryaml.loads(s)
+    except Exception as e:
+        pass
+
+    try:
+        # remove comments
+        return yaml.safe_load(s)
+    except Exception as e:
+        return None
+
 
 def load_json_data(file):
+    try:
+        import ryaml
+        with open(file, 'r') as f:
+            return ryaml.load(f)
+    except Exception as e:
+        pass
+    
     try:
         with open(file, 'r') as f:
             # remove comments
@@ -124,6 +151,9 @@ def load_json_data(file):
         return None
     
 def load_json_string(contents):
+    d = load_yaml_string(contents)
+    if d:
+        return d
     try:
         #f = contents.split("\n")
         # remove comments
