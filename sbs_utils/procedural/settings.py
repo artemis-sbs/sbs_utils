@@ -19,7 +19,7 @@ def settings_get_defaults():
         "LETHAL_SELECT": "none",
         "FRIENDLY_SELECT": "few",
         "MONSTER_SELECT": "none",
-        "UPGRADE_SELECT": "many",
+        "UPGRADE_SELECT": "max",
         "seed_value": 0,
         "GAME_STARTED": False,
         "GAME_ENDED": False,
