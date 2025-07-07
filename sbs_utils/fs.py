@@ -104,18 +104,45 @@ def get_mission_dir_filename(filename):
 
 def load_yaml_data(file):
     try:
+        import ryaml
+        with open(file, 'r') as f:
+            return ryaml.load(f)
+    except Exception as e:
+        pass
+
+    try:
         with open(file, 'r') as f:
             # remove comments
             return yaml.safe_load(f)
     except Exception as e:
         return None
 
+def load_yaml_string(s):
+    try:
+        import ryaml
+        return ryaml.loads(s)
+    except Exception as e:
+        pass
+
+    try:
+        # remove comments
+        return yaml.safe_load(s)
+    except Exception as e:
+        return None
+
 
 def load_json_data(file):
     try:
+        import ryaml
+        with open(file, 'r') as f:
+            return ryaml.load(f)
+    except Exception as e:
+        pass
+    
+    try:
         with open(file, 'r') as f:
             # remove comments
-            contents = ''.join(line.strip() for line in f if not line.strip().startswith('//'))
+            contents = ''.join(line.strip() for line in f if not (line.strip().startswith('#') or line.strip().startswith('//')))
             
             # remove trailing commas
             contents = re.sub(r',(\s*(?=[]}]|$))|("(?:[^\\"]|\\.)*"|[^"])', r'\1\2', contents)
@@ -124,13 +151,16 @@ def load_json_data(file):
         return None
     
 def load_json_string(contents):
+    d = load_yaml_string(contents)
+    if d:
+        return d
     try:
-        f = contents.split("\n")
+        #f = contents.split("\n")
         # remove comments
-        contents = ''.join(line.strip() for line in f if not line.strip().startswith('//'))
+        # contents = ''.join(line.strip() for line in f if not line.strip().startswith('//'))
         
-        # remove trailing commas
-        contents = re.sub(r',(\s*(?=[]}]|$))|("(?:[^\\"]|\\.)*"|[^"])', r'\1\2', contents)
+        # # remove trailing commas
+        # contents = re.sub(r',(\s*(?=[]}]|$))|("(?:[^\\"]|\\.)*"|[^"])', r'\1\2', contents)
         return json.loads(contents)
     except Exception as e:
         return None

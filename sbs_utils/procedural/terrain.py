@@ -282,8 +282,12 @@ def terrain_to_value(dropdown_select, default=0):
     if "lots" == dropdown_select:
         return 3
 
+    if "max" == dropdown_select:
+        return 4
+    
     if "many" == dropdown_select:
         return 4
+    
     return default
 
 
