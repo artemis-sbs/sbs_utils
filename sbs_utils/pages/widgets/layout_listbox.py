@@ -501,6 +501,11 @@ class LayoutListbox(layout.Column):
         #sbs.target_gui_sub_region(CID, "")
         
     def represent(self, event):
+        # Don't represent if we've never been presented.
+        # This was causing ghost images 
+        # with property grid
+        if self.client_id is None:
+            return
         # sbs.get_debug_gui_tree(event.client_id, "pre off state", False)
         # sbs.get_debug_gui_tree(event.client_id, "pre ON state", True)
         super().represent(event)
