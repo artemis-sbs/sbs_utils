@@ -1291,7 +1291,7 @@ def comms_story_buttons(ids, sel_ids, buttons, path, nav_button=None) -> CommsCh
     
     comms_promise = CommsChoiceButtonPromise(buttons, path, nav_button)
     players = to_object_list(ids)
-    selects = to_object_list(sel_ids)
+    selects = sel_ids
     for p in players:
         if p is None:
             continue
@@ -1299,7 +1299,7 @@ def comms_story_buttons(ids, sel_ids, buttons, path, nav_button=None) -> CommsCh
             if s is None:
                 continue
 
-            event = FakeEvent(0,origin_id=p.id, selected_id=s.id)
+            event = FakeEvent(0,origin_id=p.id, selected_id=s)
             promise_task = start_comms_selected(event)
             if promise_task is None:
                 continue

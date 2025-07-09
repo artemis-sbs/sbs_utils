@@ -222,7 +222,7 @@ def cosmos_event_handler(sim, event):
 
             case "select_space_object":
                 # print_event(event)
-                if "comms_sorted_list" == event.value_tag:
+                if "comms_sorted_list" == event.value_tag or "comms_2d_view" == event.value_tag:
                     SBS.send_comms_selection_info(event.origin_id, "", "white", "static")
                 #
                 # Avoid obscure bug, waterfall send selected_id == 0
