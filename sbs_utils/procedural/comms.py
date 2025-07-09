@@ -481,6 +481,8 @@ class CommsPromise(ButtonPromise):
         # at least this is out of show buttons
         self.selected_id = self.task.get_variable("COMMS_SELECTED_ID")
         self.origin_id = self.task.get_variable("COMMS_ORIGIN_ID")
+
+
         
 
     def set_path(self, path) -> None:
@@ -608,6 +610,20 @@ class CommsPromise(ButtonPromise):
         if selected_so is None and self.selected_id != 0:
             self.set_result(True)
             return
+        
+        #
+        # Having this here allows the comms to be enabled even if there are currently no buttons
+        #
+        self.is_grid_comms = query.is_grid_object_id(self.selected_id)
+        if self.is_grid_comms:        
+            ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'grid_selected_UID', self.selected)
+            ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'grid_selected_UID', self.message)
+            GarbageCollector.add_garbage_collect(self.collect)
+        else:
+            ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'comms_target_UID', self.selected)
+            ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'comms_target_UID', self.message)
+            GarbageCollector.add_garbage_collect(self.collect)
+
             
         # Not ready yet
         self.expanded_buttons = self.get_expanded_buttons()
@@ -622,7 +638,7 @@ class CommsPromise(ButtonPromise):
         # If this is the same ship it is known
         self.is_unknown = False
 
-        self.is_grid_comms = query.is_grid_object_id(self.selected_id)
+
         #
         # Handle case where the selection is not a grid or space object
         #
@@ -654,14 +670,8 @@ class CommsPromise(ButtonPromise):
 
         selection = None
         if self.is_grid_comms:        
-            ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'grid_selected_UID', self.selected)
-            ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'grid_selected_UID', self.message)
-            GarbageCollector.add_garbage_collect(self.collect)
             selection = query.get_grid_selection(self.origin_id)
         else:
-            ConsoleDispatcher.add_select_pair(self.origin_id, self.selected_id, 'comms_target_UID', self.selected)
-            ConsoleDispatcher.add_message_pair(self.origin_id, self.selected_id,  'comms_target_UID', self.message)
-            GarbageCollector.add_garbage_collect(self.collect)
             selection = query.get_comms_selection(self.origin_id)
 
         if selection == self.selected_id:
@@ -672,7 +682,6 @@ class CommsPromise(ButtonPromise):
         #
         # Check to see if this was intended for us
         #
-
         if self.selected_id != event.selected_id or \
             self.origin_id != event.origin_id:
             return
@@ -697,49 +706,50 @@ class CommsPromise(ButtonPromise):
             return
         
         # check to see if the from ship still exists
-        if origin_id is not None:
+        if origin_id is None:
+            return
 
-            title = f"{self.comms_id}"
-            if len(self.path)>6:
-                title = f"{self.comms_id} {self.path[6:]}"
-            if self.is_grid_comms:
-                FrameContext.context.sbs.send_grid_selection_info(origin_id, self.face, self.color, title)
-            elif origin_id == selected_id:
-                FrameContext.context.sbs.send_comms_selection_info(origin_id, self.face, self.color, title)
-            elif selected_id == 0:
-                FrameContext.context.sbs.send_comms_selection_info(origin_id, self.face, self.color, title)
+        title = f"{self.comms_id}"
+        if len(self.path)>6:
+            title = f"{self.comms_id} {self.path[6:]}"
+        if self.is_grid_comms:
+            FrameContext.context.sbs.send_grid_selection_info(origin_id, self.face, self.color, title)
+        elif origin_id == selected_id:
+            FrameContext.context.sbs.send_comms_selection_info(origin_id, self.face, self.color, title)
+        elif selected_id == 0:
+            FrameContext.context.sbs.send_comms_selection_info(origin_id, self.face, self.color, title)
+        else:
+            #
+            # Check for unknown 
+            #
+            oo = query.to_object(origin_id)
+            so = query.to_object(selected_id)
+            
+            if oo is None or so is None:
+                return
+            scan_name = oo.side+"scan"
+            initial_scan = so.data_set.get(scan_name,0)
+            
+            if initial_scan is None or initial_scan =="no data":
+                FrameContext.context.sbs.send_comms_selection_info(origin_id, "", "white", "unknown")
+                self.is_unknown = True
+                return
             else:
-                #
-                # Check for unknown 
-                #
-                oo = query.to_object(origin_id)
-                so = query.to_object(selected_id)
-                
-                if oo is None or so is None:
-                    return
-                scan_name = oo.side+"scan"
-                initial_scan = so.data_set.get(scan_name,0)
-                
-                if initial_scan is None or initial_scan =="no data":
-                    FrameContext.context.sbs.send_comms_selection_info(origin_id, "", "white", "unknown")
-                    self.is_unknown = True
-                    return
-                else:
-                    FrameContext.context.sbs.send_comms_selection_info(origin_id, self.face, self.color, title)
+                FrameContext.context.sbs.send_comms_selection_info(origin_id, self.face, self.color, title)
 
-            for i, button in enumerate(self.expanded_buttons):
-                value = True
-                color = "white"
-                if button.color is not None:
-                    color = self.task.format_string(button.color)
-                if button.code is not None:
-                    value = self.task.eval_code(button.code)
-                if value and button.should_present((origin_id, selected_id)):
-                    msg = self.task.format_string(button.message)
-                    if self.is_grid_comms:
-                        FrameContext.context.sbs.send_grid_button_info(origin_id, color, msg, f"{i}")
-                    else:
-                        FrameContext.context.sbs.send_comms_button_info(origin_id, color, msg, f"{i}")
+        for i, button in enumerate(self.expanded_buttons):
+            value = True
+            color = "white"
+            if button.color is not None:
+                color = self.task.format_string(button.color)
+            if button.code is not None:
+                value = self.task.eval_code(button.code)
+            if value and button.should_present((origin_id, selected_id)):
+                msg = self.task.format_string(button.message)
+                if self.is_grid_comms:
+                    FrameContext.context.sbs.send_grid_button_info(origin_id, color, msg, f"{i}")
+                else:
+                    FrameContext.context.sbs.send_comms_button_info(origin_id, color, msg, f"{i}")
 
 
     def pressed_set_values(self, task) -> None:
@@ -786,7 +796,6 @@ class CommsPromise(ButtonPromise):
         # else:
         #     FrameContext.context.event = FakeEvent(client_id=1)
         super().poll()
-        #print("COMMS POLL")
         FrameContext.context.event = event
         #
         # Selecting 0 now mean Long Range Comms
@@ -992,7 +1001,7 @@ def start_comms_common_selected(event, is_grid):
     #
     __comms_promises[test] = t
     t.tick_in_context()
-
+    
     FrameContext.task = restore_task
     FrameContext.page = restore_page
 
