@@ -477,6 +477,10 @@ class CommsPromise(ButtonPromise):
         self.task.main.tasks.remove(self.task)
         self.promise_buttons = []
         self.comms_badge = None
+        # TODO: Smelly needs refactoring, but 
+        # at least this is out of show buttons
+        self.selected_id = self.task.get_variable("COMMS_SELECTED_ID")
+        self.origin_id = self.task.get_variable("COMMS_ORIGIN_ID")
         
 
     def set_path(self, path) -> None:
@@ -589,8 +593,8 @@ class CommsPromise(ButtonPromise):
     #
     def show_buttons(self) -> None:
         
-        self.selected_id = self.task.get_variable("COMMS_SELECTED_ID")
-        self.origin_id = self.task.get_variable("COMMS_ORIGIN_ID")
+        #self.selected_id = self.task.get_variable("COMMS_SELECTED_ID")
+        #self.origin_id = self.task.get_variable("COMMS_ORIGIN_ID")
         #
         # Odd sometimes a zero slip though
         #
@@ -884,7 +888,7 @@ def start_comms_common_selected(event, is_grid):
         #
         # This is not expected to be called
         #
-        print ("__COMMS_PROMISE creation already exists")
+        #print ("__COMMS_PROMISE creation already exists")
         return promise_task
     
     
@@ -1304,4 +1308,7 @@ def comms_story_buttons(ids, sel_ids, buttons, path, nav_button=None) -> CommsCh
                 continue
             button_promise.promise_buttons.append(comms_promise)
             comms_promise.hosts.append(button_promise)
+            # Refresh the buttons if active on the player ships
+            if get_comms_selection(query.to_id(p)) == query.to_id(s):
+                button_promise.show_buttons()
     return comms_promise
