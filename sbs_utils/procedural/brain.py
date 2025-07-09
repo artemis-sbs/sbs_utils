@@ -4,10 +4,10 @@ from sbs_utils.helpers import FrameContext
 from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value, has_inventory
 from sbs_utils.agent import Agent
 from sbs_utils.procedural.query import to_set, to_object
-from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.mast.mastscheduler import MastAsyncTask
 from sbs_utils.mast.mast_node import MastNode
+import random
 
 from enum import IntFlag
 
@@ -62,6 +62,21 @@ class Brain:
             return self._active.active
         return "idle"
 
+    @property
+    def active_desc(self):
+        if self.brain_type & BrainType.Simple:
+            if self.label is not None:
+                desc = self.label.name
+                desc = self.label.get_inventory_value("desc", desc)
+                if not isinstance(desc, str) and isinstance(desc, list):
+                    desc = random.choice(desc)
+
+                desc = self.label.get_inventory_value("DisplayName", desc)
+                return desc
+        elif self._active is not None:
+            return self._active.active_desc
+        return "idle"
+
     ### Brains are never Done
     # @property
     # def done(self):
@@ -111,7 +126,7 @@ class Brain:
             if child.result == PollResults.BT_SUCCESS:
                 self.result =  PollResults.BT_SUCCESS
                 self._active = child
-                set_inventory_value(self.agent, "brain_active", child.active)
+                set_inventory_value(self.agent, "brain_active", child.active_desc)
                 return
         self.result =  PollResults.BT_FAIL
 
