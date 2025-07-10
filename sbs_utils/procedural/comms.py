@@ -481,6 +481,10 @@ class CommsPromise(ButtonPromise):
         # at least this is out of show buttons
         self.selected_id = self.task.get_variable("COMMS_SELECTED_ID")
         self.origin_id = self.task.get_variable("COMMS_ORIGIN_ID")
+        
+        self.tag = None
+        self.event = None
+        self.is_running = False
 
 
         
