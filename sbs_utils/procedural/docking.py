@@ -149,7 +149,14 @@ def _docking_run_task(player, npc, brain, inner_label):
     t.set_variable("DOCKING_NPC", npc)
     t.set_variable("DOCKING_NPC_ID", npc.id)
     t.tick_in_context()
-    return t.tick_result
+
+    res = t.tick_result
+    if res == PollResults.OK_IDLE:
+        t.end()
+    elif res != PollResults.OK_SUCCESS and res != PollResults.FAIL_END:
+        print(f"Objective did not complete properly")
+
+    return res
 
 
 

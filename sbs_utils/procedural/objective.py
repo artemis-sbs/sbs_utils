@@ -185,12 +185,12 @@ class Objective(Agent):
         t.set_variable("OBJECTIVE_AGENT", agent_object)
         t.tick_in_context()
         res = t.tick_result
-        if t.tick_result == PollResults.OK_IDLE:
+        if res == PollResults.OK_IDLE:
             t.end()
-        elif t.tick_result != PollResults.OK_SUCCESS and t.tick_result != PollResults.FAIL_END:
+        elif res != PollResults.OK_SUCCESS and res != PollResults.FAIL_END:
             print(f"Objective did not complete properly")
 
-        return t.tick_result
+        return res
 
 def objective_clear(agent_id_or_set):
     agent_id_or_set = to_set(agent_id_or_set)
