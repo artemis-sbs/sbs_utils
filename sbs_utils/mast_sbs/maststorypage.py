@@ -748,7 +748,7 @@ class StoryPage(Page):
                 
                 for m in ms:
                     t = get_inventory_value(m, "CONSOLE_TYPE", "not set")
-                    log(f"Got here {len(ms)} {t}", "mast:internal")
+                    #log(f"Got here {len(ms)} {t}", "mast:internal")
                     gui_reroute_client(m, self.main_screen_change_label, {
                         "MAIN_SCREEN_VIEW": event.sub_tag,
                         "MAIN_SCREEN_FACING": event.value_tag,
