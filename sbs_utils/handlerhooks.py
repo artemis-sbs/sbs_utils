@@ -290,6 +290,15 @@ def cosmos_event_handler(sim, event):
         # with IDs and a callback
         # When the ID is no longer valid the callback is called
         GarbageCollector.collect()
+        
+        Agent.SHARED.set_inventory_value("sim", None)
+        Agent.context = None
+    
+        #et = time.process_time() - t
+        et = time.perf_counter() - t
+        if et > 0.033:
+            print(f"Elapsed time: {et} {event.tag}-{event.sub_tag}")
+
     except BaseException as err:
         SBS.pause_sim()
         text_err = format_exception("", "SBS Utils Hook level Runtime Error:")
@@ -309,12 +318,5 @@ def cosmos_event_handler(sim, event):
         FrameContext.error_message = ""
         Gui.push(0, ErrorPage(text_err))
     
-    Agent.SHARED.set_inventory_value("sim", None)
-    Agent.context = None
-    
-    #et = time.process_time() - t
-    et = time.perf_counter() - t
-    if et > 0.033:
-        print(f"Elapsed time: {et} {event.tag}-{event.sub_tag}")
 
 
