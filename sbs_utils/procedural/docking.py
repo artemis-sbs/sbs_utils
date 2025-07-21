@@ -154,7 +154,7 @@ def _docking_run_task(player, npc, brain, inner_label):
     if res == PollResults.OK_IDLE:
         t.end()
     elif res != PollResults.OK_SUCCESS and res != PollResults.FAIL_END:
-        print(f"Objective did not complete properly")
+        print(f"Docking task did not complete properly")
 
     return res
 
@@ -207,6 +207,7 @@ def _docking_handle_docking(player, npc, brain):
         # Reset
         player.data_set.set("dock_base_id", 0, 0)
         player.data_set.set("dock_state", "undocked", 0)
+        return
 
     distanceValue = sbs.distance_id(player.id, npc.id)
 

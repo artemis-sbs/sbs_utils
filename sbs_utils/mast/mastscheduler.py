@@ -382,6 +382,7 @@ class PyTicker():
         self.last_poll_result = None
         self.done = False
         self.fall_through_label = None
+        
 
 
 
@@ -589,7 +590,7 @@ class PyTicker():
         logger = logging.getLogger("mast.runtime")
         logger.error(s)
 
-        self.main.runtime_error(s)
+        self.task.main.runtime_error(s)
         self.done = True
 
 
