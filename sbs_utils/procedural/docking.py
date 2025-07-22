@@ -205,8 +205,10 @@ def _docking_handle_docking(player, npc, brain):
 
     if result == PollResults.FAIL_END:
         # Reset
+        stat = player.data_set.get("dock_base_id", 0)
         player.data_set.set("dock_base_id", 0, 0)
         player.data_set.set("dock_state", "undocked", 0)
+        FrameContext.sim.DeleteTractorConnection(player.id, stat)
         return
 
     distanceValue = sbs.distance_id(player.id, npc.id)
