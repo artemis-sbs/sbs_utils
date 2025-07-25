@@ -212,9 +212,11 @@ def cosmos_event_handler(sim, event):
                 DamageDispatcher.dispatch_heat(event)
 
             case "passive_collision":
+                #print_event(event)
                 CollisionDispatcher.dispatch_passive(event)
 
             case "interactive_collision":
+                #print_event(event)
                 CollisionDispatcher.dispatch_interactive(event)
 
             case "client_connect":

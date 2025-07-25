@@ -339,6 +339,32 @@ class Mast():
             del info[task]
             self.signal_observers[name] = info
 
+    def signal_unregister_all(self, task):
+        #
+        # note:
+        #    Not sure this is written logically correct
+        #
+        for name in self.signal_observers:
+            info = self.signal_observers[name]
+            if info is None:
+                return
+            if task in info:
+                del info[task]
+                self.signal_observers[name] = info
+
+    def signal_unregister_all_inline(self, task):
+        # Look for any signal using the task
+        for name in self.signal_observers:
+            info = self.signal_observers[name]
+            if info is None:
+                return
+            # If the loc is not 0 its inline and not jump
+            if task in info:
+                info_list = [i for i in info[task] if i.is_jump]
+                if len(info_list)==0:
+                    del info[task]
+            self.signal_observers[name] = info
+
     def signal_emit(self, name, sender_task, data):
         # Copy so we can remove if needed
         tasks = self.signal_observers.get(name, {}).copy()
