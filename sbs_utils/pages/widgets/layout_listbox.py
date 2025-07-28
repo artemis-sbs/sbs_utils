@@ -397,7 +397,6 @@ class LayoutListbox(layout.Column):
         if len(self.items) <= max_slots:
             cur = 0
 
-
         while slot < max_slots and cur < len(self._items):
             item = self._items[cur]
             #
@@ -602,7 +601,14 @@ class LayoutListbox(layout.Column):
             return
         if not sec[1].isdigit():
             return
-        index = int(sec[1]) +self.cur
+        #index = int(sec[1]) +self.cur
+
+        slot_index = int(sec[1])
+        if slot_index > len(self.sections):
+            self.represent(event)
+            return
+        
+        index = self.sections[slot_index].item_index
 
         if sec[2] != "__click":
             return
