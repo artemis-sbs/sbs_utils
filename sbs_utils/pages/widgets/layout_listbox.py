@@ -394,6 +394,10 @@ class LayoutListbox(layout.Column):
         collapse = False
 
 
+        if len(self.items) <= max_slots:
+            cur = 0
+
+
         while slot < max_slots and cur < len(self._items):
             item = self._items[cur]
             #

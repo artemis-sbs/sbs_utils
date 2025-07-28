@@ -363,6 +363,9 @@ class Mast():
                 info_list = [i for i in info[task] if i.is_jump]
                 if len(info_list)==0:
                     del info[task]
+                elif len(info_list) != len(info[task]):
+                    # print(f"Purged {name}")
+                    info[task] = info_list
             self.signal_observers[name] = info
 
     def signal_emit(self, name, sender_task, data):
