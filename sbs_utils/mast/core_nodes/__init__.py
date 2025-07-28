@@ -9,7 +9,9 @@ from .metadata_block import MetaDataBlock
 from .import_cmd import Import
 from .await_cmd import Await, AwaitInlineLabel
 from .inline_function import FuncCommand        
+from .on_signal import OnSignal
 from .on_change import OnChange
+
 #        AwaitInlineLabel,
 from .yield_cmd import Yield
 from .jump_cmd import Jump

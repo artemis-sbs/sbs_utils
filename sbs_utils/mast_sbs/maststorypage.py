@@ -237,6 +237,10 @@ class StoryPage(Page):
         for sub_task in self.gui_task.sub_tasks:
             if sub_task.has_role("end_on_new_gui"):
                 sub_task.end()
+        #
+        # Need to purge any "on signal" commands
+        #
+        self.story.signal_unregister_all_inline(self.gui_task)
 
 
 
