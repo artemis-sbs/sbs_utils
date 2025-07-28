@@ -83,8 +83,79 @@ def _science_get_selected_id():
     
     if FrameContext.task is not None:
         return FrameContext.task.get_variable("SCIENCE_SELECTED_ID")
+    
+def science_update_scan_data(origin, target, info, tab="scan"):
+    """
+    Immediately update the scan data of the target space object for the scanning ship.
+    NOTE: Only use this if the scanning ship has already scanned the target, and the scan text needs to be updated,
+    or if you want to forcibly add the scan info a ship even if it hasn't been scanned yet.
+    Args:
+        origin (int|Agent): The scanning ship (probably a player ship)
+        target (int|Agent): The object being scanned
+        info (str): The new scan information
+        tab (str): The science tab to which the info belongs (e.g. 'scan' or 'intel')
+    """
+    oo = to_object(origin)
+    so = to_object(target)
+    if not oo or not so:
+        return
+    scan_name = oo.side+tab
+    # Set the scan data
+    so.data_set.set(scan_name, info)
+    # Check if the tab is already in the list
+    tab_list = so.data_set.get("scan_type_list",0)
+    if tab_list != 0:
+        # If it's not in the list, add it.
+        if tab_list.find(tab) == -1:
+            tab_list += f"{tab}"
+    else:
+        # If the tab list isn't found, we'll make it
+        tab_list = tab
+    # update the list of tabs used
+    so.data_set.set("scan_type_list", tab_list)
+    
+def science_get_scan_data(origin, target, tab="scan")->str:
+    """
+    Get the science scan as seen by the ship doing the scan.
+    Args:
+        origin (int|Agent): The ship doing the scan
+        target (int|Agent): The target space object
+        tab (str): The science tab the info goes to
+    Returns:
+        str: The applicable scan data
+    """
+    oo = to_object(origin)
+    so = to_object(target)
+    scan_name = oo.side+tab
+    initial_scan = so.data_set.get(scan_name,0)
+    return initial_scan
 
+def science_is_unknown(origin, target)->bool:
+    """
+    Check if the target is known to the given ship.  
+    Based on the 'scan' tab on the science widget.  
+    To use a different tab, use `science_has_scan_data()` instead  
+    Args:
+        origin (int|Agent): The ship doing the scan (probably a player ship)
+        target (int|Agent): The target space object
+    """
+    initial_scan = science_get_scan_data(origin, target)
+    is_unknown = (initial_scan is None or initial_scan == "" or initial_scan == "no data" or initial_scan == "Default Scan")
+    return is_unknown
 
+def science_has_scan_data(origin, target, tab="scan") -> bool:
+    """
+    Check if the target is has scan data for the scanning ship.
+    Args:
+        origin (int|Agent): The ship doing the scan (probably a player ship)
+        target (int|Agent): The target space object
+        tab (str): The science tab being checked (optional, default is 'scan')
+    Returns:
+        bool: True if the scan data exists
+    """
+    initial_scan = science_get_scan_data(origin, target, tab)
+    has_scan = (initial_scan is None or initial_scan == "" or initial_scan == "no data" or initial_scan == "Default Scan")
+    return not has_scan
 
 def scan_results(message, target=None, tab = None):
     """Set the scan results for the current scan. This should be called when the scan is completed.
