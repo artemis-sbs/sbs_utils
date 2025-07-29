@@ -190,7 +190,12 @@ def cosmos_event_handler(sim, event):
                 LifetimeDispatcher.dispatch_damage(event)
 
             case "npc_killed":
-                # print_event(event)
+                #print_event(event)
+                DamageDispatcher.dispatch_killed(event)
+                #LifetimeDispatcher.dispatch_damage(event)
+
+            case "station_killed":
+                #print_event(event)
                 DamageDispatcher.dispatch_killed(event)
                 #LifetimeDispatcher.dispatch_damage(event)
                 
