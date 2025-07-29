@@ -405,6 +405,50 @@ def set_shared_variable(key, value) -> any:
     """    
     Agent.SHARED.set_inventory_value(key, value)
 
+def gui_get_variable(key, defa=None):
+    # 
+    # This is confusing because of COMMS
+    # Comms runs on the sever task, but the GUI needs 
+    # to be the client for the comms operations
+    # So COMMS is setting the page to the client
+    # and the server task is the task
+    #
+    gui_task = FrameContext.client_task
+    
+    if gui_task is not None:
+        v = gui_task.get_variable(key, defa)
+        return v
+    
+    return defa
+
+def gui_set_variable(key, value=None):
+    # 
+    # This is confusing because of COMMS
+    # Comms runs on the sever task, but the GUI needs 
+    # to be the client for the comms operations
+    # So COMMS is setting the page to the client
+    # and the server task is the task
+    #
+    gui_task = FrameContext.client_task
+    if gui_task is not None:
+        return gui_task.set_variable(key, value)
+    return value
+
+
+def server_get_variable(key, defa=None):
+    server_task = FrameContext.server_task
+    
+    if server_task is not None:
+        v = server_task.get_variable(key, defa)
+        return v
+    
+    return defa
+
+def server_set_variable(key, value=None):
+    server_task = FrameContext.server_task
+    if server_task is not None:
+        return server_task.set_variable(key, value)
+    return value
 
 
 def AWAIT(promise: Promise) -> PromiseWaiter:

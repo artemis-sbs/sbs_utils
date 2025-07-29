@@ -85,35 +85,6 @@ def gui_properties_set(p=None, tag=None):
         gui_represent(props_lb)
         
 
-def gui_properties_get_value(key, defa=None):
-    # 
-    # This is confusing because of COMMS
-    # Comms runs on the sever task, but the GUI needs 
-    # to be the client for the comms operations
-    # So COMMS is setting the page to the client
-    # and the server task is the task
-    #
-    gui_task = FrameContext.client_task
-    
-    if gui_task is not None:
-        v = gui_task.get_variable(key, defa)
-        return v
-    
-    return defa
-
-def gui_properties_set_value(key, value=None):
-    # 
-    # This is confusing because of COMMS
-    # Comms runs on the sever task, but the GUI needs 
-    # to be the client for the comms operations
-    # So COMMS is setting the page to the client
-    # and the server task is the task
-    #
-    gui_task = FrameContext.client_task
-    if gui_task is not None:
-        return gui_task.set_variable(key, value)
-    return value
-
 
 def _property_lb_item_template_one_line(item):
     
