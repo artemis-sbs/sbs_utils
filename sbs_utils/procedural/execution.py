@@ -118,7 +118,7 @@ def logger(name: str=None, file: str=None, var: str=None, std_err:bool=False) ->
 
 
 @awaitable
-def task_schedule(label: str | Label, data=None, var:str=None) -> "MastAsyncTask":
+def task_schedule(label: str | Label, data=None, var:str=None, defer=False, inherit=True, unscheduled=False) -> "MastAsyncTask":
     """create an new task and start running at the specified label
 
     Args:
@@ -131,7 +131,7 @@ def task_schedule(label: str | Label, data=None, var:str=None) -> "MastAsyncTask
     """    
     task = FrameContext.task
     if task is not None:
-        t = task.start_task(label, data, var)
+        t = task.start_task(label, data, var, defer, inherit, unscheduled)
         return t
     return None
 
