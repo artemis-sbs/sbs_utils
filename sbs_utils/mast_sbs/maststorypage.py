@@ -733,7 +733,7 @@ class StoryPage(Page):
                     # This is a bit of a hack to clear the properties
                     # List box
                     _ship = FrameContext.context.sbs.get_ship_of_client(self.client_id)
-                    if _ship is not None:
+                    if _ship is not None and _ship != 0:
                         FrameContext.context.sbs.send_comms_selection_info(_ship, "", "white", "static")
                     from ..procedural.gui.property_listbox import gui_reset_variables
                     with FrameContextOverride(self.gui_task, self):
