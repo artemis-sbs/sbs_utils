@@ -3,9 +3,9 @@
 import sys
 
 def mast_run(filename):
-    script = sys.modules.get('script')
-    if script is None:
-        sys.modules['script'] = sys.modules.get('__main__')
+    # script = sys.modules.get('script')
+    # if script is None:
+    #     sys.modules['script'] = sys.modules.get('__main__')
 
     from sbs_utils.mast.mast import Mast
     from sbs_utils.mast.mastscheduler import MastScheduler, PollResults

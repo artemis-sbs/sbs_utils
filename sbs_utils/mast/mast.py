@@ -427,7 +427,7 @@ class Mast():
         #
         # look in the story.json
         #
-        is_test = sys.modules['script']
+        is_test = sys.modules.get('script')
         if is_test is None or isinstance(is_test, str):
             return []
 
@@ -435,6 +435,8 @@ class Mast():
         missions_dir = fs.get_missions_dir()
         story_settings = os.path.join(script_dir,"story.json")
         lib_dir = os.path.join(missions_dir,"__lib__")
+        if not os.path.exists(story_settings):
+            return []
         with open(story_settings, 'r') as file:
             data = json.load(file)
             # No file that's OK
@@ -453,6 +455,8 @@ class Mast():
         missions_dir = fs.get_missions_dir()
         story_settings = os.path.join(script_dir,"story.json")
         lib_dir = os.path.join(missions_dir,"__lib__")
+        if not os.path.exists(story_settings):
+            return
         with open(story_settings, 'r') as file:
             data = json.load(file)
             res_zips = data.get("resources", {})

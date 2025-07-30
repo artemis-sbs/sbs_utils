@@ -24,7 +24,7 @@ def mast_format_string(s):
         return FrameContext.task.compile_and_format_string(s)
 
 MastGlobals.globals["mast_format_string"] = mast_format_string
-MastGlobals.globals["script"] = sys.modules['script']
+MastGlobals.globals["script"] = sys.modules.get('script')
 
 import sbs
 from .. import vec
