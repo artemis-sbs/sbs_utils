@@ -21,14 +21,15 @@ def any_role (roles: str):
     
     Returns:
         agent id set: a set of agent IDs"""
-def get_race (id_or_obj):
-    """get the race of the specified agent
+def has_any_role (so, roles):
+    """check if an agent has any the roles specified
     
     Args:
-        id_or_obj (agent): an agent id or object
+        so (an agent): an agent id or object
+        role (str): a string comma separated roles
     
     Returns:
-        str: The race of the object or None"""
+        bool: if the agent has that role"""
 def has_role (so, role):
     """check if an agent has a role
     
@@ -61,6 +62,28 @@ def role (role: str):
     
     Returns:
         agent id set: a set of agent IDs"""
+def role_allies (id_or_obj):
+    """returns a set of all the ids from allies.
+    
+    Args:
+        id_or_obj (id | object): The item to get allies
+    
+    Returns:
+        agent id set: a set of agent IDs"""
+def role_ally_add (id_or_obj, side):
+    """adds an side as an ally
+    
+    Args:
+        id_or_obj (id | object): The item to get allies
+        side (str): The side string"""
+def role_ally_remove (id_or_obj, side):
+    """adds an side as an ally
+    
+    Args:
+        id_or_obj (id | object): The item to get allies
+        side (str): The side string"""
+def role_are_allies (id_or_obj, other_id_or_obj):
+    ...
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     """converts the item passed to an agent
     
@@ -89,3 +112,14 @@ def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     
     Returns:
         set of things"""
+def to_space_object (other: sbs_utils.agent.Agent | int):
+    """converts the item passed to an gui client
+    
+    ??? note
+        Retrun of None could mean the agent no longer exists
+    
+    Args:
+        other (Agent | CloseData | int): The agent ID or other agent like data
+    
+    Returns:
+        agent | None: The agent or None"""

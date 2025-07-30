@@ -1,0 +1,16 @@
+from sbs_utils.mast.core_nodes.decorator_label import DecoratorLabel
+from sbs_utils.mast.mast_node import MastNode
+def STRING_REGEX_NAMED (name):
+    ...
+def mast_node (append=True):
+    ...
+class InlineRoute(MastNode):
+    """class InlineRoute"""
+    def __init__ (self, path, m=None, loc=None, compile_info=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def is_indentable (self):
+        ...
+    def never_indent (self):
+        ...
+    def parse (lines):
+        ...

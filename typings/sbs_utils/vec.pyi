@@ -141,6 +141,8 @@ class Vec3(object):
         
         Returns:
             (bool):  if they are equal"""
+    def from2x_coord (x, y, z):
+        ...
     def length (self):
         """length immutable
         

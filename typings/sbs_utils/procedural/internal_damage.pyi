@@ -1,3 +1,4 @@
+from sbs_utils.agent import Agent
 from sbs_utils.helpers import FrameContext
 def add_role (set_holder, role):
     """add a role to a set of agents
@@ -13,7 +14,7 @@ def all_roles (roles: str):
     
     Returns:
         agent id set: a set of agent IDs"""
-def comms_broadcast (ids_or_obj, msg, color='#fff'):
+def comms_broadcast (ids_or_obj, msg, color=None) -> None:
     """Send text to the text waterfall
     The ids can be player ship ids or client/console ids
     
@@ -171,7 +172,7 @@ def set_inventory_value (so, key, value):
         id_or_obj (agent): The agent id or object to check
         key (str): The key/name of the inventory item
         value (any): the value"""
-def signal_emit (name, data):
+def signal_emit (name, data=None):
     ...
 def to_blob (id_or_obj):
     """gets the engine dataset of the specified agent

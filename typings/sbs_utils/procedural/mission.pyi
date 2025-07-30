@@ -1,6 +1,6 @@
 from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.pollresults import PollResults
-def AWAIT (promise: sbs_utils.futures.Promise):
+def AWAIT (promise: sbs_utils.futures.Promise) -> sbs_utils.futures.PromiseWaiter:
     """Creates a entity to wait (non-blocking) for a promise to complete
     
     Args:
@@ -18,23 +18,7 @@ def mission_runner (label=None, data=None):
     
     Yields:
         PollResults: Sucess or Failure"""
-def sub_task_schedule (label, data=None, var=None):
-    """create an new task and start running at the specified label
-    
-    Args:
-        label (str or label): The label to run
-        data (duct, optional): Data to initialie task variables. Defaults to None.
-        var (str, optional): Set the variable to the task created. Defaults to None.
-    
-    Returns:
-        MastAsyncTask : The MAST task created"""
-def task_schedule (label, data=None, var=None):
-    """create an new task and start running at the specified label
-    
-    Args:
-        label (str or label): The label to run
-        data (duct, optional): Data to initialie task variables. Defaults to None.
-        var (str, optional): Set the variable to the task created. Defaults to None.
-    
-    Returns:
-        MastAsyncTask : The MAST task created"""
+def sub_task_schedule (*args, **kwargs):
+    ...
+def task_schedule (*args, **kwargs):
+    ...

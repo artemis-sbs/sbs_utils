@@ -8,7 +8,8 @@ from sbs_utils.mast_sbs.story_nodes.comms_message import CommsMessageStartRuntim
 from sbs_utils.mast_sbs.story_nodes.define_format import DefineFormat
 from sbs_utils.mast_sbs.story_nodes.gui_console_decorator_label import GuiConsoleDecoratorLabel
 from sbs_utils.mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
-from sbs_utils.mast_sbs.story_nodes.map_decorator_label import MapDecoratorLabel
+from sbs_utils.mast_sbs.story_nodes.inline_route import InlineRoute
+from sbs_utils.mast_sbs.story_nodes.card_map import MapCardLabel
 from sbs_utils.mast_sbs.story_nodes.media import MediaLabel
 from sbs_utils.mast_sbs.story_nodes.route_label import RouteDecoratorLabel
 from sbs_utils.mast_sbs.story_nodes.weighted_text import WeightedText

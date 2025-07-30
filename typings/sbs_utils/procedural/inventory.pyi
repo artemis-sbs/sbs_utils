@@ -48,6 +48,14 @@ def inventory_value (id_or_obj, key: str, default=None):
         id_or_obj (agent): The agent id or object to check
         key (str): The key/name of the inventory item
         default (any): the default value data"""
+def remove_inventory_value (so, key):
+    """set inventory value with the given key the the agent  has
+        this is the way to create a collection in inventory
+    
+    Args:
+        id_or_obj (agent): The agent id or object to check
+        key (str): The key/name of the inventory item
+        value (any): the value"""
 def set_inventory_value (so, key, value):
     """set inventory value with the given key the the agent  has
         this is the way to create a collection in inventory

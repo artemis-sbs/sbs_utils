@@ -23,6 +23,15 @@ def get_face (ship_id):
     
     Returns:
         str: A Face string"""
+def get_face_from_data (race):
+    """depricated in v1.1.0
+    use random_race instead
+    
+    Args:
+        race (_type_): _description_
+    
+    Returns:
+        _type_: _description_"""
 def kralien (face_i, eye_i, mouth_i, scalp_i, extra_i):
     """Create an kralien face
     
@@ -42,7 +51,7 @@ def random_arvonian ():
     
     Returns:
         (str):   A Face string"""
-def random_face (race):
+def random_face (race=None):
     """Returns a random face for the specified race
     
     Args:

@@ -10,6 +10,8 @@ def all_objects_exists (the_set):
     
     Returns:
         bool: False if any object does not exist, True if all exist"""
+def are_variables_defined (keys):
+    ...
 def dec_disable_grid_selection (id_or_obj):
     ...
 def dec_disable_science_selection (id_or_obj):
@@ -38,6 +40,15 @@ def get_grid_selection (id_or_not):
     
     Returns:
         agent id | None: The agent id or None"""
+def get_race (id_or_obj):
+    """get the race of the specified agent
+        race by default is the side from ship_data
+    
+    Args:
+        id_or_obj (agent): an agent id or object
+    
+    Returns:
+        str: The race of the object or None"""
 def get_science_selection (id_or_not):
     """gets the id of the science selection
     
@@ -194,6 +205,17 @@ def to_blob (id_or_obj):
     
     Returns:
         data set| None: Returns the data or None if it does not exist"""
+def to_client_object (other: sbs_utils.agent.Agent | int):
+    """converts the item passed to an gui client
+    
+    ??? note
+        Retrun of None could mean the agent no longer exists
+    
+    Args:
+        other (Agent | CloseData | int): The agent ID or other agent like data
+    
+    Returns:
+        agent | None: The agent or None"""
 def to_data_set (id_or_obj):
     """gets the engine dataset of the specified agent
     
@@ -213,6 +235,17 @@ def to_engine_object (id_or_obj):
     
     Returns:
         pointer: A C++ pointer to the engine object"""
+def to_grid_object (other: sbs_utils.agent.Agent | int):
+    """converts the item passed to an gui client
+    
+    ??? note
+        Retrun of None could mean the agent no longer exists
+    
+    Args:
+        other (Agent | CloseData | int): The agent ID or other agent like data
+    
+    Returns:
+        agent | None: The agent or None"""
 def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     """converts item passed to an agent id
     
@@ -272,3 +305,14 @@ def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     
     Returns:
         set of things"""
+def to_space_object (other: sbs_utils.agent.Agent | int):
+    """converts the item passed to an gui client
+    
+    ??? note
+        Retrun of None could mean the agent no longer exists
+    
+    Args:
+        other (Agent | CloseData | int): The agent ID or other agent like data
+    
+    Returns:
+        agent | None: The agent or None"""

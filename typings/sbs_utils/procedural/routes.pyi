@@ -1,4 +1,4 @@
-from sbs_utils.procedural.gui import ButtonPromise
+from sbs_utils.procedural.gui.gui import ButtonPromise
 from sbs_utils.damagedispatcher import CollisionDispatcher
 from sbs_utils.damagedispatcher import DamageDispatcher
 from sbs_utils.consoledispatcher import ConsoleDispatcher
@@ -26,6 +26,14 @@ def follow_route_select_science (origin_id, selected_id):
     Args:
         origin_id (agent): The agent id of the player ship
         selected_id (agent): The agent id of the target space object"""
+def get_inventory_value (id_or_object, key, default=None):
+    """get inventory value with the given key the the agent  has
+        this is the way to create a collection in inventory
+    
+    Args:
+        id_or_obj (agent): The agent id or object to check
+        key (str): The key/name of the inventory item
+        default (any): the default value data"""
 def route_change_console (label):
     """called when a  change console button is pressed.
     
@@ -59,6 +67,13 @@ def route_collision_passive (label):
     
     Returns:
         The route: Used rarely to cancel the route"""
+def route_common_navigate (path, label):
+    """called to extend a comms navigation
+    
+    
+    Args:
+        path: (str): The navigation path to extend
+        label (label): The label to run"""
 def route_comms_navigate (path, label):
     """called to extend a comms navigation
     
@@ -304,6 +319,17 @@ def route_point_weapons (label):
     
     Note:
         This is not intended for long running tasks
+    
+    Args:
+        label (label): The label to run
+    
+    Returns:
+        The route: Used rarely to cancel the route"""
+def route_popup_comms_2d (label):
+    """called when a a point event occurs in comms.
+    
+    Note:
+        No know use for this currently
     
     Args:
         label (label): The label to run

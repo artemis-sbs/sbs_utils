@@ -34,10 +34,22 @@ class FrameContextMeta(type):
     def client_id (self):
         ...
     @property
+    def client_page (self):
+        ...
+    @property
+    def client_task (self):
+        ...
+    @property
     def page (self):
         ...
     @page.setter
     def page (self, value):
+        ...
+    @property
+    def server_page (self):
+        ...
+    @property
+    def server_task (self):
         ...
     @property
     def sim (self):
@@ -51,3 +63,11 @@ class FrameContextMeta(type):
     @task.setter
     def task (self, value):
         ...
+class FrameContextOverride(object):
+    """class FrameContextOverride"""
+    def __enter__ (self):
+        ...
+    def __exit__ (self, exc_type, exc_val, exc_tb):
+        ...
+    def __init__ (self, task=None, page=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""

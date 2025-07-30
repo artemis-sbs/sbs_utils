@@ -1,7 +1,15 @@
+from sbs_utils.agent import Agent
 from sbs_utils.agent import CloseData
 from sbs_utils.helpers import FrameContext
+from sbs_utils.griddispatcher import GridDispatcher
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.vec import Vec3
+def add_role (set_holder, role):
+    """add a role to a set of agents
+    
+    Args:
+        set_holder (agent set): a set of IDs or
+        role (str): The role to add"""
 def get_artemis_data_dir_filename (filename):
     ...
 def get_inventory_value (id_or_object, key, default=None):
@@ -59,6 +67,8 @@ def grid_closest (grid_obj, target_set=None, max_dist=None, filter_func=None) ->
     
     Returns:
         CloseData: The gird close data of the closest object"""
+def grid_delete_objects (ship_id_or_obj):
+    ...
 def grid_detailed_status (id_or_obj, status, color=None):
     """sets the detailed status of a grid object
     
@@ -100,6 +110,18 @@ def grid_objects_at (so_id, x, y):
     
     Returns:
         set: a set of agent ids"""
+def grid_pos_data (id):
+    """get a set of agent ids of the grid objects on the specified ship, at the location specified
+    
+    Args:
+        so_id (agent): agent id or object
+        x (int): The x grid location
+        y (int): The y grid location
+    
+    Returns:
+        (float,float,float) : x, y, path_length"""
+def grid_remove_move_role (event):
+    ...
 def grid_set_grid_current_theme (i):
     ...
 def grid_set_grid_named_theme (name):
@@ -150,6 +172,12 @@ def grid_target_pos (grid_obj_or_set, x: float, y: float, speed=0.01):
         speed (float, optional): The grid object speed. Defaults to 0.01."""
 def load_json_data (file):
     ...
+def remove_role (agents, role):
+    """remove a role from a set of agents
+    
+    Args:
+        agents (agent set): a set of IDs or
+        role (str): The role to add"""
 def set_inventory_value (so, key, value):
     """set inventory value with the given key the the agent  has
         this is the way to create a collection in inventory
@@ -159,6 +187,17 @@ def set_inventory_value (so, key, value):
         key (str): The key/name of the inventory item
         value (any): the value"""
 def to_blob (id_or_obj):
+    """gets the engine dataset of the specified agent
+    
+    !!! Note
+        Same as to_data_set
+    
+    Args:
+        id_or_obj (agent): Agent id or object
+    
+    Returns:
+        data set| None: Returns the data or None if it does not exist"""
+def to_data_set (id_or_obj):
     """gets the engine dataset of the specified agent
     
     !!! Note

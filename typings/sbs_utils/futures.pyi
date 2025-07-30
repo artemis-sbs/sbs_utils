@@ -1,4 +1,8 @@
 from sbs_utils.mast.pollresults import PollResults
+def awaitable (func):
+    ...
+def promise (*args, **kwargs):
+    ...
 class AwaitBlockPromise(Promise):
     """class AwaitBlockPromise"""
     def __init__ (self, timeout=None) -> None:
@@ -9,8 +13,12 @@ class AwaitBlockPromise(Promise):
         ...
 class Promise(object):
     """class Promise"""
+    def __and__ (self, other):
+        ...
     def __init__ (self) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def __or__ (self, other):
+        """Return self|value."""
     def cancel (self, msg=None):
         ...
     def canceled (self):
@@ -31,8 +39,12 @@ class Promise(object):
         ...
 class PromiseAllAny(Promise):
     """class PromiseAllAny"""
+    def __and__ (self, other):
+        ...
     def __init__ (self, proms, all) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def __or__ (self, other):
+        """Return self|value."""
     def cancel (self, msg=None):
         ...
     def cancelled (self):

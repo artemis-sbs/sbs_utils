@@ -1,4 +1,5 @@
 from sbs_utils.mast.core_nodes.await_cmd import Await
+from sbs_utils.mast.core_nodes.decorator_label import DecoratorLabel
 from sbs_utils.mast_sbs.story_nodes.define_format import DefineFormat
 from sbs_utils.mast.mast_node import MastNode
 from sbs_utils.mast.mast_node import ParseData
@@ -12,7 +13,7 @@ def mast_runtime_node (parser_node):
     ...
 class Button(MastNode):
     """class Button"""
-    def __init__ (self, message=None, button=None, if_exp=None, format=None, label=None, clone=False, q=None, new_task=None, data=None, path=None, block=None, loc=None, compile_info=None):
+    def __init__ (self, message=None, button=None, if_exp=None, format=None, label=None, clone=False, q=None, weight=None, priority=None, new_task=None, data=None, path=None, block=None, promise=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def been_here (self, id_tuple):
         ...
@@ -24,6 +25,8 @@ class Button(MastNode):
         ...
     def is_indentable (self):
         ...
+    def must_indent (self):
+        ...
     def parse (lines):
         ...
     def resolve_data_context (self, task):
@@ -33,6 +36,9 @@ class Button(MastNode):
     def should_present (self, id_tuple):
         ...
     def visit (self, id_tuple):
+        ...
+    @property
+    def weight (self):
         ...
 class ButtonRuntimeNode(MastRuntimeNode):
     """class ButtonRuntimeNode"""

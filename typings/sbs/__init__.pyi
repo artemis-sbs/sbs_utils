@@ -168,6 +168,8 @@ def send_gui_text(clientID: int, parent: str, tag: str, style: str, left: float,
     """Creates a text box GUI element, on the targeted client (0 = server screen)"""
 def send_gui_typein(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a text entry GUI element, on the targeted client (0 = server screen)"""
+def send_hold_menu(clientID: int, subject: int, object: int, extra: int, menuOptionStringSet: str) -> None:
+    """sends info to client that displays a quick menu list on the 2d radar, as a result of a hold-click. menuOptionStringSet is semicolon-delimited.  Subject, object, and extra are repeated back in message when one of these menu buttons is clicked."""
 def send_message_to_client(clientID: int, colorDesc: str, text: str) -> None:
     """sends a text message to the text box, for the specific client. args:  uint64 clientID (0 = server screen), std::string color, std::string text"""
 def send_message_to_player_ship(playerID: int, colorDesc: str, text: str) -> None:

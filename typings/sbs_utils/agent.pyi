@@ -145,6 +145,8 @@ class Agent(object):
     def remove (self):
         """remove the object to the system, called by destroyed normally
                 """
+    def remove_id (id):
+        ...
     def remove_inventory (self, collection_name: 'str', data: 'object'):
         """Remove a role from the space object
         
@@ -185,6 +187,9 @@ class SpawnData(object):
     """class SpawnData"""
     def __init__ (self, id, obj, blob, py_obj) -> 'None':
         """Initialize self.  See help(type(self)) for accurate signature."""
+    @property
+    def data_set (self):
+        ...
 class Stuff(object):
     """A Common class for Role, Links and Inventory"""
     def __init__ (self):

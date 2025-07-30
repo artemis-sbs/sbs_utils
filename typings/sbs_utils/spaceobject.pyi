@@ -3,6 +3,8 @@ from sbs_utils.agent import SpawnData
 from sbs_utils.helpers import FrameContext
 from enum import IntEnum
 from sbs_utils.vec import Vec3
+def get_ship_data_for (key):
+    ...
 class MSpawn(object):
     """class MSpawn"""
     def spawn_common (self, obj, x, y, z, name, side, art_id):
@@ -13,7 +15,7 @@ class MSpawnActive(MSpawn):
         ...
     def _spawn (self, x, y, z, name, side, art_id, behave_id):
         ...
-    def spawn (self, x, y, z, name, side, art_id, behave_id):
+    def spawn (self, x, y, z, name, side, art_id, behave_id) -> 'SpawnData':
         """Spawn a new active object e.g. npc, station
         
         :param sim: The simulation
@@ -35,7 +37,7 @@ class MSpawnActive(MSpawn):
         
         :return: spawn data
         :rtype: SpawnData"""
-    def spawn_v (self, sim, v, name, side, art_id, behave_id):
+    def spawn_v (self, sim, v, name, side, art_id, behave_id) -> 'SpawnData':
         """Spawn a new Active Object e.g. npc, station
         
         :param v: location
@@ -55,9 +57,9 @@ class MSpawnPassive(MSpawn):
     """Mixin to add Spawn as an Passive"""
     def _make_new_passive (self, behave, data_id):
         ...
-    def _spawn (self, x, y, z, name, side, art_id, behave_id):
+    def _spawn (self, x, y, z, name, side, art_id, behave_id) -> 'SpawnData':
         ...
-    def spawn (self, x, y, z, name, side, art_id, behave_id):
+    def spawn (self, x, y, z, name, side, art_id, behave_id) -> 'SpawnData':
         """Spawn a new passive object e.g. Asteroid, etc.
         
         :param x: x location
@@ -77,7 +79,7 @@ class MSpawnPassive(MSpawn):
         
         :return: spawn data
         :rtype: SpawnData"""
-    def spawn_v (self, v, name, side, art_id, behave_id):
+    def spawn_v (self, v, name, side, art_id, behave_id) -> 'SpawnData':
         """Spawn a new passive object e.g. asteroid, etc.
         
         :param v: location
@@ -96,9 +98,9 @@ class MSpawnPlayer(MSpawn):
     """class MSpawnPlayer"""
     def _make_new_player (self, behave, data_id):
         ...
-    def _spawn (self, x, y, z, name, side, art_id):
+    def _spawn (self, x, y, z, name, side, art_id) -> 'SpawnData':
         ...
-    def spawn (self, x, y, z, name, side, art_id):
+    def spawn (self, x, y, z, name, side, art_id) -> 'SpawnData':
         """Spawn a new player
         
         :param sim: The simulation
@@ -119,7 +121,7 @@ class MSpawnPlayer(MSpawn):
         :type behave_id: str
         :return: spawn data
         :rtype: SpawnData"""
-    def spawn_v (self, v, name, side, art_id):
+    def spawn_v (self, v, name, side, art_id) -> 'SpawnData':
         """Spawn a new player
         
         :param sim: The simulation
@@ -147,7 +149,7 @@ class SpaceObject(Agent):
     def art_id (self: 'SpaceObject') -> 'str':
         """str, cached version of art_id"""
     @art_id.setter
-    def art_id (self: 'SpaceObject', value: 'str'):
+    def art_id (self: 'SpaceObject', value: 'str') -> 'None':
         """str, cached version of art_id"""
     def clear ():
         ...
@@ -169,11 +171,13 @@ class SpaceObject(Agent):
         :type color: str"""
     def debug_remove_mark_loc (name: 'str'):
         ...
+    def delete_object (self):
+        ...
     def get (id):
         ...
     def get_as (id, as_cls):
         ...
-    def get_engine_object (self):
+    def get_engine_object (self) -> 'SpaceObject':
         """Gets the simulation space object
         
         :return: The simulation space object
@@ -186,7 +190,7 @@ class SpaceObject(Agent):
         ...
     def get_role_set (role):
         ...
-    def get_space_object (self):
+    def get_space_object (self) -> 'SpaceObject':
         """Gets the simulation space object
         
         :return: The simulation space object
@@ -200,27 +204,27 @@ class SpaceObject(Agent):
     def has_links_set (collection_name):
         ...
     @property
-    def is_active (self):
+    def is_active (self) -> 'bool':
         ...
     @property
-    def is_npc (self):
+    def is_npc (self) -> 'bool':
         ...
     @property
-    def is_passive (self):
+    def is_passive (self) -> 'bool':
         ...
     @property
-    def is_player (self):
+    def is_player (self) -> 'bool':
         ...
     @property
-    def is_terrain (self):
+    def is_terrain (self) -> 'bool':
         ...
-    def log (s: 'str'):
+    def log (s: 'str') -> 'None':
         ...
     @property
     def name (self: 'SpaceObject') -> 'str':
         """str, cached version of comms_id"""
     @name.setter
-    def name (self: 'SpaceObject', value: 'str'):
+    def name (self: 'SpaceObject', value: 'str') -> 'None':
         """str, cached version of comms_id"""
     @property
     def pos (self: 'SpaceObject') -> 'Vec3':
@@ -228,6 +232,11 @@ class SpaceObject(Agent):
     @pos.setter
     def pos (self: 'SpaceObject', *args):
         """str, cached version of art_id"""
+    @property
+    def race (self):
+        ...
+    def remove_id (id):
+        ...
     def resolve_id (other: 'Agent | CloseData | int'):
         ...
     def resolve_py_object (other: 'Agent | CloseData | int'):
@@ -237,7 +246,7 @@ class SpaceObject(Agent):
         
         :return: name
         :rtype: str"""
-    def set_name (self, name):
+    def set_name (self, name) -> 'str':
         """Get the name of the object
         :return: name
         :rtype: str"""
@@ -250,9 +259,9 @@ class SpaceObject(Agent):
     def side (self: 'SpaceObject') -> 'str':
         """str, cached version of comms_id"""
     @side.setter
-    def side (self: 'SpaceObject', value: 'str'):
+    def side (self: 'SpaceObject', value: 'str') -> 'None':
         """str, cached version of comms_id"""
-    def space_object (self):
+    def space_object (self) -> 'SpaceObject':
         """get the simulation's space object for the object
         
         :return: simulation space object

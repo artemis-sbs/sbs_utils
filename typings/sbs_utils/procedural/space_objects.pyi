@@ -19,7 +19,13 @@ def broad_test (x1: float, z1: float, x2: float, z2: float, broad_type=65520):
         z1(float): z location (top)
         x2(float): x location (right)
         z2(float): z location (bottom)
-        broad_type (int, optional): -1=All, 0=player, 1=Active, 2=Passive. Defaults to -1.
+        broad_type (int, optional):
+            TERRAIN = 0x01,
+            NPC = 0x10,
+            PLAYER = 0x20,
+            ALL = 0xffff,
+            NPC_AND_PLAYER = 0x30,
+            DEFAULT is 0xFFF0
     
     Returns:
         set: A set of ids"""
@@ -30,7 +36,14 @@ def broad_test_around (id_or_obj, width: float, depth: float, broad_type=65520):
         id_obj(agent): The ID or object of an agent
         w(float): width
         d(float): depth
-        broad_type (int, optional): -1=All, 0=player, 1=Active, 2=Passive. Defaults to -1.
+        broad_type (int, optional):
+            TERRAIN = 0x01,
+            NPC = 0x10,
+            PLAYER = 0x20,
+            ALL = 0xffff,
+            NPC_AND_PLAYER = 0x30,
+            DEFAULT is 0xFFF0
+    
     
     Returns:
         set: A set of ids"""
@@ -72,6 +85,26 @@ def closest_object (the_ship, the_set, max_dist=None, filter_func=None) -> sbs_u
     
     Returns:
         agent: Return the closest agents or None"""
+def delete_object (id_or_objs):
+    """Removes items from an area
+    
+        """
+def delete_objects_box (x, y, z, w, h, d, abits=15, roles=None):
+    """Removes items from an area
+    
+    Args:
+        x,y,z (float,float,float): the start point/origin
+        radius (float): the radius
+        abits = the engine level bit test for broadtest
+        roles = limit to specified roles"""
+def delete_objects_sphere (x, y, z, radius, abits=15, roles=None):
+    """Removes items from an area
+    
+    Args:
+        x,y,z (float,float,float): the start point/origin
+        radius (float): the radius
+        abits = the engine level bit test for broadtest
+        roles = limit to specified roles"""
 def get_engineering_value (id_or_obj, name, default=None):
     """gets an engineering value by name
     
@@ -98,22 +131,6 @@ def object_exists (so_id):
     
     Returns:
         bool: if the object exists in the engine"""
-def remove_objects_box (x, y, z, w, h, d, abits=15, roles=None):
-    """Removes items from an area
-    
-    Args:
-        x,y,z (float,float,float): the start point/origin
-        radius (float): the radius
-        abits = the engine level bit test for broadtest
-        roles = limit to specified roles"""
-def remove_objects_sphere (x, y, z, radius, abits=15, roles=None):
-    """Removes items from an area
-    
-    Args:
-        x,y,z (float,float,float): the start point/origin
-        radius (float): the radius
-        abits = the engine level bit test for broadtest
-        roles = limit to specified roles"""
 def set_engineering_value (id_or_obj, name, value):
     """sets an engineering value by name
     

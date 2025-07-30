@@ -1,5 +1,5 @@
-from sbs_utils.pages.layout.layout import Bounds
-from sbs_utils.pages.layout.layout import Column
+from sbs_utils.pages.layout.bounds import Bounds
+from sbs_utils.pages.layout.column import Column
 from sbs_utils.pages.widgets.control import Control
 from sbs_utils.helpers import FrameContext
 def get_client_aspect_ratio (cid):

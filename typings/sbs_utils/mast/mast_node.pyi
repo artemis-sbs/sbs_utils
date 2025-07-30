@@ -16,7 +16,7 @@ class DescribableNode(MastNode):
         ...
     def append_text (self, prefix, text):
         ...
-    def apply_meta_data (self, data):
+    def apply_metadata (self, data):
         ...
     @property
     def desc (self):
@@ -29,6 +29,8 @@ class MastDataObject(object):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def __repr__ (self):
         """Return repr(self)."""
+    def get (self, key, defa):
+        ...
 class MastNode(object):
     """class MastNode"""
     def __init__ (self):
@@ -44,6 +46,8 @@ class MastNode(object):
     def is_virtual (self):
         """Virtual nodes are not added to the command stack
         instead the interact with other nodes"""
+    def must_indent (self):
+        ...
     def never_indent (self):
         ...
     def parse (lines):

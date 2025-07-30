@@ -51,6 +51,9 @@ class GridObject(Agent):
     def has_links_set (collection_name):
         ...
     @property
+    def host (self: 'GridObject') -> 'int':
+        """the host id of the grid object"""
+    @property
     def is_grid_object (self):
         ...
     @property
@@ -59,6 +62,8 @@ class GridObject(Agent):
     @name.setter
     def name (self: 'GridObject', name):
         """str, cached version of name"""
+    def remove_id (id):
+        ...
     def resolve_id (other: 'Agent | CloseData | int'):
         ...
     def resolve_py_object (other: 'Agent | CloseData | int'):

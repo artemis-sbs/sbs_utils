@@ -1,6 +1,8 @@
 from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.futures import Promise
+def awaitable (func):
+    ...
 def clear_counter (id_or_obj, name):
     """removes a counter
     Args:
@@ -12,36 +14,12 @@ def clear_timer (id_or_obj, name):
     Args:
         id_or_obj (agent): The id or object of the agent that has the timer
         name (str): Timer name"""
-def delay_app (seconds=0, minutes=0):
-    """creates a Promise that waits for the specified time to elapse
-    this is in app time (i.e. it could NOT get paused)
-    
-    Args:
-        seconds (int, optional): The number of seconds. Defaults to 0.
-        minutes (int, optional): The number of minutes. Defaults to 0.
-    
-    Returns:
-        Promise: A promise that is done when time has elapsed"""
-def delay_sim (seconds=0, minutes=0):
-    """creates a Promise that waits for the specified time to elapse
-    this is in simulation time (i.e. it could get paused)
-    
-    Args:
-        seconds (int, optional): The number of seconds. Defaults to 0.
-        minutes (int, optional): The number of minutes. Defaults to 0.
-    
-    Returns:
-        Promise: A promise that is done when time has elapsed"""
-def delay_test (seconds=0, minutes=0):
-    """creates a Promise that waits for the specified time to elapse
-    this is for unit testing and not realtime
-    
-    Args:
-        seconds (int, optional): The number of seconds. Defaults to 0.
-        minutes (int, optional): The number of minutes. Defaults to 0.
-    
-    Returns:
-        Promise: A promise that is done when time has elapsed"""
+def delay_app (*args, **kwargs):
+    ...
+def delay_sim (*args, **kwargs):
+    ...
+def delay_test (*args, **kwargs):
+    ...
 def format_time_remaining (id_or_obj, name):
     """Get the remaining time on a timer and return a formatted string
     
@@ -51,7 +29,7 @@ def format_time_remaining (id_or_obj, name):
     
     Returns:
         str: A formatted string with the minutes and seconds left on the timer"""
-def get_counter_elapsed_seconds (id_or_obj, name):
+def get_counter_elapsed_seconds (id_or_obj, name, default_value=None):
     """returns the number of seconds since the counter started
     
     Args:
@@ -129,26 +107,10 @@ def start_counter (id_or_obj, name):
     Args:
         id_or_obj (agent): The agent to set the timer for
         name (str): The name of the timer"""
-def timeout (seconds=0, minutes=0):
-    """creates a Promise that waits for the specified time to elapse
-    this is in simulation time (i.e. it could NOT get paused)
-    
-    Args:
-        seconds (int, optional): The number of seconds. Defaults to 0.
-        minutes (int, optional): The number of minutes. Defaults to 0.
-    
-    Returns:
-        Promise: A promise that is done when time has elapsed"""
-def timeout_sim (seconds=0, minutes=0):
-    """creates a Promise that waits for the specified time to elapse
-    this is in simulation time (i.e. it could get paused)
-    
-    Args:
-        seconds (int, optional): The number of seconds. Defaults to 0.
-        minutes (int, optional): The number of minutes. Defaults to 0.
-    
-    Returns:
-        Promise: A promise that is done when time has elapsed"""
+def timeout (*args, **kwargs):
+    ...
+def timeout_sim (*args, **kwargs):
+    ...
 class Delay(Promise):
     """class Delay"""
     def __init__ (self, seconds, minutes, sim) -> None:

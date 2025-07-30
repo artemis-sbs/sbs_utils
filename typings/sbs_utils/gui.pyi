@@ -142,6 +142,8 @@ class GuiClient(Agent):
         
         :param page:
         :type Page: A GUI Page"""
+    def remove_id (id):
+        ...
     def resolve_id (other: 'Agent | CloseData | int'):
         ...
     def resolve_py_object (other: 'Agent | CloseData | int'):

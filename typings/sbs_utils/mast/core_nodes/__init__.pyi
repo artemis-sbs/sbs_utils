@@ -11,8 +11,9 @@ from sbs_utils.mast.core_nodes.jump_cmd import Jump
 from sbs_utils.mast.core_nodes.label import Label
 from sbs_utils.mast.core_nodes.loop import LoopBreak
 from sbs_utils.mast.core_nodes.loop import LoopStart
+from sbs_utils.mast.core_nodes.metadata_block import MetaDataBlock
 from sbs_utils.mast.core_nodes.on_change import OnChange
+from sbs_utils.mast.core_nodes.on_signal import OnSignal
 from sbs_utils.mast.core_nodes.inline_python import PyCode
 from sbs_utils.mast.core_nodes.with_cmd import WithStart
-from sbs_utils.mast.core_nodes.yaml_block import YamlBlock
 from sbs_utils.mast.core_nodes.yield_cmd import Yield

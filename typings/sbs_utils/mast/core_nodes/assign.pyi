@@ -10,7 +10,7 @@ def mast_runtime_node (parser_node):
     ...
 class Assign(MastNode):
     """class Assign"""
-    def __init__ (self, is_default, scope, lhs, oper, exp, a_wait=None, quote=None, py=None, loc=None, compile_info=None):
+    def __init__ (self, is_default, scope, lhs, oper, exp, a_wait=None, quote=None, py=None, yaml=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def parse (lines):
         ...
@@ -18,6 +18,8 @@ class AssignRuntimeNode(MastRuntimeNode):
     """class AssignRuntimeNode"""
     def __init__ (self) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def _set_value (self, value, node, task):
+        ...
     def poll (self, mast, task: sbs_utils.mast.core_nodes.assign.MastAsyncTask, node: sbs_utils.mast.core_nodes.assign.Assign):
         ...
 class MastAsyncTask(object):

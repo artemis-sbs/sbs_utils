@@ -1,19 +1,17 @@
 from sbs_utils.agent import Agent
-from sbs_utils.mast_sbs.mast_cards import CardLabel
-from sbs_utils.mast_sbs.mast_cards import ObjectiveLabel
-from sbs_utils.mast_sbs.mast_cards import UpgradeLabel
+from sbs_utils.pages.layout.blank import Blank
 from sbs_utils.helpers import FakeEvent
 from sbs_utils.helpers import FrameContext
+from sbs_utils.helpers import FrameContextOverride
 from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
 from sbs_utils.mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
+from sbs_utils.pages.layout.layout import Layout
 from sbs_utils.mast.maststory import MastStory
-from sbs_utils.mast_sbs.mastmission import MissionLabel
-from sbs_utils.mast_sbs.mastmission import StateMachineLabel
+from sbs_utils.pages.layout.row import Row
 from sbs_utils.mast_sbs.maststoryscheduler import StoryScheduler
+from sbs_utils.pages.layout.text import Text
 def apply_control_styles (control_name, extra_style, layout_item, task):
-    ...
-def get_client_aspect_ratio (cid):
     ...
 def get_inventory_value (id_or_object, key, default=None):
     """get inventory value with the given key the the agent  has
@@ -44,7 +42,7 @@ def linked_to (link_source, link_name: str):
         link_source(id): The id object to check
         link_name (str): The key/name of the inventory item
         set | None: set of ids"""
-def log (message, name=None, level=None):
+def log (message: str, name: str = None, level: str = None) -> None:
     """generate a log message
     
     Args:
@@ -59,6 +57,8 @@ def set_inventory_value (so, key, value):
         id_or_obj (agent): The agent id or object to check
         key (str): The key/name of the inventory item
         value (any): the value"""
+def signal_emit (name, data=None):
+    ...
 class StoryPage(Page):
     """A interface class for creating GUI pages
     
@@ -89,6 +89,10 @@ class StoryPage(Page):
         ...
     def gui_queue_console_tabs (self):
         ...
+    def on_begin_presenting (self):
+        ...
+    def on_end_presenting (self):
+        ...
     def on_event (self, event):
         """on_event
         
@@ -103,6 +107,8 @@ class StoryPage(Page):
         
         :param event: The event data
         :type event: event"""
+    def on_new_gui (self):
+        ...
     def pop_sub_section (self, add_content, is_rebuild):
         ...
     def present (self, event):
