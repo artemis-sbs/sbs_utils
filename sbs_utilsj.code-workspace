@@ -23,6 +23,9 @@
 		},
 		{
 			"path": "../MiningDays"
+		},
+		{
+			"path": "../quick_example"
 		}
 	],
 	"settings": {
