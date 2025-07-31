@@ -69,8 +69,11 @@ def prefab_spawn(label, data=None, OFFSET_X=None, OFFSET_Y= None, OFFSET_Z= None
         else:
             data["START_Z"] = OFFSET_Z
 
-
-    return task_schedule(label, data=data, inherit=False)
+    t = task_schedule(label, data=data, defer=True, inherit=False)
+    t.set_variable("self", t)
+    t.set_variable("prefab", t)
+    t.tick_in_context()
+    return t
 
 __auto_name_counts = {}
 def prefab_autoname(name):
