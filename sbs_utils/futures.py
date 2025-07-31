@@ -38,12 +38,14 @@ class Promise:
         self._canceled = True
 
     def __and__(self, other):
+        from .procedural.execution import promise_all, promise_any
         if isinstance(other, Promise):
             return promise_all([self, other])
         else:
             raise TypeError("Unsupported operand type(s) for & and Promise")
 
     def __or__(self, other):
+        from .procedural.execution import promise_all, promise_any
         if isinstance(other, Promise):
             return promise_any([self, other])
         else:

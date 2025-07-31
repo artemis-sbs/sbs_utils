@@ -2,29 +2,42 @@
 
 import sys
 
+from sbs_utils.helpers import FrameContext
+
+class JustEnoughSim:
+    def __init__(self):
+        self.start = FrameContext.app_seconds
+    @property
+    def time_tick_counter(self):
+        return int(FrameContext.app_seconds-self.start) * 30
+    
+class JustEnoughSbs:
+    pass
+
 def mast_run(filename):
     # script = sys.modules.get('script')
     # if script is None:
     #     sys.modules['script'] = sys.modules.get('__main__')
 
     from sbs_utils.mast.mast import Mast
-    from sbs_utils.mast.mastscheduler import MastScheduler, PollResults
+    from sbs_utils.mast.mastscheduler import MastScheduler
     from sbs_utils.helpers import FrameContext, Context, FakeEvent
     
-    import sbs_utils.procedural.execution as ex
-    import sbs_utils.procedural.timers as timers
-    import sbs_utils.procedural.behavior as behavior
-    import sbs_utils.procedural.gui as gui
-    import sbs_utils.procedural.signal as signal
-    import sbs_utils.procedural.prefab as prefab
+
     from sbs_utils.mast.mast_globals import MastGlobals
+    MastGlobals.import_python_module('sbs_utils.procedural.behavior') # Obsolete?
+    MastGlobals.import_python_module('sbs_utils.procedural.brain')
     MastGlobals.import_python_module('sbs_utils.procedural.execution')
-    MastGlobals.import_python_module('sbs_utils.procedural.behavior')
-    MastGlobals.import_python_module('sbs_utils.procedural.timers')
-    MastGlobals.import_python_module('sbs_utils.procedural.gui')
-    MastGlobals.import_python_module('sbs_utils.procedural.signal')
+    MastGlobals.import_python_module('sbs_utils.procedural.inventory')
+    MastGlobals.import_python_module('sbs_utils.procedural.lifeform')
+    MastGlobals.import_python_module('sbs_utils.procedural.links')
+    MastGlobals.import_python_module('sbs_utils.procedural.maps')
+    MastGlobals.import_python_module('sbs_utils.procedural.objective')
     MastGlobals.import_python_module('sbs_utils.procedural.prefab')
-   
+    MastGlobals.import_python_module('sbs_utils.procedural.roles')
+    MastGlobals.import_python_module('sbs_utils.procedural.signal')
+    MastGlobals.import_python_module('sbs_utils.procedural.settings') #??
+    MastGlobals.import_python_module('sbs_utils.procedural.timers') # Needs sim? Abstract it?
     
     #
     # Uncomment this out to have Mast show the mast code in 
@@ -43,7 +56,10 @@ def mast_run(filename):
             raise Exception(message)
 
     label = "main"
-    # FrameContext.context  = Context(FakeSim(), sbs, FakeEvent())
+    FrameContext.context  = Context(JustEnoughSim(), JustEnoughSbs(), FakeEvent())
     FrameContext.mast = story
     runner = TMastScheduler(story)
-    runner.start_task(label)
+    t = runner.start_task(label)
+    while runner.tick():
+        pass
+

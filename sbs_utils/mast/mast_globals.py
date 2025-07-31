@@ -63,7 +63,10 @@ class MastGlobals:
         
 
     def import_python_module(mod_name, prepend=None):
+        from importlib import import_module
         sca = sys.modules.get(mod_name)
+        if sca is None:
+            sca = import_module(mod_name)
         if sca:
             for (name, func) in getmembers(sca,isfunction):
                 if prepend == None:

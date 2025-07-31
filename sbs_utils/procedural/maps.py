@@ -35,13 +35,13 @@ def maps_get_list():
 
 
 def maps_get_init():
-    page = FrameContext.page
-    if page is None:
+    mast = FrameContext.mast
+    if mast is None:
         return []
     #
     # Walk all labels looking for map Labels
     #
-    all_labels = page.story.labels
+    all_labels = mast.labels
     init_label = None
     for l in all_labels:
         if not l.startswith("map/"):
