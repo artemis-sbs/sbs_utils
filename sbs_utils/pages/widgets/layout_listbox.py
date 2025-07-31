@@ -148,6 +148,7 @@ class LayoutListbox(layout.Column):
         
 
         self.selected = set()
+        self.locked_selections = set()
         self.last_tags = None
         self.horizontal = None
         self.client_id = None
@@ -618,6 +619,9 @@ class LayoutListbox(layout.Column):
             return
         
         item = self.items[index]
+        if item in self.locked_selections:
+            return
+        
         if self.multi:
             if item in self.selected:
                 self.selected.discard(item)
@@ -680,8 +684,6 @@ class LayoutListbox(layout.Column):
             self.selected.add(self.unfiltered_items[i])
             if set_cur:
                 self.cur = i
-
-
         self.redraw_if_showing()
     
     def select_all(self):
@@ -758,6 +760,29 @@ class LayoutListbox(layout.Column):
     
     def update(self, props):
         pass
+
+    def set_read_only(self, v):
+        self.read_only = v
+
+    def set_selection_lock_index(self, i, lock):
+        if i is not None and i < len(self.unfiltered_items):
+            if lock:
+                self.locked_selections.add(self.unfiltered_items[i])
+            else:
+                self.locked_selections.discard(self.unfiltered_items[i])
+
+    def set_selection_lock(self, o, lock):
+        if lock:
+            self.locked_selections.add(o)
+        else:
+            self.locked_selections.discard(o)
+
+    def clear_selection_locks(self):
+        self.locked_selections = set()
+
+    
+
+
 
 
 def layout_list_box_control(items,
