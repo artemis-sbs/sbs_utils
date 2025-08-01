@@ -109,6 +109,10 @@ class ErrorPage(Page):
                 if start_mission is not None:
                     SBS.run_next_mission(start_mission)
 
+def tick_the_rest(event):
+    TickDispatcher.dispatch_tick()
+    Gui.present(event)
+
 
 def cosmos_event_handler(sim, event):
     try:
@@ -139,6 +143,8 @@ def cosmos_event_handler(sim, event):
         Agent.SHARED.set_inventory_value("sim", sim)
         # if event.tag != "mission_tick":
         #print_event(event)
+        # if event.tag != "mission_tick":
+        #     print(f"{event.tag}")
         match(event.tag):
             #	value_tag"
             #	source_point"
@@ -163,9 +169,11 @@ def cosmos_event_handler(sim, event):
             case "client_change":
                 if event.sub_tag == "change_console":
                     Gui.on_event(event)
+                tick_the_rest(event)
 
             case "main_screen_change":
                 Gui.on_event(event)
+                tick_the_rest(event)
             
             case "mission_tick":
                 
@@ -188,15 +196,18 @@ def cosmos_event_handler(sim, event):
                 #print_event(event)
                 DamageDispatcher.dispatch_damage(event)
                 LifetimeDispatcher.dispatch_damage(event)
+                tick_the_rest(event)
 
             case "npc_killed":
                 #print_event(event)
                 DamageDispatcher.dispatch_killed(event)
+                tick_the_rest(event)
                 #LifetimeDispatcher.dispatch_damage(event)
 
             case "station_killed":
                 #print_event(event)
                 DamageDispatcher.dispatch_killed(event)
+                tick_the_rest(event)
                 #LifetimeDispatcher.dispatch_damage(event)
                 
 
@@ -206,26 +217,31 @@ def cosmos_event_handler(sim, event):
                 ship_id = SBS.get_ship_of_client(event.client_id) 
                 if ship_id is not None:
                     set_inventory_value(ship_id, "red_alert", event.value_tag == "on")
-                
+                tick_the_rest(event)
 
 
             case "player_internal_damage":
                 DamageDispatcher.dispatch_internal(event)
+                tick_the_rest(event)
 
             case "heat_critical_damage":
                 #print_event(event)
                 DamageDispatcher.dispatch_heat(event)
+                tick_the_rest(event)
 
             case "passive_collision":
                 #print_event(event)
                 CollisionDispatcher.dispatch_passive(event)
+                tick_the_rest(event)
 
             case "interactive_collision":
                 #print_event(event)
                 CollisionDispatcher.dispatch_interactive(event)
+                tick_the_rest(event)
 
             case "client_connect":
                 Gui.add_client(event)
+                tick_the_rest(event)
 
             case "select_space_object":
                 # print_event(event)
@@ -244,52 +260,64 @@ def cosmos_event_handler(sim, event):
             case "hold_button_pressed":
                 #print_event(event)
                 ConsoleDispatcher.dispatch_message(event, f"{event.sub_tag}_popup")
+                tick_the_rest(event)
 
             case "hold_click":
                 #print_event(event)
                 ConsoleDispatcher.dispatch_select(event)
+                tick_the_rest(event)
 
             case "press_comms_button":
                 ConsoleDispatcher.dispatch_message(event, "comms_target_UID")
+                tick_the_rest(event)
 
             case "client_string":
                 # print_event(event)
                 ClientStringDispatcher.dispatch(event)
+                tick_the_rest(event)
 
             case "science_scan_complete":
                 #print_event(event)
                 ConsoleDispatcher.dispatch_message(event, "science_target_UID")
+                tick_the_rest(event)
 
             case "gui_message":
                 #print_event(event)
                 Gui.on_message(event)
-
+                tick_the_rest(event)                
             case "grid_object":
                 #print_event(event)
                 GridDispatcher.dispatch_grid_event(event)
+                tick_the_rest(event)
 
             case "grid_object_selection":
                 # Set Comms info to empty
                 SBS.send_grid_selection_info(event.parent_id, "", "white", "")
                 ConsoleDispatcher.dispatch_select(event)
-
+                tick_the_rest(event)
+                
             case "press_grid_button":
                 ConsoleDispatcher.dispatch_message(event, "grid_selected_UID")
+                tick_the_rest(event)
                 
             case "grid_point_selection":
                 SBS.send_grid_selection_info(event.parent_id, "", "white", "")
                 GridDispatcher.dispatch_grid_event(event)
+                tick_the_rest(event)
 
             case "fighter_requests_dock":
                 LifetimeDispatcher.dispatch_dock(event)
+                tick_the_rest(event)
 
             case "docking_change":
                 # print_event(event)
                 from .procedural.docking import docking_run_all
                 docking_run_all(event)
+                tick_the_rest(event)
         
             case _:
                 print (f"Unhandled event {event.client_id} {event.tag} {event.sub_tag}")
+                tick_the_rest(event)
         #
         # Call the garbage collector
         # Well behaved things will register 
@@ -324,6 +352,6 @@ def cosmos_event_handler(sim, event):
         text_err = FrameContext.error_message
         FrameContext.error_message = ""
         Gui.push(0, ErrorPage(text_err))
-    
+
 
 

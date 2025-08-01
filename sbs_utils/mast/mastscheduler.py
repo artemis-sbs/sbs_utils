@@ -641,14 +641,15 @@ class MastAsyncTask(Agent, Promise):
             self.on_change_items.append(runtime_node)
 
     def run_on_change(self):
+        any_ran = False
         for change in self.on_change_items:
             if change.test():
                 change.run()
-                return True
+                any_ran = True
         for st in self.sub_tasks:
             if st.run_on_change():
-                return True
-        return False
+                any_ran = True
+        return any_ran
             
     def swap_on_change(self):
         if self.is_gui_task:
