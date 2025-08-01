@@ -95,3 +95,12 @@ def lifeform_transfer(lifeform, new_host):
         lifeform.add_role("ultra_beam")
 
     # Emit signal?
+def lifeform_set_path(lifeform, path=None):
+    lifeform = to_object(lifeform)
+    if lifeform is None:
+        return
+    lifeform.set_inventory_value("path", path)
+    lifeform.remove_role("comms_badge")
+    if path is not None:
+        lifeform.add_role("comms_badge")
+
