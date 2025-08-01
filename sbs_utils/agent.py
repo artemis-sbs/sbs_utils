@@ -12,14 +12,19 @@ def get_story_id():
     story_ids += 1
     return story_ids
 
+class atdict(dict):
+    __getattr__= dict.__getitem__
+    __setattr__= dict.__setitem__
+    __delattr__= dict.__delitem__
 
 class Stuff:
     """ A Common class for Role, Links and Inventory"""
-    def __init__(self):
+    def __init__(self, as_attrib=False):
+        self.as_attrib = as_attrib
         self.clear()
 
     def clear(self):
-        self.collections = {}
+        self.collections = atdict() if self.as_attrib else {}
 
     def remove_collection(self, collection):
         self.collections.pop(collection, None)
@@ -132,7 +137,7 @@ class Agent():
     def __init__(self):
         super().__init__()
         self.links = Stuff()
-        self.inventory = Stuff()
+        self.inventory = Stuff(True)
         self._data_set = None
         self._engine_object = None
 
@@ -408,6 +413,10 @@ class Agent():
     def get_objects_from_set(cls,the_set):
         return [cls.get(x) for x in the_set]
     ####################################
+
+    @property
+    def INV(self):
+        return self.inventory.collections
 
     ############### INVENTORY (Links to data) ############
     def add_inventory(self, collection_name: str, data: object):

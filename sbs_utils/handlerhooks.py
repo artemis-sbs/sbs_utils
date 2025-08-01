@@ -239,6 +239,12 @@ def cosmos_event_handler(sim, event):
                 CollisionDispatcher.dispatch_interactive(event)
                 tick_the_rest(event)
 
+            ## TODO: Add routes and leverage in docking
+            case "within_range":
+                #print_event(event)
+                CollisionDispatcher.dispatch_interactive(event)
+                tick_the_rest(event)
+
             case "client_connect":
                 Gui.add_client(event)
                 tick_the_rest(event)
