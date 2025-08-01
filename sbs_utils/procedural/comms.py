@@ -76,6 +76,7 @@ def comms_broadcast(ids_or_obj, msg, color=None) -> None:
 def _comms_get_colors(to_obj, from_obj, is_receive, title_color, color):
     from .lifeform import Lifeform
 
+    # TODO: Depricate OLD Lifeform
     if title_color is None and isinstance(to_obj, Lifeform):
         title_color = to_obj.title_color
 
@@ -87,6 +88,22 @@ def _comms_get_colors(to_obj, from_obj, is_receive, title_color, color):
 
     if color is None and isinstance(from_obj, Lifeform):
         color = from_obj.message_color
+
+    # New Lifeform via Prefab
+    if not isinstance(to_obj, Lifeform) and to_obj.has_role("lifeform"):
+        if title_color is None :
+            title_color = to_obj.get_inventory_value("title_color")
+
+        if color is None and to_obj.has_role("lifeform"):
+            color = to_obj.get_inventory_value("message_color")
+
+    if not isinstance(from_obj, Lifeform) and from_obj.has_role("lifeform"):
+        if title_color is None:
+            title_color = from_obj.get_inventory_value("title_color")
+
+        if color is None:
+            color = from_obj.get_inventory_value("message_color")
+
 
     if title_color is None:
         allies = role_are_allies(to_obj.id, from_obj.id)
@@ -152,23 +169,25 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             # Make sure life forms have an object
             title_color, color = _comms_get_colors(to_obj, from_obj, is_receive, title_color, color)
 
-            if isinstance(from_obj, (Lifeform, GridObject)):
+            if isinstance(from_obj, (Lifeform, GridObject)) or from_obj.has_role("lifeform"):
                 if from_name is None:
                     from_name = from_obj.name
                     face = get_face(from_obj.id)
-                if from_obj.host==0:
+                host_id = from_obj.get_inventory_value("host", 0)
+                if host_id==0:
                     from_obj = to_obj
                 else:
-                    from_obj = to_object(from_obj.host)
+                    from_obj = to_object(host_id)
                 life = True
 
                 
 
-            if isinstance(to_obj, (Lifeform, GridObject)):
-                if to_obj.host==0:
+            if isinstance(to_obj, (Lifeform, GridObject)) or to_obj.has_role("lifeform"):
+                host_id = to_obj.get_inventory_value("host", 0)
+                if host_id==0:
                     to_obj = from_obj
                 else:
-                    to_obj = to_object(to_obj.host)
+                    to_obj = to_object(host_id)
                 life = True
 
 

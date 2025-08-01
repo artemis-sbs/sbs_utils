@@ -11,7 +11,7 @@ class Lifeform(Agent):
         self.add()
         self.add_role("lifeform")
         self._comms_id = None
-        self._path = "//comms/lifeform"
+        self.path = "//comms/lifeform"
         self._host_id = None
         self.title_color = "green"
         self.message_color = "white"
@@ -32,27 +32,30 @@ class Lifeform(Agent):
 
     @property
     def path(self):
-        return self._path
+        return self.get_inventory_value("path")
+        
     
     @path.setter
     def path(self, v):
         self.remove_role("comms_badge")
-        self._path = v
-        if self._path is not None:
+        self.set_inventory_value("path", v)
+        if v is not None:
             self.add_role("comms_badge")
 
     @property
     def host(self):
-        return self._host_id
+        return self.get_inventory_value("host", 0)
     
     @host.setter
     def host(self, host_id):
         self.remove_role("ultra_beam")
-        if self._host_id:
-            unlink(self._host_id, "onboard", self.id)
-        self._host_id = to_id(host_id)
-        if host_id is not None and is_space_object_id(host_id):
-            link(self._host_id, "onboard", self.id)
+        old_host_id = self.get_inventory_value("host", 0)
+        if old_host_id:
+            unlink(old_host_id, "onboard", self.id)
+        new_host_id = to_id(host_id)
+        self.set_inventory_value("host", new_host_id)
+        if host_id is not None and is_space_object_id(new_host_id):
+            link(new_host_id, "onboard", self.id)
         else:
             self.add_role("ultra_beam")
 
@@ -79,5 +82,16 @@ def lifeform_transfer(lifeform, new_host):
 
     new_host = to_id(new_host)
     lifeform.host = new_host
+
+    lifeform.remove_role("ultra_beam")
+    old_host_id = lifeform.get_inventory_value("host", 0)
+    if old_host_id:
+        unlink(old_host_id, "onboard", lifeform.id)
+    new_host_id = to_id(new_host)
+    lifeform.set_inventory_value("host", new_host_id)
+    if new_host is not None and is_space_object_id(new_host_id):
+        link(new_host_id, "onboard", lifeform.id)
+    else:
+        lifeform.add_role("ultra_beam")
 
     # Emit signal?
