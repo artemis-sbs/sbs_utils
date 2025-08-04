@@ -150,9 +150,9 @@ class TextArea(Control):
 
             # Not sure why 50 expected 100, but
             # it is proportional and a guess?
-            char_width = height *50 / ar.x
-            max_char = int(self.bounds.width // char_width)
-
+            # char_width = (self.bounds.width * 20) / ar.x
+            # max_char = int(self.bounds.width // char_width)
+            pixel_width = (self.bounds.right-self.bounds.left)/100 * ar.x
             lines = some_lines.split("\n")
             last_line = None
 
@@ -161,32 +161,27 @@ class TextArea(Control):
             else:
                 clear_sub_headings(style_key)
 
+            font = style.get("font", "gui-3")
             for line in lines:
                 if len(line.strip()) == 0:
                     continue
-                while len(line) >0:
-                    left_over = ""
-                    if len(line)>max_char:
-                        chop_sp = line.rfind(" ", 0, max_char)
-                        if chop_sp!=-1:
-                            left_over = line[chop_sp:].strip()
-                            line = line[:chop_sp].strip()
-
-                    # Chop up string by length?
-                    screen_height = height *100 / ar.y
-                    calc_height += screen_height
                 
-                    is_a_list = style_key.startswith("ol") or  style_key.startswith("ul")
-                    if is_a_list:
-                        prepend = get_prepend(style_key)
-                        line = prepend +  line
-                    last_line = TextLine(line,style_key, char_width, screen_height, False)
-                    self.lines.append(last_line)
-                    line = left_over
+                is_a_list = style_key.startswith("ol") or  style_key.startswith("ul")
+                if is_a_list:
+                    prepend = get_prepend(style_key)
+                    line = prepend +  line
 
-            if last_line is not None:
-                last_line.is_end = True
-                last_line.height *= 1.5
+                pixel_height = FrameContext.context.sbs.get_text_block_height(font, line, int(pixel_width))
+                pixel_line_height = FrameContext.context.sbs.get_text_line_height(font, line)
+                # Adds 10 pixels for buffer
+                percent_height = ((pixel_height + 1.5*pixel_line_height) / ar.y) * 100
+                last_line = TextLine(line,style_key, self.bounds.width, percent_height, False)
+                self.lines.append(last_line)
+                calc_height += percent_height
+
+            # if last_line is not None:
+            #     last_line.is_end = True
+            #     last_line.height *= 1.5
 
         #
         # Calculate the right size for the scrollbar
@@ -209,6 +204,7 @@ class TextArea(Control):
             if self.lines[self.last_line].is_sec_end:
                 calc_height += 0.5*height
             calc_height += height
+        self.scroll_line = self.last_line
             
     def _present_simple(self, event):
         ctx = FrameContext.context
@@ -237,6 +233,7 @@ class TextArea(Control):
         ar = get_client_aspect_ratio(CID)
         # self.calc(event.client_id)
         first_line = self.last_line - self.scroll_line
+        
         
         bounds = Bounds(self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
         # Room for scrollbar always
@@ -282,7 +279,9 @@ class TextArea(Control):
             max = (self.last_line+1)
             cur = self.scroll_line
 
-            ctx.sbs.send_gui_slider(CID,self.local_region_tag, f"{self.tag}vbar", int(cur), f"$text:int;low:0; high: {max};",
+            print(f"TEXT AREA {cur} {max}")
+
+            ctx.sbs.send_gui_slider(CID,self.local_region_tag, f"{self.tag}vbar", int(cur), f"$text:int;low:0; high: {max}; show_number:no;",
                 scroll_bounds.right-20*100/ar.x, scroll_bounds.top,
                 scroll_bounds.right, scroll_bounds.bottom)
 
