@@ -192,9 +192,15 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             from_name_now = from_name
             if from_name is None:
                 if is_receive:
-                    from_name_now = from_obj.comms_id
+                    if hasattr(from_obj, "comms_id"):
+                        from_name_now = from_obj.comms_id
+                    else:
+                        from_name_now = from_obj.INV.get("comms_id", from_name_now = from_obj.INV.name)
                 else:
-                    from_name_now = to_obj.comms_id
+                    if hasattr(to_obj, "comms_id"):
+                        from_name_now = to_obj.comms_id
+                    else:
+                        from_name_now = to_obj.INV.get("comms_id", from_name_now = from_obj.INV.name)
                     
 
             if title is None:
