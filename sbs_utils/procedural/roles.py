@@ -87,7 +87,33 @@ def role_ally_remove(id_or_obj, side):
     allies = ",".join(items)
     obj.data_set.set("ally_list", allies, 0)
 
-    
+def get_role_list(id_or_obj):
+    """Returns a list of role names an Agent has
+
+    Args:
+        id_or_obj (int | obj): The Agent to 
+
+    Returns:
+        list[str]: The list of role
+    """
+    obj = to_object(id_or_obj)
+    if obj is None:
+        return []
+    return obj.get_roles()
+
+def get_role_string(id_or_obj):
+    """Returns a comma separated list of role names an Agent has
+
+    Args:
+        id_or_obj (int | obj): The Agent to 
+
+    Returns:
+        str: The a comma separated string
+    """
+    obj = to_object(id_or_obj)
+    if obj is None:
+        return ""
+    return ",".join(obj.get_roles())
 
 def any_role(roles: str):
     """returns a set of all the agents with a any of the given roles.

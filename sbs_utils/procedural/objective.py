@@ -287,6 +287,22 @@ def objectives_run_all(tick_task):
     __objectives_is_running = False
 
 
+from .execution import sub_task_schedule
+from ..futures import awaitable
+from ..helpers import FrameContext
+
+@awaitable
+def objective_extends(label, data=None):
+    prefab = FrameContext.task
+    if data is None:
+        data = {}
+# Need to set the self and prefab properly
+    data["self"] = prefab
+    data["prefab"] = prefab
+    t = sub_task_schedule(label, data=data)
+    t.tick_in_context()
+    return t
+
 
 
 

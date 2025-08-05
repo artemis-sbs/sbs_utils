@@ -119,9 +119,9 @@ gui_input("enter name")
 
 await gui():
     + "Start Mission" if started==False:
-    ~~ sbs.resume_sim()~~
+        ~~ sbs.resume_sim()~~
     + "Resume Mission" if started==True:
-    ~~ sbs.resume_sim() ~~
+        ~~ sbs.resume_sim() ~~
 
 
 await gui():
@@ -129,19 +129,18 @@ await gui():
         -> JumpLabel
     + "Button Two":
         -> JumpLabel
-    + "Button Jump":
     =timeout():
         -> JumpSomeWhere
 
 
 
 await gui():
-* "Button one":
-    await gui():
     * "Button one":
         await gui():
         * "Button one":
-            -> JumpLabel
+            await gui():
+            * "Button one":
+                -> JumpLabel
 
 gui_style("padding:3px;", ".button")
 gui_style("padding:2px;", ".face")

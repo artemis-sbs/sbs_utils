@@ -7,7 +7,7 @@ from sbs_utils.procedural.query import to_py_object_list
 from sbs_utils.procedural.links import linked_to
 from sbs_utils.procedural.inventory import has_inventory_value
 from sbs_utils.procedural.space_objects import closest_list, closest, broad_test
-from sbs_utils.procedural.roles import role
+from sbs_utils.procedural.roles import role, get_role_list, get_role_string
 from sbs_utils.fs import test_set_exe_dir, get_script_dir
 from sbs_utils.objects import Npc, Terrain, PlayerShip
 from sbs_utils.gridobject import GridObject
@@ -99,6 +99,15 @@ class TestSpaceObject(unittest.TestCase):
             test_obj.append(station)
             station.add_role("Station")
 
+            role_list = get_role_list(station)
+            assert(len(role_list)>0)
+            role_string = get_role_string(station)
+            assert(",".join(role_list)==role_string)
+            assert("tsn" in role_string)
+            assert("test_side_role" in role_string)
+            assert("station" in role_string)
+
+
         # Test is they all have side as a role
         for obj in test_obj:
             assert(obj.has_role("tsn"))
@@ -120,7 +129,7 @@ class TestSpaceObject(unittest.TestCase):
         for obj in SpaceObject.get_role_objects("__PLAYER__"):
             assert(obj.has_role("ship"))
         
-
+        
         ###test remove role
         stations = SpaceObject.get_role_objects("Station")
         first = stations[0]
