@@ -1,5 +1,6 @@
-from .execution import task_schedule
+from .execution import task_schedule, sub_task_schedule
 from ..futures import PromiseAllAny, awaitable
+from ..helpers import FrameContext
 import re
 
 class PrefabAll(PromiseAllAny):
@@ -96,3 +97,16 @@ def prefab_autoname(name):
 
     
     return name
+
+
+@awaitable
+def prefab_extends(label, data=None):
+    prefab = FrameContext.task
+    if data is None:
+        data = {}
+# Need to set the self and prefab properly
+    data["self"] = prefab
+    data["prefab"] = prefab
+    t = sub_task_schedule(label, data=data)
+    t.tick_in_context()
+    return t
