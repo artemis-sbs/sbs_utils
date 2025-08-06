@@ -170,8 +170,8 @@ class SpaceObject(Agent):
         :rtype: str
         """
 
-        if (self.side != ""):
-            self._comms_id = f"{self.name} ({self.side})"
+        if (self.side_display != ""):
+            self._comms_id = f"{self.name} ({self.side_display})"
         else:
             self._comms_id = self.name
 
@@ -193,6 +193,17 @@ class SpaceObject(Agent):
     def side(self: SpaceObject, value: str) -> None:
         self.set_side(value)
 
+    @property
+    def side_display(self: SpaceObject) -> str:
+        test = self.data_set.get("hull_side", 0)
+        if test is not None:
+            return test
+        return self._side
+    
+    @side_display.setter
+    def side(self: SpaceObject, value: str) -> None:
+        self.data_set.set("hull_side", value, 0)
+
 
     @property
     def comms_id(self: SpaceObject) -> str:
@@ -211,14 +222,28 @@ class SpaceObject(Agent):
 
     @property
     def race(self):
-        data = get_ship_data_for(self._art_id)
-        if data is None:
-            return self.side
-        test = data.get("side", self.side)
+        return self.origin
+    
+    @property
+    def origin(self):
+        test = self.data_set.get("hull_origin", 0)
+        print(f"get origin {test}")
         if test is None:
-            return "unknown"
+            return "no origin"
         return test.lower()
     
+    @origin.setter
+    def origin(self: SpaceObject, value: str) -> None:
+        print(f"set origin {value}")
+        self.data_set.set("hull_origin", value, 0)
+
+    @property
+    def crew(self):
+        return self.get_inventory_value("__CREW__", self.origin)
+    
+    @crew.setter
+    def crew(self: SpaceObject, value: str) -> None:
+        self.set_inventory_value("__CREW__", value)
 
 
     @property

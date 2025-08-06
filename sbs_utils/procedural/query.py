@@ -502,6 +502,21 @@ def get_side(id_or_obj):
         return so.side
     return ""
 
+def get_side_display(id_or_obj):
+    """gets the side of the agent
+
+    Args:
+        id_or_obj (agent): agent id or object
+
+    Returns:
+        str|None: the side
+    """    
+    so = to_object(id_or_obj)
+    if so is not None:
+        return so.side_display
+    return ""
+
+
 def get_race(id_or_obj):
     """ get the race of the specified agent
         race by default is the side from ship_data
@@ -519,7 +534,37 @@ def get_race(id_or_obj):
     return obj.race
     
 
+def get_origin(id_or_obj):
+    """ get the race of the specified agent
+        race by default is the side from ship_data
+        
+    Args:
+        id_or_obj (agent): an agent id or object
 
+    Returns:
+        str: The race of the object or None
+    """
+    obj = to_object(id_or_obj)
+    if obj is None:
+        return ""
+    
+    return obj.origin
+
+def get_crew(id_or_obj):
+    """ get the race of the specified agent
+        race by default is the side from ship_data
+        
+    Args:
+        id_or_obj (agent): an agent id or object
+
+    Returns:
+        str: The race of the object or None
+    """
+    obj = to_object(id_or_obj)
+    if obj is None:
+        return ""
+    
+    return obj.crew
 
 def random_id(the_set):
     """ get the object from the set provide
