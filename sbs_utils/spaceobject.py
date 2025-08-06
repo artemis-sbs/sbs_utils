@@ -227,14 +227,12 @@ class SpaceObject(Agent):
     @property
     def origin(self):
         test = self.data_set.get("hull_origin", 0)
-        print(f"get origin {test}")
         if test is None:
             return "no origin"
         return test.lower()
     
     @origin.setter
     def origin(self: SpaceObject, value: str) -> None:
-        print(f"set origin {value}")
         self.data_set.set("hull_origin", value, 0)
 
     @property
