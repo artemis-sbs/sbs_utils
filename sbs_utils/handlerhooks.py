@@ -321,6 +321,7 @@ def cosmos_event_handler(sim, event):
                 fighter = Agent.get(event.origin_id)
                 if fighter is not None:
                     signal_emit("press_fighter_button", {"EVENT": event, "client_id": event.client_id, "FIGHTER": fighter, "FIGHTER_ID": event.origin_id, "button": event.sub_tag})
+                tick_the_rest(event)
                 
 
             case "docking_change":
