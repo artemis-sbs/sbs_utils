@@ -8,6 +8,7 @@
         "build_addons": "cd ..\\LegendaryMissions&&build_addons,",
         "mkdocs": "cd mkdocs&&mkdocs serve",
         "pub docs":"cd mkdocs&&mkdocs gh-deploy --force",
+        "rerelease": "make_release.bat rerel \"Version for Comos 1.1.x\"",
         "siege mkdocs": "cd ..\\LegendaryMissions\\mkdocs&&mkdocs serve",
         "pub siege docs":"cd ..\\LegendaryMissions\\mkdocs&&mkdocs gh-deploy --force"
 }

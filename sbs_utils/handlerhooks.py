@@ -315,6 +315,14 @@ def cosmos_event_handler(sim, event):
                 LifetimeDispatcher.dispatch_dock(event)
                 tick_the_rest(event)
 
+            case "press_fighter_button":
+                # print_event(event)
+                from .procedural.signal import signal_emit
+                fighter = Agent.get(event.origin_id)
+                if fighter is not None:
+                    signal_emit("press_fighter_button", {"EVENT": event, "client_id": event.client_id, "FIGHTER": fighter, "FIGHTER_ID": event.origin_id, "button": event.sub_tag})
+                
+
             case "docking_change":
                 # print_event(event)
                 from .procedural.docking import docking_run_all
