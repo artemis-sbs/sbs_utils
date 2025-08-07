@@ -201,7 +201,7 @@ class SpaceObject(Agent):
         return self._side
     
     @side_display.setter
-    def side(self: SpaceObject, value: str) -> None:
+    def side_display(self: SpaceObject, value: str) -> None:
         self.data_set.set("hull_side", value, 0)
 
 

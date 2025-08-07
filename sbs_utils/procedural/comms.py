@@ -499,7 +499,6 @@ class CommsPromise(ButtonPromise):
         self.event = None
         self.is_running = False
 
-
         
 
     def set_path(self, path) -> None:
@@ -1018,6 +1017,9 @@ def start_comms_common_selected(event, is_grid):
     #
     __comms_promises[test] = t
     t.tick_in_context()
+    bp = t.get_variable("BUTTON_PROMISE")
+    if bp is not None:
+        bp.selected(event)
     
     FrameContext.task = restore_task
     FrameContext.page = restore_page
