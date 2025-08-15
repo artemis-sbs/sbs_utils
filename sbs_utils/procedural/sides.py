@@ -83,6 +83,17 @@ def to_side_object(key_or_id):
     s = to_side_id(key_or_id)
     return to_object(s)
 
+def side_set_ship_allies_and_enemies(ship):
+    ship = to_object(ship)
+    side = to_side_id(ship.side)
+    if isinstance(side, int):
+        allies = get_inventory_value(side, "side_allies")
+        enemies = get_inventory_value(side, "side_enemies")
+        allies = ",".join(allies)
+        enemies = ",".join(enemies)
+        set_data_set_value(ship, "ally_list", allies)
+        set_data_set_value(ship, "hostile_list", enemies) # Not used by the engine yet?
+    
 
 def side_set_relations(side1, side2, relation):
     """
