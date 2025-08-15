@@ -96,42 +96,43 @@ def side_set_relations(side1, side2, relation):
             0: Netural
             -1: Enemy
     """
-    print(f"Side1 = {side1}")
-    print(f"Side2 = {side2}")
+    # print(f"Side1 = {side1}")
+    # print(f"Side2 = {side2}")
     o1 = to_side_id(side1)
     o2 = to_side_id(side2)
 
     if o1 is None or o2 is None:
-        print(f"side is None in side_set_relations()")
-        print(f"One or both sides are not valid")
+        # If a side isn't initialized yet, then we just return.
+        # print(f"side is None in side_set_relations()")
+        # print(f"One or both sides are not valid")
         return
 
     o1_enemies = get_inventory_value(o1, "side_enemies")
-    print(f"o1_enemies = {o1_enemies}")
+    # print(f"o1_enemies = {o1_enemies}")
     if isinstance(o1_enemies, str):
-        print("o1e STRING")
         o1_enemies = set(o1_enemies.split(","))
 
     o1_allies = get_inventory_value(o1, "side_allies")
     if isinstance(o1_allies, str):
-        print("o1a STRING")
         o1_allies = set(o1_allies.split(","))
     o1_key = get_inventory_value(o1, "side_key")
 
 
     o2_enemies = get_inventory_value(o2, "side_enemies")
     if isinstance(o2_enemies, str):
-        print("o2e STRING")
         o2_enemies = set(o2_enemies.split(","))
     o2_allies = get_inventory_value(o2, "side_allies")
     if isinstance(o2_allies, str):
-        print("o2a STRING")
         o2_allies = set(o2_allies.split(","))
     o2_key = get_inventory_value(o2, "side_key")
+    # print("Allies before change")
+    # print(f"{o1_allies}")
+    # print(f'{o2_allies}')
+    # print("Enemies before Change")
+    # print(f"{o1_enemies}")
+    # print(f"{o2_enemies}")
 
-    print(f"{o1_allies}")
-    print(f'{o2_allies}')
-
+    # Since we're using sets, which don't allow duplicates, we don't need to worry about whether the key exists already
     if relation == 1:
         o1_enemies.discard(o2_key)
         o2_enemies.discard(o1_key)
@@ -147,8 +148,12 @@ def side_set_relations(side1, side2, relation):
         o2_allies.discard(o1_key)
         o2_enemies.add(o1_key)
         o1_enemies.add(o2_key)
-    print(f"{o1_enemies}")
-    print(f'{o2_enemies}')
+    # print("Allies after change")
+    # print(f"{o1_allies}")
+    # print(f'{o2_allies}')
+    # print("Enemies after Change")
+    # print(f"{o1_enemies}")
+    # print(f"{o2_enemies}")
     
     set_inventory_value(o1, "side_enemies", o1_enemies)
     set_inventory_value(o1, "side_allies", o1_allies)
@@ -162,11 +167,11 @@ def side_set_relations(side1, side2, relation):
     o1_allies = ",".join(o1_allies)
     o2_allies = ",".join(o2_allies)
     for ship in role(o2_key):
-        if not has_role("__side__"): # Exclude side prefabs
+        if not has_role(ship, "__side__"): # Exclude side prefabs
             set_data_set_value(ship, "ally_list", o2_allies)
             set_data_set_value(ship, "hostile_list", o2_enemies) # Not used by the engine yet?
     for ship in role(o1_key):
-        if not has_role("__side__"): # Exclude side prefabs
+        if not has_role(ship, "__side__"): # Exclude side prefabs
             set_data_set_value(ship, "ally_list", o1_allies)
             set_data_set_value(ship, "hostile_list", o1_enemies) # Not used by the engine yet?
 
@@ -184,10 +189,12 @@ def side_are_allies(side1, side2)->bool:
     o2 = to_side_id(side2)
 
     o1_allies = get_inventory_value(o1, "side_allies")
+    # print(f"side_are_allies o1_allies: {o1_allies}")
     if isinstance(o1_allies, str):
         o1_allies = o1_allies.split(",")
 
     o2_key = get_inventory_value(o2, "side_key")
+    # print(f"o2key: {o2_key}")
 
     return o2_key in o1_allies
 
@@ -205,10 +212,12 @@ def side_are_enemies(side1, side2)->bool:
     o2 = to_side_id(side2)
 
     o1_enemies = get_inventory_value(o1, "side_enemies")
+    # print(f"side_are_enemies o1_enemies: {o1_enemies}")
     if isinstance(o1_enemies, str):
         o1_enemies = o1_enemies.split(",")
 
     o2_key = get_inventory_value(o2, "side_key")
+    # print(f"o2Key = {o2_key}")
 
     return o2_key in o1_enemies
     
