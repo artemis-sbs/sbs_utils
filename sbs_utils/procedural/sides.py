@@ -60,7 +60,7 @@ def side_ally_members_set(side):
             ally_members = ally_members | side_members_set(a)
     return ally_members
 
-def side_enemy_memnbers_set(side):
+def side_enemy_members_set(side):
     """
     Get a set of all space objects that are enemies of the side
     Args:
@@ -100,7 +100,7 @@ def to_side_id(key_or_id_or_object):
     if isinstance(id, int):
         if has_role(id, "__side__"):
             return id # If it's a side prefab, we just return the ID
-        print(f"Trying again for id: {id}")
+        # print(f"Trying again for id: {id}")
         # if it's not a side prefab, use the side of the object as the key and continue
         obj = to_object(id)
         if obj is not None:
