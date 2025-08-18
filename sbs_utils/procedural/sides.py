@@ -4,6 +4,9 @@ from .query import to_object, to_id, set_data_set_value, get_data_set_value
 def sides_set():
     """
     Get a set containing the ids of all sides (objects with the "__side__" role).
+
+    Returns:
+        Set: A set of IDs for each side
     """
     sides = role("__side__")
     return sides
@@ -11,28 +14,34 @@ def sides_set():
 def side_keys_set():
     """
     Get a set containing the keys for all existing sides.
+    
+    Returns:
+        Set: A set of keys for all sides
     """
     sides = role("__side__")
     side_keys = set()
     for s in sides:
-        key = get_inventory_value(id, "side_key", None)
+        key = get_inventory_value(s, "side_key", None)
         if key is not None:
             side_keys.add(key)
     return side_keys
 
 def side_members_set(side):
     """
-    Get all objects with the specified side.
+    Get all objects with the specified side. Use this instead of `role(side)`
     
     Args:
-        side (str): The key representing the side
+        side (str|int|Agent): The key or name of the side, or the ID of the side, or the side object, or an object with the given side
     
     Returns:
         Set of ids with the specified side.
     """
-    objs = role(side)
-    # If the role for the side wasn't properly updated, remove the object
-    objs = {x for x in objs if to_object(x).side == side}
+    print(f"Getting set for side: {side}")
+    id = to_side_id(side)
+    key = get_inventory_value(id, "side_key")
+    objs = role(key) - role("__side__") # remove the actual side, since it's a MastAsyncTask instead of a Ship
+    # If the role for the side wasn't properly updated, remove the object?
+    # objs = {x for x in objs if to_object(x).side == side}
     return objs
 
 def side_ally_members_set(side):
@@ -46,27 +55,32 @@ def to_side_id(key_or_id_or_object):
     Get the id for the given side
 
     Args:
-        key_or_id (str|int): the key or the Agent ID of the side, or a the id or Agent ID of a space object
+        key_or_id (str|int): the key or the Agent of the side, or the id or Agent of a space object
     
     Returns:
-        Agent|None: The Agent object for the side. If the key or id doesn't exist, returns None.
+        int|None: The ID of the side. If the key, name, or id doesn't exist, returns None.
     """
     # Check if it's a key
     if isinstance(key_or_id_or_object, str):
+        # print(f"Side id: {key_or_id_or_object}")
         key_or_id_or_object = key_or_id_or_object.strip() # Get rid of leading/trailing whitespaces
         for s in sides_set():
             if get_inventory_value(s, "side_key") == key_or_id_or_object:
+                return s
+            if get_inventory_value(s, "side_name") == key_or_id_or_object:
                 return s
         return None # If it's not in sides_set() then it's not a valid side key
     id = to_id(key_or_id_or_object) # Will return key_or_id_or_object if it's not an object
     if isinstance(id, int):
         if has_role(id, "__side__"):
             return id # If it's a side prefab, we just return the ID
-        
+        print(f"Trying again for id: {id}")
         # if it's not a side prefab, use the side of the object as the key and continue
         obj = to_object(id)
-        side = obj.side
-        return to_side_id(side)
+        if obj is not None:
+            side = obj.side
+            # to_side_id() should be able to return the right side based on id or display text
+            return to_side_id(side)
         
     return None
 
@@ -83,9 +97,22 @@ def to_side_object(key_or_id):
     s = to_side_id(key_or_id)
     return to_object(s)
 
+def side_display_name(key):
+    """
+    Get the display name of the side.
+
+    Args:
+        key (str|int): The key or id of the side
+    Returns:
+        str: The display name of the side
+    """
+    id = to_side_id(key)
+    name = get_inventory_value(id, "side_name")
+    return name
+
 def side_set_ship_allies_and_enemies(ship):
     ship = to_object(ship)
-    side = to_side_id(ship.side)
+    side = to_side_id(ship)
     if isinstance(side, int):
         allies = get_inventory_value(side, "side_allies")
         enemies = get_inventory_value(side, "side_enemies")
