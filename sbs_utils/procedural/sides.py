@@ -45,10 +45,36 @@ def side_members_set(side):
     return objs
 
 def side_ally_members_set(side):
-    pass
+    """
+    Get a set of all space objects allied with the side
+    Args:
+        side (str|int|Agent): The id or key of the side, or the id or object of a spaceobject
+    Returns:
+        Set: A set containing the ids of all allied ships, stations, etc.
+    """
+    id = to_side_id(side)
+    allies = get_inventory_value(id, "side_allies")
+    ally_members = set()
+    if allies is not None:
+        for a in allies:
+            ally_members = ally_members | side_members_set(a)
+    return ally_members
 
 def side_enemy_memnbers_set(side):
-    pass
+    """
+    Get a set of all space objects that are enemies of the side
+    Args:
+        side (str|int|Agent): The id or key of the side, or the id or object of a spaceobject
+    Returns:
+        Set: A set containing the ids of all enemy ships, stations, etc.
+    """
+    id = to_side_id(side)
+    enemies = get_inventory_value(id, "side_enemies")
+    enemy_members = set()
+    if enemies is not None:
+        for a in enemies:
+            enemy_members = enemy_members | side_members_set(a)
+    return enemy_members
 
 def to_side_id(key_or_id_or_object):
     """
