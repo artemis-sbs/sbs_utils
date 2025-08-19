@@ -9,9 +9,9 @@ from inspect import getmembers, isfunction
 
 import builtins as __builtin__
 from ..helpers import FrameContext
-def mast_print(*args, **kwargs):
+def mast_print(*args, use_mast_scope=True, **kwargs):
     task = FrameContext.task 
-    if len(args)==1 and task is not None:
+    if use_mast_scope and len(args)==1 and task is not None:
         return __builtin__.print(task.compile_and_format_string(args[0]))
     #    args[0] = ">>>"+args[0]
     return __builtin__.print(*args, **kwargs)
