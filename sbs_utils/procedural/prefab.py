@@ -71,6 +71,9 @@ def prefab_spawn(label, data=None, OFFSET_X=None, OFFSET_Y= None, OFFSET_Z= None
             data["START_Z"] = OFFSET_Z
 
     t = task_schedule(label, data=data, defer=True, inherit=False)
+    if t is None:
+        print(f"Invalid prefab label: {label}")
+        return None
     t.set_variable("self", t)
     t.set_variable("prefab", t)
     t.tick_in_context()

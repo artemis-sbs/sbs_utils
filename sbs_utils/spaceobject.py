@@ -196,7 +196,7 @@ class SpaceObject(Agent):
     @property
     def side_display(self: SpaceObject) -> str:
         test = self.data_set.get("hull_side", 0)
-        if test is not None:
+        if test is not None and isinstance(test, str):
             return test
         return self._side
     

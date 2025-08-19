@@ -31,6 +31,8 @@ def mast_assert(cond):
       assert(cond)
 
 Mast.make_global_var("ASSERT", mast_assert)
+from sbs_utils.procedural.execution import mast_log
+Mast.make_global_var("log", mast_log)
 
 #Mast.enable_logging()
 Mast.include_code = True

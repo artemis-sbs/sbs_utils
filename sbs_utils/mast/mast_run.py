@@ -38,7 +38,8 @@ def mast_run(filename):
     MastGlobals.import_python_module('sbs_utils.procedural.signal')
     MastGlobals.import_python_module('sbs_utils.procedural.settings') #??
     MastGlobals.import_python_module('sbs_utils.procedural.timers') # Needs sim? Abstract it?
-    
+    from ..procedural.execution import mast_log
+    Mast.make_global_var("log", mast_log)
     #
     # Uncomment this out to have Mast show the mast code in 
     # runtime errors.

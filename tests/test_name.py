@@ -18,7 +18,7 @@ class TestNames(unittest.TestCase):
 
     def test_init(self):
         for i in range(1296):
-            sys.stdout.write(names.random_canonical_kralien_comms_id(i,"kralien_cruiser") +"   ")
+            sys.stdout.write(names.name_random_canonical_kralien_comms_id(i,"kralien_cruiser") +"   ")
             if i%6 == 5:
                 sys.stdout.write('\n')
         self.assertEqual(3, 3)

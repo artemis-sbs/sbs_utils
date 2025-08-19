@@ -49,21 +49,34 @@ def metadata_get_value(k, defa=None):
     return label.get_inventory_value(k, defa)
 
 
-def log(message: str, name: str=None, level: str=None) -> None:
-    """ generate a log message
+def mast_log(message: str, name: str=None, level: str=None, use_mast_scope=True) -> None:
+    """ generate a log message using MAST current task
 
     Args:
         message (str): The message to log
         name (str, optional): Name of the logger to log to. Defaults to None.
         level (str, optional): The logging level to use. Defaults to None.
     """    
+    log(message, name, level, use_mast_scope)
+
+
+def log(message: str, name: str=None, level: str=None, use_mast_scope=False) -> None:
+    """ generate a log message
+
+        note: MAST exposes mast_log as log so it by default uses MAST scope
+    Args:
+        message (str): The message to log
+        name (str, optional): Name of the logger to log to. Defaults to None.
+        level (str, optional): The logging level to use. Defaults to None.
+    """    
+    if use_mast_scope:
+        task = FrameContext.task
+        if task is not None:
+            message = task.compile_and_format_string(message)
+
     if name is None:
         name = "__base_logger__"
     _logger = logging.getLogger(name)
-
-    task = FrameContext.task
-    if task is not None:
-        message = task.compile_and_format_string(message)
 
     if level is None:
         level = logging.DEBUG

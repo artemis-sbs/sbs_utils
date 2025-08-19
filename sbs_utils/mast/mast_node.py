@@ -68,6 +68,8 @@ class MastNode:
         
 def mast_node(append=True):
     def dec_args(cls):
+        if cls in MastNode.nodes:
+            return cls
         if append:
             MastNode.nodes.append(cls)
         else:

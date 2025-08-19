@@ -105,3 +105,8 @@ MastGlobals.import_python_module('sbs', 'sbs')
 ## Mast extensions
 MastGlobals.import_python_module('sbs_utils.pages.widgets.shippicker')
 MastGlobals.import_python_module('sbs_utils.pages.widgets.layout_listbox')
+
+# Override named function
+
+from ..procedural.execution import mast_log
+Mast.make_global_var("log", mast_log)

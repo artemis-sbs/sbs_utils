@@ -243,6 +243,7 @@ class TestSpaceObject(unittest.TestCase):
 
 
         test = closest(artemis, role("Station"))
+        print(f"{test.py_object.name}")
         assert(test.py_object.name=="DS0") 
 
         all = role("PlayerShip") | role("Station")
