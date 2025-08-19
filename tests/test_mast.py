@@ -1263,7 +1263,35 @@ if x < 5:
 
 """)
                 assert(len(errors)==0)
-        
+
+    def test_log_use_mast_scope(self):
+        (errors, runner, _) = mast_run(code = """
+logger(var="output")        
+logger()
+x = 2
+# In MAST
+# This does print 2 
+log("1. {x}")
+# This does print {x}
+log(f"2. {{x}}", use_mast_scope=False)
+# This does print {2}
+log(f"3. {{{x}}}", use_mast_scope=False)
+# This does print 2
+log(f"4. {{x}}", use_mast_scope=True)
+# This does print {2}
+log("5. {{{x}}}")
+""")
+    
+        assert(len(errors)==0)
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        st = output[0]
+        #st.seek(0)
+        value = st.getvalue()
+        assert(value =="""1. 2\n2. {x}\n3. {2}\n4. 2\n5. {2}\n""")
+
+
+    
     def test_dangle_match_compile_err(self):
         (errors, _) = mast_compile( code = """
 s = "Hello"
