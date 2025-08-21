@@ -42,9 +42,10 @@ def linked_to (link_source, link_name: str):
         link_source(id): The id object to check
         link_name (str): The key/name of the inventory item
         set | None: set of ids"""
-def log (message: str, name: str = None, level: str = None) -> None:
+def log (message: str, name: str = None, level: str = None, use_mast_scope=False) -> None:
     """generate a log message
     
+        note: MAST exposes mast_log as log so it by default uses MAST scope
     Args:
         message (str): The message to log
         name (str, optional): Name of the logger to log to. Defaults to None.

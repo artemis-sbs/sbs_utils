@@ -6,6 +6,9 @@ def get_task_id ():
     ...
 class Agent(object):
     """class Agent"""
+    @property
+    def INV (self):
+        ...
     def __getitem__ (self, index):
         ...
     def __init__ (self):
@@ -192,7 +195,7 @@ class SpawnData(object):
         ...
 class Stuff(object):
     """A Common class for Role, Links and Inventory"""
-    def __init__ (self):
+    def __init__ (self, as_attrib=False):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def add_to_collection (self, collection, id):
         ...
@@ -218,3 +221,17 @@ class Stuff(object):
         ...
     def remove_from_collection (self, collection, id):
         ...
+class atdict(dict):
+    """dict() -> new empty dictionary
+    dict(mapping) -> new dictionary initialized from a mapping object's
+        (key, value) pairs
+    dict(iterable) -> new dictionary initialized as if via:
+        d = {}
+        for k, v in iterable:
+            d[k] = v
+    dict(**kwargs) -> new dictionary initialized with the name=value pairs
+        in the keyword argument list.  For example:  dict(one=1, two=2)"""
+    def __class_getitem__(*argv):
+        """See PEP 585"""
+    def __getattr__(*argv):
+        """x.__getitem__(y) <==> x[y]"""

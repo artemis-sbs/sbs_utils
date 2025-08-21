@@ -22,6 +22,8 @@ def create_new_sim() -> None:
     """all space objects are deleted; a blank slate is born."""
 def delete_all_navpoints() -> None:
     """deletes all navpoints on server, and notifies all clients of the change"""
+def delete_all_navproxies() -> None:
+    """deletes all navproxies on server, and notifies all clients of the change"""
 def delete_grid_object(spaceObjectID: int, gridObjID: int) -> None:
     """deletes the grid object, and sends the deletion message to all clients"""
 def delete_object(ID: int) -> None:
@@ -420,6 +422,46 @@ class navpoint(object): ### from pybind
     @visibleToSide.setter
     def visibleToSide (self: sbs.navpoint, arg0: str) -> None:
         """string, text side name of side that can see this navpoint"""
+class navproxy(object): ### from pybind
+    """class navproxy"""
+    def SetColor(self: sbs.navproxy, arg0: str) -> None:
+        """use a string color description to set the color"""
+    @property
+    def color (self: sbs.navproxy) -> sbs.vec4:
+        """vec4, color on 2d radar"""
+    @color.setter
+    def color (self: sbs.navproxy, arg0: sbs.vec4) -> None:
+        """vec4, color on 2d radar"""
+    @property
+    def has_changed_flag (self: sbs.navproxy) -> int:
+        """int, if you change this navpoint, also set this flag to !0, so the server sends it down to the clients"""
+    @has_changed_flag.setter
+    def has_changed_flag (self: sbs.navproxy, arg0: int) -> None:
+        """int, if you change this navpoint, also set this flag to !0, so the server sends it down to the clients"""
+    @property
+    def pos (self: sbs.navproxy) -> sbs.vec3:
+        """vec3, position in space"""
+    @pos.setter
+    def pos (self: sbs.navproxy, arg0: sbs.vec3) -> None:
+        """vec3, position in space"""
+    @property
+    def proxy_id (self: sbs.navproxy) -> int:
+        """int64, ID of associated space object"""
+    @proxy_id.setter
+    def proxy_id (self: sbs.navproxy, arg0: int) -> None:
+        """int64, ID of associated space object"""
+    @property
+    def shiptype (self: sbs.navproxy) -> str:
+        """string, hull key from shipdata.yaml"""
+    @shiptype.setter
+    def shiptype (self: sbs.navproxy, arg0: str) -> None:
+        """string, hull key from shipdata.yaml"""
+    @property
+    def text (self: sbs.navproxy) -> str:
+        """string, text label"""
+    @text.setter
+    def text (self: sbs.navproxy, arg0: str) -> None:
+        """string, text label"""
 class object_data_set(object): ### from pybind
     """class object_data_set"""
     def get(*args, **kwargs):
@@ -522,16 +564,26 @@ class simulation(object): ### from pybind
         """adds a new navarea to space; don't hold on to this Navpoint object in a global; keep the integer ID return value instead    args:  four x/y floats, std::string text, std::string colorDesc"""
     def add_navpoint(self: sbs.simulation, x: float, y: float, z: float, text: str, colDesc: str) -> int:
         """adds a new navpoint to space; don't hold on to this Navpoint object in a global; keep the integer ID return value instead    args:  float x, float y, float z, std::string text, std::string colorDesc"""
+    def add_navproxy(self: sbs.simulation, proxyID: int, name: str, shipType: str, colDesc: str) -> int:
+        """adds a new navproxy to space; don't hold on to this NavProxy object in a global; keep the integer ID return value instead    args: in proxyID, string name, string shipType, string colorDesc"""
     def create_space_object(self: sbs.simulation, aiTag: str, dataTag: str, abits: int) -> int:
         """creates a new spaceobject. abits is a 16-bit bitfield for further defining the object.  bit 1, when set, means the object is unmoving and static."""
     def delete_navpoint_by_id(self: sbs.simulation, id: int) -> None:
         """deletes navpoint by its id"""
+    def delete_navproxy_by_id(self: sbs.simulation, id: int) -> None:
+        """deletes navproxy by its id"""
     def force_update_to_clients(self: sbs.simulation, spaceObjectID: int, playerShipID: int) -> None:
         """forces this space object to update its data to the clients attached to the playerShipID (all clients, if playerShipID is zero)"""
     def get_navpoint_by_id(self: sbs.simulation, id: int) -> sbs.navpoint:
-        """takes a string name, returns the associated Navpoint object"""
+        """takes an integer ID, returns the associated Navpoint object"""
     def get_navpoint_id_by_name(self: sbs.simulation, text: str) -> int:
         """returns a navpoint ID, given its name as the argument"""
+    def get_navproxy_by_id(self: sbs.simulation, id: int) -> sbs.navproxy:
+        """takes an integer ID, returns the associated NavProxy object"""
+    def get_navproxy_by_proxy_id(self: sbs.simulation, id: int) -> sbs.navproxy:
+        """takes a space object ID, returns the associated NavProxy object"""
+    def get_navproxy_id_by_name(self: sbs.simulation, text: str) -> int:
+        """returns a navproxy ID, given its name as the argument"""
     def get_shield_hit_index(self: sbs.simulation, sourceShip: sbs.space_object, targetShip: sbs.space_object) -> int:
         """Given a source ship and a target ship, this returns the shield (index) that would be hit by a hypothetical beam. -1 if the target ship has no shield facings."""
     def get_shield_hit_index_source(self: sbs.simulation, sourcePoint: sbs.vec3, targetShip: sbs.space_object) -> int:
@@ -540,10 +592,14 @@ class simulation(object): ### from pybind
         """returns the reference to a spaceobject, by ID"""
     def is_not_paused(self: sbs.simulation) -> bool:
         """returns True if the game is currently running."""
-    def navpoint_exists(self: sbs.simulation, text: int) -> bool:
-        """returns true if the navpoint exists, by id"""
+    def navpoint_exists(self: sbs.simulation, id: int) -> bool:
+        """returns true if the navpoint exists, by integer id"""
+    def navproxy_exists(self: sbs.simulation, id: int) -> bool:
+        """returns true if the navproxy exists, by integer id"""
     def reposition_space_object(self: sbs.simulation, arg0: sbs.space_object, arg1: float, arg2: float, arg3: float) -> None:
         """immediately changes the position of a spaceobject"""
+    def set_navproxy_pos(self: sbs.simulation, navproxy: sbs.navproxy, x: float, y: float, z: float) -> None:
+        """takes a navproxy (the reference, not the ID), and sets the xyz values"""
     def space_object_exists(self: sbs.simulation, arg0: int) -> bool:
         """returns true if the spaceobject exists, by ID"""
     @property

@@ -28,6 +28,15 @@ def get_comms_selection (id_or_not):
     
     Returns:
         agent id | None: The agent id or None"""
+def get_crew (id_or_obj):
+    """get the race of the specified agent
+        race by default is the side from ship_data
+    
+    Args:
+        id_or_obj (agent): an agent id or object
+    
+    Returns:
+        str: The race of the object or None"""
 def get_data_set_value (id_or_obj, key, index=0):
     ...
 def get_engine_data_set (id_or_obj):
@@ -40,6 +49,15 @@ def get_grid_selection (id_or_not):
     
     Returns:
         agent id | None: The agent id or None"""
+def get_origin (id_or_obj):
+    """get the race of the specified agent
+        race by default is the side from ship_data
+    
+    Args:
+        id_or_obj (agent): an agent id or object
+    
+    Returns:
+        str: The race of the object or None"""
 def get_race (id_or_obj):
     """get the race of the specified agent
         race by default is the side from ship_data
@@ -58,6 +76,14 @@ def get_science_selection (id_or_not):
     Returns:
         agent id | None: The agent id or None"""
 def get_side (id_or_obj):
+    """gets the side of the agent
+    
+    Args:
+        id_or_obj (agent): agent id or object
+    
+    Returns:
+        str|None: the side"""
+def get_side_display (id_or_obj):
     """gets the side of the agent
     
     Args:

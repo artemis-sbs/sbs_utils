@@ -3,6 +3,8 @@ from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.mastscheduler import MastAsyncTask
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.tickdispatcher import TickDispatcher
+def awaitable (func):
+    ...
 def brains_run_all (tick_task):
     ...
 def extra_scan_sources_run_all (tick_task: sbs_utils.tickdispatcher.TickTask):
@@ -50,6 +52,8 @@ def objective_add (agent_id_or_set, label, data=None, client_id=0):
     ...
 def objective_clear (agent_id_or_set):
     ...
+def objective_extends (*args, **kwargs):
+    ...
 def objective_schedule ():
     ...
 def objectives_run_all (tick_task):
@@ -65,6 +69,8 @@ def set_inventory_value (so, key, value):
         key (str): The key/name of the inventory item
         value (any): the value"""
 def signal_emit (name, data=None):
+    ...
+def sub_task_schedule (*args, **kwargs):
     ...
 def to_object_list (the_set):
     """to_object_list

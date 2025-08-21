@@ -156,6 +156,12 @@ class SpaceObject(Agent):
     @property
     def comms_id (self: 'SpaceObject') -> 'str':
         """str, cached version of comms_id"""
+    @property
+    def crew (self):
+        ...
+    @crew.setter
+    def crew (self: 'SpaceObject', value: 'str') -> 'None':
+        ...
     def debug_mark_loc (sim, x: 'float', y: 'float', z: 'float', name: 'str', color: 'str'):
         """Adds a nav point to the location passed if debug mode is on
         
@@ -227,6 +233,12 @@ class SpaceObject(Agent):
     def name (self: 'SpaceObject', value: 'str') -> 'None':
         """str, cached version of comms_id"""
     @property
+    def origin (self):
+        ...
+    @origin.setter
+    def origin (self: 'SpaceObject', value: 'str') -> 'None':
+        ...
+    @property
     def pos (self: 'SpaceObject') -> 'Vec3':
         """str, cached version of art_id"""
     @pos.setter
@@ -261,6 +273,12 @@ class SpaceObject(Agent):
     @side.setter
     def side (self: 'SpaceObject', value: 'str') -> 'None':
         """str, cached version of comms_id"""
+    @property
+    def side_display (self: 'SpaceObject') -> 'str':
+        ...
+    @side_display.setter
+    def side_display (self: 'SpaceObject', value: 'str') -> 'None':
+        ...
     def space_object (self) -> 'SpaceObject':
         """get the simulation's space object for the object
         

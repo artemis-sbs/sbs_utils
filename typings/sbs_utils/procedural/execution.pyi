@@ -58,9 +58,10 @@ def jump (label) -> sbs_utils.mast.pollresults.PollResults:
         PollResults: The poll results of the jump. used by the task."""
 def labels_get_type (label_type):
     ...
-def log (message: str, name: str = None, level: str = None) -> None:
+def log (message: str, name: str = None, level: str = None, use_mast_scope=False) -> None:
     """generate a log message
     
+        note: MAST exposes mast_log as log so it by default uses MAST scope
     Args:
         message (str): The message to log
         name (str, optional): Name of the logger to log to. Defaults to None.
@@ -72,6 +73,13 @@ def logger (name: str = None, file: str = None, var: str = None, std_err: bool =
         name (str, optional): The name of the logger. Defaults to None.
         file (str, optional): The file to log to. Defaults to None.
         var (str, optional): The name of a string variable to log to. Defaults to None."""
+def mast_log (message: str, name: str = None, level: str = None, use_mast_scope=True) -> None:
+    """generate a log message using MAST current task
+    
+    Args:
+        message (str): The message to log
+        name (str, optional): Name of the logger to log to. Defaults to None.
+        level (str, optional): The logging level to use. Defaults to None."""
 def metadata_get_value (k, defa=None):
     ...
 def promise_all (*args, **kwargs):

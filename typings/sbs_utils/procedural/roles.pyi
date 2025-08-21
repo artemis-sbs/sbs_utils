@@ -21,6 +21,22 @@ def any_role (roles: str):
     
     Returns:
         agent id set: a set of agent IDs"""
+def get_role_list (id_or_obj):
+    """Returns a list of role names an Agent has
+    
+    Args:
+        id_or_obj (int | obj): The Agent to
+    
+    Returns:
+        list[str]: The list of role"""
+def get_role_string (id_or_obj):
+    """Returns a comma separated list of role names an Agent has
+    
+    Args:
+        id_or_obj (int | obj): The Agent to
+    
+    Returns:
+        str: The a comma separated string"""
 def has_any_role (so, roles):
     """check if an agent has any the roles specified
     

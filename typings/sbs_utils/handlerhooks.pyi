@@ -39,6 +39,8 @@ def set_inventory_value (so, key, value):
         id_or_obj (agent): The agent id or object to check
         key (str): The key/name of the inventory item
         value (any): the value"""
+def tick_the_rest (event):
+    ...
 class ErrorPage(Page):
     """A interface class for creating GUI pages
     
