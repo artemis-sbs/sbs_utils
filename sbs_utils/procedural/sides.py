@@ -36,7 +36,7 @@ def side_members_set(side):
     Returns:
         Set of ids with the specified side.
     """
-    print(f"Getting set for side: {side}")
+    # print(f"Getting set for side: {side}")
     id = to_side_id(side)
     key = get_inventory_value(id, "side_key")
     objs = role(key) - role("__side__") # remove the actual side, since it's a MastAsyncTask instead of a Ship
