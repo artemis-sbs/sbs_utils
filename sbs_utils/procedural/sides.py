@@ -239,6 +239,26 @@ def side_set_relations(side1, side2, relation):
             set_data_set_value(ship, "ally_list", o1_allies)
             set_data_set_value(ship, "hostile_list", o1_enemies) # Not used by the engine yet?
 
+def side_get_relations(side1, side2):
+    """
+    Get the relations value of the two sides.
+    1: Allies
+    0: Neutral
+    -1: Enemies
+
+    Args:
+        side1 (str|int): the key or id of the first side
+        side2 (str|int): the key or id of the second side
+    Returns:
+        int: relations value
+    """
+    o1 = to_side_id(side1)
+    o2 = to_side_id(side2)
+    if side_are_allies(side1,side2):
+        return 1
+    if side_are_enemies(side1,side2):
+        return -1
+    return 0
     
 def side_are_allies(side1, side2)->bool:
     """
