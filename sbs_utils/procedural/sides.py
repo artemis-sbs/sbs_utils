@@ -252,8 +252,8 @@ def side_get_relations(side1, side2):
     Returns:
         int: relations value
     """
-    o1 = to_side_id(side1)
-    o2 = to_side_id(side2)
+    # o1 = to_side_id(side1)
+    # o2 = to_side_id(side2)
     if side_are_allies(side1,side2):
         return 1
     if side_are_enemies(side1,side2):
