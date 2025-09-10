@@ -138,8 +138,8 @@ class Layout(Clickable):
 
     def set_bounds(self, bounds):
         self.bounds = bounds
-        if bounds.left != -1000:
-            self.restore_bounds = self.bounds
+        if bounds.left > -1000:
+            self.restore_bounds = bounds
 
     
     
@@ -218,7 +218,7 @@ class Layout(Clickable):
         self._show = _show
 
         if not _show:
-            self.set_bounds(Bounds(-1000,-1000, -999,-999))
+            self.set_bounds(Bounds(-1011,-1011, -999,-999))
         else:
             self.set_bounds(self.restore_bounds)
 

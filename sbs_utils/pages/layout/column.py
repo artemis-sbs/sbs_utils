@@ -48,12 +48,9 @@ class Column:
         self.on_message_cb = None
 
     def set_bounds(self, bounds) -> None:
-        self.bounds.left=bounds.left
-        self.bounds.top=bounds.top
-        self.bounds.right=bounds.right
-        self.bounds.bottom=bounds.bottom
-        if bounds.left != -1000:
-            self.restore_bounds = self.bounds
+        self.bounds = bounds
+        if bounds.left > -1000:
+            self.restore_bounds = bounds
 
 
     def show(self, _show):
