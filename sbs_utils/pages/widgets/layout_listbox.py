@@ -136,10 +136,14 @@ class LayoutListbox(layout.Column):
         if isinstance(self.template_func, str):
             self.item_template = item_template
             self.template_func = self.default_item_template
+        if self.template_func == None:
+            self.template_func = self.default_item_template
+            # self.item_template = self.default_item_template
         # elif isinstance(self.template_func, Label):
         #     self.item_template = self.template_func
         #     self.template_func = self.label_item_template
 
+        # First we assume that title_template is None or callable
         self.title_template_func = title_template
         self.title_template = None
         if isinstance(self.title_template_func, str):
@@ -188,7 +192,10 @@ class LayoutListbox(layout.Column):
         gui_row("row-height: 1.2em;padding:13px")
         task = FrameContext.task
         task.set_variable("LB_ITEM", item)
-        msg = task.compile_and_format_string(self.item_template)
+        if self.item_template is not None:
+            msg = task.compile_and_format_string(self.item_template)
+        else:
+            msg = item
         gui_text(msg)
 
     # def label_item_template(self, item):
