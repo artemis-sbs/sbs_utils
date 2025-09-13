@@ -189,14 +189,22 @@ class LayoutListbox(layout.Column):
 
     def default_item_template(self, item):
         from ...procedural.gui import gui_row, gui_text
-        gui_row("row-height: 1.2em;padding:13px")
+        gui_row("row-height: 1.2em;")
         task = FrameContext.task
         task.set_variable("LB_ITEM", item)
         if self.item_template is not None:
             msg = task.compile_and_format_string(self.item_template)
         else:
             msg = item
-        gui_text(msg)
+        collapsable =  isinstance(item, LayoutListBoxHeader)
+        if collapsable:
+            if not item.collapse:
+                gui_text(f"$text:{item.label};justify: center;color:#02FF;", "background: #FFFC")
+            else:
+                gui_text(f"$text:{item.label};justify: center;color:#FFF;", "background: #0173")
+        else:
+            gui_text(f"$text:{msg};justify: left;")
+        # gui_text(msg)
 
     # def label_item_template(self, item):
     #     task = FrameContext.task
