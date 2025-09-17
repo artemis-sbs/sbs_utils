@@ -39,6 +39,8 @@ def side_members_set(side):
     # print(f"Getting set for side: {side}")
     id = to_side_id(side)
     key = get_inventory_value(id, "side_key")
+    if key is None: # Should never happen, but just in case
+        return set()
     objs = role(key) - role("__side__") # remove the actual side, since it's a MastAsyncTask instead of a Ship
     # If the role for the side wasn't properly updated, remove the object?
     # objs = {x for x in objs if to_object(x).side == side}
@@ -53,7 +55,7 @@ def side_ally_members_set(side):
         Set: A set containing the ids of all allied ships, stations, etc.
     """
     id = to_side_id(side)
-    allies = get_inventory_value(id, "side_allies")
+    allies = get_inventory_value(id, "side_allies", set())
     ally_members = set()
     if allies is not None:
         for a in allies:
@@ -69,7 +71,7 @@ def side_enemy_members_set(side):
         Set: A set containing the ids of all enemy ships, stations, etc.
     """
     id = to_side_id(side)
-    enemies = get_inventory_value(id, "side_enemies")
+    enemies = get_inventory_value(id, "side_enemies", set())
     enemy_members = set()
     if enemies is not None:
         for a in enemies:
@@ -91,9 +93,9 @@ def to_side_id(key_or_id_or_object):
         # print(f"Side id: {key_or_id_or_object}")
         key_or_id_or_object = key_or_id_or_object.strip() # Get rid of leading/trailing whitespaces
         for s in sides_set():
-            if get_inventory_value(s, "side_key") == key_or_id_or_object:
+            if get_inventory_value(s, "side_key").strip() == key_or_id_or_object:
                 return s
-            if get_inventory_value(s, "side_name") == key_or_id_or_object:
+            if get_inventory_value(s, "side_name").strip() == key_or_id_or_object:
                 return s
         return None # If it's not in sides_set() then it's not a valid side key
     id = to_id(key_or_id_or_object) # Will return key_or_id_or_object if it's not an object
@@ -140,8 +142,8 @@ def side_set_ship_allies_and_enemies(ship):
     ship = to_object(ship)
     side = to_side_id(ship)
     if isinstance(side, int):
-        allies = get_inventory_value(side, "side_allies")
-        enemies = get_inventory_value(side, "side_enemies")
+        allies = get_inventory_value(side, "side_allies", set())
+        enemies = get_inventory_value(side, "side_enemies", set())
         allies = ",".join(allies)
         enemies = ",".join(enemies)
         set_data_set_value(ship, "ally_list", allies)
@@ -171,21 +173,21 @@ def side_set_relations(side1, side2, relation):
         # print(f"One or both sides are not valid")
         return
 
-    o1_enemies = get_inventory_value(o1, "side_enemies")
+    o1_enemies = get_inventory_value(o1, "side_enemies", set())
     # print(f"o1_enemies = {o1_enemies}")
     if isinstance(o1_enemies, str):
         o1_enemies = set(o1_enemies.split(","))
 
-    o1_allies = get_inventory_value(o1, "side_allies")
+    o1_allies = get_inventory_value(o1, "side_allies", set())
     if isinstance(o1_allies, str):
         o1_allies = set(o1_allies.split(","))
     o1_key = get_inventory_value(o1, "side_key")
 
 
-    o2_enemies = get_inventory_value(o2, "side_enemies")
+    o2_enemies = get_inventory_value(o2, "side_enemies", set())
     if isinstance(o2_enemies, str):
         o2_enemies = set(o2_enemies.split(","))
-    o2_allies = get_inventory_value(o2, "side_allies")
+    o2_allies = get_inventory_value(o2, "side_allies", set())
     if isinstance(o2_allies, str):
         o2_allies = set(o2_allies.split(","))
     o2_key = get_inventory_value(o2, "side_key")
@@ -271,13 +273,21 @@ def side_are_allies(side1, side2)->bool:
     """
     o1 = to_side_id(side1)
     o2 = to_side_id(side2)
+    if o1 is None:
+        print("`side1` in side_are_allies(side2,side2) in sbs_utils/procedural/sides.py is None")
+        return False
+    if o2 is None:
+        print("`side2` in side_are_allies(side2,side2) in sbs_utils/procedural/sides.py is None")
+        return False
 
-    o1_allies = get_inventory_value(o1, "side_allies")
+    o1_allies = get_inventory_value(o1, "side_allies",set())
     # print(f"side_are_allies o1_allies: {o1_allies}")
     if isinstance(o1_allies, str):
         o1_allies = o1_allies.split(",")
 
     o2_key = get_inventory_value(o2, "side_key")
+    if o2_key is None:
+        return False
     # print(f"o2key: {o2_key}")
 
     return o2_key in o1_allies
@@ -294,13 +304,21 @@ def side_are_enemies(side1, side2)->bool:
     
     o1 = to_side_id(side1)
     o2 = to_side_id(side2)
+    if o1 is None:
+        print("`side1` in side_are_enemies(side2,side2) in sbs_utils/procedural/sides.py is None")
+        return False
+    if o2 is None:
+        print("`side2` in side_are_enemies(side2,side2) in sbs_utils/procedural/sides.py is None")
+        return False
 
-    o1_enemies = get_inventory_value(o1, "side_enemies")
+    o1_enemies = get_inventory_value(o1, "side_enemies", set())
     # print(f"side_are_enemies o1_enemies: {o1_enemies}")
     if isinstance(o1_enemies, str):
         o1_enemies = o1_enemies.split(",")
 
     o2_key = get_inventory_value(o2, "side_key")
+    if o2_key is None:
+        return False
     # print(f"o2Key = {o2_key}")
 
     return o2_key in o1_enemies
