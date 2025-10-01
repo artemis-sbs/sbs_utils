@@ -153,6 +153,8 @@ class StyleDefinition:
                     ret[key]=StyleDefinition.parse_bounds(value)
                 case "background":
                     ret[key]=value
+                case "background-color":
+                    ret[key]=value
                 case "background-image":
                     ret[key]=value
                 case "border-image":
