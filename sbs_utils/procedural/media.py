@@ -6,6 +6,14 @@ from ..helpers import FrameContext
 
 
 def media_schedule_random(kind, ID=0):
+    """
+    Schedule music from the specified folder.
+    Args:
+        kind (str): The folder from which the music should be played. This is from labels of the format `@media/kind`, where `kind` is the folder.
+        ID (int, optional): The client ID for which to play the media. ID is ship, OR client, OR zero for server.
+    Returns:
+        label: The scheduled label or None
+    """
     files = MediaLabel.get_of_type(kind, None)
     media_folders = [file for file in files]
     if len(media_folders) > 0:
@@ -14,7 +22,7 @@ def media_schedule_random(kind, ID=0):
 
         
 def media_schedule(kind, name, ID=0):
-    """ Sets the folder from which music is streamed; ID is ship, OR client, OR zero for server.
+    """ Sets the folder from which music is streamed
 
 
     Args:

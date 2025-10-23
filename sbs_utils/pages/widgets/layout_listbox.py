@@ -263,11 +263,8 @@ class LayoutListbox(layout.Column):
         """ present
 
         builds/manages the content of the widget
-     
-        :param sim: simulation
-        :type sim: Artemis Cosmos simulation
-        :param CID: Client ID
-        :type CID: int
+        Args:
+            event (event): The event that triggered the gui to update
         """
         
         CID = event.client_id

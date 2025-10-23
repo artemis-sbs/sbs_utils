@@ -6,6 +6,18 @@ from ..agent import Agent, get_story_id
 
     
 def lifeform_spawn(name, face, roles, host=None, comms_id=None, path=None, title_color="green", message_color="white"):
+    """
+    Spawn a new Agent and initialize it as a lifeform.
+    Args:
+        name (str): The name of the lifeform.
+        face (str): The face string of the lifeform.
+        roles (str): A comma-separated list of roles assigned to the lifeform.
+        host (Agent | int, optional): The agent or id of the host space object. Default is None.
+        comms_id (str, optional): The comms_id of the lifeform (unused). Default is None.
+        path (str, optional): The comms path to use to communicate with this lifeform. Default is None.
+        title_color (str, optional): The color of the title of comms messages with this lifeform. Default is "green".
+        message_color (str, optional): The color of the message of comms messages with this lifeform. Default is "white".
+    """
     a = Agent()
     a.id = get_story_id()
     a.add()
@@ -14,6 +26,19 @@ def lifeform_spawn(name, face, roles, host=None, comms_id=None, path=None, title
     return a
 
 def lifeform_init(self, name, face, roles, host=None, comms_id=None, path=None, title_color="green", message_color="white"):
+    """
+    Initialize a lifeform.
+    Args:
+        name (str): The name of the lifeform
+        face (str): The face string of the lifeform.
+        roles (str): A comma-separated list of roles assigned to the lifeform.
+        host (Agent | int, optional): The agent or id of the host space object. Default is None.
+        comms_id (str, optional): The comms_id of the lifeform (unused). Default is None.
+        path (str, optional): The comms path to use to communicate with this lifeform. Default is None.
+        title_color (str, optional): The color of the title of comms messages with this lifeform. Default is "green".
+        message_color (str, optional): The color of the message of comms messages with this lifeform. Default is "white".
+    """
+    
     if face is not None:
         set_face(to_id(self), face)
     
@@ -31,6 +56,12 @@ def lifeform_init(self, name, face, roles, host=None, comms_id=None, path=None, 
 
 
 def lifeform_transfer(lifeform, new_host):
+    """
+    Assign a new host to this lifeform.
+    Args:
+        lifeform (Agent | int): The agent or id of the lifeform.
+        new_host (Agent | int): The agent or id of the new host.
+    """
     lifeform = to_object(lifeform)
     if lifeform is None:
         return
@@ -51,6 +82,12 @@ def lifeform_transfer(lifeform, new_host):
 
     # Emit signal?
 def lifeform_set_path(lifeform, path=None):
+    """
+    Set the comms path of the lifeform. If the path is None, then the `comms_badge` role is removed from the lifeform.
+    Args:
+        lifeform (Agent | int): The agent or id of the lifeform
+        path (str, optional): The new path to use. Default is None.
+    """
     lifeform = to_object(lifeform)
     if lifeform is None:
         return
