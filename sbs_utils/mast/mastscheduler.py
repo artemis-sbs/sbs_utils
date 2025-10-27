@@ -847,6 +847,13 @@ class MastAsyncTask(Agent, Promise):
         return value[0]
     
     def are_variables_defined(self, keys):
+        """
+        Check if the provided variable keys are defined in this task.
+        Args:
+            keys (str): A comma-separated list of the keys.
+        Returns:
+            bool: True if all variables are defined, otherwise False.
+        """
         keys = keys.split(",")
         for key in keys:
             value = self.get_value(key, None)

@@ -13,9 +13,9 @@ from sbs_utils.procedural.signal import signal_emit
 
 __objective_tick_task = None
 def objective_schedule():
-    #
-    # Schedule a simple tick task 
-    #
+    """
+    Schedule a simple task tick that runs all objective tasks.
+    """
     global __objective_tick_task
     if __objective_tick_task is None:
         __objective_tick_task = TickDispatcher.do_interval(objectives_run_everything, 1)
@@ -30,7 +30,18 @@ import time
 
 __end_game_promise = []
 __end_game_ids = 100
-def game_end_condition_add(promise, message, is_win, music=None, signal=None):
+def game_end_condition_add(promise, message, is_win, music=None, signal=None) -> int:
+    """
+    Add a game end condition. 
+    Args:
+        promise (Promise): The promise that must be completed for the game to end.
+        message (str): The message to display on game end.
+        is_win (bool): Does the game end with a win or loss?
+        music (str, optional): The music to play on game end. Default is None.
+        signal (str, optional): The signal to emit when the game ends.
+    Returns:
+        int: The id of the game end promise. Used to remove the game end condition after adding it.
+    """
     global __end_game_ids
     global __end_game_promise
 # Make sure low level task runner is running
@@ -43,12 +54,22 @@ def game_end_condition_add(promise, message, is_win, music=None, signal=None):
     return id
 
 def game_end_condition_remove(id):
+    """
+    Remove a game end condition.
+    Args:
+        id (int): The id of the game end condition.
+    """
     global __end_game_promise
     new_cond = [cond for cond in __end_game_promise if cond[0]!=id]
     __end_game_promise = new_cond
 
 
 def game_end_run_all(tt):
+    """
+    Check if any of the game end conditions have been met.
+    Args:
+        tt (Task): The tick task. Not used yet.
+    """
     for cond in __end_game_promise:
         id, promise, message, is_win, music, signal = cond
         promise.poll()
@@ -74,6 +95,12 @@ def game_end_run_all(tt):
 
 
 def objectives_run_everything(tick_task):
+    """
+    Check objectives, brains, scan sources, and game end conditions. Which promises are checked is depenent on the value of `tick_task.state`. 
+    This spreads out the calculation times across multiple runs instead of everything happening at the same time. The tick_task's `state` is updated.
+    Args:
+        tick_task (Task): The current task.
+    """
     state = tick_task.state % 3
     tick_task.state += 1
     #t = time.perf_counter()
@@ -98,6 +125,14 @@ def objectives_run_everything(tick_task):
 class Objective(Agent):
     ids = 0
     def __init__(self, agent, label, data, client_id):
+        """
+        Create an Objective.
+        Args:
+            agent (Agent | int): The agent or id for this objective
+            label (str | Label): The objective label to run
+            data (dict): Data to associate with this objective. May not be used.
+            client_id (int): The client ID for this objective. May not be used.
+        """
         super().__init__()
         self.agent = agent
         self.label = label #Label could have metadata
@@ -121,15 +156,29 @@ class Objective(Agent):
 
 
     @property
-    def done(self):
+    def done(self) -> bool:
+        """
+        Is the objective completed?
+        Returns:
+            bool: True if the objective is complete.
+        """
         return self._done
     
     @property
-    def result(self):
+    def result(self) -> PollResults:
+        """
+        Get the result of the objective.
+        Returns:
+            PollResults: The result.
+        """
         return self._result
     
     @result.setter
     def result(self, res):
+        """
+        Set the result of the objective. If the objective is done, then does nothing (to prevent overwriting the result of a completed objective).
+        If the result is not `PollResults.OK_IDLE`, then sets the value of the objective's `done` field to True.
+        """
         # Don't overwrite when done
         if self._done:
             return
@@ -139,6 +188,9 @@ class Objective(Agent):
             self.force_clear()
 
     def force_clear(self):
+        """
+        Clear this objective from its agent and undesignates it as an objective.
+        """
         self.remove_role("OBJECTIVE")
         unlink(self.agent, "OBJECTIVE", self.id)
         self.remove_role("OBJECTIVE_RUN")
@@ -147,6 +199,9 @@ class Objective(Agent):
 
 
     def run(self):
+        """
+        Run the objective label.
+        """
         if self.done:
             return
         if not self._started:
@@ -165,6 +220,11 @@ class Objective(Agent):
             self.stop_and_leave(self.result)
 
     def stop_and_leave(self, result=PollResults.FAIL_END):
+        """
+        Stop the label run with a result.
+        Args:
+            result (PollResults): The result of the objective label.
+        """
         leave = self.label.labels.get("leave", None)
         self.result = result
         if leave is not None:
@@ -172,6 +232,13 @@ class Objective(Agent):
         self.force_clear()
 
     def run_sub_label(self, loc):
+        """
+        Run the sublabel with the specified index.
+        Args:
+            loc (int): The index of the sublabel.
+        Returns:
+            PollResults: The result of the sublabel task.
+        """
         agent_object = Agent.get(self.agent)
         if agent_object is None:
             return PollResults.FAIL_END
@@ -193,6 +260,11 @@ class Objective(Agent):
         return res
 
 def objective_clear(agent_id_or_set):
+    """
+    Clear all objectives from the agent or agents.
+    Args:
+        agent_id_or_set (Agent | int | set[Agent | int]): The agent or id or set of agents or ids.
+    """
     agent_id_or_set = to_set(agent_id_or_set)
     for agent in agent_id_or_set:
         for obj in to_object_list(linked_to(agent, "OBJECTIVE")):
@@ -203,6 +275,16 @@ def objective_clear(agent_id_or_set):
         
 
 def objective_add(agent_id_or_set, label, data=None, client_id=0):
+    """
+    Add an objective to the agent or agents
+    Args:
+        agent_id_or_set (Agent | int | set[Agent | int]): The agent or id or set of agents or ids.
+        label (str | Label): The objective label to add.
+        data (dict, optional): The data associated with the objective.
+        client_id (int, optional): The client id for this objective (may not be used?)
+    Returns:
+        list[Objective | int]: The list of objectives added. Objectives for multiple agents count as separate objectives.
+    """
     # Make sure a tick task is running
     objective_schedule()
 
@@ -262,6 +344,11 @@ def objective_add(agent_id_or_set, label, data=None, client_id=0):
 
 __objectives_is_running = False
 def objectives_run_all(tick_task):
+    """
+    Run all objective labels.
+    Args:
+        tick_task (Task): The task. (Not used)
+    """
     global __objectives_is_running
     if __objectives_is_running:
         return
@@ -293,6 +380,14 @@ from ..helpers import FrameContext
 
 @awaitable
 def objective_extends(label, data=None):
+    """
+    Add an objective to the current task as a subtask.
+    Args:
+        label (str | Label): The label to add.
+        data (dict, optional): The data to associate with the objective. Default is None.
+    Returns:
+        MastAsyncTask: The task
+    """
     prefab = FrameContext.task
     if data is None:
         data = {}
