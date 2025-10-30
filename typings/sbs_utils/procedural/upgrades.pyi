@@ -4,79 +4,77 @@ from sbs_utils.mast.mastscheduler import MastAsyncTask
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.tickdispatcher import TickDispatcher
 def add_role (set_holder, role):
-    """add a role to a set of agents
+    """Add a role to an agent or a set of agents.
     
     Args:
-        set_holder (agent set): a set of IDs or
-        role (str): The role to add"""
-def get_inventory_value (id_or_object, key, default=None):
+        set_holder (Agent | int | set[Agent | int]): An agent or ID or a set of agents or IDs.
+        role (str): The role to add."""
+def get_inventory_value (id_or_object, key: str, default=None):
     """get inventory value with the given key the the agent  has
         this is the way to create a collection in inventory
     
     Args:
-        id_or_obj (agent): The agent id or object to check
+        id_or_obj (Agent | int): The agent id or object to check
         key (str): The key/name of the inventory item
-        default (any): the default value data"""
+        default (any): the default value data
+    Returns:
+        any: The inventory value associated with the provided key, or the default value if it doesn't exist."""
 def get_story_id ():
     ...
 def has_link_to (link_source, link_name: str, link_target):
     """check if target and source are linked to for the given key
     
     Args:
-        link_source (agent): The agent hosting the link
+        link_source (Agent | int): The agent or id hosting the link
         link_name (str): The key/name of the inventory item
     
     Returns:
-        set | None: set of ids"""
+        set[int]: The set of linked ids"""
 def linked_to (link_source, link_name: str):
-    """get the set that inventor the source is linked to for the given key
+    """Get the set of ids that the source is linked to for the given key.
     
     Args:
-        link_source(id): The id object to check
+        link_source (Agent | int): The agent or id to check
         link_name (str): The key/name of the inventory item
-        set | None: set of ids"""
+    Returns:
+        set[int]: The set of linked ids"""
 def objectives_run_all (tick_task):
     ...
 def remove_role (agents, role):
-    """remove a role from a set of agents
+    """Remove a role from an agent or a set of agents.a
     
     Args:
-        agents (agent set): a set of IDs or
-        role (str): The role to add"""
+        agents (Agent | int | set[Agent | int]): An agent or ID or a set of agents or IDs.
+        role (str): The role to add."""
 def role (role: str):
-    """returns a set of all the agents with a given role.
+    """Returns a set of all the agents with a given role as a set of IDs.
     
     Args:
-        role (str): The role
+        role (str): The role.
     
     Returns:
-        agent id set: a set of agent IDs"""
+        set[int]: a set of agent IDs."""
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """converts the item passed to an agent
-    
+    """Converts the item passed to an agent
     ??? note
-        Retrun of None could mean the agent no longer exists
-    
+    * Return of None could mean the agent no longer exists
     Args:
         other (Agent | CloseData | int): The agent ID or other agent like data
-    
     Returns:
-        agent | None: The agent or None"""
+        Agent | None: The agent or None"""
 def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """converts a single object/id, set ot list of things to a set of ids
-    
+    """Converts a single object/id, set or list of things to a set of ids
     Args:
-        the_set (set): set, list or single item
-    
+        other (Agent | CloseData | int | set[Agent | int] | list[Agent | int]): The agent or id or set.
     Returns:
-        set of things"""
-def unlink (set_holder, link, set_to):
-    """removes the link between things
+        set[Agent | CloseData | int]: A set containing whatever was passed in."""
+def unlink (set_holder, link_name: str, set_to):
+    """Removes the link between things
     
     Args:
-        set_holder (agent|agent set): An agent or set of agents (ids or objects)
-        link (str): Link name
-        set_to (agent|agent set): The agents(s) to add a link to"""
+        set_holder (Agent | int | set[Agent | int]): An agent or set of agents (ids or objects)
+        link_name (str): Link name
+        set_to (Agent | int | set[Agent | int]): The agent or set of agents (ids or objects) to add a link to"""
 def upgrade_add (agent_id_or_set, label, data=None, client_id=0, activate=False):
     ...
 def upgrade_remove_for_agent (agent):

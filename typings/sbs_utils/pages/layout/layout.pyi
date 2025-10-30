@@ -13,7 +13,11 @@ def calc_float_attribute (name, col, row, sec, aspect_ratio_axis, font_size):
 def cascade_attribute (name, col, row, sec):
     ...
 def get_client_aspect_ratio (cid):
-    ...
+    """Get the aspect ratio of the specified client's screen.
+    Args:
+        cid (int): The client ID.
+    Returns:
+        Vec3: The aspect ratio. If Vec3.z is 99, then the client hasn't set the aspect ratio."""
 def get_font_size (font):
     ...
 class Layout(Clickable):

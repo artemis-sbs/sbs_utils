@@ -139,42 +139,49 @@ def create_comms_label ():
 def create_grid_comms_label ():
     ...
 def get_comms_selection (id_or_not):
-    """gets the id of the comms selection
-    
+    """Gets the id of the comms selection
     Args:
-        id_or_not (agent): agent id or object
-    
+        id_or_not (Agent | int): agent id or object
     Returns:
-        agent id | None: The agent id or None"""
-def get_inventory_value (id_or_object, key, default=None):
+        int | None: The agent id or None"""
+def get_inventory_value (id_or_object, key: str, default=None):
     """get inventory value with the given key the the agent  has
         this is the way to create a collection in inventory
     
     Args:
-        id_or_obj (agent): The agent id or object to check
+        id_or_obj (Agent | int): The agent id or object to check
         key (str): The key/name of the inventory item
-        default (any): the default value data"""
+        default (any): the default value data
+    Returns:
+        any: The inventory value associated with the provided key, or the default value if it doesn't exist."""
 def gui_properties_set (p=None, tag=None):
     ...
 def has_role (so, role):
-    """check if an agent has a role
+    """Check if an agent has the specified role.
     
     Args:
-        so (an agent): an agent id or object
-        role (str): the role to test for
+        so (Agent | int): An agent or id.
+        role (str): The role to test for
     
     Returns:
-        bool: if the agent has that role"""
+        bool: True if the agent has that role"""
 def labels_get_type (label_type):
     ...
 def role_are_allies (id_or_obj, other_id_or_obj):
-    ...
-def set_inventory_value (so, key, value):
-    """set inventory value with the given key the the agent  has
-        this is the way to create a collection in inventory
+    """Check if the two objects are allied.
     
     Args:
-        id_or_obj (agent): The agent id or object to check
+        id_or_obj (Agent | int): The first object.
+        other_id_or_obj (Agent | int): The second object.
+    Returns:
+        bool: True if they are allied."""
+def set_inventory_value (so, key: str, value):
+    """Set inventory value with the given key the the agent has.
+    This is the way to create a collection in inventory.
+    `so` can be a set. If it is, the inventory value is set for each member in the set.
+    
+    Args:
+        id_or_obj (Agent | int | set[Agent | int]): The agent id or object or set to check
         key (str): The key/name of the inventory item
         value (any): the value"""
 def start_comms_common_selected (event, is_grid):
@@ -186,25 +193,19 @@ def start_grid_comms_selected (event):
 def task_all (*args, **kwargs):
     ...
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """converts the item passed to an agent
-    
+    """Converts the item passed to an agent
     ??? note
-        Retrun of None could mean the agent no longer exists
-    
+    * Return of None could mean the agent no longer exists
     Args:
         other (Agent | CloseData | int): The agent ID or other agent like data
-    
     Returns:
-        agent | None: The agent or None"""
+        Agent | None: The agent or None"""
 def to_object_list (the_set):
-    """to_object_list
-    converts a set to a list of objects
-    
+    """Converts a set to a list of objects
     Args:
-        the_set (set|list): a set of agent ids
-    
+        the_set (set[Agent | int] | list[Agent | int]): a set or list of agents or ids
     Returns:
-        list: of Agents"""
+        list[Agent]: A list of Agent objects"""
 class CommsChoiceButtonPromise(Promise):
     """class CommsChoiceButtonPromise"""
     def __init__ (self, buttons, path, nav_button):

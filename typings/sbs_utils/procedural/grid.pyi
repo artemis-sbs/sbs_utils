@@ -5,25 +5,27 @@ from sbs_utils.griddispatcher import GridDispatcher
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.vec import Vec3
 def add_role (set_holder, role):
-    """add a role to a set of agents
+    """Add a role to an agent or a set of agents.
     
     Args:
-        set_holder (agent set): a set of IDs or
-        role (str): The role to add"""
+        set_holder (Agent | int | set[Agent | int]): An agent or ID or a set of agents or IDs.
+        role (str): The role to add."""
 def get_artemis_data_dir_filename (filename):
     ...
-def get_inventory_value (id_or_object, key, default=None):
+def get_inventory_value (id_or_object, key: str, default=None):
     """get inventory value with the given key the the agent  has
         this is the way to create a collection in inventory
     
     Args:
-        id_or_obj (agent): The agent id or object to check
+        id_or_obj (Agent | int): The agent id or object to check
         key (str): The key/name of the inventory item
-        default (any): the default value data"""
+        default (any): the default value data
+    Returns:
+        any: The inventory value associated with the provided key, or the default value if it doesn't exist."""
 def get_mission_dir_filename (filename):
     ...
-def get_open_grid_points (id_or_obj):
-    """gets a list of open grid location
+def get_open_grid_points (id_or_obj) -> set[sbs_utils.vec.Vec3]:
+    """Gets a list of open grid locations
     
     Args:
         id_or_obj (agent): agent id or object to check
@@ -34,82 +36,103 @@ def grid_clear_detailed_status (id_or_obj):
     """clears the detailed status string of a grid object
     
     Args:
-        id_or_obj (agent): The agent id of object"""
+        id_or_obj (Agent | int): The agent id of object"""
 def grid_clear_speech_bubble (id_or_obj):
-    """clear the speech bubble for a grid object
+    """Clear the speech bubble for a grid object
     
     Args:
-        id_or_obj (agent): agent id or object of the grid object"""
+        id_or_obj (Agent | int): agent id or object of the grid object"""
 def grid_clear_target (grid_obj_or_set):
     """Clear the target of a grid object
     
     Args:
-        grid_obj_or_set (agent): the id of the object or set"""
+        grid_obj_or_set (Agent | int | set[Agent | int]): the id of the object or set"""
 def grid_close_list (grid_obj, the_set, max_dist=None, filter_func=None) -> list[sbs_utils.agent.CloseData]:
     """Find and target the closest object matching the criteria
     
     Args:
-        grid_obj_or_set (agent set): The agent
-        target_set (agent set, optional): The items to test. Defaults to None.
+        grid_obj (Agent | int): The agent or id
+        the_set (set[Agent], optional): The items to test. Defaults to None.
         max_dist (float, optional): max distance. Defaults to None.
-        filter_func (_type_, optional): additional filer function. Defaults to None.
+        filter_func (Callable, optional): additional filer function. Defaults to None.
     
     Returns:
-        CloseData list: The gird close data of the closest objects"""
+        list[CloseData]: The gird close data of the closest objects"""
 def grid_closest (grid_obj, target_set=None, max_dist=None, filter_func=None) -> sbs_utils.agent.CloseData:
     """Find and target the closest object matching the criteria
     
     Args:
-        grid_obj_or_set (agent set): The agent
-        target_set (agent set, optional): The items to test. Defaults to None.
+        grid_obj (Agent | int): The agent or id
+        target_set (set[Agent], optional): The items to test. Defaults to None.
         max_dist (float, optional): max distance. Defaults to None.
-        filter_func (_type_, optional): additional filer function. Defaults to None.
+        filter_func (Callable, optional): additional filer function. Defaults to None.
     
     Returns:
         CloseData: The gird close data of the closest object"""
 def grid_delete_objects (ship_id_or_obj):
-    ...
+    """Delete all grid objects for the given ship.
+    Args:
+        ship_id_or_obj (Agent | int): The agent or id of the ship."""
 def grid_detailed_status (id_or_obj, status, color=None):
     """sets the detailed status of a grid object
     
     Args:
-        id_or_obj (agent): Agent id or object
+        id_or_obj (Agent | int): Agent id or object
         status (str): The detailed status string
         color (str, optional): change the color of the detailed status text. None does not change the current value"""
 def grid_get_grid_current_theme ():
-    ...
-def grid_get_grid_data ():
-    """get the grid data from all the grid_data.json files
+    """Get the current grid theme.
+    Returns:
+        dict: The grid theme dictionary
+        * key (str): The key of the theme data, e.g. `name`, `colors`, `icons`, etc.
+        * value (any): The value of the theme data."""
+def grid_get_grid_data () -> dict:
+    """Get the grid data from all the grid_data.json files
     
     Returns:
-        dict: a dictionary of grid data objects key is a ship key"""
+        dict: a dictionary of grid data objects.
+        * key (str): The key of the dict, which is a ship key as defined in shipData.
+        * value (dict): A dict with `grid_objects` as a key, and a list of grid object data as the value."""
 def grid_get_grid_named_theme (name):
-    ...
+    """Get the grid theme data by name.
+    Args:
+        name (str): The name of hte grid theme data.
+    Returns:
+        dict: The grid theme dictionary
+        * key (str): The key of the theme data, e.g. `name`, `colors`, `icons`, etc.
+        * value (any): The value of the theme data."""
 def grid_get_grid_theme ():
-    """get the grid data from all the grid_data.json files
+    """Get the grid data from all the grid_data.json files
     
     Returns:
-        dict: a dictionary of grid data objects key is a ship key"""
+        dict: a dictionary of grid theme data
+        * key (str): The ship key associated with the grid theme
+        * value (dict): The grid theme data"""
 def grid_get_item_theme_data (roles, name=None):
-    ...
-def grid_objects (so_id):
-    """get a set of agent ids of the grid objects on the specified ship
+    """Get the item theme data for grid objects with the specified roles, for the optionally specified theme.
+    Args:
+        roles (str): A comma-separated list of roles to use.
+        name (str, optional): The name of the grid data theme. Default is None.
+    Returns:
+        RetVal: An object containing the `icon`, `scale`, `color`, and `damage_color` for the grid objects that match the roles."""
+def grid_objects (so_id) -> set[int]:
+    """Get a set of agent ids of the grid objects on the specified ship
     
     Args:
-        so_id (agent): agent id or object
+        so_id (Agent | int): agent id or object
     
     Returns:
-        set: a set of agent ids"""
-def grid_objects_at (so_id, x, y):
-    """get a set of agent ids of the grid objects on the specified ship, at the location specified
+        set[int]: a set of agent ids"""
+def grid_objects_at (so_id, x, y) -> set[int]:
+    """Get a set of agent ids of the grid objects on the specified ship, at the location specified
     
     Args:
-        so_id (agent): agent id or object
+        so_id (Agent | int): agent id or object
         x (int): The x grid location
         y (int): The y grid location
     
     Returns:
-        set: a set of agent ids"""
+        set[int]: A set of agent ids"""
 def grid_pos_data (id):
     """get a set of agent ids of the grid objects on the specified ship, at the location specified
     
@@ -119,27 +142,33 @@ def grid_pos_data (id):
         y (int): The y grid location
     
     Returns:
-        (float,float,float) : x, y, path_length"""
+        tuple (float,float,float): x, y, path_length"""
 def grid_remove_move_role (event):
-    ...
+    """Remove the `_moving_` role from the grid object if the event has the `finished_path` sub_tag.
+    Args:
+        event (event): The event that caused the removal"""
 def grid_set_grid_current_theme (i):
-    ...
+    """Set the grid theme by index.
+    Args:
+        i (int): The index of the grid theme to use. """
 def grid_set_grid_named_theme (name):
-    ...
+    """Set the grid theme by name.
+    Args:
+        name (str): The name of the grid theme, e.g. `cosmos` or `Retro`."""
 def grid_short_status (id_or_obj, status, color=None, seconds=0, minutes=0):
     """sets the short status (tool tip) and speech bubble text of a grid object
     
     Args:
-        id_or_obj (agent): Agent id or object
+        id_or_obj (Agent | int): Agent id or object
         status (str): The detailed status string
         color (str, optional): change the color of the detailed status text. None does not change the current value
         seconds (int): The seconds for the speech bubble
         minutes: (int): The minutes for the speech bubble"""
 def grid_speech_bubble (id_or_obj, status, color=None, seconds=0, minutes=0):
-    """sets the speech bubble text of a grid object. The text will disappear if the seconds/minutes are set
+    """Sets the speech bubble text of a grid object. The text will disappear if the seconds/minutes are set
     
     Args:
-        id_or_obj (agent): Agent id or object
+        id_or_obj (Agent | int): Agent id or object
         status (str): The detailed status string
         color (str, optional): change the color of the detailed status text. None does not change the current value
         seconds (int): The seconds for the speech bubble
@@ -148,17 +177,17 @@ def grid_target (grid_obj_or_set, target_id: int, speed=0.01):
     """Set a grid object to target the location of another grid object
     
     Args:
-        grid_obj_or_set (agent): an id, object or set of agent(s)
-        target_id (agent): an agent id or object
+        grid_obj_or_set (Agent | int | set[Agent | int]): an id, object or set of agent(s)
+        target_id (Agent): an agent id or object
         speed (float, optional): the speed to move. Defaults to 0.01."""
-def grid_target_closest (grid_obj_or_set, target_set=None, max_dist=None, filter_func=None):
+def grid_target_closest (grid_obj_or_set, target_set=None, max_dist=None, filter_func=None) -> sbs_utils.agent.CloseData:
     """Find and target the closest object matching the criteria
     
     Args:
-        grid_obj_or_set (agent set): The agent
-        target_set (agent set, optional): The items to test. Defaults to None.
+        grid_obj_or_set (Agent | int | set[Agent | int]): The agent or set
+        target_set (set[Agent], optional): The items to test. Defaults to None.
         max_dist (float, optional): max distance. Defaults to None.
-        filter_func (_type_, optional): additional filer function. Defaults to None.
+        filter_func (Callable, optional): additional filer function. Defaults to None.
     
     Returns:
         GridCloseData: The gird close data of the closest object"""
@@ -166,81 +195,66 @@ def grid_target_pos (grid_obj_or_set, x: float, y: float, speed=0.01):
     """Set the grid object go to the target location
     
     Args:
-        grid_obj_or_set (agent): An id, object or set of grid object agent(s)
+        grid_obj_or_set (Agent | int | set[Agent | int]): An id, object or set of grid object agent(s)
         x (float): x location
         y (float): y location
         speed (float, optional): The grid object speed. Defaults to 0.01."""
 def load_json_data (file):
     ...
 def remove_role (agents, role):
-    """remove a role from a set of agents
+    """Remove a role from an agent or a set of agents.a
     
     Args:
-        agents (agent set): a set of IDs or
-        role (str): The role to add"""
-def set_inventory_value (so, key, value):
-    """set inventory value with the given key the the agent  has
-        this is the way to create a collection in inventory
+        agents (Agent | int | set[Agent | int]): An agent or ID or a set of agents or IDs.
+        role (str): The role to add."""
+def set_inventory_value (so, key: str, value):
+    """Set inventory value with the given key the the agent has.
+    This is the way to create a collection in inventory.
+    `so` can be a set. If it is, the inventory value is set for each member in the set.
     
     Args:
-        id_or_obj (agent): The agent id or object to check
+        id_or_obj (Agent | int | set[Agent | int]): The agent id or object or set to check
         key (str): The key/name of the inventory item
         value (any): the value"""
 def to_blob (id_or_obj):
-    """gets the engine dataset of the specified agent
-    
+    """Gets the engine dataset of the specified agent
     !!! Note
-        Same as to_data_set
-    
+    * Same as to_data_set
     Args:
-        id_or_obj (agent): Agent id or object
-    
+        id_or_obj (Agent | int): Agent id or object
     Returns:
-        data set| None: Returns the data or None if it does not exist"""
+        data_set | None: Returns the data or None if it does not exist"""
 def to_data_set (id_or_obj):
-    """gets the engine dataset of the specified agent
-    
+    """Gets the engine dataset of the specified agent
     !!! Note
-        Same as to_data_set
-    
+    * Same as to_blob
     Args:
-        id_or_obj (agent): Agent id or object
-    
+        id_or_obj (Agent | int): Agent id or object
     Returns:
-        data set| None: Returns the data or None if it does not exist"""
+        data_set | None: Returns the data or None if it does not exist"""
 def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """converts item passed to an agent id
-    
+    """Converts item passed to an agent id
     Args:
         other (Agent | CloseData | int): The agent
-    
     Returns:
-        id: The agent id"""
+        int: The agent id"""
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """converts the item passed to an agent
-    
+    """Converts the item passed to an agent
     ??? note
-        Retrun of None could mean the agent no longer exists
-    
+    * Return of None could mean the agent no longer exists
     Args:
         other (Agent | CloseData | int): The agent ID or other agent like data
-    
     Returns:
-        agent | None: The agent or None"""
+        Agent | None: The agent or None"""
 def to_object_list (the_set):
-    """to_object_list
-    converts a set to a list of objects
-    
+    """Converts a set to a list of objects
     Args:
-        the_set (set|list): a set of agent ids
-    
+        the_set (set[Agent | int] | list[Agent | int]): a set or list of agents or ids
     Returns:
-        list: of Agents"""
+        list[Agent]: A list of Agent objects"""
 def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """converts a single object/id, set ot list of things to a set of ids
-    
+    """Converts a single object/id, set or list of things to a set of ids
     Args:
-        the_set (set): set, list or single item
-    
+        other (Agent | CloseData | int | set[Agent | int] | list[Agent | int]): The agent or id or set.
     Returns:
-        set of things"""
+        set[Agent | CloseData | int]: A set containing whatever was passed in."""

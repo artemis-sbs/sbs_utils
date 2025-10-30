@@ -2,9 +2,17 @@ from sbs_utils.helpers import FakeEvent
 from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.parsers import LayoutAreaParser
 def apply_control_styles (control_name, extra_style, layout_item, task):
-    ...
+    """Apply style information to a layout item based on the type of the layout, and apply the extra styles as needed.
+    Args:
+        control_name (str): The name of the control style.
+        extra_style (str): A CSS-style string containing extra style definitions which override those in the control style.
+        layout_item (LayoutItem): The layout item for which the style is to be applied."""
 def get_client_aspect_ratio (cid):
-    ...
+    """Get the aspect ratio of the specified client's screen.
+    Args:
+        cid (int): The client ID.
+    Returns:
+        Vec3: The aspect ratio. If Vec3.z is 99, then the client hasn't set the aspect ratio."""
 def layout_list_box_control (items, template_func=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False):
     ...
 class LayoutListBoxHeader(object):
@@ -22,11 +30,8 @@ class LayoutListbox(Column):
         """present
         
         builds/manages the content of the widget
-        
-        :param sim: simulation
-        :type sim: Artemis Cosmos simulation
-        :param CID: Client ID
-        :type CID: int"""
+        Args:
+            event (event): The event that triggered the gui to update"""
     def calc_max (self, CID):
         ...
     def clear_selection_locks (self):

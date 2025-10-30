@@ -17,26 +17,31 @@ def cosmos_event_handler (sim, event):
     ...
 def format_exception (message, source):
     ...
-def get_inventory_value (id_or_object, key, default=None):
+def get_inventory_value (id_or_object, key: str, default=None):
     """get inventory value with the given key the the agent  has
         this is the way to create a collection in inventory
     
     Args:
-        id_or_obj (agent): The agent id or object to check
+        id_or_obj (Agent | int): The agent id or object to check
         key (str): The key/name of the inventory item
-        default (any): the default value data"""
+        default (any): the default value data
+    Returns:
+        any: The inventory value associated with the provided key, or the default value if it doesn't exist."""
 def get_mission_name ():
     ...
 def get_startup_mission_name ():
     ...
 def print_event (event):
-    ...
-def set_inventory_value (so, key, value):
-    """set inventory value with the given key the the agent  has
-        this is the way to create a collection in inventory
+    """Print the event data.
+    Args:
+        event (event): The event of interest."""
+def set_inventory_value (so, key: str, value):
+    """Set inventory value with the given key the the agent has.
+    This is the way to create a collection in inventory.
+    `so` can be a set. If it is, the inventory value is set for each member in the set.
     
     Args:
-        id_or_obj (agent): The agent id or object to check
+        id_or_obj (Agent | int | set[Agent | int]): The agent id or object or set to check
         key (str): The key/name of the inventory item
         value (any): the value"""
 def tick_the_rest (event):

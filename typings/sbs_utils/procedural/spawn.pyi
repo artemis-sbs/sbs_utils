@@ -2,23 +2,23 @@ from sbs_utils.gridobject import GridObject
 from sbs_utils.objects import Npc
 from sbs_utils.objects import PlayerShip
 from sbs_utils.objects import Terrain
-def grid_spawn (id, name, tag, x, y, icon, color, roles):
-    """Spawn a grid object on a ship
+def grid_spawn (id, name, tag, x, y, icon_index, color, roles):
+    """Spawn a grid object on a ship.
     
     Args:
-        id (agent): The agent to add the grid object to
-        name (str): The name of the grid item
+        id (Agent | int): The agent to which the grid object should be added
+        name (str): The name of the grid object
         tag (str): The tag/side
         x (int): the x grid location
         y (int): the y grid location
-        icon (int): the icon index
+        icon_index (int): the icon index
         color (str): color
-        roles (str): string of comma separated roles
+        roles (str): string of comma-separated roles
     
     Returns:
-        GridObject: The grid object"""
-def npc_spawn (x, y, z, name, side, art_id, behave_id):
-    """spawn a non-player ship
+        GridObject: The grid object."""
+def npc_spawn (x, y, z, name, side, ship_key, behave_id):
+    """Spawn a non-player ship.
     
     Args:
         x (float): the x location
@@ -26,13 +26,13 @@ def npc_spawn (x, y, z, name, side, art_id, behave_id):
         z (float): The z location
         name (str): The name can be None
         side (str): The side the the ship is on
-        art_id (str): The art ID to use
+        ship_key (str): The key from shipData to use
         behave_id (str): Behavior type
     
     Returns:
-        SpawnData: """
-def player_spawn (x, y, z, name, side, art_id):
-    """spawn a player ship
+        SpawnData: The SpawnData object for the npc."""
+def player_spawn (x, y, z, name, side, ship_key):
+    """Spawn a player ship.
     
     Args:
         x (float): the x location
@@ -40,12 +40,12 @@ def player_spawn (x, y, z, name, side, art_id):
         z (float): The z location
         name (str): The name can be None
         side (str): The side the the ship is on
-        art_id (str): The art ID to use
+        ship_key (str): The key from shipData to use
     
     Returns:
-        SpawnData: """
-def terrain_spawn (x, y, z, name, side, art_id, behave_id):
-    """spawn a terrain (passive) object
+        SpawnData: The SpawnData object for the player ship."""
+def terrain_spawn (x, y, z, name, side, ship_key, behave_id):
+    """Spawn a terrain (passive) object.
     
     Args:
         x (float): the x location
@@ -53,8 +53,14 @@ def terrain_spawn (x, y, z, name, side, art_id, behave_id):
         z (float): The z location
         name (str): The name can be None
         side (str): The side the the object is on can be None
-        art_id (str): The art ID to use
+        ship_key (str): The key from shipData to use
         behave_id (str): Behavior type
     
     Returns:
-        SpawnData: """
+        SpawnData: The SpawnData object for the terrain."""
+def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
+    """Converts item passed to an agent id
+    Args:
+        other (Agent | CloseData | int): The agent
+    Returns:
+        int: The agent id"""

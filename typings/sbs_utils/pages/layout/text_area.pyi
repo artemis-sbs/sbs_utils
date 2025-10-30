@@ -3,7 +3,11 @@ from sbs_utils.pages.layout.column import Column
 from sbs_utils.pages.widgets.control import Control
 from sbs_utils.helpers import FrameContext
 def get_client_aspect_ratio (cid):
-    ...
+    """Get the aspect ratio of the specified client's screen.
+    Args:
+        cid (int): The client ID.
+    Returns:
+        Vec3: The aspect ratio. If Vec3.z is 99, then the client hasn't set the aspect ratio."""
 def get_font_size (font):
     ...
 class TextArea(Control):

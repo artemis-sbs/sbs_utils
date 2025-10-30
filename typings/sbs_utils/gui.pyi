@@ -3,7 +3,11 @@ from sbs_utils.helpers import FakeEvent
 from sbs_utils.helpers import FrameContext
 from sbs_utils.vec import Vec3
 def get_client_aspect_ratio (cid):
-    ...
+    """Get the aspect ratio of the specified client's screen.
+    Args:
+        cid (int): The client ID.
+    Returns:
+        Vec3: The aspect ratio. If Vec3.z is 99, then the client hasn't set the aspect ratio."""
 class Gui(object):
     """class GUI
     Manages the GUI pages for all clients"""

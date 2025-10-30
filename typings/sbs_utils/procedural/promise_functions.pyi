@@ -29,54 +29,44 @@ def grid_pos_data (id):
         y (int): The y grid location
     
     Returns:
-        (float,float,float) : x, y, path_length"""
+        tuple (float,float,float): x, y, path_length"""
 def has_role (so, role):
-    """check if an agent has a role
+    """Check if an agent has the specified role.
     
     Args:
-        so (an agent): an agent id or object
-        role (str): the role to test for
+        so (Agent | int): An agent or id.
+        role (str): The role to test for
     
     Returns:
-        bool: if the agent has that role"""
+        bool: True if the agent has that role"""
 def to_data_set (id_or_obj):
-    """gets the engine dataset of the specified agent
-    
+    """Gets the engine dataset of the specified agent
     !!! Note
-        Same as to_data_set
-    
+    * Same as to_blob
     Args:
-        id_or_obj (agent): Agent id or object
-    
+        id_or_obj (Agent | int): Agent id or object
     Returns:
-        data set| None: Returns the data or None if it does not exist"""
+        data_set | None: Returns the data or None if it does not exist"""
 def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """converts item passed to an agent id
-    
+    """Converts item passed to an agent id
     Args:
         other (Agent | CloseData | int): The agent
-    
     Returns:
-        id: The agent id"""
+        int: The agent id"""
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """converts the item passed to an agent
-    
+    """Converts the item passed to an agent
     ??? note
-        Retrun of None could mean the agent no longer exists
-    
+    * Return of None could mean the agent no longer exists
     Args:
         other (Agent | CloseData | int): The agent ID or other agent like data
-    
     Returns:
-        agent | None: The agent or None"""
+        Agent | None: The agent or None"""
 def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """converts a single object/id, set ot list of things to a set of ids
-    
+    """Converts a single object/id, set or list of things to a set of ids
     Args:
-        the_set (set): set, list or single item
-    
+        other (Agent | CloseData | int | set[Agent | int] | list[Agent | int]): The agent or id or set.
     Returns:
-        set of things"""
+        set[Agent | CloseData | int]: A set containing whatever was passed in."""
 class TestPromise(Promise):
     """class TestPromise"""
     def __init__ (self, test_func) -> None:

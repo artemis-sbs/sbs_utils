@@ -26,14 +26,16 @@ def follow_route_select_science (origin_id, selected_id):
     Args:
         origin_id (agent): The agent id of the player ship
         selected_id (agent): The agent id of the target space object"""
-def get_inventory_value (id_or_object, key, default=None):
+def get_inventory_value (id_or_object, key: str, default=None):
     """get inventory value with the given key the the agent  has
         this is the way to create a collection in inventory
     
     Args:
-        id_or_obj (agent): The agent id or object to check
+        id_or_obj (Agent | int): The agent id or object to check
         key (str): The key/name of the inventory item
-        default (any): the default value data"""
+        default (any): the default value data
+    Returns:
+        any: The inventory value associated with the provided key, or the default value if it doesn't exist."""
 def route_change_console (label):
     """called when a  change console button is pressed.
     
@@ -426,24 +428,19 @@ def route_spawn_grid (label):
     Returns:
         The route: Used rarely to cancel the route"""
 def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """converts item passed to an agent id
-    
+    """Converts item passed to an agent id
     Args:
         other (Agent | CloseData | int): The agent
-    
     Returns:
-        id: The agent id"""
+        int: The agent id"""
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """converts the item passed to an agent
-    
+    """Converts the item passed to an agent
     ??? note
-        Retrun of None could mean the agent no longer exists
-    
+    * Return of None could mean the agent no longer exists
     Args:
         other (Agent | CloseData | int): The agent ID or other agent like data
-    
     Returns:
-        agent | None: The agent or None"""
+        Agent | None: The agent or None"""
 class HandleCollision(object):
     """class HandleCollision"""
     def __init__ (self, coll_type, label) -> None:

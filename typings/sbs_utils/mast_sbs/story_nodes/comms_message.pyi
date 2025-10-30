@@ -62,23 +62,24 @@ def mast_node (append=True):
 def mast_runtime_node (parser_node):
     ...
 def role (role: str):
-    """returns a set of all the agents with a given role.
+    """Returns a set of all the agents with a given role as a set of IDs.
     
     Args:
-        role (str): The role
+        role (str): The role.
     
     Returns:
-        agent id set: a set of agent IDs"""
+        set[int]: a set of agent IDs."""
 def scan_results (message, target=None, tab=None):
     """Set the scan results for the current scan. This should be called when the scan is completed.
        This is typically called as part of a scan()
        This could also be called in response to a routed science message.
-       When pair with a scan() the target and tab are not need.
+       When paired with a scan() the target and tab are not needed.
        Tab is the variable __SCAN_TAB__, target is track
     
     Args:
-        message (str): scan text for a scan the is in progress
-        tab (str): scan tab for a scan the is in progress"""
+        message (str): Scan text for a scan that is in progress.
+        target (Any, optional): Not currently used. Default is None.
+        tab (str, optional): Scan tab for a scan that is in progress. Default is None."""
 class CommsMessageStart(DescribableNode):
     """class CommsMessageStart"""
     def __init__ (self, mtype, title, q=None, var=None, format=None, loc=None, compile_info=None):

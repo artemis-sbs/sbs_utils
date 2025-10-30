@@ -11,14 +11,16 @@ def _property_lb_item_template_one_line (item):
     ...
 def _property_lb_item_template_two_line (item):
     ...
-def get_inventory_value (id_or_object, key, default=None):
+def get_inventory_value (id_or_object, key: str, default=None):
     """get inventory value with the given key the the agent  has
         this is the way to create a collection in inventory
     
     Args:
-        id_or_obj (agent): The agent id or object to check
+        id_or_obj (Agent | int): The agent id or object to check
         key (str): The key/name of the inventory item
-        default (any): the default value data"""
+        default (any): the default value data
+    Returns:
+        any: The inventory value associated with the provided key, or the default value if it doesn't exist."""
 def gui_hole (count=1, style=None):
     """adds an empty column that is used by the next item
     
@@ -29,10 +31,25 @@ def gui_hole (count=1, style=None):
     Returns:
         layout object: The Layout object created"""
 def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False):
-    ...
+    """Build a LayoutListBox gui element
+    
+    Args:
+        items: A list of the items that should be included
+        style (str): Custom style attributes
+        item_template (list(str|LayoutListBoxHeader)): A list of strings, or, if a header is desired, then that item should be a LayoutListBoxHeader object
+        title_template (str|callable): if a callable, will call the function to build the title. If a string, then title_template will be used as the title of the listbox
+        section_style (str): Style attributes for each section
+        title_section_style (str): Style attributes for the title
+        select (boolean): If true, item(s) within the listbox can be selected.
+        multi (boolean): If true, multiple items can be selected. Ignored if `select` is None
+        carousel (boolean): If true, will use the carousel styling, e.g. the ship type selection menu
+        collapsible (boolean): If true, clicking on a header will collapse everything until the next header
+        read_only (boolean): Can the items be modified
+    Returns:
+        The LayoutListBox layout object"""
 def gui_properties_set (p=None, tag=None):
     ...
-def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x00000281904F44A0>):
+def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x0000024D35095BC0>):
     ...
 def gui_property_list_box_stacked (name=None, tag=None):
     ...
@@ -67,12 +84,13 @@ def gui_text (props, style=None):
     
     props (str): property string
     style (style, optional): The style"""
-def set_inventory_value (so, key, value):
-    """set inventory value with the given key the the agent  has
-        this is the way to create a collection in inventory
+def set_inventory_value (so, key: str, value):
+    """Set inventory value with the given key the the agent has.
+    This is the way to create a collection in inventory.
+    `so` can be a set. If it is, the inventory value is set for each member in the set.
     
     Args:
-        id_or_obj (agent): The agent id or object to check
+        id_or_obj (Agent | int | set[Agent | int]): The agent id or object or set to check
         key (str): The key/name of the inventory item
         value (any): the value"""
 class PropertyControlItem(object):

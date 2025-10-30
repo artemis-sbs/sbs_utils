@@ -1,14 +1,16 @@
 from sbs_utils.agent import Agent
-def get_inventory_value (id_or_object, key, default=None):
+def get_inventory_value (id_or_object, key: str, default=None):
     """get inventory value with the given key the the agent  has
         this is the way to create a collection in inventory
     
     Args:
-        id_or_obj (agent): The agent id or object to check
+        id_or_obj (Agent | int): The agent id or object to check
         key (str): The key/name of the inventory item
-        default (any): the default value data"""
+        default (any): the default value data
+    Returns:
+        any: The inventory value associated with the provided key, or the default value if it doesn't exist."""
 def get_shared_inventory_value (key, default=None):
-    """get inventory value from the shared data agent
+    """Get inventory value from the shared data agent.
     
     Args:
         key (str): The key/name of the inventory item
@@ -20,81 +22,74 @@ def has_inventory (key: str):
         key (str): The key/name of the inventory item
     
     Returns:
-        set: set of ids"""
+        set[int]: set of ids"""
 def has_inventory_value (key: str, value):
-    """get the object that have a inventory item with the given key
+    """Get the object that have a inventory item with the given key
     
     Args:
         key (str): The key/name of the inventory item
     
     Returns:
-        set: set of ids"""
+        set[int]: set of ids"""
 def inventory_set (source, key: str):
-    """get the set that inventory items with the given key the the link source has
+    """Get the set that inventory items with the given key the the link source has
         this is the way to create a collection in inventory
     
     !!! Note
-        This is like set_inventory_value bu the value is a set
+        This is like set_inventory_value but the value is a set
     
     Args:
-        source (agent): The agent id or object to check
+        source (Agent): The agent id or object to check
         key (str): The key/name of the inventory item
-        set: set of data"""
+        set[any]: set of data"""
 def inventory_value (id_or_obj, key: str, default=None):
-    """get inventory value with the given key the the agent  has
-        this is the way to create a collection in inventory
+    """Get inventory value with the given key the the agent has.
+    This is the way to create a collection in inventory.
     
     Args:
         id_or_obj (agent): The agent id or object to check
         key (str): The key/name of the inventory item
         default (any): the default value data"""
 def remove_inventory_value (so, key):
-    """set inventory value with the given key the the agent  has
-        this is the way to create a collection in inventory
+    """Remove a value from the agent's inventory.
+    `so` can be a set. If it is, the value is removed from the inventory of each member in the set.
     
     Args:
-        id_or_obj (agent): The agent id or object to check
+        id_or_obj (Agent | int | set[Agent | int]): The agent id or object to check
         key (str): The key/name of the inventory item
         value (any): the value"""
-def set_inventory_value (so, key, value):
-    """set inventory value with the given key the the agent  has
-        this is the way to create a collection in inventory
+def set_inventory_value (so, key: str, value):
+    """Set inventory value with the given key the the agent has.
+    This is the way to create a collection in inventory.
+    `so` can be a set. If it is, the inventory value is set for each member in the set.
     
     Args:
-        id_or_obj (agent): The agent id or object to check
+        id_or_obj (Agent | int | set[Agent | int]): The agent id or object or set to check
         key (str): The key/name of the inventory item
         value (any): the value"""
 def set_shared_inventory_value (key, value):
-    """set inventory value with the given key on the shared agent
+    """Set inventory value with the given key on the shared agent.
     
     Args:
         key (str): The key/name of the inventory item
         value (any): the value"""
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """converts the item passed to an agent
-    
+    """Converts the item passed to an agent
     ??? note
-        Retrun of None could mean the agent no longer exists
-    
+    * Return of None could mean the agent no longer exists
     Args:
         other (Agent | CloseData | int): The agent ID or other agent like data
-    
     Returns:
-        agent | None: The agent or None"""
+        Agent | None: The agent or None"""
 def to_object_list (the_set):
-    """to_object_list
-    converts a set to a list of objects
-    
+    """Converts a set to a list of objects
     Args:
-        the_set (set|list): a set of agent ids
-    
+        the_set (set[Agent | int] | list[Agent | int]): a set or list of agents or ids
     Returns:
-        list: of Agents"""
+        list[Agent]: A list of Agent objects"""
 def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """converts a single object/id, set ot list of things to a set of ids
-    
+    """Converts a single object/id, set or list of things to a set of ids
     Args:
-        the_set (set): set, list or single item
-    
+        other (Agent | CloseData | int | set[Agent | int] | list[Agent | int]): The agent or id or set.
     Returns:
-        set of things"""
+        set[Agent | CloseData | int]: A set containing whatever was passed in."""

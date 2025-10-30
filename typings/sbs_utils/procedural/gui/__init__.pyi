@@ -34,10 +34,32 @@ def gui_button (props, style=None, data=None, on_press=None, is_sub_task=False):
     """Add a gui button
     
     Args:
-        count (int): The number of columns to use
-        style (_type_, optional): Style. Defaults to None.
+        props (str): Properties. Usually just the text on the button
+        style (str, optional): Style. Defaults to None. End each style with a semicolon, e.g. `color:red;`
         data (object): The data to pass to the button's label
         on_press (label, callable, Promise): Handle a button press, label is jumped to, callable is called, Promise has results set
+    
+    Valid Styles:
+        area:
+            Format as `top, left, bottom, right`.
+            Just numbers indicates percentage of the section or page to cover.
+            Can also use `px` (pixels) or `em` (1em = height of text font)
+        color:
+            The color of the text
+        background-color:
+            The background color of the button
+        padding:
+            A gap inside the element (makes the button smaller, but the background still is there.)
+        margin:
+            The gap outside the element (makes the button smaller).
+        col-width:
+            The width of the button
+        justify:
+            Where the text is placed inside the button. `left`, `center`, or `right`
+        font:
+            The font to use. Overrides the font in prefernces.json
+    
+    
     
     Returns:
         layout object: The Layout object created"""
@@ -295,7 +317,22 @@ def gui_layout_widget (widget):
     Returns:
         layout element: The layout element"""
 def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False):
-    ...
+    """Build a LayoutListBox gui element
+    
+    Args:
+        items: A list of the items that should be included
+        style (str): Custom style attributes
+        item_template (list(str|LayoutListBoxHeader)): A list of strings, or, if a header is desired, then that item should be a LayoutListBoxHeader object
+        title_template (str|callable): if a callable, will call the function to build the title. If a string, then title_template will be used as the title of the listbox
+        section_style (str): Style attributes for each section
+        title_section_style (str): Style attributes for the title
+        select (boolean): If true, item(s) within the listbox can be selected.
+        multi (boolean): If true, multiple items can be selected. Ignored if `select` is None
+        carousel (boolean): If true, will use the carousel styling, e.g. the ship type selection menu
+        collapsible (boolean): If true, clicking on a header will collapse everything until the next header
+        read_only (boolean): Can the items be modified
+    Returns:
+        The LayoutListBox layout object"""
 def gui_message (layout_item, label=None):
     """Trigger to watch when the specified layout element has a message
     
@@ -338,7 +375,7 @@ def gui_properties_change (var, label):
         label (str or label): The label to run"""
 def gui_properties_set (p=None, tag=None):
     ...
-def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x00000281904F44A0>):
+def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x0000024D35095BC0>):
     ...
 def gui_property_list_box_stacked (name=None, tag=None):
     ...

@@ -6,18 +6,20 @@ def AWAIT (promise: sbs_utils.futures.Promise) -> sbs_utils.futures.PromiseWaite
     Args:
         Promise: A promise """
 def mission_find (agent_id):
-    ...
+    """Currently unused."""
 def mission_run (label, data=None):
-    ...
+    """Run a mission label.
+    Args:
+        label (str | Label)"""
 def mission_runner (label=None, data=None):
-    """Runs a mission this runs the same task multiple times
+    """Runs a mission this runs the same task multiple times. If the label is None, runs the currently running mission label.
     
     Args:
-        label (_type_): a Mission Label
-        data (_type_, optional): _Data to pass to the mission task. Defaults to None.
+        label (str | Label, optional): The mission label to run. Default is None.
+        data (dict, optional): Data to pass to the mission task. Default is None.
     
     Yields:
-        PollResults: Sucess or Failure"""
+        PollResults: Success or Failure"""
 def sub_task_schedule (*args, **kwargs):
     ...
 def task_schedule (*args, **kwargs):

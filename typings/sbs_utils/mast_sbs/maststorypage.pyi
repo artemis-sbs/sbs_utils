@@ -12,15 +12,21 @@ from sbs_utils.pages.layout.row import Row
 from sbs_utils.mast_sbs.maststoryscheduler import StoryScheduler
 from sbs_utils.pages.layout.text import Text
 def apply_control_styles (control_name, extra_style, layout_item, task):
-    ...
-def get_inventory_value (id_or_object, key, default=None):
+    """Apply style information to a layout item based on the type of the layout, and apply the extra styles as needed.
+    Args:
+        control_name (str): The name of the control style.
+        extra_style (str): A CSS-style string containing extra style definitions which override those in the control style.
+        layout_item (LayoutItem): The layout item for which the style is to be applied."""
+def get_inventory_value (id_or_object, key: str, default=None):
     """get inventory value with the given key the the agent  has
         this is the way to create a collection in inventory
     
     Args:
-        id_or_obj (agent): The agent id or object to check
+        id_or_obj (Agent | int): The agent id or object to check
         key (str): The key/name of the inventory item
-        default (any): the default value data"""
+        default (any): the default value data
+    Returns:
+        any: The inventory value associated with the provided key, or the default value if it doesn't exist."""
 def get_mission_name ():
     ...
 def get_startup_mission_name ():
@@ -28,20 +34,21 @@ def get_startup_mission_name ():
 def gui_reroute_client (client_id, label, data=None):
     ...
 def has_inventory_value (key: str, value):
-    """get the object that have a inventory item with the given key
+    """Get the object that have a inventory item with the given key
     
     Args:
         key (str): The key/name of the inventory item
     
     Returns:
-        set: set of ids"""
+        set[int]: set of ids"""
 def linked_to (link_source, link_name: str):
-    """get the set that inventor the source is linked to for the given key
+    """Get the set of ids that the source is linked to for the given key.
     
     Args:
-        link_source(id): The id object to check
+        link_source (Agent | int): The agent or id to check
         link_name (str): The key/name of the inventory item
-        set | None: set of ids"""
+    Returns:
+        set[int]: The set of linked ids"""
 def log (message: str, name: str = None, level: str = None, use_mast_scope=False) -> None:
     """generate a log message
     
@@ -50,16 +57,20 @@ def log (message: str, name: str = None, level: str = None, use_mast_scope=False
         message (str): The message to log
         name (str, optional): Name of the logger to log to. Defaults to None.
         level (str, optional): The logging level to use. Defaults to None."""
-def set_inventory_value (so, key, value):
-    """set inventory value with the given key the the agent  has
-        this is the way to create a collection in inventory
+def set_inventory_value (so, key: str, value):
+    """Set inventory value with the given key the the agent has.
+    This is the way to create a collection in inventory.
+    `so` can be a set. If it is, the inventory value is set for each member in the set.
     
     Args:
-        id_or_obj (agent): The agent id or object to check
+        id_or_obj (Agent | int | set[Agent | int]): The agent id or object or set to check
         key (str): The key/name of the inventory item
         value (any): the value"""
 def signal_emit (name, data=None):
-    ...
+    """Emit a signal to trigger all instances of the signal route to run.
+    Args:
+        name (str): The name of the signal.
+        data (dict): The data to provide to the signal route."""
 class StoryPage(Page):
     """A interface class for creating GUI pages
     

@@ -16,16 +16,16 @@ def _docking_handle_undocking (player, npc, brain):
 def _docking_run_task (player, npc, brain, inner_label):
     ...
 def closest (the_ship, the_set, max_dist=None, filter_func=None) -> sbs_utils.agent.CloseData:
-    """get the  close data that matches the test set, max_dist and optional filter function
+    """Get the CloseData that matches the test set, max_dist, and optional filter function.
     
     Args:
-        the_ship (agent): The agent ID or object
-        the_set (agent set): The set of objects to test against
+        the_ship (Agent | int): The agent ID or object
+        the_set (Agent | int | set[Agent | int]): The agent or id or set of objects or ids to test against
         max_dist (float, optional): The maximum distance to check. Defaults to None.
-        filter_func (func, optional): An additional function to test with. Defaults to None.
+        filter_func (Callable, optional): An additional function to test with. Defaults to None.
     
     Returns:
-        CloseData: The close object close data to get the distance"""
+        CloseData: The closest object's CloseData to get the distance."""
 def docking_run_all (tick_task):
     ...
 def docking_schedule ():
@@ -33,50 +33,47 @@ def docking_schedule ():
 def docking_set_docking_logic (player_set, npc_set, label, data=None):
     ...
 def role (role: str):
-    """returns a set of all the agents with a given role.
+    """Returns a set of all the agents with a given role as a set of IDs.
     
     Args:
-        role (str): The role
+        role (str): The role.
     
     Returns:
-        agent id set: a set of agent IDs"""
-def set_inventory_value (so, key, value):
-    """set inventory value with the given key the the agent  has
-        this is the way to create a collection in inventory
+        set[int]: a set of agent IDs."""
+def set_inventory_value (so, key: str, value):
+    """Set inventory value with the given key the the agent has.
+    This is the way to create a collection in inventory.
+    `so` can be a set. If it is, the inventory value is set for each member in the set.
     
     Args:
-        id_or_obj (agent): The agent id or object to check
+        id_or_obj (Agent | int | set[Agent | int]): The agent id or object or set to check
         key (str): The key/name of the inventory item
         value (any): the value"""
 def signal_emit (name, data=None):
-    ...
+    """Emit a signal to trigger all instances of the signal route to run.
+    Args:
+        name (str): The name of the signal.
+        data (dict): The data to provide to the signal route."""
 def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """converts item passed to an agent id
-    
+    """Converts item passed to an agent id
     Args:
         other (Agent | CloseData | int): The agent
-    
     Returns:
-        id: The agent id"""
+        int: The agent id"""
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """converts the item passed to an agent
-    
+    """Converts the item passed to an agent
     ??? note
-        Retrun of None could mean the agent no longer exists
-    
+    * Return of None could mean the agent no longer exists
     Args:
         other (Agent | CloseData | int): The agent ID or other agent like data
-    
     Returns:
-        agent | None: The agent or None"""
+        Agent | None: The agent or None"""
 def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """converts a single object/id, set ot list of things to a set of ids
-    
+    """Converts a single object/id, set or list of things to a set of ids
     Args:
-        the_set (set): set, list or single item
-    
+        other (Agent | CloseData | int | set[Agent | int] | list[Agent | int]): The agent or id or set.
     Returns:
-        set of things"""
+        set[Agent | CloseData | int]: A set containing whatever was passed in."""
 class _DockingBrain(object):
     """class _DockingBrain"""
     def __init__ (self, label, data):

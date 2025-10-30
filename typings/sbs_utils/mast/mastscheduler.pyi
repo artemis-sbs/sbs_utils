@@ -63,7 +63,11 @@ class MastAsyncTask(Agent, Promise):
     def add_dependency (id, task):
         ...
     def are_variables_defined (self, keys):
-        ...
+        """Check if the provided variable keys are defined in this task.
+        Args:
+            keys (str): A comma-separated list of the keys.
+        Returns:
+            bool: True if all variables are defined, otherwise False."""
     def cancel (self, msg=None):
         ...
     def clear ():

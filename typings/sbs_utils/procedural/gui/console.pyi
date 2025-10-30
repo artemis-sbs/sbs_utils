@@ -1,12 +1,12 @@
 from sbs_utils.helpers import FrameContext
 def all_roles (roles: str):
-    """returns a set of all the agents with a given role.
+    """Returns a set of all the agents which have all of the given roles.
     
     Args:
-        roles (str): The roles comma separated
+        roles (str): A comma-separated list of roles.
     
     Returns:
-        agent id set: a set of agent IDs"""
+        set[int]: a set of agent IDs."""
 def gui_activate_console (console):
     """set the console name for the client
     
@@ -23,25 +23,24 @@ def gui_console_clients (path, for_ships=None):
     Args:
         console (str): The console name"""
 def linked_to (link_source, link_name: str):
-    """get the set that inventor the source is linked to for the given key
+    """Get the set of ids that the source is linked to for the given key.
     
     Args:
-        link_source(id): The id object to check
+        link_source (Agent | int): The agent or id to check
         link_name (str): The key/name of the inventory item
-        set | None: set of ids"""
+    Returns:
+        set[int]: The set of linked ids"""
 def role (role: str):
-    """returns a set of all the agents with a given role.
+    """Returns a set of all the agents with a given role as a set of IDs.
     
     Args:
-        role (str): The role
+        role (str): The role.
     
     Returns:
-        agent id set: a set of agent IDs"""
+        set[int]: a set of agent IDs."""
 def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """converts a single object/id, set ot list of things to a set of ids
-    
+    """Converts a single object/id, set or list of things to a set of ids
     Args:
-        the_set (set): set, list or single item
-    
+        other (Agent | CloseData | int | set[Agent | int] | list[Agent | int]): The agent or id or set.
     Returns:
-        set of things"""
+        set[Agent | CloseData | int]: A set containing whatever was passed in."""

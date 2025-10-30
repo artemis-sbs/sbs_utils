@@ -3,8 +3,12 @@ from sbs_utils.agent import SpawnData
 from sbs_utils.helpers import FrameContext
 from enum import IntEnum
 from sbs_utils.vec import Vec3
-def get_ship_data_for (key):
-    ...
+def get_ship_data_for (ship_key):
+    """Get the ship data information for the ship with the given key.
+    Args:
+        ship_key (str): The key for the ship.
+    Returns:
+        dict: The ship data contents."""
 class MSpawn(object):
     """class MSpawn"""
     def spawn_common (self, obj, x, y, z, name, side, art_id):
@@ -147,10 +151,14 @@ class SpaceObject(Agent):
         ...
     @property
     def art_id (self: 'SpaceObject') -> 'str':
-        """str, cached version of art_id"""
+        """Get the ship key from shipData that this space object is using.
+        Returns:
+            str: The ship key."""
     @art_id.setter
-    def art_id (self: 'SpaceObject', value: 'str') -> 'None':
-        """str, cached version of art_id"""
+    def art_id (self: 'SpaceObject', ship_key: 'str') -> 'None':
+        """Get the ship key from shipData that this space object is using.
+        Returns:
+            str: The ship key."""
     def clear ():
         ...
     @property
@@ -253,11 +261,10 @@ class SpaceObject(Agent):
         ...
     def resolve_py_object (other: 'Agent | CloseData | int'):
         ...
-    def set_art_id (self, art_id):
-        """Get the name of the object
-        
-        :return: name
-        :rtype: str"""
+    def set_art_id (self, ship_key):
+        """Set the ship key from shipData for this space object to change it's 3D model and art.
+        Args:
+            ship_key (str): The ship key."""
     def set_name (self, name) -> 'str':
         """Get the name of the object
         :return: name
