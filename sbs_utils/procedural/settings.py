@@ -2,6 +2,9 @@ from ..fs import load_json_data, get_mission_dir_filename, load_yaml_data
 
 setting_defaults = None
 def settings_get_defaults():
+    """
+    Get the default settings for the current game.
+    """
     global setting_defaults
     if setting_defaults is not None:
         return setting_defaults
@@ -95,6 +98,11 @@ def settings_get_defaults():
 
 
 def settings_add_defaults(additions):
+    """
+    Add setting members to the defaults.
+    Args:
+        additions (dict): The additional settings to add. 
+    """
     global setting_defaults
     setting_defaults = settings_get_defaults()
     #
@@ -103,5 +111,6 @@ def settings_add_defaults(additions):
     # sure the setting has a value
     #
     setting_defaults =   additions | setting_defaults
+    # NOTE: Should this return the setting_defaults?
 
 

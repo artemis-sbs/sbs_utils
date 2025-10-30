@@ -29,6 +29,11 @@ import time
 #	event_time"
 #	sub_float"
 def print_event(event):
+    """
+    Print the event data.
+    Args:
+        event (event): The event of interest.
+    """
     print(f"client ID {event.client_id}")
     print(f"Parent ID {event.parent_id}")
     print(f"Origin ID {event.origin_id}")

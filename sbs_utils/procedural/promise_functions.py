@@ -23,48 +23,52 @@ class TestPromise(Promise):
         return super().poll()
     
 @awaitable
-def distance_less(id1, id2, distance):
+def distance_less(obj_or_id1, obj_or_id2, distance):
     """
     Build a Promise that waits until the distance between the two objects is less than the specified value.
     Args:
-        id1 (int): The ID of the first space object.
-        id2 (int): The ID of the second space object.
+        id1 (Agent | int): The agent or ID of the first space object.
+        id2 (Agent | int): The agent or ID of the second space object.
         distance (int): The distance between the two objects.
     Returns:
         Promise: The promise
     """
     def test():
+        id1 = to_id(obj_or_id1)
+        id2 = to_id(obj_or_id2)
         return FrameContext.context.sbs.distance_id(id1, id2) < distance
     return TestPromise(test)
 
 @awaitable    
-def distance_greater(id1, id2, distance):
+def distance_greater(obj_or_id1, obj_or_id2, distance):
     """
     Build a Promise that waits until the distance between the two objects is greater than the specified value.
     Args:
-        id1 (int): The ID of the first space object.
-        id2 (int): The ID of the second space object.
+        id1 (Agent | int): The agent or ID of the first space object.
+        id2 (Agent | int): The agent or ID of the second space object.
         distance (int): The distance between the two objects.
     Returns:
         Promise: The promise
     """
     def test():
+        id1 = to_id(obj_or_id1)
+        id2 = to_id(obj_or_id2)
         return FrameContext.context.sbs.distance_id(id1, id2) > distance
     return TestPromise(test)
 
 @awaitable
-def distance_point_less(id1, point, distance):
+def distance_point_less(obj_or_id, point, distance):
     """
     Build a Promise that waits until the distance between the object and the point is less than the specified value.
     Args:
-        id1 (int): The ID of the first space object.
+        obj_or_id (int): The agent or ID of the space object.
         point (Vec3): The point.
         distance (int): The distance between the object and the point.
     Returns:
         Promise: The promise
     """
     def test():
-        obj = to_object(id1)
+        obj = to_object(obj_or_id)
         if obj is None:
             return False
         diff = Vec3(obj.pos) - point
@@ -72,18 +76,18 @@ def distance_point_less(id1, point, distance):
     return TestPromise(test)
 
 @awaitable   
-def distance_point_greater(id1, point, distance):
+def distance_point_greater(obj_or_id, point, distance):
     """
     Build a Promise that waits until the distance between the object and the point is less than the specified value.
     Args:
-        id1 (int): The ID of the first space object.
+        obj_or_id (Agent | int): The agent or ID of the space object.
         point (Vec3): The point.
         distance (int): The distance between the object and the point.
     Returns:
         Promise: The promise
     """
     def test():
-        obj = to_object(id1)
+        obj = to_object(obj_or_id)
         if obj is None:
             return False
         diff = Vec3(obj.pos) - point

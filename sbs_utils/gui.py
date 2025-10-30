@@ -431,6 +431,13 @@ class Gui:
 
             
 def get_client_aspect_ratio(cid):
+    """
+    Get the aspect ratio of the specified client's screen.
+    Args:
+        cid (int): The client ID.
+    Returns:
+        Vec3: The aspect ratio. If Vec3.z is 99, then the client hasn't set the aspect ratio.
+    """
     ar = FrameContext.aspect_ratios.get(cid)
     if ar is not None:
         ar = Vec3(ar)

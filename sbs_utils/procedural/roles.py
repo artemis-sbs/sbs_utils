@@ -3,25 +3,28 @@ from .query import to_object_list, to_set, to_object, to_space_object
 
 
 def role(role: str):
-    """returns a set of all the agents with a given role.
+    """
+    Returns a set of all the agents with a given role as a set of IDs.
 
     Args:
-        role (str): The role
+        role (str): The role.
 
     Returns:
-        agent id set: a set of agent IDs
+        set[int]: a set of agent IDs.
     """
     return set(Agent.get_role_set(role))
 
 def role_allies(id_or_obj):
-    """returns a set of all the ids from allies.
+    """
+    Returns a set of the IDs of all objects allied with the specified object.
 
     Args:
-        id_or_obj (id | object): The item to get allies
+        id_or_obj (Agent | int): The object for which to get the allies.
 
     Returns:
-        agent id set: a set of agent IDs
+        set[int]: a set of agent IDs
     """
+    # TODO: This may be deprecated as the Sides system is implemented.
     ret = set()
     obj = to_space_object(id_or_obj)
     if obj is None or obj.id==0:
@@ -37,6 +40,16 @@ def role_allies(id_or_obj):
     return ret
 
 def role_are_allies(id_or_obj, other_id_or_obj):
+    """
+    Check if the two objects are allied.
+    
+    Args:
+        id_or_obj (Agent | int): The first object.
+        other_id_or_obj (Agent | int): The second object.
+    Returns:
+        bool: True if they are allied.
+    """
+    # TODO: This may be deprecated as the Sides system is implemented.
     a = role_allies(id_or_obj)
     if len(a)==0:
         return False
@@ -45,12 +58,14 @@ def role_are_allies(id_or_obj, other_id_or_obj):
     return len(t)>0
 
 def role_ally_add(id_or_obj, side):
-    """adds an side as an ally
+    """
+    Adds a side as an ally and add all the objects with that side to the specified object's ally list.
 
     Args:
-        id_or_obj (id | object): The item to get allies
-        side (str): The side string
+        id_or_obj (Agent | int): The object for which to add allies.
+        side (str): The side string.
     """
+    # TODO: This may be deprecated as the Sides system is implemented.
     side = side.strip().lower()
     ret = set()
     obj = to_object(id_or_obj)
@@ -67,12 +82,14 @@ def role_ally_add(id_or_obj, side):
     obj.data_set.set("ally_list",allies, 0)
 
 def role_ally_remove(id_or_obj, side):
-    """adds an side as an ally
+    """
+    Remove a side as an ally and remove all objects of that side from the specified object's ally list.
 
     Args:
-        id_or_obj (id | object): The item to get allies
-        side (str): The side string
+        id_or_obj (Agent | int): The object from which to remove allies.
+        side (str): The side string.
     """
+    # TODO: This may be deprecated as the Sides system is implemented.
     side = side.strip().lower()
     ret = set()
     obj = to_object(id_or_obj)
@@ -88,13 +105,14 @@ def role_ally_remove(id_or_obj, side):
     obj.data_set.set("ally_list", allies, 0)
 
 def get_role_list(id_or_obj):
-    """Returns a list of role names an Agent has
+    """
+    Returns a list of role names an Agent has.
 
     Args:
-        id_or_obj (int | obj): The Agent to 
+        id_or_obj (Agent | int): The object or ID.
 
     Returns:
-        list[str]: The list of role
+        list[str]: The list of roles.
     """
     obj = to_object(id_or_obj)
     if obj is None:
@@ -102,13 +120,14 @@ def get_role_list(id_or_obj):
     return obj.get_roles()
 
 def get_role_string(id_or_obj):
-    """Returns a comma separated list of role names an Agent has
+    """
+    Returns a comma-separated list of role names an Agent has.
 
     Args:
-        id_or_obj (int | obj): The Agent to 
+        id_or_obj (Agent | int): The Agent or id.
 
     Returns:
-        str: The a comma separated string
+        str: A comma-separated string.
     """
     obj = to_object(id_or_obj)
     if obj is None:
@@ -116,13 +135,14 @@ def get_role_string(id_or_obj):
     return ",".join(obj.get_roles())
 
 def any_role(roles: str):
-    """returns a set of all the agents with a any of the given roles.
+    """
+    Returns a set of all the agents which have any of the given roles.
 
     Args:
-        role (str): The role
+        role (str): The role, or a comma-separated list of roles.
 
     Returns:
-        agent id set: a set of agent IDs
+        set[int]: a set of agent IDs.
     """    
     roles = roles.split(",")
     if len(roles)==0:
@@ -133,13 +153,14 @@ def any_role(roles: str):
     return ret
 
 def all_roles(roles: str):
-    """returns a set of all the agents with a given role.
+    """
+    Returns a set of all the agents which have all of the given roles.
 
     Args:
-        roles (str): The roles comma separated 
+        roles (str): A comma-separated list of roles.
 
     Returns:
-        agent id set: a set of agent IDs
+        set[int]: a set of agent IDs.
     """    
     roles = roles.split(",")
     if len(roles)==0:
@@ -151,36 +172,39 @@ def all_roles(roles: str):
 
 
 def add_role(set_holder, role):
-    """ add a role to a set of agents
+    """ 
+    Add a role to an agent or a set of agents.
 
     Args:
-        set_holder (agent set): a set of IDs or 
-        role (str): The role to add
+        set_holder (Agent | int | set[Agent | int]): An agent or ID or a set of agents or IDs.
+        role (str): The role to add.
     """    
     linkers = to_object_list(to_set(set_holder))
     for so in linkers:
         so.add_role(role)
 
 def remove_role(agents, role):
-    """ remove a role from a set of agents
+    """ 
+    Remove a role from an agent or a set of agents.a
 
     Args:
-        agents (agent set): a set of IDs or 
-        role (str): The role to add
+        agents (Agent | int | set[Agent | int]): An agent or ID or a set of agents or IDs.
+        role (str): The role to add.
     """    
     linkers = to_object_list(to_set(agents))
     for so in linkers:
         so.remove_role(role)
 
 def has_role(so, role):
-    """check if an agent has a role
+    """
+    Check if an agent has the specified role.
 
     Args:
-        so (an agent): an agent id or object
-        role (str): the role to test for
+        so (Agent | int): An agent or id.
+        role (str): The role to test for
 
     Returns:
-        bool: if the agent has that role
+        bool: True if the agent has that role
     """    
     so = to_object(so)
     if so:
@@ -188,14 +212,15 @@ def has_role(so, role):
     return False
 
 def has_roles(so, roles):
-    """check if an agent has all the roles specified
+    """
+    Check if an agent has all the roles specified.
 
     Args:
-        so (an agent): an agent id or object
-        role (str): a string comma separated roles
+        so (Agent | int): An agent or id.
+        role (str): A comma-separated list of roles.
 
     Returns:
-        bool: if the agent has that role
+        bool: True if the agent has all the listed roles.
     """        
     so = to_object(so)
     if so is None:
@@ -208,14 +233,15 @@ def has_roles(so, roles):
     return True
 
 def has_any_role(so, roles):
-    """check if an agent has any the roles specified
+    """
+    Check if an agent has any of the roles specified.
 
     Args:
-        so (an agent): an agent id or object
-        role (str): a string comma separated roles
+        so (Agent | int): An agent or id.
+        role (str): A comma-separated list of roles.
 
     Returns:
-        bool: if the agent has that role
+        bool: True if the agent has one or more of the roles.
     """        
     so = to_object(so)
     if so:

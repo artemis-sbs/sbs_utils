@@ -5,10 +5,11 @@ from ..mast.pollresults import PollResults
 
 TICK_PER_SECONDS = 30
 def set_timer(id_or_obj, name, seconds=0, minutes =0):
-    """set up a timer
+    """
+    Set up a timer
 
     Args:
-        id_or_obj (agent): The agent to set the timer for
+        id_or_obj (Agent | int): The agent to set the timer for
         name (str): The name of the timer
         seconds (int, optional): The number of seconds. Defaults to 0.
         minutes (int, optional): The number of minutes. Defaults to 0.
@@ -19,10 +20,11 @@ def set_timer(id_or_obj, name, seconds=0, minutes =0):
     set_inventory_value(id_or_obj, f"__timer__{name}", seconds)
 
 def is_timer_set(id_or_obj, name):
-    """check to see if a timer is running
+    """
+    Check to see if a timer is running.
 
     Args:
-        id_or_obj (agent): The id or object of the agent that has the timer
+        id_or_obj (Agent | int): The id or object of the agent that has the timer
         name (str): Timer name
 
     Returns:
@@ -32,17 +34,18 @@ def is_timer_set(id_or_obj, name):
 
 
 def is_timer_finished(id_or_obj, name):
-    """check to see if a timer is finished
+    """
+    Check to see if a timer is finished.
 
     Note: 
-        if the timer is not set. this function returns true.
+        * If the timer is not set, this function returns true.
 
     Args:
-        id_or_obj (agent): The id or object of the agent that has the timer
+        id_or_obj (Agent | int): The id or object of the agent that has the timer.
         name (str): Timer name
 
     Returns:
-        bool: True if a timer finished
+        bool: True if a timer finished, or if it is not set.
     """    
     target = get_inventory_value(id_or_obj, f"__timer__{name}")
     if target is None or target == 0:
@@ -53,14 +56,15 @@ def is_timer_finished(id_or_obj, name):
     return False
 
 def format_time_remaining(id_or_obj, name):
-    """Get the remaining time on a timer and return a formatted string
+    """
+    Get the remaining time on a timer and return a formatted string.
 
     Args:
-        id_or_obj (agent): The agent id or object
-        name (str): The timer name
+        id_or_obj (Agent | int): The agent id or object.
+        name (str): The timer name.
 
     Returns:
-        str: A formatted string with the minutes and seconds left on the timer
+        str: A formatted string with the minutes and seconds left on the timer.
     """    
     time = get_time_remaining(id_or_obj, name)
     if time is None:
@@ -73,14 +77,15 @@ def format_time_remaining(id_or_obj, name):
     
 
 def get_time_remaining(id_or_obj, name):
-    """The number of seconds remaining for a timer
+    """
+    The number of seconds remaining for a timer.
 
     Args:
-        id_or_obj (agent): The agent id or object
-        name (str): The timer name
+        id_or_obj (agent): The agent id or object.
+        name (str): The timer name.
 
     Returns:
-        int: The number of seconds remaining
+        int: The number of seconds remaining.
     """    
     target = get_inventory_value(id_or_obj, f"__timer__{name}")
     if target is None or target == 0:
@@ -91,14 +96,15 @@ def get_time_remaining(id_or_obj, name):
 
 
 def is_timer_set_and_finished(id_or_obj, name):
-    """check to see if a timer was set and is finished
+    """
+    Check to see if a timer was set and is finished.
 
     Args:
-        id_or_obj (agent): The id or object of the agent that has the timer
-        name (str): Timer name
+        id_or_obj (Agent | int): The id or object of the agent that has the timer.
+        name (str): Timer name.
 
     Returns:
-        bool: True if a timer finished and was set
+        bool: True if a timer finished and was set.
     """    
 
     target = get_inventory_value(id_or_obj, f"__timer__{name}")
@@ -111,34 +117,37 @@ def is_timer_set_and_finished(id_or_obj, name):
 
 
 def clear_timer(id_or_obj, name):
-    """deactivated a timer
+    """
+    Deactivate a timer.
 
     Args:
-        id_or_obj (agent): The id or object of the agent that has the timer
-        name (str): Timer name
+        id_or_obj (Agent | int): The id or object of the agent that has the timer.
+        name (str): Timer name.
     """    
 
     set_inventory_value(id_or_obj, f"__timer__{name}", None)
 
 def start_counter(id_or_obj, name):
-    """starts counting seconds
+    """
+    Starts counting seconds.
 
     Args:
-        id_or_obj (agent): The agent to set the timer for
-        name (str): The name of the timer
+        id_or_obj (Agent | int): The agent for which to set the timer.
+        name (str): The name of the counter.
     """    
 
     set_inventory_value(id_or_obj, f"__counter__{name}", FrameContext.context.sim.time_tick_counter)
 
 def get_counter_elapsed_seconds(id_or_obj, name, default_value= None):
-    """returns the number of seconds since the counter started
+    """
+    Returns the number of seconds since the counter started.
 
     Args:
-        id_or_obj (agent): The agent id or object 
-        name (str): The counter name
+        id_or_obj (Agent | int): The agent id or object.
+        name (str): The counter name.
 
     Returns:
-        int: The number of seconds since the counter started
+        int: The number of seconds since the counter started.
     """    
     start = get_inventory_value(id_or_obj, f"__counter__{name}")
     now =  FrameContext.context.sim.time_tick_counter
@@ -148,10 +157,11 @@ def get_counter_elapsed_seconds(id_or_obj, name, default_value= None):
     
 
 def clear_counter(id_or_obj, name):
-    """removes a counter
+    """
+    Removes a counter.
     Args:
-        id_or_obj (agent): The agent id or object
-        name (str): The name of the counter
+        id_or_obj (Agent | int): The agent id or object.
+        name (str): The name of the counter.
     """    
     set_inventory_value(id_or_obj, f"__counter__{name}", None)
 
@@ -192,50 +202,55 @@ class Delay(Promise):
     
 @awaitable    
 def delay_sim(seconds=0, minutes=0) ->Delay:
-    """creates a Promise that waits for the specified time to elapse
-    this is in simulation time (i.e. it could get paused)
+    """
+    Creates a Promise that waits for the specified time to elapse.
+    This is in simulation time (i.e. it could get paused).
 
     Args:
         seconds (int, optional): The number of seconds. Defaults to 0.
         minutes (int, optional): The number of minutes. Defaults to 0.
 
     Returns:
-        Promise: A promise that is done when time has elapsed
+        Promise: A promise that is done when time has elapsed.
     """    
     return Delay(seconds, minutes, True)
 
 @awaitable
 def delay_app(seconds=0, minutes=0)->Delay:
-    """creates a Promise that waits for the specified time to elapse
-    this is in app time (i.e. it could NOT get paused)
+    """
+    Creates a Promise that waits for the specified time to elapse.
+    This is in application time (i.e. it could NOT get paused).
 
     Args:
         seconds (int, optional): The number of seconds. Defaults to 0.
         minutes (int, optional): The number of minutes. Defaults to 0.
 
     Returns:
-        Promise: A promise that is done when time has elapsed
+        Promise: A promise that is done when time has elapsed.
     """
     return Delay(seconds, minutes, False)
 
 @awaitable
 def timeout(seconds=0, minutes=0)->Delay:
-    """creates a Promise that waits for the specified time to elapse
-    this is in simulation time (i.e. it could NOT get paused)
+    """
+    Creates a Promise that waits for the specified time to elapse.
+    This is in simulation time (i.e. it could NOT get paused).
 
     Args:
         seconds (int, optional): The number of seconds. Defaults to 0.
         minutes (int, optional): The number of minutes. Defaults to 0.
 
     Returns:
-        Promise: A promise that is done when time has elapsed
+        Promise: A promise that is done when time has elapsed.
     """    
+    # NOTE: This is identical to 'delay_app()'.
     return Delay(seconds, minutes, False)
 
 @awaitable
 def timeout_sim(seconds=0, minutes=0)->Delay:
-    """creates a Promise that waits for the specified time to elapse
-    this is in simulation time (i.e. it could get paused)
+    """
+    Creates a Promise that waits for the specified time to elapse.
+    This is in simulation time (i.e. it could get paused).
 
     Args:
         seconds (int, optional): The number of seconds. Defaults to 0.
@@ -244,6 +259,7 @@ def timeout_sim(seconds=0, minutes=0)->Delay:
     Returns:
         Promise: A promise that is done when time has elapsed
     """    
+    # NOTE: This is identical to 'delay_sim()'.
     return Delay(seconds, minutes, True)
 
 
@@ -271,14 +287,15 @@ class DelayForTests(Promise):
     
 @awaitable
 def delay_test(seconds=0, minutes=0):
-    """creates a Promise that waits for the specified time to elapse
-    this is for unit testing and not realtime
+    """
+    Creates a Promise that waits for the specified time to elapse.
+    This is for unit testing and not realtime.
 
     Args:
         seconds (int, optional): The number of seconds. Defaults to 0.
         minutes (int, optional): The number of minutes. Defaults to 0.
 
     Returns:
-        Promise: A promise that is done when time has elapsed
+        Promise: A promise that is done when time has elapsed.
     """    
     return DelayForTests(seconds, minutes)

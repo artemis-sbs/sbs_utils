@@ -339,6 +339,8 @@ def explode_player_ship(id_or_obj):
 def respawn_player_ship(id_or_obj):
     """
     Cause the specified player ship to respawn after 'destruction'.
+    Args:
+        id_or_obj (Agent | int): The agent or id of the player ship.
     """
     ship_id = to_id(id_or_obj)
     art_id = get_inventory_value(ship_id, "art_id")
@@ -420,7 +422,7 @@ def grid_damage_grid_object(ship_id, grid_id, damage_color):
     Damage the specified grid object associated with the specified ship, and give it a color.
     Args:
         ship_id (Agent | int): The agent or id of the ship
-        grid_id (Agent | id): The agent or id of the grid object
+        grid_id (Agent | int): The agent or id of the grid object
         damage_color (str): The color of the damage grid object
     """
     # Note that ship_id and grid_id CAN be Agents; the functions that use these values convert them as needed.
