@@ -60,6 +60,7 @@ class Stuff:
         :return: If the object has the role
         :rtype: bool
         """
+        # TODO: ^ THIS DOCSTRING NEEDS UPDATED
         if collection not in self.collections:
             return False
 

@@ -151,18 +151,18 @@ class SpaceObject(Agent):
         blob = so.data_set
         return blob.set("name_tag", name, 0)
     
-    def set_art_id(self, art_id):
-        """ Get the name of the object
-
-        :return: name
-        :rtype: str
+    def set_art_id(self, ship_key):
+        """ 
+        Set the ship key from shipData for this space object to change it's 3D model and art.
+        Args:
+            ship_key (str): The ship key.
         """
-        if art_id != self._art_id:
+        if ship_key != self._art_id:
             so = self.space_object()
             if so is not None:
-                so.data_tag = art_id
+                so.data_tag = ship_key
                 FrameContext.context.sim.force_update_to_clients(self.id,0)
-            self._art_id = art_id
+            self._art_id = ship_key
 
     def update_comms_id(self):
         """ Updates the comms ID when the name or side has changed
@@ -212,12 +212,21 @@ class SpaceObject(Agent):
     
     @property
     def art_id(self: SpaceObject) -> str:
-        """str, cached version of art_id"""
+        """
+        Get the ship key from shipData that this space object is using.
+        Returns:
+            str: The ship key.
+        """
         return self._art_id
 
     @art_id.setter
-    def art_id(self: SpaceObject, value: str) -> None:
-        self.set_art_id(value)
+    def art_id(self: SpaceObject, ship_key: str) -> None:
+        """
+        Set the ship key from shipData for this space object to change it's 3D model and art.
+        Args:
+            ship_key (str): The ship key.
+        """
+        self.set_art_id(ship_key)
 
 
     @property

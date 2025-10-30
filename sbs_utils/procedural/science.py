@@ -4,6 +4,12 @@ from ..mast_sbs.story_nodes.button import Button
 from ..garbagecollector import GarbageCollector
 
 def show_warning(t):
+    """
+    Same as `print(t)`.
+    Prints a message to the F7 screen.
+    Args:
+        t (str): The string to display.
+    """
     print(t)
 
 
@@ -33,12 +39,13 @@ def show_warning(t):
         
 
 def science_set_scan_data(player_id_or_obj, scan_target_id_or_obj, tabs):
-    """Immediately set the science scan data for a scan target
-       use this for things that you do not want to have scan delayed.
+    """
+    Immediately set the science scan data for a scan target.
+    Use this for things that you do not want to have scan delayed.
 
     Args:
-        player_id_or_obj (agent): The player ship agent id or object
-        scan_target_id_or_obj (agent): The target ship agent id or object
+        player_id_or_obj (Agent | int): The player ship agent id or object
+        scan_target_id_or_obj (Agent | int): The target ship agent id or object
         tabs (dict): A dictionary to key = tab, value = scan string
     """    
     player_id = to_id(player_id_or_obj)
@@ -90,8 +97,8 @@ def science_update_scan_data(origin, target, info, tab="scan"):
     NOTE: Only use this if the scanning ship has already scanned the target, and the scan text needs to be updated,
     or if you want to forcibly add the scan info a ship even if it hasn't been scanned yet.
     Args:
-        origin (int|Agent): The scanning ship (probably a player ship)
-        target (int|Agent): The object being scanned
+        origin (int | Agent): The scanning ship (probably a player ship)
+        target (int | Agent): The object being scanned
         info (str): The new scan information
         tab (str): The science tab to which the info belongs (e.g. 'scan' or 'intel')
     """
@@ -118,8 +125,8 @@ def science_get_scan_data(origin, target, tab="scan")->str:
     """
     Get the science scan as seen by the ship doing the scan.
     Args:
-        origin (int|Agent): The ship doing the scan
-        target (int|Agent): The target space object
+        origin (int | Agent): The ship doing the scan
+        target (int |Agent): The target space object
         tab (str): The science tab the info goes to
     Returns:
         str: The applicable scan data
@@ -136,8 +143,8 @@ def science_is_unknown(origin, target)->bool:
     Based on the 'scan' tab on the science widget.  
     To use a different tab, use `science_has_scan_data()` instead  
     Args:
-        origin (int|Agent): The ship doing the scan (probably a player ship)
-        target (int|Agent): The target space object
+        origin (int | Agent): The ship doing the scan (probably a player ship)
+        target (int | Agent): The target space object
     """
     initial_scan = science_get_scan_data(origin, target)
     is_unknown = (initial_scan is None or initial_scan == "" or initial_scan == "no data" or initial_scan == "Default Scan")
@@ -147,8 +154,8 @@ def science_has_scan_data(origin, target, tab="scan") -> bool:
     """
     Check if the target is has scan data for the scanning ship.
     Args:
-        origin (int|Agent): The ship doing the scan (probably a player ship)
-        target (int|Agent): The target space object
+        origin (int | Agent): The ship doing the scan (probably a player ship)
+        target (int | Agent): The target space object
         tab (str): The science tab being checked (optional, default is 'scan')
     Returns:
         bool: True if the scan data exists
@@ -161,12 +168,13 @@ def scan_results(message, target=None, tab = None):
     """Set the scan results for the current scan. This should be called when the scan is completed.
        This is typically called as part of a scan()
        This could also be called in response to a routed science message.
-       When pair with a scan() the target and tab are not need.
+       When paired with a scan() the target and tab are not needed.
        Tab is the variable __SCAN_TAB__, target is track 
 
     Args:
-        message (str): scan text for a scan the is in progress
-        tab (str): scan tab for a scan the is in progress
+        message (str): Scan text for a scan that is in progress.
+        target (Any, optional): Not currently used. Default is None.
+        tab (str, optional): Scan tab for a scan that is in progress. Default is None.
     """    
     if FrameContext.task is None:
         show_warning("Scan results called in a weird way")
@@ -195,7 +203,7 @@ from ..futures import awaitable
 
 class ScanPromise(ButtonPromise):
     def __init__(self, path, task, timeout=None, auto_side=True) -> None:
-        path = path if path is not None else ""
+        path = path if path is not None else "" # NOTE: This is never used. WHY?
         path = f"science"
         super().__init__(path, task, timeout)
         self.path_root = "science"
@@ -427,11 +435,13 @@ class ScanPromise(ButtonPromise):
         
 @awaitable
 def scan(path=None, buttons=None, timeout=None, auto_side=True):
-    """Start a science scan
+    """
+    Start a science scan
 
     Args:
+        path (str, optional): The path of scripted scan data. Default is None.
         buttons (dict, optional): dictionary key = button, value = label. Defaults to None.
-        timeout (_type_, optional): A promise typically by calling timeout(). Defaults to None.
+        timeout (Promise, optional): A promise typically by calling timeout(). Defaults to None.
         auto_side (bool, optional): If true quickly scans thing on the same side. Defaults to True.
 
     Returns:
@@ -447,6 +457,14 @@ def scan(path=None, buttons=None, timeout=None, auto_side=True):
     return ret
 
 def science_add_scan(message, label=None, data=None, path=None):
+    """
+    Add a scan button.
+    Args:
+        message (str): The text contents of the button.
+        label (str | Label): The label to run when the button is pressed.
+        data (dict, optional): Data associated with this button.
+        path (str, optional): The path to follow when the button is pressed.
+    """
     p = ButtonPromise.navigating_promise
     if p is None:
         return
@@ -454,6 +472,11 @@ def science_add_scan(message, label=None, data=None, path=None):
 
 
 def science_navigate(path):
+    """
+    Navigate to a particular comms path. Must be called on the GUI task for science.
+    Args:
+        path (str): The comms button path to which the GUI will navigate.
+    """
     task = FrameContext.task
     p = task.get_variable("BUTTON_PROMISE")
     if p is None:
@@ -473,6 +496,11 @@ def create_scan_label():
 
 __science_promises = {}
 def start_science_selected(event):
+    """
+    Trigger a science scan to begin.
+    Args:
+        event (event): The event that triggered the scan.
+    """
     # Don't run if the selection doesn't exist
     so = to_object(event.selected_id)
     if event.selected_id != 0 and so is None:
@@ -602,10 +630,11 @@ def start_science_selected(event):
     return promise
     
 def start_science_message(event):
-    """This is how AUTOSCAN AUTO SCAN is accomplished
+    """
+    This is how AUTOSCAN AUTO SCAN is accomplished
 
     Args:
-        event (_type_): _description_
+        event (event): The event that triggered the auto scan.
     """
     if event.sub_tag != "":
         from .signal import signal_emit
@@ -620,6 +649,12 @@ ConsoleDispatcher.add_default_select("science_target_UID", start_science_selecte
 ConsoleDispatcher.add_default_message("science_target_UID", start_science_message)
 
 def science_ensure_scan(ids_or_objs, target_ids_or_objs, tabs="scan"):
+    """
+    Checks that the target objects have been scanned by the specified objects.
+    Args:
+        ids_or_objs (set[Agent | int]): The scanning ship(s)
+        target_ids_or_objs (set[Agent | int]): The targeted ship(s)
+    """
     players = to_object_list(ids_or_objs)
     targets = to_object_list(target_ids_or_objs)
     
@@ -678,6 +713,12 @@ import sbs
 #
 
 def science_set_2dview_focus(client_id, focus_id=0):
+    """
+    Set the specified client to focus its 2D view on the specified alternate ship.
+    Args:
+        client_id (int): The client id
+        focus_id (int, optional): The object on which to focus.
+    """
     if focus_id is None:
         return
     

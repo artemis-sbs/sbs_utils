@@ -14,6 +14,15 @@ import math
 
 
 def terrain_spawn_stations(DIFFICULTY, lethal_value, x_min=-32500, x_max=32500, center=None, min_num=0):
+    """
+    Spawn stations throughout the map, weighted by the game difficutly, and wrap minefields around them as applicable based on the lethal terrain value.
+    Args:
+        DIFFICULTY (int): The game difficulty.
+        lethal_value (int): The lethal terrain value.
+        x_min (int, optional): The minimum X value on the map
+        x_max (int, optional): The maximum X value on the map
+        center (Vec3, optional): The center of the map. Default is None (0,0,0).
+    """
     if center is None:
         center = Vec3(0,0,0)
 
@@ -83,6 +92,13 @@ def terrain_spawn_stations(DIFFICULTY, lethal_value, x_min=-32500, x_max=32500, 
 
 # make a few random clusters of Asteroids
 def terrain_asteroid_clusters(terrain_value, center=None, selectable=False):
+    """
+    Spawn clusters of asteroids around the map.
+    Args:
+        terrain_value (int): Scales how many asteroid clusters are spawned, and how many asteroids per cluster.
+        center (Vec3, optional): The center of the map. Default is None (0,0,0).
+        selectable (bool, optional): Should the asteroids be selectable on a 2D radar widget? Default is False.
+    """
     if center is None:
         center = Vec3(0,0,0)
 
@@ -107,7 +123,18 @@ def terrain_asteroid_clusters(terrain_value, center=None, selectable=False):
 
 def terrain_spawn_asteroid_box(x,y,z, size_x=10000,size_z=None, density_scale=1.0, density=1, height=1000, selectable=False, is_tiled=False):
     """
-        density is per 1000. Defaults to 0.5.
+    Spawn asteroid clusters within the box. Density is per 1000.
+    Args:
+        x (int): The x position of the starting point.
+        y (int): The y position of the starting point. (Not currently used)
+        z (int): The z position of the starting point.
+        size_x (int, optional): The size of the box in the x dimension. Default is 10,000.
+        size_z (int, optional): The size of the box in the z dimension. Default is None, in which case it is equal to size_x.
+        density_scale (float, optional): The density of the asteroid clusters. Default is 1.0.
+        density (int, optional): The density of the asteroid spawns. Default is 1.
+        height (int, optional): The size of the box in the y dimension. Default is 1000.
+        selectable (bool, optional): Should the spawned asteroids be selectable on the 2D radar widgets? Default is False.
+        is_tiled (bool, optional): Is the spawn position data tiled (using the map editor)? Default is False.
     """
     if density_scale==0:
         return
@@ -134,6 +161,18 @@ def terrain_spawn_asteroid_box(x,y,z, size_x=10000,size_z=None, density_scale=1.
 
 
 def terrain_spawn_asteroid_sphere(x,y,z, radius=10000, density_scale=1.0, density=1, height=1000, selectable=False):
+    """
+    Spawn asteroid clusters within the sphere. Density is per 1000.
+    Args:
+        x (int): The x position of the starting point.
+        y (int): The y position of the starting point.
+        z (int): The z position of the starting point.
+        radius (int, optional): The radius of the spawn sphere. Default is 10,000.
+        density_scale (float, optional): The density of the asteroid clusters. Default is 1.0.
+        density (int, optional): The density of the asteroid spawns. Default is 1.
+        height (int, optional): The size of the box in the y dimension. Default is 1000.
+        selectable (bool, optional): Should the spawned asteroids be selectable on the 2D radar widgets? Default is False.
+    """
     if density_scale==0:
         return
     grid = radius/1000
@@ -145,7 +184,18 @@ def terrain_spawn_asteroid_sphere(x,y,z, radius=10000, density_scale=1.0, densit
     terrain_spawn_asteroid_scatter(cluster_spawn_points, height, selectable=selectable)
 
 def terrain_spawn_asteroid_points(x,y,z, points, radius=10000, density_scale=1.0, density=1, height=1000, selectable=False):
-    
+    """
+    Spawn asteroid clusters within the box. Density is per 1000.
+    Args:
+        x (int): The x position of the starting point.
+        y (int): The y position of the starting point. Not currently used.
+        z (int): The z position of the starting point.
+        radius (int, optional): The size of the box in the x dimension. Default is 10,000. Not currently used.
+        density_scale (float, optional): The density of the asteroid clusters. Default is 1.0.
+        density (int, optional): The density of the asteroid spawns. Default is 1.
+        height (int, optional): The size of the box in the y dimension. Default is 1000.
+        selectable (bool, optional): Should the spawned asteroids be selectable on the 2D radar widgets? Default is False.
+    """
     if density_scale==0:
         return
     if density==0:
@@ -183,6 +233,13 @@ def terrain_spawn_asteroid_points(x,y,z, points, radius=10000, density_scale=1.0
         terrain_spawn_asteroid_scatter(cluster_spawn_points, height, selectable=selectable)
 
 def terrain_spawn_asteroid_scatter(cluster_spawn_points, height, selectable=False):
+    """
+    Spawn asteroids at the specified spawn points.
+    Args:
+        cluster_spawn_points (Iterable[Vec3]): The spawn points.
+        height (int): Scales where the asteroids should spawn in the y dimension.
+        selectable (bool, optional): Should the asteroids be selectable on the 2D radar widget? Default is False.
+    """
     asteroid_types = plain_asteroid_keys()
     a_type = random.choice(asteroid_types)
 
@@ -273,6 +330,14 @@ def terrain_spawn_asteroid_scatter(cluster_spawn_points, height, selectable=Fals
 
 
 def terrain_to_value(dropdown_select, default=0):
+    """
+    Convert a string representation of the terrain density (shown to the players) to an integer.
+    Args:
+        dropdown_select (str): The string representation of the terrain density.
+        default (int, optional): The default integer value, if `dropdown_select` is not a valid value. Default is 0.
+    Returns:
+        int: The integer value that corresponds to the string. (0 - 4)
+    """
     if "few" == dropdown_select:
         return 1
 
@@ -292,6 +357,13 @@ def terrain_to_value(dropdown_select, default=0):
 
 
 def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False):
+    """
+    Spawn clusters of nebulae around the map.
+    Args:
+        terrain_value (int): Scales how many nebulae clusters are spawned, and how many nebulae per cluster.
+        center (Vec3, optional): The center of the map. Default is None (0,0,0).
+        selectable (bool, optional): Should the nebulae be selectable on a 2D radar widget? Default is False.
+    """
     if center is None:
         center = Vec3(0,0,0)
 
@@ -307,6 +379,20 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False):
         terrain_spawn_nebula_sphere(v.x,v.y, v.z, 5000,terrain_value, cluster_color=cluster_color, selectable=selectable)
 
 def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=None, diameter=4000, density=1.0, selectable=False):
+    """
+    Spawn asteroids at the specified spawn points.
+    Args:
+        cluster_spawn_points (Iterable[Vec3]): The spawn points.
+        height (int): Scales where the asteroids should spawn in the y dimension.
+        cluster_color (int, optional): The color the nebulae should spawn as. Default is 0.
+        * 0: purple
+        * 1: red
+        * 2: blue
+        * 3: yellow
+        diameter (int, optional): The diameter of the nebulae.
+        density (float, optional): The density of the nebulae (3D view). Default is 1.0.
+        selectable (bool, optional): Should the asteroids be selectable on the 2D radar widget? Default is False.
+    """
     for v2 in cluster_spawn_points:
         # v2.y = v2.y % 500.0 Mod doesn't work like you think
         v2.y = random.random() * (height/2)-(height/4)
@@ -330,6 +416,25 @@ def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=Non
             terrain_setup_nebula_yellow(nebula, diameter, density)
 
 def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0, density= 1, height=1000, cluster_color=None, selectable=False, is_tiled=False):
+    """
+    Spawn asteroids throughout a box.
+    Args:
+        x (int): The X position.
+        y (int): The Y position. (Not currently used).
+        z (int): The Z position.
+        size_x (int, optional): The width of the box in the x dimension. Default is 10,000.
+        size_z (int, optional): The width of the box in the z dimension. If None, equal to `size_x`. Default is None.
+        density_scale(float, optional): How dense the nebulae spawn. Default is 1.0.
+        density (int, optional): The density of the nebulae (3D view). Default is 1.
+        height (int): Scales where the asteroids should spawn in the y dimension.
+        cluster_color (int, optional): The color the nebulae should spawn as. Default is 0.
+        * 0: purple
+        * 1: red
+        * 2: blue
+        * 3: yellow
+        selectable (bool, optional): Should the asteroids be selectable on the 2D radar widget? Default is False.
+        is_tiled (bool, optional): Is the spawn position data tiled (using the map editor)? Default is False.
+    """
     if density_scale==0:
         return
     if size_z is None:
@@ -355,6 +460,23 @@ def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0
     terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color, diameter=size_x*2, density=density, selectable=selectable)
 
 def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=1.0, height=1000, cluster_color=None, selectable=False):
+    """
+    Spawn nebula clusters within the sphere. Density is per 1000.
+    Args:
+        x (int): The x position of the starting point.
+        y (int): The y position of the starting point.
+        z (int): The z position of the starting point.
+        radius (int, optional): The radius of the spawn sphere. Default is 10,000.
+        density_scale (float, optional): The density of the nebulae clusters. Default is 1.0.
+        density (int, optional): The density of the nebulae spawns. Default is 1.
+        height (int, optional): The size of the box in the y dimension. Default is 1000.
+        cluster_colors (int, optional): The color the nebulae should spawn as. Default is 0.
+        * 0: purple
+        * 1: red
+        * 2: blue
+        * 3: yellow
+        selectable (bool, optional): Should the spawned nebulae be selectable on the 2D radar widgets? Default is False.
+    """
     if density_scale==0:
         return
     
@@ -382,6 +504,12 @@ def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=
             
 
 def terrain_spawn_monsters(monster_value, center=None):
+    """
+    Spawn monsters based on the monster value of the game.
+    Args:
+        monster_value (int): Scales the numnber of monsters to spawn.
+        center (Vec3): The center of the spawn area. Defaults to None (0,0,0).
+    """
     if center is None:
         center = Vec3(0,0,0)
 
@@ -398,6 +526,17 @@ random.shuffle(call_signs)
 
 
 def terrain_spawn_black_hole(x,y,z, gravity_radius= 1500, gravity_strength=1.0, turbulence_strength= 1.0, collision_damage=200):
+    """
+    Spawn a black hole.
+    Args:
+        x (int): The x position.
+        y (int): The y position.
+        z (int): The z position.
+        gravity_radius (int, optional): The radius in which objects will be pulled towards the black hole. Default is 1500.
+        gravity_strength (float, optional): How fast the black hole pulls objects. Default is 1.0.
+        turbulence_strength (float, optional): The turbulence of the black hole. Default is 1.0.
+        collision_damage (int, optional): The damage to apply to objects that fall into the black hole. Default is 200.
+    """
     global enemy_name_number
 
     _prefix = "XEA"
@@ -416,6 +555,12 @@ def terrain_spawn_black_hole(x,y,z, gravity_radius= 1500, gravity_strength=1.0, 
 
 
 def terrain_spawn_black_holes(lethal_value, center=None):
+    """
+    Spawn black holes based on the game's lethal terrain value.
+    Args:
+        lethal_value (int): The integer value representing how much lethal terrain should spawn.
+        center (Vec3): The center of the spawn points. Default is None (0,0,0).
+    """
     if center is None:
         center = Vec3(0,0,0)
 
@@ -425,6 +570,13 @@ def terrain_spawn_black_holes(lethal_value, center=None):
 
 
 def terrain_setup_nebula_red(nebula, diameter=4000, density_coef=1.0):
+    """
+    Set up the nebulae to use the default red values.
+    Args:
+        nebula (set[Agent]): The nebulae
+        diameter (int, optional): The diameter of the nebula.
+        density_coef (float, optional): Scales the visual nebula density (3D view)
+    """
     blob = to_data_set(nebula)
     blob.set("radar_color_override", "#e0e")    
     #blob.set("radar_color_override", "#0ff")    
@@ -466,6 +618,13 @@ def terrain_setup_nebula_red(nebula, diameter=4000, density_coef=1.0):
 
 
 def terrain_setup_nebula_yellow(nebula, diameter=4000, density_coef=1.0):
+    """
+    Set up the nebulae to use the default yellow values.
+    Args:
+        nebula (set[Agent]): The nebulae
+        diameter (int, optional): The diameter of the nebula.
+        density_coef (float, optional): Scales the visual nebula density (3D view)
+    """
     blob = to_data_set(nebula)
     blob.set("radar_color_override", "#aa0")    
     #size = 1000 * random.uniform(1.0, 5.5)
@@ -505,6 +664,13 @@ def terrain_setup_nebula_yellow(nebula, diameter=4000, density_coef=1.0):
     blob.set("nebula_data_change", 1)
 
 def terrain_setup_nebula_blue(nebula, diameter=4000, density_coef=1.0):
+    """
+    Set up the nebulae to use the default blue values.
+    Args:
+        nebula (set[Agent]): The nebulae
+        diameter (int, optional): The diameter of the nebula.
+        density_coef (float, optional): Scales the visual nebula density (3D view)
+    """
     blob = to_data_set(nebula)
     blob.set("radar_color_override", "#0ff")    
     # size = 1000 * random.uniform(1.0, 5.5)

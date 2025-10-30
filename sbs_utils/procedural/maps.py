@@ -3,6 +3,9 @@ from ..helpers import FrameContext
 
 
 def maps_get_list():
+    """
+    Get a list of all the `@map` labels.
+    """
     ret = []
     page = FrameContext.page
     if page is None:
@@ -35,6 +38,9 @@ def maps_get_list():
 
 
 def maps_get_init():
+    """
+    Get a list of all `__overview__` map labels.
+    """
     mast = FrameContext.mast
     if mast is None:
         return []
@@ -54,6 +60,13 @@ def maps_get_init():
 
 
 def map_get_properties(map):
+    """
+    Get the properties for the specified map label.
+    Args:
+        map (MastAsyncTask): The map label
+    Returns:
+        any: The properties for the map label
+    """
     # Try Properties and properties
     return map.get_inventory_value("Properties", map.get_inventory_value("properties"))
 

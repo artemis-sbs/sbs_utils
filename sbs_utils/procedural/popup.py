@@ -47,6 +47,11 @@ class PopupPromise(ButtonPromise):
         super().initial_poll()
 
     def poll(self):
+        """
+        Get the result of the popup.
+        Returns:
+            PollResults: The result.
+        """
         # This is in case a gui is used in the can
         # But it won't
         event = FrameContext.context.event
@@ -59,6 +64,11 @@ class PopupPromise(ButtonPromise):
     
 
     def pressed_set_values(self, task) -> None:
+        """
+        When the popup is pressed, the task variables are set.
+        Args:
+            task (MastAsyncTask): The task.
+        """
         event = self.event
         console = event.sub_tag.upper()
         
@@ -92,12 +102,22 @@ class PopupPromise(ButtonPromise):
   
     
     def set_variables(self, event):
+        """
+        Set the variables based on the event that fired.
+        Args:
+            event (event): The event
+        """
         self.event = event
         self.pressed_set_values(self.task)
 
             
 
     def message(self, event):
+        """
+        Triggered when a button is pressed.
+        Args:
+            event (event): The button press event.
+        """
         # makes sure this was for us
         if event.selected_id != self.selected_id or self.origin_id != event.origin_id:
             return
@@ -117,6 +137,11 @@ class PopupPromise(ButtonPromise):
         
         
     def selected(self, event):
+        """
+        Triggered when an object is selected on the widget.
+        Args:
+            event (event): The selection event
+        """
         #
         # avoid if this isn't for us
         #
@@ -135,6 +160,11 @@ class PopupPromise(ButtonPromise):
         #     self.task.tick()
 
     def collect(self):
+        """
+        Garbage Collect the popup promise.
+        Returns:
+            bool: Was the GC successfully completed?
+        """
         #
         # Remember Origin is the ALT ship
         # Selection is the popup ID
@@ -151,6 +181,9 @@ class PopupPromise(ButtonPromise):
         return True
 
     def leave(self):
+        """
+        Leave and remove the promise.
+        """
         #print("POPUP LEAVE")
         GarbageCollector.remove_garbage_collect(self.collect)
         ConsoleDispatcher.remove_select_pair(self.origin_id, self.selected_id, self.uid)
@@ -159,6 +192,9 @@ class PopupPromise(ButtonPromise):
         PopupPromise.popup_promises.pop(test, None)
      
     def show_buttons(self):
+        """
+        Display the popup menu buttons.
+        """
         sel_so = to_object(self.selected_id)
         origin_so = to_object(self.origin_id)
         if (self.selected_id != 0 and sel_so is None) or origin_so is None:
@@ -194,11 +230,21 @@ class PopupPromise(ButtonPromise):
         FrameContext.context.sbs.send_hold_menu(CID, self.origin_id, self.selected_id, self.parent_id, self.button_string)
 
     def handle_button_sub_task(self, sub_task):
+        """
+        Add the sub task to the gui task
+        Args:
+            sub_task (MastAsyncTask): The task to add
+        """
         FrameContext.server_task.main.tasks.append(sub_task)
         self.show_buttons()
 
 
 def popup_navigate(path):
+    """
+    Set the path for the popup task. Similar to comms paths, e.g. `//popup/science`
+    Args:
+        path (str): The path
+    """
     task = FrameContext.task
     p = task.get_variable("BUTTON_PROMISE")
     if p is None:
@@ -214,6 +260,13 @@ def popup_navigate(path):
 
 
 def start_popup_selected(event):
+    """
+    Display the popup.
+    Args:
+        event (event): The event that triggered the popup.
+    Returns:
+        Promise: The popup's promise 
+    """
     # Don't run if the selection doesn't exist
     # so = to_object(event.selected_id)
     # if event.selected_id != 0 and so is None:

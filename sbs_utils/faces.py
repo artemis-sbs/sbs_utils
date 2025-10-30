@@ -11,10 +11,11 @@ from .procedural.query import to_id
 faces_map = {}
 
 def get_face(ship_id):
-    """ returns a face string for a specified ID
+    """
+    Returns a face string for a specified ID
 
     Args:
-        ship_id (agent): The id of the ship/object
+        ship_id (Agent | int): The id of the ship/object
 
     Returns:
         str: A Face string
@@ -22,19 +23,21 @@ def get_face(ship_id):
     return faces_map.get(to_id(ship_id), "")
 
 def set_face(ship_id, face):
-    """ sets a face string for a specified ID
+    """
+    Sets a face string for a specified ID.
 
     Args:
-        ship_id (agent): The id of the ship/object
+        ship_id (Agent | int): The id of the ship/object
         face (str): A Face string
     """
     faces_map[to_id(ship_id)] = face
 
 def clear_face(ship_id):
-    """ Removes a face string for a specified ID
+    """ 
+    Removes a face string for a specified ID.
 
     Args:
-        ship_id (agent): The id of the ship/object
+        ship_id (Agent | int): The id of the ship/object
     """
     faces_map.pop(to_id(ship_id), None)
 
@@ -48,34 +51,36 @@ skaraan_map = {
 }
 
 
-def skaraan(face_i, eye_i, mouth_i, horn_i, hat_i):
-    """ Create a skaraan face
+def skaraan(face_id, eye_id, mouth_id, horn_id, hat_id):
+    """ 
+    Create a skaraan face
 
     Args:
-        face_i ( int): The index of the face 0
-        eye_id ( int): The index of the eyes 0-4
-        mouth_id ( int): The index of the mouth 0-4
-        horn_id ( int or None): The index of the horn 0-4 or None
-        hat_id ( int or None): The index of the hat 0-4 or None
+        face_id (int): The index of the face 0
+        eye_id (int): The index of the eyes 0-4
+        mouth_id (int): The index of the mouth 0-4
+        horn_id (int | None): The index of the horn 0-4 or None
+        hat_id (int | None): The index of the hat 0-4 or None
 
     Returns:
-        (str):   A Face string
+        (str): A Face string
     """
-    face = skaraan_map["face"][face_i]
-    eye = skaraan_map["eyes"][eye_i]
-    mouth = skaraan_map["mouth"][mouth_i]
+    face = skaraan_map["face"][face_id]
+    eye = skaraan_map["eyes"][eye_id]
+    mouth = skaraan_map["mouth"][mouth_id]
 
     ret =  f"ska #fff {face[0]} {face[1]};ska #fff {eye[0]} {eye[1]};ska #fff {mouth[0]} {mouth[1]};"
-    if horn_i  is not None:
-        horns = skaraan_map["horns"][horn_i]
+    if horn_id  is not None:
+        horns = skaraan_map["horns"][horn_id]
         ret += f"ska #fff {horns[0]} {horns[1]};"
-    if hat_i is not None:
-        hat = skaraan_map["hat"][hat_i]
+    if hat_id is not None:
+        hat = skaraan_map["hat"][hat_id]
         ret += f"ska #fff {hat[0]} {hat[1]};"
     return ret
 
 def random_skaraan():
-    """ Create a random skaraan face
+    """ 
+    Create a random skaraan face.
 
     Returns:
         (str):   A Face string
@@ -102,39 +107,41 @@ torgoth_map = {
 }
 
 
-def torgoth(face_i, eye_i, mouth_i, hair_i, extra_i, hat_i):
-    """ Create a torgoth face
+def torgoth(face_id, eye_id, mouth_id, hair_id, extra_id, hat_id):
+    """ 
+    Create a torgoth face.
 
     Args:
-        face_i ( int): The index of the face 0
-        eye_id ( int): The index of the eyes 0-4
-        mouth_id ( int): The index of the mouth 0-4
-        hair_id ( int or None): The index of the hair 0-4 or None
-        extra_id ( int or None): The index of the extra 0-4 or None
-        hat_id ( int or None): The index of the hat 0 or None
+        face_id (int): The index of the face 0
+        eye_id (int): The index of the eyes 0-4
+        mouth_id (int): The index of the mouth 0-4
+        hair_id (int | None): The index of the hair 0-4 or None
+        extra_id (int | None): The index of the extra 0-4 or None
+        hat_id (int | None): The index of the hat 0 or None
 
     Returns:    
         (str):   A Face string
     """
-    face = torgoth_map["face"][face_i]
-    eye = torgoth_map["eyes"][eye_i]
-    mouth = torgoth_map["mouth"][mouth_i]
+    face = torgoth_map["face"][face_id]
+    eye = torgoth_map["eyes"][eye_id]
+    mouth = torgoth_map["mouth"][mouth_id]
     
     ret =  f"tor #fff {face[0]} {face[1]};tor #fff {eye[0]} {eye[1]};tor #fff {mouth[0]} {mouth[1]};"
-    if hair_i is not None:
-        hair = torgoth_map["hair"][hair_i]
+    if hair_id is not None:
+        hair = torgoth_map["hair"][hair_id]
         ret += f"tor #fff {hair[0]} {hair[1]};"
-    if hat_i  is not None:
-        hat = torgoth_map["hat"][hat_i]
+    if hat_id  is not None:
+        hat = torgoth_map["hat"][hat_id]
         ret += f"tor #fff {hat[0]} {hat[1]};"
 
-    if extra_i  is not None:
-        extra = torgoth_map["extra"][extra_i]
+    if extra_id  is not None:
+        extra = torgoth_map["extra"][extra_id]
         ret += f"tor #fff {extra[0]} {extra[1]};"
     return ret
 
 def random_torgoth():
-    """ Create a random torgoth face
+    """ 
+    Create a random torgoth face.
     
     Returns:
         (str):   A Face string
@@ -162,35 +169,37 @@ arvonian_map = {
 }
 
 
-def arvonian(face_i, eye_i, mouth_i, crown_i, collar_i):
-    """ Create an arvonian face
+def arvonian(face_id, eye_id, mouth_id, crown_id, collar_id):
+    """ 
+    Create an arvonian face
 
     Args:
-        face_i ( int): The index of the face 0
-        eye_id ( int): The index of the eyes 0-4
-        mouth_id ( int): The index of the mouth 0-4
-        crown_id ( int or None): The index of the crown 0-4 or None
-        collar_id ( int or None): The index of the collar 0-4 or None
+        face_id (int): The index of the face 0
+        eye_id (int): The index of the eyes 0-4
+        mouth_id (int): The index of the mouth 0-4
+        crown_id (int | None): The index of the crown 0-4 or None
+        collar_id (int | None): The index of the collar 0-4 or None
 
     Returns:    
         (str):   A Face string
     """
-    face = arvonian_map["face"][face_i]
-    eye = arvonian_map["eyes"][eye_i]
-    mouth = arvonian_map["mouth"][mouth_i]
+    face = arvonian_map["face"][face_id]
+    eye = arvonian_map["eyes"][eye_id]
+    mouth = arvonian_map["mouth"][mouth_id]
     
     ret =  f"arv #fff {face[0]} {face[1]};arv #fff {eye[0]} {eye[1]};arv #fff {mouth[0]} {mouth[1]};"
-    if crown_i is not None:
-        crown = arvonian_map["crown"][crown_i]
+    if crown_id is not None:
+        crown = arvonian_map["crown"][crown_id]
         ret += f"arv #fff {crown[0]} {crown[1]};"
 
-    if collar_i  is not None:
-        collar = arvonian_map["collar"][collar_i]
+    if collar_id  is not None:
+        collar = arvonian_map["collar"][collar_id]
         ret += f"arv #fff {collar[0]} {collar[1]};"
     return ret
 
 def random_arvonian():
-    """ Create a random arvonian face
+    """ 
+    Create a random arvonian face.
 
     Returns:
         (str):   A Face string
@@ -218,39 +227,41 @@ ximni_map = {
 }
 
 
-def ximni(face_i, eye_i, mouth_i, horns_i, mask_i, collar_i):
-    """ Create an ximni face
+def ximni(face_id, eye_id, mouth_id, horns_id, mask_id, collar_id):
+    """ 
+    Create an ximni face
 
     Args:
-        face_i ( int): The index of the face 0
-        eye_id ( int): The index of the eyes 0-4
-        mouth_id ( int): The index of the mouth 0-4
-        horns_id ( int or None): The index of the horns 0-4 or None
-        mask_id ( int or None): The index of the mask 0-4 or None
-        collar_id ( int or None): The index of the collar 0 or None
+        face_id (int): The index of the face 0
+        eye_id (int): The index of the eyes 0-4
+        mouth_id (int): The index of the mouth 0-4
+        horns_id (int | None): The index of the horns 0-4 or None
+        mask_id (int | None): The index of the mask 0-4 or None
+        collar_id (int | None): The index of the collar 0 or None
     
     Returns:
         (str):   A Face string
     """
-    face = ximni_map["face"][face_i]
-    eye = ximni_map["eyes"][eye_i]
-    mouth = ximni_map["mouth"][mouth_i]
+    face = ximni_map["face"][face_id]
+    eye = ximni_map["eyes"][eye_id]
+    mouth = ximni_map["mouth"][mouth_id]
     
     ret =  f"zim #fff {face[0]} {face[1]};zim #fff {eye[0]} {eye[1]};zim #fff {mouth[0]} {mouth[1]};"
-    if horns_i is not None:
-        horns = ximni_map["horns"][horns_i]
+    if horns_id is not None:
+        horns = ximni_map["horns"][horns_id]
         ret += f"zim #fff {horns[0]} {horns[1]};"
-    if collar_i  is not None:
-        collar = ximni_map["collar"][collar_i]
+    if collar_id  is not None:
+        collar = ximni_map["collar"][collar_id]
         ret += f"zim #fff {collar[0]} {collar[1]};"
 
-    if mask_i  is not None:
-        mask = ximni_map["mask"][mask_i]
+    if mask_id  is not None:
+        mask = ximni_map["mask"][mask_id]
         ret += f"zim #fff {mask[0]} {mask[1]};"
     return ret
 
 def random_ximni():
-    """ Create a random ximni face
+    """ 
+    Create a random ximni face.
     
     Returns:
         (str):   A Face string
@@ -278,35 +289,37 @@ kralien_map = {
 }
 
 
-def kralien(face_i, eye_i, mouth_i, scalp_i, extra_i):
-    """ Create an kralien face
+def kralien(face_id, eye_id, mouth_id, scalp_id, extra_id):
+    """ 
+    Create an kralien face.
 
     Args:
-        face_i ( int): The index of the face 0
-        eye_id ( int): The index of the eyes 0-4
-        mouth_id ( int): The index of the mouth 0-4
-        scalp_id ( int or None): The index of the scalp 0-4 or None
-        extra_id ( int or None): The index of the extra 0-4 or None
+        face_id (int): The index of the face 0
+        eye_id (int): The index of the eyes 0-4
+        mouth_id (int): The index of the mouth 0-4
+        scalp_id (int | None): The index of the scalp 0-4 or None
+        extra_id (int | None): The index of the extra 0-4 or None
     
     Returns:
         (str):   A Face string
     """
-    face = kralien_map["face"][face_i]
-    eye = kralien_map["eyes"][eye_i]
-    mouth = kralien_map["mouth"][mouth_i]
+    face = kralien_map["face"][face_id]
+    eye = kralien_map["eyes"][eye_id]
+    mouth = kralien_map["mouth"][mouth_id]
     
     ret =  f"kra #fff {face[0]} {face[1]};kra #fff {eye[0]} {eye[1]};kra #fff {mouth[0]} {mouth[1]};"
-    if scalp_i is not None:
-        scalp = kralien_map["scalp"][scalp_i]
+    if scalp_id is not None:
+        scalp = kralien_map["scalp"][scalp_id]
         ret += f"kra #fff {scalp[0]} {scalp[1]};"
 
-    if extra_i  is not None:
-        extra = kralien_map["extra"][extra_i]
+    if extra_id  is not None:
+        extra = kralien_map["extra"][extra_id]
         ret += f"kra #fff {extra[0]} {extra[1]};"
     return ret
 
 def random_kralien():
-    """ Create a random kralien face
+    """ 
+    Create a random kralien face.
     
     Returns:
         (str):   A Face string
@@ -408,22 +421,28 @@ hair_tones = [
 ]
 
 def probably(chance):
+    """
+    Will compare a float with a random float between 0 and 1. If the provided number is larger than the random number, will return True.
+    Args:
+        chance (float): A float between 0 and 1.
+    """
     return uniform(0, 1) < chance
 
-def terran(face_i, eye_i, mouth_i, hair_i, longhair_i, facial_i, extra_i, uniform_i, skintone, hairtone):
-    """ Create an terran face
+def terran(face_id, eye_id, mouth_id, hair_id, longhair_id, facial_id, extra_id, uniform_id, skintone, hairtone):
+    """ 
+    Create a terran face.
 
     Args:
-        face_i ( int or None ): The index of the face 0=male, 1=female, 2=fluid_male, 3=fluid_female
-        eye_i ( int or None): The index of the eyes 0-9
-        mouth_i ( int): The index of the mouth 0-9
-        hair_i ( int or None): The index of the hair 0-9 or None
-        longhair_i ( int or None): The index of the hair 0-7 or None
-        facial_i ( int or None): The index of the hair 0-11 or None
-        extra_i ( int or None): The index of the extra 0-5 or None
-        uniform_i ( int or None): The index of the uniform 0 or None. None = civilian
-        skintone_i ( int, str or None): The index of the skintone 0-??, string = color string or None. 
-        hairtone_i ( int, str or None): The index of the skintone 0-??, string = color string  or None.
+        face_id (int | None): The index of the face 0=male, 1=female, 2=fluid_male, 3=fluid_female
+        eye_id (int | None): The index of the eyes 0-9
+        mouth_id (int): The index of the mouth 0-9
+        hair_id (int | None): The index of the hair 0-9 or None
+        longhair_id (int | None): The index of the hair 0-7 or None
+        facial_id (int | None): The index of the hair 0-11 or None
+        extra_id (int | None): The index of the extra 0-5 or None
+        uniform_id (int | None): The index of the uniform 0 or None. None = civilian
+        skintone (int | str | None): The index of the skintone 0-??, string = color string or None. 
+        hairtone (int | str | None): The index of the skintone 0-??, string = color string  or None.
     
     Returns:
         (str):   A Face string
@@ -432,34 +451,34 @@ def terran(face_i, eye_i, mouth_i, hair_i, longhair_i, facial_i, extra_i, unifor
     is_fluid = False 
     # if not fluid mouth and eyes must match gender 
     # face and uniform need to match
-    if face_i>=2: 
+    if face_id>=2: 
         #fluid
-        face_i = face_i % 2
+        face_id = face_id % 2
         is_fluid = True
 
     face = terran_map["face"][0]
-    if face_i == 1:
+    if face_id == 1:
         face = (face[0] + 3, face[1])
 
 
     eye_count =len(terran_map["eyes"])
     
-    female_eyes =  (eye_i > eye_count)
-    if not is_fluid and face_i==1:
+    female_eyes =  (eye_id > eye_count)
+    if not is_fluid and face_id==1:
         female_eyes = True
 
-    eye = terran_map["eyes"][eye_i%eye_count]
+    eye = terran_map["eyes"][eye_id%eye_count]
 
     # offset cell
     if female_eyes:
         eye = (eye[0]+ 3, eye[1])
     
     mouth_count =len(terran_map["mouth"])
-    female_mouth = mouth_i > mouth_count
-    if not is_fluid and face_i==1:
+    female_mouth = mouth_id > mouth_count
+    if not is_fluid and face_id==1:
         female_mouth = True
 
-    mouth = terran_map["mouth"][mouth_i%mouth_count]
+    mouth = terran_map["mouth"][mouth_id%mouth_count]
     # offset cell
     if female_mouth:
         mouth = (mouth[0] + 3, mouth[1])
@@ -476,22 +495,22 @@ def terran(face_i, eye_i, mouth_i, hair_i, longhair_i, facial_i, extra_i, unifor
         hairtone = hair_tones[hairtone]
 
     ret = ""
-    if longhair_i is not None:
-        longhair = terran_map["longhair"][longhair_i]
+    if longhair_id is not None:
+        longhair = terran_map["longhair"][longhair_id]
         ret += f"ter #{hairtone} {longhair[0]} {longhair[1]} 6  -2;"
 
     ret +=  f"ter #{skintone} {face[0]} {face[1]};ter #{skintone} {eye[0]} {eye[1]};ter #{skintone} {mouth[0]} {mouth[1]};"
-    if hair_i is not None:
-        hair = terran_map["hair"][hair_i]
+    if hair_id is not None:
+        hair = terran_map["hair"][hair_id]
         ret += f"ter #{hairtone} {hair[0]} {hair[1]} 6 -2;"
 
 
     # Civilian
-    if uniform_i == None:
+    if uniform_id == None:
         shirt = (2,5)
         hat = None
     else:
-        uniform = terran_uniform[uniform_i]
+        uniform = terran_uniform[uniform_id]
         shirt = terran_map["shirt"][uniform[1]]
         hat = terran_map["hat"][uniform[0]]
 
@@ -499,28 +518,29 @@ def terran(face_i, eye_i, mouth_i, hair_i, longhair_i, facial_i, extra_i, unifor
     if hat:
         ret += f"ter #fff {hat[0]} {hat[1]} 14 -2;"
     
-    if face_i == 1:
+    if face_id == 1:
         shirt = (shirt[0]+3, shirt[1])
 
     ret += f"ter #fff {shirt[0]} {shirt[1]};"
 
-    if facial_i is not None:
-        facial = terran_map["facial"][facial_i]
+    if facial_id is not None:
+        facial = terran_map["facial"][facial_id]
         ret += f"ter #{hairtone} {facial[0]} {facial[1]} 12 4;"
 
 
-    if extra_i  is not None:
-        extra = terran_map["extra"][extra_i]
+    if extra_id  is not None:
+        extra = terran_map["extra"][extra_id]
         ret += f"ter #fff {extra[0]} {extra[1]} 20 4;"
     return ret
 
 
 def random_terran(face=None, civilian=None):
-    """ Create a random terran face
+    """ 
+    Create a random terran face.
 
     Args:
-        face ( int or None): The index of the hair 0=male,1=female,2=fluid male, 3=fluid female or None= random
-        civilian ( boolean or None): The force this to be a civilian=True, For non-civilian=False or None= random
+        face (int | None): The index of the hair 0=male,1=female,2=fluid male, 3=fluid female or None= random
+        civilian (boolean | None): The force this to be a civilian=True, For non-civilian=False or None= random
 
     Returns:    
         (str):   A Face string
@@ -599,10 +619,11 @@ def random_terran(face=None, civilian=None):
 
 
 def random_terran_male(civilian=None):
-    """ Create a random terran male face
+    """ 
+    Create a random terran male face.
 
     Args:
-        civilian ( boolean or None): The force this to be a civilian=True, For non-civilian=False or None= random
+        civilian (boolean, optional): The force this to be a civilian=True, For non-civilian=False, or None= random. Default is None.
     
     Returns:
         (str):   A Face string
@@ -610,10 +631,11 @@ def random_terran_male(civilian=None):
     return random_terran(0, civilian)
 
 def random_terran_female(civilian=None):
-    """ Create a random terran female face
+    """ 
+    Create a random terran female face.
 
     Args:    
-        civilian ( boolean or None): The force this to be a civilian=True, For non-civilian=False or None= random
+        civilian (boolean, optional): The force this to be a civilian=True, For non-civilian=False or None= random. Default is None.
     
     Returns:
         (str):   A Face string
@@ -621,10 +643,11 @@ def random_terran_female(civilian=None):
     return random_terran(1, civilian)
 
 def random_terran_fluid(civilian=None):
-    """ Create a random fluid terran face i.e. may have male or female features
+    """ 
+    Create a random fluid terran face i.e. may have male or female features.
 
     Args:
-        civilian ( boolean or None): The force this to be a civilian=True, For non-civilian=False or None= random
+        civilian (boolean, optional): The force this to be a civilian=True, For non-civilian=False or None= random. Default is None.
     
     Returns:
         (str):   A Face string
@@ -633,7 +656,8 @@ def random_terran_fluid(civilian=None):
 
 
 def random_face(race=None):
-    """Returns a random face for the specified race
+    """
+    Returns a random face for the specified race.
 
     Args:
         race (str): The Race Terran, Torgoth etc.
@@ -641,6 +665,7 @@ def random_face(race=None):
     Returns:
         str: The Face String
     """
+    # TODO: Ideally we would have a way to make this extensible for modded races too.
     if race is None or race.lower() == "random":
         race = choice(["kralien", "arvonian", "skaraan", "torgoth", "ximni", "terran", "civilian" ] )
     race = race.lower()    
@@ -670,8 +695,9 @@ def random_face(race=None):
 
 
 def get_face_from_data(race):
-    """depricated in v1.1.0
-    use random_race instead
+    """
+    ### Deprecated in v1.1.0.
+    Use random_race instead.
 
     Args:
         race (_type_): _description_

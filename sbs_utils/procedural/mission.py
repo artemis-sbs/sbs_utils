@@ -4,14 +4,15 @@ from ..mast.pollresults import PollResults
 
 
 def mission_runner(label=None, data=None):
-    """Runs a mission this runs the same task multiple times
+    """
+    Runs a mission this runs the same task multiple times. If the label is None, runs the currently running mission label.
 
     Args:
-        label (_type_): a Mission Label
-        data (_type_, optional): _Data to pass to the mission task. Defaults to None.
+        label (str | Label, optional): The mission label to run. Default is None.
+        data (dict, optional): Data to pass to the mission task. Default is None.
 
     Yields:
-        PollResults: Sucess or Failure
+        PollResults: Success or Failure
     """
     if label is None:
         task = FrameContext.task
@@ -123,8 +124,16 @@ def mission_runner(label=None, data=None):
 
 
 def mission_find(agent_id):
+    """
+    Currently unused.
+    """
     pass
 
 
 def mission_run(label, data= None):
+    """
+    Run a mission label.
+    Args:
+        label (str | Label)
+    """
     return task_schedule(mission_runner, {"label": label, "data": data})

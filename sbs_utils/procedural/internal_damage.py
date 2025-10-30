@@ -178,6 +178,11 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None):
 
 
 def grid_restore_damcons(id_or_obj):
+    """
+    Restore all damcon teams for the specified ship to full health.
+    Args:
+        id_or_obj (Agent | int): The agent or id of the ship
+    """
     SBS = FrameContext.context.sbs
     ship_id = to_id(id_or_obj)
     if has_role(ship_id, "cockpit"):
@@ -242,6 +247,11 @@ def grid_restore_damcons(id_or_obj):
 
 
 def grid_apply_system_damage(id_or_obj):
+    """
+    Damage a random system node on the specified ship.
+    Args:
+        id_or_obj (Agent | int): The agent or id of the specified ship.
+    """
     SBS = FrameContext.context.sbs
 
     ship_id = to_id(id_or_obj)
@@ -297,6 +307,11 @@ def grid_apply_system_damage(id_or_obj):
     return should_explode
 
 def explode_player_ship(id_or_obj):
+    """
+    The specified ship will be destroyed, but not immediately. This will trigger the `player_ship_destroyed` signal, which will allow things to happen prior to the ship being deleted.
+    Args:
+        id_or_obj (Agent | int): The agent or id of the ship.
+    """
     ship_id = to_id(id_or_obj)
     if has_role(ship_id, "exploded"):
         return
@@ -322,6 +337,11 @@ def explode_player_ship(id_or_obj):
 
 
 def respawn_player_ship(id_or_obj):
+    """
+    Cause the specified player ship to respawn after 'destruction'.
+    Args:
+        id_or_obj (Agent | int): The agent or id of the player ship.
+    """
     ship_id = to_id(id_or_obj)
     art_id = get_inventory_value(ship_id, "art_id")
     so = to_object(ship_id)
@@ -332,6 +352,14 @@ def respawn_player_ship(id_or_obj):
 
 
 def grid_damage_hallway(id_or_obj, loc_x, loc_y, damage_color):
+    """
+    Damage a grid location that is not already a grid object.
+    Args:
+        id_or_obj (Agent | int): The agent or id of the ship.
+        loc_x (int): The x position of the hallway
+        loc_y (int): The y position of the hallway
+        damage_color (str): The color that should be applied to the grid object icon.
+    """
     ship_id = to_id(id_or_obj)
     icon = 45 #fire   # 113 - Door
 
@@ -341,6 +369,13 @@ def grid_damage_hallway(id_or_obj, loc_x, loc_y, damage_color):
 
 
 def set_damage_coefficients(id_or_obj):
+    """
+    Update the damage coefficients of the ship based on the number of damaged nodes for each system.
+    Assumes the standard system roles.
+    Args:
+        id_or_obj (Agent | int): The agent or id of the ship.
+    """
+    # TODO: Update this to use a more robust system of determining what systems exist and can be damaged.
     ship_id = to_id(id_or_obj)
     blob = to_blob(ship_id)
     if blob is None:
@@ -383,6 +418,14 @@ def set_damage_coefficients(id_or_obj):
         blob.set(_blob_name, _coef, _idx)
 
 def grid_damage_grid_object(ship_id, grid_id, damage_color):
+    """
+    Damage the specified grid object associated with the specified ship, and give it a color.
+    Args:
+        ship_id (Agent | int): The agent or id of the ship
+        grid_id (Agent | int): The agent or id of the grid object
+        damage_color (str): The color of the damage grid object
+    """
+    # Note that ship_id and grid_id CAN be Agents; the functions that use these values convert them as needed.
     if has_role(grid_id, "tools"):
         return
     if has_role(grid_id, "marker"):
@@ -404,6 +447,13 @@ def grid_damage_grid_object(ship_id, grid_id, damage_color):
 
 
 def convert_system_to_string(the_system):
+    """
+    Convert the SBS.SHIPSYS enum value or string to a string.
+    Args:
+        the_system (SYS.SHIPSYSTEM | string): The enum value or string
+    Returns:
+        str: The string representation of the system, e.g. `weapon`.
+    """
     SBS = FrameContext.context.sbs
     if isinstance(the_system, str):
         return the_system
@@ -417,16 +467,15 @@ def convert_system_to_string(the_system):
     
     
 
-def grid_damage_system(id_or_obj, the_system):
+def grid_damage_system(id_or_obj, the_system=None):
     """ grid_damage_system
 
-    damage a system using the grid objects of the ship
-
-    :param id_or_obj: the ship to damage
-    :type id_oe_obj: int, obj, close_data, spawn_data
-    :param the_system: The system to damage, None picks random
-    :type: string, int, sbs.SHPSYS
-    :rtype: bool if a system was found to be damaged
+    Damage a system using the grid objects of the ship
+    Args:
+        id_or_obj (Agent | int | CloseData | SpawnData): the ship to damage
+        the_system (SBS.SHIPSYS | int | str | None, optional): The system to damage, None picks random
+    Returns:
+        bool: True if the system is damaged, otherwise False
     """
     ship_id = to_id(id_or_obj)
     if has_role(ship_id, "exploded"):
@@ -450,6 +499,13 @@ def grid_damage_system(id_or_obj, the_system):
 
 ###################
 def grid_damage_pos(id_or_obj, loc_x, loc_y):
+    """
+    Damage the ship's grid at the specified coordinates.
+    Args:
+        id_or_obj (Agent | int): The agent or id of the ship
+        loc_x (int): The x coordinate of the grid position
+        loc_y (int): The y coordinate of the grid position
+    """
     ship_id = to_id(id_or_obj)
     go_set_at_loc = grid_objects_at(ship_id, loc_x, loc_y)
     #
@@ -462,7 +518,15 @@ def grid_damage_pos(id_or_obj, loc_x, loc_y):
 
 
 
-def grid_take_internal_damage_at(id_or_obj, source_point, system_hit, damage_amount):
+def grid_take_internal_damage_at(id_or_obj, source_point, system_hit=None, damage_amount=None):
+    """
+    Damage the ship's grid at the specified point in 3D.
+    Args:
+        id_or_obj (Agent | int): The agent or id
+        source_point (Vec3): The point at which damage should be applied.
+        system_hit (SBS.SHIPSYS | int | str | None, optional): The system to which damage should be applied. Unused.
+        damage_amount (int | None, optional): The damage to apply. Unused.
+    """
     SBS = FrameContext.context.sbs
     ship_id = to_id(id_or_obj)
     # Make sure you don't take further damage
@@ -577,6 +641,12 @@ def grid_take_internal_damage_at(id_or_obj, source_point, system_hit, damage_amo
 
 
 def grid_repair_system_damage(id_or_obj, the_system=None):
+    """
+    Repair damage for the specified system. If None, a random node is repaired.
+    Args:
+        id_or_obj (Agent | int): The agent or id.
+        the_system (SBS.SHIPSYS | str | int | None, optional): The system to repair.
+    """
     ship_id = to_id(id_or_obj)
     
     if the_system is None:
@@ -594,6 +664,14 @@ def grid_repair_system_damage(id_or_obj, the_system=None):
 
 
 def grid_repair_grid_objects(player_ship, id_or_set, who_repaired=None):
+    """
+    Repair the provided grid objects.
+    Note: More details on the use of this function required.
+    Args:
+        player_ship (Agent | int): The agent or id of the ship
+        id_or_set (Agent | int | set[Agent | int]): The grid object or set of grid objects to repair
+        who_repaired (Agent | int): The agent (damcon team) that did the work.
+    """
     SBS = FrameContext.context.sbs
     at_point = to_set(id_or_set)
     damcon_repairer = to_id(who_repaired)
@@ -665,10 +743,14 @@ def grid_repair_grid_objects(player_ship, id_or_set, who_repaired=None):
     if something_healed:
         set_damage_coefficients(player_ship_id )
     
-def grid_count_grid_data(ship_key, role, default):
+def grid_count_grid_data(ship_key, role, default=0):
     """
     Count the amount of grid items with the give role(from the json data)
-    for the given ship 
+    for the given ship.
+    Args:
+        ship_key (str): The ship key to use to find the grid items
+        role (str): A comma-separated list of roles for which to check
+        default (int, optional): If the data for the grid key specified is not found, this number will be returned. Default is 0.
     """
     grid_data = grid_get_grid_data()
     ship_data = grid_data.get(ship_key)

@@ -6,7 +6,7 @@ def sides_set():
     Get a set containing the ids of all sides (objects with the "__side__" role).
 
     Returns:
-        Set: A set of IDs for each side
+        set[int]: A set of IDs for each side.
     """
     sides = role("__side__")
     return sides
@@ -16,7 +16,7 @@ def side_keys_set():
     Get a set containing the keys for all existing sides.
     
     Returns:
-        Set: A set of keys for all sides
+        set[str]: A set of keys for all sides.
     """
     sides = role("__side__")
     side_keys = set()
@@ -28,13 +28,13 @@ def side_keys_set():
 
 def side_members_set(side):
     """
-    Get all objects with the specified side. Use this instead of `role(side)`
+    Get all objects with the specified side. Use this instead of `role(side)`.
     
     Args:
-        side (str|int|Agent): The key or name of the side, or the ID of the side, or the side object, or an object with the given side
+        side (str | int | Agent): The key or name of the side, or the ID of the side, or the side object, or an object with the given side.
     
     Returns:
-        Set of ids with the specified side.
+        set[int]: Set of ids with the specified side.
     """
     # print(f"Getting set for side: {side}")
     id = to_side_id(side)
@@ -48,11 +48,11 @@ def side_members_set(side):
 
 def side_ally_members_set(side):
     """
-    Get a set of all space objects allied with the side
+    Get a set of all space objects allied with the side.
     Args:
-        side (str|int|Agent): The id or key of the side, or the id or object of a spaceobject
+        side (str | int | Agent): The id or key of the side, or the id or object of a spaceobject.
     Returns:
-        Set: A set containing the ids of all allied ships, stations, etc.
+        set[int]: A set containing the ids of all allied ships, stations, etc.
     """
     id = to_side_id(side)
     allies = get_inventory_value(id, "side_allies", set())
@@ -64,11 +64,11 @@ def side_ally_members_set(side):
 
 def side_enemy_members_set(side):
     """
-    Get a set of all space objects that are enemies of the side
+    Get a set of all space objects that are enemies of the side.
     Args:
-        side (str|int|Agent): The id or key of the side, or the id or object of a spaceobject
+        side (str | int | Agent): The id or key of the side, or the id or object of a spaceobject.
     Returns:
-        Set: A set containing the ids of all enemy ships, stations, etc.
+        set[int]: A set containing the ids of all enemy ships, stations, etc.
     """
     id = to_side_id(side)
     enemies = get_inventory_value(id, "side_enemies", set())
@@ -80,13 +80,13 @@ def side_enemy_members_set(side):
 
 def to_side_id(key_or_id_or_object):
     """
-    Get the id for the given side
+    Get the id for the given side.
 
     Args:
-        key_or_id (str|int): the key or the Agent of the side, or the id or Agent of a space object
+        key_or_id (str | int): the key or the Agent of the side, or the id or Agent of a space object.
     
     Returns:
-        int|None: The ID of the side. If the key, name, or id doesn't exist, returns None.
+        int | None: The ID of the side. If the key, name, or id doesn't exist, returns None.
     """
     # Check if it's a key
     if isinstance(key_or_id_or_object, str):
@@ -114,10 +114,10 @@ def to_side_id(key_or_id_or_object):
 
 def to_side_object(key_or_id):
     """
-    Get the object for the given side
+    Get the object for the given side.
 
     Args:
-        key_or_id (str|int): the key or the Agent ID of the side, or an Agent or Agent ID belonging to the side
+        key_or_id (str | int): the key or the Agent ID of the side, or an Agent or Agent ID belonging to the side.
     
     Returns:
         Agent|None: The Agent object for the side. If the key, agent, or id doesn't exist, returns None.
@@ -130,15 +130,20 @@ def side_display_name(key):
     Get the display name of the side.
 
     Args:
-        key (str|int): The key or id of the side
+        key (str | int): The key or id of the side.
     Returns:
-        str: The display name of the side
+        str: The display name of the side.
     """
     id = to_side_id(key)
     name = get_inventory_value(id, "side_name")
     return name
 
 def side_set_ship_allies_and_enemies(ship):
+    """
+    Generate the ally list and hostile list for the specified ship based on its side.
+    Args:
+        ship (Agent | int): The object for which the ally and hostile lists should be updated.
+    """
     ship = to_object(ship)
     side = to_side_id(ship)
     if isinstance(side, int):
@@ -152,15 +157,15 @@ def side_set_ship_allies_and_enemies(ship):
 
 def side_set_relations(side1, side2, relation):
     """
-    Update relations between two sides
+    Update relations between two sides, and update the ally and hostile lists for all their members.
 
     Args:
         side1 (str|int): key or id of the first side
         side2 (str|int): key or id of the second side
         relation (int): the new relations between the sides.
-            1: Ally
-            0: Netural
-            -1: Enemy
+            * 1: Ally
+            * 0: Netural
+            * -1: Enemy
     """
     # print(f"Side1 = {side1}")
     # print(f"Side2 = {side2}")
@@ -244,13 +249,13 @@ def side_set_relations(side1, side2, relation):
 def side_get_relations(side1, side2):
     """
     Get the relations value of the two sides.
-    1: Allies
-    0: Neutral
-    -1: Enemies
+    * 1: Allies
+    * 0: Neutral
+    * -1: Enemies
 
     Args:
-        side1 (str|int): the key or id of the first side
-        side2 (str|int): the key or id of the second side
+        side1 (str | int): the key or id of the first side
+        side2 (str | int): the key or id of the second side
     Returns:
         int: relations value
     """
@@ -266,8 +271,8 @@ def side_are_allies(side1, side2)->bool:
     """
     Check if the specified sides are allies.
     Args:
-        side1 (str|int): the key or id of the first side
-        side2 (str|int): the key or id of the second side
+        side1 (str | int): the key or id of the first side
+        side2 (str | int): the key or id of the second side
     Returns: 
         True if they are allies, otherwise False
     """
@@ -296,8 +301,8 @@ def side_are_enemies(side1, side2)->bool:
     """
     Check if the specified sides are enemies.
     Args:
-        side1 (str|int): the key or id of the first side
-        side2 (str|int): the key or id of the second side
+        side1 (str | int): the key or id of the first side
+        side2 (str | int): the key or id of the second side
     Returns: 
         True if they are allies, otherwise False
     """
@@ -327,8 +332,8 @@ def side_are_neutral(side1, side2)->bool:
     """
     Check if the specified sides are neutral (neither enemies nor allies).
     Args:
-        side1 (str|int): the key or id of the first side
-        side2 (str|int): the key or id of the second side
+        side1 (str | int): the key or id of the first side
+        side2 (str | int): the key or id of the second side
     Returns: 
         True if they are allies, otherwise False
     """

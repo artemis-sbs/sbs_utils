@@ -14,12 +14,16 @@ class ShipPicker(Control):
 
         A widget the combines a title, ship viewer, next and previous buttons for selecting ships
      
-        :param left: left coordinate
-        :type left: float
-        :param top: top coordinate
-        :type top: float
-        :param tag: Prefix to use in message tags to mak this component unique
-        :type tag: str
+        Args:
+            left (float): left coordinate
+            top (float): top coordinate
+            tag_prefix (str): Prefix to use in message tags to make this component unique
+            title_prefix (str): Prefix to use in the title. Optional, default 'Ship'.
+            cur (int): The current selected index. Optional, default is None.
+            ship_keys (list[str]): The list of ship keys with which the ShipPicker is populated. Optional, default is None.
+            roles (list[str]): The roles by which ship keys are filtered. Optional, default is None.
+            sides (list[str]): The sides by which ship keys are filtered. Optional, default is None.
+            show_desc (bool): Should the ShipPicker include the description of the ship? Optional, default is True.
         """
         super().__init__(left,top,33,44)
 
@@ -102,10 +106,8 @@ class ShipPicker(Control):
 
         builds/manages the content of the widget
      
-        :param sim: simulation
-        :type sim: Artemis Cosmos simulation
-        :param CID: Client ID
-        :type CID: int
+        Args:
+            event (event): The event that triggered the gui to update.
         """
         CID = event.client_id
         SBS = FrameContext.context.sbs
@@ -152,15 +154,9 @@ class ShipPicker(Control):
 
         handles messages this will look for components owned by this control and react accordingly
         components owned will have the tag_prefix
-     
-        :param sim: simulation
-        :type sim: Artemis Cosmos simulation
-        :param message_tag: Tag of the component
-        :type message_tag: str
-        :param CID: Client ID
-        :type CID: int
-        :param data: unused no component use data
-        :type data: any
+
+        Args:
+            event (event): The event that triggered the update
         """
         message_tag = event.sub_tag
         client_id = event.client_id
@@ -196,10 +192,10 @@ class ShipPicker(Control):
         self.set_selected(value)
 
     def get_selected(self):
-        """ get selected
+        """ Get the key of the selected ship.
 
-        :return: None or string of ship selected
-        :rtype: None or string of ship selected
+        Returns:
+            str|None: The selected ship key.
         """
 
         ship = self.ships[self.cur]
@@ -207,20 +203,19 @@ class ShipPicker(Control):
             return ship["key"]
         return None
     def get_selected_name(self):
-        """ get selected
+        """ Get the name of the selected ship.
 
-        :return: None or string of ship selected
-        :rtype: None or string of ship selected
+        Returns:
+            str|None: The name of the selected ship as defined in the shipData.
         """
         ship = self.ships[self.cur]
         if "name" in ship:
             return ship["name"]
         return None
     def set_selected(self, key):
-        """ set selected
-
-        :return: None or string of ship selected
-        :rtype: None or string of ship selected
+        """ Set the selected ship by key as defined in the shipData.
+        Args:
+            key (str): The key of the ship which should be selected.
         """
         cur = 0
         for k in self.ships:
@@ -239,4 +234,15 @@ class ShipPicker(Control):
         self.set_selected(props)
 
 def ship_picker_control(title_prefix="Ship:", cur=None, ship_keys=None, roles=None, sides=None, show_desc=True):
+    """
+    Build a ShipPicker widget, which allows players to choose what ship they wish to crew.
+    Args:
+        tag_prefix (str): Prefix to use in message tags to make this component unique
+        title_prefix (str): Prefix to use in the title. Optional, default 'Ship'.
+        cur (int): The current selected index. Optional, default is None.
+        ship_keys (list[str]): The list of ship keys with which the ShipPicker is populated. Optional, default is None.
+        roles (list[str]): The roles by which ship keys are filtered. Optional, default is None.
+        sides (list[str]): The sides by which ship keys are filtered. Optional, default is None.
+        show_desc (bool): Should the ShipPicker include the description of the ship? Optional, default is True.
+    """
     return ShipPicker(0, 0, "mast", title_prefix, cur, ship_keys, roles, sides, show_desc)
