@@ -57,10 +57,10 @@ def skaraan(face_id, eye_id, mouth_id, horn_id, hat_id):
 
     Args:
         face_id (int): The index of the face 0
-        eye_idd (int): The index of the eyes 0-4
-        mouth_idd (int): The index of the mouth 0-4
-        horn_idd (int | None): The index of the horn 0-4 or None
-        hat_idd (int | None): The index of the hat 0-4 or None
+        eye_id (int): The index of the eyes 0-4
+        mouth_id (int): The index of the mouth 0-4
+        horn_id (int | None): The index of the horn 0-4 or None
+        hat_id (int | None): The index of the hat 0-4 or None
 
     Returns:
         (str): A Face string
@@ -295,7 +295,7 @@ def kralien(face_id, eye_id, mouth_id, scalp_id, extra_id):
 
     Args:
         face_id (int): The index of the face 0
-        eye_idd (int): The index of the eyes 0-4
+        eye_id (int): The index of the eyes 0-4
         mouth_id (int): The index of the mouth 0-4
         scalp_id (int | None): The index of the scalp 0-4 or None
         extra_id (int | None): The index of the extra 0-4 or None
