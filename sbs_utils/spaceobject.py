@@ -35,6 +35,8 @@ class SpaceObject(Agent):
         self._name = ""
         self._side = ""
         self._art_id = ""
+        """_art_id is deprecated. Use _ship_data_key instead."""
+        self._ship_data_key = ""
         self.spawn_pos = Vec3(0,0,0)
         self.tick_type = TickType.UNKNOWN
         self._data_set = None
@@ -62,23 +64,28 @@ class SpaceObject(Agent):
 
 
     def get_space_object(self) -> SpaceObject:
-        """ Gets the simulation space object
+        """ 
+        Gets the simulation space object.
 
-        :return: The simulation space object
-        :rtype: The simulation space_object
+        Returns:
+            SpaceObject: The simulation space object
         """
 
         return FrameContext.context.sim.get_space_object(self.id)
 
     def get_engine_object(self) -> SpaceObject:
-        """ Gets the simulation space object
+        """ 
+        Gets the simulation space object.
 
-        :return: The simulation space object
-        :rtype: The simulation space_object
+        Returns:
+            SpaceObject: The simulation space_object
         """
         return FrameContext.context.sim.get_space_object(self.id)
 
     def delete_object(self):
+        """
+        Delete this SpaceObject.
+        """
         FrameContext.context.sbs.delete_object(self.id)
         self.destroyed()
 
@@ -87,24 +94,28 @@ class SpaceObject(Agent):
     
 
     def debug_mark_loc(sim,  x: float, y: float, z: float, name: str, color: str):
-        """ Adds a nav point to the location passed if debug mode is on
+        """ 
+        Adds a nav point to the location passed, if debug mode is active.
 
-        :param x: x location
-        :type x: float
-        :param y: y location
-        :type y: float
-        :param z: z location
-        :type z: float
-        :param name: name of the navpoint
-        :type name: str
-        :param color: color of the navpoint
-        :type color: str
+        Args:
+            x (float): x location.
+            y (float): y location.
+            z (float): z location.
+            name (str): Name of the navpoint.
+            color (str): Color of the navpoint.
+        Returns:
+            Navpoint | None: The navpoint added, or None if debug mode is not active.
         """
         if SpaceObject.debug:
             return FrameContext.context.sim.add_navpoint(x, y, z, name, color)
         return None
 
     def debug_remove_mark_loc(name: str):
+        """
+        Delete the navpoint specified.
+        Args
+            name (str): The name of the navpoint to delete.
+        """
         if SpaceObject.debug:
             return FrameContext.context.sim.delete_navpoint_by_name(name)
         return None
@@ -114,19 +125,21 @@ class SpaceObject(Agent):
             print(s)
 
     def space_object(self) -> SpaceObject:
-        """ get the simulation's space object for the object
+        """ 
+        Get the simulation's space object for the object.
 
-        :return: simulation space object
-        :rtype: simulation space object
+        Returns:
+            SpaceObject: The simulation space object.
         """
         return self._engine_object
         # return FrameContext.context.sim.get_space_object(self.id)
 
     def set_side(self, side):
-        """ Get the side of the object
+        """ 
+        Get the side of the object
 
-        :return: side
-        :rtype: str
+        Returns:
+            str: The side.
         """
         if side != self._side:
             self.remove_role(self._side)
@@ -139,9 +152,11 @@ class SpaceObject(Agent):
                 FrameContext.context.sim.force_update_to_clients(self.id,0)
 
     def set_name(self, name) -> str:
-        """ Get the name of the object
-        :return: name
-        :rtype: str
+        """ 
+        Get the name of the object
+        
+        Returns:
+            str: The name of the object.
         """
         so = self.space_object()
         self._name = name
@@ -153,21 +168,42 @@ class SpaceObject(Agent):
     
     def set_art_id(self, ship_key):
         """ 
+        Deprecated. Use `SpaceObject.set_ship_data_key()` instead.
+
         Set the ship key from shipData for this space object to change it's 3D model and art.
         Args:
             ship_key (str): The ship key.
         """
-        if ship_key != self._art_id:
+        if ship_key != self._ship_data_key:
             so = self.space_object()
             if so is not None:
                 so.data_tag = ship_key
                 FrameContext.context.sim.force_update_to_clients(self.id,0)
-            self._art_id = ship_key
+            self._ship_data_key = ship_key
+
+    def set_ship_data_key(self, ship_data_key):
+        """ 
+        Set the ship key from shipData for this space object to change it's 3D model and art.
+        Args:
+            ship_data_key (str): The ship key.
+        """
+        if ship_data_key != self._ship_data_key:
+            so = self.space_object()
+            if so is not None:
+                so.data_tag = ship_data_key
+                FrameContext.context.sim.force_update_to_clients(self.id,0)
+            self._ship_data_key = ship_data_key
 
     def update_comms_id(self):
-        """ Updates the comms ID when the name or side has changed
-        :return: this is name or name(side)
-        :rtype: str
+        """ 
+        Updates the comms ID when the name or side has changed.
+        If the side of the object is empty, the comms ID is the name of the object.
+        Otherwise, the comms ID is the name and side of the object in the format
+        ```
+        name (side)
+        ```
+        Returns:
+            str: The comms ID.
         """
 
         if (self.side_display != ""):
@@ -177,24 +213,47 @@ class SpaceObject(Agent):
 
     @property
     def name(self: SpaceObject) -> str:
-        """str, cached version of comms_id"""
+        """
+        The name of the space object.
+        Returns:
+            str: The name.
+        """
         return self._name
 
     @name.setter
     def name(self: SpaceObject, value: str) -> None:
+        """
+        Set the name of the space object.
+        Args:
+            value (str): The name to apply to the space object.
+        """
         self.set_name(value)
 
     @property
     def side(self: SpaceObject) -> str:
-        """str, cached version of comms_id"""
+        """
+        Get the side of the space object.
+        Returns:
+            str: The side.
+        """
         return self._side
     
     @side.setter
     def side(self: SpaceObject, value: str) -> None:
+        """
+        Set the side of the space object.
+        Args:
+            value (str): The side to apply to the space object.
+        """
         self.set_side(value)
 
     @property
     def side_display(self: SpaceObject) -> str:
+        """
+        Get the display value for the object's side.
+        Returns:
+            str: The side
+        """
         test = self.data_set.get("hull_side", 0)
         if test is not None and isinstance(test, str):
             return test
@@ -202,32 +261,62 @@ class SpaceObject(Agent):
     
     @side_display.setter
     def side_display(self: SpaceObject, value: str) -> None:
+        """
+        Set the display value for the object's side.
+        Args:
+            value (str): The side.
+        """
         self.data_set.set("hull_side", value, 0)
 
 
     @property
     def comms_id(self: SpaceObject) -> str:
-        """str, cached version of comms_id"""
+        """
+        Get the cached version of the object's comms ID.
+        Returns:
+            str: The comms ID.
+        """
         return self._comms_id
     
     @property
     def art_id(self: SpaceObject) -> str:
         """
+        Deprecated. Use `SpaceObject.ship_data_key` instead.
+
         Get the ship key from shipData that this space object is using.
         Returns:
             str: The ship key.
         """
-        return self._art_id
+        return self._ship_data_key
 
     @art_id.setter
-    def art_id(self: SpaceObject, ship_key: str) -> None:
+    def art_id(self: SpaceObject, ship_data_key: str) -> None:
+        """
+        Deprecated. Use `SpaceObject.ship_data_key` instead.
+
+        Set the ship key from shipData for this space object to change it's 3D model and art.
+        Args:
+            ship_data_key (str): The ship key.
+        """
+        self.set_ship_data_key(ship_data_key)
+
+    @property
+    def ship_data_key(self: SpaceObject) -> str:
+        """
+        Get the ship key from shipData that this space object is using.
+        Returns:
+            str: The ship key.
+        """
+        return self._ship_data_key
+    
+    @ship_data_key.setter
+    def ship_data_key(self: SpaceObject, ship_data_key: str) -> None:
         """
         Set the ship key from shipData for this space object to change it's 3D model and art.
         Args:
-            ship_key (str): The ship key.
+            ship_data_key (str): The ship key.
         """
-        self.set_art_id(ship_key)
-
+        self.set_ship_data_key(ship_data_key)
 
     @property
     def race(self):
@@ -255,11 +344,20 @@ class SpaceObject(Agent):
 
     @property
     def pos(self: SpaceObject) -> Vec3:
-        """str, cached version of art_id"""
+        """
+        Get the position of the object.
+        Returns:   
+            Vec3: The position.
+        """
         return Vec3(self._engine_object.pos)
 
     @pos.setter
     def pos(self: SpaceObject, *args):
+        """
+        Set the position of the object.
+        Args:
+            *args (tuple): A variable-length argument list. This should be a single Vec3, or up to three floats, representing the position of the object.
+        """
         v = Vec3(*args)
         FrameContext.context.sim.reposition_space_object(self._engine_object, v.x, v.y, v.z)
 
@@ -321,7 +419,7 @@ class MSpawnPlayer(MSpawn):
         blob = self.spawn_common(ship, x, y, z, name, side, art_id)
         self.add_role("__PLAYER__")
         self.add_role("__space_spawn__")
-        self._art_id = art_id
+        self._ship_data_key = art_id
         return SpawnData(self.id, ship, blob, self)
 
     def spawn(self, x, y, z, name, side, art_id) -> SpawnData:
@@ -381,7 +479,7 @@ class MSpawnActive(MSpawn):
     def _spawn(self, x, y, z, name, side, art_id, behave_id):
         ship = self._make_new_active(behave_id, art_id)
         blob = self.spawn_common(ship, x, y, z, name, side, art_id)
-        self._art_id = art_id
+        self._ship_data_key = art_id
         self.add_role("__NPC__")
         self.add_role("__space_spawn__")
         return SpawnData(self.id, ship, blob, self)
@@ -444,7 +542,7 @@ class MSpawnPassive(MSpawn):
     def _spawn(self, x, y, z, name, side, art_id, behave_id) -> SpawnData:
         ship = self._make_new_passive(behave_id, art_id)
         blob = self.spawn_common(ship, x, y, z, name, side, art_id)
-        self._art_id = art_id
+        self._ship_data_key = art_id
         self.add_role("__TERRAIN__")
         return SpawnData(self.id, ship, blob, self)
 
