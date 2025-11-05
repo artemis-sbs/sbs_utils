@@ -2,6 +2,7 @@ from .links import link, unlink
 from .query import is_space_object_id, to_id, to_object
 from ..faces import set_face, get_face
 from ..agent import Agent, get_story_id
+from .signal import signal_emit
 
 
     
@@ -79,6 +80,7 @@ def lifeform_transfer(lifeform, new_host):
         link(new_host_id, "onboard", lifeform.id)
     else:
         lifeform.add_role("ultra_beam")
+    signal_emit("lifeform_transferred", {"lifeform": lifeform, "old_host": old_host_id, "new_host": new_host_id})
 
     # Emit signal?
 def lifeform_set_path(lifeform, path=None):
