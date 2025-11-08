@@ -81,6 +81,7 @@ MastGlobals.import_python_module('sbs_utils.procedural.sides')
 MastGlobals.import_python_module('sbs_utils.procedural.lifeform')
 MastGlobals.import_python_module('sbs_utils.procedural.terrain')
 MastGlobals.import_python_module('sbs_utils.procedural.promise_functions')
+MastGlobals.import_python_module('sbs_utils.procedural.dmx')
 
 # Load, but so far no functions to export
 from ..procedural import popup
