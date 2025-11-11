@@ -9,6 +9,8 @@ class Button(Column):
         if "$text:" not in message:
             if "text:" not in message:
                 self.message = f"$text:{message};"
+                return
+            self.message = message.replace("text:","$text:")
         else:
             self.message = message
 
