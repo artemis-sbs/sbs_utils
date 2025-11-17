@@ -1,0 +1,6 @@
+{
+    "version": "v1.3.0",
+    "sbslib": [
+        "sbs_utils"
+    ]
+}
