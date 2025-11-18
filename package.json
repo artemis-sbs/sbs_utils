@@ -3,12 +3,12 @@
     "version": "1.0.0",
     "author": "Your Name <email@example.com>",
     "scripts": {
-        "auto_run": "python auto_run.py",
-        "update": "make_lib",
-        "build_addons": "cd ..\\LegendaryMissions&&build_addons,",
+        "auto_run": "..\\sbs.pyz run",
+        "update": "..\\sbs.pyz lib sbs_utils",
+        "build_addons": "..\\sbs.pyz lib LegendaryMissions",
         "mkdocs": "cd mkdocs&&mkdocs serve",
         "pub docs":"cd mkdocs&&mkdocs gh-deploy --force",
-        "rerelease": "make_release.bat rerel \"Version for Cosmos 1.3.x\"",
+        "rerelease": "..\\sbs.pyz release sbs_utils \"Dev v1.3.0\" -u",
         "siege mkdocs": "cd ..\\LegendaryMissions\\mkdocs&&mkdocs serve",
         "pub siege docs":"cd ..\\LegendaryMissions\\mkdocs&&mkdocs gh-deploy --force"
 }

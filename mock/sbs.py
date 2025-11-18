@@ -25,8 +25,7 @@ def app_seconds() -> int:
     seconds += 1
     return seconds
 
-def get_ship_of_client(id):
-    return 0
+
 def assign_client_to_alt_ship(clientComputerID: int, controlledShipID: int) -> None:
     """Tells a client computer that the 2d radar should focus on controlledShipID, instead of its assigned ship.  Turn this code off by providing zero as the second argument."""
 def assign_client_to_ship(clientComputerID: int, controlledShipID: int) -> None:
@@ -130,10 +129,31 @@ def get_preference_string(key: str) -> str:
 def get_screen_size() -> vec2:
     """returns a VEC2, with the width and height of the display in pixels"""
     return vec2(1024,78)
+def get_shared_string(key: str) -> str:
+    """gets a shared string, given the key (itself a string).  Shared strings are automatically copied from server to all clients."""
+    return ""
+def get_ship_of_client(clientID: int) -> int:
+    return 0
+def get_text_block_height(fontTag: str, textToMeasure: str, width: int) -> int:
+    """for a font key, a string of (possibly) multiline text, and a pixel width, this returns the height of the drawn text."""
+    return 10
+def get_text_line_height(fontTag: str, textToMeasure: str) -> int:
+    """for a font key and a text string (one line, no wrapping), this returns the height of the drawn text."""
+    return 10
+def get_text_line_width(fontTag: str, textToMeasure: str) -> int:
+    """for a font key and a text string (one line, no wrapping), this returns the width of the drawn text."""
+    return 10
+def get_type_of_client(clientID: int) -> str:
+    """returns the consoleType perviously assigned to the client computer"""
+    return "mainscreen"
+def hide_gui_tag(clientID: int, tag: str) -> None:
+    """makes a GUI element invisible, on the targeted client (0 = server screen)"""
 def in_standby_list(space_object: sbs.space_object) -> bool:
     """returns true if the spaceobject is in the standby list."""
+    return False
 def in_standby_list_id(id: int) -> bool:
     """returns true if the spaceobject is in the standby list."""
+    return False
 def is_demo() -> bool:
     """Returns true if the EXE is marked as a demo version."""
     return False
@@ -238,6 +258,15 @@ def set_sky_box(clientID: int, artFileName: str) -> None:
     """sets the skybox art for a clientID (0 = server)."""
 def set_sky_box_all(artFileName: str) -> None:
     """sets the skybox art for all connected computers."""
+def show_gui_tag(clientID: int, tag: str) -> None:
+    """makes a GUI element visible, on the targeted client (0 = server screen)"""
+def super_hyper_warp_mode(clientID: int, ship_hull_key: str, on_off_flag: int) -> None:
+    """turns on (or off) the super_hyper_warp_mode screen to a particular computer"""
+def suppress_client_connect_dialog(on_off_flag: int) -> None:
+    """turns on (or off) the client connect dialog on the server (arg is 1 or 0)"""
+def transparent_options_button(clientID: int, on_off_flag: int) -> None:
+    """for a specific client (0=server machine), turns on (or off) the Options button transparency (arg is 1 or 0)"""
+
 
 from enum import Enum
 class SHPSYS(Enum): ### from pybind
@@ -521,7 +550,10 @@ class object_data_set(object): ### from pybind
         if value is not None:
             return value
 
-        s_value = ["torpedo_types_available", "tsnscan", "tsnintel", "tsnbio", "tsnstatus", "ally_list"]
+        s_value = [
+            "torpedo_types_available", "tsnscan", "tsnintel", "tsnbio", "tsnstatus", "ally_list",
+            "hull_origin"
+            ]
         if name == "torpedo_types_available":
             return "Homing,Nuke,EMP,Mine"
         if name in s_value:
