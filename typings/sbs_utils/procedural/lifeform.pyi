@@ -60,6 +60,11 @@ def set_face (ship_id, face):
     Args:
         ship_id (Agent | int): The id of the ship/object
         face (str): A Face string"""
+def signal_emit (name, data=None):
+    """Emit a signal to trigger all instances of the signal route to run.
+    Args:
+        name (str): The name of the signal.
+        data (dict): The data to provide to the signal route."""
 def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     """Converts item passed to an agent id
     Args:

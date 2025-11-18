@@ -151,19 +151,25 @@ class SpaceObject(Agent):
         ...
     @property
     def art_id (self: 'SpaceObject') -> 'str':
-        """Get the ship key from shipData that this space object is using.
+        """Deprecated. Use `SpaceObject.ship_data_key` instead.
+        
+        Get the ship key from shipData that this space object is using.
         Returns:
             str: The ship key."""
     @art_id.setter
-    def art_id (self: 'SpaceObject', ship_key: 'str') -> 'None':
-        """Get the ship key from shipData that this space object is using.
+    def art_id (self: 'SpaceObject', ship_data_key: 'str') -> 'None':
+        """Deprecated. Use `SpaceObject.ship_data_key` instead.
+        
+        Get the ship key from shipData that this space object is using.
         Returns:
             str: The ship key."""
     def clear ():
         ...
     @property
     def comms_id (self: 'SpaceObject') -> 'str':
-        """str, cached version of comms_id"""
+        """Get the cached version of the object's comms ID.
+        Returns:
+            str: The comms ID."""
     @property
     def crew (self):
         ...
@@ -171,31 +177,31 @@ class SpaceObject(Agent):
     def crew (self: 'SpaceObject', value: 'str') -> 'None':
         ...
     def debug_mark_loc (sim, x: 'float', y: 'float', z: 'float', name: 'str', color: 'str'):
-        """Adds a nav point to the location passed if debug mode is on
+        """Adds a nav point to the location passed, if debug mode is active.
         
-        :param x: x location
-        :type x: float
-        :param y: y location
-        :type y: float
-        :param z: z location
-        :type z: float
-        :param name: name of the navpoint
-        :type name: str
-        :param color: color of the navpoint
-        :type color: str"""
+        Args:
+            x (float): x location.
+            y (float): y location.
+            z (float): z location.
+            name (str): Name of the navpoint.
+            color (str): Color of the navpoint.
+        Returns:
+            Navpoint | None: The navpoint added, or None if debug mode is not active."""
     def debug_remove_mark_loc (name: 'str'):
-        ...
+        """Delete the navpoint specified.
+        Args
+            name (str): The name of the navpoint to delete."""
     def delete_object (self):
-        ...
+        """Delete this SpaceObject."""
     def get (id):
         ...
     def get_as (id, as_cls):
         ...
     def get_engine_object (self) -> 'SpaceObject':
-        """Gets the simulation space object
+        """Gets the simulation space object.
         
-        :return: The simulation space object
-        :rtype: The simulation space_object"""
+        Returns:
+            SpaceObject: The simulation space_object"""
     def get_objects_from_set (the_set):
         ...
     def get_role_object (link_name):
@@ -205,10 +211,10 @@ class SpaceObject(Agent):
     def get_role_set (role):
         ...
     def get_space_object (self) -> 'SpaceObject':
-        """Gets the simulation space object
+        """Gets the simulation space object.
         
-        :return: The simulation space object
-        :rtype: The simulation space_object"""
+        Returns:
+            SpaceObject: The simulation space object"""
     def has_inventory_list (collection_name):
         ...
     def has_inventory_set (collection_name):
@@ -236,10 +242,14 @@ class SpaceObject(Agent):
         ...
     @property
     def name (self: 'SpaceObject') -> 'str':
-        """str, cached version of comms_id"""
+        """The name of the space object.
+        Returns:
+            str: The name."""
     @name.setter
     def name (self: 'SpaceObject', value: 'str') -> 'None':
-        """str, cached version of comms_id"""
+        """The name of the space object.
+        Returns:
+            str: The name."""
     @property
     def origin (self):
         ...
@@ -248,10 +258,14 @@ class SpaceObject(Agent):
         ...
     @property
     def pos (self: 'SpaceObject') -> 'Vec3':
-        """str, cached version of art_id"""
+        """Get the position of the object.
+        Returns:
+            Vec3: The position."""
     @pos.setter
     def pos (self: 'SpaceObject', *args):
-        """str, cached version of art_id"""
+        """Get the position of the object.
+        Returns:
+            Vec3: The position."""
     @property
     def race (self):
         ...
@@ -262,39 +276,69 @@ class SpaceObject(Agent):
     def resolve_py_object (other: 'Agent | CloseData | int'):
         ...
     def set_art_id (self, ship_key):
-        """Set the ship key from shipData for this space object to change it's 3D model and art.
+        """Deprecated. Use `SpaceObject.set_ship_data_key()` instead.
+        
+        Set the ship key from shipData for this space object to change it's 3D model and art.
         Args:
             ship_key (str): The ship key."""
     def set_name (self, name) -> 'str':
         """Get the name of the object
-        :return: name
-        :rtype: str"""
+        
+        Returns:
+            str: The name of the object."""
+    def set_ship_data_key (self, ship_data_key):
+        """Set the ship key from shipData for this space object to change it's 3D model and art.
+        Args:
+            ship_data_key (str): The ship key."""
     def set_side (self, side):
         """Get the side of the object
         
-        :return: side
-        :rtype: str"""
+        Returns:
+            str: The side."""
+    @property
+    def ship_data_key (self: 'SpaceObject') -> 'str':
+        """Get the ship key from shipData that this space object is using.
+        Returns:
+            str: The ship key."""
+    @ship_data_key.setter
+    def ship_data_key (self: 'SpaceObject', ship_data_key: 'str') -> 'None':
+        """Get the ship key from shipData that this space object is using.
+        Returns:
+            str: The ship key."""
     @property
     def side (self: 'SpaceObject') -> 'str':
-        """str, cached version of comms_id"""
+        """Get the side of the space object.
+        Returns:
+            str: The side."""
     @side.setter
     def side (self: 'SpaceObject', value: 'str') -> 'None':
-        """str, cached version of comms_id"""
+        """Get the side of the space object.
+        Returns:
+            str: The side."""
     @property
     def side_display (self: 'SpaceObject') -> 'str':
-        ...
+        """Get the display value for the object's side.
+        Returns:
+            str: The side"""
     @side_display.setter
     def side_display (self: 'SpaceObject', value: 'str') -> 'None':
-        ...
+        """Get the display value for the object's side.
+        Returns:
+            str: The side"""
     def space_object (self) -> 'SpaceObject':
-        """get the simulation's space object for the object
+        """Get the simulation's space object for the object.
         
-        :return: simulation space object
-        :rtype: simulation space object"""
+        Returns:
+            SpaceObject: The simulation space object."""
     def update_comms_id (self):
-        """Updates the comms ID when the name or side has changed
-        :return: this is name or name(side)
-        :rtype: str"""
+        """Updates the comms ID when the name or side has changed.
+        If the side of the object is empty, the comms ID is the name of the object.
+        Otherwise, the comms ID is the name and side of the object in the format
+        ```
+        name (side)
+        ```
+        Returns:
+            str: The comms ID."""
 class TickType(IntEnum):
     """int([x]) -> integer
     int(x, base=10) -> integer
