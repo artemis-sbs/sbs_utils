@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "author": "Your Name <email@example.com>",
     "scripts": {
-        "auto_run": "python auto_run.py",
+        "auto_run": "..\\sbs.pyz run",
         "update": "..\\sbs.pyz lib sbs_utils",
         "build_addons": "..\\sbs.pyz lib LegendaryMissions",
         "mkdocs": "cd mkdocs&&mkdocs serve",
