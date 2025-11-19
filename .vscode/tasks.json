@@ -1,0 +1,97 @@
+{
+    "version": "2.0.0",
+    "tasks": [{
+      "label": "AutoRun",
+      "type": "shell",
+       "options": {
+        "shell": {
+          "executable": "cmd.exe",
+          "args": [
+            "/C" // This is important for CMD to execute the command and then close
+          ]
+        }
+      },
+      "command": "..\\sbs.pyz run",
+      "problemMatcher": [],
+      "group": {
+          "kind": "test",
+          "isDefault": false
+      }
+    }, {
+      "label": "Update sbsutils",
+      "type": "shell",
+       "options": {
+        "shell": {
+          "executable": "cmd.exe",
+          "args": [
+            "/C" // This is important for CMD to execute the command and then close
+          ]
+        }
+      },
+      "command": "..\\sbs.pyz lib sbs_utils",
+      "problemMatcher": [],
+      "group": {
+          "kind": "build",
+
+          "isDefault": false
+      }
+    },
+    {
+      "label": "rerelease",
+      "type": "shell",
+       "options": {
+        "shell": {
+          "executable": "cmd.exe",
+          "args": [
+            "/C" // This is important for CMD to execute the command and then close
+          ]
+        }
+      },
+      "command": "..\\sbs.pyz release sbs_utils \"Dev v1.3.0\" -u",
+      "problemMatcher": [],
+      "group": {
+          "kind": "release",
+          "isDefault": false
+      }
+    },
+    {
+      "label": "serve",
+      "type": "shell",
+       "options": {
+        "shell": {
+          "executable": "cmd.exe",
+          "args": [
+            "/C" // This is important for CMD to execute the command and then close
+          ]
+        }
+      },
+      "command": "cd ..\\mkdocs&&mkdocs serve",
+      "problemMatcher": [],
+      "group": {
+          "kind": "mkdocs",
+
+          "isDefault": false
+      }
+    },
+      {
+      "label": "pub",
+      "type": "shell",
+      "options": {
+        "shell": {
+          "executable": "cmd.exe",
+          "args": [
+            "/C" // This is important for CMD to execute the command and then close
+          ]
+        }
+      },
+      "command": "cd mkdocs&&mkdocs gh-deploy --force",
+      "problemMatcher": [],
+      "group": {
+          "kind": "mkdocs",
+          "isDefault": false
+      }
+    }
+  ]
+}
+
+
