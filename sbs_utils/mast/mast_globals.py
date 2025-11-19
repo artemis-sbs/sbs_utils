@@ -5,7 +5,7 @@ import logging
 import random
 from .. import fs
 import sys
-from inspect import getmembers, isfunction
+from inspect import getmembers, isfunction, getmodule
 
 import builtins as __builtin__
 from ..helpers import FrameContext
@@ -91,12 +91,27 @@ class MastGlobals:
             sca = import_module(mod_name)
         if sca:
             for (name, func) in getmembers(sca,isfunction):
+                # actual_mod = getmodule(func).__name__
+                # # This is a work around where importing
+                # # A python file in MAST was re adding 
+                # # modules, with the wrong module names
+                # if ":" in actual_mod.__name__:
+                #     print(f"skipping {name} {mod_name} != {actual_mod}")
+                #     continue
+
                 if prepend == None:
-                    MastGlobals.globals[name] = func
+                    key = name
                 elif prepend == True:
-                    MastGlobals.globals[f"{mod_name}_{name}"] = func
+                    
+                    key = f"{mod_name}_{name}"
                 elif isinstance(prepend, str):
-                    MastGlobals.globals[f"{prepend}_{name}"] = func
+                    key = f"{prepend}_{name}"
+
+                if key in MastGlobals.globals:
+                    if func == MastGlobals.globals[key]:
+                        continue
+                    print(f"Duplicate global name added {name} via import of module {mod_name}")
+                MastGlobals.globals[key] = func
         MastGlobals._imported_mods.add(mod_name)
 
 

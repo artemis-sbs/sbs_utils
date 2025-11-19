@@ -89,7 +89,7 @@ def upgrade_remove_for_agent(agent):
         Agent.remove_id(ob_id)
 
 __upgrades_is_running = False
-def objectives_run_all(tick_task):
+def upgrades_run_all(tick_task):
     global __upgrades_is_running
     if __upgrades_is_running:
         return
