@@ -18,6 +18,7 @@ def mast_print(*args, use_mast_scope=True, **kwargs):
 
 
 class MastGlobals:
+    _imported_mods = set()
     globals = {
         "math": math, 
         "faces": faces,
@@ -80,6 +81,10 @@ class MastGlobals:
             mod_name (str): The name of the module
             prepend (str): The string to prepend to the function names
         """
+        
+        if mod_name in MastGlobals._imported_mods:
+            return
+        
         from importlib import import_module
         sca = sys.modules.get(mod_name)
         if sca is None:
@@ -92,5 +97,7 @@ class MastGlobals:
                     MastGlobals.globals[f"{mod_name}_{name}"] = func
                 elif isinstance(prepend, str):
                     MastGlobals.globals[f"{prepend}_{name}"] = func
+        MastGlobals._imported_mods.add(mod_name)
 
 
+MastGlobals.globals["import_python_module"] = MastGlobals.import_python_module
