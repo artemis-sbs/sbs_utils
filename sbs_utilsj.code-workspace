@@ -42,6 +42,8 @@
 		}
 	],
 	"settings": {
-		"python.testing.unittestEnabled": true
+		"python.testing.unittestEnabled": true,
+		"taskviewer.showLaunches": true,
+		"taskviewer.showAll": false
 	}
 }

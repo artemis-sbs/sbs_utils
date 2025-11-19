@@ -18,7 +18,7 @@
           "isDefault": false
       }
     }, {
-      "label": "Update sbsutils",
+      "label": "Build sbsutils",
       "type": "shell",
        "options": {
         "shell": {
