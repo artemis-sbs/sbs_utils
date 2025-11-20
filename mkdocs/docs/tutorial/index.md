@@ -227,7 +227,7 @@ npc_spawn(x,y,z,name,side,art_id,behave_id)
 ```
 `x`, `y`, and `z` are the coordinates at which it should spawn.  
 `name` is the name of the ship that is displayed on the UI, e.g. "Artemis" or "D51".
-`side` is, as indicated, the side or faction the ship belongs to, such as "tsn" or "kralien". However, it is slightly more complicated than that, but we'll dig into this more in the next section.
+`side` is, as indicated, the side the ship belongs to, such as "tsn" or "kralien". However, it is slightly more complicated than that, but we'll dig into this more in the next section.
 `art_id` is used to determine what 3D model, texture, etc., that should apply to the ship. These can be found in shipData.json, and for any given ship, this is the `artfileroot` value.
 Finally, `behave_id` tells Cosmos how to handle the ship. Don't worry too much about this, 
 As an example:

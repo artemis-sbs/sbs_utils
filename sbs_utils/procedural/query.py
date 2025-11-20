@@ -30,6 +30,20 @@ def to_object_list(the_set):
     the_list = to_list(the_set)
     return [y for x in the_list if (y := Agent.resolve_py_object(x)) is not None]
 
+def to_space_object_list(the_set):
+    """
+    Converts a set to a list of objects
+    Args:        
+        the_set (set[Agent | int] | list[Agent | int]): a set or list of agents or ids
+    Returns:
+        list[Agent]: A list of Agent objects
+    """
+    if the_set is None:
+        return []
+    the_list = to_list(the_set)
+    return [y for x in the_list if (y := to_space_object(x)) is not None]
+
+
 def to_id_list(the_set):
     """
     Converts a set to a list of ids
@@ -212,7 +226,7 @@ def get_data_set_value(id_or_obj, key, index=0):
     Returns:
         any: The value associated with the key and index.
     """
-    object = to_object(id_or_obj)
+    object = to_space_object(id_or_obj)
     if object is not None:
         return object.data_set.get(key, index)
     return None
@@ -226,7 +240,7 @@ def set_data_set_value(to_update, key, value, index=0):
         value (any): The value to assign.
         index (int, optional): The index of the data set value
     """
-    objects = to_object_list(to_set(to_update))
+    objects = to_space_object_list(to_set(to_update))
     for object in objects:
         object.data_set.set(key, value, index)
 
