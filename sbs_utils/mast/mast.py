@@ -151,9 +151,12 @@ class InlineData:
         self.end = end
 
 
-from .core_nodes import Label
+# IMPORTING other nodes should not happen here
+# It can screw up the order
 from .core_nodes.comment import Comment
-from .core_nodes.assign import Assign
+#### This one really break stuff
+#### from .core_nodes import Assign
+
 
 
 class Mast():
@@ -255,7 +258,8 @@ class Mast():
         return str(Mast.source_map_files[file_num])
 
     def clear(self, file_name):
-        
+        from .core_nodes import Label
+
         self.inputs = {}
         if not self.is_import:
             #self.set_inventory_value("mast", self)
@@ -287,6 +291,8 @@ class Mast():
                 
     
     def prune_main(self):
+        from .core_nodes.assign import Assign
+
         if self.main_pruned:
             return
         main = self.labels.get("main")
