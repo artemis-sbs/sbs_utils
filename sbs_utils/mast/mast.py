@@ -534,7 +534,7 @@ class Mast():
             if self.lib_name is not None:
                 lib_name = self.lib_name
                 if ":" not in self.lib_name:
-                    lib_name = os.path.join(fs.get_missions_dir(), self.lib_name)
+                    lib_name = os.path.join(fs.get_mission_dir(), self.lib_name)
 
                 with ZipFile(lib_name) as lib_file:
                     #
