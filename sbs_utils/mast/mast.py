@@ -178,7 +178,7 @@ class Mast():
                 
 
         if cmds is None:
-            self.clear("no_mast_file")
+            self.clear("no_mast_file", self)
             return
         if isinstance(cmds, str):
             cmds = self.compile(cmds, "<string>")
@@ -257,7 +257,7 @@ class Mast():
             return "<unknown>"
         return str(Mast.source_map_files[file_num])
 
-    def clear(self, file_name):
+    def clear(self, file_name, root):
         from .core_nodes import Label
 
         self.inputs = {}
@@ -270,9 +270,12 @@ class Mast():
         # self.vars = {"mast": self}
         self.labels = {}
         self.inline_labels = {}
-        self.labels["main"] = Label("main")
+        main = Label("main")
+        if root is not None:
+            main = root.labels.get("main", main)
+        self.labels["main"] = main
         self.labels["$NOOP$"] = Label("$NOOP$")
-        self.cmd_stack = [self.labels["main"]]
+        self.cmd_stack = [main]
         self.indent_stack = [0]
         self.main_pruned = False
         #self.lib_name = None
@@ -595,19 +598,19 @@ class Mast():
                 if label == "main":
                     main = self.labels["main"]
 
-                    offset = len(main.cmds)
-                    for cmd in node.cmds:
-                        cmd.loc += offset
-                        # If and match staements need more fixups
-                        if cmd.__class__.__name__ == "IfStatements" and cmd.if_chain:
-                            for c in range(len(cmd.if_chain)):
-                                cmd.if_chain[c].loc += offset
-                        elif cmd.__class__.__name__ == "MatchStatements" and cmd.chain:
-                            for c in range(len(cmd.chain)):
-                                cmd.chain[c] += offset
+                    # offset = len(main.cmds)
+                    # for cmd in node.cmds:
+                    #     cmd.loc += offset
+                    #     # If and match staements need more fixups
+                    #     if cmd.__class__.__name__ == "IfStatements" and cmd.if_chain:
+                    #         for c in range(len(cmd.if_chain)):
+                    #             cmd.if_chain[c].loc += offset
+                    #     elif cmd.__class__.__name__ == "MatchStatements" and cmd.chain:
+                    #         for c in range(len(cmd.chain)):
+                    #             cmd.chain[c] += offset
 
 
-                    main.cmds.extend(node.cmds)
+                    # main.cmds.extend(node.cmds)
 
                 else:
                     self.labels[label] = node
@@ -631,11 +634,17 @@ class Mast():
         
 
     def _compile(self, lines, file_name, root):
-        file_num = self.clear(file_name)
+        file_num = self.clear(file_name, root)
         line_no = 1 # file line num are 1 based
         
         errors = []
-        active = self.labels.get("main")
+        main = self.labels.get("main")
+        if root is not None:
+            main = root.labels.get("main", main)
+        
+
+
+        active = main # self.labels.get("main")
         active_name = "main"
         indent_stack = [(0,None)]
         prev_node = None
@@ -703,7 +712,7 @@ class Mast():
                 info.indent = ind_level
                 info.is_indent = False
                 info.is_dedent = True
-                info.main = self.labels.get("main")
+                info.main = main # self.labels.get("main")
                 inject_dedent(ind_level, ind_obj, None, info)
             indent_stack = [(0,None)]
 
@@ -827,7 +836,7 @@ class Mast():
                         _info.is_dedent = is_dedent
                         _info.is_indent = is_indent
                         _info.label = next
-                        _info.main = self.labels.get("main")
+                        _info.main = main # self.labels.get("main")
                         next.generate_label_begin_cmds(_info)
                         label_first_cmd = len(next.cmds)
                         

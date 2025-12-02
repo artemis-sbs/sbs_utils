@@ -77,7 +77,7 @@ def mast_run(code=None, label=None):
     if code:
         errors = mast.compile(code, "test2", mast)
     else:
-        mast.clear("test_code")
+        mast.clear("test_code", None)
     
     if label is None:
         label = "main"
