@@ -62,8 +62,8 @@ def clear_client_tags() -> None:
 def create_new_sim() -> None:
     """all space objects are deleted; a blank slate is born."""
     global sim
-    if sim is None:
-        sim = simulation()
+    #if sim is None:
+    sim = simulation()
     return sim
     
 

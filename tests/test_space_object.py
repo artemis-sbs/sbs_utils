@@ -198,6 +198,8 @@ class TestSpaceObject(unittest.TestCase):
     def test_closest_set_method(self):
         test_obj = []
         names = ["Artemis", "Hera", "Atlas", "Juno", "Zeus", "Jupiter"]
+        SpaceObject.clear()
+        sbs.sim = None
         sbs.create_new_sim()
         FrameContext.context = Context(sbs.sim, sbs, FakeEvent()) 
 
@@ -336,6 +338,7 @@ class TestSpaceObject(unittest.TestCase):
     def test_fake_broad_test(self):
         test_obj = []
         names = ["Artemis", "Hera", "Atlas", "Juno", "Zeus", "Jupiter"]
+        SpaceObject.clear()
         sbs.create_new_sim()
         FrameContext.context = Context(sbs.sim, sbs, FakeEvent()) 
 
