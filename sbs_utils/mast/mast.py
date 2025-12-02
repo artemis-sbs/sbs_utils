@@ -838,6 +838,14 @@ class Mast():
 
                     
                     elif node_cls.__name__== "Import":
+                        if indent>0:
+                            logger = logging.getLogger("mast.compile")
+                            e = "ERROR import cannot be indented or be in conditional"
+                            error = buildExceptionMessage(file_name, line_no,line,f"{e}")
+                            logger.error(error)
+                            errors.append(error)
+                            break
+                            
                         lib_name = data.get("lib")
                         name = data['name']
 
