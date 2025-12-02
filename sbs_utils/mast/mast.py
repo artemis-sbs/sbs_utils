@@ -595,27 +595,8 @@ class Mast():
         errors = add.from_file(filename, root)
         if len(errors)==0:
             for label, node in add.labels.items():
-                if label == "main":
-                    main = self.labels["main"]
-
-                    # offset = len(main.cmds)
-                    # for cmd in node.cmds:
-                    #     cmd.loc += offset
-                    #     # If and match staements need more fixups
-                    #     if cmd.__class__.__name__ == "IfStatements" and cmd.if_chain:
-                    #         for c in range(len(cmd.if_chain)):
-                    #             cmd.if_chain[c].loc += offset
-                    #     elif cmd.__class__.__name__ == "MatchStatements" and cmd.chain:
-                    #         for c in range(len(cmd.chain)):
-                    #             cmd.chain[c] += offset
-
-
-                    # main.cmds.extend(node.cmds)
-
-                else:
+                if label != "main":
                     self.labels[label] = node
-
-
         return errors
 
 
