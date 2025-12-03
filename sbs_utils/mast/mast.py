@@ -771,7 +771,10 @@ class Mast():
                         next.file_num = file_num
                         next.line_num = line_no
                         #if active.can_fallthrough() and next.can_fallthrough():
-                        if next.can_fallthrough(active):
+                        if active == main:
+                            if  root == self and next.can_fallthrough(active):
+                                active.next = next
+                        elif next.can_fallthrough(active):
                             active.next = next
                         else:
                             active.next = None
