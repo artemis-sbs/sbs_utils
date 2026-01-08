@@ -95,7 +95,6 @@ def get_ship_index():
     Get the ship data information and index it as a dictionary. 
     Keys include:
     * individual ship keys
-    * default sides
     Returns:
         dict: The indexed ship data information.
     """
@@ -111,11 +110,14 @@ def get_ship_index():
         return ship_index
     
     for i,ship in enumerate(data["#ship-list"]):
-        this_ship_index = ship_index.get(ship['side'])
-        if not this_ship_index:
-            this_ship_index = set()
-            ship_index[ship['side']] = this_ship_index
-        this_ship_index.add(i)
+        # this_ship_index = ship_index.get(ship['side'])
+        # if not this_ship_index:
+        #     this_ship_index = set()
+        #     ship_index[ship['side']] = this_ship_index
+        # # Sometimes it gets a dict instead of a set
+        # # When side == key?
+        # if isinstance(this_ship_index, set):
+        #     this_ship_index.add(i)
         ship_index[ship['key']] = ship
     return ship_index
 
