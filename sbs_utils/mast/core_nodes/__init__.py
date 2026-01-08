@@ -11,6 +11,7 @@ from .await_cmd import Await, AwaitInlineLabel
 from .inline_function import FuncCommand        
 from .on_signal import OnSignal
 from .on_change import OnChange
+from .signal_route_label import SignalRouteDecoratorLabel
 
 #        AwaitInlineLabel,
 from .yield_cmd import Yield
