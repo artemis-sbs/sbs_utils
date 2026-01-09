@@ -1,5 +1,6 @@
 from ...mast.mast_node import IF_EXP_REGEX, STRING_REGEX_NAMED, mast_node
 from ...mast.core_nodes.decorator_label import DecoratorLabel
+from ...mast.core_nodes.inline_function import FuncCommand
 import re
 
 
@@ -61,6 +62,16 @@ class GuiConsoleDecoratorLabel(DecoratorLabel):
     def generate_label_end_cmds(self, compile_info=None):
         # Allow this to follow into === labels
         pass
+
+    def generate_label_begin_cmds(self, compile_info=None):
+        #
+        # Set the active tab
+        # 
+        cmd = FuncCommand(py_cmds=f'gui_tab_activate("{self.path}, {self.path}")', compile_info=compile_info)
+        cmd.file_num = self.file_num
+        cmd.line_num = self.line_num
+        cmd.line = f"gui_tab_activate {self.name}"
+        self.add_child(cmd)
 
     def test(self, task):
         if self.code is None:
