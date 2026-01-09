@@ -39,6 +39,9 @@
 		{
 			"name": "quick_example",
 			"path": "../quick_example"
+		},
+		{
+			"path": "../HereThereBeMonsters"
 		}
 	],
 	"settings": {

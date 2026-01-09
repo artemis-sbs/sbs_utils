@@ -5,10 +5,11 @@ from ...agent import Agent
 
 @mast_node(append=False)
 class GuiTabDecoratorLabel(DecoratorLabel):
-    rule = re.compile(r'(@|\/\/)gui/tab/(?P<path>([\w]+))'+IF_EXP_REGEX)
+    rule = re.compile(r'(\/\/)gui/tab/(?P<path>([\w]+))'+IF_EXP_REGEX)
+
+    all = {}
 
     def __init__(self, path, if_exp=None, loc=None, compile_info=None):
-        from ...procedural.gui import gui_add_console_tab
         # Label stuff
         id = DecoratorLabel.next_label_id()
         self.label_weight = id
@@ -19,12 +20,8 @@ class GuiTabDecoratorLabel(DecoratorLabel):
         self.description = ""
         self.if_exp = if_exp
 
-        
-        for con in ["helm", "comms", "engineering", "science", "weapons"]:
-            if con != path:
-                gui_add_console_tab(Agent.SHARED, con, path, self)
-        gui_add_console_tab(Agent.SHARED, path, "__back_tab__", "console_selected")
-
+        GuiTabDecoratorLabel.all[path] = self
+  
         # need to negate if
         self.code = None
         if self.if_exp is not None:
