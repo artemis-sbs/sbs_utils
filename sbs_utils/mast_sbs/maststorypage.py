@@ -440,13 +440,7 @@ class StoryPage(Page):
         #
         enabled_tabs = get_inventory_value(self.client_id, "console_tabs", {})
 
-        back_tab = get_inventory_value(self.client_id, "__back_tab__", "back")
-        back_tab = get_inventory_value(self.client_id, "CONSOLE_TYPE", back_tab)
-        if console is not None:
-            console = console.lower()
-            set_inventory_value(self.client_id, "__back_tab__", console)
-            set_inventory_value(self.client_id, "CONSOLE_TYPE", console)
-
+        back_tab = get_inventory_value(self.client_id, "__back_tab__")
         #
         # Ok we're on a ship, on a console
         #
@@ -471,7 +465,7 @@ class StoryPage(Page):
                     continue
 
             tab_text = tab
-            if tab == "__back_tab__":
+            if tab == back_tab:
                 tab_text = back_tab
             if tab_text in tabs:
                 continue
@@ -503,107 +497,8 @@ class StoryPage(Page):
         self.pending_layouts.append(_layout)
         # Clear up tabs for the next GUI
         set_inventory_value(self.client_id, "console_tabs", {})
+        set_inventory_value(self.client_id, "__back_tab__", None)
 
-
-    # def gui_queue_console_tabs(self):
-    #     console = self.console
-    #     if self.console is not None: 
-    #         console = self.console.lower()
-        
-    #     convert = {
-    #         "normal_helm": "helm",
-    #         "normal_weap": "weapons",
-    #         "normal_sci": "science",
-    #         "normal_engi": "engineering",
-    #         "normal_comm": "comms"
-    #     }
-    #     console = convert.get(console, console)
-    #     #
-    #     # tabs can be for all ships or single
-    #     #
-    #     all_ship_tabs = Agent.SHARED.get_inventory_value("console_tabs", {})
-    #     all_tabs = all_ship_tabs.get("any", {})
-    #     ship_id = FrameContext.context.sbs.get_ship_of_client(self.client_id) 
-    #         #get_inventory_value(self.client_id, "assigned_ship", None)
-    #     #
-    #     # Add ship any
-    #     #
-    #     ship_any_tabs = {}
-    #     ship_tabs = {}
-    #     if ship_id is not None:
-    #         ship_tabs = get_inventory_value(ship_id, "console_tabs", {})
-    #         ship_any_tabs = ship_tabs.get("any", {})
-        
-    #     #
-    #     #  Add console
-    #     #
-    #     all_console_tabs = {}
-    #     ship_console_tabs ={}
-    #     back_tab = get_inventory_value(self.client_id, "__back_tab__", "back")
-    #     back_tab = get_inventory_value(self.client_id, "CONSOLE_TYPE", back_tab)
-    #     if console is not None:
-    #         console = console.lower()
-    #         set_inventory_value(self.client_id, "__back_tab__", console)
-    #         set_inventory_value(self.client_id, "CONSOLE_TYPE", console)
-    #         all_console_tabs = all_ship_tabs.get(console, {})
-    #         ship_console_tabs = ship_tabs.get(console, {})
-    #     #
-    #     # Ship and console override if keys match
-    #     #
-    #     all_tabs  = all_tabs |  all_console_tabs | ship_any_tabs | ship_console_tabs
-            
-    #     if len(all_tabs) == 0 : return
-    #     #
-    #     # Ok we're on a ship, on a console
-    #     #
-    #     _layout = Layout(self.get_tag(), None, 20,0, 100, 3)
-    #     _row = Row()
-    #     #
-    #     # MAKE the tab button 40px
-    #     #
-    #     apply_control_styles(".row", "row-height:35px", _row, self.gui_task)
-    #     _layout.add(_row)
-
-    #     # Make spots for a certain amount of tabs
-    #     count = 0
-    #     tabs= set()
-    #     for tab in all_tabs:
-    #         tab_label = all_tabs[tab]
-    #         if isinstance(tab_label, GuiTabDecoratorLabel):
-    #             if not tab_label.test(self.gui_task):
-    #                 continue
-            
-    #         tab_text = tab
-    #         if tab == "__back_tab__":
-    #             tab_text = back_tab
-    #         if tab_text in tabs:
-    #             continue
-    #         tabs.add(tab_text)
-    #         count+= 1
-    #         msg = f"justify:center;color:black;$text:{tab_text};"
-
-    #         button = TabControl(self.get_tag(),msg, all_tabs[tab], self) # Jump label all_tabs[tab]
-    #         button.click_text = tab_text
-    #         button.click_color = "#FFF"
-    #         #self.click_font = None
-    #         button.click_tag = self.get_tag()
-
-    #         if tab_text == back_tab:
-    #             button.background_color = "#fff9"
-    #             _row.add(button)        
-    #         else:
-    #             button.background_color = "#fff3"
-    #             _row.add_front(button)
-            
-        
-    #     spots = 6
-    #     blanks = spots-count
-    #     if blanks <0: blanks = 0
-    #     for _ in range(blanks):
-    #         _row.add_front(Blank())
-
-    #     #_layout.calc()
-    #     self.pending_layouts.append(_layout)
 
 
 
