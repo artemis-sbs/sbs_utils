@@ -20,8 +20,8 @@ class TextArea(Control):
         "h2":{"style":  "font:gui-4;color:#bbb;", "prepend": "1 ", "indent": 0, "height": 28},
         "h3":{"style":  "font:gui-3;color:#bbb;", "prepend": "1 ", "indent": 0, "height": 24},
         "p1":{"style":  "font:gui-2;color:#11f;", "prepend": "", "indent": 0, "height": 20},
-        "ul":{"style":  "font:gui-2;color:#11f;", "prepend": "", "indent": 2, "height": 20},
-        "ol":{"style":  "font:gui-2;color:#11f;", "prepend": "1", "indent": 2, "height": 20},
+        "ul":{"style":  "font:gui-2;color:#11f;", "prepend": "-", "indent": 2, "height": 20},
+        "ol":{"style":  "font:gui-2;color:white;", "prepend": "1", "indent": 2, "height": 20},
         "_" :{"style":  "font:gui-2;color:white;", "prepend": "", "indent": 0, "height": 20}
         }
     
@@ -53,7 +53,7 @@ class TextArea(Control):
     def get_style(self, key):
         ret = self.styles.get(key, None)
         if ret is None:
-            ret = self.styles.get("_", None)
+            ret = self.styles.get("_", "font:gui-2;color:white;")
         return ret
 
     def calc(self, client_id):
@@ -92,6 +92,8 @@ class TextArea(Control):
                 number = number % len(roman) # wrap don't crash
                 prepend = f"{roman[number].upper()}."
                 heading_numbers[style_key] = number + 1
+            elif prepend_fmt== "*" or prepend_fmt== "-":
+                prepend = prepend_fmt
             elif prepend_fmt is not None:
                 return prepend_fmt
             return prepend
@@ -132,7 +134,7 @@ class TextArea(Control):
             if some_lines.startswith("$"):
                 sp = some_lines.find(" ")
                 nl = some_lines.find("\n")
-                if sp>=0:
+                if sp>=0 and (nl <0 or sp <nl):
                     style_key = some_lines[1:sp]
                     some_lines = some_lines[sp:]
                 elif nl >0:
@@ -167,7 +169,7 @@ class TextArea(Control):
                 if len(line.strip()) == 0:
                     continue
                 
-                is_a_list = style_key.startswith("ol") or  style_key.startswith("ul")
+                #is_a_list = style_key.startswith("ol") or  style_key.startswith("ul")
                 if is_a_list:
                     prepend = get_prepend(style_key)
                     line = prepend +  line
@@ -248,8 +250,8 @@ class TextArea(Control):
         for i, text_line in enumerate(self.lines):
             style_obj = self.get_style(text_line.style)
             style = style_obj.get("style")
+            
             indent = style_obj.get("indent", 0) 
-
             message = f"$text:{text_line.text};{style}"
             
             tag = f"{self.tag}:{i}"
@@ -268,9 +270,10 @@ class TextArea(Control):
 
             # if bounds.top < 900:
             #     print(f"Sending line {message} {bounds} {self.local_region_tag}")
+            space_width = FrameContext.context.sbs.get_text_line_width("gui-2", "X") / ar.x *100
             ctx.sbs.send_gui_text(CID, self.local_region_tag,
                 tag, message,  
-                bounds.left+indent*text_line.width, bounds.top, bounds.right, bounds.bottom)
+                bounds.left+indent*space_width, bounds.top, bounds.right, bounds.bottom)
             bounds.top = bounds.bottom
             if text_line.is_sec_end:
                 bounds.top += text_line.height/2
@@ -306,10 +309,15 @@ class TextArea(Control):
         message = re.split(r"\n\n\n*", message)
 
         if len(message)==1:
-            # if "$text:" in message[0]:
-            self.simple_text = True
-            self.content = message
-            return
+            if "$text:" in message[0]:
+                self.simple_text = True
+                self.content = message
+                return
+            if not (message[0].startswith("=") or message[0].startswith("$")):
+                self.simple_text = True
+                self.content = message
+                return
+            
         self.simple_text = False
         self.recalc = True
 
@@ -317,7 +325,7 @@ class TextArea(Control):
         # for i,m in enumerate(message):
         #     print(f"{i}[{m}]")
         # print("-------")
-        
+
         # check for style header section
         if len(message) > 0 and message[0].startswith("=$"):
             self.parse_header(message[0])
@@ -355,16 +363,19 @@ class TextArea(Control):
             height = get_font_size(font)
 
             if len(value)==2:
+                
                 prepend = value[1].split(">")
 
                 if len(prepend) == 2:
                     indent = 0 # Default is just one space
                     s_indent = prepend[1].strip()
+                    s_indent = s_indent.strip(';')
                     if s_indent.isdigit():
                         indent = int(s_indent)
                 prepend = prepend[0].strip()
                 if prepend == "":
                     prepend = ""
+            
             self.styles[key] = {"style": style, "prepend": prepend, "indent": indent, "height": height}
 
 
