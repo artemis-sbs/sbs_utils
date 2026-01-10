@@ -67,7 +67,7 @@ class GuiConsoleDecoratorLabel(DecoratorLabel):
         #
         # Set the active tab
         # 
-        cmd = FuncCommand(py_cmds=f'gui_tab_activate("{self.path}, {self.path}")', compile_info=compile_info)
+        cmd = FuncCommand(py_cmds=f'gui_tab_activate("{self.path}")', compile_info=compile_info)
         cmd.file_num = self.file_num
         cmd.line_num = self.line_num
         cmd.line = f"gui_tab_activate {self.name}"

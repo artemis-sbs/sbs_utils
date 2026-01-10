@@ -1,7 +1,58 @@
 from ...helpers import FrameContext
 from ..style import apply_control_styles
-from ...pages.widgets.layout_listbox import LayoutListbox
+from ...pages.widgets.layout_listbox import LayoutListbox, LayoutListBoxHeader
 
+
+
+def gui_listbox_items_convert_headers(items):
+    """Converts a list of strings into a list of objects that allow a listbox to collapse if a header is clicked
+    To make a header, prefix the name with `>>`. 
+    Example usage:
+        ```python
+        item = [">>Header","Item1","Item2",">>Another Header","Another Item 1","Another Item 2"]
+        ret = gm_convert_listbox_items(item)
+        gui_list_box(items=ret, style="", select=True, collapsible=True)
+        ```
+    Args:
+        items (list(str)): A list of strings
+    Returns:
+        (list(str|LayoutListBoxHeader)): A list of LayoutListBoxHeader (for the headers) and strings (for the items)
+    """
+    ret = []
+    for k in items:
+        if isinstance(k,str):
+            collapse = False
+            if k.startswith(">>"):
+                k = k[2:]
+                ret.append(LayoutListBoxHeader(k, collapse))
+            else:
+                ret.append(k)
+    return ret
+
+def gui_list_box_is_header(item):
+    """Created a gui_list_box_header element
+
+    Args:
+        label (str): The label text
+        collapse (bool, optional): Default the collapsed state. Defaults to False.
+
+    Returns:
+        _type_: _description_
+    """
+    return isinstance(item, LayoutListBoxHeader)
+
+
+def gui_list_box_header(label, collapse=False):
+    """Created a gui_list_box_header element
+
+    Args:
+        label (str): The label text
+        collapse (bool, optional): Default the collapsed state. Defaults to False.
+
+    Returns:
+        _type_: _description_
+    """
+    return LayoutListBoxHeader(label, collapse)
 
 def gui_list_box(items, style, 
                  item_template=None, title_template=None, 

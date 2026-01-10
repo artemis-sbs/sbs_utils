@@ -10,6 +10,7 @@ When a quest is activated or completed a signal is sent
 """
 from sbs_utils.procedural.query import to_id_list, to_object, to_id
 from sbs_utils.procedural.signal import signal_emit
+from sbs_utils.mast.mast_node import MastDataObject
 from sbs_utils.fs import load_yaml_string
 from enum import IntEnum
 
@@ -20,13 +21,26 @@ class QuestState(IntEnum):
     COMPLETE = 99
 
 
+
+
+def quest_agent_quests(agent_id):
+    agent = to_object(agent_id)
+    if agent is None:
+        return {}
+    q = agent.get_inventory_value("__quests__")
+    if q is not None:
+        return q.children
+    return {}
+
+
+
 def quest_folder(agent_id, quest_id):
     agent = to_object(agent_id)
     if agent is None:
         return None, None
     quest = agent.get_inventory_value("__quests__", None)
     if quest is None:
-        quest = {"children": {}}
+        quest = MastDataObject({"children": {}})
         agent.set_inventory_value("__quests__",quest)
     children = quest.get("children", {})
 
@@ -67,7 +81,7 @@ def quest_add(agents, quest_id, display_text, description, state=QuestState.IDLE
         if quests is None:
             continue
 
-        quest = {"display_text": display_text, "description": description, "state": state, "data": data, "children": {}}
+        quest = MastDataObject({"id": quest_id, "display_text": display_text, "description": description, "state": state, "data": data, "children": {}})
         children = quests.get("children")
         if children is None:
             children = {}

@@ -41,6 +41,7 @@ class TextArea(Control):
         self.last_line = 0
         self.max_tag = 0
         self.absolute = True
+        self.recalc = True
         #self.region = None
         #self.local_region_tag = self.tag+"$$"
 
@@ -231,7 +232,10 @@ class TextArea(Control):
         CID = event.client_id
         
         ar = get_client_aspect_ratio(CID)
-        # self.calc(event.client_id)
+        if self.recalc:
+            self.calc(event.client_id)
+            self.recalc = False
+
         first_line = self.last_line - self.scroll_line
         
         
@@ -279,7 +283,7 @@ class TextArea(Control):
             max = (self.last_line+1)
             cur = self.scroll_line
 
-            print(f"TEXT AREA {cur} {max}")
+            # print(f"TEXT AREA {cur} {max}")
 
             ctx.sbs.send_gui_slider(CID,self.local_region_tag, f"{self.tag}vbar", int(cur), f"$text:int;low:0; high: {max}; show_number:no;",
                 scroll_bounds.right-20*100/ar.x, scroll_bounds.top,
@@ -299,14 +303,21 @@ class TextArea(Control):
         message = message.strip()
         message = message.replace("^", "\n")
         # Split into sections
-        message = re.split(r"\n\n+", message)
+        message = re.split(r"\n\n\n*", message)
 
         if len(message)==1:
             # if "$text:" in message[0]:
             self.simple_text = True
             self.content = message
             return
+        self.simple_text = False
+        self.recalc = True
 
+        # print("-------")
+        # for i,m in enumerate(message):
+        #     print(f"{i}[{m}]")
+        # print("-------")
+        
         # check for style header section
         if len(message) > 0 and message[0].startswith("=$"):
             self.parse_header(message[0])

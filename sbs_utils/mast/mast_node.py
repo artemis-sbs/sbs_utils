@@ -144,7 +144,7 @@ class MastDataObject(object):
     def __repr__(self):
         return repr(vars(self))
     
-    def get(self, key, defa):
+    def get(self, key, defa= None):
         return getattr(self, key, defa)
         
 
