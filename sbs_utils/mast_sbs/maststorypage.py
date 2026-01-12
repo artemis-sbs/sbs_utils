@@ -728,13 +728,13 @@ class StoryPage(Page):
             if self.main_screen_change_label:
                 # get_inventory_value(self.client_id,"assigned_ship")
                 _ship = FrameContext.context.sbs.get_ship_of_client(self.client_id)
-                ms =  linked_to(_ship, "consoles") & has_inventory_value("CONSOLE_TYPE", "normal_main")
+                ms =  linked_to(_ship, "consoles") & (has_inventory_value("CONSOLE_TYPE", "mainscreen")) # | has_inventory_value("CONSOLE_TYPE", "normal_main"))
                 # 3d_view, info, data - affects layout
                 # front, left, right, back - engine controlled
                 # 3d (chase, first_person, tracking) 2d (short, long) - engine controlled
                 
                 for m in ms:
-                    t = get_inventory_value(m, "CONSOLE_TYPE", "not set")
+                    #t = get_inventory_value(m, "CONSOLE_TYPE", "not set")
                     #log(f"Got here {len(ms)} {t}", "mast:internal")
                     gui_reroute_client(m, self.main_screen_change_label, {
                         "MAIN_SCREEN_VIEW": event.sub_tag,
