@@ -104,8 +104,7 @@ class TextArea(Control):
                 
             suffix = re.split(r'[^\d]', style_key)
             # title clears all headings
-            
-                
+
             if len(suffix) != 2 or suffix[1]=="":
                 return
             prefix = style_key[:-len(suffix[1])]
@@ -131,15 +130,7 @@ class TextArea(Control):
             roman = ["_", "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", 
                      "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx"]
             prepend = None
-            if some_lines.startswith("$"):
-                sp = some_lines.find(" ")
-                nl = some_lines.find("\n")
-                if sp>=0 and (nl <0 or sp <nl):
-                    style_key = some_lines[1:sp]
-                    some_lines = some_lines[sp:]
-                elif nl >0:
-                    style_key = some_lines[1:nl]
-                    some_lines = some_lines[nl:]
+            style_key, some_lines = self.get_line_style(some_lines)
 
             style = self.get_style(style_key)
             height = style.get("height", 90)
@@ -177,14 +168,13 @@ class TextArea(Control):
                 pixel_height = FrameContext.context.sbs.get_text_block_height(font, line, int(pixel_width))
                 pixel_line_height = FrameContext.context.sbs.get_text_line_height(font, line)
                 # Adds 10 pixels for buffer
-                percent_height = ((pixel_height + 1.5*pixel_line_height) / ar.y) * 100
+                buffer = 1.5
+                if is_a_list:
+                    buffer = 0.2
+                percent_height = ((pixel_height + buffer*pixel_line_height) / ar.y) * 100
                 last_line = TextLine(line,style_key, self.bounds.width, percent_height, False)
                 self.lines.append(last_line)
                 calc_height += percent_height
-
-            # if last_line is not None:
-            #     last_line.is_end = True
-            #     last_line.height *= 1.5
 
         #
         # Calculate the right size for the scrollbar
@@ -207,7 +197,82 @@ class TextArea(Control):
             if self.lines[self.last_line].is_sec_end:
                 calc_height += 0.5*height
             calc_height += height
-        self.scroll_line = self.last_line
+
+        
+        
+        self.last_line = min(self.last_line+1, len(self.lines))
+        self.scroll_line = min(self.last_line+1,len(self.lines))
+        
+
+    def get_line_style(self, some_lines):
+        style_key = "_"
+        if some_lines.startswith("$"):
+            some_lines, style_key = self.split_styled_lines(some_lines)
+        else:
+            return self.get_markdown_line_style(some_lines)
+        
+        return style_key,some_lines
+
+    def split_styled_lines(self, some_lines):
+        sp = some_lines.find(" ")
+        nl = some_lines.find("\n")
+        if sp>=0 and (nl <0 or sp <nl):
+            style_key = some_lines[1:sp]
+            some_lines = some_lines[sp:]
+        elif nl >0:
+            style_key = some_lines[1:nl]
+            some_lines = some_lines[nl:]
+        return some_lines,style_key
+    
+    def get_markdown_line_style(self, some_lines):
+        style_key = "_"
+        if some_lines.startswith("#"):
+            count = 0
+            while some_lines[count]=="#":
+                count+=1
+
+            style_key = f"h{count}"
+            some_lines = some_lines[count:]
+
+        elif some_lines.startswith("-"):
+            lines = some_lines.split("\n")
+            style_key = f"ul"
+            some_lines = [""]
+            for line in lines:
+                if line.startswith("-"):
+                    sp = line.split(" ",1)
+                    if len(sp)>1:
+                        some_lines.append(sp[1])
+                    else:
+                        some_lines.append(sp[0])
+                else:
+                    some_lines[-1]+= "\n"+line
+            some_lines = "\n".join(some_lines)
+
+        elif some_lines[0].isdigit():
+            style_key = f"ol"
+            lines = some_lines.split("\n")
+            some_lines = [""]
+            for line in lines:
+                if line[0].isdigit():
+                    sp = line.split(" ",1)
+                    if len(sp)>1:
+                        some_lines.append(sp[1])
+                    else:
+                        some_lines.append(sp[0])
+                else:
+                    some_lines[-1]+= "\n"+line
+            some_lines = "\n".join(some_lines)
+
+        # elif some_lines.startswith(">"):
+        #     count = 0
+        #     while some_lines[count]==">":
+        #         count+=1
+
+        #     style_key = f"block"
+        #     some_lines = some_lines[count:]
+
+        return style_key,some_lines
             
     def _present_simple(self, event):
         ctx = FrameContext.context
@@ -288,7 +353,7 @@ class TextArea(Control):
 
             # print(f"TEXT AREA {cur} {max}")
 
-            ctx.sbs.send_gui_slider(CID,self.local_region_tag, f"{self.tag}vbar", int(cur), f"$text:int;low:0; high: {max}; show_number:no;",
+            ctx.sbs.send_gui_slider(CID,self.local_region_tag, f"{self.tag}vbar", int(cur), f"low:0; high: {max}; show_number:no",
                 scroll_bounds.right-20*100/ar.x, scroll_bounds.top,
                 scroll_bounds.right, scroll_bounds.bottom)
 
@@ -317,7 +382,7 @@ class TextArea(Control):
                 self.simple_text = True
                 self.content = message
                 return
-            
+        # Make sure there is an end line
         self.simple_text = False
         self.recalc = True
 
@@ -330,7 +395,7 @@ class TextArea(Control):
         if len(message) > 0 and message[0].startswith("=$"):
             self.parse_header(message[0])
             message.pop(0)
-        self.content = message
+        self.content = message 
 
 
     def parse_header(self, header):
