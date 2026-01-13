@@ -47,84 +47,109 @@ class Image(Column):
     def __init__(self, tag, file, mode=1) -> None:
         super().__init__()
         self.tag = tag
+        self.atlas = None
         self.update(file)
         self.mode = mode
+        
 
     def update(self, file):
-        fs.get_artemis_data_dir()
-        props = split_props(file, "image")
-        # to get size get absolute path
-        self.file = os.path.abspath(props["image"].strip())
-        # Make the file relative to artemis dir
-        rel_file = os.path.relpath(props["image"].strip(), fs.get_artemis_data_dir()+"\\graphics")
-        props["image"] = rel_file
-        self.props = merge_props(props)
+        from ...procedural.gui.image import gui_image_get_atlas
+        self.file = file
 
-        self.width = -1
-        self.height = -1
-        self.get_image_size()
+        self.atlas = gui_image_get_atlas(file)
+        # if atlas is not None:
+        #     self.props = str(atlas)
+        #     w,h = atlas.get_size()
+        #     self.width = w
+        #     self.height = h
+
+            
+        # else:
+        #     props = gui_image_get_props(file)
+        #     fs.get_artemis_data_dir()
+        #     props = split_props(props, "image")
+        #     # to get size get absolute path
+        #     self.file = os.path.abspath(props["image"].strip())
+        #     # Make the file relative to artemis dir
+        #     rel_file = os.path.relpath(props["image"].strip(), fs.get_artemis_data_dir()+"\\graphics")
+        #     props["image"] = rel_file
+        #     self.props = merge_props(props)
+
+        #     self.width = -1
+        #     self.height = -1
+        #     w,h = gui_image_size(self.file)
+        #     self.width = w
+        #     self.height = h
+        
         
     def _present(self, event):
         ctx = FrameContext.context
-        if self.width == -1:
+        if self.atlas is None:
             message = f"$text: IMAGE NOT FOUND {self.file}"
             ctx.sbs.send_gui_text(event.client_id, self.region_tag,
                 self.tag, message,
                 self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
-        elif self.mode == IMAGE_ABSOLUTE:
-            ar = get_client_aspect_ratio(event.client_id)
-            x = 100* self.width / ar.x
-            y = 100* self.height / ar.y
-
-            ctx.sbs.send_gui_image(event.client_id, self.region_tag,
-                self.tag, self.props,
-                self.bounds.left, self.bounds.top, 
-                self.bounds.left+x, self.bounds.top+y)
-        elif self.mode >= IMAGE_KEEP_ASPECT:
-            ar = get_client_aspect_ratio(event.client_id)
-            # Get section in pixels
-            space_x = (self.bounds.right-self.bounds.left)/100
-            space_y = (self.bounds.bottom-self.bounds.top)/100
-            pixels_x  = (space_x*ar.x)
-            pixels_y  = (space_y*ar.y)
-
-            r = pixels_x / self.width
-            if r*self.height > pixels_y: 
-                r = pixels_y / self.height 
-
-            x = 100* self.width / ar.x  * r
-            y = 100* self.height / ar.y * r
-            ox=0
-            oy=0
-            if self.mode == IMAGE_KEEP_ASPECT_CENTER:
-                ox = (space_x*100-x)/2
-                oy = (space_y*100 - y)/2
             
-            
-            
-            ctx.sbs.send_gui_image(event.client_id, self.region_tag,
-                self.tag, self.props,
-                self.bounds.left+ox, self.bounds.top+oy, 
-                self.bounds.left+ox+x, self.bounds.top+oy+y)
         else:
-            ctx.sbs.send_gui_image(event.client_id, self.region_tag,
-                self.tag, self.props,
-                self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+            gui_send_image_atlas(ctx.sbs, event.client_id, self.tag, 
+                                 self.region_tag, self.mode, self.atlas, 
+                                 self.bounds.left,self.bounds.top,self.bounds.right,self.bounds.bottom)
+        # elif self.mode == IMAGE_ABSOLUTE:
+        #     ar = get_client_aspect_ratio(event.client_id)
+        #     x = 100* self.width / ar.x
+        #     y = 100* self.height / ar.y
 
-    # Get image width and height of image
-    def get_image_size(self):
-        try:
-            with open(self.file+".png", 'rb') as f:
-                data = f.read(26)
-                # Chck if is png
-                #if (data[:8] == '\211PNG\r\n\032\n'and (data[12:16] == 'IHDR')):
-                w, h = struct.unpack('>LL', data[16:24])
-                self.width = int(w)
-                self.height = int(h)
+        #     ctx.sbs.send_gui_image(event.client_id, self.region_tag,
+        #         self.tag, self.props,
+        #         self.bounds.left, self.bounds.top, 
+        #         self.bounds.left+x, self.bounds.top+y)
+        # elif self.mode >= IMAGE_KEEP_ASPECT:
+        #     ar = get_client_aspect_ratio(event.client_id)
+        #     # Get section in pixels
+        #     space_x = (self.bounds.right-self.bounds.left)/100
+        #     space_y = (self.bounds.bottom-self.bounds.top)/100
+        #     pixels_x  = (space_x*ar.x)
+        #     pixels_y  = (space_y*ar.y)
 
-        except Exception:
-            self.width = -1
-            self.height = -1
+        #     r = pixels_x / self.width
+        #     if r*self.height > pixels_y: 
+        #         r = pixels_y / self.height 
+
+        #     x = 100* self.width / ar.x  * r
+        #     y = 100* self.height / ar.y * r
+        #     ox=0
+        #     oy=0
+        #     if self.mode == IMAGE_KEEP_ASPECT_CENTER:
+        #         ox = (space_x*100-x)/2
+        #         oy = (space_y*100 - y)/2
+            
+            
+            
+        #     ctx.sbs.send_gui_image(event.client_id, self.region_tag,
+        #         self.tag, self.props,
+        #         self.bounds.left+ox, self.bounds.top+oy, 
+        #         self.bounds.left+ox+x, self.bounds.top+oy+y)
+        # else:
+        #     ctx.sbs.send_gui_image(event.client_id, self.region_tag,
+        #         self.tag, self.props,
+        #         self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+
+    # # Get image width and height of image
+    # def get_image_size(self):
+    #     from ...procedural.gui.image import gui_image_size
+    #     w,h = gui_image_size(self.file)
+    #     try:
+    #         with open(self.file+".png", 'rb') as f:
+    #             data = f.read(26)
+    #             # Chck if is png
+    #             #if (data[:8] == '\211PNG\r\n\032\n'and (data[12:16] == 'IHDR')):
+    #             w, h = struct.unpack('>LL', data[16:24])
+    #             self.width = int(w)
+    #             self.height = int(h)
+
+    #     except Exception:
+    #         self.width = -1
+    #         self.height = -1
     @property
     def value(self):
          return self._value
@@ -132,3 +157,48 @@ class Image(Column):
     @value.setter
     def value(self, v):
         self._value= v
+
+
+def gui_send_image_atlas(SBS, client_id, tag, region_tag, mode, atlas, left,top,right,bottom):
+    width, height = atlas.get_size()
+    props = str(atlas)
+
+    if mode == IMAGE_ABSOLUTE:
+        ar = get_client_aspect_ratio(client_id)
+        x = 100* width / ar.x
+        y = 100* height / ar.y
+
+        SBS.send_gui_image(client_id, region_tag,
+            tag, props,
+            left, top, 
+            left+x, top+y)
+    elif mode >= IMAGE_KEEP_ASPECT:
+        ar = get_client_aspect_ratio(client_id)
+        # Get section in pixels
+        space_x = (right-left)/100
+        space_y = (bottom-top)/100
+        pixels_x  = (space_x*ar.x)
+        pixels_y  = (space_y*ar.y)
+
+        r = pixels_x / width
+        if r*height > pixels_y: 
+            r = pixels_y / height 
+
+        x = 100* width / ar.x  * r
+        y = 100* height / ar.y * r
+        ox=0
+        oy=0
+        if mode == IMAGE_KEEP_ASPECT_CENTER:
+            ox = (space_x*100-x)/2
+            oy = (space_y*100 - y)/2
+        
+        
+        
+        SBS.send_gui_image(client_id, region_tag,
+            tag, props,
+            left+ox, top+oy, 
+            left+ox+x, top+oy+y)
+    else:
+        SBS.send_gui_image(client_id, region_tag,
+            tag, props,
+            left, top, right, bottom)
