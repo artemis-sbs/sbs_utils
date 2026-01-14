@@ -1,6 +1,7 @@
 from .layout import Column, Bounds, get_font_size
 from ...helpers import FrameContext
 from ...gui import get_client_aspect_ratio
+
 import re
 
 from ..widgets.control import Control
@@ -12,6 +13,45 @@ class TextLine:
         self.height = height
         self.width = width
         self.is_sec_end = is_sec_end
+
+class ImageLine:
+    def __init__(self, text, ary) -> None:
+        from ...procedural.gui.image import gui_image_get_atlas
+
+        url = text.split("?")
+        text = url[0]
+        scale = 1.0
+        self.color = None
+        self.fill = 2
+
+        if len(url)>1:
+            values = url[1].split("&")
+            for value in values:
+                kv = value.split("=")
+                if len(kv)==2:
+                    key = kv[0].strip()
+                    if key == "scale":
+                        try:
+                            scale = float(kv[1].strip())
+                        except ValueError:
+                            pass
+                    if key == "color":
+                        self.color = kv[1]
+                    if key == "fill":
+                        v = kv[1].strip()
+                        if v == "fit":
+                            self.fill = 0
+                        elif v == "center":
+                            self.fill = 3
+
+        self.atlas = gui_image_get_atlas(text)
+        self.height = 0
+        self.is_sec_end = False
+        if self.atlas:
+            _, height = self.atlas.get_size()
+            # Height needs to be in percent 
+            self.height = (height / ary) * 100 * scale
+
 
 class TextArea(Control):
     styles = {
@@ -165,16 +205,23 @@ class TextArea(Control):
                     prepend = get_prepend(style_key)
                     line = prepend +  line
 
-                pixel_height = FrameContext.context.sbs.get_text_block_height(font, line, int(pixel_width))
-                pixel_line_height = FrameContext.context.sbs.get_text_line_height(font, line)
-                # Adds 10 pixels for buffer
-                buffer = 1.5
-                if is_a_list:
-                    buffer = 0.2
-                percent_height = ((pixel_height + buffer*pixel_line_height) / ar.y) * 100
-                last_line = TextLine(line,style_key, self.bounds.width, percent_height, False)
-                self.lines.append(last_line)
-                calc_height += percent_height
+                if line.startswith("!"):
+                    # Image line
+                    line = line[1:]
+                    last_line = ImageLine(line, ar.y)
+                    self.lines.append(last_line)
+                    calc_height += last_line.height
+                else:
+                    pixel_height = FrameContext.context.sbs.get_text_block_height(font, line, int(pixel_width))
+                    pixel_line_height = FrameContext.context.sbs.get_text_line_height(font, line)
+                    # Adds 10 pixels for buffer
+                    buffer = 1.5
+                    if is_a_list:
+                        buffer = 0.2
+                    percent_height = ((pixel_height + buffer*pixel_line_height) / ar.y) * 100
+                    last_line = TextLine(line,style_key, self.bounds.width, percent_height, False)
+                    self.lines.append(last_line)
+                    calc_height += percent_height
 
         #
         # Calculate the right size for the scrollbar
@@ -313,12 +360,6 @@ class TextArea(Control):
         #TODO: calc line to start drawing
         text_line: TextLine
         for i, text_line in enumerate(self.lines):
-            style_obj = self.get_style(text_line.style)
-            style = style_obj.get("style")
-            
-            indent = style_obj.get("indent", 0) 
-            message = f"$text:{text_line.text};{style}"
-            
             tag = f"{self.tag}:{i}"
             # For now draw all lines 
             # draw off screen if they should not be seen.
@@ -333,13 +374,26 @@ class TextArea(Control):
             
             bounds.bottom = new_bottom 
 
-            # if bounds.top < 900:
-            #     print(f"Sending line {message} {bounds} {self.local_region_tag}")
-            space_width = FrameContext.context.sbs.get_text_line_width("gui-2", "X") / ar.x *100
-            ctx.sbs.send_gui_text(CID, self.local_region_tag,
-                tag, message,  
-                bounds.left+indent*space_width, bounds.top, bounds.right, bounds.bottom)
+            
+            if isinstance(text_line, ImageLine):
+                text_line.atlas.send_gui_image(ctx.sbs, CID, tag, self.local_region_tag, text_line.fill,  
+                    bounds.left, bounds.top, bounds.right, bounds.bottom, text_line.color)
+            else:
+
+                style_obj = self.get_style(text_line.style)
+                style = style_obj.get("style")
+                
+                indent = style_obj.get("indent", 0) 
+                message = f"$text:{text_line.text};{style}"
+                # if bounds.top < 900:
+                #     print(f"Sending line {message} {bounds} {self.local_region_tag}")
+                space_width = FrameContext.context.sbs.get_text_line_width("gui-2", "X") / ar.x *100
+                ctx.sbs.send_gui_text(CID, self.local_region_tag,
+                    tag, message,  
+                    bounds.left+indent*space_width, bounds.top, bounds.right, bounds.bottom)
             bounds.top = bounds.bottom
+
+
             if text_line.is_sec_end:
                 bounds.top += text_line.height/2
 

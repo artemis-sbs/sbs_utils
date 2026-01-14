@@ -3,6 +3,7 @@ from ..style import apply_control_styles
 from ...fs import get_mission_dir_filename, get_artemis_data_dir
 import os
 import struct # for images sizes
+from ...gui import get_client_aspect_ratio
 
 def gui_image_stretch(props, style=None):
     """queue a gui image element that stretches to fit
@@ -88,31 +89,31 @@ def gui_image_get_atlas(text):
     return test
 
 
-def gui_image_get_props(text):
-    test = ImageAtlas.all.get(text)
-    if test is not None:
-        test = str(test)
-        if "color:" not in test:
-            test+="color:white;"
-        return test
+IMAGE_FIT = 0
+IMAGE_ABSOLUTE = 1
+IMAGE_KEEP_ASPECT = 2
+IMAGE_KEEP_ASPECT_CENTER = 3
 
-    if "image:" not in props:
-        props = f"image:{props};"
-
-    if "color:" not in props:
-        props+="color:white;"
-
-    return props
-    
-
+from ...helpers import split_props
 class ImageAtlas:
     all = {}
     def __init__(self, key, image, left=None, top=None, right=None, bottom=None, color=None):
         file = get_mission_dir_filename(image)
+
+        color = color
+        if ";" in image:
+            props = split_props(file, "image")
+            image = props.get("image")
+            color = props.get("color", "white")
+            file = get_mission_dir_filename(image)
+
+    
+
         file_name =  file + ".png"
-        print(f"Image Atlas {file_name}")
+        
         if not os.path.exists(file_name):
-            file = image
+            file = get_artemis_data_dir()+"\\graphics\\"+image
+            
 
         self.file = file
         self.left = left
@@ -124,14 +125,20 @@ class ImageAtlas:
             ImageAtlas.all[key] = self
 
     def __str__(self):
+        return self.get_props()
+
+    def get_props(self, color=None):
         rel_file = os.path.relpath(self.file, get_artemis_data_dir()+"\\graphics")
-        color = self.color if self.color else "white"
+        color = color if color else self.color
+        color = color if color else "white"
         if self.left is not None:
             return f"image:{rel_file};sub_rect:{self.left},{self.top},{self.right},{self.bottom};color:{color};" 
         else:
             return f"image:{rel_file};color:{color}"
         
-        
+    def is_valid(self):
+        file_name =  self.file + ".png"
+        return os.path.exists(file_name)
         
     def get_size(self):
         if self.left is None:
@@ -139,6 +146,60 @@ class ImageAtlas:
         w = self.right - self.left
         h = self.bottom - self.top
         return (w,h)
+    
+    def send_gui_image(self, SBS, client_id, tag, region_tag, mode, left,top,right,bottom, color=None):
+        width, height = self.get_size()
+        props = self.get_props(color=color)
+
+        if not self.is_valid():
+            file = self.file 
+            message = f"$text: IMAGE NOT FOUND {file}"
+            SBS.send_gui_text(client_id, region_tag,
+                tag, message,
+                left, top, right, bottom)
+            return
+
+
+        if mode == IMAGE_ABSOLUTE:
+            ar = get_client_aspect_ratio(client_id)
+            x = 100* width / ar.x
+            y = 100* height / ar.y
+
+            SBS.send_gui_image(client_id, region_tag,
+                tag, props,
+                left, top, 
+                left+x, top+y)
+        elif mode >= IMAGE_KEEP_ASPECT:
+            ar = get_client_aspect_ratio(client_id)
+            # Get section in pixels
+            space_x = (right-left)/100
+            space_y = (bottom-top)/100
+            pixels_x  = (space_x*ar.x)
+            pixels_y  = (space_y*ar.y)
+
+            r = pixels_x / width
+            if r*height > pixels_y: 
+                r = pixels_y / height 
+
+            x = 100* width / ar.x  * r
+            y = 100* height / ar.y * r
+            ox=0
+            oy=0
+            if mode == IMAGE_KEEP_ASPECT_CENTER:
+                ox = (space_x*100-x)/2
+                oy = (space_y*100 - y)/2
+            
+            
+            
+            SBS.send_gui_image(client_id, region_tag,
+                tag, props,
+                left+ox, top+oy, 
+                left+ox+x, top+oy+y)
+        else:
+            SBS.send_gui_image(client_id, region_tag,
+                tag, props,
+                left, top, right, bottom)
+
 
 
 
