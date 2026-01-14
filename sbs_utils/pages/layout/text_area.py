@@ -3,6 +3,8 @@ from ...helpers import FrameContext
 from ...gui import get_client_aspect_ratio
 
 import re
+image_pattern = re.compile(r"""!\[(?P<alt>\w+)?\]\((?P<name>\w+)://(?P<url>.*)\)""")
+
 
 from ..widgets.control import Control
 
@@ -14,35 +16,100 @@ class TextLine:
         self.width = width
         self.is_sec_end = is_sec_end
 
+def parse_url(text):
+    ret = {}
+
+    url = text.split("?")
+    text = url[0]
+    ret["url"] = text
+    
+    if len(url)>1:
+        values = url[1].split("&")
+        for value in values:
+            kv = value.split("=")
+            if len(kv)==2:
+                key = kv[0].strip()
+                value = kv[1].strip()
+                ret[key] = value
+    return ret
+
+def to_float(text, defa):
+    if text is None:
+        return defa
+    try:
+        return float(text)
+    except:
+        pass
+    return defa
+
+class FaceLine:
+    def __init__(self, text, ar) -> None:
+        url_data = parse_url(text)
+
+        self.text = url_data.get("url")
+        height = to_float(url_data.get("height"), 50.0)
+        self.align = url_data.get("align")
+
+        self.height = 0
+        self.is_sec_end = False
+        self.width = (height / ar.x) * 100
+        self.height = (height / ar.y) * 100
+
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+        # clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+        if self.align == "center":
+            mid = left+ (right-left)/2.0
+            half = self.width /2.0
+            SBS.send_gui_face(client_id, region_tag, tag, self.text, mid-half, top, mid+half, bottom)
+        elif self.align == "right":
+            SBS.send_gui_face(client_id, region_tag, tag, self.text, right-self.width, top, right, bottom)
+        else:
+            SBS.send_gui_face(client_id, region_tag, tag, self.text, left, top, left+self.width, bottom)    
+        #print(f"hull_tag:{self.text} {self.height} {left},{top},{right},{bottom}")
+
+
+class ShipLine:
+    def __init__(self, text, ar) -> None:
+        url_data = parse_url(text)
+
+        self.text = url_data.get("url")
+        height = to_float(url_data.get("height"), 50.0)
+        self.align = url_data.get("align")
+
+        self.height = 0
+        self.is_sec_end = False
+        self.width = (height / ar.x) * 100
+        self.height = (height / ar.y) * 100
+
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+        # clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+        if self.align == "center":
+            mid = left+ (right-left)/2
+            half = self.width /2
+            SBS.send_gui_3dship(client_id, region_tag, tag, f"hull_tag:{self.text};", mid-half, top, mid+half, bottom)
+        elif self.align == "right":
+            SBS.send_gui_3dship(client_id, region_tag, tag, f"hull_tag:{self.text};", right-self.width, top, right, bottom)
+        else:
+            SBS.send_gui_3dship(client_id, region_tag, tag, f"hull_tag:{self.text};", left, top, left+self.width, bottom)
+        #print(f"hull_tag:{self.text} {self.height} {left},{top},{right},{bottom}")
+
+
 class ImageLine:
-    def __init__(self, text, ary) -> None:
+    def __init__(self, text, ar) -> None:
         from ...procedural.gui.image import gui_image_get_atlas
 
-        url = text.split("?")
-        text = url[0]
-        scale = 1.0
-        self.color = None
-        self.fill = 2
+        url_data = parse_url(text)
 
-        if len(url)>1:
-            values = url[1].split("&")
-            for value in values:
-                kv = value.split("=")
-                if len(kv)==2:
-                    key = kv[0].strip()
-                    if key == "scale":
-                        try:
-                            scale = float(kv[1].strip())
-                        except ValueError:
-                            pass
-                    if key == "color":
-                        self.color = kv[1]
-                    if key == "fill":
-                        v = kv[1].strip()
-                        if v == "fit":
-                            self.fill = 0
-                        elif v == "center":
-                            self.fill = 3
+        text = url_data.get("url")
+        scale = to_float(url_data.get("scale"), 1.0)
+        self.color = url_data.get("color")
+        self.fill = 2
+        v = url_data.get("fill")
+
+        if v == "fit":
+            self.fill = 0
+        elif v == "center":
+            self.fill = 3
 
         self.atlas = gui_image_get_atlas(text)
         self.height = 0
@@ -50,7 +117,11 @@ class ImageLine:
         if self.atlas:
             _, height = self.atlas.get_size()
             # Height needs to be in percent 
-            self.height = (height / ary) * 100 * scale
+            self.height = (height / ar.y) * 100 * scale
+
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+        self.atlas.send_gui_image(SBS, client_id, region_tag, tag, self.fill,  
+                    left, top, right, bottom, self.color)
 
 
 class TextArea(Control):
@@ -206,11 +277,24 @@ class TextArea(Control):
                     line = prepend +  line
 
                 if line.startswith("!"):
-                    # Image line
-                    line = line[1:]
-                    last_line = ImageLine(line, ar.y)
-                    self.lines.append(last_line)
-                    calc_height += last_line.height
+                    mo = image_pattern.match(line)
+                    if mo:
+                        g = mo.groups()
+                        name = mo.group("name")
+                        url = mo.group("url")
+                        # Image line
+                        if name == "image":
+                            last_line = ImageLine(url, ar)
+                            self.lines.append(last_line)
+                            calc_height += last_line.height
+                        elif name == "ship":
+                            last_line = ShipLine(url, ar)
+                            self.lines.append(last_line)
+                            calc_height += last_line.height
+                        elif name == "face":
+                            last_line = FaceLine(url, ar)
+                            self.lines.append(last_line)
+                            calc_height += last_line.height
                 else:
                     pixel_height = FrameContext.context.sbs.get_text_block_height(font, line, int(pixel_width))
                     pixel_line_height = FrameContext.context.sbs.get_text_line_height(font, line)
@@ -375,11 +459,7 @@ class TextArea(Control):
             bounds.bottom = new_bottom 
 
             
-            if isinstance(text_line, ImageLine):
-                text_line.atlas.send_gui_image(ctx.sbs, CID, tag, self.local_region_tag, text_line.fill,  
-                    bounds.left, bounds.top, bounds.right, bounds.bottom, text_line.color)
-            else:
-
+            if isinstance(text_line, TextLine):
                 style_obj = self.get_style(text_line.style)
                 style = style_obj.get("style")
                 
@@ -391,6 +471,10 @@ class TextArea(Control):
                 ctx.sbs.send_gui_text(CID, self.local_region_tag,
                     tag, message,  
                     bounds.left+indent*space_width, bounds.top, bounds.right, bounds.bottom)
+            else:
+                text_line.send_gui(ctx.sbs, CID, self.local_region_tag, tag,  
+                    bounds.left, bounds.top, bounds.right, bounds.bottom)
+            
             bounds.top = bounds.bottom
 
 

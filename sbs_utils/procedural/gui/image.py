@@ -147,7 +147,7 @@ class ImageAtlas:
         h = self.bottom - self.top
         return (w,h)
     
-    def send_gui_image(self, SBS, client_id, tag, region_tag, mode, left,top,right,bottom, color=None):
+    def send_gui_image(self, SBS, client_id, region_tag, tag, mode, left,top,right,bottom, color=None):
         width, height = self.get_size()
         props = self.get_props(color=color)
 
