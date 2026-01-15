@@ -440,13 +440,18 @@ class LayoutListbox(layout.Column):
             tag = f"{self.tag_prefix}:{slot}"
             this_right =   left #+item_width
             this_bottom =   top #+item_height
+            sel_indent= 0
+            if (self.select or self.multi) and not self.carousel:
+                sel_indent = 100*(5/aspect_ratio.x)
+
             if self.horizontal:
                 this_bottom = bottom
             else:
                 this_right = right
+                
             
             
-            sec = layout.Layout(tag+":sec", None, left, top, this_right, this_bottom)
+            sec = layout.Layout(tag+":sec", None, left+sel_indent, top, this_right, this_bottom)
             sec.region_tag = self.local_region_tag
             sec.item_index = cur
             
@@ -484,10 +489,17 @@ class LayoutListbox(layout.Column):
 
             if size is None:
                 sec.resize_to_content()
+                
                 if self.horizontal:
                     size = sec.bounds.width + item_width
                 else:
                     size = sec.bounds.height + item_height
+                    
+            if (self.select or self.multi) and not self.carousel and item in self.selected:
+                props = "image:smallWhite; color:white;draw_layer:1000;" # sub_rect: 0,0,etc"
+                SBS.send_gui_image(event.client_id, self.local_region_tag,
+                    "__selbg:"+self.tag, props,left, top,  left+sel_indent, top+sec.bounds.height)
+            
             if self.horizontal:
                 left+= size
             else:
