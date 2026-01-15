@@ -89,9 +89,10 @@ class SubPage:
 
 
 class LayoutListBoxHeader:
-    def __init__(self, label, collapse):
+    def __init__(self, label, collapse, indent=0):
         self.label = label
         self.collapse = collapse
+        self.indent = indent
 
 
 class LayoutListbox(layout.Column):
@@ -234,12 +235,17 @@ class LayoutListbox(layout.Column):
         if self.collapsible:
             self._items = []
 
+        last_indent =0
         for item in self.unfiltered_items:
             if self.collapsible:
                 is_header = isinstance(item, LayoutListBoxHeader)
                 if collapsed and not is_header:
                     continue
+                if collapsed and is_header and item.indent > last_indent:
+                    continue
                 self._items.append(item)
+                if is_header:
+                    last_indent = item.indent
                 collapsed =  is_header and item.collapse
 
             
@@ -451,6 +457,8 @@ class LayoutListbox(layout.Column):
                 sec.click_tag = f"{tag}:__click"
             
             if isinstance(item, LayoutListBoxHeader):
+                # This needs to be the actual index
+                tag = f"{self.tag_prefix}:{cur}"
                 sec.click_text = ""
                 sec.click_background = "#aaaa"
                 sec.click_color = "black"
@@ -654,12 +662,15 @@ class LayoutListbox(layout.Column):
         if not sec[1].isdigit():
             return
         index = int(sec[1]) +self.cur
-        if index > len(self.items):
+        if index > len(self._items):
             self.represent(event)
             return
         #item = self.sections[index]
+        print(f"LISTBOX COLLAPSE: {index}")
+        # item = self._items[index]
         item = self._items[index]
         if isinstance(item, LayoutListBoxHeader):
+            print(f"It is a header")
             item.collapse = not item.collapse
             self.represent(event)
         return
