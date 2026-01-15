@@ -132,6 +132,7 @@ class LayoutListbox(layout.Column):
         self.square_width_percent = 0
         #self.sections = []
         self.title_height = 2
+        self.indent_pixels = 25
         self.template_func = item_template
         self.item_template = None
         if isinstance(self.template_func, str):
@@ -437,12 +438,24 @@ class LayoutListbox(layout.Column):
             #     
 
 
-            tag = f"{self.tag_prefix}:{slot}"
-            this_right =   left #+item_width
-            this_bottom =   top #+item_height
-            sel_indent= 0
+            sel_width = 0
+            item_indent= 0
+            
             if (self.select or self.multi) and not self.carousel:
-                sel_indent = 100*(5/aspect_ratio.x)
+                pixel_indent = last_indent * self.indent_pixels
+                if hasattr(item, "indent"):
+                    pixel_indent = item.indent*self.indent_pixels
+                item_indent = 100.0*(pixel_indent/aspect_ratio.x)
+                sel_width = 100.0*(5/aspect_ratio.x)
+                
+
+
+            tag = f"{self.tag_prefix}:{slot}"
+            this_right =   left + item_indent #+item_width
+            this_bottom =   top #+item_height
+            
+
+          
 
             if self.horizontal:
                 this_bottom = bottom
@@ -451,7 +464,7 @@ class LayoutListbox(layout.Column):
                 
             
             
-            sec = layout.Layout(tag+":sec", None, left+sel_indent, top, this_right, this_bottom)
+            sec = layout.Layout(tag+":sec", None, left+item_indent, top, this_right, this_bottom)
             sec.region_tag = self.local_region_tag
             sec.item_index = cur
             
@@ -498,7 +511,7 @@ class LayoutListbox(layout.Column):
             if (self.select or self.multi) and not self.carousel and item in self.selected:
                 props = "image:smallWhite; color:white;draw_layer:1000;" # sub_rect: 0,0,etc"
                 SBS.send_gui_image(event.client_id, self.local_region_tag,
-                    "__selbg:"+self.tag, props,left, top,  left+sel_indent, top+sec.bounds.height)
+                    "__selbg:"+self.tag, props,left+item_indent, top, left+item_indent+sel_width, top+sec.bounds.height)
             
             if self.horizontal:
                 left+= size
