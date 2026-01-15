@@ -42,17 +42,22 @@ def gui_list_box_is_header(item):
     return isinstance(item, LayoutListBoxHeader)
 
 
-def gui_list_box_header(label, collapse=False, indent=0):
+def gui_list_box_header(label, collapse=False, indent=0, selectable=False, data=None):
     """Created a gui_list_box_header element
 
     Args:
         label (str): The label text
         collapse (bool, optional): Default the collapsed state. Defaults to False.
+        indent (int): The indention level e.g. for a tree like structure
+        selectable (bool): If the header is also selectable
+        collapse_pixel_size (int): The size in pixels for the hit area (only used if selectable)
+        select_first (bool): If the select area is before the collapse click area (only used if selectable)
+        data (any): Optional additional data
 
     Returns:
-        _type_: _description_
+        LayoutListBoxHeader : _description_
     """
-    return LayoutListBoxHeader(label, collapse, indent)
+    return LayoutListBoxHeader(label, collapse, indent, selectable, data)
 
 def gui_list_box(items, style, 
                  item_template=None, title_template=None, 

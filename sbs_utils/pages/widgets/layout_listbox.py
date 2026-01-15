@@ -89,10 +89,18 @@ class SubPage:
 
 
 class LayoutListBoxHeader:
-    def __init__(self, label, collapse, indent=0):
+    def __init__(self, label, collapse, indent=0, selectable=False, data=None):
         self.label = label
         self.collapse = collapse
         self.indent = indent
+        self.data = data
+
+        # Allow the header to be collapsable and selectable
+        self.selectable = selectable
+        # Lets the template specify the click 
+        # Listbox will set this (only set if selectable)
+        self.collapse_tag = None
+
 
 
 class LayoutListbox(layout.Column):
@@ -118,7 +126,7 @@ class LayoutListbox(layout.Column):
         # self.right = left+33
         self.unfiltered_items = items
         self._items = items
-        self.select_color = "#bbb3"
+        self.select_color = "#bbb5"
         self.click_color = "black"
         self.cur = 0
         self.carousel = carousel
@@ -483,11 +491,14 @@ class LayoutListbox(layout.Column):
             if isinstance(item, LayoutListBoxHeader):
                 # This needs to be the actual index
                 #tag = f"{self.tag_prefix}:{cur}"
-                sec.click_text = ""
-                sec.click_background = "#aaaa"
-                sec.click_color = "black"
-                sec.background_color = self.select_color
-                sec.click_tag = f"{tag}:__collapse"
+                if item.selectable:
+                    item.collapse_tag = f"{tag}:__collapse"
+                else:
+                    sec.click_text = ""
+                    sec.click_background = "#aaaa"
+                    sec.click_color = "black"
+                    sec.background_color = self.select_color
+                    sec.click_tag = f"{tag}:__collapse"
                 collapse = item.collapse
                 last_indent = item.indent
                 
@@ -536,16 +547,6 @@ class LayoutListbox(layout.Column):
     def present(self, event):
         CID = event.client_id
         # #is_update = self.region is not None
-        # is_update = True
-        # # If first time create sub region
-        # if not is_update:
-        #     sbs.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", 0,0,100,100)
-        #     self.region = True
-        #     sbs.send_gui_clear(CID, self.local_region_tag)
-        #     super().present(event)
-        #     sbs.send_gui_complete(CID, self.local_region_tag)
-        # else:
-
         SBS = FrameContext.context.sbs
         SBS.send_gui_sub_region(CID, self.region_tag, self.local_region_tag, "draggable:True;", 0,0,100,100)
         self.region = True
