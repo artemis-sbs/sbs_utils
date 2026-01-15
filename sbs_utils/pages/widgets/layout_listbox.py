@@ -244,9 +244,10 @@ class LayoutListbox(layout.Column):
                 if collapsed and is_header and item.indent > last_indent:
                     continue
                 self._items.append(item)
-                if is_header:
-                    last_indent = item.indent
+                
                 collapsed =  is_header and item.collapse
+                if is_header and collapsed:
+                    last_indent = item.indent
 
             
             sec = layout.Layout("unused", None, 0, 0, 100, 100)
@@ -416,6 +417,8 @@ class LayoutListbox(layout.Column):
         if len(self.items) <= max_slots:
             cur = 0
 
+        last_indent = 0
+
         while slot < max_slots and cur < len(self._items):
             item = self._items[cur]
             #
@@ -424,6 +427,9 @@ class LayoutListbox(layout.Column):
             if collapse:
                 # if not a header - skip
                 if not isinstance(item, LayoutListBoxHeader):
+                    cur += 1
+                    continue
+                elif isinstance(item, LayoutListBoxHeader) and item.indent > last_indent:
                     cur += 1
                     continue
             #
@@ -458,13 +464,14 @@ class LayoutListbox(layout.Column):
             
             if isinstance(item, LayoutListBoxHeader):
                 # This needs to be the actual index
-                tag = f"{self.tag_prefix}:{cur}"
+                #tag = f"{self.tag_prefix}:{cur}"
                 sec.click_text = ""
                 sec.click_background = "#aaaa"
                 sec.click_color = "black"
                 sec.background_color = self.select_color
                 sec.click_tag = f"{tag}:__collapse"
                 collapse = item.collapse
+                last_indent = item.indent
                 
             sub_page.next_slot(slot, sec)
             size = self.template_func(item)
@@ -661,16 +668,20 @@ class LayoutListbox(layout.Column):
             return
         if not sec[1].isdigit():
             return
-        index = int(sec[1]) +self.cur
-        if index > len(self._items):
+        # index = int(sec[1]) +self.cur
+        # if index > len(self._items):
+        #     self.represent(event)
+        #     return
+        slot_index = int(sec[1])
+        if slot_index > len(self.sections):
             self.represent(event)
             return
+        
+        index = self.sections[slot_index].item_index
         #item = self.sections[index]
-        print(f"LISTBOX COLLAPSE: {index}")
         # item = self._items[index]
         item = self._items[index]
         if isinstance(item, LayoutListBoxHeader):
-            print(f"It is a header")
             item.collapse = not item.collapse
             self.represent(event)
         return

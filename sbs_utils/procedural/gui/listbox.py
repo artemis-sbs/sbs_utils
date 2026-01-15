@@ -42,7 +42,7 @@ def gui_list_box_is_header(item):
     return isinstance(item, LayoutListBoxHeader)
 
 
-def gui_list_box_header(label, collapse=False):
+def gui_list_box_header(label, collapse=False, indent=0):
     """Created a gui_list_box_header element
 
     Args:
@@ -52,7 +52,7 @@ def gui_list_box_header(label, collapse=False):
     Returns:
         _type_: _description_
     """
-    return LayoutListBoxHeader(label, collapse)
+    return LayoutListBoxHeader(label, collapse, indent)
 
 def gui_list_box(items, style, 
                  item_template=None, title_template=None, 
