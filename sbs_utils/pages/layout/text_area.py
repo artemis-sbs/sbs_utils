@@ -1,5 +1,5 @@
 from .layout import Column, Bounds, get_font_size
-from ...helpers import FrameContext
+from ...helpers import FrameContext, split_props, merge_props
 from ...gui import get_client_aspect_ratio
 
 import re
@@ -162,9 +162,11 @@ class TextArea(Control):
 
                 
     def get_style(self, key):
+        if  isinstance(key, dict):
+            return key
         ret = self.styles.get(key, None)
         if ret is None:
-            ret = self.styles.get("_", "font:gui-2;color:white;")
+            ret = self.styles.get("_")
         return ret
 
     def calc(self, client_id):
@@ -243,9 +245,18 @@ class TextArea(Control):
             prepend = None
             style_key, some_lines = self.get_line_style(some_lines)
 
-            style = self.get_style(style_key)
-            height = style.get("height", 90)
-            prepend = get_prepend(style_key)
+            if isinstance(style_key, str):
+                style = self.get_style(style_key)
+                height = style.get("height", 90)
+                prepend = get_prepend(style_key)
+            elif isinstance(style_key, dict):
+                style = style_key
+                height =  style_key.get("height")
+                prepend = style_key.get("prepend")
+                if prepend is None:
+                    prepend = ""
+                style_key = "$"
+
             # If this is a list each line is numbered
             # otherwise just the first line
             is_a_list = style_key.startswith("ol") or  style_key.startswith("ul")
@@ -266,8 +277,12 @@ class TextArea(Control):
             else:
                 clear_sub_headings(style_key)
 
-            font = style.get("font", "gui-3")
-            for line in lines:
+            st1 = style.get("style", "font:gui-3;")
+            props = split_props(st1, "font")
+            font = props.get("font", "gui-3")
+
+            last_index = len(lines)-1
+            for i,line in enumerate(lines):
                 if len(line.strip()) == 0:
                     continue
                 
@@ -299,11 +314,13 @@ class TextArea(Control):
                     pixel_height = FrameContext.context.sbs.get_text_block_height(font, line, int(pixel_width))
                     pixel_line_height = FrameContext.context.sbs.get_text_line_height(font, line)
                     # Adds 10 pixels for buffer
-                    buffer = 1.5
-                    if is_a_list:
-                        buffer = 0.2
+                    buffer = 0.1
+                    if is_a_list or i<last_index:
+                        buffer = 0
                     percent_height = ((pixel_height + buffer*pixel_line_height) / ar.y) * 100
-                    last_line = TextLine(line,style_key, self.bounds.width, percent_height, False)
+                    #percent_height = ((pixel_height) / ar.y) * 100
+                    last_line = TextLine(line,style, self.bounds.width, percent_height, False)
+                    
                     self.lines.append(last_line)
                     calc_height += percent_height
 
@@ -328,8 +345,6 @@ class TextArea(Control):
             if self.lines[self.last_line].is_sec_end:
                 calc_height += 0.5*height
             calc_height += height
-
-        
         
         self.last_line = min(self.last_line+1, len(self.lines))
         self.scroll_line = min(self.last_line+1,len(self.lines))
@@ -337,7 +352,13 @@ class TextArea(Control):
 
     def get_line_style(self, some_lines):
         style_key = "_"
-        if some_lines.startswith("$"):
+        if some_lines.startswith("$$"):
+            s = some_lines.split(" ",1)
+            if len(s) == 2:
+                st = self.parse_style_line(s[0][2:])
+                return st,s[1]
+            return "_",some_lines
+        elif some_lines.startswith("$"):
             some_lines, style_key = self.split_styled_lines(some_lines)
         else:
             return self.get_markdown_line_style(some_lines)
@@ -394,14 +415,6 @@ class TextArea(Control):
                 else:
                     some_lines[-1]+= "\n"+line
             some_lines = "\n".join(some_lines)
-
-        # elif some_lines.startswith(">"):
-        #     count = 0
-        #     while some_lines[count]==">":
-        #         count+=1
-
-        #     style_key = f"block"
-        #     some_lines = some_lines[count:]
 
         return style_key,some_lines
             
@@ -460,14 +473,21 @@ class TextArea(Control):
 
             
             if isinstance(text_line, TextLine):
-                style_obj = self.get_style(text_line.style)
+                style_obj = text_line.style
                 style = style_obj.get("style")
+                background = style_obj.get("background")
                 
                 indent = style_obj.get("indent", 0) 
                 message = f"$text:{text_line.text};{style}"
                 # if bounds.top < 900:
                 #     print(f"Sending line {message} {bounds} {self.local_region_tag}")
                 space_width = FrameContext.context.sbs.get_text_line_width("gui-2", "X") / ar.x *100
+                if background:
+                    props = f"image:smallwhite;color:{background};draw_layer:1000;"
+                    ctx.sbs.send_gui_image(CID, self.local_region_tag,
+                        tag, props,  
+                        bounds.left+indent*space_width, bounds.top, bounds.right, bounds.bottom)
+                    
                 ctx.sbs.send_gui_text(CID, self.local_region_tag,
                     tag, message,  
                     bounds.left+indent*space_width, bounds.top, bounds.right, bounds.bottom)
@@ -550,36 +570,41 @@ class TextArea(Control):
             if sp == -1:
                 continue
 
-            key = temp[2:sp] 
-            value = temp[sp:].strip().rsplit(" | ")
-            style = value[0]
-            indent = 0
-            prepend = None
-            font = None
-            f = style.find("font:")
-            if f >=0:
-                semi = style.find(";", f)
-                f +=5
-                if semi >= 0:
-                    font = style[f:semi]
+            key = temp[2:sp]
+            data  = self.parse_style_line(temp[sp:]) 
+            if data is not None:
+                self.styles[key] = data
 
-            height = get_font_size(font)
+    def parse_style_line(self,line):
+        value = line.strip().rsplit(" | ")
+        style = value[0]
+        indent = 0
+        prepend = None
+        
+        kv = split_props(style, "font")
+        font = kv.get("font")
+        background = kv.get("background")
+        if background is not None:
+            kv.pop("background")
+        style = merge_props(kv)
+        
+        height = get_font_size(font)
 
-            if len(value)==2:
-                
-                prepend = value[1].split(">")
-
-                if len(prepend) == 2:
-                    indent = 0 # Default is just one space
-                    s_indent = prepend[1].strip()
-                    s_indent = s_indent.strip(';')
-                    if s_indent.isdigit():
-                        indent = int(s_indent)
-                prepend = prepend[0].strip()
-                if prepend == "":
-                    prepend = ""
+        if len(value)==2:
             
-            self.styles[key] = {"style": style, "prepend": prepend, "indent": indent, "height": height}
+            prepend = value[1].split(">")
+
+            if len(prepend) == 2:
+                indent = 0 # Default is just one space
+                s_indent = prepend[1].strip()
+                s_indent = s_indent.strip(';')
+                if s_indent.isdigit():
+                    indent = int(s_indent)
+            prepend = prepend[0].strip()
+            if prepend == "":
+                prepend = ""
+        
+        return {"style": style, "prepend": prepend, "indent": indent, "height": height, "background": background}
 
 
 
