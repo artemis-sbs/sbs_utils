@@ -33,7 +33,20 @@ def quest_agent_quests(agent_id):
         return q.children
     return {}
 
-
+__quest_consoles = set()
+def quest_console_enable(console, enable=True):
+    global __quest_consoles
+    consoles = console.split(",")
+    for console in consoles:
+        console = console.strip().lower()
+        if enable:
+            __quest_consoles.add(console)
+        else:
+            __quest_consoles.discard(console)
+        
+def quest_is_console_enabled(console):
+    global __quest_consoles
+    return console.strip().lower() in __quest_consoles
 
 def quest_folder(agent_id, quest_id):
     agent = to_object(agent_id)
