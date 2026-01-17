@@ -18,7 +18,8 @@ class QuestState(IntEnum):
     IDLE = 0
     ACTIVE = 1
     SECRET = 2
-    JOB = 3
+    POSTING = 3 # Job request, 
+    FAILED = 98
     COMPLETE = 99
 
 
