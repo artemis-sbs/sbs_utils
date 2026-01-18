@@ -515,27 +515,36 @@ class Layout(Clickable):
         # Sections are different their bounds are the whole container
         
         self.region_begin(event.client_id)
-        if self.border_color is not None:
-            bounds = Bounds(self.bounds)
-            bounds.shrink(self.margin)
 
-            ctx = FrameContext.context
-            props = f"image:{self.border_image}; color:{self.border_color};" # sub_rect: 0,0,etc"
-            ctx.sbs.send_gui_image(event.client_id, self.drawing_region_tag,
-                    "__bb:"+self.tag, props,
-                    bounds.left, bounds.top, bounds.right, bounds.bottom)
-
-
+        ctx = FrameContext.context
+        border = Bounds(self.bounds)
+        border.shrink(self.margin)
+        padding= Bounds(border)
+        padding.shrink(self.border)
+   
+        if self.border is not None and self.border_color is not None:
+            #bb_props = f"image:{self.border_image}; color:{self.border_color};draw_layer:{self.draw_layer};" # sub_rect: 0,0,etc"
+            bb_props = f"image:{self.border_image}; color:{self.border_color};" # sub_rect: 0,0,etc"
+            ctx.sbs.send_gui_image(event.client_id, self.region_tag,
+                "__bb:"+self.tag, bb_props,
+                border.left, 
+                border.top, 
+                border.right, 
+                border.bottom)
+            print(f"LAYOUT BORDER {border.left} {self.border_color}")
+            
         if self.background_color is not None:
-            bounds = Bounds(self.bounds)
-            bounds.shrink(self.margin)
-            bounds.shrink(self.border)
-
-            ctx = FrameContext.context
-            props = f"image:{self.background_image}; color:{self.background_color};draw_layer:1000;" # sub_rect: 0,0,etc"
-            ctx.sbs.send_gui_image(event.client_id, self.drawing_region_tag,
-                    "__bg:"+self.tag, props,
-                    bounds.left, bounds.top, bounds.right, bounds.bottom)
+            #props = f"image:{self.background_image}; color:{self.background_color};draw_layer:{self.draw_layer};" # sub_rect: 0,0,etc"
+            props = f"image:{self.background_image}; color:{self.background_color};" # sub_rect: 0,0,etc"
+            #props = f"image:{self.background_image}; color:black;" # sub_rect: 0,0,etc"
+            ctx.sbs.send_gui_image(event.client_id, self.region_tag,
+                "__bg:"+self.tag, props,
+                padding.left, 
+                padding.top, 
+                padding.right, 
+                padding.bottom)
+            print(f"LAYOUT BACK {padding.left} {self.background_color}")
+            
         row:Row
         for row in self.rows:
             if row.bounds.left > 100 or row.bounds.right < 0 or row.bounds.top>100 or row.bounds.bottom <0:

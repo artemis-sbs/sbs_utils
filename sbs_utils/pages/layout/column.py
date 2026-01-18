@@ -154,12 +154,14 @@ class Column:
             bb = Bounds(self.bounds)
             bb.grow(self.padding)
             bb.grow(self.border)
+            #bb_props = f"image:{self.border_image}; color:{self.border_color};draw_layer:{self.draw_layer};" # sub_rect: 0,0,etc"
             bb_props = f"image:{self.border_image}; color:{self.border_color};" # sub_rect: 0,0,etc"
             ctx.sbs.send_gui_image(event.client_id, self.region_tag,
                 "__bb:"+self.tag, bb_props,
                 bb.left, bb.top, bb.right, bb.bottom)
             
         if self.background_color is not None:
+            #props = f"image:{self.background_image}; color:{self.background_color};draw_layer:{self.draw_layer};" # sub_rect: 0,0,etc"
             props = f"image:{self.background_image}; color:{self.background_color};" # sub_rect: 0,0,etc"
             
             #

@@ -117,12 +117,13 @@ class Row:
         col:Column
         ctx = FrameContext.context
 
-        margin = Bounds(self.bounds)
-        margin.shrink(self.margin)
-        border = Bounds(margin)
-        border.shrink(self.border)
+        border = Bounds(self.bounds)
+        border.shrink(self.margin)
+        padding= Bounds(border)
+        padding.shrink(self.border)
    
         if self.border is not None and self.border_color is not None:
+            #bb_props = f"image:{self.border_image}; color:{self.border_color};draw_layer:{self.draw_layer};" # sub_rect: 0,0,etc"
             bb_props = f"image:{self.border_image}; color:{self.border_color};" # sub_rect: 0,0,etc"
             ctx.sbs.send_gui_image(event.client_id, self.region_tag,
                 "__bb:"+self.tag, bb_props,
@@ -132,14 +133,14 @@ class Row:
                 border.bottom)
             
         if self.background_color is not None:
+            #props = f"image:{self.background_image}; color:{self.background_color};draw_layer:{self.draw_layer};" # sub_rect: 0,0,etc"
             props = f"image:{self.background_image}; color:{self.background_color};" # sub_rect: 0,0,etc"
-            #props = f"image:{self.background_image}; color:black;" # sub_rect: 0,0,etc"
             ctx.sbs.send_gui_image(event.client_id, self.region_tag,
                 "__bg:"+self.tag, props,
-                margin.left, 
-                margin.top, 
-                margin.right, 
-                margin.bottom)
+                padding.left, 
+                padding.top, 
+                padding.right, 
+                padding.bottom)
             
         for col in self.columns:
             col.present(event)
