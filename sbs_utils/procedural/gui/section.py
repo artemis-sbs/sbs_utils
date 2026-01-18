@@ -32,6 +32,18 @@ class PageSubSection:
         self.style = style
         self.add = True
 
+    @property
+    def tag(self):
+        if self.sub_section is not None:
+            return self.sub_section.tag
+        return None
+    
+    @property
+    def click_tag(self):
+        if self.sub_section is not None:
+            return self.sub_section.click_tag
+        return None
+
     def __enter__(self):
         # Allow reentering
         self.sub_section = self.page.push_sub_section(self.style, self.sub_section, False)

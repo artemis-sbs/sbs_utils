@@ -30,9 +30,11 @@ class MessageTrigger(Trigger):
 
 
     def on_message(self, event):
-        if event.sub_tag == self.layout_item.tag:
+        if event.sub_tag == self.layout_item.tag or event.sub_tag == self.layout_item.click_tag:
             self.task.set_value_keep_scope("__ITEM__", self.layout_item)
-            data = self.layout_item.data
+            data = None
+            if hasattr(self.layout_item, "data"):
+                data = self.layout_item.data
             if not self.use_sub_task:
                 self.task.push_inline_block(self.label, self.loc, data)
                 self.task.tick_in_context()

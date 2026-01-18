@@ -41,11 +41,22 @@ class Column:
         self.click_color = None
         self.click_background = None
         self.click_font = None
-        self.click_tag = None
+        self._click_tag = None
         self.data = None
         self.var_scope_id = None
         self.var_name = None
         self.on_message_cb = None
+
+    @property
+    def click_tag(self):
+        if self._click_tag is not None:
+            return self._click_tag
+        if self.click_text is not None:
+            return f"__click:{self.tag}"
+        
+    @click_tag.setter
+    def click_tag(self, v):
+        self._click_tag = v
 
     def set_bounds(self, bounds) -> None:
         self.bounds.left=bounds.left

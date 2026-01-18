@@ -118,7 +118,7 @@ class Layout(Clickable):
         self.parent_region_tag = ""
         
         self.click_text  = None
-        self.click_tag  = None
+        self._click_tag  = None
         self.click_font  = None
         self.click_color  = None
         self.click_background = None
@@ -129,6 +129,9 @@ class Layout(Clickable):
         self.representing = False
         self._show = True
         self.orientation = 0 # 0 = Top to bottom, 1 = bottom to top
+
+        self.runtime_node = None
+        self.on_message_cb = None
 
     @property
     def drawing_region_tag(self):
@@ -484,8 +487,17 @@ class Layout(Clickable):
                     col.region_tag = self.drawing_region_tag
                     col.calc(client_id)
 
-                
-         
+    @property
+    def click_tag(self):
+        if self._click_tag is not None:
+            return self._click_tag
+        if self.click_text is not None:
+            return f"__click:{self.tag}"
+        
+    @click_tag.setter
+    def click_tag(self, v):
+        self._click_tag = v
+
     @property
     def region_tag(self):
         # if self.region_type != RegionType.SECTION_AREA_ABSOLUTE:
@@ -596,6 +608,10 @@ class Layout(Clickable):
         if event.sub_tag == self.click_tag:
             Layout.clicked[event.client_id] = self
 
+        if self.runtime_node is not None:
+            self.runtime_node.on_message(event)
+        if self.on_message_cb is not None:
+            self.on_message_cb.on_message(event)
         # Else propagate messages
         row:Row
         for row in self.rows:

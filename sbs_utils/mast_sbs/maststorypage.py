@@ -280,6 +280,9 @@ class StoryPage(Page):
 
         if hasattr(layout_item, 'tag'):
             self.pending_tag_map[layout_item.tag] = (layout_item, runtime_node)
+        if hasattr(layout_item, 'click_tag'):
+            if layout_item.click_tag is not None:
+                self.pending_tag_map[layout_item.click_tag] = (layout_item, runtime_node)
 
     def push_sub_section(self, style, layout_item, is_rebuild):
         #

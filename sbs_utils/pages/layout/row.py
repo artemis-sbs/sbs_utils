@@ -36,12 +36,22 @@ class Row:
         self.tag = None
         self.region_tag = ""
         self.click_text  = None
-        self.click_tag  = None
+        self._click_tag  = None
         self.click_font  = None
         self.click_color  = None
         self.click_background = None
         self.clicked = False
 
+    @property
+    def click_tag(self):
+        if self._click_tag is not None:
+            return self._click_tag
+        if self.click_text is not None:
+            return f"__click:{self.tag}"
+        
+    @click_tag.setter
+    def click_tag(self, v):
+        self._click_tag = v
 
     @property
     def bounds(self):

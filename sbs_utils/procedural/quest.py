@@ -23,8 +23,6 @@ class QuestState(IntEnum):
     COMPLETE = 99
 
 
-
-
 def quest_agent_quests(agent_id):
     agent = to_object(agent_id)
     if agent is None:
@@ -33,6 +31,16 @@ def quest_agent_quests(agent_id):
     if q is not None:
         return q.children
     return {}
+
+def quest_transfer(from_agent_id, to_agent_id, quest_id):
+    quest = quest_remove(from_agent_id, quest_id)
+    if quest is not None:
+        quests, child_id = quest_folder(to_agent_id, quest_id)
+        if quests is None:
+            return False
+        quests[child_id] = quest
+        return True
+    return False
 
 __quest_consoles = set()
 def quest_console_enable(console, enable=True):
@@ -78,6 +86,14 @@ def quest_get(agent, quest_id):
 def quest_get_parent(agent, quest_id):
     quests, child_id = quest_folder(agent, quest_id)
     return quests
+
+
+def quest_remove(agent, quest_id):
+    quests, child_id = quest_folder(agent, quest_id)
+    if quests is not None and child_id is not None:
+        child = quests.pop(child_id)
+        return child
+    return None
 
 def quest_add(agents, quest_id, display_text, description, state=QuestState.IDLE, data=None):
     """_summary_
@@ -160,7 +176,10 @@ def quest_add_yaml(agents, yaml_text):
     for key, quest in quests.items():
         quest_add_object(agents, quest, key)
     
-def quest_add_object(agents, obj, path):
+def quest_add_object(agents, obj, quest_id=None):
+    if quest_id is None:
+        quest_id = obj.get("id")
+
     display_text = obj.get("display_text")
     description = obj.get("description", display_text)
     state = obj.get("state", QuestState.IDLE)
@@ -173,8 +192,8 @@ def quest_add_object(agents, obj, path):
     data = obj.get("data")
     children = obj.get("children", {})
 
-    quest = quest_add(agents, path, display_text, description, state, data)
+    quest = quest_add(agents, quest_id, display_text, description, state, data)
     for key, child in children.items():
-        quest_add_object(agents, child, f"{path}/{key}")
+        quest_add_object(agents, child, f"{quest_id}/{key}")
 
 
