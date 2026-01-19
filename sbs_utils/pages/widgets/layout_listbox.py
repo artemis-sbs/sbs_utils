@@ -161,8 +161,8 @@ class LayoutListbox(layout.Column):
             self.title_template_func = self.default_title_template
         
 
-        self.selected = set()
-        self.locked_selections = set()
+        self.selected = []
+        self.locked_selections = []
         self.last_tags = None
         self.horizontal = None
         self.client_id = None
@@ -266,11 +266,17 @@ class LayoutListbox(layout.Column):
             sec.calc(CID)
             b = sec.get_content_bounds(False)
             max_height = max(max_height, b.height)
-            max_width = max(max_width, b.height)
+            if size is not None:
+                max_height = max(max_height, size)
+            # This assure a minimum height
+            # Listbox rows get_content_from_bounds
+            # ONLY looks at rows
+            max_height = max(max_height, 0.2)
+            max_width = max(max_width, b.width)
 
         FrameContext.page = restore
-        f = len(self._items)
-        uf = len(self.unfiltered_items)
+        # f = len(self._items)
+        # uf = len(self.unfiltered_items)
         #print(f"LISTBOX  {self.collapsible} {uf} {f}")
         return max_width, max_height
 
@@ -677,11 +683,12 @@ class LayoutListbox(layout.Column):
         
         if self.multi:
             if item in self.selected:
-                self.selected.discard(item)
+                self.selected = [obj for obj in self.selected if obj != item]
+                #self.selected.discard(item)
             else:
-                self.selected.add(item)
+                self.selected.append(item)
         elif self.select:
-            self.selected = {item}
+            self.selected = [item]
         else:
             return
         self.represent(event)
@@ -739,16 +746,16 @@ class LayoutListbox(layout.Column):
 
     
     def set_selected_index(self, i, set_cur=True):
-        self.selected = set()
+        self.selected = []
         if i is not None and i < len(self.unfiltered_items):
-            self.selected.add(self.unfiltered_items[i])
+            self.selected.append(self.unfiltered_items[i])
             if set_cur:
                 self.cur = i
         self.redraw_if_showing()
     
     def select_all(self):
         if self.multi:
-            self.selected = set(self.unfiltered_items)
+            self.selected = list(self.unfiltered_items)
             # for item in self._items:
             #     self.selected.add(item)
 
@@ -768,7 +775,7 @@ class LayoutListbox(layout.Column):
         self.present(e)
 
     def select_none(self):
-        self.selected = set()
+        self.selected = []
         self.redraw_if_showing()
 
     def convert_value(self, item):
@@ -806,8 +813,8 @@ class LayoutListbox(layout.Column):
         #     return None
     
     def set_value(self, value):
-        self.selected = set()
-        self.selected.add(value)
+        self.selected = [value]
+        #self.selected.add(value)
         # i = 0
         # for item in self._items:
         #     if self.convert_value:
@@ -826,19 +833,18 @@ class LayoutListbox(layout.Column):
 
     def set_selection_lock_index(self, i, lock):
         if i is not None and i < len(self.unfiltered_items):
-            if lock:
-                self.locked_selections.add(self.unfiltered_items[i])
-            else:
-                self.locked_selections.discard(self.unfiltered_items[i])
+            self.set_selection_lock(self.unfiltered_items[i], lock)
 
     def set_selection_lock(self, o, lock):
         if lock:
-            self.locked_selections.add(o)
+            if o not in self.locked_selections:
+                self.locked_selections.append(o)
         else:
-            self.locked_selections.discard(o)
+            if o in self.locked_selections:
+                self.locked_selections.remove(o)
 
     def clear_selection_locks(self):
-        self.locked_selections = set()
+        self.locked_selections = []
 
     
 

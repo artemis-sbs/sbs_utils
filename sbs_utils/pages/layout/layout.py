@@ -531,7 +531,6 @@ class Layout(Clickable):
                 border.top, 
                 border.right, 
                 border.bottom)
-            print(f"LAYOUT BORDER {border.left} {self.border_color}")
             
         if self.background_color is not None:
             #props = f"image:{self.background_image}; color:{self.background_color};draw_layer:{self.draw_layer};" # sub_rect: 0,0,etc"
@@ -543,7 +542,7 @@ class Layout(Clickable):
                 padding.top, 
                 padding.right, 
                 padding.bottom)
-            print(f"LAYOUT BACK {padding.left} {self.background_color}")
+
             
         row:Row
         for row in self.rows:
