@@ -578,7 +578,7 @@ def terrain_setup_nebula_red(nebula, diameter=4000, density_coef=1.0):
         density_coef (float, optional): Scales the visual nebula density (3D view)
     """
     blob = to_data_set(nebula)
-    blob.set("radar_color_override", "#e0e")    
+    blob.set("radar_color_override", "#F0F9")    
     #blob.set("radar_color_override", "#0ff")    
     #size = 1000 * random.uniform(1.0, 5.5)
     size = min(diameter, 4000.0)
@@ -626,7 +626,7 @@ def terrain_setup_nebula_yellow(nebula, diameter=4000, density_coef=1.0):
         density_coef (float, optional): Scales the visual nebula density (3D view)
     """
     blob = to_data_set(nebula)
-    blob.set("radar_color_override", "#aa0")    
+    blob.set("radar_color_override", "#FF09")    
     #size = 1000 * random.uniform(1.0, 5.5)
     size = min(diameter, 4000.0)
     blob.set("size", size)
@@ -672,7 +672,7 @@ def terrain_setup_nebula_blue(nebula, diameter=4000, density_coef=1.0):
         density_coef (float, optional): Scales the visual nebula density (3D view)
     """
     blob = to_data_set(nebula)
-    blob.set("radar_color_override", "#0ff")    
+    blob.set("radar_color_override", "#0ff9")    
     # size = 1000 * random.uniform(1.0, 5.5)
     size = min(diameter, 4000.0)
     blob.set("size", size)
