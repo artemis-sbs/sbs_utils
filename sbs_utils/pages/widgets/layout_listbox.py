@@ -352,7 +352,7 @@ class LayoutListbox(layout.Column):
         right = self.bounds.right
         bottom = self.bounds.bottom
 
-        
+# region Draw Carousel Nav Buttons        
         em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
         if self.carousel and not self.horizontal:
             icon_size = em2*2
@@ -389,6 +389,7 @@ class LayoutListbox(layout.Column):
                         (right-em2), top,
                         right, self.bounds.bottom)
                 right -= em2
+# endregion 
 
         slot = 0
         cur = self.cur
@@ -400,7 +401,7 @@ class LayoutListbox(layout.Column):
         restore = FrameContext.page
         FrameContext.page = sub_page
 
-
+# region Draw Title
         if self.title_template_func is not None:
             tag = f"{self.tag_prefix}"
             sec = layout.Layout(tag+":title", None, left, top, right, top+2)
@@ -423,35 +424,47 @@ class LayoutListbox(layout.Column):
                 top+= size
             sec.present(event)
             # sub_page.tags |= sec.get_tags()
+# endregion
 
         #draw_slots = max_slot
         self.sections = []
         collapse = False
 
-
         if len(self.items) <= max_slots:
             cur = 0
 
+        # Last indention level
         last_indent = 0
 
-        while slot < max_slots and cur < len(self._items):
-            item = self._items[cur]
+        # Have to walk them all for collapse to work    
+        for i, item in enumerate(self.items):
             #
-            # Look for the next header
+            # If this is a header at the same or higher indent level
+            # Update collapse state
             #
-            if collapse:
-                # if not a header - skip
-                if not isinstance(item, LayoutListBoxHeader):
-                    cur += 1
+            if not self.carousel:
+                if isinstance(item, LayoutListBoxHeader) and item.indent <= last_indent:
+                    collapse = item.collapse
+                    last_indent = item.indent
+                elif collapse and not isinstance(item, LayoutListBoxHeader):
+                    # Skip non-headers if collapse    
                     continue
-                elif isinstance(item, LayoutListBoxHeader) and item.indent > last_indent:
-                    cur += 1
+                # Or a sub header
+                elif collapse and isinstance(item, LayoutListBoxHeader) and item.indent > last_indent:
                     continue
+                # Check to collapse sub-header
+                elif not collapse and isinstance(item, LayoutListBoxHeader) and item.indent > last_indent:
+                    collapse = item.collapse
+                    if collapse:
+                        last_indent = item.indent
+            #
+            #
+            # Scan until cur is reached
+            if i<cur:
+                continue
             #
             #  Should be header or non-collapsed item
             #     
-
-
             sel_width = 0
             item_indent= 0
             
@@ -480,7 +493,7 @@ class LayoutListbox(layout.Column):
             
             sec = layout.Layout(tag+":sec", None, left+item_indent, top, this_right, this_bottom)
             sec.region_tag = self.local_region_tag
-            sec.item_index = cur
+            sec.item_index = i
             
             
             if (self.select or self.multi) and not self.carousel:
@@ -505,8 +518,7 @@ class LayoutListbox(layout.Column):
                     sec.click_color = "black"
                     sec.background_color = self.select_color
                     sec.click_tag = f"{tag}:__collapse"
-                collapse = item.collapse
-                last_indent = item.indent
+
                 
             sub_page.next_slot(slot, sec)
             size = self.template_func(item)
@@ -540,8 +552,10 @@ class LayoutListbox(layout.Column):
             self.sections.append(sec)
             #sub_page.tags |= sec.get_tags()
 
-            cur += 1
+            #cur += 1
             slot += 1
+            if slot > max_slots or self.carousel:
+                break
             
 
             
