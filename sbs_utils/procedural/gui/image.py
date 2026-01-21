@@ -1,6 +1,6 @@
 from ...helpers import FrameContext
 from ..style import apply_control_styles
-from ...fs import get_mission_dir_filename, get_artemis_data_dir, get_mission_graphics_file
+from ...fs import get_mission_dir_filename, get_artemis_data_dir, get_mission_graphics_file, get_artemis_dir
 import os
 import struct # for images sizes
 from ...gui import get_client_aspect_ratio
@@ -116,6 +116,10 @@ class ImageAtlas:
             file_name =  file + ".png"
             if not os.path.exists(file_name):
                 file = get_mission_graphics_file(image)
+                file_name =  file + ".png"
+                if not os.path.exists(file_name):
+                    file = os.path.join(get_artemis_dir(), image)
+                    #file_name =  file + ".png"
 
 
         self.file = file
