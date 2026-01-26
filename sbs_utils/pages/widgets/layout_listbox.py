@@ -389,6 +389,7 @@ class LayoutListbox(layout.Column):
                         (right-em2), top,
                         right, self.bounds.bottom)
                 right -= em2
+                
 # endregion 
 
         slot = 0
@@ -490,7 +491,7 @@ class LayoutListbox(layout.Column):
                 this_right = right
                 
             
-            
+
             sec = layout.Layout(tag+":sec", None, left+item_indent, top, this_right, this_bottom)
             sec.region_tag = self.local_region_tag
             sec.item_index = i
@@ -531,7 +532,6 @@ class LayoutListbox(layout.Column):
 
             if size is None:
                 sec.resize_to_content()
-                
                 if self.horizontal:
                     size = sec.bounds.width + item_width
                 else:
@@ -554,7 +554,7 @@ class LayoutListbox(layout.Column):
 
             #cur += 1
             slot += 1
-            if slot > max_slots or self.carousel:
+            if slot >= max_slots or self.carousel:
                 break
             
 
