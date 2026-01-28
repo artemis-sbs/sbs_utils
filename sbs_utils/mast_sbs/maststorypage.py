@@ -344,7 +344,8 @@ class StoryPage(Page):
     def add_content(self, layout_item, runtime_node):
         if self.pending_layouts is None:
             self.add_row()
-
+        if self.pending_row is None:
+            self.add_row()
         self.add_tag(layout_item, runtime_node)
 
         self.pending_row.add(layout_item)
