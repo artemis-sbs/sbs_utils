@@ -14,7 +14,7 @@ class JustEnoughSim:
 class JustEnoughSbs:
     pass
 
-def mast_run(filename):
+def mast_run(filename, compile_only=False):
     # script = sys.modules.get('script')
     # if script is None:
     #     sys.modules['script'] = sys.modules.get('__main__')
@@ -49,7 +49,7 @@ def mast_run(filename):
     Mast.include_code = True
     story = Mast()
     errors =  story.from_file(filename, None)
-    if len(errors)>0:
+    if len(errors)>0 or compile_only:
         return errors
 
 
@@ -64,4 +64,5 @@ def mast_run(filename):
     t = runner.start_task(label)
     while runner.tick():
         pass
-
+    
+    return errors

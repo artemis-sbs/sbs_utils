@@ -24,7 +24,7 @@ MastGlobals.import_python_module('sbs_utils.procedural.timers')
 MastGlobals.import_python_module('sbs_utils.procedural.gui')
 MastGlobals.import_python_module('sbs_utils.procedural.signal')
 
-from mock import sbs as sbs
+from sbs_utils.mock import sbs as sbs
 from sbs_utils.helpers import FrameContext, Context, FakeEvent
 
 def mast_assert(cond):

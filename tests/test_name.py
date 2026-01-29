@@ -1,7 +1,7 @@
 import unittest
 import sys
 sys.path.append("..")
-from mock import sbs as sbs
+from sbs_utils.mock import sbs as sbs
 from sbs_utils import names
 from sbs_utils.fs import test_set_exe_dir
 from sbs_utils.procedural import ship_data

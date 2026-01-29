@@ -1,5 +1,5 @@
 
-from mock import sbs as sbs # not sure why I need this
+from sbs_utils.mock import sbs as sbs # not sure why I need this
 import unittest
 
 from sbs_utils.spaceobject import SpaceObject, TickType
