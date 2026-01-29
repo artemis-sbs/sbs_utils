@@ -179,13 +179,20 @@ class Mast():
 
         if cmds is None:
             self.clear("no_mast_file", self)
-            return
-        if isinstance(cmds, str):
+        elif isinstance(cmds, str):
             cmds = self.compile(cmds, "<string>")
         # else:
         #     self.build(cmds)
-
-        
+        if not is_import:
+            mc = logging.getLogger("mast.compile")
+            fn = fs.get_mission_dir_filename('mast.compile.log')
+            file_handler = logging.FileHandler(fn, "w")
+            mc.addHandler(file_handler)
+            mc = logging.getLogger("mast.runtime")
+            fn = fs.get_mission_dir_filename('mast.runtime.log')
+            file_handler = logging.FileHandler(fn, "w")
+            mc.addHandler(file_handler)
+            
 
     def make_global(func):
         add_to = MastGlobals.globals
