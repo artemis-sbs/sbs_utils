@@ -204,6 +204,17 @@ class Column:
             
     def invalidate_regions(self):
         pass
+
+    def is_message_for(self, event):
+        """Used by MessageTrigger i.e. gui_message to know if message is for this object
+
+        Args:
+            event (EVENT): the engine event
+
+        Returns:
+            bool: if the gui_message MessageTrigger should be True
+        """
+        return event.sub_tag == self.tag or event.sub_tag == self.click_tag
    
     def on_message(self, event):
         if event.sub_tag == self.click_tag:

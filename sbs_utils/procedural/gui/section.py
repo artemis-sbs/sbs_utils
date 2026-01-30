@@ -43,6 +43,18 @@ class PageSubSection:
         if self.sub_section is not None:
             return self.sub_section.click_tag
         return None
+    
+    def is_message_for(self, event):
+        """Used by MessageTrigger i.e. gui_message to know if message is for this object
+
+        Args:
+            event (EVENT): the engine event
+
+        Returns:
+            bool: if the gui_message MessageTrigger should be True
+        """
+        return event.sub_tag == self.sub_section.tag or event.sub_tag == self.sub_section.click_tag
+  
 
     def __enter__(self):
         # Allow reentering

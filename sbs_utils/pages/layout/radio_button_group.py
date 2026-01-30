@@ -1,5 +1,5 @@
 from .column import Column
-from ...helpers import FrameContext
+from ...helpers import FrameContext, FrameContextOverride
 from .radio_button import RadioButton
 from .layout import Layout
 from .row import Row
@@ -34,17 +34,47 @@ class RadioButtonGroup(Column):
         #aspect_ratio = get_client_aspect_ratio(event.client_id)
         self.group_layout.calc(event.client_id)
         self.group_layout.present(event)
-    
+
+    def is_message_for(self, event):
+        if event.sub_tag.startswith(f"{self.tag}:"):
+            return True
+        return super().is_message_for(event)
+
     def on_message(self, event):
         self.group_layout.on_message(event)
+
+        if event.tag!="gui_message":
+                return
+        if self.is_message_for(event):
+            """
+            Look for any runtime nodes for the radio button
+            This is doing stuff for the page, that is too complex to add to the page for just radio buttons
+            Not sure if this a hack or elegant solution
+            Thus far NO Layout elements talk to tasks or pages
+            But radio buttons are weird
+            This lets on gui_message work for a radio button
+            """
+            page = FrameContext.page
+            if page is not None:
+                runtime_node = page.tag_map.get(self.tag)
+
+            if runtime_node is not None and runtime_node[1] is not None:
+                # tuple layout and runtime node
+                runtime_node = runtime_node[1]
+                with FrameContextOverride(page.gui_task, page):
+                    runtime_node.on_message(event)
+
+
+
 
     @property
     def value(self):
         for item in self.group:
+            # The selected item == 1
             if item.value:
                 return item.message 
         return ""
-       
+
     @value.setter
     def value(self, v):
         for item in self.group:
@@ -54,7 +84,7 @@ class RadioButtonGroup(Column):
                 item.value = 0
         #
         #
-        self.group.update_variable()
+        self.update_variable()
 
     def update(self, props):
         if props is None:
@@ -68,3 +98,14 @@ class RadioButtonGroup(Column):
             i+=1
             
         
+    @property
+    def selected_index(self):
+        for i,item in enumerate(self.group):
+            if item.value:
+                return i
+        return 0
+       
+    @selected_index.setter
+    def selected_index(self, v):
+        v = max(0, min(v, len(self.group)))
+        self.value = self.group[v].message

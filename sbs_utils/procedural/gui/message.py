@@ -30,7 +30,7 @@ class MessageTrigger(Trigger):
 
 
     def on_message(self, event):
-        if event.sub_tag == self.layout_item.tag or event.sub_tag == self.layout_item.click_tag:
+        if self.layout_item.is_message_for(event):
             self.task.set_value_keep_scope("__ITEM__", self.layout_item)
             data = None
             if hasattr(self.layout_item, "data"):
