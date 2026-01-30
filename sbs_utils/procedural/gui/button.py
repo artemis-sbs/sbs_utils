@@ -29,13 +29,22 @@ class MessageHandler:
         if event.sub_tag == self.layout_item.tag:
             restore = FrameContext.task
             FrameContext.task = self.task
-            self.task.set_variable("__ITEM__", self.layout_item)
-            if isinstance(self.handler, Promise):
 
+            self.task.set_variable("__ITEM__", self.layout_item)
+            # Should it use data here?
+            if not self.is_sub_task:
+                data = self.layout_item.data
+                if data is not None and isinstance(data, dict):
+                    for k,v in data.items():
+                        self.task.set_variable(k, v)
+                elif data is not None:
+                    self.task.set_variable("data", data)
+
+            if isinstance(self.handler, Promise):
                 self.handler.set_result(ButtonResult(self.layout_item, event.client_id))
             elif callable(self.handler):
                 self.handler()
-            elif not self.is_sub_task:
+            elif not self.is_sub_task and self.handler is not None:
                 self.task.jump(self.handler)
             else:
                 sub_task = self.task.start_sub_task(self.handler, inputs=self.layout_item.data, defer=True)
