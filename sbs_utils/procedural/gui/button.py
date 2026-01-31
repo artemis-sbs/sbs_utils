@@ -62,12 +62,14 @@ def gui_button(props, style=None, data=None, on_press=None, is_sub_task=False):
         style (str, optional): Style. Defaults to None. End each style with a semicolon, e.g. `color:red;`
         data (object): The data to pass to the button's label
         on_press (label, callable, Promise): Handle a button press, label is jumped to, callable is called, Promise has results set
+        is_sub_task (bool): Set to True if the button is only responding to the button. Use False only if the whole gui will be changed via `await gui()`. Default is False for backwards-compatibility.
 
     Valid Styles:
         area: 
             Format as `top, left, bottom, right`. 
             Just numbers indicates percentage of the section or page to cover. 
-            Can also use `px` (pixels) or `em` (1em = height of text font)
+            Can also use `px` (pixels) or `em` (1em = height of text font).
+            Can combine different units, e.g. `5+5px, 3em, 100-10em, 50px;` is a valid area.
         color:
             The color of the text
         background-color:
