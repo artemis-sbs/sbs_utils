@@ -1,22 +1,23 @@
 from .column import Column
-from ...helpers import FrameContext
+from ...helpers import FrameContext, merge_props, split_props
 from .bounds import Bounds
 
 class Button(Column):
     def __init__(self, tag, message) -> None:
         super().__init__()
         self.tag = tag
-        if "$text:" not in message:
-            if "text:" not in message:
-                self.message = f"$text:{message};"
-                return
-            self.message = message.replace("text:","$text:")
-        else:
-            self.message = message
+        self.icon = False
+        self.raw = False
+        self.value = message
 
     def _pre_present(self, event):
         # This eliminates the issue of the Column#_pre_present() where it makes a background that isn't the button.
         ctx = FrameContext.context
+
+        ## Raw icon can have a background as well
+        if self.raw:
+            return super()._pre_present(event)
+        
         if self.background_color is not None:
             bg = Bounds(self.bounds)
             bg.grow(self.padding)
@@ -37,7 +38,15 @@ class Button(Column):
         message = self.message
         message += self.get_cascade_props(True, True, True)
         
-        if self.background_color is None:
+        if self.raw:
+            ctx.sbs.send_gui_rawiconbutton(event.client_id, self.region_tag,
+                self.tag, message, 
+                self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+        elif self.icon:
+            ctx.sbs.send_gui_iconbutton(event.client_id, self.region_tag,
+                self.tag, message, 
+                self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+        elif self.background_color is None:
             ctx.sbs.send_gui_button(event.client_id, self.region_tag,
                 self.tag, message, 
                 self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
@@ -58,9 +67,8 @@ class Button(Column):
         
 
     def update(self, message):
-        if "$text:" not in message:
-            message = f"$text:{message};"
-        self.message = message
+        self.value = message
+
 
 
     @property
@@ -69,7 +77,22 @@ class Button(Column):
 
     @value.setter
     def value(self, v):
-        if "$text:" not in v:
-            v = f"$text:{v}"
+        props = split_props(v, "$text")
+        
+        self.icon = False
+        self.raw = False
+        if props.get("icon_index") is not None:
+            self.icon = True
+            raw = props.get("raw")
+            if raw is not None:
+                self.raw = True
+                props.pop("raw", None)
+        else:
+            text = props.get("$text", props.get("text"))
+            if text is None:
+                props["$text"] = ""
 
-        self.message = v
+        self.square = self.icon
+
+        self.message = merge_props(props)
+
