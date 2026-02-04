@@ -31,6 +31,7 @@ class TabControl(Text):
         super().__init__(tag,message)
         self.page = page
         self.label = label
+        apply_control_styles(None, "margin:1px,0,0,0;", self, page.task)
 
     def on_message(self, event):
         if event.sub_tag == self.click_tag:
