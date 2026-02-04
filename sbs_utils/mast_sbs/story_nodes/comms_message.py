@@ -76,6 +76,7 @@ class CommsMessageStartRuntimeNode(MastRuntimeNode):
         if len(node.options)==0:
             return
         msg = random.choice(node.options)
+        msg = task.compile_and_format_string(msg)
         npc_face = None
         if node.npc_face:
             npc_face = task.get_variable(node.npc_face)
