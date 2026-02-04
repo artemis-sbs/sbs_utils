@@ -84,7 +84,7 @@ def gui_console(console, is_jump=False):
             else:
                 widgets = "3dview^ship_data^text_waterfall"
         case "cockpit":
-            widgets = "3dview^2dview^helm_free_3d^text_waterfall^fighter_control^ship_internal_view^ship_data^grid_face^grid_control"
+            widgets = "3dview^2dview^helm_free_3d^text_waterfall^fighter_control^ship_data^grid_face^grid_control"
         
 
     page.set_widget_list(console, widgets)
