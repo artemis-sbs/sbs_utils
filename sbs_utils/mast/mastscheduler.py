@@ -288,7 +288,7 @@ class MastTicker:
                             break
             return PollResults.OK_RUN_AGAIN
         except BaseException as err:
-            self.main.runtime_error(str(err))
+            self.runtime_error(str(err))
             return PollResults.OK_END
 
     def get_runtime_error_info(self, rte):
@@ -364,7 +364,7 @@ class MastTicker:
             self.runtime_node = runtime_node_cls()
             self.runtime_node.enter(self.main.mast, self.task, cmd)
         except BaseException as err:
-            self.main.runtime_error(str(err))
+            self.runtime_error(str(err))
         
         return True
 
@@ -889,7 +889,7 @@ class MastAsyncTask(Agent, Promise):
         except BaseException as err:
             s =  f"FORMAT String error:\n\t f'{message}'\n"
             s += str(err)
-            self.main.runtime_error(s)
+            self.runtime_error(s)
         return ""
         
     
