@@ -78,7 +78,7 @@ def gui_properties_set(p=None, tag=None):
         tag = tag if tag is not None else "__PROPS_LB__"
         props_lb = gui_task.get_inventory_value(tag)
         if props_lb is None:
-            print(f"No properties found {gui_page.client_id}")
+            # print(f"No properties found {gui_page.client_id}")
             return
         props_lb.items = _gui_properties_items(p)
         # Clear the on changes
