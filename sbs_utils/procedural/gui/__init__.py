@@ -1,4 +1,5 @@
-from .console_tab import gui_tab_enable,gui_tab_back,gui_tab_add_top,gui_tab_enable_top,gui_tab_activate, gui_tab_get_active
+from .console_tab import gui_tab_enable,gui_tab_back,gui_tab_add_top,gui_tab_enable_top,gui_tab_activate, gui_tab_get_active, gui_tab_clear_top, gui_tab_remove_top, gui_tab_is_top
+from .console_tab import gui_tab_get_list
 from .console_types import gui_add_console_type, gui_get_console_type, gui_get_console_type_list, gui_get_console_types, gui_remove_console_type
 
 

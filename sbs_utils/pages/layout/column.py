@@ -220,7 +220,7 @@ class Column:
         if event.sub_tag == self.click_tag:
             Clickable.clicked[event.client_id] = self
         elif self.on_message_cb is not None:
-            self.on_message_cb(event)
+            self.on_message_cb(event, self)
 
     def update(self, props):
         pass
@@ -239,7 +239,7 @@ class Column:
             if scope is not None:
                 scope.set_variable(self.var_name, self.value)
 
-    def get_variable(self, default):
+    def get_variable(self, default=None):
         if self.var_scope_id:
             scope = Agent.get(self.var_scope_id)
             if scope is not None:

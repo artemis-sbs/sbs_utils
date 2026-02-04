@@ -631,7 +631,7 @@ class Layout(Clickable):
         if self.runtime_node is not None:
             self.runtime_node.on_message(event)
         if self.on_message_cb is not None:
-            self.on_message_cb.on_message(event)
+            self.on_message_cb.on_message(event, self)
         # Else propagate messages
         row:Row
         for row in self.rows:

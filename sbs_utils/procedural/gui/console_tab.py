@@ -40,6 +40,12 @@ from ..inventory import get_inventory_value, set_inventory_value
 from ...helpers import FrameContext
 
 
+
+def gui_tab_get_list():
+    from ...mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
+    return list (GuiTabDecoratorLabel.all.keys())
+
+
 def gui_tab_enable(tab_name: str):
     """Enable a tab on the console tabs
 
@@ -101,6 +107,49 @@ def gui_tab_add_top(tab_name: str):
         tab_name = tab_name.strip().lower()
         tabs[tab_name] = True
     set_inventory_value(client_id, "top_tabs", tabs)
+
+
+def gui_tab_is_top(tab_name: str):
+    """Specify a tab by default to shown when the page is shown for standard consoles.
+    
+    Args:
+        tab_name (str): A comma separated list of paths of a //gui//tab e.g. helm,weapons
+    """
+    client_id = FrameContext.client_id
+
+    tabs = get_inventory_value(client_id, "top_tabs", {})
+    tab_names = tab_name.split(",")
+    for tab_name in tab_names:
+        tab_name = tab_name.strip().lower()
+        if not tabs.get("tab_name"):
+            return False
+    return True
+
+
+def gui_tab_remove_top(tab_name: str):
+    """Specify a tab by default to shown when the page is shown for standard consoles.
+    
+    Args:
+        tab_name (str): A comma separated list of paths of a //gui//tab e.g. helm,weapons
+    """
+    client_id = FrameContext.client_id
+
+    tabs = get_inventory_value(client_id, "top_tabs", {})
+    tab_names = tab_name.split(",")
+    for tab_name in tab_names:
+        tab_name = tab_name.strip().lower()
+        tabs.pop(tab_name, False)
+    set_inventory_value(client_id, "top_tabs", tabs)
+
+def gui_tab_clear_top():
+    """Specify a tab by default to shown when the page is shown for standard consoles.
+    
+    Args:
+        tab_name (str): A comma separated list of paths of a //gui//tab e.g. helm,weapons
+    """
+    client_id = FrameContext.client_id
+    set_inventory_value(client_id, "top_tabs", {})
+
 
 def gui_tab_enable_top():
     client_id = FrameContext.client_id

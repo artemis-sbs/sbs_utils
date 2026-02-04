@@ -51,7 +51,7 @@ class Checkbox(Column):
         
         
     def on_message(self, event):
-        if event.sub_tag == self.tag:
+        if event.sub_tag == self.tag and event.tag == "gui_message":
             self.value= not self.value
             self.present(event)
         super().on_message(event)

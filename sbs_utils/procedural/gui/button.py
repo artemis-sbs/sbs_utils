@@ -48,6 +48,7 @@ class MessageHandler:
                 self.task.jump(self.handler)
             else:
                 sub_task = self.task.start_sub_task(self.handler, inputs=self.layout_item.data, defer=True)
+                sub_task.set_variable("__ITEM__", self.layout_item)
                 sub_task.tick_in_context()
             
                 

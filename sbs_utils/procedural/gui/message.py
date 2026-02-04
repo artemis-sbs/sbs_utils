@@ -69,5 +69,5 @@ def gui_message_callback(layout_item, cb):
 
 def gui_message_label(layout_item, label):
     from ..execution import gui_sub_task_schedule
-    layout_item.on_message_cb = lambda e: gui_sub_task_schedule(label)
+    layout_item.on_message_cb = lambda e, s: gui_sub_task_schedule(label)
 

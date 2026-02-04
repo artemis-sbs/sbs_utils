@@ -4,9 +4,14 @@ from ...helpers import FrameContext, FakeEvent
 from ...mast.parsers import LayoutAreaParser
 #from ...mast.core_nodes.label import Label
 from ...procedural.style import apply_control_styles
+import inspect
 
-
-
+def accepts_kwargs(func):
+    sig = inspect.signature(func)
+    for param in sig.parameters.values():
+        if param.kind == param.VAR_KEYWORD:
+            return True
+    return False
 
 class SubPage:
     """A class for use with the layout listbox to make using the procedural gui function work
@@ -152,6 +157,10 @@ class LayoutListbox(layout.Column):
         # elif isinstance(self.template_func, Label):
         #     self.item_template = self.template_func
         #     self.template_func = self.label_item_template
+        
+        if not accepts_kwargs(self.template_func):
+            funcy = self.template_func
+            self.template_func = lambda item, **kwargs: funcy(item)
 
         # First we assume that title_template is None or callable
         self.title_template_func = title_template
@@ -159,7 +168,10 @@ class LayoutListbox(layout.Column):
         if isinstance(self.title_template_func, str):
             self.title_template = title_template
             self.title_template_func = self.default_title_template
-        
+            
+        if not accepts_kwargs(self.title_template_func):
+             funcy2 = self.title_template_func
+             self.title_template_func = lambda **kwargs: funcy2()
 
         self.selected = []
         self.locked_selections = []
@@ -262,7 +274,7 @@ class LayoutListbox(layout.Column):
             sec = layout.Layout("unused", None, 0, 0, 100, 100)
             sub_page.next_slot(slot, sec)
             slot+=1
-            size = self.template_func(item)
+            size = self.template_func(item, listbox=self, selected=False)
             sec.calc(CID)
             b = sec.get_content_bounds(False)
             max_height = max(max_height, b.height)
@@ -413,7 +425,7 @@ class LayoutListbox(layout.Column):
             #
             # Allow item to force size
             #
-            size = self.title_template_func()
+            size = self.title_template_func(listbox=self)
             #
             # Set the task values
             #
@@ -496,13 +508,14 @@ class LayoutListbox(layout.Column):
             sec.region_tag = self.local_region_tag
             sec.item_index = i
             
-            
+            is_sel = False
             if (self.select or self.multi) and not self.carousel:
                 #sec.click_text = "__________________"
                 sec.click_text = ""
                 sec.click_background = "#aaaa"
                 sec.click_color = "black"
-                if item in self.selected:
+                is_sel =  item in self.selected
+                if is_sel:
                     sec.background_color = self.select_color
                 else:
                     sec.background_color = "#0000"
@@ -522,7 +535,8 @@ class LayoutListbox(layout.Column):
 
                 
             sub_page.next_slot(slot, sec)
-            size = self.template_func(item)
+            
+            size = self.template_func(item, listbox=self, selected=is_sel)
             sec.calc(CID)
 
             # if self.horizontal:
