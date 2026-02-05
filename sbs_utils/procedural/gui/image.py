@@ -263,7 +263,7 @@ Args:
     bottom (float, optional): The pixel location of the bottom. Defaults to None.
 
 Returns:
-    ImageStales: The image Atlas object. This is a low level object typically used by the system 
+    ImageAtlas: The image Atlas object. This is a low level object typically used by the system 
 """
     return ImageAtlas(key, image, left, top, right, bottom)
     
