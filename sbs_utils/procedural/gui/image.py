@@ -211,6 +211,50 @@ class ImageAtlas:
 
 
 def gui_image_add_atlas(key, image, left=None, top=None, right=None, bottom=None):
+    """The image atlas allows a key name to be used to assign to a set of image properties
+    ths key can be used instead of image properties in any command that expect image properties.
+
+    The image file passed will be used to search for the file. It will first check the mission directory and the data/graphics folder.
+    In the future this could be modified to account for mods, e.g. a common media folders.
+
+    By specifying the rect (left,top, right, bottom) the image key can reference a part of an image file.
+
+    Add a key to reference a full image
+
+    gui_image_add_atlas("test", "media/LegendaryMissions/operator")
+
+    Add a key to reference a full image
+
+    gui_image_add_atlas("test2", "media/LegendaryMissions/operator", 645,570, 950,820)
+
+    Once the atlas is added the key can be used anywhere images can be used.
+
+### :mast-icon: MAST / :simple-python: python
+
+``` python
+    gui_image("test")
+```
+
+### :mast-icon: MAST / :simple-python: python
+
+``` python
+    # Text area also use the image atlas for images
+    gui_text_area("![](image://test2?scale=0.5&fill=center)")
+```
+
+
+
+    Args:
+        key (str): the key to define in the image atlas
+        image (str): The file of the image. This can also be a image property string
+        left (float, optional): The pixel location of the left. Defaults to None.
+        top (float, optional): The pixel location of the top. Defaults to None.
+        right (float, optional): The pixel location of the right. Defaults to None.
+        bottom (float, optional): The pixel location of the bottom. Defaults to None.
+
+    Returns:
+        ImageStales: The image Atlas object. This is a low level object typically used by the system 
+    """
     return ImageAtlas(key, image, left, top, right, bottom)
     
 

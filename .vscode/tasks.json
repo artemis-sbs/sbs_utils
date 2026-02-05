@@ -84,7 +84,7 @@
             ]
           }
         },
-        "command": "cd ..\\mkdocs&&mkdocs serve",
+        "command": "cd .\\mkdocs&&mkdocs serve",
         "problemMatcher": [],
         "group": {
           "kind": "mkdocs",
