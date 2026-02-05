@@ -504,7 +504,7 @@ class LayoutListbox(layout.Column):
                 
             
 
-            sec = layout.Layout(tag+":sec", None, left+item_indent, top, this_right, this_bottom)
+            sec = layout.Layout(tag+":sec", None, left+item_indent, top, this_right, this_bottom, 100)
             sec.region_tag = self.local_region_tag
             sec.item_index = i
             
@@ -536,7 +536,7 @@ class LayoutListbox(layout.Column):
                 
             sub_page.next_slot(slot, sec)
             
-            size = self.template_func(item, listbox=self, selected=is_sel)
+            size = self.template_func(item, listbox=self, selected=is_sel, section=sec)
             sec.calc(CID)
 
             # if self.horizontal:
