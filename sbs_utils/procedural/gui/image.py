@@ -211,13 +211,15 @@ class ImageAtlas:
 
 
 def gui_image_add_atlas(key, image, left=None, top=None, right=None, bottom=None):
-    """The image atlas allows a key name to be used to assign to a set of image properties
-ths key can be used instead of image properties in any command that expect image properties.
+    """The image atlas allows a key name to be used to assign to a set of image properties.
+This key can be used instead of image properties in any command that expect image properties.
 
 The image file passed will be used to search for the file. It will first check the mission directory followed by data/graphics folder.
 In the future this could be modified to account for mods, e.g. a common media folders.
+The image atlas takes care of supplying the correct path for the engine to use.
 
 By specifying the rect (left,top, right, bottom) the image key can reference a part of an image.
+
 
 Add a key to reference a full image
 
