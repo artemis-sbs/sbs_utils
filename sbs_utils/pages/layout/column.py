@@ -82,9 +82,9 @@ class Column:
         #
         # I think the engine handles this wrong, but this workaround 
         # fixes it, or is the right thing to do
-        if self.region_tag != "":
-            Dirty.mark_dirty(self.parent)
-            return
+        # if self.region_tag != "":
+        #     Dirty.mark_dirty(self.parent)
+        #     return
         Dirty.mark_dirty(self)
 
 
