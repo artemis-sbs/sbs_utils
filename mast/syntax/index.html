@@ -4230,7 +4230,7 @@ log(&quot;Never gets here&quot;)
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;See you later&quot;</span><span class="p">)</span>
     <span class="k">yield</span> <span class="n">END</span><span class="p">()</span>
 </code></pre></div>
@@ -4281,14 +4281,14 @@ log(&quot;in task&quot;)
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="n">logger</span><span class="p">()</span>
     <span class="n">log</span><span class="p">(</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
     <span class="n">task_schedule</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">a_task</span><span class="p">)</span>
     <span class="n">log</span><span class="p">(</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
 
 <span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">a_task</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">a_task</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="n">log</span><span class="p">(</span><span class="s2">&quot;in task&quot;</span><span class="p">)</span>
 </code></pre></div>
 </div>
@@ -4333,7 +4333,7 @@ message = &quot;Who cares&quot;
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">():</span>
     <span class="n">logger</span><span class="p">()</span>
 
     <span class="n">task_schedule</span><span class="p">(</span><span class="n">a_task</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Hello&quot;</span><span class="p">})</span>
@@ -4341,7 +4341,7 @@ message = &quot;Who cares&quot;
     <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
 <span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">a_task</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">a_task</span><span class="p">():</span>
     <span class="n">log</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
     <span class="n">set_variable</span><span class="p">(</span><span class="s2">&quot;message&quot;</span><span class="p">,</span> <span class="s2">&quot;Should not change original&quot;</span><span class="p">)</span>
 </code></pre></div>
@@ -4515,7 +4515,7 @@ log(&quot;May not run&quot;)
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="n">logger</span><span class="p">()</span>
     <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Start&quot;</span><span class="p">)</span>
     <span class="n">task1</span> <span class="o">=</span> <span class="n">task_schedule</span><span class="p">(</span><span class="n">a_task</span><span class="p">)</span>
@@ -4523,7 +4523,7 @@ log(&quot;May not run&quot;)
     <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Done&quot;</span><span class="p">)</span>
 
 <span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">a_task</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">a_task</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="n">log</span><span class="p">(</span><span class="s2">&quot;May not run&quot;</span><span class="p">)</span>
 </code></pre></div>
 </div>
@@ -4572,7 +4572,7 @@ else:
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">():</span>
     <span class="n">value</span> <span class="o">=</span> <span class="mi">300</span>
     <span class="k">if</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="mi">300</span><span class="p">:</span>
         <span class="n">log</span><span class="p">(</span><span class="s2">&quot;less&quot;</span><span class="p">)</span>
@@ -4624,7 +4624,7 @@ match value:
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="n">value</span> <span class="o">=</span> <span class="mi">300</span>
     <span class="k">match</span> <span class="n">value</span><span class="p">:</span>
         <span class="k">case</span> <span class="mi">200</span><span class="p">:</span>
@@ -4851,7 +4851,7 @@ logger(var=&quot;my_string_logger&quot;, file=&quot;{mission_dir}/my_log.log&quo
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@label</span>
-<span class="k">def</span> <span class="nf">some_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">some_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="c1"># Logging to stdout</span>
     <span class="n">logger</span><span class="p">()</span>
     <span class="c1"># Logging to string IO</span>
@@ -4893,10 +4893,10 @@ logger(name=&quot;tonnage&quot;,file=&quot;{get_mission_dir()}/tonnage.txt&quot;
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="c1"># this import is needed for get_mission_dir</span>
-<span class="kn">from</span> <span class="nn">sbs_utils.fs</span> <span class="kn">import</span> <span class="n">get_mission_dir</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sbs_utils.fs</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_mission_dir</span>
 
 <span class="nd">@label</span>
-<span class="k">def</span> <span class="nf">some_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">some_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="n">logger</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;tonnage&quot;</span><span class="p">)</span>
     <span class="n">logger</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;tonnage&quot;</span><span class="p">,</span> <span class="n">var</span><span class="o">=</span><span class="s2">&quot;tonnage&quot;</span><span class="p">)</span>
     <span class="n">logger</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;tonnage&quot;</span><span class="p">,</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;{get_mission_dir()}/tonnage.txt&quot;</span><span class="p">)</span>
@@ -4934,7 +4934,7 @@ log(&quot;Tonnage score {tonnage}&quot;, name=&quot;tonnage&quot;)
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@label</span>
-<span class="k">def</span> <span class="nf">some_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">some_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="c1"># no logger name defaults to name &quot;mast&quot;</span>
     <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Hello, World&quot;</span><span class="p">)</span>
     <span class="c1"># Specify a name to log to a secondary logger</span>
@@ -4971,7 +4971,7 @@ log(&quot;Hello, World&quot;, level= &quot;error&quot;)
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@label</span>
-<span class="k">def</span> <span class="nf">some_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">some_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 
     <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Hello, World&quot;</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s2">&quot;info&quot;</span><span class="p">)</span>
     <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Hello, World&quot;</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span> <span class="s2">&quot;debug&quot;</span><span class="p">)</span>

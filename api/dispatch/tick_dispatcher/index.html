@@ -3584,7 +3584,7 @@ The function <img alt="🇵🇾" class="twemoji" src="https://cdn.jsdelivr.net/g
 <div class="tabbed-block"></div>
 </div>
 </div>
-<div class="highlight"><pre><span></span><code>   <span class="k">def</span>  <span class="nf">HandleSimulationTick</span><span class="p">(</span><span class="n">sim</span><span class="p">):</span>
+<div class="highlight"><pre><span></span><code>   <span class="k">def</span><span class="w">  </span><span class="nf">HandleSimulationTick</span><span class="p">(</span><span class="n">sim</span><span class="p">):</span>
       <span class="n">TickDispatcher</span><span class="o">.</span><span class="n">dispatch_tick</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
 </code></pre></div>
 <p>Importing the hookhandlers module it does by default.</p>
@@ -3593,7 +3593,7 @@ The function <img alt="🇵🇾" class="twemoji" src="https://cdn.jsdelivr.net/g
 <div class="tabbed-block"></div>
 </div>
 </div>
-<div class="highlight"><pre><span></span><code>   <span class="kn">from</span> <span class="nn">sbs_utils.handlerhooks</span> <span class="kn">import</span> <span class="o">*</span>
+<div class="highlight"><pre><span></span><code>   <span class="kn">from</span><span class="w"> </span><span class="nn">sbs_utils.handlerhooks</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
    <span class="c1"># no longer need to implement handlers in script.py</span>
 </code></pre></div>
 <p>One could implement their own way of handling time and tick related code, the goal of the TickDispatcher is to have a common way to organize this logic.</p>

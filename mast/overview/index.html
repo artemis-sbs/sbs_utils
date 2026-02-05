@@ -3720,16 +3720,16 @@ log(&quot;Goodbye&quot;)
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">():</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hello, world&quot;</span><span class="p">)</span>
     <span class="k">yield</span> <span class="n">jump</span><span class="p">(</span><span class="n">goodbye</span><span class="p">)</span>
 
 <span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">not_here</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">not_here</span><span class="p">():</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;I get jumped over&quot;</span><span class="p">)</span>
 
 <span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">goodbye</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">goodbye</span><span class="p">():</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Goodbye&quot;</span><span class="p">)</span>
 </code></pre></div>
 </div>
@@ -3773,7 +3773,7 @@ log(&quot;Goodbye&quot;)
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">():</span>
     <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Hello, world&quot;</span><span class="p">)</span>
     <span class="k">yield</span> <span class="n">AWAIT</span><span class="p">(</span><span class="n">delay_app</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
     <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Goodbye&quot;</span><span class="p">)</span>
@@ -3815,7 +3815,7 @@ log(&quot;Goodbye&quot;)
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">():</span>
     <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Hello, world&quot;</span><span class="p">)</span>
     <span class="k">yield</span> <span class="n">PollResults</span><span class="o">.</span><span class="n">OK_RUN_AGAIN</span>
     <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Goodbye&quot;</span><span class="p">)</span>
@@ -3876,12 +3876,12 @@ for x in range(10):
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">():</span>
     <span class="k">yield</span> <span class="n">AWAIT</span><span class="p">(</span><span class="n">task_schedule</span><span class="p">(</span><span class="n">count_to_ten</span><span class="p">))</span>
     <span class="n">log</span><span class="p">(</span><span class="s2">&quot;done&quot;</span><span class="p">)</span>
 
 <span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">count_to_ten</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">count_to_ten</span><span class="p">():</span>
     <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
         <span class="nb">print</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
         <span class="k">yield</span> <span class="n">PollResults</span><span class="o">.</span><span class="n">OK_RUN_AGAIN</span>
@@ -4082,11 +4082,11 @@ log(&quot;Hello&quot;)
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">():</span>
     <span class="n">task_schedule</span><span class="p">(</span><span class="n">do_some_thing</span><span class="p">)</span>
 
 <span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">do_some_thing</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">do_some_thing</span><span class="p">():</span>
     <span class="n">log</span><span class="p">(</span><span class="s2">&quot;Hello&quot;</span><span class="p">)</span>
 </code></pre></div>
 </div>
@@ -4146,7 +4146,7 @@ log(f&quot;{local_data}&quot;)
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">():</span>
     <span class="c1"># Shared data is added to the story</span>
     <span class="n">set_shared_variable</span><span class="p">(</span><span class="s2">&quot;say_what&quot;</span><span class="p">,</span> <span class="s2">&quot;Hello&quot;</span><span class="p">)</span>
 
@@ -4156,7 +4156,7 @@ log(f&quot;{local_data}&quot;)
     <span class="n">task_schedule</span><span class="p">(</span><span class="n">do_some_thing</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;passed_data&quot;</span><span class="p">:</span> <span class="s2">&quot;Cosmos&quot;</span><span class="p">})</span>
 
 <span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">do_some_thing</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">do_some_thing</span><span class="p">():</span>
     <span class="n">say_what</span> <span class="o">=</span> <span class="n">get_shared_variable</span><span class="p">(</span><span class="s2">&quot;say_what&quot;</span><span class="p">)</span>
     <span class="c1"># To share with the task</span>
     <span class="c1"># so it can be used in other labels run by this task</span>
@@ -4241,7 +4241,7 @@ await gui(timeout=delay_sim(10))
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">():</span>
     <span class="n">gui_text</span><span class="p">(</span><span class="s2">&quot;this is the first page of credits&quot;</span><span class="p">)</span>
     <span class="k">yield</span> <span class="n">AWAIT</span><span class="p">(</span><span class="n">gui</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">delay_sim</span><span class="p">(</span><span class="mi">10</span><span class="p">)))</span>
     <span class="n">gui_text</span><span class="p">(</span><span class="s2">&quot;this is the second page of credits&quot;</span><span class="p">)</span>
@@ -4301,7 +4301,7 @@ delay_sim(minutes=8)
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@label</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">spawn_wave</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">spawn_wave</span><span class="p">():</span>
     <span class="n">enemyTypeNameList</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;kralien_dreadnaught&quot;</span><span class="p">,</span><span class="s2">&quot;kralien_battleship&quot;</span><span class="p">,</span><span class="s2">&quot;skaraan_defiler&quot;</span><span class="p">,</span><span class="s2">&quot;cargo_ship&quot;</span><span class="p">,</span><span class="s2">&quot;arvonian_carrier&quot;</span><span class="p">,</span><span class="s2">&quot;torgoth_behemoth&quot;</span><span class="p">]</span>
     <span class="n">enemy_prefix</span> <span class="o">=</span> <span class="s2">&quot;KLMNQ&quot;</span>
 

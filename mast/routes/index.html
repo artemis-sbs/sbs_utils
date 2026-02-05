@@ -3529,7 +3529,7 @@ Some routes are also used in the UI and include data used by the UI. These typic
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nd">@spawn</span>
-<span class="k">def</span> <span class="nf">monster_ai</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">monster_ai</span><span class="p">():</span>
     <span class="n">task</span> <span class="o">=</span> <span class="n">FrameContext</span><span class="o">.</span><span class="n">task</span>
     <span class="n">SPAWNED_ID</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s2">&quot;SPAWNED_ID&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">has_roles</span><span class="p">(</span><span class="n">SPAWNED_ID</span><span class="p">,</span> <span class="s2">&quot;monster, typhon, classic&quot;</span><span class="p">):</span>
