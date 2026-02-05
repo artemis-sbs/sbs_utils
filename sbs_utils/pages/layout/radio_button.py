@@ -8,7 +8,7 @@ class RadioButton(Column):
         self.message = message
         self.tag = tag
         self._value = value
-        self.parent = parent
+        self.radio_parent = parent
         self.group = parent.group
         
     def _present(self, event):
@@ -29,7 +29,7 @@ class RadioButton(Column):
                 e.present(event)
             #
             #
-            self.parent.update_variable()
+            self.radio_parent.update_variable()
         super().on_message(event)
 
     @property
