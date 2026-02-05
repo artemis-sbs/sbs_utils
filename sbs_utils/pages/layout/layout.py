@@ -241,6 +241,8 @@ class Layout(Clickable):
         self.invalidate_children()
 
     def represent(self, event):
+        if self.client_id is None:
+            return
         #self.representing = True
         # if self.region_type == RegionType.SECTION_AREA_ABSOLUTE:
         #     self.calc(event.client_id)

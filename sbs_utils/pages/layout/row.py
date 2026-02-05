@@ -41,6 +41,7 @@ class Row:
         self.click_color  = None
         self.click_background = None
         self.clicked = False
+        self.client_id = None
 
     @property
     def click_tag(self):
@@ -110,10 +111,12 @@ class Row:
         return self
     
     def represent(self, event):
-        self.present(event)
+        if self.client_id:
+            self.present(event)
 
 
     def present(self, event):
+        self.client_id = event.client_id
         col:Column
         ctx = FrameContext.context
 

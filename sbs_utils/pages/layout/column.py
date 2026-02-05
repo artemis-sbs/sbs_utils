@@ -46,6 +46,7 @@ class Column:
         self.var_scope_id = None
         self.var_name = None
         self.on_message_cb = None
+        self.client_id = None
 
     @property
     def click_tag(self):
@@ -138,9 +139,12 @@ class Column:
         self.border = border
 
     def represent(self, event):
+        if self.client_id is None:
+            return
         self.present(event)
 
     def present(self, event):
+        self.client_id = event.client_id
         self._pre_present(event)
         self._present(event)
         self._post_present(event)

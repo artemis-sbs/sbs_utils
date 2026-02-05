@@ -96,7 +96,18 @@ class PageRegion:
         self.sub_section = None
         # Create  top level layout        
         self.sub_section  = gui_section(style)
-        
+ 
+    @property
+    def tag(self):
+        if self.sub_section is not None:
+            return self.sub_section.tag
+        return None
+    
+    @property
+    def click_tag(self):
+        if self.sub_section is not None:
+            return self.sub_section.click_tag
+        return None      
 
     def __enter__(self):
         # Allow reentering
