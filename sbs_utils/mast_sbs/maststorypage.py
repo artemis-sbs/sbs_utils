@@ -510,9 +510,14 @@ class StoryPage(Page):
     def update_props_by_tag(self, tag, props, test):
         # get item by tag
         item = self.tag_map.get(tag)
+        present = True
         # call update
         if item is None:
+            present = False
+            item = self.pending_tag_map.get(tag)
+        if item is None:
             return
+
         #
         # Test allows one to pass values they need to be 
         # equal to 
@@ -530,8 +535,9 @@ class StoryPage(Page):
         item = item[0]
         item.update(props)
         # present it
-        event = FakeEvent(self.client_id, "", "")
-        item.present(event)
+        if present:
+            event = FakeEvent(self.client_id, "", "")
+            item.present(event)
 
     
     def present(self, event):
