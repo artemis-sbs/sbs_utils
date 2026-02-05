@@ -78,44 +78,55 @@ def log(message: str, name: str=None, level: str=None, use_mast_scope=False) -> 
         name = "__base_logger__"
     _logger = logging.getLogger(name)
 
+    if isinstance(level, str):
+        level = level.upper()
+        level = logging.getLevelNamesMapping.get(level)
     if level is None:
         level = logging.DEBUG
-    elif isinstance(level, str):
-        level = level.upper()
-        level = logging.getLevelName(level)
     _logger.log(level, message)
 
-def logger(name: str=None, file: str=None, var: str=None, std_err:bool=False) -> None:
-    """create or retreive a looger
+def logger(name: str=None, file: str=None, var: str=None, std_err:bool=False, level: str=None, format=None, file_mode='w') -> None:
+    """create or retrieve a logger
 
     Args:
         name (str, optional): The name of the logger. Defaults to None.
         file (str, optional): The file to log to. Defaults to None.
         var (str, optional): The name of a string variable to log to. Defaults to None.
+        std_err (bool, optional): Include std_err for logger
+        level (str, optional): The logger level follow python's 
+        format: (str, option): The format of the log string following python's logger formats
+        file_mode: (str): 'w' = write (default), 'a' append
     """
     if name is None:
         # name = "__base_logger__"
         _logger = logging.getLogger("__base_logger__")
     else:
         _logger = logging.getLogger(name)
-    _logger.setLevel(logging.DEBUG)
 
-    #logging.basicConfig(level=logging.CRITICAL)
-    
+    if isinstance(level, str):
+        level = level.upper()
+        level = logging.getLevelNamesMapping.get(level)
+    if level is None:
+        level = logging.DEBUG
+
+    _logger.setLevel(level)
+    if format is None:
+        format = "%(message)s"
+
     force_std = file is None and var is None
     std_err = std_err or force_std
     if std_err:    
         handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("%(message)s"))
-        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(logging.Formatter(format))
+        handler.setLevel(level)
         _logger.addHandler(handler)
 
 
     if var is not None:
         streamer = StringIO()
         handler = logging.StreamHandler(stream=streamer)
-        handler.setFormatter(logging.Formatter("%(message)s"))
-        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(logging.Formatter(format))
+        handler.setLevel(level)
         _logger.addHandler(handler)
         #mast.vars[node.var] = streamer
         Agent.SHARED.set_inventory_value(var, streamer)
@@ -124,9 +135,9 @@ def logger(name: str=None, file: str=None, var: str=None, std_err:bool=False) ->
     if file is not None and task is not None:
         file = task.format_string(file)
         file = fs.get_mission_dir_filename(file)
-        handler = logging.FileHandler(file,mode='w')
-        handler.setFormatter(logging.Formatter("%(message)s"))
-        handler.setLevel(logging.NOTSET)
+        handler = logging.FileHandler(file,mode=file_mode)
+        handler.setFormatter(logging.Formatter(format))
+        handler.setLevel(level)
         _logger.addHandler(handler)
 
 
