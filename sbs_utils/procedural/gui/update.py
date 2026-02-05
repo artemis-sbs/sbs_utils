@@ -38,7 +38,9 @@ def gui_represent(layout_item):
     # region_cl = region.page.client_id
 
     #sbs.target_gui_sub_region(page.client_id, "FULL")
-    layout_item.represent(event)
+    item = FrameContext.page.tag_map.get(layout_item.tag)
+    if  item is not None and item[0]==layout_item:
+        layout_item.represent(event)
     #sbs.send_gui_complete(event.client_id)
 
 def gui_show(layout_item):
