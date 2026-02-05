@@ -214,7 +214,7 @@ class LayoutListbox(layout.Column):
     def items(self, items):
         self.unfiltered_items = items
         self._items = items
-        #self.mark_visual_dirty()
+        self.mark_visual_dirty()
 
     def set_row_height(self, height):
         # Row_height for a listbox is the gap height

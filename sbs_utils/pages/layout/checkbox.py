@@ -56,7 +56,7 @@ class Checkbox(Column):
             # Quirk, this should just be a 
             # visual update, but when in a 
             # section/region it paints wrong.
-            self.mark_layout_dirty()
+            self.mark_visual_dirty()
         super().on_message(event)
             #self.value = int(event.sub_float)
 

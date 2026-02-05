@@ -79,6 +79,12 @@ class Column:
         Dirty.mark_dirty(self.parent)
 
     def mark_visual_dirty(self):
+        #
+        # I think the engine handles this wrong, but this workaround 
+        # fixes it, or is the right thing to do
+        if self.region_tag != "":
+            Dirty.mark_dirty(self.parent)
+            return
         Dirty.mark_dirty(self)
 
 
