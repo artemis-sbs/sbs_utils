@@ -1,7 +1,9 @@
 from .bounds import Bounds
 from .column import Column
 from .clickable import Clickable
+from .dirty import Dirty
 from ...helpers import FrameContext
+import weakref
 
 class Row:
     def __init__(self, cols=None, width=0, height=0) -> None:
@@ -42,6 +44,36 @@ class Row:
         self.click_background = None
         self.clicked = False
         self.client_id = None
+        self._parent = None
+
+
+    @property
+    def parent(self):
+        return self._parent
+        
+    @parent.setter
+    def parent(self, v):
+        self._parent = weakref.ref(v)
+
+
+    def mark_layout_dirty(self):
+        Dirty.mark_dirty(self.parent)
+
+    def mark_visual_dirty(self):
+        Dirty.mark_dirty(self)
+
+    def show(self, _show):
+        if not _show:
+            # Needs to be different than section to truly know it is hidden
+            self.set_bounds(Bounds(-1011,-1011, -999,-999))
+        else:
+            self.set_bounds(self.restore_bounds)
+        self.mark_layout_dirty()
+
+    @property
+    def is_hidden(self):
+        return self.bounds.left < -1000
+    
 
     @property
     def click_tag(self):

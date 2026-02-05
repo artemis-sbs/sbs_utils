@@ -2,6 +2,8 @@ from .bounds import Bounds
 from ...helpers import FrameContext
 from ...agent import Agent
 from .clickable import Clickable
+from .dirty import Dirty
+import weakref
 
 class Column:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
@@ -47,6 +49,7 @@ class Column:
         self.var_name = None
         self.on_message_cb = None
         self.client_id = None
+        self._parent = None
 
     @property
     def click_tag(self):
@@ -58,6 +61,26 @@ class Column:
     @click_tag.setter
     def click_tag(self, v):
         self._click_tag = v
+
+    @property
+    def parent(self):
+        if self._parent is None:
+            return None
+
+        return self._parent()
+        
+    @parent.setter
+    def parent(self, v):
+        
+        self._parent = weakref.ref(v)
+        
+
+    def mark_layout_dirty(self):
+        Dirty.mark_dirty(self.parent)
+
+    def mark_visual_dirty(self):
+        Dirty.mark_dirty(self)
+
 
     def set_bounds(self, bounds) -> None:
         self.bounds.left=bounds.left
@@ -74,6 +97,7 @@ class Column:
             self.set_bounds(Bounds(-1011,-1011, -999,-999))
         else:
             self.set_bounds(self.restore_bounds)
+        self.mark_layout_dirty()
 
     @property
     def is_hidden(self):

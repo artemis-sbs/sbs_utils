@@ -124,6 +124,8 @@ class PageRegion:
 
     def show(self, _show):
         self.sub_section.show(_show)
+        # Avoid cascade?
+        self.sub_section.mark_visual_dirty()
 
     def rebuild(self):
         self.sub_section.rebuild()

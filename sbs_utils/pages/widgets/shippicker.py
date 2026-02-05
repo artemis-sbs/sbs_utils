@@ -99,6 +99,7 @@ class ShipPicker(Control):
     def read_only(self, value):
         self._read_only = value
         self.gui_state = "notpresenting"
+        self.mark_visual_dirty()
 
 
     def _present(self, event):

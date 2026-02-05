@@ -23,6 +23,7 @@ class Text(Column):
 
         message = merge_props(props)
         self.message = message
+        self.mark_visual_dirty()
 
     
     @property

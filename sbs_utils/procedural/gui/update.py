@@ -55,11 +55,11 @@ def gui_show(layout_item):
     if not layout_item.is_hidden:
         return
     layout_item.show(True)
-    page = FrameContext.page
-    if page is None:
-        return
-    event = FakeEvent(page.client_id)
-    layout_item.represent(event)
+    # page = FrameContext.page
+    # if page is None:
+    #     return
+    # event = FakeEvent(page.client_id)
+    # layout_item.represent(event)
 
 def gui_hide(layout_item):
     """If the item is visible it will make it hidden
@@ -77,11 +77,11 @@ def gui_hide(layout_item):
     if layout_item.is_hidden:
         return
     layout_item.show(False)
-    page = FrameContext.page
-    if page is None:
-        return
-    event = FakeEvent(page.client_id)
-    layout_item.represent(event)
+    # page = FrameContext.page
+    # if page is None:
+    #     return
+    # event = FakeEvent(page.client_id)
+    # layout_item.represent(event)
 
 
 

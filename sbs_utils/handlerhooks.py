@@ -345,6 +345,8 @@ def cosmos_event_handler(sim, event):
         # with IDs and a callback
         # When the ID is no longer valid the callback is called
         GarbageCollector.collect()
+        from .pages.layout.dirty import Dirty
+        Dirty.represent_dirty()
         
         Agent.SHARED.set_inventory_value("sim", None)
         Agent.context = None

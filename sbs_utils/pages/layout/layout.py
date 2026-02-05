@@ -7,6 +7,9 @@ from .hole import Hole
 # for type hints
 from .row import Row 
 from .column import Column
+from .dirty import Dirty
+
+import weakref
         
 
 def calc_float_attribute(name, col, row, sec, aspect_ratio_axis, font_size):
@@ -132,6 +135,23 @@ class Layout(Clickable):
 
         self.runtime_node = None
         self.on_message_cb = None
+        self._parent = None
+
+
+    @property
+    def parent(self):
+        return self._parent
+        
+    @parent.setter
+    def parent(self, v):
+        self._parent = weakref.ref(v)
+
+    def mark_layout_dirty(self):
+        Dirty.mark_dirty(self.parent)
+
+    def mark_visual_dirty(self):
+        Dirty.mark_dirty(self)
+
 
     @property
     def drawing_region_tag(self):
@@ -224,6 +244,7 @@ class Layout(Clickable):
             self.set_bounds(Bounds(-1000,-1000, -999,-999))
         else:
             self.set_bounds(self.restore_bounds)
+        self.mark_visual_dirty()
 
     # Called when the content is clear and not presented
     # Meaning all the children no longer exist
@@ -362,7 +383,8 @@ class Layout(Clickable):
                 row.bottom = row_bounds_area.bottom
                 row.width = row.right - row.left
                 row.height = row.bottom - row.top
-                
+                # SET Parent
+                row.parent = self
                 
 
                 row_bounds_area.shrink(row.margin)
@@ -487,6 +509,9 @@ class Layout(Clickable):
                     # REGION STUFF
                     #
                     col.region_tag = self.drawing_region_tag
+                    # SET Parent
+                    col.parent = self
+
                     col.calc(client_id)
 
     @property
