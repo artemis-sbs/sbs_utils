@@ -8,5 +8,5 @@ The SBS Module is provided by the Artemis cosmos engine
 
 ## API: SBS
 
-TDOO fix ::: sbs
+::: sbs_utils.mock.sbs
 
