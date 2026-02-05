@@ -42,6 +42,7 @@ class SubPage:
     
     def next_slot(self, slot, section):
         self.active_layout = section
+        self.layouts.append(section)
         self.slot = slot
         self.pending_row = None
 
@@ -69,6 +70,9 @@ class SubPage:
             tag = self.get_tag()
             layout_item = layout.Layout(tag, None, 0,0, 100, 90)
             apply_control_styles(".section", style, layout_item, self.gui_task)
+            p_row = layout.Row()
+            p_row.tag = self.get_tag()
+            layout_item.add(p_row)
 
         self.sub_sections.append(sub_section_data)
 
@@ -77,19 +81,27 @@ class SubPage:
         self.pending_row = None
         if len(layout_item.rows) >0:
             self.pending_row = layout_item.rows.pop()
+        return layout_item
 
     def pop_sub_section(self, add, is_rebuild):
         (sec,p_row) = self.sub_sections.pop()
-        if add and p_row is not None:
+        
+        if add:
+            if p_row is None:
+                p_row = layout.Row()
+                p_row.tag = self.get_tag()
+                self.active_layout.add(p_row)
+
             p_row.add(self.active_layout)
+
         self.active_layout = sec
         self.pending_row = p_row
 
     
     def present(self, event):
         for sec in self.layouts:
-            sec.region_tag = self.region_tag
-            sec.calc(event.client_id)
+            #sec.region_tag = self.region_tag
+            #sec.calc(event.client_id)
             sec.present(event)
 
 
@@ -274,7 +286,11 @@ class LayoutListbox(layout.Column):
             sec = layout.Layout("unused", None, 0, 0, 100, 100)
             sub_page.next_slot(slot, sec)
             slot+=1
-            size = self.template_func(item, listbox=self, selected=False)
+            #
+            # This passes data, It is best to match the kwargs
+            # But it may not be 100% needed
+            #
+            size = self.template_func(item, listbox=self, selected=False, section=sec, click_tag=None, collapse_tag=None)
             sec.calc(CID)
             b = sec.get_content_bounds(False)
             max_height = max(max_height, b.height)
@@ -322,9 +338,6 @@ class LayoutListbox(layout.Column):
                 self.horizontal = True
         if self.default_item_height:
             item_height = LayoutAreaParser.compute(self.default_item_height, None, aspect_ratio.y, 20)
-
-
-     
         
         # At this point is should assume it is vertical
         if self.horizontal is None:
@@ -333,7 +346,6 @@ class LayoutListbox(layout.Column):
 
         max_item_width, max_item_height = self.calc_max(CID)
         
-
         max_item_width += item_width
         max_item_height += item_height
         
@@ -509,34 +521,38 @@ class LayoutListbox(layout.Column):
             sec.item_index = i
             
             is_sel = False
+            click_tag = f"{tag}:__click"
+            if (self.select or self.multi) and not self.carousel:
+                is_sel =  item in self.selected
+
             if (self.select or self.multi) and not self.carousel:
                 #sec.click_text = "__________________"
                 sec.click_text = ""
                 sec.click_background = "#aaaa"
                 sec.click_color = "black"
-                is_sel =  item in self.selected
                 if is_sel:
                     sec.background_color = self.select_color
                 else:
                     sec.background_color = "#0000"
-                sec.click_tag = f"{tag}:__click"
+                sec.click_tag = click_tag
             
+            collapse_tag = f"{tag}:__collapse"
             if isinstance(item, LayoutListBoxHeader):
                 # This needs to be the actual index
                 #tag = f"{self.tag_prefix}:{cur}"
                 if item.selectable:
-                    item.collapse_tag = f"{tag}:__collapse"
+                    item.collapse_tag = collapse_tag
                 else:
                     sec.click_text = ""
                     sec.click_background = "#aaaa"
                     sec.click_color = "black"
                     sec.background_color = self.select_color
-                    sec.click_tag = f"{tag}:__collapse"
+                    sec.click_tag = collapse_tag
 
-                
             sub_page.next_slot(slot, sec)
             
-            size = self.template_func(item, listbox=self, selected=is_sel, section=sec)
+            size = self.template_func(item, listbox=self, 
+                        selected=is_sel, section=sec, click_tag=click_tag, collapse_tag=collapse_tag)
             sec.calc(CID)
 
             # if self.horizontal:
@@ -550,7 +566,9 @@ class LayoutListbox(layout.Column):
                     size = sec.bounds.width + item_width
                 else:
                     size = sec.bounds.height + item_height
-                    
+            #
+            # Draw the selection Tick
+            #
             if (self.select or self.multi) and not self.carousel and item in self.selected:
                 props = "image:smallWhite; color:white;draw_layer:1000;" # sub_rect: 0,0,etc"
                 SBS.send_gui_image(event.client_id, self.local_region_tag,
@@ -561,7 +579,7 @@ class LayoutListbox(layout.Column):
             else:
                 top+= size
 
-            sec.present(event)
+            # sec.present(event)
             
             self.sections.append(sec)
             #sub_page.tags |= sec.get_tags()
@@ -574,7 +592,7 @@ class LayoutListbox(layout.Column):
 
             
         
-        # sub_page.present(event)   
+        sub_page.present(event)   
         FrameContext.page = restore
         
 
