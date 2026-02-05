@@ -7,6 +7,8 @@ from ...procedural.style import apply_control_styles
 import inspect
 
 def accepts_kwargs(func):
+    if not callable(func):
+        return False
     sig = inspect.signature(func)
     for param in sig.parameters.values():
         if param.kind == param.VAR_KEYWORD:
@@ -181,7 +183,7 @@ class LayoutListbox(layout.Column):
             self.title_template = title_template
             self.title_template_func = self.default_title_template
             
-        if not accepts_kwargs(self.title_template_func):
+        if self.title_template_func is not None and not accepts_kwargs(self.title_template_func):
              funcy2 = self.title_template_func
              self.title_template_func = lambda **kwargs: funcy2()
 
