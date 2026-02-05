@@ -53,7 +53,10 @@ class Checkbox(Column):
     def on_message(self, event):
         if event.sub_tag == self.tag and event.tag == "gui_message":
             self.value= not self.value
-            self.present(event)
+            # Quirk, this should just be a 
+            # visual update, but when in a 
+            # section/region it paints wrong.
+            self.mark_layout_dirty()
         super().on_message(event)
             #self.value = int(event.sub_float)
 
@@ -79,6 +82,8 @@ class Checkbox(Column):
         self._value = props.get("state", "False") 
 
         self.message = merge_props(props)
+        
+        #self.present(event)
 
 
     @property
