@@ -154,7 +154,8 @@ class PopupPromise(ButtonPromise):
         self.set_variables(event)
         self.path = self.path_root
 
-        self.show_buttons()
+        if self.parent_id!=0 and to_object(self.parent_id) is not None:
+            self.show_buttons()
         
         # if not self.done:
         #     self.task.tick()
