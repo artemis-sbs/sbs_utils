@@ -16,6 +16,9 @@ def mast_print(*args, use_mast_scope=True, **kwargs):
     #    args[0] = ">>>"+args[0]
     return __builtin__.print(*args, **kwargs)
 
+def debug_print(*args, **kwargs):
+    if fs.is_dev_build():
+        mast_print(*args, **kwargs)
 
 class MastGlobals:
     _imported_mods = set()
@@ -25,6 +28,7 @@ class MastGlobals:
         "scatter": scatter,
         "random": random,
         "print": mast_print, 
+        "debug_print":debug_print,
         "dir":dir, 
         "itertools": itertools,
         "next": next,
@@ -47,6 +51,7 @@ class MastGlobals:
         "data_dir": fs.get_artemis_data_dir(),
         #"MastDataObject": MastDataObject,
         "range": range,
+        "isinstance": isinstance,
         "INFO": logging.INFO,
         "DEBUG": logging.DEBUG,
         "WARNING": logging.WARNING,
