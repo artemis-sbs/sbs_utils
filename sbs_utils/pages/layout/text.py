@@ -23,7 +23,8 @@ class Text(Column):
 
         message = merge_props(props)
         self.message = message
-        self.mark_visual_dirty()
+        if not self.is_hidden:
+            self.mark_visual_dirty()
 
     
     @property
