@@ -553,7 +553,8 @@ class TextArea(Control):
         if len(message) > 0 and message[0].startswith("=$"):
             self.parse_header(message[0])
             message.pop(0)
-        self.content = message 
+        self.content = message
+        self.mark_visual_dirty() 
 
 
     def parse_header(self, header):
