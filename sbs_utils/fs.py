@@ -113,6 +113,7 @@ def get_mission_dir():
     """
     return get_script_dir()
 
+_is_dev_build = None
 def is_dev_build():
     """Check if the current mission is a development build.
     
@@ -121,9 +122,17 @@ def is_dev_build():
     Returns:
         bool: True if running in development mode, False otherwise.
     """
-    mission = get_script_dir()
-    return os.path.isdir(mission+"\\.git")
+    global _is_dev_build
+    if _is_dev_build is None:
+        mission = get_script_dir()
+        _is_dev_build = os.path.isdir(mission+"\\.git")
 
+    return _is_dev_build
+
+def set_dev_build(v):
+    global _is_dev_build
+    _is_dev_build = v
+    
 def get_artemis_data_dir():
     """Get the path to the Artemis Cosmos data directory.
     
