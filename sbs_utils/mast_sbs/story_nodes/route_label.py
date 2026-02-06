@@ -4,6 +4,7 @@ from ...mast.core_nodes.decorator_label import DecoratorLabel
 from ...mast.core_nodes.yield_cmd import Yield
 from ...procedural import routes 
 from ...mast.core_nodes.inline_function import FuncCommand
+import ast
 
 @mast_node(append=False)
 class RouteDecoratorLabel(DecoratorLabel):
@@ -21,7 +22,14 @@ class RouteDecoratorLabel(DecoratorLabel):
         # need to negate if
         if self.if_exp is not None:
             self.if_exp = if_exp.strip()
+            self.if_exp =  ast.unparse(ast.parse(self.if_exp))
+            #tree = ast.parse(self.if_exp, mode='single')
             self.if_exp = f'not ({self.if_exp})'
+            # This may cause an exception
+
+            # Unparse the AST back into code (without comments)
+            
+            compile(self.if_exp, "<string>", "eval")
 
         self.next = None
         self.loc = loc

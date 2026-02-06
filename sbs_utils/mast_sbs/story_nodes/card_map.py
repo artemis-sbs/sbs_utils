@@ -1,6 +1,7 @@
 from ...mast.mast_node  import IF_EXP_REGEX, STRING_REGEX_NAMED, mast_node
 from .card_base import CardLabelBase
 import re
+import ast
 
 
 @mast_node()
@@ -18,6 +19,7 @@ class MapCardLabel(CardLabelBase):
         # need to negate if
         if self.if_exp is not None:
             self.if_exp = if_exp.strip()
+            self.if_exp =  ast.unparse(ast.parse(self.if_exp))
             self.if_exp = f'not ({self.if_exp})'
 
         self.next = None

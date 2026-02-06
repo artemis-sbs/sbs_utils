@@ -4,6 +4,8 @@ from ...mast.core_nodes.decorator_label import DecoratorLabel
 from ...mast.core_nodes.yield_cmd import Yield
 from ...mast.core_nodes.inline_function import FuncCommand
 
+import ast
+
 @mast_node(append=False)
 class SignalRouteDecoratorLabel(DecoratorLabel):
     rule = re.compile(r'//(?P<shared>shared/)?signal/(?P<path>(\w[\w\/]*))'+IF_EXP_REGEX)
@@ -21,6 +23,8 @@ class SignalRouteDecoratorLabel(DecoratorLabel):
         # need to negate if
         if self.if_exp is not None:
             self.if_exp = if_exp.strip()
+            # Strip comments and catch syntax errors
+            self.if_exp =  ast.unparse(ast.parse(self.if_exp))
             self.if_exp = f'not ({self.if_exp})'
 
         self.next = None
