@@ -1,6 +1,6 @@
 from ...helpers import FrameContext
 from ..style import apply_control_styles
-from ...fs import get_mission_dir_filename, get_artemis_data_dir, get_mission_graphics_file, get_artemis_dir
+from ...fs import get_mission_dir_filename, get_artemis_data_dir, get_mission_graphics_file, get_artemis_dir, get_artemis_graphics_dir
 import os
 import struct # for images sizes
 from ...gui import get_client_aspect_ratio
@@ -120,7 +120,15 @@ class ImageAtlas:
                 if not os.path.exists(file_name):
                     file = os.path.join(get_artemis_dir(), image)
                     #file_name =  file + ".png"
-
+        if file is None:
+            return
+        
+        # Get relative path so it works on clients as well
+    
+        
+        start = get_artemis_graphics_dir()
+        file = os.path.relpath(file, start)
+        
 
         self.file = file
         self.left = left
@@ -135,7 +143,9 @@ class ImageAtlas:
         return self.get_props()
 
     def get_props(self, color=None):
-        rel_file = os.path.relpath(self.file, get_artemis_data_dir()+"\\graphics")
+        # File should already be relative
+        # Needs to be done so clients aren't using server file paths
+        rel_file = self.file
         color = color if color else self.color
         color = color if color else "white"
         if self.left is not None:
@@ -144,7 +154,7 @@ class ImageAtlas:
             return f"image:{rel_file};color:{color}"
         
     def is_valid(self):
-        file_name =  self.file + ".png"
+        file_name =  "data/graphics/"+self.file + ".png"
         return os.path.exists(file_name)
         
     def get_size(self):

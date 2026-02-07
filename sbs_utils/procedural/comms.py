@@ -8,6 +8,7 @@ from ..futures import Promise, awaitable
 from ..garbagecollector import GarbageCollector
 from ..mast.mastscheduler import ChangeRuntimeNode
 from ..mast.pollresults import PollResults
+from ..mast.mast_node import MastDataObject
 from ..mast_sbs.story_nodes.button import Button
 from .gui import gui_properties_set
 from .signal import signal_emit
@@ -155,7 +156,9 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             # Make sure life forms have an object
             title_color, color = _comms_get_colors(to_obj, from_obj, is_receive, title_color, color)
 
+            life_form_from_id = None
             if isinstance(from_obj, GridObject) or from_obj.has_role("lifeform"):
+                life_form_from_id = from_obj.id
                 if from_name is None:
                     if hasattr(from_obj, "name"):
                         from_name = from_obj.name
@@ -169,9 +172,10 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                     from_obj = to_object(host_id)
                 life = True
 
-
+            life_form_to_id = None
             if isinstance(to_obj, (GridObject)) or to_obj.has_role("lifeform"):
                 host_id = to_obj.get_inventory_value("host", 0)
+                life_form_to_id = to_obj.id
                 if host_id==0:
                     to_obj = from_obj
                 else:
@@ -250,17 +254,21 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                     color
                     )
         
-            signal_emit("comms_message", {
-                "PLAYER_ID": from_id, 
-                "OTHER_ID": to_id,
-                "RECEIVE": is_receive,
-                "FROM_NAME": from_name_now, 
-                "FACE": face,
-                "TITLE": raw_title,
-                "TITLE_COLOR": title_color,
-                "MESSAGE": msg,
-                "MESSAGE_COLOR": title_color,
-            })
+            signal_emit("comms_message", {"COMMS_MESSAGE": MastDataObject({
+                "player_id": from_id, 
+                "other_id": to_id,
+                "life_form_from_id": life_form_from_id,
+                "life_form_to_id": life_form_to_id,
+                "receive": is_receive,
+                "from_name": from_name_now, 
+                "face": face,
+                "title": raw_title,
+                "title_color": title_color,
+                "message": msg,
+                "message_color": title_color,
+                "time": FrameContext.context.sim.time_tick_counter
+            })})
+            
             
 
 def _comms_get_origin_id() -> int:
