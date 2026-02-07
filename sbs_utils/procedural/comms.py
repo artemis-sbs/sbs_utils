@@ -10,6 +10,7 @@ from ..mast.mastscheduler import ChangeRuntimeNode
 from ..mast.pollresults import PollResults
 from ..mast_sbs.story_nodes.button import Button
 from .gui import gui_properties_set
+from .signal import signal_emit
 
 
 class CommsOverride:
@@ -168,7 +169,6 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                     from_obj = to_object(host_id)
                 life = True
 
-                
 
             if isinstance(to_obj, (GridObject)) or to_obj.has_role("lifeform"):
                 host_id = to_obj.get_inventory_value("host", 0)
@@ -177,8 +177,6 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                 else:
                     to_obj = to_object(host_id)
                 life = True
-
-
 
             # This happens if one of them is id 0
             if isinstance(to_obj, GuiClient) or isinstance(from_obj, GuiClient) is None:
@@ -208,6 +206,7 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             else:
                 title = from_name_now +": "+ title
 
+            raw_title = title
             if is_receive:
                 title = "< < " + title
             else:
@@ -217,8 +216,6 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             if face is None:
                 face = faces.get_face(from_obj.get_id())
             
-            
-            
             if life:
                 if from_obj is None:
                     from_obj = to_obj
@@ -227,8 +224,9 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
 
             if to_obj is None or from_obj is None:
                 continue
-
             
+            from_id = from_obj.id
+            to_id = to_obj.id
             # Only player ships send messages
             if has_role(from_obj.id, "__PLAYER__"):
                 FrameContext.context.sbs.send_comms_message_to_player_ship(
@@ -240,7 +238,8 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                     msg,
                     color)
             else:
-
+                from_id = to_obj.id
+                to_id = from_obj.id
                 FrameContext.context.sbs.send_comms_message_to_player_ship(
                     to_obj.id,
                     from_obj.id,
@@ -250,6 +249,19 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                     msg,
                     color
                     )
+        
+            signal_emit("comms_message", {
+                "PLAYER_ID": from_id, 
+                "OTHER_ID": to_id,
+                "RECEIVE": is_receive,
+                "FROM_NAME": from_name_now, 
+                "FACE": face,
+                "TITLE": raw_title,
+                "TITLE_COLOR": title_color,
+                "MESSAGE": msg,
+                "MESSAGE_COLOR": title_color,
+            })
+            
 
 def _comms_get_origin_id() -> int:
     #
