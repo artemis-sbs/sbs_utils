@@ -568,6 +568,16 @@ def terrain_spawn_black_holes(lethal_value, center=None):
     for v in spawn_points:
         terrain_spawn_black_hole(*v.xyz, 5000, 4.0, 2.0)
 
+def color_noise(r_min, r_max, g_min,g_max, b_min, b_max, a_min=0xff, a_max=0xff):
+    r = random.randrange(r_min,r_max)
+    g = random.randrange(g_min,g_max)
+    b = random.randrange(b_min,b_max)
+    if a_min != 0xff:
+        a = random.randrange(a_min,a_max)
+        return f"#{r:02x}{g:02x}{b:02x}{a:02x}"
+
+    return f"#{r:02x}{g:02x}{b:02x}"
+
 
 def terrain_setup_nebula_red(nebula, diameter=4000, density_coef=1.0):
     """
@@ -578,7 +588,7 @@ def terrain_setup_nebula_red(nebula, diameter=4000, density_coef=1.0):
         density_coef (float, optional): Scales the visual nebula density (3D view)
     """
     blob = to_data_set(nebula)
-    blob.set("radar_color_override", "#F0F")    
+    blob.set("radar_color_override", color_noise(0x70, 0x80, 0, 0x10, 0x70, 0x80)) # "#707")    
     #blob.set("radar_color_override", "#0ff")    
     #size = 1000 * random.uniform(1.0, 5.5)
     size = min(diameter, 4000.0)
@@ -626,7 +636,7 @@ def terrain_setup_nebula_yellow(nebula, diameter=4000, density_coef=1.0):
         density_coef (float, optional): Scales the visual nebula density (3D view)
     """
     blob = to_data_set(nebula)
-    blob.set("radar_color_override", "#FF0")    
+    blob.set("radar_color_override", color_noise(0x70, 0x80,0x70, 0x80, 0, 0x10)) # "#770")    
     #size = 1000 * random.uniform(1.0, 5.5)
     size = min(diameter, 4000.0)
     blob.set("size", size)
@@ -663,6 +673,7 @@ def terrain_setup_nebula_yellow(nebula, diameter=4000, density_coef=1.0):
     # Need to tell the engine we changed the values
     blob.set("nebula_data_change", 1)
 
+
 def terrain_setup_nebula_blue(nebula, diameter=4000, density_coef=1.0):
     """
     Set up the nebulae to use the default blue values.
@@ -672,7 +683,7 @@ def terrain_setup_nebula_blue(nebula, diameter=4000, density_coef=1.0):
         density_coef (float, optional): Scales the visual nebula density (3D view)
     """
     blob = to_data_set(nebula)
-    blob.set("radar_color_override", "#0ff")    
+    blob.set("radar_color_override", color_noise(0,0x10, 0x70, 0x80,0x70, 0x80))    
     # size = 1000 * random.uniform(1.0, 5.5)
     size = min(diameter, 4000.0)
     blob.set("size", size)
