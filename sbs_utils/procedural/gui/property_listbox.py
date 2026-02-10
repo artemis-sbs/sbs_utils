@@ -64,6 +64,10 @@ def gui_properties_set(p=None, tag=None):
     gui_task = FrameContext.client_task
     gui_page = FrameContext.client_page
     event = FrameContext.context.event
+    if gui_task is None:
+        raise Exception("EDGE CASE: Did you set END or Yield the last GUI Task?")
+        
+    
     # This happens in a follow_route_select_comms
     # And it runs on the server not a true comms console
     if event is None or event.tag == "gui_present":

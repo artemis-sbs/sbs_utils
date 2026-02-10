@@ -205,6 +205,7 @@ class LayoutListbox(layout.Column):
         if self.carousel:
             self.set_selected_index(self.cur)
         self.sections = []
+        self.click_time = 0
 
     @property
     def items(self):
@@ -722,6 +723,10 @@ class LayoutListbox(layout.Column):
         if sec[2] != "__click":
             return
         
+        # This set a watchable item for any click
+        # regardless of selection change
+        self.click_time = FrameContext.sim_seconds
+        
         if index > len(self.items):
             self.represent(event)
             return
@@ -862,7 +867,10 @@ class LayoutListbox(layout.Column):
         #     return None
     
     def set_value(self, value):
-        self.selected = [value]
+        if value is None:
+            self.selected = []
+        else:
+            self.selected = [value]
         #self.selected.add(value)
         # i = 0
         # for item in self._items:
@@ -873,6 +881,7 @@ class LayoutListbox(layout.Column):
         #     elif item == value:
         #         self.selected.add(i)
         #     i+=1
+        self.mark_visual_dirty()
     
     def update(self, props):
         pass

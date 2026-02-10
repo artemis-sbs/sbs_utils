@@ -265,7 +265,7 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                 "title": raw_title,
                 "title_color": title_color,
                 "message": msg,
-                "message_color": title_color,
+                "message_color": color,
                 "time": FrameContext.context.sim.time_tick_counter
             })})
             
@@ -518,6 +518,7 @@ class CommsPromise(ButtonPromise):
         self.tag = None
         self.event = None
         self.is_running = False
+        self.last_run = -1
 
         
 
@@ -735,6 +736,11 @@ class CommsPromise(ButtonPromise):
             selected_id = event.selected_id
             self.set_buttons(origin_id, selected_id)
             self.run_focus = True
+            # Avoid Recursion
+            if self.last_run < FrameContext.sim_seconds:
+                self.last_run = FrameContext.sim_seconds
+                signal_emit("comms_select", {"SIGNAL_ORIGIN_ID": event.origin_id, "SIGNAL_SELECTED_ID": event.selected_id})
+                
 
     def set_buttons(self, origin_id, selected_id) -> None:
         if self.selected_id != selected_id or \
@@ -801,6 +807,8 @@ class CommsPromise(ButtonPromise):
         task.set_variable("COMMS_ORIGIN_ID", self.origin_id)
         task.set_variable("COMMS_SELECTED_ID", self.selected_id)
         task.set_variable("COMMS_LIFEFORM_ID", self.comms_badge)
+
+
 
     def pressed_test(self) -> bool:
         oo = query.to_object(self.origin_id)

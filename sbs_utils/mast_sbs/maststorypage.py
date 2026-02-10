@@ -587,6 +587,7 @@ class StoryPage(Page):
                 
                 if not self.story_scheduler.story_tick_tasks(event.client_id):
                     #self.story_runtime_node.mast.remove_runtime_node(self)
+                    raise Exception("EDGE CASE: Did you set END or Yield the last GUI Task?")
                     Gui.pop(event.client_id)
                     return
             

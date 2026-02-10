@@ -24,6 +24,10 @@ class FuncCommand(MastNode):
 
 @mast_runtime_node(FuncCommand)
 class FuncCommandRuntimeNode(MastRuntimeNode):
+    def __init__(self):
+        super().__init__()
+        self.promise = None
+        
     def enter(self, mast, task:MastAsyncTask, node:FuncCommand):
         self.is_await = node.is_await
         value = task.eval_code(node.code)

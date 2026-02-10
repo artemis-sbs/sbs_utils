@@ -30,6 +30,7 @@ class ClickableTrigger(Trigger):
         else:
             sub_task = self.task.start_sub_task(self.label, defer=True)
             sub_task.tick_in_context()
+        self.task.set_value("__CLICKED__", None, Scope.TEMP)
         
         return True
 
@@ -46,7 +47,10 @@ def gui_click(name_or_layout_item=None, label=None):
     name = name_or_layout_item
     if name is not None:
         if not isinstance(name_or_layout_item, str):
-            name = name_or_layout_item.click_tag
+            t_name = name_or_layout_item.click_tag
+            if t_name is None:
+                return 
+            name = t_name
     return ClickableTrigger(task, name, label)
 
 
