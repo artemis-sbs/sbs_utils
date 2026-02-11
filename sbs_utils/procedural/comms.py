@@ -266,6 +266,8 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                 other_id = life_form_from_host_id
                 if other_id is None:
                     other_id = 0
+            if other_id is None:
+                    other_id = 0
 
             signal_emit("comms_message", {"COMMS_MESSAGE": MastDataObject({
                 "player_id": from_id, 
@@ -752,7 +754,7 @@ class CommsPromise(ButtonPromise):
             self.set_buttons(origin_id, selected_id)
             self.run_focus = True
             # Avoid Recursion
-            if self.last_run < FrameContext.sim_seconds:
+            if self.last_run < FrameContext.sim_seconds and event.selected_id is not None:
                 self.last_run = FrameContext.sim_seconds
                 signal_emit("comms_select", {"SIGNAL_ORIGIN_ID": event.origin_id, "SIGNAL_SELECTED_ID": event.selected_id})
                 
