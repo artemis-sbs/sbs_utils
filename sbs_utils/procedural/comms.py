@@ -153,9 +153,11 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             from ..faces import get_face
             life = False
 
+
+
             # Make sure life forms have an object
             title_color, color = _comms_get_colors(to_obj, from_obj, is_receive, title_color, color)
-
+            life_form_from_host_id = None
             life_form_from_id = None
             if isinstance(from_obj, GridObject) or from_obj.has_role("lifeform"):
                 life_form_from_id = from_obj.id
@@ -165,21 +167,22 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                     else:
                         from_name = from_obj.INV.name
                     face = get_face(from_obj.id)
-                host_id = from_obj.get_inventory_value("host", 0)
-                if host_id==0:
+                life_form_from_host_id = from_obj.get_inventory_value("host", 0)
+                if life_form_from_host_id==0:
                     from_obj = to_obj
                 else:
-                    from_obj = to_object(host_id)
+                    from_obj = to_object(life_form_from_host_id)
                 life = True
 
             life_form_to_id = None
+            life_form_to_host_id = None
             if isinstance(to_obj, (GridObject)) or to_obj.has_role("lifeform"):
-                host_id = to_obj.get_inventory_value("host", 0)
+                life_form_to_host_id = to_obj.get_inventory_value("host", 0)
                 life_form_to_id = to_obj.id
-                if host_id==0:
+                if life_form_to_host_id==0:
                     to_obj = from_obj
                 else:
-                    to_obj = to_object(host_id)
+                    to_obj = to_object(life_form_to_host_id)
                 life = True
 
             # This happens if one of them is id 0
@@ -253,12 +256,24 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                     msg,
                     color
                     )
-        
+                
+            other_id = to_id
+            if life_form_to_id is not None:
+                other_id = life_form_to_host_id
+                if other_id is None:
+                    other_id = 0
+            if life_form_from_id is not None:
+                other_id = life_form_from_host_id
+                if other_id is None:
+                    other_id = 0
+
             signal_emit("comms_message", {"COMMS_MESSAGE": MastDataObject({
                 "player_id": from_id, 
-                "other_id": to_id,
+                "other_id": other_id,
                 "life_form_from_id": life_form_from_id,
                 "life_form_to_id": life_form_to_id,
+                "life_form_from_host_id": life_form_from_host_id,
+                "life_form_to_host_id": life_form_to_host_id,
                 "receive": is_receive,
                 "from_name": from_name_now, 
                 "face": face,
