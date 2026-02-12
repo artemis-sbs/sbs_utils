@@ -368,6 +368,7 @@ class TextArea(Control):
     def split_styled_lines(self, some_lines):
         sp = some_lines.find(" ")
         nl = some_lines.find("\n")
+        style_key="_"
         if sp>=0 and (nl <0 or sp <nl):
             style_key = some_lines[1:sp]
             some_lines = some_lines[sp:]

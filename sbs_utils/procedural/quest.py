@@ -198,8 +198,58 @@ def quest_add_object(agents, obj, quest_id=None):
     for key, child in children.items():
         quest_add_object(agents, child, f"{quest_id}/{key}")
 
+def document_flatten(quests, header=None, indent=0, data=None):
+    active = []
+    idle = []
+    completed = []
+    failed = []
 
-def document_flatten_list():
+    if quests is None:
+        return []
+
+    header_indent = 0
+    if header is not None:
+        header_indent = max(indent-1,0)
+    # root headers have no data
+    # when data is not None this is adding the 
+    # Parent so the indent is one less
+    
+    children = quests.get("children")
+    if data is None:
+        active.append(gui_list_box_header(header,False,header_indent, data is not None,data))
+    elif len(children)>0:
+        active.append(gui_list_box_header(header,False,header_indent, data is not None,data))
+    
+    if len(children)==0 and data is not None:
+        return [data]
+
+    for q in children:
+        q = MastDataObject(q)
+        q.indent = indent
+
+        state = q.get("state", QuestState.IDLE)
+        if isinstance(state, str):
+            try:
+                state = QuestState[state]
+                q.state = state
+            except Exception:
+                state = QuestState.IDLE
+        if  state == QuestState.ACTIVE:
+            active.extend(document_flatten(q, q.display_text, indent+1, q))
+        if  state == QuestState.IDLE:
+            idle.extend(document_flatten(q, q.display_text, indent+1, q))
+        if state == QuestState.COMPLETE:
+            completed.extend(document_flatten(q, q.display_text, indent+1, q))
+        if state == QuestState.FAILED:
+            failed.extend(document_flatten(q, q.display_text, indent+1, q))
+
+    active.extend(idle)
+    active.extend(completed)
+    active.extend(failed)
+    
+    return active
+
+def quest_flatten_list():
     game_quests = quest_agent_quests(Agent.SHARED_ID)
     # game_quests = document_get_amd_file("consoles/quest.amd")
     client_id = FrameContext.client_id
@@ -214,60 +264,9 @@ def document_flatten_list():
 
     ret = []
 
-    def append_quests(quests, header=None, indent=0, data=None):
-        active = []
-        idle = []
-        completed = []
-        failed = []
-
-        if quests is None:
-            return []
-
-        if header is not None:
-            header_indent = max(indent-1,0)
-        # root headers have no data
-        # when data is not None this is adding the 
-        # Parent so the indent is one less
-        
-        children = quests.get("children")
-        if data is None:
-            active.append(gui_list_box_header(header,False,header_indent, data is not None,data))
-        elif len(children)>0:
-            active.append(gui_list_box_header(header,False,header_indent, data is not None,data))
-        
-        if len(children)==0 and data is not None:
-            return [data]
-
-        for q in children:
-            q = MastDataObject(q)
-            q.indent = indent
-
-            state = q.get("state", QuestState.IDLE)
-            if isinstance(state, str):
-                try:
-                    state = QuestState[state]
-                    q.state = state
-                except Exception:
-                    state = QuestState.IDLE
-            if  state == QuestState.ACTIVE:
-                active.extend(append_quests(q, q.display_text, indent+1, q))
-            if  state == QuestState.IDLE:
-                idle.extend( append_quests(q, q.display_text, indent+1, q))
-            if state == QuestState.COMPLETE:
-                completed.extend(append_quests(q, q.display_text, indent+1, q))
-            if state == QuestState.FAILED:
-                failed.extend(append_quests(q, q.display_text, indent+1, q))
-
-        active.extend(idle)
-        active.extend(completed)
-        active.extend(failed)
-        
-        return active
-
-
-    ret.extend(append_quests(game_quests, "Game"))
-    ret.extend(append_quests(client_quests, "Client"))
-    ret.extend(append_quests(ship_quests, "Ship"))
+    ret.extend(document_flatten(game_quests, "Game"))
+    ret.extend(document_flatten(client_quests, "Client"))
+    ret.extend(document_flatten(ship_quests, "Ship"))
 
     return ret
 
