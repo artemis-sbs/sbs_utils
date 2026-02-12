@@ -112,6 +112,7 @@ class ImageLine:
             self.fill = 3
 
         self.atlas = gui_image_get_atlas(text)
+        
         self.height = 0
         self.is_sec_end = False
         if self.atlas:
@@ -135,6 +136,15 @@ class TextArea(Control):
         "ol":{"style":  "font:gui-2;color:white;", "prepend": "1", "indent": 2, "height": 20},
         "_" :{"style":  "font:gui-2;color:white;", "prepend": "", "indent": 0, "height": 20}
         }
+    
+    # Old style system
+    rule_style_def = re.compile(r"=\$(?P<style_name>\w+)[ \t]*(?P<remainder>.*)")
+    rule_style_ref = re.compile(r"$(?P<style_name>\w+)[ \t]*(?P<remainder>.*)")
+    # New markdown system style, image,face, ship
+    rule_link_def = re.compile(r"!?\[(?P<link_name>\w*)\]:[ \t]+(?P<ns>\w+):(//)?(?P<urn>.*)")
+    # The ! is optional
+    rule_link_ref = re.compile(r"!?\[(?P<link_name>\w+)?\](\((?P<ns>\w+):(//)?(?P<urn>.+)\))?(?P<remainder>.+)?")
+    
     
     def __init__(self, tag, message) -> None:
         super().__init__(0,0,0,0)
@@ -174,6 +184,8 @@ class TextArea(Control):
             return
         
         content_lines = self.content.copy()
+        
+
         self.lines = []
         calc_height = 0
         self.scroll_line = 0
@@ -233,21 +245,39 @@ class TextArea(Control):
                 heading_numbers[sk]=1
 
 
+        style = None
+        style_key = "_"
+        height = 20
+        prepend = ""
+        is_a_list = None
+        pixel_width = (self.bounds.right-self.bounds.left)/100 * ar.x
+        alpha = "_ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"
+        roman = ["_", "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", 
+                "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx"]
+        
+        for line in content_lines:
+            # EMPTY LINE reset style and prepend
+            line_len = len(line.strip())
+            if  line_len == 0 or style is None:
+                clear_sub_headings(style_key)
+                if  line_len == 0:
+                    heading_numbers["ol"] = 1
+                    heading_numbers["ul"] = 1
 
-        for some_lines in content_lines:
-            # style = style_default
-            height = 20
-            style_key = "_"
-            # To simplify calculation these start with an item that will never be used
-            alpha = "_ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"
-            roman = ["_", "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", 
-                     "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx"]
-            prepend = None
-            style_key, some_lines = self.get_line_style(some_lines)
+                style = self.get_style("_")
+                # style = style_default
+                height = 20
+                # To simplify calculation these start with an item that will never be used
+                prepend = None
+                is_a_list = None
+                if line_len == 0:
+                    continue
 
+            style_key, line = self.get_line_style(line, style)
+            
             if isinstance(style_key, str):
                 style = self.get_style(style_key)
-                height = style.get("height", 90)
+                height = style.get("height")
                 prepend = get_prepend(style_key)
             elif isinstance(style_key, dict):
                 style = style_key
@@ -259,70 +289,84 @@ class TextArea(Control):
 
             # If this is a list each line is numbered
             # otherwise just the first line
-            is_a_list = style_key.startswith("ol") or  style_key.startswith("ul")
-            if not is_a_list:
-                some_lines = prepend +  some_lines
-
-
-            # Not sure why 50 expected 100, but
-            # it is proportional and a guess?
-            # char_width = (self.bounds.width * 20) / ar.x
-            # max_char = int(self.bounds.width // char_width)
-            pixel_width = (self.bounds.right-self.bounds.left)/100 * ar.x
-            lines = some_lines.split("\n")
+            if is_a_list is None:
+                is_a_list = style_key.startswith("ol") or  style_key.startswith("ul")
+                if is_a_list:
+                    is_a_list = style_key
+                
+            # if not is_a_list:
+            line = prepend +  line
+            
             last_line = None
-
-            if is_a_list:
-                heading_numbers[style_key] = 1
-            else:
-                clear_sub_headings(style_key)
 
             st1 = style.get("style", "font:gui-3;")
             props = split_props(st1, "font")
             font = props.get("font", "gui-3")
 
-            last_index = len(lines)-1
-            for i,line in enumerate(lines):
-                if len(line.strip()) == 0:
-                    continue
-                
-                #is_a_list = style_key.startswith("ol") or  style_key.startswith("ul")
-                if is_a_list:
-                    prepend = get_prepend(style_key)
-                    line = prepend +  line
+            
 
-                if line.startswith("!"):
-                    mo = image_pattern.match(line)
-                    if mo:
-                        g = mo.groups()
-                        name = mo.group("name")
-                        url = mo.group("url")
-                        # Image line
-                        if name == "image":
-                            last_line = ImageLine(url, ar)
-                            self.lines.append(last_line)
-                            calc_height += last_line.height
-                        elif name == "ship":
-                            last_line = ShipLine(url, ar)
-                            self.lines.append(last_line)
-                            calc_height += last_line.height
-                        elif name == "face":
-                            last_line = FaceLine(url, ar)
-                            self.lines.append(last_line)
-                            calc_height += last_line.height
-                else:
-                    pixel_height = FrameContext.context.sbs.get_text_block_height(font, line, int(pixel_width))
-                    pixel_line_height = FrameContext.context.sbs.get_text_line_height(font, line)
-                    # Adds 10 pixels for buffer
-                    buffer = 0.1
-                    if is_a_list or i<last_index:
-                        buffer = 0
-                    percent_height = ((pixel_height + buffer*pixel_line_height) / ar.y) * 100
-                    #percent_height = ((pixel_height) / ar.y) * 100
-                    last_line = TextLine(line,style, self.bounds.width, percent_height, False)
-                    
+            if m := TextArea.rule_style_def.match(line):
+                print(f"STYLE DEF {line}")
+            elif m := TextArea.rule_style_ref.match(line):
+                pass                    
+            elif m := TextArea.rule_link_def.match(line):
+                print(f"LINK DEF {line}")
+            elif m := TextArea.rule_link_ref.match(line):
+                g = m.groupdict()
+                link_name = g.get("link_name")
+                ns = g.get("ns")
+                urn = g.get("urn")
+                line = g.get("remainder")
+
+                if link_name is not None and ns is None:
+                    test_style = self.get_style(link_name)
+                    if test_style is not None:
+                        st1 = style.get("style", "font:gui-3;")
+                        props = split_props(st1, "font")
+                        font = props.get("font", "gui-3")
+                        style = test_style
+                    # Image line
+                if ns == "image":
+                    last_line = ImageLine(urn, ar)
                     self.lines.append(last_line)
-                    calc_height += percent_height
+                    calc_height += last_line.height
+                    continue
+                elif ns == "ship":
+                    last_line = ShipLine(urn, ar)
+                    self.lines.append(last_line)
+                    calc_height += last_line.height
+                    continue
+                elif ns == "face":
+                    last_line = FaceLine(urn, ar)
+                    self.lines.append(last_line)
+                    calc_height += last_line.height
+                    continue
+                elif ns == "style":
+                    style = dict(self.get_style("_"))
+                    
+                    props = split_props(urn, "font")
+                    font = props.get("font", "gui-3")
+                    style["background"] = props.get("background")
+                    props.pop("background")
+                    style["style"] = merge_props(props)
+                    # Let this fall through if there is a line
+                    if line is None or len(line.strip()) == 0:
+                        continue
+                    
+            
+            pixel_height = FrameContext.context.sbs.get_text_block_height(font, line, int(pixel_width))
+            pixel_line_height = FrameContext.context.sbs.get_text_line_height(font, line)
+            # Adds 10 pixels for buffer
+            buffer = 0.1
+            # if is_a_list or i<last_index:
+            #     buffer = 0
+            percent_height = ((pixel_height + buffer*pixel_line_height) / ar.y) * 100
+            #print(f"line {line} {style} {font}")
+            #percent_height = ((pixel_height) / ar.y) * 100
+            last_line = TextLine(line,style, self.bounds.width, percent_height, False)
+            
+            self.lines.append(last_line)
+            calc_height += percent_height
 
         #
         # Calculate the right size for the scrollbar
@@ -350,8 +394,8 @@ class TextArea(Control):
         self.scroll_line = min(self.last_line+1,len(self.lines))
         
 
-    def get_line_style(self, some_lines):
-        style_key = "_"
+    def get_line_style(self, some_lines, previous):
+        style_key = None
         if some_lines.startswith("$$"):
             s = some_lines.split(" ",1)
             if len(s) == 2:
@@ -361,7 +405,7 @@ class TextArea(Control):
         elif some_lines.startswith("$"):
             some_lines, style_key = self.split_styled_lines(some_lines)
         else:
-            return self.get_markdown_line_style(some_lines)
+            return self.get_markdown_line_style(some_lines, previous)
         
         return style_key,some_lines
 
@@ -377,8 +421,8 @@ class TextArea(Control):
             some_lines = some_lines[nl:]
         return some_lines,style_key
     
-    def get_markdown_line_style(self, some_lines):
-        style_key = "_"
+    def get_markdown_line_style(self, some_lines, previous):
+        style_key = None
         if some_lines.startswith("#"):
             count = 0
             while some_lines[count]=="#":
@@ -388,35 +432,22 @@ class TextArea(Control):
             some_lines = some_lines[count:]
 
         elif some_lines.startswith("-"):
-            lines = some_lines.split("\n")
+            
             style_key = f"ul"
-            some_lines = [""]
-            for line in lines:
-                if line.startswith("-"):
-                    sp = line.split(" ",1)
-                    if len(sp)>1:
-                        some_lines.append(sp[1])
-                    else:
-                        some_lines.append(sp[0])
-                else:
-                    some_lines[-1]+= "\n"+line
-            some_lines = "\n".join(some_lines)
+            sp = some_lines.split(" ",1)
+            if len(sp)>1:
+                some_lines = sp[1]
 
         elif some_lines[0].isdigit():
             style_key = f"ol"
-            lines = some_lines.split("\n")
-            some_lines = [""]
-            for line in lines:
-                if line[0].isdigit():
-                    sp = line.split(" ",1)
-                    if len(sp)>1:
-                        some_lines.append(sp[1])
-                    else:
-                        some_lines.append(sp[0])
-                else:
-                    some_lines[-1]+= "\n"+line
-            some_lines = "\n".join(some_lines)
-
+            sp = some_lines.split(" ",1)
+            if len(sp)>1:
+                some_lines = sp[1]
+        
+        if style_key is None:
+            if previous is None:
+                return "_"
+            return previous, some_lines
         return style_key,some_lines
             
     def _present_simple(self, event):
@@ -530,16 +561,16 @@ class TextArea(Control):
         message = message.strip()
         message = message.replace("^", "\n")
         # Split into sections
-        message = re.split(r"\n\n\n*", message)
+        message_list = message.split("\n")
 
-        if len(message)==1:
-            if "$text:" in message[0]:
+        if len(message_list)==1:
+            if "$text:" in message_list[0]:
                 self.simple_text = True
-                self.content = message
+                self.content = message_list
                 return
-            if not (message[0].startswith("=") or message[0].startswith("$")):
+            if not (message_list[0].startswith("=") or message_list[0].startswith("$")):
                 self.simple_text = True
-                self.content = message
+                self.content = message_list
                 return
         # Make sure there is an end line
         self.simple_text = False
@@ -551,10 +582,7 @@ class TextArea(Control):
         # print("-------")
 
         # check for style header section
-        if len(message) > 0 and message[0].startswith("=$"):
-            self.parse_header(message[0])
-            message.pop(0)
-        self.content = message
+        self.content = message_list
         self.mark_visual_dirty() 
 
 

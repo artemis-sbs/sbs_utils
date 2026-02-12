@@ -158,11 +158,23 @@ class ImageAtlas:
         return os.path.exists(file_name)
         
     def get_size(self):
-        if self.left is None:
-            return gui_image_size(self.file)
-        w = self.right - self.left
-        h = self.bottom - self.top
-        return (w,h)
+        global _image_sizes
+        if self.left is not None:
+            w = self.right - self.left
+            h = self.bottom - self.top
+            return (w,h)
+        
+        # look in cache
+        size = _image_sizes.get(self.file)
+        if size is not None:
+            return size[0], size[1]
+
+        size = gui_image_size_raw("data/graphics/"+self.file)
+        _image_sizes[self.file] = size
+        return size
+
+        
+        
     
     def send_gui_image(self, SBS, client_id, region_tag, tag, mode, left,top,right,bottom, color=None):
         width, height = self.get_size()
@@ -285,15 +297,19 @@ def gui_image_size(file):
     if size is not None:
         return size[0], size[1]
     atlas = ImageAtlas.all.get(file)
-    if atlas and atlas.left:
+    if atlas:
         return atlas.get_size()
+    w,h = gui_image_size_raw(file)
+    _image_sizes[file] = (w,h)
+    return (w,h)
+    
+def gui_image_size_raw(file):
     try:
         with open(file+".png", 'rb') as f:
             data = f.read(26)
             # Check if is png
             #if (data[:8] == '\211PNG\r\n\032\n'and (data[12:16] == 'IHDR')):
             w, h = struct.unpack('>LL', data[16:24])
-            _image_sizes[file] = (w,h)
             return w,h 
 
     except Exception:
