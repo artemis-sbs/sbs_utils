@@ -46,7 +46,7 @@ class ModifierHandler:
         new_value = new_value * (1+add_modifier) * mult_modifier
         return new_value
 
-    def get_side_modifiers(side_id_or_key, key):
+    def get_side_modifiers(side_id_or_key, key) -> list[tuple]:
         """
         Get the modifiers for a given side and blob key. If the side id or key provided is invalid, returns an empty string.
 
@@ -54,7 +54,7 @@ class ModifierHandler:
             side_id_or_key (int or str): The ID or key of the side for which to get the modifiers.
             key (str): The key of the blob for which to get the modifiers.
         Returns:
-            list: A list of modifiers for the given side and blob key. Each modifier is a tuple of (value, source, type).
+            list[tuple]: A list of modifiers for the given side and blob key. Each modifier is a tuple of (value, source, type).
         """
         id = to_side_id(side_id_or_key)
         if id is None:
@@ -62,7 +62,7 @@ class ModifierHandler:
         all_mods = get_inventory_value(id, f"{key}_modifiers", [])
         return all_mods
 
-    def get_default_blob_value(id, key):
+    def get_default_blob_value(id, key) -> float:
         """
         Get the default value of a blob for a given object ID and blob key. This is the value of the blob before any modifiers are applied. If the default value is not already stored in the inventory, it will be retrieved from the data set and stored in the inventory for future use.
         Args:
@@ -76,7 +76,9 @@ class ModifierHandler:
         if default_value is None:
             default_value = get_data_set_value(id, key)
             if default_value is None:
-                default_value = 0
+                # If we don't have a blob value, then we'll try to get the inventory value instead.
+                # NOTE: This assumes that blob and inventory values don't overlap! How to make this more robust?
+                default_value = get_inventory_value(id, key, 0)
             set_inventory_value(id, f"{key}_default_value", default_value)
         return default_value
     
@@ -91,10 +93,13 @@ class ModifierHandler:
         is_side = has_role(id, "__side__")
         if not is_side: # Not as side.
             default_value = ModifierHandler.get_default_blob_value(id, key)
-            ship_mods = get_inventory_value(id, f"{key}_modifiers", [])
-            all_mods = ship_mods + ModifierHandler.get_side_modifiers(id, key)
+            all_mods = get_modifiers_for_object(id, key)
             new_value = ModifierHandler.calculate_modified_value(default_value, all_mods)
-            set_data_set_value(id, key, new_value)
+            # Check if the key is a blob key. If not, we assume it is an inventory key.
+            if get_data_set_value(id, key) is None:
+                set_inventory_value(id, key, new_value)
+            else:
+                set_data_set_value(id, key, new_value)
             print("New value for", id, key, "is", new_value)
         else:
             print("Updating values for a side.")
@@ -108,7 +113,7 @@ class ModifierHandler:
     @label()
     def handle_modifier_expiration():
         """
-        Used to schedule the removal of a modifier. Don't call this directly.
+        Used to schedule the removal of a modifier after a period of time. Don't call this directly.
         """
         duration = get_variable("duration")
         yield AWAIT(delay_sim(seconds=duration))
@@ -117,7 +122,7 @@ class ModifierHandler:
         source = get_variable("source")
         remove_modifier(id, key, source)
 
-def add_modifier(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, duration=None):
+def add_modifier(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, duration=None) -> None:
     """
     Add and apply a modifier for a blob value of a given object.
     The modifier can also apply to all objects of a side by passing a side id or key instead of an object or object id.
@@ -151,7 +156,7 @@ def add_modifier(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, durat
         obj_or_id (set | int | Agent | key): The set, object, ID, or a side key to which the modifier should be added
         key (str): The key of the blob value which the modifier should affect.
         value (float): The value of the modifier to be added.
-        source (str|int): The source of the modifier, which can be used to identify and remove the modifier later if needed.
+        source (str | int): The source of the modifier, which can be used to identify and remove the modifier later if needed. Source can be a string or an int.
         flat_add_or_mult (float): How the modifier should be applied. Default is 1.
             - If 0, the modifier is a Flat modifier
             - If 1, the modifier is an Additive modifier
@@ -191,20 +196,25 @@ def add_modifier(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, durat
     signal_emit("modifier_added", data={"obj_or_id_or_set": obj_or_id_or_set, "key": key, "source": source})
 
 
-def remove_modifier(obj_or_id_or_set, key, source):
+def remove_modifier(obj_or_id_or_set, key, source=None) -> None:
     """
     Remove a modifier from a blob value of a given object or objects.
 
     Args:
         obj_or_id_or_set (set | int | Agent | key): The set, object, ID, or a side key from which the modifier should be removed.
         key (str): The key of the blob value from which the modifier should be removed.
-        source (str|int): The source of the modifier to be removed. If None, all modifiers for this key are removed. Defaults to None.
+        source (str | int): The source of the modifier to be removed. If None, all modifiers for this key are removed. Source can be a string or an int. Defaults to None.
     """
     if isinstance(obj_or_id_or_set, str):
         side_id = to_side_id(obj_or_id_or_set)
         obj_or_id_or_set = side_id # Force a side id if a side key was passed.
     ship_set = to_set(obj_or_id_or_set)
     for id in ship_set:
+        if source is None:
+            # If source is None, remove all modifiers for this key.
+            set_inventory_value(id, f"{key}_modifiers", [])
+            ModifierHandler.recalculate_value(id, key)
+            continue
         all_mods = get_inventory_value(id, f"{key}_modifiers", [])
 
         for mod_value, mod_source, mod_type in all_mods:
@@ -215,3 +225,21 @@ def remove_modifier(obj_or_id_or_set, key, source):
         # Now we need to actually apply the modifier to the blob value. We will recalculate set the blob value.
         ModifierHandler.recalculate_value(id, key)
     signal_emit("modifier_removed", data={"obj_or_id_or_set": obj_or_id_or_set, "key": key, "source": source})
+
+
+def get_modifiers_for_object(obj_or_id, key) -> list[tuple]:
+    """
+    Get all modifiers currently applied to a blob value of a given object.
+    This can be used to display the active modifiers for a blob value in a GUI, for example.
+
+    Args:
+        obj_or_id (int | Agent): The ID or object for which to get the modifiers.
+        key (str): The key of the blob value for which to get the modifiers.
+
+    Returns:
+        list[tuple]: A list of modifiers currently applied to the blob value. Each modifier is a tuple of (value, source, type). Source can be a string or an int.
+    """
+    id = to_id(obj_or_id)
+    ship_mods = get_inventory_value(id, f"{key}_modifiers", [])
+    all_mods = ship_mods + ModifierHandler.get_side_modifiers(id, key)
+    return all_mods
