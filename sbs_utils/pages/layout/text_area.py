@@ -163,6 +163,8 @@ class TextArea(Control):
         self.max_tag = 0
         self.absolute = True
         self.recalc = True
+        self.error_line = ""
+        self.error_line_num = 0
         #self.region = None
         #self.local_region_tag = self.tag+"$$"
 
@@ -183,10 +185,24 @@ class TextArea(Control):
         if self.simple_text:
             return
         
+        try:
+            self.calc_rich(client_id)
+        except Exception:
+            self.simple_text = True
+            self.content = [f"Document syntax issue line number {self.error_line_num} {self.error_line}"]
+            print(self.content)
+            self.mark_layout_dirty()
+
+
+    def calc_rich(self, client_id):
+        if self.simple_text:
+            return
+     
         content_lines = self.content.copy()
         
 
         self.lines = []
+        links = {}
         calc_height = 0
         self.scroll_line = 0
 
@@ -255,7 +271,9 @@ class TextArea(Control):
         roman = ["_", "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", 
                 "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx"]
         
-        for line in content_lines:
+        for i, line in enumerate(content_lines):
+            self.error_line = line
+            self.error_line_num = i
             # EMPTY LINE reset style and prepend
             line_len = len(line.strip())
             if  line_len == 0 or style is None:
@@ -304,13 +322,34 @@ class TextArea(Control):
             font = props.get("font", "gui-3")
 
             
+            ns = None
 
             if m := TextArea.rule_style_def.match(line):
-                print(f"STYLE DEF {line}")
-            elif m := TextArea.rule_style_ref.match(line):
-                pass                    
+                """Parse a old style style definitions """
+                g = m.groupdict()
+                style_name = g.get("style_name")
+                remainder = g.get("remainder")
+                data  = self.parse_style_line(remainder) 
+                if data is not None:
+                    self.styles[style_name] = data
+                continue
+            # elif m := TextArea.rule_style_ref.match(line):
+            #     """
+            #     Parse a old style style reference 
+            #     Handled in get_line_style
+            #     """
+            #     pass                    
             elif m := TextArea.rule_link_def.match(line):
-                print(f"LINK DEF {line}")
+                # <link_name> <ns>\w+): (?P<urn>.*)
+                g = m.groupdict()
+                link_name = g.get("link_name")
+                ns = g.get("ns")
+                urn = g.get("urn")
+                
+                links[link_name] = {"ns": ns, "urn": urn}
+                continue
+
+                
             elif m := TextArea.rule_link_ref.match(line):
                 g = m.groupdict()
                 link_name = g.get("link_name")
@@ -320,49 +359,59 @@ class TextArea(Control):
 
                 if link_name is not None and ns is None:
                     test_style = self.get_style(link_name)
-                    if test_style is not None:
+                    
+                    if test_style is not None and test_style != self.styles.get("_"):
                         st1 = style.get("style", "font:gui-3;")
                         props = split_props(st1, "font")
                         font = props.get("font", "gui-3")
                         style = test_style
-                    # Image line
-                if ns == "image":
-                    last_line = ImageLine(urn, ar)
-                    self.lines.append(last_line)
-                    calc_height += last_line.height
+                    else:
+                        g = links.get(link_name)
+                        if g is None:
+                            continue
+                        ns = g.get("ns")
+                        urn = g.get("urn")
+                # The rest is handle below
+            # Image line
+            if ns == "image":
+                last_line = ImageLine(urn, ar)
+                self.lines.append(last_line)
+                calc_height += last_line.height
+                continue
+            elif ns == "ship":
+                last_line = ShipLine(urn, ar)
+                self.lines.append(last_line)
+                calc_height += last_line.height
+                continue
+            elif ns == "face":
+                last_line = FaceLine(urn, ar)
+                self.lines.append(last_line)
+                calc_height += last_line.height
+                continue
+            elif ns == "style":
+                style = dict(self.get_style("_"))
+                
+                props = split_props(urn, "font")
+                font = props.get("font", "gui-3")
+                style["background"] = props.get("background")
+                props.pop("background")
+                style["style"] = merge_props(props)
+                # Let this fall through if there is a line
+                if line is None or len(line.strip()) == 0:
                     continue
-                elif ns == "ship":
-                    last_line = ShipLine(urn, ar)
-                    self.lines.append(last_line)
-                    calc_height += last_line.height
-                    continue
-                elif ns == "face":
-                    last_line = FaceLine(urn, ar)
-                    self.lines.append(last_line)
-                    calc_height += last_line.height
-                    continue
-                elif ns == "style":
-                    style = dict(self.get_style("_"))
-                    
-                    props = split_props(urn, "font")
-                    font = props.get("font", "gui-3")
-                    style["background"] = props.get("background")
-                    props.pop("background")
-                    style["style"] = merge_props(props)
-                    # Let this fall through if there is a line
-                    if line is None or len(line.strip()) == 0:
-                        continue
-                    
+                
+            if line is None:
+                continue
+            ll = line.lower()
             
             pixel_height = FrameContext.context.sbs.get_text_block_height(font, line, int(pixel_width))
             pixel_line_height = FrameContext.context.sbs.get_text_line_height(font, line)
-            # Adds 10 pixels for buffer
             buffer = 0.1
-            # if is_a_list or i<last_index:
-            #     buffer = 0
             percent_height = ((pixel_height + buffer*pixel_line_height) / ar.y) * 100
-            #print(f"line {line} {style} {font}")
-            #percent_height = ((pixel_height) / ar.y) * 100
+            
+            if ll =="<br>" or ll =="<br/>":
+                line = ""
+                x = buffer / 0
             last_line = TextLine(line,style, self.bounds.width, percent_height, False)
             
             self.lines.append(last_line)
