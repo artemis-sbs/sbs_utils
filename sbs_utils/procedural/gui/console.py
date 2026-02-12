@@ -50,21 +50,21 @@ def gui_console(console, is_jump=False):
         case "helm":
             console =  "normal_helm"
             if is_jump:
-                widgets = "2dview^helm_movement^helm_jump^quick_jump^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+                widgets = "2dview^radar_zoom_ctrl^helm_movement^helm_jump^quick_jump^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
             else:
-                widgets = "2dview^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+                widgets = "2dview^radar_zoom_ctrl^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
         case "weapons":
             console =  "normal_weap"
-            widgets = "weapon_2d_view^weapon_control^weap_beam_freq^weap_beam_speed^weap_torp_conversion^ship_data^shield_control^text_waterfall^main_screen_control"
+            widgets = "weapon_2d_view^radar_zoom_ctrl^weapon_control^weap_beam_freq^weap_beam_speed^weap_torp_conversion^ship_data^shield_control^text_waterfall^main_screen_control"
         case "science":
             console =  "normal_sci"
-            widgets = "science_2d_view^ship_data^text_waterfall^science_data^science_sorted_list"
+            widgets = "science_2d_view^radar_zoom_ctrl^ship_data^text_waterfall^science_data^science_sorted_list"
         case "engineering":
             console =  "normal_engi"
             widgets = "ship_internal_view^eng_presets^grid_object_list^grid_face^grid_control^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
         case "comms":
             console =  "normal_comm"
-            widgets = "comms_2d_view^text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
+            widgets = "comms_2d_view^radar_zoom_ctrl^text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
             #widgets = "2dview^text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^red_alert"
         case "cinematic":
             console =  "cinematic"
@@ -84,7 +84,7 @@ def gui_console(console, is_jump=False):
             else:
                 widgets = "3dview^ship_data^text_waterfall"
         case "cockpit":
-            widgets = "3dview^2dview^helm_free_3d^text_waterfall^fighter_control^ship_data^grid_face^grid_control"
+            widgets = "3dview^2dview^radar_zoom_ctrl^helm_free_3d^text_waterfall^fighter_control^ship_data^grid_face^grid_control"
         
 
     page.set_widget_list(console, widgets)
