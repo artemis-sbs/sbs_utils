@@ -3,6 +3,7 @@
 # TODO: This could also be adapted to work for blob values that use lists instead of floats.
 
 from sbs_utils.consoledispatcher import get_inventory_value, set_inventory_value
+from sbs_utils.mast_sbs.maststorypage import signal_emit
 from sbs_utils.procedural.query import get_data_set_value, set_data_set_value, to_object, to_id, to_set
 from sbs_utils.procedural.sides import to_side_id, side_members_set
 from sbs_utils.procedural.roles import has_role
@@ -81,10 +82,11 @@ class ModifierHandler:
     
     def recalculate_value(id, key) -> None:
         """
-        Recalculate the value of a blob for a given object ID and blob key based on the default value and all modifiers currently applied. This should be called after adding or removing a modifier to update the blob value accordingly.
+        Recalculate and set the value of a blob for a given object ID and blob key based on the default value and all modifiers currently applied. This should be called after adding or removing a modifier to update the blob value accordingly.
         If the given object ID is for a side, it will recalculate the blob value for all objects of that side.
         Args:
             id (int | Agent): The ID or object for which to recalculate the blob value. 
+            key (str): The blob key
         """
         is_side = has_role(id, "__side__")
         if not is_side: # Not as side.
@@ -128,10 +130,21 @@ def add_modifier(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, durat
   
     Example usage:
     ```python
-    # Assume that for this ship, the base scan range is 1000.
+    # Assume that for this example, the base scan range is 1000.
 
-    # This will increase the ship's scan range by 20%
+    # This will increase the ship's scan range by 20% relative to the base range
     add_modifier(id, "ship_base_scan_range", 0.2, "Scan Range Efficiency Module", 1) # New value is 1200
+
+    # This will add a flat 1000 to the ship's base scan range, and then apply the 20% buff. 
+    # Note that flat modifiers are always applied first when recalculating.
+    add_modifier(id, "ship_base_scan_range", 1000, "Scan Range Extender", 0) # New value is 2400 (1000 base + 1000 flat from extender, which is then multiplied by the efficiency module modifier.)
+
+    # this will add a 10% additive modifier. This stacks with the Scan Range Efficency Module for a total of 30% additive bonus
+    add_modifier(id, "ship_base_scan_range", 0.1, "AI Scan Enhancement") # New value is 2600
+    
+    # This will add a multiplicative modifier that multiplies the ship's scan range by 0.5 (i.e. halves it) after the previous modifier types are applied.
+    # Note that Multipicative modifier are always applied last when recalculating.
+    add_modifier(id, "ship_base_scan_range", 0.5, "Nebula Interference", 2) # New value is 1300
     ```
   
     Args:
@@ -175,6 +188,7 @@ def add_modifier(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, durat
     if duration is not None:
         duration = abs(duration) # Just in case.
         task_schedule(ModifierHandler.handle_modifier_expiration, data={"id": obj_or_id_or_set, "key": key, "source": source, "duration": duration})
+    signal_emit("modifier_added", data={"obj_or_id_or_set": obj_or_id_or_set, "key": key, "source": source})
 
 
 def remove_modifier(obj_or_id_or_set, key, source):
@@ -200,3 +214,4 @@ def remove_modifier(obj_or_id_or_set, key, source):
         set_inventory_value(id, f"{key}_modifiers", all_mods)
         # Now we need to actually apply the modifier to the blob value. We will recalculate set the blob value.
         ModifierHandler.recalculate_value(id, key)
+    signal_emit("modifier_removed", data={"obj_or_id_or_set": obj_or_id_or_set, "key": key, "source": source})
