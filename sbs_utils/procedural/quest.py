@@ -26,11 +26,8 @@ class QuestState(IntEnum):
 def quest_agent_quests(agent_id):
     agent = to_object(agent_id)
     if agent is None:
-        return {}
-    q = agent.get_inventory_value("__quests__")
-    if q is not None:
-        return q.children
-    return {}
+        return None
+    return agent.get_inventory_value("__quests__")
 
 def quest_transfer(from_agent_id, to_agent_id, quest_id):
     quest = quest_remove(from_agent_id, quest_id)
@@ -175,7 +172,9 @@ def quest_add_yaml(agents, yaml_text):
         return
     for key, quest in quests.items():
         quest_add_object(agents, quest, key)
-    
+
+
+
 def quest_add_object(agents, obj, quest_id=None):
     if quest_id is None:
         quest_id = obj.get("id")
