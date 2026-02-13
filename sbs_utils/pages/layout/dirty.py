@@ -16,10 +16,13 @@ class Dirty:
 
     def represent_dirty():
         from ...helpers import FakeEvent
-        for cid, cid_set in Dirty.dirty.items():
+        # Allow marking dirty while processing dirty
+        cur = Dirty.dirty.items()
+        Dirty.dirty = {}
+        for cid, cid_set in cur:
             e = FakeEvent(cid, "gui_present")
             for item in cid_set:
                 item.represent(e)
-        Dirty.dirty = {}
+        
 
 

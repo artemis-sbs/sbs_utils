@@ -334,8 +334,8 @@ def document_get_amd_file(file_path, strip_comments=True):
         else:
             section = toc_stack[-1]
             desc = section.get("description", "")
-            if len(desc)>0:
-                desc += "\n"
+            # if len(desc)>0:
+            #     desc += "\n"
             desc += line
             section["description"] = desc
     # fs.save_json_data(file_path+".json", toc)
