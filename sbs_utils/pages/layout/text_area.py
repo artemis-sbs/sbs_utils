@@ -411,7 +411,6 @@ class TextArea(Control):
             
             if ll =="<br>" or ll =="<br/>":
                 line = ""
-                x = buffer / 0
             last_line = TextLine(line,style, self.bounds.width, percent_height, False)
             
             self.lines.append(last_line)

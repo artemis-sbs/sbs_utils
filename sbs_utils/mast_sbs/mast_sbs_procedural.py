@@ -48,22 +48,24 @@ Mast.make_global_var("ASSERT", mast_assert)
 # Expose procedural methods to script
 #
 
-
+MastGlobals.import_python_module('sbs_utils.procedural.timers', allow_mismatch=True)
 MastGlobals.import_python_module('sbs_utils.procedural.query')
+MastGlobals.import_python_module('sbs_utils.procedural.execution')
 MastGlobals.import_python_module('sbs_utils.procedural.spawn')
-MastGlobals.import_python_module('sbs_utils.procedural.timers')
+
+
 MastGlobals.import_python_module('sbs_utils.procedural.grid')
 MastGlobals.import_python_module('sbs_utils.procedural.internal_damage')
 MastGlobals.import_python_module('sbs_utils.procedural.space_objects')
 MastGlobals.import_python_module('sbs_utils.procedural.roles')
 MastGlobals.import_python_module('sbs_utils.procedural.inventory')
 MastGlobals.import_python_module('sbs_utils.procedural.links')
-MastGlobals.import_python_module('sbs_utils.procedural.gui')
+MastGlobals.import_python_module('sbs_utils.procedural.gui', allow_mismatch=True)
 MastGlobals.import_python_module('sbs_utils.procedural.comms')
 MastGlobals.import_python_module('sbs_utils.procedural.science')
 MastGlobals.import_python_module('sbs_utils.procedural.cosmos')
 MastGlobals.import_python_module('sbs_utils.procedural.routes')
-MastGlobals.import_python_module('sbs_utils.procedural.execution')
+
 MastGlobals.import_python_module('sbs_utils.procedural.behavior')
 MastGlobals.import_python_module('sbs_utils.procedural.signal')
 MastGlobals.import_python_module('sbs_utils.procedural.maps')
@@ -73,7 +75,7 @@ MastGlobals.import_python_module('sbs_utils.procedural.objective')
 MastGlobals.import_python_module('sbs_utils.procedural.upgrades')
 MastGlobals.import_python_module('sbs_utils.procedural.docking')
 MastGlobals.import_python_module('sbs_utils.procedural.brain')
-MastGlobals.import_python_module('sbs_utils.procedural.prefab')
+MastGlobals.import_python_module('sbs_utils.procedural.prefab',allow_mismatch=True)
 MastGlobals.import_python_module('sbs_utils.procedural.quest')
 MastGlobals.import_python_module('sbs_utils.procedural.settings')
 MastGlobals.import_python_module('sbs_utils.procedural.extra_scan_sources')
