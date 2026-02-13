@@ -165,6 +165,7 @@ class TextArea(Control):
         self.recalc = True
         self.error_line = ""
         self.error_line_num = 0
+        self.styles = TextArea.styles.copy()
         #self.region = None
         #self.local_region_tag = self.tag+"$$"
 
@@ -624,32 +625,37 @@ class TextArea(Control):
         self.simple_text = False
         self.recalc = True
 
-        # print("-------")
-        # for i,m in enumerate(message):
-        #     print(f"{i}[{m}]")
-        # print("-------")
-
         # check for style header section
         self.content = message_list
+
+        # self.styles = TextArea.styles.copy()
         self.mark_visual_dirty() 
 
 
     def parse_header(self, header):
         # "t": {"style": "font:gui-6;color:#bbb;", "prepend": "", "indent": 0},
-        self.styles = TextArea.styles.copy()
         header = header.split("\n")
+        self.styles = TextArea.styles.copy()
         for temp in header:
             # just skip comment or bad formatting
-            if not temp.startswith("=$"):
-                continue
+            if m := TextArea.rule_link_def.match(temp):
+                key = m.group("link_name")
+                st = m.group("urn")
+                ns = m.group("ns")
+                if key is None or st is None or ns != "style":
+                    continue
+            elif temp.startswith("=$"):
+                sp = temp.find(" ")
+                # again just skip bad formatting
+                if sp == -1:
+                    continue
 
-            sp = temp.find(" ")
-            # again just skip bad formatting
-            if sp == -1:
+                key = temp[2:sp]
+                st = temp[sp:].strip()
+            else:
                 continue
-
-            key = temp[2:sp]
-            data  = self.parse_style_line(temp[sp:]) 
+            
+            data  = self.parse_style_line(st)
             if data is not None:
                 self.styles[key] = data
 
