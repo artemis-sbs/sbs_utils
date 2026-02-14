@@ -403,7 +403,7 @@ class TextArea(Control):
                 
             if line is None:
                 continue
-            ll = line.lower()
+            ll = line.strip().lower()
             
             pixel_height = FrameContext.context.sbs.get_text_block_height(font, line, int(pixel_width))
             pixel_line_height = FrameContext.context.sbs.get_text_line_height(font, line)

@@ -279,7 +279,9 @@ def quest_flatten_list():
 
 
 import re
-def document_get_amd_file(file_path, root_display_text="", strip_comments=True):
+
+
+def _document_get_amd_file(file_path, root_display_text="", strip_comments=True):
     toc = {"key": "__root__", "file_path": file_path, "children": [], "description":"", "display_text": root_display_text}
     toc_stack = [toc]
     rule_section = re.compile(r"#+[ \t]+\[(?P<display_text>.*)\]\((?P<urn>.*)\)[ \t]*")
@@ -332,6 +334,8 @@ def document_get_amd_file(file_path, root_display_text="", strip_comments=True):
                 toc_stack[level] = section
             else:
                 raise Exception(f"ERROR: Document structure error Line {i}\n{line}")
+            
+
             root = toc_stack[level - 1]
             children = root.get("children")
             children.append(section)
@@ -346,3 +350,10 @@ def document_get_amd_file(file_path, root_display_text="", strip_comments=True):
             section["description"] = desc
     # fs.save_json_data(file_path+".json", toc)
     return toc
+
+def document_get_amd_file(file_path, root_display_text="", strip_comments=True):
+    try:
+        return _document_get_amd_file(file_path, root_display_text, strip_comments)
+    except Exception as e:
+        return {"key": "__root__", "file_path": file_path, 
+            "children": [], "description":"", "display_text": e}
