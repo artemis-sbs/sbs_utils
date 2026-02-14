@@ -198,27 +198,33 @@ def quest_add_object(agents, obj, quest_id=None):
     for key, child in children.items():
         quest_add_object(agents, child, f"{quest_id}/{key}")
 
-def document_flatten(quests, header=None, indent=0, data=None):
+def document_flatten(doc_obj, header=None, indent=0, data=None):
     active = []
     idle = []
     completed = []
     failed = []
 
-    if quests is None:
+    if doc_obj is None:
         return []
 
-    header_indent = 0
-    if header is not None:
-        header_indent = max(indent-1,0)
+    
+    
     # root headers have no data
     # when data is not None this is adding the 
     # Parent so the indent is one less
-    
-    children = quests.get("children")
+    visual_indent = indent
+    children = doc_obj.get("children")
     if data is None:
-        active.append(gui_list_box_header(header,False,header_indent, data is not None,data))
+        if header is None:
+            header = doc_obj.get("display_text")
+            data = doc_obj
+        active.append(gui_list_box_header(header,False,indent, data is not None,data, 0))
     elif len(children)>0:
-        active.append(gui_list_box_header(header,False,header_indent, data is not None,data))
+        visual_indent = max(indent-1,0)
+        active.append(gui_list_box_header(header,False,indent, data is not None,data, visual_indent))
+        
+        
+
     
     if len(children)==0 and data is not None:
         return [data]
@@ -226,6 +232,7 @@ def document_flatten(quests, header=None, indent=0, data=None):
     for q in children:
         q = MastDataObject(q)
         q.indent = indent
+        q.visual_indent = indent
 
         state = q.get("state", QuestState.IDLE)
         if isinstance(state, str):
@@ -271,10 +278,9 @@ def quest_flatten_list():
     return ret
 
 
-
 import re
-def document_get_amd_file(file_path, strip_comments=True):
-    toc = {"children": [], "description":""}
+def document_get_amd_file(file_path, root_display_text="", strip_comments=True):
+    toc = {"key": "__root__", "file_path": file_path, "children": [], "description":"", "display_text": root_display_text}
     toc_stack = [toc]
     rule_section = re.compile(r"#+[ \t]+\[(?P<display_text>.*)\]\((?P<urn>.*)\)[ \t]*")
 
