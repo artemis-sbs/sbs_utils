@@ -50,7 +50,7 @@ Mast.make_global_var("ASSERT", mast_assert)
 
 MastGlobals.import_python_module('sbs_utils.procedural.timers', allow_mismatch=True)
 MastGlobals.import_python_module('sbs_utils.procedural.query')
-MastGlobals.import_python_module('sbs_utils.procedural.execution')
+MastGlobals.import_python_module('sbs_utils.procedural.execution', allow_mismatch=True)
 MastGlobals.import_python_module('sbs_utils.procedural.spawn')
 
 
