@@ -48,9 +48,9 @@ Mast.make_global_var("ASSERT", mast_assert)
 # Expose procedural methods to script
 #
 
-MastGlobals.import_python_module('sbs_utils.procedural.timers', allow_mismatch=True)
+MastGlobals.import_python_module('sbs_utils.procedural.timers')
 MastGlobals.import_python_module('sbs_utils.procedural.query')
-MastGlobals.import_python_module('sbs_utils.procedural.execution', allow_mismatch=True)
+MastGlobals.import_python_module('sbs_utils.procedural.execution')
 MastGlobals.import_python_module('sbs_utils.procedural.spawn')
 
 
@@ -75,7 +75,7 @@ MastGlobals.import_python_module('sbs_utils.procedural.objective')
 MastGlobals.import_python_module('sbs_utils.procedural.upgrades')
 MastGlobals.import_python_module('sbs_utils.procedural.docking')
 MastGlobals.import_python_module('sbs_utils.procedural.brain')
-MastGlobals.import_python_module('sbs_utils.procedural.prefab',allow_mismatch=True)
+MastGlobals.import_python_module('sbs_utils.procedural.prefab')
 MastGlobals.import_python_module('sbs_utils.procedural.quest')
 MastGlobals.import_python_module('sbs_utils.procedural.settings')
 MastGlobals.import_python_module('sbs_utils.procedural.extra_scan_sources')

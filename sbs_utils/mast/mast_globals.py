@@ -74,7 +74,7 @@ class MastGlobals:
             MastGlobals.globals[func.__name__] = func
         
 
-    def import_python_module(mod_name, prepend=None, allow_mismatch=False):
+    def import_python_module(mod_name, prepend=None, allow_mismatch=False, use_decorator=False):
         """
         Import all functions within a python module as globals and optionally add a prepend to the function names.
         For example, the functions in the `scatter` module are added as global functions with 'scatter' prepended to the name like so:
@@ -103,10 +103,12 @@ class MastGlobals:
                 # if ":" in actual_mod.__name__:
                 #     print(f"skipping {name} {mod_name} != {actual_mod}")
                 #     continue
+                if hasattr(func, "__wrapped__"):
+                    func = func.__wrapped__
                 actual_mod = func.__module__
-                mn = sca.__name__
                 if mod_name not in actual_mod and not allow_mismatch:
                     continue
+
                 if prepend == None:
                     key = name
                 elif prepend == True:

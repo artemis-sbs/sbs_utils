@@ -1,4 +1,5 @@
 from .mast.pollresults import PollResults
+import functools
 
 class Promise:
     def __init__(self) -> None:
@@ -181,6 +182,7 @@ class Trigger:
 # defining a decorator that can take anything
 
 def awaitable(func):
+    @functools.wraps(func)
     def inner(*args, **kwargs):
         return func(*args, **kwargs)
     return inner
