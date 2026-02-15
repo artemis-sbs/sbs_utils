@@ -390,14 +390,54 @@ def color_noise(r_min, r_max, g_min,g_max, b_min, b_max, a_min=0xff, a_max=0xff)
     return f"#{r:02x}{g:02x}{b:02x}"
 
 _neb_colors = {
+    "purple":{
+        "radar_color_override"  : color_noise(0x20, 0x30,0, 0x10, 0x50, 0x60,),    
+        "absorption_red": 1.0,  
+        "absorption_green": 0.93,    
+        "absorption_blue": 0.3,
+        "emission_red": 0.63,   
+        "emission_green": 0.0,
+        "emission_blue": 0.9,   
+        "scattering_red": 0.66,  
+        "scattering_green": 1.2, 
+        "scattering_blue": 0.75, 
+        "anisotropy": random.uniform(-0.25, 0.1),
+        "base_frequency":1.0,   
+        "base_amplitude": 0.87, 
+        "detail_frequency": 1.3055, 
+        "detail_amplitude": 1.6,
+        "detail_lacunarity": 2.43,  
+        "domain_warp":   random.random(),
+        "swirl":  random.random() * 10
+    },
+    "red":{
+        "radar_color_override"  : color_noise(0x40, 0x50, 0,0x10, 0x40, 0x50),    
+        "absorption_red": 0.11,  
+        "absorption_green": 1.5,    
+        "absorption_blue": 1.5,
+        "emission_red": 1.0,   
+        "emission_green": 0.3   ,
+        "emission_blue": 0.1,   
+        "scattering_red": 0.91,  
+        "scattering_green": 0.59, 
+        "scattering_blue": 1.2, 
+        "anisotropy": random.uniform(-0.25, 0.1),
+        "base_frequency":0.56,   
+        "base_amplitude": 0.87, 
+        "detail_frequency": 1.3055, 
+        "detail_amplitude": 0.900,
+        "detail_lacunarity": 2.43,  
+        "domain_warp":   random.random(),
+        "swirl":  random.random() * 10
+    }, 
     "blue": {
         "radar_color_override"  : color_noise(0,0x10, 0x40, 0x50,0x40, 0x50),    
         "absorption_red": 1.6,  
         "absorption_green": 1.3,    
         "absorption_blue": 0.01,
         "emission_red": 0.01,   
-        "emission_green": 2.0,
-        "emission_blue": 2.0,   
+        "emission_green": 1.0,
+        "emission_blue": 1.0,   
         "scattering_red": 0.0,  
         "scattering_green": 2., 
         "scattering_blue": 0.5, 
@@ -410,26 +450,7 @@ _neb_colors = {
         "domain_warp":   random.random(),
         "swirl": random.random() * 10
     },
-    "red":{
-        "radar_color_override"  : color_noise(0x40, 0x50, 0,0x10, 0x40, 0x50),    
-        "absorption_red": 0.11,  
-        "absorption_green": 0.2,    
-        "absorption_blue": 0.2,
-        "emission_red": 0.11,   
-        "emission_green": 0.06   ,
-        "emission_blue": 0.04,   
-        "scattering_red": 0.14,  
-        "scattering_green": 0.01, 
-        "scattering_blue": 0.01, 
-        "anisotropy": random.uniform(-0.25, 0.1),
-        "base_frequency":0.56,   
-        "base_amplitude": 0.87, 
-        "detail_frequency": 1.3055, 
-        "detail_amplitude": 0.900,
-        "detail_lacunarity": 2.43,  
-        "domain_warp":   random.random(),
-        "swirl":  random.random() * 10
-    }, "yellow":{
+    "yellow":{
         "radar_color_override"  : color_noise(0x40, 0x50,0x40, 0x50,0, 0x10),    
         "absorption_red": 0.1,  
         "absorption_green": 0.61,    
@@ -448,7 +469,69 @@ _neb_colors = {
         "detail_lacunarity": 2.43,  
         "domain_warp":   random.random(),
         "swirl":  random.random() * 10
+    },
+    "green":{
+        "radar_color_override"  : color_noise(0x10, 0x20,0x60, 0x70, 0x30, 0x40),    
+        "absorption_red": 0.65,  
+        "absorption_green": 0.23,    
+        "absorption_blue": 0.0,
+        "emission_red": 0.4,   
+        "emission_green": 0.8,
+        "emission_blue": 0.4,   
+        "scattering_red": 0.4,  
+        "scattering_green": 0.76, 
+        "scattering_blue": 0.35, 
+        "anisotropy": random.uniform(-0.25, 0.1),
+        "base_frequency": 0.72,   
+        "base_amplitude": 1.0, 
+        "detail_frequency": 1.3055, 
+        "detail_amplitude": 1.6,
+        "detail_lacunarity": 2.43,  
+        "domain_warp":   random.random(),
+        "swirl":  random.random() * 10
+    },
+    "orange":{
+        "radar_color_override"  : color_noise(0x50, 0x60,0x20, 0x30,0x10, 0x20),    
+        "absorption_red": 0.1,  
+        "absorption_green": 0.61,    
+        "absorption_blue": 1.3,
+        "emission_red": 1.8,   
+        "emission_green": 0.5,
+        "emission_blue": 0.1,   
+        "scattering_red": 0.4,  
+        "scattering_green": 0.76, 
+        "scattering_blue": 0.35, 
+        "anisotropy": random.uniform(-0.25, 0.1),
+        "base_frequency":1.4,   
+        "base_amplitude": 1.87, 
+        "detail_frequency": 1.3055, 
+        "detail_amplitude": 1.6,
+        "detail_lacunarity": 2.43,  
+        "domain_warp":   random.random(),
+        "swirl":  random.random() * 10
+    },
+    "white":{
+        "radar_color_override"  : color_noise(0x20, 0x30,0x20, 0x30, 0x20, 0x30),    
+        "absorption_red": 0.3,  
+        "absorption_green": 0.3,    
+        "absorption_blue": 0.3,
+        "emission_red": 1.2,   
+        "emission_green": 1.2,
+        "emission_blue": 1.2,   
+        "scattering_red": 0.66,  
+        "scattering_green": 0.66, 
+        "scattering_blue": 0.65, 
+        "anisotropy": random.uniform(-0.25, 0.1),
+        "base_frequency":2.4,   
+        "base_amplitude": 0.7, 
+        "detail_frequency": 1.3055, 
+        "detail_amplitude": 0.8,
+        "detail_lacunarity": 2.43,  
+        "domain_warp":   random.random(),
+        "swirl":  random.random() * 10
     }
+
+
 }
 
 
@@ -677,7 +760,8 @@ def terrain_setup_nebula(nebula, diameter=4000, density_coef=1.0, color="yellow"
     blob.set("effect_size", size)
     blob.set("max_throttle", 2.0)
 
-    density = min(max(8.23 * density_coef,1.95), 20)
+    density = min(max(9.24* density_coef,1.95), 20)
+    #density = 20
     blob.set("density", density)
     # 0 to 10000
     seed = random.randint(2,99999)
