@@ -372,7 +372,6 @@ def simple_noise(count, x,y, z, x2, y2, z2, gx, gy,gz, radius=None, centered=Fal
                 grid_point.append(v)
 
     l = len(grid_point)
-    print(f"LEN {l} DIM {w} {h} {d} HEIGHT {count_x} {count_y} {count_z}")
 
     if count is None or count == 0:
         return grid_point

@@ -149,3 +149,6 @@ def sphere(count, v, r, outer=0, top_only=False, ring=False) -> Generator:
         points (Generator): A generator of Vec3
     """
     return scatter.sphere(count, v.x,v.y,v.z, r, outer, top_only, ring)
+
+def simple_noise(count, v, v2, gx, gy,gz, radius=None, centered=False, ax=0,ay=0,az=0, degrees=True, drift=1.0):
+    scatter.simple_noise(count, v.x,v.y, v.z, v2.x, v2.y, v2.z, gx, gy,gz, radius, centered, ax,ay,az, degrees, drift)

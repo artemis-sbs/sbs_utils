@@ -705,7 +705,7 @@ def terrain_setup_nebula(nebula, diameter=4000, density_coef=1.0, color="yellow"
     blob.set("effect_size", size)
     blob.set("max_throttle", 2.0)
 
-    density = min(max(5.24* density_coef,1.95), 20)
+    density = min(max(7.24* density_coef,1.95), 20)
     #density = 20
     blob.set("density", density)
     # 0 to 10000
