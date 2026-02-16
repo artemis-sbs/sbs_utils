@@ -1,4 +1,6 @@
 from sbs_utils.vec import Vec3
+def color_noise (r_min, r_max, g_min, g_max, b_min, b_max, a_min=255, a_max=255):
+    ...
 def npc_spawn (x, y, z, name, side, ship_key, behave_id):
     """Spawn a non-player ship.
     
@@ -17,8 +19,17 @@ def plain_asteroid_keys ():
     """Get all plain asteroid keys (excludes crystal) in the ship data.
     Returns:
         list[str]: The list of keys."""
-def prefab_spawn (*args, **kwargs):
-    ...
+def prefab_spawn (label, data=None, OFFSET_X=None, OFFSET_Y=None, OFFSET_Z=None):
+    """Spawn a prefab and return its task.
+    Args:
+        label (str | Label): The label to run to spawn the prefab.
+        data (dict, optional): Data associated with the prefab.
+        * Positional data may be optionally included in `data`: `START_X`, `START_Y`, and `START_Z`. The default for these all is 0.
+        OFFSET_X (int, optional): The X offset relative to the positional data. Default is None.
+        OFFSET_Y (int, optional): The Y offset relative to the positional data. Default is None.
+        OFFSET_Z (int, optional): The Z offset relative to the positional data. Default is None.
+    Returns:
+        MastAsyncTask: The task of the prefab."""
 def random_terran (face=None, civilian=None):
     """Create a random terran face.
     
@@ -66,20 +77,8 @@ def terrain_asteroid_clusters (terrain_value, center=None, selectable=False):
         terrain_value (int): Scales how many asteroid clusters are spawned, and how many asteroids per cluster.
         center (Vec3, optional): The center of the map. Default is None (0,0,0).
         selectable (bool, optional): Should the asteroids be selectable on a 2D radar widget? Default is False."""
-def terrain_setup_nebula_blue (nebula, diameter=4000, density_coef=1.0):
+def terrain_setup_nebula (nebula, diameter=4000, density_coef=1.0, color='yellow'):
     """Set up the nebulae to use the default blue values.
-    Args:
-        nebula (set[Agent]): The nebulae
-        diameter (int, optional): The diameter of the nebula.
-        density_coef (float, optional): Scales the visual nebula density (3D view)"""
-def terrain_setup_nebula_red (nebula, diameter=4000, density_coef=1.0):
-    """Set up the nebulae to use the default red values.
-    Args:
-        nebula (set[Agent]): The nebulae
-        diameter (int, optional): The diameter of the nebula.
-        density_coef (float, optional): Scales the visual nebula density (3D view)"""
-def terrain_setup_nebula_yellow (nebula, diameter=4000, density_coef=1.0):
-    """Set up the nebulae to use the default yellow values.
     Args:
         nebula (set[Agent]): The nebulae
         diameter (int, optional): The diameter of the nebula.
@@ -183,7 +182,7 @@ def terrain_spawn_nebula_clusters (terrain_value, center=None, selectable=False)
         terrain_value (int): Scales how many nebulae clusters are spawned, and how many nebulae per cluster.
         center (Vec3, optional): The center of the map. Default is None (0,0,0).
         selectable (bool, optional): Should the nebulae be selectable on a 2D radar widget? Default is False."""
-def terrain_spawn_nebula_scatter (cluster_spawn_points, height, cluster_color=None, diameter=4000, density=1.0, selectable=False):
+def terrain_spawn_nebula_scatter (cluster_spawn_points, height, cluster_color=None, diameter=4800, density=1.0, selectable=False):
     """Spawn asteroids at the specified spawn points.
     Args:
         cluster_spawn_points (Iterable[Vec3]): The spawn points.

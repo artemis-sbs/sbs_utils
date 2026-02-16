@@ -29,7 +29,7 @@ class MastDataObject(object):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def __repr__ (self):
         """Return repr(self)."""
-    def get (self, key, defa):
+    def get (self, key, defa=None):
         ...
 class MastNode(object):
     """class MastNode"""

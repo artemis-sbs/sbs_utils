@@ -41,8 +41,18 @@ def gui_get_variable (key, defa=None):
     ...
 def gui_set_variable (key, value=None):
     ...
-def gui_sub_task_schedule (*args, **kwargs):
-    ...
+def gui_sub_task_schedule (label, data=None, var=None) -> 'MastAsyncTask':
+    """create an new task and start running at the specified label
+    This is a GUI sub task. It will be marked to end if a new GUI is presented.
+    
+    
+    Args:
+        label (str or label): The label to run
+        data (duct, optional): Data to initialie task variables. Defaults to None.
+        var (str, optional): Set the variable to the task created. Defaults to None.
+    
+    Returns:
+        MastAsyncTask : The MAST task created"""
 def gui_task_jump (label):
     """Will redirect the gui_task to a new label
     
@@ -66,13 +76,17 @@ def log (message: str, name: str = None, level: str = None, use_mast_scope=False
         message (str): The message to log
         name (str, optional): Name of the logger to log to. Defaults to None.
         level (str, optional): The logging level to use. Defaults to None."""
-def logger (name: str = None, file: str = None, var: str = None, std_err: bool = False) -> None:
-    """create or retreive a looger
+def logger (name: str = None, file: str = None, var: str = None, std_err: bool = False, level: str = None, format=None, file_mode='w') -> None:
+    """create or retrieve a logger
     
     Args:
         name (str, optional): The name of the logger. Defaults to None.
         file (str, optional): The file to log to. Defaults to None.
-        var (str, optional): The name of a string variable to log to. Defaults to None."""
+        var (str, optional): The name of a string variable to log to. Defaults to None.
+        std_err (bool, optional): Include std_err for logger
+        level (str, optional): The logger level follow python's
+        format: (str, option): The format of the log string following python's logger formats
+        file_mode: (str): 'w' = write (default), 'a' append"""
 def mast_log (message: str, name: str = None, level: str = None, use_mast_scope=True) -> None:
     """generate a log message using MAST current task
     
@@ -82,9 +96,9 @@ def mast_log (message: str, name: str = None, level: str = None, use_mast_scope=
         level (str, optional): The logging level to use. Defaults to None."""
 def metadata_get_value (k, defa=None):
     ...
-def promise_all (*args, **kwargs):
+def promise_all (*proms):
     ...
-def promise_any (*args, **kwargs):
+def promise_any (*proms):
     ...
 def server_get_variable (key, defa=None):
     ...
@@ -102,25 +116,77 @@ def set_variable (key, value) -> None:
     Args:
         key (str): the variable name
         value (any): The value to set the variable to"""
-def sub_task_all (*args, **kwargs):
-    ...
-def sub_task_schedule (*args, **kwargs):
-    ...
-def task_all (*args, **kwargs):
-    ...
-def task_any (*args, **kwargs):
-    ...
+def sub_task_all (*args, **kwargs) -> sbs_utils.procedural.execution.TaskPromiseAllAny:
+    """Creates a task for each argument that is a label. Also supports a data named argument to pass the data to all the tasks.
+    
+    Args:
+        args (0..n labels): the labels to schedule.
+        data (dict): keyword arg to pass data to the tasks.
+    Returns:
+        Promise: A promise that is finished when all tasks are completed."""
+def sub_task_schedule (label, data=None, var=None) -> 'MastAsyncTask':
+    """create an new task and start running at the specified label
+    
+    Args:
+        label (str or label): The label to run
+        data (duct, optional): Data to initialie task variables. Defaults to None.
+        var (str, optional): Set the variable to the task created. Defaults to None.
+    
+    Returns:
+        MastAsyncTask : The MAST task created"""
+def task_all (*args, **kwargs) -> sbs_utils.procedural.execution.TaskPromiseAllAny:
+    """Creates a task for each argument that is a label. Also supports a data named argument to pass the data to all the tasks.
+    
+    Args:
+        args (0..n labels): the labels to schedule.
+        data (dict): keyword arg to pass data to the tasks.
+    Returns:
+        Promise: A promise that is finished when all tasks are completed."""
+def task_any (*args, **kwargs) -> sbs_utils.procedural.execution.TaskPromiseAllAny:
+    """Creates a task for each argument that is a label. Also supports a data named argument to pass the data to all the tasks.
+    
+    Args:
+        args (0..n labels): the labels to schedule.
+        data (dict): keyword arg to pass data to the tasks.
+    Returns:
+        Promise: A promise that is finished when any of the tasks completes."""
 def task_cancel (task: sbs_utils.mast.mastscheduler.MastAsyncTask) -> None:
     """ends the specified task
     
     Args:
         task (MastAsyncTask): The task to end"""
-def task_schedule (*args, **kwargs):
-    ...
-def task_schedule_client (*args, **kwargs):
-    ...
-def task_schedule_server (*args, **kwargs):
-    ...
+def task_schedule (label: str | sbs_utils.mast.core_nodes.label.Label, data=None, var: str = None, defer=False, inherit=True, unscheduled=False) -> 'MastAsyncTask':
+    """create an new task and start running at the specified label
+    
+    Args:
+        label (str or label): The label to run
+        data (duct, optional): Data to initialie task variables. Defaults to None.
+        var (str, optional): Set the variable to the task created. Defaults to None.
+    
+    Returns:
+        MastAsyncTask : The MAST task created"""
+def task_schedule_client (label: str | sbs_utils.mast.core_nodes.label.Label, data=None, var: str = None) -> 'MastAsyncTask':
+    """create an new task and start running at the specified label
+    assuring it runs on the client (which should be the same as task_schedule, but this is more explicit)
+    
+    Args:
+        label (str or label): The label to run
+        data (duct, optional): Data to initialie task variables. Defaults to None.
+        var (str, optional): Set the variable to the task created. Defaults to None.
+    
+    Returns:
+        MastAsyncTask : The MAST task created"""
+def task_schedule_server (label: str | sbs_utils.mast.core_nodes.label.Label, data=None, var: str = None) -> 'MastAsyncTask':
+    """create an new task and start running at the specified label
+    assuring it runs on the server
+    
+    Args:
+        label (str or label): The label to run
+        data (duct, optional): Data to initialie task variables. Defaults to None.
+        var (str, optional): Set the variable to the task created. Defaults to None.
+    
+    Returns:
+        MastAsyncTask : The MAST task created"""
 class TaskPromiseAllAny(PromiseAllAny):
     """class TaskPromiseAllAny"""
     def __init__ (self, proms, all) -> None:

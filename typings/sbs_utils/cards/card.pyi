@@ -6,8 +6,17 @@ def maps_deck_create ():
     ...
 def maps_tile_map_create (min_x, min_z, tile_size_x, tile_size_z=0, y=0):
     ...
-def prefab_spawn (*args, **kwargs):
-    ...
+def prefab_spawn (label, data=None, OFFSET_X=None, OFFSET_Y=None, OFFSET_Z=None):
+    """Spawn a prefab and return its task.
+    Args:
+        label (str | Label): The label to run to spawn the prefab.
+        data (dict, optional): Data associated with the prefab.
+        * Positional data may be optionally included in `data`: `START_X`, `START_Y`, and `START_Z`. The default for these all is 0.
+        OFFSET_X (int, optional): The X offset relative to the positional data. Default is None.
+        OFFSET_Y (int, optional): The Y offset relative to the positional data. Default is None.
+        OFFSET_Z (int, optional): The Z offset relative to the positional data. Default is None.
+    Returns:
+        MastAsyncTask: The task of the prefab."""
 def shuffle_string (s):
     ...
 class Card(CardList):

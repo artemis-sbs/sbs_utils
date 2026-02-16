@@ -11,7 +11,13 @@ def add_role (set_holder, role):
         set_holder (Agent | int | set[Agent | int]): An agent or ID or a set of agents or IDs.
         role (str): The role to add."""
 def get_artemis_data_dir_filename (filename):
-    ...
+    """Get the full path to a file in the data directory.
+    
+    Args:
+        filename (str): The relative path from the data directory.
+    
+    Returns:
+        str: The full path to the file in the data directory."""
 def get_inventory_value (id_or_object, key: str, default=None):
     """get inventory value with the given key the the agent  has
         this is the way to create a collection in inventory
@@ -23,7 +29,13 @@ def get_inventory_value (id_or_object, key: str, default=None):
     Returns:
         any: The inventory value associated with the provided key, or the default value if it doesn't exist."""
 def get_mission_dir_filename (filename):
-    ...
+    """Get the full path to a file in the current mission directory.
+    
+    Args:
+        filename (str): The relative path from the mission directory.
+    
+    Returns:
+        str: The full path to the file in the mission directory."""
 def get_open_grid_points (id_or_obj) -> set[sbs_utils.vec.Vec3]:
     """Gets a list of open grid locations
     
@@ -200,7 +212,16 @@ def grid_target_pos (grid_obj_or_set, x: float, y: float, speed=0.01):
         y (float): y location
         speed (float, optional): The grid object speed. Defaults to 0.01."""
 def load_json_data (file):
-    ...
+    """Load and parse a JSON file with comment support.
+    
+    Strips comments (# and //) and trailing commas before parsing.
+    Attempts to load using ryaml first, falls back to json.loads with preprocessing.
+    
+    Args:
+        file (str): Path to the JSON file to load.
+    
+    Returns:
+        dict or None: Parsed JSON data, or None if loading fails."""
 def remove_role (agents, role):
     """Remove a role from an agent or a set of agents.a
     

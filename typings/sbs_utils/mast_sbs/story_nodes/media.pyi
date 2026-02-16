@@ -2,13 +2,31 @@ from sbs_utils.mast.core_nodes.decorator_label import DecoratorLabel
 def STRING_REGEX_NAMED (name):
     ...
 def get_artemis_audio_dir ():
-    ...
+    """Get the path to the Artemis Cosmos audio directory.
+    
+    Returns:
+        str: The audio folder path (data directory + "\audio")."""
 def get_artemis_graphics_dir ():
-    ...
+    """Get the path to the Artemis Cosmos graphics directory.
+    
+    Returns:
+        str: The graphics folder path (data directory + "\graphics")."""
 def get_mod_dir (mod):
-    ...
+    """Get the directory path for a mission module.
+    
+    Args:
+        mod (str): The module/mission name.
+    
+    Returns:
+        str: The full directory path for the module."""
 def get_script_dir ():
-    ...
+    """Get the directory where the main script is located.
+    
+    Returns the cached script directory from sys.modules['script'] or sys.path[0].
+    Paths are normalized to use backslashes on Windows.
+    
+    Returns:
+        str: The absolute path to the script directory."""
 def mast_node (append=True):
     ...
 class MediaLabel(DecoratorLabel):

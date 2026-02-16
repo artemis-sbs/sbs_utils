@@ -272,6 +272,26 @@ def transparent_options_button(clientID: int, on_off_flag: int) -> None:
 
 
 from enum import Enum
+class DIPLOMACY(object): ### from pybind
+    """the different attitudes that sides have for each other
+    
+    Members:
+    
+        UNKNOWN : side attitude unknown
+
+        NEUTRAL : side attitude neutral
+
+        ALLIED : side attitude allied
+
+        HOSTILE : side attitude hostile
+
+        MAX : the total number of types different attitudes that sides have for each other"""
+    UNKNOWN = 0, # : side attitude unknown
+    NEUTRAL = 1, # : side attitude neutral
+    ALLIED = 2 # : side attitude allied
+    HOSTILE= 3 # : side attitude hostile
+    MAX= 4 # : the total number of types different attitudes that sides have for each other"""
+
 class SHPSYS(Enum): ### from pybind
     """One of four ship systems to track damage
     
@@ -734,6 +754,19 @@ class simulation(object): ### from pybind
             arg0.pos.x = arg1
             arg0.pos.y = arg2
             arg0.pos.z = arg3
+    def set_diplomacy_color(self: simulation, diplomacyEnumValue: int, colorString: str) -> None:
+        """set the color of a diplomatic state (like DIPLOMACY::UNKNOWN or DIPLOMACY::ALLIED)"""
+        pass
+    def set_navproxy_pos(self: simulation, navproxy, x: float, y: float, z: float) -> None:
+        """takes a navproxy (the reference, not the ID), and sets the xyz values"""
+        pass
+    def set_side_icon_color(self: simulation, SideTag: str, colorString: str) -> None:
+        """set the color of a SideTag (like TSN or Raider)"""
+        pass
+    def set_side_relationship(self: simulation, FirstSideTag: str, SecondSideTag: str, diplomacyEnumValue: int) -> None:
+        """set the diplomatic state between two sides, for GUI color purposes."""
+        pass
+
 
     def space_object_exists(self: simulation, arg0: int) -> bool:
         """returns true if the spaceobject exists, by ID"""
@@ -743,6 +776,7 @@ class simulation(object): ### from pybind
     def time_tick_counter (self: simulation) -> int:
         """get current time value"""
         return self._time_tick_counter
+    
 
 class space_object(object): ### from pybind
     def __init__(self):

@@ -1,6 +1,7 @@
 from sbs_utils.pages.layout.bounds import Bounds
 from sbs_utils.pages.layout.clickable import Clickable
 from sbs_utils.pages.layout.column import Column
+from sbs_utils.pages.layout.dirty import Dirty
 from sbs_utils.helpers import FrameContext
 from sbs_utils.pages.layout.hole import Hole
 from enum import IntEnum
@@ -31,6 +32,12 @@ class Layout(Clickable):
     def calc (self, client_id):
         ...
     @property
+    def click_tag (self):
+        ...
+    @click_tag.setter
+    def click_tag (self, v):
+        ...
+    @property
     def color (self):
         ...
     @color.setter
@@ -56,17 +63,35 @@ class Layout(Clickable):
     @property
     def is_hidden (self):
         ...
+    def is_message_for (self, event):
+        """Used by MessageTrigger i.e. gui_message to know if message is for this object
+        
+        Args:
+            event (EVENT): the engine event
+        
+        Returns:
+            bool: if the gui_message MessageTrigger should be True"""
     @property
     def justify (self):
         ...
     @justify.setter
     def justify (self, v):
         ...
+    def mark_layout_dirty (self):
+        ...
+    def mark_visual_dirty (self):
+        ...
     def on_begin_presenting (self, client_id):
         ...
     def on_end_presenting (self, client_id):
         ...
     def on_message (self, event):
+        ...
+    @property
+    def parent (self):
+        ...
+    @parent.setter
+    def parent (self, v):
         ...
     def present (self, event):
         ...

@@ -1,5 +1,4 @@
 from sbs_utils.agent import Agent
-from sbs_utils.mast.core_nodes.assign import Assign
 from sbs_utils.mast.core_nodes.comment import Comment
 from enum import Enum
 from sbs_utils.mast.mast import ExpParseData

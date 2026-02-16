@@ -370,14 +370,14 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False):
 
     t_min = terrain_value * 6
     t_max = t_min * 2
-    spawn_points = scatter.box(random.randint(t_min,t_max), center.x, center.y, center.z, 100000, 1000, 100000, centered=True)
+    spawn_points = scatter.box(random.randint(t_min,t_max), center.x, center.y, center.z, 100_000, 1000, 100_000, centered=True)
     
     for v in spawn_points:
         #cluster_spawn_points = scatter.sphere(random.randint(terrain_value*6,terrain_value*10), v.x, 0,v.z, 1000, 10000, ring=False)
         
         #terrain_spawn_nebula_scatter(cluster_spawn_points, 1000, cluster_color)
         # 10000 = radius 5000
-        terrain_spawn_nebula_sphere(v.x,v.y, v.z, 5000,terrain_value, cluster_color=None, selectable=selectable)
+        terrain_spawn_nebula_sphere(v.x,v.y, v.z, 10000,terrain_value, cluster_color=None, selectable=selectable)
 
 def color_noise(r_min, r_max, g_min,g_max, b_min, b_max, a_min=0xff, a_max=0xff):
     r = random.randrange(r_min,r_max)
@@ -552,6 +552,28 @@ def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=Non
     """
     ret = []
     
+    cluster_color = terrain_nebula_color(cluster_color)
+
+    for v2 in cluster_spawn_points:
+        # v2.y = v2.y % 500.0 Mod doesn't work like you think
+        nebula = terrain_nebula_spawn(v2, height, cluster_color, diameter, density, selectable)
+        
+        ret.append(nebula)
+    return ret
+
+def terrain_nebula_spawn(v2, height, cluster_color, diameter, density, selectable):
+    v2.y = random.random() * (height/2)-(height/4)
+
+        # This should be a set of prefabs
+    nebula = terrain_spawn(v2.x, v2.y, v2.z,None, "#, nebula", "nebula", "behav_nebula")
+    nebula.blob.set("unselectable", 0 if selectable else 1)
+    diameter += ((random.random()*2)-1) * diameter *0.15
+    diameter = min(diameter,NEB_MAX_SIZE)
+
+    terrain_setup_nebula(nebula, diameter, density, cluster_color)
+    return nebula
+
+def terrain_nebula_color(cluster_color):
     if isinstance(cluster_color,str):
         cluster_color = _neb_colors.get(cluster_color)
     elif isinstance(cluster_color, int):
@@ -564,27 +586,7 @@ def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=Non
     if cluster_color is None:
         nc = list(_neb_colors.values())
         cluster_color = random.choice(nc)
-
-    for v2 in cluster_spawn_points:
-        # v2.y = v2.y % 500.0 Mod doesn't work like you think
-        v2.y = random.random() * (height/2)-(height/4)
-
-        # This should be a set of prefabs
-        nebula = terrain_spawn(v2.x, v2.y, v2.z,None, "#, nebula", "nebula", "behav_nebula")
-        
-        # nebula.blob.set("local_scale_x_coeff", random.uniform(1.0, 5.5))
-        # nebula.blob.set("local_scale_y_coeff", random.uniform(2.0, 5.5))
-        # nebula.blob.set("local_scale_z_coeff", random.uniform(1.0, 5.5))
-        nebula.blob.set("unselectable", 0 if selectable else 1)
-        diameter += ((random.random()*2)-1) * diameter *0.10
-        diameter = min(diameter,NEB_MAX_SIZE)
-        #print(f"NEBULA {cluster_color} {density} {diameter} {in_dia}")
-        #terrain_setup_nebula(nebula, diameter, density, "yellow")
-
-        terrain_setup_nebula(nebula, diameter, density, cluster_color)
-        
-        ret.append(nebula)
-    return ret
+    return cluster_color
 
 def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0, density= 1, height=1000, cluster_color=None, selectable=False, is_tiled=False):
     """
@@ -608,26 +610,33 @@ def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0
     """
     if density_scale==0:
         return
-    if size_z is None:
-        size_z = size_x
     
-    grid = (size_x/5000 + size_z/5000) * density_scale
-    raw_amount = max(int(grid), 1)
-    min_amount = max(raw_amount//2, 1)
-    if raw_amount == min_amount:
-        amount = raw_amount
-    else:
-        # if density is already 1 or 2, then randomize whether 
-        # a nebula is spawned
-        if raw_amount<=2 and random.randrange(0,5)==3:
-            return
-        amount = random.randrange(min(raw_amount, min_amount), max(raw_amount, min_amount))
 
-    if is_tiled:
-        cluster_spawn_points = scatter.box(amount,  x + size_x/2, -height/2, z+size_z/2, size_x, height/2, size_z, True, 0, 0, 0 )
-    else:
-        cluster_spawn_points = scatter.box(amount,  x, -height/2, z, size_x, height/2, size_z, True, 0, 0, 0 )
-    return terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color, diameter=size_x*2, density=density, selectable=selectable)
+    
+    gx = 500; gy=1; gz=500
+    if size_x >= 50_000:
+        gx = 5000; gy=size_x; gz=5000
+    elif size_x >= 10_000:
+        gx = 3000; gy=size_x; gz=3000
+    elif size_x >= 3_000:
+        gx = 2000; gy=size_x; gz=2000
+    elif size_x >= 500:
+        gx = 1000; gy=size_x; gz=1000
+
+
+    # Remember Radius is the diameter of the rect
+    cluster_spawn_points = scatter.simple_noise(0, x,y, z, size_x, 1, size_z, gx, gy,gz, radius=size_x, centered=True, drift=density)
+    cluster_color = terrain_nebula_color(cluster_color)
+    ret = []
+    rainbow = random.randint(1,14) == 3
+
+    for v2 in cluster_spawn_points:
+        # Some nebula are a mix
+        if rainbow:
+            cluster_color = terrain_nebula_color(None)
+        nebula = terrain_nebula_spawn(v2, height, cluster_color, gx/2, density, selectable)
+        ret.append(nebula)
+    return ret
 
 def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=1.0, height=1000, cluster_color=None, selectable=False):
     """
@@ -650,27 +659,70 @@ def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=
     if density_scale==0:
         return
     
-    grid = radius*2/NEB_MAX_SIZE
-    grid = grid * density_scale
-    
+    gx = 100; gy=radius; gz=100
+    neb_size = min(radius, NEB_MAX_SIZE)
+    if radius > 50_000:
+        gx = 2500; gy=radius; gz=2500
+        neb_size = 2000
+    elif radius >= 10_000:
+        gx = 2500; gy=radius; gz=2500
+        neb_size = 2000
+    elif radius >= 3_000:
+        gx = 2000; gy=radius; gz=2000
+        neb_size = 1000
+    elif radius >= 500:
+        gx = 250; gy=radius; gz=250
+        neb_size = 1000
 
-    raw_amount = max(int(grid * density), 1)
-    min_amount = max(raw_amount//2, 1)
-    if raw_amount == min_amount:
-        amount = raw_amount
-    else:
-        # if density is already 1 or 2, then randomize whether 
-        # a nebula is spawned
-        if raw_amount<=2 and random.randrange(0,5)==3:
-            return
-        amount = random.randrange(min(raw_amount, min_amount), max(raw_amount, min_amount))
+
+    # Remember Radius is the diameter of the rect
+    cluster_spawn_points = scatter.simple_noise(0, x,y, z, radius, 1, radius, gx, gy,gz, radius=radius, centered=True, drift=density)
+    cluster_color = terrain_nebula_color(cluster_color)
+    ret = []
+    rainbow = random.randint(1,14) == 3
+    for v2 in cluster_spawn_points:
+        # v2.y = v2.y % 500.0 Mod doesn't work like you think
+        if rainbow:
+            cluster_color = terrain_nebula_color(None)
+        nebula = terrain_nebula_spawn(v2, height, cluster_color, neb_size, density, selectable)
+        ret.append(nebula)
+    return ret
+def terrain_setup_nebula(nebula, diameter=4000, density_coef=1.0, color="yellow"):
+    """
+    Set up the nebulae to use the default blue values.
+    Args:
+        nebula (set[Agent]): The nebulae
+        diameter (int, optional): The diameter of the nebula.
+        density_coef (float, optional): Scales the visual nebula density (3D view)
+    """
+    blob = to_data_set(nebula)
     
-    max_dia = min(grid*NEB_MAX_SIZE, NEB_MAX_SIZE)
-    # Sub struct up to 15% of max
-    dia = max_dia - (max_dia * random.random()*0.15)
-    #print(f"TER SPHERE {grid} {amount} {radius} {dia} {raw_amount}")
-    cluster_spawn_points = scatter.sphere(amount, x, y, z, radius)
-    return terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color, diameter=dia, density=density, selectable=selectable)
+    # size = 1000 * random.uniform(1.0, 5.5)
+    size = min(diameter,  NEB_MAX_SIZE)
+    #blob.set("size", size)
+    blob.set("display_size", size)
+    blob.set("effect_size", size)
+    blob.set("max_throttle", 2.0)
+
+    density = min(max(5.24* density_coef,1.95), 20)
+    #density = 20
+    blob.set("density", density)
+    # 0 to 10000
+    seed = random.randint(2,99999)
+    blob.set("random_seed", seed)
+
+    if isinstance(color, str):
+        color = _neb_colors.get(color, _neb_colors.get("yellow"))
+
+    for k,v in color.items():
+        blob.set(k,v)
+    # Need to tell the engine we changed the values
+    blob.set("nebula_data_change", 1)
+
+
+
+
+
  
             
 
@@ -742,42 +794,6 @@ def terrain_spawn_black_holes(lethal_value, center=None):
 
 
     
-
-def terrain_setup_nebula(nebula, diameter=4000, density_coef=1.0, color="yellow"):
-    """
-    Set up the nebulae to use the default blue values.
-    Args:
-        nebula (set[Agent]): The nebulae
-        diameter (int, optional): The diameter of the nebula.
-        density_coef (float, optional): Scales the visual nebula density (3D view)
-    """
-    blob = to_data_set(nebula)
-    
-    # size = 1000 * random.uniform(1.0, 5.5)
-    size = min(diameter,  NEB_MAX_SIZE)
-    #blob.set("size", size)
-    blob.set("display_size", size)
-    blob.set("effect_size", size)
-    blob.set("max_throttle", 2.0)
-
-    density = min(max(9.24* density_coef,1.95), 20)
-    #density = 20
-    blob.set("density", density)
-    # 0 to 10000
-    seed = random.randint(2,99999)
-    blob.set("random_seed", seed)
-
-    if isinstance(color, str):
-        color = _neb_colors.get(color, _neb_colors.get("yellow"))
-
-    for k,v in color.items():
-        blob.set(k,v)
-    # Need to tell the engine we changed the values
-    blob.set("nebula_data_change", 1)
-
-
-
-
 
 
     

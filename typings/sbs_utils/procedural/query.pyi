@@ -295,3 +295,9 @@ def to_space_object (other: sbs_utils.agent.Agent | int):
         other (Agent | CloseData | int): The agent ID or other agent like data
     Returns:
         Agent | None: The agent or None"""
+def to_space_object_list (the_set):
+    """Converts a set to a list of objects
+    Args:
+        the_set (set[Agent | int] | list[Agent | int]): a set or list of agents or ids
+    Returns:
+        list[Agent]: A list of Agent objects"""

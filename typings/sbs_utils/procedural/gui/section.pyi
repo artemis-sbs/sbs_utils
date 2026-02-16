@@ -47,6 +47,9 @@ class PageRegion(object):
     def __init__ (self, style) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
     @property
+    def click_tag (self):
+        ...
+    @property
     def is_hidden (self):
         ...
     def rebuild (self):
@@ -54,6 +57,9 @@ class PageRegion(object):
     def represent (self, e):
         ...
     def show (self, _show):
+        ...
+    @property
+    def tag (self):
         ...
 class PageSubSection(object):
     """class PageSubSection"""
@@ -63,5 +69,19 @@ class PageSubSection(object):
         ...
     def __init__ (self, style) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    @property
+    def click_tag (self):
+        ...
+    def is_message_for (self, event):
+        """Used by MessageTrigger i.e. gui_message to know if message is for this object
+        
+        Args:
+            event (EVENT): the engine event
+        
+        Returns:
+            bool: if the gui_message MessageTrigger should be True"""
     def represent (self, event):
+        ...
+    @property
+    def tag (self):
         ...

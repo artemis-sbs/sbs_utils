@@ -30,8 +30,17 @@ def get_inventory_value (id_or_object, key: str, default=None):
         any: The inventory value associated with the provided key, or the default value if it doesn't exist."""
 def labels_get_type (label_type):
     ...
-def scan (*args, **kwargs):
-    ...
+def scan (path=None, buttons=None, timeout=None, auto_side=True):
+    """Start a science scan
+    
+    Args:
+        path (str, optional): The path of scripted scan data. Default is None.
+        buttons (dict, optional): dictionary key = button, value = label. Defaults to None.
+        timeout (Promise, optional): A promise typically by calling timeout(). Defaults to None.
+        auto_side (bool, optional): If true quickly scans thing on the same side. Defaults to True.
+    
+    Returns:
+        Promise: A promise to wait. Typically passed to an await/AWAIT"""
 def scan_results (message, target=None, tab=None):
     """Set the scan results for the current scan. This should be called when the scan is completed.
        This is typically called as part of a scan()
@@ -127,8 +136,14 @@ def start_science_selected (event):
     """Trigger a science scan to begin.
     Args:
         event (event): The event that triggered the scan."""
-def task_all (*args, **kwargs):
-    ...
+def task_all (*args, **kwargs) -> sbs_utils.procedural.execution.TaskPromiseAllAny:
+    """Creates a task for each argument that is a label. Also supports a data named argument to pass the data to all the tasks.
+    
+    Args:
+        args (0..n labels): the labels to schedule.
+        data (dict): keyword arg to pass data to the tasks.
+    Returns:
+        Promise: A promise that is finished when all tasks are completed."""
 def to_blob (id_or_obj):
     """Gets the engine dataset of the specified agent
     !!! Note

@@ -36,11 +36,23 @@ def filter_ship_data_by_side (test_ship_key, sides, role=None, ret_key_only=Fals
     Returns:
         list[str | dict]: The list of keys or list of ship data entries."""
 def get_artemis_data_dir ():
-    ...
+    """Get the path to the Artemis Cosmos data directory.
+    
+    Returns:
+        str: The data folder path (executable directory + "/data")."""
 def get_mission_dir ():
-    ...
+    """Get the directory of the current mission.
+    
+    Returns:
+        str: The script directory path."""
 def get_mod_dir (mod):
-    ...
+    """Get the directory path for a mission module.
+    
+    Args:
+        mod (str): The module/mission name.
+    
+    Returns:
+        str: The full directory path for the module."""
 def get_ship_data ():
     """Load the ship data, store it to the cache, and return it.
     If the ship data is already in cache, returns it the cache contents instead of loading the file again.
@@ -57,7 +69,6 @@ def get_ship_index ():
     """Get the ship data information and index it as a dictionary.
     Keys include:
     * individual ship keys
-    * default sides
     Returns:
         dict: The indexed ship data information."""
 def get_ship_name (ship_key):
@@ -75,7 +86,16 @@ def kralien_starbase_keys ():
     Returns:
         list[str]: The list of keys."""
 def load_json_data (file):
-    ...
+    """Load and parse a JSON file with comment support.
+    
+    Strips comments (# and //) and trailing commas before parsing.
+    Attempts to load using ryaml first, falls back to json.loads with preprocessing.
+    
+    Args:
+        file (str): Path to the JSON file to load.
+    
+    Returns:
+        dict or None: Parsed JSON data, or None if loading fails."""
 def merge_mod_ship_data (mod):
     """Get the ship data for the current mission, then adds the contents of `extraShipData.json` for the specified mission folder, if present, and adds it to the cache.
     Returns:

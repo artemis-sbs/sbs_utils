@@ -28,9 +28,18 @@ def get_inventory_value (id_or_object, key: str, default=None):
     Returns:
         any: The inventory value associated with the provided key, or the default value if it doesn't exist."""
 def get_mission_name ():
-    ...
+    """Get the name of the current mission.
+    
+    Returns the name derived from the script directory basename.
+    Cached after first call.
+    
+    Returns:
+        str: The mission folder name."""
 def get_startup_mission_name ():
-    ...
+    """Get the default mission name from preferences.
+    
+    Returns:
+        str: The default mission folder name from game preferences."""
 def print_event (event):
     """Print the event data.
     Args:

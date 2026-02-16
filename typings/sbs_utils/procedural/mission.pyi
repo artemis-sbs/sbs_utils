@@ -20,7 +20,23 @@ def mission_runner (label=None, data=None):
     
     Yields:
         PollResults: Success or Failure"""
-def sub_task_schedule (*args, **kwargs):
-    ...
-def task_schedule (*args, **kwargs):
-    ...
+def sub_task_schedule (label, data=None, var=None) -> 'MastAsyncTask':
+    """create an new task and start running at the specified label
+    
+    Args:
+        label (str or label): The label to run
+        data (duct, optional): Data to initialie task variables. Defaults to None.
+        var (str, optional): Set the variable to the task created. Defaults to None.
+    
+    Returns:
+        MastAsyncTask : The MAST task created"""
+def task_schedule (label: str | sbs_utils.mast.core_nodes.label.Label, data=None, var: str = None, defer=False, inherit=True, unscheduled=False) -> 'MastAsyncTask':
+    """create an new task and start running at the specified label
+    
+    Args:
+        label (str or label): The label to run
+        data (duct, optional): Data to initialie task variables. Defaults to None.
+        var (str, optional): Set the variable to the task created. Defaults to None.
+    
+    Returns:
+        MastAsyncTask : The MAST task created"""

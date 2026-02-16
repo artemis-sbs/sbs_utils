@@ -1,7 +1,7 @@
 from sbs_utils.mast.pollresults import PollResults
 def awaitable (func):
     ...
-def promise (*args, **kwargs):
+def promise () -> sbs_utils.futures.Promise:
     ...
 class AwaitBlockPromise(Promise):
     """class AwaitBlockPromise"""

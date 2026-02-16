@@ -4,22 +4,67 @@ from sbs_utils.futures import Promise
 from sbs_utils.vec import Vec3
 def awaitable (func):
     ...
-def destroyed_all (*args, **kwargs):
-    ...
-def destroyed_any (*args, **kwargs):
-    ...
-def distance_greater (*args, **kwargs):
-    ...
-def distance_less (*args, **kwargs):
-    ...
-def distance_point_greater (*args, **kwargs):
-    ...
-def distance_point_less (*args, **kwargs):
-    ...
-def grid_arrive_id (*args, **kwargs):
-    ...
-def grid_arrive_location (*args, **kwargs):
-    ...
+def destroyed_all (the_set, snapshot=False):
+    """Build a Promise that waits until all objects in the set are destroyed.
+    Args:
+        the_set (set[id])
+        snapshot (bool, optional): If True, the set checked will not change if the original set changes.
+    Returns:
+        TestPromise: The promise."""
+def destroyed_any (the_set, snapshot=False):
+    """Build a Promise that waits until any objects in the set are destroyed.
+    Args:
+        the_set (set[id])
+        snapshot (bool, optional): If True, the set checked will not change if the original set changes.
+    Returns:
+        TestPromise: The promise."""
+def distance_greater (obj_or_id1, obj_or_id2, distance):
+    """Build a Promise that waits until the distance between the two objects is greater than the specified value.
+    Args:
+        id1 (Agent | int): The agent or ID of the first space object.
+        id2 (Agent | int): The agent or ID of the second space object.
+        distance (int): The distance between the two objects.
+    Returns:
+        Promise: The promise"""
+def distance_less (obj_or_id1, obj_or_id2, distance):
+    """Build a Promise that waits until the distance between the two objects is less than the specified value.
+    Args:
+        id1 (Agent | int): The agent or ID of the first space object.
+        id2 (Agent | int): The agent or ID of the second space object.
+        distance (int): The distance between the two objects.
+    Returns:
+        Promise: The promise"""
+def distance_point_greater (obj_or_id, point, distance):
+    """Build a Promise that waits until the distance between the object and the point is less than the specified value.
+    Args:
+        obj_or_id (Agent | int): The agent or ID of the space object.
+        point (Vec3): The point.
+        distance (int): The distance between the object and the point.
+    Returns:
+        Promise: The promise"""
+def distance_point_less (obj_or_id, point, distance):
+    """Build a Promise that waits until the distance between the object and the point is less than the specified value.
+    Args:
+        obj_or_id (int): The agent or ID of the space object.
+        point (Vec3): The point.
+        distance (int): The distance between the object and the point.
+    Returns:
+        Promise: The promise"""
+def grid_arrive_id (the_set, target_id, snapshot=False):
+    """Build a Promise that waits until the grid object agents have completed their movement.
+    Args:
+        the_set (Agent | int | set[Agent | int]): The grid object or id or set to check
+        target_id (int): The target grid object ID
+        snapshot (bool, optional): If True, the set checked will not change if the original set changes."""
+def grid_arrive_location (the_set, x=0, y=0, snapshot=False):
+    """Build a Promise that waits until the grid object agents have completed their movement.
+    Args:
+        the_set (Agent | int | set[Agent | int]): The grid object or id or set to check
+        x (int, optional): Not used
+        y (int, optional): Not used
+        snapshot (bool, optional): If True, the set checked will not change if the original set changes.
+    Returns:
+        TestPromise: The promise."""
 def grid_pos_data (id):
     """get a set of agent ids of the grid objects on the specified ship, at the location specified
     

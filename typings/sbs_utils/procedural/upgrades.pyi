@@ -38,8 +38,6 @@ def linked_to (link_source, link_name: str):
         link_name (str): The key/name of the inventory item
     Returns:
         set[int]: The set of linked ids"""
-def objectives_run_all (tick_task):
-    ...
 def remove_role (agents, role):
     """Remove a role from an agent or a set of agents.a
     
@@ -80,6 +78,8 @@ def upgrade_add (agent_id_or_set, label, data=None, client_id=0, activate=False)
 def upgrade_remove_for_agent (agent):
     ...
 def upgrade_schedule ():
+    ...
+def upgrades_run_all (tick_task):
     ...
 class Upgrade(Agent):
     """class Upgrade"""

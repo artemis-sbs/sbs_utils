@@ -1,19 +1,18 @@
 from sbs_utils.procedural.gui.gui import ButtonPromise
-def gui (*args, **kwargs):
-    ...
+def gui (buttons=None, timeout=None):
+    """present the gui that has been queued up
+    
+    Args:
+        buttons (dict, optional): _description_. Defaults to None.
+        timeout (promise, optional): A promise that ends the gui. Typically a timeout. Defaults to None.
+    
+    Returns:
+        Promise: The promise for the gui, promise is done when a button is selected"""
 def gui_activate_console (console):
     """set the console name for the client
     
     Args:
         console (str): The console name"""
-def gui_add_console_tab (id_or_obj, console, tab_name, label):
-    """adds a tab definition
-    
-    Args:
-        id_or_obj (agent): agent id or object
-        console (str): Console name
-        tab_name (str): Tab name
-        label (label): Label to run when tab selected"""
 def gui_add_console_type (path, display_name, description, label):
     """adds a tab definition
     
@@ -38,12 +37,14 @@ def gui_button (props, style=None, data=None, on_press=None, is_sub_task=False):
         style (str, optional): Style. Defaults to None. End each style with a semicolon, e.g. `color:red;`
         data (object): The data to pass to the button's label
         on_press (label, callable, Promise): Handle a button press, label is jumped to, callable is called, Promise has results set
+        is_sub_task (bool): Set to True if the button is only responding to the button. Use False only if the whole gui will be changed via `await gui()`. Default is False for backwards-compatibility.
     
     Valid Styles:
         area:
             Format as `top, left, bottom, right`.
             Just numbers indicates percentage of the section or page to cover.
-            Can also use `px` (pixels) or `em` (1em = height of text font)
+            Can also use `px` (pixels) or `em` (1em = height of text font).
+            Can combine different units, e.g. `5+5px, 3em, 100-10em, 50px;` is a valid area.
         color:
             The color of the text
         background-color:
@@ -251,6 +252,62 @@ def gui_image_absolute (props, style=None):
     
     Returns:
         layout object: The Layout object created"""
+def gui_image_add_atlas (key, image, left=None, top=None, right=None, bottom=None):
+    """The image atlas allows a key name to be used to assign to a set of image properties.
+    This key can be used instead of image properties in any command that expect image properties.
+    
+    The image file passed will be used to search for the file. It will first check the mission directory followed by data/graphics folder.
+    In the future this could be modified to account for mods, e.g. a common media folders.
+    The image atlas takes care of supplying the correct path for the engine to use.
+    
+    By specifying the rect (left,top, right, bottom) the image key can reference a part of an image.
+    
+    
+    Add a key to reference a full image
+    
+    :mast-icon: MAST / :simple-python: python
+    
+    ``` python
+    gui_image_add_atlas("test", "media/LegendaryMissions/operator")
+    ```
+    
+    Add a key to reference a full image
+    
+    :mast-icon: MAST / :simple-python: python
+    
+    ``` python
+    gui_image_add_atlas("test2", "media/LegendaryMissions/operator", 645,570, 950,820)
+    ```
+    
+    Once the atlas is added the key can be used anywhere images can be used.
+    
+    :mast-icon: MAST / :simple-python: python
+    
+    ``` python
+    gui_image("test")
+    ```
+    
+    :mast-icon: MAST / :simple-python: python
+    
+    ``` python
+    # Text area also use the image atlas for images
+    gui_text_area("![](image://test2?scale=0.5&fill=center)")
+    ```
+    
+    
+    
+    Args:
+        key (str): the key to define in the image atlas
+        image (str): The file of the image. This can also be a image property string do not include the extension. Only PNG files are valid.
+        left (float, optional): The pixel location of the left. Defaults to None.
+        top (float, optional): The pixel location of the top. Defaults to None.
+        right (float, optional): The pixel location of the right. Defaults to None.
+        bottom (float, optional): The pixel location of the bottom. Defaults to None.
+    
+    Returns:
+        ImageAtlas: The image Atlas object. This is a low level object typically used by the system """
+def gui_image_get_atlas (text):
+    ...
 def gui_image_keep_aspect_ratio (props, style=None):
     """queue a gui image element that draw keeping the same aspect ratio, left top justified
     
@@ -269,6 +326,8 @@ def gui_image_keep_aspect_ratio_center (props, style=None):
     
     Returns:
         layout object: The Layout object created"""
+def gui_image_size (file):
+    ...
 def gui_image_stretch (props, style=None):
     """queue a gui image element that stretches to fit
     
@@ -284,7 +343,7 @@ def gui_info_panel_add (path, icon_index, show, hide=None, tick=None, var=None):
     ...
 def gui_info_panel_remove (path, var=None):
     ...
-def gui_info_panel_send_message (*args, **kwargs):
+def gui_info_panel_send_message (client_id, message=None, message_color=None, path=None, title=None, title_color=None, banner=None, banner_color=None, face=None, icon_index=None, icon_color=None, button=None, history=True, time=-1):
     ...
 def gui_input (props, style=None, var=None, data=None):
     """Draw a text type in
@@ -333,6 +392,42 @@ def gui_list_box (items, style, item_template=None, title_template=None, section
         read_only (boolean): Can the items be modified
     Returns:
         The LayoutListBox layout object"""
+def gui_list_box_header (label, collapse=False, indent=0, selectable=False, data=None, visual_indent=None):
+    """Created a gui_list_box_header element
+    
+    Args:
+        label (str): The label text
+        collapse (bool, optional): Default the collapsed state. Defaults to False.
+        indent (int): The indention level e.g. for a tree like structure
+        selectable (bool): If the header is also selectable
+        collapse_pixel_size (int): The size in pixels for the hit area (only used if selectable)
+        select_first (bool): If the select area is before the collapse click area (only used if selectable)
+        data (any): Optional additional data
+    
+    Returns:
+        LayoutListBoxHeader : _description_"""
+def gui_list_box_is_header (item):
+    """Created a gui_list_box_header element
+    
+    Args:
+        label (str): The label text
+        collapse (bool, optional): Default the collapsed state. Defaults to False.
+    
+    Returns:
+        _type_: _description_"""
+def gui_listbox_items_convert_headers (items):
+    """Converts a list of strings into a list of objects that allow a listbox to collapse if a header is clicked
+    To make a header, prefix the name with `>>`.
+    Example usage:
+        ```python
+        item = [">>Header","Item1","Item2",">>Another Header","Another Item 1","Another Item 2"]
+        ret = gm_convert_listbox_items(item)
+        gui_list_box(items=ret, style="", select=True, collapsible=True)
+        ```
+    Args:
+        items (list(str)): A list of strings
+    Returns:
+        (list(str|LayoutListBoxHeader)): A list of LayoutListBoxHeader (for the headers) and strings (for the items)"""
 def gui_message (layout_item, label=None):
     """Trigger to watch when the specified layout element has a message
     
@@ -375,7 +470,7 @@ def gui_properties_change (var, label):
         label (str or label): The label to run"""
 def gui_properties_set (p=None, tag=None):
     ...
-def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x0000029CAC5787C0>):
+def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x0000021B76120360>):
     ...
 def gui_property_list_box_stacked (name=None, tag=None):
     ...
@@ -505,6 +600,53 @@ def gui_sub_section (style=None):
     
     Returns:
         layout object: The Layout object created"""
+def gui_tab_activate (tab_name: str):
+    """Sets the back tab (left most) tab for the console tabs.
+    This is general called automatically by //gui/tab and //console labels
+    
+    Args:
+        tab_name (str): The path of a //gui/tab"""
+def gui_tab_add_top (tab_name: str):
+    """Specify a tab by default to shown when the page is shown for standard consoles.
+    
+    Args:
+        tab_name (str): A comma separated list of paths of a //gui//tab e.g. helm,weapons"""
+def gui_tab_back (tab_name: str):
+    """Sets the back tab (left most) tab for the console tabs.
+    The back tag is set by //gui/tab and //console labels
+    This allows overriding
+    
+    Args:
+        tab_name (str): The path of a //gui/tab"""
+def gui_tab_clear_top ():
+    """Specify a tab by default to shown when the page is shown for standard consoles.
+    
+    Args:
+        tab_name (str): A comma separated list of paths of a //gui//tab e.g. helm,weapons"""
+def gui_tab_enable (tab_name: str):
+    """Enable a tab on the console tabs
+    
+    Args:
+        tab_name (str): A comma separated list of paths of a //gui//tab e.g. helm,weapons"""
+def gui_tab_enable_top ():
+    ...
+def gui_tab_get_active ():
+    """returns the active tab
+    
+    Args:
+        tab_name (str): The path of a //gui/tab"""
+def gui_tab_get_list ():
+    ...
+def gui_tab_is_top (tab_name: str):
+    """Specify a tab by default to shown when the page is shown for standard consoles.
+    
+    Args:
+        tab_name (str): A comma separated list of paths of a //gui//tab e.g. helm,weapons"""
+def gui_tab_remove_top (tab_name: str):
+    """Specify a tab by default to shown when the page is shown for standard consoles.
+    
+    Args:
+        tab_name (str): A comma separated list of paths of a //gui//tab e.g. helm,weapons"""
 def gui_tabbed_panel (items=None, style=None, tab=0, tab_location=0, icon_size=0):
     ...
 def gui_task_for_client (client_id):

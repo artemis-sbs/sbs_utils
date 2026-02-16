@@ -76,8 +76,13 @@ def objective_clear (agent_id_or_set):
     """Clear all objectives from the agent or agents.
     Args:
         agent_id_or_set (Agent | int | set[Agent | int]): The agent or id or set of agents or ids."""
-def objective_extends (*args, **kwargs):
-    ...
+def objective_extends (label, data=None):
+    """Add an objective to the current task as a subtask.
+    Args:
+        label (str | Label): The label to add.
+        data (dict, optional): The data to associate with the objective. Default is None.
+    Returns:
+        MastAsyncTask: The task"""
 def objective_schedule ():
     """Schedule a simple task tick that runs all objective tasks."""
 def objectives_run_all (tick_task):
@@ -103,8 +108,16 @@ def signal_emit (name, data=None):
     Args:
         name (str): The name of the signal.
         data (dict): The data to provide to the signal route."""
-def sub_task_schedule (*args, **kwargs):
-    ...
+def sub_task_schedule (label, data=None, var=None) -> 'MastAsyncTask':
+    """create an new task and start running at the specified label
+    
+    Args:
+        label (str or label): The label to run
+        data (duct, optional): Data to initialie task variables. Defaults to None.
+        var (str, optional): Set the variable to the task created. Defaults to None.
+    
+    Returns:
+        MastAsyncTask : The MAST task created"""
 def to_object_list (the_set):
     """Converts a set to a list of objects
     Args:

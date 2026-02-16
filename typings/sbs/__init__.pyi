@@ -180,8 +180,8 @@ def send_speech_bubble_to_object(clientComputerID: int, spaceObjectID: int, seco
     """attaches a speech bubble to a space object on the 2d radar."""
 def send_story_dialog(clientID: int, title: str, text: str, face: str, color: str) -> None:
     """sends a story dialog to the targeted client (0 = server screen)"""
-def set_beam_damages(clientID: int, playerBeamDamage: float, npcBeamDamage: float) -> None:
-    """sets the values for player base beam damage, and npc base beam damage.  Per client, or all clients + server (if ID = 0)."""
+def set_beam_damages(clientID: int, playerBeamDamage: float, npcBeamDamage: float, stationBeamDamage: float = 1) -> None:
+    """sets the values for player base beam damage, and station base beam damage, and npc base beam damage.  Per client, or all clients + server (if ID = 0)."""
 def set_client_string(clientComputerID: int, string_key: str, string_value: str) -> None:
     """stores a string value (and its string key) to the client computer"""
 def set_dmx_channel(clientID: int, channel: int, behavior: int, speed: int, low: int, high: int) -> None:
@@ -206,6 +206,46 @@ def suppress_client_connect_dialog(on_off_flag: int) -> None:
     """turns on (or off) the client connect dialog on the server (arg is 1 or 0)"""
 def transparent_options_button(clientID: int, on_off_flag: int) -> None:
     """for a specific client (0=server machine), turns on (or off) the Options button transparency (arg is 1 or 0)"""
+class DIPLOMACY(object): ### from pybind
+    """the different attitudes that sides have for each other
+    
+    Members:
+    
+      UNKNOWN : side attitude unknown
+    
+      NEUTRAL : side attitude neutral
+    
+      ALLIED : side attitude allied
+    
+      HOSTILE : side attitude hostile
+    
+      MAX : the total number of types different attitudes that sides have for each other"""
+    def __eq__(self: object, other: object) -> bool:
+        ...
+    def __getstate__(self: object) -> int:
+        ...
+    def __hash__(self: object) -> int:
+        ...
+    def __index__(self: sbs.DIPLOMACY) -> int:
+        ...
+    def __init__(self: sbs.DIPLOMACY, value: int) -> None:
+        ...
+    def __int__(self: sbs.DIPLOMACY) -> int:
+        ...
+    def __ne__(self: object, other: object) -> bool:
+        ...
+    def __repr__(self: object) -> str:
+        ...
+    def __setstate__(self: sbs.DIPLOMACY, state: int) -> None:
+        ...
+    def __str__(*argv):
+        """name(self: handle) -> str"""
+    @property
+    def name name(self: handle) -> str:
+        """name(self: handle) -> str"""
+    @property
+    def value (arg0: sbs.DIPLOMACY) -> int:
+        ...
 class SHPSYS(object): ### from pybind
     """One of four ship systems to track damage
     
@@ -598,8 +638,14 @@ class simulation(object): ### from pybind
         """returns true if the navproxy exists, by integer id"""
     def reposition_space_object(self: sbs.simulation, arg0: sbs.space_object, arg1: float, arg2: float, arg3: float) -> None:
         """immediately changes the position of a spaceobject"""
+    def set_diplomacy_color(self: sbs.simulation, diplomacyEnumValue: int, colorString: str) -> None:
+        """set the color of a diplomatic state (like DIPLOMACY::UNKNOWN or DIPLOMACY::ALLIED)"""
     def set_navproxy_pos(self: sbs.simulation, navproxy: sbs.navproxy, x: float, y: float, z: float) -> None:
         """takes a navproxy (the reference, not the ID), and sets the xyz values"""
+    def set_side_icon_color(self: sbs.simulation, SideTag: str, colorString: str) -> None:
+        """set the color of a SideTag (like TSN or Raider)"""
+    def set_side_relationship(self: sbs.simulation, FirstSideTag: str, SecondSideTag: str, diplomacyEnumValue: int) -> None:
+        """set the diplomatic state between two sides, for GUI color purposes."""
     def space_object_exists(self: sbs.simulation, arg0: int) -> bool:
         """returns true if the spaceobject exists, by ID"""
     @property
@@ -665,6 +711,12 @@ class space_object(object): ### from pybind
     def set_behavior(self: sbs.space_object, arg0: str) -> None:
         """set name of behavior module
         current available behavior modules : nebula, npcship, asteroid, playership, station"""
+    @property
+    def ship_data_key (self: sbs.space_object) -> str:
+        """string, name of data entry in shipData.json"""
+    @ship_data_key.setter
+    def ship_data_key (self: sbs.space_object, arg0: str) -> None:
+        """string, name of data entry in shipData.json"""
     @property
     def side (self: sbs.space_object) -> str:
         """string, friendly to other objects on this same side; leave empty for 'no side'"""

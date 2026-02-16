@@ -1,5 +1,5 @@
 import math
-from random import uniform
+from random import uniform, choices
 from .vec import Vec3
 from collections.abc import Generator
 def arc(count, x,y,z, r, start=0.0, end=90.0, random=False) -> Generator:
@@ -284,4 +284,105 @@ def sphere(count, x,y,z, r, outer=0, top_only=False, ring=False) -> Generator:
     origin = Vec3(x,y,z)
     for _ in range(0,count):
         yield origin.rand_offset(r, outer, top_only, ring)
+
+def simple_noise(count, x,y, z, x2, y2, z2, gx, gy,gz, radius=None, centered=False, ax=0,ay=0,az=0, degrees=True, drift=1.0):
+    """ Builds a simple noise distribution withing a grid. 
+
+    Args:
+        count (_type_): The maximum number of points to return. It could be less if grid is too small, or radius removes too many items. if None or 0. It returns all
+
+        x (_type_): Left or center x based on centered
+        y (_type_): Top or center y based on centered
+        z (_type_): Front or center z based on centered
+
+        x2 (_type_): Right or width based on centered
+        y2 (_type_): Bottom or height  based on centered
+        z2 (_type_): BAck or depth based on centered
+
+        gx (_type_): grid chunk size x
+        gy (_type_): grid chunk size y
+        gz (_type_): grid chunk size z
+
+        radius (_type_, optional): If supplied it will remove grid locations that are outside the radius
+        centered (bool, optional): _description_. Defaults to False.
+        ax (int, optional): rotation applied to points. Defaults to 0.
+        ay (int, optional): rotation applied to points. Defaults to 0.
+        az (int, optional): rotation applied to points. Defaults to 0.
+        degrees (bool, optional): if angles are in degrees. Defaults to True.
+        drift (float): amount of drift from grid center point as a percentage of grid radius
+    """
+
+    cx = x; cy = y; cz = z
+    w = x2; h = y2; d = z2
+    hw = w/2; hh = h/2; hd = d/2
+    left = cx-hw; right = cx+hw; top = cy-hh; bottom = cy+hh; front = cz-hd; back=cz+hd
+
+    if not centered:
+        left = x; right = x2; top = y; bottom = y2; front = z; back=z2
+        w = (right - left)/2; h = (bottom - top)/2; d = (front - back)/2
+        hw = w/2; hh = h/2; hd = d/2
+        cx = left + hw; cy = top + hh; cz = front + hd
+
+    count_x = max(int(w/gx),1)
+    count_y = max(int(h/gy),1)
+    count_z = max(int(d/gz),1)
+
     
+    w_diff = w / count_x
+    h_diff = h / count_y
+    d_diff = d / count_z
+    rotate = ax!=0 or ay!=0 or az!=0
+    origin = Vec3(x,y,z)
+
+    
+    # Calculate the length of the grid item 
+    gv = Vec3(w_diff,h_diff,d_diff)
+    grid_length = gv.length() * drift
+
+    if radius is not None:
+        r = radius - grid_length/2
+        r_squared = r * r
+
+
+
+    # Instead of a generator this will build points up front
+    grid_point = []
+    
+    for layer in range(0,count_y):
+        _y =  top + layer * h_diff
+        for row in range(0,count_z):
+            _z = front + row * d_diff
+            for col in range(0,count_x):
+                _x = left + col * w_diff
+
+                # Now we have a center point
+                v = Vec3(_x,_y,_z)
+                # wiggle the point within the grid
+                v = v.rand_offset(grid_length, ring=count_y>1)
+                if radius:
+                    diff = origin - v
+                    lsq = diff.dot(diff)
+                    if  lsq >= r_squared:
+                        continue
+
+                
+
+                # if rotate:
+                #     v = v.rotate_around(origin, ax,ay,az, degrees)
+                grid_point.append(v)
+
+    l = len(grid_point)
+    print(f"LEN {l} DIM {w} {h} {d} HEIGHT {count_x} {count_y} {count_z}")
+
+    if count is None or count == 0:
+        return grid_point
+    
+    if len(grid_point) ==0:
+        return [origin]
+    
+    ret_count = min(count, len(grid_point))
+    return choices(grid_point, k=ret_count)
+
+    
+
+        

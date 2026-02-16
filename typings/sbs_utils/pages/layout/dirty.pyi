@@ -1,0 +1,6 @@
+class Dirty(object):
+    """class Dirty"""
+    def mark_dirty (layout_item):
+        ...
+    def represent_dirty ():
+        ...

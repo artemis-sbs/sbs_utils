@@ -14,6 +14,8 @@ class FuncCommand(MastNode):
         ...
 class FuncCommandRuntimeNode(MastRuntimeNode):
     """class FuncCommandRuntimeNode"""
+    def __init__ (self):
+        """Initialize self.  See help(type(self)) for accurate signature."""
     def enter (self, mast, task: sbs_utils.mast.core_nodes.inline_function.MastAsyncTask, node: sbs_utils.mast.core_nodes.inline_function.FuncCommand):
         ...
     def poll (self, mast, task: sbs_utils.mast.core_nodes.inline_function.MastAsyncTask, node: sbs_utils.mast.core_nodes.inline_function.FuncCommand):

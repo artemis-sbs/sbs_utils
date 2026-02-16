@@ -9,8 +9,16 @@ def apply_control_styles (control_name, extra_style, layout_item, task):
         layout_item (LayoutItem): The layout item for which the style is to be applied."""
 def awaitable (func):
     ...
-def delay_sim (*args, **kwargs):
-    ...
+def delay_sim (seconds=0, minutes=0) -> sbs_utils.procedural.timers.Delay:
+    """Creates a Promise that waits for the specified time to elapse.
+    This is in simulation time (i.e. it could get paused).
+    
+    Args:
+        seconds (int, optional): The number of seconds. Defaults to 0.
+        minutes (int, optional): The number of minutes. Defaults to 0.
+    
+    Returns:
+        Promise: A promise that is done when time has elapsed."""
 def gui_blank (count=1, style=None):
     """adds an empty column to the current gui ow
     
@@ -27,12 +35,14 @@ def gui_button (props, style=None, data=None, on_press=None, is_sub_task=False):
         style (str, optional): Style. Defaults to None. End each style with a semicolon, e.g. `color:red;`
         data (object): The data to pass to the button's label
         on_press (label, callable, Promise): Handle a button press, label is jumped to, callable is called, Promise has results set
+        is_sub_task (bool): Set to True if the button is only responding to the button. Use False only if the whole gui will be changed via `await gui()`. Default is False for backwards-compatibility.
     
     Valid Styles:
         area:
             Format as `top, left, bottom, right`.
             Just numbers indicates percentage of the section or page to cover.
-            Can also use `px` (pixels) or `em` (1em = height of text font)
+            Can also use `px` (pixels) or `em` (1em = height of text font).
+            Can combine different units, e.g. `5+5px, 3em, 100-10em, 50px;` is a valid area.
         color:
             The color of the text
         background-color:
@@ -76,7 +86,7 @@ def gui_info_panel_add (path, icon_index, show, hide=None, tick=None, var=None):
     ...
 def gui_info_panel_remove (path, var=None):
     ...
-def gui_info_panel_send_message (*args, **kwargs):
+def gui_info_panel_send_message (client_id, message=None, message_color=None, path=None, title=None, title_color=None, banner=None, banner_color=None, face=None, icon_index=None, icon_color=None, button=None, history=True, time=-1):
     ...
 def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False):
     """Build a LayoutListBox gui element

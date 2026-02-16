@@ -6,6 +6,7 @@ from sbs_utils.consoledispatcher import ConsoleDispatcher
 from sbs_utils.helpers import FakeEvent
 from sbs_utils.helpers import FrameContext
 from sbs_utils.garbagecollector import GarbageCollector
+from sbs_utils.mast.mast_node import MastDataObject
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.futures import Promise
 from sbs_utils.vec import Vec3
@@ -22,8 +23,16 @@ def _comms_get_selected_id () -> int:
     ...
 def awaitable (func):
     ...
-def comms (*args, **kwargs):
-    ...
+def comms (path=None, buttons=None, timeout=None) -> sbs_utils.procedural.comms.CommsPromise:
+    """Present the comms buttons. and wait for a choice.
+    The timeout can be any promise, but typically is a made using the timeout function.
+    
+    Args:
+        buttons (dict, optional): An dict of button dat key = button properties value label to process button press
+        timeout (Promise, optional): The comms will end if this promise finishes. Defaults to None.
+    
+    Returns:
+        Promise: A Promise that finishes when a comms button is selected"""
 def comms_add_button (message, label=None, color=None, data=None, path=None) -> None:
     ...
 def comms_broadcast (ids_or_obj, msg, color=None) -> None:
@@ -110,7 +119,7 @@ def comms_speech_bubble (msg, seconds=3, color=None, client_id=None, selected_id
         face (str, optional): The face string of the face to use. Defaults to None.
         color (str, optional): The body text color. Defaults to "#fff".
         title_color (str, optional): The title text color. Defaults to None."""
-def comms_story_buttons (*args, **kwargs):
+def comms_story_buttons (ids, sel_ids, buttons, path, nav_button=None) -> sbs_utils.procedural.comms.CommsChoiceButtonPromise:
     ...
 def comms_transmit (msg, title=None, face=None, color=None, title_color=None) -> None:
     """Transmits a message from a player ship
@@ -184,14 +193,25 @@ def set_inventory_value (so, key: str, value):
         id_or_obj (Agent | int | set[Agent | int]): The agent id or object or set to check
         key (str): The key/name of the inventory item
         value (any): the value"""
+def signal_emit (name, data=None):
+    """Emit a signal to trigger all instances of the signal route to run.
+    Args:
+        name (str): The name of the signal.
+        data (dict): The data to provide to the signal route."""
 def start_comms_common_selected (event, is_grid):
     ...
 def start_comms_selected (event):
     ...
 def start_grid_comms_selected (event):
     ...
-def task_all (*args, **kwargs):
-    ...
+def task_all (*args, **kwargs) -> sbs_utils.procedural.execution.TaskPromiseAllAny:
+    """Creates a task for each argument that is a label. Also supports a data named argument to pass the data to all the tasks.
+    
+    Args:
+        args (0..n labels): the labels to schedule.
+        data (dict): keyword arg to pass data to the tasks.
+    Returns:
+        Promise: A promise that is finished when all tasks are completed."""
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     """Converts the item passed to an agent
     ??? note

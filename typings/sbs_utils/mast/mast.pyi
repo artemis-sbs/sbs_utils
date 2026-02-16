@@ -1,8 +1,6 @@
 from sbs_utils.agent import Agent
-from sbs_utils.mast.core_nodes.assign import Assign
 from sbs_utils.mast.core_nodes.comment import Comment
 from enum import Enum
-from sbs_utils.mast.core_nodes.label import Label
 from sbs_utils.mast.mast_globals import MastGlobals
 from sbs_utils.mast.mast_node import MastNode
 from sbs_utils.mast.mast_node import Scope
@@ -44,7 +42,7 @@ class Mast(object):
         ...
     def add_scheduler (self, scheduler):
         ...
-    def clear (self, file_name):
+    def clear (self, file_name, root):
         ...
     def compile (self, lines, file_name, root):
         ...

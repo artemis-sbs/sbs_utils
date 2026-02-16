@@ -1,5 +1,9 @@
 from sbs_utils.helpers import FrameContext
+def debug_print (*args, **kwargs):
+    ...
 def getmembers (object, predicate=None):
+    ...
+def getmodule (object, _filename=None):
     ...
 def isfunction (object):
     ...
@@ -12,7 +16,7 @@ class MastGlobals(object):
         Args:
             func (Callable): The python function
             name (str|None): The name assinged to the function (optional, default is None)."""
-    def import_python_module (mod_name, prepend=None):
+    def import_python_module (mod_name, prepend=None, allow_mismatch=False, use_decorator=False):
         """Import all functions within a python module as globals and optionally add a prepend to the function names.
         For example, the functions in the `scatter` module are added as global functions with 'scatter' prepended to the name like so:
         ```python

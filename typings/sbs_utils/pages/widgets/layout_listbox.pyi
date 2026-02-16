@@ -1,6 +1,8 @@
 from sbs_utils.helpers import FakeEvent
 from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.parsers import LayoutAreaParser
+def accepts_kwargs (func):
+    ...
 def apply_control_styles (control_name, extra_style, layout_item, task):
     """Apply style information to a layout item based on the type of the layout, and apply the extra styles as needed.
     Args:
@@ -17,7 +19,7 @@ def layout_list_box_control (items, template_func=None, title_template=None, sec
     ...
 class LayoutListBoxHeader(object):
     """class LayoutListBoxHeader"""
-    def __init__ (self, label, collapse):
+    def __init__ (self, label, collapse, indent=0, selectable=False, data=None, visual_indent=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
 class LayoutListbox(Column):
     """A widget to list things passing function/lamdas to get the data needed for option display of

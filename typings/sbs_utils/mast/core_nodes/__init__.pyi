@@ -15,5 +15,6 @@ from sbs_utils.mast.core_nodes.metadata_block import MetaDataBlock
 from sbs_utils.mast.core_nodes.on_change import OnChange
 from sbs_utils.mast.core_nodes.on_signal import OnSignal
 from sbs_utils.mast.core_nodes.inline_python import PyCode
+from sbs_utils.mast.core_nodes.signal_route_label import SignalRouteDecoratorLabel
 from sbs_utils.mast.core_nodes.with_cmd import WithStart
 from sbs_utils.mast.core_nodes.yield_cmd import Yield
