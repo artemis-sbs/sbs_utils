@@ -660,19 +660,20 @@ def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=
         return
     
     gx = 100; gy=radius; gz=100
-    neb_size = min(radius, NEB_MAX_SIZE)
+    neb_size = min(2000, NEB_MAX_SIZE)
     if radius > 50_000:
         gx = 2500; gy=radius; gz=2500
-        neb_size = 2000
+        neb_size = 2500
     elif radius >= 10_000:
         gx = 2500; gy=radius; gz=2500
-        neb_size = 2000
+        neb_size = 2500
     elif radius >= 3_000:
-        gx = 2000; gy=radius; gz=2000
-        neb_size = 1000
+        gx = 1500; gy=radius; gz=1500
+        neb_size = 2000
     elif radius >= 500:
         gx = 250; gy=radius; gz=250
-        neb_size = 1000
+        neb_size = 2000
+    
 
 
     # Remember Radius is the diameter of the rect
