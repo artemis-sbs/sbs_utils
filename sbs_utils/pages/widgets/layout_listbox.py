@@ -108,10 +108,13 @@ class SubPage:
 
 
 class LayoutListBoxHeader:
-    def __init__(self, label, collapse, indent=0, selectable=False, data=None):
+    def __init__(self, label, collapse, indent=0, selectable=False, data=None, visual_indent=None):
         self.label = label
         self.collapse = collapse
         self.indent = indent
+        self.visual_indent = indent
+        if visual_indent is not None:
+            self.visual_indent = visual_indent
         self.data = data
 
         # Allow the header to be collapsable and selectable
@@ -273,6 +276,7 @@ class LayoutListbox(layout.Column):
             self._items = []
 
         last_indent =0
+        last_visual_indent =0
         for item in self.unfiltered_items:
             if self.collapsible:
                 is_header = isinstance(item, LayoutListBoxHeader)
@@ -285,6 +289,7 @@ class LayoutListbox(layout.Column):
                 collapsed =  is_header and item.collapse
                 if is_header and collapsed:
                     last_indent = item.indent
+                    last_visual_indent = item.visual_indent
 
             
             sec = layout.Layout("unused", None, 0, 0, 100, 100)
@@ -499,8 +504,12 @@ class LayoutListbox(layout.Column):
             
             if (self.select or self.multi) and not self.carousel:
                 pixel_indent = last_indent * self.indent_pixels
-                if hasattr(item, "indent"):
+                
+                if hasattr(item, "visual_indent"):
+                    pixel_indent = item.visual_indent*self.indent_pixels
+                elif hasattr(item, "indent"):
                     pixel_indent = item.indent*self.indent_pixels
+                    
                 item_indent = 100.0*(pixel_indent/aspect_ratio.x)
                 sel_width = 100.0*(5/aspect_ratio.x)
                 

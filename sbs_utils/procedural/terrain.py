@@ -12,6 +12,7 @@ from sbs_utils.procedural.prefab import prefab_spawn
 
 import math
 
+NEB_MAX_SIZE = 4800
 
 def terrain_spawn_stations(DIFFICULTY, lethal_value, x_min=-32500, x_max=32500, center=None, min_num=0):
     """
@@ -373,12 +374,168 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False):
     
     for v in spawn_points:
         #cluster_spawn_points = scatter.sphere(random.randint(terrain_value*6,terrain_value*10), v.x, 0,v.z, 1000, 10000, ring=False)
-        cluster_color = random.randrange(3)
+        
         #terrain_spawn_nebula_scatter(cluster_spawn_points, 1000, cluster_color)
         # 10000 = radius 5000
-        terrain_spawn_nebula_sphere(v.x,v.y, v.z, 5000,terrain_value, cluster_color=cluster_color, selectable=selectable)
+        terrain_spawn_nebula_sphere(v.x,v.y, v.z, 5000,terrain_value, cluster_color=None, selectable=selectable)
 
-def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=None, diameter=4000, density=1.0, selectable=False):
+def color_noise(r_min, r_max, g_min,g_max, b_min, b_max, a_min=0xff, a_max=0xff):
+    r = random.randrange(r_min,r_max)
+    g = random.randrange(g_min,g_max)
+    b = random.randrange(b_min,b_max)
+    if a_min != 0xff:
+        a = random.randrange(a_min,a_max)
+        return f"#{r:02x}{g:02x}{b:02x}{a:02x}"
+
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+_neb_colors = {
+    "purple":{
+        "radar_color_override"  : color_noise(0x20, 0x30,0, 0x10, 0x50, 0x60,),    
+        "absorption_red": 1.0,  
+        "absorption_green": 0.93,    
+        "absorption_blue": 0.3,
+        "emission_red": 0.63,   
+        "emission_green": 0.0,
+        "emission_blue": 0.9,   
+        "scattering_red": 0.66,  
+        "scattering_green": 1.2, 
+        "scattering_blue": 0.75, 
+        "anisotropy": random.uniform(-0.25, 0.1),
+        "base_frequency":1.0,   
+        "base_amplitude": 0.87, 
+        "detail_frequency": 1.3055, 
+        "detail_amplitude": 1.6,
+        "detail_lacunarity": 2.43,  
+        "domain_warp":   random.random(),
+        "swirl":  random.random() * 10
+    },
+    "red":{
+        "radar_color_override"  : color_noise(0x40, 0x50, 0,0x10, 0x40, 0x50),    
+        "absorption_red": 0.11,  
+        "absorption_green": 1.5,    
+        "absorption_blue": 1.5,
+        "emission_red": 1.0,   
+        "emission_green": 0.3   ,
+        "emission_blue": 0.1,   
+        "scattering_red": 0.91,  
+        "scattering_green": 0.59, 
+        "scattering_blue": 1.2, 
+        "anisotropy": random.uniform(-0.25, 0.1),
+        "base_frequency":0.56,   
+        "base_amplitude": 0.87, 
+        "detail_frequency": 1.3055, 
+        "detail_amplitude": 0.900,
+        "detail_lacunarity": 2.43,  
+        "domain_warp":   random.random(),
+        "swirl":  random.random() * 10
+    }, 
+    "blue": {
+        "radar_color_override"  : color_noise(0,0x10, 0x40, 0x50,0x40, 0x50),    
+        "absorption_red": 1.6,  
+        "absorption_green": 1.3,    
+        "absorption_blue": 0.01,
+        "emission_red": 0.01,   
+        "emission_green": 1.0,
+        "emission_blue": 1.0,   
+        "scattering_red": 0.0,  
+        "scattering_green": 2., 
+        "scattering_blue": 0.5, 
+        "anisotropy": random.uniform(-0.25, 0.1),
+        "base_frequency":3.5,   
+        "base_amplitude": 1.87, 
+        "detail_frequency": 1.3055, 
+        "detail_amplitude": 0.900,
+        "detail_lacunarity": 2.43,  
+        "domain_warp":   random.random(),
+        "swirl": random.random() * 10
+    },
+    "yellow":{
+        "radar_color_override"  : color_noise(0x40, 0x50,0x40, 0x50,0, 0x10),    
+        "absorption_red": 0.1,  
+        "absorption_green": 0.61,    
+        "absorption_blue": 1.3,
+        "emission_red": 0.8,   
+        "emission_green": 2.0,
+        "emission_blue": 0.6,   
+        "scattering_red": 0.66,  
+        "scattering_green": 0.76, 
+        "scattering_blue": 0.65, 
+        "anisotropy": random.uniform(-0.25, 0.1),
+        "base_frequency":1.4,   
+        "base_amplitude": 1.87, 
+        "detail_frequency": 1.3055, 
+        "detail_amplitude": 1.6,
+        "detail_lacunarity": 2.43,  
+        "domain_warp":   random.random(),
+        "swirl":  random.random() * 10
+    },
+    "green":{
+        "radar_color_override"  : color_noise(0x10, 0x20,0x60, 0x70, 0x30, 0x40),    
+        "absorption_red": 0.65,  
+        "absorption_green": 0.23,    
+        "absorption_blue": 0.0,
+        "emission_red": 0.4,   
+        "emission_green": 0.8,
+        "emission_blue": 0.4,   
+        "scattering_red": 0.4,  
+        "scattering_green": 0.76, 
+        "scattering_blue": 0.35, 
+        "anisotropy": random.uniform(-0.25, 0.1),
+        "base_frequency": 0.72,   
+        "base_amplitude": 1.0, 
+        "detail_frequency": 1.3055, 
+        "detail_amplitude": 1.6,
+        "detail_lacunarity": 2.43,  
+        "domain_warp":   random.random(),
+        "swirl":  random.random() * 10
+    },
+    "orange":{
+        "radar_color_override"  : color_noise(0x50, 0x60,0x20, 0x30,0x10, 0x20),    
+        "absorption_red": 0.1,  
+        "absorption_green": 0.61,    
+        "absorption_blue": 1.3,
+        "emission_red": 1.8,   
+        "emission_green": 0.5,
+        "emission_blue": 0.1,   
+        "scattering_red": 0.4,  
+        "scattering_green": 0.76, 
+        "scattering_blue": 0.35, 
+        "anisotropy": random.uniform(-0.25, 0.1),
+        "base_frequency":1.4,   
+        "base_amplitude": 1.87, 
+        "detail_frequency": 1.3055, 
+        "detail_amplitude": 1.6,
+        "detail_lacunarity": 2.43,  
+        "domain_warp":   random.random(),
+        "swirl":  random.random() * 10
+    },
+    "white":{
+        "radar_color_override"  : color_noise(0x20, 0x30,0x20, 0x30, 0x20, 0x30),    
+        "absorption_red": 0.3,  
+        "absorption_green": 0.3,    
+        "absorption_blue": 0.3,
+        "emission_red": 1.2,   
+        "emission_green": 1.2,
+        "emission_blue": 1.2,   
+        "scattering_red": 0.66,  
+        "scattering_green": 0.66, 
+        "scattering_blue": 0.65, 
+        "anisotropy": random.uniform(-0.25, 0.1),
+        "base_frequency":2.4,   
+        "base_amplitude": 0.7, 
+        "detail_frequency": 1.3055, 
+        "detail_amplitude": 0.8,
+        "detail_lacunarity": 2.43,  
+        "domain_warp":   random.random(),
+        "swirl":  random.random() * 10
+    }
+
+
+}
+
+
+def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=None, diameter=NEB_MAX_SIZE, density=1.0, selectable=False):
     """
     Spawn asteroids at the specified spawn points.
     Args:
@@ -393,27 +550,41 @@ def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=Non
         density (float, optional): The density of the nebulae (3D view). Default is 1.0.
         selectable (bool, optional): Should the asteroids be selectable on the 2D radar widget? Default is False.
     """
+    ret = []
+    
+    if isinstance(cluster_color,str):
+        cluster_color = _neb_colors.get(cluster_color)
+    elif isinstance(cluster_color, int):
+        nc = list(_neb_colors)
+        if cluster_color<len(nc):
+            cluster_color = nc[cluster_color]
+        else:
+            cluster_color = None
+    
+    if cluster_color is None:
+        nc = list(_neb_colors.values())
+        cluster_color = random.choice(nc)
+
     for v2 in cluster_spawn_points:
         # v2.y = v2.y % 500.0 Mod doesn't work like you think
         v2.y = random.random() * (height/2)-(height/4)
 
         # This should be a set of prefabs
         nebula = terrain_spawn(v2.x, v2.y, v2.z,None, "#, nebula", "nebula", "behav_nebula")
-        nebula.blob.set("local_scale_x_coeff", random.uniform(1.0, 5.5))
-        nebula.blob.set("local_scale_y_coeff", random.uniform(2.0, 5.5))
-        nebula.blob.set("local_scale_z_coeff", random.uniform(1.0, 5.5))
+        
+        # nebula.blob.set("local_scale_x_coeff", random.uniform(1.0, 5.5))
+        # nebula.blob.set("local_scale_y_coeff", random.uniform(2.0, 5.5))
+        # nebula.blob.set("local_scale_z_coeff", random.uniform(1.0, 5.5))
         nebula.blob.set("unselectable", 0 if selectable else 1)
+        diameter += ((random.random()*2)-1) * diameter *0.10
+        diameter = min(diameter,NEB_MAX_SIZE)
+        #print(f"NEBULA {cluster_color} {density} {diameter} {in_dia}")
+        #terrain_setup_nebula(nebula, diameter, density, "yellow")
 
-        if cluster_color is None:
-            cluster_color = random.randint(0,2)
-
-        #terrain_setup_nebula_blue(nebula)
-        if cluster_color == 1:
-            terrain_setup_nebula_red(nebula, diameter, density)
-        elif cluster_color == 2:
-            terrain_setup_nebula_blue(nebula, diameter, density)
-        else:
-            terrain_setup_nebula_yellow(nebula, diameter, density)
+        terrain_setup_nebula(nebula, diameter, density, cluster_color)
+        
+        ret.append(nebula)
+    return ret
 
 def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0, density= 1, height=1000, cluster_color=None, selectable=False, is_tiled=False):
     """
@@ -440,7 +611,7 @@ def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0
     if size_z is None:
         size_z = size_x
     
-    grid = (size_x/4000 + size_z/4000)/2 * density_scale
+    grid = (size_x/5000 + size_z/5000) * density_scale
     raw_amount = max(int(grid), 1)
     min_amount = max(raw_amount//2, 1)
     if raw_amount == min_amount:
@@ -452,12 +623,11 @@ def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0
             return
         amount = random.randrange(min(raw_amount, min_amount), max(raw_amount, min_amount))
 
-
     if is_tiled:
         cluster_spawn_points = scatter.box(amount,  x + size_x/2, -height/2, z+size_z/2, size_x, height/2, size_z, True, 0, 0, 0 )
     else:
         cluster_spawn_points = scatter.box(amount,  x, -height/2, z, size_x, height/2, size_z, True, 0, 0, 0 )
-    terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color, diameter=size_x*2, density=density, selectable=selectable)
+    return terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color, diameter=size_x*2, density=density, selectable=selectable)
 
 def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=1.0, height=1000, cluster_color=None, selectable=False):
     """
@@ -480,8 +650,9 @@ def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=
     if density_scale==0:
         return
     
-    grid = (radius*2)/2000
+    grid = radius*2/NEB_MAX_SIZE
     grid = grid * density_scale
+    
 
     raw_amount = max(int(grid * density), 1)
     min_amount = max(raw_amount//2, 1)
@@ -493,14 +664,14 @@ def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=
         if raw_amount<=2 and random.randrange(0,5)==3:
             return
         amount = random.randrange(min(raw_amount, min_amount), max(raw_amount, min_amount))
-
-    # print(f"TER SPHERE {amount} {radius} {grid} {raw_amount}")
+    
+    max_dia = min(grid*NEB_MAX_SIZE, NEB_MAX_SIZE)
+    # Sub struct up to 15% of max
+    dia = max_dia - (max_dia * random.random()*0.15)
+    #print(f"TER SPHERE {grid} {amount} {radius} {dia} {raw_amount}")
     cluster_spawn_points = scatter.sphere(amount, x, y, z, radius)
-    terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color, diameter=(radius*4), density=density, selectable=selectable)
-
-
-            
-            
+    return terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color, diameter=dia, density=density, selectable=selectable)
+ 
             
 
 def terrain_spawn_monsters(monster_value, center=None):
@@ -568,113 +739,11 @@ def terrain_spawn_black_holes(lethal_value, center=None):
     for v in spawn_points:
         terrain_spawn_black_hole(*v.xyz, 5000, 4.0, 2.0)
 
-def color_noise(r_min, r_max, g_min,g_max, b_min, b_max, a_min=0xff, a_max=0xff):
-    r = random.randrange(r_min,r_max)
-    g = random.randrange(g_min,g_max)
-    b = random.randrange(b_min,b_max)
-    if a_min != 0xff:
-        a = random.randrange(a_min,a_max)
-        return f"#{r:02x}{g:02x}{b:02x}{a:02x}"
-
-    return f"#{r:02x}{g:02x}{b:02x}"
 
 
-def terrain_setup_nebula_red(nebula, diameter=4000, density_coef=1.0):
-    """
-    Set up the nebulae to use the default red values.
-    Args:
-        nebula (set[Agent]): The nebulae
-        diameter (int, optional): The diameter of the nebula.
-        density_coef (float, optional): Scales the visual nebula density (3D view)
-    """
-    blob = to_data_set(nebula)
-    blob.set("radar_color_override", color_noise(0x70, 0x80, 0, 0x10, 0x70, 0x80)) # "#707")    
-    #blob.set("radar_color_override", "#0ff")    
-    #size = 1000 * random.uniform(1.0, 5.5)
-    size = min(diameter, 4000.0)
-    blob.set("size", size)
-    density = 9.24 * density_coef
-    blob.set("density", density)
-    # 0 to 10000
-    seed = random.randint(2,99999)
-    blob.set("random_seed", seed)
+    
 
-
-    blob.set("absorption_red", 0.11)
-    blob.set("absorption_green", 0.2)
-    blob.set("absorption_blue", 0.2)
-
-    blob.set("emission_red", 0.11)
-    blob.set("emission_green", 0.06)
-    blob.set("emission_blue", 0.04)
-
-    blob.set("scattering_red", 0.14)
-    blob.set("scattering_green", .01)
-    blob.set("scattering_blue", 0.01)
-
-    blob.set("anisotropy", random.uniform(-0.25, 0.1))
-
-    blob.set("base_frequency",0.56)
-    blob.set("base_amplitude", 0.87)
-    blob.set("detail_frequency", 1.3055)
-    blob.set("detail_amplitude", 0.900299)
-    blob.set("detail_lacunarity", 2.43)
-
-    blob.set("domain_warp", random.random())
-    swirl = random.random() * 2
-    blob.set("swirl", swirl)
-    # Need to tell the engine we changed the values
-    blob.set("nebula_data_change", 1)
-
-
-def terrain_setup_nebula_yellow(nebula, diameter=4000, density_coef=1.0):
-    """
-    Set up the nebulae to use the default yellow values.
-    Args:
-        nebula (set[Agent]): The nebulae
-        diameter (int, optional): The diameter of the nebula.
-        density_coef (float, optional): Scales the visual nebula density (3D view)
-    """
-    blob = to_data_set(nebula)
-    blob.set("radar_color_override", color_noise(0x70, 0x80,0x70, 0x80, 0, 0x10)) # "#770")    
-    #size = 1000 * random.uniform(1.0, 5.5)
-    size = min(diameter, 4000.0)
-    blob.set("size", size)
-    density = 9.24 * density_coef
-    blob.set("density", density)
-    # 0 to 10000
-    seed = random.randint(2,99999)
-    blob.set("random_seed", seed)
-
-
-    blob.set("absorption_red", 0.1)
-    blob.set("absorption_green", 0.1)
-    blob.set("absorption_blue", 0.2)
-
-    blob.set("emission_red", 0.05)
-    blob.set("emission_green", 0.05)
-    blob.set("emission_blue", 0.01)
-
-    blob.set("scattering_red", 0.2)
-    blob.set("scattering_green", 0.2)
-    blob.set("scattering_blue", 0.01)
-
-    blob.set("anisotropy", random.uniform(-0.25, 0.1))
-
-    blob.set("base_frequency",0.56)
-    blob.set("base_amplitude", 1.87)
-    blob.set("detail_frequency", 1.3055)
-    blob.set("detail_amplitude", 0.900299)
-    blob.set("detail_lacunarity", 2.43)
-
-    blob.set("domain_warp", random.random())
-    swirl = random.random() * 2
-    blob.set("swirl", swirl)
-    # Need to tell the engine we changed the values
-    blob.set("nebula_data_change", 1)
-
-
-def terrain_setup_nebula_blue(nebula, diameter=4000, density_coef=1.0):
+def terrain_setup_nebula(nebula, diameter=4000, density_coef=1.0, color="yellow"):
     """
     Set up the nebulae to use the default blue values.
     Args:
@@ -683,40 +752,32 @@ def terrain_setup_nebula_blue(nebula, diameter=4000, density_coef=1.0):
         density_coef (float, optional): Scales the visual nebula density (3D view)
     """
     blob = to_data_set(nebula)
-    blob.set("radar_color_override", color_noise(0,0x10, 0x70, 0x80,0x70, 0x80))    
+    
     # size = 1000 * random.uniform(1.0, 5.5)
-    size = min(diameter, 4000.0)
-    blob.set("size", size)
-    density = 9.24 * density_coef
+    size = min(diameter,  NEB_MAX_SIZE)
+    #blob.set("size", size)
+    blob.set("display_size", size)
+    blob.set("effect_size", size)
+    blob.set("max_throttle", 2.0)
+
+    density = min(max(9.24* density_coef,1.95), 20)
+    #density = 20
     blob.set("density", density)
     # 0 to 10000
     seed = random.randint(2,99999)
     blob.set("random_seed", seed)
 
+    if isinstance(color, str):
+        color = _neb_colors.get(color, _neb_colors.get("yellow"))
 
-    blob.set("absorption_red", 0.2)
-    blob.set("absorption_green", 0.1)
-    blob.set("absorption_blue", 0.1)
-
-    blob.set("emission_red", 0.01)
-    blob.set("emission_green", 0.03)
-    blob.set("emission_blue", 0.05)
-
-    blob.set("scattering_red", 0.01)
-    blob.set("scattering_green", 0.2)
-    blob.set("scattering_blue", 0.2)
-
-    blob.set("anisotropy", random.uniform(-0.25, 0.1))
-
-    blob.set("base_frequency",0.56)
-    blob.set("base_amplitude", 1.87)
-    blob.set("detail_frequency", 1.3055)
-    blob.set("detail_amplitude", 0.900299)
-    blob.set("detail_lacunarity", 2.43)
-
-    blob.set("domain_warp", random.random())
-    swirl = random.random() * 2
-    blob.set("swirl", swirl)
+    for k,v in color.items():
+        blob.set(k,v)
     # Need to tell the engine we changed the values
     blob.set("nebula_data_change", 1)
 
+
+
+
+
+
+    

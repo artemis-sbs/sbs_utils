@@ -1,7 +1,6 @@
 import os
 import sys
 import json
-from . import yaml
 import re
 
 # the script module should be the startup script
@@ -226,7 +225,7 @@ def get_mission_dir_filename(filename):
     return get_script_dir()+"\\"+filename        
 
 
-def load_yaml_data(file):
+def load_yaml_data(file, multi=False):
     """Load and parse a YAML file.
     
     Attempts to load using ryaml first for better comment handling, 
@@ -234,21 +233,29 @@ def load_yaml_data(file):
     
     Args:
         file (str): Path to the YAML file to load.
+        multi (bool): return a generator of all documents
     
     Returns:
-        dict or None: Parsed YAML data, or None if loading fails.
+        dict or generator or None: Parsed YAML data, or None if loading fails.
     """
     try:
         import ryaml
         with open(file, 'r') as f:
-            return ryaml.load(f)
+            if multi:
+                return ryaml.load_all(f)
+            else:
+                return ryaml.load(f)
     except Exception as e:
         pass
 
     try:
+        from . import yaml
         with open(file, 'r') as f:
             # remove comments
-            return yaml.safe_load(f)
+            if multi:
+                return yaml.safe_load_all(f)
+            else:
+                return yaml.safe_load(f)
     except Exception as e:
         return None
 
@@ -271,8 +278,34 @@ def load_yaml_string(s):
         pass
 
     try:
+        from . import yaml
         # remove comments
         return yaml.safe_load(s)
+    except Exception as e:
+        return None
+
+def save_yaml_data(file, data):
+    """Save an object as a YAML file.
+    
+    Attempts to dump using ryaml first for better comment handling, 
+    falls back to standard yaml.safe_dump if ryaml is unavailable.
+    
+    Args:
+        file (str): Path to the YAML file to load.
+        data (dict): Dict or object to save
+    """
+    try:
+        import ryaml
+        with open(file, 'w') as f:
+            return ryaml.dump(f, data)
+    except Exception as e:
+        pass
+
+    try:
+        from . import yaml
+        with open(file, 'w') as f:
+            # remove comments
+            return yaml.safe_dump_all(f, data)
     except Exception as e:
         return None
 
@@ -357,6 +390,21 @@ def save_json_data(file, data):
         #j = re.sub(r',[\n\r]+[ \t]*"', ',"', j )
         #j = re.sub(r'\n[\s]+},\n[\s]+', '},', j )
         f.write(j)
+
+
+
+def file_get_time(filename):
+    try:
+        return os.stat(filename).st_mtime
+    except Exception:
+        return 0
+
+def file_get_stats(filename):
+    try:
+        return os.stat(filename)
+    except Exception:
+        return None
+
 
 def add_to_path(dir):
     """Add a directory to the Python module search path.
