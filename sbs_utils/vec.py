@@ -352,6 +352,8 @@ class Vec3:
             (Vec3):  A randomly offset vector within the sphere/ring
         """
         v = Vec3.rand_in_sphere(r, outer, top_only, ring)
+        if ring:
+            v.y = 0
         return self + v
 
     def rand_in_sphere(radius, outer=0, only_top_half=False, ring=False):
@@ -386,7 +388,6 @@ class Vec3:
             if ring:
                 ret.y = 0
             ret = ret.unit()
-
             ret = ret.multiply(r)
         if ring:
             ret.y = 0

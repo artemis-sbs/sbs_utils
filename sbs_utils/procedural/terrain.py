@@ -75,15 +75,13 @@ def terrain_spawn_stations(DIFFICULTY, lethal_value, x_min=-32500, x_max=32500, 
 
     ret = []
     # for each station
+    pos_as_list = random.sample(points, num_stations)
     for index in range(num_stations):
         stat_type = station_type_list[index]
         
         if points is not None:
             try:
-                pos_as_list = random.sample(points, 1)
-                if len(pos_as_list)>0:
-                    pos = pos_as_list[0]
-
+                pos = pos_as_list[index]
             except Exception:
                 return ret
             
@@ -128,7 +126,7 @@ def terrain_spawn_stations(DIFFICULTY, lethal_value, x_min=-32500, x_max=32500, 
 
 
 # make a few random clusters of Asteroids
-def terrain_asteroid_clusters(terrain_value, center=None, selectable=False):
+def terrain_asteroid_clusters(terrain_value, center=None, selectable=False, points=None):
     """
     Spawn clusters of asteroids around the map.
     Args:
@@ -144,7 +142,10 @@ def terrain_asteroid_clusters(terrain_value, center=None, selectable=False):
     t_max_pick = [0,8,10, 12,16]
     t_min = t_max_pick[terrain_value]
     t_max = t_min * 2
-    spawn_points = scatter.box(random.randint(t_min,t_max), center.x, center.y, center.z, 100000, 1000, 100000, centered=True)
+    if points is None:
+        spawn_points = scatter.box(random.randint(t_min,t_max), center.x, center.y, center.z, 100000, 1000, 100000, centered=True)
+    else:
+        spawn_points = random.choices(points, k=random.randint(t_min,t_max))
     for v in spawn_points:
         
         amount = random.randint(t_min,t_max)//2
@@ -157,6 +158,7 @@ def terrain_asteroid_clusters(terrain_value, center=None, selectable=False):
         cluster_spawn_points = scatter.box(amount,  v.x, 0,v.z, size*150, size*50,size*200, True, 0, ay, 0 )
 
         terrain_spawn_asteroid_scatter(cluster_spawn_points, 1000, selectable=selectable)
+    return spawn_points
 
 def terrain_spawn_asteroid_box(x,y,z, size_x=10000,size_z=None, density_scale=1.0, density=1, height=1000, selectable=False, is_tiled=False):
     """
@@ -419,6 +421,7 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False, 
         #terrain_spawn_nebula_scatter(cluster_spawn_points, 1000, cluster_color)
         # 10000 = radius 5000
         terrain_spawn_nebula_sphere(v.x,v.y, v.z, 10000,terrain_value, cluster_color=None, selectable=selectable)
+    return spawn_points
 
 def color_noise(r_min, r_max, g_min,g_max, b_min, b_max, a_min=0xff, a_max=0xff):
     r = random.randrange(r_min,r_max)
@@ -784,10 +787,12 @@ def terrain_spawn_monsters(monster_value, center=None, points=None):
             spawn_points = random.sample(points, monster_value)
         except Exception:
             return
+    else:
+        spawn_points = scatter.box(monster_value, center.x,center.y, center.z, 75000, 1000, 75000, centered=True)
 
-    spawn_points = scatter.box(monster_value, center.x,center.y, center.z, 75000, 1000, 75000, centered=True)
     for v in spawn_points:
         prefab_spawn("prefab_typhon_classic", None, *v.xyz)
+    return spawn_points
 
 
 call_signs = []
@@ -846,6 +851,8 @@ def terrain_spawn_black_holes(lethal_value, center=None, points=None):
     if points is None:
         spawn_points = scatter.box(lethal_value, center.x,center.y, center.z, 75000, 500, 75000, centered=True)
     
-
+    ret = []
     for v in spawn_points:
-        terrain_spawn_black_hole(*v.xyz, 5000, 4.0, 2.0)
+        ret.append(terrain_spawn_black_hole(*v.xyz, 5000, 4.0, 2.0))
+    return ret
+
