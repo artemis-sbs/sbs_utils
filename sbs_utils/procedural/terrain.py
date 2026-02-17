@@ -2,8 +2,7 @@ from sbs_utils import scatter
 import random
 from sbs_utils.procedural.ship_data import plain_asteroid_keys
 from sbs_utils.procedural.spawn import terrain_spawn, npc_spawn
-from sbs_utils.procedural.query import to_id, to_object, to_data_set
-from sbs_utils.procedural.inventory import set_inventory_value
+from sbs_utils.procedural.query import to_id, to_space_object, to_data_set
 
 from sbs_utils.scatter import ring as scatter_ring
 from sbs_utils.faces import set_face, random_terran
@@ -12,9 +11,32 @@ from sbs_utils.procedural.prefab import prefab_spawn
 
 import math
 
-NEB_MAX_SIZE = 4800
+NEB_MAX_SIZE = 3000
 
-def terrain_spawn_stations(DIFFICULTY, lethal_value, x_min=-32500, x_max=32500, center=None, min_num=0):
+
+def terrain_remove_points_near(all_points, test_points, radius):
+    r2 = radius*radius
+    ret = []
+    for v in all_points:
+        keep = True
+        for t in test_points:
+            if not isinstance(t, Vec3):
+                so = to_space_object(t)
+                if so is None:
+                    return ret
+                t = so.pos
+            diff = v - t
+            ls = diff.dot(diff)
+            if ls <= r2:
+                keep = False
+                break
+        if keep:
+            ret.append(v)
+    return ret
+
+
+
+def terrain_spawn_stations(DIFFICULTY, lethal_value, x_min=-32500, x_max=32500, center=None, min_num=0, points=None):
     """
     Spawn stations throughout the map, weighted by the game difficutly, and wrap minefields around them as applicable based on the lethal terrain value.
     Args:
@@ -51,20 +73,33 @@ def terrain_spawn_stations(DIFFICULTY, lethal_value, x_min=-32500, x_max=32500, 
     num_stations = len(station_type_list)
     station_step = 100000/num_stations
 
-    
+    ret = []
     # for each station
     for index in range(num_stations):
         stat_type = station_type_list[index]
-        pos.x = center.x + random.uniform(x_min, x_max)
-        pos.y = center.y + random.random()*500-250
-        pos.z = center.z + startZ #+ random.random()*station_step/3  -   station_step/6
-    #    _spawned_pos.append(pos)
-        startZ += station_step
+        
+        if points is not None:
+            try:
+                pos_as_list = random.sample(points, 1)
+                if len(pos_as_list)>0:
+                    pos = pos_as_list[0]
 
+            except Exception:
+                return ret
+            
+        else:
+            pos.x = center.x + random.uniform(x_min, x_max)
+            pos.y = center.y + random.random()*500-250
+            pos.z = center.z + startZ #+ random.random()*station_step/3  -   station_step/6
+        #    _spawned_pos.append(pos)
+            startZ += station_step
         #make the station ----------------------------------
         name = f"DS {index+1}"
         s_roles = f"tsn, station"
         station_object = npc_spawn(*pos, name, s_roles, stat_type, "behav_station")
+        so = to_space_object(station_object)
+        if so is not None:
+            ret.append(so)
         ds = to_id(station_object)
         set_face(ds, random_terran(civilian=True))
 
@@ -89,6 +124,7 @@ def terrain_spawn_stations(DIFFICULTY, lethal_value, x_min=-32500, x_max=32500, 
                 mine_obj.blob.set("damage_done", 5)
                 mine_obj.blob.set("blast_radius", 1000)
                 mine_obj.engine_object.blink_state = -5
+    return ret
 
 
 # make a few random clusters of Asteroids
@@ -357,7 +393,7 @@ def terrain_to_value(dropdown_select, default=0):
     return default
 
 
-def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False):
+def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False, points=None):
     """
     Spawn clusters of nebulae around the map.
     Args:
@@ -370,7 +406,12 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False):
 
     t_min = terrain_value * 6
     t_max = t_min * 2
-    spawn_points = scatter.box(random.randint(t_min,t_max), center.x, center.y, center.z, 100_000, 1000, 100_000, centered=True)
+    count = random.randint(t_min,t_max)
+
+    if points is not None:
+        spawn_points = random.choices(points, k=count)
+    else:
+        spawn_points = scatter.box(count, center.x, center.y, center.z, 100_000, 1000, 100_000, centered=True)
     
     for v in spawn_points:
         #cluster_spawn_points = scatter.sphere(random.randint(terrain_value*6,terrain_value*10), v.x, 0,v.z, 1000, 10000, ring=False)
@@ -727,15 +768,22 @@ def terrain_setup_nebula(nebula, diameter=4000, density_coef=1.0, color="yellow"
  
             
 
-def terrain_spawn_monsters(monster_value, center=None):
+def terrain_spawn_monsters(monster_value, center=None, points=None):
     """
     Spawn monsters based on the monster value of the game.
     Args:
         monster_value (int): Scales the numnber of monsters to spawn.
         center (Vec3): The center of the spawn area. Defaults to None (0,0,0).
+        points (iter): Optional if passed it will sample points 
     """
     if center is None:
         center = Vec3(0,0,0)
+
+    if points is not None:
+        try:
+            spawn_points = random.sample(points, monster_value)
+        except Exception:
+            return
 
     spawn_points = scatter.box(monster_value, center.x,center.y, center.z, 75000, 1000, 75000, centered=True)
     for v in spawn_points:
@@ -767,7 +815,7 @@ def terrain_spawn_black_hole(x,y,z, gravity_radius= 1500, gravity_strength=1.0, 
     r_name = f"{random.choice(_prefix)} {str(call_signs[enemy_name_number]).zfill(2)}"
     enemy_name_number = (enemy_name_number+1)%99
 
-    bh = to_object(terrain_spawn(x,y,z, r_name, "#,black_hole", "maelstrom", "behav_maelstrom"))
+    bh = to_space_object(terrain_spawn(x,y,z, r_name, "#,black_hole", "maelstrom", "behav_maelstrom"))
     bh.engine_object.exclusion_radius = 100 # event horizon
     blob = bh.data_set
     blob.set("gravity_radius", gravity_radius, 0)
@@ -778,23 +826,26 @@ def terrain_spawn_black_hole(x,y,z, gravity_radius= 1500, gravity_strength=1.0, 
     return bh
 
 
-def terrain_spawn_black_holes(lethal_value, center=None):
+def terrain_spawn_black_holes(lethal_value, center=None, points=None):
     """
     Spawn black holes based on the game's lethal terrain value.
     Args:
         lethal_value (int): The integer value representing how much lethal terrain should spawn.
         center (Vec3): The center of the spawn points. Default is None (0,0,0).
+        points (iter): Optional if passed it will sample points 
     """
     if center is None:
         center = Vec3(0,0,0)
 
-    spawn_points = scatter.box(lethal_value, center.x,center.y, center.z, 75000, 500, 75000, centered=True)
+    if points is not None: 
+        try: 
+            spawn_points = random.sample(points, lethal_value)
+        except Exception:
+            return
+        
+    if points is None:
+        spawn_points = scatter.box(lethal_value, center.x,center.y, center.z, 75000, 500, 75000, centered=True)
+    
+
     for v in spawn_points:
         terrain_spawn_black_hole(*v.xyz, 5000, 4.0, 2.0)
-
-
-
-    
-
-
-    

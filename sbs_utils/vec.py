@@ -388,6 +388,11 @@ class Vec3:
             ret = ret.unit()
 
             ret = ret.multiply(r)
+        if ring:
+            ret.y = 0
+            ret = ret.unit()
+            ret = ret.multiply(radius)
+
 
         return ret
     

@@ -358,7 +358,9 @@ def simple_noise(count, x,y, z, x2, y2, z2, gx, gy,gz, radius=None, centered=Fal
                 # Now we have a center point
                 v = Vec3(_x,_y,_z)
                 # wiggle the point within the grid
-                v = v.rand_offset(grid_length, ring=count_y>1)
+                v = v.rand_offset(grid_length, ring=count_y==1)
+                v.y = uniform(top,bottom)
+                
                 if radius:
                     diff = origin - v
                     lsq = diff.dot(diff)
