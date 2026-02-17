@@ -1,4 +1,5 @@
 from ..helpers import FrameContext
+from .query import to_object, set_data_set_value, get_data_set_value
 
 # Set default values here.
 torp_keys = dict()
@@ -134,3 +135,46 @@ def get_torp_string_value_dict(key:str)->dict:
     """
     torp = get_torp_value_string(key)
     return parse_torp_string(torp)
+
+
+def torpedo_make_available(id, key:str, count:int=0) -> None:
+    """
+    Make a torpedo type available to a player ship. The torpedo type must be defined using `torpedo_type()` or `torpedo_type_string()` before it can be made available.
+    Args:
+        id (int | Agent): The id of the torpedo to make available. This is the id that will be used in the ship's loadout to specify this torpedo.
+        key (str): The key of the torpedo type to make available.
+        count (int, optional): The number of torpedoes of this type to add to the ship's inventory. Default is 0.
+    """
+    obj = to_object(id)
+    if obj is not None:
+        types = get_data_set_value(id,"torpedo_types_available")
+        if types is None:
+            types = ""
+        if isinstance(types, str):
+            type_list = types.split(",")
+            if key not in type_list:
+                type_list.append(key)
+                new_types = ",".join(type_list)
+                set_data_set_value(id,"torpedo_types_available", new_types)
+                set_data_set_value(id, f"{key}_NUM", count)
+
+def torpedo_make_unavailable(id, key:str) -> None:
+    """
+    Make a torpedo type unavailable to a player ship. The torpedo type must be defined using `torpedo_type()` or `torpedo_type_string()` before it can be made unavailable.
+    Args:
+        id (int | Agent): The id of the torpedo to make unavailable. This is the id that will be used in the ship's loadout to specify this torpedo.
+        key (str): The key of the torpedo type to make unavailable.
+    """
+    obj = to_object(id)
+    if obj is not None:
+        types = get_data_set_value(id,"torpedo_types_available")
+        if types is None:
+            types = ""
+        if isinstance(types, str):
+            type_list = types.split(",")
+            if key in type_list:
+                type_list.remove(key)
+                new_types = ",".join(type_list)
+                set_data_set_value(id,"torpedo_types_available", new_types)
+                set_data_set_value(id, f"{key}_NUM", 0)
+
