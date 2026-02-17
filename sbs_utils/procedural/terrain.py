@@ -145,7 +145,7 @@ def terrain_asteroid_clusters(terrain_value, center=None, selectable=False, poin
     if points is None:
         spawn_points = scatter.box(random.randint(t_min,t_max), center.x, center.y, center.z, 100000, 1000, 100000, centered=True)
     else:
-        spawn_points = random.choices(points, k=random.randint(t_min,t_max))
+        spawn_points = random.sample(points, k=random.randint(t_min,t_max))
     for v in spawn_points:
         
         amount = random.randint(t_min,t_max)//2
@@ -411,7 +411,7 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False, 
     count = random.randint(t_min,t_max)
 
     if points is not None:
-        spawn_points = random.choices(points, k=count)
+        spawn_points = random.sample(points, k=count)
     else:
         spawn_points = scatter.box(count, center.x, center.y, center.z, 100_000, 1000, 100_000, centered=True)
     
