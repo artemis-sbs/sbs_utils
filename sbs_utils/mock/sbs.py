@@ -76,7 +76,7 @@ def delete_object(arg0: int) -> None:
 
 def distance(arg0: space_object, arg1: space_object) -> float:
     """returns the distance between two space objects; arguments are two spaceObjects"""
-    if arg0 is not None or arg1 is None:
+    if arg0 is None or arg1 is None:
         return 100000000000000.0
 
     one = Vec3(arg0.pos.x, arg0.pos.y,arg0.pos.z)
