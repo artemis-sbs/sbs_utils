@@ -330,6 +330,44 @@ class LayoutListbox(layout.Column):
         self.client_id = CID
         SBS = FrameContext.context.sbs
 
+        restore = FrameContext.page
+        task = restore.gui_task
+        sub_page = SubPage(self.tag_prefix, self.local_region_tag, restore.gui_task, event.client_id)
+        FrameContext.page = sub_page
+
+
+
+        top = self.bounds.top
+        left = self.bounds.left
+        right = self.bounds.right
+        bottom = self.bounds.bottom
+
+# region Draw Title
+        if self.title_template_func is not None:
+            tag = f"{self.tag_prefix}"
+            sec = layout.Layout(tag+":title", None, left, top, right, top+2)
+            sec.region_tag = self.local_region_tag
+            apply_control_styles("", self.title_section_style, sec, task)
+            #self.title_section_style
+            sub_page.next_slot(-1, sec)
+            #
+            # Allow item to force size
+            #
+            size = self.title_template_func(listbox=self)
+            #
+            # Set the task values
+            #
+            sec.calc(CID)
+            if size is None:
+                sec.resize_to_content()
+                top += sec.bounds.height
+            else:
+                top+= size
+            sec.present(event)
+            # sub_page.tags |= sec.get_tags()
+# endregion
+
+
         
         item_width = 0# self.bounds.width 
         item_height = 0 #self.bounds.height
@@ -368,7 +406,7 @@ class LayoutListbox(layout.Column):
         if self.horizontal:
             max_slots = (self.bounds.right - self.bounds.left) // max_item_width #max(item_width,5) 
         else:
-            max_slots = (self.bounds.bottom - self.bounds.top) // max_item_height #max(item_height,5) 
+            max_slots = (self.bounds.bottom - top) // max_item_height #max(item_height,5) 
 
 
         max_slots = int(max_slots)
@@ -380,10 +418,6 @@ class LayoutListbox(layout.Column):
             extra_slot_count = 0
             self.cur = 0
         
-        top = self.bounds.top
-        left = self.bounds.left
-        right = self.bounds.right
-        bottom = self.bounds.bottom
 
 # region Draw Carousel Nav Buttons        
         em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
@@ -428,38 +462,8 @@ class LayoutListbox(layout.Column):
         slot = 0
         cur = self.cur
 
-        restore = FrameContext.page
-        task = restore.gui_task
 
-        sub_page = SubPage(self.tag_prefix, self.local_region_tag, restore.gui_task, event.client_id)
-        restore = FrameContext.page
-        FrameContext.page = sub_page
-
-# region Draw Title
-        if self.title_template_func is not None:
-            tag = f"{self.tag_prefix}"
-            sec = layout.Layout(tag+":title", None, left, top, right, top+2)
-            sec.region_tag = self.local_region_tag
-            apply_control_styles("", self.title_section_style, sec, task)
-            #self.title_section_style
-            sub_page.next_slot(-1, sec)
-            #
-            # Allow item to force size
-            #
-            size = self.title_template_func(listbox=self)
-            #
-            # Set the task values
-            #
-            sec.calc(CID)
-            if size is None:
-                sec.resize_to_content()
-                top += sec.bounds.height
-            else:
-                top+= size
-            sec.present(event)
-            # sub_page.tags |= sec.get_tags()
-# endregion
-
+        
         #draw_slots = max_slot
         self.sections = []
         collapse = False
