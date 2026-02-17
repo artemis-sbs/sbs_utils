@@ -31,19 +31,20 @@ def linked_to(link_source, link_name: str):
         return set()
     return link_source.get_link_set(link_name)
 
-def has_link_to(link_source, link_name: str, link_target):
-    """check if target and source are linked to for the given key
+def has_link_to(link_source, link_name: str, link_target) -> bool:
+    """
+    Check if target and source are linked to for the given key
 
     Args:
         link_source (Agent | int): The agent or id hosting the link
         link_name (str): The key/name of the inventory item
     
     Returns:
-        set[int]: The set of linked ids
+        bool: Does the link exist
     """
     link_source = Agent.resolve_py_object(link_source)
     if link_source is None:
-        return set()
+        return False
     return  link_source.has_link_to(link_name,link_target)
 
 def link(set_holder, link_name: str, set_to):
