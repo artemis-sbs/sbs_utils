@@ -1,15 +1,18 @@
-from ..procedural.query import to_id, to_blob, to_object, to_list, to_set
-from ..procedural.roles import role, add_role, remove_role, all_roles,has_role
-from ..procedural.links import link,unlink
-from ..procedural.inventory import get_inventory_value, set_inventory_value
-from ..procedural.grid import grid_objects, grid_objects_at, grid_closest, grid_get_grid_data, grid_get_item_theme_data, grid_get_grid_current_theme
-from ..procedural.spawn import grid_spawn
-from ..procedural.comms import comms_broadcast
+from .query import to_id, to_blob, to_object, to_list, to_set
+from .roles import role, add_role, remove_role, all_roles,has_role
+from .links import link,unlink
+from .inventory import get_inventory_value, set_inventory_value
+from .grid import grid_objects, grid_objects_at, grid_closest, grid_get_grid_data, grid_get_item_theme_data, grid_get_grid_current_theme
+from .spawn import grid_spawn
+from .comms import comms_broadcast
+from .settings import settings_get_defaults
+from .prefab import prefab_spawn
 
-from ..procedural.space_objects import get_pos
-from ..procedural.signal import signal_emit
+from .space_objects import get_pos
+from .signal import signal_emit
 from ..helpers import FrameContext
 from ..agent import Agent
+from ..fs import is_dev_build
 
 import random
 
@@ -199,6 +202,12 @@ def grid_restore_damcons(id_or_obj):
     colors  = item_theme_data.color
     damage_colors  = item_theme_data.damage_color
     #
+    #TODO: REMOVE When Grid AI is proven
+    settings = settings_get_defaults()
+    interns = settings.get("NEW_DAMCONS", is_dev_build())
+
+    prefab_label = get_inventory_value(ship_id, "PREFAB_DAMCONS", "prefab_lifeform_damcons")
+    #
     # Create damcons/lifeforms
     #
     color_count = len(colors)
@@ -215,12 +224,30 @@ def grid_restore_damcons(id_or_obj):
         else:
             v = SBS.vec3(0.5,0,0.5)
             point = SBS.find_valid_unoccupied_grid_point_for_vector3(ship_id, v, 5)
-            
+            # Allow it to spawn somewhere
+            if len(point) == 0:
+                point = SBS.find_valid_grid_point_for_vector3(ship_id, v, 5)
+                
             if len(point) == 0:
                 break
             icon = item_theme_data.icon
             scale = item_theme_data.scale
-            dc = grid_spawn(ship_id, _name, _name, point[0],point[1],icon, colors[i%color_count], "crew,damcons,lifeform")
+
+            dc = None
+            is_intern = False
+            color = colors[i%color_count]
+            damage_color = damage_colors[i%color_count]
+            if interns:
+                dc_task = prefab_spawn(prefab_label, {"ship_id": ship_id, "NAME":_name, "START_X": point[0], "START_Y": point[1], "COLOR": color, "DAMAGE_COLOR":damage_color})
+                if dc_task.done():
+                    dc = dc_task.result()
+                if dc is not None:
+                    continue
+                
+                
+
+            if not interns or dc is None:
+                dc = grid_spawn(ship_id, _name, _name, point[0],point[1],icon, colors[i%color_count], "crew,damcons,lifeform")
 
             dc.engine_object.layer = 4
             dc.blob.set("icon_scale", scale,0 )
@@ -234,16 +261,17 @@ def grid_restore_damcons(id_or_obj):
             #
             # Create idle/rally point
             #
-            dc_color = get_inventory_value(_id, "color", "white")
-            marker_tag = f"{_go.name} rally point"
-            
-            icon = rally_theme_data.icon
-            scale = rally_theme_data.scale
+            if not is_intern:
+                dc_color = get_inventory_value(_id, "color", "white")
+                marker_tag = f"{_go.name} rally point"
+                
+                icon = rally_theme_data.icon
+                scale = rally_theme_data.scale
 
-            idle_marker = grid_spawn(ship_id, marker_tag, marker_tag, point[0],point[1], icon, dc_color, "#,rally_point") 
-            _blob = to_blob(idle_marker)
-            _blob.set("icon_scale", scale, 0)
-            set_inventory_value(_id, "idle_marker", to_id(idle_marker))
+                idle_marker = grid_spawn(ship_id, marker_tag, marker_tag, point[0],point[1], icon, dc_color, "#,rally_point") 
+                _blob = to_blob(idle_marker)
+                _blob.set("icon_scale", scale, 0)
+                set_inventory_value(_id, "idle_marker", to_id(idle_marker))
 
 
 def grid_apply_system_damage(id_or_obj):
