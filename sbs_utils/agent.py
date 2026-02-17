@@ -53,14 +53,15 @@ class Stuff:
             if the_set is not None:
                 the_set.discard(id)
 
-    def collection_has(self,  collection, id):
-        """ check if the object has a role
-        :param role: The role to add e.g. spy, pirate etc.
-        :type id: str
-        :return: If the object has the role
-        :rtype: bool
+    def collection_has(self,  collection, id) -> bool:
+        """ 
+        Check if the object has a collection
+
+        Args:
+            collection (str); the name of the collection
+        Returns:
+            bool: If the object has the collection.
         """
-        # TODO: ^ THIS DOCSTRING NEEDS UPDATED
         if collection not in self.collections:
             return False
 
@@ -315,13 +316,16 @@ class Agent():
         self.links.remove_collection(link_name)
         self.has_links.remove_from_collection(link_name, self.id)
 
-    def has_link_to(self, link_name: str | list[str], other: Agent | CloseData | int):
-        """ check if the object has a role
+    def has_link_to(self, link_name: str | list[str], other: Agent | CloseData | int) -> bool:
+        """ 
+        Check if the object has a link.
 
-        :param role: The role to add e.g. spy, pirate etc.
-        :type id: str
-        :return: If the object has the role
-        :rtype: bool
+        Args:
+            link_name (str | list[str]): The name (or names) of the link(s)
+            other (Agent | CloseData | int): The object for which to check if a link exists
+
+        Returns:
+            bool: True if the link exists.
         """
         link_name = link_name.strip().lower()
         id = self.resolve_id(other)
