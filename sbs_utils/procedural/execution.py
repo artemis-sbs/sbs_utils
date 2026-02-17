@@ -160,7 +160,7 @@ def task_schedule(label: str | Label, data=None, var:str=None, defer=False, inhe
     return None
 
 @awaitable
-def task_schedule_server(label: str | Label, data=None, var:str=None) -> "MastAsyncTask":
+def task_schedule_server(label: str | Label, data=None, var:str=None, defer=False, inherit=True, unscheduled=False) -> "MastAsyncTask":
     """create an new task and start running at the specified label
     assuring it runs on the server
 
@@ -174,12 +174,12 @@ def task_schedule_server(label: str | Label, data=None, var:str=None) -> "MastAs
     """    
     task = FrameContext.server_task
     if task is not None:
-        t = task.start_task(label, data, var)
+        t = task.start_task(label, data, var, defer, inherit, unscheduled)
         return t
     return None
 
 @awaitable
-def task_schedule_client(label: str | Label, data=None, var:str=None) -> "MastAsyncTask":
+def task_schedule_client(label: str | Label, data=None, var:str=None, defer=False, inherit=True, unscheduled=False) -> "MastAsyncTask":
     """create an new task and start running at the specified label
     assuring it runs on the client (which should be the same as task_schedule, but this is more explicit)
 
@@ -193,7 +193,7 @@ def task_schedule_client(label: str | Label, data=None, var:str=None) -> "MastAs
     """    
     task = FrameContext.client_task
     if task is not None:
-        t = task.start_task(label, data, var)
+        t = task.start_task(label, data, var, defer, inherit, unscheduled)
         return t
     return None
 

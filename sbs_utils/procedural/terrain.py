@@ -406,6 +406,9 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False, 
     if center is None:
         center = Vec3(0,0,0)
 
+    from ..helpers import FrameContext
+    
+
     t_min = terrain_value * 6
     t_max = t_min * 2
     count = random.randint(t_min,t_max)
@@ -415,12 +418,11 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False, 
     else:
         spawn_points = scatter.box(count, center.x, center.y, center.z, 100_000, 1000, 100_000, centered=True)
     
+    sim = FrameContext.sim
+    
     for v in spawn_points:
-        #cluster_spawn_points = scatter.sphere(random.randint(terrain_value*6,terrain_value*10), v.x, 0,v.z, 1000, 10000, ring=False)
-        
-        #terrain_spawn_nebula_scatter(cluster_spawn_points, 1000, cluster_color)
-        # 10000 = radius 5000
         terrain_spawn_nebula_sphere(v.x,v.y, v.z, 10000,terrain_value, cluster_color=None, selectable=selectable)
+        
     return spawn_points
 
 def color_noise(r_min, r_max, g_min,g_max, b_min, b_max, a_min=0xff, a_max=0xff):
@@ -435,6 +437,7 @@ def color_noise(r_min, r_max, g_min,g_max, b_min, b_max, a_min=0xff, a_max=0xff)
 
 _neb_colors = {
     "purple":{
+        "display_text": "purple",
         "radar_color_override"  : color_noise(0x20, 0x30,0, 0x10, 0x50, 0x60,),    
         "absorption_red": 1.0,  
         "absorption_green": 0.93,    
@@ -455,6 +458,7 @@ _neb_colors = {
         "swirl":  random.random() * 10
     },
     "red":{
+        "display_text": "red",
         "radar_color_override"  : color_noise(0x40, 0x50, 0,0x10, 0x40, 0x50),    
         "absorption_red": 0.11,  
         "absorption_green": 1.5,    
@@ -475,6 +479,7 @@ _neb_colors = {
         "swirl":  random.random() * 10
     }, 
     "blue": {
+        "display_text": "blue",
         "radar_color_override"  : color_noise(0,0x10, 0x40, 0x50,0x40, 0x50),    
         "absorption_red": 1.6,  
         "absorption_green": 1.3,    
@@ -495,6 +500,7 @@ _neb_colors = {
         "swirl": random.random() * 10
     },
     "yellow":{
+        "display_text": "yellow",
         "radar_color_override"  : color_noise(0x40, 0x50,0x40, 0x50,0, 0x10),    
         "absorption_red": 0.1,  
         "absorption_green": 0.61,    
@@ -515,6 +521,7 @@ _neb_colors = {
         "swirl":  random.random() * 10
     },
     "green":{
+        "display_text": "green",
         "radar_color_override"  : color_noise(0x10, 0x20,0x60, 0x70, 0x30, 0x40),    
         "absorption_red": 0.65,  
         "absorption_green": 0.23,    
@@ -535,6 +542,7 @@ _neb_colors = {
         "swirl":  random.random() * 10
     },
     "orange":{
+        "display_text": "orange",
         "radar_color_override"  : color_noise(0x50, 0x60,0x20, 0x30,0x10, 0x20),    
         "absorption_red": 0.1,  
         "absorption_green": 0.61,    
@@ -555,6 +563,7 @@ _neb_colors = {
         "swirl":  random.random() * 10
     },
     "white":{
+        "display_text": "white",
         "radar_color_override"  : color_noise(0x20, 0x30,0x20, 0x30, 0x20, 0x30),    
         "absorption_red": 0.3,  
         "absorption_green": 0.3,    
@@ -682,7 +691,7 @@ def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0
         ret.append(nebula)
     return ret
 
-def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=1.0, height=1000, cluster_color=None, selectable=False):
+def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=1.0, height=1000, cluster_color=None, selectable=False, name=""):
     """
     Spawn nebula clusters within the sphere. Density is per 1000.
     Args:
@@ -718,11 +727,23 @@ def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=
         gx = 250; gy=radius; gz=250
         neb_size = 2000
     
+    # if name is not None:
+    cluster_color = terrain_nebula_color(cluster_color)
+    
+    marker = npc_spawn(x,y,z, str(name), "map,nebula_marker", "generic-sphere", "behav_nonpcship")
+    marker.data_set.set("elite_main_scn_invis", 1.0 ,0)
+    marker.data_set.set("radar_color_override", "gold" ,0)
+    if isinstance(cluster_color, str):
+        marker.py_object.set_inventory_value("cluster_color", cluster_color)
+    if isinstance(cluster_color, dict):
+        color = cluster_color.get("display_text", "nebula")
+        marker.py_object.set_inventory_value("cluster_color", color)
+        
 
 
     # Remember Radius is the diameter of the rect
     cluster_spawn_points = scatter.simple_noise(0, x,y, z, radius, 1, radius, gx, gy,gz, radius=radius, centered=True, drift=density)
-    cluster_color = terrain_nebula_color(cluster_color)
+    
     ret = []
     rainbow = random.randint(1,14) == 3
     for v2 in cluster_spawn_points:
