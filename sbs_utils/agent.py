@@ -53,14 +53,15 @@ class Stuff:
             if the_set is not None:
                 the_set.discard(id)
 
-    def collection_has(self,  collection, id):
-        """ check if the object has a role
-        :param role: The role to add e.g. spy, pirate etc.
-        :type id: str
-        :return: If the object has the role
-        :rtype: bool
+    def collection_has(self,  collection, id) -> bool:
+        """ 
+        Check if the object has a collection
+
+        Args:
+            collection (str); the name of the collection
+        Returns:
+            bool: If the object has the collection.
         """
-        # TODO: ^ THIS DOCSTRING NEEDS UPDATED
         if collection not in self.collections:
             return False
 

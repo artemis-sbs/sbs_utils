@@ -1,6 +1,7 @@
 from ..agent import Agent
 from .query import to_object_list, to_set, to_object, to_id_list, to_id
 
+# TODO: Consider renaming this function? The name implies that it returns a boolean, which can easily trip people up if they are looking for a `get_links()` or similar.
 def has_link(link_name: str):
     """
     Get the objects that have a link item with the given key.
