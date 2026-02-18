@@ -485,10 +485,10 @@ class StoryPage(Page):
             button.click_tag = self.get_tag()
 
             if tab_text == back_tab:
-                button.background_color = "#fff9"
+                button.background_color = "#999"
                 _row.add(button)        
             else:
-                button.background_color = "#fff3"
+                button.background_color = "#333"
                 _row.add_front(button)
             
         

@@ -7,9 +7,7 @@ import weakref
 
 class Column:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
-        self.bounds = Bounds(left,top,right,bottom)
-        self.restore_bounds = self.bounds
-        
+        self._bounds = Bounds(left,top,right,bottom)
 
         self.padding = None
         self.border = None
@@ -50,6 +48,7 @@ class Column:
         self.on_message_cb = None
         self.client_id = None
         self._parent = None
+        self._is_shown = True
 
     @property
     def click_tag(self):
@@ -87,22 +86,31 @@ class Column:
         #     return
         Dirty.mark_dirty(self)
 
+    @property
+    def bounds(self):
+        if not self._is_shown:
+            return Bounds.hidden
+        return self._bounds
+
+    @bounds.setter
+    def bounds(self, v):
+        self._bounds = v
+
 
     def set_bounds(self, bounds) -> None:
         self.bounds.left=bounds.left
         self.bounds.top=bounds.top
         self.bounds.right=bounds.right
         self.bounds.bottom=bounds.bottom
-        if bounds.left > -1000:
-            self.restore_bounds = bounds
 
 
     def show(self, _show):
-        if not _show:
-            # Needs to be different than section to truly know it is hidden
-            self.set_bounds(Bounds(-1011,-1011, -999,-999))
-        else:
-            self.set_bounds(self.restore_bounds)
+        self._is_shown = _show
+        # if not _show:
+        #     # Needs to be different than section to truly know it is hidden
+        #     self.set_bounds(Bounds(-1011,-1011, -999,-999))
+        # else:
+        #     self.set_bounds(self.restore_bounds)
         self.mark_layout_dirty()
 
     @property

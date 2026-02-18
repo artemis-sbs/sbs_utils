@@ -11,7 +11,8 @@ class Bounds:
         right (float): Right edge coordinate.
         bottom (float): Bottom edge coordinate.
     """
-    
+
+    hidden = None
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
         """Initialize a Bounds object.
         
@@ -168,3 +169,5 @@ class Bounds:
         self.top= min(b.top, self.top)
         self.right= max(b.right, self.right)
         self.bottom = max(b.bottom, self.bottom)
+
+Bounds.hidden = Bounds(-1011,-1011, -999,-999)

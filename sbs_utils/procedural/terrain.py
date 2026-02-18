@@ -730,8 +730,8 @@ def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=
     # if name is not None:
     cluster_color = terrain_nebula_color(cluster_color)
     
-    marker = npc_spawn(x,y,z, str(name), "map,nebula_marker", "generic-sphere", "behav_nonpcship")
-    marker.data_set.set("elite_main_scn_invis", 1.0 ,0)
+    marker = terrain_spawn(x,y,z, str(name), "map,nebula_marker", "generic-sphere", "behav_marker")
+    marker.data_set.set("elite_main_scn_invis", 1 ,0)
     marker.data_set.set("radar_color_override", "gold" ,0)
     if isinstance(cluster_color, str):
         marker.py_object.set_inventory_value("cluster_color", cluster_color)
