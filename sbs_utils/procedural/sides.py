@@ -1,6 +1,9 @@
+from ..helpers import FrameContext
 from .roles import role, has_role
 from .inventory import get_inventory_value, set_inventory_value
-from .query import to_object, to_id, set_data_set_value, get_data_set_value
+from .query import to_object, to_id, set_data_set_value, get_data_set_value, to_object_list
+from .links import link, linked_to, has_link, has_link_to, unlink
+import traceback
 def sides_set():
     """
     Get a set containing the ids of all sides (objects with the "__side__" role).
@@ -28,7 +31,7 @@ def side_keys_set():
 
 def side_members_set(side):
     """
-    Get all objects with the specified side. Use this instead of `role(side)`.
+    Get all objects with the specified side, or all objects of the same side as the provided object. Use this instead of `role(side)`.
     
     Args:
         side (str | int | Agent): The key or name of the side, or the ID of the side, or the side object, or an object with the given side.
@@ -48,14 +51,16 @@ def side_members_set(side):
 
 def side_ally_members_set(side):
     """
-    Get a set of all space objects allied with the side.
+    Get a set of all space objects allied with the side or object.
     Args:
         side (str | int | Agent): The id or key of the side, or the id or object of a spaceobject.
     Returns:
         set[int]: A set containing the ids of all allied ships, stations, etc.
     """
     id = to_side_id(side)
-    allies = get_inventory_value(id, "side_allies", set())
+    allies = linked_to(id, "side_ally")
+    
+    # allies = get_inventory_value(id, "side_allies", set())
     ally_members = set()
     if allies is not None:
         for a in allies:
@@ -64,14 +69,14 @@ def side_ally_members_set(side):
 
 def side_enemy_members_set(side):
     """
-    Get a set of all space objects that are enemies of the side.
+    Get a set of all space objects that are enemies of the side or object.
     Args:
         side (str | int | Agent): The id or key of the side, or the id or object of a spaceobject.
     Returns:
         set[int]: A set containing the ids of all enemy ships, stations, etc.
     """
     id = to_side_id(side)
-    enemies = get_inventory_value(id, "side_enemies", set())
+    enemies = linked_to(id, "side_enemy")
     enemy_members = set()
     if enemies is not None:
         for a in enemies:
@@ -80,7 +85,7 @@ def side_enemy_members_set(side):
 
 def to_side_id(key_or_id_or_object):
     """
-    Get the id for the given side.
+    Get the id for the given side or side of object.
 
     Args:
         key_or_id (str | int): the key or the Agent of the side, or the id or Agent of a space object.
@@ -114,7 +119,7 @@ def to_side_id(key_or_id_or_object):
 
 def to_side_object(key_or_id):
     """
-    Get the object for the given side.
+    Get the object for the given side or side of object.
 
     Args:
         key_or_id (str | int): the key or the Agent ID of the side, or an Agent or Agent ID belonging to the side.
@@ -127,7 +132,7 @@ def to_side_object(key_or_id):
 
 def side_display_name(key):
     """
-    Get the display name of the side.
+    Get the display name of the side or side of object.
 
     Args:
         key (str | int): The key or id of the side.
@@ -138,22 +143,39 @@ def side_display_name(key):
     name = get_inventory_value(id, "side_name")
     return name
 
+def side_set_object_side(id_or_obj, key)->None:
+    """
+    Set the side of an object, or list or set of objects.
+
+    Args:
+        id_or_obj (int | Agent | list[int | Agent] | set[int | Agent]): The object or objects for which the side should be set.
+        key (str | int | Agent): The key or id of the side, or an object with that side.
+    """
+    id = to_side_id(key)
+    if id is None:
+        print("WARNING: Side not found.")
+        for line in traceback.format_stack():
+            print(line.strip())
+        return
+    key = get_inventory_value(id, "side_key")
+    display = get_inventory_value(id, "side_name")
+    obj_list = to_object_list(id_or_obj)
+    for obj in obj_list:
+        # Update side and GUI side name
+        obj.side = key
+        obj.side_display = display
+    
+
+#TODO: I tried using the @deprecated annotation (so the extension could easily determine and show a warning), but `typing_extensions` wasn't found, and `warnings` needs python v3.13
 def side_set_ship_allies_and_enemies(ship):
     """
+    *Deprecated as of v1.3.0.*
+    To be removed in the future.
     Generate the ally list and hostile list for the specified ship based on its side.
     Args:
         ship (Agent | int): The object for which the ally and hostile lists should be updated.
     """
-    ship = to_object(ship)
-    side = to_side_id(ship)
-    if isinstance(side, int):
-        allies = get_inventory_value(side, "side_allies", set())
-        enemies = get_inventory_value(side, "side_enemies", set())
-        allies = ",".join(allies)
-        enemies = ",".join(enemies)
-        set_data_set_value(ship, "ally_list", allies)
-        set_data_set_value(ship, "hostile_list", enemies) # Not used by the engine yet?
-    
+    pass
 
 def side_set_relations(side1, side2, relation):
     """
@@ -162,13 +184,28 @@ def side_set_relations(side1, side2, relation):
     Args:
         side1 (str|int): key or id of the first side
         side2 (str|int): key or id of the second side
-        relation (int): the new relations between the sides.
-            * 1: Ally
-            * 0: Netural
-            * -1: Enemy
+        relation (sbs.DIPLOMACY): the new relations between the sides, e.g. `sbs.DIPLOMACY.ALLIED`
+            * UNKNOWN
+            * NEUTRAL
+            * ALLIED
+            * HOSTILE
     """
-    # print(f"Side1 = {side1}")
-    # print(f"Side2 = {side2}")
+    
+    sbs = FrameContext.context.sbs
+    sim = FrameContext.context.sim
+
+    if int(relation) < 0: # Backwards-compatibility (crash prevention) of old version that used -1 for hostile
+        print(f"INVALID RELATION VALUE: {relation}. Using {sbs.DIPLOMACY.HOSTILE} instead.")
+        # TODO: This could be a separate function that always prints the current stack?
+        for line in traceback.format_stack():
+            print(line.strip())
+        relation = sbs.DIPLOMACY.HOSTILE
+    if int(relation) > int(sbs.DIPLOMACY.MAX): # Possibly also could prevent crashes.
+        print(f"INVALID RELATION VALUE: {relation}. Using {sbs.DIPLOMACY.UNKNOWN} instead.")
+        for line in traceback.format_stack():
+            print(line.strip())
+        relation = sbs.DIPLOMACY.UNKNOWN
+
     o1 = to_side_id(side1)
     o2 = to_side_id(side2)
 
@@ -177,95 +214,57 @@ def side_set_relations(side1, side2, relation):
         # print(f"side is None in side_set_relations()")
         # print(f"One or both sides are not valid")
         return
-
-    o1_enemies = get_inventory_value(o1, "side_enemies", set())
-    # print(f"o1_enemies = {o1_enemies}")
-    if isinstance(o1_enemies, str):
-        o1_enemies = set(o1_enemies.split(","))
-
-    o1_allies = get_inventory_value(o1, "side_allies", set())
-    if isinstance(o1_allies, str):
-        o1_allies = set(o1_allies.split(","))
-    o1_key = get_inventory_value(o1, "side_key")
-
-
-    o2_enemies = get_inventory_value(o2, "side_enemies", set())
-    if isinstance(o2_enemies, str):
-        o2_enemies = set(o2_enemies.split(","))
-    o2_allies = get_inventory_value(o2, "side_allies", set())
-    if isinstance(o2_allies, str):
-        o2_allies = set(o2_allies.split(","))
-    o2_key = get_inventory_value(o2, "side_key")
-    # print("Allies before change")
-    # print(f"{o1_allies}")
-    # print(f'{o2_allies}')
-    # print("Enemies before Change")
-    # print(f"{o1_enemies}")
-    # print(f"{o2_enemies}")
-
-    # Since we're using sets, which don't allow duplicates, we don't need to worry about whether the key exists already
-    if relation == 1:
-        o1_enemies.discard(o2_key)
-        o2_enemies.discard(o1_key)
-        o2_allies.add(o1_key)
-        o1_allies.add(o2_key)
-    if relation == 0:
-        o1_enemies.discard(o2_key)
-        o2_enemies.discard(o1_key)
-        o1_allies.discard(o2_key)
-        o2_allies.discard(o1_key)
-    if relation == -1:
-        o1_allies.discard(o2_key)
-        o2_allies.discard(o1_key)
-        o2_enemies.add(o1_key)
-        o1_enemies.add(o2_key)
-    # print("Allies after change")
-    # print(f"{o1_allies}")
-    # print(f'{o2_allies}')
-    # print("Enemies after Change")
-    # print(f"{o1_enemies}")
-    # print(f"{o2_enemies}")
     
-    set_inventory_value(o1, "side_enemies", o1_enemies)
-    set_inventory_value(o1, "side_allies", o1_allies)
-    set_inventory_value(o2, "side_enemies", o2_enemies)
-    set_inventory_value(o2, "side_allies", o2_allies)
+    # Clear the existing relationship links (if they exist), since we'll be replacing them with the new relationship.
+    unlink(o1, "side_ally", o2)
+    unlink(o1, "side_hostile", o2)
+    unlink(o1, "side_neutral", o2)
+    unlink(o1, "side_unknown", o2)
+    match relation:
+        case sbs.DIPLOMACY.ALLIED:
+            link(o1, "side_ally", o2)
+        case sbs.DIPLOMACY.HOSTILE:
+            link(o1, "side_hostile", o2)
+        case sbs.DIPLOMACY.NEUTRAL:
+            link(o1, "side_neutral", o2)
+        case sbs.DIPLOMACY.UNKNOWN: # Is this strictly necessary? Probably not???
+            link(o1, "side_unknown", o2)
+        case _:
+            # While we could have left DIPLOMACY.UNKNOWN as its own thing,
+            # for now we can safely assume that any relation value other than ALLIED, HOSTILE, or NEUTRAL is meant to be UNKNOWN, and we can just link it with "side_unknown".
+            link(o1, "side_unknown", o2)
 
-    # Now we need to update the ally lists for all impacted ships
-    # Convert to strings for blob data
-    o1_enemies = ",".join(o1_enemies)
-    o2_enemies = ",".join(o2_enemies)
-    o1_allies = ",".join(o1_allies)
-    o2_allies = ",".join(o2_allies)
-    for ship in role(o2_key):
-        if not has_role(ship, "__side__"): # Exclude side prefabs
-            set_data_set_value(ship, "ally_list", o2_allies)
-            set_data_set_value(ship, "hostile_list", o2_enemies) # Not used by the engine yet?
-    for ship in role(o1_key):
-        if not has_role(ship, "__side__"): # Exclude side prefabs
-            set_data_set_value(ship, "ally_list", o1_allies)
-            set_data_set_value(ship, "hostile_list", o1_enemies) # Not used by the engine yet?
+    # Get the side keys, since the engine uses the key and doesn't even know about the side object.
+    o1_key = get_inventory_value(o1, "side_key")
+    o2_key = get_inventory_value(o2, "side_key")
+
+    # Update the engine relationship for 2d map graphics
+    sim.set_side_relationship(o1_key, o2_key, relation)
 
 def side_get_relations(side1, side2):
     """
     Get the relations value of the two sides.
-    * 1: Allies
-    * 0: Neutral
-    * -1: Enemies
 
     Args:
         side1 (str | int): the key or id of the first side
         side2 (str | int): the key or id of the second side
     Returns:
-        int: relations value
+        sbs.DIPLOMACY: The relations value, e.g. `sbs.DIPLOMACY.ALLIED`
+            * UNKNOWN
+            * NEUTRAL
+            * ALLIED
+            * HOSTILE
     """
-    # o1 = to_side_id(side1)
-    # o2 = to_side_id(side2)
+    sbs = FrameContext.context.sbs
+
     if side_are_allies(side1,side2):
-        return 1
+        return sbs.DIPLOMACY.ALLIED
     if side_are_enemies(side1,side2):
-        return -1
-    return 0
+        return sbs.DIPLOMACY.HOSTILE
+    if side_are_neutral(side1, side2):
+        return sbs.DIPLOMACY.NEUTRAL
+    else:
+        return sbs.DIPLOMACY.UNKNOWN
     
 def side_are_allies(side1, side2)->bool:
     """
@@ -274,28 +273,12 @@ def side_are_allies(side1, side2)->bool:
         side1 (str | int): the key or id of the first side
         side2 (str | int): the key or id of the second side
     Returns: 
-        True if they are allies, otherwise False
+        bool: True if they are allies, otherwise False
     """
     o1 = to_side_id(side1)
     o2 = to_side_id(side2)
-    if o1 is None:
-        print("`side1` in side_are_allies(side2,side2) in sbs_utils/procedural/sides.py is None")
-        return False
-    if o2 is None:
-        print("`side2` in side_are_allies(side2,side2) in sbs_utils/procedural/sides.py is None")
-        return False
+    return has_link_to(o1, "side_ally", o2)
 
-    o1_allies = get_inventory_value(o1, "side_allies",set())
-    # print(f"side_are_allies o1_allies: {o1_allies}")
-    if isinstance(o1_allies, str):
-        o1_allies = o1_allies.split(",")
-
-    o2_key = get_inventory_value(o2, "side_key")
-    if o2_key is None:
-        return False
-    # print(f"o2key: {o2_key}")
-
-    return o2_key in o1_allies
 
 def side_are_enemies(side1, side2)->bool:
     """
@@ -304,29 +287,11 @@ def side_are_enemies(side1, side2)->bool:
         side1 (str | int): the key or id of the first side
         side2 (str | int): the key or id of the second side
     Returns: 
-        True if they are allies, otherwise False
+        bool: True if they are allies, otherwise False
     """
-    
     o1 = to_side_id(side1)
     o2 = to_side_id(side2)
-    if o1 is None:
-        print("`side1` in side_are_enemies(side2,side2) in sbs_utils/procedural/sides.py is None")
-        return False
-    if o2 is None:
-        print("`side2` in side_are_enemies(side2,side2) in sbs_utils/procedural/sides.py is None")
-        return False
-
-    o1_enemies = get_inventory_value(o1, "side_enemies", set())
-    # print(f"side_are_enemies o1_enemies: {o1_enemies}")
-    if isinstance(o1_enemies, str):
-        o1_enemies = o1_enemies.split(",")
-
-    o2_key = get_inventory_value(o2, "side_key")
-    if o2_key is None:
-        return False
-    # print(f"o2Key = {o2_key}")
-
-    return o2_key in o1_enemies
+    return has_link_to(o1, "side_enemy", o2)
     
 def side_are_neutral(side1, side2)->bool:
     """
@@ -335,10 +300,23 @@ def side_are_neutral(side1, side2)->bool:
         side1 (str | int): the key or id of the first side
         side2 (str | int): the key or id of the second side
     Returns: 
-        True if they are allies, otherwise False
+        bool: True if they are allies, otherwise False
     """
-    return (not side_are_allies(side1,side2)) and (not side_are_enemies(side1,side2))
+    o1 = to_side_id(side1)
+    o2 = to_side_id(side2)
+    return has_link_to(o1, "side_neutral", o2)
     
-    
+def side_set_icon_color(key_or_id, color)->None:
+    """
+    Set the icon color for the specified side. This will change the color of ships on the 2d map.
+    Args:
+        key_or_id (str | int): The key or id of the side to set the icon color for.
+        color (str): The hexidecimal color code to set the side's icon color to. For example, "#F00" or "#FF0000" for red, "#0F0" or "#00FF00" for green, etc.
+    """
+    # TODO: Is transparency supported in the color code? I would think not but should check.
+    id = to_side_id(key_or_id)
+    if id is not None:
+        key = get_inventory_value(id, "side_key")
+        FrameContext.context.sim.set_side_icon_color(key, color)
 
 
