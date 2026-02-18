@@ -317,6 +317,33 @@ def side_set_icon_color(key_or_id, color)->None:
     id = to_side_id(key_or_id)
     if id is not None:
         key = get_inventory_value(id, "side_key")
+        set_inventory_value(id, "side_color", color)
         FrameContext.context.sim.set_side_icon_color(key, color)
 
+def side_get_side_color(key_or_id, default="#0F0")->str:
+    """
+    Get the icon color for the specified side.
+    Args:
+        key_or_id (str | int | Agent): The Key, ID, or agent of the side
+        default (str, optional): The color code to use if the side or side's color isn't found. Default is `#0F0` (red).
+    Returns:
+        str: The hexidecimal color code assigned to the side.
+    """
+    id = to_side_id(key_or_id)
+    if id is not None:
+        return get_inventory_value(id, "side_color", default)
+    return default
+    
+def side_is_color_used(color)->bool:
+    """
+    Check if the color is used by any side.
+    Args:
+        color (str): The hexidecmial color code to check for.
+    Returns:
+        bool: True if any side uses the specified color.
+    """
+    for side in sides_set():
+        if side_get_side_color(side, color):
+            return True
+    return False
 
