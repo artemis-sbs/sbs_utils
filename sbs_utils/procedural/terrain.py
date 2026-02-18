@@ -13,7 +13,7 @@ import math
 
 NEB_MAX_SIZE = 1500
 NEB_SIZE_LARGE = 1500
-NEB_SIZE_SMALL = 1500
+NEB_SIZE_SMALL = 1200
 
 
 def terrain_remove_points_near(all_points, test_points, radius):
@@ -614,10 +614,11 @@ def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=Non
         nebula = terrain_nebula_spawn(v2, height, cluster_color, diameter, density, selectable)
         
         ret.append(nebula)
+
     return ret
 
 def terrain_nebula_spawn(v2, height, cluster_color, diameter, density, selectable):
-    v2.y = random.random() * (height/2)-(height/4)
+    v2.y = random.random() * (height)-(height/2)
 
         # This should be a set of prefabs
     nebula = terrain_spawn(v2.x, v2.y, v2.z,None, "#, nebula", "nebula", "behav_nebula")
@@ -643,7 +644,7 @@ def terrain_nebula_color(cluster_color):
         cluster_color = random.choice(nc)
     return cluster_color
 
-def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0, density= 1, height=1000, cluster_color=None, selectable=False, is_tiled=False):
+def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0, density= 1, height=1000, cluster_color=None, selectable=False, marker=True, name = ""):
     """
     Spawn asteroids throughout a box.
     Args:
@@ -661,39 +662,11 @@ def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0
         * 2: blue
         * 3: yellow
         selectable (bool, optional): Should the asteroids be selectable on the 2D radar widget? Default is False.
-        is_tiled (bool, optional): Is the spawn position data tiled (using the map editor)? Default is False.
     """
-    if density_scale==0:
-        return
-    
+    return terrain_spawn_nebula_common(x,y,z, size_x, size_z, None,density_scale, density, height, cluster_color, selectable,marker, name)
 
-    
-    gx = 500; gy=1; gz=500
-    if size_x >= 50_000:
-        gx = 5000; gy=size_x; gz=5000
-    elif size_x >= 10_000:
-        gx = 3000; gy=size_x; gz=3000
-    elif size_x >= 3_000:
-        gx = 2000; gy=size_x; gz=2000
-    elif size_x >= 500:
-        gx = 1000; gy=size_x; gz=1000
-
-
-    # Remember Radius is the diameter of the rect
-    cluster_spawn_points = scatter.simple_noise(0, x,y, z, size_x, 1, size_z, gx, gy,gz, radius=size_x, centered=True, drift=density)
-    cluster_color = terrain_nebula_color(cluster_color)
-    ret = []
-    rainbow = random.randint(1,14) == 3
-
-    for v2 in cluster_spawn_points:
-        # Some nebula are a mix
-        if rainbow:
-            cluster_color = terrain_nebula_color(None)
-        nebula = terrain_nebula_spawn(v2, height, cluster_color, gx/2, density, selectable)
-        ret.append(nebula)
-    return ret
-
-def terrain_spawn_nebula_sphere(x,y,z, radius=NEB_MAX_SIZE, density_scale=1.0, density=1.0, height=1000, cluster_color=None, selectable=False, name=""):
+def terrain_spawn_nebula_sphere(x,y,z, radius=NEB_MAX_SIZE, density_scale=1.0, density=1.0, 
+                                height=1000, cluster_color=None, selectable=False, marker=True, name=""):
     """
     Spawn nebula clusters within the sphere. Density is per 1000.
     Args:
@@ -711,47 +684,68 @@ def terrain_spawn_nebula_sphere(x,y,z, radius=NEB_MAX_SIZE, density_scale=1.0, d
         * 3: yellow
         selectable (bool, optional): Should the spawned nebulae be selectable on the 2D radar widgets? Default is False.
     """
+    return terrain_spawn_nebula_common(x,y,z, radius, radius, radius,density_scale, density, height, cluster_color, selectable, marker, name)
+
+def terrain_spawn_nebula_common(x,y,z, size_x=10000, size_z=None, 
+                                radius=None,density_scale=1.0, 
+                                density= 1, height=1000, cluster_color=None, 
+                                selectable=False, marker=True, name=""):
     if density_scale==0:
-        return
+        return []
     
-    gx = 100; gy=radius; gz=100
-    neb_size = min(2000, NEB_MAX_SIZE)
-    if radius >= 10_000:
-        gx = NEB_SIZE_LARGE; gy=radius; gz=NEB_SIZE_LARGE
-        neb_size = NEB_SIZE_LARGE
-    elif radius >= 3_000:
-        gx = NEB_SIZE_SMALL; gy=radius; gz=NEB_SIZE_SMALL
-        neb_size = NEB_SIZE_SMALL
-    elif radius >= 500:
-        gx = 250; gy=radius; gz=250
-        neb_size = NEB_SIZE_SMALL
+    if size_x is None:
+        size_z = size_x
     
+    # gx = 100; gy=height; gz=100
+    # neb_size = min(1500, NEB_MAX_SIZE)
+    # if size_x >= 10_000:
+    #     gx = NEB_SIZE_LARGE; gy=height; gz=NEB_SIZE_LARGE
+    #     neb_size = NEB_SIZE_LARGE
+    # elif size_x >= 3_000:
+    #     gx = NEB_SIZE_SMALL; gy=height; gz=NEB_SIZE_SMALL
+    #     neb_size = NEB_SIZE_SMALL
+    # elif size_x >= 500:
+    #     gx = size_x; gy=height; gz=size_z
+    #     neb_size = NEB_SIZE_SMALL
+    # else:
+    #     neb_size = NEB_SIZE_SMALL
+
+    gx = min(size_x, NEB_SIZE_LARGE); gy=height; gz=min(size_x, NEB_SIZE_LARGE)
+    neb_size = min(size_x, NEB_SIZE_LARGE)
+
     # if name is not None:
+    color_set = cluster_color is not None
     cluster_color = terrain_nebula_color(cluster_color)
     
-    marker = terrain_spawn(x,y,z, str(name), "map,nebula_marker", "generic-sphere", "behav_selection")
-    marker.data_set.set("elite_main_scn_invis", 1 ,0)
-    marker.data_set.set("radar_color_override", "gold" ,0)
-    if isinstance(cluster_color, str):
-        marker.py_object.set_inventory_value("cluster_color", cluster_color)
-    if isinstance(cluster_color, dict):
-        color = cluster_color.get("display_text", "nebula")
-        marker.py_object.set_inventory_value("cluster_color", color)
+    if marker:
+        marker = terrain_spawn(x,y,z, str(name), "map,nebula_marker", "generic-sphere", "behav_selection")
+        marker.data_set.set("elite_main_scn_invis", 1 ,0)
+        marker.data_set.set("radar_color_override", "gold" ,0)
+        if isinstance(cluster_color, str):
+            marker.py_object.set_inventory_value("cluster_color", cluster_color)
+        if isinstance(cluster_color, dict):
+            color = cluster_color.get("display_text", "nebula")
+            marker.py_object.set_inventory_value("cluster_color", color)
         
 
 
     # Remember Radius is the diameter of the rect
-    cluster_spawn_points = scatter.simple_noise(0, x,y, z, radius, 1, radius, gx, gy,gz, radius=radius, centered=True, drift=density)
+    cluster_spawn_points = scatter.simple_noise(0, x,y, z, size_x, height, size_z,
+                                                 gx, gy,gz, radius=radius, centered=True, drift=density)
     
     ret = []
     rainbow = random.randint(1,14) == 3
     for v2 in cluster_spawn_points:
         # v2.y = v2.y % 500.0 Mod doesn't work like you think
-        if rainbow:
+        if rainbow and not color_set:
             cluster_color = terrain_nebula_color(None)
         nebula = terrain_nebula_spawn(v2, height, cluster_color, neb_size, density, selectable)
         ret.append(nebula)
+        
+    l = len(ret)
+    print(f"cluster count {l}")
     return ret
+
 def terrain_setup_nebula(nebula, diameter=4000, density_coef=1.0, color="yellow"):
     """
     Set up the nebulae to use the default blue values.
