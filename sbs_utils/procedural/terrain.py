@@ -11,7 +11,9 @@ from sbs_utils.procedural.prefab import prefab_spawn
 
 import math
 
-NEB_MAX_SIZE = 3000
+NEB_MAX_SIZE = 1500
+NEB_SIZE_LARGE = 1500
+NEB_SIZE_SMALL = 1500
 
 
 def terrain_remove_points_near(all_points, test_points, radius):
@@ -691,7 +693,7 @@ def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0
         ret.append(nebula)
     return ret
 
-def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=1.0, height=1000, cluster_color=None, selectable=False, name=""):
+def terrain_spawn_nebula_sphere(x,y,z, radius=NEB_MAX_SIZE, density_scale=1.0, density=1.0, height=1000, cluster_color=None, selectable=False, name=""):
     """
     Spawn nebula clusters within the sphere. Density is per 1000.
     Args:
@@ -714,23 +716,20 @@ def terrain_spawn_nebula_sphere(x,y,z, radius=10000, density_scale=1.0, density=
     
     gx = 100; gy=radius; gz=100
     neb_size = min(2000, NEB_MAX_SIZE)
-    if radius > 50_000:
-        gx = 2500; gy=radius; gz=2500
-        neb_size = 2500
-    elif radius >= 10_000:
-        gx = 2500; gy=radius; gz=2500
-        neb_size = 2500
+    if radius >= 10_000:
+        gx = NEB_SIZE_LARGE; gy=radius; gz=NEB_SIZE_LARGE
+        neb_size = NEB_SIZE_LARGE
     elif radius >= 3_000:
-        gx = 1500; gy=radius; gz=1500
-        neb_size = 2000
+        gx = NEB_SIZE_SMALL; gy=radius; gz=NEB_SIZE_SMALL
+        neb_size = NEB_SIZE_SMALL
     elif radius >= 500:
         gx = 250; gy=radius; gz=250
-        neb_size = 2000
+        neb_size = NEB_SIZE_SMALL
     
     # if name is not None:
     cluster_color = terrain_nebula_color(cluster_color)
     
-    marker = terrain_spawn(x,y,z, str(name), "map,nebula_marker", "generic-sphere", "behav_marker")
+    marker = terrain_spawn(x,y,z, str(name), "map,nebula_marker", "generic-sphere", "behav_selection")
     marker.data_set.set("elite_main_scn_invis", 1 ,0)
     marker.data_set.set("radar_color_override", "gold" ,0)
     if isinstance(cluster_color, str):
@@ -764,8 +763,10 @@ def terrain_setup_nebula(nebula, diameter=4000, density_coef=1.0, color="yellow"
     blob = to_data_set(nebula)
     
     # size = 1000 * random.uniform(1.0, 5.5)
+
     size = min(diameter,  NEB_MAX_SIZE)
-    #blob.set("size", size)
+    
+    blob.set("size", size)
     blob.set("display_size", size)
     blob.set("effect_size", size)
     blob.set("max_throttle", 2.0)
