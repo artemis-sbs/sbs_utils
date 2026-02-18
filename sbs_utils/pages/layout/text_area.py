@@ -1,6 +1,7 @@
 from .layout import Column, Bounds, get_font_size
 from ...helpers import FrameContext, split_props, merge_props
 from ...gui import get_client_aspect_ratio
+from textwrap import TextWrapper
 
 import re
 image_pattern = re.compile(r"""!\[(?P<alt>\w+)?\]\((?P<name>\w+)://(?P<url>.*)\)""")
@@ -200,6 +201,7 @@ class TextArea(Control):
             return
      
         content_lines = self.content.copy()
+        
         
 
         self.lines = []
@@ -403,19 +405,39 @@ class TextArea(Control):
                 
             if line is None:
                 continue
-            ll = line.strip().lower()
             
-            pixel_height = FrameContext.context.sbs.get_text_block_height(font, line, int(pixel_width))
-            pixel_line_height = FrameContext.context.sbs.get_text_line_height(font, line)
-            buffer = 0.1
-            percent_height = ((pixel_height + buffer*pixel_line_height) / ar.y) * 100
+
+            # Use Python's text wrapper to break up lines
+            # pixel_char_width = get_font_size(font)
+            pixel_char_width = 20
+            if len(line)>0:
+                #pixel_char_width = FrameContext.context.sbs.get_text_line_width("gui-1", line) / len(line) 
+                pixel_char_width = FrameContext.context.sbs.get_text_line_width(font, "MMMM") / 4
+            # I'm not sure why divide by 2 works, but it seems to
+            num_char = int(pixel_width / pixel_char_width)
             
-            if ll =="<br>" or ll =="<br/>":
-                line = ""
-            last_line = TextLine(line,style, self.bounds.width, percent_height, False)
+            wrapper = TextWrapper(width=num_char)
+            sub_lines = wrapper.wrap(line)
+            lll = len(line)
+            ls = len(sub_lines)
+
+            for sub_line in sub_lines:
+                ll = sub_line.strip().lower()
+
+                pixel_height = FrameContext.context.sbs.get_text_block_height(font, sub_line, int(pixel_width))
+                pixel_line_height = FrameContext.context.sbs.get_text_line_height(font, sub_line)
+                line_count = pixel_height / pixel_line_height
             
-            self.lines.append(last_line)
-            calc_height += percent_height
+                #buffer = 0.1
+                #percent_height = ((pixel_height + buffer*pixel_line_height) / ar.y) * 100
+                percent_height = (pixel_height/ ar.y) * 100
+                
+                if ll =="<br>" or ll =="<br/>":
+                    sub_line = ""
+                last_line = TextLine(sub_line,style, self.bounds.width, percent_height, False)
+                
+                self.lines.append(last_line)
+                calc_height += percent_height
 
         #
         # Calculate the right size for the scrollbar
