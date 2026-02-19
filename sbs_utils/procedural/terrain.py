@@ -742,8 +742,8 @@ def terrain_spawn_nebula_common(x,y,z, size_x=10000, size_z=None,
         nebula = terrain_nebula_spawn(v2, height, cluster_color, neb_size, density, selectable)
         ret.append(nebula)
         
-    l = len(ret)
-    print(f"cluster count {l}")
+    #l = len(ret)
+    #print(f"cluster count {l}")
     return ret
 
 def terrain_setup_nebula(nebula, diameter=4000, density_coef=1.0, color="yellow"):

@@ -336,10 +336,11 @@ def simple_noise(count, x,y, z, x2, y2, z2, gx, gy,gz, radius=None, centered=Fal
     
     # Calculate the length of the grid item 
     gv = Vec3(w_diff,h_diff,d_diff)
-    grid_length = min(w_diff,h_diff, d_diff) * drift
+
+    grid_length = gv.length() * drift
 
     if radius is not None:
-        r = radius - grid_length/2
+        r = radius - grid_length
         r_squared = r * r
 
 
