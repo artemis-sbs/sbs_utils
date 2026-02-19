@@ -311,7 +311,7 @@ def side_set_icon_color(key_or_id, color)->None:
     Set the icon color for the specified side. This will change the color of ships on the 2d map.
     Args:
         key_or_id (str | int): The key or id of the side to set the icon color for.
-        color (str): The hexidecimal color code to set the side's icon color to. For example, "#F00" or "#FF0000" for red, "#0F0" or "#00FF00" for green, etc.
+        color (str): The hexidecimal color code, or named color, to set the side's icon color to. For example, "#F00" or "#FF0000" or "red" for red, "#0F0" or "#00FF00" or "green" for green, etc.
     """
     # TODO: Is transparency supported in the color code? I would think not but should check.
     id = to_side_id(key_or_id)
@@ -346,4 +346,54 @@ def side_is_color_used(color)->bool:
         if side_get_side_color(side, color):
             return True
     return False
+
+def side_get_description(key_or_id)->str:
+    """
+    Get the side description.
+    Args:
+        key_or_id (str | int | Agent): The side
+    Returns:
+        str: The description of the side.
+    """
+    id = to_side_id(key_or_id)
+    if id is not None:
+        return get_inventory_value(id, "side_desc","")
+    return ""
+
+def side_set_description(key_or_id, desc)->None:
+    """
+    Set the side description
+    Args:
+        key_or_id (str | int | Agent): The side id or key or object.
+        desc (str): The new description.
+    """
+    id = to_side_id(key_or_id)
+    if id is not None:
+        set_inventory_value(id, "side_desc", desc)
+
+def side_get_display_name(key_or_id)->str:
+    """
+    Get the side display name.
+    Args:
+        key_or_id (str | int | Agent): The side
+    Returns:
+        str: The name of the side.
+    """
+    id = to_side_id(key_or_id)
+    if id is not None:
+        return get_inventory_value(id, "side_name","")
+    return ""
+
+def side_set_display_name(key_or_id, name)->None:
+    """
+    Set the side's display name and update the side name of all ships on that side.
+    Args:
+        key_or_id (str | int | Agent): The side id or key or object.
+        desc (str): The new description.
+    """
+    id = to_side_id(key_or_id)
+    if id is not None:
+        set_inventory_value(key_or_id, "side_name", name)
+        ships = side_members_set()
+        side_set_object_side(ships)
 
