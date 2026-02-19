@@ -16,6 +16,7 @@ def role(role: str):
 
 def role_allies(id_or_obj):
     """
+    *Deprecated as of v1.3.0*
     Returns a set of the IDs of all objects allied with the specified object.
 
     Args:
@@ -41,6 +42,7 @@ def role_allies(id_or_obj):
 
 def role_are_allies(id_or_obj, other_id_or_obj):
     """
+    *Deprecated as of v1.3.0*
     Check if the two objects are allied.
     
     Args:
@@ -59,6 +61,7 @@ def role_are_allies(id_or_obj, other_id_or_obj):
 
 def role_ally_add(id_or_obj, side):
     """
+    *Deprecated as of v1.3.0*
     Adds a side as an ally and add all the objects with that side to the specified object's ally list.
 
     Args:
@@ -83,6 +86,7 @@ def role_ally_add(id_or_obj, side):
 
 def role_ally_remove(id_or_obj, side):
     """
+    *Deprecated as of v1.3.0*
     Remove a side as an ally and remove all objects of that side from the specified object's ally list.
 
     Args:
