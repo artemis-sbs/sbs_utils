@@ -3,7 +3,7 @@ from .roles import role, has_role
 from .inventory import get_inventory_value, set_inventory_value
 from .query import to_object, to_id, set_data_set_value, get_data_set_value, to_object_list
 from .links import link, linked_to, has_link, has_link_to, unlink
-import traceback
+
 def sides_set():
     """
     Get a set containing the ids of all sides (objects with the "__side__" role).
@@ -153,9 +153,7 @@ def side_set_object_side(id_or_obj, key)->None:
     """
     id = to_side_id(key)
     if id is None:
-        print("WARNING: Side not found.")
-        for line in traceback.format_stack():
-            print(line.strip())
+        print(f"WARNING: Side not found: {key}.")
         return
     key = get_inventory_value(id, "side_key")
     display = get_inventory_value(id, "side_name")
@@ -197,13 +195,9 @@ def side_set_relations(side1, side2, relation):
     if int(relation) < 0: # Backwards-compatibility (crash prevention) of old version that used -1 for hostile
         print(f"INVALID RELATION VALUE: {relation}. Using {sbs.DIPLOMACY.HOSTILE} instead.")
         # TODO: This could be a separate function that always prints the current stack?
-        for line in traceback.format_stack():
-            print(line.strip())
         relation = sbs.DIPLOMACY.HOSTILE
     if int(relation) > int(sbs.DIPLOMACY.MAX): # Possibly also could prevent crashes.
         print(f"INVALID RELATION VALUE: {relation}. Using {sbs.DIPLOMACY.UNKNOWN} instead.")
-        for line in traceback.format_stack():
-            print(line.strip())
         relation = sbs.DIPLOMACY.UNKNOWN
 
     o1 = to_side_id(side1)
@@ -265,6 +259,19 @@ def side_get_relations(side1, side2):
         return sbs.DIPLOMACY.NEUTRAL
     else:
         return sbs.DIPLOMACY.UNKNOWN
+
+def side_are_same_side(side1, side2)->bool:
+    """
+    Check if the two objects have the same side.
+    Args:
+        side1 (str | int): the key or id of the first side
+        side2 (str | int): the key or id of the second side
+    Returns:
+        bool: True if the sides are the same.
+    """
+    o1 = to_side_id(side1)
+    o2 = to_side_id(side2)
+    return o1==o2
     
 def side_are_allies(side1, side2)->bool:
     """
