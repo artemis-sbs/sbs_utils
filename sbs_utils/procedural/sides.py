@@ -394,6 +394,6 @@ def side_set_display_name(key_or_id, name)->None:
     id = to_side_id(key_or_id)
     if id is not None:
         set_inventory_value(key_or_id, "side_name", name)
-        ships = side_members_set()
-        side_set_object_side(ships)
+        ships = side_members_set(id)
+        side_set_object_side(ships, id)
 
