@@ -614,7 +614,6 @@ def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=Non
     for v2 in cluster_spawn_points:
         # v2.y = v2.y % 500.0 Mod doesn't work like you think
         nebula = terrain_nebula_spawn(v2, height, cluster_color, diameter, density, selectable)
-        
         ret.append(nebula)
 
     return ret
@@ -783,6 +782,12 @@ def terrain_setup_nebula(nebula, diameter=4000, density_coef=1.0, color="yellow"
 
     if isinstance(color, str):
         color = _neb_colors.get(color, _neb_colors.get("yellow"))
+
+    neb_obj = to_space_object(nebula)
+    if neb_obj is not None:
+        c = color.get("display_text")
+        if c is not None:
+            neb_obj.set_inventory_value("cluster_color", c)
 
     for k,v in color.items():
         blob.set(k,v)
