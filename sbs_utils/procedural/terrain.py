@@ -3,8 +3,8 @@ import random
 from sbs_utils.procedural.ship_data import plain_asteroid_keys
 from sbs_utils.procedural.spawn import terrain_spawn, npc_spawn
 from sbs_utils.procedural.query import to_id, to_space_object, to_data_set
-from sbs_utils.procedural.roles import role
-from sbs_utils.procedural.space_objects import closest
+from sbs_utils.procedural.roles import role, remove_role
+from sbs_utils.procedural.space_objects import closest_list
 
 from sbs_utils.scatter import ring as scatter_ring
 from sbs_utils.faces import set_face, random_terran
@@ -400,7 +400,7 @@ def terrain_to_value(dropdown_select, default=0):
     return default
 
 
-def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False, points=None):
+def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False, points=None, marker=True, name=""):
     """
     Spawn clusters of nebulae around the map.
     Args:
@@ -426,7 +426,42 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False, 
     sim = FrameContext.sim
     
     for v in spawn_points:
-        terrain_spawn_nebula_sphere(v.x,v.y, v.z, 10000,terrain_value, cluster_color=None, selectable=selectable)
+        terrain_spawn_nebula_sphere(v.x,v.y, v.z, 10000,terrain_value, cluster_color=None, selectable=selectable, marker=marker, name=name)
+
+    # Merge Markers
+    # Copy the list to avoid conflict when enumerating
+    markers = list(role("nebula_marker"))
+    for marker in markers:
+        m_obj = to_space_object(marker)
+        if to_space_object(marker) is None:
+            # It was removed
+            continue
+        color = m_obj.get_inventory_value("cluster_color")
+        others = closest_list(marker, role("nebula_marker"), 15_000)
+        
+        
+        mid_point = m_obj.pos
+        for other in others:
+            o_obj = to_space_object(other)
+            if o_obj is None:
+                continue
+            o_obj.data_set.set("radar_color_override", "lime" ,0)
+            remove_role(o_obj, "nebula_marker")
+            o_color = o_obj.get_inventory_value("cluster_color")
+            mid_point = mid_point + o_obj.pos
+            mid_point *= 0.5
+            m_obj.pos = mid_point
+            # Done with this one
+            o_obj.delete_object()
+            if o_color not in color:
+                color += ","+o_color
+        m_obj.set_inventory_value("cluster_color", color)
+        
+        
+        
+
+
+
         
     return spawn_points
 
@@ -716,24 +751,22 @@ def terrain_spawn_nebula_common(x,y,z, size_x=10000, size_z=None,
     neb_size = min(size_x, NEB_SIZE_LARGE)
 
     # if name is not None:
-    color_set = cluster_color is not None
+    color_is_set = cluster_color is not None
     cluster_color = terrain_nebula_color(cluster_color)
+
+
     if isinstance(cluster_color, dict):
         color = cluster_color.get("display_text", "rainbow")
+        rainbow = False
+    if cluster_color is None:
+        rainbow = random.randint(1,14) == 3
+        color = "rainbow"
+
     
     if marker:
-        marker_obj = closest(Vec3(x,y,z), role("nebula_marker"), size_x)
-        if marker_obj is None:
-            marker_obj = terrain_spawn(x,y,z, str(name), "map,nebula_marker", "generic-sphere", "behav_selection")
-            marker_obj.data_set.set("elite_main_scn_invis", 1 ,0)
-            marker_obj.data_set.set("radar_color_override", "gold" ,0)
-        else:
-            pcolor = color
-            color = marker_obj.py_object.get_inventory_value("cluster_color", color)
-            if pcolor not in color:
-                if len(color)>0:
-                    color += ","+color
-
+        marker_obj = terrain_spawn(x,y,z, str(name), "map,nebula_marker", "generic-sphere", "behav_selection")
+        marker_obj.data_set.set("elite_main_scn_invis", 1 ,0)
+        marker_obj.data_set.set("radar_color_override", "gold" ,0)
         marker_obj.py_object.set_inventory_value("cluster_color", color)
         
 
@@ -743,10 +776,9 @@ def terrain_spawn_nebula_common(x,y,z, size_x=10000, size_z=None,
                                                  gx, gy,gz, radius=radius, centered=True, drift=density)
     
     ret = []
-    rainbow = random.randint(1,14) == 3
     for v2 in cluster_spawn_points:
         # v2.y = v2.y % 500.0 Mod doesn't work like you think
-        if rainbow and not color_set:
+        if rainbow and not color_is_set:
             cluster_color = terrain_nebula_color(None)
         nebula = terrain_nebula_spawn(v2, height, cluster_color, neb_size, density, selectable)
         ret.append(nebula)
