@@ -327,7 +327,6 @@ def simple_noise(count, x,y, z, x2, y2, z2, gx, gy,gz, radius=None, centered=Fal
     count_y = max(int(h/gy),1)
     count_z = max(int(d/gz),1)
 
-    
     w_diff = w / count_x
     h_diff = h / count_y
     d_diff = d / count_z
@@ -337,7 +336,7 @@ def simple_noise(count, x,y, z, x2, y2, z2, gx, gy,gz, radius=None, centered=Fal
     
     # Calculate the length of the grid item 
     gv = Vec3(w_diff,h_diff,d_diff)
-    grid_length = gv.length() * drift
+    grid_length = min(w_diff,h_diff, d_diff) * drift
 
     if radius is not None:
         r = radius - grid_length/2
@@ -361,7 +360,7 @@ def simple_noise(count, x,y, z, x2, y2, z2, gx, gy,gz, radius=None, centered=Fal
                 v = v.rand_offset(grid_length, ring=count_y==1)
                 v.y = uniform(top,bottom)
                 
-                if radius:
+                if radius is not None:
                     diff = origin - v
                     lsq = diff.dot(diff)
                     if  lsq >= r_squared:
@@ -369,17 +368,21 @@ def simple_noise(count, x,y, z, x2, y2, z2, gx, gy,gz, radius=None, centered=Fal
 
                 
 
-                # if rotate:
-                #     v = v.rotate_around(origin, ax,ay,az, degrees)
+                if rotate:
+                    v = v.rotate_around(origin, ax,ay,az, degrees)
                 grid_point.append(v)
 
-    l = len(grid_point)
+
+    if len(grid_point) ==0:
+        v = origin
+        # wiggle the point within the grid
+        v = v.rand_offset(grid_length, ring=count_y==1)
+        v.y = uniform(top,bottom)
+        return [v]
 
     if count is None or count == 0:
         return grid_point
     
-    if len(grid_point) ==0:
-        return [origin]
     
     ret_count = min(count, len(grid_point))
     return choices(grid_point, k=ret_count)
