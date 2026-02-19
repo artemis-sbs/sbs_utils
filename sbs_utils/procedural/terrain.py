@@ -3,6 +3,8 @@ import random
 from sbs_utils.procedural.ship_data import plain_asteroid_keys
 from sbs_utils.procedural.spawn import terrain_spawn, npc_spawn
 from sbs_utils.procedural.query import to_id, to_space_object, to_data_set
+from sbs_utils.procedural.roles import role
+from sbs_utils.procedural.space_objects import closest
 
 from sbs_utils.scatter import ring as scatter_ring
 from sbs_utils.faces import set_face, random_terran
@@ -716,16 +718,23 @@ def terrain_spawn_nebula_common(x,y,z, size_x=10000, size_z=None,
     # if name is not None:
     color_set = cluster_color is not None
     cluster_color = terrain_nebula_color(cluster_color)
+    if isinstance(cluster_color, dict):
+        color = cluster_color.get("display_text", "rainbow")
     
     if marker:
-        marker = terrain_spawn(x,y,z, str(name), "map,nebula_marker", "generic-sphere", "behav_selection")
-        marker.data_set.set("elite_main_scn_invis", 1 ,0)
-        marker.data_set.set("radar_color_override", "gold" ,0)
-        if isinstance(cluster_color, str):
-            marker.py_object.set_inventory_value("cluster_color", cluster_color)
-        if isinstance(cluster_color, dict):
-            color = cluster_color.get("display_text", "nebula")
-            marker.py_object.set_inventory_value("cluster_color", color)
+        marker_obj = closest(Vec3(x,y,z), role("nebula_marker"), size_x)
+        if marker_obj is None:
+            marker_obj = terrain_spawn(x,y,z, str(name), "map,nebula_marker", "generic-sphere", "behav_selection")
+            marker_obj.data_set.set("elite_main_scn_invis", 1 ,0)
+            marker_obj.data_set.set("radar_color_override", "gold" ,0)
+        else:
+            pcolor = color
+            color = marker_obj.py_object.get_inventory_value("cluster_color", color)
+            if pcolor not in color:
+                if len(color)>0:
+                    color += ","+color
+
+        marker_obj.py_object.set_inventory_value("cluster_color", color)
         
 
 

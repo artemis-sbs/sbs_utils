@@ -3,6 +3,7 @@ from .query import to_set, to_list, to_object, to_id, object_exists
 from ..helpers import FrameContext
 from ..vec import Vec3
 from .roles import all_roles
+import math
 
 
 
@@ -31,7 +32,7 @@ def broad_test_around(id_or_obj, width: float, depth: float, broad_type=0xfff0):
     """
     Returns a set of ids that are around the specified object in the target rect.
     Args:
-        id_obj (Agent | int): The ID or object of an agent
+        id_obj (Agent | int | Vec3): The ID or object of an agent
         w (float): width
         d (float): depth
         broad_type (int, optional): The type of objects for which to search.
@@ -43,16 +44,19 @@ def broad_test_around(id_or_obj, width: float, depth: float, broad_type=0xfff0):
             * DEFAULT is 0xfff0
     Returns:
         set[int]: A set of ids
-    """    
-    so = to_object(id_or_obj)
-    if so is None:
-        return set()
-    _pos = so.engine_object.pos
+    """
+    if isinstance(id_or_obj, Vec3):
+        _pos = id_or_obj
+    else:
+        so = to_object(id_or_obj)
+        if so is None:
+            return set()
+        _pos = so.engine_object.pos
     obj_list = FrameContext.context.sbs.broad_test(_pos.x-(width/2), _pos.z-(depth/2), _pos.x+(width/2), _pos.z+(depth/2), broad_type)
     return {so.unique_ID for so in obj_list}
 
 
-def closest_list(source: int | CloseData | SpawnData | Agent, the_set, max_dist=None, filter_func=None) -> list[CloseData]:
+def closest_list(source: int | CloseData | SpawnData | Agent | Vec3, the_set, max_dist=None, filter_func=None) -> list[CloseData]:
     """
     Get the list of close data that matches the test set, max_dist, and optional filter function.
     Args:
@@ -66,7 +70,11 @@ def closest_list(source: int | CloseData | SpawnData | Agent, the_set, max_dist=
     """    
     ret = []
     test = max_dist
-    source_id = Agent.resolve_id(source)
+
+    if isinstance(source, Vec3):
+        source_id = -1
+    else:
+        source_id = Agent.resolve_id(source)
 
     for other_id in the_set:
         # if this is self skip
@@ -76,7 +84,12 @@ def closest_list(source: int | CloseData | SpawnData | Agent, the_set, max_dist=
         if filter_func is not None and not filter_func(other_obj):
             continue
         # test distance
-        test = FrameContext.context.sbs.distance_id(source_id, other_id)
+        if source_id !=-1:
+            test = FrameContext.context.sbs.distance_id(source_id, other_id)
+        else:
+            test = source - Vec3(other_obj.pos)
+            test = test.length()
+            
         if max_dist is None:
             ret.append(CloseData(other_id, other_obj, test))
             continue
@@ -92,14 +105,16 @@ def closest(the_ship, the_set, max_dist=None, filter_func=None) -> CloseData:
     Get the CloseData that matches the test set, max_dist, and optional filter function.
 
     Args:
-        the_ship (Agent | int): The agent ID or object
+        the_ship (Agent | int | Vec3): The agent ID or object
         the_set (Agent | int | set[Agent | int]): The agent or id or set of objects or ids to test against
         max_dist (float, optional): The maximum distance to check. Defaults to None.
         filter_func (Callable, optional): An additional function to test with. Defaults to None.
 
     Returns:
         CloseData: The closest object's CloseData to get the distance.
-    """    
+    """
+    if isinstance(the_ship, Vec3):
+        return closest_to_point(the_ship,the_set, max_dist, filter_func)
     test = max_dist
     ret = None
     source_id = Agent.resolve_id(the_ship)
@@ -126,13 +141,58 @@ def closest(the_ship, the_set, max_dist=None, filter_func=None) -> CloseData:
 
     return ret
 
+def closest_to_point(point, the_set, max_dist=None, filter_func=None) -> CloseData:
+    """
+    Get the CloseData that matches the test set, max_dist, and optional filter function.
+
+    Args:
+        the_ship (Agent | int): The agent ID or object
+        the_set (Agent | int | set[Agent | int]): The agent or id or set of objects or ids to test against
+        max_dist (float, optional): The maximum distance to check. Defaults to None.
+        filter_func (Callable, optional): An additional function to test with. Defaults to None.
+
+    Returns:
+        CloseData: The closest object's CloseData to get the distance.
+    """    
+    if max_dist is not None:
+        max_dist = max_dist*max_dist
+    test = max_dist
+    ret = None
+
+    the_set = to_set(the_set)
+    
+    closest_id = None
+    for other_id in the_set:
+        other_obj = Agent.get(other_id)
+        if filter_func is not None and not filter_func(other_obj):
+            continue
+
+        # test distance
+        test = Vec3(other_obj.pos) - point
+        test = test.dot(test)
+
+
+        if max_dist is None:
+            closest_id = other_id
+            max_dist = test
+            continue
+        elif test < max_dist:
+            closest_id = other_id
+            max_dist = test
+            continue
+
+    if closest_id is None:
+        return None
+    return CloseData(other_id, other_obj, math.sqrt(test))
+
+
 
 def closest_object(the_ship, the_set, max_dist=None, filter_func=None) -> Agent:
     """
     Get the CloseData that matches the test set, max_dist, and optional filter function.
 
     Args:
-        the_ship (Agent | int): The agent ID or object.
+        the_ship (Agent | int | Vec3): The agent ID or object.
         the_set (Agent | int | set[Agent | int]): The id or object or set of objects or ids to test against.
         max_dist (float, optional): The maximum distance to check. Defaults to None.
         filter_func (func, optional): An additional function to test with. Defaults to None.

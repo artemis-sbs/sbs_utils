@@ -271,8 +271,8 @@ def transparent_options_button(clientID: int, on_off_flag: int) -> None:
     """for a specific client (0=server machine), turns on (or off) the Options button transparency (arg is 1 or 0)"""
 
 
-from enum import Enum
-class DIPLOMACY(object): ### from pybind
+from  enum import IntEnum
+class DIPLOMACY(IntEnum): ### from pybind
     """the different attitudes that sides have for each other
     
     Members:
@@ -292,7 +292,7 @@ class DIPLOMACY(object): ### from pybind
     HOSTILE= 3 # : side attitude hostile
     MAX= 4 # : the total number of types different attitudes that sides have for each other"""
 
-class SHPSYS(Enum): ### from pybind
+class SHPSYS(IntEnum): ### from pybind
     """One of four ship systems to track damage
     
     Members:
