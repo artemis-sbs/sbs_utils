@@ -335,14 +335,16 @@ def simple_noise(count, x,y, z, x2, y2, z2, gx, gy,gz, radius=None, centered=Fal
 
     
     # Calculate the length of the grid item 
-    gv = Vec3(w_diff,h_diff,d_diff)
+    a = gx/2;b = gx/2
+    t = math.sqrt(a*a+b*b) / 2
+    grid_length = t * drift
 
-    grid_length = gv.length() * drift
+    # print(f"NOISE {grid_length:0.1f}")
 
     if radius is not None:
         r = radius - grid_length
-        r_squared = r * r
-
+        r_squared = r*r
+    
 
 
     # Instead of a generator this will build points up front
