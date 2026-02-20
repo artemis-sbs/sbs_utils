@@ -437,6 +437,7 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False, 
             # It was removed
             continue
         color = m_obj.get_inventory_value("cluster_color")
+        counts = m_obj.get_inventory_value("cluster_counts", {color:1})
         others = closest_list(marker, role("nebula_marker"), 15_000)
         
         
@@ -448,6 +449,12 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False, 
             o_obj.data_set.set("radar_color_override", "lime" ,0)
             remove_role(o_obj, "nebula_marker")
             o_color = o_obj.get_inventory_value("cluster_color")
+            o_counts = o_obj.get_inventory_value("cluster_counts", {o_color:1})
+            for k,v in o_counts.items():
+                c = counts.get(k, 0)
+                o = o_counts.get(k, 0)
+                counts[k] = c+o
+
             mid_point = mid_point + o_obj.pos
             mid_point *= 0.5
             m_obj.pos = mid_point
@@ -456,6 +463,7 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False, 
             if o_color not in color:
                 color += ","+o_color
         m_obj.set_inventory_value("cluster_color", color)
+        m_obj.set_inventory_value("cluster_counts", counts)
         
         
         
