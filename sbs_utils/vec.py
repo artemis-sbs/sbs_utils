@@ -36,6 +36,9 @@ class Vec3:
 
     def __iter__(self):
         return iter((self.x,self.y,self.z))
+    
+    def __repr__(self):
+        return f"{self.x:0.2f},{self.y:0.2f},{self.z:0.2f} "
   
     def neg(self):
         """Negate a vector immutable

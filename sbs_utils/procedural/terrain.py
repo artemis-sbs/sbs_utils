@@ -40,6 +40,55 @@ def terrain_remove_points_near(all_points, test_points, radius):
 
 
 
+def terrain_random_point_box(all_points, left, top, front, right, bottom, back, inside=True, count=1):
+    """ wraps a set of points in a generator returning unique points inside (or outside) a box
+
+
+    Args:
+        all_points (_type_): The source set of points
+        left (_type_): left (x)
+        top (_type_): top (y)
+        front (_type_): front (z)
+        right (_type_): right (x)
+        bottom (_type_): bottom (y)
+        back (_type_): back (z)
+        inside (bool, optional): Within the box or out side it. Defaults to True.
+        count (int, optional): Number of points each iteration. Defaults to True.
+
+    Yields:
+        Vec3 | list[Vec3]: A random point
+    """
+
+    if left > right:
+        t = left;left=right;right=t
+    if top > bottom:
+        t = top;bottom=top;top=t
+    if front > back:
+        t = front;back=top;top=t
+
+    l = len(all_points)
+    used = set()
+    ret = []
+    while l>0:
+        v = random.choice()
+        l -= 1
+        if v in used:
+            continue 
+        if not inside:
+            if (left <= v.x<=right) or (top <= v.y<= bottom) or (front <= v.x<=back):
+                continue
+        else:
+            if not ((left <= v.x<=right) or (top <= v.y<= bottom) or (front <= v.x<=back)):
+                continue
+        ret.append(v)
+        if len(ret)== count:
+            if count == 1:
+                ret = ret[0]
+        yld = ret
+        ret = []
+        yield yld
+
+
 def terrain_spawn_stations(DIFFICULTY, lethal_value, x_min=-32500, x_max=32500, center=None, min_num=0, points=None):
     """
     Spawn stations throughout the map, weighted by the game difficutly, and wrap minefields around them as applicable based on the lethal terrain value.
@@ -780,8 +829,9 @@ def terrain_spawn_nebula_common(x,y,z, size_x=10000, size_z=None,
 
 
     # Remember Radius is the diameter of the rect
+    # Nebula need lots of drift to look good
     cluster_spawn_points = scatter.simple_noise(0, x,y, z, size_x, height, size_z,
-                                                 gx, gy,gz, radius=radius, centered=True, drift=density)
+                                                 gx, gy,gz, radius=radius, centered=True, drift=7.0)
     
     ret = []
     for v2 in cluster_spawn_points:
