@@ -234,9 +234,10 @@ def grid_restore_damcons(id_or_obj):
             scale = item_theme_data.scale
 
             dc = None
-            is_intern = False
             color = colors[i%color_count]
             damage_color = damage_colors[i%color_count]
+
+
             if interns:
                 dc_task = prefab_spawn(prefab_label, {"ship_id": ship_id, "NAME":_name, "START_X": point[0], "START_Y": point[1], "COLOR": color, "DAMAGE_COLOR":damage_color})
                 if dc_task.done():
@@ -244,10 +245,27 @@ def grid_restore_damcons(id_or_obj):
                 if dc is not None:
                     continue
                 
+#region TODO: Old Damcons remove
+            if not interns and dc is None:
+                icon = 2
+                color = colors[i%color_count]
+                dc = grid_spawn(ship_id, _name, _name, point[0],point[1],icon, color, "crew,damcons,lifeform")
+                #
+                # Create idle/rally point
+                #
+                _id = to_id(dc)
+                _go = to_object(dc)
+                marker_tag = f"{_go.name} rally point"
                 
+                icon =  rally_theme_data.icon
+                rally_scale = rally_theme_data.scale
 
-            if not interns or dc is None:
-                dc = grid_spawn(ship_id, _name, _name, point[0],point[1],icon, colors[i%color_count], "crew,damcons,lifeform")
+                idle_marker = grid_spawn(ship_id, marker_tag, marker_tag, point[0],point[1], icon, color, "#,rally_point") 
+                _blob = to_blob(idle_marker)
+                _blob.set("icon_scale", rally_scale, 0)
+                set_inventory_value(_id, "idle_marker", to_id(idle_marker))
+#endregion
+
 
             dc.engine_object.layer = 4
             dc.blob.set("icon_scale", scale,0 )
@@ -258,22 +276,7 @@ def grid_restore_damcons(id_or_obj):
             set_inventory_value(_id, "idle_pos", (point[0], point[1]) )
             # Hit points == MAX_HP
             set_inventory_value(_id, "HP", grid_get_max_hp() )
-            #
-            # Create idle/rally point
-            #
-            if not is_intern:
-                dc_color = get_inventory_value(_id, "color", "white")
-                marker_tag = f"{_go.name} rally point"
-                
-                icon = 2 # rally_theme_data.icon
-                scale = rally_theme_data.scale
-
-                idle_marker = grid_spawn(ship_id, marker_tag, marker_tag, point[0],point[1], icon, dc_color, "#,rally_point") 
-                _blob = to_blob(idle_marker)
-                _blob.set("icon_scale", scale, 0)
-                set_inventory_value(_id, "idle_marker", to_id(idle_marker))
-
-
+            
 def grid_apply_system_damage(id_or_obj):
     """
     Damage a random system node on the specified ship.
