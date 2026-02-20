@@ -265,7 +265,7 @@ def grid_restore_damcons(id_or_obj):
                 dc_color = get_inventory_value(_id, "color", "white")
                 marker_tag = f"{_go.name} rally point"
                 
-                icon = rally_theme_data.icon
+                icon = 2 # rally_theme_data.icon
                 scale = rally_theme_data.scale
 
                 idle_marker = grid_spawn(ship_id, marker_tag, marker_tag, point[0],point[1], icon, dc_color, "#,rally_point") 
