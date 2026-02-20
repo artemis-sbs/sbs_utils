@@ -6,7 +6,7 @@ from ...mast_sbs.story_nodes.route_label import RouteDecoratorLabel, DecoratorLa
 from ...mast_sbs.story_nodes.define_format import DefineFormat
 
 OPT_BLOCK_START = r"(?P<block>\:)?[ \t]*(?=\r\n|\n|\#)"
-FORMAT_EXP = r"([ \t]*\[(?P<format>([\$\#]?\w+[ \t]*(,[ \t]*\#?\w+)?))\])?"
+FORMAT_EXP = r"([ \t]*\[(?P<format>(.+))\])?"
 WEIGHT_EXP = r"(?P<weight>([ \t]*\^\d+[ \t]*))?"
 PRIORITY_EXP = r"(?P<priority>([ \t]*!\d+[ \t]*))?"
 
@@ -29,11 +29,8 @@ class Button(MastNode):
             return
         self.message = self.compile_formatted_string(message)
         self.sticky = (button == '+' or button=="button")
-        self.color = None
-        if format is not None:
-            f = DefineFormat.resolve_colors(format)
-            if len(f)>=1:
-                self.color = f[0]
+        self.color = self.compile_formatted_string(format)
+        
             
         self.visited = set() if not self.sticky else None
         self.loc = loc
@@ -181,6 +178,12 @@ class Button(MastNode):
         if self.data is not None and not isinstance(self.data, dict):
             self.data = task.eval_code(self.data)
             self.message = task.format_string(self.message)
+            self.color = task.format_string(self.color)
+            f = DefineFormat.resolve_colors(self.color)
+            if len(f)>=1:
+                self.color = f[0]
+            else:
+                self.color = None
 
     def run(self, task, button_promise):
         task_data = self.data
