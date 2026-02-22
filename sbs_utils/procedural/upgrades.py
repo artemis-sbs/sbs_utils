@@ -7,134 +7,114 @@ from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.mast.mastscheduler import MastAsyncTask
 from sbs_utils.procedural.roles import add_role, role, remove_role
-from sbs_utils.procedural.links import linked_to,unlink, has_link_to
+from sbs_utils.procedural.links import linked_to,unlink, has_link_to, link
 from sbs_utils.procedural.inventory import get_inventory_value
+from sbs_utils.procedural.execution import task_schedule_server
+from sbs_utils.procedural.signal import signal_emit
+from sbs_utils.procedural.modifiers import modifier_remove, modifier_add
 
-
-
-__upgrades_tick_task = None
-def upgrade_schedule():
-    #
-    # Schedule a simple tick task 
-    #
-    global __upgrades_tick_task
-    if __upgrades_tick_task is None:
-        __upgrades_tick_task = TickDispatcher.do_interval(objectives_run_all, 5)
 
 
 class Upgrade(Agent):
-    def __init__(self, agent_id, label, data, client_id):
+    def __init__(self, agent_id, label, data):
         self.agent_id = agent_id
         self.label = label #Label could have metadata
         self.data = data
-        self._done = False
-        self._result = PollResults.OK_IDLE
-        # Ability to have console/client based objectives
-        self.client_id = client_id
+        self.task = None
         self.id = get_story_id()
         self.add()
-        self.add_role("__UPGRADE__")
-        self.add_link(self.agent_id, "__UPGRADE__", self.id)
+
+        # Ability to have console/client based objectives
+        link(self.agent_id, "__UPGRADE__", self.id)
+        self.modifiers = []
 
     @property
     def done(self):
-        return self._done
+        if self.task is None:
+            return False
+        return self.task.done
     
     @property
     def result(self):
-        return self._result
+        if self.task is None:
+            return None
+        return self.task.result()
     
-    @result.setter
-    def result(self, res):
-        # Don't overwrite when done
-        if self._done:
-            return
-        self._result = res
-        self._done = self._result != PollResults.OK_IDLE
-        if self.done:
-            self.discard()
-
     def discard(self):
-        add_role(self.agent_id, "__UPGRADE_CHANGED__")
         unlink(self.agent_id, "__UPGRADE__", self.id)
         self.remove()
 
+    @property
+    def is_active(self):
+        pass
+    
     def activate(self):
-        self.add_role("__UPGRADE_ACTIVE__")
+        UPGRADE_AGENT = to_object(self.agent_id)
+        self.deactivate() # Shouldn't be active, but just n case
+        if UPGRADE_AGENT is None:
+            # This agent is gone
+            self.discard()
+        # Run the upgrade task
+        data = {"UPGRADE_AGENT": UPGRADE_AGENT, "UPGRADE_AGENT_ID": self.agent_id, "UPGRADE": self}
+        if self.data is not None:
+            data = self.data | data
 
+        # Task runs on the server inheriting no data except what is passed
+        self.task = task_schedule_server(self.label, data, inherit=False)
+        self.task.tick_in_context()
+        #@signal upgrade_activated
+        signal_emit("upgrade_activated", data)
+        # There might be now modifiers
+        # I think as long as they exists the upgrade is active
 
     def deactivate(self):
-        self.remove_role("__UPGRADE_ACTIVE__")
-        # If timed add it
-        #....
-        self.remove_role("__UPGRADE_TIMED__")
-        # Schedule agent to recalculate
-        add_role(self.agent_id, "__UPGRADE_CHANGED__")
+        # Remove all modifiers
+        for m in self.modifiers:
+            modifier_remove(self.agent_id, m.key, m.source)
+
+        # Stop that task
+        if not self.is_active:
+            pass
+
+        if self.task is not None:
+            self.task.end()
+            self.task = None 
 
 
 
-def upgrade_add(agent_id_or_set, label, data=None, client_id=0, activate=False):
+def upgrade_add(agent_id_or_set, label, data=None, activate=False):
+    """ Adds an upgrade to an agent or set of agents
+
+    Args:
+        agent_id_or_set (int|set|object|list): The agent or agents to apply it to
+        label (label | str | dict): if dict it will get the label from the dict and merge the rest of the data 
+        data (dict, optional): Data to pass the task. Defaults to None.
+        activate (bool, optional): Activate the upgrade immediately. Defaults to False.
+
+    Returns:
+        Upgrade: The Upgrade
+    """
     # Make sure a tick task is running
-    upgrade_schedule()
-
     agent_id_or_set = to_set(agent_id_or_set)
+    if isinstance(label, dict):
+        data = label
+        label = data.get("label", None)
+        if label is None:
+            return
+        del data["label"]
+
     for agent in agent_id_or_set:
-        up = Upgrade(agent, label, data, client_id)
+        up = Upgrade(agent, label, data)
         if activate:
             up.activate()
+    return up
 
-def upgrade_remove_for_agent(agent):
+def upgrade_remove_all(agent):
     by_agent = linked_to(agent, "__UPGRADE__")
-    for ob_id in by_agent:
-        Agent.remove_id(ob_id)
-
-__upgrades_is_running = False
-def upgrades_run_all(tick_task):
-    global __upgrades_is_running
-    if __upgrades_is_running:
-        return
-    __upgrades_is_running = True
-
-
-    try:
-        # Roll through all the timed one
-        # to see if they remain active
-
-        # Roll though all changed agents
-        # use copy so it can be altered
-        changed_agents = set(role("__UPGRADE_CHANGED__"))
-        for agent_id in changed_agents:
-            #
-            agent = Agent.get(agent_id)
-            if agent is None:
-                upgrade_remove_for_agent(agent_id)
-                continue
-            # This should be a list of upgrades by agent and active
-            active = role("__UPGRADE_ACTIVE__") & linked_to(agent_id, "__UPGRADE__")
-            for up_id in active:
-                obj = to_object(up_id)
-                if obj is None:
-                    continue
-
-                task = get_inventory_value(obj.client_id, "GUI_TASK", FrameContext.task)
-                t : MastAsyncTask
-                t = task.start_task(obj.label, obj.data, defer=True)
-                t.set_variable("UPGRADE", obj)
-                t.set_variable("UPGRADE_ID", up_id)
-                t.set_variable("UPGRADE_AGENT_ID", agent)
-                t.tick_in_context()
-                obj.result = t.tick_result
-            remove_role(agent_id, "__UPGRADE_CHANGED__")
-            
-        
-    except Exception as e:
-        msg = e
-        print(f"Uncaught exception in upgrades processing {msg}")
+    obj:Upgrade
+    for obj in by_agent:
+        obj.deactivate()
+        obj.discard()
 
         
-    __upgrades_is_running = False
-
-
-
-
 
