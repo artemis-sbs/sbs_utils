@@ -67,6 +67,8 @@ def to_list(other: Agent | CloseData | int):
     """
     if isinstance(other, set):
         return list(other)
+    elif isinstance(other, str):
+        return [other]
     elif isinstance(other, list):
         return other
     elif other is None:

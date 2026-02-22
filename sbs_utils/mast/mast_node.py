@@ -105,6 +105,7 @@ class Scope(Enum):
     NORMAL = 2  # per task/subtask
     CLIENT = 10 # is the client handled by scheduler
     ASSIGNED = 20  # is the assigned ship
+    SUB_TASK_LOCAL = 99 # Local sub task variables
     TEMP = 99  # Per task?
     UNKNOWN = 100
 

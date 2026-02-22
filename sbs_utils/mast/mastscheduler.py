@@ -778,7 +778,10 @@ class MastAsyncTask(Agent, Promise):
         return m1
 
     def set_value(self, key, value, scope):
-        if self.root_task != self:
+        if scope == Scope.SUB_TASK_LOCAL and self.is_sub_task:
+            self.set_inventory_value(key, value)
+            return scope
+        elif self.root_task != self:
             return self.root_task.set_value(key, value, scope)
         if scope == Scope.SHARED: #self.main.set_value(key,value, scope) != Scope.UNKNOWN:
             # # self.main.mast.vars[key] = value
@@ -792,6 +795,8 @@ class MastAsyncTask(Agent, Promise):
             return scope
 
     def set_value_keep_scope(self, key, value):
+        if self.is_sub_task and self.get_inventory_value(key) is not None:
+            self.set_inventory_value(key, value)
         if self.root_task != self:
             return self.root_task.set_value_keep_scope(key, value)
         scoped_val = self.get_value(key, value)
@@ -803,8 +808,6 @@ class MastAsyncTask(Agent, Promise):
         self.set_value(key,value, scope)
 
     def get_value(self, key, defa=None):
-        if self.root_task != self:
-            return self.root_task.get_value(key, defa)
         data = None
         # if self.redirect:
         #     data = self.redirect.data
@@ -816,6 +819,9 @@ class MastAsyncTask(Agent, Promise):
                 return (val, Scope.TEMP)
         val = self.get_inventory_value(key, None)
         #val = self.vars.get(key, None)
+        if val is None and self.is_sub_task and self.root_task != self:
+            return self.root_task.get_value(key, defa)
+
         if val is not None:
             return (val, Scope.NORMAL)
         val = self.main.get_value(key, defa)
@@ -824,6 +830,19 @@ class MastAsyncTask(Agent, Promise):
         return (defa, Scope.NORMAL)
     
     def get_scoped_value(self, key, defa, scope):
+        if scope == Scope.TEMP or scope == Scope.SUB_TASK_LOCAL:
+            data = None
+            # if self.redirect:
+            #     data = self.redirect.data
+            if len(self.label_stack) > 0:
+                data = self.label_stack[-1].data
+            if data is not None:
+                val = data.get(key, None)
+                if val is not None:
+                    return val
+            val = self.get_inventory_value(key)
+            if val is not None:
+                return val
         if self.root_task != self:
             return self.root_task.get_scoped_value(key, defa, scope)
         if scope == Scope.SHARED:
@@ -964,16 +983,16 @@ class MastAsyncTask(Agent, Promise):
         
         t= MastAsyncTask(self.main, None, task_name)
         #
-        # Sub tasks can have their inputs
+        # Sub tasks Share Scope
         #
         if inputs is not None:
             for k in inputs:
-                t.set_inventory_value(k, inputs[k])
+                t.set_value(k, inputs[k], Scope.SUB_TASK_LOCAL)
 
         t.is_sub_task = True
         t.root_task = self
         if task_name is not None:
-            t.set_value(task_name, t, Scope.NORMAL)
+            self.set_value(task_name, t, Scope.NORMAL)
 
                 # 
         # Look for sub label

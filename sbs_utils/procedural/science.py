@@ -705,7 +705,6 @@ def science_ensure_scan(ids_or_objs, target_ids_or_objs, tabs="scan"):
 from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
 from sbs_utils.helpers import FrameContext
 from sbs_utils.procedural.query import to_object
-import sbs
 
 
 #
@@ -723,7 +722,7 @@ def science_set_2dview_focus(client_id, focus_id=0):
         return
     
     follow = get_inventory_value(client_id, "2d_follow")
-    on_ship =  sbs.get_ship_of_client(client_id)
+    on_ship =  FrameContext.context.sbs.get_ship_of_client(client_id)
     set_inventory_value(client_id, "science_2dview_alt_ship", focus_id)
     set_inventory_value(on_ship, "science_2dview_alt_ship", focus_id)
     set_id = focus_id
@@ -732,6 +731,6 @@ def science_set_2dview_focus(client_id, focus_id=0):
 
     previous = get_inventory_value(client_id, "science_2dview_alt_ship_prev", 0)
     if previous != set_id:
-        sbs.assign_client_to_alt_ship(client_id, set_id)
+        FrameContext.context.sbs.assign_client_to_alt_ship(client_id, set_id)
         set_inventory_value(client_id, "science_2dview_alt_ship_prev", set_id)
 
