@@ -97,11 +97,12 @@ def upgrade_add(agent_id_or_set, label, data=None, activate=False):
     # Make sure a tick task is running
     agent_id_or_set = to_set(agent_id_or_set)
     if isinstance(label, dict):
-        data = label
-        label = data.get("label", None)
+        label_data = label
+        label = label_data.get("label", None)
         if label is None:
             return
-        del data["label"]
+        del label_data["label"]
+        data = label_data | data
 
     for agent in agent_id_or_set:
         up = Upgrade(agent, label, data)
