@@ -288,7 +288,7 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
 
     lines = []
     if content is not None:
-        lines = content.splitlines()
+        lines = content.splitlines(True)
     elif file_path is not None:
         try:
             with open(file_path, "r") as file:
