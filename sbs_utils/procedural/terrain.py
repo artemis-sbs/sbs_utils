@@ -63,29 +63,16 @@ def terrain_random_point_box(all_points, left, top, front, right, bottom, back, 
         t = left;left=right;right=t
     if top > bottom:
         t = top;bottom=top;top=t
-    if front > back:
-        t = front;back=top;top=t
+    if back > front:
+        t = front;back=front;front=t
 
-    l = len(all_points)
-    used = set()
-    ret = []
-    while l>0:
-        v = random.choice()
-        l -= 1
-        if v in used:
-            continue 
-        if not inside:
-            if (left <= v.x<=right) or (top <= v.y<= bottom) or (front <= v.x<=back):
-                continue
-        else:
-            if not ((left <= v.x<=right) or (top <= v.y<= bottom) or (front <= v.x<=back)):
-                continue
-        ret.append(v)
-        if len(ret)== count:
-            if count == 1:
-                ret = ret[0]
-        yld = ret
-        ret = []
+    if inside:
+        points =[v for v in all_points if (left <= v.x<=right) and (top <= v.y<= bottom) and (back <= v.z<=front)]
+    else:
+        points =[v for v in all_points if not ((left <= v.x<=right) and (top <= v.y<= bottom) and (back <= v.z<=front))]
+
+    random.shuffle(points)
+    for yld in points:
         yield yld
 
 
