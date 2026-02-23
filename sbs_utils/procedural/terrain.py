@@ -129,6 +129,11 @@ def terrain_spawn_stations(DIFFICULTY, lethal_value, x_min=-32500, x_max=32500, 
     ret = []
     # for each station
     if points is not None:
+        # Handle case where generator is passed
+        if not isinstance(points, list):
+            points = list(points) 
+        # Handle too many stations picked
+        num_stations = min(num_stations, len(points))
         pos_as_list = random.sample(points, num_stations)
     for index in range(num_stations):
         stat_type = station_type_list[index]
