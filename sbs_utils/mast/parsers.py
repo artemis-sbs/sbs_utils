@@ -14,6 +14,8 @@ class LayoutAreaParser:
         "pixels": r"\d+px",
         "ems": r"\d+(\.\d+)?em",
         "digits": r"\d+(\.\d+)?",
+        "max": r"max",
+        "min": r"min",
         "id": r"[_a-zA-Z][_a-zA-Z0-9]*",
         "comma": r",",
         "plus": r"\+",
@@ -22,6 +24,7 @@ class LayoutAreaParser:
         "div": r"\/",
         "lparen": r"\(",
         "rparen": r"\)",
+        
     }
     #AREA_LIST_TOKENS = "|".join(map(lambda a: f"({a})", rules.values()))
     STYLE_LIST_TOKENS = r"[^\n^;]*"
@@ -67,6 +70,8 @@ class LayoutAreaParser:
         return left_node
 
     def parse_e2(tokens):
+        if tokens[0].token_type in ["min","max"]:
+            return LayoutAreaParser.parse_func(tokens)
         left_node = LayoutAreaParser.parse_values(tokens)
         while tokens[0].token_type in ["mul", "div"]:
             node = tokens.pop(0)
@@ -77,6 +82,17 @@ class LayoutAreaParser:
             #     return left_node
         return left_node
 
+
+    def parse_func(tokens):
+        while tokens[0].token_type in ["max", "min"]:
+            node = tokens.pop(0)
+            LayoutAreaParser.match(tokens,"lparen")
+            node.children.append(LayoutAreaParser.parse_e(tokens))
+            LayoutAreaParser.match(tokens, "comma")
+            node.children.append(LayoutAreaParser.parse_e(tokens))
+            LayoutAreaParser.match(tokens, "rparen")
+            left_node = node
+        return left_node
 
     def parse_values(tokens):
         if tokens[0].token_type in ["ems","pixels", "digits", "id"]:
@@ -111,6 +127,14 @@ class LayoutAreaParser:
         match node.token_type:
             case "digits":
                 return float(node.value)
+            case "max":
+                x = float(LayoutAreaParser.compute(node.children[0], vars, aspect_ratio))
+                y = float(LayoutAreaParser.compute(node.children[1], vars, aspect_ratio))
+                return max(x,y)
+            case "min":
+                x = float(LayoutAreaParser.compute(node.children[0], vars, aspect_ratio))
+                y = float(LayoutAreaParser.compute(node.children[1], vars, aspect_ratio))
+                return min(x,y)
             case "pixels":
                 return (float(node.value[:-2])/aspect_ratio)*100
             case "ems":
