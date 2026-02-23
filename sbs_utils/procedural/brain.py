@@ -194,7 +194,7 @@ def brain_add_parent(parent, agent, label, data=None, client_id=0):
         l = label
         label = task.main.mast.labels.get(label, None)
         if label is None:
-            print(f"Ignoring objective configured with invalid label {l}")
+            print(f"Ignoring brain configured with invalid label {l}")
             return
         
         child = Brain(agent, label, data, client_id, BrainType.Simple)
@@ -212,23 +212,36 @@ def brain_add_parent(parent, agent, label, data=None, client_id=0):
             brain_add_parent(parent, agent, l, None)
 
     if isinstance(label, dict):
-        seq = label.get("SEQ")
-        sel = label.get("SEL")
+        keys = label.keys()
+        length = len(keys)
+        sel = None
+        seq = None
+        data = None
+        the_label = None
+        if length == 1:
+            test = list(keys)[0]
+            if test.startswith("SEQ"):
+                seq = label.get(test)
+                the_label = test    
+            elif test.startswith("SEL"):
+                sel = label.get(test)
+                the_label = test
 
-        data = label.get("data")
-        # Car
-        the_label = label.get("label")
+        if sel is None and seq is None:
+            data = label.get("data")
+            the_label = label.get("label")
         
-        if the_label is not None:
-            brain_add_parent(parent, agent, the_label, data, client_id)
-        elif sel is not None:
-            child = Brain(agent, None, None, client_id, BrainType.Select)
+        
+        if sel is not None:
+            child = Brain(agent, the_label, None, client_id, BrainType.Select)
             parent.add_child(child)
             brain_add_parent(child, agent, sel, None, client_id)
         elif seq is not None:
-            child = Brain(agent, None, None, client_id, BrainType.Sequence)
+            child = Brain(agent, the_label, None, client_id, BrainType.Sequence)
             parent.add_child(child)
             brain_add_parent(child, agent, seq, None, client_id)
+        elif the_label is not None:
+            brain_add_parent(parent, agent, the_label, data, client_id)
 
 
 def brain_add(agent_id_or_set, label, data=None, client_id=0, parent=None):
@@ -239,7 +252,7 @@ def brain_add(agent_id_or_set, label, data=None, client_id=0, parent=None):
             parent = get_inventory_value(agent, "__BRAIN__", None)
             if parent is None:
                 # Default brain is Select
-                parent = Brain(agent, None, None, client_id, BrainType.Select)
+                parent = Brain(agent, "SEL root", None, client_id, BrainType.Select)
                 set_inventory_value(agent, "__BRAIN__", parent)
         brain_add_parent(parent, agent, label, data, client_id)
 
