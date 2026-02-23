@@ -246,7 +246,7 @@ def load_yaml_data(file, multi=False):
             else:
                 return ryaml.load(f)
     except Exception as e:
-        pass
+        print("ryaml not found downgrading to pyyaml")
 
     try:
         from . import yaml
