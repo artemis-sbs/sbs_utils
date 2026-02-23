@@ -171,6 +171,7 @@ def cosmos_event_handler(sim, event):
 
                 FrameContext.aspect_ratios[event.client_id] = ar
                 Gui.on_event(event)
+                tick_the_rest(event)
             case "client_change":
                 if event.sub_tag == "change_console":
                     Gui.on_event(event)
