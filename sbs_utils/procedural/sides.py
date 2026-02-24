@@ -97,11 +97,11 @@ def to_side_id(key_or_id_or_object):
     # Check if it's a key
     if isinstance(key_or_id_or_object, str):
         # print(f"Side id: {key_or_id_or_object}")
-        key_or_id_or_object = key_or_id_or_object.strip() # Get rid of leading/trailing whitespaces
+        key_or_id_or_object = key_or_id_or_object.strip().lower() # Get rid of leading/trailing whitespaces
         for s in sides_set():
-            if get_inventory_value(s, "side_key").strip() == key_or_id_or_object:
+            if get_inventory_value(s, "side_key").strip().lower() == key_or_id_or_object:
                 return s
-            if get_inventory_value(s, "side_name").strip() == key_or_id_or_object:
+            if get_inventory_value(s, "side_name").strip().lower() == key_or_id_or_object:
                 return s
         return None # If it's not in sides_set() then it's not a valid side key
     id = to_id(key_or_id_or_object) # Will return key_or_id_or_object if it's not an object
