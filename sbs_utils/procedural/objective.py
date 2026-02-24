@@ -93,7 +93,7 @@ def game_end_run_all(tt):
             else:
                 signal_emit(signal, data)
 
-
+from .modifiers import ModifierHandler
 def objectives_run_everything(tick_task):
     """
     Check objectives, brains, scan sources, and game end conditions. Which promises are checked is depenent on the value of `tick_task.state`. 
@@ -106,6 +106,7 @@ def objectives_run_everything(tick_task):
     #t = time.perf_counter()
     if state == 0:
         objectives_run_all(tick_task)
+        ModifierHandler.remove_expired_modifiers()
     elif state == 1:
         brains_run_all(tick_task)
     elif state == 2:
