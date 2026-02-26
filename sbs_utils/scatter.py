@@ -338,12 +338,13 @@ def simple_noise(count, x,y, z, x2, y2, z2, count_x, count_y,count_z, radius=Non
     # a = w_diff/2;b = d_diff/2
     # t = math.sqrt(a*a+b*b) / 2
     # grid_length = t * drift
-    grid_length = drift * w_diff / (2 * math.sqrt(2))
+    # if drift == 1 it keeps the point within the inscribed circle
+    grid_length = drift * max(w_diff,h_diff) /2 # (2 * math.sqrt(2))
 
     # print(f"NOISE {grid_length:0.1f}")
 
     if radius is not None:
-        r = radius - grid_length
+        r = radius + grid_length
         r_squared = r*r
     
 
