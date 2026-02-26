@@ -335,9 +335,10 @@ def simple_noise(count, x,y, z, x2, y2, z2, count_x, count_y,count_z, radius=Non
 
     
     # Calculate the length of the grid item 
-    a = w_diff/2;b = d_diff/2
-    t = math.sqrt(a*a+b*b) / 2
-    grid_length = t * drift
+    # a = w_diff/2;b = d_diff/2
+    # t = math.sqrt(a*a+b*b) / 2
+    # grid_length = t * drift
+    grid_length = drift * w_diff / (2 * math.sqrt(2))
 
     # print(f"NOISE {grid_length:0.1f}")
 
