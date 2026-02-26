@@ -285,7 +285,7 @@ def sphere(count, x,y,z, r, outer=0, top_only=False, ring=False) -> Generator:
     for _ in range(0,count):
         yield origin.rand_offset(r, outer, top_only, ring)
 
-def simple_noise(count, x,y, z, x2, y2, z2, gx, gy,gz, radius=None, centered=False, ax=0,ay=0,az=0, degrees=True, drift=1.0):
+def simple_noise(count, x,y, z, x2, y2, z2, count_x, count_y,count_z, radius=None, centered=False, ax=0,ay=0,az=0, degrees=True, drift=1.0):
     """ Builds a simple noise distribution withing a grid. 
 
     Args:
@@ -312,20 +312,20 @@ def simple_noise(count, x,y, z, x2, y2, z2, gx, gy,gz, radius=None, centered=Fal
         drift (float): amount of drift from grid center point as a percentage of grid radius
     """
 
-    cx = x; cy = y; cz = z
+    center_x = x; center_y = y; center_z = z
     w = x2; h = y2; d = z2
     hw = w/2; hh = h/2; hd = d/2
-    left = cx-hw; right = cx+hw; top = cy-hh; bottom = cy+hh; front = cz-hd; back=cz+hd
+    left = center_x-hw; right = center_x+hw; top = center_y-hh; bottom = center_y+hh; front = center_z-hd; back=center_z+hd
 
     if not centered:
         left = x; right = x2; top = y; bottom = y2; front = z; back=z2
         w = (right - left)/2; h = (bottom - top)/2; d = (front - back)/2
         hw = w/2; hh = h/2; hd = d/2
-        cx = left + hw; cy = top + hh; cz = front + hd
+        center_x = left + hw; center_y = top + hh; center_z = front + hd
 
-    count_x = max(int(w/gx),1)
-    count_y = max(int(h/gy),1)
-    count_z = max(int(d/gz),1)
+    count_x = max(count_x,1)
+    count_y = max(count_y,1)
+    count_z = max(count_z,1)
 
     w_diff = w / count_x
     h_diff = h / count_y
@@ -335,7 +335,7 @@ def simple_noise(count, x,y, z, x2, y2, z2, gx, gy,gz, radius=None, centered=Fal
 
     
     # Calculate the length of the grid item 
-    a = gx/2;b = gx/2
+    a = w_diff/2;b = d_diff/2
     t = math.sqrt(a*a+b*b) / 2
     grid_length = t * drift
 

@@ -796,7 +796,8 @@ def terrain_spawn_nebula_common(x,y,z, size_x=10000, size_z=None,
     # else:
     #     neb_size = NEB_SIZE_SMALL
 
-    gx = min(size_x, NEB_SIZE_LARGE); gy=height; gz=min(size_x, NEB_SIZE_LARGE)
+    gx = min(size_x, NEB_SIZE_LARGE); gy=height; gz=min(size_z, NEB_SIZE_LARGE)
+    count_x = size_x // gx;count_y = height // gy;count_z = size_z// gz
     neb_size = min(size_x, NEB_SIZE_LARGE)
 
     # if name is not None:
@@ -823,7 +824,7 @@ def terrain_spawn_nebula_common(x,y,z, size_x=10000, size_z=None,
     # Remember Radius is the diameter of the rect
     # Nebula need lots of drift to look good
     cluster_spawn_points = scatter.simple_noise(0, x,y, z, size_x, height, size_z,
-                                                 gx, gy,gz, radius=radius, centered=True, drift=7.0)
+                                                 count_x, count_y,count_z, radius=radius, centered=True, drift=7.0)
     
     ret = []
     for v2 in cluster_spawn_points:
