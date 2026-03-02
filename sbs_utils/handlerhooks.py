@@ -7,6 +7,7 @@ from .garbagecollector import GarbageCollector
 from .extra_dispatcher import HotkeyDispatcher, ClientStringDispatcher
 from .procedural.inventory import get_inventory_value, set_inventory_value
 
+
 from .gui import Gui, Page
 import traceback
 from . import faces
@@ -124,6 +125,7 @@ def cosmos_event_handler(sim, event):
         #t = time.process_time()
         t = time.perf_counter()
         import sbs
+        from .procedural.signal import signal_emit
         # Allow guis more direct access to events
         # e.g. Mast Story Page, Clients change
         ctx = Context(sim, sbs, event)
@@ -223,6 +225,7 @@ def cosmos_event_handler(sim, event):
                 ship_id = SBS.get_ship_of_client(event.client_id) 
                 if ship_id is not None:
                     set_inventory_value(ship_id, "red_alert", event.value_tag == "on")
+                    signal_emit("red_alert_change", {"SHIP_ID": ship_id, "RED_ALERT_STATUS": event.value_tag == "on"})
                 tick_the_rest(event)
 
 

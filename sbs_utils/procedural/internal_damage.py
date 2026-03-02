@@ -26,6 +26,14 @@ def grid_get_max_hp():
     global _MAX_HP
     return _MAX_HP
 
+def grid_set_hp(ship_id, GRID_OBJECT_ID, hp):
+    print("HP SET")
+    set_inventory_value(GRID_OBJECT_ID, "HP",  hp)
+    
+    #@signal life_form_hp_changed data SHIP_id, LIFE_FORM_ID, HP
+    signal_emit("life_form_hp_changed", {"SHIP_ID": ship_id, "LIFE_FORM_ID": GRID_OBJECT_ID, "HP": hp})    
+
+
 """
 Future use hero Damcon name
 
@@ -205,7 +213,6 @@ def grid_restore_damcons(id_or_obj):
     #TODO: REMOVE When Grid AI is proven
     settings = settings_get_defaults()
     interns = settings.get("NEW_DAMCONS", is_dev_build())
-
     prefab_label = get_inventory_value(ship_id, "PREFAB_DAMCONS", "prefab_lifeform_damcons")
     #
     # Create damcons/lifeforms
@@ -215,12 +222,14 @@ def grid_restore_damcons(id_or_obj):
         # See if damcon exists
         _name = f"DC{i+1}"
         _test_go = hm.get_grid_object_by_name(_name)
+        
         if _test_go is not None:
             _id = _test_go.unique_ID # _test_go is an object from the engine
             _blob = to_blob(_test_go.unique_ID)
             _blob.set("icon_color", colors[i%color_count], 0)
             # Hit points == MAX_HP
-            set_inventory_value(_id, "HP", grid_get_max_hp() )
+            hp = grid_get_max_hp()
+            grid_set_hp(ship_id, _id, hp)
         else:
             v = SBS.vec3(0.5,0,0.5)
             point = SBS.find_valid_unoccupied_grid_point_for_vector3(ship_id, v, 5)
@@ -265,8 +274,7 @@ def grid_restore_damcons(id_or_obj):
                 _blob.set("icon_scale", rally_scale, 0)
                 set_inventory_value(_id, "idle_marker", to_id(idle_marker))
 #endregion
-
-
+            
             dc.engine_object.layer = 4
             dc.blob.set("icon_scale", scale,0 )
             _id = to_id(dc)
@@ -275,7 +283,8 @@ def grid_restore_damcons(id_or_obj):
             set_inventory_value(_id, "damage_color", damage_colors[i%color_count])
             set_inventory_value(_id, "idle_pos", (point[0], point[1]) )
             # Hit points == MAX_HP
-            set_inventory_value(_id, "HP", grid_get_max_hp() )
+            grid_set_hp(ship_id, _id, grid_get_max_hp())
+            
             
 def grid_apply_system_damage(id_or_obj):
     """
@@ -657,15 +666,21 @@ def grid_take_internal_damage_at(id_or_obj, source_point, system_hit=None, damag
         blob = to_blob(d)
         dc_damage_color = get_inventory_value(d, "damage_color")
         dc_damage_color = damage_color if damage_color else damage_color
+        
+        
 
         blob.set("icon_color", dc_damage_color, 0)
         if hp <= 0:
-            SBS.delete_grid_object(go.host_id, d)
+            #@signal life_form_died data SHIP_id, LIFE_FORM_NAME
+            signal_emit("life_form_died", {"SHIP_ID": ship_id, "LIFE_FORM_NAME": go.name})
             comms_broadcast(ship_id, f"{go.name} has perished", dc_damage_color)
+            SBS.delete_grid_object(go.host_id, d)
             if go is not None:
                 go.destroyed()
         else:
             comms_broadcast(ship_id, f"{go.name} has been hurt hp={hp}","yellow")
+            #@signal life_form_hp_changed data SHIP_id, LIFE_FORM_ID, HP
+            signal_emit("life_form_hp_changed", {"SHIP_ID": ship_id, "LIFE_FORM_ID": d, "HP": hp})
 
 
     return grid_apply_system_damage(ship_id)

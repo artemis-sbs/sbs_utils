@@ -2,7 +2,7 @@ from .signal import signal_emit
 from ..helpers import FrameContext
 from .roles import role, has_role
 from .inventory import get_inventory_value, set_inventory_value
-from .query import to_object, to_id, set_data_set_value, get_data_set_value, to_object_list
+from .query import to_object, to_space_object, to_id, set_data_set_value, get_data_set_value, to_object_list
 from .links import link, linked_to, has_link, has_link_to, unlink
 
 def sides_set():
@@ -110,7 +110,7 @@ def to_side_id(key_or_id_or_object):
             return id # If it's a side prefab, we just return the ID
         # print(f"Trying again for id: {id}")
         # if it's not a side prefab, use the side of the object as the key and continue
-        obj = to_object(id)
+        obj = to_space_object(id)
         if obj is not None:
             side = obj.side
             # to_side_id() should be able to return the right side based on id or display text

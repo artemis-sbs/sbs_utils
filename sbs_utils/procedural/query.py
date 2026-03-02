@@ -228,7 +228,10 @@ def get_data_set_value(id_or_obj, key, index=0):
     Returns:
         any: The value associated with the key and index.
     """
-    object = to_space_object(id_or_obj)
+    if is_space_object_id(id_or_obj):
+        object = to_space_object(id_or_obj)
+    elif is_grid_object_id(id_or_obj):
+        object = to_grid_object(id_or_obj)
     if object is not None:
         return object.data_set.get(key, index)
     return None
@@ -242,9 +245,10 @@ def set_data_set_value(to_update, key, value, index=0):
         value (any): The value to assign.
         index (int, optional): The index of the data set value
     """
-    objects = to_space_object_list(to_set(to_update))
+    objects = to_object_list(to_set(to_update))
     for object in objects:
-        object.data_set.set(key, value, index)
+        if is_space_object_id(object) or is_grid_object_id(object):
+            object.data_set.set(key, value, index)
 
 def get_engine_data_set(id_or_obj):
     """

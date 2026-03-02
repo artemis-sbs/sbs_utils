@@ -60,7 +60,7 @@ class Modifier(Agent):
         """Is the modifier expired?"""
         if self.timer is None:
             return False
-        print("checking timer expiration")
+        #print("checking timer expiration")
         return is_timer_finished(self.target, self.timer)
     
     def get_time_remaining(self):
@@ -304,6 +304,7 @@ def modifier_add(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, durat
     Returns:
         Modifier | set[int]: The modifier object, or a set of the IDs of all the modifiers that were created and added.
     """
+    timer = None
     if duration is not None:
         duration = abs(duration)
         timer = key + "__" + source
@@ -366,7 +367,7 @@ def modifier_add(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, durat
             # Now we need to actually apply the modifier to the blob value. We will recalculate set the blob value.
             ModifierHandler.recalculate_value(id, key)
     signal_emit("modifier_added", data={"obj_or_id_or_set": obj_or_id_or_set, "key": key, "source": source, "added_mods": added_mods})
-    if len(added_mods) == 0:
+    if len(added_mods) == 1:
         return added_mods[0]
     return to_set(to_id_list(added_mods))
 

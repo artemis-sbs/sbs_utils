@@ -24,7 +24,7 @@ class TestLayoutParser(unittest.TestCase):
         assert(len(asts)== 4)
         tokens = LayoutAreaParser.lex("min(30,20)")
         asts = LayoutAreaParser.parse_e2(tokens)
-        assert(len(asts)== 1)
+        assert(asts.token_type == "min")
 
 
     def test_compute(self):
