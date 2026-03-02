@@ -3,7 +3,7 @@
 # TODO: This could also be adapted to work for blob values that use lists instead of floats.
 
 from sbs_utils.consoledispatcher import get_inventory_value, set_inventory_value
-from sbs_utils.mast_sbs.maststorypage import signal_emit
+from sbs_utils.procedural.signal import signal_emit
 from sbs_utils.procedural.query import get_data_set_value, set_data_set_value, to_blob, to_object, to_id, to_set, to_id_list
 from sbs_utils.procedural.sides import to_side_id, side_members_set
 from sbs_utils.procedural.roles import has_role
