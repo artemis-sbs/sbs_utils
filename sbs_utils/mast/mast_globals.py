@@ -6,6 +6,7 @@ import random
 from .. import fs
 import sys
 from inspect import getmembers, isfunction, getmodule
+from ..version__ import version_get, version_get_major, version_get_build, version_get_minor
 
 import builtins as __builtin__
 from ..helpers import FrameContext
@@ -49,6 +50,10 @@ class MastGlobals:
         "sorted": sorted,
         "mission_dir": fs.get_mission_dir(),
         "data_dir": fs.get_artemis_data_dir(),
+        "version_get": version_get,
+        "version_get_major": version_get_major,
+        "version_get_build": version_get_build,
+        "version_get_minor": version_get_minor,
         #"MastDataObject": MastDataObject,
         "range": range,
         "isinstance": isinstance,
