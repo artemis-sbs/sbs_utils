@@ -170,7 +170,8 @@ def grid_target(grid_obj_or_set, target_id: int, speed=0.01):
             if x!=curx or y != cury:
                 this_blob.set("pathx", x, 0)
                 this_blob.set("pathy", y, 0)
-                this_blob.set("move_speed", speed, 0)
+                if speed is not None:
+                    this_blob.set("move_speed", speed, 0)
                 add_role(grid_obj, "_moving_")
 
 def grid_target_pos(grid_obj_or_set, x:float, y:float, speed=0.01):
@@ -192,16 +193,19 @@ def grid_target_pos(grid_obj_or_set, x:float, y:float, speed=0.01):
         pathy = blob.get("pathy", 0)
         
         if pathx==x and pathy == y:
-            blob.set("move_speed", 0, 0)
+            if speed is not None:
+                blob.set("move_speed", 0, 0)
             continue
             
         if curx!=x or cury != y:
             blob.set("pathx", x, 0)
             blob.set("pathy", y, 0)
-            blob.set("move_speed", speed, 0)
+            if speed is not None:
+                blob.set("move_speed", speed, 0)
             add_role(grid_obj, "_moving_")
         else:
-            blob.set("move_speed", 0, 0)
+            if speed is not None:
+                blob.set("move_speed", 0, 0)
 
 def grid_clear_target(grid_obj_or_set):
     """ Clear the target of a grid object

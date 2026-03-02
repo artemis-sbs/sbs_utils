@@ -575,14 +575,14 @@ class object_data_set(object): ### from pybind
 
         s_value = [
             "torpedo_types_available", "tsnscan", "tsnintel", "tsnbio", "tsnstatus", "ally_list",
-            "hull_origin"
+            "hull_origin", "hull_side"
             ]
         if name == "torpedo_types_available":
             return "Homing,Nuke,EMP,Mine"
         if name in s_value:
             return ""
 
-        return 0
+        return None
     def set(self, tag, value, index=0):
         values = self.values.get(tag, {})
         values [index] = value

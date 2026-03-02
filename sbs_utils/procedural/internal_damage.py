@@ -27,7 +27,6 @@ def grid_get_max_hp():
     return _MAX_HP
 
 def grid_set_hp(ship_id, GRID_OBJECT_ID, hp):
-    print("HP SET")
     set_inventory_value(GRID_OBJECT_ID, "HP",  hp)
     
     #@signal life_form_hp_changed data SHIP_id, LIFE_FORM_ID, HP
