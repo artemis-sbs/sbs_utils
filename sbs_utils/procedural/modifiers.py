@@ -38,6 +38,9 @@ class Modifier(Agent):
         self.timer = timer
         self.index = index
         self.id = get_story_id()
+        # Shouldn't this be added
+        # without it to_object will not work
+        # self.add()
         self.add_role("__modifier__") # This allows us to easily check if an object in the modifiers list is a Modifier object or not, since we will be storing the modifiers in the inventory of the objects they are modifying.
         
 

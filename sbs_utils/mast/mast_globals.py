@@ -7,6 +7,7 @@ from .. import fs
 import sys
 from inspect import getmembers, isfunction, getmodule
 from ..version__ import version_get, version_get_major, version_get_build, version_get_minor
+import json
 
 import builtins as __builtin__
 from ..helpers import FrameContext
@@ -24,7 +25,8 @@ def debug_print(*args, **kwargs):
 class MastGlobals:
     _imported_mods = set()
     globals = {
-        "math": math, 
+        "math": math,
+        "json" : json,
         "faces": faces,
         "scatter": scatter,
         "random": random,
