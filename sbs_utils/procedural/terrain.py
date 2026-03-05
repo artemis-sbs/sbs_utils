@@ -464,10 +464,11 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False, 
     else:
         spawn_points = scatter.box(count, center.x, center.y, center.z, 100_000, 1000, 100_000, centered=True)
     
-    sim = FrameContext.sim
-    
+    nebs = []
+        
     for v in spawn_points:
-        terrain_spawn_nebula_sphere(v.x,v.y, v.z, 10000,terrain_value, cluster_color=None, selectable=selectable, marker=marker, name=name)
+        new_nebs = terrain_spawn_nebula_sphere(v.x,v.y, v.z, 10000,terrain_value, cluster_color=None, selectable=selectable, marker=marker, name=name)
+        nebs.extend(new_nebs)
 
     # Merge Markers
     # Copy the list to avoid conflict when enumerating
@@ -506,13 +507,7 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False, 
         m_obj.set_inventory_value("cluster_color", color)
         m_obj.set_inventory_value("cluster_counts", counts)
         
-        
-        
-
-
-
-        
-    return spawn_points
+    return nebs
 
 def color_noise(r_min, r_max, g_min,g_max, b_min, b_max, a_min=0xff, a_max=0xff):
     r = random.randrange(r_min,r_max)
