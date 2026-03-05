@@ -42,6 +42,11 @@ def LABEL():
         return task.active_label_object
     return None
 
+def LABEL_ALWAYS_IDLE():
+    from ..mast.pollresults import PollResults
+    while True:
+        yield PollResults.OK_IDLE
+
 def metadata_get_value(k, defa=None):
     label = LABEL()
     if label is None:

@@ -259,10 +259,13 @@ class Column:
         return event.sub_tag == self.tag or event.sub_tag == self.click_tag
    
     def on_message(self, event):
-        if event.sub_tag == self.click_tag:
-            Clickable.clicked[event.client_id] = self
-        elif self.on_message_cb is not None:
+        if event.sub_tag != self.click_tag:
+            return 
+        if self.on_message_cb is not None:
             self.on_message_cb(event, self)
+            return
+        Clickable.clicked[event.client_id] = self
+        
 
     def update(self, props):
         pass

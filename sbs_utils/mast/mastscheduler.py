@@ -440,6 +440,9 @@ class PyTicker():
                     return self.last_poll_result
                 elif res == PollResults.OK_JUMP:
                     break
+                elif res == PollResults.OK_IDLE:
+                    self.last_poll_result = res
+                    return PollResults.OK_IDLE
                 elif res == PollResults.OK_END:
                     gen_done = True
                     fallthrough = False
