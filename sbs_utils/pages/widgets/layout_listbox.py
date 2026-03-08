@@ -1,5 +1,6 @@
 from ...gui import get_client_aspect_ratio
 from ..layout import layout as layout
+from ..layout.clickable import Clickable
 from ...helpers import FrameContext, FakeEvent
 from ...mast.parsers import LayoutAreaParser
 #from ...mast.core_nodes.label import Label
@@ -663,7 +664,11 @@ class LayoutListbox(layout.Column):
             return self.on_collapse_header(event)
         
         if event.sub_tag.endswith("__click"):
-            return self.on_click(event)
+            self.on_click(event)
+            if self.on_message_cb is not None:
+                self.on_message_cb(event, self)
+            Clickable.clicked[event.client_id] = self
+            return
         
         if self.carousel:
             return self.on_carousel_click(event)
