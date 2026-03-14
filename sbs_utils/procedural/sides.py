@@ -103,6 +103,8 @@ def to_side_id(key_or_id_or_object):
                 return s
             if get_inventory_value(s, "side_name").strip().lower() == key_or_id_or_object:
                 return s
+        if not "monster" in key_or_id_or_object:
+            print(f"Side not found: {key_or_id_or_object}")
         return None # If it's not in sides_set() then it's not a valid side key
     id = to_id(key_or_id_or_object) # Will return key_or_id_or_object if it's not an object
     if isinstance(id, int):
@@ -329,6 +331,33 @@ def side_are_neutral(side1, side2)->bool:
     o2 = to_side_id(side2)
     return has_link_to(o1, "side_neutral", o2)
     
+def side_set_side_icon_index(key_or_id, icon_index)->None:
+    """
+    Set the icon index for the specified side. This will change the icon of ships on the 2d map.
+    Args:
+        key_or_id (str | int): The key or id of the side to set the icon index for.
+        icon_index (int): The index of the icon to set for the side.
+    """
+    id = to_side_id(key_or_id)
+    if id is not None:
+        key = get_inventory_value(id, "side_key")
+        set_inventory_value(id, "side_icon_index", icon_index)
+        FrameContext.context.sim.set_side_icon_index(key, icon_index)
+
+def side_get_side_icon_index(key_or_id)->int:
+    """
+    Get the icon index for the specified side.
+    Args:
+        key_or_id (str | int): The key or id of the side to get the icon index for.
+    Returns:
+        int: The index of the icon for the side. If the icon is not found, returns -1.
+    """
+    id = to_side_id(key_or_id)
+    if id is not None:
+        return get_inventory_value(id, "side_icon_index", -1)
+    return -1
+
+
 def side_set_icon_color(key_or_id, color)->None:
     """
     Set the icon color for the specified side. This will change the color of ships on the 2d map.

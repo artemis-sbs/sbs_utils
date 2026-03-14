@@ -763,6 +763,9 @@ class simulation(object): ### from pybind
     def set_side_icon_color(self: simulation, SideTag: str, colorString: str) -> None:
         """set the color of a SideTag (like TSN or Raider)"""
         pass
+    def set_side_icon_index(self: simulation, SideTag: str, iconIndex: int) -> None:
+        """set the value of the icon of a SideTag (like TSN or Raider)"""
+        pass
     def set_side_relationship(self: simulation, FirstSideTag: str, SecondSideTag: str, diplomacyEnumValue: int) -> None:
         """set the diplomatic state between two sides, for GUI color purposes."""
         pass
