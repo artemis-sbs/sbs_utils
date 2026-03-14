@@ -99,24 +99,30 @@ class FrameContext(metaclass=FrameContextMeta):
     pass
 
 class FrameContextOverride:
-    def __init__(self, task=None, page=None):
+    def __init__(self, task=None, page=None, event=None):
         self.task = task
         self.page = page
+        self.event = event
 
         self.restore_task = None
         self.restore_page = None
+        self.restore_event = None
 
     def __enter__(self):
         self.restore_task = FrameContext.task
         self.restore_page = FrameContext.page
+        self.restore_event = FrameContext.context.event
 
         FrameContext.task = self.task
         FrameContext.page = self.page
+        if self.event is not None:
+            FrameContext.context.event = self.event 
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         FrameContext.task = self.restore_task
         FrameContext.page = self.restore_page
+        FrameContext.context.event = self.restore_event 
         if exc_type:
             return False #Reraise the exception
         return True

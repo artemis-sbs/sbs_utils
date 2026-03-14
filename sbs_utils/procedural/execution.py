@@ -1,4 +1,4 @@
-from ..helpers import FrameContext
+from ..helpers import FrameContext, FrameContextOverride
 import logging as logging
 from ..agent import Agent
 from io import StringIO
@@ -531,9 +531,11 @@ def gui_task_jump(label):
     Args:
         label (str or label): The label to run
     """    
-    if FrameContext.page is None:
+    page = FrameContext.page
+    if page is None:
         return PollResults.OK_ADVANCE_TRUE
     task = FrameContext.page.gui_task
     if task is not None:
-        task.jump(label)
+        with FrameContextOverride(task, page):
+            task.jump(label)
     return PollResults.OK_ADVANCE_TRUE

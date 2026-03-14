@@ -537,14 +537,22 @@ def gui(buttons=None, timeout=None):
         Promise: The promise for the gui, promise is done when a button is selected
     """    
     from ...mast_sbs.story_nodes.button import Button
+    from ...futures import Promise
     page = FrameContext.page
-    #sbs.send_gui_sub_region(page.client_id, "FULL", "", 0, 0, 100, 100)
-    #sbs.target_gui_sub_region(page.client_id, "FULL")
+    task = FrameContext.task
+    gui_task = FrameContext.client_task
+
     ret = GuiPromise(page, timeout)
     if buttons is not None:
         for k in buttons:
             ret .buttons.append(Button(k, label=buttons[k],loc=0))
     page.swap_gui_promise(ret)
+
+    if task != gui_task:
+        print("await gui() was not called in gui's main task. Consider using gui_task_jump.")
+        done = Promise()
+        done.set_result(True)
+        return 
     return ret
     
 

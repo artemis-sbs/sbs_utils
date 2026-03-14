@@ -1,4 +1,4 @@
-from ...helpers import FrameContext
+from ...helpers import FrameContext, FrameContextOverride, FakeEvent
 
 def _gui_reroute_main(label, server):
     task = FrameContext.task
@@ -45,8 +45,11 @@ def gui_reroute_client(client_id, label, data=None):
         if data:
             for k in data:
                 page.gui_task.set_variable(k, data[k])
-        page.gui_task.jump(label)
-        page.gui_task.tick_in_context()
+        # This needs to look like the client is being told to repaint
+        fe = FakeEvent(page.client_id, "mission_tick")
+        with FrameContextOverride(page.gui_task, page, fe):
+            page.gui_task.jump(label)
+            page.gui_task.tick_in_context()
 
 def gui_reroute_server(label, data=None):
     """reroute server gui to run the specified label
