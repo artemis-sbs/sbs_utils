@@ -549,7 +549,7 @@ def gui(buttons=None, timeout=None):
     page.swap_gui_promise(ret)
 
     if task != gui_task:
-        print("await gui() called was not called in main gui task. Consider using gui_task_jump.")
+        print("await gui() was not called in gui's main task. Consider using gui_task_jump.")
         done = Promise()
         done.set_result(True)
         return 
