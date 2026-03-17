@@ -39,7 +39,7 @@ from ...gui import get_client_aspect_ratio
 from ..style import apply_control_styles
 from ...mast.pollresults import PollResults
 
-from ..execution import task_all
+from ..execution import task_all, AWAIT
 from .change import ChangeTrigger
 from ...agent import Agent
 
@@ -524,6 +524,9 @@ class GuiPromise(ButtonPromise):
         self.buttons = buttons
         self.button = None
 
+def handle_gui_from_child_task(p):
+    yield AWAIT(p)
+
 
 @awaitable
 def gui(buttons=None, timeout=None):
@@ -542,17 +545,16 @@ def gui(buttons=None, timeout=None):
     task = FrameContext.task
     gui_task = FrameContext.client_task
 
+
     ret = GuiPromise(page, timeout)
     if buttons is not None:
         for k in buttons:
             ret .buttons.append(Button(k, label=buttons[k],loc=0))
-    page.swap_gui_promise(ret)
-
+    
     if task != gui_task:
         print("await gui() was not called in gui's main task. Consider using gui_task_jump.")
-        done = Promise()
-        done.set_result(True)
-        return 
+    else:
+        page.swap_gui_promise(ret)
     return ret
     
 
