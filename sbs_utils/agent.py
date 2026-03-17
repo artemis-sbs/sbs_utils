@@ -221,6 +221,8 @@ class Agent():
         :param role: The role to add e.g. spy, pirate etc.
         :type id: str
         """
+        if role is None:
+            return
         role = role.strip().lower()
         self.roles.add_to_collection(role, self.id)
 
