@@ -676,7 +676,7 @@ class MastAsyncTask(Agent, Promise):
         
 
         if label_info.is_jump:
-            st = self.start_sub_task(label_info.label, data, defer=True)
+            st = self.start_task(label_info.label, data, defer=True)
             st.tick_in_context()
         else:
             self.push_inline_block(label_info.label, label_info.loc, data)
