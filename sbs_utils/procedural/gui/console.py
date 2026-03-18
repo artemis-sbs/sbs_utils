@@ -58,7 +58,7 @@ def gui_console(console, is_jump=False):
             widgets = "weapon_2d_view^radar_zoom_ctrl^weapon_control^weap_beam_freq^weap_beam_speed^weap_torp_conversion^ship_data^shield_control^text_waterfall^main_screen_control"
         case "science":
             console =  "normal_sci"
-            widgets = "science_2d_view^radar_zoom_ctrl^ship_data^text_waterfall^science_data^science_sorted_list"
+            widgets = "science_2d_view^radar_zoom_ctrl^ship_data^science_data_freq^science_data_tabs^text_waterfall^science_data^science_sorted_list"
         case "engineering":
             console =  "normal_engi"
             widgets = "ship_internal_view^eng_presets^grid_object_list^grid_face^grid_control^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
