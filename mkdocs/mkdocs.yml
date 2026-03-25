@@ -127,18 +127,27 @@ nav:
       - behavior: api/procedural/behavior.md
       - comms: api/procedural/comms.md
       - cosmos: api/procedural/cosmos.md
+      - dmx: api/procedural/dmx.md
+      - docking: api/procedural/docking.md
       - execution: api/procedural/execution.md
       - gui: api/procedural/gui.md
       - grid: api/procedural/grid.md
       - inventory: api/procedural/inventory.md
+      - lifeform: api/procedural/lifeform.md
       - links: api/procedural/links.md
+      - maps: api/procedural/maps.md
+      - modifiers: api/procedural/modifiers.md
       - query: api/procedural/query.md
+      - promise_functions: api/procedural/promise_functions.md
       - roles: api/procedural/roles.md
       - routes: api/procedural/routes.md
       - science: api/procedural/science.md
       - ship_data: api/procedural/ship_data.md
+      - sides: api/procedural/sides.md
+      - signal: api/procedural/signal.md
       - space_objects: api/procedural/space_objects.md
       - spawn: api/procedural/spawn.md
+      - terrain: api/procedural/terrain.md
       - timers: api/procedural/timers.md
       
 
