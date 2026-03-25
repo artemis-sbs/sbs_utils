@@ -125,6 +125,7 @@ nav:
     - Procedural:
       - api/procedural/index.md
       - behavior: api/procedural/behavior.md
+      - cards: api/procedural/cards.md
       - comms: api/procedural/comms.md
       - cosmos: api/procedural/cosmos.md
       - dmx: api/procedural/dmx.md
