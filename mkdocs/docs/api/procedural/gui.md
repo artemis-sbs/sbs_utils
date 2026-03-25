@@ -48,6 +48,9 @@
 ::: sbs_utils.procedural.gui.console_types
 ::: sbs_utils.procedural.gui.widgets
 
+## Tab panels
+::: sbs_utils.procedural.gui.tabbed_panel
+
 
 ## Update and refreshing the GUI
 
@@ -62,6 +65,8 @@
 ## Interacting with client side data
 
 ::: sbs_utils.procedural.gui.client_string
+
+
 
 
 

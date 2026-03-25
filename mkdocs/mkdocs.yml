@@ -139,6 +139,7 @@ nav:
       - modifiers: api/procedural/modifiers.md
       - query: api/procedural/query.md
       - promise_functions: api/procedural/promise_functions.md
+      - objective: api/procedural/objective.md
       - roles: api/procedural/roles.md
       - routes: api/procedural/routes.md
       - science: api/procedural/science.md
