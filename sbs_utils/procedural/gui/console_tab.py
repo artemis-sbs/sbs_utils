@@ -121,7 +121,7 @@ def gui_tab_is_top(tab_name: str):
     tab_names = tab_name.split(",")
     for tab_name in tab_names:
         tab_name = tab_name.strip().lower()
-        if not tabs.get("tab_name"):
+        if not tabs.get(tab_name):
             return False
     return True
 

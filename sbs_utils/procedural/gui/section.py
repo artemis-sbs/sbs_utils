@@ -44,6 +44,11 @@ class PageSubSection:
             return self.sub_section.click_tag
         return None
     
+    @click_tag.setter
+    def click_tag(self, v):
+        if self.sub_section is not None:
+            self.sub_section.click_tag = v
+    
     def is_message_for(self, event):
         """Used by MessageTrigger i.e. gui_message to know if message is for this object
 

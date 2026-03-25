@@ -95,4 +95,11 @@ class Button(Column):
         self.square = self.icon
 
         self.message = merge_props(props)
+        # Quirk, this should just be a 
+        # visual update, but when in a 
+        # section/region it paints wrong.
+        if self.region_tag != "":
+            self.mark_layout_dirty()
+        else:
+            self.mark_visual_dirty()
 
