@@ -9,10 +9,10 @@
       
       
       
-        <link rel="prev" href="../sides/">
+        <link rel="prev" href="../behavior/">
       
       
-        <link rel="next" href="../space_objects/">
+        <link rel="next" href="../comms/">
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
@@ -20,7 +20,7 @@
     
     
       
-        <title>signal - SBS Utils library Documentation</title>
+        <title>cards - SBS Utils library Documentation</title>
       
     
     
@@ -64,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#signal-system" class="md-skip">
+        <a href="#the-card-system" class="md-skip">
           Skip to content
         </a>
       
@@ -115,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              signal
+              cards
             
           </span>
         </div>
@@ -2840,10 +2840,32 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../cards/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    cards
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -2854,6 +2876,101 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.cards.card" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;card
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.cards.card.Card" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;Card
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.cards.card.Deck" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;Deck
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" Deck">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sbs_utils.cards.card.Deck.draw" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;draw
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.cards.card.Tilemap" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;Tilemap
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" Tilemap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sbs_utils.cards.card.Tilemap.fill" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;fill
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sbs_utils.cards.card.Tilemap.fill_hex_rings" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;fill_hex_rings
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -3323,32 +3440,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    signal
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../signal/" class="md-nav__link">
         
   
   
@@ -3359,53 +3454,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#sbs_utils.procedural.signal" class="md-nav__link">
-    <span class="md-ellipsis">
-      <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;signal
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sbs_utils.procedural.signal.signal_emit" class="md-nav__link">
-    <span class="md-ellipsis">
-      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;signal_emit
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sbs_utils.procedural.signal.signal_register" class="md-nav__link">
-    <span class="md-ellipsis">
-      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;signal_register
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -3749,29 +3797,77 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#sbs_utils.procedural.signal" class="md-nav__link">
+  <a href="#sbs_utils.cards.card" class="md-nav__link">
     <span class="md-ellipsis">
-      <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;signal
+      <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;card
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#sbs_utils.procedural.signal.signal_emit" class="md-nav__link">
+  <a href="#sbs_utils.cards.card.Card" class="md-nav__link">
     <span class="md-ellipsis">
-      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;signal_emit
+      <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;Card
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#sbs_utils.procedural.signal.signal_register" class="md-nav__link">
+  <a href="#sbs_utils.cards.card.Deck" class="md-nav__link">
     <span class="md-ellipsis">
-      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;signal_register
+      <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;Deck
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label=" Deck">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sbs_utils.cards.card.Deck.draw" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;draw
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.cards.card.Tilemap" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;Tilemap
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" Tilemap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sbs_utils.cards.card.Tilemap.fill" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;fill
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sbs_utils.cards.card.Tilemap.fill_hex_rings" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;fill_hex_rings
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -3794,15 +3890,98 @@
   
 
 
-<h1 id="signal-system">Signal system</h1>
+<h1 id="the-card-system">The card system</h1>
 
 
 <div class="doc doc-object doc-module">
 
 
 
-<a id="sbs_utils.procedural.signal"></a>
+<a id="sbs_utils.cards.card"></a>
     <div class="doc doc-contents first">
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="sbs_utils.cards.card.Card" class="doc doc-heading">
+            <code>Card</code>
+
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="sbs_utils.cards.card.CardList">CardList</span></code></p>
+
+
+        <p>A card is not the space objects</p>
+
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="sbs_utils.cards.card.Deck" class="doc doc-heading">
+            <code>Deck</code>
+
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="sbs_utils.cards.card.CardList">CardList</span></code></p>
+
+
 
 
 
@@ -3827,18 +4006,258 @@
 <div class="doc doc-object doc-function">
 
 
-<h2 id="sbs_utils.procedural.signal.signal_emit" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">signal_emit</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+<h3 id="sbs_utils.cards.card.Deck.draw" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">draw</span><span class="p">(</span><span class="n">card</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Draws the card specified or picks one</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>card</code>
+            </td>
+            <td>
+                  <code><span title="_type_">_type_</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The card to draw.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>_type_</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>card drawn</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="sbs_utils.cards.card.Tilemap" class="doc doc-heading">
+            <code>Tilemap</code>
+
 
 </h2>
 
 
     <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="sbs_utils.cards.card.CardList">CardList</span></code></p>
 
-        <p>Emit a signal to trigger all instances of the signal route to run.
-Args:
-    name (str): The name of the signal.
-    data (dict): The data to provide to the signal route.</p>
+
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="sbs_utils.cards.card.Tilemap.fill" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">fill</span><span class="p">(</span><span class="n">tile_string</span><span class="p">,</span> <span class="n">layer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">x_count</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">scale_tile</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">x_offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">z_offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">shift</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p><em>summary</em></p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>tile_string</code>
+            </td>
+            <td>
+                  <code><span title="_type_">_type_</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><em>description</em></p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>layer</code>
+            </td>
+            <td>
+                  <code><span title="_type_">_type_</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><em>description</em>. Defaults to None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>x_count</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><em>description</em>. Defaults to 0.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>scale_tile</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><em>description</em>. Defaults to 1.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>x_offset</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><em>description</em>. Defaults to 0.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>z_offset</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><em>description</em>. Defaults to 0.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>shift</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Offset every n line by 1/2 width. Helps simulate hex like grid with n=2. Default = 0</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
     </div>
@@ -3848,27 +4267,76 @@ Args:
 <div class="doc doc-object doc-function">
 
 
-<h2 id="sbs_utils.procedural.signal.signal_register" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">signal_register</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">server</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">task</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">is_jump</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">is_temporary</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+<h3 id="sbs_utils.cards.card.Tilemap.fill_hex_rings" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">fill_hex_rings</span><span class="p">(</span><span class="n">tile_string</span><span class="p">,</span> <span class="n">layer</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
-</h2>
+</h3>
 
 
     <div class="doc doc-contents ">
 
-        <p>Register a new signal route, linking the signal name with the specified label.
-Args:
-    name (str): The name of the signal.
-    label (str | Label): The label to run when the signal is emitted.
-    server (bool, optional): Should the label run only for the server (as a shared signal)? Default is False.
-    loc (int, optional): The index of the sublabel to run. Default is 0.
-    is_jump (bool, optional): Should the signal trigger a jump to the signal's label, continuing the current task? Default is True.
-    is_temporary (bool, optional): Use this to create transient signals for GUI. New Gui cleans these up.  is False</p>
+        <p>fill_hex_rings creates a hex map</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>tile_string</code>
+            </td>
+            <td>
+                  <code><span title="_type_">_type_</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The string of contents</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>layer</code>
+            </td>
+            <td>
+                  <code><span title="_type_">_type_</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>name of the layer</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
     </div>
 
 </div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
 
 
 
