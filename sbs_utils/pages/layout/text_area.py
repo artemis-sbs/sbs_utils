@@ -129,9 +129,9 @@ class ImageLine:
 class TextArea(Control):
     styles = {
         "t": {"style": "font:gui-6;color:#bbb;", "prepend": "", "indent": 0, "height": 48},
-        "h1":{"style":  "font:gui-5;color:#bbb;", "prepend": "1 ", "indent": 0, "height": 32},
-        "h2":{"style":  "font:gui-4;color:#bbb;", "prepend": "1 ", "indent": 0, "height": 28},
-        "h3":{"style":  "font:gui-3;color:#bbb;", "prepend": "1 ", "indent": 0, "height": 24},
+        "h1":{"style":  "font:gui-5;color:#bbb;", "prepend": "1", "indent": 0, "height": 32},
+        "h2":{"style":  "font:gui-4;color:#bbb;", "prepend": "1", "indent": 0, "height": 28},
+        "h3":{"style":  "font:gui-3;color:#bbb;", "prepend": "1", "indent": 0, "height": 24},
         "p1":{"style":  "font:gui-2;color:#11f;", "prepend": "", "indent": 0, "height": 20},
         "ul":{"style":  "font:gui-2;color:#11f;", "prepend": "-", "indent": 2, "height": 20},
         "ol":{"style":  "font:gui-2;color:white;", "prepend": "1", "indent": 2, "height": 20},
@@ -397,7 +397,7 @@ class TextArea(Control):
                 props = split_props(urn, "font")
                 font = props.get("font", "gui-3")
                 style["background"] = props.get("background")
-                props.pop("background")
+                props.pop("background", None)
                 style["style"] = merge_props(props)
                 # Let this fall through if there is a line
                 if line is None or len(line.strip()) == 0:

@@ -799,7 +799,8 @@ def terrain_spawn_nebula_common(x,y,z, size_x=10000, size_z=None,
     color_is_set = cluster_color is not None
     cluster_color = terrain_nebula_color(cluster_color)
 
-
+    color = "purple"
+    rainbow = False
     if isinstance(cluster_color, dict):
         color = cluster_color.get("display_text", "rainbow")
         rainbow = False

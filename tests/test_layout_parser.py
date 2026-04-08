@@ -1,6 +1,7 @@
 from email import parser
 import unittest
 from sbs_utils.mast.parsers import LayoutAreaParser
+from sbs_utils.pages.layout.text_area import TextArea
 
 
 class TestLayoutParser(unittest.TestCase):
@@ -54,3 +55,17 @@ class TestLayoutParser(unittest.TestCase):
             assert(test == expect)
         
     
+class TestTextAreaParser(unittest.TestCase):
+    
+    
+    def test_style(self):
+        ta = TextArea("1", "[](style:font:gui-2;) Hello")
+        s = ta.parse_style_line("font:gui-1")
+        assert(s.get("style") == "font:gui-1;" )
+        ta.calc_rich(0)
+
+
+        
+        
+
+
