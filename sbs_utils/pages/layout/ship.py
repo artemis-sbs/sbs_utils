@@ -13,7 +13,7 @@ class Ship(Column):
     @property
     def ship(self):
         
-        return self.ship[8:]
+        return self._ship[8:]
 
     @ship.setter
     def ship(self, ship):
