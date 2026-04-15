@@ -238,17 +238,38 @@ def cosmos_event_handler(sim, event):
                 DamageDispatcher.dispatch_heat(event)
                 tick_the_rest(event)
 
-            case "passive_collision":
+            case "passive_collision_start":
                 #print_event(event)
                 CollisionDispatcher.dispatch_passive(event)
                 tick_the_rest(event)
 
+            case "passive_collision_end":
+                #print_event(event)
+                CollisionDispatcher.dispatch_passive(event)
+                tick_the_rest(event)
+            #TODO: Obsolete?
+            case "passive_collision":
+                #print_event(event)
+                CollisionDispatcher.dispatch_passive(event)
+                tick_the_rest(event)
+                
+            #TODO: Obsolete?
             case "interactive_collision":
                 #print_event(event)
                 CollisionDispatcher.dispatch_interactive(event)
                 tick_the_rest(event)
 
-            ## TODO: Add routes and leverage in docking
+            case "interactive_collision_start":
+                #print_event(event)
+                CollisionDispatcher.dispatch_interactive(event)
+                tick_the_rest(event)
+
+            case "interactive_collision_end":
+                #print_event(event)
+                CollisionDispatcher.dispatch_interactive(event)
+                tick_the_rest(event)
+
+            ## TODO: Add routes and leverage in docking, and pickups
             case "within_range":
                 #print_event(event)
                 CollisionDispatcher.dispatch_interactive(event)

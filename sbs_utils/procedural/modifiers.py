@@ -205,7 +205,7 @@ class ModifierHandler:
                             defaults.append(value)
                         else:
                             break
-                    print("Updated default blob value for object with id:", id, " and key:", key, " to ", defaults)
+                    #print("Updated default blob value for object with id:", id, " and key:", key, " to ", defaults)
                     set_inventory_value(id, f"{key}_default_value", defaults)
                     return defaults
         return default_value
@@ -223,7 +223,7 @@ class ModifierHandler:
             is_blob = ModifierHandler.is_key_for_blob(id, key)
             all_mods = modifiers_get_for_object(id, key)
             default_value = ModifierHandler.get_default_blob_value(id, key) # float or list
-            print("New default value: ", default_value)
+            #print("New default value: ", default_value)
 
             if not is_blob:
                 new_value = ModifierHandler.calculate_modified_value(default_value, all_mods)
@@ -259,7 +259,7 @@ class ModifierHandler:
             value = blob.get(key, i)
             if value is None:
                 return i-1
-        print("Warning: Reached max index of 100 when getting blob max index for", id, " for key:", key)
+        #print("Warning: Reached max index of 100 when getting blob max index for", id, " for key:", key)
         return 100
 
 def modifier_add(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, duration=None, index=None) -> Modifier:
@@ -390,7 +390,7 @@ def modifier_remove(obj_or_id_or_set, key_or_modifier, source=None) -> None:
         ship = key_or_modifier.target
         key = key_or_modifier.key
         all_mods = get_inventory_value(ship, f"{key}_modifiers", [])
-        print(len(all_mods), " modifiers found for ship ", ship, " and key ", key)
+        #print(len(all_mods), " modifiers found for ship ", ship, " and key ", key)
         if key_or_modifier in all_mods:
             all_mods.remove(key_or_modifier)
             print(len(all_mods), " modifiers remaining after removal.")
@@ -400,14 +400,14 @@ def modifier_remove(obj_or_id_or_set, key_or_modifier, source=None) -> None:
             removed_mods.append(key_or_modifier)
             signal_emit("modifier_removed", data={"obj_or_id_or_set": obj_or_id_or_set, "modifier": removed_mods})
             return
-        print("Modifier not found:", key_or_modifier)
+        #print("Modifier not found:", key_or_modifier)
         return removed_mods
 
     # Check if the object is a side key, and if so, convert it to a side id.
     if isinstance(obj_or_id_or_set, str):
         side_id = to_side_id(obj_or_id_or_set)
         if side_id is None:
-            print("Invalid side key provided to modifier_remove(): ", obj_or_id_or_set)
+            #print("Invalid side key provided to modifier_remove(): ", obj_or_id_or_set)
             return
         obj_or_id_or_set = side_id # Force a side id if a side key was passed.
     ship_set = to_set(obj_or_id_or_set)
