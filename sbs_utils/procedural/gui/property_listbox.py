@@ -8,6 +8,7 @@ from .text import gui_text
 from .update import gui_represent
 from ...pages.widgets.layout_listbox import LayoutListBoxHeader
 from ...agent import Agent
+from ...fs import is_dev_build
 
 class PropertyControlItem:
     def __init__(self, label, control):
@@ -65,7 +66,10 @@ def gui_properties_set(p=None, tag=None):
     gui_page = FrameContext.client_page
     event = FrameContext.context.event
     if gui_task is None:
-        raise Exception("EDGE CASE: Did you set END or Yield the last GUI Task?")
+        if is_dev_build():
+            raise Exception("EDGE CASE: Did you set END or Yield the last GUI Task?")
+        else:
+            return
         
     
     # This happens in a follow_route_select_comms

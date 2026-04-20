@@ -13,7 +13,7 @@ from ..pages.layout.layout import Layout
 from ..pages.layout.row import Row
 from ..pages.layout.text import Text
 from ..pages.layout.blank import Blank
-from..fs import get_mission_name, get_startup_mission_name
+from..fs import get_mission_name, get_startup_mission_name, is_dev_build
 
 from .story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
 
@@ -587,9 +587,11 @@ class StoryPage(Page):
                 
                 if not self.story_scheduler.story_tick_tasks(event.client_id):
                     #self.story_runtime_node.mast.remove_runtime_node(self)
-                    raise Exception("EDGE CASE: Did you set END or Yield the last GUI Task?")
-                    Gui.pop(event.client_id)
-                    return
+                    if is_dev_build():
+                        raise Exception("EDGE CASE: Did you set END or Yield the last GUI Task?")
+                    else:
+                        Gui.pop(event.client_id)
+                        return
             
 
         if len(self.errors) > 0:
