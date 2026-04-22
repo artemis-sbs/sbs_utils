@@ -91,7 +91,8 @@ def quest_get_parent(agent, quest_id):
 def quest_remove(agent, quest_id):
     quests, child_id = quest_folder(agent, quest_id)
     if quests is not None and child_id is not None:
-        child = quests.pop(child_id)
+        children = quests.get("children", {})
+        child = children.pop(child_id, None)
         return child
     return None
 
