@@ -13,6 +13,7 @@ from ..mast.mast_node import MastDataObject
 from ..mast_sbs.story_nodes.button import Button
 from .gui import gui_properties_set
 from .signal import signal_emit
+from .science import science_is_unknown
 
 
 class CommsOverride:
@@ -783,10 +784,9 @@ class CommsPromise(ButtonPromise):
             
             if oo is None or so is None:
                 return
-            scan_name = oo.side+"scan"
-            initial_scan = so.data_set.get(scan_name,0)
+            unk = science_is_unknown(oo,so)
             
-            if initial_scan is None or initial_scan =="no data":
+            if unk:
                 FrameContext.context.sbs.send_comms_selection_info(origin_id, "", "white", "unknown")
                 self.is_unknown = True
                 return
@@ -871,9 +871,10 @@ class CommsPromise(ButtonPromise):
                 self.set_result(True)
                 return PollResults.OK_ADVANCE_TRUE
             
-            scan_name = oo.side+"scan"
-            initial_scan = so.data_set.get(scan_name,0)
-            self.is_unknown = (initial_scan is None or initial_scan == "" or initial_scan == "no data")
+            #scan_name = oo.side+"scan"
+            # initial_scan = so.data_set.get("scan",0)
+            # self.is_unknown = (initial_scan is None or initial_scan == "" or initial_scan == "no data")
+            self.is_unknown = science_is_unknown(oo, so)
             
             # It is now known
             #

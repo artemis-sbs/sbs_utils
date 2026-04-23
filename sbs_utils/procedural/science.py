@@ -64,7 +64,7 @@ def science_set_scan_data(player_id_or_obj, scan_target_id_or_obj, tabs):
         if tab != "scan":
             scan_tabs += f"{tab},"
         message = tabs.get(tab)
-        target_blob.set(f"{player_obj.side}{tab}", message, 0)
+        target_blob.set(tab, message, player_obj.side)
     target_blob.set("scan_type_list", scan_tabs, 0)
 
 def _science_get_origin_id():
@@ -106,9 +106,9 @@ def science_update_scan_data(origin, target, info, tab="scan"):
     so = to_object(target)
     if not oo or not so:
         return
-    scan_name = oo.side+tab
+    #scan_name = oo.side+tab
     # Set the scan data
-    so.data_set.set(scan_name, info)
+    so.data_set.set(tab, info, oo.side)
     # Check if the tab is already in the list
     tab_list = so.data_set.get("scan_type_list",0)
     if tab_list != 0:
@@ -133,8 +133,13 @@ def science_get_scan_data(origin, target, tab="scan")->str:
     """
     oo = to_object(origin)
     so = to_object(target)
-    scan_name = oo.side+tab
-    initial_scan = so.data_set.get(scan_name,0)
+    if oo is None or so is None:
+        return ""
+    # scan_name = oo.side+tab
+    initial_scan = so.data_set.get(tab,oo.side)
+    if initial_scan is not None:
+        initial_scan = initial_scan.strip()
+    # print(f"SCIENCE {tab} {oo.side} {initial_scan} ")
     return initial_scan
 
 def science_is_unknown(origin, target)->bool:
@@ -190,6 +195,7 @@ def scan_results(message, target=None, tab = None):
         return
     
     msg = task.compile_and_format_string(message)
+    msg = msg.strip()
     
     p = task.get_variable("BUTTON_PROMISE")
     p.set_scan_results(msg) 
@@ -240,8 +246,10 @@ class ScanPromise(ButtonPromise):
     def set_scan_results(self, msg):
         selected_id = self.selected_id
         so = to_object(selected_id)
-        if so:
-            so.data_set.set(self.tab, msg,0)
+        selected_id = self.origin_id
+        oo = to_object(self.origin_id)
+        if so and oo:
+            so.data_set.set(self.tab, msg, oo.side)
             so.set_inventory_value("SCANNED", True)
             self.task.set_inventory_value("__SCAN_DONE__", True)
         self.task.pop_label(False) #(task.active_label,scan.node.loc)
@@ -291,8 +299,8 @@ class ScanPromise(ButtonPromise):
             # if self.button is None:
             #     print(f"No button for {self.tab} {len(self.expanded_buttons)}")
             so_player = to_object(self.origin_id)
-            if so_player:
-                self.tab = so_player.side+self.tab
+            # if so_player:
+            #     self.tab = self.tab
             
             self.task.set_variable("__SCAN_TAB__", self)
         
@@ -372,12 +380,12 @@ class ScanPromise(ButtonPromise):
             return
 
 
-        scan_tab = origin_so.side+"scan"
+        #scan_tab = origin_so.side+"scan"
         #
         # Have scans ever occurred
         # If so just do the scan tab
         #
-        has_scan = sel_so.data_set.get(scan_tab,0)
+        has_scan = sel_so.data_set.get("scan",origin_so.side)
         self.expanded_buttons = self.get_expanded_buttons()
 
         if has_scan is None:
@@ -410,7 +418,7 @@ class ScanPromise(ButtonPromise):
                         scan_tabs += msg
 
                     # Check if this has been scanned
-                    has_scan = sel_so.data_set.get(origin_so.side+msg, 0)
+                    has_scan = sel_so.data_set.get(msg,origin_so.side)
                     # if has_scan is None:
                     #     print("SCAN NOT STARTED")
                     # elif has_scan == "no data":
