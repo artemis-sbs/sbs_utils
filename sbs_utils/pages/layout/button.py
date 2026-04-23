@@ -91,6 +91,8 @@ class Button(Column):
             text = props.get("$text", props.get("text"))
             if text is None:
                 props["$text"] = ""
+            else:
+                props["$text"] = "`"+text+"`"
 
         self.square = self.icon
 

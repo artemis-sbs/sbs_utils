@@ -29,7 +29,7 @@ def gui_input(props, style=None, var=None, data=None):
         val = task.get_variable(var, "")
 
     if "$text:" not in props:
-        props = f"$text:{val};{props}"
+        props = f"$text:`{val}`;{props}"
 
     layout_item = TextInput(tag, props)
     layout_item.data = data

@@ -241,11 +241,11 @@ class LayoutListbox(layout.Column):
         collapsable =  isinstance(item, LayoutListBoxHeader)
         if collapsable:
             if not item.collapse:
-                gui_text(f"$text:{item.label};justify: center;color:#02FF;", "background: #FFFC")
+                gui_text(f"$text:`{item.label}`;justify: center;color:#02FF;", "background: #FFFC")
             else:
-                gui_text(f"$text:{item.label};justify: center;color:#FFF;", "background: #0173")
+                gui_text(f"$text:`{item.label}`;justify: center;color:#FFF;", "background: #0173")
         else:
-            gui_text(f"$text:{msg};justify: left;")
+            gui_text(f"$text:`{msg}`;justify: left;")
         # gui_text(msg)
 
     # def label_item_template(self, item):

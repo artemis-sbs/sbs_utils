@@ -127,13 +127,13 @@ class ShipPicker(Control):
         top = the_bounds.top
 
         SBS.send_gui_text(
-                    CID, self.local_region_tag, f"{self.tag}title", f"$text: {self.title_prefix} {ship['side']} {ship['name']}",  the_bounds.left, top, the_bounds.right, top+5)
+                    CID, self.local_region_tag, f"{self.tag}title", f"$text:`{self.title_prefix} {ship['side']} {ship['name']}`;",  the_bounds.left, top, the_bounds.right, top+5)
         top += 5
         if self.show_desc:
             desc = ship.get('long_desc',None)
             if desc is not None:
                 SBS.send_gui_text(
-                        CID, self.local_region_tag, f"{self.tag}desc", f"$text: {desc}",  the_bounds.left, top, the_bounds.right, top+15)
+                        CID, self.local_region_tag, f"{self.tag}desc", f"$text:`{desc}`;",  the_bounds.left, top, the_bounds.right, top+15)
             # Keep spacing?
             top += 15
         

@@ -100,13 +100,13 @@ def _property_lb_item_template_one_line(item):
     if collapsable:
         gui_row("row-height: 1em;padding:5px,0,5px,0;")
         if not item.collapse:
-            gui_text(f"$text:{item.label};justify: center;color:#02FF;", "background: #FFFC")
+            gui_text(f"$text:`{item.label}`;justify: center;color:#02FF;", "background: #FFFC")
         else:
-            gui_text(f"$text:{item.label};justify: center;color:#FFF;", "background: #0173")
+            gui_text(f"$text:`{item.label}`;justify: center;color:#FFF;", "background: #0173")
     else:
         gui_row("row-height: 1.5em;padding:5px,0,5px,0;")
         #gui_row("row-height: 1.2em;padding:13px;")
-        gui_text(f"$text:{item.label};justify: right;","padding:0,0,1em,0;")
+        gui_text(f"$text:`{item.label}`;justify: right;","padding:0,0,1em,0;")
         gui_hole()
         gui_c = FrameContext.task.eval_code(item.control, False)
         if gui_c is None:
@@ -118,12 +118,12 @@ def _property_lb_item_template_two_line(item):
     if collapsable:
         gui_row("row-height: 1em;padding:5px,0,5px,0;")
         if not item.collapse:
-            gui_text(f"$text:{item.label};justify: center;color:#02FF;", "background: #FFFC")
+            gui_text(f"$text:`{item.label}`;justify: center;color:#02FF;", "background: #FFFC")
         else:
-            gui_text(f"$text:{item.label};justify: center;color:#FFF;", "background: #0173")
+            gui_text(f"$text:`{item.label}`;justify: center;color:#FFF;", "background: #0173")
     else:
         gui_row("row-height: 1.2em;")
-        gui_text(f"$text:{item.label};justify: left;")
+        gui_text(f"$text:`{item.label}`;justify: left;")
         gui_row("row-height: 2em;")
 
         gui_c = FrameContext.task.eval_code(item.control, False)
