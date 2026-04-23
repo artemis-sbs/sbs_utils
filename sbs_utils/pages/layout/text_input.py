@@ -30,7 +30,11 @@ class TextInput(Column):
         
     def on_message(self, event):
         if event.sub_tag == self.tag:
-            self.value = event.value_tag
+            sanitized_text = re.sub(r"[^A-Za-z0-9 \-_']", "", event.value_tag)
+            self.value = sanitized_text
+            if sanitized_text != event.value_tag:
+                self.mark_visual_dirty()
+        
         super().on_message(event)
         
     @property
