@@ -433,7 +433,7 @@ class TextArea(Control):
                 percent_height = (pixel_height/ ar.y) * 100
                 
                 if ll =="<br>" or ll =="<br/>":
-                    sub_line = ""
+                    sub_line = "^"
                 last_line = TextLine(sub_line,style, self.bounds.width, percent_height, False)
                 
                 self.lines.append(last_line)
@@ -526,7 +526,7 @@ class TextArea(Control):
         message = self.content[0]
         if "$text:" not in message:
             if "text:" not in message:
-                message = f"$text:{message};"
+                message = f"$text:`{message}`;"
 
         message += self.get_cascade_props(True, True, True)
 
@@ -581,7 +581,7 @@ class TextArea(Control):
                 background = style_obj.get("background")
                 
                 indent = style_obj.get("indent", 0) 
-                message = f"$text:{text_line.text};{style}"
+                message = f"$text:`{text_line.text}`;{style}"
                 # if bounds.top < 900:
                 #     print(f"Sending line {message} {bounds} {self.local_region_tag}")
                 space_width = FrameContext.context.sbs.get_text_line_width("gui-2", "X") / ar.x *100

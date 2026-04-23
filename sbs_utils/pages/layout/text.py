@@ -20,6 +20,9 @@ class Text(Column):
         text = props.get("$text", props.get("text"))
         if text is None:
             props["$text"] = ""
+        elif '`' not in text:
+            props["$text"] = "`"+text+"`"
+        
 
         message = merge_props(props)
         self.message = message
