@@ -1,0 +1,10 @@
+#Every mission should have this file included.  It describes the mission for the mission list screen of the server.
+format version: 1
+
+Category: Development  # category for the mission; used for sorting and filtering the mission list
+Category Priority: C  # letter grade for the category; A grade categories appear at the top of the list
+Visible Mission Name: SBS Utils  # name of the mission as it appears in the mission list
+Description: Source Code for sbs_utils library with a mission for testing.
+Keywords: development
+
+
