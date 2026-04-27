@@ -429,6 +429,14 @@ class LayoutListbox(layout.Column):
                     "icon_index:152;color:#aaa;draw_layer:1000;",
                     self.bounds.left, self.bounds.bottom-icon_size*2, self.bounds.left+icon_size, self.bounds.bottom)
                     #self.bounds.left, self.bounds.top, self.bounds.left+icon_size, self.bounds.bottom)
+
+                # ctx.sbs.send_gui_text(CID, self.local_region_tag,
+                #     tag, message,  
+                #     bounds.left+indent*space_width, bounds.top, bounds.right, bounds.bottom)
+
+                SBS.send_gui_text(event.client_id, self.local_region_tag, 
+                    f"{self.tag_prefix}dec_text", f"$text:`prev`;font:gui-1;justify:center;color:#222;",
+                    self.bounds.left, self.bounds.bottom-icon_size*2, self.bounds.left+icon_size, self.bounds.bottom)
                 SBS.send_gui_clickregion(event.client_id, self.local_region_tag, 
                     f"{self.tag_prefix}dec", "background_color:#6663",
                     self.bounds.left, self.bounds.top, self.bounds.left+em2*5, self.bounds.bottom)
@@ -438,6 +446,9 @@ class LayoutListbox(layout.Column):
                     "icon_index:153;color:#aaa;draw_layer:1000;",
                     self.bounds.right-icon_size , self.bounds.bottom-icon_size*2, self.bounds.right, self.bounds.bottom)
                     #self.bounds.right-icon_size , self.bounds.top, self.bounds.right, self.bounds.bottom)
+                SBS.send_gui_text(event.client_id, self.local_region_tag, 
+                    f"{self.tag_prefix}inc_text", f"$text:`next`;font:gui-1;justify:center;color:#222;",
+                    self.bounds.right-icon_size , self.bounds.bottom-icon_size*2, self.bounds.right, self.bounds.bottom)
                 SBS.send_gui_clickregion(event.client_id, self.local_region_tag,
                     f"{self.tag_prefix}inc", "background_color:#6663",
                     self.bounds.right-em2*5, self.bounds.top, self.bounds.right, self.bounds.bottom)

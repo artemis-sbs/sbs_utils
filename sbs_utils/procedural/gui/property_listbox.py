@@ -150,9 +150,9 @@ def gui_property_list_box(name=None, tag=None, temp = _property_lb_item_template
 
     tag = tag if tag is not None else "__PROPS_LB__"
     name = name if name is not None else "Properties"
-
+    #background:#1578;
     props_lb = gui_list_box([],
-                "row-height: 0.5em; background:#1572;", 
+                "row-height: 0.5em; background:#1578;", 
                 item_template=temp, title_template=name, collapsible=True)
     
     props_lb.title_section_style += "background:#1578;"

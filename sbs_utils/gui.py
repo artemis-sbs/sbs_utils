@@ -442,7 +442,7 @@ def get_client_aspect_ratio(cid):
     if ar is not None:
         ar = Vec3(ar)
         if ar.x == 0 or ar.y == 0:
-            ar = Vec3(1020,768,99)
+            ar = Vec3(1024,768,99)
             
         # if cid == 0 and Agent.SHARED.get_inventory_value("SIM_STATE",None) != "sim_running":
         #     ar.x -= 300
