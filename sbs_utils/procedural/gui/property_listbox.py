@@ -100,7 +100,7 @@ def _property_lb_item_template_one_line(item):
     if collapsable:
         gui_row("row-height: 1em;padding:5px,0,5px,0;")
         if not item.collapse:
-            gui_text(f"$text:`{item.label}`;justify: center;color:#02FF;", "background: #FFFC")
+            gui_text(f"$text:`{item.label}`;justify: center;color:#000;", "background: #FFFA")
         else:
             gui_text(f"$text:`{item.label}`;justify: center;color:#FFF;", "background: #0173")
     else:
