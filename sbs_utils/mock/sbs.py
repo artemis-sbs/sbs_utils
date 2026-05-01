@@ -563,7 +563,7 @@ class navpoint(object): ### from pybind
         sim.nav_points[arg0] = self
 
 class navproxy(object): ### from pybind
-    def __init__(self) -> None:
+    def __init__(self) -> navproxy:
         self.color = vec4()
         self.has_changed_flag = 0
         self.pos = vec3()
