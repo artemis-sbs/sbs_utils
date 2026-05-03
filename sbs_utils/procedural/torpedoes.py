@@ -136,6 +136,59 @@ def get_torp_string_value_dict(key:str)->dict:
     torp = get_torp_value_string(key)
     return parse_torp_string(torp)
 
+def torp_update_value(key:str, attribute_name:str, value:str):
+    """
+    Update one attribute of a specified torpedo type.
+    Args:
+        key (str): The key of the torpedo to modify.
+        attribute_name (str): The name of the attribute to modify
+        value (str): The new value for the attribute
+    """
+    torp = get_torp_string_value_dict(key)
+    torp[attribute_name] = value
+    torp_string = ""
+    for attr, val in torp:
+        torp_string = torp_string + attr + ": " + val + "; "
+    return torp_string
+
+# NOTE: Since as far as I've been able to determine, there's no way to get a list of all torpedoes 
+# defined on the server without somehow parsing the whole shared string, I figured being able to 
+# at least get all the ones for a given ship would be helpful.
+def torpedo_get_count_for_ship(id, key) -> tuple[int,int]:
+    """
+    Get the count and the maximum of the specified torpedo type for the ship.
+    Args:
+        id (int | Agent): The ship
+        key (str): The key representing the torpedo type.
+    Returns:
+        tuple[int,int] | None: The number of torpedoes and the maximum number of those torpdoes that can fit on the ship
+    """
+    obj = to_object(id)
+    if obj is not None:
+        count = get_data_set_value(id, f"{key}_NUM")
+        if count is None:
+            count = 0
+        max = get_data_set_value(id, f"{key}_MAX")
+        if max is None:
+            max = 0
+        return (count, max)
+    return (0,0)
+
+def torpedo_get_available_types_for_ship(id) -> list[str]:
+    """
+    Get a list of the keys for all the torpedo types currently available to a player ship.
+    Args:
+        id (int | Agent): The id of the ship, or the Agent representing it.
+    Returns:
+        list[str]: The list of torpedo keys.
+    """
+    obj = to_object(id)
+    if obj is not None:
+        types = get_data_set_value(id,"torpedo_types_available")
+        if isinstance(types, str):
+            type_list = types.split(",")
+            return type_list
+    return list()
 
 def torpedo_make_available(id, key:str, count:int=0) -> None:
     """
