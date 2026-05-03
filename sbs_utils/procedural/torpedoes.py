@@ -136,6 +136,71 @@ def get_torp_string_value_dict(key:str)->dict:
     torp = get_torp_value_string(key)
     return parse_torp_string(torp)
 
+def torp_update_value(key:str, attribute_name:str, value:str|int):
+    """
+    Update one attribute of a specified torpedo type.
+    Args:
+        key (str): The key of the torpedo to modify.
+        attribute_name (str): The name of the attribute to modify
+        value (str): The new value for the attribute
+    """
+    torp = get_torp_string_value_dict(key)
+    torp[attribute_name] = value
+    torp_string = ""
+    for attr, val in torp.items():
+        torp_string += f"{attr}:{val};"
+    FrameContext.context.sbs.set_shared_string(key, torp_string)
+
+def torp_get_attribute_value(key:str, attribute_name:str) -> str:
+    """
+    Get the value of one attribute of a specified torpedo type.
+    Args:
+        key (str): The key of the torpedo to query.
+        attribute_name (str): The name of the attribute to query.
+    Returns:
+        str: The value of the attribute for that torpedo type. If the torpedo type or attribute does not exist, then None is returned.
+    """
+    torp = get_torp_string_value_dict(key)
+    return torp.get(attribute_name)
+
+# NOTE: Since as far as I've been able to determine, there's no way to get a list of all torpedoes 
+# defined on the server without somehow parsing the whole shared string, I figured being able to 
+# at least get all the ones for a given ship would be helpful.
+def torpedo_get_count_for_ship(id, key) -> tuple[int,int]:
+    """
+    Get the count and the maximum of the specified torpedo type for the ship.
+    Args:
+        id (int | Agent): The ship
+        key (str): The key representing the torpedo type.
+    Returns:
+        tuple[int,int]: The number of torpedoes and the maximum number of those torpdoes that can fit on the ship. If the torpedo type is not available to the ship, then (0,0) is returned.
+    """
+    obj = to_object(id)
+    if obj is not None:
+        count = get_data_set_value(id, f"{key}_NUM")
+        if count is None:
+            count = 0
+        max = get_data_set_value(id, f"{key}_MAX")
+        if max is None:
+            max = 0
+        return (count, max)
+    return (0,0)
+
+def torpedo_get_available_types_for_ship(id) -> list[str]:
+    """
+    Get a list of the keys for all the torpedo types currently available to a player ship.
+    Args:
+        id (int | Agent): The id of the ship, or the Agent representing it.
+    Returns:
+        list[str]: The list of torpedo keys.
+    """
+    obj = to_object(id)
+    if obj is not None:
+        types = get_data_set_value(id,"torpedo_types_available")
+        if isinstance(types, str):
+            type_list = types.split(",")
+            return type_list
+    return list()
 
 def torpedo_make_available(id, key:str, count:int=0) -> None:
     """
