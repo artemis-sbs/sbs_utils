@@ -816,6 +816,8 @@
       
         
       
+        
+      
     
     
     
@@ -1142,6 +1144,29 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../runtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtime
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
       
@@ -1169,7 +1194,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1186,14 +1211,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_8" id="__nav_3_8_label" tabindex="">
+              <label class="md-nav__link " for="__nav_3_9" id="__nav_3_9_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_8">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -1321,7 +1346,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_10" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_11" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1338,14 +1363,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_10" id="__nav_3_10_label" tabindex="">
+              <label class="md-nav__link " for="__nav_3_11" id="__nav_3_11_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_10">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_11">
             <span class="md-nav__icon md-icon"></span>
             Routes
           </label>
@@ -4018,6 +4043,10 @@ log(&quot;Goodbye&quot;)
 <h2 id="mast-and-pausing-the-flow">MAST and pausing the flow</h2>
 <p>MAST is running as part of a game engine. The engine only gives MAST a small amount of time to run. If MAST ran unconditionally it would not allow the engine to run and stall the game. However, there are times a story cannot continue until conditions are met. e.g. A comms button is press, a science scan it started etc.</p>
 <p>MAST can "pause" execution and yield control back to the engine. The engine keeps calling MAST and it yields until the condition is met then the flow can continue.</p>
+<details class="note">
+<summary>More details</summary>
+<p>For more details go to <a href="/mast/runtime/"><strong>the MAST Runtime</strong></a> </p>
+</details>
 <p>This example prints "Hello, world" and five seconds later it prints "Goodbye". During that five seconds the engine is able to run because MAST yields control back since it cannot move forward.</p>
 <p>This ability to yield control back to the engine is a reason that MAST flow can be enable users to focus on the flow of the story and not how to get the programming language to deal with this.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="3:3"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><input id="__tabbed_3_3" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
@@ -4252,7 +4281,7 @@ for x in range(10):
 </div>
 </div>
 </div>
-<p>See the <a href="https://github.com/artemis-sbs/SecretMeeting/blob/main/SecretMaps/ambassador_ship.mast">Secret Meeting mission</a> for an example that demonstrates good use of indention and sub_labels.</p>
+<p>See the <a href="https://github.com/artemis-sbs/SecretMeeting/blob/main/story.mast">Secret Meeting mission</a> for an example that demonstrates good use of indention and sub_labels.</p>
 <details class="note">
 <summary>This is an updated secret meeting</summary>
 <p>The link is to git hub copy of Secret Meeting and may be different than the shipped version.The code was updated to use as this example.</p>

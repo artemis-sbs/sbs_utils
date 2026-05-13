@@ -814,6 +814,8 @@
       
         
       
+        
+      
     
     
     
@@ -1003,6 +1005,29 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../mast/runtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtime
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
       
@@ -1027,7 +1052,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1044,14 +1069,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_8">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -1176,7 +1201,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_10" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_11" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1193,14 +1218,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3_11" id="__nav_3_11_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_10">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_11">
             <span class="md-nav__icon md-icon"></span>
             Routes
           </label>
@@ -3659,6 +3684,23 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#engine-event-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Engine event processing
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -3678,10 +3720,13 @@
 
 <h1 id="sbs-utils">SBS Utils</h1>
 <p>This is a lower level part of the system written in pure python.</p>
-<p>The Mast runtime uses this functionality.</p>
-<p>The sbs utils aspects can be used without mast as well.
-So creating pure python scripts can be created, and use many of the functions used by mast.</p>
-<p>Python coding can be more complex than mast, but if you know python you may find this method useful.</p>
+<p>The MAST runtime uses this functionality.</p>
+<p>The sbs utils aspects can be used without MAST as well.
+So creating pure python scripts can be created, and use many of the functions used by MAST.</p>
+<p>Python coding can be more complex than MAST, but if you know python you may find this method useful.</p>
+<h2 id="engine-event-processing">Engine event processing</h2>
+<p>The Artemis: Cosmos engine calls into python calling the function <code>cosmos_event_handler</code>.</p>
+<p>For sbs_utils this is defined in the file <a href="https://github.com/artemis-sbs/sbs_utils/blob/master/sbs_utils/handlerhooks.py">handler_hooks.py</a>. This gets implemented by importing the sbs_utils library from your script.py A bit of python magic makes this happen.</p>
 
 
 
