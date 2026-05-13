@@ -12,7 +12,7 @@
         <link rel="prev" href="../syntax/">
       
       
-        <link rel="next" href="../routes/">
+        <link rel="next" href="simple/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -20,7 +20,7 @@
     
     
       
-        <title>Index - SBS Utils library Documentation</title>
+        <title>AI Overview - SBS Utils library Documentation</title>
       
     
     
@@ -62,6 +62,11 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
+      
+        
+        <a href="#ai-overview" class="md-skip">
+          Skip to content
+        </a>
       
     </div>
     <div data-md-component="announce">
@@ -110,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Index
+              AI Overview
             
           </span>
         </div>
@@ -1071,7 +1076,7 @@
   
   
     <li class="md-nav__item">
-      <a href="simple.md" class="md-nav__link">
+      <a href="simple/" class="md-nav__link">
         
   
   
@@ -1094,7 +1099,7 @@
   
   
     <li class="md-nav__item">
-      <a href="brains.md" class="md-nav__link">
+      <a href="brains/" class="md-nav__link">
         
   
   
@@ -1125,7 +1130,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../objectives.md" class="md-nav__link">
+      <a href="../objectives/" class="md-nav__link">
         
   
   
@@ -3659,6 +3664,61 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#core-ai-building-blocks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Core AI building blocks
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#typical-ai-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Typical AI workflow
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-brains-are-useful" class="md-nav__link">
+    <span class="md-ellipsis">
+      Why brains are useful
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#design-goals-for-mission-ai" class="md-nav__link">
+    <span class="md-ellipsis">
+      Design goals for mission AI
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      Next step
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -3677,9 +3737,70 @@
   
 
 
-  <h1>Index</h1>
-
-
+<h1 id="ai-overview">AI Overview</h1>
+<p>AI in MAST is about giving non-player entities clear, repeatable decision logic.</p>
+<p>At a high level, AI scripts decide:</p>
+<ul>
+<li>what an agent should target</li>
+<li>where it should move</li>
+<li>what action it should take next</li>
+<li>what to do if the preferred action is not possible</li>
+</ul>
+<p>The system is designed to be practical for mission authors:</p>
+<ul>
+<li>behavior is split into small labels with focused responsibilities</li>
+<li>data is stored in agent inventory (a simple blackboard pattern)</li>
+<li>decisions can be composed with selectors and sequences</li>
+<li>logic runs incrementally with the engine tick model</li>
+</ul>
+<h2 id="core-ai-building-blocks">Core AI building blocks</h2>
+<p>Most mission AI uses a combination of these pieces:</p>
+<ol>
+<li>Route labels
+    Route labels (such as spawn-related routes) are commonly used to initialize AI when objects appear.</li>
+<li>Tasks
+    Tasks run behavior logic over time, yielding when waiting for conditions or time.</li>
+<li>Brains
+    Brains provide behavior-tree style composition so you can build fallback and ordered logic.</li>
+<li>Inventory blackboard
+    AI labels share state through inventory keys like target, target_position, threat, cooldowns, and role-based data.</li>
+</ol>
+<h2 id="typical-ai-workflow">Typical AI workflow</h2>
+<p>For most NPC or fleet behaviors, authoring follows this pattern:</p>
+<ol>
+<li>Initialize context
+    Collect local data (lead ship, nearby entities, zones, constraints).</li>
+<li>Choose intent
+    Decide what to do next (chase, defend, retreat, idle).</li>
+<li>Compute output
+    Produce movement/action outputs (target, throttle, destination, action flags).</li>
+<li>Execute command
+    Apply movement/combat commands to controlled entities.</li>
+<li>Repeat each tick
+    Re-evaluate based on changing world state.</li>
+</ol>
+<h2 id="why-brains-are-useful">Why brains are useful</h2>
+<p>As behavior gets more complex, plain single-label logic becomes hard to maintain.
+Brains help by making intent explicit:</p>
+<ul>
+<li>Sequence (SEQ) for required ordered steps</li>
+<li>Selector (SEL) for fallback options</li>
+<li>Reusable leaf labels with metadata defaults and per-node overrides</li>
+</ul>
+<p>This keeps AI easier to read, debug, and extend over time.</p>
+<h2 id="design-goals-for-mission-ai">Design goals for mission AI</h2>
+<p>Good mission AI is usually:</p>
+<ul>
+<li>understandable: each label does one job</li>
+<li>resilient: has fallback behavior when data is missing</li>
+<li>data-driven: tunables come from metadata and node data</li>
+<li>inspectable: active behavior and blackboard values can be observed</li>
+</ul>
+<h2 id="next-step">Next step</h2>
+<p>For the full behavior-tree tutorial and concrete examples, see the brains guide:</p>
+<ul>
+<li><a href="brains/">Brains Tutorial</a></li>
+</ul>
 
 
 
