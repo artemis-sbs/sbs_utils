@@ -4037,13 +4037,26 @@
 <p>The MAST runtime runs a number of <strong>Schedulers</strong>. A Scheduler acts similarly to a process — there is one for the server and one for each client. Each client Scheduler is created by the client's GUI component, the <strong>StoryPage</strong>.</p>
 <p>Schedulers are responsible for running <strong>Tasks</strong> for their respective client. Tasks are pseudo-threads: they do not run in parallel and are executed one at a time.</p>
 <p>When events arrive from the engine, sbs_utils handles them and passes them to the appropriate Dispatcher. Several dispatchers can trigger tasks, which are handled via routes within MAST. Ultimately, the StoryPage's Scheduler is <em>ticked</em>, which in turn ticks all of its Tasks. For a given event, Schedulers are ticked multiple times to allow the system to fully respond to changes produced by running Tasks.</p>
-<pre class="mermaid"><code>eventmodeling
+<pre class="mermaid"><code>graph TD
+    EE["Engine Event"]
+    CEH["cosmos_event_handler\n(sbs_utils)"]
 
-tf 01 evt Engine.Event
-tf 02 evt SBSUtils.cosmos_event_handler { Sending to a number of dispatchers }
-tf 03 evt MAST.StoryPage { From the GUI Dispatcher or Tick Dispatcher }
-tf 04 evt MAST.MastScheduler
-tf 05 evt MAST.MastTask</code></pre>
+    EE --&gt; CEH
+
+    CEH --&gt; TICK["Tick\nDispatcher"]
+    CEH --&gt; GUI["GUI\nDispatcher"]
+    CEH --&gt; GRID["Other Dispatchers\nGrid, Lifetime, etc."]
+
+    TICK --&gt; MS["MastScheduler\n(in StoryPage)"]
+    TICK --&gt; SYS["Other Systems\nBrain, Objective, etc."]
+    GUI --&gt;MS
+    MS --&gt; MT1["MastTask"]
+    MS --&gt; MT2["MastTask"]
+    MS --&gt; MT3["MastTask ..."]
+
+    GRID --&gt; RT["Route\nHandlers"]
+    RT --&gt; DT["MastTask"]
+    SYS --&gt; DT2["MastTask"]</code></pre>
 <p>A Task runs until it completes, or until it returns a <strong>PollResult</strong> that pauses execution — resuming from that point the next time the Task is ticked.</p>
 <hr />
 <h2 id="task-scheduling">Task Scheduling</h2>

@@ -3699,6 +3699,66 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#framecontext" class="md-nav__link">
+    <span class="md-ellipsis">
+      FrameContext
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FrameContext">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#task-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      Task References
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#page-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      Page References
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Event Data
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runtime-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtime References
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      Error Handling
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3727,6 +3787,52 @@ So creating pure python scripts can be created, and use many of the functions us
 <h2 id="engine-event-processing">Engine event processing</h2>
 <p>The Artemis: Cosmos engine calls into python calling the function <code>cosmos_event_handler</code>.</p>
 <p>For sbs_utils this is defined in the file <a href="https://github.com/artemis-sbs/sbs_utils/blob/master/sbs_utils/handlerhooks.py">handler_hooks.py</a>. This gets implemented by importing the sbs_utils library from your script.py A bit of python magic makes this happen.</p>
+<pre class="mermaid"><code>graph TD
+    EE["Engine Event"]
+    CEH["cosmos_event_handler\n(sbs_utils)"]
+
+    EE --&gt; CEH
+
+    CEH --&gt; GUI["GUI\nDispatcher"]
+    CEH --&gt; TICK["Tick\nDispatcher"]
+    CEH --&gt; GRID["Grid\nDispatcher"]
+    CEH --&gt; DMG["Damage\nDispatcher"]
+    CEH --&gt; COL["Collision\nDispatcher"]
+    CEH --&gt; CON["Console\nDispatcher"]
+    CEH --&gt; LT["Lifetime\nDispatcher"]</code></pre>
+<h2 id="framecontext">FrameContext</h2>
+<p>When an event is processed by <code>cosmos_event_handler</code>, a <strong>FrameContext</strong> is created to hold information about that frame of execution.</p>
+<hr />
+<h3 id="task-references">Task References</h3>
+<ul>
+<li><strong><code>task</code></strong> — The MAST Task that is currently being ticked. This changes multiple times in a given frame.</li>
+<li><strong><code>client_task</code></strong> — The main Task for the client associated with the event's <code>client_id</code> — i.e. the main GUI Task of the StoryPage.</li>
+<li><strong><code>server_task</code></strong> — The main Task for the server (where <code>client_id == 0</code>). This is also the GUI Task of the server.</li>
+</ul>
+<h3 id="page-references">Page References</h3>
+<ul>
+<li><strong><code>page</code></strong> — The MAST page for the Task currently being ticked. This can change during a given frame as Tasks are ticked.</li>
+<li><strong><code>client_page</code></strong> — The page for the client's main GUI Task (StoryPage). Does not change during a frame.</li>
+<li><strong><code>server_page</code></strong> — The page for the server Task (where <code>client_id == 0</code>).</li>
+</ul>
+<h3 id="event-data">Event Data</h3>
+<ul>
+<li><strong><code>context</code></strong> — Holds the core values for the current frame, including:</li>
+<li><strong><code>event</code></strong> — The engine event being processed.</li>
+<li><strong><code>sim</code></strong> — The engine's simulation object.</li>
+<li><strong><code>sbs</code></strong> — The engine's API module.</li>
+<li><strong><code>client_id</code></strong> — The client ID taken from the frame's event.</li>
+</ul>
+<h3 id="runtime-references">Runtime References</h3>
+<ul>
+<li><strong><code>mast</code></strong> — The root MAST instance.</li>
+<li><strong><code>aspect_ratios</code></strong> — A cache of screen sizes for connected clients.</li>
+<li><strong><code>shared_id</code></strong> — The ID of the Agent holding the shared variable scope.</li>
+</ul>
+<h3 id="error-handling">Error Handling</h3>
+<ul>
+<li><strong><code>error_message</code></strong> — Any error message to be displayed. Errors are collected during the frame and processed at the end of it.</li>
+</ul>
 
 
 
