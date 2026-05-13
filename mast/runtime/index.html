@@ -4031,7 +4031,7 @@
 <h2 id="overview">Overview</h2>
 <p>The Python environment in Artemis: Cosmos is single-threaded and runs only on the server. It must handle all engine activities, including the main server logic, client logic, and engine state changes.</p>
 <p>The MAST runtime creates a pseudo multi-process, pseudo multi-threaded system within this single Python thread.</p>
-<p>MAST is built on top of <strong>sbs_utils</strong>, a lower-level Python system that receives events from the Artemis: Cosmos engine and routes them to a set of <strong>Dispatcher</strong> systems. For more detail, refer to <a href="/sbs_utils">sbs_utils</a>.</p>
+<p>MAST is built on top of <strong>sbs_utils</strong>, a lower-level Python system that receives events from the Artemis: Cosmos engine and routes them to a set of <strong>Dispatcher</strong> systems. For more detail, refer to <a href="../../sbs_utils/">sbs_utils</a>.</p>
 <hr />
 <h2 id="schedulers-and-tasks">Schedulers and Tasks</h2>
 <p>The MAST runtime runs a number of <strong>Schedulers</strong>. A Scheduler acts similarly to a process — there is one for the server and one for each client. Each client Scheduler is created by the client's GUI component, the <strong>StoryPage</strong>.</p>
