@@ -4078,11 +4078,11 @@
 <p>A Task runs until it completes, or until it returns a <strong>PollResult</strong> that pauses execution — resuming from that point the next time the Task is ticked.</p>
 <hr />
 <h2 id="task-scheduling">Task Scheduling</h2>
-<p>Tasks can be scheduled using the functions in the <a href="/api/procedural/execution/">execution module</a>:</p>
+<p>Tasks can be scheduled using the functions in the <a href="../api/procedural/execution/">execution module</a>:</p>
 <ul>
-<li><a href="/api/procedural/execution/#sbs_utils.procedural.execution.task_schedule"><strong><code>task_schedule</code></strong></a> — Schedules a new Task on the same Scheduler as the currently running Task.</li>
-<li><a href="/api/procedural/execution/#sbs_utils.procedural.execution.task_schedule_client"><strong><code>task_schedule_client</code></strong></a> — Schedules a new Task on the client Scheduler associated with the client ID in the incoming engine event.</li>
-<li><a href="/api/procedural/execution/#sbs_utils.procedural.execution.task_schedule_server"><strong><code>task_schedule_server</code></strong></a> — Schedules a new Task on the server Scheduler (client ID = 0).</li>
+<li><a href="../api/procedural/execution/#sbs_utils.procedural.execution.task_schedule"><strong><code>task_schedule</code></strong></a> — Schedules a new Task on the same Scheduler as the currently running Task.</li>
+<li><a href="../api/procedural/execution/#sbs_utils.procedural.execution.task_schedule_client"><strong><code>task_schedule_client</code></strong></a> — Schedules a new Task on the client Scheduler associated with the client ID in the incoming engine event.</li>
+<li><a href="../api/procedural/execution/#sbs_utils.procedural.execution.task_schedule_server"><strong><code>task_schedule_server</code></strong></a> — Schedules a new Task on the server Scheduler (client ID = 0).</li>
 </ul>
 <h3 id="tasks-without-a-scheduler">Tasks Without a Scheduler</h3>
 <p>Some Tasks run outside of a Scheduler. Tasks used internally by Brains, Objectives, Prefabs, and similar systems are examples. These Tasks are run on demand and are expected to complete synchronously.</p>
