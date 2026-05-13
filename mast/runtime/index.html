@@ -1195,6 +1195,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#mast-startup" class="md-nav__link">
+    <span class="md-ellipsis">
+      MAST startup
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4008,6 +4017,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#mast-startup" class="md-nav__link">
+    <span class="md-ellipsis">
+      MAST startup
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4169,6 +4187,21 @@
 <h3 id="sub-tasks-shared-variables">Sub-Tasks (Shared Variables)</h3>
 <p>Sub-tasks share the Inventory of the Task that scheduled them — more specifically, the nearest non-sub-task ancestor, referred to as the <strong>root task</strong>.</p>
 <p>Any data passed directly to a sub-task becomes variables unique to that sub-task. All other variables belong to the root task's Inventory.</p>
+<hr />
+<h2 id="mast-startup">MAST startup</h2>
+<p>In MAST, a <strong>Page</strong> refers to a GUI Page. The StoryPage is the concrete implementation of a Page. The StoryPage is always the same page instance, using a layout system with a swapping mechanism triggered by <code>await gui()</code>.</p>
+<p>The server and each client have their own StoryPage. When a StoryPage is initialized it:</p>
+<ol>
+<li>Loads and compiles a MAST script file. The compilation is performed once by the server and the result is reused by all clients.</li>
+<li>Starts the Scheduler and main GUI Task for that client.</li>
+<li>Runs all top-level code in the script; the code before any labels. Note that Shared-scoped values are only initialized once, regardless of how many clients run the script.</li>
+<li>Jumps to the labels assigned via the reroute functions.</li>
+</ol>
+<p>When in the top-level area of the script, <code>gui_reroute_server()</code> and <code>gui_reroute_clients()</code> set the starting labels for the server and clients respectively. This tells each Scheduler where to begin execution. For example:</p>
+<div class="highlight"><pre><span></span><code><span class="n">gui_reroute_server</span><span class="p">(</span><span class="s2">&quot;start_server&quot;</span><span class="p">)</span>
+<span class="n">gui_reroute_clients</span><span class="p">(</span><span class="s2">&quot;client_main&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>This pattern is used in <code>server_console.mast</code> to direct the server and all clients to their respective entry points when the StoryPage initializes.</p>
 
 
 
