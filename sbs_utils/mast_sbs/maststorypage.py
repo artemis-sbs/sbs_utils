@@ -115,7 +115,7 @@ class StoryPage(Page):
         if self.story_scheduler is not None:
             return
         cls = self.__class__
-        self.client_id == client_id
+        self.client_id = client_id
         if len(self.compiler_errors)==0:
             self.story_scheduler = StoryScheduler(self.story)
             #
