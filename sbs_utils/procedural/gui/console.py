@@ -73,8 +73,7 @@ def gui_console(console, is_jump=False):
         case "mainscreen":
             console =  "normal_main"
             # view = page.gui_task.get_variable("MAIN_SCREEN_VIEW", "3d_view")
-            import sbs
-            ship_id = sbs.get_ship_of_client(FrameContext.client_id)
+            ship_id = FrameContext.context.sbs.get_ship_of_client(FrameContext.client_id)
             view = get_inventory_value(ship_id, "MAIN_SCREEN_VIEW", "3d_view")
             if view == "lrs":
                 #console =  "normal_main_lrs"
