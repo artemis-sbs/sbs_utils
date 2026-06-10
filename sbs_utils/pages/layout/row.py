@@ -1,4 +1,4 @@
-from .bounds import Bounds
+from .bounds import Bounds, is_out_of_bounds
 from .column import Column
 from .clickable import Clickable
 from .dirty import Dirty
@@ -7,11 +7,23 @@ import weakref
 
 class Row:
     def __init__(self, cols=None, width=0, height=0) -> None:
-        self.height = height
-        self.width = width
+        # self.height = height
+        # self.width = width
         self.columns = cols if cols else []
-        self.left=0
-        self.top=0
+        left=0
+        top=0
+
+        self._bounds = Bounds(left, top, left + width, top + height)
+        self._is_shown = True
+        """
+        :func:`_is_shown` is used internally to ensure that only gui elements that are within the bounds of their parent are displayed.
+        If a gui element is outside the bounds of its parent, it will be hidden using `_is_shown = False`. This is handled by the parent.
+        Don't change this manually. :meth:`Row.show()` uses :func:`_show` instead.
+        """
+        self._show = True
+        """
+        :func:`_show` represents the user's desire for a gui element to be displayed. This should only be set using :meth:`Row.show()`.
+        """
 
         self.padding = None
         self.border = None
@@ -63,16 +75,28 @@ class Row:
         Dirty.mark_dirty(self)
 
     def show(self, _show):
-        if not _show:
-            # Needs to be different than section to truly know it is hidden
-            self.set_bounds(Bounds(-1011,-1011, -999,-999))
-        else:
-            self.set_bounds(self.restore_bounds)
+        """
+        Use to force the gui element to be hidden, or to allow it to be seen.
+        If False - the gui element will always be hidden.
+        If True - will be visible assuming that it is within the bounds of its parent.
+
+        Args:
+            _show (bool): Should the element be visible.
+        """
+        # If it didn't change anything, we don't need to do anything.
+        if self._show == _show:
+            return
+        self._show = _show
         self.mark_layout_dirty()
 
     @property
     def is_hidden(self):
-        return self.bounds.left < -1000
+        """
+        Use :func:`is_hidden` only to check if the layout item is currently visible to the user.
+        It checks both :func:`_show` and :func:`_is_shown`.
+        If either of these are False, will return True.
+        """
+        return not self._is_shown or not self._show
     
 
     @property
@@ -87,9 +111,28 @@ class Row:
         self._click_tag = v
 
     @property
-    def bounds(self):
-        return Bounds(self.left,self.top, self.left+self.width, self.top + self.height)
+    def draw_bounds(self):
+        """
+        Draw bounds includes a check for whether it should be visible or not. Use this inside of the :func:`_present` variants instead of :func:`bounds`. If not visible, will return :meth:`Bounds.hidden`.
+        """
+        if self.is_hidden:
+            return Bounds.hidden
+        return self._bounds
 
+    @property
+    def bounds(self):
+        """
+        The source of truth for the gui element's bounds. This should always be the true location of the element, even if it is not visible. Do not use this when actually drawing the element using the :func:`_present` function variants. Use :func:`draw_bounds` instead.
+        """
+        return self._bounds
+        if self._show and self._is_shown:
+            return self._bounds
+        print(f"Row Bounds Hidden: {self._bounds}")
+        return Bounds.hidden
+
+    @bounds.setter
+    def bounds(self, v):
+        self._bounds = v
 
     @property
     def color(self):
@@ -146,13 +189,15 @@ class Row:
         if self.client_id:
             self.present(event)
 
-
     def present(self, event):
         self.client_id = event.client_id
-        col:Column
-        ctx = FrameContext.context
+        self._pre_present(event)
+        self._present(event)
+        self._post_present(event)
 
-        border = Bounds(self.bounds)
+    def _pre_present(self, event):
+        ctx = FrameContext.context
+        border = Bounds(self.draw_bounds)
         border.shrink(self.margin)
         padding= Bounds(border)
         padding.shrink(self.border)
@@ -174,8 +219,12 @@ class Row:
                 padding.top, 
                 padding.right, 
                 padding.bottom)
-            
+
+    def _present(self, event):
+        col:Column
         for col in self.columns:
+            # If it's not in the bounds of its parent, or if the parent is not hidden, then set _is_shown to False.
+            col._is_shown = not is_out_of_bounds(col, self) and not self.is_hidden
             col.present(event)
         self._post_present(event)
 
@@ -198,10 +247,11 @@ class Row:
             else:
                 click_props += f"background_color: white;"
 
+            bounds = self.draw_bounds
             #TODO: This looks wrong
             ctx.sbs.send_gui_clickregion(event.client_id, self.region_tag,
                 self.click_tag, click_props,
-                self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+                bounds.left, bounds.top, bounds.right, bounds.bottom)
             
     def is_message_for(self, event):
         """Used by MessageTrigger i.e. gui_message to know if message is for this object

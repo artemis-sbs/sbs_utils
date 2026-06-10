@@ -1,4 +1,4 @@
-from .bounds import Bounds
+from .bounds import Bounds, is_out_of_bounds
 from ...helpers import FrameContext
 from ...agent import Agent
 from ...mast.parsers import SQUARE
@@ -82,7 +82,16 @@ class Column:
         self.on_message_cb = None
         self.client_id = None
         self._parent = None
+        self._show = True
+        """
+        :func:`_show` represents the user's desire for a gui element to be displayed. This should only be set using `Column.show()`.
+        """
         self._is_shown = True
+        """
+        :func:`_is_shown` is used internally to ensure that only gui elements that are within the bounds of their parent are displayed.
+        If a gui element is outside the bounds of its parent, it will be hidden using `_is_shown = False`. *This is handled by the parent.*
+        Don't change this manually. `Column.show()` uses :func:`_show` instead.
+        """
 
     @property
     def click_tag(self):
@@ -121,9 +130,17 @@ class Column:
         Dirty.mark_dirty(self)
 
     @property
-    def bounds(self):
-        if not self._is_shown:
+    def draw_bounds(self):
+        """
+        Draw bounds includes a check for whether it should be visible or not. Use this inside of the :func:`_present` variants instead of :func:`bounds`. If not visible, will return `Bounds.hidden`. Otherwise, will return the value of :func:`bounds`.
+        """
+        print(f"Col is hidden: {self.is_hidden}")
+        if self.is_hidden:
             return Bounds.hidden
+        return self._bounds
+
+    @property
+    def bounds(self):
         return self._bounds
 
     @bounds.setter
@@ -139,17 +156,27 @@ class Column:
 
 
     def show(self, _show):
-        self._is_shown = _show
-        # if not _show:
-        #     # Needs to be different than section to truly know it is hidden
-        #     self.set_bounds(Bounds(-1011,-1011, -999,-999))
-        # else:
-        #     self.set_bounds(self.restore_bounds)
+        """
+        Use to force the gui element to be hidden, or to allow it to be seen.
+        If False - the gui element will always be hidden.
+        If True - will be visible assuming that it is within the bounds of its parent.
+
+        Args:
+            _show (bool): Should the element be visible.
+        """
+        if self._show == _show:
+            return
+        self._show = _show
         self.mark_layout_dirty()
 
     @property
     def is_hidden(self):
-        return self.bounds.left < -1000
+        """
+        Use :func:`is_hidden` only to check if the layout item is currently visible to the user.
+        It checks both :func:`_show` and :func:`_is_shown`.
+        If either of these are False, will return True.
+        """
+        return not self._show or not self._is_shown
         
 
     def set_row_height(self, height):
@@ -227,7 +254,7 @@ class Column:
     def _pre_present(self, event):
         ctx = FrameContext.context
         if self.border is not None and self.border_color is not None:
-            bb = Bounds(self.bounds)
+            bb = Bounds(self.draw_bounds)
             bb.grow(self.padding)
             bb.grow(self.border)
             bb_props = f"image:{self.border_image}; color:{self.border_color};draw_layer:1000;"
@@ -242,7 +269,7 @@ class Column:
             # Bounds include padding, margin for column
             # Layout Calc fills this in
             #
-            bg = Bounds(self.bounds)
+            bg = Bounds(self.draw_bounds)
             bg.grow(self.padding)
             ctx.sbs.send_gui_image(event.client_id, self.region_tag,
                 "__bg:"+self.tag, props,
@@ -268,7 +295,7 @@ class Column:
             #
             #
             #
-            bounds = Bounds(self.bounds)
+            bounds = Bounds(self.draw_bounds)
             if self.padding is not None:
                 bounds.grow(self.padding)
             
@@ -276,6 +303,7 @@ class Column:
                 self.click_tag, click_props,
                 bounds.left, bounds.top, bounds.right, bounds.bottom)
             
+
     def invalidate_regions(self):
         pass
 
