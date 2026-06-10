@@ -1,3 +1,5 @@
+from ...mast.mast_globals import MastGlobals
+
 class Bounds:
     """Represents a 2D rectangular bounding box with left, top, right, and bottom coordinates.
     
@@ -193,28 +195,58 @@ def is_out_of_bounds(child, parent, tolerance=0.0):
         c_bounds = Bounds(child.left, child.top, child.right, child.bottom)
     else:
         c_bounds = child.bounds
+    # print(f"Child Bounds: {c_bounds}")
     
     if parent.bounds is None:
         p_bounds = Bounds(parent.left, parent.top, parent.right, parent.bottom)
     else:
         p_bounds = parent.bounds
+    # print(f"Parent Bounds: {p_bounds}")
     
-    if c_bounds.left < p_bounds.left - tolerance:
+    if c_bounds.left > p_bounds.right + tolerance:
         return True
-    if c_bounds.right > p_bounds.right + tolerance:
+    if c_bounds.right < p_bounds.left - tolerance:
         return True
-    if c_bounds.top < p_bounds.top - tolerance:
+    if c_bounds.top > p_bounds.bottom + tolerance:
         return True
-    if c_bounds.bottom > p_bounds.bottom + tolerance:
+    if c_bounds.bottom < p_bounds.top - tolerance:
         return True
     
     # Now we just do a quick check to make sure that the child is actually on the screen. If not, then we treat it as out of bounds.
-    if c_bounds.left > 100:
-        return True
-    if c_bounds.top > 100:
-        return True
-    if c_bounds.right < 0: 
-        return True
-    if c_bounds.bottom < 0:
-        return True
+    # if c_bounds.left > 100:
+    #     return True
+    # if c_bounds.top > 100:
+    #     return True
+    # if c_bounds.right < 0: 
+    #     return True
+    # if c_bounds.bottom < 0:
+    #     return True
     return False
+
+class TestBounds:
+    bounds = None
+
+def test_oob():
+
+    # Left----Top----Right----Bottom
+    p = TestBounds()
+    p.bounds = Bounds(0,0,100,100)
+
+    c = TestBounds()
+    c.bounds = Bounds(110, 0, 120, 100)
+    if is_out_of_bounds(c,p):
+        print("FAIL 1")
+    
+    c.bounds = Bounds(0, -100, 100, -1)
+    if is_out_of_bounds(c,p):
+        print("FAIL 2")
+
+    c.bounds = Bounds(110, 0, 120, 100)
+    if is_out_of_bounds(c,p):
+        print("FAIL 3")
+
+    c.bounds = Bounds(-100, 0, -10, 100)
+    if is_out_of_bounds(c,p):
+        print("FAIL 4")
+
+MastGlobals.import_python_function(test_oob)
