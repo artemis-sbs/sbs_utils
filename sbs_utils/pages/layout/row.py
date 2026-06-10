@@ -24,6 +24,10 @@ class Row:
         """
         :func:`_show` represents the user's desire for a gui element to be displayed. This should only be set using :meth:`Row.show()`.
         """
+        self.is_presenting = False
+        """
+        Used to determine if true bounds should be used, or if hidden bounds should be used instead. Primary purpose of this is for presenting. When NOT presenting, the true bounds should be used for calculations. If presenting, we hide a gui element (if applicable) using `Bounds.hidden`.
+        """
 
         self.padding = None
         self.border = None
@@ -111,23 +115,13 @@ class Row:
         self._click_tag = v
 
     @property
-    def draw_bounds(self):
-        """
-        Draw bounds includes a check for whether it should be visible or not. Use this inside of the :func:`_present` variants instead of :func:`bounds`. If not visible, will return :meth:`Bounds.hidden`.
-        """
-        if self.is_hidden:
-            return Bounds.hidden
-        return self._bounds
-
-    @property
     def bounds(self):
-        """
-        The source of truth for the gui element's bounds. This should always be the true location of the element, even if it is not visible. Do not use this when actually drawing the element using the :func:`_present` function variants. Use :func:`draw_bounds` instead.
-        """
-        return self._bounds
+        if not self.is_presenting:
+            # If we're not presenting yet, then we don't want to use Bounds.hidden at all.
+            return self._bounds
+        # If we are presenting, then we need to check if Bounds.hidden should be used instead.
         if self._show and self._is_shown:
             return self._bounds
-        print(f"Row Bounds Hidden: {self._bounds}")
         return Bounds.hidden
 
     @bounds.setter
@@ -191,13 +185,15 @@ class Row:
 
     def present(self, event):
         self.client_id = event.client_id
+        self.is_presenting = True
         self._pre_present(event)
         self._present(event)
         self._post_present(event)
+        self.is_presenting = False
 
     def _pre_present(self, event):
         ctx = FrameContext.context
-        border = Bounds(self.draw_bounds)
+        border = Bounds(self.bounds)
         border.shrink(self.margin)
         padding= Bounds(border)
         padding.shrink(self.border)
@@ -247,7 +243,7 @@ class Row:
             else:
                 click_props += f"background_color: white;"
 
-            bounds = self.draw_bounds
+            bounds = self.bounds
             #TODO: This looks wrong
             ctx.sbs.send_gui_clickregion(event.client_id, self.region_tag,
                 self.click_tag, click_props,

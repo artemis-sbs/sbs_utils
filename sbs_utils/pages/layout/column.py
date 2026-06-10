@@ -92,6 +92,10 @@ class Column:
         If a gui element is outside the bounds of its parent, it will be hidden using `_is_shown = False`. *This is handled by the parent.*
         Don't change this manually. `Column.show()` uses :func:`_show` instead.
         """
+        self.is_presenting = False
+        """
+        Used to determine if true bounds should be used, or if hidden bounds should be used instead. Primary purpose of this is for presenting. When NOT presenting, the true bounds should be used for calculations. If presenting, we hide a gui element (if applicable) using `Bounds.hidden`.
+        """
 
     @property
     def click_tag(self):
@@ -130,18 +134,14 @@ class Column:
         Dirty.mark_dirty(self)
 
     @property
-    def draw_bounds(self):
-        """
-        Draw bounds includes a check for whether it should be visible or not. Use this inside of the :func:`_present` variants instead of :func:`bounds`. If not visible, will return `Bounds.hidden`. Otherwise, will return the value of :func:`bounds`.
-        """
-        print(f"Col is hidden: {self.is_hidden}")
-        if self.is_hidden:
-            return Bounds.hidden
-        return self._bounds
-
-    @property
     def bounds(self):
-        return self._bounds
+        if not self.is_presenting:
+            # If we're not presenting yet, then we don't want to use Bounds.hidden at all.
+            return self._bounds
+        # If we are presenting, then we need to check if Bounds.hidden should be used instead.
+        if self._show and self._is_shown:
+            return self._bounds
+        return Bounds.hidden
 
     @bounds.setter
     def bounds(self, v):
@@ -244,9 +244,11 @@ class Column:
 
     def present(self, event):
         self.client_id = event.client_id
+        self.is_presenting = True
         self._pre_present(event)
         self._present(event)
         self._post_present(event)
+        self.is_presenting = False
 
     def _present(self, event):
         pass
@@ -254,7 +256,7 @@ class Column:
     def _pre_present(self, event):
         ctx = FrameContext.context
         if self.border is not None and self.border_color is not None:
-            bb = Bounds(self.draw_bounds)
+            bb = Bounds(self.bounds)
             bb.grow(self.padding)
             bb.grow(self.border)
             bb_props = f"image:{self.border_image}; color:{self.border_color};draw_layer:1000;"
@@ -269,7 +271,7 @@ class Column:
             # Bounds include padding, margin for column
             # Layout Calc fills this in
             #
-            bg = Bounds(self.draw_bounds)
+            bg = Bounds(self.bounds)
             bg.grow(self.padding)
             ctx.sbs.send_gui_image(event.client_id, self.region_tag,
                 "__bg:"+self.tag, props,
@@ -295,7 +297,7 @@ class Column:
             #
             #
             #
-            bounds = Bounds(self.draw_bounds)
+            bounds = Bounds(self.bounds)
             if self.padding is not None:
                 bounds.grow(self.padding)
             

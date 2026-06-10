@@ -278,6 +278,10 @@ class Layout(Clickable):
         If a gui element is outside the bounds of its parent, it will be hidden using `_is_shown = False`. This is handled by the parent.
         Don't change this manually. `Layout.show()` uses `_show` instead.
         """
+        self.is_presenting = False
+        """
+        Used to determine if true bounds should be used, or if hidden bounds should be used instead. Primary purpose of this is for presenting. When NOT presenting, the true bounds should be used for calculations. If presenting, we hide a gui element (if applicable) using `Bounds.hidden`.
+        """
         self.orientation = 0 # 0 = Top to bottom, 1 = bottom to top
 
         self.runtime_node = None
@@ -305,19 +309,13 @@ class Layout(Clickable):
         if self.region_type != RegionType.SECTION_AREA_ABSOLUTE:
             return self.tag + "$$"
         return self.region_tag
-    
-    @property
-    def draw_bounds(self):
-        """
-        Draw bounds includes a check for whether it should be visible or not. Use this inside of the `_present()` variants instead of `self.bounds`. If not visible, will return `Bounds.hidden`.
-        """
-        if self.is_hidden:
-            return Bounds.hidden
-        return self._bounds
 
     @property
     def bounds(self):
-        return self._bounds
+        if not self.is_presenting:
+            # If we're not presenting yet, then we don't want to use Bounds.hidden at all.
+            return self._bounds
+        # If we are presenting, then we need to check if Bounds.hidden should be used instead.
         if self._show and self._is_shown:
             return self._bounds
         return Bounds.hidden
@@ -1238,19 +1236,16 @@ class Layout(Clickable):
         # Setting the region tag of a layout is really 
         # setting the parent region tag
         self.parent_region_tag = t
-    is_presenting = False
+    
     def present(self, event):
-        if not self.is_presenting:
-            self.is_presenting = True
-            self.calc(event.client_id)
-            self.region_begin(event.client_id)
-            self._pre_present(event)
-            self._present(event)
-            self._post_present(event)
-            self.region_end(event.client_id)
-            self.is_presenting = False
-        else:
-            print("Trying to present too early")
+        self.calc(event.client_id)
+        self.is_presenting = True
+        self.region_begin(event.client_id)
+        self._pre_present(event)
+        self._present(event)
+        self._post_present(event)
+        self.region_end(event.client_id)
+        self.is_presenting = False
 
     def _pre_present(self, event):
         pass
@@ -1258,7 +1253,7 @@ class Layout(Clickable):
     def _present(self, event):
         # Sections are different their bounds are the whole container
 
-        bounds = Bounds(self.draw_bounds)
+        bounds = Bounds(self.bounds)
         
         ctx = FrameContext.context
         border = Bounds(bounds)
@@ -1340,7 +1335,7 @@ class Layout(Clickable):
             else:
                 click_props += f"background_color: white;"
 
-            bounds = Bounds(self.draw_bounds)
+            bounds = Bounds(self.bounds)
             bounds.shrink(self.margin)
             bounds.shrink(self.border)
 
