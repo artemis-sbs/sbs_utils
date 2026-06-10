@@ -171,3 +171,50 @@ class Bounds:
         self.bottom = max(b.bottom, self.bottom)
 
 Bounds.hidden = Bounds(-1011,-1011, -999,-999)
+
+
+def is_out_of_bounds(child, parent, tolerance=0.0):
+    """
+    Check if the child's bounds are within the parent's bounds, with an acceptable tolerance.
+
+    This is a separate check from is_hidden() or equivalents. It shouldn't be used in scripting at all, it should be used in lower-level python to ensure that a child element is only visible when within the bounds its parent.
+
+    Does not make any changes to anything, is purely a helper function.
+
+    Args:
+        child (layout_item): The child layout item
+        parent (layout_item): The parent layout item
+        tolerance (float, optional): The amount that the child is allowed to be outside its parent and still be visible. Default is 0.0.
+
+    Returns:
+        bool: True if it is out of bounds, False if it is within bounds.
+    """        
+    if child.bounds is None:
+        c_bounds = Bounds(child.left, child.top, child.right, child.bottom)
+    else:
+        c_bounds = child.bounds
+    
+    if parent.bounds is None:
+        p_bounds = Bounds(parent.left, parent.top, parent.right, parent.bottom)
+    else:
+        p_bounds = parent.bounds
+    
+    if c_bounds.left < p_bounds.left - tolerance:
+        return True
+    if c_bounds.right > p_bounds.right + tolerance:
+        return True
+    if c_bounds.top < p_bounds.top - tolerance:
+        return True
+    if c_bounds.bottom > p_bounds.bottom + tolerance:
+        return True
+    
+    # Now we just do a quick check to make sure that the child is actually on the screen. If not, then we treat it as out of bounds.
+    if c_bounds.left > 100:
+        return True
+    if c_bounds.top > 100:
+        return True
+    if c_bounds.right < 0: 
+        return True
+    if c_bounds.bottom < 0:
+        return True
+    return False
