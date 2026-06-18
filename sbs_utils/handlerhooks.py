@@ -181,6 +181,11 @@ def cosmos_event_handler(sim, event):
                 tick_the_rest(event)
 
             case "main_screen_change":
+                origin = event.origin_id
+                # Setting the inventory fixes issue #595 where a new mainscreen view always starts in forward 3d view.
+                set_inventory_value(origin, "MAIN_SCREEN_VIEW", event.sub_tag)
+                set_inventory_value(origin, "MAIN_SCREEN_FACING", event.value_tag)
+                set_inventory_value(origin, "MAIN_SCREEN_MODE", event.extra_tag)
                 Gui.on_event(event)
                 tick_the_rest(event)
             

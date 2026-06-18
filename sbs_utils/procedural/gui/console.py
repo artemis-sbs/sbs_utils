@@ -1,3 +1,4 @@
+from ..inventory import get_inventory_value
 from ...helpers import FrameContext
 from ..roles import role, all_roles
 from ..query import to_set
@@ -71,7 +72,9 @@ def gui_console(console, is_jump=False):
             widgets = "3dview"
         case "mainscreen":
             console =  "normal_main"
-            view = page.gui_task.get_variable("MAIN_SCREEN_VIEW", "3d_view")
+            # view = page.gui_task.get_variable("MAIN_SCREEN_VIEW", "3d_view")
+            ship_id = FrameContext.context.sbs.get_ship_of_client(FrameContext.client_id)
+            view = get_inventory_value(ship_id, "MAIN_SCREEN_VIEW", "3d_view")
             if view == "lrs":
                 #console =  "normal_main_lrs"
                 widgets = "2dview^ship_data^text_waterfall"
