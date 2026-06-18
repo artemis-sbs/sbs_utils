@@ -313,6 +313,15 @@ def brain_add(agent_id_or_set, label, data=None, client_id=0, parent=None):
 
 __brains_is_running = False
 def brains_run_all(tick_task):
+    """Run all agent brains for the current tick.
+
+    Iterates every agent with a ``__BRAIN__`` inventory entry and calls
+    ``brain.run()``. Re-entrant calls are suppressed with a guard flag.
+    Agents whose ``Agent.get`` returns ``None`` are silently skipped.
+
+    Args:
+        tick_task: The tick task or event that triggered this run.
+    """
     global __brains_is_running
     if __brains_is_running:
         return
