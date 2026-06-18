@@ -6,7 +6,7 @@ This is done via the HandleSimulationTick method.
 ## Usage
 
 The TickDispatcher is used to create tasks that are called when the HandleSimulationTick is called.
-The function :py:meth:`~sbs_utils.tickdispatcher.TickDispatcher.dispatch_tick` should be called in HandleSimulationTick, and ideally this is the only code that is needed.
+The function `dispatch_tick` should be called in HandleSimulationTick, and ideally this is the only code that is needed.
 
 
 === "Python"
