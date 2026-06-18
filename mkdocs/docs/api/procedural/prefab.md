@@ -1,4 +1,4 @@
-# The prefab system
+﻿# The prefab system
 
 Reusable MAST labels that spawn entities and configure them in one call.
 
@@ -14,18 +14,17 @@ A `PrefabAll` promise (returned from grouping multiple `prefab_spawn` calls via 
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == spawn_enemy_wave ==
-    ~~ prefab_spawn(enemy_prefab, {"START_X": 5000, "START_Z": 3000, "NAME": "Raider #"}) ~~
-    ~~ prefab_spawn(enemy_prefab, {"START_X": 5500, "START_Z": 3000, "NAME": "Raider #"}) ~~
-
+    prefab_spawn(enemy_prefab, {"START_X": 5000, "START_Z": 3000, "NAME": "Raider #"})
+    prefab_spawn(enemy_prefab, {"START_X": 5500, "START_Z": 3000, "NAME": "Raider #"})
     == enemy_prefab ==
-    ~~ id = spawn_enemy(START_X, START_Y, START_Z, NAME) ~~
-    ~~ add_role(id, "enemy") ~~
+    id = spawn_enemy(START_X, START_Y, START_Z, NAME)
+    add_role(id, "enemy")
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.prefab import prefab_spawn, prefab_extends, prefab_autoname
 

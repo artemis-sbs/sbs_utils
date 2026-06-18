@@ -1,4 +1,4 @@
-# DMX system
+﻿# DMX system
 
 Control DMX lighting hardware connected to player consoles.
 
@@ -12,16 +12,15 @@ Each DMX channel maps to a light or group of lights. Channels 0–2 are conventi
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == red_alert ==
-    ~~ dmx_run_for_ship(SHIP_ID, lambda c: dmx_set_color(c, "#ff0000", 2, 10)) ~~
-
+    dmx_run_for_ship(SHIP_ID, lambda c: dmx_set_color(c, "#ff0000", 2, 10))
     == all_clear ==
-    ~~ dmx_run_for_ship(SHIP_ID, lambda c: dmx_set_color(c, "#00ff00", 1, 0)) ~~
+    dmx_run_for_ship(SHIP_ID, lambda c: dmx_set_color(c, "#00ff00", 1, 0))
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.dmx import dmx_run_for_ship, dmx_set_color, dmx_set_channel
 

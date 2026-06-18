@@ -1,4 +1,4 @@
-# The behavior tree system
+﻿# The behavior tree system
 
 Composable behavior tree nodes for NPC AI using MAST labels as leaf nodes.
 
@@ -21,23 +21,22 @@ These are designed to be composed with `await` in MAST. Within a behavior tree l
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == npc_ai ==
     await bt_sel(attack_if_close, patrol)
 
     == attack_if_close ==
-    ~~ enemies = broad_test_around(get_pos(BRAIN_AGENT_ID), 1000) & role("enemy") ~~
-    ~~ if len(enemies) == 0: BT_FAIL ~~
-    ~~ target(BRAIN_AGENT_ID, closest(BRAIN_AGENT_ID, enemies)) ~~
-    ~~ BT_SUCCESS ~~
-
+    enemies = broad_test_around(get_pos(BRAIN_AGENT_ID), 1000) & role("enemy")
+    if len(enemies) == 0: BT_FAIL
+    target(BRAIN_AGENT_ID, closest(BRAIN_AGENT_ID, enemies))
+    BT_SUCCESS
     == patrol ==
-    ~~ target_pos(BRAIN_AGENT_ID, waypoint_x, 0, waypoint_z) ~~
-    ~~ BT_SUCCESS ~~
+    target_pos(BRAIN_AGENT_ID, waypoint_x, 0, waypoint_z)
+    BT_SUCCESS
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.behavior import bt_seq, bt_sel, bt_invert, bt_until_success
 
@@ -56,9 +55,9 @@ These are designed to be composed with `await` in MAST. Within a behavior tree l
 Within a behavior tree leaf label, end with one of:
 
 ```
-~~ BT_SUCCESS ~~   # this node succeeded
-~~ BT_FAIL ~~      # this node failed
-~~ OK_IDLE ~~      # still running (yield and retry next tick)
+BT_SUCCESS   # this node succeeded
+BT_FAIL      # this node failed
+OK_IDLE      # still running (yield and retry next tick)
 ```
 
 ## API

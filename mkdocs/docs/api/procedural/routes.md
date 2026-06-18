@@ -1,4 +1,4 @@
-# The routes module
+﻿# The routes module
 
 Register and manage MAST route handlers from Python.
 
@@ -12,16 +12,15 @@ See the [Routes overview](../../../mast/routes/index.md) for the full list of ro
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == enable_damage_handler ==
-    ~~ route_schedule("//damage/object /internal", on_internal_damage) ~~
-
+    route_schedule("//damage/object /internal", on_internal_damage)
     == on_internal_damage ==
-    ~~ grid_take_internal_damage_at(PLAYER_ID, EVENT.source_point) ~~
+    grid_take_internal_damage_at(PLAYER_ID, EVENT.source_point)
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.routes import route_schedule, route_clear
 

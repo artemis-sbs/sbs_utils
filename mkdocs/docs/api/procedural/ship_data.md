@@ -1,4 +1,4 @@
-# The ship_data module
+﻿# The ship_data module
 
 Load and query the ship-definition JSON database.
 
@@ -12,16 +12,16 @@ The database is loaded lazily and cached. Mission scripts do not normally need t
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
-    ~~ ship_db = get_ship_data("tsn_battle_cruiser") ~~
-    ~~ display_name = ship_db.get("name", "Unknown") ~~
+    ship_db = get_ship_data("tsn_battle_cruiser")
+    display_name = ship_db.get("name", "Unknown")
     "Spawning a {display_name}"
 
-    ~~ speed = get_ship_data_value("tsn_battle_cruiser", "topSpeed", 10) ~~
+    speed = get_ship_data_value("tsn_battle_cruiser", "topSpeed", 10)
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.ship_data import (
         get_ship_data, get_all_ship_data, get_ship_data_value,

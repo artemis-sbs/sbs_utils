@@ -1,4 +1,4 @@
-# Sides system
+﻿# Sides system
 
 Query and manage the faction/allegiance side of space objects.
 
@@ -16,18 +16,17 @@ tsn_stations = broad_test_around(pos, 5000) & role("tsn") & role("station")
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == check_side ==
-    ~~ if get_side(TARGET_ID) == "tsc": jump enemy_detected ~~
-    ~~ if get_side(TARGET_ID) == "tsn": jump friendly_detected ~~
-
+    if get_side(TARGET_ID) == "tsc": jump enemy_detected
+    if get_side(TARGET_ID) == "tsn": jump friendly_detected
     == defect ==
-    ~~ side_set(NPC_ID, "tsn") ~~
+    side_set(NPC_ID, "tsn")
     "Enemy ship has defected to TSN!"
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.sides import side_set, get_side, get_side_for_display
 

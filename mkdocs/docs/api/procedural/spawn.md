@@ -1,4 +1,4 @@
-# The spawn module
+﻿# The spawn module
 
 Create and delete space objects, NPCs, grid objects, and client agents.
 
@@ -17,17 +17,16 @@ Key helpers:
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == spawn_enemies ==
-    ~~ e1 = spawn_npc("Hive Emperor", "tsc", 5000, 0, 3000, "Raider 01") ~~
-    ~~ add_role(e1, "enemy") ~~
-    ~~ brain_add(e1, patrol_label) ~~
-
-    ~~ station = spawn_station("Generic Station", "tsn", 0, 0, 0, "Starbase Alpha") ~~
+    e1 = spawn_npc("Hive Emperor", "tsc", 5000, 0, 3000, "Raider 01")
+    add_role(e1, "enemy")
+    brain_add(e1, patrol_label)
+    station = spawn_station("Generic Station", "tsn", 0, 0, 0, "Starbase Alpha")
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.spawn import spawn_npc, spawn_station, delete_object
 

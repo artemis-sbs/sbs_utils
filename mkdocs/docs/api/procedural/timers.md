@@ -1,4 +1,4 @@
-# Timers and counters
+﻿# Timers and counters
 
 Delay execution and count events with awaitable promises.
 
@@ -20,23 +20,22 @@ await count_goal("enemies_killed", 10)
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == timed_event ==
     "Reactor will detonate in 30 seconds!"
     await delay_sim(seconds=30)
     "The reactor has detonated!"
-    ~~ explode_player_ship(STATION_ID) ~~
-
+    explode_player_ship(STATION_ID)
     == count_kills ==
     await count_goal("kills", 5)
     "You have destroyed 5 enemies. Well done!"
 
     //signal/enemy_destroyed
-    ~~ increment_count("kills") ~~
+    increment_count("kills")
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.timers import delay_sim, delay, count_goal, increment_count, reset_count
 

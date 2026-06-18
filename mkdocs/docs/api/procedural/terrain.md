@@ -1,4 +1,4 @@
-# Terrain system
+﻿# Terrain system
 
 Spawn and manage terrain objects: nebulae, asteroids, black holes, and anomalies.
 
@@ -10,15 +10,15 @@ Use `terrain_spawn` as the general-purpose call. Convenience wrappers exist for 
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == place_terrain ==
-    ~~ nebula = terrain_spawn("nebula2", 1000, 0, 2000) ~~
-    ~~ asteroid = terrain_spawn("asteroid", 3000, 0, 1000) ~~
-    ~~ add_role(nebula, "safe_zone") ~~
+    nebula = terrain_spawn("nebula2", 1000, 0, 2000)
+    asteroid = terrain_spawn("asteroid", 3000, 0, 1000)
+    add_role(nebula, "safe_zone")
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.terrain import terrain_spawn
     from sbs_utils.procedural.space_objects import delete_object

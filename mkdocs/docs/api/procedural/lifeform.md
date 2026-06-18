@@ -1,4 +1,4 @@
-# Life form system
+﻿# Life form system
 
 Spawn and manage grid-based crew members and lifeforms on the engineering console.
 
@@ -12,17 +12,16 @@ Damcon crew creation is handled automatically by `grid_restore_damcons` in the `
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == spawn_marine ==
-    ~~ marine = lifeform_spawn(SHIP_ID, "Marine", "marine_01", 3, 4, 2, "white", "crew,marine") ~~
-    ~~ grid_set_hp(SHIP_ID, marine, 6) ~~
-
+    marine = lifeform_spawn(SHIP_ID, "Marine", "marine_01", 3, 4, 2, "white", "crew,marine")
+    grid_set_hp(SHIP_ID, marine, 6)
     //signal/life_form_died
     "Crew member {LIFE_FORM_NAME} has perished!"
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.lifeform import lifeform_spawn
     from sbs_utils.procedural.internal_damage import grid_set_hp

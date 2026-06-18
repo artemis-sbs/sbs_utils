@@ -1,4 +1,4 @@
-# The roles system
+﻿# The roles system
 
 Tag agents with named labels for targeting, querying, and conditional logic.
 
@@ -18,21 +18,19 @@ Common uses:
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    ~~ add_role(ENEMY_ID, "target_priority") ~~
-
+    add_role(ENEMY_ID, "target_priority")
     == targeting ==
-    ~~ nearest = closest(SHIP_ID, role("target_priority")) ~~
-    ~~ target(SHIP_ID, nearest) ~~
-
+    nearest = closest(SHIP_ID, role("target_priority"))
+    target(SHIP_ID, nearest)
     == on_explosion ==
-    ~~ add_role(SHIP_ID, "exploded") ~~
-    ~~ remove_role(SHIP_ID, "target_priority") ~~
+    add_role(SHIP_ID, "exploded")
+    remove_role(SHIP_ID, "target_priority")
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.roles import add_role, remove_role, has_role, role
 
@@ -50,9 +48,9 @@ Common uses:
 ## Using with targeting
 
 ```
-~~ close = closest(SHIP_ID, role("spy")) ~~
-~~ close = closest(SHIP_ID, role("station")) ~~   # ship class names are roles
-~~ close = closest(SHIP_ID, role("tsn")) ~~        # side is also a role
+close = closest(SHIP_ID, role("spy"))
+close = closest(SHIP_ID, role("station"))   # ship class names are roles
+close = closest(SHIP_ID, role("tsn"))        # side is also a role
 ```
 
 ## System roles

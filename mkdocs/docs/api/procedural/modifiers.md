@@ -1,4 +1,4 @@
-# Modifiers system
+﻿# Modifiers system
 
 Apply temporary or persistent stat modifications to agents.
 
@@ -12,16 +12,15 @@ Modifiers are used internally by the upgrade system to track stat changes applie
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == apply_speed_boost ==
-    ~~ modifier_add(SHIP_ID, "topSpeed", 5, "speed_upgrade") ~~
-
+    modifier_add(SHIP_ID, "topSpeed", 5, "speed_upgrade")
     == remove_speed_boost ==
-    ~~ modifier_remove(SHIP_ID, "topSpeed", "speed_upgrade") ~~
+    modifier_remove(SHIP_ID, "topSpeed", "speed_upgrade")
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.modifiers import modifier_add, modifier_remove, modifier_clear
 

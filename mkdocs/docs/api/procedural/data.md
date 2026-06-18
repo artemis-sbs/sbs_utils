@@ -1,4 +1,4 @@
-# The data module
+﻿# The data module
 
 Utilities for randomising spawn templates and other structured data dicts.
 
@@ -8,17 +8,17 @@ Utilities for randomising spawn templates and other structured data dicts.
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
-    ~~ template = {
+    template = {
         "name": ["Raider", "Marauder", "Corsair"],
         "ship": ["cruiser", "frigate", "fighter"],
-    } ~~
-    ~~ chosen = data_choose_value_from_template(template) ~~
+    }
+    chosen = data_choose_value_from_template(template)
     "Spawning {chosen['name']} in a {chosen['ship']}"
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.data import data_choose_value_from_template
 

@@ -1,4 +1,4 @@
-# The mission system
+﻿# The mission system
 
 Structured mission lifecycle runner with `init`, `start`, `objective`, and `complete` phases.
 
@@ -20,32 +20,28 @@ This is the same pattern used by the built-in objective system — use `mission_
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == main ==
-    ~~ mission_run(escort_mission) ~~
-
+    mission_run(escort_mission)
     == escort_mission ==
     ///init
-    ~~ spawn_escort_target() ~~
-
+    spawn_escort_target()
     ///start
     "Escort the freighter to the station."
 
     ///objective
-    ~~ if freighter_arrived(): OK_SUCCESS ~~
-    ~~ OK_RUN_AGAIN ~~
-
+    if freighter_arrived(): OK_SUCCESS
+    OK_RUN_AGAIN
     ///abort
-    ~~ if freighter_destroyed(): FAIL_END ~~
-    ~~ OK_RUN_AGAIN ~~
-
+    if freighter_destroyed(): FAIL_END
+    OK_RUN_AGAIN
     ///complete
     "Mission complete! The freighter has arrived safely."
-    ~~ OK_SUCCESS ~~
+    OK_SUCCESS
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.mission import mission_run
 

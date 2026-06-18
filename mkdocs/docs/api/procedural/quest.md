@@ -1,4 +1,4 @@
-# The quest system
+﻿# The quest system
 
 Track mission objectives and quest states attached to any agent or shared globally.
 
@@ -21,18 +21,17 @@ Quests can be attached to a specific player ship, a specific client console, or 
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    ~~ quest_add(SHIP_ID, "patrol", "Patrol Sector 7", "Keep the peace in sector 7.") ~~
-    ~~ quest_set_key(SHIP_ID, "patrol", "state", QuestState.ACTIVE) ~~
-
+    quest_add(SHIP_ID, "patrol", "Patrol Sector 7", "Keep the peace in sector 7.")
+    quest_set_key(SHIP_ID, "patrol", "state", QuestState.ACTIVE)
     == on_patrol_done ==
-    ~~ quest_complete(SHIP_ID, "patrol") ~~
-    ~~ quest_set_key(SHIP_ID, "patrol", "state", QuestState.COMPLETE) ~~
+    quest_complete(SHIP_ID, "patrol")
+    quest_set_key(SHIP_ID, "patrol", "state", QuestState.COMPLETE)
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.quest import quest_add, quest_set_key, quest_complete, QuestState
 
@@ -46,22 +45,23 @@ Quests can be attached to a specific player ship, a specific client console, or 
 ## Displaying quests
 
 ```
-~~ items = quest_flatten_list() ~~
+items = quest_flatten_list()
 gui_property_list_box(items, style="area:0,0,100,100;")
 ```
 
 ## Loading quests from YAML
 
 ```
-~~ quest_add_yaml(SHIP_ID, ~~
+yaml_text = """
 patrol:
-  display_text: "Patrol Sector 7"
-  description: "Keep the peace."
+  display_text: Patrol Sector 7
+  description: Keep the peace.
   state: ACTIVE
 rescue:
-  display_text: "Rescue the crew"
-  description: "Find the survivors."
-~~) ~~
+  display_text: Rescue the crew
+  description: Find the survivors.
+"""
+quest_add_yaml(SHIP_ID, yaml_text)
 ```
 
 ## API

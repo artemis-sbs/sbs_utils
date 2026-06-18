@@ -1,4 +1,4 @@
-# The signal system
+﻿# The signal system
 
 Emit named events and register handlers that fire when those events occur.
 
@@ -12,17 +12,16 @@ Data passed to `signal_emit` becomes task variables in the handler. By conventio
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == patrol ==
-    ~~ signal_emit("enemy_spotted", {"ENEMY_ID": enemy_id, "SHIP_ID": SHIP_ID}) ~~
-
+    signal_emit("enemy_spotted", {"ENEMY_ID": enemy_id, "SHIP_ID": SHIP_ID})
     //signal/enemy_spotted
     "Enemy spotted by {get_inventory_value(SHIP_ID, 'name')}!"
-    ~~ target(SHIP_ID, ENEMY_ID) ~~
+    target(SHIP_ID, ENEMY_ID)
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.signal import signal_emit, signal_connect, signal_disconnect
 

@@ -1,4 +1,4 @@
-# Links
+﻿# Links
 
 Uni-directional named associations between agents.
 
@@ -17,19 +17,18 @@ Links are uni-directional. `linked_to(ship_id, "consoles")` returns the consoles
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    ~~ link(SHIP_ID, "escort_targets", FREIGHTER_ID) ~~
-    ~~ link(SHIP_ID, "escort_targets", TRANSPORT_ID) ~~
-
+    link(SHIP_ID, "escort_targets", FREIGHTER_ID)
+    link(SHIP_ID, "escort_targets", TRANSPORT_ID)
     == check ==
-    ~~ targets = linked_to(SHIP_ID, "escort_targets") ~~
-    ~~ alive = [t for t in targets if object_exists(t)] ~~
-    ~~ if len(alive) == 0: jump mission_complete ~~
+    targets = linked_to(SHIP_ID, "escort_targets")
+    alive = [t for t in targets if object_exists(t)]
+    if len(alive) == 0: jump mission_complete
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.links import link, unlink, linked_to, has_link_to
 

@@ -1,4 +1,4 @@
-# The torpedoes system
+﻿# The torpedoes system
 
 Define custom torpedo types and manage ship torpedo loadouts.
 
@@ -12,16 +12,16 @@ The torpedo system is actively evolving — new `warhead` and `behavior` values 
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    ~~ torpedo_type("emp", gui_text="EMP Pulse", warhead="reduce_shields", damage=10, speed=15) ~~
-    ~~ torpedo_type("cluster", gui_text="Cluster Bomb", warhead="blast", blast_radius=1500, damage=50) ~~
-    ~~ torpedo_make_available(SHIP_ID, "emp", count=4) ~~
-    ~~ torpedo_make_available(SHIP_ID, "cluster", count=2) ~~
+    torpedo_type("emp", gui_text="EMP Pulse", warhead="reduce_shields", damage=10, speed=15)
+    torpedo_type("cluster", gui_text="Cluster Bomb", warhead="blast", blast_radius=1500, damage=50)
+    torpedo_make_available(SHIP_ID, "emp", count=4)
+    torpedo_make_available(SHIP_ID, "cluster", count=2)
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.torpedoes import (
         torpedo_type, torpedo_make_available, torpedo_make_unavailable,
