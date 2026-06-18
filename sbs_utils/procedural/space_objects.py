@@ -55,7 +55,7 @@ def broad_test_around(id_or_obj, width: float, depth: float, broad_type=0xfff0):
     obj_list = FrameContext.context.sbs.broad_test(_pos.x-(width/2), _pos.z-(depth/2), _pos.x+(width/2), _pos.z+(depth/2), broad_type)
     return {so.unique_ID for so in obj_list}
 
-
+MAX_BROAD_TEST_DIST = 5001
 def closest_list(source: int | CloseData | SpawnData | Agent | Vec3, the_set, max_dist=None, filter_func=None) -> list[CloseData]:
     """
     Get the list of close data that matches the test set, max_dist, and optional filter function.
@@ -75,6 +75,9 @@ def closest_list(source: int | CloseData | SpawnData | Agent | Vec3, the_set, ma
         source_id = -1
     else:
         source_id = Agent.resolve_id(source)
+
+    if max_dist is not None and max_dist < MAX_BROAD_TEST_DIST:
+        the_set &= broad_test_around(source, max_dist, max_dist, 0xFFFF)
 
     for other_id in the_set:
         # if this is self skip
@@ -113,6 +116,9 @@ def closest(the_ship, the_set, max_dist=None, filter_func=None) -> CloseData:
     Returns:
         CloseData: The closest object's CloseData to get the distance.
     """
+    if max_dist is not None and max_dist < MAX_BROAD_TEST_DIST:
+        the_set &= broad_test_around(the_ship, max_dist, max_dist, 0xFFFF)
+
     if isinstance(the_ship, Vec3):
         return closest_to_point(the_ship,the_set, max_dist, filter_func)
     test = max_dist
