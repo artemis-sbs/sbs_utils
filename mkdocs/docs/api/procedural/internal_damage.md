@@ -1,4 +1,4 @@
-# The internal damage system
+﻿# The internal damage system
 
 Manage player ship engineering grid damage, repair, and ship destruction.
 
@@ -16,17 +16,16 @@ A typical damage event flows like this:
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     //damage/object /internal
-    ~~ grid_take_internal_damage_at(PLAYER_ID, EVENT.source_point) ~~
-
+    grid_take_internal_damage_at(PLAYER_ID, EVENT.source_point)
     //signal/player_ship_destroyed
     "The ship has been destroyed!"
     jump game_over
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.internal_damage import (
         grid_rebuild_grid_objects,

@@ -1,4 +1,4 @@
-# The cosmos functions
+﻿# The cosmos functions
 
 Low-level simulation control: create, pause, and resume the game simulation.
 
@@ -12,21 +12,21 @@ These three functions wrap the engine's simulation lifecycle commands. They are 
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == lobby ==
     + "Start Mission"
-        ~~ sim_create() ~~
+        sim_create()
         jump mission_start
 
     == cutscene ==
-    ~~ sim_pause() ~~
+    sim_pause()
     "Meanwhile, on the station..."
     await delay(seconds=5)
-    ~~ sim_resume() ~~
+    sim_resume()
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.cosmos import sim_create, sim_pause, sim_resume
 

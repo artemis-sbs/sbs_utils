@@ -1,4 +1,4 @@
-# The science module
+﻿# The science module
 
 Control and respond to science console scanning and intel display.
 
@@ -12,21 +12,19 @@ The `//focus/science` route fires when the science console focuses on an object.
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    ~~ science_add_scan_data(ENEMY_ID, "Ship Class", "Battlecruiser") ~~
-    ~~ science_add_scan_data(ENEMY_ID, "Threat Level", "High") ~~
-    ~~ science_add_scan_data(ENEMY_ID, "Shields", "Online") ~~
-
+    science_add_scan_data(ENEMY_ID, "Ship Class", "Battlecruiser")
+    science_add_scan_data(ENEMY_ID, "Threat Level", "High")
+    science_add_scan_data(ENEMY_ID, "Shields", "Online")
     //focus/science
-    ~~ if EVENT.selected_id == ENEMY_ID: jump enemy_scanned ~~
-
+    if EVENT.selected_id == ENEMY_ID: jump enemy_scanned
     == enemy_scanned ==
-    ~~ comms_broadcast(SHIP_ID, "Science: Enemy battlecruiser detected!", "red") ~~
+    comms_broadcast(SHIP_ID, "Science: Enemy battlecruiser detected!", "red")
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.science import science_add_scan_data, science_clear_scan_data
 

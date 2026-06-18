@@ -1,4 +1,4 @@
-# The inventory system
+﻿# The inventory system
 
 A per-agent key→value store for arbitrary mission data.
 
@@ -17,19 +17,18 @@ Key functions:
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    ~~ set_inventory_value(SHIP_ID, "HP", 100) ~~
-    ~~ set_inventory_value(SHIP_ID, "shield_online", True) ~~
-
+    set_inventory_value(SHIP_ID, "HP", 100)
+    set_inventory_value(SHIP_ID, "shield_online", True)
     == check_hp ==
-    ~~ hp = get_inventory_value(SHIP_ID, "HP", 0) ~~
+    hp = get_inventory_value(SHIP_ID, "HP", 0)
     "Ship HP: {hp}"
-    ~~ if hp <= 0: jump destroyed ~~
+    if hp <= 0: jump destroyed
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.inventory import (
         set_inventory_value, get_inventory_value,
@@ -51,8 +50,8 @@ Key functions:
 `Agent.SHARED` is a singleton agent used for global mission state. Use `get_shared_inventory_value` / `set_shared_inventory_value` as shorthands:
 
 ```
-~~ set_shared_inventory_value("GAME_STARTED", True) ~~
-~~ if get_shared_inventory_value("GAME_ENDED"): jump end_screen ~~
+set_shared_inventory_value("GAME_STARTED", True)
+if get_shared_inventory_value("GAME_ENDED"): jump end_screen
 ```
 
 In MAST you can also use the `shared` keyword:

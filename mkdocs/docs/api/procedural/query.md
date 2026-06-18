@@ -1,4 +1,4 @@
-# The query module
+﻿# The query module
 
 Resolve and convert agent IDs, objects, and collections between formats.
 
@@ -18,14 +18,14 @@ The `is_*` functions test which ID category a value belongs to. This matters bec
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
-    ~~ id = to_id(closest_enemy) ~~
-    ~~ obj = to_object(id) ~~
-    ~~ if object_exists(id): target(SHIP_ID, id) ~~
+    id = to_id(closest_enemy)
+    obj = to_object(id)
+    if object_exists(id): target(SHIP_ID, id)
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.query import (
         to_id, to_object, to_set, object_exists,

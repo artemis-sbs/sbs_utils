@@ -1,4 +1,4 @@
-# The execution system
+﻿# The execution system
 
 Schedule and manage MAST tasks, jump between labels, and read task-scope variables.
 
@@ -18,7 +18,7 @@ Key concepts:
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == main ==
     await task_all(patrol_alpha, patrol_beta, patrol_gamma)
@@ -29,10 +29,10 @@ Key concepts:
     jump next_phase
 
     == setup ==
-    ~~ task_schedule(background_monitor) ~~
+    task_schedule(background_monitor)
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.execution import (
         task_schedule, task_all, task_any, task_cancel,

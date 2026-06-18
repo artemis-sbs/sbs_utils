@@ -1,4 +1,4 @@
-# The media system
+﻿# The media system
 
 Schedule skybox and music ``@media`` labels defined in MAST.
 
@@ -12,18 +12,18 @@ Use `skybox_schedule` / `music_schedule` as convenient wrappers when you already
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     @media/skybox/nebula "Nebula"
     @media/skybox/deep_space "Deep Space"
     @media/music/battle "Battle Music"
 
     == setup ==
-    ~~ skybox_schedule_random() ~~
-    ~~ music_schedule("battle") ~~
+    skybox_schedule_random()
+    music_schedule("battle")
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.media import (
         skybox_schedule, skybox_schedule_random,

@@ -1,4 +1,4 @@
-# Grid object system
+﻿# Grid object system
 
 Query, move, and theme engineering-grid objects on player ships.
 
@@ -18,17 +18,17 @@ The **theme system** controls icon appearance. `grid_get_grid_theme` and `grid_g
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == repair_run ==
-    ~~ damaged = grid_objects(SHIP_ID) & role("__damaged__") ~~
-    ~~ if len(damaged) == 0: jump done ~~
-    ~~ target_go = to_object(next(iter(damaged))) ~~
-    ~~ x, y, _ = grid_pos_data(target_go.id) ~~
-    ~~ grid_move(DAMCON_ID, int(x), int(y)) ~~
+    damaged = grid_objects(SHIP_ID) & role("__damaged__")
+    if len(damaged) == 0: jump done
+    target_go = to_object(next(iter(damaged)))
+    x, y, _ = grid_pos_data(target_go.id)
+    grid_move(DAMCON_ID, int(x), int(y))
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.grid import (
         grid_objects, grid_objects_at, grid_closest,

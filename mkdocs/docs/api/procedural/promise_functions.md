@@ -1,4 +1,4 @@
-# Promise functions
+﻿# Promise functions
 
 Awaitable promise helpers for coordinating parallel async operations.
 
@@ -12,16 +12,16 @@ Promises are objects returned by `await`-able functions. They represent a value 
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == run_parallel ==
-    ~~ p1 = task_schedule(patrol_alpha) ~~
-    ~~ p2 = task_schedule(patrol_beta) ~~
+    p1 = task_schedule(patrol_alpha)
+    p2 = task_schedule(patrol_beta)
     await promise_all(p1, p2)
     "Both patrols complete."
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.promise_functions import promise_all, promise_any, promise_is_done
 

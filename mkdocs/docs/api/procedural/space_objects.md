@@ -1,4 +1,4 @@
-# The space_objects module
+﻿# The space_objects module
 
 Spatial queries, targeting, positioning, and engineering value access for space objects.
 
@@ -16,19 +16,18 @@ The space objects module provides the main tools for working with the simulation
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == patrol ==
-    ~~ enemies = broad_test_around(get_pos(SHIP_ID), 2000) & role("enemy") ~~
-    ~~ nearest = closest(SHIP_ID, enemies) ~~
-    ~~ if nearest: target(SHIP_ID, nearest) ~~
-
+    enemies = broad_test_around(get_pos(SHIP_ID), 2000) & role("enemy")
+    nearest = closest(SHIP_ID, enemies)
+    if nearest: target(SHIP_ID, nearest)
     == recharge ==
-    ~~ set_engineering_value(SHIP_ID, "energy", 1000) ~~
-    ~~ set_pos(SHIP_ID, 0, 0, 0) ~~
+    set_engineering_value(SHIP_ID, "energy", 1000)
+    set_pos(SHIP_ID, 0, 0, 0)
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.space_objects import (
         broad_test_around, closest, target, clear_target,

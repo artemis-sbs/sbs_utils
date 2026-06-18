@@ -1,4 +1,4 @@
-# Maps system
+﻿# Maps system
 
 Manage ``@map`` labels that define discoverable map waypoints and regions.
 
@@ -10,20 +10,19 @@ Map labels are declared in MAST with the `@map/path/name "Display"` syntax. They
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     @map/waypoints/alpha "Waypoint Alpha"
     @map/waypoints/beta "Waypoint Beta"
 
     == reveal_waypoints ==
-    ~~ map_schedule("waypoints/alpha") ~~
-    ~~ map_schedule("waypoints/beta") ~~
-
+    map_schedule("waypoints/alpha")
+    map_schedule("waypoints/beta")
     == waypoints/alpha ==
-    ~~ set_map_pos(5000, 0, 3000) ~~
+    set_map_pos(5000, 0, 3000)
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.maps import map_get, map_schedule
 

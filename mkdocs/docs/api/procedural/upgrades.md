@@ -1,4 +1,4 @@
-# The upgrades system
+﻿# The upgrades system
 
 Apply MAST-driven ability labels to ships or other agents as activatable upgrades.
 
@@ -10,16 +10,15 @@ Use `upgrade_add` with `activate=False` to pre-register upgrades (e.g. at ship s
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    ~~ upgrade_add(SHIP_ID, shield_boost_label, activate=True) ~~
-
+    upgrade_add(SHIP_ID, shield_boost_label, activate=True)
     == shield_boost_label ==
-    ~~ set_engineering_value(SHIP_ID, "shieldStrengthFront", 200) ~~
+    set_engineering_value(SHIP_ID, "shieldStrengthFront", 200)
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.upgrades import upgrade_add, upgrade_remove_all
 

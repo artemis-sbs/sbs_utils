@@ -1,4 +1,4 @@
-# The objective module
+﻿# The objective module
 
 The tick scheduler that drives brains, docking, and other background systems.
 
@@ -10,16 +10,15 @@ Mission scripts rarely call objective functions directly — `brain_schedule`, `
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    ~~ objective_add(check_mission_state) ~~
-
+    objective_add(check_mission_state)
     == teardown ==
-    ~~ objective_remove(check_mission_state) ~~
+    objective_remove(check_mission_state)
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.objective import objective_add, objective_remove, objective_schedule
 

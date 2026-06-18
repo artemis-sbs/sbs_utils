@@ -1,4 +1,4 @@
-# Docking system
+﻿# Docking system
 
 Manage proximity-based docking between player ships and NPCs.
 
@@ -25,30 +25,27 @@ The `DOCKING_PLAYER`, `DOCKING_PLAYER_ID`, `DOCKING_NPC`, and `DOCKING_NPC_ID` v
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    ~~ docking_set_docking_logic(PLAYER_SET, STATION_SET, docking_logic) ~~
-
+    docking_set_docking_logic(PLAYER_SET, STATION_SET, docking_logic)
     == docking_logic ==
     ///enable
-    ~~ OK_SUCCESS ~~   # always allow docking
+    OK_SUCCESS   # always allow docking
 
     ///docked
-    ~~ set_engineering_value(DOCKING_PLAYER_ID, "energy", 1000) ~~
-    ~~ OK_SUCCESS ~~
-
+    set_engineering_value(DOCKING_PLAYER_ID, "energy", 1000)
+    OK_SUCCESS
     ///refit
-    ~~ hp = get_engineering_value(DOCKING_PLAYER_ID, "hullLevel") ~~
-    ~~ if hp >= 1.0: OK_SUCCESS ~~
-    ~~ set_engineering_value(DOCKING_PLAYER_ID, "hullLevel", hp + 0.01) ~~
-    ~~ OK_RUN_AGAIN ~~
-
+    hp = get_engineering_value(DOCKING_PLAYER_ID, "hullLevel")
+    if hp >= 1.0: OK_SUCCESS
+    set_engineering_value(DOCKING_PLAYER_ID, "hullLevel", hp + 0.01)
+    OK_RUN_AGAIN
     //signal/docked
     "Ship {DOCKING_PLAYER.name} has docked."
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.docking import docking_set_docking_logic
 

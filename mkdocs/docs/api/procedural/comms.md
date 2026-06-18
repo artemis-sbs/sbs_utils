@@ -1,4 +1,4 @@
-# The comms system
+﻿# The comms system
 
 Send messages to player consoles and manage the comms-tree route system.
 
@@ -12,21 +12,20 @@ The comms module provides two related capabilities:
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     //comms/alien
     + "Greetings, humans."
         //comms/alien/greet
         + "We come in peace."
-            ~~ signal_emit("alliance_offered") ~~
+            signal_emit("alliance_offered")
         + "Stand down or be destroyed."
-            ~~ target(ALIEN_ID, PLAYER_SHIP_ID) ~~
-
+            target(ALIEN_ID, PLAYER_SHIP_ID)
     == patrol ==
-    ~~ comms_broadcast(SHIP_ID, "Enemy spotted at grid 7-Alpha!", "red") ~~
+    comms_broadcast(SHIP_ID, "Enemy spotted at grid 7-Alpha!", "red")
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.comms import comms_broadcast, comms_route_to
 

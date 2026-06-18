@@ -1,4 +1,4 @@
-# The settings system
+﻿# The settings system
 
 Mission configuration defaults loaded from `settings.yaml` (or legacy `setup.json`).
 
@@ -13,15 +13,15 @@ Common use-cases:
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    ~~ settings = settings_get_defaults() ~~
-    ~~ difficulty = settings.get("DIFFICULTY", 5) ~~
+    settings = settings_get_defaults()
+    difficulty = settings.get("DIFFICULTY", 5)
     "Difficulty is {difficulty}"
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.settings import settings_get_defaults, settings_add_defaults
 

@@ -1,4 +1,4 @@
-# The popup system
+﻿# The popup system
 
 Context menus shown when a player clicks or hold-clicks an object in the 2D/3D views.
 
@@ -12,16 +12,16 @@ The variables `SCIENCE_ORIGIN_ID`, `SCIENCE_SELECTED_ID`, and `SCIENCE_POPUP_ID`
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     //popup/science
     * "Scan"
-        ~~ signal_emit("scan_object", {"TARGET_ID": SCIENCE_SELECTED_ID}) ~~
+        signal_emit("scan_object", {"TARGET_ID": SCIENCE_SELECTED_ID})
     * "Attack"
-        ~~ target(SHIP_ID, SCIENCE_SELECTED_ID) ~~
+        target(SHIP_ID, SCIENCE_SELECTED_ID)
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.popup import popup_navigate
 

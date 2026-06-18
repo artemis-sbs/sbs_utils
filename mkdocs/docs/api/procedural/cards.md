@@ -1,4 +1,4 @@
-# The card system
+﻿# The card system
 
 Tilemap / ASCII-art map parsing for procedural world generation and room layouts.
 
@@ -10,14 +10,14 @@ A card definition assigns each character in the ASCII map to a tile type with as
 
 ## Quick example
 
-=== "MAST"
+=== ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    ~~ layout = card_get("station_interior") ~~
-    ~~ card_spawn(layout, offset_x=1000, offset_z=2000) ~~
+    layout = card_get("station_interior")
+    card_spawn(layout, offset_x=1000, offset_z=2000)
     ```
 
-=== "Python"
+=== ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.cards.card import card_get, card_spawn
 
