@@ -16,6 +16,20 @@ class _DockingBrain:
 
 __docking_pairs = {}
 def docking_set_docking_logic(player_set, npc_set, label, data=None):
+    """Register docking logic between a set of players and a set of NPCs.
+
+    For each (player, NPC) pair, associates ``label`` as the brain that drives
+    docking state transitions (``enable``, ``docking``, ``docked``,
+    ``undocking``, ``refit``, ``throttle`` inline sections). Automatically
+    schedules the docking tick task.
+
+    Args:
+        player_set (int | set): Player ship agent ID(s) or object(s).
+        npc_set (int | set): NPC agent ID(s) or object(s) to dock with.
+        label (Label): MAST label with docking inline sub-labels.
+        data (dict, optional): Variables passed to docking tasks. Defaults to
+            None.
+    """
     docking_schedule()
     player_ids = to_set(player_set)
     npc_ids = to_set(npc_set)
@@ -28,9 +42,7 @@ def docking_set_docking_logic(player_set, npc_set, label, data=None):
 
 __docking_tick_task = None
 def docking_schedule():
-    #
-    # Schedule a simple tick task 
-    #
+    """Schedule the docking tick task (runs every 1 second) if not already running."""
     global __docking_tick_task
     if __docking_tick_task is None:
         __docking_tick_task = TickDispatcher.do_interval(docking_run_all, 1)
@@ -38,6 +50,15 @@ def docking_schedule():
 
 __docking_is_running = False
 def docking_run_all(tick_task):
+    """Process docking state for all registered player/NPC pairs.
+
+    Called each tick. Handles undocked proximity detection, docking approach,
+    dock_start handshake, docked refit/throttle, and undocking. Cleans up
+    stale pairs where the player or NPC no longer exists.
+
+    Args:
+        tick_task (TickTask | event): Tick task or event triggering this run.
+    """
     global __docking_is_running
     if __docking_is_running:
         return

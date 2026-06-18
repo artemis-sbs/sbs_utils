@@ -241,10 +241,10 @@ class PopupPromise(ButtonPromise):
 
 
 def popup_navigate(path):
-    """
-    Set the path for the popup task. Similar to comms paths, e.g. `//popup/science`
+    """Set the active path for the current popup, similar to a comms route (e.g. ``//popup/science``).
+
     Args:
-        path (str): The path
+        path (str): The new popup path to navigate to.
     """
     task = FrameContext.task
     p = task.get_variable("BUTTON_PROMISE")
@@ -261,12 +261,19 @@ def popup_navigate(path):
 
 
 def start_popup_selected(event):
-    """
-    Display the popup.
+    """Start or resume a popup for the given selection event.
+
+    Creates a new ``PopupPromise`` for the (origin, selected) pair if one does
+    not already exist; otherwise resumes the existing promise. Called
+    automatically by ``ConsoleDispatcher`` for ``science_popup``,
+    ``comms_popup``, ``comms2d_popup``, and ``weapons_popup`` events.
+
     Args:
-        event (event): The event that triggered the popup.
+        event: The engine selection event that triggered the popup.
+
     Returns:
-        Promise: The popup's promise 
+        PopupPromise: The promise managing this popup, or ``None`` if the
+            origin object no longer exists.
     """
     # Don't run if the selection doesn't exist
     # so = to_object(event.selected_id)

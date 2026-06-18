@@ -14,6 +14,7 @@ from enum import IntFlag
 
 #__brain_tick_task = None
 def brain_schedule():
+    """Schedule the brain tick task via the objective system."""
     from .objective import objective_schedule
     objective_schedule()
     # This is handled in Objectives NOW
@@ -180,12 +181,38 @@ class Brain:
             
 
 def brain_clear(agent_id_or_set):
+    """Remove the behaviour-tree brain from one or more agents.
+
+    Clears the ``__BRAIN__`` inventory key so the agent's brain stops running
+    on the next tick. Does not explicitly stop any sub-tasks already started
+    by brain labels.
+
+    Args:
+        agent_id_or_set: Agent ID, object, or set/list of either.
+
+    Example:
+        brain_clear(ENEMY_ID)
+    """
     agent_id_or_set = to_set(agent_id_or_set)
     for agent in agent_id_or_set:
         set_inventory_value(agent, "__BRAIN__", None)
         
 
 def brain_add_parent(parent, agent, label, data=None, client_id=0):
+    """Add one or more brain nodes as children of an existing brain node.
+
+    Handles plain labels, strings, lists (multiple siblings), and structured
+    dicts (``{"SEL_name": [...]}`` or ``{"SEQ_name": [...]}``) recursively.
+
+    Args:
+        parent (Brain): Parent brain node to attach children to.
+        agent (int): Agent ID owning the brain.
+        label (label | str | list | dict): Brain node specification.
+        data (dict, optional): Variables passed to child tasks. Defaults to
+            None.
+        client_id (int, optional): Client context for GUI-task resolution.
+            Defaults to 0 (server).
+    """
     if isinstance(label, str):
         label = label.strip()
 
@@ -245,6 +272,33 @@ def brain_add_parent(parent, agent, label, data=None, client_id=0):
 
 
 def brain_add(agent_id_or_set, label, data=None, client_id=0, parent=None):
+    """Add a behaviour-tree node to one or more agents.
+
+    Creates or extends the agent's brain tree. The root is a **Select** node
+    (runs children in order, stops at first success). Labels can be plain
+    label references, strings, or structured dicts/lists for nested trees.
+
+    Structured dict forms:
+    - ``{"label": my_label, "data": {...}}`` — simple node with data
+    - ``{"SEL_name": [child1, child2]}`` — Select composite node
+    - ``{"SEQ_name": [child1, child2]}`` — Sequence composite node
+
+    A list of labels adds multiple sibling nodes under the parent.
+
+    Args:
+        agent_id_or_set: Agent ID, object, or set/list of either.
+        label (label | str | dict | list): Behaviour node(s) to add.
+        data (dict, optional): Variables passed when the label runs. Defaults
+            to None.
+        client_id (int, optional): Client context for GUI-task resolution.
+            Defaults to 0 (server).
+        parent (Brain | None, optional): Parent node to attach to. Defaults to
+            None (attaches to the agent's root Select node).
+
+    Example:
+        brain_add(ENEMY_ID, patrol_label)
+        brain_add(ENEMY_ID, {"SEL_combat": [attack_label, evade_label]})
+    """
     brain_schedule()
     agent_id_or_set = to_set(agent_id_or_set)
     for agent in agent_id_or_set:
@@ -259,6 +313,15 @@ def brain_add(agent_id_or_set, label, data=None, client_id=0, parent=None):
 
 __brains_is_running = False
 def brains_run_all(tick_task):
+    """Run all agent brains for the current tick.
+
+    Iterates every agent with a ``__BRAIN__`` inventory entry and calls
+    ``brain.run()``. Re-entrant calls are suppressed with a guard flag.
+    Agents whose ``Agent.get`` returns ``None`` are silently skipped.
+
+    Args:
+        tick_task: The tick task or event that triggered this run.
+    """
     global __brains_is_running
     if __brains_is_running:
         return

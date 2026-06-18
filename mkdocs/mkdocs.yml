@@ -152,7 +152,18 @@ nav:
       - spawn: api/procedural/spawn.md
       - terrain: api/procedural/terrain.md
       - timers: api/procedural/timers.md
-      
+      - brain: api/procedural/brain.md
+      - data: api/procedural/data.md
+      - internal_damage: api/procedural/internal_damage.md
+      - media: api/procedural/media.md
+      - mission: api/procedural/mission.md
+      - popup: api/procedural/popup.md
+      - prefab: api/procedural/prefab.md
+      - quest: api/procedural/quest.md
+      - settings: api/procedural/settings.md
+      - torpedoes: api/procedural/torpedoes.md
+      - upgrades: api/procedural/upgrades.md
+
 
     - Dispatch:
       - api/dispatch/index.md

@@ -175,14 +175,15 @@ def grid_target(grid_obj_or_set, target_id: int, speed=0.01):
                 add_role(grid_obj, "_moving_")
 
 def grid_target_pos(grid_obj_or_set, x:float, y:float, speed=0.01):
-    """ Set the grid object go to the target location
+    """Set a grid object to move toward a specific grid coordinate.
 
     Args:
-        grid_obj_or_set (Agent | int | set[Agent | int]): An id, object or set of grid object agent(s)
-        x (float): x location
-        y (float): y location
-        speed (float, optional): The grid object speed. Defaults to 0.01.
-    """    
+        grid_obj_or_set (Agent | int | set): Agent, ID, or set of grid
+            object(s) to move.
+        x (float): Target x grid coordinate.
+        y (float): Target y grid coordinate.
+        speed (float, optional): Movement speed. Defaults to 0.01.
+    """
     grid_objs= to_object_list(grid_obj_or_set)
     for grid_obj in grid_objs:
         blob = to_blob(grid_obj.id)
@@ -208,11 +209,11 @@ def grid_target_pos(grid_obj_or_set, x:float, y:float, speed=0.01):
                 blob.set("move_speed", 0, 0)
 
 def grid_clear_target(grid_obj_or_set):
-    """ Clear the target of a grid object
+    """Clear the movement target of a grid object, stopping it in place.
 
     Args:
-        grid_obj_or_set (Agent | int | set[Agent | int]): the id of the object or set
-
+        grid_obj_or_set (Agent | int | set): Agent, ID, or set of grid
+            object(s) to stop.
     """
     grid_objs= to_object_list(grid_obj_or_set)
     for grid_obj in grid_objs:
@@ -279,15 +280,18 @@ def grid_clear_speech_bubble(id_or_obj):
     
 
 def grid_short_status(id_or_obj, status, color=None, seconds=0, minutes=0):
-    """sets the short status (tool tip) and speech bubble text of a grid object
+    """Set the tooltip and speech bubble text of a grid object.
 
     Args:
-        id_or_obj (Agent | int): Agent id or object
-        status (str): The detailed status string
-        color (str, optional): change the color of the detailed status text. None does not change the current value
-        seconds (int): The seconds for the speech bubble
-        minutes: (int): The minutes for the speech bubble
-    """    
+        id_or_obj (Agent | int): Agent ID or object.
+        status (str): Status string for both the tooltip and speech bubble.
+        color (str, optional): Text color. ``None`` keeps the current value.
+            Defaults to None.
+        seconds (int, optional): Duration for the speech bubble. Defaults to 0
+            (permanent).
+        minutes (int, optional): Additional minutes for the bubble duration.
+            Defaults to 0.
+    """
     blob = to_blob(id_or_obj)
     if blob is None:
         return
@@ -296,13 +300,14 @@ def grid_short_status(id_or_obj, status, color=None, seconds=0, minutes=0):
     grid_speech_bubble(id_or_obj, status, color, seconds, minutes)
 
 def grid_detailed_status(id_or_obj, status, color=None):
-    """sets the detailed status of a grid object
+    """Set the detailed status (info text) of a grid object.
 
     Args:
-        id_or_obj (Agent | int): Agent id or object
-        status (str): The detailed status string
-        color (str, optional): change the color of the detailed status text. None does not change the current value
-    """    
+        id_or_obj (Agent | int): Agent ID or object.
+        status (str): Status string to display.
+        color (str, optional): Text color. ``None`` keeps the current value.
+            Defaults to None.
+    """
     blob = to_blob(id_or_obj)
     if blob is None:
         return
@@ -312,11 +317,11 @@ def grid_detailed_status(id_or_obj, status, color=None):
         blob.set("info_text_color", color, 0)
 
 def grid_clear_detailed_status(id_or_obj):
-    """clears the detailed status string of a grid object
+    """Clear the detailed status (info text) of a grid object.
 
     Args:
-        id_or_obj (Agent | int): The agent id of object
-    """    
+        id_or_obj (Agent | int): Agent ID or object.
+    """
     grid_detailed_status(id_or_obj, "")
     
 
@@ -360,12 +365,11 @@ def grid_get_grid_theme():
 
 _grid_theme_current = 0
 def grid_get_grid_current_theme():
-    """
-    Get the current grid theme.
+    """Get the currently active grid theme data.
+
     Returns:
-        dict: The grid theme dictionary
-        * key (str): The key of the theme data, e.g. `name`, `colors`, `icons`, etc.
-        * value (any): The value of the theme data.
+        dict: Theme dict with keys such as ``name``, ``colors``, ``icons``,
+            ``damage_colors``, etc.
     """
     global _grid_theme_current
     td = grid_get_grid_theme()
@@ -374,10 +378,10 @@ def grid_get_grid_current_theme():
     return _grid_theme_current
 
 def grid_set_grid_current_theme(i):
-    """
-    Set the grid theme by index.
+    """Set the active grid theme by index.
+
     Args:
-        i (int): The index of the grid theme to use. 
+        i (int): Index into the loaded grid theme list.
     """
     global _grid_theme_current
     td = grid_get_grid_theme()
@@ -386,14 +390,15 @@ def grid_set_grid_current_theme(i):
 
 
 def grid_get_grid_named_theme(name):
-    """
-    Get the grid theme data by name.
+    """Get a grid theme by name, falling back to the current theme if not found.
+
     Args:
-        name (str): The name of hte grid theme data.
+        name (str | None): Theme name to look up (case-insensitive), or
+            ``None`` to return the current theme.
+
     Returns:
-        dict: The grid theme dictionary
-        * key (str): The key of the theme data, e.g. `name`, `colors`, `icons`, etc.
-        * value (any): The value of the theme data.
+        dict: Theme dict with keys such as ``name``, ``colors``, ``icons``,
+            ``damage_colors``, etc.
     """
     if name is None:
         return grid_get_grid_current_theme()
@@ -405,10 +410,11 @@ def grid_get_grid_named_theme(name):
 
 
 def grid_set_grid_named_theme(name):
-    """
-    Set the grid theme by name.
+    """Set the active grid theme by name.
+
     Args:
-        name (str): The name of the grid theme, e.g. `cosmos` or `Retro`.
+        name (str): Theme name (case-insensitive), e.g. ``"cosmos"`` or
+            ``"Retro"``.
     """
     global _grid_theme_current
     td = grid_get_grid_theme()
@@ -421,13 +427,19 @@ def grid_set_grid_named_theme(name):
     return _grid_theme_current
 
 def grid_get_item_theme_data(roles, name=None):
-    """
-    Get the item theme data for grid objects with the specified roles, for the optionally specified theme.
+    """Get icon, scale, color, and damage color for a set of roles from the grid theme.
+
+    Roles are matched in reverse priority order so the last role in the list
+    takes precedence. Falls back to ``"default"`` entries when no role matches.
+
     Args:
-        roles (str): A comma-separated list of roles to use.
-        name (str, optional): The name of the grid data theme. Default is None.
+        roles (str): Comma-separated role names.
+        name (str | None, optional): Theme name to use. ``None`` uses the
+            current theme. Defaults to None.
+
     Returns:
-        RetVal: An object containing the `icon`, `scale`, `color`, and `damage_color` for the grid objects that match the roles.
+        RetVal: Object with ``.icon`` (int), ``.scale`` (float), ``.color``
+            (str), and ``.damage_color`` (str) attributes.
     """
     roles = roles.strip().lower().split(",") # Last is used first
     td = grid_get_grid_named_theme(name)
@@ -467,10 +479,11 @@ def grid_get_item_theme_data(roles, name=None):
     return r
 
 def grid_delete_objects(ship_id_or_obj):
-    """
-    Delete all grid objects for the given ship.
+    """Delete all grid objects belonging to a ship.
+
     Args:
-        ship_id_or_obj (Agent | int): The agent or id of the ship.
+        ship_id_or_obj (Agent | int): Agent or ID of the ship whose grid
+            objects should be removed.
     """
     craft_id = to_id(ship_id_or_obj)
     if craft_id is None:
@@ -483,15 +496,13 @@ def grid_delete_objects(ship_id_or_obj):
 
 
 def grid_pos_data(id):
-    """get a set of agent ids of the grid objects on the specified ship, at the location specified
+    """Return the current position and path length of a grid object.
 
     Args:
-        so_id (agent): agent id or object 
-        x (int): The x grid location
-        y (int): The y grid location
+        id (Agent | int): Agent ID or object.
 
     Returns:
-        tuple (float,float,float): x, y, path_length
+        tuple[float, float, float]: ``(curx, cury, path_length)``.
     """
     blob = to_data_set(to_id(id))
     if blob is None:
@@ -504,10 +515,10 @@ def grid_pos_data(id):
 from ..griddispatcher import GridDispatcher
 
 def grid_remove_move_role(event):
-    """
-    Remove the `_moving_` role from the grid object if the event has the `finished_path` sub_tag.
+    """Remove the ``_moving_`` role when a grid object finishes its path.
+
     Args:
-        event (event): The event that caused the removal
+        event: Engine event; only acts when ``event.sub_tag == "finished_path"``.
     """
     if event.sub_tag == "finished_path":
         remove_role(event.origin_id, "_moving_")

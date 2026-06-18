@@ -2,13 +2,22 @@ from ...helpers import FrameContext
 from ..style import apply_control_styles
 
 def gui_row(style=None):
-    """queue a gui row
+    """Start a new layout row, pushing subsequent items to the next line.
+
+    Call before adding items that should appear on a fresh row. Without
+    explicit rows, items flow left-to-right across the current row.
 
     Args:
-        style (str, optional): Style. Defaults to None.
+        style (str, optional): CSS-like style overrides for the row container.
+            Defaults to None.
 
     Returns:
-        layout object: The Layout object created
+        Row: The row layout object.
+
+    Example:
+        gui_text("Name:")
+        gui_row()
+        gui_input("", var="ship_name")
     """                
     page = FrameContext.page
     task = FrameContext.task

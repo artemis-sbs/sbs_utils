@@ -3,8 +3,14 @@ from ..helpers import FrameContext
 
 
 def maps_get_list():
-    """
-    Get a list of all the `@map` labels.
+    """Return all ``@map`` labels defined in the current page's story.
+
+    If only an ``__overview__`` label exists, it is returned as a single-item
+    list. If no map labels are found at all, returns a placeholder list with a
+    ``"No maps found"`` entry.
+
+    Returns:
+        list: ``@map`` Label objects, or a fallback list if none are defined.
     """
     ret = []
     page = FrameContext.page
@@ -38,8 +44,10 @@ def maps_get_list():
 
 
 def maps_get_init():
-    """
-    Get a list of all `__overview__` map labels.
+    """Return the ``__overview__`` map label from the current MAST story, or ``None``.
+
+    Returns:
+        Label | None: The overview map label, or ``None`` if not defined.
     """
     mast = FrameContext.mast
     if mast is None:
@@ -60,12 +68,15 @@ def maps_get_init():
 
 
 def map_get_properties(map):
-    """
-    Get the properties for the specified map label.
+    """Return the ``Properties`` inventory value of a map label.
+
+    Checks ``"Properties"`` first, then ``"properties"`` as a fallback.
+
     Args:
-        map (MastAsyncTask): The map label
+        map (Label): The map label object.
+
     Returns:
-        any: The properties for the map label
+        any: The properties value, or ``None`` if not set.
     """
     # Try Properties and properties
     return map.get_inventory_value("Properties", map.get_inventory_value("properties"))

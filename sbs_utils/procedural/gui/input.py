@@ -2,16 +2,25 @@ from ...helpers import FrameContext
 from ..style import apply_control_styles
 from ...pages.layout.text_input import TextInput
 def gui_input(props, style=None, var=None, data=None):
-    """ Draw a text type in
+    """Add a text input field to the current GUI layout.
+
+    The current value of ``var`` is pre-filled as the input text. When the
+    player edits and submits, ``var`` is updated with the new value.
 
     Args:
-        props (str): hi, low etc.
-        style (style, optional): Style. Defaults to None.
-        var (str, optional): Variable name to set the selection to. Defaults to None.
-        data (object, optional): data to pass the handler. Defaults to None.
+        props (str): Property string for input configuration, e.g.
+            ``"hint:Enter name;"`` or ``""`` for defaults.
+        style (str, optional): CSS-like style overrides. Defaults to None.
+        var (str, optional): Variable name to pre-fill and update on submit.
+            Defaults to None.
+        data (object, optional): Arbitrary data passed to the event handler.
+            Defaults to None.
 
     Returns:
-        layout object: The Layout object created
+        TextInput: The layout item created.
+
+    Example:
+        gui_input("", var="ship_name", style="col-width:50%;")
     """    
 
     page = FrameContext.page

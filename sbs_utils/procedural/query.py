@@ -6,24 +6,28 @@ from ..helpers import FrameContext
 # Set functions
 # Get the set of IDS of a broad test
 def to_py_object_list(the_set):
-    """
-    Converts a set of ids to a set of objects
+    """Convert a set of IDs to a list of Agent objects.
+
     Args:
-        the_set (set[int]): A set of IDs
+        the_set (set[int]): A set of agent IDs.
+
     Returns:
-        list[Agent]
+        list[Agent]: Agents resolved from the set; items that no longer exist
+            are included as ``None``.
     """
     return [Agent.get(id) for id in the_set]
 
 
 
 def to_object_list(the_set):
-    """
-    Converts a set to a list of objects
-    Args:        
-        the_set (set[Agent | int] | list[Agent | int]): a set or list of agents or ids
+    """Convert a set or list of IDs/agents to a list of Agent objects (excluding None).
+
+    Args:
+        the_set (set[Agent | int] | list[Agent | int]): IDs or agent objects.
+
     Returns:
-        list[Agent]: A list of Agent objects
+        list[Agent]: Resolved Agent objects; items that cannot be resolved are
+            excluded.
     """
     if the_set is None:
         return []
@@ -31,12 +35,13 @@ def to_object_list(the_set):
     return [y for x in the_list if (y := Agent.resolve_py_object(x)) is not None]
 
 def to_space_object_list(the_set):
-    """
-    Converts a set to a list of objects
-    Args:        
-        the_set (set[Agent | int] | list[Agent | int]): a set or list of agents or ids
+    """Convert a set or list of IDs/agents to a list of SpaceObject agents (excluding None).
+
+    Args:
+        the_set (set[Agent | int] | list[Agent | int]): IDs or agent objects.
+
     Returns:
-        list[Agent]: A list of Agent objects
+        list[Agent]: Space-object agents only; grid/client IDs are excluded.
     """
     if the_set is None:
         return []
@@ -45,12 +50,13 @@ def to_space_object_list(the_set):
 
 
 def to_id_list(the_set):
-    """
-    Converts a set to a list of ids
-    Args:        
-        the_set (set[Agent | int] | list[Agent | int]): a set or list of agents or ids
+    """Convert a set or list of agents/IDs to a list of integer IDs.
+
+    Args:
+        the_set (set[Agent | int] | list[Agent | int]): IDs or agent objects.
+
     Returns:
-        list[int]: A list of agent ids
+        list[int]: Resolved integer IDs; unresolvable items are excluded.
     """
     if the_set is None:
         return []
@@ -58,12 +64,13 @@ def to_id_list(the_set):
     return [y for x in the_list if (y:=Agent.resolve_id(x)) is not None]
 
 def to_list(other: Agent | CloseData | int):
-    """
-    Converts a single object/id, set or list of things to a list
-    Args:        
-        other (Agent | CloseData | int | set[Agent | int] | list[Agent | int]): The agent or id or set.
+    """Normalize any agent-like value or collection into a list.
+
+    Args:
+        other (Agent | CloseData | int | set | list | None): Value to normalize.
+
     Returns:
-        list[Agent | CloseData | int]: A list containing whatever was passed in.
+        list: A list containing whatever was passed in; ``None`` becomes ``[]``.
     """
     if isinstance(other, set):
         return list(other)
@@ -76,12 +83,13 @@ def to_list(other: Agent | CloseData | int):
     return [other]
 
 def to_set(other: Agent | CloseData | int):
-    """
-    Converts a single object/id, set or list of things to a set of ids
-    Args:        
-        other (Agent | CloseData | int | set[Agent | int] | list[Agent | int]): The agent or id or set.
+    """Normalize any agent-like value or collection into a set of integer IDs.
+
+    Args:
+        other (Agent | CloseData | int | set | list | None): Value to normalize.
+
     Returns:
-        set[Agent | CloseData | int]: A set containing whatever was passed in.
+        set[int]: A set of integer IDs; ``None`` becomes an empty set.
     """
     if isinstance(other, list):
         # Convert to a list of IDs
@@ -95,13 +103,14 @@ def to_set(other: Agent | CloseData | int):
 
 
 def to_id(other: Agent | CloseData | int):
-    """
-    Converts item passed to an agent id
+    """Extract the integer ID from an agent, ``CloseData``, ``SpawnData``, or bare int.
+
     Args:
-        other (Agent | CloseData | int): The agent
+        other (Agent | CloseData | SpawnData | int): Value to convert.
+
     Returns:
-        int: The agent id
-    """    
+        int: The integer agent ID.
+    """
     other_id = other
     if isinstance(other, Agent):
         other_id = other.id
@@ -113,15 +122,16 @@ def to_id(other: Agent | CloseData | int):
     return other_id
 
 def to_object(other: Agent | CloseData | int):
-    """
-    Converts the item passed to an agent
-    ??? note
-    * Return of None could mean the agent no longer exists
+    """Resolve an ID, ``CloseData``, or ``SpawnData`` to its Agent object.
+
+    Returns ``None`` when the agent no longer exists.
+
     Args:
-        other (Agent | CloseData | int): The agent ID or other agent like data
+        other (Agent | CloseData | SpawnData | int): Value to resolve.
+
     Returns:
-        Agent | None: The agent or None
-    """    
+        Agent | None: The agent, or ``None`` if it could not be resolved.
+    """
     py_object = other
     if isinstance(other, Agent):
         py_object = other
@@ -138,15 +148,17 @@ def to_object(other: Agent | CloseData | int):
 
 
 def to_client_object(other: Agent | int):
-    """
-    Converts the item passed to an gui client
-    ??? note
-    * Retrun of None could mean the agent no longer exists
+    """Resolve a client/console ID or Agent to its Agent object.
+
+    Returns ``None`` when the ID is not a valid client ID or the agent no
+    longer exists.
+
     Args:
-        other (Agent | CloseData | int): The agent ID or other agent like data
+        other (Agent | int): Client ID or agent to resolve.
+
     Returns:
-        Agent | None: The agent or None
-    """    
+        Agent | None: The client agent, or ``None``.
+    """
     if isinstance(other, Agent):
         py_object = other
         if is_client_id(other.get_id()):
@@ -158,15 +170,17 @@ def to_client_object(other: Agent | int):
     return None
 
 def to_space_object(other: Agent | int):
-    """
-    Converts the item passed to an gui client
-    ??? note
-    * Retrun of None could mean the agent no longer exists
+    """Resolve an ID or Agent to a SpaceObject agent (NPC, player, or terrain).
+
+    Returns ``None`` when the ID is not a space-object ID or the object no
+    longer exists.
+
     Args:
-        other (Agent | CloseData | int): The agent ID or other agent like data
+        other (Agent | CloseData | int): ID or agent to resolve.
+
     Returns:
-        Agent | None: The agent or None
-    """    
+        Agent | None: The space-object agent, or ``None``.
+    """
     other = to_object(other)
     if is_space_object_id(other):
             # should return space object or grid object
@@ -174,15 +188,17 @@ def to_space_object(other: Agent | int):
     return None
 
 def to_grid_object(other: Agent | int):
-    """
-    Converts the item passed to an gui client
-    ??? note
-    * Retrun of None could mean the agent no longer exists
+    """Resolve an ID or Agent to a GridObject agent.
+
+    Returns ``None`` when the ID is not a grid-object ID or the object no
+    longer exists.
+
     Args:
-        other (Agent | CloseData | int): The agent ID or other agent like data
+        other (Agent | CloseData | int): ID or agent to resolve.
+
     Returns:
-        Agent | None: The agent or None
-    """    
+        Agent | None: The grid-object agent, or ``None``.
+    """
     other = to_object(other)
     if is_grid_object_id(other):
             # should return space object or grid object
@@ -191,13 +207,14 @@ def to_grid_object(other: Agent | int):
 
 
 def object_exists(so_id):
-    """
-    Check the engine to see if the item exists
+    """Return whether an object currently exists in the simulation.
+
     Args:
-        so_id (Agent | int): agent like data converted to id internally
+        so_id (Agent | int): Agent ID or object.
+
     Returns:
-        bool: if the object exists in the engine
-    """    
+        bool: ``True`` if the engine reports the object present.
+    """
     so_id = to_id(so_id)
     if so_id is None:
         return False
@@ -205,13 +222,15 @@ def object_exists(so_id):
     #return eo is not None
 
 def all_objects_exists(the_set):
-    """
-    Tests to see if all the objects in the set exist
+    """Return whether every object in a collection exists in the simulation.
+
     Args:
-        the_set (Agent | int | set[Agent | int] | list[Agent | int]): A set, list or single object internally it will assure it is a list
+        the_set (Agent | int | set[Agent | int] | list[Agent | int]): One or
+            more agent IDs or objects.
+
     Returns:
-        bool: False if any object does not exist, True if all exist
-    """    
+        bool: ``True`` if all objects exist; ``False`` if any is missing.
+    """
     so_ids = to_id_list(the_set)
     for so_id in so_ids:
         if not FrameContext.context.sim.space_object_exists(so_id):
@@ -219,14 +238,15 @@ def all_objects_exists(the_set):
     return True
 
 def get_data_set_value(id_or_obj, key, index=0):
-    """
-    Get the data set (blob) value for the object with the given key.
+    """Get a value from the engine data-set (blob) of a space or grid object.
+
     Args:
-        id_or_obj (Agent | int): The agent or id.
-        key (str): The data set key
-        index (int, optional): The index of the data set value
+        id_or_obj (Agent | int): The agent ID or object.
+        key (str): The data-set key.
+        index (int, optional): The slot index within that key. Defaults to 0.
+
     Returns:
-        any: The value associated with the key and index.
+        any: The stored value, or ``None`` if the object or key is not found.
     """
     if is_space_object_id(id_or_obj):
         object = to_space_object(id_or_obj)
@@ -237,13 +257,16 @@ def get_data_set_value(id_or_obj, key, index=0):
     return None
 
 def set_data_set_value(to_update, key, value, index=0):
-    """
-    Set the data set (blob) value for the objects with the given key. If `to_update` is a set or list, sets the data set value for each object.
+    """Set a value in the engine data-set (blob) for one or more space or grid objects.
+
+    If ``to_update`` is a set or list, the value is applied to each member.
+
     Args:
-        to_update (Agent | int | set[Agent | int] | list[Agent | int]): The agent or id or set or list.
-        key (str): The data set key.
-        value (any): The value to assign.
-        index (int, optional): The index of the data set value
+        to_update (Agent | int | set[Agent | int] | list[Agent | int]): The
+            agent(s) to update.
+        key (str): The data-set key.
+        value (any): The value to store.
+        index (int, optional): The slot index within that key. Defaults to 0.
     """
     objects = to_object_list(to_set(to_update))
     for object in objects:
@@ -251,12 +274,13 @@ def set_data_set_value(to_update, key, value, index=0):
             object.data_set.set(key, value, index)
 
 def get_engine_data_set(id_or_obj):
-    """
-    Get the data set (blob) for the id or object.
+    """Return the engine data-set (blob) for an agent.
+
     Args:
-        id_or_obj (Agent | SpawnData | int)
+        id_or_obj (Agent | int | SpawnData): Agent ID, object, or SpawnData.
+
     Returns:
-        data_set: The data set for the object.
+        data_set | None: The engine data-set, or ``None`` if not found.
     """
     if isinstance(id_or_obj, SpawnData):
         return id_or_obj.blob
@@ -267,36 +291,37 @@ def get_engine_data_set(id_or_obj):
 
 # easier to remember function names
 def to_blob(id_or_obj):
-    """
-    Gets the engine dataset of the specified agent
-    !!! Note
-    * Same as to_data_set
+    """Return the engine data-set (blob) for an agent. Same as ``to_data_set``.
+
     Args:
-        id_or_obj (Agent | int): Agent id or object
+        id_or_obj (Agent | int | SpawnData): Agent ID or object.
+
     Returns:
-        data_set | None: Returns the data or None if it does not exist
-    """    
+        data_set | None: The engine data-set, or ``None`` if the object does
+            not exist.
+    """
     return get_engine_data_set(id_or_obj)
 
 def to_data_set(id_or_obj):
-    """
-    Gets the engine dataset of the specified agent
-    !!! Note
-    * Same as to_blob
+    """Return the engine data-set (blob) for an agent. Same as ``to_blob``.
+
     Args:
-        id_or_obj (Agent | int): Agent id or object
+        id_or_obj (Agent | int | SpawnData): Agent ID or object.
+
     Returns:
-        data_set | None: Returns the data or None if it does not exist
-    """    
+        data_set | None: The engine data-set, or ``None`` if the object does
+            not exist.
+    """
     return get_engine_data_set(id_or_obj)
 
 def is_client_id(id):
-    """
-    Checks if the agent is a client/console id
+    """Return whether an ID belongs to a client (player console) agent.
+
     Args:
-        id (Agent | int): Agent id or object
+        id (Agent | int): Agent ID or object.
+
     Returns:
-        bool: True if the agent is a client or console id
+        bool: ``True`` if the client-console bit (0x8000…) is set.
     """
     id = to_id(id)
     if id is None:
@@ -304,12 +329,13 @@ def is_client_id(id):
     return (id & 0x8000000000000000)!=0
 
 def is_space_object_id(id):
-    """
-    Checks if the agent is a space object id
+    """Return whether an ID belongs to a space object.
+
     Args:
-        id (Agent | int): Agent id or object
+        id (Agent | int): Agent ID or object.
+
     Returns:
-        bool: True if it is a space object
+        bool: ``True`` if the space-object bit (0x4000…) is set.
     """
     id = to_id(id)
     if id is None:
@@ -317,12 +343,13 @@ def is_space_object_id(id):
     return (id & 0x4000000000000000)!=0
 
 def is_grid_object_id(id):
-    """
-    Checks if the agent is a grid object id
+    """Return whether an ID belongs to an engineering-grid object.
+
     Args:
-        id (Agent | int): Agent id or object
+        id (Agent | int): Agent ID or object.
+
     Returns:
-        bool: True if it is a grid object
+        bool: ``True`` if the grid-object bit (0x2000…) is set.
     """
     id = to_id(id)
     if id is None:
@@ -330,12 +357,13 @@ def is_grid_object_id(id):
     return (id & 0x2000000000000000)!=0
 
 def is_task_id(id):
-    """
-    Checks if the agent is a task id
+    """Return whether an ID belongs to a MAST task.
+
     Args:
-        id (Agent | int): Agent id or object
+        id (Agent | int): Agent ID or object.
+
     Returns:
-        bool: True if the agent is a task
+        bool: ``True`` if the task-id bit (0x0080…) is set.
     """
 
     id = to_id(id)
@@ -344,14 +372,13 @@ def is_task_id(id):
     return (id & 0x0080000000000000)!=0
 
 def is_story_id(id):
-    """
-    Checks if the agent is a story id
-    !!! Note
-    * Story agent are object not in the engine. e.g. Fleets
+    """Return whether an ID belongs to a story agent (not an engine object, e.g. Fleets).
+
     Args:
-        id (Agent | int): Agent id or object
+        id (Agent | int): Agent ID or object.
+
     Returns:
-        bool: True if the agent is a story object 
+        bool: ``True`` if the ID has the story-object bit set.
     """
 
     id = to_id(id)
@@ -361,12 +388,14 @@ def is_story_id(id):
 
 
 def to_engine_object(id_or_obj):
-    """
-    Converts the agent to get its engine object pointer
+    """Return the C++ engine-object pointer for an agent.
+
     Args:
-        id (Agent | int): Agent id or object
+        id_or_obj (Agent | int): Agent ID or object.
+
     Returns:
-        pointer: A C++ pointer to the engine object
+        pointer | None: The underlying C++ engine-object, or ``None`` if the
+            agent does not exist.
     """
     object = to_object(id_or_obj)
     if object is not None:
@@ -376,52 +405,56 @@ def to_engine_object(id_or_obj):
 
 
 def get_comms_selection(id_or_not):
-    """
-    Gets the id of the comms selection
+    """Return the ID of the object currently selected on the comms console.
+
     Args:
-        id_or_not (Agent | int): agent id or object
+        id_or_not (Agent | int): The player ship agent ID or object.
+
     Returns:
-        int | None: The agent id or None
-    """    
+        int | None: The selected agent ID, or ``None`` if unavailable.
+    """
     blob = to_blob(id_or_not)
     if blob is not None:
         return blob.get("comms_target_UID",0)
     return None
 
 def get_science_selection(id_or_not):
-    """
-    Gets the id of the science selection
+    """Return the ID of the object currently selected on the science console.
+
     Args:
-        id_or_not (Agent | int): agent id or object
+        id_or_not (Agent | int): The player ship agent ID or object.
+
     Returns:
-        int | None: The agent id or None
-    """        
+        int | None: The selected agent ID, or ``None`` if unavailable.
+    """
     blob = to_blob(id_or_not)
     if blob is not None:
         return blob.get("science_target_UID",0)
     return None
 
 def get_grid_selection(id_or_not):
-    """
-    Gets the id of the engineering grid selection
+    """Return the ID of the object currently selected on the engineering grid console.
+
     Args:
-        id_or_not (Agent | int): agent id or object
+        id_or_not (Agent | int): The player ship agent ID or object.
+
     Returns:
-        int | None: The agent id or None
-    """    
+        int | None: The selected agent ID, or ``None`` if unavailable.
+    """
     blob = to_blob(id_or_not)
     if blob is not None:
         return blob.get("grid_selected_UID",0)
     return None
 
 def get_weapons_selection(id_or_not):
-    """
-    Gets the id of the weapons selection
+    """Return the ID of the object currently selected on the weapons console.
+
     Args:
-        id_or_not (Agent | int): agent id or object
+        id_or_not (Agent | int): The player ship agent ID or object.
+
     Returns:
-        int | None: The agent id or None
-    """        
+        int | None: The selected agent ID, or ``None`` if unavailable.
+    """
     blob = to_blob(id_or_not)
     if blob is not None:
         return blob.get("weapon_target_UID",0)
@@ -429,12 +462,12 @@ def get_weapons_selection(id_or_not):
 
 
 def set_console_selection(id_or_not, other_id_or_obj, console):
-    """
-    Set the id of the selection for the console and client.
+    """Set the selected object for a named console on a player ship.
+
     Args:
-        id_or_not (Agent | int): The player ship ID.
-        other_id_or_obj (Agent | int): The selected space object.
-        console (str): The console for which the object is selected.
+        id_or_not (Agent | int): The player ship agent ID or object.
+        other_id_or_obj (Agent | int): The object to select, or ``0`` to clear.
+        console (str): The blob key for the console (e.g. ``"comms_target_UID"``).
     """
     blob = to_blob(id_or_not)
     other = to_id(other_id_or_obj)
@@ -445,49 +478,54 @@ def set_console_selection(id_or_not, other_id_or_obj, console):
 
 
 def set_comms_selection(id_or_not, other_id_or_obj):
-    """
-    Sets the id of the comms selection.
+    """Set the selected object on the comms console of a player ship.
+
     Args:
-        id_or_not (Agent | int): agent id or object of the player ship.
-        other_id_or_obj (Agent | int): The agent id or object target agent.
-    """    
+        id_or_not (Agent | int): The player ship agent ID or object.
+        other_id_or_obj (Agent | int): The object to select.
+    """
     set_console_selection(id_or_not, other_id_or_obj, "comms_target_UID")
 
 def set_science_selection(id_or_not, other_id_or_obj):
-    """
-    Sets the id of the science selection.
+    """Set the selected object on the science console of a player ship.
+
     Args:
-        id_or_not (Agent | int): agent id or object of the player ship.
-        other_id_or_obj (Agent | int): The agent id or object target agent.
-    """    
+        id_or_not (Agent | int): The player ship agent ID or object.
+        other_id_or_obj (Agent | int): The object to select.
+    """
 
     set_console_selection(id_or_not, other_id_or_obj, "science_target_UID")
 
 def set_grid_selection(id_or_not, other_id_or_obj):
-    """
-    Sets the id of the engineering grid selection.
+    """Set the selected object on the engineering grid console of a player ship.
+
     Args:
-        id_or_not (Agent | int): agent id or object of the player ship.
-        other_id_or_obj (Agent | int): The agent id or object target agent.
-    """    
+        id_or_not (Agent | int): The player ship agent ID or object.
+        other_id_or_obj (Agent | int): The object to select.
+    """
     set_console_selection(id_or_not, other_id_or_obj, "grid_selected_UID")
 
 def set_weapons_selection(id_or_not, other_id_or_obj):
-    """
-    Sets the id of the weapons selection.
+    """Set the selected object on the weapons console of a player ship.
+
     Args:
-        id_or_not (Agent | int): agent id or object of the player ship.
-        other_id_or_obj (Agent | int): The agent id or object target agent.
-    """    
+        id_or_not (Agent | int): The player ship agent ID or object.
+        other_id_or_obj (Agent | int): The object to select.
+    """
     set_console_selection(id_or_not, other_id_or_obj, "weapon_target_UID")
 
 # TODO: What is the purpose of these functions? Docstrings are based on what they do, but the purpose is unclear.
 def inc_disable_selection(id_or_obj, console_selected_UID):
-    """
-    Increase the inventory value of the given console's current selection by one and disable the selection. 
+    """Increment the disable-count for a console selection and clear it.
+
+    Increments an internal counter tracking how many callers have suppressed
+    the selection for this console, then zeroes the console's selected UID
+    in the blob so the console has no active target.
+
     Args:
-        id_or_obj (Agent | int): The player ship
-        console_selected_UID (int): The console.
+        id_or_obj (Agent | int): The player ship agent ID or object.
+        console_selected_UID (str): The blob key for the console (e.g.
+            ``"weapon_target_UID"``).
     """
     _obj = to_object(id_or_obj)
     if _obj is None: return
@@ -502,11 +540,15 @@ def inc_disable_science_selection(id_or_obj): inc_disable_selection(id_or_obj, "
 def inc_disable_grid_selection(id_or_obj): inc_disable_selection(id_or_obj, "grid_selected_UID")
 
 def dec_disable_selection(id_or_obj, console_selected_UID):
-    """
-    Decrease the inventory value of the given console's current selection by one and disable the selection. 
+    """Decrement the disable-count for a console selection.
+
+    Reverses an ``inc_disable_selection`` call. When the counter reaches zero
+    the console is no longer suppressed.
+
     Args:
-        id_or_obj (Agent | int): The player ship
-        console_selected_UID (int): The console.
+        id_or_obj (Agent | int): The player ship agent ID or object.
+        console_selected_UID (str): The blob key for the console (e.g.
+            ``"weapon_target_UID"``).
     """
     _obj = to_object(id_or_obj)
     if _obj is None: return
@@ -519,26 +561,28 @@ def dec_disable_science_selection(id_or_obj): dec_disable_selection(id_or_obj, "
 def dec_disable_grid_selection(id_or_obj): dec_disable_selection(id_or_obj, "grid_selected_UID")
 
 def get_side(id_or_obj):
-    """
-    Gets the side of the agent
+    """Return the side string of an agent.
+
     Args:
-        id_or_obj (Agent | int): agent id or object
+        id_or_obj (Agent | int): Agent ID or object.
+
     Returns:
-        str|None: the side
-    """    
+        str: The side string, or ``""`` if the object does not exist.
+    """
     so = to_object(id_or_obj)
     if so is not None:
         return so.side
     return ""
 
 def get_side_display(id_or_obj):
-    """
-    Gets the side of the agent
+    """Return the display name of an agent's side.
+
     Args:
-        id_or_obj (Agent | int): agent id or object
+        id_or_obj (Agent | int): Agent ID or object.
+
     Returns:
-        str|None: the side
-    """    
+        str: The side display string, or ``""`` if the object does not exist.
+    """
     so = to_object(id_or_obj)
     if so is not None:
         return so.side_display
@@ -546,13 +590,13 @@ def get_side_display(id_or_obj):
 
 
 def get_race(id_or_obj):
-    """
-    Get the race of the specified agent
-    * Race by default is the side from shipData 
+    """Return the race string of a space object (defaults to side from shipData).
+
     Args:
-        id_or_obj (Agent | int): an agent id or object
+        id_or_obj (Agent | int): Agent ID or object.
+
     Returns:
-        str: The race of the object or None
+        str: The race string, or ``""`` if the object does not exist.
     """
     obj = to_object(id_or_obj)
     if obj is None:
@@ -562,13 +606,13 @@ def get_race(id_or_obj):
     
 
 def get_origin(id_or_obj):
-    """ 
-    Get the race of the specified agent
-    * Origin by default is the side from shipData
+    """Get the origin string of a space object (defaults to the side from shipData).
+
     Args:
-        id_or_obj (Agent | int): an agent id or object
+        id_or_obj (Agent | int): Agent ID or object.
+
     Returns:
-        str: The race of the object or None
+        str: The origin string, or ``""`` if the object does not exist.
     """
     obj = to_object(id_or_obj)
     if obj is None:
@@ -577,13 +621,13 @@ def get_origin(id_or_obj):
     return obj.origin
 
 def get_crew(id_or_obj):
-    """
-    Get the race of the specified agent
-    * Race by default is the side from shipData
+    """Get the crew string of a space object (defaults to the side from shipData).
+
     Args:
-        id_or_obj (Agent | int): an agent id or object
+        id_or_obj (Agent | int): Agent ID or object.
+
     Returns:
-        str: The race of the object or None
+        str: The crew string, or ``""`` if the object does not exist.
     """
     obj = to_object(id_or_obj)
     if obj is None:
@@ -592,12 +636,13 @@ def get_crew(id_or_obj):
     return obj.crew
 
 def random_id(the_set):
-    """
-    Get a random id from the set provided
+    """Return the ID of a randomly chosen element from a collection.
+
     Args:
-        the_set (set[Agent | int]): a set, list etc. of ids or agents
+        the_set (set[Agent | int]): A set or list of agent IDs or objects.
+
     Returns:
-        int: The id of one of the objects
+        int | None: A random agent ID, or ``None`` if the collection is empty.
     """
     if len(the_set)==0:
         return None
@@ -606,12 +651,13 @@ def random_id(the_set):
 
 
 def random_object(the_set):
-    """
-    Get a random object from the set provided
+    """Return a randomly chosen agent object from a collection.
+
     Args:
-        the_set (set[Agent | int]): a set, list etc. of ids or agents
+        the_set (set[Agent | int]): A set or list of agent IDs or objects.
+
     Returns:
-        Agent: The one of the objects
+        Agent | None: A random agent, or ``None`` if the collection is empty.
     """
     if len(the_set)==0:
         return None
@@ -620,27 +666,29 @@ def random_object(the_set):
 
 
 def random_object_list(the_set, count=1):
-    """
-    Get a list of objects selected randomly from the set provided
-    Args: 
-        the_set (set[Agent | int]): Set of Ids or agents
-        count (int, optional): The number of objects to pick. Default is 1.
+    """Return a list of randomly chosen agent objects from a collection.
+
+    Args:
+        the_set (set[Agent | int]): A set or list of agent IDs or objects.
+        count (int, optional): Number of objects to pick. Defaults to 1.
 
     Returns:
-        list: A list of Agent
+        list[Agent]: Randomly selected agents (may contain duplicates).
     """
     rand_id_list = choices(tuple(the_set), count)
     return [Agent.get(x) for x in rand_id_list]
 
 def safe_int(s, defa=0):
-    """
-    Gets an integer or None for the passed data
+    """Convert a string to an integer, returning a default on failure.
+
     Args:
-        s (str): The source assumed str, but could also be a number
-        defa (int, optional): What to return if the supplied value is not an integer. Default is 0.
+        s (str | any): The value to convert. Expected to be a string.
+        defa (int, optional): Value returned if ``s`` is not a valid integer.
+            Defaults to 0.
+
     Returns:
-        int: the integer or the default
-    """    
+        int: The converted integer, or ``defa``.
+    """
     if s is None:
         return defa
     if s.isdigit():
@@ -648,12 +696,13 @@ def safe_int(s, defa=0):
     return defa
 
 def are_variables_defined(keys):
-    """
-    Check if the provided variable keys are defined in the current task.
+    """Return whether all named variables are defined in the current MAST task.
+
     Args:
-        keys (str): A comma-separated list of the keys.
+        keys (str): Comma-separated variable names to check.
+
     Returns:
-        bool: True if all variables are defined, otherwise False.
+        bool: ``True`` if every key is defined in the current task scope.
     """
     task = FrameContext.task
     if task is None:

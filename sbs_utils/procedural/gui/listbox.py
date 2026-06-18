@@ -5,18 +5,24 @@ from ...pages.widgets.layout_listbox import LayoutListbox, LayoutListBoxHeader
 
 
 def gui_listbox_items_convert_headers(items):
-    """Converts a list of strings into a list of objects that allow a listbox to collapse if a header is clicked
-    To make a header, prefix the name with `>>`. 
-    Example usage:
-        ```python
-        item = [">>Header","Item1","Item2",">>Another Header","Another Item 1","Another Item 2"]
-        ret = gm_convert_listbox_items(item)
-        gui_list_box(items=ret, style="", select=True, collapsible=True)
-        ```
+    """Convert a flat string list into a listbox-ready list with collapsible headers.
+
+    Items prefixed with ``>>`` become ``LayoutListBoxHeader`` objects; all
+    others pass through as plain strings. Pass the result to ``gui_list_box``
+    with ``collapsible=True`` to enable collapse on header click.
+
     Args:
-        items (list(str)): A list of strings
+        items (list[str]): Flat list of strings. Prefix a string with ``>>``
+            to make it a collapsible header, e.g. ``">>Section A"``.
+
     Returns:
-        (list(str|LayoutListBoxHeader)): A list of LayoutListBoxHeader (for the headers) and strings (for the items)
+        list[str | LayoutListBoxHeader]: Mixed list ready for ``gui_list_box``.
+
+    Example:
+        items = gui_listbox_items_convert_headers(
+            [">>Section A", "Item 1", "Item 2", ">>Section B", "Item 3"]
+        )
+        gui_list_box(items, style="", select=True, collapsible=True)
     """
     ret = []
     for k in items:
@@ -30,56 +36,82 @@ def gui_listbox_items_convert_headers(items):
     return ret
 
 def gui_list_box_is_header(item):
-    """Created a gui_list_box_header element
+    """Return whether a listbox item is a collapsible header.
 
     Args:
-        label (str): The label text
-        collapse (bool, optional): Default the collapsed state. Defaults to False.
+        item: Any item from a listbox items list.
 
     Returns:
-        _type_: _description_
+        bool: ``True`` if the item is a ``LayoutListBoxHeader``.
+
+    Example:
+        for item in items:
+            if gui_list_box_is_header(item):
+                ~~ print("header:", item.label) ~~
     """
     return isinstance(item, LayoutListBoxHeader)
 
 
 def gui_list_box_header(label, collapse=False, indent=0, selectable=False, data=None, visual_indent=None):
-    """Created a gui_list_box_header element
+    """Create a collapsible section header for use in a listbox.
+
+    When ``collapsible=True`` is set on the listbox, clicking a header toggles
+    the visibility of items that follow it until the next header.
 
     Args:
-        label (str): The label text
-        collapse (bool, optional): Default the collapsed state. Defaults to False.
-        indent (int): The indention level e.g. for a tree like structure
-        selectable (bool): If the header is also selectable
-        collapse_pixel_size (int): The size in pixels for the hit area (only used if selectable)
-        select_first (bool): If the select area is before the collapse click area (only used if selectable)
-        data (any): Optional additional data
+        label (str): Header label text.
+        collapse (bool, optional): Start in collapsed state. Defaults to
+            ``False``.
+        indent (int, optional): Logical indent level for tree structures.
+            Defaults to 0.
+        selectable (bool, optional): Whether clicking the header fires a
+            selection event in addition to toggling collapse. Defaults to
+            ``False``.
+        data (object, optional): Arbitrary data attached to the header item.
+            Defaults to None.
+        visual_indent (int | None, optional): Override indent level for
+            rendering only. Defaults to None (uses ``indent``).
 
     Returns:
-        LayoutListBoxHeader : _description_
+        LayoutListBoxHeader: The header item.
     """
     return LayoutListBoxHeader(label, collapse, indent, selectable, data, visual_indent)
 
-def gui_list_box(items, style, 
-                 item_template=None, title_template=None, 
+def gui_list_box(items, style,
+                 item_template=None, title_template=None,
                  section_style=None, title_section_style=None,
                  select=False, multi=False, carousel=False,  collapsible=False,read_only=False):
-    """
-    Build a LayoutListBox gui element
+    """Add a listbox to the current GUI layout.
 
     Args:
-        items: A list of the items that should be included
-        style (str): Custom style attributes
-        item_template (list(str|LayoutListBoxHeader)): A list of strings, or, if a header is desired, then that item should be a LayoutListBoxHeader object
-        title_template (str|callable): if a callable, will call the function to build the title. If a string, then title_template will be used as the title of the listbox
-        section_style (str): Style attributes for each section
-        title_section_style (str): Style attributes for the title
-        select (boolean): If true, item(s) within the listbox can be selected.
-        multi (boolean): If true, multiple items can be selected. Ignored if `select` is None
-        carousel (boolean): If true, will use the carousel styling, e.g. the ship type selection menu
-        collapsible (boolean): If true, clicking on a header will collapse everything until the next header
-        read_only (boolean): Can the items be modified
+        items (list): Items to display. Plain strings render as text rows;
+            ``LayoutListBoxHeader`` objects (from ``gui_list_box_header``)
+            render as collapsible section dividers.
+        style (str): CSS-like style overrides for the listbox container.
+        item_template (callable | None, optional): Called per item to build
+            its row layout. Defaults to None (built-in text row).
+        title_template (str | callable | None, optional): Title for the
+            listbox. A string is used as-is; a callable is invoked to build
+            the title row. Defaults to None.
+        section_style (str | None, optional): Style overrides applied to each
+            item row section. Defaults to None.
+        title_section_style (str | None, optional): Style overrides applied to
+            the title section. Defaults to None.
+        select (bool, optional): Allow item selection. Defaults to ``False``.
+        multi (bool, optional): Allow multiple simultaneous selections. Only
+            used when ``select=True``. Defaults to ``False``.
+        carousel (bool, optional): Use carousel styling (e.g. ship-type
+            selection). Defaults to ``False``.
+        collapsible (bool, optional): Clicking a header collapses items until
+            the next header. Defaults to ``False``.
+        read_only (bool, optional): Prevent item modification. Defaults to
+            ``False``.
+
     Returns:
-        The LayoutListBox layout object
+        LayoutListbox: The layout object created.
+
+    Example:
+        gui_list_box(items, style="area:0,0,100,100;", select=True)
     """
     page = FrameContext.page
     task = FrameContext.task

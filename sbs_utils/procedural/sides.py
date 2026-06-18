@@ -6,21 +6,19 @@ from .query import to_object, to_space_object, to_id, set_data_set_value, get_da
 from .links import link, linked_to, has_link, has_link_to, unlink
 
 def sides_set():
-    """
-    Get a set containing the ids of all sides (objects with the "__side__" role).
+    """Return the set of IDs for all registered sides (agents with the ``__side__`` role).
 
     Returns:
-        set[int]: A set of IDs for each side.
+        set[int]: IDs of all side agents.
     """
     sides = role("__side__")
     return sides
 
 def side_keys_set():
-    """
-    Get a set containing the keys for all existing sides.
-    
+    """Return the set of key strings for all registered sides.
+
     Returns:
-        set[str]: A set of keys for all sides.
+        set[str]: Side key strings (e.g. ``"player"``, ``"enemy"``).
     """
     sides = role("__side__")
     side_keys = set()
@@ -31,14 +29,17 @@ def side_keys_set():
     return side_keys
 
 def side_members_set(side):
-    """
-    Get all objects with the specified side, or all objects of the same side as the provided object. Use this instead of `role(side)`.
-    
+    """Return the set of agent IDs that belong to a given side.
+
+    Prefer this over ``role(side)`` as it correctly excludes the side agent
+    itself from the result.
+
     Args:
-        side (str | int | Agent): The key or name of the side, or the ID of the side, or the side object, or an object with the given side.
-    
+        side (str | int | Agent): Side key, side agent ID, side agent, or any
+            space object whose side will be used.
+
     Returns:
-        set[int]: Set of ids with the specified side.
+        set[int]: IDs of all space objects on the specified side.
     """
     # print(f"Getting set for side: {side}")
     id = to_side_id(side)
@@ -51,12 +52,14 @@ def side_members_set(side):
     return objs
 
 def side_ally_members_set(side):
-    """
-    Get a set of all space objects allied with the side or object, including all members of the same side as the one provided.
+    """Return the set of agent IDs from all sides allied with the given side.
+
     Args:
-        side (str | int | Agent): The id or key of the side, or the id or object of a spaceobject.
+        side (str | int | Agent): Side key, side agent ID, or any space object
+            whose side will be used.
+
     Returns:
-        set[int]: A set containing the ids of all allied ships, stations, etc.
+        set[int]: IDs of all space objects on allied sides.
     """
     id = to_side_id(side)
     allies = linked_to(id, "side_ally")
@@ -69,12 +72,14 @@ def side_ally_members_set(side):
     return ally_members
 
 def side_enemy_members_set(side):
-    """
-    Get a set of all space objects that are enemies of the side or object.
+    """Return the set of agent IDs from all sides hostile to the given side.
+
     Args:
-        side (str | int | Agent): The id or key of the side, or the id or object of a spaceobject.
+        side (str | int | Agent): Side key, side agent ID, or any space object
+            whose side will be used.
+
     Returns:
-        set[int]: A set containing the ids of all enemy ships, stations, etc.
+        set[int]: IDs of all space objects on hostile sides.
     """
     id = to_side_id(side)
     enemies = linked_to(id, "side_hostile")
@@ -85,14 +90,17 @@ def side_enemy_members_set(side):
     return enemy_members
 
 def to_side_id(key_or_id_or_object):
-    """
-    Get the id for the given side or side of object.
+    """Resolve any side reference to the side agent's ID.
+
+    Accepts a side key string, a side agent ID, a side agent object, or any
+    space object (in which case its side property is used).
 
     Args:
-        key_or_id (str | int): the key or the Agent of the side, or the id or Agent of a space object.
-    
+        key_or_id_or_object (str | int | Agent): Side key, side agent ID, side
+            agent, or a space object whose side should be resolved.
+
     Returns:
-        int | None: The ID of the side. If the key, name, or id doesn't exist, returns None.
+        int | None: The side agent ID, or ``None`` if not found.
     """
     # Check if it's a key
     if isinstance(key_or_id_or_object, str):
@@ -121,38 +129,42 @@ def to_side_id(key_or_id_or_object):
     return None
 
 def to_side_object(key_or_id):
-    """
-    Get the object for the given side or side of object.
+    """Resolve any side reference to the side agent object.
 
     Args:
-        key_or_id (str | int): the key or the Agent ID of the side, or an Agent or Agent ID belonging to the side.
-    
+        key_or_id (str | int | Agent): Side key, side agent ID, or any space
+            object whose side will be resolved.
+
     Returns:
-        Agent|None: The Agent object for the side. If the key, agent, or id doesn't exist, returns None.
+        Agent | None: The side agent, or ``None`` if not found.
     """
     s = to_side_id(key_or_id)
     return to_object(s)
 
 def side_display_name(key):
-    """
-    Get the display name of the side or side of object.
+    """Return the display name of a side.
 
     Args:
-        key (str | int): The key or id of the side.
+        key (str | int | Agent): Side key, agent ID, or agent.
+
     Returns:
-        str: The display name of the side.
+        str: The side's display name, or ``None`` if not found.
     """
     id = to_side_id(key)
     name = get_inventory_value(id, "side_name")
     return name
 
 def side_set_object_side(id_or_obj, key)->None:
-    """
-    Set the side of an object, or list or set of objects.
+    """Assign a side to one or more space objects.
+
+    Updates both the ``side`` (key) and ``side_display`` (name) attributes on
+    each object.
 
     Args:
-        id_or_obj (int | Agent | list[int | Agent] | set[int | Agent]): The object or objects for which the side should be set.
-        key (str | int | Agent): The key or id of the side, or an object with that side.
+        id_or_obj (int | Agent | list[int | Agent] | set[int | Agent]):
+            The object(s) to update.
+        key (str | int | Agent): The target side — a key string, side agent ID,
+            or any object whose side will be used.
     """
     id = to_side_id(key)
     if id is None:
@@ -169,27 +181,26 @@ def side_set_object_side(id_or_obj, key)->None:
 
 #TODO: I tried using the @deprecated annotation (so the extension could easily determine and show a warning), but `typing_extensions` wasn't found, and `warnings` needs python v3.13
 def side_set_ship_allies_and_enemies(ship):
-    """
-    *Deprecated as of v1.3.0.*
-    To be removed in the future.
-    Generate the ally list and hostile list for the specified ship based on its side.
+    """No-op placeholder — deprecated as of v1.3.0, to be removed in a future version.
+
     Args:
-        ship (Agent | int): The object for which the ally and hostile lists should be updated.
+        ship (Agent | int): Unused.
     """
     pass
 
 def side_set_relations(side1, side2, relation):
-    """
-    Update relations between two sides.
+    """Set the diplomatic relationship between two sides.
+
+    Updates both the link-based relationship used by the scripting API and the
+    engine's own side relationship table for 2D map rendering. Emits the
+    ``side_relations_updated`` signal.
 
     Args:
-        side1 (str|int): key or id of the first side, or an object with that side
-        side2 (str|int): key or id of the second side, or an object with that side
-        relation (sbs.DIPLOMACY): the new relations between the sides, e.g. `sbs.DIPLOMACY.ALLIED`
-            * UNKNOWN
-            * NEUTRAL
-            * ALLIED
-            * HOSTILE
+        side1 (str | int | Agent): First side — key, agent ID, or object.
+        side2 (str | int | Agent): Second side — key, agent ID, or object.
+        relation (sbs.DIPLOMACY): New relationship value. Use
+            ``sbs.DIPLOMACY.ALLIED``, ``HOSTILE``, ``NEUTRAL``, or
+            ``UNKNOWN``.
     """
     
     sbs = FrameContext.context.sbs
@@ -254,18 +265,15 @@ def side_set_relations(side1, side2, relation):
     signal_emit("side_relations_updated", {"side1": o1, "side2": o2, "relation": relation, "old_relation": old_relation})
 
 def side_get_relations(side1, side2):
-    """
-    Get the relations value of the two sides.
+    """Return the current diplomatic relationship between two sides.
 
     Args:
-        side1 (str | int): the key or id of the first side
-        side2 (str | int): the key or id of the second side
+        side1 (str | int | Agent): First side — key, agent ID, or object.
+        side2 (str | int | Agent): Second side — key, agent ID, or object.
+
     Returns:
-        sbs.DIPLOMACY: The relations value, e.g. `sbs.DIPLOMACY.ALLIED`
-            * UNKNOWN
-            * NEUTRAL
-            * ALLIED
-            * HOSTILE
+        sbs.DIPLOMACY: One of ``ALLIED``, ``HOSTILE``, ``NEUTRAL``, or
+            ``UNKNOWN``.
     """
     sbs = FrameContext.context.sbs
 
@@ -279,26 +287,28 @@ def side_get_relations(side1, side2):
         return sbs.DIPLOMACY.UNKNOWN
 
 def side_are_same_side(side1, side2)->bool:
-    """
-    Check if the two objects have the same side.
+    """Return whether two references resolve to the same side.
+
     Args:
-        side1 (str | int): the key or id of the first side
-        side2 (str | int): the key or id of the second side
+        side1 (str | int | Agent): First side — key, agent ID, or object.
+        side2 (str | int | Agent): Second side — key, agent ID, or object.
+
     Returns:
-        bool: True if the sides are the same.
+        bool: ``True`` if both resolve to the same side agent.
     """
     o1 = to_side_id(side1)
     o2 = to_side_id(side2)
     return o1==o2
     
 def side_are_allies(side1, side2)->bool:
-    """
-    Check if the specified sides are allies.
+    """Return whether two sides are allied.
+
     Args:
-        side1 (str | int): the key or id of the first side
-        side2 (str | int): the key or id of the second side
-    Returns: 
-        bool: True if they are allies, otherwise False
+        side1 (str | int | Agent): First side — key, agent ID, or object.
+        side2 (str | int | Agent): Second side — key, agent ID, or object.
+
+    Returns:
+        bool: ``True`` if the sides have a ``side_ally`` link.
     """
     o1 = to_side_id(side1)
     o2 = to_side_id(side2)
@@ -306,37 +316,39 @@ def side_are_allies(side1, side2)->bool:
 
 
 def side_are_enemies(side1, side2)->bool:
-    """
-    Check if the specified sides are enemies.
+    """Return whether two sides are hostile to each other.
+
     Args:
-        side1 (str | int): the key or id of the first side
-        side2 (str | int): the key or id of the second side
-    Returns: 
-        bool: True if they are enemies, otherwise False
+        side1 (str | int | Agent): First side — key, agent ID, or object.
+        side2 (str | int | Agent): Second side — key, agent ID, or object.
+
+    Returns:
+        bool: ``True`` if the sides have a ``side_hostile`` link.
     """
     o1 = to_side_id(side1)
     o2 = to_side_id(side2)
     return has_link_to(o1, "side_hostile", o2)
     
 def side_are_neutral(side1, side2)->bool:
-    """
-    Check if the specified sides are neutral (neither enemies nor allies).
+    """Return whether two sides are neutral toward each other.
+
     Args:
-        side1 (str | int): the key or id of the first side
-        side2 (str | int): the key or id of the second side
-    Returns: 
-        bool: True if they are neutral, otherwise False
+        side1 (str | int | Agent): First side — key, agent ID, or object.
+        side2 (str | int | Agent): Second side — key, agent ID, or object.
+
+    Returns:
+        bool: ``True`` if the sides have a ``side_neutral`` link.
     """
     o1 = to_side_id(side1)
     o2 = to_side_id(side2)
     return has_link_to(o1, "side_neutral", o2)
     
 def side_set_side_icon_index(key_or_id, icon_index)->None:
-    """
-    Set the icon index for the specified side. This will change the icon of ships on the 2d map.
+    """Set the icon index for a side, changing how its ships appear on the 2D map.
+
     Args:
-        key_or_id (str | int): The key or id of the side to set the icon index for.
-        icon_index (int): The index of the icon to set for the side.
+        key_or_id (str | int | Agent): Side key, agent ID, or object.
+        icon_index (int): The icon index to use.
     """
     id = to_side_id(key_or_id)
     if id is not None:
@@ -345,12 +357,13 @@ def side_set_side_icon_index(key_or_id, icon_index)->None:
         FrameContext.context.sim.set_side_icon_index(key, icon_index)
 
 def side_get_side_icon_index(key_or_id)->int:
-    """
-    Get the icon index for the specified side.
+    """Return the icon index for a side.
+
     Args:
-        key_or_id (str | int): The key or id of the side to get the icon index for.
+        key_or_id (str | int | Agent): Side key, agent ID, or object.
+
     Returns:
-        int: The index of the icon for the side. If the icon is not found, returns -1.
+        int: The icon index, or ``-1`` if not found.
     """
     id = to_side_id(key_or_id)
     if id is not None:
@@ -359,11 +372,12 @@ def side_get_side_icon_index(key_or_id)->int:
 
 
 def side_set_icon_color(key_or_id, color)->None:
-    """
-    Set the icon color for the specified side. This will change the color of ships on the 2d map.
+    """Set the icon color for a side, changing how its ships appear on the 2D map.
+
     Args:
-        key_or_id (str | int): The key or id of the side to set the icon color for.
-        color (str): The hexidecimal color code, or named color, to set the side's icon color to. For example, "#F00" or "#FF0000" or "red" for red, "#0F0" or "#00FF00" or "green" for green, etc.
+        key_or_id (str | int | Agent): Side key, agent ID, or object.
+        color (str): Hex color code or named color (e.g. ``"#FF0000"`` or
+            ``"red"``).
     """
     # TODO: Is transparency supported in the color code? I would think not but should check.
     id = to_side_id(key_or_id)
@@ -373,13 +387,15 @@ def side_set_icon_color(key_or_id, color)->None:
         FrameContext.context.sim.set_side_icon_color(key, color)
 
 def side_get_side_color(key_or_id, default="#0F0")->str:
-    """
-    Get the icon color for the specified side.
+    """Return the icon color assigned to a side.
+
     Args:
-        key_or_id (str | int | Agent): The Key, ID, or agent of the side
-        default (str, optional): The color code to use if the side or side's color isn't found. Default is `#0F0` (red).
+        key_or_id (str | int | Agent): Side key, agent ID, or object.
+        default (str, optional): Color to return if the side has no color set.
+            Defaults to ``"#0F0"`` (green).
+
     Returns:
-        str: The hexidecimal color code assigned to the side.
+        str: The hex color code assigned to the side, or ``default``.
     """
     id = to_side_id(key_or_id)
     if id is not None:
@@ -387,12 +403,13 @@ def side_get_side_color(key_or_id, default="#0F0")->str:
     return default
     
 def side_is_color_used(color)->bool:
-    """
-    Check if the color is used by any side.
+    """Return whether any side is currently using a given icon color.
+
     Args:
-        color (str): The hexidecmial color code to check for.
+        color (str): Hex color code to check for.
+
     Returns:
-        bool: True if any side uses the specified color.
+        bool: ``True`` if at least one side uses that color.
     """
     for side in sides_set():
         if side_get_side_color(side, color):
@@ -400,12 +417,13 @@ def side_is_color_used(color)->bool:
     return False
 
 def side_get_description(key_or_id)->str:
-    """
-    Get the side description.
+    """Return the description text of a side.
+
     Args:
-        key_or_id (str | int | Agent): The side
+        key_or_id (str | int | Agent): Side key, agent ID, or object.
+
     Returns:
-        str: The description of the side.
+        str: The side description, or ``""`` if not set.
     """
     id = to_side_id(key_or_id)
     if id is not None:
@@ -413,23 +431,24 @@ def side_get_description(key_or_id)->str:
     return ""
 
 def side_set_description(key_or_id, desc)->None:
-    """
-    Set the side description
+    """Set the description text for a side.
+
     Args:
-        key_or_id (str | int | Agent): The side id or key or object.
-        desc (str): The new description.
+        key_or_id (str | int | Agent): Side key, agent ID, or object.
+        desc (str): The new description text.
     """
     id = to_side_id(key_or_id)
     if id is not None:
         set_inventory_value(id, "side_desc", desc)
 
 def side_get_display_name(key_or_id)->str:
-    """
-    Get the side display name.
+    """Return the display name of a side.
+
     Args:
-        key_or_id (str | int | Agent): The side
+        key_or_id (str | int | Agent): Side key, agent ID, or object.
+
     Returns:
-        str: The name of the side.
+        str: The side's display name, or ``""`` if not set.
     """
     id = to_side_id(key_or_id)
     if id is not None:
@@ -437,11 +456,11 @@ def side_get_display_name(key_or_id)->str:
     return ""
 
 def side_set_display_name(key_or_id, name)->None:
-    """
-    Set the side's display name and update the side name of all ships on that side.
+    """Set the display name for a side and update all ships on that side.
+
     Args:
-        key_or_id (str | int | Agent): The side id or key or object.
-        desc (str): The new description.
+        key_or_id (str | int | Agent): Side key, agent ID, or object.
+        name (str): The new display name.
     """
     id = to_side_id(key_or_id)
     if id is not None:

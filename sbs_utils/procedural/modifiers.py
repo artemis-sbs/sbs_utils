@@ -263,49 +263,47 @@ class ModifierHandler:
         return 100
 
 def modifier_add(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, duration=None, index=None) -> Modifier:
-    """
-    Add and apply a modifier for a blob value of a given object.
-    The modifier can also apply to all objects of a side by passing a side id or key instead of an object or object id.
-    The source paramter identifies the modifier. Only one modifier with a given source can be active at a time for a given blob. If a modifier with the same source is added again, it will overwrite the previous one. This allows for easy updating of modifiers without needing to remove them first.
-    The duration parameter specifies how long the modifier should be active. If duration is None, the modifier will be permanent until manually removed. If duration is specified, the modifier will be automatically removed after the duration expires.
+    """Add and apply a modifier to a blob value on one or more objects.
 
-    The three types of modifiers are applied in different ways, and in the following order
-    - Flat: All flat modifier values are combined and added directly to the base value of the blob.
-    - Additive: All additive modifier values are added together, then multiplied by the result of the previous step.
-    - Multiplicative: All multiplicative modifier values are multiplied together, then multiplied by the result of the previous step.
-  
-    Example usage:
-    ```python
-        # Assume that for this example, the base scan range is 1000.
+    ``obj_or_id_or_set`` may be an agent, an ID, a set of IDs, or a side key
+    (str) — in which case the modifier is applied to every object on that side.
 
-        # This will increase the ship's scan range by 20% relative to the base range
-        add_modifier(id, "ship_base_scan_range", 0.2, "Scan Range Efficiency Module", 1) # New value is 1200
+    ``source`` identifies the modifier. Only one modifier per source can be
+    active for a given key on a given object. Adding a modifier with an
+    existing source overwrites the previous one, making updates easy without
+    an explicit remove.
 
-        # This will add a flat 1000 to the ship's base scan range, and then apply the 20% buff. 
-        # Note that flat modifiers are always applied first when recalculating.
-        add_modifier(id, "ship_base_scan_range", 1000, "Scan Range Extender", 0) # New value is 2400 (1000 base + 1000 flat from extender, which is then multiplied by the efficiency module modifier.)
+    Modifiers are applied in this order:
+    Flat (0) — all flat values are summed and added to the base.
+    Additive (1) — all additive values are summed, then multiplied by the
+    result of the Flat step.
+    Multiplicative (2) — all multiplicative values are multiplied together,
+    then applied to the result of the Additive step.
 
-        # this will add a 10% additive modifier. This stacks with the Scan Range Efficency Module for a total of 30% additive bonus
-        add_modifier(id, "ship_base_scan_range", 0.1, "AI Scan Enhancement") # New value is 2600
-        
-        # This will add a multiplicative modifier that reduces the ship's scan range by 50% after the previous modifier types are applied.
-        # Note that Multipicative modifier are always applied last when recalculating.
-        add_modifier(id, "ship_base_scan_range", -0.5, "Nebula Interference", 2) # New value is 1300
-    ```
-  
     Args:
-        obj_or_id (set | int | Agent | key): The set, object, ID, or a side key to which the modifier should be added
-        key (str): The key of the blob value which the modifier should affect.
-        value (float): The value of the modifier to be added.
-        source (str | int): The source of the modifier, which can be used to identify and remove the modifier later if needed. Source can be a string or an int.
-        flat_add_or_mult (float): How the modifier should be applied. Default is 1.
-            - If 0, the modifier is a Flat modifier
-            - If 1, the modifier is an Additive modifier
-            - If 2, the modifier is a Multiplicative modifier
-        duration (float, optional): The duration in seconds for which the modifier should be active. If None, the modifier will be permanent until removed. Defaults to None.
-        index (int, optional): The index of the blob value to which the modifier should be applied if the blob value is a list. If None, it will apply to all valid indices. Not applicable if the key is for an inventory value. Default is None.
+        obj_or_id_or_set (set | int | Agent | str): Object, ID, set of IDs, or
+            side key to apply the modifier to.
+        key (str): The blob key the modifier should affect.
+        value (float): The modifier amount.
+        source (str | int): Identifier for this modifier — used to overwrite or
+            remove it later.
+        flat_add_or_mult (int): Modifier type: 0 = Flat, 1 = Additive
+            (default), 2 = Multiplicative.
+        duration (float, optional): Seconds before the modifier expires
+            automatically. Defaults to None (permanent).
+        index (int, optional): Index into a list blob value. ``None`` applies
+            to all indices. Ignored for inventory keys. Defaults to None.
+
     Returns:
-        Modifier | set[int]: The modifier object, or a set of the IDs of all the modifiers that were created and added.
+        Modifier | set[int]: The created ``Modifier`` when exactly one is
+            added; otherwise a set of all created modifier IDs.
+
+    Example:
+        # Base scan range is 1000.
+        modifier_add(id, "ship_base_scan_range", 0.2, "Efficiency Module")   # 1200
+        modifier_add(id, "ship_base_scan_range", 1000, "Range Extender", 0)  # 2400
+        modifier_add(id, "ship_base_scan_range", 0.1, "AI Enhancement")      # 2600
+        modifier_add(id, "ship_base_scan_range", -0.5, "Nebula", 2)          # 1300
     """
     timer = None
     if duration is not None:
@@ -376,13 +374,21 @@ def modifier_add(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, durat
 
 
 def modifier_remove(obj_or_id_or_set, key_or_modifier, source=None) -> None:
-    """
-    Remove a modifier from a blob value of a given object or objects.
+    """Remove a modifier (or all modifiers for a key) from one or more objects.
+
+    If ``key_or_modifier`` is a ``Modifier`` object, that specific modifier is
+    removed directly and ``obj_or_id_or_set`` is ignored. Otherwise
+    ``key_or_modifier`` is treated as a blob key: if ``source`` is given only
+    that source's modifier is removed; if ``source`` is ``None`` all modifiers
+    for that key are cleared.
 
     Args:
-        obj_or_id_or_set (set | int | Agent | key): The set, object, ID, or a side key from which the modifier should be removed.
-        key_or_modifier (str | Modifier): The key of the blob value from which the modifier should be removed, or the modifier object itself.
-        source (str | int): The source of the modifier to be removed. If None, all modifiers for this key are removed. Source can be a string or an int. Defaults to None.
+        obj_or_id_or_set (set | int | Agent | str): Object, ID, set of IDs, or
+            side key to remove modifiers from.
+        key_or_modifier (str | Modifier): Blob key, or a ``Modifier`` object to
+            remove directly.
+        source (str | int, optional): Source identifier to remove. ``None``
+            removes all modifiers for the key. Defaults to None.
     """
     removed_mods = []
 
@@ -437,13 +443,15 @@ def modifier_remove(obj_or_id_or_set, key_or_modifier, source=None) -> None:
     signal_emit("modifier_removed", data={"obj_or_id_or_set": obj_or_id_or_set, "modifier": removed_mods})
 
 def modifier_exists(id, source_or_modifier)->bool:
-    """
-    Check if the specified modifier exists on the specified object.
+    """Return ``True`` if a modifier matching ``source_or_modifier`` is active on the object.
+
     Args:
-        id (int): The ID of the object for which to check for the modifier.
-        source_or_modifier (str | int | Modifier): The source of the modifier to check for, or the modifier object. Source can be a string or an int.
+        id (int): ID of the object to check.
+        source_or_modifier (str | int | Modifier): Source identifier or a
+            ``Modifier`` object to look for.
+
     Returns:
-        bool: True if the modifier exists, False otherwise.
+        bool: ``True`` if the modifier exists, ``False`` otherwise.
     """
     all_mods = ModifierHandler.all_modifiers
     if isinstance(source_or_modifier, Modifier):
@@ -455,16 +463,17 @@ def modifier_exists(id, source_or_modifier)->bool:
     return False
 
 def modifiers_get_for_object(obj_or_id, key) -> list[Modifier]:
-    """
-    Get all modifiers currently applied to a blob value of a given object.
-    This can be used to display the active modifiers for a blob value in a GUI, for example.
+    """Return all modifiers currently applied to a blob key on an object.
+
+    Combines per-object modifiers stored in inventory with any side-level
+    modifiers. Useful for displaying active buffs/debuffs in a GUI.
 
     Args:
-        obj_or_id (int | Agent): The ID or object for which to get the modifiers.
-        key (str): The key of the blob value for which to get the modifiers.
+        obj_or_id (int | Agent): The object or its ID.
+        key (str): The blob key whose modifiers should be retrieved.
 
     Returns:
-        list[Modifier]: A list of modifiers currently applied to the blob value. Source can be a string or an int.
+        list[Modifier]: All active ``Modifier`` objects for that key.
     """
     id = to_id(obj_or_id)
     ship_mods = get_inventory_value(id, f"{key}_modifiers", [])
@@ -472,34 +481,38 @@ def modifiers_get_for_object(obj_or_id, key) -> list[Modifier]:
     return all_mods
 
 def modifier_is_expired(modifier) -> bool:
-    """
-    Check if a modifier is expired based on its timer.
+    """Return ``True`` if the modifier's timer has elapsed.
+
     Args:
-        modifier (Modifier): The modifier to check for expiration.
+        modifier (Modifier): The modifier to check.
+
     Returns:
-        bool: True if the modifier is expired, False otherwise.
+        bool: ``True`` if expired, ``False`` if still active or permanent.
     """
     mod = to_object(modifier)
     return mod.expired()
 
 def modifier_get_time_remaining(modifier) -> float:
-    """
-    Get the time remaining on a modifier's timer. Returns None if the modifier has no timer.
+    """Return the seconds remaining until a modifier expires.
+
     Args:
-        modifier (Modifier): The modifier for which to get the time remaining.  
-    Returns:    
-        float: The time remaining on the modifier's timer in seconds, or None if the modifier has no timer.
+        modifier (Modifier): The modifier to query.
+
+    Returns:
+        float: Seconds remaining, or ``None`` if the modifier is permanent.
     """
     mod = to_object(modifier)
     return mod.get_time_remaining()
 
 def modifier_get_formatted_time_remaining(modifier) -> str:
-    """
-    Get the formatted time remaining on a modifier's timer. Returns None if the modifier has no timer.
+    """Return the time remaining on a modifier's timer as a human-readable string.
+
     Args:
-        modifier (Modifier): The modifier for which to get the formatted time remaining.  
-    Returns:    
-        str: The formatted time remaining on the modifier's timer, or None if the modifier has no timer.
+        modifier (Modifier): The modifier to query.
+
+    Returns:
+        str: Formatted time remaining (e.g. ``"1:23"``), or ``None`` if the
+            modifier is permanent.
     """
     mod = to_object(modifier)
     return mod.format_time_remaining()

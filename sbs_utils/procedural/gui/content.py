@@ -3,15 +3,24 @@ from ..style import apply_control_styles
 
 from ...pages.layout.gui_control import GuiControl
 def gui_content(content, style=None, var=None):
-    """Place a python code widget e.g. list box using the layout system
+    """Place a Python widget object into the layout system.
+
+    Wraps a pre-built Python widget (e.g. a ship picker, custom control) in a
+    ``GuiControl`` so it participates in the normal layout flow.
 
     Args:
-        content (widget): A gui widget code in python
-        style (str, optional): Style. Defaults to None.
-        var (str, optional): The variable to set the widget's value to. Defaults to None.
+        content (widget): A Python GUI widget object.
+        style (str, optional): CSS-like style overrides. Defaults to None.
+        var (str, optional): Variable name to bind the widget's value to.
+            The current value of ``var`` is pushed into the widget and updates
+            flow back when the widget changes. Defaults to None.
 
     Returns:
-        layout object: The layout object
+        GuiControl: The layout wrapper object.
+
+    Example:
+        picker = ShipPicker(0, 0, "mast", "Your Ship")
+        gui_content(picker, var="selected_ship")
     """    
     page = FrameContext.page
     task = FrameContext.task

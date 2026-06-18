@@ -6,13 +6,15 @@ from ..helpers import FrameContext
 
 
 def media_schedule_random(kind, ID=0):
-    """
-    Schedule random media of the specified kind (skybox or music)
+    """Schedule a randomly chosen ``@media`` label of the given kind.
+
     Args:
-        kind (str): The kind of media.
-        ID (int, optional): The ship or client ID, or zero for the server. Default is 0.
+        kind (str): Media kind, e.g. ``"skybox"`` or ``"music"``.
+        ID (int, optional): Ship or client ID; ``0`` targets the server.
+            Defaults to 0.
+
     Returns:
-        label: The scheduled label or None
+        Label | None: The scheduled media label, or ``None`` if none exist.
     """
     files = MediaLabel.get_of_type(kind, None)
     media_folders = [file for file in files]
@@ -22,13 +24,16 @@ def media_schedule_random(kind, ID=0):
 
         
 def media_schedule(kind, name, ID=0):
-    """ 
-    Schedule media of the specified kind (skybox or music)
+    """Schedule a named ``@media`` label of the given kind.
 
     Args:
-        kind (str): The kind of media.
-        name (str): The name of the media file.
-        ID (int, optional): The ship or client ID, or zero for the server. Default is 0.
+        kind (str): Media kind, e.g. ``"skybox"`` or ``"music"``.
+        name (str | MediaLabel): Media path name or a ``MediaLabel`` object.
+        ID (int, optional): Ship or client ID; ``0`` targets the server.
+            Defaults to 0.
+
+    Returns:
+        Label | None: The scheduled label, or ``None`` if not found.
     """
     try:
         if isinstance(name, MediaLabel):
@@ -43,12 +48,17 @@ def media_schedule(kind, name, ID=0):
         raise Exception(f"Media {name} is not valid")
 
 def _media_schedule(kind, label, ID=0):
-    """ 
-    Sets the folder from which music is streamed; ID is ship, OR client, OR zero for server.
+    """Apply a media label to the engine and schedule it as a sub-task.
+
     Args:
-        kind (str): The kind of media.
-        label (str | Label): The label to run.
-        ID (int, optional): The ship or client ID, or zero for the server. Default is 0.
+        kind (str): ``"skybox"`` sets the sky box; ``"music"`` sets the music
+            folder.
+        label (MediaLabel): The resolved media label.
+        ID (int, optional): Ship or client ID; ``0`` targets the server.
+            Defaults to 0.
+
+    Returns:
+        MediaLabel: The label that was scheduled.
     """
     if kind == "skybox":
         FrameContext.context.sbs.set_sky_box(ID, label.true_path())
@@ -59,33 +69,40 @@ def _media_schedule(kind, label, ID=0):
     return label
 
 def skybox_schedule_random(ID=0):
-    """
-    Schedule a random skybox.
+    """Schedule a randomly chosen skybox ``@media`` label.
+
     Args:
-        ID (int, optional): The ship or client ID, or zero for the server. Default is 0.
+        ID (int, optional): Ship or client ID; ``0`` targets the server.
+            Defaults to 0.
     """
     return media_schedule_random("skybox", ID)
+
 def skybox_schedule(name, ID=0):
-    """
-    Schedule a specific skybox.
+    """Schedule a specific skybox by name.
+
     Args:
-        name (str): The name of the skybox file.
-        ID (int, optional): The ship or client ID, or zero for the server. Default is 0.
+        name (str): Skybox media path name.
+        ID (int, optional): Ship or client ID; ``0`` targets the server.
+            Defaults to 0.
     """
     return media_schedule("skybox", name, ID)
+
 def music_schedule_random(ID=0):
-    """
-    Schedule random music.
+    """Schedule a randomly chosen music ``@media`` label.
+
     Args:
-        ID (int, optional): The ship or client ID, or zero for the server. Default is 0.
+        ID (int, optional): Ship or client ID; ``0`` targets the server.
+            Defaults to 0.
     """
     return media_schedule_random("music", ID)
+
 def music_schedule(name, ID=0):
-    """
-    Schedule specific music.
+    """Schedule a specific music track by name.
+
     Args:
-        name (str): The name of the skybox file.
-        ID (int, optional): The ship or client ID, or zero for the server. Default is 0.
+        name (str): Music media path name.
+        ID (int, optional): Ship or client ID; ``0`` targets the server.
+            Defaults to 0.
     """
     return media_schedule("music", name, ID)
 

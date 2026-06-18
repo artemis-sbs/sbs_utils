@@ -4,12 +4,14 @@ import os
 
 ship_data_cache = None
 def get_ship_data():
-    """
-    Load the ship data, store it to the cache, and return it.
-    If the ship data is already in cache, returns it the cache contents instead of loading the file again.
-    Includes ship data from `extraShipData.json` for the current mission directory, if present.
+    """Load and cache the full ship data, merging ``extraShipData.json`` if present.
+
+    Results are cached after the first call. The mission-directory
+    ``extraShipData.json`` is prepended to the ``#ship-list`` so mission ships
+    take priority over built-in data.
+
     Returns:
-        dict: The ship data dictionary.
+        dict: The merged ship data dictionary.
     """
     global ship_data_cache
     if ship_data_cache is not None:
@@ -27,10 +29,13 @@ def get_ship_data():
     return ship_data_cache
 
 def merge_mod_ship_data(mod):
-    """
-    Get the ship data for the current mission, then adds the contents of `extraShipData.json` for the specified mission folder, if present, and adds it to the cache.
+    """Merge a mod folder's ``extraShipData.json`` into the ship data cache.
+
+    Args:
+        mod (str): Mod directory name (resolved via ``get_mod_dir``).
+
     Returns:
-        dict: The ship data.
+        dict: The updated ship data cache.
     """
     global ship_data_cache
 
@@ -44,8 +49,10 @@ def merge_mod_ship_data(mod):
 
 
 def reset_ship_data_caches():
-    """
-    Clear the ship data cache. Use to remove mission ship data for other mission folders, or possibly to just clear out some memory usage if it won't be used.
+    """Clear all ship data and key-list caches.
+
+    Use when switching missions to ensure stale ship data from a previous
+    mission directory is not used.
     """
     global ship_index
     ship_index = None
@@ -91,12 +98,10 @@ def reset_ship_data_caches():
 
 ship_index = None
 def get_ship_index():
-    """
-    Get the ship data information and index it as a dictionary. 
-    Keys include:
-    * individual ship keys
+    """Return ship data indexed by ship key for fast O(1) lookup.
+
     Returns:
-        dict: The indexed ship data information.
+        dict[str, dict]: Mapping of ship key → ship data entry.
     """
     global ship_index
     if ship_index is not None:
@@ -122,12 +127,13 @@ def get_ship_index():
     return ship_index
 
 def get_ship_name(ship_key):
-    """
-    Get the name of the ship with the specified key.
+    """Return the display name of a ship type by key.
+
     Args:
-        ship_key (str): The key for the ship.
+        ship_key (str): The ship type key.
+
     Returns:
-        str | None: The name of the ship, or None.
+        str | None: Ship display name, or ``None`` if the key is not found.
     """
     ship = get_ship_index().get(ship_key)
     if ship:
@@ -135,26 +141,31 @@ def get_ship_name(ship_key):
     return None
 
 def get_ship_data_for(ship_key):
-    """
-    Get the ship data information for the ship with the given key.
+    """Return the full ship data entry for a given key.
+
     Args:
-        ship_key (str): The key for the ship.
+        ship_key (str): The ship type key.
+
     Returns:
-        dict: The ship data contents.
+        dict | None: Ship data dict, or ``None`` if not found.
     """
     return get_ship_index().get(ship_key)
 
 
 def filter_ship_data_by_side(test_ship_key, sides, role=None, ret_key_only=False):
-    """
-    Get a list of all ships with the given sides.
+    """Return ship data entries matching a key substring, side filter, and optional role.
+
     Args:
-        test_ship_key (str | None): Only include ship data for which the key includes this substring.
-        sides (str): The comma-separated list of sides by which the ship data should be filtered.
-        role (str, optional): An optional role by which the list may also be filtered. Must be a single role.
-        ret_key_only (bool, optional): Should the returned list be a list of keys (if True), or a list of ship data entries (if False)?
+        test_ship_key (str | None): Substring that must appear in the ship key,
+            or ``None`` to match all keys.
+        sides (str): Comma-separated side names to include (case-insensitive).
+        role (str, optional): Single role that must be in the ship's role list.
+            Defaults to None (no role filter).
+        ret_key_only (bool, optional): Return a list of key strings instead of
+            full data dicts. Defaults to False.
+
     Returns:
-        list[str | dict]: The list of keys or list of ship data entries.
+        list[str | dict]: Matching ship keys or data entries.
     """
     data = get_ship_data()
 
@@ -202,10 +213,10 @@ def filter_ship_data_by_side(test_ship_key, sides, role=None, ret_key_only=False
 
 asteroid_keys_cache=None
 def asteroid_keys():
-    """
-    Get all asteroid keys in the ship data.
+    """Return all asteroid ship keys from the ship data (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Asteroid type keys.
     """
     global asteroid_keys_cache
     if asteroid_keys_cache is None:
@@ -214,10 +225,10 @@ def asteroid_keys():
 
 crystal_asteroid_keys_cache=None
 def crystal_asteroid_keys():
-    """
-    Get all crystal asteroid keys (excludes plain) in the ship data.
+    """Return all crystal asteroid keys, excluding plain asteroids (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Crystal asteroid type keys.
     """
     global crystal_asteroid_keys_cache
     if crystal_asteroid_keys_cache is None:
@@ -226,10 +237,10 @@ def crystal_asteroid_keys():
 
 plain_asteroid_keys_cache=None
 def plain_asteroid_keys():
-    """
-    Get all plain asteroid keys (excludes crystal) in the ship data.
+    """Return all plain asteroid keys, excluding crystal asteroids (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Plain asteroid type keys.
     """
     global plain_asteroid_keys_cache
     if plain_asteroid_keys_cache is None:
@@ -239,10 +250,10 @@ def plain_asteroid_keys():
     
 danger_keys_cache = None
 def danger_keys():
-    """
-    Get all keys in the ship data that contain "danger" in the key.
+    """Return all pickup keys containing ``"danger"`` (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Danger pickup type keys.
     """
     global danger_keys_cache
     if danger_keys_cache is None:
@@ -251,10 +262,10 @@ def danger_keys():
 
 container_keys_cache = None
 def container_keys():
-    """
-    Get all keys in the ship data that contian "container" in the key.
+    """Return all pickup keys containing ``"container"`` (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Container pickup type keys.
     """
     global container_keys_cache
     if container_keys_cache is None:
@@ -263,10 +274,10 @@ def container_keys():
 
 alien_keys_cache =  None
 def alien_keys():
-    """
-    Get all keys in the ship data that contain "alien" in the key.
+    """Return all pickup keys containing ``"alien"`` (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Alien pickup type keys.
     """
     global alien_keys_cache
     if alien_keys_cache is None:
@@ -275,10 +286,10 @@ def alien_keys():
 
 terran_starbase_keys_cache = None
 def terran_starbase_keys():
-    """
-    Get all keys in the ship data for terran starbases.
+    """Return all USPF station (Terran starbase) keys (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Terran starbase type keys.
     """
     global terran_starbase_keys_cache
     if terran_starbase_keys_cache is None:
@@ -287,10 +298,10 @@ def terran_starbase_keys():
 
 terran_ship_keys_cache = None
 def terran_ship_keys():
-    """
-    Get all keys in the ship data for terran ships.
+    """Return all TSN ship keys (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Terran ship type keys.
     """
     global terran_ship_keys_cache
     if terran_ship_keys_cache is None:
@@ -299,10 +310,13 @@ def terran_ship_keys():
 
 pirate_starbase_keys_cache = None
 def pirate_starbase_keys():
-    """
-    Get all keys in the ship data for pirate starbases. (As of 1.2.2, there were none.)
+    """Return all pirate starbase keys (cached).
+
+    As of v1.2.2 no pirate starbases exist in ``shipData``; this returns an
+    empty list.
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Pirate starbase type keys.
     """
     global pirate_starbase_keys_cache
     if pirate_starbase_keys_cache is None:
@@ -311,10 +325,10 @@ def pirate_starbase_keys():
 
 pirate_ship_keys_cache = None
 def pirate_ship_keys():
-    """
-    Get all keys in the ship data for pirate ships.
+    """Return all pirate ship keys (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Pirate ship type keys.
     """
     global pirate_ship_keys_cache
     if pirate_ship_keys_cache is None:
@@ -323,10 +337,10 @@ def pirate_ship_keys():
 
 ximni_starbase_keys_cache = None
 def ximni_starbase_keys():
-    """
-    Get all keys in the ship data for Ximni starbases.
+    """Return all Ximni starbase keys (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Ximni starbase type keys.
     """
     global ximni_starbase_keys_cache
     if ximni_starbase_keys_cache is None:
@@ -335,10 +349,10 @@ def ximni_starbase_keys():
 
 ximni_ship_keys_cache = None
 def ximni_ship_keys():
-    """
-    Get all keys in the ship data for Ximni ships.
+    """Return all Ximni ship keys (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Ximni ship type keys.
     """
     global ximni_ship_keys_cache
     if ximni_ship_keys_cache is None:
@@ -347,10 +361,10 @@ def ximni_ship_keys():
 
 arvonian_starbase_keys_cache = None
 def arvonian_starbase_keys():
-    """
-    Get all keys in the ship data for Arvonian starbases.
+    """Return all Arvonian starbase keys (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Arvonian starbase type keys.
     """
     global arvonian_starbase_keys_cache
     if arvonian_starbase_keys_cache is None:
@@ -359,10 +373,10 @@ def arvonian_starbase_keys():
 
 arvonian_ship_keys_cache =  None
 def arvonian_ship_keys():
-    """
-    Get all keys in the ship data for Arvonian ships.
+    """Return all Arvonian ship keys (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Arvonian ship type keys.
     """
     global arvonian_ship_keys_cache
     if arvonian_ship_keys_cache is None:
@@ -371,10 +385,10 @@ def arvonian_ship_keys():
 
 skaraan_starbase_keys_cache = None
 def skaraan_starbase_keys():
-    """
-    Get all keys in the ship data for Skaraan starbases.
+    """Return all Skaraan starbase keys (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Skaraan starbase type keys.
     """
     global skaraan_starbase_keys_cache
     if skaraan_starbase_keys_cache is None:
@@ -383,10 +397,10 @@ def skaraan_starbase_keys():
 
 skaraan_ship_keys_cache = None
 def skaraan_ship_keys():
-    """
-    Get all keys in the ship data for Skaraan ships.
+    """Return all Skaraan ship keys (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Skaraan ship type keys.
     """
     global skaraan_ship_keys_cache
     if skaraan_ship_keys_cache is None:
@@ -395,10 +409,10 @@ def skaraan_ship_keys():
 
 kralien_starbase_keys_cache = None
 def kralien_starbase_keys():
-    """
-    Get all keys in the ship data for Kralien starbases.
+    """Return all Kralien starbase keys (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Kralien starbase type keys.
     """
     global kralien_starbase_keys_cache
     if kralien_starbase_keys_cache is None:
@@ -407,10 +421,10 @@ def kralien_starbase_keys():
 
 kralien_ship_keys_cache = None
 def kralien_ship_keys():
-    """
-    Get all keys in the ship data for Kralien ships.
+    """Return all Kralien ship keys (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Kralien ship type keys.
     """
     global kralien_ship_keys_cache
     if  kralien_ship_keys_cache is None:
@@ -419,10 +433,10 @@ def kralien_ship_keys():
 
 torgoth_starbase_keys_cache =  None
 def torgoth_starbase_keys():
-    """
-    Get all keys in the ship data for Torgoth starbases.
+    """Return all Torgoth starbase keys (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Torgoth starbase type keys.
     """
     global torgoth_starbase_keys_cache
     if torgoth_starbase_keys_cache is None:
@@ -431,10 +445,10 @@ def torgoth_starbase_keys():
 
 torgoth_ship_keys_cache = None
 def torgoth_ship_keys():
-    """
-    Get all keys in the ship data for Torgoth ships.
+    """Return all Torgoth ship keys (cached).
+
     Returns:
-        list[str]: The list of keys.
+        list[str]: Torgoth ship type keys.
     """
     global torgoth_ship_keys_cache
     if torgoth_ship_keys_cache is None:

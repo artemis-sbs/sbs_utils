@@ -271,6 +271,18 @@ def saveBitmapToDisk(w, h, wDC, dataBitMap, file_path):
         GlobalFree(hDIB)
 
 def gui_screenshot(image_path):
+    """Capture the full desktop and save it as a BMP file.
+
+    Windows-only. Captures the entire desktop window (not just the Cosmos
+    window) using GDI BitBlt. Useful for automated testing or recording
+    mission state.
+
+    Args:
+        image_path (str): Absolute path to write the ``.bmp`` file.
+
+    Example:
+        ~~ gui_screenshot("C:/missions/debug/frame001.bmp") ~~
+    """
     hwnd = GetDesktopWindow()
     wDC = GetWindowDC(hwnd)
     try:

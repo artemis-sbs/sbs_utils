@@ -5,16 +5,19 @@ from ...pages.layout.text import Text
 from ...pages.layout.text_area import TextArea
 
 def gui_text(props, style=None):
-    """ Add a gui text object
+    """Add a text label to the current GUI layout.
 
-    valid properties 
-        text
-        color
-        font
+    Args:
+        props (str): Text content or property string, e.g. ``"Hello"`` or
+            ``"$text:Hello;color:white;"``. Supports ``{var}`` interpolation.
+        style (str, optional): CSS-like style overrides. Defaults to None.
 
+    Returns:
+        Text: The layout item created.
 
-    props (str): property string 
-    style (style, optional): The style
+    Example:
+        gui_text("Hull: {hull_pct}%")
+        gui_text("$text:WARNING;color:red;")
     """
     page = FrameContext.page
     task = FrameContext.task
@@ -41,16 +44,22 @@ def text_sanitize(text):
     return text
 
 def gui_text_area(props, style=None):
-    """ Add a gui text object
+    """Add a rich text area to the current GUI layout.
 
-    valid properties 
-        text
-        color
-        font
+    Supports Markdown-style formatting and inline image references
+    (``![](image://key)``). Use for multi-line or formatted text blocks.
 
+    Args:
+        props (str): Text content or Markdown string. Supports ``{var}``
+            interpolation.
+        style (str, optional): CSS-like style overrides. Defaults to None.
 
-    props (str): property string 
-    style (style, optional): The style
+    Returns:
+        TextArea: The layout item created.
+
+    Example:
+        gui_text_area("## Status\\nAll systems nominal.")
+        gui_text_area("![](image://logo?scale=0.5) Mission active")
     """
     page = FrameContext.page
     task = FrameContext.task

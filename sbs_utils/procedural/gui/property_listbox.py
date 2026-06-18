@@ -55,7 +55,24 @@ def _gui_properties_items(values=None):
 
 
 def gui_properties_set(p=None, tag=None):
-    # 
+    """Update the data displayed in a property list box.
+
+    Parses ``p`` (a dict or YAML string) into a flat list of label/control
+    pairs and refreshes the list box stored under ``tag`` in the GUI task.
+    Call this whenever the underlying data changes to redraw the panel.
+
+    Args:
+        p (dict | str, optional): Property data as a Python dict or a YAML
+            string. Dict keys become labels; values are Python expressions
+            evaluated to produce the control widget. Nested dicts become
+            collapsible sections. Defaults to None (clears the list).
+        tag (str, optional): Task inventory key holding the list box widget.
+            Defaults to ``"__PROPS_LB__"``.
+
+    Example:
+        gui_properties_set({"Speed": "gui_text(str(ship_speed))", "Shields": "gui_slider(shield_pct)"})
+    """
+    #
     # This is confusing because of COMMS
     # Comms runs on the sever task, but the GUI needs 
     # to be the client for the comms operations
@@ -131,6 +148,26 @@ def _property_lb_item_template_two_line(item):
             gui_text(f"Invalid code")
     
 def gui_property_list_box_stacked(name=None, tag=None):
+    """Create a property list box with two-line stacked label/control layout.
+
+    Each property is rendered as a label on one line and its control widget
+    on the line below. Useful when controls are wide and need their own row.
+    The widget is stored in the GUI task under ``tag`` so ``gui_properties_set``
+    can refresh it later.
+
+    Args:
+        name (str, optional): Title shown in the list box header.
+            Defaults to ``"Properties"``.
+        tag (str, optional): Task inventory key used to store and retrieve
+            the list box widget. Defaults to ``"__PROPS_LB__"``.
+
+    Returns:
+        LayoutListBox: The list box widget.
+
+    Example:
+        gui_property_list_box_stacked("Ship Systems")
+        gui_properties_set({"Warp Core": "gui_slider(warp_pct)"})
+    """
     task = FrameContext.client_task
     tag = tag if tag is not None else "__PROPS_LB__"
     name = name if name is not None else "Properties"
@@ -145,7 +182,29 @@ def gui_property_list_box_stacked(name=None, tag=None):
 
     return props_lb
 
-def gui_property_list_box(name=None, tag=None, temp = _property_lb_item_template_one_line):
+def gui_property_list_box(name=None, tag=None, temp=_property_lb_item_template_one_line):
+    """Create a property list box with single-line label/control layout.
+
+    Each property is rendered as a label on the left and its control widget
+    on the right of the same row. Suitable for compact property panels.
+    The widget is stored in the GUI task under ``tag`` so ``gui_properties_set``
+    can refresh it later.
+
+    Args:
+        name (str, optional): Title shown in the list box header.
+            Defaults to ``"Properties"``.
+        tag (str, optional): Task inventory key used to store and retrieve
+            the list box widget. Defaults to ``"__PROPS_LB__"``.
+        temp (callable, optional): Item template function used to render each
+            row. Defaults to the built-in one-line template.
+
+    Returns:
+        LayoutListBox: The list box widget.
+
+    Example:
+        gui_property_list_box("Navigation")
+        gui_properties_set({"Heading": "gui_text(str(heading))", "Speed": "gui_text(str(speed))"})
+    """
     gui_task = FrameContext.client_task
 
     tag = tag if tag is not None else "__PROPS_LB__"

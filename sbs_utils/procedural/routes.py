@@ -140,160 +140,138 @@ class HandleConsoleSelect:
         
 
 def route_focus_comms_2d(label):
-    """called when comms changes selection.
+    """Run a label on every 2D-comms selection change (not for long-running tasks).
 
-    Note: 
-        The label called should not be long running.
-        Use route_select_comms for long running tasks.
+    Use ``route_select_comms`` for tasks that need to await.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("comms2d", label, _FOCUS)
 
 def route_focus_normal(label):
-    """called when comms changes selection.
+    """Run a label on every normal-view selection change (not for long-running tasks).
 
-    Note: 
-        The label called should not be long running.
-        Use route_select_comms for long running tasks.
+    Use ``route_select_comms`` for tasks that need to await.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("normal", label, _FOCUS)
 
 
 def route_focus_comms(label):
-    """called when comms changes selection.
+    """Run a label on every comms selection change (not for long-running tasks).
 
-    Note: 
-        The label called should not be long running.
-        Use route_select_comms for long running tasks.
+    Use ``route_select_comms`` for tasks that need to await.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("comms", label, _FOCUS)
-    
-def route_focus_science(label):
-    """called when science changes selection.
 
-    Note: 
-        The label called should not be long running.
-        Use route_select_science for long running tasks.
+def route_focus_science(label):
+    """Run a label on every science selection change (not for long-running tasks).
+
+    Use ``route_select_science`` for tasks that need to await.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("science", label, _FOCUS)
 
 def route_focus_weapons(label):
-    """called when weapons changes selection.
+    """Run a label on every weapons selection change (not for long-running tasks).
 
-    Note: 
-        The label called should not be long running.
-        Use route_select_weapons for long running tasks.
+    Use ``route_select_weapons`` for tasks that need to await.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("weapons", label, _FOCUS)
-        
-def route_focus_grid(label):
-    """called when engineering grid changes selection.
 
-    Note: 
-        The label called should not be long running.
-        Use route_select_grid for long running tasks.
+def route_focus_grid(label):
+    """Run a label on every engineering-grid selection change (not for long-running tasks).
+
+    Use ``route_select_grid`` for tasks that need to await.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("grid", label, _FOCUS)
 
 
 def route_select_comms(label):
-    """called when comms changes selection.
-    Note:
-        Typically used to run a task that uses an await comms
-    
-    Args:
-        label (label): The label to run
+    """Run a label each time a comms selection is made. Supports ``await comms``.
 
+    Args:
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("comms", label, _SELECT)
-    
-def route_select_comms_2d(label):
-    """called when comms changes selection.
-    Note:
-        Typically used to run a task that uses an await comms
-    
-    Args:
-        label (label): The label to run
 
+def route_select_comms_2d(label):
+    """Run a label each time a 2D-comms selection is made. Supports ``await comms``.
+
+    Args:
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("comms2d", label, _SELECT)
 
 def route_select_normal(label):
-    """called when comms changes selection.
-    Note:
-        Typically used to run a task that uses an await comms
-    
-    Args:
-        label (label): The label to run
+    """Run a label each time a normal-view selection is made. Supports ``await comms``.
 
+    Args:
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("normal", label, _SELECT)
 
 
 
 def route_common_navigate(path, label):
-    """ called to extend a comms navigation
+    """Register a label under a navigation path in the button navigation map.
 
-    
     Args:
-        path: (str): The navigation path to extend
-        label (label): The label to run
+        path (str): The navigation path key to extend.
+        label (str | Label): The label to add under that path.
     """
     path_labels = ButtonPromise.navigation_map.get(path, set())
     path_labels.add(label)
     ButtonPromise.navigation_map[path] = path_labels
 
 def route_comms_navigate(path, label):
-    """ called to extend a comms navigation
+    """Register a label under a comms navigation path (auto-prefixes ``comms/``).
 
-    
     Args:
-        path: (str): The navigation path to extend
-        label (label): The label to run
+        path (str): Navigation sub-path (e.g. ``"hail"`` → ``"comms/hail"``).
+            Pass ``""`` to register at the root comms path.
+        label (str | Label): The label to add under that path.
     """
     
     if path == "":
@@ -305,12 +283,12 @@ def route_comms_navigate(path, label):
     ButtonPromise.navigation_map[path] = path_labels
 
 def route_science_navigate(path, label):
-    """ called to extend a gui navigation
+    """Register a label under a science navigation path (auto-prefixes ``science/``).
 
-    
     Args:
-        path: (str): The navigation path to extend
-        label (label): The label to run
+        path (str): Navigation sub-path. Pass ``""`` to register at the root
+            science path.
+        label (str | Label): The label to add under that path.
     """
     if path == "":
         path = "science"
@@ -325,12 +303,12 @@ def route_science_navigate(path, label):
 
 
 def route_gui_navigate(path, label):
-    """ called to extend a gui navigation
+    """Register a label under a GUI navigation path (auto-prefixes ``gui/``).
 
-    
     Args:
-        path: (str): The navigation path to extend
-        label (label): The label to run
+        path (str): Navigation sub-path. Pass ``""`` to register at the root
+            GUI path.
+        label (str | Label): The label to add under that path.
     """
     if path == "":
         path = "gui"
@@ -344,231 +322,133 @@ def route_gui_navigate(path, label):
 
 
 def route_select_science(label):
-    """called when science changes selection.
-
-    Note:
-        Typically used to run a task that uses an await scan
+    """Run a label each time a science selection is made. Supports ``await scan``.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("science", label, _SELECT)
 
 def route_message_science(label):
-    """called when science changes selection.
-
-    Note:
-        Typically used to run a task that uses an await scan
+    """Run a label on each science message event. Supports ``await scan``.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("science", label, _MESSAGE)
 
 def route_select_weapons(label):
-    """called when weapons changes selection.
-
-    Note:
-        No know use for this yet
+    """Run a label each time a weapons selection is made.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("weapons", label, _SELECT)
-        
-def route_select_grid(label):
-    """called when grid changes selection.
 
-    Note:
-        Typically used to run a task that uses an await comms
+def route_select_grid(label):
+    """Run a label each time an engineering-grid selection is made. Supports ``await``.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("grid", label, _SELECT)
 
 def route_object_grid(label):
-    """called when a grid object event occurs. i.e. grid object reached a location.
+    """Run a label when a grid-object event fires (e.g. object arrives at a location).
 
-    Note:
-        Typically not a long running task
+    Not intended for long-running tasks.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("grid", label, _GRID_OBJECT)
 
 def route_point_comms_2d(label):
-    """called when a a point event occurs in comms.
-
-    Note:
-        No know use for this currently
+    """Run a label when a point (click) event occurs on the 2D comms view.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("comms2d", label, _POINT)
 
 def route_point_normal(label):
-    """called when a a point event occurs in comms.
-
-    Note:
-        No know use for this currently
+    """Run a label when a point (click) event occurs on the normal view.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("normal", label, _POINT)
 
 def route_point_comms(label):
-    """called when a a point event occurs in comms.
-
-    Note:
-        No know use for this currently
+    """Run a label when a point (click) event occurs on the comms view.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("comms", label, _POINT)
-    
-def route_point_science(label):
-    """called when a a point event occurs in science by clicking the 2d view.
 
-    Note:
-        This is not intended for long running tasks
+def route_point_science(label):
+    """Run a label when a point (click) event occurs on the science 2D view.
+
+    Not intended for long-running tasks.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("science", label, _POINT)
 
 def route_point_weapons(label):
-    """called when a a point event occurs in weapons by clicking the 2d view.
+    """Run a label when a point (click) event occurs on the weapons 2D view.
 
-    Note:
-        This is not intended for long running tasks
+    Not intended for long-running tasks.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("weapons", label, _POINT)
-        
+
 def route_point_grid(label):
-    """called when a a point event occurs in the engineering grid.
+    """Run a label when a point (click) event occurs on the engineering grid.
 
-    Note:
-        This is not intended for long running tasks
+    Not intended for long-running tasks.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleConsoleSelect: Route handle (rarely needed to cancel the route).
+    """
     return HandleConsoleSelect("grid", label, _POINT)
-
-################################
-# POPUP HANDLERS
-
-def route_popup_comms_2d(label):
-    """called when a a point event occurs in comms.
-
-    Note:
-        No know use for this currently
-
-    Args:
-        label (label): The label to run
-
-    Returns:
-        The route: Used rarely to cancel the route
-    """    
-    return HandleConsoleSelect("comms", label, _POPUP)
-
-def route_point_normal(label):
-    """called when a a point event occurs in comms.
-
-    Note:
-        No know use for this currently
-
-    Args:
-        label (label): The label to run
-
-    Returns:
-        The route: Used rarely to cancel the route
-    """    
-    return HandleConsoleSelect("normal", label, _POINT)
-
-def route_point_comms(label):
-    """called when a a point event occurs in comms.
-
-    Note:
-        No know use for this currently
-
-    Args:
-        label (label): The label to run
-
-    Returns:
-        The route: Used rarely to cancel the route
-    """    
-    return HandleConsoleSelect("comms", label, _POINT)
-    
-def route_point_science(label):
-    """called when a a point event occurs in science by clicking the 2d view.
-
-    Note:
-        This is not intended for long running tasks
-
-    Args:
-        label (label): The label to run
-
-    Returns:
-        The route: Used rarely to cancel the route
-    """    
-    return HandleConsoleSelect("science", label, _POINT)
-
-def route_point_weapons(label):
-    """called when a a point event occurs in weapons by clicking the 2d view.
-
-    Note:
-        This is not intended for long running tasks
-
-    Args:
-        label (label): The label to run
-
-    Returns:
-        The route: Used rarely to cancel the route
-    """    
-    return HandleConsoleSelect("weapons", label, _POINT)
 
 
 
@@ -624,84 +504,60 @@ class HandleLifetime:
 
 
 def route_spawn(label):
-    """called when a space_object is spawned.
+    """Run a label each time a space object is spawned.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleLifetime: Route handle (rarely needed to cancel the route).
+    """
     return HandleLifetime(LifetimeDispatcher.SPAWN, label)
 
 def route_spawn_grid(label):
-    """called when a grid_object is spawned.
+    """Run a label each time a grid object is spawned.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
-
+        HandleLifetime: Route handle (rarely needed to cancel the route).
+    """
     return HandleLifetime(LifetimeDispatcher.GRID_SPAWN, label)
 
 def route_damage_destroy(label):
-    """called when a space_object is destroyed.
-
-    Note:
-        This is not intended for long running tasks
+    """Run a label each time a space object is destroyed. Not for long-running tasks.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
-
-    return HandleLifetime(LifetimeDispatcher.DESTROYED, label)
-
-
-def route_damage_destroy(label):
-    """called when a space_object is destroyed.
-
-    Note:
-        This is not intended for long running tasks
-
-    Args:
-        label (label): The label to run
-
-    Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleLifetime: Route handle (rarely needed to cancel the route).
+    """
     return HandleLifetime(LifetimeDispatcher.DESTROYED, label)
 
 def route_damage_killed(label):
-    """called when a space_object is about to be removed from the engine.
+    """Run a label when a space object is about to be removed from the engine.
 
-    Note:
-        This is not intended for long running tasks
+    Not intended for long-running tasks.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleDamage: Route handle (rarely needed to cancel the route).
+    """
     return HandleDamage(DamageDispatcher._KILLED, label)
 
 def route_dock_hangar(label):
-    """called when a space_object docks.
-
-    Note:
-        This is not intended for long running tasks
+    """Run a label each time a space object docks. Not for long-running tasks.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleLifetime: Route handle (rarely needed to cancel the route).
+    """
     return HandleLifetime(LifetimeDispatcher.DOCK, label)
 
 
@@ -747,45 +603,36 @@ class HandleDamage:
 
 
 def route_damage_heat(label):
-    """called when a player ship takes heat damage.
-
-    Note:
-        This is not intended for long running tasks
+    """Run a label each time a player ship takes heat damage. Not for long-running tasks.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleDamage: Route handle (rarely needed to cancel the route).
+    """
     return HandleDamage(DamageDispatcher._HEAT, label)
 
 def route_damage_internal(label):
-    """called when a player ship takes internal damage.
-
-    Note:
-        This is not intended for long running tasks
+    """Run a label each time a player ship takes internal damage. Not for long-running tasks.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleDamage: Route handle (rarely needed to cancel the route).
+    """
     return HandleDamage(DamageDispatcher._INTERNAL, label)
 
 def route_damage_object(label):
-    """called when a space_object takes hull damage.
-
-    Note:
-        This is not intended for long running tasks
+    """Run a label each time a space object takes hull damage. Not for long-running tasks.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleDamage: Route handle (rarely needed to cancel the route).
+    """
     return HandleDamage(DamageDispatcher._HULL, label)
 
 
@@ -828,31 +675,29 @@ class HandleCollision:
 
 
 def route_collision_passive(label):
-    """called when a space_object takes a collision.
+    """Run a label each time a passive space object is involved in a collision.
 
-    Note:
-        This is not intended for long running tasks
+    Not intended for long-running tasks.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleCollision: Route handle (rarely needed to cancel the route).
+    """
     return HandleCollision(CollisionDispatcher._PASSIVE, label)
 
 def route_collision_interactive(label):
-    """called when a space_object takes a collision.
+    """Run a label each time an interactive collision event occurs.
 
-    Note:
-        This is not intended for long running tasks
+    Not intended for long-running tasks.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleCollision: Route handle (rarely needed to cancel the route).
+    """
     return HandleCollision(CollisionDispatcher._INTERACTION, label)
 
 
@@ -895,64 +740,49 @@ class HandleLaunch:
 
 
 def route_launch_missile(label):
-    """called when player_launches_missile event occurs.
-
-    Note:
-        This is not intended for long running tasks
+    """Run a label each time a missile is launched. Not for long-running tasks.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleLaunch: Route handle (rarely needed to cancel the route).
+    """
     return HandleLaunch(LaunchDispatcher.MISSILE, label)
 
 
 def route_launch_drone(label):
-    """called when ship_launches_drone event occurs.
-
-    Note:
-        This is not intended for long running tasks
+    """Run a label each time a drone is launched. Not for long-running tasks.
 
     Args:
-        label (label): The label to run
+        label (str | Label): The label to run.
 
     Returns:
-        The route: Used rarely to cancel the route
-    """    
+        HandleLaunch: Route handle (rarely needed to cancel the route).
+    """
     return HandleLaunch(LaunchDispatcher.DRONE, label)
 
 
 def route_change_console(label):
-    """called when a  change console button is pressed.
+    """Set the label shown when the "change console" button is pressed.
 
-    Note:
-        Typically this redirects the console gui to a console selection gui.
+    Typically redirects the console GUI to a console-selection screen.
 
     Args:
-        label (label): The label to run
-
-    Returns:
-        The route: Used rarely to cancel the route
-    """    
-    
+        label (str | Label): The label to display.
+    """
     page = FrameContext.page
     page.change_console_label = label
-    
+
 
 def route_console_mainscreen_change(label):
-    """called when a  change to the main screen view occurs
+    """Set the label shown when the main-screen view changes.
 
-    Note:
-        Typically this redirects the console gui to a gui_console
+    Typically redirects the console GUI to a ``gui_console`` view.
 
     Args:
-        label (label): The label to run
-
-    Returns:
-        The route: Used rarely to cancel the route
-    """    
+        label (str | Label): The label to display.
+    """
     page = FrameContext.page
     page.main_screen_change_label = label
 
@@ -968,36 +798,36 @@ def _follow_route_console(origin_id, selected_id, console, widget, extra_tag):
     ConsoleDispatcher.dispatch_select(event)
         
 def follow_route_select_comms(origin_id, selected_id):
-    """ cause the comms selection route to execute
+    """Programmatically fire the comms selection route as if the player made a selection.
 
     Args:
-        origin_id (agent): The agent id of the player ship
-        selected_id (agent): The agent id of the target space object
-    """    
+        origin_id (Agent | int): The player ship agent ID or object.
+        selected_id (Agent | int): The target space object agent ID or object.
+    """
     console = "comms_target_UID"
     widget = "comms_sorted_list"
     _follow_route_console(origin_id, selected_id, console, widget, None)
         
 
 def follow_route_select_science(origin_id, selected_id):
-    """ cause the science selection route to execute
+    """Programmatically fire the science selection route as if the player made a selection.
 
     Args:
-        origin_id (agent): The agent id of the player ship
-        selected_id (agent): The agent id of the target space object
-    """        
+        origin_id (Agent | int): The player ship agent ID or object.
+        selected_id (Agent | int): The target space object agent ID or object.
+    """
     console = "science_target_UID"
     widget = "science_sorted_list"
     extra_tag = "__init__"
     _follow_route_console(origin_id, selected_id, console, widget,extra_tag)
 
 def follow_route_select_grid(origin_id, selected_id):
-    """ cause the engineering grid selection route to execute
+    """Programmatically fire the grid selection route as if the player made a selection.
 
     Args:
-        origin_id (agent): The agent id of the player ship
-        selected_id (agent): The agent id of the target grid object
-    """    
+        origin_id (Agent | int): The player ship agent ID or object.
+        selected_id (Agent | int): The target grid object agent ID or object.
+    """
     console = "grid_selected_UID"
     widget = "grid_object_list"
     _follow_route_console(origin_id, selected_id, console, widget, None)

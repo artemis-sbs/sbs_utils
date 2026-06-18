@@ -83,16 +83,29 @@ class Upgrade(Agent):
 
 
 def upgrade_add(agent_id_or_set, label, data=None, activate=False):
-    """ Adds an upgrade to an agent or set of agents
+    """Add an upgrade to one or more agents.
+
+    Creates an ``Upgrade`` object linked to each agent. If ``activate=True``,
+    the upgrade's MAST label is scheduled immediately as a server task and the
+    ``upgrade_activated`` signal is emitted.
 
     Args:
-        agent_id_or_set (int|set|object|list): The agent or agents to apply it to
-        label (label | str | dict): if dict it will get the label from the dict and merge the rest of the data 
-        data (dict, optional): Data to pass the task. Defaults to None.
-        activate (bool, optional): Activate the upgrade immediately. Defaults to False.
+        agent_id_or_set (int | set | list | object): Agent ID(s) or object(s)
+            to apply the upgrade to.
+        label (label | str | dict): MAST label to run when the upgrade
+            activates. Pass a dict with a ``"label"`` key to merge extra data:
+            ``{"label": my_label, "power": 2}``.
+        data (dict, optional): Variables passed to the upgrade task. Merged
+            with dict-form ``label`` data. Defaults to None.
+        activate (bool, optional): Activate the upgrade immediately after
+            adding. Defaults to ``False``.
 
     Returns:
-        Upgrade: The Upgrade
+        Upgrade: The last ``Upgrade`` object created.
+
+    Example:
+        upgrade_add(SHIP_ID, shield_boost_label, activate=True)
+        upgrade_add(SHIP_ID, {"label": power_label, "multiplier": 2})
     """
     # Make sure a tick task is running
     agent_id_or_set = to_set(agent_id_or_set)
@@ -111,6 +124,17 @@ def upgrade_add(agent_id_or_set, label, data=None, activate=False):
     return up
 
 def upgrade_remove_all(agent):
+    """Deactivate and remove all upgrades from an agent.
+
+    Calls ``deactivate()`` and ``discard()`` on every ``Upgrade`` linked to
+    the agent, stopping their tasks and removing the ``__UPGRADE__`` links.
+
+    Args:
+        agent: Agent ID or object whose upgrades should be removed.
+
+    Example:
+        upgrade_remove_all(SHIP_ID)
+    """
     by_agent = linked_to(agent, "__UPGRADE__")
     obj:Upgrade
     for obj in by_agent:

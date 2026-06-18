@@ -2,16 +2,25 @@ from ...helpers import FrameContext
 from ..style import apply_control_styles
 from ...pages.layout.checkbox import Checkbox
 def gui_checkbox(msg, style=None, var=None, data=None):
-    """ Draw a checkbox 
+    """Add a checkbox to the current GUI layout.
+
+    The current value of ``var`` (expected to be a bool) sets the initial
+    checked state. When the player toggles the checkbox, ``var`` is updated.
 
     Args:
-        props (str): 
-        style (style, optional): Style. Defaults to None.
-        var (str, optional): Variable name to set the value to. Defaults to None.
-        data (object, optional): data to pass the handler. Defaults to None.
+        msg (str): Label text or property string shown next to the checkbox,
+            e.g. ``"Enable shields"`` or ``"$text:Active;color:white;"``.
+        style (str, optional): CSS-like style overrides. Defaults to None.
+        var (str, optional): Variable name to read the initial checked state
+            from and update on toggle. Defaults to None.
+        data (object, optional): Arbitrary data passed to the event handler.
+            Defaults to None.
 
     Returns:
-        layout object: The Layout object created
+        Checkbox: The layout item created.
+
+    Example:
+        gui_checkbox("Enable auto-fire", var="auto_fire_on")
     """    
     page = FrameContext.page
     task = FrameContext.task

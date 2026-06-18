@@ -25,13 +25,24 @@ from ..style import apply_control_styles
 
 from ...pages.layout.blank import Blank
 def gui_blank(count=1, style=None):
-    """adds an empty column to the current gui ow
+    """Add one or more empty columns to the current layout row.
+
+    Blanks occupy column space without rendering anything visible. Use them
+    to push elements right, add padding, or center icons.
 
     Args:
-        style (_type_, optional): Style. Defaults to None.
+        count (int, optional): Number of blank columns to insert. Defaults to
+            1.
+        style (str, optional): CSS-like style overrides applied to each blank.
+            Defaults to None.
 
     Returns:
-        layout object: The Layout object created
+        Blank: The last blank layout item created.
+
+    Example:
+        gui_blank()
+        gui_icon("icons/shield")
+        gui_blank()
     """    
     page = FrameContext.page
     task = FrameContext.task
