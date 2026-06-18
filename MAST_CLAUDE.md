@@ -247,12 +247,18 @@ await task_schedule(spawn_players)
 await task_schedule(docking_standard_player_station)
 ```
 
-### `sub_task_schedule(label)` — sub-tasks **[TBC: exact behavior]**
+### `sub_task_schedule(label, data, var)` — sub-tasks
+
+Schedules under the **current task** (`FrameContext.task`). Sub-tasks share the parent task's lifecycle — if the parent ends, sub-tasks end too.
 
 ```
 sub_task_schedule(brain_scan_update)
 await sub_task_schedule(brain_scan_update_text)
 ```
+
+### `gui_sub_task_schedule(label, data, var)` — GUI sub-tasks
+
+Same as `sub_task_schedule` but tagged `end_on_new_gui` — automatically cancelled when a new GUI page is presented to the client.
 
 **Spawn scope**: A spawned task gets its own variable scope. Data passed via the dict becomes variables in the child task. `shared` variables are still accessible.
 
