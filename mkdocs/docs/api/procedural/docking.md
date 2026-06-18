@@ -28,21 +28,25 @@ The `DOCKING_PLAYER`, `DOCKING_PLAYER_ID`, `DOCKING_NPC`, and `DOCKING_NPC_ID` v
 === ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    docking_set_docking_logic(PLAYER_SET, STATION_SET, docking_logic)
-    == docking_logic ==
-    ///enable
-    OK_SUCCESS   # always allow docking
+        docking_set_docking_logic(player_set, station_set, docking_logic)
+        ->END
 
-    ///docked
-    set_engineering_value(DOCKING_PLAYER_ID, "energy", 1000)
-    OK_SUCCESS
-    ///refit
-    hp = get_engineering_value(DOCKING_PLAYER_ID, "hullLevel")
-    if hp >= 1.0: OK_SUCCESS
-    set_engineering_value(DOCKING_PLAYER_ID, "hullLevel", hp + 0.01)
-    OK_RUN_AGAIN
+    == docking_logic ==
+        ///enable
+        OK_SUCCESS   # always allow docking
+
+        ///docked
+        set_engineering_value(DOCKING_PLAYER_ID, "energy", 1000)
+        OK_SUCCESS
+
+        ///refit
+        hp = get_engineering_value(DOCKING_PLAYER_ID, "hullLevel")
+        if hp >= 1.0: OK_SUCCESS
+        set_engineering_value(DOCKING_PLAYER_ID, "hullLevel", hp + 0.01)
+        OK_RUN_AGAIN
+
     //signal/docked
-    "Ship {DOCKING_PLAYER.name} has docked."
+        log(f"Ship {DOCKING_PLAYER.name} has docked.")
     ```
 
 === ":simple-python: {{ab.pm}}"

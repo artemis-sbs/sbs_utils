@@ -18,7 +18,7 @@ The variables `SCIENCE_ORIGIN_ID`, `SCIENCE_SELECTED_ID`, and `SCIENCE_POPUP_ID`
     * "Scan"
         signal_emit("scan_object", {"TARGET_ID": SCIENCE_SELECTED_ID})
     * "Attack"
-        target(SHIP_ID, SCIENCE_SELECTED_ID)
+        target(ship_id, SCIENCE_SELECTED_ID)
     ```
 
 === ":simple-python: {{ab.pm}}"

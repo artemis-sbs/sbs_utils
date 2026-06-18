@@ -15,10 +15,11 @@ Promises are objects returned by `await`-able functions. They represent a value 
 === ":mast-icon: {{ab.m}}"
     ```
     == run_parallel ==
-    p1 = task_schedule(patrol_alpha)
-    p2 = task_schedule(patrol_beta)
-    await promise_all(p1, p2)
-    "Both patrols complete."
+        p1 = task_schedule(patrol_alpha)
+        p2 = task_schedule(patrol_beta)
+        await promise_all(p1, p2)
+        log("Both patrols complete.")
+        ->END
     ```
 
 === ":simple-python: {{ab.pm}}"

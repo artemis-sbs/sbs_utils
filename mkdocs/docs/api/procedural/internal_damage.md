@@ -8,8 +8,8 @@ The internal damage system maps 3D world hit positions to grid cells on a player
 
 A typical damage event flows like this:
 
-1. `//damage/object /internal` route fires with `SOURCE_POINT`
-2. Call `grid_take_internal_damage_at(PLAYER_ID, EVENT.source_point)` to map the hit to the nearest grid cell and damage it
+1. `//damage/internal` route fires with `EVENT.source_point`
+2. Call `grid_take_internal_damage_at(DAMAGE_TARGET_ID, EVENT.source_point)` to map the hit to the nearest grid cell and damage it
 3. If all undamaged system nodes are gone, `explode_player_ship` is called automatically and the `player_ship_destroyed` signal is emitted
 
 `grid_rebuild_grid_objects` recreates the entire grid from the ship's art-ID JSON (called at mission start or respawn). `grid_restore_damcons` resets or creates the three damcon-team crew members.
@@ -18,11 +18,12 @@ A typical damage event flows like this:
 
 === ":mast-icon: {{ab.m}}"
     ```
-    //damage/object /internal
-    grid_take_internal_damage_at(PLAYER_ID, EVENT.source_point)
+    //damage/internal
+        grid_take_internal_damage_at(DAMAGE_TARGET_ID, EVENT.source_point)
+
     //signal/player_ship_destroyed
-    "The ship has been destroyed!"
-    jump game_over
+        log("A ship has been destroyed!")
+        jump game_over
     ```
 
 === ":simple-python: {{ab.pm}}"
@@ -36,17 +37,17 @@ A typical damage event flows like this:
     )
 
     # At mission start
-    grid_rebuild_grid_objects(SHIP_ID)
+    grid_rebuild_grid_objects(ship_id)
 
     # Programmatic damage (e.g. random engine hit)
-    grid_damage_system(SHIP_ID, "engine")
+    grid_damage_system(ship_id, "engine")
 
     # Repair one node
-    grid_repair_system_damage(SHIP_ID, "engine")
+    grid_repair_system_damage(ship_id, "engine")
 
     # Manual destroy / respawn
-    explode_player_ship(SHIP_ID)
-    respawn_player_ship(SHIP_ID)
+    explode_player_ship(ship_id)
+    respawn_player_ship(ship_id)
     ```
 
 ## Key signals

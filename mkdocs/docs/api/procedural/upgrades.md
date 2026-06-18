@@ -13,30 +13,28 @@ Use `upgrade_add` with `activate=False` to pre-register upgrades (e.g. at ship s
 === ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    upgrade_add(SHIP_ID, shield_boost_label, activate=True)
+        upgrade_add(ship_id, shield_boost_label, activate=True)
+        ->END
+
     == shield_boost_label ==
-    set_engineering_value(SHIP_ID, "shieldStrengthFront", 200)
+        set_engineering_value(UPGRADE_AGENT_ID, "shieldStrengthFront", 200)
+        ->END
     ```
 
 === ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.upgrades import upgrade_add, upgrade_remove_all
 
-    # Add and activate immediately
-    upgrade_add(SHIP_ID, shield_boost_label, activate=True)
-
-    # Add with extra data
-    upgrade_add(SHIP_ID, {"label": power_label, "multiplier": 2})
-
-    # Remove all upgrades at end of mission
-    upgrade_remove_all(SHIP_ID)
+    upgrade_add(ship_id, shield_boost_label, activate=True)
+    upgrade_add(ship_id, {"label": power_label, "multiplier": 2})
+    upgrade_remove_all(ship_id)
     ```
 
 ## Reacting to upgrade activation
 
 ```
 //signal/upgrade_activated
-"Ship {UPGRADE_AGENT.name} received an upgrade!"
+    log(f"Ship {UPGRADE_AGENT.name} received an upgrade!")
 ```
 
 ## API

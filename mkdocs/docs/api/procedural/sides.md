@@ -19,11 +19,13 @@ tsn_stations = broad_test_around(pos, 5000) & role("tsn") & role("station")
 === ":mast-icon: {{ab.m}}"
     ```
     == check_side ==
-    if get_side(TARGET_ID) == "tsc": jump enemy_detected
-    if get_side(TARGET_ID) == "tsn": jump friendly_detected
+        if get_side(target_id) == "tsc": jump enemy_detected
+        if get_side(target_id) == "tsn": jump friendly_detected
+
     == defect ==
-    side_set(NPC_ID, "tsn")
-    "Enemy ship has defected to TSN!"
+        side_set(npc_id, "tsn")
+        log("Enemy ship has defected to TSN!")
+        ->END
     ```
 
 === ":simple-python: {{ab.pm}}"
@@ -31,14 +33,14 @@ tsn_stations = broad_test_around(pos, 5000) & role("tsn") & role("station")
     from sbs_utils.procedural.sides import side_set, get_side, get_side_for_display
 
     # Check faction
-    if get_side(TARGET_ID) == "tsc":
-        target(SHIP_ID, TARGET_ID)
+    if get_side(target_id) == "tsc":
+        target(ship_id, target_id)
 
     # Change side mid-mission
-    side_set(NPC_ID, "tsn")
+    side_set(npc_id, "tsn")
 
     # Human-readable name
-    name = get_side_for_display(TARGET_ID)  # e.g. "TSN"
+    name = get_side_for_display(target_id)  # e.g. "TSN"
     ```
 
 ## Common side values

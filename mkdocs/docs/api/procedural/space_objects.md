@@ -19,12 +19,14 @@ The space objects module provides the main tools for working with the simulation
 === ":mast-icon: {{ab.m}}"
     ```
     == patrol ==
-    enemies = broad_test_around(get_pos(SHIP_ID), 2000) & role("enemy")
-    nearest = closest(SHIP_ID, enemies)
-    if nearest: target(SHIP_ID, nearest)
+        enemies = broad_test_around(get_pos(ship_id), 2000) & role("enemy")
+        nearest = closest(ship_id, enemies)
+        if nearest: target(ship_id, nearest)
+
     == recharge ==
-    set_engineering_value(SHIP_ID, "energy", 1000)
-    set_pos(SHIP_ID, 0, 0, 0)
+        set_engineering_value(ship_id, "energy", 1000)
+        set_pos(ship_id, 0, 0, 0)
+        ->END
     ```
 
 === ":simple-python: {{ab.pm}}"
@@ -36,18 +38,16 @@ The space objects module provides the main tools for working with the simulation
     )
     from sbs_utils.procedural.roles import role
 
-    # Find enemies within 2000 units
-    pos = get_pos(SHIP_ID)
+    pos = get_pos(ship_id)
     enemies = broad_test_around(pos, 2000) & role("enemy")
-    nearest = closest(SHIP_ID, enemies)
+    nearest = closest(ship_id, enemies)
     if nearest:
-        target(SHIP_ID, nearest)
+        target(ship_id, nearest)
     else:
-        clear_target(SHIP_ID)
+        clear_target(ship_id)
 
-    # Teleport and recharge
-    set_pos(SHIP_ID, 0, 0, 0)
-    set_engineering_value(SHIP_ID, "energy", 1000)
+    set_pos(ship_id, 0, 0, 0)
+    set_engineering_value(ship_id, "energy", 1000)
     ```
 
 ## Spatial query functions

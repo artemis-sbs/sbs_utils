@@ -23,16 +23,19 @@ await count_goal("enemies_killed", 10)
 === ":mast-icon: {{ab.m}}"
     ```
     == timed_event ==
-    "Reactor will detonate in 30 seconds!"
-    await delay_sim(seconds=30)
-    "The reactor has detonated!"
-    explode_player_ship(STATION_ID)
+        log("Reactor will detonate in 30 seconds!")
+        await delay_sim(seconds=30)
+        log("The reactor has detonated!")
+        explode_player_ship(station_id)
+        ->END
+
     == count_kills ==
-    await count_goal("kills", 5)
-    "You have destroyed 5 enemies. Well done!"
+        await count_goal("kills", 5)
+        log("You have destroyed 5 enemies.")
+        ->END
 
     //signal/enemy_destroyed
-    increment_count("kills")
+        increment_count("kills")
     ```
 
 === ":simple-python: {{ab.pm}}"

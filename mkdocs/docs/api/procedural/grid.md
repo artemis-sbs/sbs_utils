@@ -8,7 +8,7 @@ Engineering-grid objects are the nodes visible on the damage-control console: sy
 
 Common tasks:
 
-- **`grid_objects(ship_id)`** — get the set of all grid-object IDs on a ship. Combine with `role()` to filter by type: `grid_objects(SHIP_ID) & role("engine")`.
+- **`grid_objects(ship_id)`** — get the set of all grid-object IDs on a ship. Combine with `role()` to filter by type: `grid_objects(ship_id) & role("engine")`.
 - **`grid_objects_at(ship_id, x, y)`** — get objects at a specific cell.
 - **`grid_closest(id, candidates)`** — find the nearest grid object to another.
 - **`grid_move(id, x, y)`** — path the grid object to a target cell.
@@ -21,11 +21,11 @@ The **theme system** controls icon appearance. `grid_get_grid_theme` and `grid_g
 === ":mast-icon: {{ab.m}}"
     ```
     == repair_run ==
-    damaged = grid_objects(SHIP_ID) & role("__damaged__")
-    if len(damaged) == 0: jump done
-    target_go = to_object(next(iter(damaged)))
-    x, y, _ = grid_pos_data(target_go.id)
-    grid_move(DAMCON_ID, int(x), int(y))
+        damaged = grid_objects(ship_id) & role("__damaged__")
+        if len(damaged) == 0: jump done
+        target_go = to_object(next(iter(damaged)))
+        x, y, _ = grid_pos_data(target_go.id)
+        grid_move(damcon_id, int(x), int(y))
     ```
 
 === ":simple-python: {{ab.pm}}"
@@ -36,14 +36,9 @@ The **theme system** controls icon appearance. `grid_get_grid_theme` and `grid_g
     )
     from sbs_utils.procedural.roles import role
 
-    # All damaged engine nodes on the ship
-    damaged_engines = grid_objects(SHIP_ID) & role("__damaged__") & role("engine")
-
-    # Move a damcon team to a specific cell
-    grid_move(DAMCON_ID, target_x, target_y)
-
-    # Check current position
-    curx, cury, path_len = grid_pos_data(DAMCON_ID)
+    damaged_engines = grid_objects(ship_id) & role("__damaged__") & role("engine")
+    grid_move(damcon_id, target_x, target_y)
+    curx, cury, path_len = grid_pos_data(damcon_id)
     ```
 
 ## Grid roles

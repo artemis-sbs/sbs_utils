@@ -37,7 +37,7 @@ Use `skybox_schedule` / `music_schedule` as convenient wrappers when you already
     skybox_schedule_random()
 
     # Ship-specific music (pass ship ID)
-    music_schedule("battle", ID=SHIP_ID)
+    music_schedule("battle", ID=ship_id)
 
     # Random music for server
     music_schedule_random()

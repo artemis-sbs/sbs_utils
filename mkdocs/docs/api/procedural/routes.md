@@ -15,20 +15,20 @@ See the [Routes overview](../../../mast/routes/index.md) for the full list of ro
 === ":mast-icon: {{ab.m}}"
     ```
     == enable_damage_handler ==
-    route_schedule("//damage/object /internal", on_internal_damage)
+        route_schedule("//damage/internal", on_internal_damage)
+        ->END
+
     == on_internal_damage ==
-    grid_take_internal_damage_at(PLAYER_ID, EVENT.source_point)
+        grid_take_internal_damage_at(DAMAGE_TARGET_ID, EVENT.source_point)
+        ->END
     ```
 
 === ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.routes import route_schedule, route_clear
 
-    # Dynamically register a damage handler
-    route_schedule("//damage/object /internal", on_internal_damage_label)
-
-    # Remove handler when no longer needed
-    route_clear("//damage/object /internal", on_internal_damage_label)
+    route_schedule("//damage/internal", on_internal_damage_label)
+    route_clear("//damage/internal", on_internal_damage_label)
     ```
 
 ## API

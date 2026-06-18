@@ -16,9 +16,9 @@ Common use-cases:
 === ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    settings = settings_get_defaults()
-    difficulty = settings.get("DIFFICULTY", 5)
-    "Difficulty is {difficulty}"
+        settings = settings_get_defaults()
+        difficulty = settings.get("DIFFICULTY", 5)
+        log(f"Difficulty is {difficulty}")
     ```
 
 === ":simple-python: {{ab.pm}}"

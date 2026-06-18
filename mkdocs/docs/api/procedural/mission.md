@@ -22,30 +22,31 @@ This is the same pattern used by the built-in objective system — use `mission_
 
 === ":mast-icon: {{ab.m}}"
     ```
-    == main ==
-    mission_run(escort_mission)
-    == escort_mission ==
-    ///init
-    spawn_escort_target()
-    ///start
-    "Escort the freighter to the station."
+    == setup ==
+        mission_run(escort_mission)
+        ->END
 
-    ///objective
-    if freighter_arrived(): OK_SUCCESS
-    OK_RUN_AGAIN
-    ///abort
-    if freighter_destroyed(): FAIL_END
-    OK_RUN_AGAIN
-    ///complete
-    "Mission complete! The freighter has arrived safely."
-    OK_SUCCESS
+    == escort_mission ==
+        ///init
+        spawn_escort_target()
+        ///start
+        log("Escort the freighter to the station.")
+        ///objective
+        if freighter_arrived(): OK_SUCCESS
+        OK_RUN_AGAIN
+        ///abort
+        if freighter_destroyed(): FAIL_END
+        OK_RUN_AGAIN
+        ///complete
+        log("Mission complete! The freighter has arrived safely.")
+        OK_SUCCESS
     ```
 
 === ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.mission import mission_run
 
-    task = mission_run(escort_mission, data={"SHIP_ID": SHIP_ID})
+    task = mission_run(escort_mission, data={"ship_id": ship_id})
     ```
 
 ## API

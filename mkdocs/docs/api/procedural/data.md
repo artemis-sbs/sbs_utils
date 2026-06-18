@@ -15,7 +15,7 @@ Utilities for randomising spawn templates and other structured data dicts.
         "ship": ["cruiser", "frigate", "fighter"],
     }
     chosen = data_choose_value_from_template(template)
-    "Spawning {chosen['name']} in a {chosen['ship']}"
+    log(f"Spawning {chosen['name']} in a {chosen['ship']}")
     ```
 
 === ":simple-python: {{ab.pm}}"

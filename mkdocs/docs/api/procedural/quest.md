@@ -24,22 +24,24 @@ Quests can be attached to a specific player ship, a specific client console, or 
 === ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    quest_add(SHIP_ID, "patrol", "Patrol Sector 7", "Keep the peace in sector 7.")
-    quest_set_key(SHIP_ID, "patrol", "state", QuestState.ACTIVE)
+        quest_add(ship_id, "patrol", "Patrol Sector 7", "Keep the peace in sector 7.")
+        quest_set_key(ship_id, "patrol", "state", QuestState.ACTIVE)
+
     == on_patrol_done ==
-    quest_complete(SHIP_ID, "patrol")
-    quest_set_key(SHIP_ID, "patrol", "state", QuestState.COMPLETE)
+        quest_complete(ship_id, "patrol")
+        quest_set_key(ship_id, "patrol", "state", QuestState.COMPLETE)
+        ->END
     ```
 
 === ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.quest import quest_add, quest_set_key, quest_complete, QuestState
 
-    quest_add(SHIP_ID, "patrol", "Patrol Sector 7", "Keep the peace in sector 7.")
-    quest_set_key(SHIP_ID, "patrol", "state", QuestState.ACTIVE)
+    quest_add(ship_id, "patrol", "Patrol Sector 7", "Keep the peace in sector 7.")
+    quest_set_key(ship_id, "patrol", "state", QuestState.ACTIVE)
     # ... later ...
-    quest_complete(SHIP_ID, "patrol")
-    quest_set_key(SHIP_ID, "patrol", "state", QuestState.COMPLETE)
+    quest_complete(ship_id, "patrol")
+    quest_set_key(ship_id, "patrol", "state", QuestState.COMPLETE)
     ```
 
 ## Displaying quests
@@ -61,7 +63,7 @@ rescue:
   display_text: Rescue the crew
   description: Find the survivors.
 """
-quest_add_yaml(SHIP_ID, yaml_text)
+quest_add_yaml(ship_id, yaml_text)
 ```
 
 ## API

@@ -20,31 +20,28 @@ Links are uni-directional. `linked_to(ship_id, "consoles")` returns the consoles
 === ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    link(SHIP_ID, "escort_targets", FREIGHTER_ID)
-    link(SHIP_ID, "escort_targets", TRANSPORT_ID)
+        link(ship_id, "escort_targets", freighter_id)
+        link(ship_id, "escort_targets", transport_id)
+
     == check ==
-    targets = linked_to(SHIP_ID, "escort_targets")
-    alive = [t for t in targets if object_exists(t)]
-    if len(alive) == 0: jump mission_complete
+        targets = linked_to(ship_id, "escort_targets")
+        alive = [t for t in targets if object_exists(t)]
+        if len(alive) == 0: jump mission_complete
     ```
 
 === ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.links import link, unlink, linked_to, has_link_to
 
-    # Associate a freighter with a ship
-    link(SHIP_ID, "escort_targets", FREIGHTER_ID)
-    link(SHIP_ID, "escort_targets", TRANSPORT_ID)
+    link(ship_id, "escort_targets", freighter_id)
+    link(ship_id, "escort_targets", transport_id)
 
-    # Get all linked targets
-    targets = linked_to(SHIP_ID, "escort_targets")
+    targets = linked_to(ship_id, "escort_targets")
 
-    # Remove when destroyed
-    unlink(SHIP_ID, "escort_targets", FREIGHTER_ID)
+    unlink(ship_id, "escort_targets", freighter_id)
 
-    # Check
-    if has_link_to(SHIP_ID, "escort_targets", FREIGHTER_ID):
-        print("still escorting the freighter")
+    if has_link_to(ship_id, "escort_targets", freighter_id):
+        log("still escorting the freighter")
     ```
 
 ## System link names

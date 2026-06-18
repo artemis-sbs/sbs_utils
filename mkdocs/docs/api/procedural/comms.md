@@ -15,25 +15,25 @@ The comms module provides two related capabilities:
 === ":mast-icon: {{ab.m}}"
     ```
     //comms/alien
-    + "Greetings, humans."
-        //comms/alien/greet
-        + "We come in peace."
+        + "Greetings, humans." //comms/alien/greet
+
+    //comms/alien/greet
+        + "We come in peace.":
             signal_emit("alliance_offered")
-        + "Stand down or be destroyed."
-            target(ALIEN_ID, PLAYER_SHIP_ID)
+        + "Stand down!":
+            target(alien_id, player_ship_id)
+
     == patrol ==
-    comms_broadcast(SHIP_ID, "Enemy spotted at grid 7-Alpha!", "red")
+        comms_broadcast(ship_id, "Enemy spotted at grid 7-Alpha!", "red")
+        ->END
     ```
 
 === ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.comms import comms_broadcast, comms_route_to
 
-    # Broadcast a message to a ship's comms panel
-    comms_broadcast(SHIP_ID, "Incoming transmission!", "yellow")
-
-    # Programmatically navigate the comms tree
-    comms_route_to(CLIENT_ID, "alien/greet")
+    comms_broadcast(ship_id, "Incoming transmission!", "yellow")
+    comms_route_to(client_id, "alien/greet")
     ```
 
 ## API
