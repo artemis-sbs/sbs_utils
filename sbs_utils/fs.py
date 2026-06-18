@@ -7,18 +7,28 @@ import re
 exe_dir = os.path.dirname(sys.executable)
 
 def test_set_exe_dir():
-    """Set the executable directory to the parent of the script directory.
-    
-    Used in test environments to override the default exe_dir detection.
-    Navigates three directory levels up from the script directory.
-    """
-    global exe_dir
-    d = get_script_dir()
-    d = os.path.dirname(d)
-    d = os.path.dirname(d)
-    d = os.path.dirname(d)
+    """Set path globals using this file's known location.
 
-    exe_dir = d
+    Used in test environments to override the default path detection.
+    fs.py lives at <game_root>/data/missions/sbs_utils/sbs_utils/fs.py,
+    so all paths are derived from __file__ and are reliable regardless
+    of CWD, sys.path[0], or how tests are invoked (discover vs explicit
+    vs IDE runner).
+
+    Sets:
+      exe_dir    — game root (<game_root>)
+      script_dir — project root (<game_root>/data/missions/sbs_utils),
+                   used by get_mission_dir() to resolve relative MAST
+                   import/file paths in tests
+    """
+    global exe_dir, script_dir
+    pkg_dir = os.path.dirname(os.path.abspath(__file__))   # sbs_utils package
+    project_dir = os.path.dirname(pkg_dir)                  # sbs_utils project root
+    missions_dir = os.path.dirname(project_dir)             # missions
+    data_dir = os.path.dirname(missions_dir)                 # data
+    game_root = os.path.dirname(data_dir)                    # game root
+    exe_dir = game_root
+    script_dir = project_dir
 
 
 

@@ -122,6 +122,7 @@ MAST is the primary scripting language for Cosmos mission authors. It lives in t
 - MAST calls Python freely via `eval`/`exec`; procedural functions bridge Python↔MAST
 - Script files use `.mast` extension and are distributed as `.mastlib` zip files (added to the Python path at runtime)
 - Every mission (server and each client) starts execution at `== main ==`
+- The compiler creates an implicit `main` label — declaring `== main ==` explicitly causes a "Duplicate label" error unless you use `==replace: main ==`
 
 ### MAST syntax quick reference
 

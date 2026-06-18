@@ -1,3 +1,7 @@
+# OBSOLETE: This file uses old MAST syntax (-- if --, -- match --, ->>, <<-, =>) and
+# references missing imports (mast_compile, mast_run, MastRunner, Scope).
+# Do not run or rely on these tests. See test_mast.py and test_mast_sbs.py instead.
+
 from sbs_utils.mast.mast import Mast
 from sbs_utils.mast.mastsbsrunner import MastSbsRunner
 import unittest

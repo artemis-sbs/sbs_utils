@@ -1,13 +1,8 @@
-import os 
-s = os.environ['PYTHONPATH']
-print(s)
-c = os.getcwd()
-print(c)
-
-
 from sbs_utils.mast.mast import Mast, Scope, find_exp_end
 from sbs_utils.mast.mastscheduler import MastScheduler, PollResults
 from sbs_utils.agent import clear_shared
+from sbs_utils.fs import test_set_exe_dir
+test_set_exe_dir()  # fix exe_dir and script_dir for any run mode
 from sbs_utils.mast.label import label
 import unittest
 from sbs_utils.mast_sbs import story_nodes
