@@ -1,7 +1,10 @@
 from sbs_utils.mast.mast import Mast
 from sbs_utils.agent import clear_shared
+from sbs_utils.mast_sbs import story_nodes  # registers Cosmos MAST nodes; must be explicit
+from sbs_utils.fs import test_set_exe_dir
 import unittest
 
+test_set_exe_dir()
 Mast.enable_logging()
 
 """

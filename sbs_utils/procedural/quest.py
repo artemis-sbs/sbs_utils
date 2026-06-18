@@ -38,7 +38,7 @@ def quest_transfer(from_agent_id, to_agent_id, quest_id):
         quests, child_id = quest_folder(to_agent_id, quest_id)
         if quests is None:
             return False
-        quests[child_id] = quest
+        quests.get("children")[child_id] = quest
         return True
     return False
 
@@ -161,14 +161,14 @@ def quest_get_description(agent, quest_id):
 def quest_get_key(agent, quest_id, key, defa=None):
     quest = quest_get(agent, quest_id)
     if quest is None:
-        return None
+        return defa
     return quest.get(key, defa)
 
 def quest_set_key(agent, quest_id, key, value):
     quest = quest_get(agent, quest_id)
     if quest is None:
         return
-    quest[key] = value
+    setattr(quest, key, value)
 
 def quest_add_yaml(agents, yaml_text):
     quests = load_yaml_string(yaml_text)
