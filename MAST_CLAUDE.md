@@ -11,7 +11,7 @@ Items marked **[TBC]** are not yet confirmed.
 
 MAST is a linear scripting language embedded in Python. Think "choose your own adventure" or BASIC line numbers — not functions with return values. Execution flows forward, jumps to labels, and runs until it ends. New tasks can be scheduled and events awaited, but nested label calls like function calls are not the norm.
 
-Every mission starts at `== main ==`. Top-level code before any label runs as part of the implicit main.
+**Never write `== main ==` in scripts or examples.** The main label is implicit — the top-level code in every MAST file is automatically combined into one shared main. `shared` variables at the top level only run once across all files. Use descriptive named labels (`== setup ==`, `== patrol_logic ==`) for everything else.
 
 ---
 
@@ -186,6 +186,11 @@ default shared PLAYER_COUNT = 2
 default shared SETTINGS = settings_get_defaults()
 ```
 
+### Variable naming conventions
+
+- **CAPS_STYLE** (`SHIP_ID`, `COMMS_ORIGIN_ID`, `DAMAGE_TARGET_ID`) — system-defined context variables injected by the engine or route system. Don't use this style for script-defined variables.
+- **snake_case** (`ship_id`, `enemy_id`, `fleet_obj`) — script-defined variables. Follow Python conventions since most evaluation runs through Python `eval`/`exec`.
+
 ### Scope rules
 
 - Variables are scoped to the **task**, not the label.
@@ -331,23 +336,61 @@ Format: `@console/name !priority ^sort_order "Display Name" if condition`
 
 ## Comms System
 
-Comms menus are built from routes and inline button syntax. The dialogue system is separate from general narration.
+### Initiation
+
+Comms fires automatically when a player selects an entity in the Cosmos engine, which routes a comms-select event. The procedural comms system (`procedural/comms`) calls all matching `//enable/comms` routes once to check eligibility, then routes to the appropriate `//comms` label based on the state of the comms tree. Scripts don't manually open comms.
 
 ### Route structure
 
 ```
 //comms if has_roles(COMMS_ORIGIN_ID, "__player__")
     + "Hail":
-        comms_receive("Greetings!", title="Response")
+        << [green] "Hail"
+            % Greetings, commander.
+            % How can I help you?
     + "Send Message" //comms/ship_to_ship
     + "Attack!" if side_are_enemies(COMMS_ORIGIN_ID, COMMS_SELECTED_ID):
-        comms_transmit("Prepare to be boarded.")
+        >> "Prepare to be boarded."
 
 //comms/ship_to_ship
     default prop_message = ""
     + "Back" //comms
     + "Send":
         comms_transmit(prop_message)
+```
+
+### Dialogue MAST syntax
+
+`<<` = receive (incoming, NPC speaking). `>>` = transmit (outgoing, player speaking).
+
+```
+<< [green] "Title"
+    % First possible line
+    % Second possible line     # system picks one randomly
+    % Third possible line
+
+<< [$raider] "Hostile Hail"
+    % Go climb a tree!
+    % You can't win!
+
+>> "Player response"
+    % Understood, moving out.
+```
+
+`%` lines are random dialogue options — one is picked at random each time.
+
+Other types: `<all>` (broadcast), `<scan>` (science scan result), `()` (speech bubble).
+
+### Color style variables
+
+`=$` declares a named color/style for use in comms dialogue:
+
+```
+=$ raider red, white
+=$ friendly green
+
+<< [$raider] "Hail"
+    % Hostile message here
 ```
 
 ### Button syntax
@@ -358,36 +401,9 @@ Comms menus are built from routes and inline button syntax. The dialogue system 
 + "Label" handler_label                     # jump to label
 + "Label" handler_label {"key": "value"}    # jump with data dict
 + "Label" if condition:                     # conditional button
-    pass
+    code_here()
 + !0 "Back" //comms                         # !0 = sort priority
 + "{variable_text}" handler_label           # dynamic button text
-```
-
-### Dialogue syntax
-
-```
-<<[green] "Title"
-    % First possible line
-    % Second possible line     # system picks one randomly
-    % Third possible line
-
-<<[$raider] "Hostile Hail"
-    % Go climb a tree!
-    % You can't win!
-```
-
-`%` lines are random dialogue options — the system picks one.
-
-### Color style variables
-
-`=$` declares a named color style for use in comms:
-
-```
-=$raider red, white
-=$friendly green
-
-<<[$raider] "Hail"
-    % Hostile message here
 ```
 
 ### Navigation
@@ -551,9 +567,14 @@ any_role("__player__,admiral")           # any of multiple roles
 ```
 
 ### Log
-```
+
+From `sbs_utils.procedural.execution`. Preferred over `print()`.
+
+```python
+# signature: log(message, name=None, level=None)
+log("Game started")
 log(f"{upgrade_name} spawned at {x},{y},{z}", "upgrades")
-log("Game started", "autoplay")
+log("Spawn failed", "spawn", "warning")
 ```
 
 ---
