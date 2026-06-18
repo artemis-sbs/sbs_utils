@@ -36,7 +36,7 @@ A `//shared/signal/<name>` route fires for all clients and tasks, not just the o
 
 ```
 //shared/signal/quest_completed
-"Mission complete! Well done, crew."
+    log("Mission complete! Well done, crew.")
 ```
 
 ## Built-in signals
