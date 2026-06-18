@@ -6,65 +6,100 @@ import struct # for images sizes
 from ...gui import get_client_aspect_ratio
 
 def gui_image_stretch(props, style=None):
-    """queue a gui image element that stretches to fit
+    """Add an image to the layout, stretched to fill its area.
 
     Args:
-        props (str): _description_
-        style (str, optional): Style. Defaults to None.
+        props (str): Image filename (without extension), atlas key, or image
+            property string e.g. ``"image:media/logo;color:white;"``.
+        style (str, optional): CSS-like style overrides. Defaults to None.
 
     Returns:
-        layout object: The Layout object created
-    """            
+        Image: The layout item created.
+
+    Example:
+        gui_image_stretch("media/backgrounds/nebula")
+    """
     return gui_image(props, style=style, fit=0)
 
 def gui_image_absolute(props, style=None):
-    """queue a gui image element that draw the absolute pixels dimensions
+    """Add an image to the layout at its native pixel dimensions.
+
+    The image is drawn at 1:1 pixel size relative to the client's screen
+    resolution, anchored at the top-left of the layout area.
 
     Args:
-        props (str): _description_
-        style (str, optional): Style. Defaults to None.
+        props (str): Image filename (without extension), atlas key, or image
+            property string.
+        style (str, optional): CSS-like style overrides. Defaults to None.
 
     Returns:
-        layout object: The Layout object created
-    """                
+        Image: The layout item created.
+
+    Example:
+        gui_image_absolute("media/icons/torpedo")
+    """
     return gui_image(props, style=style, fit=1)
 
 def gui_image_keep_aspect_ratio(props, style=None):
-    """queue a gui image element that draw keeping the same aspect ratio, left top justified
+    """Add an image scaled to fit the area while preserving aspect ratio.
+
+    Scales the image as large as possible without cropping, anchored
+    top-left. Leaves empty space if the area's aspect ratio differs from
+    the image's.
 
     Args:
-        props (str): _description_
-        style (str, optional): Style. Defaults to None.
+        props (str): Image filename (without extension), atlas key, or image
+            property string.
+        style (str, optional): CSS-like style overrides. Defaults to None.
 
     Returns:
-        layout object: The Layout object created
-    """                
+        Image: The layout item created.
+
+    Example:
+        gui_image_keep_aspect_ratio("media/ship/artemis")
+    """
     return gui_image(props, style=style, fit=2)
 
 def gui_image_keep_aspect_ratio_center(props, style=None):
-    """queue a gui image element that keeps the aspect ratio and centers when there is extra
+    """Add an image scaled to fit the area while preserving aspect ratio, centered.
+
+    Like ``gui_image_keep_aspect_ratio`` but centers the image in the
+    remaining space when the aspect ratios differ.
 
     Args:
-        props (str): _description_
-        style (str, optional): Style. Defaults to None.
+        props (str): Image filename (without extension), atlas key, or image
+            property string.
+        style (str, optional): CSS-like style overrides. Defaults to None.
 
     Returns:
-        layout object: The Layout object created
-    """                
+        Image: The layout item created.
+
+    Example:
+        gui_image_keep_aspect_ratio_center("media/crew/captain")
+    """
     return gui_image(props, style=style, fit=3)
 
 
 def gui_image(props, style=None, fit=0):
-    """queue a gui image element that draw based on the fit argument. Default is stretch
+    """Add an image to the current GUI layout.
+
+    Resolves the image via the atlas, mission directory, and engine graphics
+    path in that order. Prefer the named wrappers (``gui_image_stretch``,
+    ``gui_image_absolute``, etc.) over calling this directly.
 
     Args:
-        props (str): _description_
-        style (str, optional): Style. Defaults to None.
-        fit (int): The type of fill, 
+        props (str): Image filename (without extension), a registered atlas
+            key (see ``gui_image_add_atlas``), or an image property string
+            like ``"image:media/logo;color:white;"``. Supports ``{var}``
+            interpolation.
+        style (str, optional): CSS-like style overrides. Defaults to None.
+        fit (int, optional): Scaling mode — 0=stretch, 1=absolute pixels,
+            2=keep aspect ratio (top-left), 3=keep aspect ratio (centered).
+            Defaults to 0.
 
     Returns:
-        layout object: The Layout object created
-    """                    
+        Image: The layout item created.
+    """
     from ...pages.layout.image import Image
     page = FrameContext.page
     task = FrameContext.task
@@ -292,6 +327,21 @@ Returns:
 
 _image_sizes = {}
 def gui_image_size(file):
+    """Return the pixel dimensions of an image file or atlas entry.
+
+    Checks the atlas first, then reads the PNG header directly. Results are
+    cached so repeated calls are free after the first read.
+
+    Args:
+        file (str): Atlas key or image path (without ``.png`` extension).
+
+    Returns:
+        tuple[int, int]: ``(width, height)`` in pixels, or ``(-1, -1)`` if
+            the file cannot be read.
+
+    Example:
+        w, h = gui_image_size("media/backgrounds/nebula")
+    """
     global _image_sizes
     size = _image_sizes.get(file)
     if size is not None:

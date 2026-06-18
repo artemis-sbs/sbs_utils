@@ -3,14 +3,20 @@ from ..style import apply_control_styles
 from ...pages.layout.face import Face
 
 def gui_face(face, style=None):
-    """queue a gui face element
+    """Add a character face portrait to the current GUI layout.
+
+    Renders the named face asset, typically used in comms panels to show the
+    speaker's portrait.
 
     Args:
-        face (str): _description_
-        style (str, optional): Style. Defaults to None.
+        face (str): Face asset name or property string, e.g. ``"crew/captain"``.
+        style (str, optional): CSS-like style overrides. Defaults to None.
 
     Returns:
-        layout object: The Layout object created
+        Face: The layout item created.
+
+    Example:
+        gui_face("crew/captain")
     """    
     page = FrameContext.page
     task = FrameContext.task

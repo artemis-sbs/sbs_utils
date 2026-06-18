@@ -2,8 +2,13 @@ from ..fs import load_json_data, get_mission_dir_filename, load_yaml_data
 
 setting_defaults = None
 def settings_get_defaults():
-    """
-    Get the default settings for the current game.
+    """Return the merged default settings dict, loading ``settings.yaml`` or ``setup.json`` if present.
+
+    Results are cached after the first call. Mission-specific values from the
+    YAML/JSON file override the built-in defaults.
+
+    Returns:
+        dict: The default settings mapping.
     """
     global setting_defaults
     if setting_defaults is not None:
@@ -98,10 +103,13 @@ def settings_get_defaults():
 
 
 def settings_add_defaults(additions):
-    """
-    Add setting members to the defaults.
+    """Merge additional keys into the global settings defaults.
+
+    ``additions`` acts as a fallback — existing values from ``settings.yaml``
+    or ``setup.json`` take precedence, so this only fills gaps.
+
     Args:
-        additions (dict): The additional settings to add. 
+        additions (dict): Default key-value pairs to add if not already present.
     """
     global setting_defaults
     setting_defaults = settings_get_defaults()

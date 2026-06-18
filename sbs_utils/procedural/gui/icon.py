@@ -4,14 +4,21 @@ from ...pages.layout.icon import Icon
 
 
 def gui_icon(props, style=None):
-    """queue a gui icon element
+    """Add an icon image to the current GUI layout.
+
+    Renders a non-interactive icon from the atlas or media path.
 
     Args:
-        props (str): _description_
-        style (str, optional): Style. Defaults to None.
+        props (str): Icon key, atlas name, or image property string, e.g.
+            ``"icons/torpedo"`` or ``"image:icons/torpedo;color:yellow;"``.
+        style (str, optional): CSS-like style overrides. Defaults to None.
 
     Returns:
-        layout object: The Layout object created
+        Icon: The layout item created.
+
+    Example:
+        gui_icon("icons/shield")
+        gui_text("{shield_pct}%")
     """        
     page = FrameContext.page
     task = FrameContext.task
@@ -28,14 +35,21 @@ def gui_icon(props, style=None):
 
 from ...pages.layout.icon_button import IconButton
 def gui_icon_button(props, style=None):
-    """queue a gui icon element
+    """Add a clickable icon button to the current GUI layout.
+
+    Like ``gui_icon`` but the rendered item accepts click events.
 
     Args:
-        props (str): _description_
-        style (str, optional): Style. Defaults to None.
+        props (str): Icon key, atlas name, or image property string, e.g.
+            ``"icons/fire"`` or ``"image:icons/fire;color:red;"``.
+        style (str, optional): CSS-like style overrides. Defaults to None.
 
     Returns:
-        layout object: The Layout object created
+        IconButton: The layout item created.
+
+    Example:
+        btn = gui_icon_button("icons/fire")
+        gui_click(btn, on_fire_clicked)
     """        
     page = FrameContext.page
     task = FrameContext.task

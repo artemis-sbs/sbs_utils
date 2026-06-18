@@ -12,6 +12,7 @@ import random
 
 #__extra_scan_sources_tick_task = None
 def extra_scan_sources_schedule():
+    """Schedule the extra scan sources tick task via the objective system."""
     from .objective import objective_schedule
     objective_schedule()
     # this is handled in objective which manages 
@@ -29,6 +30,15 @@ def extra_scan_sources_schedule():
 
 __extra_scan_sourcess_is_running = False
 def extra_scan_sources_run_all(tick_task:TickTask):
+    """Push extra scan source IDs to all scanners that have them linked.
+
+    Called each tick by the objective system. Computes a CRC of the linked
+    extra scan sources per scanner and skips the update if unchanged, reducing
+    network traffic.
+
+    Args:
+        tick_task (TickTask): The tick task that triggered this run.
+    """
     global __extra_scan_sourcess_is_running
 
     if __extra_scan_sourcess_is_running:

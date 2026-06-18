@@ -7,17 +7,24 @@ from .signal import signal_emit
 
     
 def lifeform_spawn(name, face, roles, host=None, comms_id=None, path=None, title_color="green", message_color="white"):
-    """
-    Spawn a new Agent and initialize it as a lifeform.
+    """Create a new Agent and initialise it as a lifeform.
+
     Args:
-        name (str): The name of the lifeform.
-        face (str): The face string of the lifeform.
-        roles (str): A comma-separated list of roles assigned to the lifeform.
-        host (Agent | int, optional): The agent or id of the host space object. Default is None.
-        comms_id (str, optional): The comms_id of the lifeform (unused). Default is None.
-        path (str, optional): The comms path to use to communicate with this lifeform. Default is None.
-        title_color (str, optional): The color of the title of comms messages with this lifeform. Default is "green".
-        message_color (str, optional): The color of the message of comms messages with this lifeform. Default is "white".
+        name (str): Display name of the lifeform.
+        face (str): Face image key.
+        roles (str): Comma-separated roles to assign (e.g. ``"crew,medic"``).
+        host (Agent | int, optional): Space object the lifeform boards.
+            Defaults to None.
+        comms_id (str, optional): Unused. Defaults to None.
+        path (str, optional): Comms route path for this lifeform. Defaults to
+            None.
+        title_color (str, optional): Color of the comms title line. Defaults
+            to ``"green"``.
+        message_color (str, optional): Color of the comms message text.
+            Defaults to ``"white"``.
+
+    Returns:
+        Agent: The newly created lifeform agent.
     """
     a = Agent()
     a.id = get_story_id()
@@ -27,17 +34,21 @@ def lifeform_spawn(name, face, roles, host=None, comms_id=None, path=None, title
     return a
 
 def lifeform_init(self, name, face, roles, host=None, comms_id=None, path=None, title_color="green", message_color="white"):
-    """
-    Initialize a lifeform.
+    """Initialise an existing Agent as a lifeform (in-place version of ``lifeform_spawn``).
+
     Args:
-        name (str): The name of the lifeform
-        face (str): The face string of the lifeform.
-        roles (str): A comma-separated list of roles assigned to the lifeform.
-        host (Agent | int, optional): The agent or id of the host space object. Default is None.
-        comms_id (str, optional): The comms_id of the lifeform (unused). Default is None.
-        path (str, optional): The comms path to use to communicate with this lifeform. Default is None.
-        title_color (str, optional): The color of the title of comms messages with this lifeform. Default is "green".
-        message_color (str, optional): The color of the message of comms messages with this lifeform. Default is "white".
+        self (Agent): The agent to initialise.
+        name (str): Display name of the lifeform.
+        face (str): Face image key.
+        roles (str): Comma-separated roles to assign.
+        host (Agent | int, optional): Space object the lifeform boards.
+            Defaults to None.
+        comms_id (str, optional): Unused. Defaults to None.
+        path (str, optional): Comms route path. Defaults to None.
+        title_color (str, optional): Color of the comms title line. Defaults
+            to ``"green"``.
+        message_color (str, optional): Color of the comms message text.
+            Defaults to ``"white"``.
     """
     
     if face is not None:
@@ -57,11 +68,15 @@ def lifeform_init(self, name, face, roles, host=None, comms_id=None, path=None, 
 
 
 def lifeform_transfer(lifeform, new_host):
-    """
-    Assign a new host to this lifeform.
+    """Move a lifeform to a new host space object, emitting ``lifeform_transferred``.
+
+    Unlinks from the old host (if any) and links to the new one. If
+    ``new_host`` is not a space object ID the lifeform gains the
+    ``"ultra_beam"`` role instead.
+
     Args:
-        lifeform (Agent | int): The agent or id of the lifeform.
-        new_host (Agent | int): The agent or id of the new host.
+        lifeform (Agent | int): The lifeform agent or its ID.
+        new_host (Agent | int): The new host space object or its ID.
     """
     lifeform = to_object(lifeform)
     if lifeform is None:
@@ -84,11 +99,14 @@ def lifeform_transfer(lifeform, new_host):
 
     # Emit signal?
 def lifeform_set_path(lifeform, path=None):
-    """
-    Set the comms path of the lifeform. If the path is None, then the `comms_badge` role is removed from the lifeform.
+    """Set the comms route path for a lifeform.
+
+    Clears the ``comms_badge`` role when ``path`` is ``None``, and adds it
+    when a path is set.
+
     Args:
-        lifeform (Agent | int): The agent or id of the lifeform
-        path (str, optional): The new path to use. Default is None.
+        lifeform (Agent | int): The lifeform agent or its ID.
+        path (str, optional): The comms route path. Defaults to None (clears).
     """
     lifeform = to_object(lifeform)
     if lifeform is None:

@@ -8,7 +8,38 @@ from ...futures import Promise, awaitable
 
 
 def gui_tabbed_panel(items=None, style=None, tab=0, tab_location=0, icon_size=0):
+    """Create a tabbed panel widget with icon-based tab navigation.
 
+    Each tab is defined by a dict with ``path``, ``icon``, ``show``, and
+    optionally ``hide`` and ``tick`` keys. The panel calls ``show`` when a tab
+    is activated and ``hide`` when it is deactivated. Prefer ``gui_info_panel``
+    for the standard info panel; use this directly only when building a custom
+    panel layout.
+
+    Args:
+        items (list[dict], optional): Tab descriptors. Each dict has:
+            ``path`` (str) — route name for this tab;
+            ``icon`` (int) — icon index displayed on the tab button;
+            ``show`` (callable) — ``show(cid, left, top, width, height)`` called
+            when the tab becomes active;
+            ``hide`` (callable, optional) — called when the tab is hidden;
+            ``tick`` (callable, optional) — called each tick while the tab is
+            active. Defaults to None.
+        style (str, optional): CSS-like style string for the panel. Defaults to None.
+        tab (int, optional): Index of the initially active tab. Defaults to 0.
+        tab_location (int, optional): Edge where tabs appear (0=left). Defaults to 0.
+        icon_size (int, optional): Icon size in pixels. Defaults to 0 (auto).
+
+    Returns:
+        TabbedPanel: The panel layout object.
+
+    Example:
+        panels = [
+            {"path": "status", "icon": 140, "show": show_status, "hide": hide_status},
+            {"path": "map",    "icon": 121, "show": show_map},
+        ]
+        tp = gui_tabbed_panel(panels, tab=0)
+    """
     page = FrameContext.client_page
     task = FrameContext.task
     if page is None:
@@ -24,6 +55,27 @@ def gui_tabbed_panel(items=None, style=None, tab=0, tab_location=0, icon_size=0)
 
 
 def gui_info_panel(tab=0, tab_location=0, icon_size=0, var=None):
+    """Create the standard info panel with a built-in ship-data tab.
+
+    Initialises a ``TabbedPanel`` pre-loaded with a "hide" tab (icon 121) and
+    a "ship_data" tab (icon 140). Additional tabs can be appended with
+    ``gui_info_panel_add``. The panel object is stored in the GUI task under
+    ``var`` so it can be retrieved and updated later.
+
+    Args:
+        tab (int, optional): Initially active tab index. Defaults to 0.
+        tab_location (int, optional): Edge where tabs appear (0=left). Defaults to 0.
+        icon_size (int, optional): Icon size in pixels. Defaults to 0 (auto).
+        var (str, optional): Task variable name used to store the panel.
+            Defaults to ``"__INFO_PANEL__"``.
+
+    Returns:
+        TabbedPanel: The info panel layout object.
+
+    Example:
+        tp = gui_info_panel()
+        gui_info_panel_add("comms", 130, show_comms_tab)
+    """
     page = FrameContext.page
 
     panels = []
@@ -53,6 +105,28 @@ def gui_info_panel(tab=0, tab_location=0, icon_size=0, var=None):
 
 
 def gui_info_panel_add(path, icon_index, show, hide=None, tick=None, var=None):
+    """Add a tab to an existing info panel.
+
+    If the panel is currently displayed, it is re-represented immediately.
+
+    Args:
+        path (str): Route name for this tab, used to switch to it programmatically.
+        icon_index (int): Icon index displayed on the tab button.
+        show (callable): ``show(cid, left, top, width, height)`` called when
+            the tab becomes active.
+        hide (callable, optional): Called when the tab is deactivated.
+            Defaults to None.
+        tick (callable, optional): Called each tick while the tab is active.
+            Defaults to None.
+        var (str, optional): Task variable holding the panel (set by
+            ``gui_info_panel``). Defaults to ``"__INFO_PANEL__"``.
+
+    Returns:
+        TabbedPanel | None: The panel, or ``None`` if not found.
+
+    Example:
+        gui_info_panel_add("crew", 155, show_crew_tab, hide_crew_tab)
+    """
     page = FrameContext.page
     if var is None:
         var = "__INFO_PANEL__"
@@ -72,7 +146,24 @@ def gui_info_panel_add(path, icon_index, show, hide=None, tick=None, var=None):
     return tp
 
 
-def gui_info_panel_remove(path, var = None):
+def gui_info_panel_remove(path, var=None):
+    """Remove a tab from an info panel by its path name.
+
+    If the panel is currently displayed and the tab was actually present,
+    the panel is re-represented immediately.
+
+    Args:
+        path (str): Route name of the tab to remove (as passed to
+            ``gui_info_panel_add``).
+        var (str, optional): Task variable holding the panel. Defaults to
+            ``"__INFO_PANEL__"``.
+
+    Returns:
+        TabbedPanel | None: The panel, or ``None`` if not found.
+
+    Example:
+        gui_info_panel_remove("crew")
+    """
     page = FrameContext.page
     if var is None:
         var = "__INFO_PANEL__"
@@ -131,6 +222,42 @@ def gui_info_panel_send_message(
     history=True,
     time=-1,
 ):
+    """Send a message card to a client's info panel.
+
+    The message is queued under the given ``path`` tab and displayed when that
+    tab is active. If a ``button`` label is provided the call suspends until the
+    player presses it. Messages are stored in history (up to 9 items) unless
+    ``history=False``.
+
+    Args:
+        client_id (int | set): Client(s) to receive the message.
+        message (str, optional): Main body text.
+        message_color (str, optional): CSS color for the body text.
+        path (str, optional): Tab path to place the message in. Defaults to
+            ``"message"``.
+        title (str, optional): Bold header line above the message.
+        title_color (str, optional): CSS color for the title.
+        banner (str, optional): Larger banner text shown above the title.
+        banner_color (str, optional): CSS color for the banner.
+        face (str, optional): Face/portrait key to display alongside the message.
+        icon_index (int, optional): Icon index to display alongside the message.
+        icon_color (str, optional): CSS color for the icon.
+        button (str | list, optional): Button label(s) to show. When set the
+            function returns an awaitable Promise that resolves on button press.
+        history (bool, optional): Append to message history. Defaults to True.
+        time (int, optional): Auto-dismiss after this many seconds if no button
+            is configured. Defaults to -1 (use panel default of 10 s).
+
+    Returns:
+        Promise | None: Resolves when the button is pressed, or None if no
+            button was specified.
+
+    Example:
+        await gui_info_panel_send_message(CLIENT_ID,
+            title="New Orders",
+            message="Report to DS1 immediately.",
+            face="captain")
+    """
     client_ids = to_set(client_id)
 
     message_data = {}

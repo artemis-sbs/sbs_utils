@@ -31,6 +31,21 @@ def _gui_reroute_main(label, server):
 
 from ...gui import Gui
 def gui_reroute_client(client_id, label, data=None):
+    """Jump a specific client's GUI task to a new label immediately.
+
+    Finds the client's active page, optionally sets variables from ``data``,
+    then jumps the page's GUI task to ``label`` and ticks it in the current
+    frame context.
+
+    Args:
+        client_id (int): The client to reroute.
+        label: MAST label to jump to.
+        data (dict | None, optional): Variables to set on the task before
+            jumping. Defaults to None.
+
+    Example:
+        gui_reroute_client(CLIENT_ID, briefing_screen)
+    """
     client = Gui.clients.get(client_id, None)
     if client is None:
         return
@@ -52,10 +67,15 @@ def gui_reroute_client(client_id, label, data=None):
             page.gui_task.tick_in_context()
 
 def gui_reroute_server(label, data=None):
-    """reroute server gui to run the specified label
+    """Jump the server GUI task to a new label.
 
     Args:
-        label (label): Label to jump to
+        label: MAST label to jump to.
+        data (dict | None, optional): Variables to set on the task before
+            jumping. Defaults to None.
+
+    Example:
+        gui_reroute_server(server_status_page)
     """    
     if _gui_reroute_main(label, True):
         return
@@ -63,11 +83,17 @@ def gui_reroute_server(label, data=None):
 
 
 def gui_reroute_clients(label, data=None, exclude=None):
-    """reroute client guis to run the specified label
+    """Jump all connected client GUI tasks to a new label.
 
     Args:
-        label (label): Label to jump to
-        exclude (set, optional): set client_id values to exclude. Defaults to None.
+        label: MAST label to jump to.
+        data (dict | None, optional): Variables to set on each task before
+            jumping. Defaults to None.
+        exclude (set | None, optional): Set of client IDs to skip. Defaults
+            to None (no exclusions).
+
+    Example:
+        gui_reroute_clients(mission_end_screen, exclude={spectator_id})
     """    
     if _gui_reroute_main(label, False):
         return
@@ -80,10 +106,17 @@ def gui_reroute_clients(label, data=None, exclude=None):
             gui_reroute_client(id, label, data)
 
 def gui_history_store(back_text, back_label=None):
-    """store the current 
+    """Record the current label as a history entry (back destination).
+
+    Stores the active label (or ``back_label``) so that ``gui_history_back``
+    can return to it later. Use ``gui_history_jump`` instead when also
+    navigating forward.
 
     Args:
-        label (label): A mast label
+        back_text (str): Display name for this history entry (shown in back
+            buttons or breadcrumbs).
+        back_label (label, optional): Label to return to. Defaults to the
+            currently active label.
     """    
     page = FrameContext.page
     if page is None:
@@ -93,19 +126,25 @@ def gui_history_store(back_text, back_label=None):
     
 
 def gui_history_jump(to_label, back_name=None, back_label=None, back_data=None):
-    """Jump to a new gui label, but remember how to return to the current state
+    """Jump to a new GUI label and record the current position in navigation history.
+
+    Appends the current position to the back-stack (clearing any forward
+    history) then jumps to ``to_label``. Call ``gui_history_back`` to return.
 
     Args:
-        to_label (label): Where to jump to
-        back_name (str): A name to use if displayed
-        back_label (label, optional): The label to return to defaults to the label active when called
-        back_data (dict, optional): A set of value to set when returning back
-
-    ??? Note:
-        If there is forward history it will be cleared
+        to_label (label): Label to navigate to.
+        back_name (str | None, optional): Display name for the back entry.
+            Defaults to ``"BACK"``.
+        back_label (label | None, optional): Label to return to. Defaults to
+            the currently active label.
+        back_data (dict | None, optional): Variables to restore when returning
+            back. Defaults to None.
 
     Returns:
-        results (PollResults): PollResults of the jump
+        PollResults: Result of the jump.
+
+    Example:
+        gui_history_jump(ship_detail_screen, back_name="Ship List")
     """    
     page = FrameContext.page
     if page is None:
@@ -133,8 +172,14 @@ def gui_history_jump(to_label, back_name=None, back_label=None, back_data=None):
     return task.jump(to_label)
 
 def gui_history_back():
-    """Jump back in history
+    """Jump back to the previous navigation history entry.
 
+    Restores any variables stored with the entry and jumps to its label.
+    No-op if there is no history.
+
+    Example:
+        * "Back"
+            gui_history_back()
     """    
     page = FrameContext.page
     if page is None:
@@ -162,7 +207,14 @@ def gui_history_back():
 
 
 def gui_history_forward():
-    """Jump forward in history
+    """Jump forward to the next navigation history entry.
+
+    Restores any variables stored with the entry and jumps to its label.
+    No-op if there is no forward history.
+
+    Example:
+        * "Forward"
+            gui_history_forward()
     """    
     page = FrameContext.page
     if page is None:
@@ -190,7 +242,13 @@ def gui_history_forward():
     return task.jump(back_label)
 
 def gui_history_clear():
-    """Clears the history for the given page
+    """Clear the navigation history for the current page.
+
+    Removes all back and forward history entries. Call this when entering a
+    top-level screen where back-navigation should not be available.
+
+    Example:
+        gui_history_clear()
     """
     page = FrameContext.page
     if page is None:
@@ -199,6 +257,21 @@ def gui_history_clear():
     task.set_variable("GUI_HISTORY", None)
     task.set_variable("GUI_HISTORY_POS", None)
 def gui_history_redirect(back_name=None, back_label=None, back_data=None):
+    """Append to navigation history without jumping forward.
+
+    Adds a history entry so the current location can be returned to via
+    ``gui_history_back``, but does not change the active label. Use when you
+    need to update the back-stack from within a label that was jumped to
+    externally (e.g. from a route).
+
+    Args:
+        back_name (str | None, optional): Display name for the history entry.
+            Defaults to ``"BACK"``.
+        back_label (label | None, optional): Label to return to. Defaults to
+            the currently active label.
+        back_data (dict | None, optional): Variables to restore when returning
+            back. Defaults to None.
+    """
     page = FrameContext.page
     if page is None:
         return

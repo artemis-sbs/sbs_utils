@@ -4,15 +4,23 @@ from ..mast.pollresults import PollResults
 
 
 def mission_runner(label=None, data=None):
-    """
-    Runs a mission this runs the same task multiple times. If the label is None, runs the currently running mission label.
+    """Generator that drives a structured mission label through its lifecycle.
+
+    Executes the ``init``, ``start``, ``abort``, ``objective``, and
+    ``complete`` sub-blocks of a mission label in order, yielding
+    ``PollResults`` at each step. If ``label`` is ``None``, reads the label
+    and data from the current task's variables (used when spawned by
+    ``mission_run``).
 
     Args:
-        label (str | Label, optional): The mission label to run. Default is None.
-        data (dict, optional): Data to pass to the mission task. Default is None.
+        label (str | Label, optional): The mission label to run. Defaults to
+            ``None`` (reads from the current task).
+        data (dict, optional): Variables to pass into the mission sub-task.
+            Defaults to None.
 
     Yields:
-        PollResults: Success or Failure
+        PollResults: ``OK_RUN_AGAIN`` while running, ``OK_END`` on completion
+            or abort.
     """
     if label is None:
         task = FrameContext.task
@@ -124,16 +132,27 @@ def mission_runner(label=None, data=None):
 
 
 def mission_find(agent_id):
-    """
-    Currently unused.
+    """Find a mission by agent ID — currently unused and always returns ``None``.
+
+    Args:
+        agent_id (int): Agent ID to search for.
     """
     pass
 
 
-def mission_run(label, data= None):
-    """
-    Run a mission label.
+def mission_run(label, data=None):
+    """Schedule a mission label to run as a new task.
+
+    Spawns a task running ``mission_runner`` which drives the mission label
+    through its full ``init`` / ``start`` / ``objective`` / ``complete``
+    lifecycle.
+
     Args:
-        label (str | Label)
+        label (str | Label): The mission label to execute.
+        data (dict, optional): Variables to pass into the mission. Defaults to
+            None.
+
+    Returns:
+        MastAsyncTask: The scheduled task.
     """
     return task_schedule(mission_runner, {"label": label, "data": data})

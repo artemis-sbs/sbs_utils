@@ -56,14 +56,30 @@ class MessageHandler:
 
 from ...pages.layout.button import Button
 def gui_button(props, style=None, data=None, on_press=None, is_sub_task=False):
-    """Add a gui button
+    """Add a button to the current GUI layout outside of an ``await gui()`` block.
+
+    Unlike buttons declared with ``*`` or ``+`` inside ``await gui()``, this
+    button is placed directly in the layout at the current position and fires
+    its handler without ending the surrounding ``await gui()``. Use it for
+    action buttons embedded in panels, listboxes, or info panels.
 
     Args:
-        props (str): Properties. Usually just the text on the button
-        style (str, optional): Style. Defaults to None. End each style with a semicolon, e.g. `color:red;`
-        data (object): The data to pass to the button's label
-        on_press (label, callable, Promise): Handle a button press, label is jumped to, callable is called, Promise has results set
-        is_sub_task (bool): Set to True if the button is only responding to the button. Use False only if the whole gui will be changed via `await gui()`. Default is False for backwards-compatibility.
+        props (str): Button label text, optionally as a property string
+            (e.g. ``"$text:Fire!;color:red;"``). Supports ``{var}``
+            interpolation.
+        style (str, optional): Additional CSS-like style overrides.
+            End each property with a semicolon, e.g. ``"col-width:20%;"``.
+            Defaults to None.
+        data (object, optional): Arbitrary data passed to the handler.
+            Available as ``__ITEM__`` and (if a dict) as individual variables.
+            Defaults to None.
+        on_press (label | callable | Promise, optional): What to do when the
+            button is pressed. A label is jumped to; a callable is called; a
+            Promise has its result set. Defaults to None.
+        is_sub_task (bool, optional): When ``True`` the handler runs as an
+            independent sub-task. Use ``False`` (default) only when pressing
+            the button will rebuild the entire GUI via ``await gui()``.
+            Defaults to False.
 
     Valid Styles:
         area: 

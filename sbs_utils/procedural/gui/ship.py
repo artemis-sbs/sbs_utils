@@ -2,14 +2,21 @@ from ...helpers import FrameContext
 from ..style import apply_control_styles
 from ...pages.layout.ship import Ship
 def gui_ship(props, style=None):
-    """renders a 3d image of the ship 
+    """Render a 3D ship model in the current GUI layout.
+
+    Displays a real-time 3D render of the named ship type within the layout
+    area. The ship type key must match one defined in the game data.
 
     Args:
-        props (str): The ship key
-        style (str, optional): Style. Defaults to None.
+        props (str): Ship type key or property string, e.g. ``"battleship"``
+            or ``"$type:cruiser;angle:45;"``.
+        style (str, optional): CSS-like style overrides. Defaults to None.
 
     Returns:
-        layout object: The Layout object created
+        Ship: The layout item created.
+
+    Example:
+        gui_ship("battleship", style="area:20,0,80,60;")
     """                
     page = FrameContext.page
     task = FrameContext.task

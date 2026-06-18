@@ -47,6 +47,18 @@ import re
 
 
 def gui_screen_size(client_id):
+    """Return the pixel dimensions of a client's screen.
+
+    Args:
+        client_id (int): The client whose screen to query.
+
+    Returns:
+        Vec3: Screen dimensions in pixels (x=width, y=height, z=0).
+
+    Example:
+        size = gui_screen_size(CLIENT_ID)
+        ~~ print(size.x, size.y) ~~
+    """
     return get_client_aspect_ratio(client_id)
 
 
@@ -410,12 +422,21 @@ class PropertyChangeTrigger(Trigger):
 
         
 def gui_properties_change(var, label):
-    """create an on change on the client GUI for a property
+    """Watch a MAST variable and run an inline block when its value changes.
+
+    Registers a per-tick change detector on the current client's GUI task.
+    When ``var`` changes value, the block at ``label`` is pushed and executed
+    immediately within the current tick.
 
     Args:
-        var (str): The variable to watch
-        label (str or label): The label to run
-    """    
+        var (str): Name of the MAST variable to watch.
+        label: The inline label or block to execute on change.
+
+    Example:
+        gui_properties_change("shield_level", shield_changed)
+        ///shield_changed
+            gui_text("Shields: {shield_level}")
+    """
     if FrameContext.client_page is None:
         return
     
@@ -530,15 +551,30 @@ def handle_gui_from_child_task(p):
 
 @awaitable
 def gui(buttons=None, timeout=None):
-    """present the gui that has been queued up
+    """Present the GUI layout that has been queued up for the current client.
+
+    Suspends execution until the player presses a button or the timeout fires.
+    GUI elements (text, images, sections, etc.) must be queued with ``gui_*``
+    calls before ``await gui()``; they are rendered when the promise activates.
 
     Args:
-        buttons (dict, optional): _description_. Defaults to None.
-        timeout (promise, optional): A promise that ends the gui. Typically a timeout. Defaults to None.
+        buttons (dict, optional): Extra buttons to add, mapping label text to
+            jump target label name. e.g. ``{"Start": "start_label"}``.
+            Defaults to None.
+        timeout (Promise, optional): A promise (e.g. ``timeout_sim(30)``) that
+            cancels the GUI when it resolves. Defaults to None.
 
     Returns:
-        Promise: The promise for the gui, promise is done when a button is selected
-    """    
+        Promise: Resolves when a button is pressed or timeout fires.
+
+    Example:
+        gui_text("Choose your mission")
+        await gui():
+            + "Patrol":
+                jump patrol_mission
+            + "Escort":
+                jump escort_mission
+    """
     from ...mast_sbs.story_nodes.button import Button
     from ...futures import Promise
     page = FrameContext.page
@@ -562,6 +598,19 @@ def gui(buttons=None, timeout=None):
 
 from .update import gui_hide, gui_represent
 def gui_hide_choice():
+    """Hide the button that was just pressed during its handler block.
+
+    Call this from inside a button's handler block to remove the button
+    from the layout immediately after it is clicked, without waiting for
+    the ``await gui()`` to complete. Has no effect if called outside of
+    a running button handler.
+
+    Example:
+        await gui():
+            + "Launch Missile":
+                gui_hide_choice()
+                ~~ fire_torpedo(SHIP_ID) ~~
+    """
     page = FrameContext.page
     if page is None:
         return
@@ -579,12 +628,46 @@ def gui_hide_choice():
 
 from ...vec import Vec3
 def gui_percent_from_pixels(client_id, pixels):
+    """Convert a pixel size to GUI percentage coordinates for a client's screen.
+
+    GUI layout positions are expressed as percentages (0–100) of the screen
+    dimensions. Use this to convert a fixed pixel measurement to the equivalent
+    percentage for a specific client's resolution.
+
+    Args:
+        client_id (int): The client whose screen resolution to use.
+        pixels (float): The pixel size to convert.
+
+    Returns:
+        Vec3: Percentage values (x=horizontal %, y=vertical %, z=0).
+
+    Example:
+        pct = gui_percent_from_pixels(CLIENT_ID, 40)
+        gui_section(style="height:{pct.y}%;")
+    """
     aspect_ratio = get_client_aspect_ratio(client_id)
     x = (pixels/aspect_ratio.x)*100
     y = (pixels/aspect_ratio.y)*100
     return Vec3(x,y,0)
 
 def gui_percent_from_ems(client_id, ems, font):
+    """Convert an em-based size to GUI percentage coordinates for a client's screen.
+
+    An em is the width/height of the character "X" in the given font. Use this
+    to size layout elements relative to text size rather than fixed pixels.
+
+    Args:
+        client_id (int): The client whose screen resolution to use.
+        ems (float): The number of em units to convert.
+        font (str): Font name used to measure one em (e.g. ``"hud_font"``).
+
+    Returns:
+        Vec3: Percentage values (x=horizontal %, y=vertical %, z=0).
+
+    Example:
+        pct = gui_percent_from_ems(CLIENT_ID, 2, "hud_font")
+        gui_section(style="width:{pct.x}%;")
+    """
     h = FrameContext.context.sbs.get_text_line_height(font, "X")
     w = FrameContext.context.sbs.get_text_line_width(font, "X")
     aspect_ratio = get_client_aspect_ratio(client_id)
@@ -593,6 +676,22 @@ def gui_percent_from_ems(client_id, ems, font):
     return Vec3(x,y,0)
 
 def gui_task_for_client(client_id):
+    """Return the GUI task currently running for a client.
+
+    Each connected client has a dedicated GUI task that drives its page layout.
+    Returns ``None`` if the client has no active page.
+
+    Args:
+        client_id (int): The client to look up.
+
+    Returns:
+        MastAsyncTask | None: The client's GUI task, or ``None`` if unavailable.
+
+    Example:
+        task = gui_task_for_client(CLIENT_ID)
+        if task is not None:
+            ~~ task.set_variable("score", 10) ~~
+    """
     gui = Agent.get(client_id)
     if gui is None:
         return None
@@ -602,6 +701,19 @@ def gui_task_for_client(client_id):
     return page.gui_task
 
 def gui_page_for_client(client_id):
+    """Return the active GUI page for a client.
+
+    Args:
+        client_id (int): The client to look up.
+
+    Returns:
+        Page | None: The client's current page, or ``None`` if unavailable.
+
+    Example:
+        page = gui_page_for_client(CLIENT_ID)
+        if page is not None:
+            ~~ page.dirty() ~~
+    """
     gui = Agent.get(client_id)
     if gui is None:
         return None
@@ -609,5 +721,17 @@ def gui_page_for_client(client_id):
 
 
 def gui_client_id():
+    """Return the client ID for the currently executing GUI task.
+
+    Shortcut for ``FrameContext.client_id``. Returns ``0`` when running on
+    the server.
+
+    Returns:
+        int: Current client ID, or ``0`` for the server.
+
+    Example:
+        id = gui_client_id()
+        gui_text("Your client ID is {id}")
+    """
     return FrameContext.client_id
 
