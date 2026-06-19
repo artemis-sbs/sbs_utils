@@ -49,7 +49,7 @@ To enable comms call `enable_comms`. This should be called after the SpaceObject
 
 `enable_comms` takes a face description and it will set self.face_desc. 
 
-You can use [faces](faces.md) to get some face descriptions.
+You can use [faces](../utility/faces.md) to get some face descriptions.
 
 This can be done on a non-player ship and a PlayerShip. The system will send the proper information.
 

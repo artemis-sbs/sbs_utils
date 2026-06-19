@@ -15,7 +15,7 @@ Artemis Cosmos calls the script function HandleDamageEvent when an item receives
 The DispatcherDispatcher is intended receive these and route them to callback functions.
 This can further be used to direct these to classes that represent the ships enabling the handling of this code to be handled in context of the ship(s) involved.
 
-The HandleDamage should call ![dispatch_damage](sbs_utils.damagedispatcher.DamageDispatcher.dispatch_damage)
+The HandleDamage should call `dispatch_damage`
 
 === "Python"
    ```

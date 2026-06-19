@@ -8,7 +8,7 @@ Routes are MAST labels prefixed with `//` that are invoked automatically by the 
 
 `route_schedule` registers a label as a handler for a given route path. `route_clear` removes it. These functions are used internally by the library to wire up system routes, but mission scripts can use them to dynamically enable or disable route handlers mid-mission.
 
-See the [Routes overview](../../../mast/routes/index.md) for the full list of route paths and their trigger conditions.
+See the [Routes overview](../../mast/routes/index.md) for the full list of route paths and their trigger conditions.
 
 ## Quick example
 

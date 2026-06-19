@@ -135,7 +135,7 @@ COMMS_SELECTED_ID is the id of the target
        def button_surrender(story, comms):
           comms.receive("""OK we give up""")
 
-       self.await_comms{{
+       self.await_comms({
           "Hail": button_hail,
           "Surrender now": button_surrender
           })
@@ -166,7 +166,7 @@ COMMS_SELECTED_ID is the id of the target
           #message from station
           comms.receive("Yo")
 
-       self.await_comms{{
+       self.await_comms({
           "Hail": button_hail,
           })
           yield self.jump(comms_station)
