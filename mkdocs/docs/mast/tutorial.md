@@ -11,13 +11,18 @@ Missions in {{ab.ac}} are not just a single file. It takes several files. {{ab.m
 A mission script requires 
 
 - script.py
-- description.txt
+- description.yaml
 
-The description.txt file holds information for displaying scenario select list. Which contains:
+The description.yaml file holds information for displaying the scenario select list:
 
-- A category for the mission. When this list grows, future versions will display or filter based on category. It is not used now.
-- The description of the mission.
-- a list of up to 6 icons and their color. {{ab.m}} missions for example show an acorn icon.
+```yaml
+format version: 1
+Category: Standard
+Visible Mission Name: My Mission Name
+Description: A short description of the mission.
+```
+
+> Note: Older missions used `description.txt` (still supported). New missions should use `description.yaml`.
 
 ![select](../media/scenario_select.png)
 
@@ -234,29 +239,27 @@ and a position. This example picks random points in a ring around 0,0,0.
     ```
     for a in range(10):
         fleet_pos = Vec3.rand_in_sphere(39990, 40000, False, True)
-        prefab_spawn(prefab_fleet_raider, {"race": "skaraan", "fleet_difficulty": DIFFICULTY,"START_X": fleet_pos.x, "START_Y": fleet_pos.y, "START_Z": fleet_pospos.z})
+        prefab_spawn(prefab_fleet_raider, {"race": "skaraan", "fleet_difficulty": DIFFICULTY,"START_X": fleet_pos.x, "START_Y": fleet_pos.y, "START_Z": fleet_pos.z})
     ```
 
 ### End game conditions
 
-Script writers can create their own end game logic or use the Admiral (Game Master) console. The Admiral has a command to end the game.
-
-
-The [default end game logic](https://github.com/artemis-sbs/LegendaryMissions/blob/main/maps/watch_for_end.mast) for Legendary Missions watches for failure when all stations or players are destroyed, and victory if all enemies are defeated. It will also end the game if the mission timer runs out. Explaining this code goes beyond the intent of a simple tutorial like this.
-
-The code is not in an add-on, so it needs to be copied.
-
-To have an end game like this:
-
-- copy the watch_for_end.mast file to this tutorial mission map module.
-- Add an __import watch_for_end.mast__ to \__init__.mast
-- add a task_schedule to run the logic
+The simplest way to define win/loss conditions is `game_end_condition_add`. Pass it a promise, a result message, and `True` for win / `False` for loss. Conditions are checked every tick — the first that becomes true ends the game.
 
 === ":mast-icon: {{ab.m}}"
 
     ```
-    task_schedule(task_end_game)
+    # Lose if all players destroyed
+    game_end_condition_add(destroyed_all(role("__player__")), "All ships lost.", False)
+    # Lose if all stations destroyed
+    game_end_condition_add(destroyed_all(role("station")), "Station destroyed.", False)
+    # Win if all enemies destroyed
+    game_end_condition_add(destroyed_all(role("raider")), "Victory! All enemies defeated.", True)
     ```
+
+Note: `destroyed_all`, `destroyed_any`, `distance_less`, and `distance_point_less` return promise objects suitable for `game_end_condition_add`. `is_timer_finished` returns a plain bool and cannot be used here.
+
+For a more complete implementation including a mission timer and taunts, see the [default end game logic](https://github.com/artemis-sbs/LegendaryMissions/blob/main/maps/watch_for_end.mast) from Legendary Missions. It is not in an add-on, so it needs to be copied into your mission module.
 
 ??? Note "Taunts may not work"
 

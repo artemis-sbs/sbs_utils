@@ -44,21 +44,22 @@ For this tutorial, we will assume that you are using mast_starter as a template.
 The name of your mission is, of course, a pretty important part of the mission.  
 Fortunately, it's easy to set the name and description of the mission.  
 Name the mission folder to reflect the name you've chosen for your mission. We will be calling our mission "Treasure Hunt".  
-Now, open `description.txt` in your mission folder. There are at least three lines in this text file.
-You will see something like this:
-```
-Standard
-Mast Mission Template
-116 #F0D56E 
-147 #9da36c
-```
-The first line is the name of your mission, as it appears in the mission selection button.  
-The second line is the mission's description, as it appears in the mission selection button.  
-The third line and onwards describe icons that appear on the mission selection button.  
-The number at the start of the line is one of the icons from `grid_icon_sheet.png`, located in the `/data/graphics/` folder of the artemis cosmos directory. From left to right, top to bottom, the icon's number increments from 1 onwards. 
-The second set of seemingly random characters is a hexidecimal color code. You can find hex codes online easily.
+Now, open `description.yaml` in your mission folder. You will see something like this:
 
-Once you've changed these to fit what you want, we can close `description.txt` and open `story.mast` instead:
+```yaml
+format version: 1
+Category: Standard
+Visible Mission Name: Mast Mission Template
+Description: A short description of your mission.
+```
+
+- **Category** is used to group missions in the browser.
+- **Visible Mission Name** is the mission name shown on the selection button.
+- **Description** is the mission description shown on the selection button.
+
+> Note: Older missions used `description.txt` (still supported). New missions should use `description.yaml`.
+
+Once you've changed these to fit what you want, close `description.yaml` and open `story.mast`:
 ```python
 # Use for startup logic
 @map/first_map "Hello Cosmos"
