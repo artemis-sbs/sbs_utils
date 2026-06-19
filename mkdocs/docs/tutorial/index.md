@@ -3,6 +3,7 @@ A tutorial describing how to write a simple mission that utilizes many of the to
 ## Tutorial Goals
 ### General Goals
 Upon completion of this tutorial, you will have learned to:
+
 1. [Create a new mission from a template](#1-setting-up-your-first-mission)
 2. [Update the name and description of your mission](#2-whats-in-a-name)
 3. [Understand what a 'label' is in MAST](#3-a-brief-overview-of-labels)
