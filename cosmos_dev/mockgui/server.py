@@ -44,7 +44,7 @@ _ready_event:        Optional[multiprocessing.Event] = None
 # Frame state
 # ---------------------------------------------------------------------------
 _connections:    Dict[int, Set[asyncio.StreamWriter]] = {}
-_next_client_id: int = 1
+_next_client_id: int = 0x8080000000000001
 _last_frame:     Dict[int, List[dict]] = {}   # last committed (complete) frame
 _pending_frame:  Dict[int, List[dict]] = {}   # frame being built (after clear, before complete)
 _lock:           Optional[asyncio.Lock] = None
@@ -183,23 +183,31 @@ async def _broadcast(payload: dict) -> None:
     client_id = payload.get("clientID", 0)
     cmd       = payload.get("cmd")
 
-    async with _get_lock():
-        if cmd == "clear":
-            _pending_frame[client_id] = [payload]
-        elif cmd == "complete":
-            frame = _pending_frame.get(client_id, [])
-            frame.append(payload)
-            _last_frame[client_id]    = frame
-            _pending_frame[client_id] = []
-        else:
-            _pending_frame.setdefault(client_id, []).append(payload)
-
-        if client_id == 0:
+    if cmd == "log":
+        # Log messages go to all browsers but are never recorded in frames
+        # (they must not replay when a new browser tab connects).
+        async with _get_lock():
             targets: Set[asyncio.StreamWriter] = set()
             for bucket in _connections.values():
                 targets |= bucket
-        else:
-            targets = set(_connections.get(client_id, set()))
+    else:
+        async with _get_lock():
+            if cmd == "clear":
+                _pending_frame[client_id] = [payload]
+            elif cmd == "complete":
+                frame = _pending_frame.get(client_id, [])
+                frame.append(payload)
+                _last_frame[client_id]    = frame
+                _pending_frame[client_id] = []
+            else:
+                _pending_frame.setdefault(client_id, []).append(payload)
+
+            if client_id == 0:
+                targets = set()
+                for bucket in _connections.values():
+                    targets |= bucket
+            else:
+                targets = set(_connections.get(client_id, set()))
 
     dead = []
     msg  = json.dumps(payload)

@@ -685,7 +685,7 @@ class StoryPage(Page):
         clicked = Layout.clicked.get(self.client_id)
 
         runtime_node = self.tag_map.get(message_tag)
-        
+
         refresh = False
         if runtime_node is not None and runtime_node[1] is not None:
             # tuple layout and runtime node

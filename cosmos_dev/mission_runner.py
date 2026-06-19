@@ -94,6 +94,32 @@ def _try_auto_start_map(map_arg, sbs) -> bool:
     return True
 
 
+class _TeeWriter:
+    """Write to the original stream AND forward lines to the browser log panel."""
+    def __init__(self, original, level, queue):
+        self._original = original
+        self._level    = level
+        self._queue    = queue
+        self._buf      = ""
+
+    def write(self, text):
+        self._original.write(text)
+        self._buf += text
+        while '\n' in self._buf:
+            line, self._buf = self._buf.split('\n', 1)
+            if line.strip():
+                try:
+                    self._queue.put_nowait({"cmd": "log", "text": line, "level": self._level})
+                except Exception:
+                    pass
+
+    def flush(self):
+        self._original.flush()
+
+    def __getattr__(self, name):
+        return getattr(self._original, name)
+
+
 def _run(
     mission_folder: str,
     mast_file: str | None = None,
@@ -115,10 +141,14 @@ def _run(
     os.environ["COSMOS_DEBUG_MAP"] = str(map_arg)
 
     _server_proc = None
+    _orig_stdout = _orig_stderr = None
     if gui:
         import cosmos_dev.mockgui.sbs as sbs
         _server_proc = sbs.start_server(port=port)
         print(f"[runner] GUI server started — open http://localhost:{port}/")
+        _orig_stdout, _orig_stderr = sys.stdout, sys.stderr
+        sys.stdout = _TeeWriter(sys.__stdout__, "info",  sbs.gui_queue)
+        sys.stderr = _TeeWriter(sys.__stderr__, "error", sbs.gui_queue)
     else:
         import cosmos_dev.mock.sbs as sbs
 
@@ -155,27 +185,17 @@ def _run(
     Gui.server_start_page_class(_MissionPage)
     Gui.client_start_page_class(_MissionPage)
 
-    tick_event = FakeEvent(client_id=0, tag="mission_tick", sub_tag="sim_running")
     tick_sleep = 1.0 / tick_rate
     _map_started = map_arg is None  # skip auto-start when no map was requested
     print(f"[runner] running at {tick_rate} Hz  (Ctrl+C to quit)")
     try:
         while True:
-            if gui:
-                # Browser client connected or disconnected
-                while not sbs.client_event_queue.empty():
-                    try:
-                        cev = sbs.client_event_queue.get_nowait()
-                        if cev.get("event") == "connect":
-                            cid = cev["clientID"]
-                            print(f"[runner] client {cid} connected")
-                            cosmos_event_handler(sim, FakeEvent(client_id=cid, tag="client_connect"))
-                        elif cev.get("event") == "disconnect":
-                            print(f"[runner] client {cev.get('clientID')} disconnected")
-                    except Exception as e:
-                        print(f"[runner] client event error: {e}")
+            sim_state = "sim_paused" if sbs.sim._paused else "sim_running"
+            tick_event = FakeEvent(client_id=0, tag="mission_tick", sub_tag=sim_state)
 
-                # Browser widget interaction — convert to gui_message FakeEvent
+            if gui:
+                # GUI widget events (button clicks etc.) processed before the tick
+                # so their effects are visible in the same tick's MAST execution.
                 while not sbs.gui_event_queue.empty():
                     try:
                         gev    = sbs.gui_event_queue.get_nowait()
@@ -183,17 +203,37 @@ def _run(
                         etype  = gev.get("type", "")
                         gev_ev = FakeEvent(client_id=cid, tag="gui_message",
                                            sub_tag=gev.get("tag", ""))
-                        val = gev.get("value", "")
+                        val = gev.get("value", gev.get("checked", ""))
                         if etype in ("change", "submit") and isinstance(val, (int, float)):
                             gev_ev.sub_float = float(val)
-                        elif etype in ("change", "submit"):
+                        elif etype in ("change", "submit") and val != "":
                             gev_ev.value_tag = str(val)
                         cosmos_event_handler(sim, gev_ev)
                     except Exception as e:
                         print(f"[runner] gui event error: {e}")
 
+            # Server tick — guarantees server page exists before client connects.
             cosmos_event_handler(sim, tick_event)
             sim._time_tick_counter += 1
+
+            if gui:
+                # Client connect/disconnect processed after server has ticked,
+                # so the server page is already initialised when the client's
+                # MAST main task starts running.
+                while not sbs.client_event_queue.empty():
+                    try:
+                        cev = sbs.client_event_queue.get_nowait()
+                        if cev.get("event") == "connect":
+                            cid = cev["clientID"]
+                            print(f"[runner] client {cid} connected")
+                            sbs.register_client(cid)
+                            cosmos_event_handler(sim, FakeEvent(client_id=cid, tag="client_connect"))
+                        elif cev.get("event") == "disconnect":
+                            cid = cev.get("clientID")
+                            print(f"[runner] client {cid} disconnected")
+                            sbs.unregister_client(cid)
+                    except Exception as e:
+                        print(f"[runner] client event error: {e}")
 
             # Auto-start: poll each tick until @map/ labels are registered,
             # then schedule the requested map (replaces extern_debug.mast logic)
@@ -204,6 +244,10 @@ def _run(
     except KeyboardInterrupt:
         print("\n[runner] stopped")
     finally:
+        if _orig_stdout is not None:
+            sys.stdout = _orig_stdout
+        if _orig_stderr is not None:
+            sys.stderr = _orig_stderr
         if _server_proc is not None and _server_proc.is_alive():
             _server_proc.terminate()
 

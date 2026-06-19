@@ -199,26 +199,27 @@ class DictionaryToObject(object):
 
 def split_props(s, def_key):
     ret = {}
-
-    # get key
     start = 0
-    key = -1
-    end = -1
     while start < len(s):
-        key = s.find(":", start)
-        if key == -1:
-            ret[def_key] = s
+        colon = s.find(":", start)
+        if colon == -1:
+            ret[def_key] = s[start:]
             return ret
-        s_key = s[start:key]
-        key += 1
-        end = s.find(";", key)
-        if end ==-1:
-            s_value = s[key:]
+        s_key = s[start:colon]
+        # Style keys are identifier-like (no whitespace). A colon inside plain
+        # text content (e.g. "Clicks: 0") would produce a key with spaces —
+        # treat everything from start onwards as the default-key value instead.
+        if ' ' in s_key or '\t' in s_key:
+            ret[def_key] = s[start:]
+            return ret
+        colon += 1
+        end = s.find(";", colon)
+        if end == -1:
+            ret[s_key] = s[colon:]
             start = len(s)
         else:
-            s_value = s[key:end]
-            start = end+1
-        ret[s_key] = s_value
+            ret[s_key] = s[colon:end]
+            start = end + 1
     return ret
         
 def merge_props(d):

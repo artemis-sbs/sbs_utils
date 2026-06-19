@@ -163,8 +163,21 @@ def get_client_ID_list() -> List[int]:
     """return a list of client ids, for the computers that are currently connected to this server."""
     global sim
     if sim is not None:
-        return list(sim.client_ships.keys())
+        ids = set(sim._connected_client_ids) | set(sim.client_ships.keys())
+        return list(ids)
     return []
+
+def register_client(client_id: int) -> None:
+    """Mark a WebSocket client as connected so it appears in get_client_ID_list()."""
+    global sim
+    if sim is not None:
+        sim._connected_client_ids.add(client_id)
+
+def unregister_client(client_id: int) -> None:
+    """Remove a WebSocket client from the connected list."""
+    global sim
+    if sim is not None:
+        sim._connected_client_ids.discard(client_id)
 
 def get_debug_gui_tree(clientID: int, tag: str, displayListFlag: int) -> None:
     """sends a GUI debug message from the targeted client (0 = server screen)"""
@@ -258,6 +271,9 @@ def particle_on(spaceObject: space_object, descriptorString: str) -> None:
 
 def pause_sim() -> None:
     """the sim will now pause; HandlePresentGUI() and HandlePresentGUIMessage() are called."""
+    global sim
+    if sim is not None:
+        sim._paused = True
 
 def play_audio_file(clientID: int, filename: str, volume: float, pitch: float) -> None:
     """Plays a WAV audio file now, for just the specified client, OR zero for server."""
@@ -297,6 +313,9 @@ def request_client_string(clientComputerID: int, string_key: str) -> None:
 
 def resume_sim() -> None:
     """the sim will now run; HandleStartMission() and HandleTickMission() are called."""
+    global sim
+    if sim is not None:
+        sim._paused = False
 
 def retrieve_from_standby_list(space_object: space_object) -> None:
     """moves the spaceobject from the standby list to normal space."""
@@ -961,6 +980,8 @@ class simulation(object): ### from pybind
         self.hull_map_objects = {}
         self._time_tick_counter = 0
         self.tractor_connections = {}
+        self._paused = True           # sim starts paused, like the real engine
+        self._connected_client_ids: set = set()  # registered via WebSocket (mockgui)
         self.client_ships = {}        # clientID -> shipID
         self.client_alt_ships = {}    # clientID -> altShipID (radar focus)
         self.client_types = {}        # clientID -> consoleType str
@@ -1073,7 +1094,7 @@ class simulation(object): ### from pybind
 
     def is_not_paused(self: simulation) -> bool:
         """returns True if the game is currently running."""
-        return True
+        return not self._paused
 
     def launch_torpedo(self: simulation, source_ship: space_object, tube_index: int, is_fighter_flag: bool) -> None:
         """launches a torpedo from the space object provided."""

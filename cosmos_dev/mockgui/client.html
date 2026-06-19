@@ -88,12 +88,20 @@
     font-family:var(--font-ui); font-size:12px; outline:none; transition:border-color 0.15s; }
   .w-typein input:focus { border-color:var(--accent); }
 
-  #log-panel { height:130px; flex-shrink:0; background:#090b0f; border-top:1px solid var(--border);
-               overflow-y:auto; padding:6px 14px; }
-  .log-line  { font-size:10px; color:var(--text-dim); line-height:1.7; white-space:pre; }
+  .log-btn  { font-size:11px; padding:2px 8px; background:var(--surface); color:var(--text-dim);
+              border:1px solid var(--border); border-radius:3px; cursor:pointer;
+              font-family:var(--font-ui); letter-spacing:0.05em; }
+  .log-btn.active { color:var(--accent); border-color:var(--accent); }
+  .log-panel { display:none; height:160px; flex-shrink:0;
+               border-top:1px solid var(--border); overflow-y:auto; padding:6px 14px; }
+  .log-panel.visible { display:block; }
+  #script-log-panel { background:#090b0f; }
+  #dbg-log-panel    { background:#0a0c10; }
+  .log-line     { font-size:10px; color:var(--text-dim); line-height:1.7; white-space:pre; }
+  .log-line.out { color:#e2e8f0; }
+  .log-line.err { color:#fca5a5; }
   .log-line.ev  { color:#86efac; }
   .log-line.cmd { color:#93c5fd; }
-  .log-line.err { color:#fca5a5; }
   .log-line.dbg { color:#fcd34d; }
 </style>
 </head>
@@ -106,6 +114,8 @@
   <span id="msg-counter">msgs: <span id="msg-count">0</span></span>
   <span id="cid-badge">client #<span id="cid-val">—</span></span>
   <span id="send-as-wrap" title="Events sent with this client ID — set to 0 to act as server">send as: <input id="send-as-val" type="number" min="0" value="0"></span>
+  <button id="script-log-btn" class="log-btn" title="Toggle MAST/sbs_utils stdout+stderr">LOG</button>
+  <button id="dbg-log-btn"    class="log-btn" title="Toggle browser WS/widget debug">DBG</button>
 </div>
 
 <div id="gui-root">
@@ -113,7 +123,8 @@
   <div id="buf-back"  class="gui-buffer back"></div>
 </div>
 
-<div id="log-panel"></div>
+<div id="script-log-panel" class="log-panel"></div>
+<div id="dbg-log-panel"    class="log-panel"></div>
 
 <script>
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -131,15 +142,25 @@ function getEffectiveId() {
 
 let msgCount = 0;
 
-// ── Log ──────────────────────────────────────────────────────────────────────
-const logPanel = document.getElementById('log-panel');
-function log(msg, cls = '') {
+// ── Log panels ───────────────────────────────────────────────────────────────
+const scriptLogPanel = document.getElementById('script-log-panel');
+const dbgLogPanel    = document.getElementById('dbg-log-panel');
+
+function _appendLine(panel, text, cls) {
   const d = document.createElement('div');
   d.className = 'log-line ' + cls;
-  d.textContent = `[${new Date().toISOString().slice(11,23)}] ${msg}`;
-  logPanel.appendChild(d);
-  logPanel.scrollTop = logPanel.scrollHeight;
-  if (logPanel.children.length > 400) logPanel.children[0].remove();
+  d.textContent = text;
+  panel.appendChild(d);
+  panel.scrollTop = panel.scrollHeight;
+  if (panel.children.length > 1000) panel.children[0].remove();
+}
+
+// Script log: Python stdout/stderr forwarded via cmdLog
+function logScript(text, cls = 'out') { _appendLine(scriptLogPanel, text, cls); }
+
+// DBG log: internal browser WS/widget debug messages
+function log(msg, cls = '') {
+  _appendLine(dbgLogPanel, `[${new Date().toISOString().slice(11,23)}] ${msg}`, cls);
 }
 
 // ── Buffers ───────────────────────────────────────────────────────────────────
@@ -192,8 +213,24 @@ function dispatch(msg) {
     case 'init':     cmdInit(msg);   break;
     case 'clear':    cmdClear();     break;
     case 'complete': cmdComplete();  break;
+    case 'log':      cmdLog(msg);    break;
     default:         cmdWidget(msg); break;
   }
+}
+
+// ── panel toggles ─────────────────────────────────────────────────────────────
+document.getElementById('script-log-btn').addEventListener('click', () => {
+  scriptLogPanel.classList.toggle('visible');
+  document.getElementById('script-log-btn').classList.toggle('active');
+});
+document.getElementById('dbg-log-btn').addEventListener('click', () => {
+  dbgLogPanel.classList.toggle('visible');
+  document.getElementById('dbg-log-btn').classList.toggle('active');
+});
+
+// ── cmdLog: stdout/stderr forwarded from the runner ───────────────────────────
+function cmdLog(msg) {
+  logScript(msg.text, msg.level === 'error' ? 'err' : 'out');
 }
 
 // ── init ──────────────────────────────────────────────────────────────────────
@@ -208,10 +245,15 @@ function cmdInit(msg) {
 // ── Sub-region registry (root-canvas coords, rebuilt each frame) ─────────────
 let backRegions = {};
 
+// True between a 'clear' and the next 'complete' — a full frame rebuild is in
+// progress, so widgets must go into backBuf even if they already exist in frontBuf.
+let _frameInProgress = false;
+
 // ── clear ─────────────────────────────────────────────────────────────────────
 function cmdClear() {
   backBuf.innerHTML = '';
   backRegions = {};
+  _frameInProgress = true;
   log(`  clear → #${backBuf.id} wiped`, 'dbg');
 }
 
@@ -233,6 +275,7 @@ function cmdComplete() {
 
   // Swap JS references
   [frontBuf, backBuf] = [backBuf, frontBuf];
+  _frameInProgress = false;
 
   log(`  complete: #${prevBackId}(${childCount} children) → front, #${prevFrontId} → back`, 'dbg');
 }
@@ -306,6 +349,25 @@ function cmdWidget(msg) {
   if (tag) el.dataset.tag = tag;
   if (s.draw_layer) el.style.zIndex = s.draw_layer;
 
+  // The real engine allows send_gui_* with an existing tag to update an element
+  // in-place without a full clear/complete cycle (used by gui_represent).
+  // Only do this outside a rebuild — during clear→complete the widget must go
+  // into backBuf so the buffer swap shows correct content.
+  if (tag && !_frameInProgress) {
+    const existing = frontBuf.querySelector(`[data-tag="${CSS.escape(tag)}"]`);
+    if (existing) {
+      el.style.left   = existing.style.left;
+      el.style.top    = existing.style.top;
+      el.style.width  = existing.style.width;
+      el.style.height = existing.style.height;
+      if (!s.draw_layer && existing.style.zIndex)
+        el.style.zIndex = existing.style.zIndex;
+      existing.parentNode.replaceChild(el, existing);
+      log(`  ~${cmd} tag=${tag} → #${frontBuf.id} (in-place update)`, 'dbg');
+      return;
+    }
+  }
+
   let rc;
   if (isOn(s.pixel_aligned)) {
     // Coordinates are pixel values, not percentages
@@ -329,6 +391,9 @@ function cmdWidget(msg) {
 // ── buildWidget ───────────────────────────────────────────────────────────────
 // s = parsed style object from parseStyle(msg.style)
 function buildWidget(msg, s) {
+  // Cosmos stores widget text under '$text' key (backtick-quoted in the style string).
+  // Normalise it to 'text' so the rest of buildWidget works without changes.
+  if (s['$text'] !== undefined) s.text = s['$text'];
   const { cmd, tag } = msg;
   let el;
   switch (cmd) {
@@ -338,7 +403,7 @@ function buildWidget(msg, s) {
       el.textContent = s.text || tag;
       if (s.color) el.style.color = s.color;
       if (s.font)  el.style.fontFamily = s.font;
-      el.addEventListener('click', () => sendEvent('click', tag));
+      el.addEventListener('click', () => sendEvent('gui_message', tag));
       break;
     }
     case 'checkbox': {
@@ -352,21 +417,21 @@ function buildWidget(msg, s) {
       if (s.color) sp.style.color = s.color;
       if (s.font)  sp.style.fontFamily = s.font;
       el.append(cb, sp);
-      cb.addEventListener('change', () => sendEvent('change', tag, { checked: cb.checked }));
+      cb.addEventListener('change', () => sendEvent('gui_message', tag, { checked: cb.checked }));
       break;
     }
     case 'clickregion': {
       el = document.createElement('div'); el.className = 'w-clickregion';
       if (s.text) { el.textContent = s.text; if (s.color) el.style.color = s.color; }
       if (s.background_color) el.style.background = s.background_color;
-      el.addEventListener('click', () => sendEvent('click', tag));
+      el.addEventListener('click', () => sendEvent('gui_message', tag));
       break;
     }
     case 'colorbutton': {
       el = document.createElement('div'); el.className = 'w-colorbutton';
       const btnColor = s.color || '#4f8ef7';
       el.style.background = btnColor; el.title = tag;
-      el.addEventListener('click', () => sendEvent('click', tag, { color: btnColor }));
+      el.addEventListener('click', () => sendEvent('gui_message', tag, { color: btnColor }));
       break;
     }
     case 'colorcheckbox': {
@@ -406,7 +471,7 @@ function buildWidget(msg, s) {
       el = document.createElement('div'); el.className = 'w-iconbutton';
       el.textContent = s.icon_index !== undefined ? `[${s.icon_index}]` : '🔵';
       if (s.color) el.style.color = s.color;
-      el.addEventListener('click', () => sendEvent('click', tag)); break;
+      el.addEventListener('click', () => sendEvent('gui_message', tag)); break;
     }
     case 'iconcheckbox': {
       el = document.createElement('div'); el.className = 'w-iconcheckbox';
@@ -444,7 +509,7 @@ function buildWidget(msg, s) {
       el = document.createElement('div'); el.className = 'w-rawiconbutton';
       el.textContent = s.icon_index !== undefined ? `[${s.icon_index}]` : '▶';
       if (s.color) el.style.color = s.color;
-      el.addEventListener('click', () => sendEvent('click', tag)); break;
+      el.addEventListener('click', () => sendEvent('gui_message', tag)); break;
     }
     case 'slider': {
       el = document.createElement('div'); el.className = 'w-slider';
