@@ -203,3 +203,6 @@ plugins:
             show_source: false
             show_symbol_type_toc: true
           paths: [".."]
+
+hooks:
+  - mkdocs_hooks.py
