@@ -1,4 +1,4 @@
-from sbs_utils.mock import sbs as sbs
+from cosmos_dev.mock import sbs as sbs
 from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.agent import Agent, get_story_id
 from sbs_utils.helpers import FrameContext, Context, FakeEvent

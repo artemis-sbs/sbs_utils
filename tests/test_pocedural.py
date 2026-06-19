@@ -1,4 +1,4 @@
-from sbs_utils.mock import sbs as sbs # not sure why I need this
+from cosmos_dev.mock import sbs as sbs # not sure why I need this
 import unittest
 
 import  sbs_utils.procedural.data as prodecural_data

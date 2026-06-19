@@ -1,7 +1,7 @@
 import unittest
 import sys
 sys.path.append("..")
-from sbs_utils.mock import sbs as sbs
+from cosmos_dev.mock import sbs as sbs
 from sbs_utils import names
 import sys
 from sbs_utils.helpers import FrameContext, Context, FakeEvent

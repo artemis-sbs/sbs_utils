@@ -1,6 +1,7 @@
 {
     "version": "v1.3.0",
     "sbslib": [
-        "sbs_utils"
+        "sbs_utils",
+        "cosmos_dev"
     ]
 }

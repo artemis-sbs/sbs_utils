@@ -1,0 +1,85 @@
+Artemis scripting documentation
+These style keys are used in the python scripts, to describe the various widgets that can be sent to a console.
+
+function               keys               value
+send_gui_3dship        color              optional. text color tag.
+send_gui_3dship        draw_layer         optional int, draw order value (default is 1001).
+send_gui_3dship        font               optional. font tag from preferences.json
+send_gui_3dship        hull_tag           the hull tag of the 3d object shown, from the ship_data.json file.
+send_gui_3dship        pixel_aligned      optional flag; means that the percentBox is actually pixel dimensions. on,yes,True,active.
+send_gui_3dship        text               the text shown in the widget.
+send_gui_button        color              optional. text color tag.
+send_gui_button        draw_layer         optional int, draw order value (default is 1001).
+send_gui_button        font               optional. font tag from preferences.json
+send_gui_button        pixel_aligned      optional flag; means that the percentBox is actually pixel dimensions.  on,yes,True,active.
+send_gui_button        text               the text shown in the widget.
+send_gui_checkbox      color              optional. text color tag.
+send_gui_checkbox      draw_layer         optional int, draw order value (default is 1001).
+send_gui_checkbox      font               optional. font tag from preferences.json
+send_gui_checkbox      pixel_aligned      optional flag; means that the percentBox is actually pixel dimensions. on,yes,True,active.
+send_gui_checkbox      state              flag for the state: on,yes,True,active.
+send_gui_checkbox      text               the text shown in the widget.
+send_gui_checkbox      visible            flag for the visibility: on,yes,True,active.
+send_gui_clickregion   background_color   optional. color tag for the whole rectangle of the click region.
+send_gui_clickregion   color              optional. text color tag.
+send_gui_clickregion   draw_layer         optional int, draw order value (default is 1001).
+send_gui_clickregion   font               optional. font tag from preferences.json
+send_gui_clickregion   pixel_aligned      optional flag; means that the percentBox is actually pixel dimensions.  on,yes,True,active.
+send_gui_clickregion   text               the text shown in the widget.
+send_gui_colorbutton   color              optional. text color tag.
+send_gui_colorcheckbox color              optional. text color tag.
+send_gui_dropdown      color              optional. text color tag.
+send_gui_dropdown      draw_layer         optional int, draw order value (default is 1001).
+send_gui_dropdown      font               optional. font tag from preferences.json
+send_gui_dropdown      list               list of the drop down item names, seperated by commas.
+send_gui_dropdown      pixel_aligned      optional flag; means that the percentBox is actually pixel dimensions.  on,yes,True,active.
+send_gui_dropdown      text               the text shown in the widget.
+send_gui_iconbutton    color              optional. text color tag.
+send_gui_iconbutton    icon_index         integer; index into the icon set (grid-icon-sheet.png)
+send_gui_iconcheckbox  color              optional. text color tag.
+send_gui_iconcheckbox  icon_index         integer; index into the icon set (grid-icon-sheet.png)
+send_gui_icon          color              optional. text color tag.
+send_gui_icon          draw_layer         optional int, draw order value (default is 1001).
+send_gui_icon          font               optional. font tag from preferences.json
+send_gui_icon          icon_index         integer; index into the icon set (grid-icon-sheet.png)
+send_gui_icon          pixel_aligned      optional flag; means that the percentBox is actually pixel dimensions.  on,yes,True,active.
+send_gui_icon          text               the text shown in the widget.
+send_gui_image         color              optional. text color tag.
+send_gui_image         draw_layer         optional int, draw order value (default is 1001).
+send_gui_image         font               optional. font tag from preferences.json
+send_gui_image         image              filename of image to display.  do not include the .PNG suffix.  Filepath is relative to the data/graphics folder.
+send_gui_image         pixel_aligned      optional flag; means that the percentBox is actually pixel dimensions.  on,yes,True,active.
+send_gui_image         sub_bottom         optional float: sub-rect bottom of the source image
+send_gui_image         sub_left           optional float: sub-rect left of the source image
+send_gui_image         sub_rect           optional: four comma-seperated floats, defining the box of the source image sub-rectangle (left,top,right,bottom)
+send_gui_image         sub_right          optional float: sub-rect right of the source image
+send_gui_image         sub_top            optional float: sub-rect top of the source image
+send_gui_image         text               the text shown in the widget.
+send_gui_rawiconbutton color              optional. text color tag.
+send_gui_rawiconbutton icon_index         integer; index into the icon set (grid-icon-sheet.png)
+send_gui_slider        color              optional. text color tag.
+send_gui_slider        draw_layer         optional int, draw order value (default is 1001).
+send_gui_slider        font               optional. font tag from preferences.json
+send_gui_slider        high               float, lowest value of this slider.
+send_gui_slider        low                float, lowest value of this slider.
+send_gui_slider        pixel_aligned      optional flag; means that the percentBox is actually pixel dimensions.  on,yes,True,active.
+send_gui_slider        show_number        optional. flag to show or hide the number in the middle of the slider: no, False 
+send_gui_slider        text               optional. int,float, or a literal string
+send_gui_subregion     color              optional. text color tag.
+send_gui_subregion     draw_layer         optional int, draw order value (default is 1001).
+send_gui_subregion     font               optional. font tag from preferences.json
+send_gui_subregion     pixel_aligned      optional flag; means that the percentBox is actually pixel dimensions.  on,yes,True,active.
+send_gui_subregion     text               the text shown in the widget.
+send_gui_text          color              optional. text color tag.
+send_gui_text          draw_layer         optional int, draw order value (default is 1001).
+send_gui_text          font               optional. font tag from preferences.json
+send_gui_text          justify            optional. text justification; left, right, center.
+send_gui_text          pixel_aligned      optional flag; means that the percentBox is actually pixel dimensions.  on,yes,True,active.
+send_gui_text          text               the text shown in the widget.
+send_gui_typein        color              optional. text color tag.
+send_gui_typein        desc               the prompt text shown in the widget.
+send_gui_typein        draw_layer         optional int, draw order value (default is 1001).
+send_gui_typein        font               optional. font tag from preferences.json
+send_gui_typein        password           flag to show only asterisks, for privacy: yes, on, True
+send_gui_typein        pixel_aligned      optional flag; means that the percentBox is actually pixel dimensions.  on,yes,True,active.
+send_gui_typein        text               the starting text shown in the widget.

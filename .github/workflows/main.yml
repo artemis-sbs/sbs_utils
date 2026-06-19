@@ -1,38 +1,50 @@
-name: Create Archive
-on: 
+name: Create Release
+
+on:
   push:
     tags:
       - "*"
+
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Set env version
-      id: get_version
-      run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
-      
-    - uses: actions/checkout@master
-    - name: Archive Release
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Run tests
+      run: python -m unittest discover -s tests
+
+    - name: Archive sbs_utils
       uses: thedoctor0/zip-release@main
       with:
         type: 'zip'
-        filename: '${{ github.event.repository.owner.name }}.${{ github.event.repository.name }}.${{ steps.get_version.outputs.VERSION }}.sbslib'
-        #directory: 'sbs_utils'
-        #exclusions: 'LICENSE. *.* .* *. *.git* /docs/* /mock/* /typings/* /sphinx/* /tests/* *.py .nojekyll'
+        filename: '${{ github.event.repository.owner.name }}.${{ github.event.repository.name }}.${{ github.ref_name }}.sbslib'
         path: "sbs_utils"
 
-    - name: Archive Typings Release
+    - name: Archive cosmos_dev
       uses: thedoctor0/zip-release@main
       with:
         type: 'zip'
-        filename: '${{ github.event.repository.name }}.${{ steps.get_version.outputs.VERSION }}.types.zip'
-        # directory: 'typings'
-        #exclusions: 'LICENSE. *.* *.git* .* *. /docs/* /mock/* /sbs_utils/* /sphinx/* /tests/*'
+        filename: '${{ github.event.repository.owner.name }}.cosmos_dev.${{ github.ref_name }}.sbslib'
+        path: "cosmos_dev"
+
+    - name: Archive typings
+      uses: thedoctor0/zip-release@main
+      with:
+        type: 'zip'
+        filename: '${{ github.event.repository.name }}.${{ github.ref_name }}.types.zip'
         path: "typings"
 
     - name: Upload Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "${{ github.event.repository.owner.name }}.${{ github.event.repository.name }}.${{ steps.get_version.outputs.VERSION }}.sbslib,${{ github.event.repository.name }}.${{ steps.get_version.outputs.VERSION }}.types.zip"
+        artifacts: "${{ github.event.repository.owner.name }}.${{ github.event.repository.name }}.${{ github.ref_name }}.sbslib,${{ github.event.repository.owner.name }}.cosmos_dev.${{ github.ref_name }}.sbslib,${{ github.event.repository.name }}.${{ github.ref_name }}.types.zip"
         token: ${{ secrets.GITHUB_TOKEN }}
-

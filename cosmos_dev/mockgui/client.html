@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SBS Remote GUI</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:      #0d0f14; --surface: #161923; --border: #2a2f3d;
+    --accent:  #4f8ef7; --text:    #e2e8f0; --text-dim: #64748b;
+    --danger:  #ef4444; --success: #22c55e; --radius: 6px;
+    --font-ui: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  body { font-family: var(--font-ui); background: var(--bg); color: var(--text);
+         height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  #topbar { display:flex; align-items:center; gap:12px; padding:8px 16px;
+            background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; }
+  #topbar .logo { font-size:13px; font-weight:700; letter-spacing:0.15em; color:var(--accent); text-transform:uppercase; }
+  #status-dot   { width:8px; height:8px; border-radius:50%; background:var(--danger); transition:background 0.3s; }
+  #status-dot.connected { background:var(--success); }
+  #status-text  { font-size:11px; color:var(--text-dim); }
+  #cid-badge    { margin-left:auto; font-size:11px; color:var(--text-dim); }
+  #msg-counter  { font-size:11px; color:var(--accent); }
+
+  #gui-root { flex:1; position:relative; overflow:hidden; }
+  .gui-buffer { position:absolute; inset:0; }
+  .gui-buffer.back  { opacity:0; pointer-events:none; }
+  .gui-buffer.front { opacity:1; pointer-events:all; }
+
+  .widget { position:absolute; display:flex; align-items:center; justify-content:center;
+            font-family:var(--font-ui); font-size:12px; overflow:hidden; }
+
+  .w-button { background:var(--accent); color:#fff; border:none; border-radius:var(--radius);
+              cursor:pointer; font-family:var(--font-ui); font-size:12px; font-weight:600;
+              letter-spacing:0.04em; transition:filter 0.15s,transform 0.1s; width:100%; height:100%; }
+  .w-button:hover { filter:brightness(1.15); } .w-button:active { transform:scale(0.97); }
+
+  .w-checkbox { gap:6px; justify-content:flex-start; padding-left:6px; cursor:pointer; user-select:none; }
+  .w-checkbox input[type=checkbox] { width:14px; height:14px; accent-color:var(--accent); }
+  .w-checkbox span { font-size:12px; }
+
+  .w-clickregion { cursor:pointer; background:transparent; border:1px dashed var(--border);
+                   border-radius:var(--radius); transition:background 0.15s; }
+  .w-clickregion:hover { background:rgba(79,142,247,0.06); }
+
+  .w-colorbutton { border-radius:var(--radius); cursor:pointer; border:2px solid var(--border); transition:border-color 0.15s; }
+  .w-colorbutton:hover { border-color:var(--accent); }
+
+  .w-colorcheckbox { gap:6px; justify-content:flex-start; padding-left:6px; cursor:pointer; }
+  .w-colorcheckbox .swatch { width:14px; height:14px; border-radius:3px; border:1px solid var(--border); flex-shrink:0; }
+
+  .w-dropdown select { width:100%; height:100%; background:var(--surface); color:var(--text);
+    border:1px solid var(--border); border-radius:var(--radius); padding:0 8px;
+    font-family:var(--font-ui); font-size:12px; cursor:pointer; appearance:none; }
+
+  .w-face       { background:var(--surface); border:1px solid var(--border); border-radius:50%; font-size:28px; }
+  .w-icon       { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); font-size:20px; }
+  .w-iconbutton { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+                  cursor:pointer; font-size:18px; transition:background 0.15s; }
+  .w-iconbutton:hover { background:var(--border); }
+  .w-iconcheckbox { cursor:pointer; font-size:18px; border:2px solid var(--border);
+                    border-radius:var(--radius); transition:border-color 0.15s,background 0.15s; }
+  .w-iconcheckbox.checked { border-color:var(--accent); background:rgba(79,142,247,0.12); }
+
+  .w-image { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .w-image img { width:100%; height:100%; object-fit:contain; }
+
+  .w-rawiconbutton { background:transparent; border:none; cursor:pointer; font-size:18px; transition:transform 0.15s; }
+  .w-rawiconbutton:hover { transform:scale(1.1); }
+
+  .w-slider { padding:0 8px; display:flex; align-items:center; gap:4px; }
+  .w-slider input[type=range] { flex:1; accent-color:var(--accent); cursor:pointer; }
+  .w-slider .slider-num { font-size:11px; min-width:2.5em; text-align:right; color:var(--text-dim); flex-shrink:0; }
+
+  .w-sub_region { background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:var(--radius); }
+
+  .w-text { background:transparent; padding:4px 6px; justify-content:flex-start;
+            align-items:flex-start; white-space:pre-wrap; word-break:break-word; line-height:1.5; }
+
+  .w-typein input { width:100%; height:100%; background:var(--surface); color:var(--text);
+    border:1px solid var(--border); border-radius:var(--radius); padding:0 8px;
+    font-family:var(--font-ui); font-size:12px; outline:none; transition:border-color 0.15s; }
+  .w-typein input:focus { border-color:var(--accent); }
+
+  #log-panel { height:130px; flex-shrink:0; background:#090b0f; border-top:1px solid var(--border);
+               overflow-y:auto; padding:6px 14px; }
+  .log-line  { font-size:10px; color:var(--text-dim); line-height:1.7; white-space:pre; }
+  .log-line.ev  { color:#86efac; }
+  .log-line.cmd { color:#93c5fd; }
+  .log-line.err { color:#fca5a5; }
+  .log-line.dbg { color:#fcd34d; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <span class="logo">SBS GUI</span>
+  <div id="status-dot"></div>
+  <span id="status-text">disconnected</span>
+  <span id="msg-counter">msgs: <span id="msg-count">0</span></span>
+  <span id="cid-badge">client #<span id="cid-val">—</span></span>
+</div>
+
+<div id="gui-root">
+  <div id="buf-front" class="gui-buffer front"></div>
+  <div id="buf-back"  class="gui-buffer back"></div>
+</div>
+
+<div id="log-panel"></div>
+
+<script>
+// ── Config ───────────────────────────────────────────────────────────────────
+const WS_URL = `ws://${location.host}/ws`;
+let CLIENT_ID = null;   // assigned by server on connect via "init" message
+
+let msgCount = 0;
+
+// ── Log ──────────────────────────────────────────────────────────────────────
+const logPanel = document.getElementById('log-panel');
+function log(msg, cls = '') {
+  const d = document.createElement('div');
+  d.className = 'log-line ' + cls;
+  d.textContent = `[${new Date().toISOString().slice(11,23)}] ${msg}`;
+  logPanel.appendChild(d);
+  logPanel.scrollTop = logPanel.scrollHeight;
+  if (logPanel.children.length > 400) logPanel.children[0].remove();
+}
+
+// ── Buffers ───────────────────────────────────────────────────────────────────
+let frontBuf = document.getElementById('buf-front');
+let backBuf  = document.getElementById('buf-back');
+log(`init: frontBuf=#${frontBuf.id} backBuf=#${backBuf.id}`, 'dbg');
+
+// ── WebSocket ────────────────────────────────────────────────────────────────
+let ws;
+function connect() {
+  log(`connecting to ${WS_URL}`, 'ev');
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    document.getElementById('status-dot').classList.add('connected');
+    document.getElementById('status-text').textContent = 'connected';
+    log(`WS open → ${WS_URL}`, 'ev');
+  };
+  ws.onclose = (e) => {
+    document.getElementById('status-dot').classList.remove('connected');
+    document.getElementById('status-text').textContent = 'reconnecting…';
+    log(`WS closed code=${e.code} — retry 2s`, 'err');
+    setTimeout(connect, 2000);
+  };
+  ws.onerror = (e) => log('WS error: ' + JSON.stringify(e), 'err');
+
+  ws.onmessage = (ev) => {
+    msgCount++;
+    document.getElementById('msg-count').textContent = msgCount;
+    let msg;
+    try { msg = JSON.parse(ev.data); }
+    catch(e) { log('bad JSON: ' + ev.data, 'err'); return; }
+    log(`RX cmd=${msg.cmd} tag=${msg.tag??'—'} clientID=${msg.clientID}`, 'cmd');
+    dispatch(msg);
+  };
+}
+connect();
+
+// ── Event → server ────────────────────────────────────────────────────────────
+function sendEvent(type, tag, detail = {}) {
+  if (ws && ws.readyState === WebSocket.OPEN)
+    ws.send(JSON.stringify({ type, tag, clientID: CLIENT_ID, ...detail }));
+  log(`TX ${type} tag=${tag}`, 'ev');
+}
+
+// ── Dispatch ──────────────────────────────────────────────────────────────────
+function dispatch(msg) {
+  switch (msg.cmd) {
+    case 'init':     cmdInit(msg);   break;
+    case 'clear':    cmdClear();     break;
+    case 'complete': cmdComplete();  break;
+    default:         cmdWidget(msg); break;
+  }
+}
+
+// ── init ──────────────────────────────────────────────────────────────────────
+function cmdInit(msg) {
+  CLIENT_ID = msg.clientID;
+  document.getElementById('cid-val').textContent = CLIENT_ID;
+  log(`  assigned clientID=${CLIENT_ID}`, 'ev');
+}
+
+// ── Sub-region registry (root-canvas coords, rebuilt each frame) ─────────────
+let backRegions = {};
+
+// ── clear ─────────────────────────────────────────────────────────────────────
+function cmdClear() {
+  backBuf.innerHTML = '';
+  backRegions = {};
+  log(`  clear → #${backBuf.id} wiped`, 'dbg');
+}
+
+// ── complete ──────────────────────────────────────────────────────────────────
+function cmdComplete() {
+  const prevFrontId = frontBuf.id;
+  const prevBackId  = backBuf.id;
+  const childCount  = backBuf.children.length;
+
+  // Demote current front → back
+  frontBuf.classList.replace('front', 'back');
+  frontBuf.style.opacity = '0';
+  frontBuf.style.pointerEvents = 'none';
+
+  // Promote current back → front
+  backBuf.classList.replace('back', 'front');
+  backBuf.style.opacity = '1';
+  backBuf.style.pointerEvents = 'all';
+
+  // Swap JS references
+  [frontBuf, backBuf] = [backBuf, frontBuf];
+
+  log(`  complete: #${prevBackId}(${childCount} children) → front, #${prevFrontId} → back`, 'dbg');
+}
+
+// ── pct helper ────────────────────────────────────────────────────────────────
+function pct(v) { return v.toFixed(4) + '%'; }
+
+function placeRoot(el, left, top, right, bottom) {
+  el.style.left   = pct(left);
+  el.style.top    = pct(top);
+  el.style.width  = pct(right - left);
+  el.style.height = pct(bottom - top);
+}
+
+// Convert parent-relative 0-100 coords to root-canvas 0-100 coords
+function toRoot(p, left, top, right, bottom) {
+  const pw = p.right - p.left;
+  const ph = p.bottom - p.top;
+  return {
+    left:   p.left + pw * left   / 100,
+    top:    p.top  + ph * top    / 100,
+    right:  p.left + pw * right  / 100,
+    bottom: p.top  + ph * bottom / 100,
+  };
+}
+
+// ── Style string parser ───────────────────────────────────────────────────────
+// Format: "key:value;key:value;..."
+// Values may be enclosed in backticks to include literal semicolons/colons:
+//   text:`Hello; World`  →  { text: "Hello; World" }
+function parseStyle(styleStr) {
+  if (!styleStr) return {};
+  const r = {};
+
+  // Split on ';' but not inside backtick-quoted values
+  const pairs = [];
+  let cur = '', inBt = false;
+  for (let i = 0; i < styleStr.length; i++) {
+    const ch = styleStr[i];
+    if (ch === '`')            { inBt = !inBt; cur += ch; }
+    else if (ch === ';' && !inBt) { pairs.push(cur); cur = ''; }
+    else                       { cur += ch; }
+  }
+  if (cur) pairs.push(cur);
+
+  pairs.forEach(p => {
+    const i = p.indexOf(':');
+    if (i > 0) {
+      const key = p.slice(0, i).trim();
+      let val = p.slice(i + 1);
+      // Strip optional backtick enclosure
+      if (val.startsWith('`') && val.endsWith('`') && val.length >= 2)
+        val = val.slice(1, -1);
+      r[key] = val;
+    }
+  });
+  return r;
+}
+
+// True for Artemis boolean flag values: on / yes / True / active
+function isOn(v) { return v != null && /^(on|yes|true|active)$/i.test(String(v).trim()); }
+
+// ── cmdWidget ─────────────────────────────────────────────────────────────────
+function cmdWidget(msg) {
+  const { cmd, tag, parent, left, top, right, bottom } = msg;
+  const s = parseStyle(msg.style);
+  const el = buildWidget(msg, s);
+  if (!el) return;
+
+  el.classList.add('widget');
+  if (tag) el.dataset.tag = tag;
+  if (s.draw_layer) el.style.zIndex = s.draw_layer;
+
+  let rc;
+  if (isOn(s.pixel_aligned)) {
+    // Coordinates are pixel values, not percentages
+    el.style.left   = left + 'px';
+    el.style.top    = top + 'px';
+    el.style.width  = (right - left) + 'px';
+    el.style.height = (bottom - top) + 'px';
+    rc = { left, top, right, bottom };
+  } else {
+    rc = (parent && backRegions[parent])
+      ? toRoot(backRegions[parent], left, top, right, bottom)
+      : { left, top, right, bottom };
+    placeRoot(el, rc.left, rc.top, rc.right, rc.bottom);
+  }
+
+  if (cmd === 'sub_region') backRegions[tag] = rc;
+  backBuf.appendChild(el);
+  log(`  +${cmd} tag=${tag} → #${backBuf.id}  [${pct(rc.left)},${pct(rc.top)},${pct(rc.right-rc.left)},${pct(rc.bottom-rc.top)}]`, 'dbg');
+}
+
+// ── buildWidget ───────────────────────────────────────────────────────────────
+// s = parsed style object from parseStyle(msg.style)
+function buildWidget(msg, s) {
+  const { cmd, tag } = msg;
+  let el;
+  switch (cmd) {
+    case 'button': {
+      el = document.createElement('button');
+      el.className = 'w-button';
+      el.textContent = s.text || tag;
+      if (s.color) el.style.color = s.color;
+      if (s.font)  el.style.fontFamily = s.font;
+      el.addEventListener('click', () => sendEvent('click', tag));
+      break;
+    }
+    case 'checkbox': {
+      el = document.createElement('label');
+      el.className = 'w-checkbox';
+      const cb = document.createElement('input'); cb.type = 'checkbox';
+      cb.checked = isOn(s.state);
+      if (s.visible !== undefined && !isOn(s.visible)) el.style.visibility = 'hidden';
+      const sp = document.createElement('span');
+      sp.textContent = s.text || tag;
+      if (s.color) sp.style.color = s.color;
+      if (s.font)  sp.style.fontFamily = s.font;
+      el.append(cb, sp);
+      cb.addEventListener('change', () => sendEvent('change', tag, { checked: cb.checked }));
+      break;
+    }
+    case 'clickregion': {
+      el = document.createElement('div'); el.className = 'w-clickregion';
+      if (s.text) { el.textContent = s.text; if (s.color) el.style.color = s.color; }
+      if (s.background_color) el.style.background = s.background_color;
+      el.addEventListener('click', () => sendEvent('click', tag));
+      break;
+    }
+    case 'colorbutton': {
+      el = document.createElement('div'); el.className = 'w-colorbutton';
+      const btnColor = s.color || '#4f8ef7';
+      el.style.background = btnColor; el.title = tag;
+      el.addEventListener('click', () => sendEvent('click', tag, { color: btnColor }));
+      break;
+    }
+    case 'colorcheckbox': {
+      el = document.createElement('label'); el.className = 'w-colorcheckbox';
+      const sw = document.createElement('div'); sw.className = 'swatch';
+      const chkColor = s.color || '#4f8ef7';
+      sw.style.background = chkColor;
+      const cb2 = document.createElement('input'); cb2.type = 'checkbox'; cb2.style.display = 'none';
+      el.append(sw, cb2);
+      el.addEventListener('click', () => { cb2.checked = !cb2.checked; sendEvent('change', tag, { checked: cb2.checked, color: chkColor }); });
+      break;
+    }
+    case 'dropdown': {
+      el = document.createElement('div'); el.className = 'w-dropdown';
+      const sel = document.createElement('select');
+      (s.list || s.text || tag).split(',').forEach(o => {
+        const opt = document.createElement('option'); opt.value = opt.textContent = o.trim(); sel.appendChild(opt);
+      });
+      if (s.color) sel.style.color = s.color;
+      if (s.font)  sel.style.fontFamily = s.font;
+      el.appendChild(sel);
+      sel.addEventListener('change', () => sendEvent('change', tag, { value: sel.value }));
+      break;
+    }
+    case 'face': {
+      el = document.createElement('div'); el.className = 'w-face';
+      el.textContent = msg.face_string || '🙂'; break;
+    }
+    case 'icon': {
+      el = document.createElement('div'); el.className = 'w-icon';
+      el.textContent = s.text || (s.icon_index !== undefined ? `[${s.icon_index}]` : '🔷');
+      if (s.color) el.style.color = s.color;
+      if (s.font)  el.style.fontFamily = s.font;
+      break;
+    }
+    case 'iconbutton': {
+      el = document.createElement('div'); el.className = 'w-iconbutton';
+      el.textContent = s.icon_index !== undefined ? `[${s.icon_index}]` : '🔵';
+      if (s.color) el.style.color = s.color;
+      el.addEventListener('click', () => sendEvent('click', tag)); break;
+    }
+    case 'iconcheckbox': {
+      el = document.createElement('div'); el.className = 'w-iconcheckbox';
+      el.textContent = s.icon_index !== undefined ? `[${s.icon_index}]` : '☐';
+      if (s.color) el.style.color = s.color;
+      let chk = false;
+      el.addEventListener('click', () => { chk = !chk; el.classList.toggle('checked', chk); sendEvent('change', tag, { checked: chk }); });
+      break;
+    }
+    case 'image': {
+      el = document.createElement('div'); el.className = 'w-image';
+      if (s.image) {
+        const imgSrc = s.image + '.png';
+        const hasSub = s.sub_rect || s.sub_left !== undefined || s.sub_top !== undefined;
+        if (hasSub) {
+          // sub_rect values are 0–1 fractions of the source image
+          const parts = s.sub_rect ? s.sub_rect.split(',').map(Number) : [0, 0, 1, 1];
+          const sl = s.sub_left   !== undefined ? +s.sub_left   : parts[0];
+          const st = s.sub_top    !== undefined ? +s.sub_top    : parts[1];
+          const sr = s.sub_right  !== undefined ? +s.sub_right  : parts[2];
+          const sb = s.sub_bottom !== undefined ? +s.sub_bottom : parts[3];
+          const sw = sr - sl || 1, sh = sb - st || 1;
+          el.style.backgroundImage    = `url('${imgSrc}')`;
+          el.style.backgroundRepeat   = 'no-repeat';
+          el.style.backgroundSize     = `${(100 / sw).toFixed(2)}% ${(100 / sh).toFixed(2)}%`;
+          el.style.backgroundPosition = `${(-sl / sw * 100).toFixed(2)}% ${(-st / sh * 100).toFixed(2)}%`;
+        } else {
+          const img = document.createElement('img'); img.src = imgSrc; img.alt = tag;
+          el.appendChild(img);
+        }
+      }
+      break;
+    }
+    case 'rawiconbutton': {
+      el = document.createElement('div'); el.className = 'w-rawiconbutton';
+      el.textContent = s.icon_index !== undefined ? `[${s.icon_index}]` : '▶';
+      if (s.color) el.style.color = s.color;
+      el.addEventListener('click', () => sendEvent('click', tag)); break;
+    }
+    case 'slider': {
+      el = document.createElement('div'); el.className = 'w-slider';
+      const rng = document.createElement('input'); rng.type = 'range';
+      rng.min = s.low ?? 0; rng.max = s.high ?? 100; rng.value = msg.current ?? 50;
+      // show_number defaults to shown; hide only if explicitly set to a falsy flag value
+      const hideNum = s.show_number !== undefined && !isOn(s.show_number);
+      if (!hideNum) {
+        const numEl = document.createElement('span'); numEl.className = 'slider-num';
+        numEl.textContent = rng.value;
+        if (s.color) numEl.style.color = s.color;
+        rng.addEventListener('input', () => { numEl.textContent = rng.value; sendEvent('change', tag, { value: +rng.value }); });
+        el.append(rng, numEl);
+      } else {
+        rng.addEventListener('input', () => sendEvent('change', tag, { value: +rng.value }));
+        el.appendChild(rng);
+      }
+      break;
+    }
+    case 'sub_region': {
+      el = document.createElement('div'); el.className = 'w-sub_region';
+      if (s.text) { el.textContent = s.text; if (s.color) el.style.color = s.color; }
+      break;
+    }
+    case 'text': {
+      el = document.createElement('div'); el.className = 'w-text';
+      el.textContent = s.text || tag;
+      if (s.color) el.style.color = s.color;
+      if (s.font)  el.style.fontFamily = s.font;
+      if (s.justify) {
+        const jmap = { left: 'flex-start', right: 'flex-end', center: 'center' };
+        const j = jmap[s.justify.toLowerCase()];
+        if (j) { el.style.justifyContent = j; el.style.alignItems = j; el.style.textAlign = s.justify; }
+      }
+      break;
+    }
+    case 'typein': {
+      el = document.createElement('div'); el.className = 'w-typein';
+      const inp = document.createElement('input');
+      inp.type = isOn(s.password) ? 'password' : 'text';
+      inp.placeholder = s.desc || '';
+      if (s.text)  inp.value = s.text;
+      if (s.color) inp.style.color = s.color;
+      if (s.font)  inp.style.fontFamily = s.font;
+      el.appendChild(inp);
+      inp.addEventListener('change',  () => sendEvent('change', tag, { value: inp.value }));
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') sendEvent('submit', tag, { value: inp.value }); });
+      break;
+    }
+    case 'hotkey': {
+      document.addEventListener('keydown', e => {
+        if (e.key === msg.keyType || e.code === msg.keyType)
+          sendEvent('hotkey', tag, { keyType: msg.keyType, category: msg.category });
+      });
+      return null;
+    }
+    default: {
+      el = document.createElement('div'); el.className = 'w-text';
+      el.style.outline = '1px dashed red';
+      el.textContent = `[unknown:${cmd}]`;
+    }
+  }
+  return el;
+}
+</script>
+</body>
+</html>
