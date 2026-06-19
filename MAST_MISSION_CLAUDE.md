@@ -791,7 +791,7 @@ Mission scripts can add new `@console/` labels beyond the LegendaryMissions defa
         alert_state = get_data_set_value(ship_id, "red_alert", 0)
         image = "RedAlert" if alert_state >= 1 else "AllClear"
         on_screen.update(f"image:{get_mission_dir_filename(image)}")
-        gui_represent(on_screen)
+        # gui_represent(on_screen)  # deprecated — dirty system handles re-render automatically
 
     await gui()
 ```

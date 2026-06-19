@@ -471,7 +471,7 @@ on change get_data_set_value(ship_id, "red_alert", 0):
     # runs when the red_alert data value changes — arbitrary expression, not just variables
     alert_state = get_data_set_value(ship_id, "red_alert", 0)
     on_screen.update(f"image:{get_mission_dir_filename(image)}")
-    gui_represent(on_screen)
+    # gui_represent(on_screen)  # deprecated — dirty system handles re-render automatically
 
 on gui_message(gui_button("Launch")):
     # runs when "Launch" button is pressed
@@ -539,7 +539,7 @@ on gui_click(ib):
 # Face / avatar display
 the_face = gui_face(face_string)
 the_face.value = new_face_string
-gui_represent(the_face)
+# gui_represent(the_face)  # deprecated — dirty system handles re-render automatically
 ```
 
 ### `on gui_click` vs `on gui_message`
@@ -562,7 +562,7 @@ for i, widget in enumerate(widgets):
 
 ```
 widget.value = new_value
-gui_represent(widget)          # re-render one widget, not the whole GUI
+# The dirty system automatically re-renders changed widgets — gui_represent() is deprecated (safe but redundant)
 ```
 
 ### Full GUI rebuild

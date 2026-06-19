@@ -202,9 +202,9 @@ Browser event `type` values sent to the runner:
 | Icon (`click_tag`) | click_tag string | — | — |
 | TextInput | widget tag (string) | cumulative string | — |
 
-### In-place widget updates (`gui_represent`)
+### In-place widget updates (dirty system)
 
-The real engine allows `send_gui_*` with an existing tag to update that element without a full `clear`/`complete` cycle. The mockgui browser mirrors this: when a widget command arrives **outside** a `clear`→`complete` rebuild, `cmdWidget` finds the element by tag in the front buffer and replaces it in-place (preserving its computed position). This makes `gui_represent(widget)` work correctly in the mock.
+Widgets mark themselves dirty when their value changes; the engine re-renders them automatically each tick without a full `clear`/`complete` cycle. `gui_represent(widget)` is **deprecated** — calling it is safe but redundant. The mockgui browser mirrors this: `send_gui_*` commands arriving outside a rebuild find the element by tag in the front buffer and replace it in-place.
 
 ---
 
