@@ -15,8 +15,8 @@ Upon completion of this tutorial, you will have learned to:
 10. [Detect damage and destruction](#10-damage-and-destruction)
 11. [Testing the mission](#11-testing-our-mission)
 12. [Recurring Tasks](#12-recurring-tasks)
-13. [Build comms buttons]
-14. [Handle game end]
+13. [Build comms buttons](#13-using-comms)
+14. Handle game end *(coming soon)*
 
 ### Specific Goals
 For this tutorial, we are writing a mission about finding and recovering a lost treasure.  
