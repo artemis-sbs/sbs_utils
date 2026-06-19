@@ -461,6 +461,11 @@ obj.data_set.set("local_scale_x_coeff", 2.5)
 obj.data_set.set("ally_list", "tsn,good_dudes", 0)
 ```
 
+The complete list of valid property names, types, and descriptions is in:
+`f:/a/Cosmos-1-3-0/data/object_data_documentation.txt`
+
+Read that file when you need to know what `data_set` properties exist for ships, stations, terrain, or other space objects.
+
 ---
 
 ## __lib__.json
