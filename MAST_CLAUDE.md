@@ -176,6 +176,8 @@ shared game_stats = {"destroyed": 0}
 shared admiral = lifeform_spawn("Admiral Harkin", ...)
 ```
 
+**Top-level `shared` statements run only once.** After first execution they are converted to no-ops so subsequent clients don't re-run them. Because the server client runs first, top-level `shared` assignments are effectively server-initialised.
+
 ### `default shared`
 
 Combines both: cross-task scope, only set if not already set.
@@ -225,6 +227,16 @@ Suspends the task waiting for user GUI interaction. Should always run within the
     await gui()
 ```
 
+### `promise_any(p1, p2, ...)`
+
+Races multiple promises; resolves with whichever finishes first. Classic use: button OR timeout.
+
+```
+choice = gui_button("Confirm")
+result = await promise_any(choice, delay_sim(10))
+# result is whichever promise resolved — check it to know which won
+```
+
 ---
 
 ## Task Spawning
@@ -261,6 +273,22 @@ await sub_task_schedule(brain_scan_update_text)
 Same as `sub_task_schedule` but tagged `end_on_new_gui` — automatically cancelled when a new GUI page is presented to the client.
 
 **Spawn scope**: A spawned task gets its own variable scope. Data passed via the dict becomes variables in the child task. `shared` variables are still accessible.
+
+### `gui_task_jump("label")` — redirect the GUI task
+
+From within a sub-task, redirects the parent console's GUI task to a label. Used in the watch/repaint pattern: the watcher detects a change and forces the panel to repaint.
+
+```
+--- watch
+    await delay_sim(1)
+    ->END if not object_exists(ship_id)
+    alert_state = get_data_set_value(ship_id, "red_alert", 0)
+    if alert_state != prev_alert_state:
+        gui_task_jump("repaint")    # redirect GUI task, not this sub-task
+    jump watch
+```
+
+Different from `mast_task.jump()` — `gui_task_jump` targets the console's GUI task specifically.
 
 ---
 
@@ -439,6 +467,12 @@ on change variable_name:
 on change update_ticker < get_counter_elapsed_seconds(client_id, "refresh"):
     update_ticker += 1
 
+on change get_data_set_value(ship_id, "red_alert", 0):
+    # runs when the red_alert data value changes — arbitrary expression, not just variables
+    alert_state = get_data_set_value(ship_id, "red_alert", 0)
+    on_screen.update(f"image:{get_mission_dir_filename(image)}")
+    gui_represent(on_screen)
+
 on gui_message(gui_button("Launch")):
     # runs when "Launch" button is pressed
     launch_fighter()
@@ -448,13 +482,116 @@ on signal signal_name:
     update_display()
 ```
 
-### GUI layout (topic to expand)
+### GUI layout
 
 ```
 gui_section(style="area:0,0,100,100;")
+gui_row("row-height:2em;")
 gui_text("Display text")
 gui_button("Button text")
-gui_update("element-id", "$text: new value")
+gui_blank()                    # spacer
+"""Inline text label"""        # triple-quoted string = GUI text in layout context
+"""{variable} items loaded"""  # f-string style interpolation in triple-quoted text
+
+# Named sub-section — fill it later with `with content:`
+content = gui_sub_section()
+with content:
+    gui_text("Injected here")
+
+# Reusable style
+row_style = gui_style_def("row-height: 1.5em; padding: 6px, 0, 2px, 6px;")
+gui_row(row_style)
+```
+
+### Widgets
+
+```
+# Dropdown — bound to a variable, displays current value
+todo = gui_drop_down("text: {menu}; list: arc, line, box", var="menu")
+on gui_message(todo):
+    jump rebuild_gui
+
+# List box — single or multi-select
+lb = gui_list_box(items, "row-height: 1em;", item_template=my_template, select=True)
+lb.set_selected_index(0, False)
+selected = lb.get_value()
+selected_list = lb.get_selected()   # multi=True
+lb_index = lb.get_selected_index()
+
+on change lb.value:
+    item = lb.get_value()
+
+# Checkbox
+cb = gui_checkbox("text: {label}; state: {enabled}", style)
+on gui_message(cb):
+    enabled = not enabled
+
+# Integer slider
+sl = gui_int_slider("low: 0; high: 10;", style)
+on gui_message(sl):
+    val = sl.value
+
+# Clickable icon
+ib = gui_icon("icon_index: 137; color: white;", style="click_tag: menu; click_background: #6666")
+on gui_click(ib):
+    jump menu_label
+
+# Face / avatar display
+the_face = gui_face(face_string)
+the_face.value = new_face_string
+gui_represent(the_face)
+```
+
+### `on gui_click` vs `on gui_message`
+
+- `on gui_message(element):` — fires when the element's **value changes**
+- `on gui_click(element):` — fires when the element is **clicked** (for icons and elements with `click_tag`)
+
+### Widget `data={}` and `__ITEM__`
+
+Pass a `data={}` dict to inject local variables into the handler. `__ITEM__` is the widget that fired:
+
+```
+for i, widget in enumerate(widgets):
+    sl = gui_int_slider("low: 0; high: {widget['max']};", style, data={"windex": i})
+    on gui_message(sl):
+        values[windex] = __ITEM__.value
+```
+
+### Updating without rebuilding
+
+```
+widget.value = new_value
+gui_represent(widget)          # re-render one widget, not the whole GUI
+```
+
+### Full GUI rebuild
+
+```
+gui_reroute_server(label)      # redirect all clients to a new label
+gui_refresh("label_name")      # same, by string name
+```
+
+### Inline buttons inside `await gui()`
+
+```
+await gui():
+    * "Apply":                 # * = consumed after click
+        do_action()
+
+jump next_label                # runs after button is pressed
+```
+
+### `match / case`
+
+Python 3.10+ match syntax works in MAST:
+
+```
+match menu:
+    case "arc":
+        jump edit_arc
+    case "sphere":
+        jump edit_sphere
 ```
 
 ---
@@ -532,7 +669,16 @@ client_id               # client performing the action
 
 **Do NOT use `~~` for:** regular function calls, assignments, if statements, for loops.
 
-**DO use `~~` for:** complex Python syntax the parser specifically fails on (rare).
+**DO use `~~` for:** complex dict/set literals and other syntax the parser specifically fails on:
+
+```
+g = ~~ {"x": pos_x, "y": pos_y, "name": item_name} ~~
+
+avatar_widgets = ~~{
+    "terran": [{"label": "Eyes", "min": 0, "max": 9}],
+    "skaraan": [{"label": "Eyes", "min": 0, "max": 4}]
+}~~
+```
 
 ---
 
@@ -565,6 +711,23 @@ jump loop if not is_timer_finished(id, "meeting_count")
 t = format_time_remaining(id, "warmup")
 ```
 
+### Object existence check
+```
+->END if not object_exists(ship_id)    # guard before reading data from a ship
+```
+
+### Read a data_set value procedurally
+```
+alert_state = get_data_set_value(ship_id, "red_alert", 0)           # with default
+dock_state  = get_data_set_value(ship_id, "dock_state", "undocked")
+```
+
+### Vec3 unpacking
+```
+npc_spawn(*Vec3(1000, 0, 1000), "Name", "tsn", "art", "behav_station")
+# equivalent to: npc_spawn(1000, 0, 1000, ...)
+```
+
 ### Set operations
 ```
 role("ship") & role("friendly")          # intersection
@@ -585,6 +748,36 @@ log("Spawn failed", "spawn", "warning")
 
 ---
 
+## Additional Loop Forms
+
+### `for x while condition:`
+
+A loop with an inline exit condition — stops when condition is false rather than iterating a fixed count:
+
+```
+for x while d > 1000:
+    await delay_sim(4)
+    ->END if to_object(artemis_id) is None
+    d = sbs.distance_id(artemis_id, target_id)
+```
+
+---
+
+## Task Introspection
+
+### `mast_task` — current task reference
+
+Inside a label, `mast_task` is the current running task. Store it in a shared variable for debug access or external control:
+
+```
+shared main_story_task = mast_task   # in @map body
+
+# From a debug comms route:
+main_story_task.jump("scene_two")    # redirect the task to a different label
+```
+
+---
+
 ## Things NOT in MAST
 
 - XML scripting (that was the old SBS game)
@@ -592,3 +785,69 @@ log("Spawn failed", "spawn", "warning")
 - Routes inside labels (routes are always top-level)
 - Function-style return values from labels (use `yield result` or task data)
 - Standalone quoted strings outside page contexts (use `log()` or `print()`)
+
+---
+
+## PyMAST — Python Generator Labels
+
+An alternative to `.mast` files: Python generator functions decorated with `@label()`. Used in tool-style missions like `remote_mission_pick`.
+
+```python
+from sbs_utils.mast.label import label
+from sbs_utils.mast.maststory import MastStory
+from sbs_utils.mast.mast_node import MastDataObject
+from sbs_utils.procedural.execution import AWAIT, jump, get_shared_variable, set_shared_variable
+from sbs_utils.procedural.timers import timeout
+
+@label()
+def main_gui():
+    # build GUI
+    yield AWAIT(gui({"ok": confirm}))
+
+@label()
+def confirm():
+    yield AWAIT(gui({"back": main_gui}, timeout=timeout(10)))
+    yield jump(main_gui)
+
+class SimpleAiPage(StoryPage):
+    story = MastStory()       # empty story — no .mast file
+    main_server = main_gui
+    main_client = main_gui
+```
+
+### Translation table
+
+| MAST | PyMAST |
+|---|---|
+| `await gui(...)` | `yield AWAIT(gui(...))` |
+| `jump label_name` | `yield jump(label_fn)` |
+| `await delay_sim(5)` | `yield AWAIT(delay_sim(5))` |
+| `shared x = val` | `set_shared_variable("x", val)` |
+| Read shared var | `get_shared_variable("x")` |
+
+### GUI callbacks
+
+`gui_message_callback(widget, fn)` registers a Python function for widget events (replaces MAST's `on gui_message`):
+
+```python
+lb = gui_list_box(items, "", item_template=render, select=True)
+gui_message_callback(lb, lambda event, sender: handle_select(lb, items))
+yield AWAIT(gui({"start": start_fn}))
+```
+
+### `MastDataObject`
+
+Wraps a plain dict so keys are accessible as attributes. `obj.get("key", default)` reads safely:
+
+```python
+item = MastDataObject({"name": "Scout", "hp": 100})
+item.name          # "Scout"
+item.get("hp", 0)  # 100
+# item["hp"] raises TypeError — always use .get() or attribute access
+```
+
+### Launching another mission
+
+```python
+sbs.run_next_mission(mission_folder_name)   # loads and starts a different mission
+```
