@@ -1,6 +1,7 @@
 # sbs_utils — Library Reference for Claude
 
 @MAST_CLAUDE.md
+@MAST_MISSION_CLAUDE.md
 
 ## Environment
 
