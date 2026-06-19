@@ -2,20 +2,42 @@ from sbs_utils.pages.layout.button import Button
 from sbs_utils.helpers import FrameContext
 from sbs_utils.futures import Promise
 def apply_control_styles (control_name, extra_style, layout_item, task):
-    """Apply style information to a layout item based on the type of the layout, and apply the extra styles as needed.
-    Args:
-        control_name (str): The name of the control style.
-        extra_style (str): A CSS-style string containing extra style definitions which override those in the control style.
-        layout_item (LayoutItem): The layout item for which the style is to be applied."""
-def gui_button (props, style=None, data=None, on_press=None, is_sub_task=False):
-    """Add a gui button
+    """Apply a named control style and optional overrides to a layout item.
+    
+    ``extra_style`` may be a raw CSS-style string (``"key:value;..."``) or
+    a style name. It is applied on top of the base ``control_name`` style.
     
     Args:
-        props (str): Properties. Usually just the text on the button
-        style (str, optional): Style. Defaults to None. End each style with a semicolon, e.g. `color:red;`
-        data (object): The data to pass to the button's label
-        on_press (label, callable, Promise): Handle a button press, label is jumped to, callable is called, Promise has results set
-        is_sub_task (bool): Set to True if the button is only responding to the button. Use False only if the whole gui will be changed via `await gui()`. Default is False for backwards-compatibility.
+        control_name (str): Base control style name.
+        extra_style (str | dict | None): Additional style string, name, or
+            parsed dict applied after the base style.
+        layout_item (LayoutItem): Layout item to receive the style.
+        task (MastAsyncTask): GUI task used for string formatting."""
+def gui_button (props, style=None, data=None, on_press=None, is_sub_task=False):
+    """Add a button to the current GUI layout outside of an ``await gui()`` block.
+    
+    Unlike buttons declared with ``*`` or ``+`` inside ``await gui()``, this
+    button is placed directly in the layout at the current position and fires
+    its handler without ending the surrounding ``await gui()``. Use it for
+    action buttons embedded in panels, listboxes, or info panels.
+    
+    Args:
+        props (str): Button label text, optionally as a property string
+            (e.g. ``"$text:Fire!;color:red;"``). Supports ``{var}``
+            interpolation.
+        style (str, optional): Additional CSS-like style overrides.
+            End each property with a semicolon, e.g. ``"col-width:20%;"``.
+            Defaults to None.
+        data (object, optional): Arbitrary data passed to the handler.
+            Available as ``__ITEM__`` and (if a dict) as individual variables.
+            Defaults to None.
+        on_press (label | callable | Promise, optional): What to do when the
+            button is pressed. A label is jumped to; a callable is called; a
+            Promise has its result set. Defaults to None.
+        is_sub_task (bool, optional): When ``True`` the handler runs as an
+            independent sub-task. Use ``False`` (default) only when pressing
+            the button will rebuild the entire GUI via ``await gui()``.
+            Defaults to False.
     
     Valid Styles:
         area:

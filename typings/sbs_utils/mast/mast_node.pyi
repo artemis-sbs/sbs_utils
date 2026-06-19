@@ -64,5 +64,5 @@ class Scope(Enum):
     CLIENT : 10
     NORMAL : 2
     SHARED : 1
-    TEMP : 99
+    SUB_TASK_LOCAL : 99
     UNKNOWN : 100

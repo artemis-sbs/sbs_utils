@@ -1,11 +1,17 @@
 from sbs_utils.helpers import FrameContext
 from sbs_utils.mast_sbs.story_nodes.media import MediaLabel
 def _media_schedule (kind, label, ID=0):
-    """Sets the folder from which music is streamed; ID is ship, OR client, OR zero for server.
+    """Apply a media label to the engine and schedule it as a sub-task.
+    
     Args:
-        kind (str): The kind of media.
-        label (str | Label): The label to run.
-        ID (int, optional): The ship or client ID, or zero for the server. Default is 0."""
+        kind (str): ``"skybox"`` sets the sky box; ``"music"`` sets the music
+            folder.
+        label (MediaLabel): The resolved media label.
+        ID (int, optional): Ship or client ID; ``0`` targets the server.
+            Defaults to 0.
+    
+    Returns:
+        MediaLabel: The label that was scheduled."""
 def get_mission_dir_filename (filename):
     """Get the full path to a file in the current mission directory.
     
@@ -32,44 +38,62 @@ def media_read_from_zip (zip_file, file, as_utf8=True):
 def media_read_relative_file (file):
     ...
 def media_schedule (kind, name, ID=0):
-    """Schedule media of the specified kind (skybox or music)
+    """Schedule a named ``@media`` label of the given kind.
     
     Args:
-        kind (str): The kind of media.
-        name (str): The name of the media file.
-        ID (int, optional): The ship or client ID, or zero for the server. Default is 0."""
+        kind (str): Media kind, e.g. ``"skybox"`` or ``"music"``.
+        name (str | MediaLabel): Media path name or a ``MediaLabel`` object.
+        ID (int, optional): Ship or client ID; ``0`` targets the server.
+            Defaults to 0.
+    
+    Returns:
+        Label | None: The scheduled label, or ``None`` if not found."""
 def media_schedule_random (kind, ID=0):
-    """Schedule random media of the specified kind (skybox or music)
+    """Schedule a randomly chosen ``@media`` label of the given kind.
+    
     Args:
-        kind (str): The kind of media.
-        ID (int, optional): The ship or client ID, or zero for the server. Default is 0.
+        kind (str): Media kind, e.g. ``"skybox"`` or ``"music"``.
+        ID (int, optional): Ship or client ID; ``0`` targets the server.
+            Defaults to 0.
+    
     Returns:
-        label: The scheduled label or None"""
+        Label | None: The scheduled media label, or ``None`` if none exist."""
 def music_schedule (name, ID=0):
-    """Schedule specific music.
-    Args:
-        name (str): The name of the skybox file.
-        ID (int, optional): The ship or client ID, or zero for the server. Default is 0."""
-def music_schedule_random (ID=0):
-    """Schedule random music.
-    Args:
-        ID (int, optional): The ship or client ID, or zero for the server. Default is 0."""
-def skybox_schedule (name, ID=0):
-    """Schedule a specific skybox.
-    Args:
-        name (str): The name of the skybox file.
-        ID (int, optional): The ship or client ID, or zero for the server. Default is 0."""
-def skybox_schedule_random (ID=0):
-    """Schedule a random skybox.
-    Args:
-        ID (int, optional): The ship or client ID, or zero for the server. Default is 0."""
-def sub_task_schedule (label, data=None, var=None) -> 'MastAsyncTask':
-    """create an new task and start running at the specified label
+    """Schedule a specific music track by name.
     
     Args:
-        label (str or label): The label to run
-        data (duct, optional): Data to initialie task variables. Defaults to None.
-        var (str, optional): Set the variable to the task created. Defaults to None.
+        name (str): Music media path name.
+        ID (int, optional): Ship or client ID; ``0`` targets the server.
+            Defaults to 0."""
+def music_schedule_random (ID=0):
+    """Schedule a randomly chosen music ``@media`` label.
+    
+    Args:
+        ID (int, optional): Ship or client ID; ``0`` targets the server.
+            Defaults to 0."""
+def skybox_schedule (name, ID=0):
+    """Schedule a specific skybox by name.
+    
+    Args:
+        name (str): Skybox media path name.
+        ID (int, optional): Ship or client ID; ``0`` targets the server.
+            Defaults to 0."""
+def skybox_schedule_random (ID=0):
+    """Schedule a randomly chosen skybox ``@media`` label.
+    
+    Args:
+        ID (int, optional): Ship or client ID; ``0`` targets the server.
+            Defaults to 0."""
+def sub_task_schedule (label, data=None, var=None) -> 'MastAsyncTask':
+    """Schedule a sub-task under the current task starting at the given label.
+    
+    Sub-tasks share lifecycle with the parent task.
+    
+    Args:
+        label (str | Label): The label to start the sub-task at.
+        data (dict, optional): Initial sub-task variables. Defaults to None.
+        var (str, optional): Variable name to store the created sub-task.
+            Defaults to None.
     
     Returns:
-        MastAsyncTask : The MAST task created"""
+        MastAsyncTask: The sub-task created, or None outside a task context."""

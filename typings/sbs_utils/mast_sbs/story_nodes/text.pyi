@@ -1,16 +1,22 @@
 from sbs_utils.mast.mast_node import MastNode
 from sbs_utils.mast.mast_runtime_node import MastRuntimeNode
 def gui_text_area (props, style=None):
-    """Add a gui text object
+    """Add a rich text area to the current GUI layout.
     
-    valid properties
-        text
-        color
-        font
+    Supports Markdown-style formatting and inline image references
+    (``![](image://key)``). Use for multi-line or formatted text blocks.
     
+    Args:
+        props (str): Text content or Markdown string. Supports ``{var}``
+            interpolation.
+        style (str, optional): CSS-like style overrides. Defaults to None.
     
-    props (str): property string
-    style (style, optional): The style"""
+    Returns:
+        TextArea: The layout item created.
+    
+    Example:
+        gui_text_area("## Status\nAll systems nominal.")
+        gui_text_area("![](image://logo?scale=0.5) Mission active")"""
 def mast_node (append=True):
     ...
 def mast_runtime_node (parser_node):

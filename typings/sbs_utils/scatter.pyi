@@ -122,7 +122,7 @@ def ring_density (counts, x, y, z, outer_r, inner_r=0, start=0.0, end=90.0, rand
     
     Returns:
         points (Generator): A generator of Vec3"""
-def simple_noise (count, x, y, z, x2, y2, z2, gx, gy, gz, radius=None, centered=False, ax=0, ay=0, az=0, degrees=True, drift=1.0):
+def simple_noise (count, x, y, z, x2, y2, z2, count_x, count_y, count_z, radius=None, centered=False, ax=0, ay=0, az=0, degrees=True, drift=1.0):
     """Builds a simple noise distribution withing a grid.
     
     Args:

@@ -4,11 +4,13 @@ from sbs_utils.helpers import FrameContext
 from enum import IntEnum
 from sbs_utils.vec import Vec3
 def get_ship_data_for (ship_key):
-    """Get the ship data information for the ship with the given key.
+    """Return the full ship data entry for a given key.
+    
     Args:
-        ship_key (str): The key for the ship.
+        ship_key (str): The ship type key.
+    
     Returns:
-        dict: The ship data contents."""
+        dict | None: Ship data dict, or ``None`` if not found."""
 class MSpawn(object):
     """class MSpawn"""
     def spawn_common (self, obj, x, y, z, name, side, art_id):

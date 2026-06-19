@@ -6,41 +6,58 @@ from sbs_utils.helpers import FrameContext
 from sbs_utils.garbagecollector import GarbageCollector
 from sbs_utils.vec import Vec3
 def get_comms_selection (id_or_not):
-    """Gets the id of the comms selection
+    """Return the ID of the object currently selected on the comms console.
+    
     Args:
-        id_or_not (Agent | int): agent id or object
+        id_or_not (Agent | int): The player ship agent ID or object.
+    
     Returns:
-        int | None: The agent id or None"""
+        int | None: The selected agent ID, or ``None`` if unavailable."""
 def get_science_selection (id_or_not):
-    """Gets the id of the science selection
+    """Return the ID of the object currently selected on the science console.
+    
     Args:
-        id_or_not (Agent | int): agent id or object
+        id_or_not (Agent | int): The player ship agent ID or object.
+    
     Returns:
-        int | None: The agent id or None"""
+        int | None: The selected agent ID, or ``None`` if unavailable."""
 def get_weapons_selection (id_or_not):
-    """Gets the id of the weapons selection
+    """Return the ID of the object currently selected on the weapons console.
+    
     Args:
-        id_or_not (Agent | int): agent id or object
+        id_or_not (Agent | int): The player ship agent ID or object.
+    
     Returns:
-        int | None: The agent id or None"""
+        int | None: The selected agent ID, or ``None`` if unavailable."""
 def popup_navigate (path):
-    """Set the path for the popup task. Similar to comms paths, e.g. `//popup/science`
+    """Set the active path for the current popup, similar to a comms route (e.g. ``//popup/science``).
+    
     Args:
-        path (str): The path"""
+        path (str): The new popup path to navigate to."""
 def start_popup_selected (event):
-    """Display the popup.
+    """Start or resume a popup for the given selection event.
+    
+    Creates a new ``PopupPromise`` for the (origin, selected) pair if one does
+    not already exist; otherwise resumes the existing promise. Called
+    automatically by ``ConsoleDispatcher`` for ``science_popup``,
+    ``comms_popup``, ``comms2d_popup``, and ``weapons_popup`` events.
+    
     Args:
-        event (event): The event that triggered the popup.
+        event: The engine selection event that triggered the popup.
+    
     Returns:
-        Promise: The popup's promise """
+        PopupPromise: The promise managing this popup, or ``None`` if the
+            origin object no longer exists."""
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """Converts the item passed to an agent
-    ??? note
-    * Return of None could mean the agent no longer exists
+    """Resolve an ID, ``CloseData``, or ``SpawnData`` to its Agent object.
+    
+    Returns ``None`` when the agent no longer exists.
+    
     Args:
-        other (Agent | CloseData | int): The agent ID or other agent like data
+        other (Agent | CloseData | SpawnData | int): Value to resolve.
+    
     Returns:
-        Agent | None: The agent or None"""
+        Agent | None: The agent, or ``None`` if it could not be resolved."""
 class PopupPromise(ButtonPromise):
     """class PopupPromise"""
     def __init__ (self, event) -> None:

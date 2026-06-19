@@ -1,17 +1,30 @@
 from sbs_utils.helpers import FrameContext
 from sbs_utils.pages.layout.ship import Ship
 def apply_control_styles (control_name, extra_style, layout_item, task):
-    """Apply style information to a layout item based on the type of the layout, and apply the extra styles as needed.
-    Args:
-        control_name (str): The name of the control style.
-        extra_style (str): A CSS-style string containing extra style definitions which override those in the control style.
-        layout_item (LayoutItem): The layout item for which the style is to be applied."""
-def gui_ship (props, style=None):
-    """renders a 3d image of the ship
+    """Apply a named control style and optional overrides to a layout item.
+    
+    ``extra_style`` may be a raw CSS-style string (``"key:value;..."``) or
+    a style name. It is applied on top of the base ``control_name`` style.
     
     Args:
-        props (str): The ship key
-        style (str, optional): Style. Defaults to None.
+        control_name (str): Base control style name.
+        extra_style (str | dict | None): Additional style string, name, or
+            parsed dict applied after the base style.
+        layout_item (LayoutItem): Layout item to receive the style.
+        task (MastAsyncTask): GUI task used for string formatting."""
+def gui_ship (props, style=None):
+    """Render a 3D ship model in the current GUI layout.
+    
+    Displays a real-time 3D render of the named ship type within the layout
+    area. The ship type key must match one defined in the game data.
+    
+    Args:
+        props (str): Ship type key or property string, e.g. ``"battleship"``
+            or ``"$type:cruiser;angle:45;"``.
+        style (str, optional): CSS-like style overrides. Defaults to None.
     
     Returns:
-        layout object: The Layout object created"""
+        Ship: The layout item created.
+    
+    Example:
+        gui_ship("battleship", style="area:20,0,80,60;")"""

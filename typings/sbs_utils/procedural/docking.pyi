@@ -16,64 +16,97 @@ def _docking_handle_undocking (player, npc, brain):
 def _docking_run_task (player, npc, brain, inner_label):
     ...
 def closest (the_ship, the_set, max_dist=None, filter_func=None) -> sbs_utils.agent.CloseData:
-    """Get the CloseData that matches the test set, max_dist, and optional filter function.
+    """Return the closest object to a source from a candidate set.
     
     Args:
-        the_ship (Agent | int): The agent ID or object
-        the_set (Agent | int | set[Agent | int]): The agent or id or set of objects or ids to test against
-        max_dist (float, optional): The maximum distance to check. Defaults to None.
-        filter_func (Callable, optional): An additional function to test with. Defaults to None.
+        the_ship (Agent | int | Vec3): Reference agent ID, object, or position.
+        the_set (Agent | int | set[Agent | int]): Candidate agent(s) to test.
+        max_dist (float, optional): Maximum distance to consider. Defaults to
+            None (no limit).
+        filter_func (Callable, optional): Extra predicate ``f(agent) -> bool``.
+            Defaults to None.
     
     Returns:
-        CloseData: The closest object's CloseData to get the distance."""
+        CloseData | None: Distance data for the closest match, or ``None`` if
+            no candidates qualify."""
 def docking_run_all (tick_task):
-    ...
+    """Process docking state for all registered player/NPC pairs.
+    
+    Called each tick. Handles undocked proximity detection, docking approach,
+    dock_start handshake, docked refit/throttle, and undocking. Cleans up
+    stale pairs where the player or NPC no longer exists.
+    
+    Args:
+        tick_task (TickTask | event): Tick task or event triggering this run."""
 def docking_schedule ():
-    ...
+    """Schedule the docking tick task (runs every 1 second) if not already running."""
 def docking_set_docking_logic (player_set, npc_set, label, data=None):
-    ...
+    """Register docking logic between a set of players and a set of NPCs.
+    
+    For each (player, NPC) pair, associates ``label`` as the brain that drives
+    docking state transitions (``enable``, ``docking``, ``docked``,
+    ``undocking``, ``refit``, ``throttle`` inline sections). Automatically
+    schedules the docking tick task.
+    
+    Args:
+        player_set (int | set): Player ship agent ID(s) or object(s).
+        npc_set (int | set): NPC agent ID(s) or object(s) to dock with.
+        label (Label): MAST label with docking inline sub-labels.
+        data (dict, optional): Variables passed to docking tasks. Defaults to
+            None."""
 def role (role: str):
-    """Returns a set of all the agents with a given role as a set of IDs.
+    """Return the set of agent IDs that currently hold a given role.
     
     Args:
-        role (str): The role.
+        role (str): The role name.
     
     Returns:
-        set[int]: a set of agent IDs."""
+        set[int]: IDs of all agents with that role."""
 def set_inventory_value (so, key: str, value):
-    """Set inventory value with the given key the the agent has.
-    This is the way to create a collection in inventory.
-    `so` can be a set. If it is, the inventory value is set for each member in the set.
+    """Set an inventory value on one or more agents.
+    
+    If ``so`` is a set or collection, every member receives the value.
     
     Args:
-        id_or_obj (Agent | int | set[Agent | int]): The agent id or object or set to check
-        key (str): The key/name of the inventory item
-        value (any): the value"""
+        so (Agent | int | set[Agent | int]): The agent(s) to update.
+        key (str): The inventory key.
+        value (any): The value to store."""
 def signal_emit (name, data=None):
-    """Emit a signal to trigger all instances of the signal route to run.
+    """Emit a named signal, running all registered ``//signal/<name>`` routes.
+    
+    Safe to call when no MAST context is active — returns immediately with no
+    side effects.
+    
     Args:
-        name (str): The name of the signal.
-        data (dict): The data to provide to the signal route."""
+        name (str): The signal name.
+        data (dict, optional): Arbitrary data passed to each signal handler.
+            Defaults to None."""
 def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """Converts item passed to an agent id
+    """Extract the integer ID from an agent, ``CloseData``, ``SpawnData``, or bare int.
+    
     Args:
-        other (Agent | CloseData | int): The agent
+        other (Agent | CloseData | SpawnData | int): Value to convert.
+    
     Returns:
-        int: The agent id"""
+        int: The integer agent ID."""
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """Converts the item passed to an agent
-    ??? note
-    * Return of None could mean the agent no longer exists
+    """Resolve an ID, ``CloseData``, or ``SpawnData`` to its Agent object.
+    
+    Returns ``None`` when the agent no longer exists.
+    
     Args:
-        other (Agent | CloseData | int): The agent ID or other agent like data
+        other (Agent | CloseData | SpawnData | int): Value to resolve.
+    
     Returns:
-        Agent | None: The agent or None"""
+        Agent | None: The agent, or ``None`` if it could not be resolved."""
 def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """Converts a single object/id, set or list of things to a set of ids
+    """Normalize any agent-like value or collection into a set of integer IDs.
+    
     Args:
-        other (Agent | CloseData | int | set[Agent | int] | list[Agent | int]): The agent or id or set.
+        other (Agent | CloseData | int | set | list | None): Value to normalize.
+    
     Returns:
-        set[Agent | CloseData | int]: A set containing whatever was passed in."""
+        set[int]: A set of integer IDs; ``None`` becomes an empty set."""
 class _DockingBrain(object):
     """class _DockingBrain"""
     def __init__ (self, label, data):

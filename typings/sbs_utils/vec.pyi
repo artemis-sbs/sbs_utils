@@ -73,6 +73,8 @@ class Vec3(object):
         
         Returns:
             (Vec3):  new vector negated version of this one"""
+    def __repr__ (self):
+        """Return repr(self)."""
     def __sub__ (self, v):
         """operator sub immutable
         

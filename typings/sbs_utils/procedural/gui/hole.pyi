@@ -1,17 +1,31 @@
 from sbs_utils.helpers import FrameContext
 from sbs_utils.pages.layout.hole import Hole
 def apply_control_styles (control_name, extra_style, layout_item, task):
-    """Apply style information to a layout item based on the type of the layout, and apply the extra styles as needed.
-    Args:
-        control_name (str): The name of the control style.
-        extra_style (str): A CSS-style string containing extra style definitions which override those in the control style.
-        layout_item (LayoutItem): The layout item for which the style is to be applied."""
-def gui_hole (count=1, style=None):
-    """adds an empty column that is used by the next item
+    """Apply a named control style and optional overrides to a layout item.
+    
+    ``extra_style`` may be a raw CSS-style string (``"key:value;..."``) or
+    a style name. It is applied on top of the base ``control_name`` style.
     
     Args:
-        count (int): The number of columns to use
-        style (_type_, optional): Style. Defaults to None.
+        control_name (str): Base control style name.
+        extra_style (str | dict | None): Additional style string, name, or
+            parsed dict applied after the base style.
+        layout_item (LayoutItem): Layout item to receive the style.
+        task (MastAsyncTask): GUI task used for string formatting."""
+def gui_hole (count=1, style=None):
+    """Reserve empty column space that the next layout item expands to fill.
+    
+    Unlike ``gui_blank``, a hole is consumed by the following item as extra
+    width. Use it to make a single element span multiple column slots.
+    
+    Args:
+        count (int, optional): Number of extra column slots to reserve.
+            Defaults to 1.
+        style (str, optional): CSS-like style overrides. Defaults to None.
     
     Returns:
-        layout object: The Layout object created"""
+        Hole: The last hole layout item created.
+    
+    Example:
+        gui_hole(2)
+        gui_text("This text spans 3 columns")"""

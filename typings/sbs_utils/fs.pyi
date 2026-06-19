@@ -193,7 +193,16 @@ def save_yaml_data (file, data):
 def set_dev_build (v):
     ...
 def test_set_exe_dir ():
-    """Set the executable directory to the parent of the script directory.
+    """Set path globals using this file's known location.
     
-    Used in test environments to override the default exe_dir detection.
-    Navigates three directory levels up from the script directory."""
+    Used in test environments to override the default path detection.
+    fs.py lives at <game_root>/data/missions/sbs_utils/sbs_utils/fs.py,
+    so all paths are derived from __file__ and are reliable regardless
+    of CWD, sys.path[0], or how tests are invoked (discover vs explicit
+    vs IDE runner).
+    
+    Sets:
+      exe_dir    — game root (<game_root>)
+      script_dir — project root (<game_root>/data/missions/sbs_utils),
+                   used by get_mission_dir() to resolve relative MAST
+                   import/file paths in tests"""

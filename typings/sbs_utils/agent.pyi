@@ -107,13 +107,15 @@ class Agent(object):
         ...
     def has_inventory_set (collection_name):
         ...
-    def has_link_to (self, link_name: 'str | list[str]', other: 'Agent | CloseData | int'):
-        """check if the object has a role
+    def has_link_to (self, link_name: 'str | list[str]', other: 'Agent | CloseData | int') -> 'bool':
+        """Check if the object has a link.
         
-        :param role: The role to add e.g. spy, pirate etc.
-        :type id: str
-        :return: If the object has the role
-        :rtype: bool"""
+        Args:
+            link_name (str | list[str]): The name (or names) of the link(s)
+            other (Agent | CloseData | int): The object for which to check if a link exists
+        
+        Returns:
+            bool: True if the link exists."""
     def has_links_list (collection_name):
         ...
     def has_links_set (collection_name):
@@ -201,12 +203,13 @@ class Stuff(object):
         ...
     def clear (self):
         ...
-    def collection_has (self, collection, id):
-        """check if the object has a role
-        :param role: The role to add e.g. spy, pirate etc.
-        :type id: str
-        :return: If the object has the role
-        :rtype: bool"""
+    def collection_has (self, collection, id) -> 'bool':
+        """Check if the object has a collection
+        
+        Args:
+            collection (str); the name of the collection
+        Returns:
+            bool: If the object has the collection."""
     def collection_list (self, collection):
         ...
     def collection_set (self, collection):

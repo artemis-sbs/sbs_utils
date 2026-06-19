@@ -1,10 +1,7 @@
 from sbs_utils.helpers import FrameContext
 def sim_create () -> None:
-    """Creates a new simulation
-        """
+    """Create a new simulation."""
 def sim_pause () -> None:
-    """pauses the simulation
-        """
+    """Pause the simulation."""
 def sim_resume () -> None:
-    """resume the simulation
-        """
+    """Resume a paused simulation."""

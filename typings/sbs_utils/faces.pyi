@@ -150,11 +150,13 @@ def terran (face_id, eye_id, mouth_id, hair_id, longhair_id, facial_id, extra_id
     Returns:
         (str):   A Face string"""
 def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """Converts item passed to an agent id
+    """Extract the integer ID from an agent, ``CloseData``, ``SpawnData``, or bare int.
+    
     Args:
-        other (Agent | CloseData | int): The agent
+        other (Agent | CloseData | SpawnData | int): Value to convert.
+    
     Returns:
-        int: The agent id"""
+        int: The integer agent ID."""
 def torgoth (face_id, eye_id, mouth_id, hair_id, extra_id, hat_id):
     """Create a torgoth face.
     

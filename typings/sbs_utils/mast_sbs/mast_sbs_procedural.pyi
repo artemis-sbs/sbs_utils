@@ -15,9 +15,11 @@ def mast_assert (cond):
 def mast_format_string (s):
     ...
 def mast_log (message: str, name: str = None, level: str = None, use_mast_scope=True) -> None:
-    """generate a log message using MAST current task
+    """Generate a log message formatted through the current MAST task scope.
+    
+    Convenience wrapper around ``log`` with ``use_mast_scope=True``.
     
     Args:
-        message (str): The message to log
-        name (str, optional): Name of the logger to log to. Defaults to None.
-        level (str, optional): The logging level to use. Defaults to None."""
+        message (str): The message to log. May contain MAST format strings.
+        name (str, optional): Logger name. Defaults to None.
+        level (str, optional): Logging level string. Defaults to None."""

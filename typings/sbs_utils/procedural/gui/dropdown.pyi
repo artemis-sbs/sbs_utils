@@ -1,19 +1,34 @@
 from sbs_utils.pages.layout.dropdown import Dropdown
 from sbs_utils.helpers import FrameContext
 def apply_control_styles (control_name, extra_style, layout_item, task):
-    """Apply style information to a layout item based on the type of the layout, and apply the extra styles as needed.
-    Args:
-        control_name (str): The name of the control style.
-        extra_style (str): A CSS-style string containing extra style definitions which override those in the control style.
-        layout_item (LayoutItem): The layout item for which the style is to be applied."""
-def gui_drop_down (props, style=None, var=None, data=None):
-    """Draw a gui drop down list
+    """Apply a named control style and optional overrides to a layout item.
+    
+    ``extra_style`` may be a raw CSS-style string (``"key:value;..."``) or
+    a style name. It is applied on top of the base ``control_name`` style.
     
     Args:
-        props (str):
-        style (style, optional): Style. Defaults to None.
-        var (str, optional): Variable name to set the selection to. Defaults to None.
-        data (object, optional): data to pass the handler. Defaults to None.
+        control_name (str): Base control style name.
+        extra_style (str | dict | None): Additional style string, name, or
+            parsed dict applied after the base style.
+        layout_item (LayoutItem): Layout item to receive the style.
+        task (MastAsyncTask): GUI task used for string formatting."""
+def gui_drop_down (props, style=None, var=None, data=None):
+    """Add a drop-down list to the current GUI layout.
+    
+    The current value of ``var`` sets the initially selected option. When the
+    player selects an item, ``var`` is updated.
+    
+    Args:
+        props (str): Semicolon-separated option list and optional properties,
+            e.g. ``"items:Red,Green,Blue;"`` or ``"$items:Red,Green;color:white;"``.
+        style (str, optional): CSS-like style overrides. Defaults to None.
+        var (str, optional): Variable name to read the initial selection from
+            and update on change. Defaults to None.
+        data (object, optional): Arbitrary data passed to the event handler.
+            Defaults to None.
     
     Returns:
-        layout object: The Layout object created"""
+        Dropdown: The layout item created.
+    
+    Example:
+        gui_drop_down("items:Slow,Medium,Fast;", var="speed_setting")"""

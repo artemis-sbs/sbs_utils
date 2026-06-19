@@ -10,6 +10,7 @@ from sbs_utils.garbagecollector import GarbageCollector
 from sbs_utils.griddispatcher import GridDispatcher
 from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
+from sbs_utils.launchdispatcher import LaunchDispatcher
 from sbs_utils.lifetimedispatcher import LifetimeDispatcher
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.vec import Vec3
@@ -18,15 +19,16 @@ def cosmos_event_handler (sim, event):
 def format_exception (message, source):
     ...
 def get_inventory_value (id_or_object, key: str, default=None):
-    """get inventory value with the given key the the agent  has
-        this is the way to create a collection in inventory
+    """Get an inventory value from an agent by key.
     
     Args:
-        id_or_obj (Agent | int): The agent id or object to check
-        key (str): The key/name of the inventory item
-        default (any): the default value data
+        id_or_object (Agent | int): The agent ID or object.
+        key (str): The inventory key.
+        default (any, optional): Value returned when the key is absent.
+            Defaults to None.
+    
     Returns:
-        any: The inventory value associated with the provided key, or the default value if it doesn't exist."""
+        any: The inventory value, or ``default`` if the key is not set."""
 def get_mission_name ():
     """Get the name of the current mission.
     
@@ -45,14 +47,14 @@ def print_event (event):
     Args:
         event (event): The event of interest."""
 def set_inventory_value (so, key: str, value):
-    """Set inventory value with the given key the the agent has.
-    This is the way to create a collection in inventory.
-    `so` can be a set. If it is, the inventory value is set for each member in the set.
+    """Set an inventory value on one or more agents.
+    
+    If ``so`` is a set or collection, every member receives the value.
     
     Args:
-        id_or_obj (Agent | int | set[Agent | int]): The agent id or object or set to check
-        key (str): The key/name of the inventory item
-        value (any): the value"""
+        so (Agent | int | set[Agent | int]): The agent(s) to update.
+        key (str): The inventory key.
+        value (any): The value to store."""
 def tick_the_rest (event):
     ...
 class ErrorPage(Page):

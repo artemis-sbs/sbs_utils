@@ -6,10 +6,16 @@ from sbs_utils.helpers import FrameContext
 from sbs_utils.garbagecollector import GarbageCollector
 from sbs_utils.mast.pollresults import PollResults
 def AWAIT (promise: sbs_utils.futures.Promise) -> sbs_utils.futures.PromiseWaiter:
-    """Creates a entity to wait (non-blocking) for a promise to complete
+    """Wrap a promise in a non-blocking waiter.
+    
+    Returns a ``PromiseWaiter`` whose ``done()`` method can be polled each tick
+    without suspending the current task.
     
     Args:
-        Promise: A promise """
+        promise (Promise): The promise to wait on.
+    
+    Returns:
+        PromiseWaiter: A waiter that reports completion without blocking."""
 def _science_get_origin_id ():
     ...
 def _science_get_selected_id ():
@@ -19,28 +25,42 @@ def awaitable (func):
 def create_scan_label ():
     ...
 def get_inventory_value (id_or_object, key: str, default=None):
-    """get inventory value with the given key the the agent  has
-        this is the way to create a collection in inventory
+    """Get an inventory value from an agent by key.
     
     Args:
-        id_or_obj (Agent | int): The agent id or object to check
-        key (str): The key/name of the inventory item
-        default (any): the default value data
+        id_or_object (Agent | int): The agent ID or object.
+        key (str): The inventory key.
+        default (any, optional): Value returned when the key is absent.
+            Defaults to None.
+    
     Returns:
-        any: The inventory value associated with the provided key, or the default value if it doesn't exist."""
+        any: The inventory value, or ``default`` if the key is not set."""
 def labels_get_type (label_type):
-    ...
-def scan (path=None, buttons=None, timeout=None, auto_side=True):
-    """Start a science scan
+    """Return all labels whose type or path starts with the given prefix.
+    
+    Walks every label in the current story, checking the ``type`` metadata key
+    first, then the label ``path`` attribute, then the label name.
     
     Args:
-        path (str, optional): The path of scripted scan data. Default is None.
-        buttons (dict, optional): dictionary key = button, value = label. Defaults to None.
-        timeout (Promise, optional): A promise typically by calling timeout(). Defaults to None.
-        auto_side (bool, optional): If true quickly scans thing on the same side. Defaults to True.
+        label_type (str): Prefix to match, e.g. ``"map/"`` or ``"media/"``.
     
     Returns:
-        Promise: A promise to wait. Typically passed to an await/AWAIT"""
+        list[MastNode]: Matching label objects."""
+def scan (path=None, buttons=None, timeout=None, auto_side=True):
+    """Start a science scan and return a promise that resolves when scanning is complete.
+    
+    Args:
+        path (str, optional): Route path prefix for scan button labels. Defaults
+            to None.
+        buttons (dict, optional): Extra buttons as ``{label_text: label}`` pairs.
+            Defaults to None.
+        timeout (Promise, optional): A timeout promise (e.g. from
+            ``timeout()``). Defaults to None.
+        auto_side (bool, optional): Instantly complete scanning for same-side
+            objects. Defaults to True.
+    
+    Returns:
+        ScanPromise: A promise to ``await``; resolves when all tabs are scanned."""
 def scan_results (message, target=None, tab=None):
     """Set the scan results for the current scan. This should be called when the scan is completed.
        This is typically called as part of a scan()
@@ -53,125 +73,176 @@ def scan_results (message, target=None, tab=None):
         target (Any, optional): Not currently used. Default is None.
         tab (str, optional): Scan tab for a scan that is in progress. Default is None."""
 def science_add_scan (message, label=None, data=None, path=None):
-    """Add a scan button.
+    """Add a scan button to the current science scan promise.
+    
     Args:
-        message (str): The text contents of the button.
-        label (str | Label): The label to run when the button is pressed.
-        data (dict, optional): Data associated with this button.
-        path (str, optional): The path to follow when the button is pressed."""
+        message (str): Button text shown in the science UI.
+        label (str | Label, optional): Label to run when the button is pressed.
+        data (dict, optional): Variables passed to the button's label.
+        path (str, optional): Route path to navigate to when pressed."""
 def science_ensure_scan (ids_or_objs, target_ids_or_objs, tabs='scan'):
-    """Checks that the target objects have been scanned by the specified objects.
+    """Force a completed scan result onto all (scanner, target) pairs.
+    
+    Useful for scripted encounters where objects should appear pre-scanned
+    without waiting for player interaction. Pass ``tabs="*"`` to populate
+    every tab the target exposes.
+    
     Args:
-        ids_or_objs (set[Agent | int]): The scanning ship(s)
-        target_ids_or_objs (set[Agent | int]): The targeted ship(s)"""
+        ids_or_objs (set[Agent | int]): The scanning player ship(s).
+        target_ids_or_objs (set[Agent | int]): The object(s) to mark as
+            scanned.
+        tabs (str): Comma-separated tab names, or ``"*"`` for all tabs.
+            Defaults to ``"scan"``."""
 def science_get_scan_data (origin, target, tab='scan') -> str:
-    """Get the science scan as seen by the ship doing the scan.
+    """Return the scan text on a tab as seen by the scanning ship.
+    
     Args:
-        origin (int | Agent): The ship doing the scan
-        target (int |Agent): The target space object
-        tab (str): The science tab the info goes to
+        origin (int | Agent): The scanning player ship.
+        target (int | Agent): The object being scanned.
+        tab (str): Science tab to read. Defaults to ``"scan"``.
+    
     Returns:
-        str: The applicable scan data"""
+        str: The scan text, or ``None`` if not yet scanned."""
 def science_has_scan_data (origin, target, tab='scan') -> bool:
-    """Check if the target is has scan data for the scanning ship.
+    """Return ``True`` if the target has real scan data on the given tab.
+    
     Args:
-        origin (int | Agent): The ship doing the scan (probably a player ship)
-        target (int | Agent): The target space object
-        tab (str): The science tab being checked (optional, default is 'scan')
+        origin (int | Agent): The scanning player ship.
+        target (int | Agent): The object to check.
+        tab (str): Science tab to check. Defaults to ``"scan"``.
+    
     Returns:
-        bool: True if the scan data exists"""
+        bool: ``True`` if scan data exists and is not empty or default."""
 def science_is_unknown (origin, target) -> bool:
-    """Check if the target is known to the given ship.
-    Based on the 'scan' tab on the science widget.
-    To use a different tab, use `science_has_scan_data()` instead
+    """Return ``True`` if the target has not been scanned by the scanning ship.
+    
+    Checks the ``"scan"`` tab. Use ``science_has_scan_data`` to check a
+    different tab.
+    
     Args:
-        origin (int | Agent): The ship doing the scan (probably a player ship)
-        target (int | Agent): The target space object"""
+        origin (int | Agent): The scanning player ship.
+        target (int | Agent): The object to check.
+    
+    Returns:
+        bool: ``True`` if the target is unscanned or shows default/empty data."""
 def science_navigate (path):
-    """Navigate to a particular comms path. Must be called on the GUI task for science.
+    """Navigate the current science GUI task to a new button path.
+    
     Args:
-        path (str): The comms button path to which the GUI will navigate."""
+        path (str): The science route path to navigate to."""
 def science_set_2dview_focus (client_id, focus_id=0):
-    """Set the specified client to focus its 2D view on the specified alternate ship.
+    """Focus the science 2D view of a client console on a specific object.
+    
     Args:
-        client_id (int): The client id
-        focus_id (int, optional): The object on which to focus."""
+        client_id (int): The client console ID.
+        focus_id (int, optional): ID of the object to focus on. ``0`` clears
+            the focus. Defaults to 0."""
 def science_set_scan_data (player_id_or_obj, scan_target_id_or_obj, tabs):
-    """Immediately set the science scan data for a scan target.
-    Use this for things that you do not want to have scan delayed.
+    """Set science scan data for a target immediately, bypassing the normal scan delay.
     
     Args:
-        player_id_or_obj (Agent | int): The player ship agent id or object
-        scan_target_id_or_obj (Agent | int): The target ship agent id or object
-        tabs (dict): A dictionary to key = tab, value = scan string"""
+        player_id_or_obj (Agent | int): The scanning player ship.
+        scan_target_id_or_obj (Agent | int): The object being scanned.
+        tabs (dict | str): Tab-name → scan-text mapping. A bare string is
+            treated as ``{"scan": string}``."""
 def science_update_scan_data (origin, target, info, tab='scan'):
-    """Immediately update the scan data of the target space object for the scanning ship.
-    NOTE: Only use this if the scanning ship has already scanned the target, and the scan text needs to be updated,
-    or if you want to forcibly add the scan info a ship even if it hasn't been scanned yet.
+    """Update (or forcibly set) the scan text on a specific tab for a scanning ship.
+    
+    Use when the target has already been scanned and the text needs to change, or
+    to inject scan data without requiring the player to scan first.
+    
     Args:
-        origin (int | Agent): The scanning ship (probably a player ship)
-        target (int | Agent): The object being scanned
-        info (str): The new scan information
-        tab (str): The science tab to which the info belongs (e.g. 'scan' or 'intel')"""
+        origin (int | Agent): The scanning player ship.
+        target (int | Agent): The object being scanned.
+        info (str): The new scan text.
+        tab (str): The science tab to update (e.g. ``"scan"``, ``"intel"``).
+            Defaults to ``"scan"``."""
 def set_inventory_value (so, key: str, value):
-    """Set inventory value with the given key the the agent has.
-    This is the way to create a collection in inventory.
-    `so` can be a set. If it is, the inventory value is set for each member in the set.
+    """Set an inventory value on one or more agents.
+    
+    If ``so`` is a set or collection, every member receives the value.
     
     Args:
-        id_or_obj (Agent | int | set[Agent | int]): The agent id or object or set to check
-        key (str): The key/name of the inventory item
-        value (any): the value"""
+        so (Agent | int | set[Agent | int]): The agent(s) to update.
+        key (str): The inventory key.
+        value (any): The value to store."""
 def show_warning (t):
-    """Same as `print(t)`.
-    Prints a message to the F7 screen.
+    """Print a warning message to the F7 debug screen.
+    
     Args:
-        t (str): The string to display."""
+        t (str): The message to display."""
 def start_science_message (event):
-    """This is how AUTOSCAN AUTO SCAN is accomplished
+    """Handle a science message event, emitting a ``science_auto_scan`` signal.
+    
+    This is the mechanism behind the auto-scan feature. Called automatically
+    by ``ConsoleDispatcher`` for ``science_target_UID`` message events.
     
     Args:
-        event (event): The event that triggered the auto scan."""
+        event: Engine message event carrying the auto-scan trigger."""
 def start_science_selected (event):
-    """Trigger a science scan to begin.
-    Args:
-        event (event): The event that triggered the scan."""
-def task_all (*args, **kwargs) -> sbs_utils.procedural.execution.TaskPromiseAllAny:
-    """Creates a task for each argument that is a label. Also supports a data named argument to pass the data to all the tasks.
+    """Start or resume a science scan for the given selection event.
+    
+    Creates a new ``ScanPromise`` for the (origin, selected) pair if none
+    exists; otherwise returns the existing one. Called automatically by
+    ``ConsoleDispatcher`` for ``science_target_UID`` select events.
     
     Args:
-        args (0..n labels): the labels to schedule.
-        data (dict): keyword arg to pass data to the tasks.
+        event: Engine selection event that triggered the scan.
+    
     Returns:
-        Promise: A promise that is finished when all tasks are completed."""
+        ScanPromise | None: The active scan promise, or ``None`` if the origin
+            or target no longer exists."""
+def task_all (*args, **kwargs) -> sbs_utils.procedural.execution.TaskPromiseAllAny:
+    """Schedule a task for each label and wait until all tasks complete.
+    
+    Args:
+        *args (label): Labels to schedule as parallel tasks.
+        data (dict, optional): Keyword argument passed as initial variables to
+            every task. Defaults to None.
+        sub_tasks (bool, optional): Run as sub-tasks instead of top-level
+            tasks. Defaults to False.
+    
+    Returns:
+        TaskPromiseAllAny: A promise that resolves when all tasks complete.
+    
+    Example:
+        await task_all(patrol_alpha, patrol_beta, patrol_gamma)"""
 def to_blob (id_or_obj):
-    """Gets the engine dataset of the specified agent
-    !!! Note
-    * Same as to_data_set
+    """Return the engine data-set (blob) for an agent. Same as ``to_data_set``.
+    
     Args:
-        id_or_obj (Agent | int): Agent id or object
+        id_or_obj (Agent | int | SpawnData): Agent ID or object.
+    
     Returns:
-        data_set | None: Returns the data or None if it does not exist"""
+        data_set | None: The engine data-set, or ``None`` if the object does
+            not exist."""
 def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """Converts item passed to an agent id
+    """Extract the integer ID from an agent, ``CloseData``, ``SpawnData``, or bare int.
+    
     Args:
-        other (Agent | CloseData | int): The agent
+        other (Agent | CloseData | SpawnData | int): Value to convert.
+    
     Returns:
-        int: The agent id"""
+        int: The integer agent ID."""
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """Converts the item passed to an agent
-    ??? note
-    * Return of None could mean the agent no longer exists
+    """Resolve an ID, ``CloseData``, or ``SpawnData`` to its Agent object.
+    
+    Returns ``None`` when the agent no longer exists.
+    
     Args:
-        other (Agent | CloseData | int): The agent ID or other agent like data
+        other (Agent | CloseData | SpawnData | int): Value to resolve.
+    
     Returns:
-        Agent | None: The agent or None"""
+        Agent | None: The agent, or ``None`` if it could not be resolved."""
 def to_object_list (the_set):
-    """Converts a set to a list of objects
+    """Convert a set or list of IDs/agents to a list of Agent objects (excluding None).
+    
     Args:
-        the_set (set[Agent | int] | list[Agent | int]): a set or list of agents or ids
+        the_set (set[Agent | int] | list[Agent | int]): IDs or agent objects.
+    
     Returns:
-        list[Agent]: A list of Agent objects"""
+        list[Agent]: Resolved Agent objects; items that cannot be resolved are
+            excluded."""
 class ScanPromise(ButtonPromise):
     """class ScanPromise"""
     def __init__ (self, path, task, timeout=None, auto_side=True) -> None:

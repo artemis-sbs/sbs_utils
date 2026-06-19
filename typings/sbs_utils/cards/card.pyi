@@ -7,16 +7,29 @@ def maps_deck_create ():
 def maps_tile_map_create (min_x, min_z, tile_size_x, tile_size_z=0, y=0):
     ...
 def prefab_spawn (label, data=None, OFFSET_X=None, OFFSET_Y=None, OFFSET_Z=None):
-    """Spawn a prefab and return its task.
+    """Spawn a prefab label as an independent task and return it.
+    
+    Positional keys ``START_X``, ``START_Y``, ``START_Z`` inside ``data``
+    set the spawn origin (default 0). The ``OFFSET_*`` params shift that
+    origin without modifying the original ``data`` dict. If ``data`` contains
+    a ``NAME`` key with a ``#`` placeholder, ``prefab_autoname`` is applied
+    to generate a unique name.
+    
     Args:
-        label (str | Label): The label to run to spawn the prefab.
-        data (dict, optional): Data associated with the prefab.
-        * Positional data may be optionally included in `data`: `START_X`, `START_Y`, and `START_Z`. The default for these all is 0.
-        OFFSET_X (int, optional): The X offset relative to the positional data. Default is None.
-        OFFSET_Y (int, optional): The Y offset relative to the positional data. Default is None.
-        OFFSET_Z (int, optional): The Z offset relative to the positional data. Default is None.
+        label (str | Label): The label to spawn.
+        data (dict, optional): Variables passed into the prefab task. May
+            include ``START_X``, ``START_Y``, ``START_Z``, and ``NAME``.
+            Defaults to None.
+        OFFSET_X (float, optional): X offset added to ``START_X``. Defaults
+            to None (no offset).
+        OFFSET_Y (float, optional): Y offset added to ``START_Y``. Defaults
+            to None (no offset).
+        OFFSET_Z (float, optional): Z offset added to ``START_Z``. Defaults
+            to None (no offset).
+    
     Returns:
-        MastAsyncTask: The task of the prefab."""
+        MastAsyncTask: The running prefab task, or ``None`` if the label is
+            invalid."""
 def shuffle_string (s):
     ...
 class Card(CardList):

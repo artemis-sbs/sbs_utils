@@ -2,26 +2,46 @@ from sbs_utils.helpers import FrameContext
 from sbs_utils.pages.layout.icon import Icon
 from sbs_utils.pages.layout.icon_button import IconButton
 def apply_control_styles (control_name, extra_style, layout_item, task):
-    """Apply style information to a layout item based on the type of the layout, and apply the extra styles as needed.
+    """Apply a named control style and optional overrides to a layout item.
+    
+    ``extra_style`` may be a raw CSS-style string (``"key:value;..."``) or
+    a style name. It is applied on top of the base ``control_name`` style.
+    
     Args:
-        control_name (str): The name of the control style.
-        extra_style (str): A CSS-style string containing extra style definitions which override those in the control style.
-        layout_item (LayoutItem): The layout item for which the style is to be applied."""
+        control_name (str): Base control style name.
+        extra_style (str | dict | None): Additional style string, name, or
+            parsed dict applied after the base style.
+        layout_item (LayoutItem): Layout item to receive the style.
+        task (MastAsyncTask): GUI task used for string formatting."""
 def gui_icon (props, style=None):
-    """queue a gui icon element
+    """Add an icon image to the current GUI layout.
+    
+    Renders a non-interactive icon from the atlas or media path.
     
     Args:
-        props (str): _description_
-        style (str, optional): Style. Defaults to None.
+        props (str): Icon key, atlas name, or image property string, e.g.
+            ``"icons/torpedo"`` or ``"image:icons/torpedo;color:yellow;"``.
+        style (str, optional): CSS-like style overrides. Defaults to None.
     
     Returns:
-        layout object: The Layout object created"""
+        Icon: The layout item created.
+    
+    Example:
+        gui_icon("icons/shield")
+        gui_text("{shield_pct}%")"""
 def gui_icon_button (props, style=None):
-    """queue a gui icon element
+    """Add a clickable icon button to the current GUI layout.
+    
+    Like ``gui_icon`` but the rendered item accepts click events.
     
     Args:
-        props (str): _description_
-        style (str, optional): Style. Defaults to None.
+        props (str): Icon key, atlas name, or image property string, e.g.
+            ``"icons/fire"`` or ``"image:icons/fire;color:red;"``.
+        style (str, optional): CSS-like style overrides. Defaults to None.
     
     Returns:
-        layout object: The Layout object created"""
+        IconButton: The layout item created.
+    
+    Example:
+        btn = gui_icon_button("icons/fire")
+        gui_click(btn, on_fire_clicked)"""

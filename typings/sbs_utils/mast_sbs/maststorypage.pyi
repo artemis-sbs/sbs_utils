@@ -12,21 +12,28 @@ from sbs_utils.pages.layout.row import Row
 from sbs_utils.mast_sbs.maststoryscheduler import StoryScheduler
 from sbs_utils.pages.layout.text import Text
 def apply_control_styles (control_name, extra_style, layout_item, task):
-    """Apply style information to a layout item based on the type of the layout, and apply the extra styles as needed.
-    Args:
-        control_name (str): The name of the control style.
-        extra_style (str): A CSS-style string containing extra style definitions which override those in the control style.
-        layout_item (LayoutItem): The layout item for which the style is to be applied."""
-def get_inventory_value (id_or_object, key: str, default=None):
-    """get inventory value with the given key the the agent  has
-        this is the way to create a collection in inventory
+    """Apply a named control style and optional overrides to a layout item.
+    
+    ``extra_style`` may be a raw CSS-style string (``"key:value;..."``) or
+    a style name. It is applied on top of the base ``control_name`` style.
     
     Args:
-        id_or_obj (Agent | int): The agent id or object to check
-        key (str): The key/name of the inventory item
-        default (any): the default value data
+        control_name (str): Base control style name.
+        extra_style (str | dict | None): Additional style string, name, or
+            parsed dict applied after the base style.
+        layout_item (LayoutItem): Layout item to receive the style.
+        task (MastAsyncTask): GUI task used for string formatting."""
+def get_inventory_value (id_or_object, key: str, default=None):
+    """Get an inventory value from an agent by key.
+    
+    Args:
+        id_or_object (Agent | int): The agent ID or object.
+        key (str): The inventory key.
+        default (any, optional): Value returned when the key is absent.
+            Defaults to None.
+    
     Returns:
-        any: The inventory value associated with the provided key, or the default value if it doesn't exist."""
+        any: The inventory value, or ``default`` if the key is not set."""
 def get_mission_name ():
     """Get the name of the current mission.
     
@@ -41,45 +48,78 @@ def get_startup_mission_name ():
     Returns:
         str: The default mission folder name from game preferences."""
 def gui_reroute_client (client_id, label, data=None):
-    ...
+    """Jump a specific client's GUI task to a new label immediately.
+    
+    Finds the client's active page, optionally sets variables from ``data``,
+    then jumps the page's GUI task to ``label`` and ticks it in the current
+    frame context.
+    
+    Args:
+        client_id (int): The client to reroute.
+        label: MAST label to jump to.
+        data (dict | None, optional): Variables to set on the task before
+            jumping. Defaults to None.
+    
+    Example:
+        gui_reroute_client(CLIENT_ID, briefing_screen)"""
 def has_inventory_value (key: str, value):
-    """Get the object that have a inventory item with the given key
+    """Return the set of agent IDs whose inventory value for ``key`` equals ``value``.
     
     Args:
-        key (str): The key/name of the inventory item
+        key (str): The inventory key to look for.
+        value: The exact value to match.
     
     Returns:
-        set[int]: set of ids"""
+        set[int]: IDs of agents whose ``key`` inventory entry equals ``value``."""
+def is_dev_build ():
+    """Check if the current mission is a development build.
+    
+    Returns True if a .git directory exists in the mission folder.
+    
+    Returns:
+        bool: True if running in development mode, False otherwise."""
 def linked_to (link_source, link_name: str):
-    """Get the set of ids that the source is linked to for the given key.
+    """Return the set of IDs that an agent links to under a given name.
     
     Args:
-        link_source (Agent | int): The agent or id to check
-        link_name (str): The key/name of the inventory item
+        link_source (Agent | int): The source agent ID or object.
+        link_name (str): The link key name.
+    
     Returns:
-        set[int]: The set of linked ids"""
+        set[int]: IDs of all linked targets, or an empty set if none."""
 def log (message: str, name: str = None, level: str = None, use_mast_scope=False) -> None:
-    """generate a log message
+    """Emit a log message using Python's ``logging`` module.
     
-        note: MAST exposes mast_log as log so it by default uses MAST scope
+    When ``use_mast_scope=True`` the message is formatted through the current
+    MAST task's string formatter first (MAST exposes this as ``log``).
+    
     Args:
-        message (str): The message to log
-        name (str, optional): Name of the logger to log to. Defaults to None.
-        level (str, optional): The logging level to use. Defaults to None."""
+        message (str): The message to log. May contain MAST format strings when
+            ``use_mast_scope=True``.
+        name (str, optional): Logger name. Defaults to None (``__base_logger__``).
+        level (str, optional): Logging level string, e.g. ``"DEBUG"``, ``"INFO"``.
+            Defaults to None (``DEBUG``).
+        use_mast_scope (bool, optional): Format the message via the current
+            MAST task. Defaults to False."""
 def set_inventory_value (so, key: str, value):
-    """Set inventory value with the given key the the agent has.
-    This is the way to create a collection in inventory.
-    `so` can be a set. If it is, the inventory value is set for each member in the set.
+    """Set an inventory value on one or more agents.
+    
+    If ``so`` is a set or collection, every member receives the value.
     
     Args:
-        id_or_obj (Agent | int | set[Agent | int]): The agent id or object or set to check
-        key (str): The key/name of the inventory item
-        value (any): the value"""
+        so (Agent | int | set[Agent | int]): The agent(s) to update.
+        key (str): The inventory key.
+        value (any): The value to store."""
 def signal_emit (name, data=None):
-    """Emit a signal to trigger all instances of the signal route to run.
+    """Emit a named signal, running all registered ``//signal/<name>`` routes.
+    
+    Safe to call when no MAST context is active — returns immediately with no
+    side effects.
+    
     Args:
-        name (str): The name of the signal.
-        data (dict): The data to provide to the signal route."""
+        name (str): The signal name.
+        data (dict, optional): Arbitrary data passed to each signal handler.
+            Defaults to None."""
 class StoryPage(Page):
     """A interface class for creating GUI pages
     

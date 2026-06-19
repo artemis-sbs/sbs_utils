@@ -9,7 +9,9 @@ def show_warning (t):
 def split_props (s, def_key):
     ...
 class Context(object):
-    """class Context"""
+    """Context for a given event frame
+    Allows the system to be abstracted or overridden
+    For example, Mock sim and sbs for testing"""
     def __init__ (self, sim, _sbs, _event):
         """Initialize self.  See help(type(self)) for accurate signature."""
 class DictionaryToObject(object):
@@ -36,28 +38,41 @@ class FrameContextMeta(type):
         ...
     @property
     def client_id (self):
-        ...
+        """returns the frame event's client_id.
+                """
     @property
     def client_page (self):
-        ...
+        """returns the GUI Page related to the current event's client_id.
+        This should always return the that client's page.
+        This can be different from the FrameContext.page"""
     @property
     def client_task (self):
-        ...
+        """returns the main task for GUI Page related to this frame event's client_id.
+                """
     @property
     def page (self):
-        ...
+        """returns the GUI Page related to the currently executing task.
+        
+        The can change can change often for a given frame. As each task is ticked. It set the FrameContext Page.
+        Other parts of the system may also temporary set the FrameContext.task and FrameContext.page during execution."""
     @page.setter
     def page (self, value):
-        ...
+        """returns the GUI Page related to the currently executing task.
+        
+        The can change can change often for a given frame. As each task is ticked. It set the FrameContext Page.
+        Other parts of the system may also temporary set the FrameContext.task and FrameContext.page during execution."""
     @property
     def server_page (self):
-        ...
+        """returns the GUI Page related to the server i.e. client_id==0.
+        This should always return the server's page"""
     @property
     def server_task (self):
-        ...
+        """returns the main task for GUI Page related to the server i.e. client_id==0.
+        This should always return the server's main task"""
     @property
     def sim (self):
-        ...
+        """Returns the sim for the from
+        This abstract exist to allow testing, etc."""
     @property
     def sim_seconds (self):
         ...
@@ -73,5 +88,5 @@ class FrameContextOverride(object):
         ...
     def __exit__ (self, exc_type, exc_val, exc_tb):
         ...
-    def __init__ (self, task=None, page=None):
+    def __init__ (self, task=None, page=None, event=None):
         """Initialize self.  See help(type(self)) for accurate signature."""

@@ -1,14 +1,21 @@
+from sbs_utils.pages.layout.clickable import Clickable
 from sbs_utils.helpers import FakeEvent
 from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.parsers import LayoutAreaParser
 def accepts_kwargs (func):
     ...
 def apply_control_styles (control_name, extra_style, layout_item, task):
-    """Apply style information to a layout item based on the type of the layout, and apply the extra styles as needed.
+    """Apply a named control style and optional overrides to a layout item.
+    
+    ``extra_style`` may be a raw CSS-style string (``"key:value;..."``) or
+    a style name. It is applied on top of the base ``control_name`` style.
+    
     Args:
-        control_name (str): The name of the control style.
-        extra_style (str): A CSS-style string containing extra style definitions which override those in the control style.
-        layout_item (LayoutItem): The layout item for which the style is to be applied."""
+        control_name (str): Base control style name.
+        extra_style (str | dict | None): Additional style string, name, or
+            parsed dict applied after the base style.
+        layout_item (LayoutItem): Layout item to receive the style.
+        task (MastAsyncTask): GUI task used for string formatting."""
 def get_client_aspect_ratio (cid):
     """Get the aspect ratio of the specified client's screen.
     Args:
@@ -23,7 +30,7 @@ class LayoutListBoxHeader(object):
         """Initialize self.  See help(type(self)) for accurate signature."""
 class LayoutListbox(Column):
     """A widget to list things passing function/lamdas to get the data needed for option display of
-    a template """
+     a template """
     def __init__ (self, left, top, tag_prefix, items, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
     def _on_message (self, event):

@@ -4,199 +4,248 @@ from sbs_utils.agent import SpawnData
 from sbs_utils.helpers import FrameContext
 from sbs_utils.vec import Vec3
 def all_roles (roles: str):
-    """Returns a set of all the agents which have all of the given roles.
+    """Return the set of agent IDs that hold every one of the given roles.
     
     Args:
-        roles (str): A comma-separated list of roles.
+        roles (str): A comma-separated list of role names.
     
     Returns:
-        set[int]: a set of agent IDs."""
+        set[int]: IDs of agents that have all specified roles."""
 def broad_test (x1: float, z1: float, x2: float, z2: float, broad_type=65520):
-    """Returns a set of ids that are in the target rect.
+    """Return the set of object IDs inside a rectangular region of the simulation.
+    
     Args:
-        x1 (float): x location (left)
-        z1 (float): z location (top)
-        x2 (float): x location (right)
-        z2 (float): z location (bottom)
-        broad_type (int, optional): The type of objects for which to search.
-            * TERRAIN = 0x01,
-            * NPC = 0x10,
-            * PLAYER = 0x20,
-            * ALL = 0xffff,
-            * NPC_AND_PLAYER = 0x30,
-            * DEFAULT is 0xfff0
+        x1 (float): Left X boundary.
+        z1 (float): Top Z boundary.
+        x2 (float): Right X boundary.
+        z2 (float): Bottom Z boundary.
+        broad_type (int, optional): Bitmask filtering which object types to
+            include. TERRAIN=0x01, NPC=0x10, PLAYER=0x20, ALL=0xffff,
+            NPC_AND_PLAYER=0x30. Defaults to 0xfff0.
+    
     Returns:
-        set[int]: A set of ids"""
+        set[int]: IDs of objects inside the rectangle."""
 def broad_test_around (id_or_obj, width: float, depth: float, broad_type=65520):
-    """Returns a set of ids that are around the specified object in the target rect.
+    """Return the set of object IDs inside a rectangle centered on an agent or point.
+    
     Args:
-        id_obj (Agent | int): The ID or object of an agent
-        w (float): width
-        d (float): depth
-        broad_type (int, optional): The type of objects for which to search.
-            * TERRAIN = 0x01,
-            * NPC = 0x10,
-            * PLAYER = 0x20,
-            * ALL = 0xffff,
-            * NPC_AND_PLAYER = 0x30,
-            * DEFAULT is 0xfff0
+        id_or_obj (Agent | int | Vec3): Center agent ID, object, or position.
+        width (float): Total width of the search rectangle (X axis).
+        depth (float): Total depth of the search rectangle (Z axis).
+        broad_type (int, optional): Bitmask filtering which object types to
+            include. TERRAIN=0x01, NPC=0x10, PLAYER=0x20, ALL=0xffff,
+            NPC_AND_PLAYER=0x30. Defaults to 0xfff0.
+    
     Returns:
-        set[int]: A set of ids"""
+        set[int]: IDs of objects inside the rectangle."""
 def clear_target (chasers: set | int | sbs_utils.agent.Agent | sbs_utils.agent.CloseData | sbs_utils.agent.SpawnData, throttle=0):
-    """Clear the target on an agent or set of agents.
+    """Clear the movement and weapons target on one or more agents.
+    
+    Sets the target position to the agent's current position and zeroes the
+    weapon target ID, effectively stopping pursuit.
     
     Args:
-        chasers (set[Agent | int] | int | Agent | CloseData | SpawnData): an agent or set of agents"""
+        chasers (Agent | int | set[Agent | int] | CloseData | SpawnData):
+            Agent(s) to update.
+        throttle (float, optional): Throttle to apply after clearing. Defaults
+            to 0."""
 def closest (the_ship, the_set, max_dist=None, filter_func=None) -> sbs_utils.agent.CloseData:
-    """Get the CloseData that matches the test set, max_dist, and optional filter function.
+    """Return the closest object to a source from a candidate set.
     
     Args:
-        the_ship (Agent | int): The agent ID or object
-        the_set (Agent | int | set[Agent | int]): The agent or id or set of objects or ids to test against
-        max_dist (float, optional): The maximum distance to check. Defaults to None.
-        filter_func (Callable, optional): An additional function to test with. Defaults to None.
+        the_ship (Agent | int | Vec3): Reference agent ID, object, or position.
+        the_set (Agent | int | set[Agent | int]): Candidate agent(s) to test.
+        max_dist (float, optional): Maximum distance to consider. Defaults to
+            None (no limit).
+        filter_func (Callable, optional): Extra predicate ``f(agent) -> bool``.
+            Defaults to None.
     
     Returns:
-        CloseData: The closest object's CloseData to get the distance."""
-def closest_list (source: int | sbs_utils.agent.CloseData | sbs_utils.agent.SpawnData | sbs_utils.agent.Agent, the_set, max_dist=None, filter_func=None) -> list[sbs_utils.agent.CloseData]:
-    """Get the list of close data that matches the test set, max_dist, and optional filter function.
+        CloseData | None: Distance data for the closest match, or ``None`` if
+            no candidates qualify."""
+def closest_list (source: int | sbs_utils.agent.CloseData | sbs_utils.agent.SpawnData | sbs_utils.agent.Agent | sbs_utils.vec.Vec3, the_set, max_dist=None, filter_func=None) -> list[sbs_utils.agent.CloseData]:
+    """Return all objects in a set within optional distance and filter criteria.
+    
     Args:
-        source (Agent | int | CloseData | SpawnData): The agent object or id of the agent.
-        the_set (set[int]): A set of ids to check against.
-        max_dist (float, optional): The maximum distance to include. Defaults to None.
-        filter_func (Callable, optional): An additional function to check against. Defaults to None.
+        source (Agent | int | CloseData | SpawnData | Vec3): The reference
+            agent ID, object, or position.
+        the_set (set[int]): IDs of candidates to test.
+        max_dist (float, optional): Maximum distance to include. Defaults to
+            None (no limit).
+        filter_func (Callable, optional): Extra predicate ``f(agent) -> bool``
+            applied to each candidate. Defaults to None.
     
     Returns:
-        list[CloseData]: The list of CloseData representing the close objects to get the distance."""
+        list[CloseData]: All qualifying candidates with their distances."""
 def closest_object (the_ship, the_set, max_dist=None, filter_func=None) -> sbs_utils.agent.Agent:
-    """Get the CloseData that matches the test set, max_dist, and optional filter function.
+    """Return the closest agent object to a source from a candidate set.
     
     Args:
-        the_ship (Agent | int): The agent ID or object.
-        the_set (Agent | int | set[Agent | int]): The id or object or set of objects or ids to test against.
-        max_dist (float, optional): The maximum distance to check. Defaults to None.
-        filter_func (func, optional): An additional function to test with. Defaults to None.
+        the_ship (Agent | int | Vec3): Reference agent ID, object, or position.
+        the_set (Agent | int | set[Agent | int]): Candidate agent(s) to test.
+        max_dist (float, optional): Maximum distance to consider. Defaults to
+            None (no limit).
+        filter_func (Callable, optional): Extra predicate ``f(agent) -> bool``.
+            Defaults to None.
     
     Returns:
-        agent: Return the closest agents or None"""
+        Agent | None: The closest agent, or ``None`` if no candidates qualify."""
+def closest_to_point (point, the_set, max_dist=None, filter_func=None) -> sbs_utils.agent.CloseData:
+    """Return the closest object to a Vec3 point from a candidate set.
+    
+    Args:
+        point (Vec3): Reference position in simulation space.
+        the_set (Agent | int | set[Agent | int]): Candidate agent(s) to test.
+        max_dist (float, optional): Maximum distance to consider. Defaults to
+            None (no limit).
+        filter_func (Callable, optional): Extra predicate ``f(agent) -> bool``.
+            Defaults to None.
+    
+    Returns:
+        CloseData | None: Distance data for the closest match, or ``None`` if
+            no candidates qualify."""
 def delete_object (id_or_objs):
-    """Delete the specified object or set of objects.
+    """Delete one or more agents from the simulation.
+    
     Args:
-        id_or_objs (Agent | int | set[Agent | int]): The object or set of objects."""
+        id_or_objs (Agent | int | set[Agent | int]): Agent(s) to delete."""
 def delete_objects_box (x, y, z, w, h, d, broad_type=15, roles=None):
-    """Removes items from an area
+    """Delete all objects inside a box that match an optional role filter.
     
     Args:
-        x,y,z (float,float,float): the start point/origin
-        radius (float): the radius
-        broad_type (int, optional): The engine level bit test for broadtest
-            * TERRAIN = 0x01,
-            * NPC = 0x10,
-            * PLAYER = 0x20,
-            * ALL = 0xffff,
-            * NPC_AND_PLAYER = 0x30,
-            * DEFAULT is 0x0F
-        roles (str, optional): A comma-separated list of roles that the objects must have to be deleted."""
+        x (float): Center X coordinate.
+        y (float): Center Y coordinate.
+        z (float): Center Z coordinate.
+        w (float): Half-width of the box along the X axis.
+        h (float): Half-height of the box along the Y axis.
+        d (float): Half-depth of the box along the Z axis.
+        broad_type (int, optional): Bitmask filtering which object types to
+            consider. TERRAIN=0x01, NPC=0x10, PLAYER=0x20, ALL=0xffff,
+            NPC_AND_PLAYER=0x30. Defaults to 0x0F.
+        roles (str, optional): Comma-separated roles — only objects with all
+            listed roles are deleted. Defaults to None (delete all matches)."""
 def delete_objects_sphere (x, y, z, radius, broad_type=15, roles=None):
-    """Removes items from an area if they meet the broadtype and role filter requirements.
+    """Delete all objects inside a sphere that match an optional role filter.
     
     Args:
-        x,y,z (float,float,float): The start point/origin of the sphere.
-        radius (float): The radius of the sphere.
-        broad_type (int, optional) The engine level bit test for broadtest.
-            * TERRAIN = 0x01,
-            * NPC = 0x10,
-            * PLAYER = 0x20,
-            * ALL = 0xffff,
-            * NPC_AND_PLAYER = 0x30,
-            * DEFAULT is 0x0F
-        roles (str, optional): A comma-separated list of roles that the objects must have to be deleted."""
+        x (float): Center X coordinate.
+        y (float): Center Y coordinate.
+        z (float): Center Z coordinate.
+        radius (float): Sphere radius in simulation units.
+        broad_type (int, optional): Bitmask filtering which object types to
+            consider. TERRAIN=0x01, NPC=0x10, PLAYER=0x20, ALL=0xffff,
+            NPC_AND_PLAYER=0x30. Defaults to 0x0F.
+        roles (str, optional): Comma-separated roles — only objects with all
+            listed roles are deleted. Defaults to None (delete all matches)."""
 def get_engineering_value (id_or_obj, name, default=None):
-    """Gets an engineering value by name.
+    """Get a named engineering control value from a ship.
     
     Args:
-        id_or_obj (Agent | int): An agent id or object.
-        name (str): The engineering value to get.
-        default (float, optional): What to return if not found. Defaults to None.
+        id_or_obj (Agent | int): Agent ID or object.
+        name (str): The engineering control label to look up (case-insensitive).
+        default (float, optional): Value returned if the label is not found.
+            Defaults to None.
     
     Returns:
-        float: A value or the default"""
+        float | None: The current value of the control, or ``default``."""
 def get_pos (id_or_obj):
-    """Get the position of an agent.
+    """Return the current position of an agent.
     
     Args:
-        id_or_obj (Agent | int): The agent for which to get the position.
+        id_or_obj (Agent | int): Agent ID or object.
     
     Returns:
-        Vec3 | None: The position of the agent or None if it doesn't exist."""
+        Vec3 | None: The agent's position, or ``None`` if it does not exist."""
 def object_exists (so_id):
-    """Check the engine to see if the item exists
+    """Return whether an object currently exists in the simulation.
+    
     Args:
-        so_id (Agent | int): agent like data converted to id internally
+        so_id (Agent | int): Agent ID or object.
+    
     Returns:
-        bool: if the object exists in the engine"""
+        bool: ``True`` if the engine reports the object present."""
 def set_engineering_value (id_or_obj, name, value):
-    """Sets an engineering value by name
+    """Set a named engineering control value on a ship.
     
     Args:
-        id_or_obj (Agent | int): An agent id or object.
-        name (str): The engineering value to set.
-        value (float): The value."""
+        id_or_obj (Agent | int): Agent ID or object.
+        name (str): The engineering control label to update (case-insensitive).
+        value (float): The new value."""
 def set_pos (id_or_obj, x, y=None, z=None):
-    """Set the position of an agent or set of agents.
+    """Teleport one or more agents to a position.
     
     Args:
-        id_or_obj (Agent | int | set[Agent | int]): An agent or set of agent IDs or objects.
-        x (float | Vec3): The x location or a vector.
-        y (float, optional): y location. If None, `x` is assumed to be a Vec3. Defaults to None.
-        z (float, optional): z location. Defaults to None."""
+        id_or_obj (Agent | int | set[Agent | int]): Agent(s) to reposition.
+        x (float | Vec3): X coordinate, or a Vec3 when ``y`` is omitted.
+        y (float, optional): Y coordinate. If ``None``, ``x`` is treated as a
+            Vec3. Defaults to None.
+        z (float, optional): Z coordinate. Defaults to None."""
 def target (set_or_object, target_id, shoot: bool = True, throttle: float = 1.0, stop_dist=None):
-    """Set the target for an agent or set of agents.
-    Args:
-        set_or_object (Agent | int | set[Agent | int]): The agent or set of agents for which to set the target.
-        target_id (Agent | int): The agent id or object to target.
-        shoot (bool, optional): Whether to also lock weapons on target. Defaults to True.
-        throttle (float, optional): The speed at which to travel. Defaults to 1.0.
-        stop_dist (int, optional): If the target is within this distance, then the throttle will be set to 0. Default is None."""
-def target_pos (chasers: set | int | sbs_utils.agent.CloseData | sbs_utils.agent.SpawnData, x: float, y: float, z: float, throttle: float = 1.0, target_id=None, stop_dist=None):
-    """Set the target position of an agent or set of agents
+    """Direct one or more agents to move toward and optionally shoot a target.
     
     Args:
-        chasers (Agent | int | set[Agent | int]): The agents which should go to the target position.
-        x (float): x location
-        y (float): y location
-        z (float): z location
-        throttle (float, optional): The speed at which to travel. Defaults to 1.0.
-        target_id (id, optional): What to shoot
-        stop_dist (float, optional): If the target position is within this distance, then the throttle will be set to 0. Default is None."""
+        set_or_object (Agent | int | set[Agent | int]): Agent(s) to command.
+        target_id (Agent | int): The target agent ID or object.
+        shoot (bool, optional): If ``True``, lock weapons on the target as well
+            as moving toward it. Defaults to True.
+        throttle (float, optional): Movement speed multiplier (0.0–1.0).
+            Defaults to 1.0.
+        stop_dist (float, optional): Stop the agent (throttle→0) when it comes
+            within this distance of the target. Defaults to None."""
+def target_pos (chasers: set | int | sbs_utils.agent.CloseData | sbs_utils.agent.SpawnData, x: float, y: float, z: float, throttle: float = 1.0, target_id=None, stop_dist=None):
+    """Direct one or more agents to move toward a position in simulation space.
+    
+    Args:
+        chasers (Agent | int | set[Agent | int] | CloseData | SpawnData):
+            Agent(s) to command.
+        x (float): Target X coordinate.
+        y (float): Target Y coordinate.
+        z (float): Target Z coordinate.
+        throttle (float, optional): Movement speed multiplier (0.0–1.0).
+            Defaults to 1.0.
+        target_id (Agent | int, optional): If set, agents will also fire at
+            this target. Defaults to None.
+        stop_dist (float, optional): Stop the agent (throttle→0) when within
+            this distance of the target. Defaults to None."""
 def target_shoot (chasers: set | int | sbs_utils.agent.CloseData | sbs_utils.agent.SpawnData, target_id=None):
-    """Set the target id only
+    """Set the weapons target on one or more agents without changing their movement.
+    
     Args:
-        chasers (agent id | agent set): the agents to set
-        target_id (id, optional): What to shoot"""
+        chasers (Agent | int | set[Agent | int] | CloseData | SpawnData):
+            Agent(s) to update.
+        target_id (Agent | int, optional): The agent to fire at. Defaults to
+            None."""
 def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """Converts item passed to an agent id
+    """Extract the integer ID from an agent, ``CloseData``, ``SpawnData``, or bare int.
+    
     Args:
-        other (Agent | CloseData | int): The agent
+        other (Agent | CloseData | SpawnData | int): Value to convert.
+    
     Returns:
-        int: The agent id"""
+        int: The integer agent ID."""
 def to_list (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """Converts a single object/id, set or list of things to a list
+    """Normalize any agent-like value or collection into a list.
+    
     Args:
-        other (Agent | CloseData | int | set[Agent | int] | list[Agent | int]): The agent or id or set.
+        other (Agent | CloseData | int | set | list | None): Value to normalize.
+    
     Returns:
-        list[Agent | CloseData | int]: A list containing whatever was passed in."""
+        list: A list containing whatever was passed in; ``None`` becomes ``[]``."""
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """Converts the item passed to an agent
-    ??? note
-    * Return of None could mean the agent no longer exists
+    """Resolve an ID, ``CloseData``, or ``SpawnData`` to its Agent object.
+    
+    Returns ``None`` when the agent no longer exists.
+    
     Args:
-        other (Agent | CloseData | int): The agent ID or other agent like data
+        other (Agent | CloseData | SpawnData | int): Value to resolve.
+    
     Returns:
-        Agent | None: The agent or None"""
+        Agent | None: The agent, or ``None`` if it could not be resolved."""
 def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """Converts a single object/id, set or list of things to a set of ids
+    """Normalize any agent-like value or collection into a set of integer IDs.
+    
     Args:
-        other (Agent | CloseData | int | set[Agent | int] | list[Agent | int]): The agent or id or set.
+        other (Agent | CloseData | int | set | list | None): Value to normalize.
+    
     Returns:
-        set[Agent | CloseData | int]: A set containing whatever was passed in."""
+        set[int]: A set of integer IDs; ``None`` becomes an empty set."""

@@ -1,59 +1,80 @@
 from sbs_utils.agent import Agent
 from sbs_utils.helpers import FrameContext
 def add_role (set_holder, role):
-    """Add a role to an agent or a set of agents.
+    """Add a role to one or more agents.
     
     Args:
-        set_holder (Agent | int | set[Agent | int]): An agent or ID or a set of agents or IDs.
-        role (str): The role to add."""
+        set_holder (Agent | int | set[Agent | int]): Agent(s) to update.
+        role (str): The role name to add."""
 def all_roles (roles: str):
-    """Returns a set of all the agents which have all of the given roles.
+    """Return the set of agent IDs that hold every one of the given roles.
     
     Args:
-        roles (str): A comma-separated list of roles.
+        roles (str): A comma-separated list of role names.
     
     Returns:
-        set[int]: a set of agent IDs."""
+        set[int]: IDs of agents that have all specified roles."""
 def comms_broadcast (ids_or_obj, msg, color=None) -> None:
-    """Send text to the text waterfall
-    The ids can be player ship ids or client/console ids
+    """Send a text message to the text waterfall of one or more targets.
+    
+    Accepts player ship IDs or client/console IDs. Ship IDs use
+    ``send_message_to_player_ship``; client IDs use
+    ``send_message_to_client``.
     
     Args:
-        ids_or_obj (id or objecr): A set or single id or object to send to,
-        msg (str): The text to send
-        color (str, optional): The Color for the text. Defaults to "#fff"."""
+        ids_or_obj: Agent ID, client ID, or set/list of either to send to.
+            Pass ``None`` to send to the event's ``parent_id``.
+        msg (str): The message text. Supports ``{var}`` interpolation.
+        color (str, optional): Text color as a name or hex string, e.g.
+            ``"red"`` or ``"#3ff"``. Defaults to ``"#fff"``.
+    
+    Example:
+        comms_broadcast(SHIP_ID, "Red alert!", color="red")"""
 def convert_system_to_string (the_system):
-    """Convert the SBS.SHIPSYS enum value or string to a string.
+    """Convert a ship system enum or integer to its role-name string.
+    
     Args:
-        the_system (SYS.SHIPSYSTEM | string): The enum value or string
+        the_system (sbs.SHPSYS | int | str): The system enum, integer index,
+            or role-name string.
+    
     Returns:
-        str: The string representation of the system, e.g. `weapon`."""
+        str: Role name for the system (``"weapon"``, ``"engine"``,
+            ``"sensor"``, or ``"shield"``)."""
 def explode_player_ship (id_or_obj):
-    """The specified ship will be destroyed, but not immediately. This will trigger the `player_ship_destroyed` signal, which will allow things to happen prior to the ship being deleted.
+    """Mark a player ship as destroyed and emit the ``player_ship_destroyed`` signal.
+    
+    The ship is made invisible and tagged ``"exploded"`` rather than deleted
+    immediately, allowing scripts to react before removal.
+    
     Args:
-        id_or_obj (Agent | int): The agent or id of the ship."""
+        id_or_obj (Agent | int): The player ship agent ID or object."""
 def get_inventory_value (id_or_object, key: str, default=None):
-    """get inventory value with the given key the the agent  has
-        this is the way to create a collection in inventory
+    """Get an inventory value from an agent by key.
     
     Args:
-        id_or_obj (Agent | int): The agent id or object to check
-        key (str): The key/name of the inventory item
-        default (any): the default value data
+        id_or_object (Agent | int): The agent ID or object.
+        key (str): The inventory key.
+        default (any, optional): Value returned when the key is absent.
+            Defaults to None.
+    
     Returns:
-        any: The inventory value associated with the provided key, or the default value if it doesn't exist."""
+        any: The inventory value, or ``default`` if the key is not set."""
 def get_pos (id_or_obj):
-    """Get the position of an agent.
+    """Return the current position of an agent.
     
     Args:
-        id_or_obj (Agent | int): The agent for which to get the position.
+        id_or_obj (Agent | int): Agent ID or object.
     
     Returns:
-        Vec3 | None: The position of the agent or None if it doesn't exist."""
+        Vec3 | None: The agent's position, or ``None`` if it does not exist."""
 def grid_apply_system_damage (id_or_obj):
-    """Damage a random system node on the specified ship.
+    """Update system-damage counts and coefficients; explode the ship if all nodes are damaged.
+    
     Args:
-        id_or_obj (Agent | int): The agent or id of the specified ship."""
+        id_or_obj (Agent | int): The player ship agent ID or object.
+    
+    Returns:
+        bool: ``True`` if the ship has been destroyed, ``False`` otherwise."""
 def grid_closest (grid_obj, target_set=None, max_dist=None, filter_func=None) -> sbs_utils.agent.CloseData:
     """Find and target the closest object matching the criteria
     
@@ -66,46 +87,60 @@ def grid_closest (grid_obj, target_set=None, max_dist=None, filter_func=None) ->
     Returns:
         CloseData: The gird close data of the closest object"""
 def grid_count_grid_data (ship_key, role, default=0):
-    """Count the amount of grid items with the give role(from the json data)
-    for the given ship.
-    Args:
-        ship_key (str): The ship key to use to find the grid items
-        role (str): A comma-separated list of roles for which to check
-        default (int, optional): If the data for the grid key specified is not found, this number will be returned. Default is 0."""
-def grid_damage_grid_object (ship_id, grid_id, damage_color):
-    """Damage the specified grid object associated with the specified ship, and give it a color.
-    Args:
-        ship_id (Agent | int): The agent or id of the ship
-        grid_id (Agent | int): The agent or id of the grid object
-        damage_color (str): The color of the damage grid object"""
-def grid_damage_hallway (id_or_obj, loc_x, loc_y, damage_color):
-    """Damage a grid location that is not already a grid object.
-    Args:
-        id_or_obj (Agent | int): The agent or id of the ship.
-        loc_x (int): The x position of the hallway
-        loc_y (int): The y position of the hallway
-        damage_color (str): The color that should be applied to the grid object icon."""
-def grid_damage_pos (id_or_obj, loc_x, loc_y):
-    """Damage the ship's grid at the specified coordinates.
-    Args:
-        id_or_obj (Agent | int): The agent or id of the ship
-        loc_x (int): The x coordinate of the grid position
-        loc_y (int): The y coordinate of the grid position"""
-def grid_damage_system (id_or_obj, the_system=None):
-    """grid_damage_system
+    """Count the number of grid items that have a given role in the ship's JSON data.
     
-    Damage a system using the grid objects of the ship
     Args:
-        id_or_obj (Agent | int | CloseData | SpawnData): the ship to damage
-        the_system (SBS.SHIPSYS | int | str | None, optional): The system to damage, None picks random
+        ship_key (str): The ship art-ID key to look up in the grid data.
+        role (str): Role name to match against each grid item's role list.
+        default (int, optional): Value returned if the ship key is not found in
+            the grid data. Defaults to 0.
+    
     Returns:
-        bool: True if the system is damaged, otherwise False"""
+        int: Number of grid items with the specified role."""
+def grid_damage_grid_object (ship_id, grid_id, damage_color):
+    """Mark a grid object as damaged and apply a damage color to its icon.
+    
+    Tools, markers, and rally-point objects are ignored.
+    
+    Args:
+        ship_id (Agent | int): The player ship agent ID or object.
+        grid_id (Agent | int): The grid object to damage.
+        damage_color (str): Color to apply to the damaged grid-object icon."""
+def grid_damage_hallway (id_or_obj, loc_x, loc_y, damage_color):
+    """Spawn a fire/damage marker at an empty hallway grid cell.
+    
+    Args:
+        id_or_obj (Agent | int): The player ship agent ID or object.
+        loc_x (int): Grid column of the hallway cell.
+        loc_y (int): Grid row of the hallway cell.
+        damage_color (str): Color to apply to the damage marker icon."""
+def grid_damage_pos (id_or_obj, loc_x, loc_y):
+    """Apply internal damage at a specific grid cell.
+    
+    If no grid object occupies the cell a hallway-fire marker is placed
+    instead.
+    
+    Args:
+        id_or_obj (Agent | int): The player ship agent ID or object.
+        loc_x (int): Grid column to damage.
+        loc_y (int): Grid row to damage."""
+def grid_damage_system (id_or_obj, the_system=None):
+    """Damage a random undamaged grid node for the specified ship system.
+    
+    Args:
+        id_or_obj (Agent | int | CloseData | SpawnData): The player ship.
+        the_system (sbs.SHPSYS | int | str, optional): The system to damage.
+            If ``None``, a system is chosen at random. Defaults to None.
+    
+    Returns:
+        bool: ``True`` if a node was damaged; ``False`` if no undamaged nodes
+            remain or the ship has already exploded."""
 def grid_get_grid_current_theme ():
-    """Get the current grid theme.
+    """Get the currently active grid theme data.
+    
     Returns:
-        dict: The grid theme dictionary
-        * key (str): The key of the theme data, e.g. `name`, `colors`, `icons`, etc.
-        * value (any): The value of the theme data."""
+        dict: Theme dict with keys such as ``name``, ``colors``, ``icons``,
+            ``damage_colors``, etc."""
 def grid_get_grid_data () -> dict:
     """Get the grid data from all the grid_data.json files
     
@@ -114,14 +149,24 @@ def grid_get_grid_data () -> dict:
         * key (str): The key of the dict, which is a ship key as defined in shipData.
         * value (dict): A dict with `grid_objects` as a key, and a list of grid object data as the value."""
 def grid_get_item_theme_data (roles, name=None):
-    """Get the item theme data for grid objects with the specified roles, for the optionally specified theme.
+    """Get icon, scale, color, and damage color for a set of roles from the grid theme.
+    
+    Roles are matched in reverse priority order so the last role in the list
+    takes precedence. Falls back to ``"default"`` entries when no role matches.
+    
     Args:
-        roles (str): A comma-separated list of roles to use.
-        name (str, optional): The name of the grid data theme. Default is None.
+        roles (str): Comma-separated role names.
+        name (str | None, optional): Theme name to use. ``None`` uses the
+            current theme. Defaults to None.
+    
     Returns:
-        RetVal: An object containing the `icon`, `scale`, `color`, and `damage_color` for the grid objects that match the roles."""
+        RetVal: Object with ``.icon`` (int), ``.scale`` (float), ``.color``
+            (str), and ``.damage_color`` (str) attributes."""
 def grid_get_max_hp ():
-    ...
+    """Return the current global maximum HP value for damcon-team grid objects.
+    
+    Returns:
+        int: The max HP setting (default 6)."""
 def grid_objects (so_id) -> set[int]:
     """Get a set of agent ids of the grid objects on the specified ship
     
@@ -141,138 +186,240 @@ def grid_objects_at (so_id, x, y) -> set[int]:
     Returns:
         set[int]: A set of agent ids"""
 def grid_rebuild_grid_objects (id_or_obj, grid_data=None):
-    ...
+    """Rebuild all engineering-grid objects on a ship from shipData JSON.
+    
+    Deletes all existing grid objects for the ship, then re-creates them from
+    the grid layout defined in the ship's art-ID entry in ``grid_data``.
+    Also re-creates the damcon teams, the position marker, and the EPad.
+    
+    Args:
+        id_or_obj (Agent | int): The player ship agent ID or object.
+        grid_data (dict, optional): Pre-loaded grid data. If ``None``, loaded
+            via ``grid_get_grid_data()``."""
 def grid_repair_grid_objects (player_ship, id_or_set, who_repaired=None):
-    """Repair the provided grid objects.
-    Note: More details on the use of this function required.
+    """Repair one or more grid objects and update the ship's damage state.
+    
+    Hallway-fire markers are deleted; system nodes have their icon color
+    restored and the system-damage count decremented. Recomputes damage
+    coefficients if any system node was healed.
+    
     Args:
-        player_ship (Agent | int): The agent or id of the ship
-        id_or_set (Agent | int | set[Agent | int]): The grid object or set of grid objects to repair
-        who_repaired (Agent | int): The agent (damcon team) that did the work."""
+        player_ship (Agent | int): The player ship agent ID or object.
+        id_or_set (Agent | int | set[Agent | int]): Grid object(s) to repair.
+        who_repaired (Agent | int, optional): The damcon-team agent that
+            performed the repair (used to remove work-order links). Defaults
+            to None."""
 def grid_repair_system_damage (id_or_obj, the_system=None):
-    """Repair damage for the specified system. If None, a random node is repaired.
+    """Repair a single damaged grid node for the specified system.
+    
     Args:
-        id_or_obj (Agent | int): The agent or id.
-        the_system (SBS.SHIPSYS | str | int | None, optional): The system to repair."""
+        id_or_obj (Agent | int): The player ship agent ID or object.
+        the_system (sbs.SHPSYS | int | str, optional): The system to repair.
+            If ``None``, a system is chosen at random. Defaults to None.
+    
+    Returns:
+        bool: ``True`` if a node was repaired; ``False`` if no damaged nodes
+            remain for that system."""
 def grid_restore_damcons (id_or_obj):
-    """Restore all damcon teams for the specified ship to full health.
+    """Restore all damcon teams on a ship to full health, creating them if missing.
+    
     Args:
-        id_or_obj (Agent | int): The agent or id of the ship"""
+        id_or_obj (Agent | int): The player ship agent ID or object."""
+def grid_set_hp (ship_id, GRID_OBJECT_ID, hp):
+    """Set the HP of a damcon-team grid object and emit the ``life_form_hp_changed`` signal.
+    
+    Args:
+        ship_id (Agent | int): The player ship agent ID or object.
+        GRID_OBJECT_ID (Agent | int): The damcon-team grid object ID or agent.
+        hp (int): The new HP value to assign."""
 def grid_set_max_hp (max_hp):
-    ...
+    """Set the global maximum hit-point value for damcon-team grid objects.
+    
+    Args:
+        max_hp (int): New maximum HP value. Defaults to 6 at module load."""
 def grid_spawn (id, name, tag, x, y, icon_index, color, roles):
-    """Spawn a grid object on a ship.
+    """Spawn a grid object (engineering component) onto a ship's grid.
     
     Args:
-        id (Agent | int): The agent to which the grid object should be added
-        name (str): The name of the grid object
-        tag (str): The tag/side
-        x (int): the x grid location
-        y (int): the y grid location
-        icon_index (int): the icon index
-        color (str): color
-        roles (str): string of comma-separated roles
+        id (Agent | int): The ship agent ID or object to attach the grid object
+            to.
+        name (str): Display name of the grid object.
+        tag (str): Tag identifying the grid object's side or type.
+        x (int): Column position on the engineering grid.
+        y (int): Row position on the engineering grid.
+        icon_index (int): Icon index for the grid display.
+        color (str): Display color string.
+        roles (str): Comma-separated roles to assign to the grid object.
     
     Returns:
-        GridObject: The grid object."""
+        GridObject: The newly created grid object."""
 def grid_take_internal_damage_at (id_or_obj, source_point, system_hit=None, damage_amount=None):
-    """Damage the ship's grid at the specified point in 3D.
+    """Apply internal damage to a ship at a 3D world position.
+    
+    Maps the 3D position to the nearest grid cell, then damages the grid
+    objects at that cell (or a hallway marker if the cell is empty). Also
+    injures any damcon-team lifeforms at the impact location.
+    
     Args:
-        id_or_obj (Agent | int): The agent or id
-        source_point (Vec3): The point at which damage should be applied.
-        system_hit (SBS.SHIPSYS | int | str | None, optional): The system to which damage should be applied. Unused.
-        damage_amount (int | None, optional): The damage to apply. Unused."""
+        id_or_obj (Agent | int): The player ship agent ID or object.
+        source_point (Vec3): 3D position of the hit.
+        system_hit (sbs.SHPSYS | int | str, optional): Unused. Defaults to
+            None.
+        damage_amount (int, optional): Unused. Defaults to None.
+    
+    Returns:
+        bool: ``True`` if the ship was destroyed by this damage."""
 def has_role (so, role):
-    """Check if an agent has the specified role.
+    """Return whether an agent currently holds a given role.
     
     Args:
-        so (Agent | int): An agent or id.
-        role (str): The role to test for
+        so (Agent | int): Agent ID or object.
+        role (str): The role name to test for.
     
     Returns:
-        bool: True if the agent has that role"""
+        bool: ``True`` if the agent has the role."""
+def is_dev_build ():
+    """Check if the current mission is a development build.
+    
+    Returns True if a .git directory exists in the mission folder.
+    
+    Returns:
+        bool: True if running in development mode, False otherwise."""
 def link (set_holder, link_name: str, set_to):
-    """Create a link between agents
+    """Create a named link from one or more source agents to one or more targets.
     
     Args:
-        set_holder (Agent | int | set[Agent | int]): The host (agent, id, or set) of the link
-        link_name (str): The link name
-        set_to (Agent | set[Agent]): The items to link to"""
+        set_holder (Agent | int | set[Agent | int]): Source agent(s).
+        link_name (str): The link key name.
+        set_to (Agent | int | set[Agent | int]): Target agent(s) to link to."""
+def prefab_spawn (label, data=None, OFFSET_X=None, OFFSET_Y=None, OFFSET_Z=None):
+    """Spawn a prefab label as an independent task and return it.
+    
+    Positional keys ``START_X``, ``START_Y``, ``START_Z`` inside ``data``
+    set the spawn origin (default 0). The ``OFFSET_*`` params shift that
+    origin without modifying the original ``data`` dict. If ``data`` contains
+    a ``NAME`` key with a ``#`` placeholder, ``prefab_autoname`` is applied
+    to generate a unique name.
+    
+    Args:
+        label (str | Label): The label to spawn.
+        data (dict, optional): Variables passed into the prefab task. May
+            include ``START_X``, ``START_Y``, ``START_Z``, and ``NAME``.
+            Defaults to None.
+        OFFSET_X (float, optional): X offset added to ``START_X``. Defaults
+            to None (no offset).
+        OFFSET_Y (float, optional): Y offset added to ``START_Y``. Defaults
+            to None (no offset).
+        OFFSET_Z (float, optional): Z offset added to ``START_Z``. Defaults
+            to None (no offset).
+    
+    Returns:
+        MastAsyncTask: The running prefab task, or ``None`` if the label is
+            invalid."""
 def remove_role (agents, role):
-    """Remove a role from an agent or a set of agents.a
+    """Remove a role from one or more agents.
     
     Args:
-        agents (Agent | int | set[Agent | int]): An agent or ID or a set of agents or IDs.
-        role (str): The role to add."""
+        agents (Agent | int | set[Agent | int]): Agent(s) to update.
+        role (str): The role name to remove."""
 def respawn_player_ship (id_or_obj):
-    """Cause the specified player ship to respawn after 'destruction'.
+    """Respawn a previously destroyed player ship at its original spawn position.
+    
+    Restores the ship's art ID, repositions it to the spawn point, and removes
+    the ``"exploded"`` role.
+    
     Args:
-        id_or_obj (Agent | int): The agent or id of the player ship."""
+        id_or_obj (Agent | int): The player ship agent ID or object."""
 def role (role: str):
-    """Returns a set of all the agents with a given role as a set of IDs.
+    """Return the set of agent IDs that currently hold a given role.
     
     Args:
-        role (str): The role.
+        role (str): The role name.
     
     Returns:
-        set[int]: a set of agent IDs."""
+        set[int]: IDs of all agents with that role."""
 def set_damage_coefficients (id_or_obj):
-    """Update the damage coefficients of the ship based on the number of damaged nodes for each system.
-    Assumes the standard system roles.
+    """Recalculate and write the damage coefficients for all ship systems.
+    
+    For each system (beam, torpedo, impulse, warp, maneuver, sensors, shields)
+    computes the ratio of undamaged to total nodes and writes it to the blob.
+    
     Args:
-        id_or_obj (Agent | int): The agent or id of the ship."""
+        id_or_obj (Agent | int): The player ship agent ID or object."""
 def set_inventory_value (so, key: str, value):
-    """Set inventory value with the given key the the agent has.
-    This is the way to create a collection in inventory.
-    `so` can be a set. If it is, the inventory value is set for each member in the set.
+    """Set an inventory value on one or more agents.
+    
+    If ``so`` is a set or collection, every member receives the value.
     
     Args:
-        id_or_obj (Agent | int | set[Agent | int]): The agent id or object or set to check
-        key (str): The key/name of the inventory item
-        value (any): the value"""
+        so (Agent | int | set[Agent | int]): The agent(s) to update.
+        key (str): The inventory key.
+        value (any): The value to store."""
+def settings_get_defaults ():
+    """Return the merged default settings dict, loading ``settings.yaml`` or ``setup.json`` if present.
+    
+    Results are cached after the first call. Mission-specific values from the
+    YAML/JSON file override the built-in defaults.
+    
+    Returns:
+        dict: The default settings mapping."""
 def signal_emit (name, data=None):
-    """Emit a signal to trigger all instances of the signal route to run.
-    Args:
-        name (str): The name of the signal.
-        data (dict): The data to provide to the signal route."""
-def to_blob (id_or_obj):
-    """Gets the engine dataset of the specified agent
-    !!! Note
-    * Same as to_data_set
-    Args:
-        id_or_obj (Agent | int): Agent id or object
-    Returns:
-        data_set | None: Returns the data or None if it does not exist"""
-def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """Converts item passed to an agent id
-    Args:
-        other (Agent | CloseData | int): The agent
-    Returns:
-        int: The agent id"""
-def to_list (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """Converts a single object/id, set or list of things to a list
-    Args:
-        other (Agent | CloseData | int | set[Agent | int] | list[Agent | int]): The agent or id or set.
-    Returns:
-        list[Agent | CloseData | int]: A list containing whatever was passed in."""
-def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """Converts the item passed to an agent
-    ??? note
-    * Return of None could mean the agent no longer exists
-    Args:
-        other (Agent | CloseData | int): The agent ID or other agent like data
-    Returns:
-        Agent | None: The agent or None"""
-def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """Converts a single object/id, set or list of things to a set of ids
-    Args:
-        other (Agent | CloseData | int | set[Agent | int] | list[Agent | int]): The agent or id or set.
-    Returns:
-        set[Agent | CloseData | int]: A set containing whatever was passed in."""
-def unlink (set_holder, link_name: str, set_to):
-    """Removes the link between things
+    """Emit a named signal, running all registered ``//signal/<name>`` routes.
+    
+    Safe to call when no MAST context is active — returns immediately with no
+    side effects.
     
     Args:
-        set_holder (Agent | int | set[Agent | int]): An agent or set of agents (ids or objects)
-        link_name (str): Link name
-        set_to (Agent | int | set[Agent | int]): The agent or set of agents (ids or objects) to add a link to"""
+        name (str): The signal name.
+        data (dict, optional): Arbitrary data passed to each signal handler.
+            Defaults to None."""
+def to_blob (id_or_obj):
+    """Return the engine data-set (blob) for an agent. Same as ``to_data_set``.
+    
+    Args:
+        id_or_obj (Agent | int | SpawnData): Agent ID or object.
+    
+    Returns:
+        data_set | None: The engine data-set, or ``None`` if the object does
+            not exist."""
+def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
+    """Extract the integer ID from an agent, ``CloseData``, ``SpawnData``, or bare int.
+    
+    Args:
+        other (Agent | CloseData | SpawnData | int): Value to convert.
+    
+    Returns:
+        int: The integer agent ID."""
+def to_list (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
+    """Normalize any agent-like value or collection into a list.
+    
+    Args:
+        other (Agent | CloseData | int | set | list | None): Value to normalize.
+    
+    Returns:
+        list: A list containing whatever was passed in; ``None`` becomes ``[]``."""
+def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
+    """Resolve an ID, ``CloseData``, or ``SpawnData`` to its Agent object.
+    
+    Returns ``None`` when the agent no longer exists.
+    
+    Args:
+        other (Agent | CloseData | SpawnData | int): Value to resolve.
+    
+    Returns:
+        Agent | None: The agent, or ``None`` if it could not be resolved."""
+def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
+    """Normalize any agent-like value or collection into a set of integer IDs.
+    
+    Args:
+        other (Agent | CloseData | int | set | list | None): Value to normalize.
+    
+    Returns:
+        set[int]: A set of integer IDs; ``None`` becomes an empty set."""
+def unlink (set_holder, link_name: str, set_to):
+    """Remove a named link from one or more source agents to one or more targets.
+    
+    Args:
+        set_holder (Agent | int | set[Agent | int]): Source agent(s).
+        link_name (str): The link key name.
+        set_to (Agent | int | set[Agent | int]): Target agent(s) to unlink."""

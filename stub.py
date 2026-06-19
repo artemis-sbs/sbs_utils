@@ -4,7 +4,7 @@ import sys, inspect, enum,  os
 
 class GenStubs:
     def __init__(self):
-        self.file = open('readme.pyi', 'w')
+        self.file = open('readme.pyi', 'w', encoding="utf-8")
         self._indent = 0
         self.files = []
         
@@ -55,7 +55,7 @@ class GenStubs:
             os.makedirs(full_dir, exist_ok=True)
 
         self.trace_line(f"##### FILE: {full_file}")
-        file = open(full_file, "w")
+        file = open(full_file, "w", encoding="utf-8" )
         #file = None
 
 
@@ -286,15 +286,20 @@ class GenStubs:
         if doc is None:
             self.write_line(default)
         else:
-            doc = inspect.cleandoc(doc) 
+            # doc = inspect.cleandoc(doc) # redundant
+            import unicodedata
+            
             if skip_first:
                 l = doc.split("\n")
                 doc = '\n'.join(l[1:])
             doc = doc.lstrip()
+            
+            
             if (len(doc)>0):
                 self.write_line(f'"""{doc}"""')
             else:
                 self.write_line(f'...')
+        
         
 
     def stub_func(self, obj, name):

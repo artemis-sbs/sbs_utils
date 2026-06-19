@@ -1,31 +1,55 @@
 from sbs_utils.helpers import FrameContext
 from sbs_utils.pages.layout.slider import Slider
 def apply_control_styles (control_name, extra_style, layout_item, task):
-    """Apply style information to a layout item based on the type of the layout, and apply the extra styles as needed.
+    """Apply a named control style and optional overrides to a layout item.
+    
+    ``extra_style`` may be a raw CSS-style string (``"key:value;..."``) or
+    a style name. It is applied on top of the base ``control_name`` style.
+    
     Args:
-        control_name (str): The name of the control style.
-        extra_style (str): A CSS-style string containing extra style definitions which override those in the control style.
-        layout_item (LayoutItem): The layout item for which the style is to be applied."""
+        control_name (str): Base control style name.
+        extra_style (str | dict | None): Additional style string, name, or
+            parsed dict applied after the base style.
+        layout_item (LayoutItem): Layout item to receive the style.
+        task (MastAsyncTask): GUI task used for string formatting."""
 def gui_int_slider (msg, style=None, var=None, data=None):
-    """Draw an integer slider control
+    """Add an integer-only slider control to the current GUI layout.
+    
+    Convenience wrapper for ``gui_slider(..., is_int=True)``.
     
     Args:
-        props (str): hi, low etc.
-        style (style, optional): Style. Defaults to None.
-        var (str, optional): Variable name to set the selection to. Defaults to None.
-        data (object, optional): data to pass the handler. Defaults to None.
+        msg (str): Property string defining the slider range and label, e.g.
+            ``"min:1;max:10;label:Count;"``
+        style (str, optional): CSS-like style overrides. Defaults to None.
+        var (str, optional): Variable name to read the initial value from and
+            update on change. Defaults to None.
+        data (object, optional): Arbitrary data passed to the event handler.
+            Defaults to None.
     
     Returns:
-        layout object: The Layout object created"""
+        Slider: The layout item created.
+    
+    Example:
+        gui_int_slider("min:1;max:5;label:Torpedo Count;", var="torp_count")"""
 def gui_slider (msg, style=None, var=None, data=None, is_int=False):
-    """Draw a slider control
+    """Add a slider control to the current GUI layout.
+    
+    The current value of ``var`` is used as the initial slider position. When
+    the player adjusts the slider, ``var`` is updated.
     
     Args:
-        props (str): hi, low etc.
-        style (style, optional): Style. Defaults to None.
-        var (str, optional): Variable name to set the selection to. Defaults to None.
-        data (object, optional): data to pass the handler. Defaults to None.
-        is_int (bool): Use only integers values
+        msg (str): Property string defining the slider range and label, e.g.
+            ``"min:0;max:100;label:Energy;"``
+        style (str, optional): CSS-like style overrides. Defaults to None.
+        var (str, optional): Variable name to read the initial value from and
+            update on change. Defaults to None.
+        data (object, optional): Arbitrary data passed to the event handler.
+            Defaults to None.
+        is_int (bool, optional): Restrict values to integers. Defaults to
+            ``False``.
     
     Returns:
-        layout object: The Layout object created"""
+        Slider: The layout item created.
+    
+    Example:
+        gui_slider("min:0;max:100;label:Speed;", var="speed_pct")"""

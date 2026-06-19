@@ -2,6 +2,7 @@ from sbs_utils.pages.layout.bounds import Bounds
 from sbs_utils.pages.layout.column import Column
 from sbs_utils.pages.widgets.control import Control
 from sbs_utils.helpers import FrameContext
+from textwrap import TextWrapper
 def get_client_aspect_ratio (cid):
     """Get the aspect ratio of the specified client's screen.
     Args:

@@ -4,7 +4,17 @@ def bmicheck (result, func, args):
 def boolcheck (result, func, args):
     ...
 def gui_screenshot (image_path):
-    ...
+    """Capture the full desktop and save it as a BMP file.
+    
+    Windows-only. Captures the entire desktop window (not just the Cosmos
+    window) using GDI BitBlt. Useful for automated testing or recording
+    mission state.
+    
+    Args:
+        image_path (str): Absolute path to write the ``.bmp`` file.
+    
+    Example:
+        ~~ gui_screenshot("C:/missions/debug/frame001.bmp") ~~"""
 def nonnullcheck (result, func, args):
     ...
 def null_or_hgdi_errorcheck (result, func, args):

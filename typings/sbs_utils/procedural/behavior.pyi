@@ -3,76 +3,86 @@ from sbs_utils.futures import Promise
 from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.pollresults import PollResults
 def bt_export_variable (name, value):
-    """sets a variable on the main task of a behavior tree
+    """Export a variable from the behavior tree to the main (root) task's scope.
     
     Args:
-        name (str): The variable name to set
-        value (any): The value to set"""
+        name (str): Variable name.
+        value (any): Value to assign."""
 def bt_get_variable (name, defa_value=None):
-    """sets a variable on the blackboard data of a behavior tree
+    """Get a variable from the current behavior tree's blackboard data.
     
     Args:
-        name (str): The variable name to set
-        defa_value (any): The value if the name is not found"""
+        name (str): Variable name.
+        defa_value (any, optional): Value returned when the variable is absent.
+            Defaults to None.
+    
+    Returns:
+        any: The variable value, or ``defa_value``."""
 def bt_invert (a_bt_promise):
-    """behavior tree invert
+    """Behavior tree inverter — flips the success/failure result of a promise.
     
     Args:
-        a_bt_promise (promise): Invert the success or failure of a behavior promise
+        a_bt_promise (PromiseBehave | label): Promise or label whose result
+            should be inverted.
     
     Returns:
-        Promise: A Promise that runs until failure or success"""
+        PromiseBehaveInvert: A promise that inverts the child result."""
 def bt_repeat (a_bt_promise, count):
-    """reruns behavior tree a number of times
-    Behavior promise has a reset() to rerun
+    """Repeat a behavior tree promise a fixed number of times.
     
     Args:
-        a_bt_promise (promise): The promise to run
+        a_bt_promise (PromiseBehave | label): Promise or label to repeat.
+        count (int): Maximum number of repetitions.
     
     Returns:
-        Promise: A Promise that runs until success"""
+        PromiseBehaveRepeat: A promise that resolves after ``count`` successful
+            iterations or fails if the child fails."""
 def bt_sel (*args, **kwargs):
-    """behavior tree select returns success if any task has success
+    """Behavior tree selector — succeeds as soon as any child succeeds.
     
     Args:
-        args (labels): The arguments are labels
-        kwargs (any): data = will pass data the the behavior tasks.
+        *args (label): Labels to run as selector children.
+        data (dict, optional): Keyword argument passed as variables to each
+            child task. Defaults to None.
     
     Returns:
-        Promise: A Promise that runs until failure or success"""
+        PromiseBehaveSel: A promise that resolves on the first child success,
+            or fails if all children fail."""
 def bt_seq (*args, **kwargs):
-    """behavior tree sequence only returns success if the whole sequence has success
+    """Behavior tree sequence — succeeds only if every child succeeds in order.
     
     Args:
-        args (labels): The arguments are labels
-        kwargs (any): data = will pass data the the behavior tasks.
+        *args (label): Labels to run as sequential children.
+        data (dict, optional): Keyword argument passed as variables to each
+            child task. Defaults to None.
     
     Returns:
-        Promise: A Promise that runs until failure or success"""
+        PromiseBehaveSeq: A promise that resolves when all children succeed,
+            or fails as soon as any child fails."""
 def bt_set_variable (name, value):
-    """sets a variable on the blackboard data of a behavior tree
+    """Set a variable on the current behavior tree's blackboard data.
     
     Args:
-        name (str): The variable name to set
-        value (any): The value to set"""
+        name (str): Variable name.
+        value (any): Value to assign."""
 def bt_until_fail (a_bt_promise):
-    """reruns behavior tree until failure
-    Behavior promise has a reset() to rerun
+    """Repeat a behavior tree promise until it fails.
     
     Args:
-        a_bt_promise (promise): The promise to run
+        a_bt_promise (PromiseBehave | label): Promise or label to repeat.
     
     Returns:
-        Promise: A Promise that runs until failure"""
+        PromiseBehaveUntil: A promise that keeps rewinding the child until it
+            returns ``BT_FAIL``."""
 def bt_until_success (a_bt_promise):
-    """reruns behavior tree until success
-    Behavior promise has a reset() to rerun
+    """Repeat a behavior tree promise until it succeeds.
     
     Args:
-        a_bt_promise (promise): The promise to run
+        a_bt_promise (PromiseBehave | label): Promise or label to repeat.
     
     Returns:
-        Promise: A Promise that runs until success"""
+        PromiseBehaveUntil: A promise that keeps rewinding the child until it
+            returns ``BT_SUCCESS``."""
 class PromiseBehave(AwaitBlockPromise):
     """class PromiseBehave"""
     def __init__ (self, *args, **kwargs) -> None:

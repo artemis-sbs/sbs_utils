@@ -1,142 +1,199 @@
 from sbs_utils.agent import Agent
 from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.mastscheduler import MastAsyncTask
+from sbs_utils.procedural.modifiers import ModifierHandler
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.tickdispatcher import TickDispatcher
 def awaitable (func):
     ...
 def brains_run_all (tick_task):
-    ...
-def extra_scan_sources_run_all (tick_task: sbs_utils.tickdispatcher.TickTask):
-    ...
-def game_end_condition_add (promise, message, is_win, music=None, signal=None) -> int:
-    """Add a game end condition.
-    Args:
-        promise (Promise): The promise that must be completed for the game to end.
-        message (str): The message to display on game end.
-        is_win (bool): Does the game end with a win or loss?
-        music (str, optional): The music to play on game end. Default is None.
-        signal (str, optional): The signal to emit when the game ends.
-    Returns:
-        int: The id of the game end promise. Used to remove the game end condition after adding it."""
-def game_end_condition_remove (id):
-    """Remove a game end condition.
-    Args:
-        id (int): The id of the game end condition."""
-def game_end_run_all (tt):
-    """Check if any of the game end conditions have been met.
-    Args:
-        tt (Task): The tick task. Not used yet."""
-def get_inventory_value (id_or_object, key: str, default=None):
-    """get inventory value with the given key the the agent  has
-        this is the way to create a collection in inventory
+    """Run all agent brains for the current tick.
+    
+    Iterates every agent with a ``__BRAIN__`` inventory entry and calls
+    ``brain.run()``. Re-entrant calls are suppressed with a guard flag.
+    Agents whose ``Agent.get`` returns ``None`` are silently skipped.
     
     Args:
-        id_or_obj (Agent | int): The agent id or object to check
-        key (str): The key/name of the inventory item
-        default (any): the default value data
+        tick_task: The tick task or event that triggered this run."""
+def extra_scan_sources_run_all (tick_task: sbs_utils.tickdispatcher.TickTask):
+    """Push extra scan source IDs to all scanners that have them linked.
+    
+    Called each tick by the objective system. Computes a CRC of the linked
+    extra scan sources per scanner and skips the update if unchanged, reducing
+    network traffic.
+    
+    Args:
+        tick_task (TickTask): The tick task that triggered this run."""
+def game_end_condition_add (promise, message, is_win, music=None, signal=None) -> int:
+    """Register a promise that ends the game when it resolves.
+    
+    Args:
+        promise (Promise): Resolving this promise triggers the end condition.
+        message (str): Message displayed on the results screen.
+        is_win (bool): ``True`` for a victory, ``False`` for a defeat.
+        music (str, optional): Music file to play at end. Defaults to None
+            (uses the default victory/failure track).
+        signal (str, optional): Signal to emit instead of
+            ``"show_game_results"``. Defaults to None.
+    
     Returns:
-        any: The inventory value associated with the provided key, or the default value if it doesn't exist."""
+        int: Handle ID that can be passed to ``game_end_condition_remove``."""
+def game_end_condition_remove (id):
+    """Remove a registered game end condition.
+    
+    Args:
+        id (int): Handle returned by ``game_end_condition_add``."""
+def game_end_run_all (tt):
+    """Poll all registered game end conditions and trigger the end screen if any resolve.
+    
+    Args:
+        tt (Task): Tick task (unused)."""
+def get_inventory_value (id_or_object, key: str, default=None):
+    """Get an inventory value from an agent by key.
+    
+    Args:
+        id_or_object (Agent | int): The agent ID or object.
+        key (str): The inventory key.
+        default (any, optional): Value returned when the key is absent.
+            Defaults to None.
+    
+    Returns:
+        any: The inventory value, or ``default`` if the key is not set."""
 def get_story_id ():
     ...
-def has_link_to (link_source, link_name: str, link_target):
-    """check if target and source are linked to for the given key
+def has_link_to (link_source, link_name: str, link_target) -> bool:
+    """Return whether a source agent has a specific link to a target.
     
     Args:
-        link_source (Agent | int): The agent or id hosting the link
-        link_name (str): The key/name of the inventory item
+        link_source (Agent | int): The agent ID or object hosting the link.
+        link_name (str): The link key name.
+        link_target (Agent | int): The target agent ID or object to check.
     
     Returns:
-        set[int]: The set of linked ids"""
+        bool: ``True`` if the link from source to target exists."""
 def link (set_holder, link_name: str, set_to):
-    """Create a link between agents
+    """Create a named link from one or more source agents to one or more targets.
     
     Args:
-        set_holder (Agent | int | set[Agent | int]): The host (agent, id, or set) of the link
-        link_name (str): The link name
-        set_to (Agent | set[Agent]): The items to link to"""
+        set_holder (Agent | int | set[Agent | int]): Source agent(s).
+        link_name (str): The link key name.
+        set_to (Agent | int | set[Agent | int]): Target agent(s) to link to."""
 def linked_to (link_source, link_name: str):
-    """Get the set of ids that the source is linked to for the given key.
+    """Return the set of IDs that an agent links to under a given name.
     
     Args:
-        link_source (Agent | int): The agent or id to check
-        link_name (str): The key/name of the inventory item
+        link_source (Agent | int): The source agent ID or object.
+        link_name (str): The link key name.
+    
     Returns:
-        set[int]: The set of linked ids"""
+        set[int]: IDs of all linked targets, or an empty set if none."""
 def objective_add (agent_id_or_set, label, data=None, client_id=0):
-    """Add an objective to the agent or agents
+    """Add an objective label to one or more agents.
+    
+    ``label`` may be a label name, a Label object, a dict with ``"label"`` and
+    ``"data"`` keys, or a list of any of these. One ``Objective`` is created
+    per (agent, label) pair.
+    
     Args:
-        agent_id_or_set (Agent | int | set[Agent | int]): The agent or id or set of agents or ids.
-        label (str | Label): The objective label to add.
-        data (dict, optional): The data associated with the objective.
-        client_id (int, optional): The client id for this objective (may not be used?)
+        agent_id_or_set (Agent | int | set[Agent | int]): Agent(s) to attach
+            the objective to.
+        label (str | Label | dict | list): The objective label(s) to run.
+        data (dict, optional): Variables passed into the objective label.
+            Defaults to None.
+        client_id (int, optional): Console client ID (reserved for future use).
+            Defaults to 0.
+    
     Returns:
-        list[Objective | int]: The list of objectives added. Objectives for multiple agents count as separate objectives."""
+        Objective | list[Objective]: A single Objective when exactly one is
+            created, otherwise a list."""
 def objective_clear (agent_id_or_set):
-    """Clear all objectives from the agent or agents.
+    """Remove all active objectives from one or more agents.
+    
     Args:
-        agent_id_or_set (Agent | int | set[Agent | int]): The agent or id or set of agents or ids."""
+        agent_id_or_set (Agent | int | set[Agent | int]): Agent(s) whose
+            objectives should be cleared."""
 def objective_extends (label, data=None):
-    """Add an objective to the current task as a subtask.
+    """Run an objective label as a sub-task of the current task.
+    
     Args:
-        label (str | Label): The label to add.
-        data (dict, optional): The data to associate with the objective. Default is None.
+        label (str | Label): The label to execute.
+        data (dict, optional): Variables to pass into the sub-task. Defaults to
+            None.
+    
     Returns:
-        MastAsyncTask: The task"""
+        MastAsyncTask: The scheduled sub-task."""
 def objective_schedule ():
-    """Schedule a simple task tick that runs all objective tasks."""
+    """Ensure the background tick task that drives objectives is running."""
 def objectives_run_all (tick_task):
-    """Run all objective labels.
+    """Poll every active ``OBJECTIVE_RUN`` objective, removing any whose agent no longer exists.
+    
     Args:
-        tick_task (Task): The task. (Not used)"""
+        tick_task (Task): Tick task (unused)."""
 def objectives_run_everything (tick_task):
-    """Check objectives, brains, scan sources, and game end conditions. Which promises are checked is depenent on the value of `tick_task.state`.
-    This spreads out the calculation times across multiple runs instead of everything happening at the same time. The tick_task's `state` is updated.
+    """Run one slice of the per-tick work: objectives, brains, scan sources, or game-end checks.
+    
+    Work is spread across three alternating states to avoid all processing
+    happening in the same tick. ``tick_task.state`` selects which slice runs.
+    
     Args:
-        tick_task (Task): The current task."""
+        tick_task (Task): The repeating tick task — ``state`` is read and
+            updated each call."""
 def set_inventory_value (so, key: str, value):
-    """Set inventory value with the given key the the agent has.
-    This is the way to create a collection in inventory.
-    `so` can be a set. If it is, the inventory value is set for each member in the set.
+    """Set an inventory value on one or more agents.
+    
+    If ``so`` is a set or collection, every member receives the value.
     
     Args:
-        id_or_obj (Agent | int | set[Agent | int]): The agent id or object or set to check
-        key (str): The key/name of the inventory item
-        value (any): the value"""
+        so (Agent | int | set[Agent | int]): The agent(s) to update.
+        key (str): The inventory key.
+        value (any): The value to store."""
 def signal_emit (name, data=None):
-    """Emit a signal to trigger all instances of the signal route to run.
+    """Emit a named signal, running all registered ``//signal/<name>`` routes.
+    
+    Safe to call when no MAST context is active — returns immediately with no
+    side effects.
+    
     Args:
-        name (str): The name of the signal.
-        data (dict): The data to provide to the signal route."""
+        name (str): The signal name.
+        data (dict, optional): Arbitrary data passed to each signal handler.
+            Defaults to None."""
 def sub_task_schedule (label, data=None, var=None) -> 'MastAsyncTask':
-    """create an new task and start running at the specified label
+    """Schedule a sub-task under the current task starting at the given label.
+    
+    Sub-tasks share lifecycle with the parent task.
     
     Args:
-        label (str or label): The label to run
-        data (duct, optional): Data to initialie task variables. Defaults to None.
-        var (str, optional): Set the variable to the task created. Defaults to None.
+        label (str | Label): The label to start the sub-task at.
+        data (dict, optional): Initial sub-task variables. Defaults to None.
+        var (str, optional): Variable name to store the created sub-task.
+            Defaults to None.
     
     Returns:
-        MastAsyncTask : The MAST task created"""
+        MastAsyncTask: The sub-task created, or None outside a task context."""
 def to_object_list (the_set):
-    """Converts a set to a list of objects
-    Args:
-        the_set (set[Agent | int] | list[Agent | int]): a set or list of agents or ids
-    Returns:
-        list[Agent]: A list of Agent objects"""
-def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
-    """Converts a single object/id, set or list of things to a set of ids
-    Args:
-        other (Agent | CloseData | int | set[Agent | int] | list[Agent | int]): The agent or id or set.
-    Returns:
-        set[Agent | CloseData | int]: A set containing whatever was passed in."""
-def unlink (set_holder, link_name: str, set_to):
-    """Removes the link between things
+    """Convert a set or list of IDs/agents to a list of Agent objects (excluding None).
     
     Args:
-        set_holder (Agent | int | set[Agent | int]): An agent or set of agents (ids or objects)
-        link_name (str): Link name
-        set_to (Agent | int | set[Agent | int]): The agent or set of agents (ids or objects) to add a link to"""
+        the_set (set[Agent | int] | list[Agent | int]): IDs or agent objects.
+    
+    Returns:
+        list[Agent]: Resolved Agent objects; items that cannot be resolved are
+            excluded."""
+def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
+    """Normalize any agent-like value or collection into a set of integer IDs.
+    
+    Args:
+        other (Agent | CloseData | int | set | list | None): Value to normalize.
+    
+    Returns:
+        set[int]: A set of integer IDs; ``None`` becomes an empty set."""
+def unlink (set_holder, link_name: str, set_to):
+    """Remove a named link from one or more source agents to one or more targets.
+    
+    Args:
+        set_holder (Agent | int | set[Agent | int]): Source agent(s).
+        link_name (str): The link key name.
+        set_to (Agent | int | set[Agent | int]): Target agent(s) to unlink."""
 class Objective(Agent):
     """class Objective"""
     def __init__ (self, agent, label, data, client_id):

@@ -333,8 +333,8 @@ class event(object): ### from pybind
 class grid_object(object): ### from pybind
     """class grid_object"""
     @property
-    def data_set (self: sbs.grid_object) -> ObjectDataBlob:
-        """object_data_set, read only, reference to the object_data_set of this particular grid object"""
+    def data_set (arg0: sbs.grid_object) -> ObjectDataBlobProxy:
+        ...
     @property
     def layer (self: sbs.grid_object) -> int:
         """int, layers to help draw different grid-objects correctly.  (recommend 0-8, with 0 being lowest)"""
@@ -504,56 +504,88 @@ class navproxy(object): ### from pybind
         """string, text label"""
 class object_data_set(object): ### from pybind
     """class object_data_set"""
+    def clear_data(self: sbs.object_data_set, arg0: str) -> None:
+        """deletes all elements in this blob value"""
     def get(*args, **kwargs):
         """Overloaded function.
         
-        1. get(self: sbs.object_data_set, arg0: str, arg1: int) -> object
+        1. get(self: sbs.object_data_set, arg0: str, arg1: str) -> object
         
         Get a value, by name
         
-        2. get(self: sbs.object_data_set, arg0: int, arg1: int) -> object
+        2. get(self: sbs.object_data_set, arg0: str, arg1: int) -> object
+        
+        Get a value, by name
+        
+        3. get(self: sbs.object_data_set, arg0: int, arg1: int) -> object
         
         Get a value, by ID"""
+    def get_first(self: sbs.object_data_set, arg0: str) -> object:
+        """Get the first iterator value of the map in this element"""
+    def get_next(self: sbs.object_data_set, arg0: str) -> object:
+        """Get the next iterator value of the map in this element; a NULL means the end of the list"""
+    def num_elements(self: sbs.object_data_set, arg0: str) -> int:
+        """get the number of elements in this blob value (that were previously added by index)"""
     def set(*args, **kwargs):
         """Overloaded function.
         
-        1. set(self: sbs.object_data_set, tag: str, in: int, index: int = 0, extraDocText: str = 'a') -> int
+        1. set(self: sbs.object_data_set, tag: str, in: int, indexStr: str = 0, extraDocText: str = 'a') -> int
+        
+        Set an int value, by name AND index string
+        
+        2. set(self: sbs.object_data_set, tag: str, in: int, indexStr: str = 0, extraDocText: str = 'a') -> int
+        
+        Set an int64 value, by name AND index string
+        
+        3. set(self: sbs.object_data_set, tag: str, in: int, indexStr: str = 0, extraDocText: str = 'a') -> int
+        
+        Set a uint64 value, by name AND index string
+        
+        4. set(self: sbs.object_data_set, tag: str, in: float, indexStr: str = 0, extraDocText: str = 'a') -> int
+        
+        Set a float value, by name AND index string
+        
+        5. set(self: sbs.object_data_set, tag: str, in: str, indexStr: str = 0, extraDocText: str = 'a') -> int
+        
+        Set a string value, by name AND index string
+        
+        6. set(self: sbs.object_data_set, tag: str, in: int, index: int = 0, extraDocText: str = 'a') -> int
         
         Set an int value, by name
         
-        2. set(self: sbs.object_data_set, tag: str, in: int, index: int = 0, extraDocText: str = 'a') -> int
+        7. set(self: sbs.object_data_set, tag: str, in: int, index: int = 0, extraDocText: str = 'a') -> int
         
         Set an int64 value, by name
         
-        3. set(self: sbs.object_data_set, tag: str, in: int, index: int = 0, extraDocText: str = 'a') -> int
+        8. set(self: sbs.object_data_set, tag: str, in: int, index: int = 0, extraDocText: str = 'a') -> int
         
         Set a uint64 value, by name
         
-        4. set(self: sbs.object_data_set, tag: str, in: float, index: int = 0, extraDocText: str = 'a') -> int
+        9. set(self: sbs.object_data_set, tag: str, in: float, index: int = 0, extraDocText: str = 'a') -> int
         
         Set a float value, by name
         
-        5. set(self: sbs.object_data_set, tag: str, in: str, index: int = 0, extraDocText: str = 'a') -> int
+        10. set(self: sbs.object_data_set, tag: str, in: str, index: int = 0, extraDocText: str = 'a') -> int
         
         Set a string value, by name
         
-        6. set(self: sbs.object_data_set, arg0: int, arg1: int, arg2: int) -> int
+        11. set(self: sbs.object_data_set, arg0: int, arg1: int, arg2: int) -> int
         
         Set an int value, by ID
         
-        7. set(self: sbs.object_data_set, arg0: int, arg1: int, arg2: int) -> int
+        12. set(self: sbs.object_data_set, arg0: int, arg1: int, arg2: int) -> int
         
         Set an int64 value, by ID
         
-        8. set(self: sbs.object_data_set, arg0: int, arg1: int, arg2: int) -> int
+        13. set(self: sbs.object_data_set, arg0: int, arg1: int, arg2: int) -> int
         
         Set a uint64 value, by ID
         
-        9. set(self: sbs.object_data_set, arg0: int, arg1: float, arg2: int) -> int
+        14. set(self: sbs.object_data_set, arg0: int, arg1: float, arg2: int) -> int
         
         Set a float value, by ID
         
-        10. set(self: sbs.object_data_set, arg0: int, arg1: str, arg2: int) -> int
+        15. set(self: sbs.object_data_set, arg0: int, arg1: str, arg2: int) -> int
         
         Set a string value, by ID"""
 class quaternion(object): ### from pybind
@@ -632,6 +664,8 @@ class simulation(object): ### from pybind
         """returns the reference to a spaceobject, by ID"""
     def is_not_paused(self: sbs.simulation) -> bool:
         """returns True if the game is currently running."""
+    def launch_torpedo(self: sbs.simulation, source_ship: sbs.space_object, tube_index: int, is_fighter_flag: bool) -> None:
+        """launches a torpedo from the space object provided."""
     def navpoint_exists(self: sbs.simulation, id: int) -> bool:
         """returns true if the navpoint exists, by integer id"""
     def navproxy_exists(self: sbs.simulation, id: int) -> bool:
@@ -644,6 +678,8 @@ class simulation(object): ### from pybind
         """takes a navproxy (the reference, not the ID), and sets the xyz values"""
     def set_side_icon_color(self: sbs.simulation, SideTag: str, colorString: str) -> None:
         """set the color of a SideTag (like TSN or Raider)"""
+    def set_side_icon_index(self: sbs.simulation, SideTag: str, iconIndex: int) -> None:
+        """set the value of the icon of a SideTag (like TSN or Raider)"""
     def set_side_relationship(self: sbs.simulation, FirstSideTag: str, SecondSideTag: str, diplomacyEnumValue: int) -> None:
         """set the diplomatic state between two sides, for GUI color purposes."""
     def space_object_exists(self: sbs.simulation, arg0: int) -> bool:
@@ -672,8 +708,8 @@ class space_object(object): ### from pybind
     def cur_speed (self: sbs.space_object, arg0: float) -> None:
         """float, speed of object"""
     @property
-    def data_set (self: sbs.space_object) -> sbs.object_data_set:
-        """object_data_set, read only, refernce to the object_data_set of this particular object"""
+    def data_set (arg0: sbs.space_object) -> sbs.object_data_set:
+        ...
     @property
     def data_tag (self: sbs.space_object) -> str:
         """string, name of data entry in shipData.json"""
