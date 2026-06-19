@@ -138,25 +138,25 @@ That's a couple of great questions. First, let's take a brief detour and open `s
 ```json
 {
     "sbslib": [
-        "artemis-sbs.sbs_utils.v1.0.4.sbslib"
+        "artemis-sbs.sbs_utils.v1.3.0.sbslib"
     ],
     "mastlib": [
-        "artemis-sbs.LegendaryMissions.autoplay.v1.0.4.mastlib",
-        "artemis-sbs.LegendaryMissions.ai.v1.0.4.mastlib",
-        "artemis-sbs.LegendaryMissions.commerce.v1.0.4.mastlib",
-        "artemis-sbs.LegendaryMissions.comms.v1.0.4.mastlib",
-        "artemis-sbs.LegendaryMissions.consoles.v1.0.4.mastlib",
-        "artemis-sbs.LegendaryMissions.damage.v1.0.4.mastlib",
-        "artemis-sbs.LegendaryMissions.docking.v1.0.4.mastlib",
-        "artemis-sbs.LegendaryMissions.fleets.v1.0.4.mastlib",
-        "artemis-sbs.LegendaryMissions.grid_comms.v1.0.4.mastlib",
-        "artemis-sbs.LegendaryMissions.hangar.v1.0.4.mastlib",
-        "artemis-sbs.LegendaryMissions.internal_comms.v1.0.4.mastlib",
-        "artemis-sbs.LegendaryMissions.operator.v1.0.4.mastlib",
-        "artemis-sbs.LegendaryMissions.science_scans.v1.0.4.mastlib",
-        "artemis-sbs.LegendaryMissions.side_missions.v1.0.4.mastlib",
-        "artemis-sbs.LegendaryMissions.upgrades.v1.0.4.mastlib",
-        "artemis-sbs.LegendaryMissions.zadmiral.v1.0.4.mastlib"
+        "artemis-sbs.LegendaryMissions.autoplay.v1.3.0.mastlib",
+        "artemis-sbs.LegendaryMissions.ai.v1.3.0.mastlib",
+        "artemis-sbs.LegendaryMissions.commerce.v1.3.0.mastlib",
+        "artemis-sbs.LegendaryMissions.comms.v1.3.0.mastlib",
+        "artemis-sbs.LegendaryMissions.consoles.v1.3.0.mastlib",
+        "artemis-sbs.LegendaryMissions.damage.v1.3.0.mastlib",
+        "artemis-sbs.LegendaryMissions.docking.v1.3.0.mastlib",
+        "artemis-sbs.LegendaryMissions.fleets.v1.3.0.mastlib",
+        "artemis-sbs.LegendaryMissions.grid_comms.v1.3.0.mastlib",
+        "artemis-sbs.LegendaryMissions.hangar.v1.3.0.mastlib",
+        "artemis-sbs.LegendaryMissions.internal_comms.v1.3.0.mastlib",
+        "artemis-sbs.LegendaryMissions.operator.v1.3.0.mastlib",
+        "artemis-sbs.LegendaryMissions.science_scans.v1.3.0.mastlib",
+        "artemis-sbs.LegendaryMissions.side_missions.v1.3.0.mastlib",
+        "artemis-sbs.LegendaryMissions.upgrades.v1.3.0.mastlib",
+        "artemis-sbs.LegendaryMissions.zadmiral.v1.3.0.mastlib"
     ]
 }
 ```
