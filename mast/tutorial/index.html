@@ -1239,7 +1239,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../prefabs.md" class="md-nav__link">
+      <a href="../prefabs/" class="md-nav__link">
         
   
   
@@ -2155,8 +2155,6 @@
       
         
       
-        
-      
     
     
     
@@ -2238,29 +2236,6 @@
   
   <span class="md-ellipsis">
     complex
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorial/comms/simple_grid.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    grid
     
   </span>
   
@@ -3039,6 +3014,28 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
     
     
     
@@ -3705,6 +3702,259 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/brain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    brain
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    data
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/internal_damage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    internal_damage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    media
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/mission/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    mission
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/popup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    popup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/prefab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    prefab
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/quest/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    quest
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    settings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/torpedoes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    torpedoes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/upgrades/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    upgrades
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -4187,14 +4437,17 @@
 <p>A mission script requires </p>
 <ul>
 <li>script.py</li>
-<li>description.txt</li>
+<li>description.yaml</li>
 </ul>
-<p>The description.txt file holds information for displaying scenario select list. Which contains:</p>
-<ul>
-<li>A category for the mission. When this list grows, future versions will display or filter based on category. It is not used now.</li>
-<li>The description of the mission.</li>
-<li>a list of up to 6 icons and their color. MAST missions for example show an acorn icon.</li>
-</ul>
+<p>The description.yaml file holds information for displaying the scenario select list:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">format version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="nt">Category</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Standard</span>
+<span class="nt">Visible Mission Name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">My Mission Name</span>
+<span class="nt">Description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">A short description of the mission.</span>
+</code></pre></div>
+<blockquote>
+<p>Note: Older missions used <code>description.txt</code> (still supported). New missions should use <code>description.yaml</code>.</p>
+</blockquote>
 <p><img alt="select" src="../../media/scenario_select.png" /></p>
 <p>The script.py file is how the Artemis: Cosmos engine communicates with the scripting system.
 The engine calls the function cosmos_event_handler with engine events.</p>
@@ -4474,21 +4727,13 @@ and a position. This example picks random points in a ring around 0,0,0. </p>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>for a in range(10):
     fleet_pos = Vec3.rand_in_sphere(39990, 40000, False, True)
-    prefab_spawn(prefab_fleet_raider, {&quot;race&quot;: &quot;skaraan&quot;, &quot;fleet_difficulty&quot;: DIFFICULTY,&quot;START_X&quot;: fleet_pos.x, &quot;START_Y&quot;: fleet_pos.y, &quot;START_Z&quot;: fleet_pospos.z})
+    prefab_spawn(prefab_fleet_raider, {&quot;race&quot;: &quot;skaraan&quot;, &quot;fleet_difficulty&quot;: DIFFICULTY,&quot;START_X&quot;: fleet_pos.x, &quot;START_Y&quot;: fleet_pos.y, &quot;START_Z&quot;: fleet_pos.z})
 </code></pre></div>
 </div>
 </div>
 </div>
 <h3 id="end-game-conditions">End game conditions</h3>
-<p>Script writers can create their own end game logic or use the Admiral (Game Master) console. The Admiral has a command to end the game.</p>
-<p>The <a href="https://github.com/artemis-sbs/LegendaryMissions/blob/main/maps/watch_for_end.mast">default end game logic</a> for Legendary Missions watches for failure when all stations or players are destroyed, and victory if all enemies are defeated. It will also end the game if the mission timer runs out. Explaining this code goes beyond the intent of a simple tutorial like this.</p>
-<p>The code is not in an add-on, so it needs to be copied.</p>
-<p>To have an end game like this:</p>
-<ul>
-<li>copy the watch_for_end.mast file to this tutorial mission map module.</li>
-<li>Add an <strong>import watch_for_end.mast</strong> to __init__.mast</li>
-<li>add a task_schedule to run the logic</li>
-</ul>
+<p>The simplest way to define win/loss conditions is <code>game_end_condition_add</code>. Pass it a promise, a result message, and <code>True</code> for win / <code>False</code> for loss. Conditions are checked every tick — the first that becomes true ends the game.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="9:1"><input checked="checked" id="__tabbed_9_1" name="__tabbed_9" type="radio" /><div class="tabbed-labels"><label for="__tabbed_9_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
@@ -4509,11 +4754,18 @@ and a position. This example picks random points in a ring around 0,0,0. </p>
 </svg></span> MAST</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>task_schedule(task_end_game)
+<div class="highlight"><pre><span></span><code># Lose if all players destroyed
+game_end_condition_add(destroyed_all(role(&quot;__player__&quot;)), &quot;All ships lost.&quot;, False)
+# Lose if all stations destroyed
+game_end_condition_add(destroyed_all(role(&quot;station&quot;)), &quot;Station destroyed.&quot;, False)
+# Win if all enemies destroyed
+game_end_condition_add(destroyed_all(role(&quot;raider&quot;)), &quot;Victory! All enemies defeated.&quot;, True)
 </code></pre></div>
 </div>
 </div>
 </div>
+<p>Note: <code>destroyed_all</code>, <code>destroyed_any</code>, <code>distance_less</code>, and <code>distance_point_less</code> return promise objects suitable for <code>game_end_condition_add</code>. <code>is_timer_finished</code> returns a plain bool and cannot be used here.</p>
+<p>For a more complete implementation including a mission timer and taunts, see the <a href="https://github.com/artemis-sbs/LegendaryMissions/blob/main/maps/watch_for_end.mast">default end game logic</a> from Legendary Missions. It is not in an add-on, so it needs to be copied into your mission module.</p>
 <details class="note">
 <summary>Taunts may not work</summary>
 <p>At this time taunts will not work unless the taunt.json file is in the mission. The taunt.json can be copied from Legendary Missions.

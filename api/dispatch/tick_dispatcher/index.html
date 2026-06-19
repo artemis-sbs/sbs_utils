@@ -983,7 +983,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/prefabs.md" class="md-nav__link">
+      <a href="../../../mast/prefabs/" class="md-nav__link">
         
   
   
@@ -1893,8 +1893,6 @@
       
         
       
-        
-      
     
     
     
@@ -1976,29 +1974,6 @@
   
   <span class="md-ellipsis">
     complex
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../tutorial/comms/simple_grid.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    grid
     
   </span>
   
@@ -2788,6 +2763,28 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
     
     
     
@@ -3457,6 +3454,259 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/brain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    brain
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    data
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/internal_damage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    internal_damage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    media
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/mission/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    mission
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/popup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    popup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/prefab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    prefab
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/quest/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    quest
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    settings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/torpedoes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    torpedoes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/upgrades/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    upgrades
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3878,7 +4128,7 @@
 This is done via the HandleSimulationTick method.</p>
 <h2 id="usage">Usage</h2>
 <p>The TickDispatcher is used to create tasks that are called when the HandleSimulationTick is called.
-The function <img alt="🇵🇾" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@14.1.2/assets/svg/1f1f5-1f1fe.svg" title=":py:" />meth:<code>~sbs_utils.tickdispatcher.TickDispatcher.dispatch_tick</code> should be called in HandleSimulationTick, and ideally this is the only code that is needed.</p>
+The function <code>dispatch_tick</code> should be called in HandleSimulationTick, and ideally this is the only code that is needed.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:1"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Python</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block"></div>
@@ -3900,11 +4150,11 @@ The function <img alt="🇵🇾" class="twemoji" src="https://cdn.jsdelivr.net/g
 <p>A TickTask is similar to Artemis XML's timer events and are ideally more efficient since they only live while they are relevant.</p>
 <p>To create a TickTask you can use one of two functions.</p>
 <ul>
-<li><img alt="Do Once" src="sbs_utils.tickdispatcher.TickDispatcher.do_once" /></li>
-<li><img alt="Do Once" src="sbs_utils.tickdispatcher.TickDispatcher.do_interval" /></li>
+<li><code>do_once</code></li>
+<li><code>do_interval</code></li>
 </ul>
-<p><img alt="Do Once" src="sbs_utils.tickdispatcher.TickDispatcher.do_once" /> will schedule a task that is run only one time.</p>
-<p><img alt="Do interval" src="sbs_utils.tickdispatcher.TickDispatcher.do_interval" /> will schedule to run multiple times or continuously.</p>
+<p><code>do_once</code> will schedule a task that is run only one time.</p>
+<p><code>do_interval</code> will schedule to run multiple times or continuously.</p>
 <p>Both methods take the simulation used to track the start time, a callback function, a delay time. do_interval additionally optionally takes the number of times it should run. The default is None, which is meant to indicate run continuously.</p>
 <p>The callback functions will receive the simulation and the task as arguments. Class methods used as a callback will receive 'self' as the first argument.</p>
 <h2 id="example-run-a-function-once">Example: run a function once</h2>

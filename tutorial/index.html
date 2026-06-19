@@ -983,7 +983,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../mast/prefabs.md" class="md-nav__link">
+      <a href="../mast/prefabs/" class="md-nav__link">
         
   
   
@@ -1901,8 +1901,6 @@
       
         
       
-        
-      
     
     
     
@@ -1987,29 +1985,6 @@
   
   <span class="md-ellipsis">
     complex
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="comms/simple_grid.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    grid
     
   </span>
   
@@ -2797,6 +2772,28 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
     
     
     
@@ -3463,6 +3460,259 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/brain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    brain
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    data
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/internal_damage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    internal_damage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    media
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/mission/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    mission
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/popup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    popup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/prefab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    prefab
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/quest/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    quest
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    settings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/torpedoes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    torpedoes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/upgrades/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    upgrades
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3816,7 +4066,7 @@
         <li class="md-nav__item">
   <a href="#5-mission-settings" class="md-nav__link">
     <span class="md-ellipsis">
-      5. MIssion Settings
+      5. Mission Settings
     </span>
   </a>
   
@@ -3975,6 +4225,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#14-handle-game-end" class="md-nav__link">
+    <span class="md-ellipsis">
+      14. Handle game end
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3998,21 +4257,23 @@
 <p>A tutorial describing how to write a simple mission that utilizes many of the tools MAST has to offer.</p>
 <h2 id="tutorial-goals">Tutorial Goals</h2>
 <h3 id="general-goals">General Goals</h3>
-<p>Upon completion of this tutorial, you will have learned to:
-1. <a href="#1-setting-up-your-first-mission">Create a new mission from a template</a>
-2. <a href="#2-whats-in-a-name">Update the name and description of your mission</a>
-3. <a href="#3-a-brief-overview-of-labels">Understand what a 'label' is in MAST</a>
-4. <a href="#4-spawning-player-ships">Spawn player ships</a>
-5. <a href="#5-mission-settings">Mission settings</a>
-6. <a href="#6-spawning-terrain">Spawn terrain</a>
-7. <a href="#7-spawning-enemies">Spawn enemies</a>
-8. <a href="#8-utilizing-roles">Utilize Roles</a>
-9. <a href="#9-science">Add science scans</a>
-10. <a href="#10-damage-and-destruction">Detect damage and destruction</a>
-11. <a href="#11-testing-our-mission">Testing the mission</a>
-12. <a href="#12-recurring-tasks">Recurring Tasks</a>
-13. [Build comms buttons]
-14. [Handle game end]</p>
+<p>Upon completion of this tutorial, you will have learned to:</p>
+<ol>
+<li><a href="#1-setting-up-your-first-mission">Create a new mission from a template</a></li>
+<li><a href="#2-whats-in-a-name">Update the name and description of your mission</a></li>
+<li><a href="#3-a-brief-overview-of-labels">Understand what a 'label' is in MAST</a></li>
+<li><a href="#4-spawning-player-ships">Spawn player ships</a></li>
+<li><a href="#5-mission-settings">Mission settings</a></li>
+<li><a href="#6-spawning-terrain">Spawn terrain</a></li>
+<li><a href="#7-spawning-enemies">Spawn enemies</a></li>
+<li><a href="#8-utilizing-roles">Utilize Roles</a></li>
+<li><a href="#9-science">Add science scans</a></li>
+<li><a href="#10-damage-and-destruction">Detect damage and destruction</a></li>
+<li><a href="#11-testing-our-mission">Testing the mission</a></li>
+<li><a href="#12-recurring-tasks">Recurring Tasks</a></li>
+<li><a href="#13-using-comms">Build comms buttons</a></li>
+<li>Handle game end <em>(coming soon)</em></li>
+</ol>
 <h3 id="specific-goals">Specific Goals</h3>
 <p>For this tutorial, we are writing a mission about finding and recovering a lost treasure.  </p>
 <ol>
@@ -4032,39 +4293,41 @@
 <p>The name of your mission is, of course, a pretty important part of the mission.<br />
 Fortunately, it's easy to set the name and description of the mission.<br />
 Name the mission folder to reflect the name you've chosen for your mission. We will be calling our mission "Treasure Hunt".<br />
-Now, open <code>description.txt</code> in your mission folder. There are at least three lines in this text file.
-You will see something like this:
-<div class="highlight"><pre><span></span><code>Standard
-Mast Mission Template
-116 #F0D56E 
-147 #9da36c
+Now, open <code>description.yaml</code> in your mission folder. You will see something like this:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">format version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="nt">Category</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Standard</span>
+<span class="nt">Visible Mission Name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Mast Mission Template</span>
+<span class="nt">Description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">A short description of your mission.</span>
 </code></pre></div>
-The first line is the name of your mission, as it appears in the mission selection button.<br />
-The second line is the mission's description, as it appears in the mission selection button.<br />
-The third line and onwards describe icons that appear on the mission selection button.<br />
-The number at the start of the line is one of the icons from <code>grid_icon_sheet.png</code>, located in the <code>/data/graphics/</code> folder of the artemis cosmos directory. From left to right, top to bottom, the icon's number increments from 1 onwards. 
-The second set of seemingly random characters is a hexidecimal color code. You can find hex codes online easily.</p>
-<p>Once you've changed these to fit what you want, we can close <code>description.txt</code> and open <code>story.mast</code> instead:
+<ul>
+<li><strong>Category</strong> is used to group missions in the browser.</li>
+<li><strong>Visible Mission Name</strong> is the mission name shown on the selection button.</li>
+<li><strong>Description</strong> is the mission description shown on the selection button.</li>
+</ul>
+<blockquote>
+<p>Note: Older missions used <code>description.txt</code> (still supported). New missions should use <code>description.yaml</code>.</p>
+</blockquote>
+<p>Once you've changed these to fit what you want, close <code>description.yaml</code> and open <code>story.mast</code>:
 <div class="highlight"><pre><span></span><code><span class="c1"># Use for startup logic</span>
 <span class="nd">@map</span><span class="o">/</span><span class="n">first_map</span> <span class="s2">&quot;Hello Cosmos&quot;</span>
 <span class="s2">&quot; This is my first map.</span>
 </code></pre></div>
 <code>story.mast</code> is where the bulk of your mission will eventually go, but right now, we're only concerned with the line that starts with <code>@map</code>.<br />
 A line starting with <code>@map</code> defines a label, which we will get into more later. It tells the game that this is a mission, and what its name is.
-In our case we want to change the name of the map from "Hello Cosmos" to our chosen mission name - "Treasure Hunt". Note that this is displayed separately from the information in <code>description.txt</code>. The name and description in <code>information.txt</code> are displayed on the button to select the mission. The name and description shown in the UI after selecting the mission are defined here in <code>story.mast</code>.<br />
+In our case we want to change the name of the map from "Hello Cosmos" to our chosen mission name - "Treasure Hunt". Note that this is displayed separately from the information in <code>description.yaml</code>. The fields in <code>description.yaml</code> are displayed on the mission selection button. The name and description shown in the UI after selecting the mission are defined here in <code>story.mast</code>.<br />
 The <code>/first_map</code> part of the label is used internally by the MAST interpreter, but isn't relevant to us at the moment. You may choose to change this to whatever you want, but it cannot have spaces or special characters in it.<br />
 The line following the label definition is the label description:
 <div class="highlight"><pre><span></span><code><span class="s2">&quot; This is my first map.</span>
 </code></pre></div>
 This line, and any subsequent lines that begin with a double quote, comprise the description.
-For our example I am replace the existing description with this:
+For our example, replace the existing description with this:
 <div class="highlight"><pre><span></span><code><span class="s2">&quot; Find the treasure, if you can! Many have sought this long-lost piece of history.</span>
 <span class="s2">&quot; None have succeeded. Some say it is only a myth. But recent archaeological finds have</span>
 <span class="s2">&quot; given clues regarding the location of this mysterious artifact.</span>
 </code></pre></div>
 Now if you open Cosmos and select the Treasure Hunt mission, you will see the mission title and description.  </p>
 <h2 id="3-a-brief-overview-of-labels">3. A brief overview of Labels</h2>
-<p>A label, at its most basic, is a <em>reusable</em> and <em>schedulable</em> section of code. A label is used by MAST to create at task, and that task can be scheduled to run at a particular time, under specific conditions, and more than once, if desired. This gives mission writers a great deal of flexibility.  </p>
+<p>A label, at its most basic, is a <em>reusable</em> and <em>schedulable</em> section of code. A label is used by MAST to create a task, and that task can be scheduled to run at a particular time, under specific conditions, and more than once, if desired. This gives mission writers a great deal of flexibility.  </p>
 <h3 id="label-types">Label Types</h3>
 <p>There are multiple kinds of labels:<br />
 <em> Media Labels<br />
@@ -4092,8 +4355,8 @@ All of the following are valid label definitions, with the same name:
 ===               Hello_Cosmos                 ==========
 </code></pre></div>
 Though do note that labels must have unique names, so if you tried to include the above exactly, it would cause errors. <br />
-Sublabels have the same rules, but use a minus sign:
-<div class="highlight"><pre><span></span><code>---- some_sublabel
+Sublabels have the same rules, but use dashes instead of equals signs:
+<div class="highlight"><pre><span></span><code>--- some_sublabel
 </code></pre></div>
 The second line in our label example above you will recognize from the map labels - it is a description of the label. This is mostly used for documentation purposes, so that you (and any mission writer who might be trying to learn from your mission) can more easily follow the intent and use of the label.<br />
 The third line and onwards defines the metadata associated with this label. Within the set of triple backticks, you can define keys, and set the default value for that key. This is very useful, because when you schedule a task, you can include different values for each key. This allows a label to not only run multiple times, but use different information while doing so.
@@ -4110,35 +4373,35 @@ Let's start with <code>task_schedule(spawn_players)</code>. <code>task_schedule(
 That's a couple of great questions. First, let's take a brief detour and open <code>story.json</code> in your mission folder. You'll see something like this:
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;sbslib&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">        </span><span class="s2">&quot;artemis-sbs.sbs_utils.v1.0.4.sbslib&quot;</span>
+<span class="w">        </span><span class="s2">&quot;artemis-sbs.sbs_utils.v1.3.0.sbslib&quot;</span>
 <span class="w">    </span><span class="p">],</span>
 <span class="w">    </span><span class="nt">&quot;mastlib&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.autoplay.v1.0.4.mastlib&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.ai.v1.0.4.mastlib&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.commerce.v1.0.4.mastlib&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.comms.v1.0.4.mastlib&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.consoles.v1.0.4.mastlib&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.damage.v1.0.4.mastlib&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.docking.v1.0.4.mastlib&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.fleets.v1.0.4.mastlib&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.grid_comms.v1.0.4.mastlib&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.hangar.v1.0.4.mastlib&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.internal_comms.v1.0.4.mastlib&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.operator.v1.0.4.mastlib&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.science_scans.v1.0.4.mastlib&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.side_missions.v1.0.4.mastlib&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.upgrades.v1.0.4.mastlib&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.zadmiral.v1.0.4.mastlib&quot;</span>
+<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.autoplay.v1.3.0.mastlib&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.ai.v1.3.0.mastlib&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.commerce.v1.3.0.mastlib&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.comms.v1.3.0.mastlib&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.consoles.v1.3.0.mastlib&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.damage.v1.3.0.mastlib&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.docking.v1.3.0.mastlib&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.fleets.v1.3.0.mastlib&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.grid_comms.v1.3.0.mastlib&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.hangar.v1.3.0.mastlib&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.internal_comms.v1.3.0.mastlib&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.operator.v1.3.0.mastlib&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.science_scans.v1.3.0.mastlib&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.side_missions.v1.3.0.mastlib&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.upgrades.v1.3.0.mastlib&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;artemis-sbs.LegendaryMissions.zadmiral.v1.3.0.mastlib&quot;</span>
 <span class="w">    </span><span class="p">]</span>
 <span class="p">}</span>
 </code></pre></div>
 The sbslib file listed is the groundwork of MAST and is required for any mission. It's loaded with functions for you to use.
-The mastlib files, on the other hand, are entire optional. They contain, in this example, all of the contents of the LegendaryMissions mission folder, and are referred to as "addons". You can remove any of them, but until you've learned more about mission writing you should not. These files contain all the information about the different consoles, enemy and friendly AI, upgrades, and more, and as such they comprise the core of the default Cosmos gameplay experience. However, these are made up of MAST files, including labels that can be utilized by us, as mission writers.<br />
+The mastlib files are entirely optional addons. They contain content from the LegendaryMissions addon library — consoles, AI behaviors, upgrades, docking logic, comms menus, and more. For a standard multi-player mission you'll want at minimum: <code>fleets</code>, <code>docking</code>, <code>prefabs</code>, <code>comms</code>, <code>consoles</code>, and <code>damage</code>. Others like <code>commerce</code>, <code>autoplay</code>, <code>operator</code>, <code>gamemaster</code>, and <code>gamemaster_comms</code> can be removed if your mission doesn't use them. These are made up of MAST files whose labels are directly available to your mission script.<br />
 If you open the <code>/Cosmos_Install/data/missions/__lib__/</code> folder, you'll see these .sbslib and .mastlib files. You can copy and rename them to .zip and unzip them to view their contents, or you can go to the <a href="https://github.com/artemis-sbs/LegendaryMissions">github page</a>.
 The <code>spawn_players</code> label is defined in <a href="https://github.com/artemis-sbs/LegendaryMissions/blob/main/fleets/map_common.mast">LegendaryMissions/fleets/map_common.mast</a>, if you want to take a look at it.  </p>
 <p>There's another way to find all these functions, though: if you use <a href="https://code.visualstudio.com/">VSCode</a> (which I recommend), there's an extension called <a href="https://marketplace.visualstudio.com/items?itemName=astrolamb.mast">MAST</a> that is built for us mission writers. It has loads of features that you'll find useful.  </p>
 <p>But let's get back to our own mission. We've looked at task_schedule(spawn_players), but there's another part of this line that's important. The line begins with <code>await</code>. <code>await</code> tells MAST to pause the current task (our mission) until the completion of the <code>spawn_players</code> task. Without using <code>await</code>, the new task would run concurrently with our mission's current task. We want to make sure that the player ships have spawned before we continue with our task, and <code>await</code> does this quite handily.</p>
-<h2 id="5-mission-settings">5. MIssion Settings</h2>
+<h2 id="5-mission-settings">5. Mission Settings</h2>
 <p>While we're on the topic of player ships, you may have noticed that Legendary Missions have various settings, including a setting for the number of player ships. You have probably wondered how you can add these settings to your mission. Let's dive in!<br />
 Let's look at the beginning of the Double Front mission. In the metadata for the map label, we have the following:
 <div class="highlight"><pre><span></span><code><span class="nt">Properties</span><span class="p">:</span>
@@ -4183,19 +4446,19 @@ This applies to nebulae and black holes as well, using the applicable functions.
 <h2 id="7-spawning-enemies">7. Spawning Enemies</h2>
 <p>It wouldn't be an Artemis mission without its core gameplay: combat! We need to add some enemies to our map. Similar to terrain, there's a host of ways to spawn enemies. We'll look at two options for now, and other tutorials will go into more detail on the rest.<br />
 First, we'll look at the <code>npc_spawn()</code> function. This can be used to spawn any npc, be it an enemy, a friendly, or a neutral.
-<code>npc_spawn</code> takes several arguments:
-<div class="highlight"><pre><span></span><code><span class="n">npc_spawn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">z</span><span class="p">,</span><span class="n">name</span><span class="p">,</span><span class="n">side</span><span class="p">,</span><span class="n">art_id</span><span class="p">,</span><span class="n">behave_id</span><span class="p">)</span>
+<code>npc_spawn</code> takes these arguments:
+<div class="highlight"><pre><span></span><code><span class="n">npc_spawn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">side_csv</span><span class="p">,</span> <span class="n">art_id</span><span class="p">,</span> <span class="n">behave_id</span><span class="p">)</span>
 </code></pre></div>
-<code>x</code>, <code>y</code>, and <code>z</code> are the coordinates at which it should spawn.<br />
-<code>name</code> is the name of the ship that is displayed on the UI, e.g. "Artemis" or "D51".
-<code>side</code> is, as indicated, the side the ship belongs to, such as "tsn" or "kralien". However, it is slightly more complicated than that, but we'll dig into this more in the next section.
-<code>art_id</code> is used to determine what 3D model, texture, etc., that should apply to the ship. These can be found in shipData.json, and for any given ship, this is the <code>artfileroot</code> value.
-Finally, <code>behave_id</code> tells Cosmos how to handle the ship. Don't worry too much about this, 
+<code>x</code>, <code>y</code>, and <code>z</code> are the spawn coordinates.<br />
+<code>name</code> is the display name shown in the UI, e.g. <code>"Artemis"</code> or <code>"D51"</code>.<br />
+<code>side_csv</code> is a comma-separated list of roles — the <strong>first role is treated as the side</strong> (e.g. <code>"tsn"</code>, <code>"torgoth"</code>). Additional roles can be stacked here too, e.g. <code>"tsn, station"</code>.<br />
+<code>art_id</code> determines the 3D model and texture. Valid values are the <code>artfileroot</code> fields in <code>shipData.json</code>.<br />
+<code>behave_id</code> controls default NPC behavior. Use <code>"behav_npcship"</code> for ships or <code>"behav_station"</code> for stations.<br />
 As an example:
-<div class="highlight"><pre><span></span><code><span class="n">npc_spawn</span><span class="p">(</span><span class="mi">300</span><span class="p">,</span><span class="mi">800</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="s2">&quot;Ravager of Worlds&quot;</span><span class="p">,</span><span class="s2">&quot;Torgoth_Leviathan&quot;</span><span class="p">,</span><span class="s2">&quot;behav_npc&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="n">npc_spawn</span><span class="p">(</span><span class="mi">300</span><span class="p">,</span> <span class="mi">800</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Ravager of Worlds&quot;</span><span class="p">,</span> <span class="s2">&quot;torgoth&quot;</span><span class="p">,</span> <span class="s2">&quot;torgoth_leviathan&quot;</span><span class="p">,</span> <span class="s2">&quot;behav_npcship&quot;</span><span class="p">)</span>
 </code></pre></div>
 Using <code>npc_spawn()</code> is great for spawning a single ship, especially if it has a particular name and art, or a particular purpose in your story. But if you want to spawn, say, a generic Kralien fleet, it would be a hassle to spawn each ship using <code>npc_spawn()</code>.  </p>
-<p>Instead, MAST has a 'prefab' system. A prefab is actually just a label, but to use a prefab, we call the <code>spawn_prefab()</code> function. Legendary Missions includes several prefabs (and it is likely that more will be added over time), and it has one specifically for enemy fleets (though it isn't limited to spawning enemy enemies) called <code>prefab_fleet_raider</code>. I hope at this point you have intuited how to use this function:
+<p>Instead, MAST has a 'prefab' system. A prefab is just a label with metadata describing its configuration. To use a prefab, we call the <code>prefab_spawn()</code> function. LegendaryMissions includes several prefabs, including one specifically for enemy fleets called <code>prefab_fleet_raider</code>. Using it is straightforward:
 <div class="highlight"><pre><span></span><code><span class="n">prefab_spawn</span><span class="p">(</span><span class="n">prefab_fleet_raider</span><span class="p">)</span>
 </code></pre></div>
 But I can hear you wondering "How is this useful? I can't choose where to put the fleet." It is now time to expand upon the use of labels. Remember how labels can have metadata associated with the label? Whenever you run a label, you can include data to pass to the task. In this case, <code>prefab_spawn()</code> has a second argument where you can put that data.
@@ -4210,8 +4473,8 @@ Let's look at the metadata for <code>spawn_fleet_raider</code>:
 <p>The metadata keys <code>type</code>, <code>race</code>, <code>ship_roles</code>, <code>fleet_roles</code>, <code>fleet_difficulty</code>, and <code>bran</code> can all be customized. I've left out the contents of <code>brain</code> for brevity, and because AI brains are beyond the scope of this tutorial. What isn't obvious here is that the variables <code>START_X</code>, <code>START_Y</code>, and <code>START_Z</code> can be set for any label, even if it's not relevant. So how do we use this. Let's say we don't need to change any of the values in the metadata except for <code>fleet_difficulty</code> and the position coordinates.
 <div class="highlight"><pre><span></span><code><span class="n">prefab_spawn</span><span class="p">(</span><span class="n">prefab_fleet_raider</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;fleet_difficulty&quot;</span><span class="p">:</span> <span class="n">DIFFICULTY</span><span class="p">,</span> <span class="s2">&quot;START_X&quot;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span> <span class="s2">&quot;START_Y&quot;</span><span class="p">:</span> <span class="mi">20000</span><span class="p">,</span> <span class="s2">&quot;START_Z&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">100</span><span class="p">})</span>
 </code></pre></div>
-Pretty paiinless, if you ask me. And did you catch how we used the <code>DIFFICULTY</code> setting? This can be used for other labels as well, and makes the use of labels very flexible.
-Note that the data is effectivley a python <a href="https://www.w3schools.com/python/python_dictionaries.asp">Dictionary</a>, if you want to dig into those more. You might also be wondering more about fleets, how they work, and how they cam be further customized with composition and AI, but again, those topics are beyond the scope of this tutorial.</p>
+Pretty painless, if you ask me. And did you catch how we used the <code>DIFFICULTY</code> setting? This can be used for other labels as well, and makes labels very flexible.
+Note that the data argument is effectively a Python <a href="https://www.w3schools.com/python/python_dictionaries.asp">Dictionary</a>, if you want to dig into those more. Fleets, their AI, and further customization are topics beyond the scope of this tutorial.</p>
 <h2 id="8-utilizing-roles">8. Utilizing Roles</h2>
 <p>In the metadata section above, there were two keys <code>ship_roles</code> and <code>fleet_roles</code>. The Role system in Cosmos is a powerful and integral part of MAST, and its definitely worth discussing roles in some detail here.<br />
 Every object in the game has roles associated with it, and they can have any number of roles. Some of the default roles are listed in shipData.json. Remember how I said we'd discuss the <code>side</code> argument in <code>npc_spawn()</code>? Well, it turns out that the side of an object is also a role, but an object can only have one side, as opposed to unlimited roles, and sides determine what shows up in the game as friendly vs enemy vs neutral.<br />
@@ -4237,7 +4500,7 @@ And now that we have an asteroid to contain the treasure, we can make it special
 </code></pre></div></p>
 <p>Now let's use our newfound knowledge of roles to do....</p>
 <h2 id="9-science">9. Science!</h2>
-<p>In out tutorial mission, we want our players to be able to find the right asteroid. To do that, the asteroid will have special scan text, so the science officer will need to scan all asteroids until the treasure is found.
+<p>In our tutorial mission, we want our players to be able to find the right asteroid. To do that, the asteroid will have special scan text, so the science officer will need to scan all asteroids until the treasure is found.
 First, we need to tell MAST that science should be enabled for objects that meet certain criteria. In our case, the criteria is an object with the "treasure" role:
 <div class="highlight"><pre><span></span><code><span class="o">//</span><span class="n">enable</span><span class="o">/</span><span class="n">science</span> <span class="k">if</span> <span class="n">has_role</span><span class="p">(</span><span class="n">SCIENCE_SELECTED_ID</span><span class="p">,</span> <span class="s2">&quot;treasure&quot;</span><span class="p">)</span>
 </code></pre></div>
@@ -4245,7 +4508,7 @@ This is a route label or a route, and all routes share this format. You'll note 
 We have another important step before we begin adding science scans:
 <div class="highlight"><pre><span></span><code><span class="o">//</span><span class="n">science</span> <span class="k">if</span> <span class="n">has_role</span><span class="p">(</span><span class="n">SCIENCE_SELECTED_ID</span><span class="p">,</span> <span class="s2">&quot;treasure&quot;</span><span class="p">)</span>
 </code></pre></div>
-The <code>//enable/science</code> route is necessary whenever we need to use a <code>//science</code> route. We don't need to know how or why it works in any detail (and I honestly don't understand nhow it works myself), but just know that it is very important to include.
+The <code>//enable/science</code> route is necessary whenever we need to use a <code>//science</code> route. We don't need to know how or why it works in any detail, but just know that it is very important to include.
 Now, on the scan text area of the science console, there are some buttons: "scan", "status", or "info", for example. Buttons are easily added to scan info using the plus sign, followed by the name in quotes:
 <div class="highlight"><pre><span></span><code>    <span class="o">+</span> <span class="s2">&quot;scan&quot;</span>
     <span class="o">+</span> <span class="s2">&quot;status&quot;</span>
@@ -4268,7 +4531,7 @@ I'm going to add this as well, to guide the players towards shooting the asteroi
         <span class="o">&lt;</span><span class="n">scan</span><span class="o">&gt;</span> <span class="c1"># Give a hint as to how to access the treasure</span>
             <span class="o">%</span> <span class="n">The</span> <span class="n">asteroid</span> <span class="n">has</span> <span class="n">a</span> <span class="n">dense</span> <span class="n">core</span><span class="p">,</span> <span class="n">surrounded</span> <span class="n">by</span> <span class="n">large</span> <span class="n">quantities</span> <span class="n">of</span> <span class="n">normal</span> <span class="n">asteroid</span> <span class="n">material</span><span class="o">.</span> <span class="n">Maybe</span> <span class="n">we</span> <span class="n">can</span> <span class="n">blast</span> <span class="n">some</span> <span class="n">of</span> <span class="n">it</span> <span class="n">away</span><span class="o">...</span>
 </code></pre></div>
-Go ahead and add at least one more button with some more scan information of your own. This is a good time to remind you, if you haven't noticed it out already, that python and MAST, use indentation to designate blocks of code. Note that the button, scan, and scan text sections are seqeuentially indented. All of these scan buttons should have the same indentation.</p>
+Go ahead and add at least one more button with some more scan information of your own. This is a good time to remind you, if you haven't noticed it out already, that python and MAST, use indentation to designate blocks of code. Note that the button, scan, and scan text sections are sequentially indented. All of these scan buttons should have the same indentation.</p>
 <h2 id="10-damage-and-destruction">10. Damage and Destruction</h2>
 <p>In the last section, we learned about route labels. Remember how I said that routes run whenever the conditions are met? Well, there's routes for damage - several, in fact. Here's the list of damage routes:
 <div class="highlight"><pre><span></span><code><span class="c1"># When an object takes damage and is destroyed</span>
@@ -4283,7 +4546,7 @@ Go ahead and add at least one more button with some more scan information of you
 <span class="o">//</span><span class="n">damage</span><span class="o">/</span><span class="nb">object</span>
 </code></pre></div>
 We want the players for our mission to shoot at the asteroid, and to detect when that happens, we'll use the <code>//damage/object</code> route. Once it's been hit, we're going to get rid of the asteroid and replace it with the treasure.
-<div class="highlight"><pre><span></span><code><span class="o">//</span><span class="n">damage</span><span class="o">/</span><span class="nb">object</span> <span class="k">if</span> <span class="n">has_role</span><span class="p">(</span><span class="n">DAMAGE_SELECTED_ID</span><span class="p">,</span> <span class="s2">&quot;treasure&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="o">//</span><span class="n">damage</span><span class="o">/</span><span class="nb">object</span> <span class="k">if</span> <span class="n">has_role</span><span class="p">(</span><span class="n">DAMAGE_TARGET_ID</span><span class="p">,</span> <span class="s2">&quot;treasure&quot;</span><span class="p">)</span>
     <span class="n">sbs</span><span class="o">.</span><span class="n">delete_object</span><span class="p">(</span><span class="n">DAMAGE_TARGET_ID</span><span class="p">)</span>
 </code></pre></div>
 This is the first time we've encountered a function that is part of a <a href="https://www.w3schools.com/python/python_modules.asp">module</a>. The <code>sbs</code> module is a set of functions that are directly mapped to C++ functions in the Cosmos game engine. There are a bunch of modules that are built into python and are available for us to use, such as <code>math</code> and <code>random</code>. There's also a few MAST-specific ones, such as <a href="https://github.com/artemis-sbs/sbs_utils/blob/master/sbs_utils/faces.py"><code>faces</code></a> and <a href="https://github.com/artemis-sbs/sbs_utils/blob/master/sbs_utils/scatter.py"><code>scatter</code></a>.<br />
@@ -4292,9 +4555,9 @@ We can use the <code>pickup_spawn()</code> function:
 <div class="highlight"><pre><span></span><code><span class="n">pickup_spawn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="s2">&quot;tauron_focuser&quot;</span><span class="p">)</span>
 </code></pre></div>
 But wait, how do we know what coordinates to use? Let's go back to right before we delete the asteroid and get its position:
-<div class="highlight"><pre><span></span><code><span class="o">//</span><span class="n">damage</span><span class="o">/</span><span class="nb">object</span> <span class="k">if</span> <span class="n">has_role</span><span class="p">(</span><span class="n">DAMAGE_SELECTED_ID</span><span class="p">,</span> <span class="s2">&quot;treasure&quot;</span><span class="p">)</span>
-    <span class="n">pos</span> <span class="o">=</span> <span class="n">get_pos</span><span class="p">(</span><span class="n">DAMAGE_SELECTED_ID</span><span class="p">)</span>  <span class="c1"># This line gets the position of an object.</span>
-    <span class="n">sbs</span><span class="o">.</span><span class="n">delete_object</span><span class="p">(</span><span class="n">DAMAGE_SELECTED_ID</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="o">//</span><span class="n">damage</span><span class="o">/</span><span class="nb">object</span> <span class="k">if</span> <span class="n">has_role</span><span class="p">(</span><span class="n">DAMAGE_TARGET_ID</span><span class="p">,</span> <span class="s2">&quot;treasure&quot;</span><span class="p">)</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">get_pos</span><span class="p">(</span><span class="n">DAMAGE_TARGET_ID</span><span class="p">)</span>  <span class="c1"># This line gets the position of an object.</span>
+    <span class="n">sbs</span><span class="o">.</span><span class="n">delete_object</span><span class="p">(</span><span class="n">DAMAGE_TARGET_ID</span><span class="p">)</span>
     <span class="n">pickup_spawn</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">pos</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">pos</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="s2">&quot;tauron_focuser&quot;</span><span class="p">)</span>
 </code></pre></div></p>
 <h2 id="11-testing-our-mission">11. Testing our mission</h2>
@@ -4320,14 +4583,13 @@ Note that if we use <code>terrain_asteroid_clusters()</code>, this is not an iss
 If debugging code for a particular client, you can use an id other than 0, but that's a bit more advanced than we need to get into today.  </p>
 <p>If you're not feeling adventurous about bugfixes yet, you can <a href="#back-to-mission-writing">skip</a> this next section for now.  </p>
 <h3 id="for-the-adventurous">For the adventurous</h3>
-<p>If you open <a href="https://github.com/artemis-sbs/LegendaryMissions/blob/main/commerce/resource_gather.py">resource_gather.py</a>, and compare with the error message, you'll see that line 31 is where the issue lies. It's actually pretty simple - the value of <code>x</code> is <code>None</code>. If we look up a few lines earlier, we see <code>x = blob.get("local_scale_x_coeff",0)</code>. Blob data can be useful in many situations, but now isn't the time to go into it too much. Basically, the commerce module expects that the blob information contains the "local_scale_x_coeff" value. But since it's returning <code>None</code>, the value hasn't been set. <code>terrain_asteroid_clusters()</code> does this, but <code>terrain_spawn()</code> does not. We just need to set the local scale coefficients for our asteroid:
-<div class="highlight"><pre><span></span><code><span class="n">blob</span> <span class="o">=</span> <span class="n">to_blob</span><span class="p">(</span><span class="n">treasure</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
-<span class="n">blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;local_scale_x_coeff&quot;</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
-<span class="n">blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;local_scale_y_coeff&quot;</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
-<span class="n">blob</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;local_scale_z_coeff&quot;</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+<p>If you open <a href="https://github.com/artemis-sbs/LegendaryMissions/blob/main/commerce/resource_gather.py">resource_gather.py</a>, and compare with the error message, you'll see that line 31 is where the issue lies. The value of <code>x</code> is <code>None</code>. A few lines earlier: <code>x = blob.get("local_scale_x_coeff",0)</code>. The commerce module expects the <code>data_set</code> to contain <code>local_scale_x_coeff</code>, but since it's returning <code>None</code>, the value hasn't been set. <code>terrain_asteroid_clusters()</code> sets this automatically, but <code>terrain_spawn()</code> does not. We just need to set the local scale coefficients ourselves:
+<div class="highlight"><pre><span></span><code><span class="n">treasure</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;local_scale_x_coeff&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">treasure</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;local_scale_y_coeff&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">treasure</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;local_scale_z_coeff&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 </code></pre></div></p>
 <h3 id="back-to-mission-writing">Back to mission writing!</h3>
-<p>Okay, now it's working great. But of our several objectives for this mission, the fourth is this: "They will need to collect the treasure by giving instructions to a specialist team retrieve it." Upgrades can be collected just by flying the ship near them, so that won't do.Let's turn to the <code>npc_spawn()</code> function again. We used this function before to create the asteroid we're using for testing.
+<p>Okay, now it's working great. But of our several objectives for this mission, the fourth is this: "They will need to collect the treasure by giving instructions to a specialist team to retrieve it." Upgrades can be collected just by flying the ship near them, so that won't do. Let's spawn a container object at the treasure location instead, using <code>terrain_spawn()</code>.
 <div class="highlight"><pre><span></span><code><span class="c1"># Instead of</span>
 <span class="n">pickup_spawn</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">pos</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">pos</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="s2">&quot;tauron_focuser&quot;</span><span class="p">)</span>
 <span class="c1"># Let&#39;s use</span>
@@ -4362,7 +4624,7 @@ To determine the location of the players, you'll need to know that the role for 
 <div class="highlight"><pre><span></span><code><span class="n">pos</span> <span class="o">=</span> <span class="n">get_pos</span><span class="p">(</span><span class="n">ship</span><span class="p">)</span>
 <span class="n">points</span> <span class="o">=</span> <span class="n">scatter_arc</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">pos</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">pos</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">pos</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="mi">15000</span><span class="p">,</span> <span class="mi">280</span><span class="p">,</span> <span class="mi">320</span><span class="p">)</span>
 </code></pre></div>
-The various scatter functions return a number of locations, specified by the first arguemnt. In this case, we only want one spawn location. The last two arguments here are the start and end of the arc, in degrees, and it will choose a random location between this arc.<br />
+The various scatter functions return a number of locations, specified by the first argument. In this case, we only want one spawn location. The last two arguments here are the start and end of the arc, in degrees, and it will choose a random location between this arc.<br />
 We can now spawn our enemies. We've learned a couple different ways to do this, but for now we'll stick with using the existing <code>prefab_fleet_raider</code> prefab. This is only slightly more complicated because we used a scatter function:
 <div class="highlight"><pre><span></span><code><span class="k">for</span> <span class="n">point</span> <span class="ow">in</span> <span class="n">points</span><span class="p">:</span>
     <span class="n">prefab_spawn</span><span class="p">(</span><span class="n">prefab_fleet_raider</span><span class="p">,{</span><span class="s2">&quot;START_X&quot;</span><span class="p">:</span><span class="n">point</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="s2">&quot;START_Y&quot;</span><span class="p">:</span> <span class="n">point</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="s2">&quot;START_Z&quot;</span><span class="p">:</span> <span class="n">point</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="s2">&quot;fleet_difficulty&quot;</span><span class="p">:</span> <span class="n">DIFFICULTY</span><span class="p">})</span>
@@ -4393,7 +4655,12 @@ I'm sure you've also seen that we're using the <code>jump</code> keyword instead
 <h2 id="13-using-comms">13. Using comms</h2>
 <p>We now need to learn how to interact with our specialists, who will collect and analyze the treasure. To do this, we need to learn about comms buttons and lifeforms.  </p>
 <h3 id="lifeforms">Lifeforms</h3>
-<p>Lifeforms are a pretty flexible way to handle communication with an NPC character. They are tied to a host space object, like a ship or station, and comms can communicate with specific lifeforms by selecting the ship/station/etc that the desired lifeform is on.</p>
+<p>Lifeforms are a flexible way to handle communication with an NPC character. They are tied to a host space object — a ship, station, or other entity — and the comms officer selects that object to open a comms channel with the lifeform.</p>
+<blockquote>
+<p><strong>Coming soon:</strong> This section is still being written. For now, see the <a href="comms/simple_comms/">Simple Comms</a> tutorial for a working example of comms routes and dialogue buttons.</p>
+</blockquote>
+<h2 id="14-handle-game-end">14. Handle game end</h2>
+<p><em>(coming soon)</em></p>
 
 
 

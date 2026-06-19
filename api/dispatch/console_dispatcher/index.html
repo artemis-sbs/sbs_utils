@@ -983,7 +983,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/prefabs.md" class="md-nav__link">
+      <a href="../../../mast/prefabs/" class="md-nav__link">
         
   
   
@@ -1893,8 +1893,6 @@
       
         
       
-        
-      
     
     
     
@@ -1976,29 +1974,6 @@
   
   <span class="md-ellipsis">
     complex
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../tutorial/comms/simple_grid.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    grid
     
   </span>
   
@@ -2788,6 +2763,28 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
     
     
     
@@ -3457,6 +3454,259 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/brain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    brain
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    data
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/internal_damage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    internal_damage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    media
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/mission/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    mission
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/popup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    popup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/prefab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    prefab
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/quest/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    quest
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    settings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/torpedoes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    torpedoes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/upgrades/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    upgrades
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3809,8 +4059,8 @@
 <h2 id="sbs_utils-console-system">sbs_utils console system</h2>
 <p>The ConsoleDispatcher is intended receive these and route them to callback functions.
 This can further be used to direct these to classes that represent the ships enabling the handling of this code to be handled in context of the ship(s) involved.</p>
-<p>The HandleConsoleObjectSelection should call <img alt="🇵🇾" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@14.1.2/assets/svg/1f1f5-1f1fe.svg" title=":py:" />meth:<code>~sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_select</code>
-The HandleCommsButton should call <img alt="🇵🇾" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@14.1.2/assets/svg/1f1f5-1f1fe.svg" title=":py:" />meth:<code>~sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_comms_message</code></p>
+<p>The HandleConsoleObjectSelection should call <code>dispatch_select</code>
+The HandleCommsButton should call <code>dispatch_comms_message</code></p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:1"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Python</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block"></div>
@@ -3828,11 +4078,11 @@ def HandleCommsButton(sim, button_tag, ship_id, obj_selected_id):
 # no longer need to implement handlers in script.py
 </code></pre></div></p>
 <h1 id="example-adding-comms-to-a-class">Example: Adding Comms to a class</h1>
-<p>The best way to use the ConsoleDispatcher is to add comms to a <img alt="🇵🇾" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@14.1.2/assets/svg/1f1f5-1f1fe.svg" title=":py:" />class:<code>~sbs_utils.spaceobject.SpaceObject</code> using the <img alt="🇵🇾" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@14.1.2/assets/svg/1f1f5-1f1fe.svg" title=":py:" />class:<code>~sbs_utils.consoledispatcher.ConsoleDispatcher</code> and <img alt="🇵🇾" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@14.1.2/assets/svg/1f1f5-1f1fe.svg" title=":py:" />class:<code>~sbs_utils.consoledispatcher.MCommunications</code> mixin class.
-and provide an implementation of  <img alt="🇵🇾" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@14.1.2/assets/svg/1f1f5-1f1fe.svg" title=":py:" />meth:<code>~sbs_utils.consoledispatcher.MCommunications.comms_selected</code> and <img alt="🇵🇾" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@14.1.2/assets/svg/1f1f5-1f1fe.svg" title=":py:" />meth:<code>~sbs_utils.consoledispatcher.MCommunications.comms_message</code> methods.</p>
-<p>To enable comms call <img alt="🇵🇾" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@14.1.2/assets/svg/1f1f5-1f1fe.svg" title=":py:" />meth:<code>~sbs_utils.consoledispatcher.MCommunications.enable_comms</code>. This should be called after the SpaceObject has spawned and has an id.</p>
-<p><img alt="🇵🇾" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@14.1.2/assets/svg/1f1f5-1f1fe.svg" title=":py:" />meth:<code>~sbs_utils.consoledispatcher.MCommunications.enable_comms</code> takes a face description and it will set self.face_desc. </p>
-<p>You can use :doc:<code>faces</code> to get some face descriptions.</p>
+<p>The best way to use the ConsoleDispatcher is to add comms to a <code>SpaceObject</code> using the <code>ConsoleDispatcher</code> and <code>MCommunications</code> mixin class.
+and provide an implementation of  <code>comms_selected</code> and <code>comms_message</code> methods.</p>
+<p>To enable comms call <code>enable_comms</code>. This should be called after the SpaceObject has spawned and has an id.</p>
+<p><code>enable_comms</code> takes a face description and it will set self.face_desc. </p>
+<p>You can use <a href="../../utility/faces/">faces</a> to get some face descriptions.</p>
 <p>This can be done on a non-player ship and a PlayerShip. The system will send the proper information.</p>
 <p>For a non-player ship the player id is sent.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="2:1"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Python</label></div>
@@ -3956,8 +4206,8 @@ The message is the button_tag.</p>
 </code></pre></div>
 <h2 id="non-class-console-handling">non class console handling</h2>
 <p>MCommunications is useful for any class. However, if their is another way desired to handle console messages.</p>
-<p><img alt="🇵🇾" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@14.1.2/assets/svg/1f1f5-1f1fe.svg" title=":py:" />meth:<code>~sbs_utils.consoledispatcher.ConsoleDispatcher.add_select</code> adds any callback to the console dispatcher system for handling selection.</p>
-<p><img alt="🇵🇾" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@14.1.2/assets/svg/1f1f5-1f1fe.svg" title=":py:" />meth:<code>~sbs_utils.consoledispatcher.ConsoleDispatcher.add_message</code> adds any callback to the console dispatcher system for handling messages.</p>
+<p><code>add_select</code> adds any callback to the console dispatcher system for handling selection.</p>
+<p><code>add_message</code> adds any callback to the console dispatcher system for handling messages.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="7:1"><input checked="checked" id="__tabbed_7_1" name="__tabbed_7" type="radio" /><div class="tabbed-labels"><label for="__tabbed_7_1">Python</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block"></div>
