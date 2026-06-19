@@ -139,6 +139,66 @@ test_set_exe_dir()
 
 ---
 
+## Development / Debugging (`cosmos_dev/`)
+
+`cosmos_dev/` is a **dev-only** package — it is never included in the `.sbslib` distributed to missions. It provides a full mission runner and browser-based GUI for debugging outside Cosmos.
+
+### Running a mission for debugging
+
+**VS Code** (`.vscode/launch.json` in the mission folder):
+```json
+{
+    "module": "cosmos_dev.mission_runner",
+    "envFile": ".env",
+    "args": [".", "--gui"]
+}
+```
+The `.env` file must have `PYTHONPATH=../sbs_utils` so Python can find `cosmos_dev`. Add `"subProcess": false` to prevent VS Code holding onto the spawned WebSocket server child process.
+
+**CLI via `sbs.pyz`:**
+```
+sbs debug .                        # GUI, map selection screen (story.mast)
+sbs debug . --map 0                # GUI, auto-start map at index 0
+sbs debug . --map SecretMeeting    # GUI, auto-start by name
+sbs debug . --no-gui --map 0       # headless
+```
+
+**Direct Python:**
+```
+python -m cosmos_dev.mission_runner <mission_path> --gui
+python -m cosmos_dev.mission_runner <mission_path> --map 0
+```
+
+### How it works
+
+- **`cosmos_dev/mock/sbs.py`** — in-process mock of the `sbs` Pybind11 API (no GUI); used by unit tests
+- **`cosmos_dev/mockgui/sbs.py`** — extends the mock with real GUI via WebSocket; spawns `server.py` in a child process
+- **`cosmos_dev/mockgui/server.py`** — stdlib-only WebSocket bridge; streams `send_gui_*` commands to `client.html`; puts browser events in a queue for the runner to consume
+- **`cosmos_dev/mockgui/client.html`** — browser renderer; open `http://localhost:8765/`
+- **`cosmos_dev/mission_runner.py`** — tick loop; drains browser event queues and fires `cosmos_event_handler`; auto-starts a map by index/name when `--map` is passed
+
+### Map auto-start
+
+When `--map` is given, `_try_auto_start_map()` polls `maps_get_list()` each tick until `@map/` labels are registered (story top-level code finishes), then calls `task_schedule_server(map_label, defer=True)`, sets `GAME_STARTED`, emits `game_started`, and calls `sbs.resume_sim()`. Without `--map`, the server GUI map-selection screen is shown.
+
+### Acting as the server in the browser
+
+The browser is always assigned `clientID >= 1`. To interact with the server GUI (`clientID=0` events), use the **"send as"** input in the browser topbar — set it to `0`. Also settable via URL: `http://localhost:8765/?id=0`.
+
+### GUI event field mapping (confirmed)
+
+All browser events arrive as `event.tag = "gui_message"`:
+
+| Widget | `sub_tag` | `value_tag` | `sub_float` |
+|---|---|---|---|
+| Button / Checkbox | widget tag | — | — |
+| Dropdown | widget tag | selected string | index |
+| Slider | widget tag | — | raw float |
+| Icon (`click_tag`) | click_tag string | — | — |
+| TextInput | widget tag | cumulative string | — |
+
+---
+
 ## Packaging
 
 - **`.sbslib`** — zip of the `sbs_utils` package; built with the external `sbs.pyz` utility
@@ -163,6 +223,13 @@ sbs_utils/
 ├── mock/           # sbs API mock for tests
 ├── yaml/           # Bundled pyyaml (no pip)
 └── typings/        # .pyi stubs (generated, not source)
+
+cosmos_dev/         # Dev-only tooling (NOT in .sbslib)
+├── mock/           # In-process sbs mock (no GUI) — used by unit tests
+└── mockgui/        # WebSocket GUI bridge
+    ├── sbs.py      # Extends mock with real send_gui_* → WebSocket
+    ├── server.py   # stdlib WebSocket server (no pip)
+    └── client.html # Browser renderer
 
 tests/              # Unit tests
 mkdocs/             # MkDocs documentation source

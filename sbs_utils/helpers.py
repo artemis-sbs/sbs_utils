@@ -173,6 +173,8 @@ class FakeEvent:
         self.selected_id = selected_id
         self.extra_extra_tag = ""
         self.source_point = Vec3()
+        self.sub_float = 0.0
+        self.event_time = 0
 
 def format_exception(message, source):
     error_type, error, tb = sys.exc_info()

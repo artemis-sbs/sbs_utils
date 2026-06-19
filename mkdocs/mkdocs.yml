@@ -49,6 +49,8 @@ nav:
 
     - Contributing:
       - home/contributing/index.md
+      - Debugging: home/contributing/debugging.md
+      - Testing: home/contributing/testing.md
 
   - Mast:
     - mast/index.md

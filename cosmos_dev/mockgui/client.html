@@ -23,6 +23,10 @@
   #status-text  { font-size:11px; color:var(--text-dim); }
   #cid-badge    { margin-left:auto; font-size:11px; color:var(--text-dim); }
   #msg-counter  { font-size:11px; color:var(--accent); }
+  #send-as-wrap { font-size:11px; color:var(--text-dim); }
+  #send-as-val  { width:3em; background:var(--surface); color:var(--text); border:1px solid var(--border);
+                  border-radius:3px; font-family:var(--font-ui); font-size:11px;
+                  padding:1px 4px; text-align:center; }
 
   #gui-root { flex:1; position:relative; overflow:hidden; }
   .gui-buffer { position:absolute; inset:0; }
@@ -101,6 +105,7 @@
   <span id="status-text">disconnected</span>
   <span id="msg-counter">msgs: <span id="msg-count">0</span></span>
   <span id="cid-badge">client #<span id="cid-val">—</span></span>
+  <span id="send-as-wrap" title="Events sent with this client ID — set to 0 to act as server">send as: <input id="send-as-val" type="number" min="0" value="0"></span>
 </div>
 
 <div id="gui-root">
@@ -114,6 +119,15 @@
 // ── Config ───────────────────────────────────────────────────────────────────
 const WS_URL = `ws://${location.host}/ws`;
 let CLIENT_ID = null;   // assigned by server on connect via "init" message
+
+// ?id=0 in URL pre-sets the "send as" input so events fire as client 0 (server)
+const _urlId = new URLSearchParams(location.search).get('id');
+if (_urlId !== null) document.getElementById('send-as-val').value = parseInt(_urlId, 10);
+
+function getEffectiveId() {
+  const v = parseInt(document.getElementById('send-as-val').value, 10);
+  return isNaN(v) ? (CLIENT_ID ?? 0) : v;
+}
 
 let msgCount = 0;
 
@@ -166,9 +180,10 @@ connect();
 
 // ── Event → server ────────────────────────────────────────────────────────────
 function sendEvent(type, tag, detail = {}) {
+  const eid = getEffectiveId();
   if (ws && ws.readyState === WebSocket.OPEN)
-    ws.send(JSON.stringify({ type, tag, clientID: CLIENT_ID, ...detail }));
-  log(`TX ${type} tag=${tag}`, 'ev');
+    ws.send(JSON.stringify({ type, tag, clientID: eid, ...detail }));
+  log(`TX ${type} tag=${tag} as=${eid}`, 'ev');
 }
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
@@ -185,7 +200,9 @@ function dispatch(msg) {
 function cmdInit(msg) {
   CLIENT_ID = msg.clientID;
   document.getElementById('cid-val').textContent = CLIENT_ID;
-  log(`  assigned clientID=${CLIENT_ID}`, 'ev');
+  // Only set send-as to assigned ID if the user hasn't set it via URL param or manually
+  if (_urlId === null) document.getElementById('send-as-val').value = CLIENT_ID;
+  log(`  assigned clientID=${CLIENT_ID}  sendAs=${getEffectiveId()}`, 'ev');
 }
 
 // ── Sub-region registry (root-canvas coords, rebuilt each frame) ─────────────

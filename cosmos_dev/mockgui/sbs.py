@@ -71,12 +71,7 @@ def start_server(host: str = "0.0.0.0", port: int = 8765) -> multiprocessing.Pro
     gui_event_queue    = multiprocessing.Queue()
     ready              = multiprocessing.Event()
 
-    import os
-    import importlib.util
-    _here = os.path.dirname(os.path.abspath(__file__))
-    spec = importlib.util.spec_from_file_location("cosmos_dev_server", os.path.join(_here, "server.py"))
-    server_mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(server_mod)
+    from cosmos_dev.mockgui import server as server_mod
 
     p = multiprocessing.Process(
         target=server_mod.run_server,

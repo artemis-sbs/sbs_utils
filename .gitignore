@@ -5,6 +5,7 @@
 *.sbslib
 /mkdocs/site/
 sbs_utils_dev.zip
+cosmos_dev/*.log
 
 # Allow
 !.vscode/tasks.json

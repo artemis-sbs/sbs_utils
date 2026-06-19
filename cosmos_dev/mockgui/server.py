@@ -244,8 +244,9 @@ async def _handle_websocket(client_id: int,
             if opcode == 1:     # text frame
                 text  = payload.decode('utf-8', errors='replace')
                 event = json.loads(text)
-                event["clientID"] = client_id
-                _log(f"[event]  client={client_id} {event}")
+                # Browser may send clientID=0 to act as server; respect it
+                event.setdefault("clientID", client_id)
+                _log(f"[event]  client={client_id} effective={event['clientID']} {event}")
                 _gui_event_queue.put(event)
     except (asyncio.IncompleteReadError, ConnectionResetError, BrokenPipeError):
         pass
