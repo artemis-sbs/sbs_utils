@@ -183,19 +183,28 @@ When `--map` is given, `_try_auto_start_map()` polls `maps_get_list()` each tick
 
 ### Acting as the server in the browser
 
-The browser is always assigned `clientID >= 1`. To interact with the server GUI (`clientID=0` events), use the **"send as"** input in the browser topbar — set it to `0`. Also settable via URL: `http://localhost:8765/?id=0`.
+The browser is always assigned `clientID >= 0x8080000000000001` (mock range). Real engine client IDs start at `0x8000000000000001`. `clientID=0` always means server. To interact with the server GUI (`clientID=0` events), use the **"send as"** input in the browser topbar — set it to `0`. Also settable via URL: `http://localhost:8765/?id=0`.
 
 ### GUI event field mapping (confirmed)
 
-All browser events arrive as `event.tag = "gui_message"`:
+All browser events arrive as `event.tag = "gui_message"`. Widget tags are **strings** (from `page.get_tag()` which returns `str(int)`).
+
+Browser event `type` values sent to the runner:
+- `"gui_message"` — pure click/activation (button, clickregion, iconbutton, rawiconbutton)
+- `"change"` — value-bearing change (checkbox `checked`, dropdown `value`, slider `value`, typein `value`)
+- `"submit"` — typein Enter key (same fields as `change`)
 
 | Widget | `sub_tag` | `value_tag` | `sub_float` |
 |---|---|---|---|
-| Button / Checkbox | widget tag | — | — |
-| Dropdown | widget tag | selected string | index |
-| Slider | widget tag | — | raw float |
+| Button / Checkbox | widget tag (string) | — | — |
+| Dropdown | widget tag (string) | selected string | index |
+| Slider | widget tag (string) | — | raw float |
 | Icon (`click_tag`) | click_tag string | — | — |
-| TextInput | widget tag | cumulative string | — |
+| TextInput | widget tag (string) | cumulative string | — |
+
+### In-place widget updates (`gui_represent`)
+
+The real engine allows `send_gui_*` with an existing tag to update that element without a full `clear`/`complete` cycle. The mockgui browser mirrors this: when a widget command arrives **outside** a `clear`→`complete` rebuild, `cmdWidget` finds the element by tag in the front buffer and replaces it in-place (preserving its computed position). This makes `gui_represent(widget)` work correctly in the mock.
 
 ---
 
