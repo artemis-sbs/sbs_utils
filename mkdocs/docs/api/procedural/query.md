@@ -20,9 +20,10 @@ The `is_*` functions test which ID category a value belongs to. This matters bec
 
 === ":mast-icon: {{ab.m}}"
     ```
-    id = to_id(closest_enemy)
-    obj = to_object(id)
-    if object_exists(id): target(SHIP_ID, id)
+    == check_target ==
+        enemy_id = to_id(closest_enemy)
+        obj = to_object(enemy_id)
+        if object_exists(enemy_id): target(ship_id, enemy_id)
     ```
 
 === ":simple-python: {{ab.pm}}"
@@ -33,19 +34,14 @@ The `is_*` functions test which ID category a value belongs to. This matters bec
         get_comms_selection, set_science_selection,
     )
 
-    # Normalise whatever you have into an ID
-    id = to_id(spawn_data_or_agent_or_int)
+    enemy_id = to_id(spawn_data_or_agent_or_int)
+    obj = to_object(enemy_id)
 
-    # Resolve to object (None if gone)
-    obj = to_object(id)
+    if object_exists(enemy_id):
+        target(ship_id, enemy_id)
 
-    # Check existence
-    if object_exists(id):
-        target(SHIP_ID, id)
-
-    # Console selection helpers
-    comms_target = get_comms_selection(SHIP_ID)
-    set_science_selection(SHIP_ID, enemy_id)
+    comms_target = get_comms_selection(ship_id)
+    set_science_selection(ship_id, enemy_id)
     ```
 
 ## ID type detection
@@ -63,7 +59,7 @@ The `is_*` functions test which ID category a value belongs to. This matters bec
 Space and grid objects have an engine-level data blob for engine-readable attributes (e.g. `dock_state`, `system_damage`). Use `to_blob` / `to_data_set` to get the blob, then call `.get(key)` / `.set(key, value, index)`:
 
 ```python
-blob = to_blob(SHIP_ID)
+blob = to_blob(ship_id)
 damage = blob.get("system_damage", 0)  # index defaults to 0
 blob.set("dock_state", "docked", 0)
 ```

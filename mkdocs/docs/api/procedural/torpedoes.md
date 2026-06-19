@@ -15,10 +15,11 @@ The torpedo system is actively evolving — new `warhead` and `behavior` values 
 === ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    torpedo_type("emp", gui_text="EMP Pulse", warhead="reduce_shields", damage=10, speed=15)
-    torpedo_type("cluster", gui_text="Cluster Bomb", warhead="blast", blast_radius=1500, damage=50)
-    torpedo_make_available(SHIP_ID, "emp", count=4)
-    torpedo_make_available(SHIP_ID, "cluster", count=2)
+        torpedo_type("emp", gui_text="EMP Pulse", warhead="reduce_shields", damage=10, speed=15)
+        torpedo_type("cluster", gui_text="Cluster Bomb", warhead="blast", blast_radius=1500, damage=50)
+        torpedo_make_available(ship_id, "emp", count=4)
+        torpedo_make_available(ship_id, "cluster", count=2)
+        ->END
     ```
 
 === ":simple-python: {{ab.pm}}"
@@ -29,12 +30,12 @@ The torpedo system is actively evolving — new `warhead` and `behavior` values 
     )
 
     torpedo_type("emp", gui_text="EMP Pulse", warhead="reduce_shields", damage=10)
-    torpedo_make_available(SHIP_ID, "emp", count=4)
+    torpedo_make_available(ship_id, "emp", count=4)
 
-    current, max_cap = torpedo_get_count_for_ship(SHIP_ID, "emp")
-    torp_update_value("emp", "damage", 20)  # upgrade mid-mission
+    current, max_cap = torpedo_get_count_for_ship(ship_id, "emp")
+    torp_update_value("emp", "damage", 20)
 
-    torpedo_make_unavailable(SHIP_ID, "emp")  # remove from loadout
+    torpedo_make_unavailable(ship_id, "emp")
     ```
 
 ## Torpedo attributes

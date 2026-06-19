@@ -14,16 +14,14 @@ These three functions wrap the engine's simulation lifecycle commands. They are 
 
 === ":mast-icon: {{ab.m}}"
     ```
-    == lobby ==
-    + "Start Mission"
+    == mission_start ==
         sim_create()
-        jump mission_start
+        jump setup
 
     == cutscene ==
-    sim_pause()
-    "Meanwhile, on the station..."
-    await delay(seconds=5)
-    sim_resume()
+        sim_pause()
+        await delay(seconds=5)
+        sim_resume()
     ```
 
 === ":simple-python: {{ab.pm}}"

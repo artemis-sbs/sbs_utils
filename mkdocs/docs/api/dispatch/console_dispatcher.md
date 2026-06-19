@@ -15,8 +15,8 @@ Artemis Cosmos calls the script function HandleCommsButton when a button is pres
 The ConsoleDispatcher is intended receive these and route them to callback functions.
 This can further be used to direct these to classes that represent the ships enabling the handling of this code to be handled in context of the ship(s) involved.
 
-The HandleConsoleObjectSelection should call :py:meth:`~sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_select`
-The HandleCommsButton should call :py:meth:`~sbs_utils.consoledispatcher.ConsoleDispatcher.dispatch_comms_message`
+The HandleConsoleObjectSelection should call `dispatch_select`
+The HandleCommsButton should call `dispatch_comms_message`
 
 
 === "Python"
@@ -42,14 +42,14 @@ Importing the hookhandlers module it does by default.
 
 # Example: Adding Comms to a class
 
-The best way to use the ConsoleDispatcher is to add comms to a :py:class:`~sbs_utils.spaceobject.SpaceObject` using the :py:class:`~sbs_utils.consoledispatcher.ConsoleDispatcher` and :py:class:`~sbs_utils.consoledispatcher.MCommunications` mixin class.
-and provide an implementation of  :py:meth:`~sbs_utils.consoledispatcher.MCommunications.comms_selected` and :py:meth:`~sbs_utils.consoledispatcher.MCommunications.comms_message` methods.
+The best way to use the ConsoleDispatcher is to add comms to a `SpaceObject` using the `ConsoleDispatcher` and `MCommunications` mixin class.
+and provide an implementation of  `comms_selected` and `comms_message` methods.
 
-To enable comms call :py:meth:`~sbs_utils.consoledispatcher.MCommunications.enable_comms`. This should be called after the SpaceObject has spawned and has an id.
+To enable comms call `enable_comms`. This should be called after the SpaceObject has spawned and has an id.
 
-:py:meth:`~sbs_utils.consoledispatcher.MCommunications.enable_comms` takes a face description and it will set self.face_desc. 
+`enable_comms` takes a face description and it will set self.face_desc. 
 
-You can use :doc:`faces` to get some face descriptions.
+You can use [faces](../utility/faces.md) to get some face descriptions.
 
 This can be done on a non-player ship and a PlayerShip. The system will send the proper information.
 
@@ -176,9 +176,9 @@ The message is the button_tag.
 
 MCommunications is useful for any class. However, if their is another way desired to handle console messages.
 
-:py:meth:`~sbs_utils.consoledispatcher.ConsoleDispatcher.add_select` adds any callback to the console dispatcher system for handling selection.
+`add_select` adds any callback to the console dispatcher system for handling selection.
 
-:py:meth:`~sbs_utils.consoledispatcher.ConsoleDispatcher.add_message` adds any callback to the console dispatcher system for handling messages.
+`add_message` adds any callback to the console dispatcher system for handling messages.
 
 === "Python"
    ```

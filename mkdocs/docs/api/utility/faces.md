@@ -13,15 +13,15 @@ This set of images can be extended with new textures added to allFacesFiles.txt
 
 The faces module has a set of functions to generate random faces for the base set of face image textures provided by Artemis Cosmos.
 
-- ![random skaraan](sbs_utils.faces.random_skaraan)
-- ![random torgoth](sbs_utils.faces.random_torgoth)
-- ![random_kralien](sbs_utils.faces.random_kralien)
-- ![random_arvonian](sbs_utils.faces.random_arvonian)
-- ![random_zimni](sbs_utils.faces.random_zimni)
-- ![random_terran](sbs_utils.faces.random_terran)
-- ![random_terran_male](sbs_utils.faces.random_terran_male)
-- ![random_terran_female](sbs_utils.faces.random_terran_female)
-- ![random_terran_fluid](sbs_utils.faces.random_terran_fluid)
+- `random_skaraan`
+- `random_torgoth`
+- `random_kralien`
+- `random_arvonian`
+- `random_zimni`
+- `random_terran`
+- `random_terran_male`
+- `random_terran_female`
+- `random_terran_fluid`
 
 
  === "python"
@@ -31,15 +31,14 @@ The faces module has a set of functions to generate random faces for the base se
 
 There are also function to make it easier to create specific faces by passing indexes to define indexes that represent cells containing know art images for things like hair, eyes, mouth etc.
 It may take some experimentation to find the values for your character, but this is a simplified way to create repeatable characters.
-Other ways to create consistent faces is to use one of the predefined :py:class:`~sbs_utils.faces.Characters` or hand code a face string.
+Other ways to create consistent faces is to use one of the predefined `Characters` or hand code a face string.
 
-- ![skaraan](sbs_utils.faces.skaraan)
-- ![torgoth](sbs_utils.faces.torgoth)
-- ![kralien](sbs_utils.faces.kralien)
-- ![arvonian](sbs_utils.faces.arvonian)
-- ![skaraan](sbs_utils.faces.skaraan)
-- ![zimni](sbs_utils.faces.zimni)
-- ![terran](sbs_utils.faces.terran)
+- `skaraan`
+- `torgoth`
+- `kralien`
+- `arvonian`
+- `zimni`
+- `terran`
 
 
 
@@ -50,7 +49,7 @@ Other ways to create consistent faces is to use one of the predefined :py:class:
 
 ## Character Faces
 
-The class :py:class:`~sbs_utils.faces.Characters` has a list of predefined face strings.
+The class `Characters` has a list of predefined face strings.
 
 These are a good examples for creating a face string by hand.
 

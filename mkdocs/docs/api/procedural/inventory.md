@@ -20,12 +20,13 @@ Key functions:
 === ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    set_inventory_value(SHIP_ID, "HP", 100)
-    set_inventory_value(SHIP_ID, "shield_online", True)
+        set_inventory_value(ship_id, "hp", 100)
+        set_inventory_value(ship_id, "shield_online", True)
+
     == check_hp ==
-    hp = get_inventory_value(SHIP_ID, "HP", 0)
-    "Ship HP: {hp}"
-    if hp <= 0: jump destroyed
+        hp = get_inventory_value(ship_id, "hp", 0)
+        log(f"Ship HP: {hp}")
+        if hp <= 0: jump destroyed
     ```
 
 === ":simple-python: {{ab.pm}}"
@@ -35,14 +36,14 @@ Key functions:
         get_shared_inventory_value, has_inventory,
     )
 
-    set_inventory_value(SHIP_ID, "HP", 100)
-    hp = get_inventory_value(SHIP_ID, "HP", default=0)
+    set_inventory_value(ship_id, "hp", 100)
+    hp = get_inventory_value(ship_id, "hp", default=0)
 
     # Global shared state
     get_shared_inventory_value("GAME_STARTED", False)
 
     # Find all agents with a given key
-    damaged_ships = has_inventory("HP")
+    damaged_ships = has_inventory("hp")
     ```
 
 ## Shared inventory

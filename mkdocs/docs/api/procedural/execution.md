@@ -20,16 +20,16 @@ Key concepts:
 
 === ":mast-icon: {{ab.m}}"
     ```
-    == main ==
-    await task_all(patrol_alpha, patrol_beta, patrol_gamma)
-    "All patrols complete."
+    == run_patrols ==
+        await task_all(patrol_alpha, patrol_beta, patrol_gamma)
+        log("All patrols complete.")
 
     == timeout_wrapper ==
-    await task_any(do_objective, timeout_30s)
-    jump next_phase
+        await task_any(do_objective, timeout_30s)
+        jump next_phase
 
     == setup ==
-    task_schedule(background_monitor)
+        task_schedule(background_monitor)
     ```
 
 === ":simple-python: {{ab.pm}}"
@@ -46,7 +46,7 @@ Key concepts:
     promise = task_all(patrol_alpha, patrol_beta)
 
     # Read a variable from current task scope
-    ship_id = get_variable("SHIP_ID")
+    ship_id = get_variable("ship_id")
     ```
 
 ## `task_all` vs `task_any`

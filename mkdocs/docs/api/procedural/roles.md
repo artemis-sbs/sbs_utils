@@ -8,7 +8,7 @@ Roles are string tags attached to an agent's in-memory role set. Unlike `side` (
 
 Common uses:
 
-- **Targeting** — `closest(SHIP_ID, role("enemy"))` finds the nearest enemy.
+- **Targeting** — `closest(ship_id, role("enemy"))` finds the nearest enemy.
 - **Filtering** — `broad_test_around(pos, 1000) & role("station")` finds all stations in range.
 - **State flags** — add `"__damaged__"` or `"exploded"` to track object state.
 - **Class membership** — ship art IDs are automatically added as roles, so `role("cruiser")` matches all cruisers.
@@ -21,26 +21,27 @@ Common uses:
 === ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    add_role(ENEMY_ID, "target_priority")
+        add_role(enemy_id, "target_priority")
+
     == targeting ==
-    nearest = closest(SHIP_ID, role("target_priority"))
-    target(SHIP_ID, nearest)
+        nearest = closest(ship_id, role("target_priority"))
+        target(ship_id, nearest)
+
     == on_explosion ==
-    add_role(SHIP_ID, "exploded")
-    remove_role(SHIP_ID, "target_priority")
+        add_role(ship_id, "exploded")
+        remove_role(ship_id, "target_priority")
     ```
 
 === ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.roles import add_role, remove_role, has_role, role
 
-    add_role(ENEMY_ID, "target_priority")
-    remove_role(ENEMY_ID, "target_priority")
+    add_role(enemy_id, "target_priority")
+    remove_role(enemy_id, "target_priority")
 
-    if has_role(ENEMY_ID, "target_priority"):
-        print("Still a priority target")
+    if has_role(enemy_id, "target_priority"):
+        log("Still a priority target")
 
-    # Set operations
     priority_stations = role("target_priority") & role("station")
     targets = role("enemy") | role("hostile")
     ```
@@ -48,9 +49,9 @@ Common uses:
 ## Using with targeting
 
 ```
-close = closest(SHIP_ID, role("spy"))
-close = closest(SHIP_ID, role("station"))   # ship class names are roles
-close = closest(SHIP_ID, role("tsn"))        # side is also a role
+close = closest(ship_id, role("spy"))
+close = closest(ship_id, role("station"))   # ship class names are roles
+close = closest(ship_id, role("tsn"))        # side is also a role
 ```
 
 ## System roles

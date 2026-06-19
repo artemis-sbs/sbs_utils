@@ -86,16 +86,16 @@ Script data is a reflection of the Engine Data, and can also be used to synchron
 
 
 * [sbs_utils.spaceobject.SpaceObject](../api/engine/sbs.md/#sbs.space_object)
-*  :py:class:`~sbs_utils.spaceobject.SpaceObject`
-*  :py:class:`~sbs_utils.gridobject.GridObject`
+*  `SpaceObject`
+*  `GridObject`
 
 
 
-- :py:class:`~sbs_utils.objects.PlayerShip`
-- :py:class:`~sbs_utils.objects.Npc` 
-- :py:class:`~sbs_utils.objects.Active`
-- :py:class:`~sbs_utils.objects.Terrain`
-- :py:class:`~sbs_utils.objects.Passive`
+- `PlayerShip`
+- `Npc` 
+- `Active`
+- `Terrain`
+- `Passive`
 
 ### role
 

@@ -1,5 +1,7 @@
 # sbs_utils — Library Reference for Claude
 
+@MAST_CLAUDE.md
+
 ## Environment
 
 Runs inside **Artemis Cosmos** — a space ship bridge simulator. Python 3.11 embedded via Pybind11.

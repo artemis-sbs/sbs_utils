@@ -15,23 +15,21 @@ Modifiers are used internally by the upgrade system to track stat changes applie
 === ":mast-icon: {{ab.m}}"
     ```
     == apply_speed_boost ==
-    modifier_add(SHIP_ID, "topSpeed", 5, "speed_upgrade")
+        modifier_add(ship_id, "topSpeed", 5, "speed_upgrade")
+        ->END
+
     == remove_speed_boost ==
-    modifier_remove(SHIP_ID, "topSpeed", "speed_upgrade")
+        modifier_remove(ship_id, "topSpeed", "speed_upgrade")
+        ->END
     ```
 
 === ":simple-python: {{ab.pm}}"
     ```python
     from sbs_utils.procedural.modifiers import modifier_add, modifier_remove, modifier_clear
 
-    # Apply a +5 speed modifier tagged "speed_upgrade"
-    modifier_add(SHIP_ID, "topSpeed", 5, "speed_upgrade")
-
-    # Remove just the speed_upgrade contribution
-    modifier_remove(SHIP_ID, "topSpeed", "speed_upgrade")
-
-    # Remove all modifiers on this agent
-    modifier_clear(SHIP_ID)
+    modifier_add(ship_id, "topSpeed", 5, "speed_upgrade")
+    modifier_remove(ship_id, "topSpeed", "speed_upgrade")
+    modifier_clear(ship_id)
     ```
 
 ## API

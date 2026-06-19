@@ -6,7 +6,7 @@ This is done via the HandleSimulationTick method.
 ## Usage
 
 The TickDispatcher is used to create tasks that are called when the HandleSimulationTick is called.
-The function :py:meth:`~sbs_utils.tickdispatcher.TickDispatcher.dispatch_tick` should be called in HandleSimulationTick, and ideally this is the only code that is needed.
+The function `dispatch_tick` should be called in HandleSimulationTick, and ideally this is the only code that is needed.
 
 
 === "Python"
@@ -31,12 +31,12 @@ A TickTask is similar to Artemis XML's timer events and are ideally more efficie
 
 To create a TickTask you can use one of two functions.
 
-* ![Do Once](sbs_utils.tickdispatcher.TickDispatcher.do_once)
-* ![Do Once](sbs_utils.tickdispatcher.TickDispatcher.do_interval)
+* `do_once`
+* `do_interval`
 
-![Do Once](sbs_utils.tickdispatcher.TickDispatcher.do_once) will schedule a task that is run only one time.
+`do_once` will schedule a task that is run only one time.
 
-![Do interval](sbs_utils.tickdispatcher.TickDispatcher.do_interval) will schedule to run multiple times or continuously.
+`do_interval` will schedule to run multiple times or continuously.
 
 Both methods take the simulation used to track the start time, a callback function, a delay time. do_interval additionally optionally takes the number of times it should run. The default is None, which is meant to indicate run continuously.
 

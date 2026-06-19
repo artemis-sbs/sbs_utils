@@ -23,15 +23,18 @@ Within a brain label you have access to `BRAIN`, `BRAIN_AGENT`, and `BRAIN_AGENT
 === ":mast-icon: {{ab.m}}"
     ```
     == setup ==
-    brain_add(ENEMY_ID, patrol_label)
-    brain_add(ENEMY_ID, attack_label)
+        brain_add(enemy_id, patrol_label)
+        brain_add(enemy_id, attack_label)
+        ->END
+
     == patrol_label ==
-    ///test
-    if get_pos(BRAIN_AGENT_ID).distance(TARGET_POS) > 500: BT_FAIL
-    BT_SUCCESS
+        ///test
+        if get_pos(BRAIN_AGENT_ID).distance(target_pos) > 500: BT_FAIL
+        BT_SUCCESS
+
     == attack_label ==
-    target(BRAIN_AGENT_ID, PLAYER_ID)
-    BT_SUCCESS
+        target(BRAIN_AGENT_ID, player_id)
+        BT_SUCCESS
     ```
 
 === ":simple-python: {{ab.pm}}"
@@ -39,16 +42,16 @@ Within a brain label you have access to `BRAIN`, `BRAIN_AGENT`, and `BRAIN_AGENT
     from sbs_utils.procedural.brain import brain_add, brain_clear
 
     # Simple behavior list — Select runs them in order
-    brain_add(ENEMY_ID, patrol_label)
-    brain_add(ENEMY_ID, attack_label)
+    brain_add(enemy_id, patrol_label)
+    brain_add(enemy_id, attack_label)
 
     # Nested composite example
-    brain_add(ENEMY_ID, {
+    brain_add(enemy_id, {
         "SEL_combat": [attack_label, evade_label]
     })
 
     # Remove the brain entirely
-    brain_clear(ENEMY_ID)
+    brain_clear(enemy_id)
     ```
 
 ## Behavior tree result values

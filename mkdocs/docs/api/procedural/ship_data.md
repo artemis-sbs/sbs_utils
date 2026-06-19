@@ -14,11 +14,12 @@ The database is loaded lazily and cached. Mission scripts do not normally need t
 
 === ":mast-icon: {{ab.m}}"
     ```
-    ship_db = get_ship_data("tsn_battle_cruiser")
-    display_name = ship_db.get("name", "Unknown")
-    "Spawning a {display_name}"
-
-    speed = get_ship_data_value("tsn_battle_cruiser", "topSpeed", 10)
+    == pick_ship ==
+        ship_db = get_ship_data("tsn_battle_cruiser")
+        display_name = ship_db.get("name", "Unknown")
+        log(f"Spawning a {display_name}")
+        speed = get_ship_data_value("tsn_battle_cruiser", "topSpeed", 10)
+        ->END
     ```
 
 === ":simple-python: {{ab.pm}}"

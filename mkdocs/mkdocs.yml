@@ -96,7 +96,6 @@ nav:
       - tutorial/comms/index.md
       - simple: tutorial/comms/simple_comms.md
       - complex: tutorial/comms/complex_comms.md
-      - grid: tutorial/comms/simple_grid.md
     - science:
       - tutorial/science/index.md
       - simple: tutorial/science/simple_science.md
