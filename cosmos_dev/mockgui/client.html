@@ -59,7 +59,8 @@
     border:1px solid var(--border); border-radius:var(--radius); padding:0 8px;
     font-family:var(--font-ui); font-size:12px; cursor:pointer; appearance:none; }
 
-  .w-face       { background:var(--surface); border:1px solid var(--border); border-radius:50%; font-size:28px; }
+  .w-face       { overflow:hidden; }
+  .w-face canvas { display:block; width:100%; height:100%; }
   .w-icon       { background:transparent; overflow:hidden; }
   .w-iconbutton { background:transparent; overflow:hidden; cursor:pointer;
                   border-radius:var(--radius); transition:filter 0.15s; }
@@ -254,6 +255,78 @@ function _buildIconWidget(s, tag, ownerId, cssClass, isClickable, isToggle) {
   }
 
   return wrapper;
+}
+
+// ── Face sheet infrastructure ─────────────────────────────────────────────
+// Face sprite sheets live in data/graphics/ (served at root URL by server.py).
+// In the face string, 'row' = X-axis (column index in sheet), 'col' = Y-axis (row index).
+// Terran sheet: 15 cols × 8 rows (~515×514 px per cell). All others: 8×8 (512×512 px).
+const _FACE_ALIAS = {
+  ter: 'Terran_Big-revised', tor: 'Torgoth_Set', ska: 'Skaraan_Set',
+  kra: 'Krailen_Set',        zim: 'Zimni_Set',   arv: 'Arvonian',
+};
+function _faceGridCols(alias) { return alias === 'ter' ? 15 : 8; }
+const _faceCache = {};  // alias → { img: null|Image, cbs: null|[] }
+
+function _getFaceSheet(alias, cb) {
+  const filename = _FACE_ALIAS[alias];
+  if (!filename) { cb(null); return; }
+  if (!_faceCache[alias]) _faceCache[alias] = { img: null, cbs: null };
+  const entry = _faceCache[alias];
+  if (entry.img)          { cb(entry.img); return; }
+  if (entry.cbs !== null) { entry.cbs.push(cb); return; }
+  entry.cbs = [cb];
+  const img = new Image();
+  img.onload  = () => { entry.img = img; const q = entry.cbs; entry.cbs = null; q.forEach(f => f(img)); };
+  img.onerror = () => { console.error(`[face] failed to load ${filename}.png`); const q = entry.cbs; entry.cbs = null; q.forEach(f => f(null)); };
+  img.src = `${filename}.png`;
+}
+
+function _parseFaceString(str) {
+  return (str || '').split(';').map(layer => {
+    const p = layer.trim().split(/\s+/);
+    if (p.length < 4) return null;
+    return { alias: p[0], color: p[1], row: +p[2], col: +p[3], ox: p.length > 4 ? +p[4] : 0, oy: p.length > 5 ? +p[5] : 0 };
+  }).filter(Boolean);
+}
+
+function _drawFaceLayer(canvas, ctx2d, img, cols, row, col, ox, oy, colorStr) {
+  const w = canvas.width, h = canvas.height;
+  if (!img || w <= 0 || h <= 0) return;
+  const cellW = img.width / cols, cellH = img.height / 8;
+  const { r, g, b, a } = _parseColor(colorStr || 'white');
+  const isWhite = r >= 0.99 && g >= 0.99 && b >= 0.99;
+  const sx = row * cellW + ox, sy = col * cellH + oy;
+  if (isWhite) {
+    ctx2d.save(); ctx2d.globalAlpha = a;
+    ctx2d.drawImage(img, sx, sy, cellW, cellH, 0, 0, w, h);
+    ctx2d.restore();
+  } else {
+    const tmp = new OffscreenCanvas(w, h), tctx = tmp.getContext('2d');
+    tctx.drawImage(img, sx, sy, cellW, cellH, 0, 0, w, h);
+    tctx.globalCompositeOperation = 'multiply';
+    tctx.fillStyle = `rgb(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)})`;
+    tctx.fillRect(0, 0, w, h);
+    tctx.globalCompositeOperation = 'destination-in';
+    tctx.drawImage(img, sx, sy, cellW, cellH, 0, 0, w, h);
+    ctx2d.save(); ctx2d.globalAlpha = a; ctx2d.drawImage(tmp, 0, 0); ctx2d.restore();
+  }
+}
+
+function _drawFace(canvas, ctx2d, layers) {
+  const w = canvas.width, h = canvas.height;
+  if (w <= 0 || h <= 0) return;
+  const aliases = [...new Set(layers.map(l => l.alias).filter(a => _FACE_ALIAS[a]))];
+  if (!aliases.length) return;
+  let pending = aliases.length;
+  aliases.forEach(alias => _getFaceSheet(alias, () => {
+    if (--pending > 0) return;
+    ctx2d.clearRect(0, 0, w, h);
+    layers.forEach(({ alias, color, row, col, ox, oy }) => {
+      const img = _faceCache[alias]?.img;
+      if (img) _drawFaceLayer(canvas, ctx2d, img, _faceGridCols(alias), row, col, ox, oy, color);
+    });
+  }));
 }
 
 // Parse any CSS color string (named, hex, rgb, rgba, with leading whitespace)
@@ -748,7 +821,21 @@ function buildWidget(msg, s) {
     }
     case 'face': {
       el = document.createElement('div'); el.className = 'w-face';
-      el.textContent = msg.face_string || '🙂'; break;
+      const fcanvas = document.createElement('canvas');
+      fcanvas.style.cssText = 'display:block;width:100%;height:100%;';
+      el.appendChild(fcanvas);
+      const fctx = fcanvas.getContext('2d');
+      const flayers = _parseFaceString(msg.face_string);
+      new ResizeObserver(entries => {
+        const rc = entries[0].contentRect;
+        const rw = Math.round(rc.width), rh = Math.round(rc.height);
+        if (rw <= 0 || rh <= 0) return;
+        fcanvas.width = rw; fcanvas.height = rh;
+        _drawFace(fcanvas, fctx, flayers);
+      }).observe(el);
+      // Preload all referenced sheets early
+      [...new Set(flayers.map(l => l.alias))].forEach(a => _getFaceSheet(a, () => {}));
+      break;
     }
     case 'icon': {
       const ownerId = msg.clientID ?? 0;
