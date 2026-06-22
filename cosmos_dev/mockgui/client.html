@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>SBS Remote GUI</title>
 <style>
+  @font-face { font-family:'GoldmanSansCd_Rg'; src:url('/fonts/GoldmanSansCd_Rg.ttf') format('truetype'); }
+  @font-face { font-family:'Goldman-Bold';     src:url('/fonts/Goldman-Bold.ttf')     format('truetype'); }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --bg:      #0d0f14; --surface: #161923; --border: #2a2f3d;
@@ -454,12 +456,25 @@ function cmdLog(msg) {
 }
 
 // ── init ──────────────────────────────────────────────────────────────────────
+function sendScreenSize() {
+  if (ws && ws.readyState === WebSocket.OPEN && CLIENT_ID !== null)
+    ws.send(JSON.stringify({ type: 'screen_size', clientID: String(CLIENT_ID),
+                             width: window.innerWidth, height: window.innerHeight }));
+}
+
 function cmdInit(msg) {
   CLIENT_ID = msg.clientID;
   document.getElementById('mode-label').textContent = _mode;
   document.getElementById('cid-val').textContent = CLIENT_ID;
   log(`  mode=${_mode} clientID=${CLIENT_ID}`, 'ev');
+  sendScreenSize();
 }
+
+let _resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(sendScreenSize, 250);
+});
 
 // ── pct helper ────────────────────────────────────────────────────────────────
 function pct(v) { return v.toFixed(4) + '%'; }
@@ -629,6 +644,28 @@ function cmdWidget(msg) {
   log(`  +${cmd} tag=${tag} → region[${parent||'root'}] back [${pct(left)},${pct(top)},${pct(right-left)},${pct(bottom-top)}]`, 'dbg');
 }
 
+// ── ctext ─────────────────────────────────────────────────────────────────────
+// Cosmos uses ^ as a newline separator in text strings.
+function ctext(s) { return s ? s.replace(/\^/g, '\n') : s; }
+
+// ── applyFont ─────────────────────────────────────────────────────────────────
+// Maps Cosmos font tags to the Goldman font families and sizes from preferences.json.
+const _FONT_MAP = {
+  'smallest': { family: 'GoldmanSansCd_Rg', size: 18 },
+  'gui-1':    { family: 'GoldmanSansCd_Rg', size: 22 },
+  'gui-2':    { family: 'GoldmanSansCd_Rg', size: 24 },
+  'gui-2A':   { family: 'GoldmanSansCd_Rg', size: 28 },
+  'gui-3':    { family: 'Goldman-Bold',      size: 28 },
+  'gui-4':    { family: 'Goldman-Bold',      size: 32 },
+  'gui-5':    { family: 'Goldman-Bold',      size: 36 },
+  'gui-6':    { family: 'Goldman-Bold',      size: 52 },
+};
+function applyFont(el, tag) {
+  const f = _FONT_MAP[tag];
+  if (f) { el.style.fontFamily = f.family; el.style.fontSize = f.size + 'px'; }
+  else   { el.style.fontFamily = tag; }
+}
+
 // ── buildWidget ───────────────────────────────────────────────────────────────
 // s = parsed style object from parseStyle(msg.style)
 function buildWidget(msg, s) {
@@ -642,9 +679,9 @@ function buildWidget(msg, s) {
       const ownerId = msg.clientID ?? 0;
       el = document.createElement('button');
       el.className = 'w-button';
-      el.textContent = s.text || tag;
+      el.textContent = ctext(s.text) || tag;
       if (s.color) el.style.color = s.color;
-      if (s.font)  el.style.fontFamily = s.font;
+      if (s.font)  applyFont(el, s.font);
       el.addEventListener('click', () => sendEvent('gui_message', tag, ownerId));
       break;
     }
@@ -656,9 +693,9 @@ function buildWidget(msg, s) {
       cb.checked = isOn(s.state);
       if (s.visible !== undefined && !isOn(s.visible)) el.style.visibility = 'hidden';
       const sp = document.createElement('span');
-      sp.textContent = s.text || tag;
+      sp.textContent = ctext(s.text) || tag;
       if (s.color) sp.style.color = s.color;
-      if (s.font)  sp.style.fontFamily = s.font;
+      if (s.font)  applyFont(sp, s.font);
       el.append(cb, sp);
       cb.addEventListener('change', () => sendEvent('gui_message', tag, ownerId, { checked: cb.checked }));
       break;
@@ -669,9 +706,9 @@ function buildWidget(msg, s) {
       if (s.background_color) el.style.setProperty('--cr-hover-bg', s.background_color.trim());
       if (s.text) {
         const span = document.createElement('span'); span.className = 'cr-hover-text';
-        span.textContent = s.text;
+        span.textContent = ctext(s.text);
         if (s.color) span.style.color = s.color;
-        if (s.font)  span.style.fontFamily = s.font;
+        if (s.font)  applyFont(span, s.font);
         el.appendChild(span);
       }
       el.addEventListener('click', () => sendEvent('gui_message', tag, ownerId));
@@ -704,7 +741,7 @@ function buildWidget(msg, s) {
         const opt = document.createElement('option'); opt.value = opt.textContent = o.trim(); sel.appendChild(opt);
       });
       if (s.color) sel.style.color = s.color;
-      if (s.font)  sel.style.fontFamily = s.font;
+      if (s.font)  applyFont(sel, s.font);
       el.appendChild(sel);
       sel.addEventListener('change', () => sendEvent('change', tag, ownerId, { value: sel.value }));
       break;
@@ -822,9 +859,9 @@ function buildWidget(msg, s) {
     }
     case 'text': {
       el = document.createElement('div'); el.className = 'w-text';
-      el.textContent = s.text || tag;
+      el.textContent = ctext(s.text) || tag;
       if (s.color) el.style.color = s.color;
-      if (s.font)  el.style.fontFamily = s.font;
+      if (s.font)  applyFont(el, s.font);
       if (s.justify) {
         const jmap = { left: 'flex-start', right: 'flex-end', center: 'center' };
         const j = jmap[s.justify.toLowerCase()];
@@ -840,7 +877,7 @@ function buildWidget(msg, s) {
       inp.placeholder = s.desc || '';
       if (s.text)  inp.value = s.text;
       if (s.color) inp.style.color = s.color;
-      if (s.font)  inp.style.fontFamily = s.font;
+      if (s.font)  applyFont(inp, s.font);
       el.appendChild(inp);
       inp.addEventListener('change',  () => sendEvent('change', tag, ownerId, { value: inp.value }));
       inp.addEventListener('keydown', e => { if (e.key === 'Enter') sendEvent('submit', tag, ownerId, { value: inp.value }); });

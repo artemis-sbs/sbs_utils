@@ -168,6 +168,7 @@ def _run(
     from sbs_utils.mast_sbs import mast_sbs_procedural  # noqa: F401 — side-effect: wires procedural API
     from sbs_utils.mast_sbs.maststorypage import StoryPage
     from sbs_utils.helpers import FrameContext, Context, FakeEvent
+    from sbs_utils.vec import Vec3
     from sbs_utils.agent import Agent
     from sbs_utils.handlerhooks import cosmos_event_handler
     from sbs_utils.gui import Gui
@@ -203,13 +204,18 @@ def _run(
                         gev    = sbs.gui_event_queue.get_nowait()
                         cid    = gev.get("clientID", 0)
                         etype  = gev.get("type", "")
-                        gev_ev = FakeEvent(client_id=cid, tag="gui_message",
-                                           sub_tag=gev.get("tag", ""))
-                        val = gev.get("value", gev.get("checked", ""))
-                        if etype in ("change", "submit") and isinstance(val, (int, float)):
-                            gev_ev.sub_float = float(val)
-                        elif etype in ("change", "submit") and val != "":
-                            gev_ev.value_tag = str(val)
+                        if etype == "screen_size":
+                            gev_ev = FakeEvent(client_id=cid, tag="screen_size")
+                            gev_ev.source_point = Vec3(gev.get("width", 1024),
+                                                       gev.get("height", 768), 0)
+                        else:
+                            gev_ev = FakeEvent(client_id=cid, tag="gui_message",
+                                               sub_tag=gev.get("tag", ""))
+                            val = gev.get("value", gev.get("checked", ""))
+                            if etype in ("change", "submit") and isinstance(val, (int, float)):
+                                gev_ev.sub_float = float(val)
+                            elif etype in ("change", "submit") and val != "":
+                                gev_ev.value_tag = str(val)
                         cosmos_event_handler(sim, gev_ev)
                     except Exception as e:
                         print(f"[runner] gui event error: {e}")
