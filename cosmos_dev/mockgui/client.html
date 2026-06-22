@@ -66,16 +66,24 @@
                     border-radius:var(--radius); transition:border-color 0.15s,background 0.15s; }
   .w-iconcheckbox.checked { border-color:var(--accent); background:rgba(79,142,247,0.12); }
 
-  .w-image { position:relative; overflow:hidden; }
-  .w-image canvas { display:block; }
+  .w-image { overflow:hidden; pointer-events:none; }
+  .w-image canvas { display:block; width:100%; height:100%; }
 
   .w-rawiconbutton { background:transparent; overflow:hidden; cursor:pointer;
                      border-radius:var(--radius); transition:filter 0.15s; }
   .w-rawiconbutton:hover { filter:brightness(1.3); }
 
-  .w-slider { padding:0 8px; display:flex; align-items:center; gap:4px; }
-  .w-slider input[type=range] { flex:1; accent-color:var(--accent); cursor:pointer; }
-  .w-slider .slider-num { font-size:11px; min-width:2.5em; text-align:right; color:var(--text-dim); flex-shrink:0; }
+  .w-slider { padding:0; display:flex; align-items:stretch; }
+  .w-slider:not(.vertical) { flex-direction:row; gap:6px; padding:0 4px; }
+  .w-slider.vertical { flex-direction:column; }
+  .slider-track { position:relative; flex:1; background:rgba(255,255,255,0.1); border-radius:3px; cursor:pointer; min-width:0; min-height:0; transition:background 0.1s; }
+  .slider-track:hover { background:rgba(255,255,255,0.16); }
+  .slider-thumb { position:absolute; background:var(--accent,#4f8ef7); border-radius:3px; cursor:grab; transition:background 0.1s; }
+  .slider-thumb:hover { background:#6fa8ff; }
+  .slider-thumb:active { cursor:grabbing; background:#90bfff; }
+  .w-slider:not(.vertical) .slider-thumb { top:2px; bottom:2px; width:14px; transform:translateX(-50%); }
+  .w-slider.vertical .slider-thumb { left:2px; right:2px; height:14px; transform:translateY(-50%); }
+  .slider-num { font-size:11px; min-width:2.5em; text-align:right; color:var(--text-dim); flex-shrink:0; white-space:nowrap; align-self:center; }
 
   .region-container { position:absolute; overflow:hidden; pointer-events:none; }
   .region-buffer    { position:absolute; inset:0; pointer-events:none; }
@@ -731,21 +739,85 @@ function buildWidget(msg, s) {
     }
     case 'slider': {
       const ownerId = msg.clientID ?? 0;
-      el = document.createElement('div'); el.className = 'w-slider';
-      const rng = document.createElement('input'); rng.type = 'range';
-      rng.min = s.low ?? 0; rng.max = s.high ?? 100; rng.value = msg.current ?? 50;
-      // show_number defaults to shown; hide only if explicitly set to a falsy flag value
-      const hideNum = s.show_number !== undefined && !isOn(s.show_number);
+      const isVertical = (msg.bottom - msg.top) > (msg.right - msg.left);
+      const low = +(s.low ?? 0), high = +(s.high ?? 100);
+      const isInt = Number.isInteger(low) && Number.isInteger(high);
+      let cur = +(msg.current ?? (low + high) / 2);
+      let lastFired = isInt ? Math.round(cur) : cur;
+
+      el = document.createElement('div'); el.className = isVertical ? 'w-slider vertical' : 'w-slider';
+
+      const track = document.createElement('div'); track.className = 'slider-track';
+      const thumb = document.createElement('div'); thumb.className = 'slider-thumb';
+      track.appendChild(thumb);
+
+      // Number label — horizontal only, respect show_number flag
+      const hideNum = isVertical || (s.show_number !== undefined && !isOn(s.show_number));
+      let numEl = null;
       if (!hideNum) {
-        const numEl = document.createElement('span'); numEl.className = 'slider-num';
-        numEl.textContent = rng.value;
+        numEl = document.createElement('span'); numEl.className = 'slider-num';
+        numEl.textContent = isInt ? Math.round(cur) : cur.toFixed(1);
         if (s.color) numEl.style.color = s.color;
-        rng.addEventListener('input', () => { numEl.textContent = rng.value; sendEvent('change', tag, ownerId, { value: +rng.value }); });
-        el.append(rng, numEl);
+        el.append(track, numEl);
       } else {
-        rng.addEventListener('input', () => sendEvent('change', tag, ownerId, { value: +rng.value }));
-        el.appendChild(rng);
+        el.appendChild(track);
       }
+
+      const updateThumb = v => {
+        let frac = Math.max(0, Math.min(1, (v - low) / (high - low || 1)));
+        if (isVertical) { frac = 1 - frac; thumb.style.top  = (frac * 100).toFixed(3) + '%'; }
+        else            {                   thumb.style.left = (frac * 100).toFixed(3) + '%'; }
+        if (numEl) numEl.textContent = isInt ? Math.round(v) : v.toFixed(1);
+      };
+      updateThumb(cur);
+
+      const fireChange = v => {
+        if (isInt) {
+          const iv = Math.round(v);
+          if (iv === lastFired) return;
+          lastFired = iv;
+          sendEvent('change', tag, ownerId, { value: iv });
+        } else {
+          sendEvent('change', tag, ownerId, { value: v });
+        }
+      };
+
+      // Click track to jump
+      track.addEventListener('click', e => {
+        if (e.target === thumb) return;
+        const rect = track.getBoundingClientRect();
+        let frac = isVertical
+          ? Math.max(0, Math.min(1, 1 - (e.clientY - rect.top)  / rect.height))
+          : Math.max(0, Math.min(1,     (e.clientX - rect.left) / rect.width));
+        cur = low + frac * (high - low);
+        updateThumb(cur);
+        fireChange(cur);
+      });
+
+      // Drag thumb — capture span at pointerdown while track is live; use document
+      // listeners so overlapping widgets can't block the drag mid-move.
+      thumb.addEventListener('pointerdown', e => {
+        const rect = track.getBoundingClientRect();
+        const span = isVertical ? rect.height : rect.width;
+        if (span <= 0) return;
+        const startPos = isVertical ? e.clientY : e.clientX;
+        const startVal = cur;
+        const dir = isVertical ? -1 : 1;
+        e.stopPropagation(); e.preventDefault();
+
+        function onMove(e) {
+          const moved = (isVertical ? e.clientY : e.clientX) - startPos;
+          cur = Math.max(low, Math.min(high, startVal + dir * moved / span * (high - low)));
+          updateThumb(cur);
+          fireChange(cur);
+        }
+        function onUp() {
+          document.removeEventListener('pointermove', onMove);
+          document.removeEventListener('pointerup', onUp);
+        }
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+      });
       break;
     }
     case 'text': {
