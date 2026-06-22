@@ -181,9 +181,17 @@ python -m cosmos_dev.mission_runner <mission_path> --map 0
 
 When `--map` is given, `_try_auto_start_map()` polls `maps_get_list()` each tick until `@map/` labels are registered (story top-level code finishes), then calls `task_schedule_server(map_label, defer=True)`, sets `GAME_STARTED`, emits `game_started`, and calls `sbs.resume_sim()`. Without `--map`, the server GUI map-selection screen is shown.
 
-### Acting as the server in the browser
+### Browser URLs
 
-The browser is always assigned `clientID >= 0x8080000000000001` (mock range). Real engine client IDs start at `0x8000000000000001`. `clientID=0` always means server. To interact with the server GUI (`clientID=0` events), use the **"send as"** input in the browser topbar — set it to `0`. Also settable via URL: `http://localhost:8765/?id=0`.
+| URL | Behaviour |
+|---|---|
+| `http://localhost:8765/server` | Connects as the server console (`clientID=0`). Replays the server frame. No `client_connect` event fired — server page is already running. |
+| `http://localhost:8765/client` | Connects as a new client with a unique `clientID`. Fires `client_connect` so the MAST client page starts. Replays server frame then client frame. |
+| `http://localhost:8765/` | Same as `/client` (default). |
+
+Each widget fires events with the `clientID` of the frame that rendered it — server-page widgets (rendered with `clientID=0`) automatically fire as the server; client-page widgets fire as the browser's assigned ID. No manual override is needed.
+
+**Client ID range**: The mockgui server assigns IDs starting at `0x8080000000000001` (vs the real engine's `0x8000000000000001`). These 64-bit values exceed JavaScript's `Number.MAX_SAFE_INTEGER`, so `server.py` transmits all `clientID` fields as **JSON strings** and parses them back to `int` when events arrive from the browser. Python internally always uses integer client IDs.
 
 ### GUI event field mapping (confirmed)
 

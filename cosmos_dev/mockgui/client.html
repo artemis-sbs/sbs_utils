@@ -23,18 +23,14 @@
   #status-text  { font-size:11px; color:var(--text-dim); }
   #cid-badge    { margin-left:auto; font-size:11px; color:var(--text-dim); }
   #msg-counter  { font-size:11px; color:var(--accent); }
-  #send-as-wrap { font-size:11px; color:var(--text-dim); }
-  #send-as-val  { width:3em; background:var(--surface); color:var(--text); border:1px solid var(--border);
-                  border-radius:3px; font-family:var(--font-ui); font-size:11px;
-                  padding:1px 4px; text-align:center; }
 
   #gui-root { flex:1; position:relative; overflow:hidden; }
   .gui-buffer { position:absolute; inset:0; }
-  .gui-buffer.back  { opacity:0; pointer-events:none; }
-  .gui-buffer.front { opacity:1; pointer-events:all; }
+  .gui-buffer.back  { display:none; }
+  .gui-buffer.front { display:block; }
 
   .widget { position:absolute; display:flex; align-items:center; justify-content:center;
-            font-family:var(--font-ui); font-size:12px; overflow:hidden; }
+            font-family:var(--font-ui); font-size:12px; overflow:hidden; pointer-events:auto; }
 
   .w-button { background:var(--accent); color:#fff; border:none; border-radius:var(--radius);
               cursor:pointer; font-family:var(--font-ui); font-size:12px; font-weight:600;
@@ -47,7 +43,9 @@
 
   .w-clickregion { cursor:pointer; background:transparent; border:1px dashed var(--border);
                    border-radius:var(--radius); transition:background 0.15s; }
-  .w-clickregion:hover { background:rgba(79,142,247,0.06); }
+  .w-clickregion:hover { background:var(--cr-hover-bg, rgba(79,142,247,0.06)); }
+  .cr-hover-text { opacity:0; transition:opacity 0.15s; pointer-events:none; }
+  .w-clickregion:hover .cr-hover-text { opacity:1; }
 
   .w-colorbutton { border-radius:var(--radius); cursor:pointer; border:2px solid var(--border); transition:border-color 0.15s; }
   .w-colorbutton:hover { border-color:var(--accent); }
@@ -60,28 +58,33 @@
     font-family:var(--font-ui); font-size:12px; cursor:pointer; appearance:none; }
 
   .w-face       { background:var(--surface); border:1px solid var(--border); border-radius:50%; font-size:28px; }
-  .w-icon       { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); font-size:20px; }
-  .w-iconbutton { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
-                  cursor:pointer; font-size:18px; transition:background 0.15s; }
-  .w-iconbutton:hover { background:var(--border); }
-  .w-iconcheckbox { cursor:pointer; font-size:18px; border:2px solid var(--border);
+  .w-icon       { background:transparent; overflow:hidden; }
+  .w-iconbutton { background:transparent; overflow:hidden; cursor:pointer;
+                  border-radius:var(--radius); transition:filter 0.15s; }
+  .w-iconbutton:hover { filter:brightness(1.3); }
+  .w-iconcheckbox { overflow:hidden; cursor:pointer; border:2px solid transparent;
                     border-radius:var(--radius); transition:border-color 0.15s,background 0.15s; }
   .w-iconcheckbox.checked { border-color:var(--accent); background:rgba(79,142,247,0.12); }
 
-  .w-image { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
-  .w-image img { width:100%; height:100%; object-fit:contain; }
+  .w-image { position:relative; overflow:hidden; }
+  .w-image canvas { display:block; }
 
-  .w-rawiconbutton { background:transparent; border:none; cursor:pointer; font-size:18px; transition:transform 0.15s; }
-  .w-rawiconbutton:hover { transform:scale(1.1); }
+  .w-rawiconbutton { background:transparent; overflow:hidden; cursor:pointer;
+                     border-radius:var(--radius); transition:filter 0.15s; }
+  .w-rawiconbutton:hover { filter:brightness(1.3); }
 
   .w-slider { padding:0 8px; display:flex; align-items:center; gap:4px; }
   .w-slider input[type=range] { flex:1; accent-color:var(--accent); cursor:pointer; }
   .w-slider .slider-num { font-size:11px; min-width:2.5em; text-align:right; color:var(--text-dim); flex-shrink:0; }
 
-  .w-sub_region { background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:var(--radius); }
+  .region-container { position:absolute; overflow:hidden; pointer-events:none; }
+  .region-buffer    { position:absolute; inset:0; pointer-events:none; }
+  .region-buffer.front { display:block; }
+  .region-buffer.back  { display:none; }
 
   .w-text { background:transparent; padding:4px 6px; justify-content:flex-start;
-            align-items:flex-start; white-space:pre-wrap; word-break:break-word; line-height:1.5; }
+            align-items:flex-start; white-space:pre-wrap; word-break:break-word; line-height:1.5;
+            pointer-events:none; }
 
   .w-typein input { width:100%; height:100%; background:var(--surface); color:var(--text);
     border:1px solid var(--border); border-radius:var(--radius); padding:0 8px;
@@ -112,8 +115,7 @@
   <div id="status-dot"></div>
   <span id="status-text">disconnected</span>
   <span id="msg-counter">msgs: <span id="msg-count">0</span></span>
-  <span id="cid-badge">client #<span id="cid-val">—</span></span>
-  <span id="send-as-wrap" title="Events sent with this client ID — set to 0 to act as server">send as: <input id="send-as-val" type="number" min="0" value="0"></span>
+  <span id="cid-badge"><span id="mode-label">—</span> #<span id="cid-val">—</span></span>
   <button id="script-log-btn" class="log-btn" title="Toggle MAST/sbs_utils stdout+stderr">LOG</button>
   <button id="dbg-log-btn"    class="log-btn" title="Toggle browser WS/widget debug">DBG</button>
 </div>
@@ -126,21 +128,219 @@
 <div id="script-log-panel" class="log-panel"></div>
 <div id="dbg-log-panel"    class="log-panel"></div>
 
+<script src="/three.min.js"></script>
 <script>
 // ── Config ───────────────────────────────────────────────────────────────────
-const WS_URL = `ws://${location.host}/ws`;
+// /server → connects as the server console (clientID=0, no client_connect fired)
+// /client or anything else → connects as a new client (unique clientID)
+const _mode  = location.pathname === '/server' ? 'server' : 'client';
+const WS_URL = `ws://${location.host}/ws/${_mode}`;
 let CLIENT_ID = null;   // assigned by server on connect via "init" message
 
-// ?id=0 in URL pre-sets the "send as" input so events fire as client 0 (server)
-const _urlId = new URLSearchParams(location.search).get('id');
-if (_urlId !== null) document.getElementById('send-as-val').value = parseInt(_urlId, 10);
+let msgCount = 0;
 
-function getEffectiveId() {
-  const v = parseInt(document.getElementById('send-as-val').value, 10);
-  return isNaN(v) ? (CLIENT_ID ?? 0) : v;
+// ── Three.js shared infrastructure ───────────────────────────────────────────
+// One WebGL context for all image widgets — browsers cap contexts at ~16 per page.
+// The shared renderer renders each widget's scene to an offscreen canvas, then
+// the result is blitted into the widget's visible 2D canvas.
+const _threeRenderer = (() => {
+  if (typeof THREE === 'undefined') return null;
+  try {
+    const offscreen = document.createElement('canvas');
+    const r = new THREE.WebGLRenderer({ canvas: offscreen, alpha: true });
+    return r;
+  } catch(e) {
+    console.error('[three.js] WebGLRenderer init failed:', e);
+    return null;
+  }
+})();
+const _tl       = _threeRenderer ? new THREE.TextureLoader() : null;
+const _texCache = new Map();   // src → { tex, cbs[] }
+const _colorCtx = (() => { const c = document.createElement('canvas'); c.width = c.height = 1; return c.getContext('2d'); })();
+
+// ── Icon sheet infrastructure ─────────────────────────────────────────────
+// grid-icon-sheet.png: 2560×2560, 20 columns, 128×128 per icon (RGBA, white-on-transparent).
+// multiply-blend tinting works perfectly on white-on-transparent sprites.
+const ICON_COLS     = 20;
+const ICON_SRC_SIZE = 128;
+const _iconSheet    = { img: null, cbs: null };  // cbs=null: not yet started
+
+function _getIconSheet(cb) {
+  if (_iconSheet.img)          { cb(_iconSheet.img); return; }
+  if (_iconSheet.cbs !== null) { _iconSheet.cbs.push(cb); return; }
+  _iconSheet.cbs = [cb];
+  const img = new Image();
+  img.onload  = () => { _iconSheet.img = img; const cbs = _iconSheet.cbs; _iconSheet.cbs = null; cbs.forEach(f => f(img)); };
+  img.onerror = () => { console.error('[icon] failed to load grid-icon-sheet.png'); const cbs = _iconSheet.cbs; _iconSheet.cbs = null; cbs.forEach(f => f(null)); };
+  img.src = 'grid-icon-sheet.png';
 }
 
-let msgCount = 0;
+function _drawIcon(canvas, ctx2d, sheet, iconIndex, colorStr) {
+  const w = canvas.width, h = canvas.height;
+  if (!sheet || w <= 0 || h <= 0) return;
+  const col = iconIndex % ICON_COLS,    row = Math.floor(iconIndex / ICON_COLS);
+  const sx  = col * ICON_SRC_SIZE,      sy  = row * ICON_SRC_SIZE;
+  const {r, g, b, a} = _parseColor(colorStr || 'white');
+  const isWhite = r >= 0.99 && g >= 0.99 && b >= 0.99;
+  ctx2d.clearRect(0, 0, w, h);
+  if (isWhite) {
+    ctx2d.save(); ctx2d.globalAlpha = a;
+    ctx2d.drawImage(sheet, sx, sy, ICON_SRC_SIZE, ICON_SRC_SIZE, 0, 0, w, h);
+    ctx2d.restore();
+  } else {
+    // Tint on an OffscreenCanvas (multiply preserves colour, destination-in preserves alpha),
+    // then blit to visible canvas with the requested opacity.
+    const tmp  = new OffscreenCanvas(w, h);
+    const tctx = tmp.getContext('2d');
+    tctx.drawImage(sheet, sx, sy, ICON_SRC_SIZE, ICON_SRC_SIZE, 0, 0, w, h);
+    tctx.globalCompositeOperation = 'multiply';
+    tctx.fillStyle = `rgb(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)})`;
+    tctx.fillRect(0, 0, w, h);
+    tctx.globalCompositeOperation = 'destination-in';
+    tctx.drawImage(sheet, sx, sy, ICON_SRC_SIZE, ICON_SRC_SIZE, 0, 0, w, h);
+    ctx2d.save(); ctx2d.globalAlpha = a;
+    ctx2d.drawImage(tmp, 0, 0);
+    ctx2d.restore();
+  }
+}
+
+function _buildIconWidget(s, tag, ownerId, cssClass, isClickable, isToggle) {
+  const wrapper = document.createElement('div');
+  wrapper.className = cssClass;
+
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'display:block;width:100%;height:100%;';
+  wrapper.appendChild(canvas);
+  const ctx2d = canvas.getContext('2d');
+
+  const iconIndex = s.icon_index !== undefined ? +s.icon_index : 0;
+  const colorStr  = (s.color || 'white').trim();
+
+  function render(w, h) {
+    if (w <= 0 || h <= 0) return;
+    canvas.width = w; canvas.height = h;
+    _getIconSheet(sheet => { if (sheet) _drawIcon(canvas, ctx2d, sheet, iconIndex, colorStr); });
+  }
+  new ResizeObserver(entries => {
+    const r = entries[0].contentRect;
+    render(Math.round(r.width), Math.round(r.height));
+  }).observe(wrapper);
+  _getIconSheet(() => {});   // preload sheet early
+
+  if (isToggle) {
+    let checked = false;
+    wrapper.style.cursor = 'pointer';
+    wrapper.addEventListener('click', () => {
+      checked = !checked;
+      wrapper.classList.toggle('checked', checked);
+      sendEvent('change', tag, ownerId, { checked });
+    });
+  } else {
+    const clickTag = s.click_tag ? s.click_tag.trim() : tag;
+    if (isClickable || s.click_tag) {
+      wrapper.style.cursor = 'pointer';
+      wrapper.addEventListener('click', () => sendEvent('gui_message', clickTag, ownerId));
+    }
+  }
+
+  return wrapper;
+}
+
+// Parse any CSS color string (named, hex, rgb, rgba, with leading whitespace)
+// using the browser's own color parser. Returns { r, g, b, a } in [0,1].
+function _parseColor(cssColor) {
+  _colorCtx.clearRect(0, 0, 1, 1);
+  _colorCtx.fillStyle = '#ffffff';  // reset to known value
+  _colorCtx.fillStyle = cssColor;
+  const normalized = _colorCtx.fillStyle;  // browser normalises to #rrggbb or rgba(...)
+  const hex  = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(normalized);
+  const rgba = /rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)/.exec(normalized);
+  if (hex)  return { r: parseInt(hex[1],16)/255,  g: parseInt(hex[2],16)/255,  b: parseInt(hex[3],16)/255,  a: 1 };
+  if (rgba) return { r: parseInt(rgba[1])/255,     g: parseInt(rgba[2])/255,    b: parseInt(rgba[3])/255,    a: parseFloat(rgba[4]) };
+  return { r: 1, g: 1, b: 1, a: 1 };  // unrecognised → white (no tint)
+}
+
+function _loadTex(src, onLoad) {
+  if (!_tl || !_threeRenderer) { onLoad(null); return; }
+  if (_texCache.has(src)) {
+    const e = _texCache.get(src);
+    if (e.tex) onLoad(e.tex);
+    else       e.cbs.push(onLoad);
+    return;
+  }
+  const e = { tex: null, cbs: [onLoad] };
+  _texCache.set(src, e);
+  _tl.load(src,
+    tex  => { e.tex = tex; e.cbs.forEach(cb => cb(tex)); e.cbs = []; },
+    undefined,
+    ()   => {
+      console.error('[image] failed to load:', src);
+      _texCache.delete(src);   // allow retry on next request
+      e.cbs.forEach(cb => cb(null)); e.cbs = [];
+    }
+  );
+}
+
+function _buildImageWidget(s) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'w-image';
+  if (!s.image || !_threeRenderer) return wrapper;
+
+  // Visible 2D canvas — the shared WebGL renderer blits into it each render.
+  const displayCanvas = document.createElement('canvas');
+  const ctx2d = displayCanvas.getContext('2d');
+  wrapper.appendChild(displayCanvas);
+
+  const scene  = new THREE.Scene();
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const mat    = new THREE.MeshBasicMaterial({ transparent: true, color: 0xffffff });
+  scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat));
+
+  let lastW = 0, lastH = 0;
+
+  function doRender(w, h) {
+    if (w <= 0 || h <= 0) return;
+    lastW = w; lastH = h;
+    if (!mat.map) return;
+    displayCanvas.width  = w;
+    displayCanvas.height = h;
+    _threeRenderer.setSize(w, h, false);   // false = don't touch CSS size
+    _threeRenderer.render(scene, camera);
+    ctx2d.clearRect(0, 0, w, h);
+    ctx2d.drawImage(_threeRenderer.domElement, 0, 0);
+  }
+
+  _loadTex(s.image + '.png', tex => {
+    if (!tex) return;
+    const hasSub = s.sub_rect || s.sub_left !== undefined;
+    if (hasSub) {
+      const parts = s.sub_rect ? s.sub_rect.split(',').map(Number) : [0, 0, 1, 1];
+      const sl = s.sub_left   !== undefined ? +s.sub_left   : parts[0];
+      const st = s.sub_top    !== undefined ? +s.sub_top    : parts[1];
+      const sr = s.sub_right  !== undefined ? +s.sub_right  : parts[2];
+      const sb = s.sub_bottom !== undefined ? +s.sub_bottom : parts[3];
+      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.repeat.set(sr - sl || 1, sb - st || 1);
+      tex.offset.set(sl, 1 - sb);   // three.js v is bottom-up; sub_rect is top-down
+      tex.needsUpdate = true;
+    }
+    mat.map = tex;
+    if (s.color) {
+      const { r, g, b, a } = _parseColor(s.color);
+      mat.color.setRGB(r, g, b);
+      mat.opacity = a;
+    }
+    mat.needsUpdate = true;
+    doRender(lastW || wrapper.clientWidth, lastH || wrapper.clientHeight);
+  });
+
+  new ResizeObserver(entries => {
+    const { width, height } = entries[0].contentRect;
+    doRender(width, height);
+  }).observe(wrapper);
+
+  return wrapper;
+}
 
 // ── Log panels ───────────────────────────────────────────────────────────────
 const scriptLogPanel = document.getElementById('script-log-panel');
@@ -164,9 +364,19 @@ function log(msg, cls = '') {
 }
 
 // ── Buffers ───────────────────────────────────────────────────────────────────
-let frontBuf = document.getElementById('buf-front');
-let backBuf  = document.getElementById('buf-back');
-log(`init: frontBuf=#${frontBuf.id} backBuf=#${backBuf.id}`, 'dbg');
+// ── Region registry ───────────────────────────────────────────────────────────
+// Each entry: { container, front, back, inProgress, parentTag }
+// Root entry uses the two static #buf-front / #buf-back divs.
+const _regions = {
+  "": {
+    container: document.getElementById('gui-root'),
+    front:     document.getElementById('buf-front'),
+    back:      document.getElementById('buf-back'),
+    inProgress: false,
+    parentTag:  null,
+  }
+};
+log(`init: root region registered`, 'dbg');
 
 // ── WebSocket ────────────────────────────────────────────────────────────────
 let ws;
@@ -200,21 +410,23 @@ function connect() {
 connect();
 
 // ── Event → server ────────────────────────────────────────────────────────────
-function sendEvent(type, tag, detail = {}) {
-  const eid = getEffectiveId();
+// clientID is the owner of the widget that fired the event — taken from the
+// command that rendered it, so server-page widgets fire as 0 and client-page
+// widgets fire as the browser's assigned ID automatically.
+function sendEvent(type, tag, clientID, detail = {}) {
   if (ws && ws.readyState === WebSocket.OPEN)
-    ws.send(JSON.stringify({ type, tag, clientID: eid, ...detail }));
-  log(`TX ${type} tag=${tag} as=${eid}`, 'ev');
+    ws.send(JSON.stringify({ type, tag, clientID, ...detail }));
+  log(`TX ${type} tag=${tag} clientID=${clientID}`, 'ev');
 }
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 function dispatch(msg) {
   switch (msg.cmd) {
-    case 'init':     cmdInit(msg);   break;
-    case 'clear':    cmdClear();     break;
-    case 'complete': cmdComplete();  break;
-    case 'log':      cmdLog(msg);    break;
-    default:         cmdWidget(msg); break;
+    case 'init':     cmdInit(msg);     break;
+    case 'clear':    cmdClear(msg);    break;
+    case 'complete': cmdComplete(msg); break;
+    case 'log':      cmdLog(msg);      break;
+    default:         cmdWidget(msg);   break;
   }
 }
 
@@ -236,48 +448,9 @@ function cmdLog(msg) {
 // ── init ──────────────────────────────────────────────────────────────────────
 function cmdInit(msg) {
   CLIENT_ID = msg.clientID;
+  document.getElementById('mode-label').textContent = _mode;
   document.getElementById('cid-val').textContent = CLIENT_ID;
-  // Only set send-as to assigned ID if the user hasn't set it via URL param or manually
-  if (_urlId === null) document.getElementById('send-as-val').value = CLIENT_ID;
-  log(`  assigned clientID=${CLIENT_ID}  sendAs=${getEffectiveId()}`, 'ev');
-}
-
-// ── Sub-region registry (root-canvas coords, rebuilt each frame) ─────────────
-let backRegions = {};
-
-// True between a 'clear' and the next 'complete' — a full frame rebuild is in
-// progress, so widgets must go into backBuf even if they already exist in frontBuf.
-let _frameInProgress = false;
-
-// ── clear ─────────────────────────────────────────────────────────────────────
-function cmdClear() {
-  backBuf.innerHTML = '';
-  backRegions = {};
-  _frameInProgress = true;
-  log(`  clear → #${backBuf.id} wiped`, 'dbg');
-}
-
-// ── complete ──────────────────────────────────────────────────────────────────
-function cmdComplete() {
-  const prevFrontId = frontBuf.id;
-  const prevBackId  = backBuf.id;
-  const childCount  = backBuf.children.length;
-
-  // Demote current front → back
-  frontBuf.classList.replace('front', 'back');
-  frontBuf.style.opacity = '0';
-  frontBuf.style.pointerEvents = 'none';
-
-  // Promote current back → front
-  backBuf.classList.replace('back', 'front');
-  backBuf.style.opacity = '1';
-  backBuf.style.pointerEvents = 'all';
-
-  // Swap JS references
-  [frontBuf, backBuf] = [backBuf, frontBuf];
-  _frameInProgress = false;
-
-  log(`  complete: #${prevBackId}(${childCount} children) → front, #${prevFrontId} → back`, 'dbg');
+  log(`  mode=${_mode} clientID=${CLIENT_ID}`, 'ev');
 }
 
 // ── pct helper ────────────────────────────────────────────────────────────────
@@ -290,16 +463,46 @@ function placeRoot(el, left, top, right, bottom) {
   el.style.height = pct(bottom - top);
 }
 
-// Convert parent-relative 0-100 coords to root-canvas 0-100 coords
-function toRoot(p, left, top, right, bottom) {
-  const pw = p.right - p.left;
-  const ph = p.bottom - p.top;
-  return {
-    left:   p.left + pw * left   / 100,
-    top:    p.top  + ph * top    / 100,
-    right:  p.left + pw * right  / 100,
-    bottom: p.top  + ph * bottom / 100,
-  };
+// ── clear ─────────────────────────────────────────────────────────────────────
+function _clearRegionChildren(parentTag) {
+  for (const k of Object.keys(_regions)) {
+    if (k !== "" && _regions[k].parentTag === parentTag) {
+      _clearRegionChildren(k);
+      delete _regions[k];
+    }
+  }
+}
+
+function cmdClear(msg) {
+  const tag = msg.tag || "";
+  if (tag === "") {
+    // Root clear: wipe the whole client tree
+    _regions[""].back.innerHTML = '';
+    _regions[""].inProgress = true;
+    for (const k of Object.keys(_regions)) { if (k !== "") delete _regions[k]; }
+    log(`  clear root → back wiped, all sub-regions discarded`, 'dbg');
+  } else {
+    const region = _regions[tag];
+    if (!region) { log(`  clear: unknown region "${tag}"`, 'err'); return; }
+    region.back.innerHTML = '';
+    region.inProgress = true;
+    _clearRegionChildren(tag);
+    log(`  clear region="${tag}" → back wiped`, 'dbg');
+  }
+}
+
+// ── complete ──────────────────────────────────────────────────────────────────
+function cmdComplete(msg) {
+  const tag = msg.tag || "";
+  const region = _regions[tag];
+  if (!region) { log(`  complete: unknown region "${tag}"`, 'err'); return; }
+
+  region.front.classList.replace('front', 'back');
+  region.back.classList.replace('back',  'front');
+  [region.front, region.back] = [region.back, region.front];
+  region.inProgress = false;
+
+  log(`  complete region="${tag || 'root'}" → swapped (${region.back.children.length} old children now in back)`, 'dbg');
 }
 
 // ── Style string parser ───────────────────────────────────────────────────────
@@ -338,10 +541,40 @@ function parseStyle(styleStr) {
 // True for Artemis boolean flag values: on / yes / True / active
 function isOn(v) { return v != null && /^(on|yes|true|active)$/i.test(String(v).trim()); }
 
+// ── cmdSubRegion ──────────────────────────────────────────────────────────────
+// Creates or updates a named child region. Regions have their own front/back
+// buffer pair and can be independently rebuilt with clear(tag)/complete(tag).
+function cmdSubRegion(msg, s) {
+  const { tag, parent, left, top, right, bottom } = msg;
+  const parentRegion = _regions[parent != null ? parent : ""] || _regions[""];
+
+  let entry = _regions[tag];
+  if (!entry) {
+    const front = document.createElement('div'); front.className = 'region-buffer front';
+    const back  = document.createElement('div'); back.className  = 'region-buffer back';
+    const container = document.createElement('div'); container.className = 'region-container';
+    if (tag) container.dataset.tag = tag;
+    container.append(front, back);
+    entry = { container, front, back, inProgress: false, parentTag: parent || "" };
+    _regions[tag] = entry;
+    // Add to parent's active buffer (back if rebuilding, front otherwise)
+    const dest = parentRegion.inProgress ? parentRegion.back : parentRegion.front;
+    dest.appendChild(container);
+    log(`  +sub_region tag="${tag}" → region[${parent||'root'}] ${parentRegion.inProgress ? 'back' : 'front'}`, 'dbg');
+  } else {
+    log(`  ~sub_region tag="${tag}" (reposition)`, 'dbg');
+  }
+  placeRoot(entry.container, left, top, right, bottom);
+}
+
 // ── cmdWidget ─────────────────────────────────────────────────────────────────
 function cmdWidget(msg) {
   const { cmd, tag, parent, left, top, right, bottom } = msg;
   const s = parseStyle(msg.style);
+
+  // sub_region registers a child region; not a normal placeable widget
+  if (cmd === 'sub_region') { cmdSubRegion(msg, s); return; }
+
   const el = buildWidget(msg, s);
   if (!el) return;
 
@@ -349,12 +582,12 @@ function cmdWidget(msg) {
   if (tag) el.dataset.tag = tag;
   if (s.draw_layer) el.style.zIndex = s.draw_layer;
 
-  // The real engine allows send_gui_* with an existing tag to update an element
-  // in-place without a full clear/complete cycle (used by gui_represent).
-  // Only do this outside a rebuild — during clear→complete the widget must go
-  // into backBuf so the buffer swap shows correct content.
-  if (tag && !_frameInProgress) {
-    const existing = frontBuf.querySelector(`[data-tag="${CSS.escape(tag)}"]`);
+  const region = _regions[parent != null ? parent : ""] || _regions[""];
+
+  // In-place update: outside a rebuild, replace the existing element in the
+  // region's live front buffer.
+  if (tag && !region.inProgress) {
+    const existing = region.front.querySelector(`[data-tag="${CSS.escape(tag)}"]`);
     if (existing) {
       el.style.left   = existing.style.left;
       el.style.top    = existing.style.top;
@@ -363,29 +596,29 @@ function cmdWidget(msg) {
       if (!s.draw_layer && existing.style.zIndex)
         el.style.zIndex = existing.style.zIndex;
       existing.parentNode.replaceChild(el, existing);
-      log(`  ~${cmd} tag=${tag} → #${frontBuf.id} (in-place update)`, 'dbg');
+      log(`  ~${cmd} tag=${tag} → region[${parent||'root'}] front (in-place)`, 'dbg');
       return;
     }
+    // No matching element in front and not inside a rebuild — stale update, discard.
+    // Appending to the back would accumulate hidden elements that surface on the next
+    // buffer swap and can intercept clicks as invisible clickregions.
+    log(`  ?${cmd} tag=${tag} → stale out-of-rebuild update, discarding`, 'dbg');
+    return;
   }
 
-  let rc;
+  // Rebuild path: append to the region's back buffer.
+  // Coordinates are always relative to the region container — no toRoot needed.
   if (isOn(s.pixel_aligned)) {
-    // Coordinates are pixel values, not percentages
     el.style.left   = left + 'px';
     el.style.top    = top + 'px';
     el.style.width  = (right - left) + 'px';
     el.style.height = (bottom - top) + 'px';
-    rc = { left, top, right, bottom };
   } else {
-    rc = (parent && backRegions[parent])
-      ? toRoot(backRegions[parent], left, top, right, bottom)
-      : { left, top, right, bottom };
-    placeRoot(el, rc.left, rc.top, rc.right, rc.bottom);
+    placeRoot(el, left, top, right, bottom);
   }
 
-  if (cmd === 'sub_region') backRegions[tag] = rc;
-  backBuf.appendChild(el);
-  log(`  +${cmd} tag=${tag} → #${backBuf.id}  [${pct(rc.left)},${pct(rc.top)},${pct(rc.right-rc.left)},${pct(rc.bottom-rc.top)}]`, 'dbg');
+  region.back.appendChild(el);
+  log(`  +${cmd} tag=${tag} → region[${parent||'root'}] back [${pct(left)},${pct(top)},${pct(right-left)},${pct(bottom-top)}]`, 'dbg');
 }
 
 // ── buildWidget ───────────────────────────────────────────────────────────────
@@ -398,15 +631,17 @@ function buildWidget(msg, s) {
   let el;
   switch (cmd) {
     case 'button': {
+      const ownerId = msg.clientID ?? 0;
       el = document.createElement('button');
       el.className = 'w-button';
       el.textContent = s.text || tag;
       if (s.color) el.style.color = s.color;
       if (s.font)  el.style.fontFamily = s.font;
-      el.addEventListener('click', () => sendEvent('gui_message', tag));
+      el.addEventListener('click', () => sendEvent('gui_message', tag, ownerId));
       break;
     }
     case 'checkbox': {
+      const ownerId = msg.clientID ?? 0;
       el = document.createElement('label');
       el.className = 'w-checkbox';
       const cb = document.createElement('input'); cb.type = 'checkbox';
@@ -417,34 +652,44 @@ function buildWidget(msg, s) {
       if (s.color) sp.style.color = s.color;
       if (s.font)  sp.style.fontFamily = s.font;
       el.append(cb, sp);
-      cb.addEventListener('change', () => sendEvent('gui_message', tag, { checked: cb.checked }));
+      cb.addEventListener('change', () => sendEvent('gui_message', tag, ownerId, { checked: cb.checked }));
       break;
     }
     case 'clickregion': {
+      const ownerId = msg.clientID ?? 0;
       el = document.createElement('div'); el.className = 'w-clickregion';
-      if (s.text) { el.textContent = s.text; if (s.color) el.style.color = s.color; }
-      if (s.background_color) el.style.background = s.background_color;
-      el.addEventListener('click', () => sendEvent('gui_message', tag));
+      if (s.background_color) el.style.setProperty('--cr-hover-bg', s.background_color.trim());
+      if (s.text) {
+        const span = document.createElement('span'); span.className = 'cr-hover-text';
+        span.textContent = s.text;
+        if (s.color) span.style.color = s.color;
+        if (s.font)  span.style.fontFamily = s.font;
+        el.appendChild(span);
+      }
+      el.addEventListener('click', () => sendEvent('gui_message', tag, ownerId));
       break;
     }
     case 'colorbutton': {
+      const ownerId = msg.clientID ?? 0;
       el = document.createElement('div'); el.className = 'w-colorbutton';
-      const btnColor = s.color || '#4f8ef7';
-      el.style.background = btnColor; el.title = tag;
-      el.addEventListener('click', () => sendEvent('gui_message', tag, { color: btnColor }));
+      const btnColor = (s.color || '#4f8ef7').trim();
+      el.style.backgroundColor = btnColor; el.title = tag;
+      el.addEventListener('click', () => sendEvent('gui_message', tag, ownerId, { color: btnColor }));
       break;
     }
     case 'colorcheckbox': {
+      const ownerId = msg.clientID ?? 0;
       el = document.createElement('label'); el.className = 'w-colorcheckbox';
       const sw = document.createElement('div'); sw.className = 'swatch';
       const chkColor = s.color || '#4f8ef7';
       sw.style.background = chkColor;
       const cb2 = document.createElement('input'); cb2.type = 'checkbox'; cb2.style.display = 'none';
       el.append(sw, cb2);
-      el.addEventListener('click', () => { cb2.checked = !cb2.checked; sendEvent('change', tag, { checked: cb2.checked, color: chkColor }); });
+      el.addEventListener('click', () => { cb2.checked = !cb2.checked; sendEvent('change', tag, ownerId, { checked: cb2.checked, color: chkColor }); });
       break;
     }
     case 'dropdown': {
+      const ownerId = msg.clientID ?? 0;
       el = document.createElement('div'); el.className = 'w-dropdown';
       const sel = document.createElement('select');
       (s.list || s.text || tag).split(',').forEach(o => {
@@ -453,7 +698,7 @@ function buildWidget(msg, s) {
       if (s.color) sel.style.color = s.color;
       if (s.font)  sel.style.fontFamily = s.font;
       el.appendChild(sel);
-      sel.addEventListener('change', () => sendEvent('change', tag, { value: sel.value }));
+      sel.addEventListener('change', () => sendEvent('change', tag, ownerId, { value: sel.value }));
       break;
     }
     case 'face': {
@@ -461,57 +706,31 @@ function buildWidget(msg, s) {
       el.textContent = msg.face_string || '🙂'; break;
     }
     case 'icon': {
-      el = document.createElement('div'); el.className = 'w-icon';
-      el.textContent = s.text || (s.icon_index !== undefined ? `[${s.icon_index}]` : '🔷');
-      if (s.color) el.style.color = s.color;
-      if (s.font)  el.style.fontFamily = s.font;
+      const ownerId = msg.clientID ?? 0;
+      el = _buildIconWidget(s, tag, ownerId, 'w-icon', false, false);
       break;
     }
     case 'iconbutton': {
-      el = document.createElement('div'); el.className = 'w-iconbutton';
-      el.textContent = s.icon_index !== undefined ? `[${s.icon_index}]` : '🔵';
-      if (s.color) el.style.color = s.color;
-      el.addEventListener('click', () => sendEvent('gui_message', tag)); break;
+      const ownerId = msg.clientID ?? 0;
+      el = _buildIconWidget(s, tag, ownerId, 'w-iconbutton', true, false);
+      break;
     }
     case 'iconcheckbox': {
-      el = document.createElement('div'); el.className = 'w-iconcheckbox';
-      el.textContent = s.icon_index !== undefined ? `[${s.icon_index}]` : '☐';
-      if (s.color) el.style.color = s.color;
-      let chk = false;
-      el.addEventListener('click', () => { chk = !chk; el.classList.toggle('checked', chk); sendEvent('change', tag, { checked: chk }); });
+      const ownerId = msg.clientID ?? 0;
+      el = _buildIconWidget(s, tag, ownerId, 'w-iconcheckbox', false, true);
       break;
     }
     case 'image': {
-      el = document.createElement('div'); el.className = 'w-image';
-      if (s.image) {
-        const imgSrc = s.image + '.png';
-        const hasSub = s.sub_rect || s.sub_left !== undefined || s.sub_top !== undefined;
-        if (hasSub) {
-          // sub_rect values are 0–1 fractions of the source image
-          const parts = s.sub_rect ? s.sub_rect.split(',').map(Number) : [0, 0, 1, 1];
-          const sl = s.sub_left   !== undefined ? +s.sub_left   : parts[0];
-          const st = s.sub_top    !== undefined ? +s.sub_top    : parts[1];
-          const sr = s.sub_right  !== undefined ? +s.sub_right  : parts[2];
-          const sb = s.sub_bottom !== undefined ? +s.sub_bottom : parts[3];
-          const sw = sr - sl || 1, sh = sb - st || 1;
-          el.style.backgroundImage    = `url('${imgSrc}')`;
-          el.style.backgroundRepeat   = 'no-repeat';
-          el.style.backgroundSize     = `${(100 / sw).toFixed(2)}% ${(100 / sh).toFixed(2)}%`;
-          el.style.backgroundPosition = `${(-sl / sw * 100).toFixed(2)}% ${(-st / sh * 100).toFixed(2)}%`;
-        } else {
-          const img = document.createElement('img'); img.src = imgSrc; img.alt = tag;
-          el.appendChild(img);
-        }
-      }
+      el = _buildImageWidget(s);
       break;
     }
     case 'rawiconbutton': {
-      el = document.createElement('div'); el.className = 'w-rawiconbutton';
-      el.textContent = s.icon_index !== undefined ? `[${s.icon_index}]` : '▶';
-      if (s.color) el.style.color = s.color;
-      el.addEventListener('click', () => sendEvent('gui_message', tag)); break;
+      const ownerId = msg.clientID ?? 0;
+      el = _buildIconWidget(s, tag, ownerId, 'w-rawiconbutton', true, false);
+      break;
     }
     case 'slider': {
+      const ownerId = msg.clientID ?? 0;
       el = document.createElement('div'); el.className = 'w-slider';
       const rng = document.createElement('input'); rng.type = 'range';
       rng.min = s.low ?? 0; rng.max = s.high ?? 100; rng.value = msg.current ?? 50;
@@ -521,17 +740,12 @@ function buildWidget(msg, s) {
         const numEl = document.createElement('span'); numEl.className = 'slider-num';
         numEl.textContent = rng.value;
         if (s.color) numEl.style.color = s.color;
-        rng.addEventListener('input', () => { numEl.textContent = rng.value; sendEvent('change', tag, { value: +rng.value }); });
+        rng.addEventListener('input', () => { numEl.textContent = rng.value; sendEvent('change', tag, ownerId, { value: +rng.value }); });
         el.append(rng, numEl);
       } else {
-        rng.addEventListener('input', () => sendEvent('change', tag, { value: +rng.value }));
+        rng.addEventListener('input', () => sendEvent('change', tag, ownerId, { value: +rng.value }));
         el.appendChild(rng);
       }
-      break;
-    }
-    case 'sub_region': {
-      el = document.createElement('div'); el.className = 'w-sub_region';
-      if (s.text) { el.textContent = s.text; if (s.color) el.style.color = s.color; }
       break;
     }
     case 'text': {
@@ -547,6 +761,7 @@ function buildWidget(msg, s) {
       break;
     }
     case 'typein': {
+      const ownerId = msg.clientID ?? 0;
       el = document.createElement('div'); el.className = 'w-typein';
       const inp = document.createElement('input');
       inp.type = isOn(s.password) ? 'password' : 'text';
@@ -555,14 +770,15 @@ function buildWidget(msg, s) {
       if (s.color) inp.style.color = s.color;
       if (s.font)  inp.style.fontFamily = s.font;
       el.appendChild(inp);
-      inp.addEventListener('change',  () => sendEvent('change', tag, { value: inp.value }));
-      inp.addEventListener('keydown', e => { if (e.key === 'Enter') sendEvent('submit', tag, { value: inp.value }); });
+      inp.addEventListener('change',  () => sendEvent('change', tag, ownerId, { value: inp.value }));
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') sendEvent('submit', tag, ownerId, { value: inp.value }); });
       break;
     }
     case 'hotkey': {
+      const ownerId = msg.clientID ?? 0;
       document.addEventListener('keydown', e => {
         if (e.key === msg.keyType || e.code === msg.keyType)
-          sendEvent('hotkey', tag, { keyType: msg.keyType, category: msg.category });
+          sendEvent('hotkey', tag, ownerId, { keyType: msg.keyType, category: msg.category });
       });
       return null;
     }

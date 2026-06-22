@@ -127,6 +127,7 @@ def _run(
     gui: bool = False,
     port: int = 8765,
     tick_rate: int = 60,
+    cosmos_dir: str | None = None,
 ) -> None:
     mission_folder = os.path.abspath(mission_folder)
     missions_root  = _find_missions_root(mission_folder)
@@ -144,7 +145,8 @@ def _run(
     _orig_stdout = _orig_stderr = None
     if gui:
         import cosmos_dev.mockgui.sbs as sbs
-        _server_proc = sbs.start_server(port=port)
+        _cosmos_dir = cosmos_dir or os.path.dirname(os.path.dirname(missions_root))
+        _server_proc = sbs.start_server(port=port, cosmos_dir=_cosmos_dir)
         print(f"[runner] GUI server started — open http://localhost:{port}/")
         _orig_stdout, _orig_stderr = sys.stdout, sys.stderr
         sys.stdout = _TeeWriter(sys.__stdout__, "info",  sbs.gui_queue)
@@ -259,6 +261,7 @@ def run_mission(
     gui: bool = False,
     port: int = 8765,
     tick_rate: int = 60,
+    cosmos_dir: str | None = None,
 ) -> None:
     """Entry point for per-mission extern_debug.py wrappers."""
     _run(
@@ -268,6 +271,7 @@ def run_mission(
         gui=gui,
         port=port,
         tick_rate=tick_rate,
+        cosmos_dir=cosmos_dir,
     )
 
 
@@ -298,6 +302,8 @@ if __name__ == "__main__":
                     help="WebSocket server port  [default: 8765]")
     ap.add_argument("--tick-rate", type=int, default=60,
                     help="Ticks per second  [default: 60]")
+    ap.add_argument("--cosmos-dir", default=None,
+                    help="Cosmos install root for image serving  [default: auto-detected]")
     args = ap.parse_args()
 
     if args.map is None:
@@ -315,4 +321,5 @@ if __name__ == "__main__":
         gui=args.gui,
         port=args.port,
         tick_rate=args.tick_rate,
+        cosmos_dir=args.cosmos_dir,
     )

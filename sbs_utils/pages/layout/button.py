@@ -25,7 +25,7 @@ class Button(Column):
             # If there's a better way to do this, feel free to make it so. But it works great as is.
             # What we're doing is swapping out any existing `color` attributes and adding a new one, with the value for self.background_color.
             import re
-            button_message = re.sub(r"[^-]color:.*?(;|$)","",self.message, flags=re.M) # This removes any existing color tag, which is used for text color, but in this case we need it for the backgorund color
+            button_message = re.sub(r"(?<!-)color:.*?(?:;|$)","",self.message, flags=re.M) # This removes any existing color tag, which is used for text color, but in this case we need it for the background color
             button_message = f"color:{self.background_color};{button_message}" # Prepend instead of append so we don't need to depend on user to include a tailing semicolon
             # This color button is now effectively the background.
             ctx.sbs.send_gui_colorbutton(event.client_id, self.region_tag,

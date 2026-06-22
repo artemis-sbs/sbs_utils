@@ -18,6 +18,7 @@ import asyncio
 import base64
 import hashlib
 import json
+import mimetypes
 import multiprocessing
 import os
 import struct
@@ -39,14 +40,16 @@ _gui_queue:          Optional[multiprocessing.Queue] = None
 _client_event_queue: Optional[multiprocessing.Queue] = None
 _gui_event_queue:    Optional[multiprocessing.Queue] = None
 _ready_event:        Optional[multiprocessing.Event] = None
+_cosmos_dir:         Optional[str] = None   # Cosmos install root; images served from <cosmos_dir>/data/graphics/
 
 # ---------------------------------------------------------------------------
 # Frame state
 # ---------------------------------------------------------------------------
 _connections:    Dict[int, Set[asyncio.StreamWriter]] = {}
-_next_client_id: int = 0x8080000000000001
-_last_frame:     Dict[int, List[dict]] = {}   # last committed (complete) frame
-_pending_frame:  Dict[int, List[dict]] = {}   # frame being built (after clear, before complete)
+_next_client_id: int = 0x8080000000000001  # transmitted as JSON strings to avoid JS precision loss
+_last_frame:     Dict[int, Dict[str, List[dict]]] = {}   # [client_id][region_tag] → committed cmds
+_pending_frame:  Dict[int, Dict[str, List[dict]]] = {}   # [client_id][region_tag] → in-progress cmds
+_in_progress:    Dict[int, Set[str]]              = {}   # client_id → set of region tags being rebuilt
 _lock:           Optional[asyncio.Lock] = None
 
 def _get_lock() -> asyncio.Lock:
@@ -161,12 +164,22 @@ async def _unregister(client_id: int, writer: asyncio.StreamWriter) -> None:
         _connections.get(client_id, set()).discard(writer)
 
 async def _replay(client_id: int, writer: asyncio.StreamWriter) -> None:
-    """Send the last committed frame to a freshly connected client."""
+    """Send the last committed frame to a freshly connected client.
+
+    Root region ("") is sent first so sub_region widgets register their
+    containers before sub-region content arrives.
+    """
     frames: List[dict] = []
     async with _get_lock():
-        frames = list(_last_frame.get(0, [])) + list(_last_frame.get(client_id, []))
-    _log(f"[replay] client={client_id} sending {len(frames)} commands "
-         f"(last_frame keys={list(_last_frame.keys())})")
+        merged: Dict[str, List[dict]] = {}
+        for src_id in ([0] if client_id == 0 else [0, client_id]):
+            for rtag, cmds in _last_frame.get(src_id, {}).items():
+                merged.setdefault(rtag, []).extend(cmds)
+        frames = list(merged.get("", []))
+        for rtag, cmds in merged.items():
+            if rtag != "":
+                frames.extend(cmds)
+    _log(f"[replay] client={client_id} sending {len(frames)} commands")
     for payload in frames:
         try:
             await _ws_send(writer, json.dumps(payload))
@@ -180,8 +193,10 @@ async def _replay(client_id: int, writer: asyncio.StreamWriter) -> None:
 # ---------------------------------------------------------------------------
 async def _broadcast(payload: dict) -> None:
     """Record the command into the pending frame and forward to live clients."""
-    client_id = payload.get("clientID", 0)
-    cmd       = payload.get("cmd")
+    client_id  = payload.get("clientID", 0)
+    cmd        = payload.get("cmd")
+    # clear/complete carry the region tag in 'tag'; widget commands carry it in 'parent'
+    region_tag = payload.get("tag", "") if cmd in ("clear", "complete") else payload.get("parent", "")
 
     if cmd == "log":
         # Log messages go to all browsers but are never recorded in frames
@@ -193,14 +208,43 @@ async def _broadcast(payload: dict) -> None:
     else:
         async with _get_lock():
             if cmd == "clear":
-                _pending_frame[client_id] = [payload]
+                if region_tag == "":
+                    # Root clear: reset the entire client tree
+                    _pending_frame[client_id] = {"": [payload]}
+                    _in_progress[client_id]   = {""}
+                    # Wipe sub-region last frames; root rebuild recreates them
+                    if client_id in _last_frame:
+                        _last_frame[client_id] = {
+                            k: v for k, v in _last_frame[client_id].items() if k == ""
+                        }
+                else:
+                    _pending_frame.setdefault(client_id, {})[region_tag] = [payload]
+                    _in_progress.setdefault(client_id, set()).add(region_tag)
+
             elif cmd == "complete":
-                frame = _pending_frame.get(client_id, [])
+                frame = _pending_frame.get(client_id, {}).get(region_tag, [])
                 frame.append(payload)
-                _last_frame[client_id]    = frame
-                _pending_frame[client_id] = []
+                _last_frame.setdefault(client_id, {})[region_tag] = frame
+                _pending_frame.setdefault(client_id, {})[region_tag] = []
+                _in_progress.setdefault(client_id, set()).discard(region_tag)
+
             else:
-                _pending_frame.setdefault(client_id, []).append(payload)
+                if region_tag in _in_progress.get(client_id, set()):
+                    # Widget inside an active rebuild — goes into pending
+                    _pending_frame.setdefault(client_id, {}).setdefault(region_tag, []).append(payload)
+                else:
+                    # Out-of-rebuild in-place update — mutate last_frame directly
+                    region_cmds = _last_frame.setdefault(client_id, {}).setdefault(region_tag, [])
+                    widget_tag  = payload.get("tag", "")
+                    if widget_tag:
+                        for i, existing in enumerate(region_cmds):
+                            if existing.get("tag") == widget_tag:
+                                region_cmds[i] = payload
+                                break
+                        else:
+                            region_cmds.append(payload)
+                    else:
+                        region_cmds.append(payload)
 
             if client_id == 0:
                 targets = set()
@@ -210,7 +254,10 @@ async def _broadcast(payload: dict) -> None:
                 targets = set(_connections.get(client_id, set()))
 
     dead = []
-    msg  = json.dumps(payload)
+    # Transmit clientID as a string so 64-bit IDs survive JS JSON without precision loss.
+    wire = dict(payload)
+    wire["clientID"] = str(payload.get("clientID", 0))
+    msg  = json.dumps(wire)
     for writer in targets:
         try:
             await _ws_send(writer, msg)
@@ -237,11 +284,13 @@ async def _queue_dispatcher() -> None:
 # ---------------------------------------------------------------------------
 async def _handle_websocket(client_id: int,
                               reader: asyncio.StreamReader,
-                              writer: asyncio.StreamWriter) -> None:
-    await _ws_send(writer, json.dumps({"cmd": "init", "clientID": client_id}))
+                              writer: asyncio.StreamWriter,
+                              fire_connect: bool = True) -> None:
+    await _ws_send(writer, json.dumps({"cmd": "init", "clientID": str(client_id)}))
     await _register(client_id, writer)
-    _client_event_queue.put({"event": "connect", "clientID": client_id})
-    _log(f"[server] client {client_id} connected")
+    if fire_connect:
+        _client_event_queue.put({"event": "connect", "clientID": client_id})
+    _log(f"[server] client {client_id} connected (fire_connect={fire_connect})")
     await _replay(client_id, writer)
 
     try:
@@ -252,8 +301,10 @@ async def _handle_websocket(client_id: int,
             if opcode == 1:     # text frame
                 text  = payload.decode('utf-8', errors='replace')
                 event = json.loads(text)
-                # Browser may send clientID=0 to act as server; respect it
-                event.setdefault("clientID", client_id)
+                # clientID arrives as a string (sent that way to avoid JS float precision
+                # loss for 64-bit IDs); convert back to int for internal use.
+                raw = event.get("clientID")
+                event["clientID"] = int(raw) if raw is not None else client_id
                 _log(f"[event]  client={client_id} effective={event['clientID']} {event}")
                 _gui_event_queue.put(event)
     except (asyncio.IncompleteReadError, ConnectionResetError, BrokenPipeError):
@@ -261,12 +312,33 @@ async def _handle_websocket(client_id: int,
     finally:
         await _ws_close(writer)
         await _unregister(client_id, writer)
-        _client_event_queue.put({"event": "disconnect", "clientID": client_id})
+        if fire_connect:
+            _client_event_queue.put({"event": "disconnect", "clientID": client_id})
         _log(f"[server] client {client_id} disconnected")
 
 # ---------------------------------------------------------------------------
 # Raw TCP connection handler (HTTP + WebSocket upgrade)
 # ---------------------------------------------------------------------------
+async def _serve_static(writer: asyncio.StreamWriter, url_path: str) -> None:
+    """Serve a file from <cosmos_dir>/data/graphics/ given a URL path."""
+    graphics_root = os.path.normpath(os.path.join(_cosmos_dir, "data", "graphics"))
+    # Strip leading slash and normalise
+    rel = url_path.lstrip("/").replace("/", os.sep)
+    abs_path = os.path.normpath(os.path.join(graphics_root, rel))
+    # Prevent path traversal outside the graphics root
+    if not abs_path.startswith(graphics_root + os.sep) and abs_path != graphics_root:
+        await _http_send(writer, "403 Forbidden", "text/plain", "Forbidden")
+        return
+    if not os.path.isfile(abs_path):
+        await _http_send(writer, "404 Not Found", "text/plain", f"Not found: {url_path}")
+        return
+    mime, _ = mimetypes.guess_type(abs_path)
+    mime = mime or "application/octet-stream"
+    with open(abs_path, "rb") as f:
+        data = f.read()
+    await _http_send(writer, "200 OK", mime, data)
+
+
 async def _handle_connection(reader: asyncio.StreamReader,
                                writer: asyncio.StreamWriter) -> None:
     global _next_client_id
@@ -276,7 +348,9 @@ async def _handle_connection(reader: asyncio.StreamReader,
             writer.close()
             return
 
-        headers = req.get('headers', {})
+        url_path      = req.get('path', '/')
+        url_path_bare = url_path.split('?')[0]   # strip query string
+        headers       = req.get('headers', {})
         is_ws = (
             headers.get('upgrade', '').lower() == 'websocket'
             and 'upgrade' in headers.get('connection', '').lower()
@@ -294,18 +368,46 @@ async def _handle_connection(reader: asyncio.StreamReader,
             ).encode())
             await writer.drain()
 
-            async with _get_lock():
-                client_id       = _next_client_id
-                _next_client_id += 1
-            await _handle_websocket(client_id, reader, writer)
+            # /ws/server  → browser acts as the server console (clientID=0, no client_connect)
+            # /ws/client or /ws → browser gets a unique client ID and fires client_connect
+            if url_path_bare == '/ws/server':
+                client_id    = 0
+                fire_connect = False
+            else:
+                async with _get_lock():
+                    client_id       = _next_client_id
+                    _next_client_id += 1
+                fire_connect = True
+
+            await _handle_websocket(client_id, reader, writer, fire_connect=fire_connect)
         else:
-            try:
-                with open(_CLIENT_HTML, 'r', encoding='utf-8') as f:
-                    html = f.read()
-                await _http_send(writer, "200 OK", "text/html; charset=utf-8", html)
-            except FileNotFoundError:
-                await _http_send(writer, "404 Not Found", "text/plain",
-                                  f"client.html not found at {_CLIENT_HTML}")
+            # /server and /client both serve client.html; the page reads location.pathname
+            # to decide which WebSocket path to connect to.
+            if url_path_bare in ('/', '/client.html', '/server', '/client'):
+                try:
+                    with open(_CLIENT_HTML, 'r', encoding='utf-8') as f:
+                        html = f.read()
+                    await _http_send(writer, "200 OK", "text/html; charset=utf-8", html)
+                except FileNotFoundError:
+                    await _http_send(writer, "404 Not Found", "text/plain",
+                                      f"client.html not found at {_CLIENT_HTML}")
+            elif '/' not in url_path_bare.lstrip('/'):
+                # Serve a flat file from the mockgui directory (e.g. three.min.js)
+                filename  = url_path_bare.lstrip('/')
+                local_path = os.path.join(_HERE, filename)
+                if os.path.isfile(local_path):
+                    mime, _ = mimetypes.guess_type(local_path)
+                    with open(local_path, 'rb') as f:
+                        data = f.read()
+                    await _http_send(writer, "200 OK", mime or "application/octet-stream", data)
+                elif _cosmos_dir:
+                    await _serve_static(writer, url_path_bare)
+                else:
+                    await _http_send(writer, "404 Not Found", "text/plain", f"Not found: {url_path}")
+            elif _cosmos_dir:
+                await _serve_static(writer, url_path_bare)
+            else:
+                await _http_send(writer, "404 Not Found", "text/plain", "Not found")
     except Exception as e:
         _log(f"[server] connection error: {e}")
         try:
@@ -337,13 +439,15 @@ def run_server(
     ready_event:    multiprocessing.Event,
     host: str = "0.0.0.0",
     port: int = 8765,
+    cosmos_dir: Optional[str] = None,
 ) -> None:
     """Inject shared queues, then start the asyncio event loop. Runs in a child process."""
-    global _gui_queue, _client_event_queue, _gui_event_queue, _ready_event
+    global _gui_queue, _client_event_queue, _gui_event_queue, _ready_event, _cosmos_dir
     _gui_queue          = gui_q
     _client_event_queue = client_event_q
     _gui_event_queue    = gui_event_q
     _ready_event        = ready_event
+    _cosmos_dir         = cosmos_dir
     asyncio.run(_serve(host, port))
 
 # ---------------------------------------------------------------------------
@@ -351,8 +455,9 @@ def run_server(
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
     import sys
-    host = sys.argv[1] if len(sys.argv) > 1 else "0.0.0.0"
-    port = int(sys.argv[2]) if len(sys.argv) > 2 else 8765
+    host        = sys.argv[1] if len(sys.argv) > 1 else "0.0.0.0"
+    port        = int(sys.argv[2]) if len(sys.argv) > 2 else 8765
+    _cosmos_dir = sys.argv[3] if len(sys.argv) > 3 else None
     _gui_queue          = multiprocessing.Queue()
     _client_event_queue = multiprocessing.Queue()
     _gui_event_queue    = multiprocessing.Queue()

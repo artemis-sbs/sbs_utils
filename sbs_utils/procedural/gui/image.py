@@ -180,31 +180,32 @@ class ImageAtlas:
     def get_props(self, color=None):
         # File should already be relative
         # Needs to be done so clients aren't using server file paths
-        rel_file = self.file
+        rel_file = self.file.replace("\\", "/")  # forward slashes for URL
         color = color if color else self.color
         color = color if color else "white"
         if self.left is not None:
-            return f"image:{rel_file};sub_rect:{self.left},{self.top},{self.right},{self.bottom};color:{color};" 
+            return f"image:{rel_file};sub_rect:{self.left},{self.top},{self.right},{self.bottom};color:{color};"
         else:
             return f"image:{rel_file};color:{color}"
-        
+
     def is_valid(self):
-        file_name =  "data/graphics/"+self.file + ".png"
+        file_name = os.path.normpath(os.path.join(get_artemis_graphics_dir(), self.file)) + ".png"
         return os.path.exists(file_name)
-        
+
     def get_size(self):
         global _image_sizes
         if self.left is not None:
             w = self.right - self.left
             h = self.bottom - self.top
             return (w,h)
-        
+
         # look in cache
         size = _image_sizes.get(self.file)
         if size is not None:
             return size[0], size[1]
 
-        size = gui_image_size_raw("data/graphics/"+self.file)
+        abs_file = os.path.normpath(os.path.join(get_artemis_graphics_dir(), self.file))
+        size = gui_image_size_raw(abs_file)
         _image_sizes[self.file] = size
         return size
 

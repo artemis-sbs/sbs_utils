@@ -54,7 +54,11 @@ gui_event_queue: multiprocessing.Queue = None    # type: ignore[assignment]
 # ---------------------------------------------------------------------------
 # Server launcher
 # ---------------------------------------------------------------------------
-def start_server(host: str = "0.0.0.0", port: int = 8765) -> multiprocessing.Process:
+def start_server(
+    host: str = "0.0.0.0",
+    port: int = 8765,
+    cosmos_dir: "str | None" = None,
+) -> multiprocessing.Process:
     """Start the WebSocket bridge server in a child process.
 
     Creates multiprocessing.Queue instances for all three queues, assigns them
@@ -62,9 +66,19 @@ def start_server(host: str = "0.0.0.0", port: int = 8765) -> multiprocessing.Pro
     process and waits until it is ready to accept connections.  Returns the
     Process object.
 
+    cosmos_dir: Cosmos install root (e.g. /path/to/Cosmos-1-3-0). Images are
+    served from <cosmos_dir>/data/graphics/. Defaults to sbs_utils.fs.exe_dir.
+
     Requires only Python stdlib — no pip packages needed.
     """
     global gui_queue, client_event_queue, gui_event_queue
+
+    if cosmos_dir is None:
+        try:
+            from sbs_utils import fs as _fs
+            cosmos_dir = _fs.exe_dir
+        except Exception:
+            pass
 
     gui_queue          = multiprocessing.Queue()
     client_event_queue = multiprocessing.Queue()
@@ -75,7 +89,7 @@ def start_server(host: str = "0.0.0.0", port: int = 8765) -> multiprocessing.Pro
 
     p = multiprocessing.Process(
         target=server_mod.run_server,
-        args=(gui_queue, client_event_queue, gui_event_queue, ready, host, port),
+        args=(gui_queue, client_event_queue, gui_event_queue, ready, host, port, cosmos_dir),
         daemon=True,
         name="sbs-server",
     )
