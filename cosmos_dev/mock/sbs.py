@@ -687,11 +687,19 @@ def set_shared_string(key: str, value: str) -> None:
     if sim is not None:
         sim.shared_strings[key] = value
 
+# Current skybox art name (last set via set_sky_box / set_sky_box_all). The
+# @media/skybox random-pick funnels through these, so tracking them is enough.
+_current_skybox = None
+
 def set_sky_box(clientID: int, artFileName: str) -> None:
     """sets the skybox art for a clientID (0 = server)."""
+    global _current_skybox
+    _current_skybox = artFileName
 
 def set_sky_box_all(artFileName: str) -> None:
     """sets the skybox art for all connected computers."""
+    global _current_skybox
+    _current_skybox = artFileName
 
 def show_gui_tag(clientID: int, tag: str) -> None:
     """makes a GUI element visible, on the targeted client (0 = server screen)"""

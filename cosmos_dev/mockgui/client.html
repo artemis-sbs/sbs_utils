@@ -695,7 +695,8 @@ function dispatch(msg) {
   if (_mode === 'client' && CLIENT_ID !== null &&
       msg.cmd !== 'init' && msg.cmd !== 'log' &&
       msg.cmd !== 'radar' && msg.cmd !== 'radar_terrain' &&
-      msg.cmd !== 'widget_rect' && msg.cmd !== 'cinematic' && msg.cmd !== 'batch') {
+      msg.cmd !== 'widget_rect' && msg.cmd !== 'cinematic' &&
+      msg.cmd !== 'skybox' && msg.cmd !== 'batch') {
     if (msg.clientID !== CLIENT_ID) return;
   }
   switch (msg.cmd) {
@@ -707,6 +708,7 @@ function dispatch(msg) {
     case 'radar_terrain':cmdRadarTerrain(msg);break;
     case 'widget_rect':  cmdWidgetRect(msg);  break;
     case 'cinematic':    cmdCinematic(msg);   break;
+    case 'skybox':       cmdSkybox(msg);      break;
     case 'batch':        msg.items.forEach(dispatch); break;
     default:             cmdWidget(msg);      break;
   }
@@ -1490,6 +1492,74 @@ function _makeStarfield() {
   return new THREE.Points(g, new THREE.PointsMaterial({ color: 0xcfe6ff, size: 2, sizeAttenuation: false }));
 }
 
+// ── Skybox (engine cube-cross PNG) ────────────────────────────────────────────
+// The engine ships a 4x3 cube cross (e.g. 8192x6144, six 2048 faces). Layout
+// (from the engine's blit), col,row with origin top-left:
+//        col0     col1     col2     col3
+//  row0    ·      front      ·        ·
+//  row1   left     up      right    down
+//  row2    ·      back       ·        ·
+// Sliced into 6 textures on an inverted, camera-following box.
+let _skyboxMesh = null, _skyboxName = null;
+const _SKYBOX_FACE_SIZE = 1024;
+// Per-face rotation in degrees — calibration knob if a face comes out turned.
+const _SKYBOX_FACE_ROT = { right: 0, left: 0, up: 0, down: 0, front: 0, back: 0 };
+
+function _sliceFace(img, col, row, fw, fh, rotDeg) {
+  const S = _SKYBOX_FACE_SIZE;
+  const c = document.createElement('canvas'); c.width = S; c.height = S;
+  const g = c.getContext('2d');
+  g.translate(S / 2, S / 2);
+  if (rotDeg) g.rotate(rotDeg * Math.PI / 180);
+  g.drawImage(img, col * fw, row * fh, fw, fh, -S / 2, -S / 2, S, S);
+  return c;
+}
+
+function _buildSkybox(name) {
+  if (!_view3dScene || typeof THREE === 'undefined') return;
+  const base = String(name).split(/[\\/]/).pop();   // bare-name → /<name>.png in graphics
+  const img = new Image();
+  img.onload = () => {
+    if (_skyboxName !== name) return;   // a newer skybox arrived while loading
+    const fw = img.width / 4, fh = img.height / 3, R = _SKYBOX_FACE_ROT;
+    // Box material order is +X,-X,+Y,-Y,+Z,-Z → right,left,up,down,front,back.
+    const tiles = [
+      _sliceFace(img, 2, 1, fw, fh, R.right),
+      _sliceFace(img, 0, 1, fw, fh, R.left),
+      _sliceFace(img, 1, 1, fw, fh, R.up),
+      _sliceFace(img, 3, 1, fw, fh, R.down),
+      _sliceFace(img, 1, 0, fw, fh, R.front),
+      _sliceFace(img, 1, 2, fw, fh, R.back),
+    ];
+    const mats = tiles.map(c => new THREE.MeshBasicMaterial({
+      map: new THREE.CanvasTexture(c), side: THREE.BackSide, depthTest: false, depthWrite: false,
+    }));
+    if (_skyboxMesh) _view3dScene.remove(_skyboxMesh);
+    const SZ = 2_000_000;
+    _skyboxMesh = new THREE.Mesh(new THREE.BoxGeometry(SZ, SZ, SZ), mats);
+    _skyboxMesh.renderOrder = -1;        // draw first, behind everything
+    _skyboxMesh.frustumCulled = false;
+    _view3dScene.add(_skyboxMesh);
+    if (_view3dStars) _view3dStars.visible = false;   // real sky replaces the procedural stars
+    log(`[skybox] ${base}.png loaded`, 'dbg');
+  };
+  img.onerror = () => log(`[skybox] failed: /${base}.png (keeping starfield)`, 'dbg');
+  img.src = '/' + base + '.png';
+}
+
+// ── cmdSkybox — set/clear the cinematic backdrop ──────────────────────────────
+function cmdSkybox(msg) {
+  const name = msg.name || null;
+  if (name === _skyboxName) return;
+  _skyboxName = name;
+  if (!name) {   // cleared → restore the starfield
+    if (_skyboxMesh && _view3dScene) { _view3dScene.remove(_skyboxMesh); _skyboxMesh = null; }
+    if (_view3dStars) _view3dStars.visible = true;
+    return;
+  }
+  _buildSkybox(name);
+}
+
 // ── Nebula GPU point-sprite cloud ─────────────────────────────────────────────
 // Each nebula scatters soft additive particles (seeded by the engine's
 // random_seed for reproducibility); a custom shader draws soft discs, swirls
@@ -1782,8 +1852,9 @@ function _renderView3d() {
   _view3dCamera.position.set(_v3dDispCam[0], _v3dDispCam[1], _v3dDispCam[2]);
   _view3dCamera.lookAt(_v3dDispTgt[0], _v3dDispTgt[1], _v3dDispTgt[2]);
 
-  // Keep the starfield centred on the camera so it reads as fixed at infinity.
-  if (_view3dStars) _view3dStars.position.set(_v3dDispCam[0], _v3dDispCam[1], _v3dDispCam[2]);
+  // Keep the starfield / skybox centred on the camera so they read as at infinity.
+  if (_view3dStars)  _view3dStars.position.set(_v3dDispCam[0], _v3dDispCam[1], _v3dDispCam[2]);
+  if (_skyboxMesh)   _skyboxMesh.position.set(_v3dDispCam[0], _v3dDispCam[1], _v3dDispCam[2]);
 
   // Highlight the viewer's own ship with the flat ring.
   if (_view3dHighlight) {

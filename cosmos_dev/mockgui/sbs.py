@@ -292,6 +292,7 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
         _radar_tick = 0
         _push_radar()
         _push_cinematic()
+        _push_skybox()
 
 
 def _art_root_for(obj) -> str:
@@ -363,15 +364,36 @@ def _mesh_scale_for(obj) -> float:
         return 1.0
 
 
+# Last skybox name broadcast to browsers; reset on connect so late joiners get it.
+_last_skybox_sent = "\0"   # sentinel != any real name (incl. None)
+
+
 def _force_terrain_push() -> None:
     """Reset delta snapshots so the next physics tick sends a full terrain + dynamic state.
 
     Call this when a new browser client connects so they receive complete radar state
     immediately rather than waiting for the next incremental change.
     """
-    global _last_terrain_snapshot, _last_per_ship
+    global _last_terrain_snapshot, _last_per_ship, _last_skybox_sent
     _last_terrain_snapshot = frozenset()
     _last_per_ship = {}
+    _last_skybox_sent = "\0"   # force the skybox to re-broadcast to the new client
+
+
+def _push_skybox() -> None:
+    """Broadcast the current skybox name to browsers when it changes (or after a
+    connect-forced reset). The browser slices the cross PNG into a backdrop."""
+    global _last_skybox_sent
+    if gui_queue is None:
+        return
+    name = getattr(_base_mock, "_current_skybox", None)
+    if name == _last_skybox_sent:
+        return
+    _last_skybox_sent = name
+    try:
+        gui_queue.put_nowait({"clientID": 0, "cmd": "skybox", "name": name})
+    except Exception:
+        pass
 
 
 def _push_radar() -> None:
