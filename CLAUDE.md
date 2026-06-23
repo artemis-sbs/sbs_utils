@@ -177,6 +177,17 @@ python -m cosmos_dev.mission_runner <mission_path> --map 0
 - **`cosmos_dev/mockgui/client.html`** — browser renderer; open `http://localhost:8765/`
 - **`cosmos_dev/mission_runner.py`** — tick loop; drains browser event queues and fires `cosmos_event_handler`; auto-starts a map by index/name when `--map` is passed
 
+### Mock simulation model (physics & views)
+
+The mock approximates engine behavior the real Pybind layer normally provides. Behaviors are registered per `tick_type` string (`_behavior_registry`): `behav_npcship` → `_npcship_steer`, `behav_playership` → `_playership_drive`. Physics runs on a background thread at **2 Hz (`dt=0.5`)**; only `_active_ids` objects integrate (terrain is passive — asteroids don't tumble in the mock).
+
+- **Movement.** `*_coeff` data_set values are 0–1 multipliers (default 1.0), **not** absolute speeds. NPC speed = `throttle × BASE_TOP_SPEED(200) × speed_coeff`; players use `playerThrottle` (>1.0 = warp). `_cur_speed` **ramps** toward its target (`SPEED_RAMP_RATE`), never snaps.
+- **Steering** is a pure-pursuit P-controller toward `target_pos_x/z` with **arrival braking** — it decelerates within ~2× the turn radius and stops at an arrival radius (or `stop_dist`). Without braking, ships orbited their target forever (spinning on radar).
+
+**Views are driven by the console widget list** (`send_client_widget_list`), not just `set_main_view_modes`. The mockgui overrides it to: activate the browser **3dview** when a `3dview` widget is present (streamed via the `cinematic` command each tick), and register a **2D radar rect** when a 2D-view widget (`2dview`/`weapon_2d_view`/…) is present. Defaults use a ~3% top inset to clear the topbar; the **cinematic** cutscene is full-bleed. A script can size either view explicitly with `gui_layout_widget("2dview"|"3dview")` (→ `send_client_widget_rects`), which the per-tick default backs off from. The fallback corner radar is **off by default** (topbar `RADAR` toggle).
+
+**Navareas** (`sim.add_navarea`) are a `navpoint` subclass living in `nav_points_by_id`, so `get_navpoint_by_id`/`navpoint_exists`/delete functions all work on them and they carry navpoint properties (`visibleToShip`, etc.). The four corners arrive in triangle-strip order (TL,TR,BL,BR); the radar draws them as a quad walking `0,1,3,2` (not sequentially, which bowties).
+
 ### Map auto-start
 
 When `--map` is given, `_try_auto_start_map()` polls `maps_get_list()` each tick until `@map/` labels are registered (story top-level code finishes), then calls `task_schedule_server(map_label, defer=True)`, sets `GAME_STARTED`, emits `game_started`, and calls `sbs.resume_sim()`. Without `--map`, the server GUI map-selection screen is shown.
