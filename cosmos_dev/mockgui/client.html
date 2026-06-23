@@ -1328,9 +1328,13 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
     const pts = a.points;
     if (!pts || pts.length < 3) continue;
     const col = a.color || '#4fa3ff';
+    // The engine's 4 navarea corners arrive in triangle-strip ("Z") order
+    // (TL, TR, BL, BR) — walk them 0,1,3,2 so the outline is a proper quad and
+    // not a self-crossing bowtie.  Other vertex counts draw in given order.
+    const order = pts.length === 4 ? [0, 1, 3, 2] : pts.map((_, i) => i);
     ctx.beginPath();
-    ctx.moveTo(toX(pts[0][0]), toY(pts[0][1]));
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(toX(pts[i][0]), toY(pts[i][1]));
+    ctx.moveTo(toX(pts[order[0]][0]), toY(pts[order[0]][1]));
+    for (let i = 1; i < order.length; i++) ctx.lineTo(toX(pts[order[i]][0]), toY(pts[order[i]][1]));
     ctx.closePath();
     ctx.save();
     ctx.globalAlpha = 0.12; ctx.fillStyle = col; ctx.fill();
