@@ -201,6 +201,33 @@ class TestMockSbs(unittest.TestCase):
         self.assertEqual(sbs.distance_to_navpoint(9_999_001, 9_999_002), 1000.0)
 
     # ------------------------------------------------------------------
+    # navareas
+    # ------------------------------------------------------------------
+
+    def test_add_navarea_stores_corners_text_color(self):
+        aid = sbs.sim.add_navarea(0, 0, 5000, 0, 5000, 5000, 0, 5000, "Zone", "#f80")
+        self.assertIn(aid, sbs.sim.nav_areas_by_id)
+        area = sbs.sim.nav_areas_by_id[aid]
+        self.assertEqual(area._points, [(0, 0), (5000, 0), (5000, 5000), (0, 5000)])
+        self.assertEqual(area._text, "Zone")
+        self.assertEqual(area._color, "#f80")
+
+    def test_add_navarea_ids_are_unique(self):
+        a1 = sbs.sim.add_navarea(0, 0, 1, 0, 1, 1, 0, 1, "A", "white")
+        a2 = sbs.sim.add_navarea(0, 0, 1, 0, 1, 1, 0, 1, "B", "white")
+        self.assertNotEqual(a1, a2)
+
+    def test_delete_navpoint_by_id_removes_navarea(self):
+        aid = sbs.sim.add_navarea(0, 0, 1, 0, 1, 1, 0, 1, "A", "white")
+        sbs.sim.delete_navpoint_by_id(aid)
+        self.assertNotIn(aid, sbs.sim.nav_areas_by_id)
+
+    def test_delete_all_navpoints_clears_navareas(self):
+        sbs.sim.add_navarea(0, 0, 1, 0, 1, 1, 0, 1, "A", "white")
+        sbs.delete_all_navpoints()
+        self.assertEqual(len(sbs.sim.nav_areas_by_id), 0)
+
+    # ------------------------------------------------------------------
     # create_new_sim resets all tracked state
     # ------------------------------------------------------------------
 

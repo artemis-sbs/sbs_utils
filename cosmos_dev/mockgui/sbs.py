@@ -546,10 +546,18 @@ def _push_radar() -> None:
     active_ids = s._active_ids & s.space_objects.keys()
     r2 = CULL_RADIUS * CULL_RADIUS
 
-    # Build navpoints + client_focus (sent in every per-ship message — small payload).
+    # Build navpoints + navareas + client_focus (sent in every per-ship message).
     navpts: list = []
     for name, nav in s.nav_points.items():
         navpts.append({"name": name, "x": round(nav._pos.x, 1), "z": round(nav._pos.z, 1)})
+
+    navareas: list = []
+    for area in s.nav_areas_by_id.values():
+        navareas.append({
+            "name":   area._text,
+            "color":  area._color,
+            "points": [[round(px, 1), round(pz, 1)] for (px, pz) in area._points],
+        })
 
     client_focus: dict = {}
     for cid, ship_id in s.client_ships.items():
@@ -623,7 +631,7 @@ def _push_radar() -> None:
 
         _last_per_ship[sid_str] = new_snap
 
-        if removed or changed or navpts or client_focus:
+        if removed or changed or navpts or navareas or client_focus:
             try:
                 gui_queue.put_nowait({
                     "clientID":     0,
@@ -632,6 +640,7 @@ def _push_radar() -> None:
                     "removed":      removed,
                     "changed":      changed,
                     "navpoints":    navpts,
+                    "navareas":     navareas,
                     "client_focus": client_focus,
                 })
             except Exception:

@@ -945,6 +945,7 @@ const _dynamicMeta   = new Map();  // id (string) → {side, tick_type, fx, fz, 
 
 // Latest radar overlay data — updated by cmdRadar.
 let _radarNavpoints   = [];
+let _radarNavareas    = [];
 let _radarClientFocus = {};
 
 // Camera lerp — smooths view when ship assignment or focus changes.
@@ -1052,6 +1053,7 @@ function cmdRadar(msg) {
   // Always process nav + focus — needed to discover our own ship_id before the
   // first matching per-ship message arrives.
   if (msg.navpoints !== undefined) _radarNavpoints = msg.navpoints;
+  if (msg.navareas  !== undefined) _radarNavareas  = msg.navareas;
   if (msg.client_focus) {
     // Server sends complete client_focus each tick — replace rather than merge
     // so stale entries for disconnected clients are cleared automatically.
@@ -1320,6 +1322,32 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
   ctx.save();
   ctx.beginPath(); ctx.rect(box.bx0, box.by0, box.bw, box.bh); ctx.clip();
 
+  // Navareas: quad regions drawn under the navpoints/ships, with a faint fill,
+  // outline, and a centered label in the area's color.
+  for (const a of _radarNavareas) {
+    const pts = a.points;
+    if (!pts || pts.length < 3) continue;
+    const col = a.color || '#4fa3ff';
+    ctx.beginPath();
+    ctx.moveTo(toX(pts[0][0]), toY(pts[0][1]));
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(toX(pts[i][0]), toY(pts[i][1]));
+    ctx.closePath();
+    ctx.save();
+    ctx.globalAlpha = 0.12; ctx.fillStyle = col; ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
+    if (a.name) {
+      let mx = 0, my = 0;
+      for (const p of pts) { mx += toX(p[0]); my += toY(p[1]); }
+      mx /= pts.length; my /= pts.length;
+      ctx.fillStyle = col;
+      ctx.font = `${fontSize}px monospace`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(a.name, mx, my);
+      ctx.textAlign = 'left';
+    }
+  }
+
   ctx.fillStyle = '#ffe44a';
   ctx.font = `${fontSize}px monospace`;
   for (const n of _radarNavpoints) {
@@ -1462,7 +1490,8 @@ function _renderRadar() {
   for (const rect of views) _drawRadarOverlay(_radarCtx, W, H, rect, cx, cz, halfSpan, isCorner);
 
   // NO SIGNAL overlay when corner radar has nothing.
-  if (isCorner && _dynamicCount === 0 && _radarNavpoints.length === 0 && _terrainCount === 0) {
+  if (isCorner && _dynamicCount === 0 && _radarNavpoints.length === 0
+      && _radarNavareas.length === 0 && _terrainCount === 0) {
     const { x0, y0, x1, y1 } = _rectPx(W, H, views[0]);
     const sz = Math.min(x1 - x0, y1 - y0);
     _radarCtx.fillStyle = 'rgba(255,60,60,0.7)';
