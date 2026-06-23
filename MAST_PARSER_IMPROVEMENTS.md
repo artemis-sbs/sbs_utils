@@ -14,9 +14,9 @@ one matches. None of the changes below alter MAST language semantics
 
 | # | Item | Type | Status |
 |---|------|------|--------|
-| 1 | pos-cursor instead of O(n²) source slicing | perf | ✅ Done (uncommitted) |
-| 2 | First-char/prefix node dispatch (cut O(nodes×lines)) | perf | ⬜ Proposed |
-| 3 | Hoist logger + guard per-line debug f-string | perf | ✅ Done (uncommitted) |
+| 1 | pos-cursor instead of O(n²) source slicing | perf | ✅ Done (committed `be6b664`) |
+| 2 | First-char/prefix node dispatch (cut O(nodes×lines)) | perf | ✅ Done (uncommitted) |
+| 3 | Hoist logger + guard per-line debug f-string | perf | ✅ Done (committed `be6b664`) |
 | 4 | Log `FileHandler` leak per `Mast()` construction | perf/robust | ⬜ Proposed |
 | 5 | Latent `NoneType` deref on indent (`prev_node.is_inline_label`) | robust | ⬜ Proposed |
 | 6 | `raise "<string>"` in assign.py yaml paths (TypeError masks error) | robust | ⬜ Proposed |
@@ -71,16 +71,53 @@ Benchmark script: `scratchpad/bench_compile.py` (session scratchpad, not in repo
 
 ---
 
-## ⬜ Proposed — performance
+## ✅ Done — #2 first-character node dispatch
 
-### #2 First-character / prefix node dispatch
-Each source line tries node regexes in registration order until one hits; the
-catch-alls (`Assign`, `FuncCommand`) are last, so an ordinary call runs ~15 failed
-matches first. Add a cheap first-char → candidate-list table (`#`, `==`/`??`,
-`---`, `//`, `///`, `@`, `~~`, `metadata:`, `match`/`case`/`if`/`elif`/`else`/
-`await`/`jump`/`yield`/`->`). Must preserve the "first match wins" ordering
-pitfall within each bucket. **Biggest remaining constant-factor win.** More
-invasive — do as its own tested step.
+### What changed
+- **New [first_chars.py](sbs_utils/mast/first_chars.py)** — `first_chars_for_pattern()`
+  statically analyzes a compiled regex (via `re._parser`) and returns the set of
+  characters it can match first, or `None` for "matches anything". **Safety
+  invariant: never under-claim** — any uncertain construct (`.`, `\w`/categories,
+  negated sets, anything unrecognized) collapses to `None` (never skip).
+- **[mast.py](sbs_utils/mast/mast.py)** — the compile loop now tries only the
+  nodes whose first-char set contains the line's first char (cached per char).
+  This **only skips** nodes that provably can't match; it never reorders, so the
+  "first match wins" ordering is preserved exactly.
+- **New [tests/test_mast_dispatch.py](tests/test_mast_dispatch.py)** — walks a
+  multi-node sample and asserts the full-scan winner is always a dispatch
+  candidate (the under-claim guard), plus analyzer spot-checks.
+
+### Why it's safe
+Dispatch is a pure filter on the existing ordered loop: a node is skipped only
+when its first-char set is non-`None` and excludes the current char. Correctness
+therefore reduces to "first-char sets never under-claim", which the analyzer
+guarantees by collapsing all uncertainty to `None`. The new test encodes this
+invariant for regression.
+
+### Validation
+- Differential check over **all 245 `.mast` files in `data/missions`**
+  (22,423 tokens): **0 under-claim violations**; the analyzer derived concrete
+  sets for every node except the two genuine catch-alls (`FuncCommand`, `Assign`).
+  It even tightened `Import` to `{f,i}` by unioning the optional `from ` prefix.
+- Dispatch issues only **15.8% of the `parse()` calls** the full scan did
+  (~6.3× fewer regex attempts per line).
+- `python -m unittest discover -s tests` → **338 tests OK** (335 + 3 new).
+
+### Benchmark (cumulative with #1)
+
+| labels | orig | after #1 | after #1+#2 | total |
+|---:|---:|---:|---:|---:|
+| 100 | 33 ms | 27 ms | 18 ms | **1.8×** |
+| 800 | 294 ms | 216 ms | 146 ms | **2.0×** |
+| 1600 | 724 ms | 447 ms | 304 ms | **2.4×** |
+| 3200 | 2567 ms | 909 ms | 631 ms | **4.1×** |
+
+Scaling stays linear (2.0–2.1× per doubling). At ~1 MB the compiler is now
+**4.1× faster** than the original.
+
+---
+
+## ⬜ Proposed — performance
 
 ### #4 Log handler leak per `Mast()`
 `__init__` ([mast.py:186-194](sbs_utils/mast/mast.py#L186)) opens two `FileHandler`s
@@ -140,7 +177,7 @@ error. Escape or build via `ast`.
 | Effort | Payoff | Item |
 |---|---|---|
 | ~~Medium~~ | ~~High~~ | ✅ #1 pos-cursor (done) |
+| ~~Low~~ | ~~Med~~ | ✅ #2 first-char dispatch (done) |
 | Medium | High | #8 per-compile state (correctness on re-compile) |
-| Low | Med | #2 first-char dispatch |
 | Low | Med | #5, #6, #7 latent crashes/masks |
 | Low | Low | ✅ #3 (done), #4 logging hygiene |

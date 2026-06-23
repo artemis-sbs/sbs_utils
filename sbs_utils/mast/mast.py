@@ -15,6 +15,38 @@ from ..helpers import format_exception
 import json
 from .mast_globals import MastGlobals
 from .mast_node import MastNode, Scope
+from .first_chars import first_chars_for_pattern
+
+
+# --- compiler dispatch by first character ------------------------------------
+# Trying every node's regex on every line is O(nodes x lines). For each line we
+# instead try only nodes whose rule can possibly match the line's first char.
+# This never reorders nodes (it skips ones that provably cannot match), so the
+# "first match wins" semantics are preserved. See first_chars.py for the safety
+# invariant (uncertain -> matches-anything -> never skipped).
+_node_first_chars_cache = {}   # node_cls -> set[str] | None  (None == any)
+_candidate_cache = {}          # first_char -> tuple(node_cls, ...)
+_candidate_cache_count = -1    # len(MastNode.nodes) the caches were built for
+
+
+def _node_first_chars(node_cls):
+    cached = _node_first_chars_cache.get(node_cls, "?")
+    if cached != "?":
+        return cached
+    rule = getattr(node_cls, "rule", None)
+    fc = None if rule is None else first_chars_for_pattern(rule.pattern)
+    _node_first_chars_cache[node_cls] = fc
+    return fc
+
+
+def _candidates_for(nodes, ch):
+    out = []
+    for nc in nodes:
+        fc = _node_first_chars(nc)
+        if fc is None or ch in fc:
+            out.append(nc)
+    return tuple(out)
+
 
 class SourceMapData:
     def __init__(self, file_name, basedir):
@@ -720,6 +752,13 @@ class Mast():
         pos = 0
         compile_logger = logging.getLogger("mast.compile")
         debug_enabled = compile_logger.isEnabledFor(logging.DEBUG)
+        nodes = self.__class__.nodes
+        global _candidate_cache_count
+        node_count = len(nodes)
+        if _candidate_cache_count != node_count:
+            # Node set changed (e.g. an addon registered a node type); rebuild.
+            _candidate_cache.clear()
+            _candidate_cache_count = node_count
         while pos < length:
             ws = first_non_whitespace_index(src, pos)
             line = 0
@@ -750,7 +789,17 @@ class Mast():
             # TDO: This has gotten too indented
             #
             try:
-                for node_cls in self.__class__.nodes:
+                # Only try nodes whose rule can match this line's first char.
+                ch = src[pos]
+                if len(nodes) != node_count:  # late node registration
+                    node_count = len(nodes)
+                    _candidate_cache.clear()
+                    _candidate_cache_count = node_count
+                candidates = _candidate_cache.get(ch)
+                if candidates is None:
+                    candidates = _candidates_for(nodes, ch)
+                    _candidate_cache[ch] = candidates
+                for node_cls in candidates:
                     #mo = node_cls.rule.match(lines)
                     mo = node_cls.parse(src, pos)
                     if not mo:
