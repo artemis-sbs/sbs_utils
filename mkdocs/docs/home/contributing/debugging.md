@@ -19,21 +19,21 @@ the real engine's widget protocol, full VS Code debugpy support, and a plain
 
 ## Quick Start — CLI
 
-The `sbs debug` command is the simplest way to launch a mission.  Run it from
-the `missions/` folder next to `sbs.pyz`:
+The `sbs debug` command (from `sbs.pyz`) is the simplest way to launch a mission.
+Run it from the `missions/` folder next to `sbs.pyz`:
 
 ```sh
-# Show the GUI map picker (opens http://localhost:8765/)
-sbs debug ../LegendaryMissions
-
-# Auto-start the first @map/ label, no browser needed
-sbs debug ../LegendaryMissions --map 0 --no-gui
+# Auto-start the first @map/ label with GUI
+sbs debug ../LegendaryMissions --map 0 --gui
 
 # Auto-start a map by name
-sbs debug ../SecretMeeting --map "Secret Meeting"
+sbs debug ../SecretMeeting --map "Secret Meeting" --gui
+
+# Headless — no browser needed (useful for smoke-testing)
+sbs debug ../LegendaryMissions --map 0
 
 # Custom port
-sbs debug . --port 9000
+sbs debug . --gui --port 9000
 ```
 
 Options:
@@ -41,10 +41,12 @@ Options:
 | Option | Default | Description |
 |---|---|---|
 | `mission_path` | `.` | Path to the mission folder |
+| `--gui` | off | Start the WebSocket GUI server; open `http://localhost:8765/` in a browser |
 | `--map` | *(none)* | Index (int) or label path to auto-start; omit to show the GUI picker |
-| `--no-gui` | off | Headless — no WebSocket server, no browser needed |
 | `--port` | `8765` | WebSocket server port |
 | `--tick-rate` | `60` | Engine ticks per second |
+| `--mast` | `story.mast` | Override the entry `.mast` file (e.g. `debug.mast`) |
+| `--cosmos-dir` | auto | Cosmos install root for serving texture images |
 
 ---
 
@@ -54,8 +56,9 @@ You can invoke the runner directly without `sbs.pyz`:
 
 ```sh
 # from inside missions/sbs_utils/
-python -m cosmos_dev.mission_runner ../LegendaryMissions --gui
-python -m cosmos_dev.mission_runner ../LegendaryMissions --map 0
+python -m cosmos_dev.mission_runner ../LegendaryMissions --map 0 --gui
+python -m cosmos_dev.mission_runner ../SecretMeeting --map "Secret Meeting"
+python -m cosmos_dev.mission_runner ../MyLib --mast debug.mast
 ```
 
 ---
@@ -125,51 +128,92 @@ No `extern_debug.mast` or per-mission wrapper file is needed.
 
 ---
 
-## Browser GUI — "Send As" Trick
+## Browser GUI — URL Paths
 
-Open `http://localhost:8765/` in a browser after starting with `--gui`.
+Open a browser after starting with `--gui`.  Which URL you open controls what
+role the browser plays:
 
-The topbar shows a **send as** field (default `0`).  The browser normally acts
-as client `1` (the first connected player console).  Set **send as** to `0` to
-impersonate the server and interact with server-side GUI pages (e.g. the map
-picker or a GM console).
-
-You can also pass `?id=0` in the URL to pre-set the field:
-
-```
-http://localhost:8765/?id=0    # open as server
-http://localhost:8765/?id=2    # open as client 2
-```
+| URL | Behaviour |
+|---|---|
+| `http://localhost:8765/server` | Connects as the server console (`clientID=0`). No `client_connect` event is fired — the server page is already running. Replays the server frame. |
+| `http://localhost:8765/client` | Connects as a new client with a unique `clientID`. Fires `client_connect` so the MAST client page starts. Replays server frame then client frame. |
+| `http://localhost:8765/` | Same as `/client` (default). |
 
 Multiple browser tabs can connect simultaneously, each with a different client
-ID.
+ID.  Server-page widgets (rendered with `clientID=0`) automatically fire events
+as the server; client-page widgets fire as the browser's assigned ID.
+
+!!! note "Client ID range"
+    The mockgui server assigns client IDs starting at `0x8080000000000001`
+    (the real engine uses `0x8000000000000001`).  These 64-bit values exceed
+    JavaScript's `Number.MAX_SAFE_INTEGER`, so all `clientID` fields are
+    transmitted as **JSON strings** and parsed back to `int` on arrival.
+    Python internally always uses integer client IDs.
 
 ---
 
 ## GUI Event Field Mapping
 
 The browser sends JSON objects; the runner converts them to `FakeEvent` before
-calling `cosmos_event_handler`.
+calling `cosmos_event_handler`.  All browser events arrive with
+`event.tag = "gui_message"`.  Widget tags are **strings** (from
+`page.get_tag()` which returns `str(int)`).
 
-| Browser field | `FakeEvent` field | Notes |
-|---|---|---|
-| `clientID` | `client_id` | Effective ID after "send as" override |
-| `tag` (numeric string) | `sub_tag` | Widget tag; always `event.tag = "gui_message"` |
-| `value` (number) | `sub_float` | Sliders and numeric inputs |
-| `value` (string) | `value_tag` | Dropdowns, text inputs |
-| `sub_tag` (string) | `sub_tag` | Icon `click_tag` value (type = `"click"`) |
+Browser event `type` values:
+
+| `type` | Trigger |
+|---|---|
+| `gui_message` | Pure click/activation — button, clickregion, iconbutton, rawiconbutton |
+| `change` | Value-bearing change — checkbox `checked`, dropdown `value`, slider `value`, typein `value` |
+| `submit` | Typein Enter key (same fields as `change`) |
+
+Field mapping per widget:
+
+| Widget | `sub_tag` | `value_tag` | `sub_float` |
+|---|---|---|---|
+| Button / Checkbox | widget tag (string) | — | — |
+| Dropdown | widget tag (string) | selected string | index |
+| Slider | widget tag (string) | — | raw float |
+| Icon (`click_tag`) | click_tag string | — | — |
+| TextInput | widget tag (string) | cumulative string | — |
+
+---
+
+## In-Place Widget Updates (Dirty System)
+
+Widgets mark themselves dirty when their value changes; the engine re-renders
+them automatically each tick without a full `clear`/`complete` cycle.
+`gui_represent(widget)` is **deprecated** — calling it is safe but redundant.
+
+The mockgui browser mirrors this: `send_gui_*` commands arriving outside a
+rebuild find the existing element by tag in the live front buffer and replace
+it in-place (`replaceChild`).  The widget's position is preserved; only the
+content changes.
 
 ---
 
 ## Headless / CI Use
 
-Omit `--gui` (or pass `--no-gui`) to run entirely in-process with no WebSocket
-server.  Combine with `--map 0` to auto-start and exercise server-side logic
-without any browser:
+Omit `--gui` to run entirely in-process with no WebSocket server.  Combine
+with `--map` to auto-start and exercise server-side logic without any browser:
 
 ```sh
-sbs debug ../MyMission --no-gui --map 0
+sbs debug ../MyMission --map 0
+python -m cosmos_dev.mission_runner ../MyMission --map 0
 ```
 
 This is useful for smoke-testing mission startup in CI before running the full
 unit-test suite.
+
+---
+
+## Font Measurement Tool
+
+The browser topbar has a **Measure** button that measures the actual Goldman
+font line heights and per-character pixel widths using DOM
+`getBoundingClientRect()` and `canvas.measureText()`.  Click it after the
+page loads to produce ready-to-paste Python constants for
+`cosmos_dev/mock/sbs.py`.
+
+Use this whenever the fonts are updated or the mock text measurement functions
+need re-calibration.
