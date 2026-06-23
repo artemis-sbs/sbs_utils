@@ -519,7 +519,7 @@ function loadShipMesh(art) {
       const mat = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, shininess: 40, specular: 0x444444 });
       _loadTex(root + '_diffuse.png',  tex => { if (tex) { mat.map = tex; mat.color.setHex(0xffffff); mat.needsUpdate = true; } });
       _loadTex(root + '_specular.png', tex => { if (tex) { mat.specularMap = tex; mat.needsUpdate = true; } });
-      _loadTex(root + '_emissive.png', tex => { if (tex) { mat.emissiveMap = tex; mat.emissive.setHex(0xffffff); mat.needsUpdate = true; } });
+      _loadTex(root + '_emissive.png', tex => { if (tex) { mat.emissiveMap = tex; mat.emissive.setHex(0xffffff); mat.emissiveIntensity = 1.5; mat.needsUpdate = true; } });
 
       const base = new THREE.Mesh(geo, mat);
       base.userData.maxDim = maxDim;
@@ -1453,6 +1453,23 @@ const _MESH_YAW_OFFSET = 0;
 // Target (from server) and smoothed display camera/look-at, lerped each frame.
 let _v3dCam = [0, 150, -500], _v3dTgt = [0, 0, 0];
 let _v3dDispCam = null, _v3dDispTgt = null;
+let _view3dStars = null, _view3dHighlight = null;
+
+// Procedural starfield backdrop: points on a large sphere, translated with the
+// camera each frame so they read as fixed at infinity (a cheap, asset-free
+// stand-in for the engine cube-cross skybox).
+function _makeStarfield() {
+  const N = 1500, R = 2_000_000;
+  const pos = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const u = Math.random() * 2 - 1, t = Math.random() * Math.PI * 2;
+    const s = Math.sqrt(1 - u * u);
+    pos[i*3] = R * s * Math.cos(t); pos[i*3+1] = R * u; pos[i*3+2] = R * s * Math.sin(t);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  return new THREE.Points(g, new THREE.PointsMaterial({ color: 0xcfe6ff, size: 2, sizeAttenuation: false }));
+}
 
 function _initView3d() {
   if (typeof THREE === 'undefined' || !_view3dCanvas) return;
@@ -1479,6 +1496,18 @@ function _initView3d() {
   _view3dScene.add(_view3dPoints);
   // Reference ground grid on the y=0 plane.
   _view3dScene.add(new THREE.GridHelper(400000, 80, 0x0f3a55, 0x08202e));
+
+  // Starfield backdrop (follows the camera each frame).
+  _view3dStars = _makeStarfield();
+  _view3dScene.add(_view3dStars);
+
+  // Flat ring used to highlight the viewer's own ship.
+  _view3dHighlight = new THREE.Mesh(
+    new THREE.RingGeometry(380, 460, 48),
+    new THREE.MeshBasicMaterial({ color: 0x00e5ff, side: THREE.DoubleSide, transparent: true, opacity: 0.75 }));
+  _view3dHighlight.rotation.x = -Math.PI / 2;   // lie flat on the XZ plane
+  _view3dHighlight.visible = false;
+  _view3dScene.add(_view3dHighlight);
 }
 _initView3d();
 
@@ -1565,6 +1594,23 @@ function _renderView3d() {
   _view3dCamera.updateProjectionMatrix();
   _view3dCamera.position.set(_v3dDispCam[0], _v3dDispCam[1], _v3dDispCam[2]);
   _view3dCamera.lookAt(_v3dDispTgt[0], _v3dDispTgt[1], _v3dDispTgt[2]);
+
+  // Keep the starfield centred on the camera so it reads as fixed at infinity.
+  if (_view3dStars) _view3dStars.position.set(_v3dDispCam[0], _v3dDispCam[1], _v3dDispCam[2]);
+
+  // Highlight the viewer's own ship with the flat ring.
+  if (_view3dHighlight) {
+    const idx = _myShipId ? _dynamicMap.get(_myShipId) : undefined;
+    if (idx !== undefined && idx < _dynamicCount) {
+      const b = idx * 3;
+      const m = _dynamicMeta.get(_myShipId);
+      _view3dHighlight.position.set(_dynamicPosBuf[b], (m && m.y || 0) - 4, _dynamicPosBuf[b + 1]);
+      _view3dHighlight.visible = true;
+    } else {
+      _view3dHighlight.visible = false;
+    }
+  }
+
   _view3dRenderer.setSize(W, H, false);
   _view3dRenderer.render(_view3dScene, _view3dCamera);
 }
