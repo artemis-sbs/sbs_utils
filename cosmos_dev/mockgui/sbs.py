@@ -308,6 +308,39 @@ def _art_root_for(obj) -> str:
         return tag
 
 
+def _nebula_info(obj):
+    """If the object is a nebula, return its visual params for the 3dview's GPU
+    point-sprite cloud, else None. Nebulae are volumetric (no OBJ mesh):
+
+        radius   – cloud size (data_set "size")
+        density  – particle count + opacity scale (~1.95..20)
+        seed     – engine random_seed, for reproducible deterministic scatter
+        color    – emission rgb (self-glow core), 0..1
+        color2   – scattering rgb (second tint for two-tone particles), 0..1
+        swirl    – animated swirl rotation amount
+        warp     – per-particle positional wobble amount
+    """
+    if getattr(obj, "_data_tag", "") != "nebula":
+        return None
+    ds = obj.data_set
+    def _f(key, default):
+        v = ds.get(key)
+        return float(v) if v is not None else default
+    return {
+        "radius":  round(_f("size", 2000.0), 1),
+        "density": round(_f("density", 7.0), 2),
+        "seed":    int(_f("random_seed", 1)),
+        "color":   [round(_f("emission_red", 0.5), 3),
+                    round(_f("emission_green", 0.5), 3),
+                    round(_f("emission_blue", 0.8), 3)],
+        "color2":  [round(_f("scattering_red", 0.5), 3),
+                    round(_f("scattering_green", 0.5), 3),
+                    round(_f("scattering_blue", 0.8), 3)],
+        "swirl":   round(_f("swirl", 0.0), 3),
+        "warp":    round(_f("domain_warp", 0.0), 3),
+    }
+
+
 def _quat_of(obj) -> list:
     """Object orientation as [w, x, y, z] for the 3dview (full yaw/pitch/roll).
     The mock uses the standard quaternion->basis convention (forward = +Z),
@@ -363,16 +396,24 @@ def _push_radar() -> None:
         terrain_objects = []
         for tid in current_terrain_ids:
             obj = s.space_objects[tid]
-            terrain_objects.append({
+            rec = {
                 "id":   str(obj._id),
                 "x":    round(obj._pos.x, 1),
                 "z":    round(obj._pos.z, 1),
                 "side": obj._side,
-                "y":         round(obj._pos.y, 1),
-                "art":       _art_root_for(obj),
-                "meshscale": _mesh_scale_for(obj),
-                "q":         _quat_of(obj),
-            })
+                "y":    round(obj._pos.y, 1),
+                "q":    _quat_of(obj),
+            }
+            neb = _nebula_info(obj)
+            if neb is not None:
+                rec["nebula"]    = True
+                rec["art"]       = ""        # volumetric — drawn as a particle cloud, no OBJ
+                rec["meshscale"] = 1.0
+                rec.update(neb)
+            else:
+                rec["art"]       = _art_root_for(obj)
+                rec["meshscale"] = _mesh_scale_for(obj)
+            terrain_objects.append(rec)
         try:
             gui_queue.put_nowait({
                 "clientID": 0,

@@ -1009,12 +1009,17 @@ function cmdRadarTerrain(msg) {
     _terrainColBuf[base + 2] = b;
     _terrainMap.set(o.id, i);
     _terrainRevMap.set(i, o.id);
-    _terrainMeta.set(o.id, { art: o.art || '', meshscale: o.meshscale ?? 1, y: o.y ?? 0, q: o.q || null });
+    _terrainMeta.set(o.id, {
+      art: o.art || '', meshscale: o.meshscale ?? 1, y: o.y ?? 0, q: o.q || null,
+      nebula: !!o.nebula, radius: o.radius || 0, density: o.density || 0, seed: o.seed || 1,
+      color: o.color || null, color2: o.color2 || null, swirl: o.swirl || 0, warp: o.warp || 0,
+    });
   }
   _terrainCount = Math.min(objects.length, _MAX_TERRAIN);
   _terrainPoints.geometry.setDrawRange(0, _terrainCount);
   _terrainPoints.geometry.attributes.position.needsUpdate = true;
   _terrainPoints.geometry.attributes.color.needsUpdate    = true;
+  _buildNebula();   // rebuild nebula particle clouds for the new terrain set
   _renderRadar();
 }
 
@@ -1485,6 +1490,97 @@ function _makeStarfield() {
   return new THREE.Points(g, new THREE.PointsMaterial({ color: 0xcfe6ff, size: 2, sizeAttenuation: false }));
 }
 
+// ── Nebula GPU point-sprite cloud ─────────────────────────────────────────────
+// Each nebula scatters soft additive particles (seeded by the engine's
+// random_seed for reproducibility); a custom shader draws soft discs, swirls
+// them around the cloud centre and wobbles them over time. One draw call total.
+let _nebPoints = null, _nebMat = null;
+const _NEB_MAX = 24000;
+let _nebPosBuf, _nebCenBuf, _nebColBuf, _nebSizeBuf, _nebPhaseBuf, _nebSwirlBuf, _nebWarpBuf;
+
+const _NEB_VS = `
+  attribute vec3 center;
+  attribute vec3 acolor;
+  attribute float size;
+  attribute float phase;
+  attribute float swirlAmt;
+  attribute float warpAmt;
+  uniform float time;
+  varying vec3 vColor;
+  varying float vAlpha;
+  void main() {
+    vec3 off = position - center;
+    float ang = swirlAmt * time * 0.08;
+    float ca = cos(ang), sa = sin(ang);
+    vec3 r = vec3(off.x*ca - off.z*sa, off.y, off.x*sa + off.z*ca);
+    vec3 wob = warpAmt * vec3(sin(time*0.5+phase), sin(time*0.4+phase*1.3), cos(time*0.45+phase*0.7)) * (length(off) * 0.15);
+    vec4 mv = modelViewMatrix * vec4(center + r + wob, 1.0);
+    float pulse = 0.7 + 0.3 * sin(time*0.6 + phase);
+    gl_PointSize = clamp(size * pulse * (320.0 / -mv.z), 1.0, 400.0);
+    vColor = acolor;
+    vAlpha = pulse;
+    gl_Position = projectionMatrix * mv;
+  }`;
+
+const _NEB_FS = `
+  precision mediump float;
+  varying vec3 vColor;
+  varying float vAlpha;
+  void main() {
+    float d = length(gl_PointCoord - vec2(0.5));
+    float a = smoothstep(0.5, 0.0, d);
+    a *= a;                                   // soft core
+    gl_FragColor = vec4(vColor, a * 0.22 * vAlpha);
+  }`;
+
+// Mulberry32 — deterministic PRNG so a nebula's scatter is stable across rebuilds.
+function _rng(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Rebuild the combined nebula particle buffers from the current _terrainMeta.
+function _buildNebula() {
+  if (!_nebPoints) return;
+  let n = 0;
+  for (const [id, meta] of _terrainMeta) {
+    if (!meta.nebula) continue;
+    const idx = _terrainMap.get(id);
+    if (idx === undefined || idx >= _terrainCount) continue;
+    const b = idx * 3;
+    const cx = _terrainPosBuf[b], cy = meta.y || 0, cz = _terrainPosBuf[b + 1];
+    const R = meta.radius || 2000;
+    const col = meta.color || [0.6, 0.6, 0.9], col2 = meta.color2 || col;
+    const rng = _rng((meta.seed || 1) + idx);
+    const K = Math.max(16, Math.min(90, Math.round((meta.density || 7) * 4)));
+    for (let k = 0; k < K && n < _NEB_MAX; k++, n++) {
+      const u = rng() * 2 - 1, t = rng() * Math.PI * 2, s = Math.sqrt(1 - u * u);
+      const rr = R * Math.pow(rng(), 0.6);                 // centre-weighted
+      const ox = rr * s * Math.cos(t), oy = rr * u * 0.55, oz = rr * s * Math.sin(t);
+      const o3 = n * 3;
+      _nebPosBuf[o3] = cx + ox; _nebPosBuf[o3+1] = cy + oy; _nebPosBuf[o3+2] = cz + oz;
+      _nebCenBuf[o3] = cx;      _nebCenBuf[o3+1] = cy;      _nebCenBuf[o3+2] = cz;
+      const tc = rng();                                    // two-tone: emission↔scattering
+      _nebColBuf[o3]   = col[0] + (col2[0] - col[0]) * tc;
+      _nebColBuf[o3+1] = col[1] + (col2[1] - col[1]) * tc;
+      _nebColBuf[o3+2] = col[2] + (col2[2] - col[2]) * tc;
+      _nebSizeBuf[n]  = R * (0.5 + rng() * 0.7);
+      _nebPhaseBuf[n] = rng() * Math.PI * 2;
+      _nebSwirlBuf[n] = meta.swirl || 0;
+      _nebWarpBuf[n]  = meta.warp || 0;
+    }
+  }
+  const g = _nebPoints.geometry;
+  g.setDrawRange(0, n);
+  for (const k of ['position','center','acolor','size','phase','swirlAmt','warpAmt'])
+    g.attributes[k].needsUpdate = true;
+}
+
 function _initView3d() {
   if (typeof THREE === 'undefined' || !_view3dCanvas) return;
   try {
@@ -1518,6 +1614,32 @@ function _initView3d() {
   _view3dStars = _makeStarfield();
   _view3dScene.add(_view3dStars);
 
+  // Nebula particle cloud (one Points/draw call for all nebulae).
+  _nebPosBuf   = new Float32Array(_NEB_MAX * 3);
+  _nebCenBuf   = new Float32Array(_NEB_MAX * 3);
+  _nebColBuf   = new Float32Array(_NEB_MAX * 3);
+  _nebSizeBuf  = new Float32Array(_NEB_MAX);
+  _nebPhaseBuf = new Float32Array(_NEB_MAX);
+  _nebSwirlBuf = new Float32Array(_NEB_MAX);
+  _nebWarpBuf  = new Float32Array(_NEB_MAX);
+  const ng = new THREE.BufferGeometry();
+  ng.setAttribute('position', new THREE.BufferAttribute(_nebPosBuf, 3));
+  ng.setAttribute('center',   new THREE.BufferAttribute(_nebCenBuf, 3));
+  ng.setAttribute('acolor',   new THREE.BufferAttribute(_nebColBuf, 3));
+  ng.setAttribute('size',     new THREE.BufferAttribute(_nebSizeBuf, 1));
+  ng.setAttribute('phase',    new THREE.BufferAttribute(_nebPhaseBuf, 1));
+  ng.setAttribute('swirlAmt', new THREE.BufferAttribute(_nebSwirlBuf, 1));
+  ng.setAttribute('warpAmt',  new THREE.BufferAttribute(_nebWarpBuf, 1));
+  ng.setDrawRange(0, 0);
+  _nebMat = new THREE.ShaderMaterial({
+    uniforms: { time: { value: 0 } },
+    vertexShader: _NEB_VS, fragmentShader: _NEB_FS,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  _nebPoints = new THREE.Points(ng, _nebMat);
+  _nebPoints.frustumCulled = false;
+  _view3dScene.add(_nebPoints);
+
   // Flat ring used to highlight the viewer's own ship.
   _view3dHighlight = new THREE.Mesh(
     new THREE.RingGeometry(380, 460, 48),
@@ -1537,6 +1659,7 @@ function _view3dSync() {
     const tid = _terrainRevMap.get(i);
     if (tid !== undefined && _view3dMeshedIds.has(tid)) continue;
     const tm = tid !== undefined ? _terrainMeta.get(tid) : undefined;
+    if (tm && tm.nebula) continue;   // nebulae render as the particle cloud, not a point
     const b = i * 3, o = n * 3;
     _view3dPosBuf[o] = _terrainPosBuf[b]; _view3dPosBuf[o+1] = (tm && tm.y) || 0; _view3dPosBuf[o+2] = _terrainPosBuf[b+1];
     _view3dColBuf[o] = _terrainColBuf[b]; _view3dColBuf[o+1] = _terrainColBuf[b+1]; _view3dColBuf[o+2] = _terrainColBuf[b+2];
@@ -1646,6 +1769,7 @@ function _renderView3d() {
   if (_view3dCanvas.height !== H) _view3dCanvas.height = H;
   _view3dSyncInstances();   // before _view3dSync so meshed objects drop their point
   _view3dSync();
+  if (_nebMat) _nebMat.uniforms.time.value = performance.now() / 1000;
   // Smooth camera moves so scripted cuts / ship motion ease rather than snap.
   if (_v3dDispCam === null) { _v3dDispCam = _v3dCam.slice(); _v3dDispTgt = _v3dTgt.slice(); }
   const L = 0.12;
