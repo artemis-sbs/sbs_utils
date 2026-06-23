@@ -12,19 +12,23 @@ one matches. None of the changes below alter MAST language semantics
 
 ## Status overview
 
+All 11 items are complete. Commits on branch `new-lint`:
+`be6b664` (#1,#3), `57e59a2` (#2), `eec6eaf` (#5,#6,#7), `f5cf2d6` (#4,#10,#11),
+`261c2be` (#8), `+#9`.
+
 | # | Item | Type | Status |
 |---|------|------|--------|
-| 1 | pos-cursor instead of O(n²) source slicing | perf | ✅ Done (committed `be6b664`) |
-| 2 | First-char/prefix node dispatch (cut O(nodes×lines)) | perf | ✅ Done (uncommitted) |
-| 3 | Hoist logger + guard per-line debug f-string | perf | ✅ Done (committed `be6b664`) |
-| 4 | Log `FileHandler` leak per `Mast()` construction | perf/robust | ✅ Done (uncommitted) |
-| 5 | Latent `NoneType` deref on indent (`prev_node.is_inline_label`) | robust | ✅ Done (uncommitted) |
-| 6 | `raise "<string>"` in assign.py yaml paths (TypeError masks error) | robust | ✅ Done (uncommitted) |
-| 7 | Bare `except:` in `content_from_lib_or_file` hides load errors | robust | ✅ Done (uncommitted) |
-| 8 | Per-compile state object (if/match/await chains are class-level) | robust | ✅ Done (uncommitted) |
-| 9 | Inconsistent error recovery (some bail, some continue) | robust | ⬜ Proposed |
-| 10 | Regex typo `STRING_REGEX_NAMED_3` — stray `"` in group name | robust | ✅ Done (uncommitted) |
-| 11 | `compile_formatted_string` breaks on `"""` in user text | robust | ✅ Done (uncommitted) |
+| 1 | pos-cursor instead of O(n²) source slicing | perf | ✅ Done |
+| 2 | First-char/prefix node dispatch (cut O(nodes×lines)) | perf | ✅ Done |
+| 3 | Hoist logger + guard per-line debug f-string | perf | ✅ Done |
+| 4 | Log `FileHandler` leak per `Mast()` construction | perf/robust | ✅ Done |
+| 5 | Latent `NoneType` deref on indent (`prev_node.is_inline_label`) | robust | ✅ Done |
+| 6 | `raise "<string>"` in assign.py yaml paths (TypeError masks error) | robust | ✅ Done |
+| 7 | Bare `except:` in `content_from_lib_or_file` hides load errors | robust | ✅ Done |
+| 8 | Per-compile state object (if/match/await chains are class-level) | robust | ✅ Done |
+| 9 | Inconsistent error recovery (some bail, some continue) | robust | ✅ Done |
+| 10 | Regex typo `STRING_REGEX_NAMED_3` — stray `"` in group name | robust | ✅ Done |
+| 11 | `compile_formatted_string` breaks on `"""` in user text | robust | ✅ Done |
 
 ---
 
@@ -198,23 +202,41 @@ at the same column.)
 
 ---
 
-## ⬜ Proposed — robustness / correctness
+## ✅ Done — #9 error-recovery consistency
 
-### #9 Inconsistent error recovery
-Some errors `break` and continue the file; others `return errors` immediately. For a
-more robust compiler, collect errors and resync at the next top-level label. The
-`if not parsed` fallback message "Error at first newline index" should include the
-offending text.
+The compiler bailed (`return errors`) on the first construction/indentation
+error, so authors saw one problem per compile. The recoverable error sites
+(expression/node-construction failures and the pre-mutation indentation checks)
+now **append the error and continue** instead of returning. This is safe because
+at those points the offending line is already consumed (`pos` advanced) and no
+per-block state was mutated yet, so dropping the bad line and carrying on doesn't
+corrupt the parse. A whole file's independent errors are reported in one pass.
+
+Also: the unhelpful `"Error at first newline index"` fallback now reads
+`"Unrecognized syntax; no MAST node matched this line"` **and includes the
+offending line text**.
+
+The deeper, post-mutation failures (the inner dedent-loop and the outer
+catch-all) still bail — continuing there could cascade off corrupted state, and
+that's a worse experience than a clean stop.
+
+### Validation
+- [tests/test_mast.py](tests/test_mast.py): new `test_collects_multiple_errors`
+  (three bad expressions → three errors) and `test_valid_after_error_still_zero`
+  (recovery never invents errors for valid code). `test_assign_expect_error`
+  updated: one keyword-assignment problem now yields **one** clean located
+  message (was 2 — the old code appended a redundant bare-exception copy).
+- `python -m unittest discover -s tests` → **350 tests OK**.
 
 ---
 
-## Suggested priority
+## Suggested priority — all complete
 
 | Effort | Payoff | Item |
 |---|---|---|
-| ~~Medium~~ | ~~High~~ | ✅ #1 pos-cursor (done) |
-| ~~Low~~ | ~~Med~~ | ✅ #2 first-char dispatch (done) |
-| ~~Medium~~ | ~~High~~ | ✅ #8 per-compile state (done) |
-| ~~Low~~ | ~~Med~~ | ✅ #5, #6, #7 latent crashes/masks (done) |
-| ~~Low~~ | ~~Low~~ | ✅ #3, #4 logging; #10, #11 regex/format (done) |
-| Low | Low | #9 error-recovery consistency (only item left) |
+| ~~Medium~~ | ~~High~~ | ✅ #1 pos-cursor |
+| ~~Low~~ | ~~Med~~ | ✅ #2 first-char dispatch |
+| ~~Medium~~ | ~~High~~ | ✅ #8 per-compile state |
+| ~~Low~~ | ~~Med~~ | ✅ #5, #6, #7 latent crashes/masks |
+| ~~Low~~ | ~~Low~~ | ✅ #3, #4 logging; #10, #11 regex/format |
+| ~~Low~~ | ~~Low~~ | ✅ #9 error-recovery consistency |

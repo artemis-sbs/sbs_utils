@@ -993,38 +993,37 @@ class Mast():
                             obj.line_num = line_no
 
                         except Exception as e:
-                            logger = logging.getLogger("mast.compile")
-                            error = buildExceptionMessage(file_name, line_no,line,f"{e}")
-                            logger.error(error)
-                            logger.error(f"Exception: {e}")
-
-                            errors.append(error)
-                            errors.append(f"\nException: {e}")
-                            return errors # return with first errors
+                            compile_logger.error(f"Exception: {e}")
+                            # Collect and move on: the bad line is already
+                            # consumed (pos advanced) and no block state was
+                            # mutated, so we can keep compiling and report the
+                            # rest of this file's errors in one pass.
+                            errors.append(buildExceptionMessage(file_name, line_no,line,f"{e}"))
+                            break
 
                         obj.line = line if Mast.include_code else None
                         base_indent= indent_stack[0][0]
                         if obj.never_indent() and indent>base_indent:
                             errors.append(buildErrorMessage(file_name, line_no,line,"Bad indentation"))
-                            return errors # return with first errors
-                        
+                            break
+
                         if not is_indent:
                             if prev_node is not None and prev_node.must_indent():
                                 errors.append(buildErrorMessage(file_name, line_no,line,"Bad indentation"))
-                                return errors # return with first errors
+                                break
                         if is_indent:
                             if prev_node is None or not prev_node.is_indentable():
                                 # prev_node None => indenting under nothing; treat
                                 # as bad indentation instead of dereferencing None.
                                 if prev_node is None or not prev_node.is_inline_label:
                                     errors.append(buildErrorMessage(file_name,line_no,line,"Bad indentation"))
-                                    return errors # return with first errors
+                                    break
                             block_node = prev_node
                             indent_stack.append((indent,block_node))
                         if is_dedent:
                             if len(indent_stack)==0:
                                 errors.append(buildErrorMessage(file_name, line_no,line,"Bad indentation"))
-                                return errors # return with first errors
+                                break
                             
                             (i_loc,_) = indent_stack[-1]
                             while i_loc > indent:
@@ -1081,9 +1080,11 @@ class Mast():
                     pos = nn
                 else:
                     nl = first_newline_index(src, pos)
+                    bad_line = src[pos:nl]
 
-                    error = buildErrorMessage(file_name, line_no, "", "Error at first newline index")
-                    compile_logger.error(error )
+                    error = buildErrorMessage(file_name, line_no, bad_line,
+                                              "Unrecognized syntax; no MAST node matched this line")
+                    compile_logger.error(error)
                     errors.append(error)
                     pos = nl + 1
 

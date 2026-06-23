@@ -579,8 +579,34 @@ d //= 10
     max = 12
 
     """)
-        assert(len(errors)==2)
-        
+        # Assigning to the keyword `max` is one error. The compiler now reports
+        # one clear, located message per problem (it used to append the message
+        # plus a redundant bare-exception copy => 2).
+        assert(len(errors)==1)
+        assert("keyword max" in errors[0])
+
+    def test_collects_multiple_errors(self):
+        # The compiler used to bail on the first error; it now reports every
+        # independent (recoverable) error in one compile pass.
+        (errors, _) = mast_compile( code = """
+== a ==
+    x = 1 +
+    y = 2 )
+    z = 3 (
+""")
+        assert(len(errors)==3)
+
+    def test_valid_after_error_still_zero(self):
+        # Sanity: error recovery must not invent errors for valid code.
+        (errors, _) = mast_compile( code = """
+== a ==
+    x = 1
+    if x > 0:
+        log("ok")
+    for i in range(3):
+        x += i
+""")
+        assert(len(errors)==0)
 
 
     def test_end_task(self):
