@@ -467,7 +467,13 @@ class PyTicker():
                     gen_done = True
                     break
                 gen_done = False
-                fallthrough - False
+                # NOTE: `fallthrough` is intentionally left True here and is
+                # cleared ONLY on OK_END (below). A PyMAST label that yields
+                # (suspends) and later runs off its end should still fall through
+                # to the next @label, matching MAST `=== label` semantics.
+                # (There was a `fallthrough - False` no-op typo here — it
+                # computed a value and threw it away; "fixing" it to `= False`
+                # would wrongly suppress fall-through after a yield.)
                 if res is not None:
                     self.last_poll_result = res
                 if res == PollResults.OK_RUN_AGAIN:

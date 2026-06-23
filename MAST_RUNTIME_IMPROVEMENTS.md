@@ -222,16 +222,22 @@ before/after.
 Each of these changes observable mission behavior. Per the gated bar, **none
 ships without its own approval.** Listed so they're tracked, not lost.
 
-- **T3.1. `PyTicker` `fallthrough - False` → `=`.** The variable `fallthrough`
-  is set once at the top of the loop and the typo means the "generator finished"
-  branch may take the fallthrough path when it shouldn't. Fixing it changes when
-  PyMAST labels fall through to `fall_through_label`. **Needs a PyMAST repro +
-  sign-off.** (Also tracked as R2.)
-- **T3.2. Runaway-loop guard never stops the task** (~233): at 100k iterations it
-  prints and `break`s the inner loop, returning `OK_RUN_AGAIN`, so the task
-  re-enters the same spin next frame — a hang, not a guard. A real fix would end
-  or error the task, which changes behavior for any mission currently surviving
-  on this. **Sign-off + decide policy (error vs end).**
+- **T3.1. `PyTicker` `fallthrough - False`.** ✅ **RESOLVED as clarity, NOT a
+  behavior change.** Full trace of every path reaching the `if gen_done:`
+  fall-through check showed the line is a pure **no-op** (`True - False`
+  discarded): `fallthrough` is reset to `True` each `while` iteration and is
+  only meaningfully cleared on `OK_END`. "Fixing" it to `= False` would change
+  behavior only in a contrived case (yield an `ADVANCE` value then explicitly
+  yield `None`) and would *wrongly* suppress fall-through after a yield — and
+  the characterization test wouldn't even catch it. **Action taken:** deleted
+  the dead no-op and documented the rule (fall-through persists through yields,
+  matching MAST `=== label`; cleared only on `->END`). No behavior change; 365
+  OK; fall-through characterization test still passes.
+- **T3.2. Runaway-loop guard never stops the task** (100k spin → prints,
+  `break`s, returns `OK_RUN_AGAIN`, no `done` → re-spins every frame = hang, not
+  a guard). ❌ **NO-GO (user declined 2026-06-23).** Proposed fix was to convert
+  it into a runtime error that ends the task (hang → clean error + pause_sim);
+  user chose to leave the current behavior as-is. Left untouched.
 - **T3.3.** Anything P2 (`run_on_change` gating) turns out to require.
 
 ---
