@@ -288,19 +288,54 @@ def set_main_view_modes(clientID: int, main_screen_view: str, cam_angle: str, ca
 # widget list here instead.
 _view3d_widget_clients: set = set()
 
+# Clients whose current widget list contains a 2D gameplay view (helm/weapons/
+# science/comms radar, mainscreen LRS/tactical).  The standard gui_console() path
+# sets the engine widget list but never calls send_client_widget_rects (the real
+# engine lays the widgets out in C++), so without this the browser has no rect for
+# the view and falls back to the tiny corner minimap.  clientID -> widget name.
+_view2d_widget_clients: dict = {}
+
 
 def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) -> None:
-    """Record the console type (base behaviour) and toggle the browser's 3dview
-    when a "3dview" widget enters/leaves this client's gameplay widget list."""
+    """Record the console type (base behaviour) and drive the browser's gameplay
+    views from this client's widget list: activate the 3dview when a "3dview"
+    widget is present, and register a 2D radar rect when a 2D-view widget is."""
     _base_mock.send_client_widget_list(clientID, consoleType, widgetList)
-    has_3d = "3dview" in (widgetList or "").split("^")
-    if has_3d:
+    widgets = (widgetList or "").split("^")
+
+    # 3dview (mainscreen forward view, cockpit) — _push_cinematic streams the camera.
+    if "3dview" in widgets:
         _view3d_widget_clients.add(clientID)
-        # _push_cinematic streams the camera + active:True each tick from here on.
     elif clientID in _view3d_widget_clients:
         _view3d_widget_clients.discard(clientID)
-        # Console switched to a non-3d view — hide the browser 3dview.
-        _send(clientID, "cinematic", active=False)
+        _send(clientID, "cinematic", active=False)   # hide the browser 3dview
+
+    # 2D gameplay view (radar) — _push_2dview_rects streams the rect each tick.
+    view2d = next((w for w in widgets if w in _2D_VIEW_WIDGETS), None)
+    if view2d is not None:
+        _view2d_widget_clients[clientID] = view2d
+    else:
+        _view2d_widget_clients.pop(clientID, None)
+
+
+def _push_2dview_rects() -> None:
+    """Re-register the 2D radar rect each tick for clients whose console shows a
+    2D-view widget.  Sends a degenerate rect so the browser applies its own
+    full-panel _DEFAULT_2D_VIEW_RECT fallback (single source of truth for the
+    default helm/radar layout).  Per-tick resend survives the _widgetRects.clear()
+    that fires on every console rebuild."""
+    if gui_queue is None:
+        return
+    for cid, widget in list(_view2d_widget_clients.items()):
+        try:
+            gui_queue.put_nowait({
+                "clientID": str(cid),
+                "cmd": "widget_rect",
+                "widget": widget,
+                "left": 0, "top": 0, "right": 0, "bottom": 0,
+            })
+        except Exception:
+            pass
 
 
 def physics_tick(dt: float = 1.0 / 60.0) -> None:
@@ -313,6 +348,7 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
         _radar_tick = 0
         _push_radar()
         _push_cinematic()
+        _push_2dview_rects()
         _push_skybox()
 
 
