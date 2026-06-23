@@ -206,11 +206,24 @@ class TestMockSbs(unittest.TestCase):
 
     def test_add_navarea_stores_corners_text_color(self):
         aid = sbs.sim.add_navarea(0, 0, 5000, 0, 5000, 5000, 0, 5000, "Zone", "#f80")
-        self.assertIn(aid, sbs.sim.nav_areas_by_id)
-        area = sbs.sim.nav_areas_by_id[aid]
+        area = sbs.sim.get_navpoint_by_id(aid)
+        self.assertIsInstance(area, sbs.navarea)
         self.assertEqual(area._points, [(0, 0), (5000, 0), (5000, 5000), (0, 5000)])
-        self.assertEqual(area._text, "Zone")
-        self.assertEqual(area._color, "#f80")
+        self.assertEqual(area.text, "Zone")
+        self.assertEqual(area.color, "#f80")
+
+    def test_navarea_is_a_navpoint_with_navpoint_properties(self):
+        aid = sbs.sim.add_navarea(0, 0, 5000, 0, 5000, 5000, 0, 5000, "Zone", "#f80")
+        self.assertTrue(sbs.sim.navpoint_exists(aid))
+        area = sbs.sim.get_navpoint_by_id(aid)
+        self.assertIsInstance(area, sbs.navpoint)
+        # centroid position, and standard navpoint properties are settable
+        self.assertAlmostEqual(area.pos.x, 2500.0)
+        self.assertAlmostEqual(area.pos.z, 2500.0)
+        area.visibleToShip = 1234
+        area.visibleToSide = "tsn"
+        self.assertEqual(area.visibleToShip, 1234)
+        self.assertEqual(area.visibleToSide, "tsn")
 
     def test_add_navarea_ids_are_unique(self):
         a1 = sbs.sim.add_navarea(0, 0, 1, 0, 1, 1, 0, 1, "A", "white")
@@ -220,12 +233,12 @@ class TestMockSbs(unittest.TestCase):
     def test_delete_navpoint_by_id_removes_navarea(self):
         aid = sbs.sim.add_navarea(0, 0, 1, 0, 1, 1, 0, 1, "A", "white")
         sbs.sim.delete_navpoint_by_id(aid)
-        self.assertNotIn(aid, sbs.sim.nav_areas_by_id)
+        self.assertFalse(sbs.sim.navpoint_exists(aid))
 
     def test_delete_all_navpoints_clears_navareas(self):
-        sbs.sim.add_navarea(0, 0, 1, 0, 1, 1, 0, 1, "A", "white")
+        aid = sbs.sim.add_navarea(0, 0, 1, 0, 1, 1, 0, 1, "A", "white")
         sbs.delete_all_navpoints()
-        self.assertEqual(len(sbs.sim.nav_areas_by_id), 0)
+        self.assertIsNone(sbs.sim.get_navpoint_by_id(aid))
 
     # ------------------------------------------------------------------
     # create_new_sim resets all tracked state

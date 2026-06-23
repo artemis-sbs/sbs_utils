@@ -551,12 +551,16 @@ def _push_radar() -> None:
     for name, nav in s.nav_points.items():
         navpts.append({"name": name, "x": round(nav._pos.x, 1), "z": round(nav._pos.z, 1)})
 
+    # Navareas are navpoints (a subclass) kept in the ID registry, not the name
+    # dict above — pull them out by type.
     navareas: list = []
-    for area in s.nav_areas_by_id.values():
+    for nav in s.nav_points_by_id.values():
+        if not isinstance(nav, _base_mock.navarea):
+            continue
         navareas.append({
-            "name":   area._text,
-            "color":  area._color,
-            "points": [[round(px, 1), round(pz, 1)] for (px, pz) in area._points],
+            "name":   nav._text,
+            "color":  nav._color,
+            "points": [[round(px, 1), round(pz, 1)] for (px, pz) in nav._points],
         })
 
     client_focus: dict = {}

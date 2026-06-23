@@ -108,7 +108,6 @@ def delete_all_navpoints() -> None:
     if sim is not None:
         sim.nav_points = {}
         sim.nav_points_by_id = {}
-        sim.nav_areas_by_id = {}
 
 def delete_all_navproxies() -> None:
     """deletes all navproxies on server, and notifies all clients of the change"""
@@ -1108,15 +1107,15 @@ class navproxy(object): ### from pybind
         self._text = arg0
 
 
-class navarea(object):
-    """A 2D map region — a quad of four ground-plane (x, z) corners with a label
-    and color.  The engine stores navareas in the navpoint ID space and manages
-    them via the navpoint delete functions, so this mirrors that."""
+class navarea(navpoint):
+    """A navpoint that also defines a 2D map region — a quad of four ground-plane
+    (x, z) corners.  Being a navpoint, it carries all the standard properties
+    (text, color, pos, visibleToShip, visibleToSide, …) and lives in the navpoint
+    ID registry, so get_navpoint_by_id / navpoint_exists / delete_navpoint_by_id all
+    operate on it just like the engine."""
     def __init__(self) -> None:
-        self._id = 0
+        super().__init__()
         self._points = []     # list of (x, z) ground-plane corners
-        self._text = ""
-        self._color = ""
 
 
 # Typed defaults derived from object_data_documentation.txt
@@ -1313,9 +1312,8 @@ class simulation(object): ### from pybind
         self.standby_list = {}
         self.grid_object_ids = 0x2000000000000000
         self.grid_objects = {}
-        self.nav_points = {}          # keyed by name (str)
-        self.nav_points_by_id = {}    # keyed by int ID
-        self.nav_areas_by_id = {}     # navarea, keyed by int ID (shares nav_point_counter)
+        self.nav_points = {}          # keyed by name (str); navpoints only (not navareas)
+        self.nav_points_by_id = {}    # keyed by int ID; holds both navpoints and navareas
         self.nav_point_counter = 0x1000000000000000
         self.navproxies = {}
         self.hull_map_objects = {}
@@ -1354,16 +1352,18 @@ class simulation(object): ### from pybind
         return self.tractor_connections.get((arg0, arg1))
 
     def add_navarea(self: simulation, x1: float, y1: float, x2: float, y2: float, x3: float, y3: float, x4: float, y4: float, text: str, colDesc: str) -> int:
-        """adds a new navarea to space; returns its integer ID.  The four x/y pairs
-        are ground-plane corners (the 2D map y axis is world z)."""
+        """adds a new navarea to space; returns its (navpoint) integer ID.  The four
+        x/y pairs are ground-plane corners (the 2D map y axis is world z).  A navarea
+        is a navpoint, so it goes in the navpoint ID registry; its pos is the corner
+        centroid so distance_to_navpoint and friends work on it."""
         self.nav_point_counter += 1
         area = navarea()
-        area._id = self.nav_point_counter
         area._points = [(x1, y1), (x2, y2), (x3, y3), (x4, y4)]
         area._text = text
         area._color = colDesc
-        self.nav_areas_by_id[area._id] = area
-        return area._id
+        area._pos = vec3((x1 + x2 + x3 + x4) / 4.0, 0.0, (y1 + y2 + y3 + y4) / 4.0)
+        self.nav_points_by_id[self.nav_point_counter] = area
+        return self.nav_point_counter
 
     def add_navpoint(self: simulation, x: float, y: float, z: float, text: str, colDesc: str) -> int:
         """adds a new navpoint to space; returns integer ID"""
@@ -1400,11 +1400,10 @@ class simulation(object): ### from pybind
         return id
 
     def delete_navpoint_by_id(self: simulation, id: int) -> None:
-        """deletes navpoint by its id (also covers navareas, which share the ID space)"""
+        """deletes navpoint by its id (navareas are navpoints, so this covers them)"""
         nav = self.nav_points_by_id.pop(id, None)
         if nav:
             self.nav_points.pop(nav._text, None)
-        self.nav_areas_by_id.pop(id, None)
 
     def delete_navproxy_by_id(self: simulation, id: int) -> None:
         """deletes navproxy by its id"""
@@ -1510,7 +1509,6 @@ class simulation(object): ### from pybind
         """deletes all navpoints (mock helper)"""
         self.nav_points = {}
         self.nav_points_by_id = {}
-        self.nav_areas_by_id = {}
 
     def delete_navpoint_by_name(self: simulation, arg0: str) -> None:
         """deletes navpoint by its name (mock helper)"""
