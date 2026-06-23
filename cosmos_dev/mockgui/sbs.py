@@ -282,6 +282,27 @@ def set_main_view_modes(clientID: int, main_screen_view: str, cam_angle: str, ca
     _send(clientID, "cinematic", active=(cam_mode == "cinematic"))
 
 
+# Clients whose current console widget list contains a "3dview" gameplay widget
+# (mainscreen forward view, cockpit, …).  Unlike the cinematic view, these consoles
+# never call set_main_view_modes, so the browser's 3dview must be driven from the
+# widget list here instead.
+_view3d_widget_clients: set = set()
+
+
+def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) -> None:
+    """Record the console type (base behaviour) and toggle the browser's 3dview
+    when a "3dview" widget enters/leaves this client's gameplay widget list."""
+    _base_mock.send_client_widget_list(clientID, consoleType, widgetList)
+    has_3d = "3dview" in (widgetList or "").split("^")
+    if has_3d:
+        _view3d_widget_clients.add(clientID)
+        # _push_cinematic streams the camera + active:True each tick from here on.
+    elif clientID in _view3d_widget_clients:
+        _view3d_widget_clients.discard(clientID)
+        # Console switched to a non-3d view — hide the browser 3dview.
+        _send(clientID, "cinematic", active=False)
+
+
 def physics_tick(dt: float = 1.0 / 60.0) -> None:
     """Delegate to base physics then broadcast a radar delta to the browser."""
     global sim, _radar_tick
@@ -541,28 +562,65 @@ def _push_radar() -> None:
                 pass
 
 
+def _forward_view_camera(clientID: int):
+    """Auto chase-cam (behind + above the ship, looking ahead) for a widget-driven
+    3dview client.  Mirrors the base mock's cinematic auto-cam so the widget view
+    matches the cinematic one.  Returns {"cam", "target"} or None."""
+    sim_ = _base_mock.sim
+    if sim_ is None:
+        return None
+    ship_id = sim_.client_ships.get(clientID, 0)
+    o = sim_.space_objects.get(ship_id)
+    if o is None:
+        return None
+    p = o._pos
+    f = o.forward_vector()
+    cam = (p.x - f.x * 500.0, p.y + 150.0, p.z - f.z * 500.0)
+    tgt = (p.x + f.x * 200.0, p.y, p.z + f.z * 200.0)
+    return {"cam": cam, "target": tgt}
+
+
+def _emit_cinematic(cid, cam, mode: str) -> None:
+    """Enqueue one per-tick cinematic camera message for a client."""
+    c, t = cam["cam"], cam["target"]
+    try:
+        gui_queue.put_nowait({
+            "clientID": cid,
+            "cmd":      "cinematic",
+            "active":   True,
+            "mode":     mode,
+            "cam":      [round(c[0], 1), round(c[1], 1), round(c[2], 1)],
+            "target":   [round(t[0], 1), round(t[1], 1), round(t[2], 1)],
+        })
+    except Exception:
+        pass
+
+
 def _push_cinematic() -> None:
-    """Stream the resolved cinematic camera for every client currently in a
-    "cinematic" main-screen view.  One small message per client per tick; the
-    browser reuses its radar object buffers (on the y=0 plane) for the scene.
+    """Stream the resolved 3dview camera each tick for every client showing a 3D
+    view — both the cinematic main-screen view and the widget-driven forward view
+    (mainscreen/cockpit).  One small message per client per tick; the browser
+    reuses its radar object buffers (on the y=0 plane) for the scene.
     """
     if _base_mock.sim is None or gui_queue is None:
         return
+    handled = set()
+    # Cinematic main-screen view — explicit camera from cinematic_control / auto.
     for cid, modes in list(_base_mock._view_modes.items()):
         if modes[2] != "cinematic":
             continue
         cam = _base_mock.get_cinematic_camera(cid)
         if cam is None:
             continue
-        c, t = cam["cam"], cam["target"]
-        try:
-            gui_queue.put_nowait({
-                "clientID": cid,
-                "cmd":      "cinematic",
-                "active":   True,
-                "mode":     cam["mode"],
-                "cam":      [round(c[0], 1), round(c[1], 1), round(c[2], 1)],
-                "target":   [round(t[0], 1), round(t[1], 1), round(t[2], 1)],
-            })
-        except Exception:
-            pass
+        _emit_cinematic(cid, cam, cam["mode"])
+        handled.add(cid)
+
+    # Widget-driven 3dview (mainscreen forward view, cockpit) — no cinematic camera
+    # state, so synthesize an auto chase-cam tracking the client's ship.
+    for cid in list(_view3d_widget_clients):
+        if cid in handled:
+            continue
+        cam = _forward_view_camera(cid)
+        if cam is None:
+            continue
+        _emit_cinematic(cid, cam, "auto")
