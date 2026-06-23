@@ -308,6 +308,20 @@ def _art_root_for(obj) -> str:
         return tag
 
 
+def _mesh_scale_for(obj) -> float:
+    """Resolve the engine meshscale (OBJ→world size factor) for a space object,
+    so the 3dview sizes hull meshes correctly. Mirrors send_gui_3dship."""
+    tag = getattr(obj, "_data_tag", "") or ""
+    if not tag:
+        return 1.0
+    try:
+        from sbs_utils.procedural.ship_data import get_ship_data_for
+        info = get_ship_data_for(tag) or {}
+        return float(info.get("meshscale", 1.0))
+    except Exception:
+        return 1.0
+
+
 def _force_terrain_push() -> None:
     """Reset delta snapshots so the next physics tick sends a full terrain + dynamic state.
 
@@ -421,6 +435,8 @@ def _push_radar() -> None:
                     "tick_type": obj._tick_type,
                     "name":      obj.data_set.get("name_tag") or obj.data_set.get("display_text") or "",
                     "art":       _art_root_for(obj),
+                    "y":         round(obj._pos.y, 1),
+                    "meshscale": _mesh_scale_for(obj),
                     "new":       True,
                 })
             else:

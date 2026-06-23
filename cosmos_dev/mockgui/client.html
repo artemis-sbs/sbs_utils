@@ -1086,6 +1086,7 @@ function cmdRadar(msg) {
         _dynamicMeta.set(o.id, {
           side: o.side, tick_type: o.tick_type,
           fx: o.fx ?? 0, fz: o.fz ?? 0, name: o.name || '', art: o.art || '',
+          y: o.y ?? 0, meshscale: o.meshscale ?? 1,
         });
       } else {
         const meta = _dynamicMeta.get(o.id);
@@ -1526,17 +1527,16 @@ function _view3dSyncMeshes() {
         if (!cur || cur.art !== meta.art) return;   // object gone or art changed
         if (!base) { cur.failed = true; cur.pending = false; return; }
         const m = base.clone();                      // shares geometry + material
-        const isPlayer = meta.tick_type === 'PLAYER' || meta.tick_type === 'player';
-        // Target hull size in world units (stand-in until meshscale is streamed).
-        const target = isPlayer ? 700 : 450;
-        const sc = target / (base.userData.maxDim || 1);
+        // meshscale is the engine's OBJ→world factor; the geometry is in native
+        // OBJ units, so scaling the clone by it yields the correct world size.
+        const sc = meta.meshscale || 1;
         m.scale.set(sc, sc, sc);
         _view3dScene.add(m);
         cur.mesh = m; cur.pending = false;
       });
     }
     if (rec.mesh) {
-      rec.mesh.position.set(x, 0, z);
+      rec.mesh.position.set(x, meta.y || 0, z);
       rec.mesh.rotation.y = Math.atan2(meta.fx, meta.fz) + _MESH_YAW_OFFSET;
     }
   }
