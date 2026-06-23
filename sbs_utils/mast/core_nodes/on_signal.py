@@ -38,8 +38,8 @@ class OnSignal(MastNode):
         return end
     
     @classmethod
-    def parse(cls, lines):
-        return super().parse(lines)
+    def parse(cls, src, pos=0):
+        return super().parse(src, pos)
     
 from ..pollresults import PollResults
 from ..mast_runtime_node import MastRuntimeNode, mast_runtime_node

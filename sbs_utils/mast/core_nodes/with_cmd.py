@@ -38,8 +38,8 @@ class WithStart(MastNode):
         return True
     
     @classmethod
-    def parse(cls, lines):
-        mo = cls.rule.match(lines)
+    def parse(cls, src, pos=0):
+        mo = cls.rule.match(src, pos)
         if mo:
             span = mo.span()
             data = mo.groupdict()

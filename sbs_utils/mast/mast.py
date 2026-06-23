@@ -56,28 +56,35 @@ def first_non_space_index(s):
     return len(s)
 
 
-def first_non_newline_index(s):
-    for idx, c in enumerate(s):
-        if c != '\n':
+def first_non_newline_index(s, start=0):
+    # Returns the absolute index of the first non-newline char at/after start.
+    n = len(s)
+    for idx in range(start, n):
+        if s[idx] != '\n':
             return idx
-    return len(s)
+    return n
 
-def first_non_whitespace_index(s):
+def first_non_whitespace_index(s, start=0):
+    # Scans from start; returns absolute indices so the caller can advance a
+    # cursor instead of slicing the source (which would be O(n^2)).
     nl = 0
-    nl_idx=0
-    for idx, c in enumerate(s):
+    nl_idx = start
+    n = len(s)
+    for idx in range(start, n):
+        c = s[idx]
         if c != '\n' and c != '\t' and c != ' ':
-            return (idx,nl, nl_idx)
+            return (idx, nl, nl_idx)
         if c == '\n':
-            nl+=1
+            nl += 1
             nl_idx = idx
-    return (len(s), nl, nl_idx)
+    return (n, nl, nl_idx)
 
-def first_newline_index(s):
-    for idx, c in enumerate(s):
-        if c == '\n':
+def first_newline_index(s, start=0):
+    n = len(s)
+    for idx in range(start, n):
+        if s[idx] == '\n':
             return idx
-    return len(s)
+    return n
 
 
 class ExpParseData:
@@ -705,13 +712,20 @@ class Mast():
             indent_stack = [(0,None)]
 
 
-        while len(lines):
-            mo = first_non_whitespace_index(lines)
+        # Use a position cursor into the full source instead of repeatedly
+        # slicing `lines`. Slicing copied the entire remaining file on every
+        # token (O(n^2)); match(src, pos) anchors at pos with no copy.
+        src = lines
+        length = len(src)
+        pos = 0
+        compile_logger = logging.getLogger("mast.compile")
+        debug_enabled = compile_logger.isEnabledFor(logging.DEBUG)
+        while pos < length:
+            ws = first_non_whitespace_index(src, pos)
             line = 0
-            line_no += mo[1] if mo is not None else 0
-            #line = lines[:mo]
-            lines = lines[mo[0]:]
-            indent = max((mo[0] - mo[2]) -1,0)
+            line_no += ws[1]
+            pos = ws[0]
+            indent = max((ws[0] - ws[2]) - 1, 0)
             #Mast.current_indent = indent  # Replaced with compile_info
 
             #
@@ -719,13 +733,13 @@ class Mast():
             #
             if indent != 0 and active is not None and len(active.cmds) <= label_first_cmd:
                 indent_stack = [(indent,None)]
-         
+
             # Keep location in file
             parsed = False
             #
             # HANDLE END OF FILE
             #
-            if len(lines)==0:
+            if pos >= length:
                 # Pop out all indents
                 inject_remaining_dedents()
                 # Let the label generate any commn
@@ -738,32 +752,32 @@ class Mast():
             try:
                 for node_cls in self.__class__.nodes:
                     #mo = node_cls.rule.match(lines)
-                    mo = node_cls.parse(lines)
+                    mo = node_cls.parse(src, pos)
                     if not mo:
                         continue
                     #span = mo.span()
                     data = mo.data
 
-                    line = lines[mo.start:mo.end]
-                    lines = lines[mo.end:]
+                    line = src[mo.start:mo.end]
+                    pos = mo.end
 
                     line_no += line.count('\n')
-                    
+
 
                     parsed = True
                     is_indent = False
                     is_dedent = False
 
                     if node_cls.__name__ != "Comment":
-                        (cur_indent, _)  = indent_stack[-1] 
+                        (cur_indent, _)  = indent_stack[-1]
                         if indent > cur_indent:
                             is_indent = True
                             # indent_stack.append(indent)
                         elif indent < cur_indent:
                             is_dedent = True
-                    
-                    logger = logging.getLogger("mast.compile")
-                    logger.debug(f"PARSED: {node_cls.__name__:} {line}")
+
+                    if debug_enabled:
+                        compile_logger.debug("PARSED: %s %s", node_cls.__name__, line)
 
 
 
@@ -970,21 +984,20 @@ class Mast():
 
 
             if not parsed:
-                mo = first_non_newline_index(lines)
+                nn = first_non_newline_index(src, pos)
 
-                if mo:
+                if nn > pos:
                     # this just blank lines
-                    #line_no += mo
-                    line = lines[:mo]
-                    lines = lines[mo:]
+                    #line_no += (nn - pos)
+                    line = src[pos:nn]
+                    pos = nn
                 else:
-                    mo = first_newline_index(lines)
+                    nl = first_newline_index(src, pos)
 
-                    logger = logging.getLogger("mast.compile")
                     error = buildErrorMessage(file_name, line_no, "", "Error at first newline index")
-                    logger.error(error )
+                    compile_logger.error(error )
                     errors.append(error)
-                    lines = lines[mo+1:]
+                    pos = nl + 1
 
         # from .core_nodes import Await
         # for node in Await.stack:

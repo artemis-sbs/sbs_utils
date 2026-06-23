@@ -56,8 +56,10 @@ class MastNode:
             return message
 
     @classmethod
-    def parse(cls, lines):
-        mo = cls.rule.match(lines)
+    def parse(cls, src, pos=0):
+        # match(src, pos) anchors at pos without copying; with the default
+        # pos=0 this is identical to the old match(src) single-arg form.
+        mo = cls.rule.match(src, pos)
 
         if mo:
             span = mo.span()

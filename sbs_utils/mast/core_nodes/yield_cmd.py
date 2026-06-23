@@ -27,8 +27,8 @@ class Yield(MastNode):
             self.if_code = None
 
     @classmethod
-    def parse(cls, lines):
-        mo = cls.rule.match(lines)
+    def parse(cls, src, pos=0):
+        mo = cls.rule.match(src, pos)
         if not mo:
             return None
         span = mo.span()
