@@ -8,8 +8,6 @@ import re
 class IfStatements(MastNode):
     rule = re.compile(r'((?P<end>else:)|(((?P<if_op>if|elif)[ \t]+?(?P<if_exp>[ \t\S]+?)'+BLOCK_START+')))')
 
-    if_chains = {}
-
     def __init__(self, end=None, if_op=None, if_exp=None, loc=None, compile_info=None):
         super().__init__()
         self.code = None
@@ -24,25 +22,26 @@ class IfStatements(MastNode):
         self.loc = loc
 
 
+        if_chains = compile_info.ctx.if_chains
         if "end_if" == self.end:
-            self.if_node = IfStatements.if_chains.get(compile_info.indent)
+            self.if_node = if_chains.get(compile_info.indent)
             if self.if_node is not None:
                 self.if_node.if_chain.append(self)
-            IfStatements.if_chains[compile_info.indent] = None
+            if_chains[compile_info.indent] = None
         elif "else:" == self.end:
-            self.if_node = IfStatements.if_chains.get(compile_info.indent)
+            self.if_node = if_chains.get(compile_info.indent)
             if self.if_node is not None:
                 self.if_node.if_chain.append(self)
-            
+
         elif "elif" == self.if_op:
-            self.if_node = IfStatements.if_chains.get(compile_info.indent)
+            self.if_node = if_chains.get(compile_info.indent)
             if self.if_node is not None:
                 self.if_node.if_chain.append(self)
-            
+
         elif "if" == self.if_op:
             self.if_chain = [self]
             self.if_node = self
-            IfStatements.if_chains[compile_info.indent] = self
+            if_chains[compile_info.indent] = self
             
 
     def is_indentable(self):
@@ -104,7 +103,6 @@ class IfStatementsRuntimeNode(MastRuntimeNode):
 class MatchStatements(MastNode):
     #rule = re.compile(r'((?P<end>case[ \t]*_:|end_match)|(((?P<op>match|case)[ \t]+?(?P<exp>[^\n\r\f]+)'+BLOCK_START+')))')
     rule = re.compile(r'((?P<op>match|case)[ \t]+?(?P<exp>(_)|([^\n\r\f]+))'+BLOCK_START+')')
-    chains = []
     def __init__(self, end=None, op=None, exp=None, loc=None, compile_info=None):
         super().__init__()
 
@@ -115,14 +113,15 @@ class MatchStatements(MastNode):
         self.chain = None
         self.match_node = None
 
+        chains = compile_info.ctx.match_chains
         if "case" == op:
-            the_match_node = MatchStatements.chains[-1]
+            the_match_node = chains[-1]
             self.match_node = the_match_node
             the_match_node.chain.append(self)
         elif "match" == op:
             self.match_node = self
             self.chain = []
-            MatchStatements.chains.append(self)
+            chains.append(self)
             
         if op == "match":
             self.match_exp = exp.lstrip()
@@ -143,17 +142,18 @@ class MatchStatements(MastNode):
         return True
     
     def create_end_node(self, loc, dedent_obj, compile_info):
+        chains = compile_info.ctx.match_chains
         if dedent_obj is None:
             # Dandling
             self.match_node.dedent_loc = loc
             if self.op == 'match':
-                MatchStatements.chains.pop()
+                chains.pop()
         elif dedent_obj.__class__ == MatchStatements and self.op == 'match':
             if dedent_obj.op=='match':
-                MatchStatements.chains.pop()
-                MatchStatements.chains.pop()
+                chains.pop()
+                chains.pop()
                 self.match_node.dedent_loc = loc
-                MatchStatements.chains.append(dedent_obj)
+                chains.append(dedent_obj)
             else:
                 self.match_node.dedent_loc = loc
 
@@ -162,7 +162,7 @@ class MatchStatements(MastNode):
         else:
             self.match_node.dedent_loc = loc
             if self.op == 'match':
-                MatchStatements.chains.pop()
+                chains.pop()
 
         return None
 

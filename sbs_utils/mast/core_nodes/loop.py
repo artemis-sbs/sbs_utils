@@ -17,7 +17,6 @@ class LoopEnd(MastNode):
 @mast_node()
 class LoopStart(MastNode):
     rule = re.compile(r'(for[ \t]*(?P<name>\w+)[ \t]*)(?P<while_in>in|while)((?P<cond>[^\n\r\f]+))'+BLOCK_START)
-    loop_stack = {}
     def __init__(self, while_in=None, cond=None, name=None, loc=None, compile_info=None):
         super().__init__()
         if cond:
@@ -35,7 +34,7 @@ class LoopStart(MastNode):
         #
         # This needs to happen after the dedent, indents are all processed
         #
-        LoopStart.loop_stack[compile_info.indent] =self
+        compile_info.ctx.loop_stack[compile_info.indent] = self
         
         
     def is_indentable(self):
@@ -47,16 +46,11 @@ class LoopStart(MastNode):
     def create_end_node(self, loc, dedent_obj, compile_info):
         end =  LoopEnd(self, loc=loc, compile_info=compile_info)
 
-        # if dedent_obj.__class__ == LoopStart:
-        #     LoopStart.loop_stack.pop()
-        #     LoopStart.loop_stack.pop()
-        #     LoopStart.loop_stack.append(dedent_obj)
-        # else:
-        #     LoopStart.loop_stack.pop()
-        if LoopStart.loop_stack[self.indent] != self:
+        loop_stack = compile_info.ctx.loop_stack
+        if loop_stack[self.indent] != self:
             raise Exception("For loop indention issue")
-        
-        LoopStart.loop_stack[self.indent] = None
+
+        loop_stack[self.indent] = None
 
 
         # Dedent is one passed the end node
@@ -74,8 +68,9 @@ class LoopBreak(MastNode):
         self.op = op
 
         # Find the right for loop
+        loop_stack = compile_info.ctx.loop_stack
         prev_indent = -1
-        for (i, obj) in LoopStart.loop_stack.items():
+        for (i, obj) in loop_stack.items():
             # Skip anything th
             if i >= compile_info.indent or obj is None:
                 continue
@@ -83,7 +78,7 @@ class LoopBreak(MastNode):
             if i > prev_indent:
                 prev_indent = i
         if prev_indent >-1:
-            self.start = LoopStart.loop_stack.get(prev_indent, None)
+            self.start = loop_stack.get(prev_indent, None)
 
         if self.start is None:
             raise Exception("MAST break/continue indention error") 

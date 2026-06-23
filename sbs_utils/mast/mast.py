@@ -48,6 +48,29 @@ def _candidates_for(nodes, ch):
     return tuple(out)
 
 
+class CompileContext:
+    """Per-compile scratch state for block-structured nodes.
+
+    if/match/await/on/for nodes need to track their open blocks while parsing.
+    This state used to live as class attributes on the node types and was shared
+    across every compile, so an aborted compile (we bail early on the first
+    error) or a nested import (imports compile recursively mid-parse) could
+    corrupt the next/outer compile -- e.g. `if_chains` keyed only by indent could
+    alias unrelated blocks. Each `_compile` now gets its own context, reached by
+    nodes through `compile_info.ctx`.
+    """
+    __slots__ = ("if_chains", "match_chains", "await_stack",
+                 "on_change_stack", "on_signal_stack", "loop_stack")
+
+    def __init__(self):
+        self.if_chains = {}        # IfStatements: indent -> active if (or None)
+        self.match_chains = []     # MatchStatements: stack of open matches
+        self.await_stack = []      # Await: stack of open awaits
+        self.on_change_stack = []  # OnChange: stack of open on-change blocks
+        self.on_signal_stack = []  # OnSignal: stack of open on-signal blocks
+        self.loop_stack = {}       # LoopStart: indent -> active loop (or None)
+
+
 class SourceMapData:
     def __init__(self, file_name, basedir):
         self.file_name = file_name
@@ -683,7 +706,14 @@ class Mast():
         prev_node = None
         label_first_cmd = 0
 
+        # Per-compile block-parsing state. Lives on the local CompileInfo class
+        # so every CompileInfo created in this call shares it, and a fresh one is
+        # made per compile (no cross-compile / nested-import contamination).
+        compile_ctx = CompileContext()
+
         class CompileInfo:
+            ctx = compile_ctx
+
             def __init__(self) -> None:
                 self.indent = None
                 self.is_indent = None
@@ -877,11 +907,12 @@ class Mast():
                         # Generate any close block command
                         active.generate_label_end_cmds()
                         #
+                        # A new label starts fresh: drop any await left open by
+                        # the previous label (belt-and-suspenders vs unbalanced
+                        # blocks).
                         #
-                        #
-                        from .core_nodes import Await
-                        if len(Await.stack)>0:
-                            Await.stack.clear()
+                        if len(compile_ctx.await_stack) > 0:
+                            compile_ctx.await_stack.clear()
                         ##
                         ##
 
@@ -1056,20 +1087,8 @@ class Mast():
                     errors.append(error)
                     pos = nl + 1
 
-        # from .core_nodes import Await
-        # for node in Await.stack:
-        #     errors.append(f"\nERROR: Missing end_await prior to label '{active_name}'cmd {node.loc}")
-        # Await.stack.clear()
-        # from .core_nodes import LoopStart
-        # for node in LoopStart.loop_stack:
-        #     errors.append(f"\nERROR: Missing next of loop prior to label''{active_name}'")
-        # LoopStart.loop_stack.clear()
-        # for node in IfStatements.if_chains:
-        #     errors.append(f"\nERROR: Missing end_if prior to label '{active_name}'cmd {node.loc}")
-        # IfStatements.if_chains.clear()
-        # for node in MatchStatements.chains:
-        #     errors.append(f"\nERROR: Missing end_match prior to label '{active_name}'cmd {node.loc}")
-        # MatchStatements.chains.clear()
+        # (Block-state cleanup that used to live here is no longer needed: that
+        # state is now per-compile on compile_ctx and discarded with this call.)
         return errors
 
     def enable_logging():

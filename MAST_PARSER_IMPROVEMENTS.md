@@ -21,7 +21,7 @@ one matches. None of the changes below alter MAST language semantics
 | 5 | Latent `NoneType` deref on indent (`prev_node.is_inline_label`) | robust | ✅ Done (uncommitted) |
 | 6 | `raise "<string>"` in assign.py yaml paths (TypeError masks error) | robust | ✅ Done (uncommitted) |
 | 7 | Bare `except:` in `content_from_lib_or_file` hides load errors | robust | ✅ Done (uncommitted) |
-| 8 | Per-compile state object (if/match/await chains are class-level) | robust | ⬜ Proposed |
+| 8 | Per-compile state object (if/match/await chains are class-level) | robust | ✅ Done (uncommitted) |
 | 9 | Inconsistent error recovery (some bail, some continue) | robust | ⬜ Proposed |
 | 10 | Regex typo `STRING_REGEX_NAMED_3` — stray `"` in group name | robust | ✅ Done (uncommitted) |
 | 11 | `compile_formatted_string` breaks on `"""` in user text | robust | ✅ Done (uncommitted) |
@@ -158,16 +158,47 @@ All 338 tests pass.
 
 ---
 
-## ⬜ Proposed — robustness / correctness
+## ✅ Done — #8 per-compile block state (`CompileContext`)
 
-### #8 Per-compile state object
-`IfStatements.if_chains` ([conditional.py:11](sbs_utils/mast/core_nodes/conditional.py#L11)),
-`MatchStatements.chains` ([conditional.py:107](sbs_utils/mast/core_nodes/conditional.py#L107)),
-and `Await.stack` are class-level, shared across all compiles. An aborted compile
-leaves stale entries that corrupt the next mission's compile (the commented-out
-cleanup block and manual `Await.stack.clear()` are symptoms). `if_chains` keyed only
-by indent can alias unrelated blocks at the same column. Move into a per-compile
-context passed via `compile_info`.
+### The bug
+Six block-tracking containers were **class attributes shared across every
+compile**: `IfStatements.if_chains`, `MatchStatements.chains`, `Await.stack`,
+`OnChange.stack`, `OnSignal.stack`, `LoopStart.loop_stack`. Two ways this bites:
+- An aborted compile (the compiler bails on the first error) leaves entries
+  behind that corrupt the **next** mission's compile.
+- Imports compile **recursively mid-parse**, so a nested import shared the same
+  containers as the outer compile.
+
+(`if_chains`/`loop_stack` keyed only by indent could also alias unrelated blocks
+at the same column.)
+
+### The fix
+- New **`CompileContext`** ([mast.py](sbs_utils/mast/mast.py)) holds all six
+  containers. `_compile()` creates one per call and exposes it on the local
+  `CompileInfo` class (`compile_info.ctx`), so every node in a compile shares it
+  and each compile (including nested imports) is isolated.
+- The node types ([conditional.py](sbs_utils/mast/core_nodes/conditional.py),
+  [await_cmd.py](sbs_utils/mast/core_nodes/await_cmd.py),
+  [on_change.py](sbs_utils/mast/core_nodes/on_change.py),
+  [on_signal.py](sbs_utils/mast/core_nodes/on_signal.py),
+  [loop.py](sbs_utils/mast/core_nodes/loop.py),
+  [button.py](sbs_utils/mast_sbs/story_nodes/button.py)) now read/write
+  `compile_info.ctx.<container>` instead of the class attribute, and the
+  `create_end_node` methods pass `compile_info` into the end-nodes they build.
+  The class attributes are removed; the obsolete commented cleanup block is gone.
+
+### Validation
+- New [tests/test_mast_compile_context.py](tests/test_mast_compile_context.py):
+  asserts the class attributes are gone, that contexts are distinct per compile,
+  and the decisive functional check — a compile aborted **inside an open `await`**
+  followed by a clean compile, verifying the second compile's button does **not**
+  pick up the stale await (`await_node is None`). This fails on the old
+  shared-state code and passes now.
+- `python -m unittest discover -s tests` → **348 tests OK** (344 + 4 new).
+
+---
+
+## ⬜ Proposed — robustness / correctness
 
 ### #9 Inconsistent error recovery
 Some errors `break` and continue the file; others `return errors` immediately. For a
@@ -183,7 +214,7 @@ offending text.
 |---|---|---|
 | ~~Medium~~ | ~~High~~ | ✅ #1 pos-cursor (done) |
 | ~~Low~~ | ~~Med~~ | ✅ #2 first-char dispatch (done) |
-| Medium | High | #8 per-compile state (correctness on re-compile) — **next** |
+| ~~Medium~~ | ~~High~~ | ✅ #8 per-compile state (done) |
 | ~~Low~~ | ~~Med~~ | ✅ #5, #6, #7 latent crashes/masks (done) |
 | ~~Low~~ | ~~Low~~ | ✅ #3, #4 logging; #10, #11 regex/format (done) |
-| Low | Low | #9 error-recovery consistency |
+| Low | Low | #9 error-recovery consistency (only item left) |

@@ -7,7 +7,6 @@ import re
 @mast_node()
 class OnChange(MastNode):
     rule = re.compile(r"on[ \t]+(change[ \t]+)?(?P<val>[^:]+)"+BLOCK_START)
-    stack = []
     def __init__(self, end=None, val=None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
@@ -19,17 +18,19 @@ class OnChange(MastNode):
         #
         # Check to see if this is embedded in an await
         #
+        await_stack = compile_info.ctx.await_stack
+        on_change_stack = compile_info.ctx.on_change_stack
         self.await_node = None
-        if len(Await.stack) >0:
-            self.await_node = Await.stack[-1]
+        if len(await_stack) > 0:
+            self.await_node = await_stack[-1]
         self.end_node = None
 
         if end is not None:
-            OnChange.stack[-1].end_node = self
+            on_change_stack[-1].end_node = self
             self.is_end = True
-            OnChange.stack.pop()
+            on_change_stack.pop()
         else:
-            OnChange.stack.append(self)
+            on_change_stack.append(self)
 
     def is_indentable(self):
         return True
@@ -40,7 +41,7 @@ class OnChange(MastNode):
     def create_end_node(self, loc, dedent_obj, compile_info):
         """ cascade the dedent up to the start"""
         self.dedent_loc = loc
-        end = OnChange("on_end", loc = loc)
+        end = OnChange("on_end", loc = loc, compile_info=compile_info)
         end.dedent_loc = loc+1
         return end
 

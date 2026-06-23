@@ -6,7 +6,6 @@ import re
 @mast_node()
 class OnSignal(MastNode):
     rule = re.compile(r"on[ \t]+signal[ \t]+(?P<signal>\w+)"+BLOCK_START)
-    stack = []
     def __init__(self, end=None, signal=None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
@@ -17,12 +16,13 @@ class OnSignal(MastNode):
             self.label = compile_info.label
         self.end_node = None
 
+        on_signal_stack = compile_info.ctx.on_signal_stack
         if end is not None:
-            OnSignal.stack[-1].end_node = self
+            on_signal_stack[-1].end_node = self
             self.is_end = True
-            OnSignal.stack.pop()
+            on_signal_stack.pop()
         else:
-            OnSignal.stack.append(self)
+            on_signal_stack.append(self)
 
     def is_indentable(self):
         return True
@@ -33,7 +33,7 @@ class OnSignal(MastNode):
     def create_end_node(self, loc, dedent_obj, compile_info):
         """ cascade the dedent up to the start"""
         self.dedent_loc = loc
-        end = OnSignal("on_end", loc = loc)
+        end = OnSignal("on_end", loc = loc, compile_info=compile_info)
         end.dedent_loc = loc+1
         return end
     

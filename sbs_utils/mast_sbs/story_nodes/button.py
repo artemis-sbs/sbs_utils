@@ -68,8 +68,9 @@ class Button(MastNode):
                 label = compile_info.label
                 
         elif label is None and path is None:
-            if len(Await.stack) >0:
-                self.await_node = Await.stack[-1]
+            await_stack = compile_info.ctx.await_stack if compile_info is not None else []
+            if len(await_stack) > 0:
+                self.await_node = await_stack[-1]
                 self.await_node.buttons.append(self)
             else:
                 if compile_info is not None:
