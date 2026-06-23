@@ -1504,26 +1504,55 @@ function _makeStarfield() {
 }
 
 // ── Skybox (engine cube-cross PNG) ────────────────────────────────────────────
-// The engine ships a 4x3 cube cross (e.g. 8192x6144, six 2048 faces). Layout
-// (from the engine's blit), col,row with origin top-left:
-//        col0     col1     col2     col3
-//  row0    ·      front      ·        ·
-//  row1   left     up      right    down
-//  row2    ·      back       ·        ·
-// Sliced into 6 textures on an inverted, camera-following box.
-let _skyboxMesh = null, _skyboxName = null;
+// The engine ships a 4x3 cube cross (e.g. 8192x6144, six 2048 faces). Cross
+// tiles (col,row, origin top-left) and the Three.js wall each feeds — the engine
+// "front"/"back" tiles map to -Z/+Z, so they're cross-assigned below:
+//        col0     col1        col2     col3
+//  row0    ·    tile→ -Z back   ·        ·
+//  row1  -X left  +Y up      +X right  -Y down
+//  row2    ·    tile→ +Z front  ·        ·
+// Per-face rotations below were calibrated in-browser against the engine.
+let _skyboxMesh = null, _skyboxName = null, _skyboxImg = null;
 const _SKYBOX_FACE_SIZE = 1024;
-// Per-face rotation in degrees — calibration knob if a face comes out turned.
-const _SKYBOX_FACE_ROT = { right: 0, left: 0, up: 0, down: 0, front: 0, back: 0 };
+// Calibrated orientation (tune live with , / . to rotate the faced wall, \ flip).
+const _SKYBOX_FACE_ROT = { right: 90, left: 270, up: 0, down: 180, front: 0, back: 180 };
+let _SKYBOX_FLIP = false;
 
-function _sliceFace(img, col, row, fw, fh, rotDeg) {
+function _sliceFace(img, col, row, fw, fh, rotDeg, flip) {
   const S = _SKYBOX_FACE_SIZE;
   const c = document.createElement('canvas'); c.width = S; c.height = S;
   const g = c.getContext('2d');
   g.translate(S / 2, S / 2);
+  if (flip)   g.scale(-1, 1);
   if (rotDeg) g.rotate(rotDeg * Math.PI / 180);
   g.drawImage(img, col * fw, row * fh, fw, fh, -S / 2, -S / 2, S, S);
   return c;
+}
+
+// (Re)build the box materials from the cached cross image — no network fetch, so
+// it's cheap enough to call on every calibration keypress.
+function _applySkyboxFaces() {
+  if (!_skyboxImg || !_view3dScene) return;
+  const img = _skyboxImg, fw = img.width / 4, fh = img.height / 3, R = _SKYBOX_FACE_ROT, F = _SKYBOX_FLIP;
+  // Box material order is +X,-X,+Y,-Y,+Z,-Z → right,left,up,down,front,back.
+  // +Z(front) takes the bottom cross tile (1,2); -Z(back) the top (1,0).
+  const tiles = [
+    _sliceFace(img, 2, 1, fw, fh, R.right, F),
+    _sliceFace(img, 0, 1, fw, fh, R.left,  F),
+    _sliceFace(img, 1, 1, fw, fh, R.up,    F),
+    _sliceFace(img, 3, 1, fw, fh, R.down,  F),
+    _sliceFace(img, 1, 2, fw, fh, R.front, F),
+    _sliceFace(img, 1, 0, fw, fh, R.back,  F),
+  ];
+  const mats = tiles.map(c => new THREE.MeshBasicMaterial({
+    map: new THREE.CanvasTexture(c), side: THREE.BackSide, depthTest: false, depthWrite: false,
+  }));
+  if (_skyboxMesh) _view3dScene.remove(_skyboxMesh);
+  const SZ = 2_000_000;
+  _skyboxMesh = new THREE.Mesh(new THREE.BoxGeometry(SZ, SZ, SZ), mats);
+  _skyboxMesh.renderOrder = -1;        // draw first, behind everything
+  _skyboxMesh.frustumCulled = false;
+  _view3dScene.add(_skyboxMesh);
 }
 
 function _buildSkybox(name) {
@@ -1532,31 +1561,38 @@ function _buildSkybox(name) {
   const img = new Image();
   img.onload = () => {
     if (_skyboxName !== name) return;   // a newer skybox arrived while loading
-    const fw = img.width / 4, fh = img.height / 3, R = _SKYBOX_FACE_ROT;
-    // Box material order is +X,-X,+Y,-Y,+Z,-Z → right,left,up,down,front,back.
-    const tiles = [
-      _sliceFace(img, 2, 1, fw, fh, R.right),
-      _sliceFace(img, 0, 1, fw, fh, R.left),
-      _sliceFace(img, 1, 1, fw, fh, R.up),
-      _sliceFace(img, 3, 1, fw, fh, R.down),
-      _sliceFace(img, 1, 0, fw, fh, R.front),
-      _sliceFace(img, 1, 2, fw, fh, R.back),
-    ];
-    const mats = tiles.map(c => new THREE.MeshBasicMaterial({
-      map: new THREE.CanvasTexture(c), side: THREE.BackSide, depthTest: false, depthWrite: false,
-    }));
-    if (_skyboxMesh) _view3dScene.remove(_skyboxMesh);
-    const SZ = 2_000_000;
-    _skyboxMesh = new THREE.Mesh(new THREE.BoxGeometry(SZ, SZ, SZ), mats);
-    _skyboxMesh.renderOrder = -1;        // draw first, behind everything
-    _skyboxMesh.frustumCulled = false;
-    _view3dScene.add(_skyboxMesh);
+    _skyboxImg = img;
+    _applySkyboxFaces();
     if (_view3dStars) _view3dStars.visible = false;   // real sky replaces the procedural stars
-    log(`[skybox] ${base}.png loaded`, 'dbg');
+    log(`[skybox] ${base}.png loaded — calibrate: , / . rotate faced wall, \\ flip`, 'dbg');
   };
   img.onerror = () => log(`[skybox] failed: /${base}.png (keeping starfield)`, 'dbg');
   img.src = '/' + base + '.png';
 }
+
+// Live skybox calibration: rotate whichever wall the camera is currently facing.
+function _skyboxFacedWall() {
+  if (!_v3dDispCam || !_v3dDispTgt) return 'front';
+  const fx = _v3dDispTgt[0]-_v3dDispCam[0], fy = _v3dDispTgt[1]-_v3dDispCam[1], fz = _v3dDispTgt[2]-_v3dDispCam[2];
+  const ax = Math.abs(fx), ay = Math.abs(fy), az = Math.abs(fz);
+  if (ax >= ay && ax >= az) return fx > 0 ? 'right' : 'left';
+  if (ay >= ax && ay >= az) return fy > 0 ? 'up' : 'down';
+  return fz > 0 ? 'front' : 'back';
+}
+window.addEventListener('keydown', e => {
+  if (!_view3dActive || !_skyboxImg) return;
+  let changed = true;
+  if (e.key === ',' || e.key === '.') {
+    const w = _skyboxFacedWall();
+    _SKYBOX_FACE_ROT[w] = ((_SKYBOX_FACE_ROT[w] + (e.key === '.' ? 90 : -90)) % 360 + 360) % 360;
+  } else if (e.key === '\\') {
+    _SKYBOX_FLIP = !_SKYBOX_FLIP;
+  } else { changed = false; }
+  if (!changed) return;
+  e.preventDefault();
+  _applySkyboxFaces();
+  log(`[skybox] flip=${_SKYBOX_FLIP} rot=${JSON.stringify(_SKYBOX_FACE_ROT)}`, 'dbg');
+});
 
 // ── cmdSkybox — set/clear the cinematic backdrop ──────────────────────────────
 function cmdSkybox(msg) {
