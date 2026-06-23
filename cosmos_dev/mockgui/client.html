@@ -139,6 +139,7 @@
   <span id="cid-badge"><span id="mode-label">—</span> #<span id="cid-val">—</span></span>
   <button id="script-log-btn" class="log-btn" title="Toggle MAST/sbs_utils stdout+stderr">LOG</button>
   <button id="dbg-log-btn"    class="log-btn" title="Toggle browser WS/widget debug">DBG</button>
+  <button id="corner-radar-btn" class="log-btn" title="Toggle the fallback corner radar (when no console 2D view is active)">RADAR</button>
 </div>
 
 <div id="gui-root">
@@ -723,6 +724,11 @@ document.getElementById('dbg-log-btn').addEventListener('click', () => {
   dbgLogPanel.classList.toggle('visible');
   document.getElementById('dbg-log-btn').classList.toggle('active');
 });
+document.getElementById('corner-radar-btn').addEventListener('click', () => {
+  _cornerRadarEnabled = !_cornerRadarEnabled;
+  document.getElementById('corner-radar-btn').classList.toggle('active', _cornerRadarEnabled);
+  _renderRadar();
+});
 
 // ── cmdLog: stdout/stderr forwarded from the runner ───────────────────────────
 function cmdLog(msg) {
@@ -767,6 +773,9 @@ window.addEventListener('wheel', e => {
 function _currentRadarViews() {
   const activeViews = Array.from(_widgetRects.values());
   if (activeViews.length > 0) return { views: activeViews, isCorner: false };
+  // No console 2D view: only the corner radar provides an interaction zone, and
+  // only when it's enabled — otherwise there's nothing to hit-test.
+  if (!_cornerRadarEnabled) return { views: [], isCorner: false };
   return { views: [_cornerRect(_radarCanvas.width, _radarCanvas.height)], isCorner: true };
 }
 
@@ -957,6 +966,10 @@ let _panning = false, _panStartPX = 0, _panStartPZ = 0;
 
 // Engine 2D-view widget types whose screen rect registers as a radar view area.
 const _2D_VIEW_WIDGET_TYPES = new Set(['2dview','science_2d_view','comms_2d_view','weapon_2d_view']);
+
+// Fallback corner radar (drawn when no console 2D view is active).  Optional and
+// off by default — toggled by the topbar RADAR button.
+let _cornerRadarEnabled = false;
 
 function _cssToRGB(css) {
   _colorCtx.clearRect(0, 0, 1, 1);
@@ -1396,6 +1409,10 @@ function _renderRadar() {
   const focusZ = _displayFocusZ;
 
   const activeViews = Array.from(_widgetRects.values());
+
+  // No console 2D view active: draw the fallback corner radar only if enabled,
+  // otherwise leave the radar canvas blank (already cleared above).
+  if (activeViews.length === 0 && !_cornerRadarEnabled) return;
 
   const views    = activeViews.length > 0 ? activeViews : [_cornerRect(W, H)];
   const isCorner = activeViews.length === 0;
