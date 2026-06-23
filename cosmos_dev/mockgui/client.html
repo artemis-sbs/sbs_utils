@@ -485,6 +485,51 @@ function _parseOBJ(text) {
   return { posOut, uvOut, nrmOut, idxOut, hasNormals };
 }
 
+// ── Ship mesh loader (shared, cached) ─────────────────────────────────────────
+// Loads /ships/<art>.obj once per art root, builds a centered geometry + Phong
+// material with diffuse/specular/emissive maps, and resolves a base THREE.Mesh.
+// Callers clone() it (clone shares geometry+material — cheap per instance).
+// base.userData.maxDim is the model's largest dimension, for scaling/framing.
+const _shipMeshCache = new Map();   // art → Promise<THREE.Mesh|null>
+function loadShipMesh(art) {
+  if (!art || typeof THREE === 'undefined') return Promise.resolve(null);
+  let p = _shipMeshCache.get(art);
+  if (p) return p;
+  const root = 'ships/' + art;
+  p = fetch('/' + root + '.obj')
+    .then(r => { if (!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.text(); })
+    .then(text => {
+      const { posOut, uvOut, nrmOut, idxOut, hasNormals } = _parseOBJ(text);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(posOut), 3));
+      geo.setAttribute('uv',       new THREE.BufferAttribute(new Float32Array(uvOut), 2));
+      geo.setAttribute('normal',   new THREE.BufferAttribute(new Float32Array(nrmOut), 3));
+      geo.setIndex(new THREE.BufferAttribute(new Uint32Array(idxOut), 1));
+      if (!hasNormals) geo.computeVertexNormals();
+      // Center geometry at origin.
+      geo.computeBoundingBox();
+      const box = geo.boundingBox;
+      geo.translate(-(box.max.x + box.min.x) / 2,
+                    -(box.max.y + box.min.y) / 2,
+                    -(box.max.z + box.min.z) / 2);
+      geo.computeBoundingBox();
+      const size = new THREE.Vector3(); geo.boundingBox.getSize(size);
+      const maxDim = Math.max(size.x, size.y, size.z) || 1;
+
+      const mat = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, shininess: 40, specular: 0x444444 });
+      _loadTex(root + '_diffuse.png',  tex => { if (tex) { mat.map = tex; mat.color.setHex(0xffffff); mat.needsUpdate = true; } });
+      _loadTex(root + '_specular.png', tex => { if (tex) { mat.specularMap = tex; mat.needsUpdate = true; } });
+      _loadTex(root + '_emissive.png', tex => { if (tex) { mat.emissiveMap = tex; mat.emissive.setHex(0xffffff); mat.needsUpdate = true; } });
+
+      const base = new THREE.Mesh(geo, mat);
+      base.userData.maxDim = maxDim;
+      return base;
+    })
+    .catch(e => { log(`[mesh] load failed: ${root} — ${e}`, 'err'); return null; });
+  _shipMeshCache.set(art, p);
+  return p;
+}
+
 // One entry per live 3dship widget; the global RAF loop drains this list.
 const _3dshipScenes = [];
 
@@ -509,70 +554,26 @@ function _build3dship(msg) {
   sun.position.set(2, 3, 2);
   scene.add(sun);
 
-  // Ship meshes and textures live under data/graphics/ships/ on the server.
-  const artfileroot = msg.artfileroot ? 'ships/' + msg.artfileroot : '';
-
   const entry = { scene, camera, mesh: null, canvas: displayCanvas, ctx: ctx2d,
                   width: 0, height: 0, rotY: 0 };
   _3dshipScenes.push(entry);
 
-  if (artfileroot) {
-    log(`[3dship] loading /${artfileroot}.obj`, 'dbg');
-    fetch('/' + artfileroot + '.obj')
-      .then(r => { if (!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.text(); })
-      .then(text => {
-        log(`[3dship] parsing ${artfileroot} (${text.length} bytes)`, 'dbg');
-        const { posOut, uvOut, nrmOut, idxOut, hasNormals } = _parseOBJ(text);
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(posOut), 3));
-        geo.setAttribute('uv',       new THREE.BufferAttribute(new Float32Array(uvOut), 2));
-        geo.setAttribute('normal',   new THREE.BufferAttribute(new Float32Array(nrmOut), 3));
-        geo.setIndex(new THREE.BufferAttribute(new Uint32Array(idxOut), 1));
-        if (!hasNormals) geo.computeVertexNormals();
+  if (msg.artfileroot) {
+    loadShipMesh(msg.artfileroot).then(base => {
+      if (!base) return;
+      const m = base.clone();   // shares geometry + material
+      scene.add(m);
+      entry.mesh = m;
 
-        // Center geometry at origin
-        geo.computeBoundingBox();
-        const box = geo.boundingBox;
-        geo.translate(
-          -(box.max.x + box.min.x) / 2,
-          -(box.max.y + box.min.y) / 2,
-          -(box.max.z + box.min.z) / 2
-        );
-        geo.computeBoundingBox();
-        const size = new THREE.Vector3();
-        geo.boundingBox.getSize(size);
-        const maxDim = Math.max(size.x, size.y, size.z) || 1;
-
-        const mat = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, shininess: 40,
-                                                  specular: 0x444444 });
-
-        // Load textures; each updates the material as it arrives
-        _loadTex(artfileroot + '_diffuse.png', tex => {
-          if (!tex || !mat) return;
-          mat.map = tex; mat.color.setHex(0xffffff); mat.needsUpdate = true;
-        });
-        _loadTex(artfileroot + '_specular.png', tex => {
-          if (!tex || !mat) return;
-          mat.specularMap = tex; mat.needsUpdate = true;
-        });
-        _loadTex(artfileroot + '_emissive.png', tex => {
-          if (!tex || !mat) return;
-          mat.emissiveMap = tex; mat.emissive.setHex(0xffffff); mat.needsUpdate = true;
-        });
-
-        const m = new THREE.Mesh(geo, mat);
-        scene.add(m);
-        entry.mesh = m;
-
-        // Position camera so the model fills roughly 2/3 of the viewport height
-        const fovRad = camera.fov * Math.PI / 180;
-        const dist   = (maxDim / 2) / Math.tan(fovRad / 2) * 1.6;
-        camera.position.set(0, maxDim * 0.15, dist);
-        camera.near = dist * 0.001;
-        camera.far  = dist * 100;
-        camera.lookAt(0, 0, 0);
-      })
-      .catch(e => log(`[3dship] load failed: ${artfileroot} — ${e}`, 'err'));
+      // Position camera so the model fills roughly 2/3 of the viewport height.
+      const maxDim = base.userData.maxDim || 1;
+      const fovRad = camera.fov * Math.PI / 180;
+      const dist   = (maxDim / 2) / Math.tan(fovRad / 2) * 1.6;
+      camera.position.set(0, maxDim * 0.15, dist);
+      camera.near = dist * 0.001;
+      camera.far  = dist * 100;
+      camera.lookAt(0, 0, 0);
+    });
   }
 
   new ResizeObserver(entries => {
@@ -1443,6 +1444,11 @@ let _view3dRenderer = null, _view3dScene = null, _view3dCamera = null, _view3dPo
 let _view3dActive = false;
 const _V3D_MAX = 8000;
 let _view3dPosBuf = null, _view3dColBuf = null;
+// Live ship meshes in the cinematic scene: object id → { mesh, art, pending, failed }.
+// Objects with a ready mesh are skipped by the point layer (no double-draw).
+const _view3dMeshes = new Map();
+// Added to a mesh's heading yaw if a model's nose isn't +Z. Calibration knob.
+const _MESH_YAW_OFFSET = 0;
 // Target (from server) and smoothed display camera/look-at, lerped each frame.
 let _v3dCam = [0, 150, -500], _v3dTgt = [0, 0, 0];
 let _v3dDispCam = null, _v3dDispTgt = null;
@@ -1455,6 +1461,11 @@ function _initView3d() {
   _view3dRenderer.setClearColor(0x01030a, 1);
   _view3dScene  = new THREE.Scene();
   _view3dCamera = new THREE.PerspectiveCamera(55, 1, 1, 5e7);
+  // Lights so the Phong ship meshes are shaded (points don't need them).
+  _view3dScene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const _v3dSun = new THREE.DirectionalLight(0xffffff, 0.9);
+  _v3dSun.position.set(1, 2, 1);
+  _view3dScene.add(_v3dSun);
 
   _view3dPosBuf = new Float32Array(_V3D_MAX * 3);
   _view3dColBuf = new Float32Array(_V3D_MAX * 3);
@@ -1479,14 +1490,61 @@ function _view3dSync() {
     _view3dPosBuf[o] = _terrainPosBuf[b]; _view3dPosBuf[o+1] = 0; _view3dPosBuf[o+2] = _terrainPosBuf[b+1];
     _view3dColBuf[o] = _terrainColBuf[b]; _view3dColBuf[o+1] = _terrainColBuf[b+1]; _view3dColBuf[o+2] = _terrainColBuf[b+2];
   }
-  for (let i = 0; i < _dynamicCount && n < _V3D_MAX; i++, n++) {
+  for (let i = 0; i < _dynamicCount && n < _V3D_MAX; i++) {
+    // Skip objects already drawn as a ship mesh — the point would just sit inside it.
+    const id  = _dynamicRevMap.get(i);
+    const rec = id !== undefined ? _view3dMeshes.get(id) : undefined;
+    if (rec && rec.mesh) continue;
     const b = i * 3, o = n * 3;
     _view3dPosBuf[o] = _dynamicPosBuf[b]; _view3dPosBuf[o+1] = 0; _view3dPosBuf[o+2] = _dynamicPosBuf[b+1];
     _view3dColBuf[o] = _dynamicColBuf[b]; _view3dColBuf[o+1] = _dynamicColBuf[b+1]; _view3dColBuf[o+2] = _dynamicColBuf[b+2];
+    n++;
   }
   _view3dPoints.geometry.setDrawRange(0, n);
   _view3dPoints.geometry.attributes.position.needsUpdate = true;
   _view3dPoints.geometry.attributes.color.needsUpdate    = true;
+}
+
+// Maintain one ship mesh per dynamic object: load (cached) on first sight, place
+// at (x, 0, z) facing its heading, and remove when the object leaves view. Until
+// a mesh is ready the object keeps its point (drawn by _view3dSync as a fallback).
+function _view3dSyncMeshes() {
+  const seen = new Set();
+  for (const [id, meta] of _dynamicMeta) {
+    const idx = _dynamicMap.get(id);
+    if (idx === undefined || idx >= _dynamicCount || !meta.art) continue;
+    seen.add(id);
+    const b = idx * 3;
+    const x = _dynamicPosBuf[b], z = _dynamicPosBuf[b + 1];
+
+    let rec = _view3dMeshes.get(id);
+    if (!rec) {
+      rec = { mesh: null, art: meta.art, pending: true };
+      _view3dMeshes.set(id, rec);
+      loadShipMesh(meta.art).then(base => {
+        const cur = _view3dMeshes.get(id);
+        if (!cur || cur.art !== meta.art) return;   // object gone or art changed
+        if (!base) { cur.failed = true; cur.pending = false; return; }
+        const m = base.clone();                      // shares geometry + material
+        const isPlayer = meta.tick_type === 'PLAYER' || meta.tick_type === 'player';
+        // Target hull size in world units (stand-in until meshscale is streamed).
+        const target = isPlayer ? 700 : 450;
+        const sc = target / (base.userData.maxDim || 1);
+        m.scale.set(sc, sc, sc);
+        _view3dScene.add(m);
+        cur.mesh = m; cur.pending = false;
+      });
+    }
+    if (rec.mesh) {
+      rec.mesh.position.set(x, 0, z);
+      rec.mesh.rotation.y = Math.atan2(meta.fx, meta.fz) + _MESH_YAW_OFFSET;
+    }
+  }
+  for (const [id, rec] of _view3dMeshes) {
+    if (seen.has(id)) continue;
+    if (rec.mesh) _view3dScene.remove(rec.mesh);
+    _view3dMeshes.delete(id);
+  }
 }
 
 function _renderView3d() {
@@ -1494,6 +1552,7 @@ function _renderView3d() {
   const W = window.innerWidth, H = window.innerHeight;
   if (_view3dCanvas.width !== W)  _view3dCanvas.width  = W;
   if (_view3dCanvas.height !== H) _view3dCanvas.height = H;
+  _view3dSyncMeshes();   // before _view3dSync so meshed objects drop their point
   _view3dSync();
   // Smooth camera moves so scripted cuts / ship motion ease rather than snap.
   if (_v3dDispCam === null) { _v3dDispCam = _v3dCam.slice(); _v3dDispTgt = _v3dTgt.slice(); }
