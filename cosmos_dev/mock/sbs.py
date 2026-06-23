@@ -1983,7 +1983,8 @@ def _ramp_speed(obj: space_object, target_speed: float, dt: float) -> None:
 
 
 def _npcship_steer(obj: space_object, dt: float) -> None:
-    """Default NPC ship behavior: steer toward target_pos_x/y/z; speed ramps toward
+    """Default NPC ship behavior: steer toward target_pos_x/y/z and decelerate to
+    arrive, rather than barreling in at full speed.  Speed cruises at
     throttle × BASE_TOP_SPEED × speed_coeff."""
     ds = obj.data_set
     if ds.get("deathState") > 0:
@@ -2002,7 +2003,18 @@ def _npcship_steer(obj: space_object, dt: float) -> None:
     if turn_rate <= 0.0:
         turn_rate = 0.1  # ~6 deg/s fallback when shipData not loaded
 
-    if horiz_dist > 10.0 and throttle > 0.0:
+    # speed_coeff / total_speed_coeff are 0.0-1.0 multipliers on the absolute top
+    # speed — not a speed themselves.  Default to 1.0 when unset (coeffs default to 1.0).
+    speed_coeff = ds.get("total_speed_coeff") or ds.get("speed_coeff") or 1.0
+    cruise_speed = throttle * BASE_TOP_SPEED * speed_coeff
+
+    # Arrival radius: "close enough" — stop steering and moving.  Honor an explicit
+    # stop_dist if a caller stored one, else a small default.
+    arrive_dist = ds.get("stop_dist") or 0.0
+    if arrive_dist <= 0.0:
+        arrive_dist = 20.0
+
+    if horiz_dist > arrive_dist and throttle > 0.0:
         fwd = obj.forward_vector()
         ndx, ndz = dx / horiz_dist, dz / horiz_dist
         # Y-component of (fwd × desired): positive → target is right of heading → steer right (+yaw)
@@ -2012,10 +2024,18 @@ def _npcship_steer(obj: space_object, dt: float) -> None:
     else:
         obj._steer_yaw = 0.0
 
-    # speed_coeff / total_speed_coeff are 0.0-1.0 multipliers on the absolute top
-    # speed — not a speed themselves.  Default to 1.0 when unset (coeffs default to 1.0).
-    speed_coeff = ds.get("total_speed_coeff") or ds.get("speed_coeff") or 1.0
-    target_speed = throttle * BASE_TOP_SPEED * speed_coeff
+    # Arrival braking: full speed cruises in, but within ~2× the turn radius the
+    # ship slows proportionally so its turn radius shrinks below the distance to
+    # the target and it can actually arrive.  Without this it orbits the target
+    # forever (which reads as spinning on the 2D radar).
+    turn_radius = cruise_speed / turn_rate
+    brake_dist = max(2.0 * turn_radius, 100.0)
+    if horiz_dist <= arrive_dist:
+        target_speed = 0.0
+    elif horiz_dist < brake_dist:
+        target_speed = cruise_speed * (horiz_dist / brake_dist)
+    else:
+        target_speed = cruise_speed
     _ramp_speed(obj, target_speed, dt)
 
 
