@@ -248,9 +248,11 @@ _explicit_2d_rects: dict = {}
 # script positions the 3D view via gui_layout_widget("3dview").  When absent the
 # default below is used.  Reset on each widget-list change.
 _view3d_rects: dict = {}
-# Default view rect: top inset ~3% (~50px) clears the topbar.  Shared by the 2D
-# default in the browser (_DEFAULT_2D_VIEW_RECT) and the 3dview default here.
+# Default 3D canvas rects (left, top, right, bottom in screen %).  The widget-driven
+# 3dview (mainscreen/cockpit) uses a ~3% (~50px) top inset to clear the topbar,
+# matching the 2D default in the browser; the cinematic cutscene view is full-bleed.
 _DEFAULT_VIEW3D_RECT = (0.0, 3.0, 100.0, 100.0)
+_DEFAULT_CINEMATIC_RECT = (0.0, 0.0, 100.0, 100.0)
 
 
 def send_client_widget_rects(clientID: int, widgetName: str,
@@ -654,11 +656,12 @@ def _forward_view_camera(clientID: int):
     return {"cam": cam, "target": tgt}
 
 
-def _emit_cinematic(cid, cam, mode: str) -> None:
+def _emit_cinematic(cid, cam, mode: str, default_rect) -> None:
     """Enqueue one per-tick cinematic camera message for a client, including the
-    3D canvas rect (script-set if present, else the default with a topbar inset)."""
+    3D canvas rect: script-set if present, else default_rect (full-bleed for the
+    cinematic cutscene, topbar-inset for the widget-driven 3dview)."""
     c, t = cam["cam"], cam["target"]
-    rect = _view3d_rects.get(cid, _DEFAULT_VIEW3D_RECT)
+    rect = _view3d_rects.get(cid, default_rect)
     try:
         gui_queue.put_nowait({
             "clientID": cid,
@@ -689,7 +692,7 @@ def _push_cinematic() -> None:
         cam = _base_mock.get_cinematic_camera(cid)
         if cam is None:
             continue
-        _emit_cinematic(cid, cam, cam["mode"])
+        _emit_cinematic(cid, cam, cam["mode"], _DEFAULT_CINEMATIC_RECT)
         handled.add(cid)
 
     # Widget-driven 3dview (mainscreen forward view, cockpit) — no cinematic camera
@@ -700,4 +703,4 @@ def _push_cinematic() -> None:
         cam = _forward_view_camera(cid)
         if cam is None:
             continue
-        _emit_cinematic(cid, cam, "auto")
+        _emit_cinematic(cid, cam, "auto", _DEFAULT_VIEW3D_RECT)
