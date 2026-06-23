@@ -16,14 +16,8 @@ def compile_formatted_string(message):
             ``{``, the original string otherwise, or ``None`` if ``message``
             is ``None``.
     """
-    if message is None:
-        return message
-    if "{" in message:
-        message = f'''f"""{message}"""'''
-        code = compile(message, "<string>", "eval")
-        return code
-    else:
-        return message
+    from ..mast.mast_node import compile_format_string
+    return compile_format_string(message)
     
 
 

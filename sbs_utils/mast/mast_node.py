@@ -46,14 +46,7 @@ class MastNode:
         pass
 
     def compile_formatted_string(self, message):
-        if message is None:
-            return message
-        if "{" in message:
-            message = f'''f"""{message}"""'''
-            code = compile(message, "<string>", "eval")
-            return code
-        else:
-            return message
+        return compile_format_string(message)
 
     @classmethod
     def parse(cls, src, pos=0):
@@ -68,6 +61,31 @@ class MastNode:
         else:
             return None
         
+def compile_format_string(message):
+    """Compile a MAST format string into a code object (eval mode).
+
+    Text containing ``{`` is wrapped as an f-string and compiled so it can be
+    formatted later; other text is returned unchanged. A triple-quote delimiter
+    that does not occur in the text (and won't be escaped by a trailing quote)
+    is chosen so embedded quotes don't terminate the literal early. If the text
+    still cannot be wrapped safely, a clear error is raised rather than emitting
+    broken code (the old ``f\"\"\"{message}\"\"\"`` wrapping silently produced a
+    cryptic SyntaxError on any embedded triple-quote).
+    """
+    if message is None or "{" not in message:
+        return message
+    if '"""' not in message and not message.endswith('"'):
+        delim = '"""'
+    elif "'''" not in message and not message.endswith("'"):
+        delim = "'''"
+    else:
+        raise Exception(f"Cannot compile format string (mixed triple quotes): {message!r}")
+    try:
+        return compile(f'f{delim}{message}{delim}', "<string>", "eval")
+    except SyntaxError as e:
+        raise Exception(f"Invalid format string {message!r}: {e}")
+
+
 def mast_node(append=True):
     def dec_args(cls):
         if cls in MastNode.nodes:
@@ -91,7 +109,7 @@ def STRING_REGEX_NAMED(name):
 def STRING_REGEX_NAMED_2(name):
     return f"""((?P<q2>(["']{3})|["'])(?P<{name}>.*?)(?P=q2))"""
 def STRING_REGEX_NAMED_3(name):
-    return f"""((?P<q3>(["']{3})|["'])(?P<{name}">.*?)(?P=q3))"""
+    return f"""((?P<q3>(["']{3})|["'])(?P<{name}>.*?)(?P=q3))"""
 
 
 IF_EXP_REGEX = r"""([ \t]+if(?P<if_exp>[^:\n\r\f]+))?"""

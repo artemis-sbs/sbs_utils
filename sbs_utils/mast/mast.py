@@ -223,15 +223,18 @@ class Mast():
         # else:
         #     self.build(cmds)
         if not is_import:
-            mc = logging.getLogger("mast.compile")
-            fn = fs.get_mission_dir_filename('mast.compile.log')
-            file_handler = logging.FileHandler(fn, "w")
-            mc.addHandler(file_handler)
-            mc = logging.getLogger("mast.runtime")
-            fn = fs.get_mission_dir_filename('mast.runtime.log')
-            file_handler = logging.FileHandler(fn, "w")
-            mc.addHandler(file_handler)
-            
+            for logger_name, log_file in (("mast.compile", 'mast.compile.log'),
+                                          ("mast.runtime", 'mast.runtime.log')):
+                mc = logging.getLogger(logger_name)
+                # Drop FileHandlers from a previous Mast() so they don't pile up
+                # (each compile re-opens the log fresh; "w" truncates it).
+                for h in list(mc.handlers):
+                    if isinstance(h, logging.FileHandler):
+                        mc.removeHandler(h)
+                        h.close()
+                fn = fs.get_mission_dir_filename(log_file)
+                mc.addHandler(logging.FileHandler(fn, "w"))
+
 
     def make_global(func):
         add_to = MastGlobals.globals

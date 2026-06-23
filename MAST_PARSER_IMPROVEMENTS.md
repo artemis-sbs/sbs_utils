@@ -17,14 +17,14 @@ one matches. None of the changes below alter MAST language semantics
 | 1 | pos-cursor instead of O(n²) source slicing | perf | ✅ Done (committed `be6b664`) |
 | 2 | First-char/prefix node dispatch (cut O(nodes×lines)) | perf | ✅ Done (uncommitted) |
 | 3 | Hoist logger + guard per-line debug f-string | perf | ✅ Done (committed `be6b664`) |
-| 4 | Log `FileHandler` leak per `Mast()` construction | perf/robust | ⬜ Proposed |
+| 4 | Log `FileHandler` leak per `Mast()` construction | perf/robust | ✅ Done (uncommitted) |
 | 5 | Latent `NoneType` deref on indent (`prev_node.is_inline_label`) | robust | ✅ Done (uncommitted) |
 | 6 | `raise "<string>"` in assign.py yaml paths (TypeError masks error) | robust | ✅ Done (uncommitted) |
 | 7 | Bare `except:` in `content_from_lib_or_file` hides load errors | robust | ✅ Done (uncommitted) |
 | 8 | Per-compile state object (if/match/await chains are class-level) | robust | ⬜ Proposed |
 | 9 | Inconsistent error recovery (some bail, some continue) | robust | ⬜ Proposed |
-| 10 | Regex typo `STRING_REGEX_NAMED_3` — stray `"` in group name | robust | ⬜ Proposed |
-| 11 | `compile_formatted_string` breaks on `"""` in user text | robust | ⬜ Proposed |
+| 10 | Regex typo `STRING_REGEX_NAMED_3` — stray `"` in group name | robust | ✅ Done (uncommitted) |
+| 11 | `compile_formatted_string` breaks on `"""` in user text | robust | ✅ Done (uncommitted) |
 
 ---
 
@@ -117,13 +117,24 @@ Scaling stays linear (2.0–2.1× per doubling). At ~1 MB the compiler is now
 
 ---
 
-## ⬜ Proposed — performance
+## ✅ Done — #4/#10/#11 small robustness fixes
 
-### #4 Log handler leak per `Mast()`
-`__init__` ([mast.py:186-194](sbs_utils/mast/mast.py#L186)) opens two `FileHandler`s
-and `addHandler`s them on every non-import construction; handlers are never removed,
-so repeated compiles stack duplicate handlers and multiply log writes. Guard with an
-"already configured" check or remove existing handlers first.
+- **#4** [mast.py](sbs_utils/mast/mast.py) `Mast.__init__`: removed/closed any
+  existing `FileHandler`s on the `mast.compile`/`mast.runtime` loggers before
+  adding fresh ones, so repeated compiles no longer stack duplicate handlers or
+  leak file handles.
+- **#10** [mast_node.py](sbs_utils/mast/mast_node.py): fixed the stray `"` in
+  `STRING_REGEX_NAMED_3`'s group name (`(?P<{name}">…)` → `(?P<{name}>…)`); it
+  was an unused but compile-on-use landmine (invalid group name).
+- **#11** [mast_node.py](sbs_utils/mast/mast_node.py): added a shared
+  `compile_format_string()` that picks a triple-quote delimiter not present in
+  the text (and not escaped by a trailing quote), and raises a clear error if it
+  can't wrap safely. The three duplicated copies — `MastNode.compile_formatted_string`,
+  [style.py](sbs_utils/procedural/style.py) `compile_formatted_string`, and
+  [mastscheduler.py](sbs_utils/mast/mastscheduler.py) `compile_and_format_string`
+  — now delegate to it. New [tests/test_mast_format.py](tests/test_mast_format.py).
+
+All 344 tests pass (6 new).
 
 ---
 
@@ -164,15 +175,6 @@ more robust compiler, collect errors and resync at the next top-level label. The
 `if not parsed` fallback message "Error at first newline index" should include the
 offending text.
 
-### #10 Regex typo `STRING_REGEX_NAMED_3`
-[mast_node.py ~91](sbs_utils/mast/mast_node.py#L91): `(?P<{name}">.*?)` has a stray
-`"` in the group name. Dormant if unused; will bite the next caller.
-
-### #11 `compile_formatted_string` fragile on `"""`
-[mast_node.py ~48](sbs_utils/mast/mast_node.py#L48) wraps text as `f"""{message}"""`;
-any `"""` (or trailing backslash) in user text breaks compilation with a confusing
-error. Escape or build via `ast`.
-
 ---
 
 ## Suggested priority
@@ -181,6 +183,7 @@ error. Escape or build via `ast`.
 |---|---|---|
 | ~~Medium~~ | ~~High~~ | ✅ #1 pos-cursor (done) |
 | ~~Low~~ | ~~Med~~ | ✅ #2 first-char dispatch (done) |
-| Medium | High | #8 per-compile state (correctness on re-compile) |
+| Medium | High | #8 per-compile state (correctness on re-compile) — **next** |
 | ~~Low~~ | ~~Med~~ | ✅ #5, #6, #7 latent crashes/masks (done) |
-| Low | Low | ✅ #3 (done), #4 logging hygiene |
+| ~~Low~~ | ~~Low~~ | ✅ #3, #4 logging; #10, #11 regex/format (done) |
+| Low | Low | #9 error-recovery consistency |

@@ -917,8 +917,8 @@ class MastAsyncTask(Agent, Promise):
     
     def compile_and_format_string(self, value):
         if isinstance(value, str) and "{" in value:
-            value = f'''f"""{value}"""'''
-            code = compile(value, "<string>", "eval")
+            from .mast_node import compile_format_string
+            code = compile_format_string(value)
             value = self.format_string(code)
         return value
 
