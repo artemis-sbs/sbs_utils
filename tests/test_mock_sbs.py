@@ -2,6 +2,7 @@ from sbs_utils.fs import test_set_exe_dir
 test_set_exe_dir()
 
 from cosmos_dev.mock import sbs
+import math
 import unittest
 
 
@@ -239,6 +240,93 @@ class TestMockSbs(unittest.TestCase):
         aid = sbs.sim.add_navarea(0, 0, 1, 0, 1, 1, 0, 1, "A", "white")
         sbs.delete_all_navpoints()
         self.assertIsNone(sbs.sim.get_navpoint_by_id(aid))
+
+    # ------------------------------------------------------------------
+    # NPC / player movement physics
+    # ------------------------------------------------------------------
+
+    def _spawn_npc(self, behave="behav_npcship", **ds_kw):
+        sid = sbs.sim.create_space_object(behave, "test", 0x10)
+        o = sbs.sim.space_objects[sid]
+        o._pos = sbs.vec3(0, 0, 0)
+        params = {"throttle": 1.0, "speed_coeff": 1.0, "turn_rate": 1.0,
+                  "target_pos_x": 0.0, "target_pos_z": 100000.0}
+        params.update(ds_kw)
+        for k, v in params.items():
+            o.data_set.set(k, v)
+        sbs.resume_sim()
+        return o
+
+    def _tick(self, n=1, dt=1.0):
+        for _ in range(n):
+            sbs.physics_tick(dt=dt)
+
+    def test_npc_moves_forward_toward_far_target(self):
+        o = self._spawn_npc()                 # target straight ahead on +z
+        self._tick(6)
+        self.assertGreater(o._pos.z, 100.0)   # advanced down +z
+        self.assertGreater(o._cur_speed, 0.0)
+
+    def test_npc_zero_throttle_does_not_move(self):
+        o = self._spawn_npc(throttle=0.0)
+        self._tick(6)
+        self.assertAlmostEqual(o._pos.z, 0.0)
+        self.assertEqual(o._cur_speed, 0.0)
+
+    def test_speed_coeff_is_a_multiplier_on_top_speed(self):
+        o = self._spawn_npc(speed_coeff=0.5)
+        self._tick(10)                        # long enough to reach cruise
+        self.assertAlmostEqual(o._cur_speed, 0.5 * sbs.BASE_TOP_SPEED)
+
+    def test_total_speed_coeff_takes_priority_over_speed_coeff(self):
+        o = self._spawn_npc(speed_coeff=1.0)
+        o.data_set.set("total_speed_coeff", 0.25)
+        self._tick(10)
+        self.assertAlmostEqual(o._cur_speed, 0.25 * sbs.BASE_TOP_SPEED)
+
+    def test_speed_ramps_and_does_not_snap(self):
+        o = self._spawn_npc()
+        self._tick(1, dt=1.0)
+        # after one second the ship has only ramped by SPEED_RAMP_RATE, not jumped
+        # to full cruise speed.
+        self.assertAlmostEqual(o._cur_speed, sbs.SPEED_RAMP_RATE)
+        self.assertLess(o._cur_speed, sbs.BASE_TOP_SPEED)
+
+    def test_npc_brakes_and_parks_at_near_target_no_orbit(self):
+        # Target inside the turn radius used to make the ship orbit forever.
+        o = self._spawn_npc(target_pos_x=0.0, target_pos_z=150.0)
+        self._tick(40)
+        self.assertEqual(o._cur_speed, 0.0)               # stopped, not circling
+        dist = math.hypot(0.0 - o._pos.x, 150.0 - o._pos.z)
+        self.assertLessEqual(dist, 25.0)                  # parked at the target
+
+    def test_death_state_halts_npc(self):
+        o = self._spawn_npc()
+        self._tick(4)
+        self.assertGreater(o._cur_speed, 0.0)
+        o.data_set.set("deathState", 1)
+        self._tick(1)
+        self.assertEqual(o._cur_speed, 0.0)
+
+    def test_player_ship_moves_from_player_throttle(self):
+        o = self._spawn_npc(behave="behav_playership")
+        o.data_set.set("playerThrottle", 1.0)
+        self._tick(8)
+        self.assertGreater(o._pos.z, 100.0)
+        self.assertAlmostEqual(o._cur_speed, sbs.BASE_TOP_SPEED)
+
+    def test_player_warp_is_faster_than_full_impulse(self):
+        o = self._spawn_npc(behave="behav_playership")
+        o.data_set.set("playerThrottle", 2.0)             # >1.0 = warp
+        self._tick(60)
+        self.assertGreater(o._cur_speed, sbs.BASE_TOP_SPEED)
+
+    def test_player_zero_throttle_does_not_move(self):
+        o = self._spawn_npc(behave="behav_playership")
+        o.data_set.set("playerThrottle", 0.0)
+        self._tick(6)
+        self.assertAlmostEqual(o._pos.z, 0.0)
+        self.assertEqual(o._cur_speed, 0.0)
 
     # ------------------------------------------------------------------
     # create_new_sim resets all tracked state
