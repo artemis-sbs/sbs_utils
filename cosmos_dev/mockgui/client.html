@@ -1452,12 +1452,13 @@ let _view3dRenderer = null, _view3dScene = null, _view3dCamera = null, _view3dPo
 let _view3dActive = false;
 const _V3D_MAX = 8000;
 let _view3dPosBuf = null, _view3dColBuf = null;
-// Live ship meshes in the cinematic scene: object id → { mesh, art, pending, failed }.
-// Objects with a ready mesh are skipped by the point layer (no double-draw).
-const _view3dMeshes = new Map();
-// Terrain (asteroid) meshes, created lazily only for terrain within LOD range so
-// large fields don't load thousands of OBJs. id → { mesh, art }.
-const _view3dTerrainMeshes = new Map();
+// Per-art instancing: every art root draws all of its near objects (ships and
+// asteroids) in a single InstancedMesh. art → { base, inst, cap, pending, failed }.
+const _instArt = new Map();
+// Object ids drawn as an instance this frame — the point layer skips these.
+const _view3dMeshedIds = new Set();
+// Scratch math objects (allocated in _initView3d once THREE is known to exist).
+let _m4 = null, _qrot = null, _vpos = null, _vscale = null, _UP = null;
 // Added to a mesh's heading yaw if a model's nose isn't +Z. Calibration knob.
 const _MESH_YAW_OFFSET = 0;
 // Distance LOD: beyond this many world units from the camera a hull drops to its
@@ -1492,6 +1493,9 @@ function _initView3d() {
   _view3dRenderer.setClearColor(0x01030a, 1);
   _view3dScene  = new THREE.Scene();
   _view3dCamera = new THREE.PerspectiveCamera(55, 1, 1, 5e7);
+  _m4 = new THREE.Matrix4(); _qrot = new THREE.Quaternion();
+  _vpos = new THREE.Vector3(); _vscale = new THREE.Vector3();
+  _UP = new THREE.Vector3(0, 1, 0);
   // Lights so the Phong ship meshes are shaded (points don't need them).
   _view3dScene.add(new THREE.AmbientLight(0xffffff, 0.6));
   const _v3dSun = new THREE.DirectionalLight(0xffffff, 0.9);
@@ -1529,10 +1533,9 @@ function _view3dSync() {
   if (!_view3dPosBuf) return;
   let n = 0;
   for (let i = 0; i < _terrainCount && n < _V3D_MAX; i++) {
-    // Skip terrain drawn as a visible asteroid mesh; far ones keep their point.
+    // Skip terrain drawn as an asteroid instance; far ones keep their point.
     const tid = _terrainRevMap.get(i);
-    const trec = tid !== undefined ? _view3dTerrainMeshes.get(tid) : undefined;
-    if (trec && trec.mesh && trec.mesh.visible) continue;
+    if (tid !== undefined && _view3dMeshedIds.has(tid)) continue;
     const tm = tid !== undefined ? _terrainMeta.get(tid) : undefined;
     const b = i * 3, o = n * 3;
     _view3dPosBuf[o] = _terrainPosBuf[b]; _view3dPosBuf[o+1] = (tm && tm.y) || 0; _view3dPosBuf[o+2] = _terrainPosBuf[b+1];
@@ -1540,11 +1543,9 @@ function _view3dSync() {
     n++;
   }
   for (let i = 0; i < _dynamicCount && n < _V3D_MAX; i++) {
-    // Skip objects drawn as a visible ship mesh; LOD-hidden (far) meshes still
-    // get their point marker here.
+    // Skip objects drawn as a ship instance; far ones keep their point marker.
     const id  = _dynamicRevMap.get(i);
-    const rec = id !== undefined ? _view3dMeshes.get(id) : undefined;
-    if (rec && rec.mesh && rec.mesh.visible) continue;
+    if (id !== undefined && _view3dMeshedIds.has(id)) continue;
     const b = i * 3, o = n * 3;
     _view3dPosBuf[o] = _dynamicPosBuf[b]; _view3dPosBuf[o+1] = 0; _view3dPosBuf[o+2] = _dynamicPosBuf[b+1];
     _view3dColBuf[o] = _dynamicColBuf[b]; _view3dColBuf[o+1] = _dynamicColBuf[b+1]; _view3dColBuf[o+2] = _dynamicColBuf[b+2];
@@ -1555,99 +1556,86 @@ function _view3dSync() {
   _view3dPoints.geometry.attributes.color.needsUpdate    = true;
 }
 
-// Maintain one ship mesh per dynamic object: load (cached) on first sight, place
-// at (x, 0, z) facing its heading, and remove when the object leaves view. Until
-// a mesh is ready the object keeps its point (drawn by _view3dSync as a fallback).
-function _view3dSyncMeshes() {
-  const seen = new Set();
+// Grow/create an art group's InstancedMesh so it can hold `count` instances.
+// Geometry + material are shared from the base mesh, so growing only reallocates
+// the per-instance matrix buffer.
+function _ensureInst(g, count) {
+  if (g.inst && g.cap >= count) return g.inst;
+  if (!g.base) return null;
+  if (g.inst) { _view3dScene.remove(g.inst); if (g.inst.dispose) g.inst.dispose(); }
+  let cap = g.cap || 16;
+  while (cap < count) cap *= 2;
+  const inst = new THREE.InstancedMesh(g.base.geometry, g.base.material, cap);
+  inst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  inst.frustumCulled = false;   // instances are spread out; the origin-based cull would be wrong
+  _view3dScene.add(inst);
+  g.inst = inst; g.cap = cap;
+  return inst;
+}
+
+// Draw every near object (ships + asteroids) as per-art instances. Far objects
+// and arts not yet loaded fall back to the point layer. Records meshed ids in
+// _view3dMeshedIds so _view3dSync can skip them.
+function _view3dSyncInstances() {
+  const cam = _v3dDispCam;
+  const lod2 = _V3D_LOD_NEAR * _V3D_LOD_NEAR;
+  _view3dMeshedIds.clear();
+  const byArt = new Map();   // art → [{x,y,z,sc,q,fx,fz}]
+
+  function consider(id, art, x, y, z, sc, q, fx, fz) {
+    if (!art) return;
+    if (cam) {
+      const dx = x-cam[0], dy = y-cam[1], dz = z-cam[2];
+      if (dx*dx + dy*dy + dz*dz >= lod2) return;   // far → point
+    }
+    let g = _instArt.get(art);
+    if (!g) {
+      g = { base: null, inst: null, cap: 0, pending: true, failed: false };
+      _instArt.set(art, g);
+      loadShipMesh(art).then(base => {
+        const cur = _instArt.get(art);
+        if (cur) { cur.base = base || null; cur.pending = false; cur.failed = !base; }
+      });
+    }
+    if (!g.base) return;   // not loaded yet → stays a point
+    let arr = byArt.get(art);
+    if (!arr) { arr = []; byArt.set(art, arr); }
+    arr.push({ x, y, z, sc, q, fx, fz });
+    _view3dMeshedIds.add(id);
+  }
+
   for (const [id, meta] of _dynamicMeta) {
     const idx = _dynamicMap.get(id);
     if (idx === undefined || idx >= _dynamicCount || !meta.art) continue;
-    seen.add(id);
     const b = idx * 3;
-    const x = _dynamicPosBuf[b], z = _dynamicPosBuf[b + 1];
-
-    let rec = _view3dMeshes.get(id);
-    if (!rec) {
-      rec = { mesh: null, art: meta.art, pending: true };
-      _view3dMeshes.set(id, rec);
-      loadShipMesh(meta.art).then(base => {
-        const cur = _view3dMeshes.get(id);
-        if (!cur || cur.art !== meta.art) return;   // object gone or art changed
-        if (!base) { cur.failed = true; cur.pending = false; return; }
-        const m = base.clone();                      // shares geometry + material
-        // meshscale is the engine's OBJ→world factor; the geometry is in native
-        // OBJ units, so scaling the clone by it yields the correct world size.
-        const sc = meta.meshscale || 1;
-        m.scale.set(sc, sc, sc);
-        _view3dScene.add(m);
-        cur.mesh = m; cur.pending = false;
-      });
-    }
-    if (rec.mesh) {
-      const my = meta.y || 0;
-      rec.mesh.position.set(x, my, z);
-      // Full orientation from the streamed quaternion [w,x,y,z] (Three order x,y,z,w);
-      // fall back to yaw-only if no quaternion was sent.
-      if (meta.q) rec.mesh.quaternion.set(meta.q[1], meta.q[2], meta.q[3], meta.q[0]);
-      else rec.mesh.rotation.y = Math.atan2(meta.fx, meta.fz) + _MESH_YAW_OFFSET;
-      // Distance LOD: hide the hull when far; _view3dSync then draws its point.
-      const cam = _v3dDispCam;
-      if (cam) {
-        const dx = x - cam[0], dy = my - cam[1], dz = z - cam[2];
-        rec.mesh.visible = (dx*dx + dy*dy + dz*dz) < (_V3D_LOD_NEAR * _V3D_LOD_NEAR);
-      }
-    }
+    consider(id, meta.art, _dynamicPosBuf[b], meta.y || 0, _dynamicPosBuf[b+1],
+             meta.meshscale || 1, meta.q, meta.fx, meta.fz);
   }
-  for (const [id, rec] of _view3dMeshes) {
-    if (seen.has(id)) continue;
-    if (rec.mesh) _view3dScene.remove(rec.mesh);
-    _view3dMeshes.delete(id);
-  }
-}
-
-// Terrain (asteroid) meshes: created lazily only when within LOD range so big
-// fields don't load thousands of OBJs; hidden (→ point) when far; removed when
-// the terrain set no longer contains the id.
-function _view3dSyncTerrainMeshes() {
-  const cam = _v3dDispCam;
-  const lod2 = _V3D_LOD_NEAR * _V3D_LOD_NEAR;
   for (const [id, meta] of _terrainMeta) {
-    if (!meta.art) continue;
     const idx = _terrainMap.get(id);
-    if (idx === undefined || idx >= _terrainCount) continue;
+    if (idx === undefined || idx >= _terrainCount || !meta.art) continue;
     const b = idx * 3;
-    const x = _terrainPosBuf[b], z = _terrainPosBuf[b + 1], y = meta.y || 0;
-    const near = !cam ||
-      ((x-cam[0])*(x-cam[0]) + (y-cam[1])*(y-cam[1]) + (z-cam[2])*(z-cam[2])) < lod2;
-
-    let rec = _view3dTerrainMeshes.get(id);
-    if (!near) { if (rec && rec.mesh) rec.mesh.visible = false; continue; }
-    if (!rec) {
-      rec = { mesh: null, art: meta.art };
-      _view3dTerrainMeshes.set(id, rec);
-      loadShipMesh(meta.art).then(base => {
-        const cur = _view3dTerrainMeshes.get(id);
-        if (!cur || cur.art !== meta.art) return;
-        if (!base) { cur.failed = true; return; }
-        const m = base.clone();
-        const sc = meta.meshscale || 1;
-        m.scale.set(sc, sc, sc);
-        _view3dScene.add(m);
-        cur.mesh = m;
-      });
-    }
-    if (rec.mesh) {
-      rec.mesh.visible = true;
-      rec.mesh.position.set(x, y, z);
-      if (meta.q) rec.mesh.quaternion.set(meta.q[1], meta.q[2], meta.q[3], meta.q[0]);
-    }
+    consider(id, meta.art, _terrainPosBuf[b], meta.y || 0, _terrainPosBuf[b+1],
+             meta.meshscale || 1, meta.q, 0, 1);
   }
-  // Drop meshes whose terrain id left the current set.
-  for (const [id, rec] of _view3dTerrainMeshes) {
-    if (_terrainMap.has(id)) continue;
-    if (rec.mesh) _view3dScene.remove(rec.mesh);
-    _view3dTerrainMeshes.delete(id);
+
+  for (const [art, g] of _instArt) {
+    const arr = byArt.get(art);
+    const count = arr ? arr.length : 0;
+    if (count === 0) { if (g.inst) g.inst.count = 0; continue; }
+    const inst = _ensureInst(g, count);
+    if (!inst) continue;
+    for (let i = 0; i < count; i++) {
+      const o = arr[i];
+      _vpos.set(o.x, o.y, o.z);
+      if (o.q) _qrot.set(o.q[1], o.q[2], o.q[3], o.q[0]);
+      else _qrot.setFromAxisAngle(_UP, Math.atan2(o.fx, o.fz) + _MESH_YAW_OFFSET);
+      _vscale.set(o.sc, o.sc, o.sc);
+      _m4.compose(_vpos, _qrot, _vscale);
+      inst.setMatrixAt(i, _m4);
+    }
+    inst.count = count;
+    inst.instanceMatrix.needsUpdate = true;
   }
 }
 
@@ -1656,8 +1644,7 @@ function _renderView3d() {
   const W = window.innerWidth, H = window.innerHeight;
   if (_view3dCanvas.width !== W)  _view3dCanvas.width  = W;
   if (_view3dCanvas.height !== H) _view3dCanvas.height = H;
-  _view3dSyncMeshes();          // before _view3dSync so meshed objects drop their point
-  _view3dSyncTerrainMeshes();   // asteroid meshes (lazy, LOD-gated)
+  _view3dSyncInstances();   // before _view3dSync so meshed objects drop their point
   _view3dSync();
   // Smooth camera moves so scripted cuts / ship motion ease rather than snap.
   if (_v3dDispCam === null) { _v3dDispCam = _v3dCam.slice(); _v3dDispTgt = _v3dTgt.slice(); }
