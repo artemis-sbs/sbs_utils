@@ -239,13 +239,41 @@ def send_gui_3dship(clientID: int, parent: str, tag: str, style: str,
 # ---------------------------------------------------------------------------
 _2D_VIEW_WIDGETS = frozenset({"2dview", "science_2d_view", "comms_2d_view", "weapon_2d_view"})
 
+# Per-client set of 2D-view widgets the script has explicitly sized this console
+# epoch (via send_client_widget_rects / ConsoleWidget).  Latched so _push_2dview_rects
+# never clobbers a script-set size with the default.  Reset on each widget-list change.
+_explicit_2d_rects: dict = {}
+
+# Per-client explicit 3dview rect (left, top, right, bottom in screen %), set when a
+# script positions the 3D view via gui_layout_widget("3dview").  When absent the
+# default below is used.  Reset on each widget-list change.
+_view3d_rects: dict = {}
+# Default view rect: top inset ~3% (~50px) clears the topbar.  Shared by the 2D
+# default in the browser (_DEFAULT_2D_VIEW_RECT) and the 3dview default here.
+_DEFAULT_VIEW3D_RECT = (0.0, 3.0, 100.0, 100.0)
+
 
 def send_client_widget_rects(clientID: int, widgetName: str,
                               l1: float, t1: float, r1: float, b1: float,
                               l2: float, t2: float, r2: float, b2: float) -> None:
-    """Forward 2D gameplay widget positions to the browser as widget_rect commands."""
+    """Forward gameplay view positions to the browser.  2D radar views become
+    widget_rect commands; an explicit 3dview rect is stored for _push_cinematic to
+    apply to the 3D canvas.  A non-degenerate rect latches as a script-set size so
+    the per-tick defaults back off."""
+    explicit = (r1 - l1) >= 1 and (b1 - t1) >= 1
+
+    if widgetName == "3dview":
+        # The 3D view is positioned by the cinematic command, not a widget_rect.
+        if explicit:
+            _view3d_rects[clientID] = (round(l1, 2), round(t1, 2), round(r1, 2), round(b1, 2))
+        return
+
     if widgetName not in _2D_VIEW_WIDGETS or gui_queue is None:
         return
+    # A real (non-degenerate) rect means the script positioned this view itself —
+    # latch it so the per-tick default in _push_2dview_rects backs off.
+    if explicit:
+        _explicit_2d_rects.setdefault(clientID, set()).add(widgetName)
     try:
         gui_queue.put_nowait({
             "clientID": str(clientID),
@@ -303,6 +331,10 @@ def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) ->
     _base_mock.send_client_widget_list(clientID, consoleType, widgetList)
     widgets = (widgetList or "").split("^")
 
+    # New console epoch: drop last epoch's explicit 3dview rect (re-sent on present
+    # if the new layout sizes the view itself).
+    _view3d_rects.pop(clientID, None)
+
     # 3dview (mainscreen forward view, cockpit) — _push_cinematic streams the camera.
     if "3dview" in widgets:
         _view3d_widget_clients.add(clientID)
@@ -310,7 +342,10 @@ def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) ->
         _view3d_widget_clients.discard(clientID)
         _send(clientID, "cinematic", active=False)   # hide the browser 3dview
 
-    # 2D gameplay view (radar) — _push_2dview_rects streams the rect each tick.
+    # 2D gameplay view (radar) — _push_2dview_rects streams a default rect each
+    # tick unless the script sizes the view itself (tracked in _explicit_2d_rects).
+    # New console epoch: clear last epoch's explicit-size latch.
+    _explicit_2d_rects.pop(clientID, None)
     view2d = next((w for w in widgets if w in _2D_VIEW_WIDGETS), None)
     if view2d is not None:
         _view2d_widget_clients[clientID] = view2d
@@ -327,6 +362,9 @@ def _push_2dview_rects() -> None:
     if gui_queue is None:
         return
     for cid, widget in list(_view2d_widget_clients.items()):
+        # Script already sized this view — don't overwrite it with the default.
+        if widget in _explicit_2d_rects.get(cid, ()):
+            continue
         try:
             gui_queue.put_nowait({
                 "clientID": str(cid),
@@ -617,8 +655,10 @@ def _forward_view_camera(clientID: int):
 
 
 def _emit_cinematic(cid, cam, mode: str) -> None:
-    """Enqueue one per-tick cinematic camera message for a client."""
+    """Enqueue one per-tick cinematic camera message for a client, including the
+    3D canvas rect (script-set if present, else the default with a topbar inset)."""
     c, t = cam["cam"], cam["target"]
+    rect = _view3d_rects.get(cid, _DEFAULT_VIEW3D_RECT)
     try:
         gui_queue.put_nowait({
             "clientID": cid,
@@ -627,6 +667,7 @@ def _emit_cinematic(cid, cam, mode: str) -> None:
             "mode":     mode,
             "cam":      [round(c[0], 1), round(c[1], 1), round(c[2], 1)],
             "target":   [round(t[0], 1), round(t[1], 1), round(t[2], 1)],
+            "rect":     [rect[0], rect[1], rect[2], rect[3]],
         })
     except Exception:
         pass

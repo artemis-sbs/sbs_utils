@@ -1881,7 +1881,10 @@ function _view3dSyncInstances() {
 
 function _renderView3d() {
   if (!_view3dActive || !_view3dRenderer) return;
-  const W = window.innerWidth, H = window.innerHeight;
+  // Render at the canvas's actual on-screen size (set by its rect), not the whole
+  // window — so a script-sized 3dview has correct resolution and aspect.
+  const W = _view3dCanvas.clientWidth  || window.innerWidth;
+  const H = _view3dCanvas.clientHeight || window.innerHeight;
   if (_view3dCanvas.width !== W)  _view3dCanvas.width  = W;
   if (_view3dCanvas.height !== H) _view3dCanvas.height = H;
   _view3dSyncInstances();   // before _view3dSync so meshed objects drop their point
@@ -1940,7 +1943,18 @@ function cmdCinematic(msg) {
   // Transient broadcast: keep only messages addressed to our own client.
   if (CLIENT_ID !== null && String(msg.clientID) !== String(CLIENT_ID)) return;
   _view3dActive = !!msg.active;
-  if (_view3dCanvas) _view3dCanvas.style.display = _view3dActive ? 'block' : 'none';
+  if (_view3dCanvas) {
+    _view3dCanvas.style.display = _view3dActive ? 'block' : 'none';
+    // Position the 3D canvas to the script-set rect (screen %), or the default
+    // (top inset clears the topbar).  Coords are % of viewport → vw/vh.
+    if (Array.isArray(msg.rect)) {
+      const [l, t, r, b] = msg.rect;
+      _view3dCanvas.style.left   = l + 'vw';
+      _view3dCanvas.style.top    = t + 'vh';
+      _view3dCanvas.style.width  = (r - l) + 'vw';
+      _view3dCanvas.style.height = (b - t) + 'vh';
+    }
+  }
   if (Array.isArray(msg.cam))    _v3dCam = msg.cam;
   if (Array.isArray(msg.target)) _v3dTgt = msg.target;
 }
