@@ -18,9 +18,9 @@ one matches. None of the changes below alter MAST language semantics
 | 2 | First-char/prefix node dispatch (cut O(nodes×lines)) | perf | ✅ Done (uncommitted) |
 | 3 | Hoist logger + guard per-line debug f-string | perf | ✅ Done (committed `be6b664`) |
 | 4 | Log `FileHandler` leak per `Mast()` construction | perf/robust | ⬜ Proposed |
-| 5 | Latent `NoneType` deref on indent (`prev_node.is_inline_label`) | robust | ⬜ Proposed |
-| 6 | `raise "<string>"` in assign.py yaml paths (TypeError masks error) | robust | ⬜ Proposed |
-| 7 | Bare `except:` in `content_from_lib_or_file` hides load errors | robust | ⬜ Proposed |
+| 5 | Latent `NoneType` deref on indent (`prev_node.is_inline_label`) | robust | ✅ Done (uncommitted) |
+| 6 | `raise "<string>"` in assign.py yaml paths (TypeError masks error) | robust | ✅ Done (uncommitted) |
+| 7 | Bare `except:` in `content_from_lib_or_file` hides load errors | robust | ✅ Done (uncommitted) |
 | 8 | Per-compile state object (if/match/await chains are class-level) | robust | ⬜ Proposed |
 | 9 | Inconsistent error recovery (some bail, some continue) | robust | ⬜ Proposed |
 | 10 | Regex typo `STRING_REGEX_NAMED_3` — stray `"` in group name | robust | ⬜ Proposed |
@@ -127,24 +127,27 @@ so repeated compiles stack duplicate handlers and multiply log writes. Guard wit
 
 ---
 
+## ✅ Done — #5/#6/#7 latent crashes & masked errors
+
+Small, independent defensive fixes (no behavior change on the happy path):
+
+- **#5** [mast.py](sbs_utils/mast/mast.py) indent handling: when `prev_node is
+  None` the code dereferenced `prev_node.is_inline_label`. Now guarded
+  (`prev_node is None or not prev_node.is_inline_label`) so indenting under
+  nothing yields a clean "Bad indentation" error instead of an `AttributeError`.
+- **#6** [assign.py](sbs_utils/mast/core_nodes/assign.py): the yaml-assign error
+  paths did `raise "<str>"` (a `TypeError` in Py3 that masked the real message;
+  one wasn't even an f-string). Now `raise Exception(f"...")`.
+- **#7** [mast.py](sbs_utils/mast/mast.py) `content_from_lib_or_file`: bare
+  `except:` → `except Exception as e:` and the cause `{e}` is appended to the
+  message (no longer swallows `KeyboardInterrupt`/`SystemExit` or hides why a
+  file failed to load).
+
+All 338 tests pass.
+
+---
+
 ## ⬜ Proposed — robustness / correctness
-
-### #5 Latent `NoneType` deref on indent
-[mast.py ~916](sbs_utils/mast/mast.py): inside `if prev_node is None or not
-prev_node.is_indentable():` the next line does `if not prev_node.is_inline_label:`,
-which dereferences `None` when `prev_node is None`. Guard `prev_node is not None`
-and emit a clean "unexpected indentation" error.
-
-### #6 `raise "<string>"` in assign.py yaml paths
-[assign.py:86](sbs_utils/mast/core_nodes/assign.py#L86) and
-[:90](sbs_utils/mast/core_nodes/assign.py#L90) raise a `str` (TypeError in Py3,
-masking the real diagnostic); the first isn't even an f-string. Use
-`raise Exception(f"...")`.
-
-### #7 Bare `except:` hides load failures
-[mast.py:578](sbs_utils/mast/mast.py#L578) catches everything (incl.
-`KeyboardInterrupt`) and collapses it to a generic "Cannot load file" with no cause.
-Use `except Exception as e:` and include `e`.
 
 ### #8 Per-compile state object
 `IfStatements.if_chains` ([conditional.py:11](sbs_utils/mast/core_nodes/conditional.py#L11)),
@@ -179,5 +182,5 @@ error. Escape or build via `ast`.
 | ~~Medium~~ | ~~High~~ | ✅ #1 pos-cursor (done) |
 | ~~Low~~ | ~~Med~~ | ✅ #2 first-char dispatch (done) |
 | Medium | High | #8 per-compile state (correctness on re-compile) |
-| Low | Med | #5, #6, #7 latent crashes/masks |
+| ~~Low~~ | ~~Med~~ | ✅ #5, #6, #7 latent crashes/masks (done) |
 | Low | Low | ✅ #3 (done), #4 logging hygiene |

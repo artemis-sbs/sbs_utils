@@ -79,15 +79,15 @@ class AssignRuntimeNode(MastRuntimeNode):
         if node.yaml is not None:
             value = task.compile_and_format_string(node.yaml)
             if node.oper != Assign.EQUALS:
-                raise "Assign for yaml only support = not {node.oper}"
-        
+                raise Exception(f"Assign for yaml only support = not {node.oper}")
+
             try:
                 from ... import yaml
                 value = yaml.safe_load(value)
                 self._set_value(value, node, task)
-                
+
             except Exception as e:
-                raise f"Invalid yaml expression\n{e}"
+                raise Exception(f"Invalid yaml expression\n{e}")
             return PollResults.OK_ADVANCE_TRUE
 
         if not self.promise:

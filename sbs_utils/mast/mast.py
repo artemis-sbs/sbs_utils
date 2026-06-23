@@ -614,11 +614,14 @@ class Mast():
                 with open(file_name) as f:
                     content = f.read()
                 return content, None
-        except:
+        except Exception as e:
+            # Surface the underlying cause (permission, decode, missing zip
+            # entry, ...) instead of a bare except that also swallowed
+            # KeyboardInterrupt/SystemExit and hid the real reason.
             if self.lib_name is not None:
-                message = f"File load error\nCannot load file {file_name} from library {self.lib_name}"
+                message = f"File load error\nCannot load file {file_name} from library {self.lib_name}\n{e}"
             else:
-                message = f"File load error\nCannot load file {file_name}"
+                message = f"File load error\nCannot load file {file_name}\n{e}"
             return None, [message]
             
         
@@ -977,7 +980,9 @@ class Mast():
                                 return errors # return with first errors
                         if is_indent:
                             if prev_node is None or not prev_node.is_indentable():
-                                if not prev_node.is_inline_label:
+                                # prev_node None => indenting under nothing; treat
+                                # as bad indentation instead of dereferencing None.
+                                if prev_node is None or not prev_node.is_inline_label:
                                     errors.append(buildErrorMessage(file_name,line_no,line,"Bad indentation"))
                                     return errors # return with first errors
                             block_node = prev_node
