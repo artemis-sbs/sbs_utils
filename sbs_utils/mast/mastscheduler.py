@@ -287,7 +287,7 @@ class MastTicker:
                             self.last_poll_result = result
                             break
             return PollResults.OK_RUN_AGAIN
-        except BaseException as err:
+        except Exception as err:
             self.runtime_error(str(err))
             return PollResults.OK_END
 
@@ -363,9 +363,9 @@ class MastTicker:
             
             self.runtime_node = runtime_node_cls()
             self.runtime_node.enter(self.main.mast, self.task, cmd)
-        except BaseException as err:
+        except Exception as err:
             self.runtime_error(str(err))
-        
+
         return True
 
 
@@ -908,7 +908,7 @@ class MastAsyncTask(Agent, Promise):
         try:
             value = eval(message, {"__builtins__": MastGlobals.globals}, allowed)
             return value
-        except BaseException as err:
+        except Exception as err:
             s =  f"FORMAT String error:\n\t f'{message}'\n"
             s += str(err)
             self.runtime_error(s)
@@ -929,7 +929,7 @@ class MastAsyncTask(Agent, Promise):
         try:
             allowed = self.get_symbols()
             value = eval(code, {"__builtins__": MastGlobals.globals}, allowed)
-        except:
+        except Exception:
             err = format_exception("", "Mast eval level Runtime Error:")
             if end_on_exception:
                 # self.runtime_error(f"Mast eval level Runtime Error:\n{err}")
@@ -952,7 +952,7 @@ class MastAsyncTask(Agent, Promise):
             else:
                 g = MastGlobals.globals
             exec(code, {"__builtins__": g}, allowed)
-        except:
+        except Exception:
             #err = traceback.format_exc()
             #err = format_exception("", "Mast exec level Runtime Error:")
             #self.runtime_error("Mast exec level Runtime Error:\n")
@@ -1015,11 +1015,11 @@ class MastAsyncTask(Agent, Promise):
         return t
     
     def remove_sub_task(self, t):
-        t.stop()
+        t.end()
 
     def remove_all_sub_tasks(self):
-        for t in self.sub_tasks():
-            t.stop()
+        for t in list(self.sub_tasks):
+            t.end()
 
     
     def tick_in_context(self):

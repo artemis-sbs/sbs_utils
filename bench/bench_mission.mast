@@ -1,0 +1,42 @@
+# Runtime benchmark mission (dev-only; loaded by bench/bench_runtime.py).
+#
+# Stresses the MAST runtime hot paths Tier 2 targets (see
+# MAST_RUNTIME_IMPROVEMENTS.md): a wide shared symbol table plus many live
+# worker tasks, each registering several `on change` watchers with multi-var
+# expressions. Every scheduler tick drives ~WORKERS*5 expression evals through
+# get_symbols() + eval() via run_on_change() (P1/P2).
+
+shared s0 = 1
+shared s1 = 1
+shared s2 = 1
+shared s3 = 1
+shared s4 = 1
+shared s5 = 1
+shared s6 = 1
+shared s7 = 1
+shared s8 = 1
+shared s9 = 1
+
+=== bench_main
+default WORKERS = 200
+i = 0
+--- spawn_loop
+task_schedule(bench_worker, {"wid": i})
+i = i + 1
+jump spawn_loop if i < WORKERS
+await delay_test(100000000)
+
+=== bench_worker
+default wid = 0
+hits = 0
+on change (s0+s1+s2+s3+s4+s5+s6+s7+s8+s9+wid):
+    hits = hits + 1
+on change (s0*2+s1+s2+wid):
+    hits = hits + 1
+on change (s3+s4+s5+s6+wid):
+    hits = hits + 1
+on change (s7+s8+s9+wid):
+    hits = hits + 1
+on change (s0+s5+s9+wid):
+    hits = hits + 1
+await delay_test(100000000)
