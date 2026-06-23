@@ -308,6 +308,14 @@ def _art_root_for(obj) -> str:
         return tag
 
 
+def _quat_of(obj) -> list:
+    """Object orientation as [w, x, y, z] for the 3dview (full yaw/pitch/roll).
+    The mock uses the standard quaternion->basis convention (forward = +Z),
+    which matches Three.js, so it can be applied directly browser-side."""
+    q = obj._rot_quat
+    return [round(q._w, 4), round(q._x, 4), round(q._y, 4), round(q._z, 4)]
+
+
 def _mesh_scale_for(obj) -> float:
     """Resolve the engine meshscale (OBJ→world size factor) for a space object,
     so the 3dview sizes hull meshes correctly. Mirrors send_gui_3dship."""
@@ -363,6 +371,7 @@ def _push_radar() -> None:
                 "y":         round(obj._pos.y, 1),
                 "art":       _art_root_for(obj),
                 "meshscale": _mesh_scale_for(obj),
+                "q":         _quat_of(obj),
             })
         try:
             gui_queue.put_nowait({
@@ -440,6 +449,7 @@ def _push_radar() -> None:
                     "art":       _art_root_for(obj),
                     "y":         round(obj._pos.y, 1),
                     "meshscale": _mesh_scale_for(obj),
+                    "q":         _quat_of(obj),
                     "new":       True,
                 })
             else:
@@ -448,7 +458,8 @@ def _push_radar() -> None:
                 dhdg = abs(fx - lfx) + abs(fz - lfz)
                 if (ddx * ddx + ddz * ddz >= _DYNAMIC_POS_THRESHOLD_SQ
                         or dhdg >= _DYNAMIC_HDG_THRESHOLD):
-                    changed.append({"id": str(id_), "x": x, "z": z, "fx": fx, "fz": fz})
+                    changed.append({"id": str(id_), "x": x, "z": z, "fx": fx, "fz": fz,
+                                    "q": _quat_of(obj)})
 
         _last_per_ship[sid_str] = new_snap
 

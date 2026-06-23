@@ -1009,7 +1009,7 @@ function cmdRadarTerrain(msg) {
     _terrainColBuf[base + 2] = b;
     _terrainMap.set(o.id, i);
     _terrainRevMap.set(i, o.id);
-    _terrainMeta.set(o.id, { art: o.art || '', meshscale: o.meshscale ?? 1, y: o.y ?? 0 });
+    _terrainMeta.set(o.id, { art: o.art || '', meshscale: o.meshscale ?? 1, y: o.y ?? 0, q: o.q || null });
   }
   _terrainCount = Math.min(objects.length, _MAX_TERRAIN);
   _terrainPoints.geometry.setDrawRange(0, _terrainCount);
@@ -1092,11 +1092,12 @@ function cmdRadar(msg) {
         _dynamicMeta.set(o.id, {
           side: o.side, tick_type: o.tick_type,
           fx: o.fx ?? 0, fz: o.fz ?? 0, name: o.name || '', art: o.art || '',
-          y: o.y ?? 0, meshscale: o.meshscale ?? 1,
+          y: o.y ?? 0, meshscale: o.meshscale ?? 1, q: o.q || null,
         });
       } else {
         const meta = _dynamicMeta.get(o.id);
         if (meta && o.fx !== undefined) { meta.fx = o.fx; meta.fz = o.fz; }
+        if (meta && o.q) meta.q = o.q;
       }
       const pb = idx * 3;
       _dynamicPosBuf[pb]     = o.x;
@@ -1586,7 +1587,10 @@ function _view3dSyncMeshes() {
     if (rec.mesh) {
       const my = meta.y || 0;
       rec.mesh.position.set(x, my, z);
-      rec.mesh.rotation.y = Math.atan2(meta.fx, meta.fz) + _MESH_YAW_OFFSET;
+      // Full orientation from the streamed quaternion [w,x,y,z] (Three order x,y,z,w);
+      // fall back to yaw-only if no quaternion was sent.
+      if (meta.q) rec.mesh.quaternion.set(meta.q[1], meta.q[2], meta.q[3], meta.q[0]);
+      else rec.mesh.rotation.y = Math.atan2(meta.fx, meta.fz) + _MESH_YAW_OFFSET;
       // Distance LOD: hide the hull when far; _view3dSync then draws its point.
       const cam = _v3dDispCam;
       if (cam) {
@@ -1633,7 +1637,11 @@ function _view3dSyncTerrainMeshes() {
         cur.mesh = m;
       });
     }
-    if (rec.mesh) { rec.mesh.visible = true; rec.mesh.position.set(x, y, z); }
+    if (rec.mesh) {
+      rec.mesh.visible = true;
+      rec.mesh.position.set(x, y, z);
+      if (meta.q) rec.mesh.quaternion.set(meta.q[1], meta.q[2], meta.q[3], meta.q[0]);
+    }
   }
   // Drop meshes whose terrain id left the current set.
   for (const [id, rec] of _view3dTerrainMeshes) {
