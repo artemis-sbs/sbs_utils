@@ -171,8 +171,9 @@ class TextArea(Control):
         #self.local_region_tag = self.tag+"$$"
 
 
-    # def invalidate_regions(self):
-    #     self.region = None
+    def invalidate_regions(self):
+        self.region = None
+        self.recalc = True
 
                 
     def get_style(self, key):

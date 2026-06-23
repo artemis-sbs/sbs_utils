@@ -42,6 +42,7 @@ def create_new_sim():
 # Outbound GUI commands — script engine writes, server reads.
 gui_queue: multiprocessing.Queue = None          # type: ignore[assignment]
 
+
 # Inbound connection lifecycle events from the server.
 # {"event": "connect"|"disconnect", "clientID": int}
 client_event_queue: multiprocessing.Queue = None  # type: ignore[assignment]
@@ -198,3 +199,28 @@ def send_gui_hotkey(clientID: int, category: str, tag: str,
     _send(clientID, "hotkey",
           category=category, tag=tag,
           keyType=keyType, description=description)
+
+
+def send_gui_3dship(clientID: int, parent: str, tag: str, style: str,
+                    left: float, top: float, right: float, bottom: float) -> None:
+    # Extract hull_tag from the style string so Python can do the shipData lookup.
+    hull_tag = ""
+    for pair in style.split(";"):
+        k, _, v = pair.partition(":")
+        if k.strip() == "hull_tag":
+            hull_tag = v.strip()
+            break
+
+    try:
+        from sbs_utils.procedural.ship_data import get_ship_data_for
+        ship_info = get_ship_data_for(hull_tag) or {}
+    except Exception:
+        ship_info = {}
+
+    artfileroot = ship_info.get("artfileroot", hull_tag)
+    meshscale   = float(ship_info.get("meshscale", 1.0))
+
+    _send(clientID, "3dship",
+          parent=parent, tag=tag, style=style,
+          left=left, top=top, right=right, bottom=bottom,
+          artfileroot=artfileroot, meshscale=meshscale)

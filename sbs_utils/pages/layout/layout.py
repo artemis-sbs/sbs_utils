@@ -68,16 +68,18 @@ def calc_bounds(att, aspect_ratio, font_size):
     return att
                 
 def get_font_size(font):
+    if font is not None:
+        font = font.strip().lower()
     sizes = {             # MIN  2k 4k
-        "smallest": 12,   # LB   -- -- 
-        "gui-1": 16,      # BD   LB -- 
-        "gui-2": 20,      # H3   BD LB 
-        "gui-3": 24,      # H2   H3 BD  
-        "gui-4": 28,      # H1   H2 H3
-        "gui-5": 32,      # TT   H1 H2
-        "gui-6": 48,      # __   TT H1/TT
+        "smallest": 18,   # LB   -- -- 
+        "gui-1": 22,      # BD   LB -- 
+        "gui-2": 24,      # H3   BD LB 
+        "gui-3": 28,      # H2   H3 BD  
+        "gui-4": 32,      # H1   H2 H3
+        "gui-5": 36,      # TT   H1 H2
+        "gui-6": 52,      # __   TT H1/TT
     }
-    return sizes.get(font, 20)
+    return sizes.get(font, 30)
 
 class RegionType(IntEnum):
     SECTION_AREA_ABSOLUTE = 0,       # Not a window layout, Old school layout
@@ -550,8 +552,7 @@ class Layout(Clickable):
         padding.shrink(self.border)
    
         if self.border is not None and self.border_color is not None:
-            #bb_props = f"image:{self.border_image}; color:{self.border_color};draw_layer:{self.draw_layer};" # sub_rect: 0,0,etc"
-            bb_props = f"image:{self.border_image}; color:{self.border_color};" # sub_rect: 0,0,etc"
+            bb_props = f"image:{self.border_image}; color:{self.border_color};draw_layer:1000;"
             ctx.sbs.send_gui_image(event.client_id, self.region_tag,
                 "__bb:"+self.tag, bb_props,
                 border.left, 
@@ -560,9 +561,7 @@ class Layout(Clickable):
                 border.bottom)
             
         if self.background_color is not None:
-            #props = f"image:{self.background_image}; color:{self.background_color};draw_layer:{self.draw_layer};" # sub_rect: 0,0,etc"
-            props = f"image:{self.background_image}; color:{self.background_color};" # sub_rect: 0,0,etc"
-            #props = f"image:{self.background_image}; color:black;" # sub_rect: 0,0,etc"
+            props = f"image:{self.background_image}; color:{self.background_color};draw_layer:1000;"
             ctx.sbs.send_gui_image(event.client_id, self.region_tag,
                 "__bg:"+self.tag, props,
                 padding.left, 

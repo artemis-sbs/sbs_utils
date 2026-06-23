@@ -102,6 +102,8 @@
     font-family:var(--font-ui); font-size:12px; outline:none; transition:border-color 0.15s; }
   .w-typein input:focus { border-color:var(--accent); }
 
+  .w-3dship { overflow:hidden; background:#000; }
+
   .log-btn  { font-size:11px; padding:2px 8px; background:var(--surface); color:var(--text-dim);
               border:1px solid var(--border); border-radius:3px; cursor:pointer;
               font-family:var(--font-ui); letter-spacing:0.05em; }
@@ -117,6 +119,21 @@
   .log-line.ev  { color:#86efac; }
   .log-line.cmd { color:#93c5fd; }
   .log-line.dbg { color:#fcd34d; }
+
+  /* font-measure modal */
+  #measure-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85);
+                   z-index:9999; align-items:center; justify-content:center; }
+  #measure-modal.visible { display:flex; }
+  #measure-box { background:var(--surface); border:1px solid var(--border); border-radius:8px;
+                 padding:16px; width:min(820px,92vw); max-height:82vh;
+                 display:flex; flex-direction:column; gap:10px; }
+  #measure-box h2 { font-size:13px; color:var(--accent); margin:0; }
+  #measure-output { background:var(--bg); padding:10px; border-radius:4px; flex:1;
+                    overflow:auto; font-size:11px; white-space:pre; font-family:var(--font-ui); }
+  .m-btns { display:flex; gap:8px; }
+  .m-btns button { font-size:11px; padding:3px 10px; background:var(--surface);
+                   color:var(--text-dim); border:1px solid var(--border); border-radius:4px; cursor:pointer; }
+  .m-btns button:hover { color:var(--text); }
 </style>
 </head>
 <body>
@@ -129,6 +146,7 @@
   <span id="cid-badge"><span id="mode-label">—</span> #<span id="cid-val">—</span></span>
   <button id="script-log-btn" class="log-btn" title="Toggle MAST/sbs_utils stdout+stderr">LOG</button>
   <button id="dbg-log-btn"    class="log-btn" title="Toggle browser WS/widget debug">DBG</button>
+  <button id="measure-btn"    class="log-btn" title="Measure browser font metrics for mock calibration">Measure</button>
 </div>
 
 <div id="gui-root">
@@ -138,6 +156,17 @@
 
 <div id="script-log-panel" class="log-panel"></div>
 <div id="dbg-log-panel"    class="log-panel"></div>
+
+<div id="measure-modal">
+  <div id="measure-box">
+    <h2>Font Measurement — copy into cosmos_dev/mock/sbs.py</h2>
+    <pre id="measure-output">Waiting for fonts…</pre>
+    <div class="m-btns">
+      <button id="measure-copy">Copy</button>
+      <button id="measure-close">Close</button>
+    </div>
+  </div>
+</div>
 
 <script src="/three.min.js"></script>
 <script>
@@ -425,6 +454,177 @@ function _buildImageWidget(s) {
   return wrapper;
 }
 
+// ── 3D ship rendering ────────────────────────────────────────────────────────
+// Minimal OBJ parser — handles v/vt/vn/f, triangulates polygons, flips UV.V.
+function _parseOBJ(text) {
+  const pos = [], tc = [], nrm = [];
+  const posOut = [], uvOut = [], nrmOut = [];
+  const idxOut = [];
+  const vmap = new Map();
+  let vi = 0;
+  let hasNormals = false;
+
+  const addVert = key => {
+    if (vmap.has(key)) return vmap.get(key);
+    const parts = key.split('/');
+    const pi = +parts[0] - 1;
+    const ti = parts.length > 1 && parts[1] ? +parts[1] - 1 : -1;
+    const ni = parts.length > 2 && parts[2] ? +parts[2] - 1 : -1;
+    const p = pos[pi] || [0, 0, 0];
+    posOut.push(p[0], p[1], p[2]);
+    const t = ti >= 0 && tc[ti] ? tc[ti] : [0, 0];
+    uvOut.push(t[0], t[1]);
+    if (ni >= 0 && nrm[ni]) {
+      nrmOut.push(nrm[ni][0], nrm[ni][1], nrm[ni][2]);
+      hasNormals = true;
+    } else {
+      nrmOut.push(0, 1, 0);
+    }
+    vmap.set(key, vi);
+    return vi++;
+  };
+
+  for (const rawLine of text.split('\n')) {
+    const p = rawLine.trim().split(/\s+/);
+    switch (p[0]) {
+      case 'v':  pos.push([+p[1], +p[2], +p[3]]); break;
+      case 'vt': tc.push([+p[1], 1 - +p[2]]); break;  // flip V for Three.js
+      case 'vn': nrm.push([+p[1], +p[2], +p[3]]); break;
+      case 'f': {
+        const verts = p.slice(1).map(addVert);
+        for (let i = 1; i < verts.length - 1; i++)
+          idxOut.push(verts[0], verts[i], verts[i + 1]);
+        break;
+      }
+    }
+  }
+  return { posOut, uvOut, nrmOut, idxOut, hasNormals };
+}
+
+// One entry per live 3dship widget; the global RAF loop drains this list.
+const _3dshipScenes = [];
+
+function _build3dship(msg) {
+  const el = document.createElement('div');
+  el.className = 'w-3dship';
+
+  if (!_threeRenderer) {
+    el.textContent = '[3dship: no WebGL]';
+    return el;
+  }
+
+  const displayCanvas = document.createElement('canvas');
+  displayCanvas.style.cssText = 'display:block;width:100%;height:100%;';
+  el.appendChild(displayCanvas);
+  const ctx2d = displayCanvas.getContext('2d');
+
+  const scene  = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1e8);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+  sun.position.set(2, 3, 2);
+  scene.add(sun);
+
+  // Ship meshes and textures live under data/graphics/ships/ on the server.
+  const artfileroot = msg.artfileroot ? 'ships/' + msg.artfileroot : '';
+
+  const entry = { scene, camera, mesh: null, canvas: displayCanvas, ctx: ctx2d,
+                  width: 0, height: 0, rotY: 0 };
+  _3dshipScenes.push(entry);
+
+  if (artfileroot) {
+    log(`[3dship] loading /${artfileroot}.obj`, 'dbg');
+    fetch('/' + artfileroot + '.obj')
+      .then(r => { if (!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.text(); })
+      .then(text => {
+        log(`[3dship] parsing ${artfileroot} (${text.length} bytes)`, 'dbg');
+        const { posOut, uvOut, nrmOut, idxOut, hasNormals } = _parseOBJ(text);
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(posOut), 3));
+        geo.setAttribute('uv',       new THREE.BufferAttribute(new Float32Array(uvOut), 2));
+        geo.setAttribute('normal',   new THREE.BufferAttribute(new Float32Array(nrmOut), 3));
+        geo.setIndex(new THREE.BufferAttribute(new Uint32Array(idxOut), 1));
+        if (!hasNormals) geo.computeVertexNormals();
+
+        // Center geometry at origin
+        geo.computeBoundingBox();
+        const box = geo.boundingBox;
+        geo.translate(
+          -(box.max.x + box.min.x) / 2,
+          -(box.max.y + box.min.y) / 2,
+          -(box.max.z + box.min.z) / 2
+        );
+        geo.computeBoundingBox();
+        const size = new THREE.Vector3();
+        geo.boundingBox.getSize(size);
+        const maxDim = Math.max(size.x, size.y, size.z) || 1;
+
+        const mat = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, shininess: 40,
+                                                  specular: 0x444444 });
+
+        // Load textures; each updates the material as it arrives
+        _loadTex(artfileroot + '_diffuse.png', tex => {
+          if (!tex || !mat) return;
+          mat.map = tex; mat.color.setHex(0xffffff); mat.needsUpdate = true;
+        });
+        _loadTex(artfileroot + '_specular.png', tex => {
+          if (!tex || !mat) return;
+          mat.specularMap = tex; mat.needsUpdate = true;
+        });
+        _loadTex(artfileroot + '_emissive.png', tex => {
+          if (!tex || !mat) return;
+          mat.emissiveMap = tex; mat.emissive.setHex(0xffffff); mat.needsUpdate = true;
+        });
+
+        const m = new THREE.Mesh(geo, mat);
+        scene.add(m);
+        entry.mesh = m;
+
+        // Position camera so the model fills roughly 2/3 of the viewport height
+        const fovRad = camera.fov * Math.PI / 180;
+        const dist   = (maxDim / 2) / Math.tan(fovRad / 2) * 1.6;
+        camera.position.set(0, maxDim * 0.15, dist);
+        camera.near = dist * 0.001;
+        camera.far  = dist * 100;
+        camera.lookAt(0, 0, 0);
+      })
+      .catch(e => log(`[3dship] load failed: ${artfileroot} — ${e}`, 'err'));
+  }
+
+  new ResizeObserver(entries => {
+    const rc = entries[0].contentRect;
+    entry.width  = Math.round(rc.width);
+    entry.height = Math.round(rc.height);
+  }).observe(el);
+
+  return el;
+}
+
+// Global RAF loop — renders all live 3dship scenes through the shared WebGL renderer.
+(function _start3dLoop() {
+  if (!_threeRenderer) return;
+  function loop() {
+    requestAnimationFrame(loop);
+    for (let i = _3dshipScenes.length - 1; i >= 0; i--) {
+      const e = _3dshipScenes[i];
+      // Auto-remove scenes whose canvas left the DOM (buffer swap / page rebuild)
+      if (!e.canvas.isConnected) { _3dshipScenes.splice(i, 1); continue; }
+      if (!e.mesh || e.width <= 0 || e.height <= 0) continue;
+      e.rotY += 0.005;
+      e.mesh.rotation.y = e.rotY;
+      e.canvas.width  = e.width;
+      e.canvas.height = e.height;
+      e.camera.aspect = e.width / e.height;
+      e.camera.updateProjectionMatrix();
+      _threeRenderer.setSize(e.width, e.height, false);
+      _threeRenderer.render(e.scene, e.camera);
+      e.ctx.clearRect(0, 0, e.width, e.height);
+      e.ctx.drawImage(_threeRenderer.domElement, 0, 0);
+    }
+  }
+  loop();
+})();
+
 // ── Log panels ───────────────────────────────────────────────────────────────
 const scriptLogPanel = document.getElementById('script-log-panel');
 const dbgLogPanel    = document.getElementById('dbg-log-panel');
@@ -504,6 +704,12 @@ function sendEvent(type, tag, clientID, detail = {}) {
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 function dispatch(msg) {
+  // In client mode, ignore GUI commands addressed to the server (clientID "0") or any
+  // other client. The server rebuilds and broadcasts its own frame every tick; without
+  // this filter those clear/complete cycles wipe the client's own frame each tick.
+  if (_mode === 'client' && CLIENT_ID !== null && msg.cmd !== 'init' && msg.cmd !== 'log') {
+    if (msg.clientID !== CLIENT_ID) return;
+  }
   switch (msg.cmd) {
     case 'init':     cmdInit(msg);     break;
     case 'clear':    cmdClear(msg);    break;
@@ -676,7 +882,7 @@ function cmdWidget(msg) {
 
   el.classList.add('widget');
   if (tag) el.dataset.tag = tag;
-  if (s.draw_layer) el.style.zIndex = s.draw_layer;
+  el.style.zIndex = s.draw_layer || 1001;  // engine default is 1001
 
   const region = _regions[parent != null ? parent : ""] || _regions[""];
 
@@ -689,8 +895,6 @@ function cmdWidget(msg) {
       el.style.top    = existing.style.top;
       el.style.width  = existing.style.width;
       el.style.height = existing.style.height;
-      if (!s.draw_layer && existing.style.zIndex)
-        el.style.zIndex = existing.style.zIndex;
       existing.parentNode.replaceChild(el, existing);
       log(`  ~${cmd} tag=${tag} → region[${parent||'root'}] front (in-place)`, 'dbg');
       return;
@@ -978,6 +1182,9 @@ function buildWidget(msg, s) {
       });
       return null;
     }
+    case '3dship': {
+      return _build3dship(msg);
+    }
     default: {
       el = document.createElement('div'); el.className = 'w-text';
       el.style.outline = '1px dashed red';
@@ -986,6 +1193,141 @@ function buildWidget(msg, s) {
   }
   return el;
 }
+
+// ── font measurement ──────────────────────────────────────────────────────────
+function _measureFonts() {
+  const FONT_DEFS = [
+    ['smallest', 'GoldmanSansCd_Rg', 18],
+    ['gui-1',    'GoldmanSansCd_Rg', 22],
+    ['gui-2',    'GoldmanSansCd_Rg', 24],
+    ['gui-3',    'Goldman-Bold',     28],
+    ['gui-4',    'Goldman-Bold',     32],
+    ['gui-5',    'Goldman-Bold',     36],
+    ['gui-6',    'Goldman-Bold',     52],
+  ];
+  const NARROW = ['iiiiiiiiii', 'llllllllll'];
+  const WIDE   = ['MMMMMMMMMM', 'WWWWWWWWWW', 'mmmmmmmmmm', 'wwwwwwwwww'];
+  const AVG    = ['xxxxxxxxxx', 'aaaaaaaaaa', 'HHHHHHHHHH', '0000000000'];
+
+  const canvas = document.createElement('canvas');
+  const ctx    = canvas.getContext('2d');
+  const res    = {};
+
+  for (const [tag, family, size] of FONT_DEFS) {
+    // DOM span: actual rendered line height (what the browser lays out)
+    const span = document.createElement('span');
+    span.style.cssText = `font-family:'${family}';font-size:${size}px;line-height:normal;`
+                       + `position:fixed;top:-9999px;left:0;white-space:nowrap;visibility:hidden;`;
+    span.textContent = 'AXgjpy|Qq';
+    document.body.appendChild(span);
+    const lh = Math.ceil(span.getBoundingClientRect().height);
+    document.body.removeChild(span);
+
+    // Canvas measureText: per-character pixel widths
+    const avgW = (tests) => {
+      ctx.font = `${size}px '${family}'`;
+      let s = 0;
+      for (const t of tests) s += ctx.measureText(t).width / t.length;
+      return +(s / tests.length).toFixed(2);
+    };
+
+    res[tag] = { css_size: size, line_height: lh,
+                 narrow: avgW(NARROW), wide: avgW(WIDE), avg: avgW(AVG) };
+  }
+  return res;
+}
+
+function _measureFormatOutput(res) {
+  const TAGS = ['smallest', 'gui-1', 'gui-2', 'gui-3', 'gui-4', 'gui-5', 'gui-6'];
+
+  const lines = [
+    '# Generated by the Measure button in the mockgui browser.',
+    '# Goldman fonts rendered in THIS browser window — values depend on browser/OS.',
+    '# Paste into cosmos_dev/mock/sbs.py',
+    '',
+    '# 1. Replace _font_size() with browser-rendered line heights:',
+    'def _font_size(fontTag: str) -> int:',
+    '    return {',
+  ];
+  for (const t of TAGS) {
+    if (res[t]) lines.push(`        "${t}": ${res[t].line_height},`);
+  }
+  lines.push(`    }.get(fontTag, ${res['gui-3']?.line_height ?? 30})\n`);
+
+  lines.push('# 2. Drop the × 1.25 multiplier — _font_size already IS the line height:');
+  lines.push('def get_text_line_height(fontTag: str, textToMeasure: str) -> int:');
+  lines.push('    return _font_size(fontTag)\n');
+
+  lines.push('# 3. Per-font char widths (narrow, wide, avg) in pixels from canvas.measureText:');
+  lines.push('_CHAR_WIDTHS = {');
+  for (const t of TAGS) {
+    const r = res[t];
+    if (r) lines.push(`    "${t}": (${r.narrow}, ${r.wide}, ${r.avg}),`);
+  }
+  lines.push('}\n');
+
+  lines.push('# 4. Replace _char_pixel_width to use per-font table (fontTag, not font_size):');
+  lines.push('def _char_pixel_width(ch: str, fontTag: str) -> float:');
+  lines.push('    narrow, wide, avg = _CHAR_WIDTHS.get(fontTag, _CHAR_WIDTHS["gui-3"])');
+  lines.push('    if ch in _NARROW_CHARS: return narrow');
+  lines.push('    if ch in _WIDE_CHARS:   return wide');
+  lines.push('    return avg\n');
+
+  lines.push('# 5. Update get_text_line_width to pass fontTag instead of fs:');
+  lines.push('def get_text_line_width(fontTag: str, textToMeasure: str) -> int:');
+  lines.push('    if not textToMeasure: return 0');
+  lines.push('    return int(sum(_char_pixel_width(ch, fontTag) for ch in textToMeasure))\n');
+
+  // median of per-font ratios as a simple alternative
+  const med = (arr) => {
+    const s = [...arr].sort((a, b) => a - b);
+    const m = Math.floor(s.length / 2);
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  };
+  const ts = TAGS.filter(t => res[t]);
+  const nr = ts.map(t => res[t].narrow / res[t].line_height);
+  const wr = ts.map(t => res[t].wide   / res[t].line_height);
+  const ar = ts.map(t => res[t].avg    / res[t].line_height);
+  lines.push('# Alternative: single-multiplier ratios relative to _font_size()');
+  lines.push(`# (less accurate across font families but simpler to maintain)`);
+  lines.push(`# narrow = ${med(nr).toFixed(3)}  (was 0.35)`);
+  lines.push(`# wide   = ${med(wr).toFixed(3)}  (was 0.75)`);
+  lines.push(`# avg    = ${med(ar).toFixed(3)}  (was 0.55)`);
+
+  return lines.join('\n');
+}
+
+(function () {
+  const btn   = document.getElementById('measure-btn');
+  const modal = document.getElementById('measure-modal');
+  const out   = document.getElementById('measure-output');
+  const close = document.getElementById('measure-close');
+  const copy  = document.getElementById('measure-copy');
+
+  btn.addEventListener('click', async () => {
+    out.textContent = 'Waiting for fonts…';
+    modal.classList.add('visible');
+    await document.fonts.ready;
+    out.textContent = 'Measuring…';
+    requestAnimationFrame(() => {
+      try {
+        out.textContent = _measureFormatOutput(_measureFonts());
+      } catch (e) {
+        out.textContent = 'Error: ' + e;
+      }
+    });
+  });
+
+  close.addEventListener('click', () => modal.classList.remove('visible'));
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') modal.classList.remove('visible');
+  });
+  copy.addEventListener('click', () => {
+    navigator.clipboard.writeText(out.textContent);
+    copy.textContent = 'Copied!';
+    setTimeout(() => copy.textContent = 'Copy', 2000);
+  });
+})();
 </script>
 </body>
 </html>

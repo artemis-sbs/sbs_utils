@@ -9,6 +9,12 @@ sys.modules["sbs"] = sys.modules[__name__]
 sim = None
 seconds = 0
 
+# Storage for set_client_string / request_client_string round-trips.
+# request_client_string() appends (client_id, key) here; the mission runner
+# drains this after each tick and fires the corresponding client_string events.
+_client_strings: dict = {}          # {client_id: {key: value}}
+_pending_client_string_events: list = []  # [(client_id, key), ...]
+
 
 def add_client_tag() -> None:
     """stub; does nothing yet."""
@@ -209,7 +215,13 @@ def get_preference_string(key: str) -> str:
 
 def get_screen_size() -> vec2:
     """returns a VEC2, with the width and height of the display in pixels"""
-    return vec2(1024, 768)
+    try:
+        from sbs_utils.helpers import FrameContext
+        from sbs_utils.gui import get_client_aspect_ratio
+        ar = get_client_aspect_ratio(FrameContext.client_id)
+        return vec2(int(ar.x), int(ar.y))
+    except Exception:
+        return vec2(1024, 768)
 
 def get_shared_string(key: str) -> str:
     """gets a shared string, given the key (itself a string).  Shared strings are automatically copied from server to all clients."""
@@ -222,17 +234,74 @@ def get_ship_of_client(clientID: int) -> int:
         return sim.client_ships.get(clientID, 0)
     return 0
 
-def get_text_block_height(fontTag: str, textToMeasure: str, width: int) -> int:
-    """for a font key, a string of (possibly) multiline text, and a pixel width, this returns the height of the drawn text."""
-    return 10
+def _font_size(fontTag: str) -> int:
+    return {
+        "smallest": 21,
+        "gui-1": 27,
+        "gui-2": 29,
+        "gui-3": 35,
+        "gui-4": 39,
+        "gui-5": 44,
+        "gui-6": 64,
+    }.get(fontTag, 35)
+
+_NARROW_CHARS = frozenset("iIl|!;:.,'`1fjr ")
+_WIDE_CHARS   = frozenset("MWmw")
+
+# Per-font char widths (narrow, wide, avg) in pixels — measured from browser canvas.measureText.
+_CHAR_WIDTHS = {
+    "smallest": ( 4.43, 12.38,  8.48),
+    "gui-1":    ( 5.41, 15.13, 10.36),
+    "gui-2":    ( 5.90, 16.50, 11.30),
+    "gui-3":    ( 8.89, 28.09, 20.75),
+    "gui-4":    (10.16, 32.10, 23.72),
+    "gui-5":    (11.43, 36.12, 26.68),
+    "gui-6":    (16.51, 52.17, 38.54),
+}
+
+def _char_pixel_width(ch: str, fontTag: str) -> float:
+    narrow, wide, avg = _CHAR_WIDTHS.get(fontTag, _CHAR_WIDTHS["gui-3"])
+    if ch in _NARROW_CHARS:
+        return narrow
+    if ch in _WIDE_CHARS:
+        return wide
+    return avg
 
 def get_text_line_height(fontTag: str, textToMeasure: str) -> int:
     """for a font key and a text string (one line, no wrapping), this returns the height of the drawn text."""
-    return 10
+    return _font_size(fontTag)
 
 def get_text_line_width(fontTag: str, textToMeasure: str) -> int:
     """for a font key and a text string (one line, no wrapping), this returns the width of the drawn text."""
-    return 10
+    if not textToMeasure:
+        return 0
+    return int(sum(_char_pixel_width(ch, fontTag) for ch in textToMeasure))
+
+def get_text_block_height(fontTag: str, textToMeasure: str, width: int) -> int:
+    """for a font key, a string of (possibly) multiline text, and a pixel width, this returns the height of the drawn text."""
+    line_height = get_text_line_height(fontTag, textToMeasure)
+    if not textToMeasure or width <= 0:
+        return line_height
+    space_w = get_text_line_width(fontTag, " ")
+    total_lines = 0
+    for paragraph in (textToMeasure.splitlines() or [""]):
+        words = paragraph.split()
+        if not words:
+            total_lines += 1
+            continue
+        lines_in_para = 1
+        current_w = 0
+        for word in words:
+            word_w = get_text_line_width(fontTag, word)
+            if current_w == 0:
+                current_w = word_w
+            elif current_w + space_w + word_w > width:
+                lines_in_para += 1
+                current_w = word_w
+            else:
+                current_w += space_w + word_w
+        total_lines += lines_in_para
+    return total_lines * line_height
 
 def get_type_of_client(clientID: int) -> str:
     """returns the consoleType previously assigned to the client computer"""
@@ -310,6 +379,7 @@ def remove_gui_hotkey(clientID: int, tag: str) -> None:
 
 def request_client_string(clientComputerID: int, string_key: str) -> None:
     """requests a string value from the client computer.  This results in a script message, 'client_string'"""
+    _pending_client_string_events.append((clientComputerID, string_key))
 
 def resume_sim() -> None:
     """the sim will now run; HandleStartMission() and HandleTickMission() are called."""
@@ -436,6 +506,7 @@ def set_beam_damages(clientID: int, playerBeamDamage: float, npcBeamDamage: floa
 
 def set_client_string(clientComputerID: int, string_key: str, string_value: str) -> None:
     """stores a string value (and its string key) to the client computer"""
+    _client_strings.setdefault(clientComputerID, {})[string_key] = string_value
 
 def set_dmx_channel(clientID: int, channel: int, behavior: int, speed: int, low: int, high: int) -> None:
     """set a color channel of dmx."""
@@ -864,6 +935,99 @@ class navproxy(object): ### from pybind
         self._text = arg0
 
 
+# Typed defaults derived from object_data_documentation.txt
+_DATA_SET_DEFAULTS = {
+    # torpedo counts — int
+    "EMP_MAX": 0, "EMP_NUM": 0, "EMP_VAL": 0,
+    "Homing_MAX": 0, "Homing_NUM": 0, "Homing_VAL": 0,
+    "Mine_MAX": 0, "Mine_NUM": 0, "Mine_VAL": 0,
+    "Nuke_MAX": 0, "Nuke_NUM": 0, "Nuke_VAL": 0,
+    # int fields
+    "bay_count": 0, "beamCount": 0, "camera_target_UID": 0,
+    "curFriendIndex": 0, "cur_scan_ID": 0, "cur_scan_percent": 0,
+    "curx": 0, "cury": 0,
+    "deathState": 0, "deathTick": 0, "dock_base_id": 0,
+    "elite_anti_mine": 0, "elite_anti_torpedo": 0, "elite_drone_launcher": 0,
+    "elite_low_vis": 0, "elite_low_vis_distance": 0, "elite_main_scn_invis": 0,
+    "energy_to_torp_cost": 0, "eng_control_type_index": 0,
+    "hull_hit_counter": 0, "icon_index": 0, "impulse_while_docked": 0,
+    "inside_nebula_count": 0, "is_fighter_flag": 0, "is_shuttle_flag": 0,
+    "jump_drive_active": 0, "jump_while_docked": 0,
+    "lastx": 0, "lasty": 0,
+    "monster_health": 0, "monster_health_max": 0, "move_speed": 0,
+    "nebula_data_change": 0, "num_extra_scan_sources": 0,
+    "pathx": 0, "pathy": 0, "pull_strength": 0, "random_seed": 0,
+    "shield_count": 0, "shield_freq_strength": 0, "shield_hit_counter": 0,
+    "shields_raised_flag": 0, "surrender_flag": 0,
+    "system_coolant_available": 0, "system_coolant_used": 0, "system_last_coolant_change": 0,
+    "target_id": 0, "torpedo_tube_count": 0, "unselectable": 0,
+    "warp_drive_active": 0, "warp_while_docked": 0,
+    # int64 / uint64 fields
+    "beamTimer": 0, "healTimer": 0, "extra_scan_source": 0, "science_target_UID": 0,
+    # float fields
+    "absorption_blue": 0.0, "absorption_green": 0.0, "absorption_red": 0.0,
+    "all_beam_damage_coeff": 0.0, "all_beam_upgrade_coeff": 0.0,
+    "all_shield_damage_coeff": 0.0, "all_shield_upgrade_coeff": 0.0,
+    "all_tube_damage_coeff": 0.0, "all_tube_upgrade_coeff": 0.0,
+    "anisotropy": 0.0, "armor": 0.0, "armorMax": 0.0,
+    "base_amplitude": 0.0, "base_frequency": 0.0,
+    "beamArcWidth": 0.0, "beamBarrelAngle": 0.0,
+    "beamColorA": 0.0, "beamColorB": 0.0, "beamColorG": 0.0, "beamColorR": 0.0,
+    "beamCycleTime": 0.0, "beamDamage": 0.0,
+    "beamHullPointX": 0.0, "beamHullPointY": 0.0, "beamHullPointZ": 0.0,
+    "beamRange": 0.0, "beam_damage_coeff": 0.0, "beam_upgrade_coeff": 0.0,
+    "body_1_size_coeff": 0.0, "body_2_size_coeff": 0.0,
+    "closest_scan_delay": 0.0, "coolant_damage_coeff": 0.0, "coolant_upgrade_coeff": 0.0,
+    "density": 0.0, "detail_amplitude": 0.0, "detail_frequency": 0.0,
+    "detail_lacunarity": 0.0, "display_size": 0.0, "domain_warp": 0.0,
+    "drone_damage": 0.0, "drone_launch_max_range": 0.0, "drone_launch_timer": 0.0,
+    "effect_size": 0.0, "emission_blue": 0.0, "emission_green": 0.0, "emission_red": 0.0,
+    "energy": 0.0, "eng_control_cost_coeff": 0.0, "eng_control_value": 0.0,
+    "exciting": 0.0, "farthest_scan_delay": 0.0, "fractional_damage": 0.0,
+    "icon_scale": 0.0, "impulse_damage_coeff": 0.0, "impulse_upgrade_coeff": 0.0,
+    "jump_damage_coeff": 0.0, "jump_energy_cost": 0.0, "jump_upgrade_coeff": 0.0,
+    "local_scale_coeff": 0.0, "local_scale_x_coeff": 0.0,
+    "local_scale_y_coeff": 0.0, "local_scale_z_coeff": 0.0,
+    "max_throttle": 0.0, "mesh_rotate_side": 0.0,
+    "monster_heal_rate": 0.0, "monster_speed": 0.0,
+    "overgrid_offset_x": 0.0, "overgrid_offset_z": 0.0,
+    "percent": 0.0, "playerSPitch": 0.0, "playerSRoll": 0.0, "playerSYaw": 0.0,
+    "playerThrottle": 0.0, "quick_jump_recharge_rate": 0.0, "quick_jump_recharge_state": 0.0,
+    "reference_ring_3d_brightness": 0.0,
+    "repair_rate_armor": 0.0, "repair_rate_shields": 0.0, "repair_rate_systems": 0.0,
+    "scan_strength_coeff": 0.0,
+    "scattering_blue": 0.0, "scattering_green": 0.0, "scattering_red": 0.0,
+    "sensor_damage_coeff": 0.0, "sensor_upgrade_coeff": 0.0,
+    "shield_damage_coeff": 0.0, "shield_max_val": 0.0, "shield_upgrade_coeff": 0.0,
+    "shield_val": 0.0, "shield_wave_amplitude": 0.0, "shield_wave_frequency": 0.0,
+    "shield_wave_offset": 0.0, "shield_wave_value": 0.0,
+    "ship_apu_ceiling": 0.0, "ship_apu_output": 0.0, "ship_base_scan_range": 0.0,
+    "ship_energy_cost": 0.0, "size": 0.0, "speed_coeff": 0.0, "swirl": 0.0,
+    "system_coolant_setting": 0.0, "system_cur_heat": 0.0,
+    "system_damage": 0.0, "system_max_damage": 0.0,
+    "target_pos_x": 0.0, "target_pos_y": 0.0, "target_pos_z": 0.0,
+    "throttle": 0.0, "total_speed_coeff": 0.0,
+    "tube_damage_coeff": 0.0, "tube_upgrade_coeff": 0.0,
+    "turnRate": 0.0, "turn_damage_coeff": 0.0, "turn_rate": 0.0, "turn_upgrade_coeff": 0.0,
+    "warp_damage_coeff": 0.0, "warp_energy_cost": 0.0, "warp_upgrade_coeff": 0.0,
+    # string fields
+    "ally_list": "", "beamColor": "", "bio": "",
+    "body_1_color": "", "body_1_diffuse_bitmap_file": "", "body_1_geom_filename": "",
+    "body_2_color": "", "body_2_diffuse_bitmap_file": "", "body_2_geom_filename": "",
+    "coolant_dot_active_color": "", "coolant_dot_reserve_color": "",
+    "cur_scan_type": "", "display_text": "", "dock_state": "",
+    "eng_control_label": "", "hull_name": "", "hull_origin": "", "hull_side": "",
+    "icon_color": "", "info_text": "", "info_text_color": "", "intel": "",
+    "internal_color_ship_lines": "", "internal_color_ship_nodes": "",
+    "internal_color_ship_sillouette": "", "long_description": "", "name_tag": "",
+    "particle_color_1": "", "particle_color_2": "", "particle_color_3": "",
+    "radar_color_override": "", "scan": "", "scan_type_for_shld_freq": "",
+    "scan_type_for_system_damage": "", "scan_type_list": "", "steeringType": "",
+    "status": "", "torpedo_build_type": "", "torp_type_from_energy": "",
+    "torpedo_types_available": "Homing,Nuke,EMP,Mine",
+}
+
+
 class object_data_set(object): ### from pybind
     """class object_data_set"""
     def __init__(self):
@@ -878,15 +1042,7 @@ class object_data_set(object): ### from pybind
         value = values.get(index, None)
         if value is not None:
             return value
-        s_value = [
-            "torpedo_types_available", "tsnscan", "tsnintel", "tsnbio", "tsnstatus", "ally_list",
-            "hull_origin", "hull_side"
-        ]
-        if name == "torpedo_types_available":
-            return "Homing,Nuke,EMP,Mine"
-        if name in s_value:
-            return ""
-        return None
+        return _DATA_SET_DEFAULTS.get(name, None)
 
     def get_first(self, name: str) -> object:
         """Get the first iterator value of the map in this element"""

@@ -120,6 +120,27 @@ class _TeeWriter:
         return getattr(self._original, name)
 
 
+def _drain_client_strings(sim, cosmos_event_handler, FakeEvent) -> None:
+    """Fire pending client_string response events queued by request_client_string().
+
+    The mock's request_client_string() appends (client_id, key) to
+    cosmos_dev.mock.sbs._pending_client_string_events.  We import the base mock
+    directly (not the mockgui wrapper) because underscore names aren't exported by
+    the wildcard import in mockgui/sbs.py.  We loop here because resolving one
+    ClientStringPromise may advance the MAST task to another await, immediately
+    queuing the next request.
+    """
+    import cosmos_dev.mock.sbs as _mock
+    while _mock._pending_client_string_events:
+        cid, key = _mock._pending_client_string_events.pop(0)
+        value = _mock._client_strings.get(cid, {}).get(key, "")
+        cs_ev = FakeEvent(client_id=cid, tag="client_string", sub_tag=key, value_tag=value)
+        try:
+            cosmos_event_handler(sim, cs_ev)
+        except Exception as e:
+            print(f"[runner] client_string drain error ({key}): {e}")
+
+
 def _run(
     mission_folder: str,
     mast_file: str | None = None,
@@ -224,6 +245,13 @@ def _run(
             cosmos_event_handler(sim, tick_event)
             sim._time_tick_counter += 1
 
+            # Drain any client_string responses queued during this tick.
+            # request_client_string() appends to sbs._pending_client_string_events;
+            # each iteration here fires the matching 'client_string' event so that
+            # ClientStringPromise resolves and the waiting MAST task can advance.
+            # Loop because resolving one promise may immediately queue the next.
+            _drain_client_strings(sim, cosmos_event_handler, FakeEvent)
+
             if gui:
                 # Client connect/disconnect processed after server has ticked,
                 # so the server page is already initialised when the client's
@@ -236,6 +264,9 @@ def _run(
                             print(f"[runner] client {cid} connected")
                             sbs.register_client(cid)
                             cosmos_event_handler(sim, FakeEvent(client_id=cid, tag="client_connect"))
+                            # Drain client_string events queued during client_connect
+                            # (client_main calls gui_request_client_string three times).
+                            _drain_client_strings(sim, cosmos_event_handler, FakeEvent)
                         elif cev.get("event") == "disconnect":
                             cid = cev.get("clientID")
                             print(f"[runner] client {cid} disconnected")
