@@ -360,6 +360,9 @@ def _push_radar() -> None:
                 "x":    round(obj._pos.x, 1),
                 "z":    round(obj._pos.z, 1),
                 "side": obj._side,
+                "y":         round(obj._pos.y, 1),
+                "art":       _art_root_for(obj),
+                "meshscale": _mesh_scale_for(obj),
             })
         try:
             gui_queue.put_nowait({
