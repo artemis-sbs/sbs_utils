@@ -99,8 +99,36 @@ cProfile (200 ticks, by cumulative / self time) — **P1 confirmed**:
 | **`get_symbols`** | 220,000 | 1.03s | **0.92s (~30% of total)** |
 
 `get_symbols` (the dict-union per eval) is the single largest **self-time**
-function. This is the empirical green light for **P1**; the bench is the
-before/after harness.
+function — but see **P1 below**: that self-time is inherent per-key copy cost,
+so making each `get_symbols` call cheaper (ChainMap / one-pass) did **not** speed
+the bench up. The bench remains the harness for any future call-count-reduction
+attempt.
+
+#### ✅ Real-mission smoke: LegendaryMissions `@map/siege` (headless, working tree)
+Now boots and runs clean headless (0 runtime errors, 0 tracebacks) against the
+working tree. Required fixing real bugs found along the way:
+
+- **Side/player ordering race (engine bug too).** Sides (`tsn`/`raider`/`civ`)
+  were created in a `//shared/signal/game_started` route via `await prefab_spawn`,
+  which raced the map's `spawn_players` → "Side not found" + `set_diplomacy_color`
+  on `None`. **Fix (LegendaryMissions):** moved side+diplomacy creation into a
+  `=== create_sides_and_diplomacy` label called/awaited at `server_console`
+  `start_server` init, before player ships and before any map runs.
+  (`maps/watch_for_end.mast`, `consoles/server_console.mast`.)
+- **Invalid side on dry-docked ships.** `spawn_players` tagged unused player
+  ships `side = "unused"` (not a registered side); the hangar system then spammed
+  "Side not found: unused". **Fix (LegendaryMissions):** dropped the assignment
+  (ships are already de-roled and deleted). (`fleets/map_common.mast`.)
+- **sbs_utils None-derefs (robustness, harmless in engine):**
+  - `internal_damage.grid_restore_damcons` — guard `_blob is None` before `.set`.
+  - `space_objects.clear_target` — guard `get_space_object()` returning `None`
+    (chaser destroyed mid-AI-tick).
+
+Smoke harness: throwaway probe that forces working-tree precedence then calls
+`mission_runner._run(..., map_arg="siege")`. (Could be promoted into `bench/` as a
+real-mission smoke later.) Remaining noise: 3 benign "Side not found" existence
+prints from `prefab_side_generic` creating each side; "Unhandled event collision
+passive" (no `//collision/passive` route — expected).
 
 #### ⚠️ Smoke-run gotcha: packaged sbslib shadows the working tree
 `cosmos_dev/mission_runner.py` `_load_libs()` does `sys.path.insert(0, lib_path)`
@@ -157,15 +185,24 @@ Make the control-flow code legible so later changes are safe. **No logic edits**
 runtime micro-bench (hot GUI task with `on change` + f-strings) and profile
 before/after.
 
-- **P1. `get_symbols()` dict-union per eval.** Every `eval_code`/`format_string`
-  rebuilds the namespace by union-ing SHARED ▸ scheduler ▸ task inventory ▸
-  every `label_stack` frame. Runs many times per frame on GUI/`on change` tasks.
-  Candidate: `ChainMap` or a cached/invalidated view. **Risk: scope semantics
-  are subtle (`get_value` vs `get_symbols` already diverge — see the
-  commented-out `StoryScheduler.get_symbols`). Must prove identical lookup
-  results.** 🔎 confirmed hot, ✅ **MEASURED** — ~30% of total runtime self-time
-  in the bench (baseline above). Green light to attempt; guarded by the new
-  scope/`get_symbols` characterization tests.
+- **P1. `get_symbols()` dict-union per eval.** ❌ **ATTEMPTED, REVERTED — not
+  worth it.** Two behavior-preserving rewrites were built, tested (365 OK), and
+  benchmarked A/B (git-stash, same machine):
+  - **`ChainMap` (copy-free view):** *regression.* Microbench shows it only wins
+    above ~500–800 symbols; realistic tables (tens–low hundreds) favor the dict
+    union because eval name lookups go from C-level dict to Python-level chain
+    walks. (6.2→8.2 ms/tick on the bench.)
+  - **One-pass `.update()` build (one allocation):** **flat / within noise.**
+    Rigorous A/B: 200 workers ~5.37→~5.19 ms (~3%, noisy); 500 workers
+    ~11.58→~11.72 ms (no win). The profiler's "30% self-time" is **inherent
+    per-key copy cost** (copying ~15 symbols into a dict 220k times), not
+    allocation overhead — so cheaper *construction* doesn't move the needle.
+  - **Conclusion:** the only real lever is calling `get_symbols` **fewer times**
+    (e.g. cache a task's symbols across the M watchers in one `run_on_change`
+    pass, invalidating after any watcher `run()`), which is **behavior-sensitive
+    and overlaps T3** — not a free perf win. The micro-opt path is closed.
+  The scope/`get_symbols` characterization tests added for P1 are kept (they
+  guard any future caching attempt).
 - **P2. `run_on_change()` every tick, every task + sub-task.** Re-`eval`s every
   watched expression each frame. Candidate: only test when the task is the
   active GUI task, or dirty-flag. **Behavior-sensitive — overlaps T3.** ✅
@@ -221,8 +258,12 @@ ships without its own approval.** Listed so they're tracked, not lost.
 - 2026-06-23 — **Runtime benchmark built** ([bench/](bench/), not packaged);
   baseline captured; **cProfile confirms P1** (`get_symbols` ~30% self-time,
   `run_on_change` ~80% cum). Bench is the before/after harness for Tier 2.
-- **Next / awaiting:** (a) go/no-go on **P1** (get_symbols optimization — now
-  measured + test-guarded; the highest-payoff change); (b) Tier 1 clarity docs;
-  (c) optional full-mission smoke (needs sbslib-shadow workaround); (d)
-  individual sign-off for T3.1/T3.2 (gated). Tier 0 + tests + bench all
-  uncommitted.
+- 2026-06-23 — **P1 attempted and REVERTED.** ChainMap regressed; one-pass build
+  was flat/noise (rigorous git-stash A/B). `get_symbols` self-time is inherent
+  per-key copy cost, not allocation overhead — micro-opt doesn't pay. Working
+  tree restored to `afedb08`; 365 tests OK. Negative result recorded under P1.
+- **Next / awaiting:** (a) decide whether to pursue the only remaining perf
+  lever — **caching get_symbols across watchers per tick** (behavior-sensitive,
+  overlaps T3, needs sign-off); (b) Tier 1 clarity docs (safe, no logic change);
+  (c) optional full-mission smoke; (d) sign-off for T3.1/T3.2 (gated). Committed:
+  Tier 0 + tests + bench (`afedb08`). Nothing else outstanding in the tree.

@@ -253,7 +253,8 @@ def grid_restore_damcons(id_or_obj):
         if _test_go is not None:
             _id = _test_go.unique_ID # _test_go is an object from the engine
             _blob = to_blob(_test_go.unique_ID)
-            _blob.set("icon_color", colors[i%color_count], 0)
+            if _blob is not None:
+                _blob.set("icon_color", colors[i%color_count], 0)
             # Hit points == MAX_HP
             hp = grid_get_max_hp()
             grid_set_hp(ship_id, _id, hp)

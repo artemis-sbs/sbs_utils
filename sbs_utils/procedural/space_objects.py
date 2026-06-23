@@ -327,6 +327,9 @@ def clear_target(chasers: set | int | Agent | CloseData | SpawnData, throttle=0)
     for chaser in all:
         chaser = Agent.resolve_py_object(chaser)
         this = FrameContext.context.sim.get_space_object(chaser.id)
+        if this is None:
+            # chaser has no live space object (e.g. destroyed mid-AI-tick)
+            continue
         chaser.data_set.set("target_pos_x", this.pos.x,0)
         chaser.data_set.set("target_pos_y", this.pos.y,0)
         chaser.data_set.set("target_pos_z", this.pos.z,0)
