@@ -208,11 +208,23 @@ before/after.
     and overlaps T3** — not a free perf win. The micro-opt path is closed.
   The scope/`get_symbols` characterization tests added for P1 are kept (they
   guard any future caching attempt).
-- **P2. `run_on_change()` every tick, every task + sub-task.** Re-`eval`s every
-  watched expression each frame. Candidate: only test when the task is the
-  active GUI task, or dirty-flag. **Behavior-sensitive — overlaps T3.** ✅
-  **MEASURED** — `run_on_change` is ~80% of tick time in the bench (it's the
-  caller of the `get_symbols` hot path).
+- **P2. `run_on_change()` rebuilds `get_symbols()` per watcher.** ✅ **DONE +
+  MEASURED + APPROVED (2026-06-23).** This is the lever P1 wasn't: it cuts the
+  *number* of `get_symbols` builds, not their (irreducible) per-build cost. A
+  task caches the built namespace for the duration of one `run_on_change` pass
+  and reuses it across the watcher `test()` evals. Caching is disabled while a
+  watcher's `run()` executes (live symbols; may mutate) and cleared afterward so
+  the next `test()` rebuilds; it is off entirely outside the pass, so the main
+  interpreter loop is unchanged.
+  - **Win (same-machine git-stash A/B):** 200 workers ~7.3→~4.6 ms/tick (~37%);
+    500 workers ~14.7→~11.2 ms/tick (~24%).
+  - **Correctness:** 366 tests; new `test_on_change_chain_sees_mutation_within_pass`
+    proves the cache invalidates after a watcher's `run()` (verified it *fails*
+    if invalidation is removed).
+  - **Behavior-sensitive assumption (signed off):** an `on change <expr>`
+    *expression* must be side-effect-free across a single pass. Block mutations
+    are handled; only a watch *expression* that mutates state a later watcher
+    reads could see a stale value — pathological for a change predicate.
 - **P3. Runtime-node re-instantiation per command** (`next()` builds a fresh
   `runtime_node_cls()` each execution). Likely minor; measure before bothering.
   📐

@@ -239,6 +239,32 @@ await delay_test(999)
         # LOCKED to current behavior: one fire per change, none when unchanged.
         self.assertEqual(out, "hit\nhit\n")
 
+    def test_on_change_chain_sees_mutation_within_pass(self):
+        # Watcher A (on change a) mutates b; watcher B (on change b) must see
+        # that mutation within the SAME run_on_change pass. This is the
+        # correctness guard for the P2 get_symbols cache: the cache MUST be
+        # invalidated after a watcher's run(), or B's test() would eval a stale
+        # `b` and miss the change. (Passes with no caching AND with correct
+        # invalidation; fails only if caching without invalidation is added.)
+        code = """
+logger(var="output")
+shared a = 0
+shared b = 0
+on change a:
+    shared b = a
+on change b:
+    log("b-fired")
+await delay_test(999)
+"""
+        errors, runner, mast = _mast_run(code=code)
+        self.assertEqual(errors, [])
+        runner.tick()                                   # register watchers (a=0,b=0)
+        runner.tick()                                   # no change
+        Agent.SHARED.set_inventory_value("a", 5)
+        runner.tick()                                   # A fires -> b=5 -> B must fire
+        out = runner.get_value("output", None)[0].getvalue()
+        self.assertEqual(out, "b-fired\n")
+
 
 if __name__ == '__main__':
     unittest.main(exit=False)

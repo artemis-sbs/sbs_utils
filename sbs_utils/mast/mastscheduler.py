@@ -676,6 +676,15 @@ class MastAsyncTask(Agent, Promise):
         # So far this is used only of on change processing
         self.is_gui_task = False
 
+        # P2: get_symbols() cache, scoped strictly to a run_on_change() pass.
+        # When _symbols_caching is True, the first get_symbols() build is stored
+        # and reused by the remaining watcher test() evals (which only read).
+        # Caching is disabled while a watcher's run() executes (it may mutate),
+        # and cleared when the pass ends, so the main interpreter loop never
+        # sees a cached value.
+        self._symbols_caching = False
+        self._symbols_cache = None
+
 
     def queue_on_change(self, runtime_node):
         if self.is_gui_task:
@@ -685,10 +694,22 @@ class MastAsyncTask(Agent, Promise):
 
     def run_on_change(self):
         any_ran = False
+        # P2: reuse one get_symbols() build across the watcher test() evals.
+        self._symbols_caching = True
+        self._symbols_cache = None
         for change in self.on_change_items:
             if change.test():
+                # The watcher fired: its block runs with LIVE (uncached)
+                # symbols and may mutate state, so disable caching for run(),
+                # then re-enable + clear so the next test() rebuilds.
+                self._symbols_caching = False
+                self._symbols_cache = None
                 change.run()
+                self._symbols_caching = True
+                self._symbols_cache = None
                 any_ran = True
+        self._symbols_caching = False
+        self._symbols_cache = None
         for st in self.sub_tasks:
             if st.run_on_change():
                 any_ran = True
@@ -799,6 +820,11 @@ class MastAsyncTask(Agent, Promise):
 
 
     def get_symbols(self):
+        # P2: within a run_on_change() pass, reuse the built namespace across the
+        # watcher test() evals (see __init__/run_on_change). Outside that pass
+        # _symbols_caching is False, so this always rebuilds (unchanged behavior).
+        if self._symbols_caching and self._symbols_cache is not None:
+            return self._symbols_cache
         if self.root_task != self:
             m1 = self.root_task.get_symbols()
             #
@@ -809,7 +835,7 @@ class MastAsyncTask(Agent, Promise):
             # m1 = self.main.mast.vars | self.main.vars
             #mast_inv = self.main.get_symbols()
             m1 = self.main.get_symbols()
-            m1 =   m1 | self.inventory.collections 
+            m1 =   m1 | self.inventory.collections
 
         for st in self.label_stack:
             data = st.data
@@ -818,6 +844,8 @@ class MastAsyncTask(Agent, Promise):
                 m1 =   m1 | data
         # if self.redirect and self.redirect.data:
         #     m1 = self.redirect.data | m1
+        if self._symbols_caching:
+            self._symbols_cache = m1
         return m1
 
     def set_value(self, key, value, scope):
