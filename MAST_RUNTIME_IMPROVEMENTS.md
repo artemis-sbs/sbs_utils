@@ -165,19 +165,24 @@ These mirror the parser pass's #5/#6/#7. Low risk; high cleanliness payoff.
 | R3 | `remove_all_sub_tasks` called `self.sub_tasks()` (list as fn) → `TypeError`; **also** both it and `remove_sub_task` called non-existent `t.stop()` | [mastscheduler.py](sbs_utils/mast/mastscheduler.py) ~1020 | ✅ both fixed: iterate `list(self.sub_tasks)`, call `t.end()`. Dead code (no callers in sbs_utils), zero behavior risk. **Wider than the original typo-only plan — `t.stop()`→`t.end()` added because `stop` doesn't exist on tasks.** |
 | R4 | bare `except:` in `eval_code`/`exec_code`; `BaseException` in `next()` and `format_string()` | [mastscheduler.py](sbs_utils/mast/mastscheduler.py) ~366/~911/~932/~955 | ✅ all four narrowed to `Exception` (5 catch sites total with R1) |
 
-### Tier 1 — clarity / de-risk (no behavior change) 🚧
+### Tier 1 — clarity / de-risk (no behavior change) ✅ mostly DONE
 
 Make the control-flow code legible so later changes are safe. **No logic edits**
-— comments, docstrings, dead-code removal only, each verified inert.
+— comments/docstrings only. 365 tests still OK.
 
-- **C1.** Document the `push_label` vs `push_inline_block` vs `pop_on_jump`
-  protocol in one place (a module docstring + a state diagram). This is the
-  single most tangled, least-documented part of the runtime.
-- **C2.** Triage the commented-out blocks in `do_jump` ("Why is this here?"),
-  the `call_leave` "post 1.0" note, and `mastmission.py` (entirely commented
-  out — confirm it's dead and either delete or annotate why it's kept).
-- **C3.** Name the `PollResults` aliasing explicitly in code comments
-  (`OK_END==OK_SUCCESS==BT_SUCCESS==99`) so BT vs flow reuse is obvious.
+- **C1.** ✅ Added a `MastTicker` class docstring documenting the protocol:
+  state fields, deferred `pending_jump`/`pending_pop` (jump wins),
+  `do_jump`/`do_resume`, and the two push styles (`push_label` call vs
+  `push_inline_block` resume-the-node) with `pop_on_jump`. The single most
+  tangled part now has a map.
+- **C2.** ~ Partly: clarified the `do_jump` "Why is this here?" block (it's the
+  prune_main-on-main-wrap decision; pruning lives in `next()`).
+  **`mastmission.py` confirmed dead** (0 non-comment lines, imported nowhere) —
+  left in place pending a delete decision (didn't remove a whole file
+  unprompted). The `call_leave` "post 1.0" note left as-is (a real TODO).
+- **C3.** ✅ Added a `PollResults` docstring naming the value aliasing
+  (`OK_END==OK_SUCCESS==BT_SUCCESS==99`, `FAIL_END==BT_FAIL==100`) and what each
+  flow result means.
 
 ### Tier 2 — performance (measure before touching) 📐
 
