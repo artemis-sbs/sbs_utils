@@ -1450,6 +1450,9 @@ let _view3dPosBuf = null, _view3dColBuf = null;
 const _view3dMeshes = new Map();
 // Added to a mesh's heading yaw if a model's nose isn't +Z. Calibration knob.
 const _MESH_YAW_OFFSET = 0;
+// Distance LOD: beyond this many world units from the camera a hull drops to its
+// point marker (cheaper, and a full mesh would be only a few px anyway).
+const _V3D_LOD_NEAR = 50000;
 // Target (from server) and smoothed display camera/look-at, lerped each frame.
 let _v3dCam = [0, 150, -500], _v3dTgt = [0, 0, 0];
 let _v3dDispCam = null, _v3dDispTgt = null;
@@ -1521,10 +1524,11 @@ function _view3dSync() {
     _view3dColBuf[o] = _terrainColBuf[b]; _view3dColBuf[o+1] = _terrainColBuf[b+1]; _view3dColBuf[o+2] = _terrainColBuf[b+2];
   }
   for (let i = 0; i < _dynamicCount && n < _V3D_MAX; i++) {
-    // Skip objects already drawn as a ship mesh — the point would just sit inside it.
+    // Skip objects drawn as a visible ship mesh; LOD-hidden (far) meshes still
+    // get their point marker here.
     const id  = _dynamicRevMap.get(i);
     const rec = id !== undefined ? _view3dMeshes.get(id) : undefined;
-    if (rec && rec.mesh) continue;
+    if (rec && rec.mesh && rec.mesh.visible) continue;
     const b = i * 3, o = n * 3;
     _view3dPosBuf[o] = _dynamicPosBuf[b]; _view3dPosBuf[o+1] = 0; _view3dPosBuf[o+2] = _dynamicPosBuf[b+1];
     _view3dColBuf[o] = _dynamicColBuf[b]; _view3dColBuf[o+1] = _dynamicColBuf[b+1]; _view3dColBuf[o+2] = _dynamicColBuf[b+2];
@@ -1565,8 +1569,15 @@ function _view3dSyncMeshes() {
       });
     }
     if (rec.mesh) {
-      rec.mesh.position.set(x, meta.y || 0, z);
+      const my = meta.y || 0;
+      rec.mesh.position.set(x, my, z);
       rec.mesh.rotation.y = Math.atan2(meta.fx, meta.fz) + _MESH_YAW_OFFSET;
+      // Distance LOD: hide the hull when far; _view3dSync then draws its point.
+      const cam = _v3dDispCam;
+      if (cam) {
+        const dx = x - cam[0], dy = my - cam[1], dz = z - cam[2];
+        rec.mesh.visible = (dx*dx + dy*dy + dz*dz) < (_V3D_LOD_NEAR * _V3D_LOD_NEAR);
+      }
     }
   }
   for (const [id, rec] of _view3dMeshes) {
