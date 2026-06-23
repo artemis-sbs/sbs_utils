@@ -2,7 +2,10 @@ from __future__ import annotations
 from typing import List
 from sbs_utils.vec import Vec3
 
+import math
+import queue
 import sys
+import threading
 sys.modules["sbs"] = sys.modules[__name__]
 
 
@@ -14,6 +17,19 @@ seconds = 0
 # drains this after each tick and fires the corresponding client_string events.
 _client_strings: dict = {}          # {client_id: {key: value}}
 _pending_client_string_events: list = []  # [(client_id, key), ...]
+
+# Physics events queued during physics_tick for the runner to drain.
+# Each entry is a tuple: (tag, sub_tag, origin_id, selected_id).
+# queue.Queue is thread-safe — the physics background thread puts() and the
+# main loop get_nowait()s without needing additional locking.
+_pending_physics_events: queue.Queue = queue.Queue()
+
+# Currently-overlapping collision pairs — used to fire only on contact entry.
+# Each pair is (min_id, max_id) so order is canonical.
+_contact_pairs: set = set()
+
+# Behavior dispatch: tick_type string → callable(space_object, dt_seconds)
+_behavior_registry: dict = {}
 
 
 def add_client_tag() -> None:
@@ -109,7 +125,10 @@ def delete_object(ID: int) -> None:
     """deletes a space object by its ID"""
     global sim
     if sim is not None:
-        sim.space_objects.pop(ID, None)
+        with sim._lock:
+            sim.space_objects.pop(ID, None)
+            sim._active_ids.discard(ID)
+            sim._terrain_ids.discard(ID)
 
 def delete_particle_emittor(emittorID: int) -> None:
     """deletes a particle emittor by ID."""
@@ -225,6 +244,9 @@ def get_screen_size() -> vec2:
 
 def get_shared_string(key: str) -> str:
     """gets a shared string, given the key (itself a string).  Shared strings are automatically copied from server to all clients."""
+    global sim
+    if sim is not None:
+        return sim.shared_strings.get(key, "")
     return ""
 
 def get_ship_of_client(clientID: int) -> int:
@@ -350,11 +372,74 @@ def play_audio_file(clientID: int, filename: str, volume: float, pitch: float) -
 def play_music_file(ID: int, filename: str) -> None:
     """Plays a music file now; ID is ship, OR client, OR zero for server."""
 
+def _apply_ship_data_to_object(obj, data: dict) -> None:
+    """Populate obj.data_set and physics fields from a shipData.yaml entry."""
+    ds = obj.data_set
+
+    # Exclusion radius
+    er = data.get("exclusionradius")
+    if er is not None:
+        obj._exclusion_radius = float(er)
+
+    # Scalar data_set fields that map 1-to-1
+    for field in ("turn_rate", "speed_coeff", "scan_strength_coeff",
+                  "ship_energy_cost", "warp_energy_cost", "jump_energy_cost",
+                  "drone_launch_timer"):
+        val = data.get(field)
+        if val is not None:
+            ds.set(field, float(val))
+
+    # Bay count → bay_count
+    bc = data.get("baycount")
+    if bc is not None:
+        ds.set("bay_count", int(bc))
+
+    # Hull points → armor (hull integrity when shields fail)
+    hp = data.get("hullpoints")
+    if hp is not None:
+        ds.set("armor",    float(hp))
+        ds.set("armorMax", float(hp))
+
+    # Shields — per-facing array
+    shields = data.get("shields")
+    if shields:
+        ds.set("shield_count", len(shields))
+        for i, sv in enumerate(shields):
+            ds.set("shield_val",     float(sv), i)
+            ds.set("shield_max_val", float(sv), i)
+
+    # Beam weapons from hull_port_sets
+    beams = data.get("hull_port_sets", {}).get("beam Primary Beams", [])
+    if beams:
+        ds.set("beamCount", len(beams))
+        for i, b in enumerate(beams):
+            ds.set("beamRange",       float(b.get("range",         1000)), i)
+            ds.set("beamDamage",      float(b.get("damage_coeff",   1.0)) * 6.0, i)
+            ds.set("beamCycleTime",   float(b.get("cycle_time",     6.0)), i)
+            ds.set("beamArcWidth",    float(b.get("arcwidth",       360)), i)
+            ds.set("beamBarrelAngle", float(b.get("barrel_angle",     0)), i)
+
+
+def _try_populate_from_ship_data(obj) -> None:
+    """Look up obj.data_tag in shipData.yaml and apply matching data to the object."""
+    if not obj._data_tag:
+        return
+    try:
+        from sbs_utils.procedural.ship_data import get_ship_data_for
+        data = get_ship_data_for(obj._data_tag)
+        if data:
+            _apply_ship_data_to_object(obj, data)
+    except Exception:
+        pass
+
+
 def player_ship_setup_defaults(space_object: space_object) -> None:
     """Rebuilds the default blob data of this player ship."""
+    _try_populate_from_ship_data(space_object)
 
 def player_ship_setup_from_data(space_object: space_object) -> None:
     """Rebuilds the blob data of this player ship from the shipdata.json and the preferences.json."""
+    _try_populate_from_ship_data(space_object)
 
 def push_to_standby_list(space_object: space_object) -> None:
     """moves the spaceobject from normal space to the standby list."""
@@ -364,9 +449,12 @@ def push_to_standby_list_id(id: int) -> None:
     """moves the spaceobject from normal space to the standby list."""
     global sim
     if sim is not None:
-        obj = sim.space_objects.pop(id, None)
-        if obj is not None:
-            sim.standby_list[id] = obj
+        with sim._lock:
+            obj = sim.space_objects.pop(id, None)
+            if obj is not None:
+                sim.standby_list[id] = obj
+                sim._active_ids.discard(id)
+                sim._terrain_ids.discard(id)
 
 def query_client_tags() -> None:
     """stub; does nothing yet."""
@@ -395,9 +483,14 @@ def retrieve_from_standby_list_id(id: int) -> None:
     """moves the spaceobject from the standby list to normal space."""
     global sim
     if sim is not None:
-        obj = sim.standby_list.pop(id, None)
-        if obj is not None:
-            sim.space_objects[id] = obj
+        with sim._lock:
+            obj = sim.standby_list.pop(id, None)
+            if obj is not None:
+                sim.space_objects[id] = obj
+                if obj._abits & 0x30:
+                    sim._active_ids.add(id)
+                else:
+                    sim._terrain_ids.add(id)
 
 def run_next_mission(mission_folder: str) -> None:
     """Shuts down this script and starts the mission in the folder argument"""
@@ -511,8 +604,76 @@ def set_client_string(clientComputerID: int, string_key: str, string_value: str)
 def set_dmx_channel(clientID: int, channel: int, behavior: int, speed: int, low: int, high: int) -> None:
     """set a color channel of dmx."""
 
+# Main-screen view mode per client: clientID -> (view, angle, mode).
+_view_modes: dict = {}
+
+# Cinematic camera state per client, set by cinematic_control:
+#   clientID -> {script, dolly_id, dolly_off, target_id, target_off}
+_cinematic: dict = {}
+
+
 def set_main_view_modes(clientID: int, main_screen_view: str, cam_angle: str, cam_mode: str) -> None:
     """sets the three modes of the main screen view for the specified client."""
+    _view_modes[clientID] = (main_screen_view, cam_angle, cam_mode)
+
+
+def cinematic_control(clientID: int, scriptControlsCamera: int, dollyID: int,
+                      dollyPos: "vec3", targetID: int, targetPos: "vec3") -> None:
+    """Place/track the cinematic camera for a client's 3dview main screen.
+
+    scriptControlsCamera == 0  -> auto: track the client's assigned ship.
+    scriptControlsCamera == 1  -> scripted: camera at dollyID + dollyPos,
+                                  looking at targetID + targetPos.
+    Pairs with set_main_view_modes(clientID, "3dview", <angle>, "cinematic").
+    """
+    def _tup(v):
+        if v is None:
+            return (0.0, 0.0, 0.0)
+        return (float(v.x), float(v.y), float(v.z))
+    _cinematic[clientID] = {
+        "script":     int(scriptControlsCamera),
+        "dolly_id":   int(dollyID),
+        "dolly_off":  _tup(dollyPos),
+        "target_id":  int(targetID),
+        "target_off": _tup(targetPos),
+    }
+
+
+def get_cinematic_camera(clientID: int):
+    """Resolve the current camera + look-at world positions for a client's cinematic
+    view, or None if no cinematic state / no resolvable object.
+
+    Returns {"cam": (x,y,z), "target": (x,y,z), "mode": str, "ship_id": str}.
+    """
+    st = _cinematic.get(clientID)
+    if st is None or sim is None:
+        return None
+
+    def _obj_pos(oid):
+        o = sim.space_objects.get(oid)
+        return None if o is None else (o._pos.x, o._pos.y, o._pos.z)
+
+    if st["script"] == 0:
+        # Auto chase-cam: behind and above the assigned ship, looking ahead.
+        ship_id = sim.client_ships.get(clientID, 0)
+        o = sim.space_objects.get(ship_id)
+        if o is None:
+            return None
+        p = o._pos
+        f = o.forward_vector()
+        cam = (p.x - f.x * 500.0, p.y + 150.0, p.z - f.z * 500.0)
+        tgt = (p.x + f.x * 200.0, p.y, p.z + f.z * 200.0)
+        return {"cam": cam, "target": tgt, "mode": "auto", "ship_id": str(ship_id)}
+
+    # Scripted: explicit dolly/target objects + offsets.
+    db = _obj_pos(st["dolly_id"]) or (0.0, 0.0, 0.0)
+    do = st["dolly_off"]
+    cam = (db[0] + do[0], db[1] + do[1], db[2] + do[2])
+    tb = _obj_pos(st["target_id"]) or (0.0, 0.0, 0.0)
+    to = st["target_off"]
+    tgt = (tb[0] + to[0], tb[1] + to[1], tb[2] + to[2])
+    return {"cam": cam, "target": tgt, "mode": "scripted",
+            "ship_id": str(sim.client_ships.get(clientID, 0))}
 
 def set_music_folder(ID: int, filename: str) -> None:
     """Sets the folder from which music is streamed; ID is ship, OR client, OR zero for server."""
@@ -522,6 +683,9 @@ def set_music_tension(ID: int, tensionValue: float) -> None:
 
 def set_shared_string(key: str, value: str) -> None:
     """sets (or changes) a shared string, given a key and a value (both strings)."""
+    global sim
+    if sim is not None:
+        sim.shared_strings[key] = value
 
 def set_sky_box(clientID: int, artFileName: str) -> None:
     """sets the skybox art for a clientID (0 = server)."""
@@ -1142,6 +1306,10 @@ class simulation(object): ### from pybind
         self.client_alt_ships = {}    # clientID -> altShipID (radar focus)
         self.client_types = {}        # clientID -> consoleType str
         self.side_relations = {}      # frozenset({s1,s2}) -> DIPLOMACY int
+        self.shared_strings = {}      # key -> value (synced server→clients in real engine)
+        self._terrain_ids: set = set()   # abits & 0x30 == 0 — static; skipped in physics
+        self._active_ids:  set = set()   # abits & 0x30 != 0 — NPCs + players; full physics
+        self._lock = threading.Lock()
 
     def AddTractorConnection(self: simulation, arg0: int, arg1: int, arg2: vec3, arg3: float) -> tractor_connection:
         """makes a new connection between two space objects."""
@@ -1185,14 +1353,21 @@ class simulation(object): ### from pybind
 
     def create_space_object(self: simulation, aiTag: str, dataTag: str, abits: int) -> int:
         """creates a new spaceobject. abits is a 16-bit bitfield for further defining the object."""
-        self.object_ids += 1
-        id = self.object_ids
+        with self._lock:
+            self.object_ids += 1
+            id = self.object_ids
         obj = space_object()
         obj._id = id
         obj._abits = abits
         obj._data_tag = dataTag
         obj._tick_type = aiTag
-        self.space_objects[id] = obj
+        _try_populate_from_ship_data(obj)
+        with self._lock:
+            self.space_objects[id] = obj
+            if abits & 0x30:
+                self._active_ids.add(id)
+            else:
+                self._terrain_ids.add(id)
         return id
 
     def delete_navpoint_by_id(self: simulation, id: int) -> None:
@@ -1342,7 +1517,7 @@ class space_object(object): ### from pybind
         self._steer_yaw = 0.0
         self._pos = vec3(0, 0, 0)
         self._blink_state = 0
-        self._rot_quat = quaternion(0, 0, 0, 0)
+        self._rot_quat = quaternion(1, 0, 0, 0)  # identity rotation
 
     @property
     def abits(self: space_object) -> int:
@@ -1405,7 +1580,13 @@ class space_object(object): ### from pybind
 
     def forward_vector(self: space_object) -> vec3:
         """returns a vec3, a vector direction, related to which way the space object is oriented"""
-        return vec3(0, 0, 1)
+        q = self._rot_quat
+        w, x, y, z = q._w, q._x, q._y, q._z
+        ql = math.sqrt(w*w + x*x + y*y + z*z)
+        if ql < 1e-9:
+            return vec3(0, 0, 1)
+        w /= ql; x /= ql; y /= ql; z /= ql
+        return vec3(2*(x*z + w*y), 2*(y*z - w*x), 1 - 2*(x*x + y*y))
 
     @property
     def pos(self: space_object) -> vec3:
@@ -1418,7 +1599,13 @@ class space_object(object): ### from pybind
 
     def right_vector(self: space_object) -> vec3:
         """returns a vec3, a vector direction, related to which way the space object is oriented"""
-        return vec3(1, 0, 0)
+        q = self._rot_quat
+        w, x, y, z = q._w, q._x, q._y, q._z
+        ql = math.sqrt(w*w + x*x + y*y + z*z)
+        if ql < 1e-9:
+            return vec3(1, 0, 0)
+        w /= ql; x /= ql; y /= ql; z /= ql
+        return vec3(1 - 2*(y*y + z*z), 2*(x*y + w*z), 2*(x*z - w*y))
 
     @property
     def rot_quat(self: space_object) -> quaternion:
@@ -1490,7 +1677,13 @@ class space_object(object): ### from pybind
 
     def up_vector(self: space_object) -> vec3:
         """returns a vec3, a vector direction, related to which way the space object is oriented"""
-        return vec3(0, 1, 0)
+        q = self._rot_quat
+        w, x, y, z = q._w, q._x, q._y, q._z
+        ql = math.sqrt(w*w + x*x + y*y + z*z)
+        if ql < 1e-9:
+            return vec3(0, 1, 0)
+        w /= ql; x /= ql; y /= ql; z /= ql
+        return vec3(2*(x*y - w*z), 1 - 2*(x*x + z*z), 2*(y*z + w*x))
 
     @property
     def unique_ID(self: space_object) -> int:
@@ -1729,3 +1922,237 @@ class vec4(object): ### from pybind
     @r.setter
     def r(self: vec4, arg0: float) -> None:
         self._r = arg0
+
+
+# ---------------------------------------------------------------------------
+# Behavior dispatch
+# ---------------------------------------------------------------------------
+
+def register_behavior(tick_type: str, fn) -> None:
+    """Register fn(space_object, dt_seconds) to run every physics tick for objects of this tick_type."""
+    _behavior_registry[tick_type] = fn
+
+
+def _npcship_steer(obj: space_object, dt: float) -> None:
+    """Default NPC ship behavior: steer toward target_pos_x/y/z, speed from throttle × speed_coeff."""
+    ds = obj.data_set
+    if ds.get("deathState") > 0:
+        obj._steer_yaw = 0.0
+        obj._cur_speed = 0.0
+        return
+
+    throttle = ds.get("throttle") or 0.0
+    tx = ds.get("target_pos_x") or 0.0
+    tz = ds.get("target_pos_z") or 0.0
+    dx = tx - obj._pos.x
+    dz = tz - obj._pos.z
+    horiz_dist = math.sqrt(dx * dx + dz * dz)
+
+    turn_rate = ds.get("turn_rate") or 0.0
+    if turn_rate <= 0.0:
+        turn_rate = 0.1  # ~6 deg/s fallback when shipData not loaded
+
+    if horiz_dist > 10.0 and throttle > 0.0:
+        fwd = obj.forward_vector()
+        ndx, ndz = dx / horiz_dist, dz / horiz_dist
+        # Y-component of (fwd × desired): positive → target is right of heading → steer right (+yaw)
+        cross_y = fwd.z * ndx - fwd.x * ndz
+        steer = cross_y * turn_rate * 5.0     # P-controller; clamp to ±turn_rate
+        obj._steer_yaw = max(-turn_rate, min(turn_rate, steer))
+    else:
+        obj._steer_yaw = 0.0
+
+    speed = ds.get("total_speed_coeff") or ds.get("speed_coeff") or 0.0
+    obj._cur_speed = throttle * (speed if speed > 0.0 else 200.0)
+
+
+# Pre-register default NPC ship behavior; mission code may override with register_behavior().
+_behavior_registry["behav_npcship"] = _npcship_steer
+
+
+# ---------------------------------------------------------------------------
+# Physics helpers
+# ---------------------------------------------------------------------------
+
+def _cell(x: float, z: float, sz: float):
+    return (int(x / sz), int(z / sz))
+
+
+def _physics_collision(sim, active: list) -> None:
+    """Spatial-hash sphere collision.
+
+    Checks active-active and active-terrain pairs only.  Terrain-terrain is
+    skipped entirely — static objects can never enter new contacts with each
+    other.  Fires collision events into _pending_physics_events (queue.Queue).
+    """
+    global _contact_pairs
+    if not active:
+        _contact_pairs = set()
+        return
+
+    space = sim.space_objects
+
+    # Auto-tune cell size: 2 × max active exclusion radius, minimum 500 units.
+    max_er = 0.0
+    for _id, obj in active:
+        if obj._exclusion_radius > max_er:
+            max_er = obj._exclusion_radius
+    cell_sz = max(max_er * 2.0, 500.0)
+
+    # Build per-cell buckets for active objects and terrain.
+    active_grid: dict = {}
+    for id_, obj in active:
+        if obj._exclusion_radius > 0:
+            ck = _cell(obj._pos.x, obj._pos.z, cell_sz)
+            active_grid.setdefault(ck, []).append((id_, obj))
+
+    terrain_grid: dict = {}
+    for tid in sim._terrain_ids:
+        obj = space.get(tid)
+        if obj is not None and obj._exclusion_radius > 0:
+            ck = _cell(obj._pos.x, obj._pos.z, cell_sz)
+            terrain_grid.setdefault(ck, []).append((tid, obj))
+
+    new_contacts: set = set()
+    visited: set = set()
+
+    # Active vs active — 9-cell neighborhood, upper-triangle dedup via visited.
+    for (cx, cz), cell_list in active_grid.items():
+        neighbors: list = []
+        for ndx in (-1, 0, 1):
+            for ndz in (-1, 0, 1):
+                nb = active_grid.get((cx + ndx, cz + ndz))
+                if nb:
+                    neighbors.extend(nb)
+
+        for aid, a in cell_list:
+            ra = a._exclusion_radius
+            for bid, b in neighbors:
+                if bid <= aid:
+                    continue
+                pair = (aid, bid)
+                if pair in visited:
+                    continue
+                visited.add(pair)
+                rb = b._exclusion_radius
+                ddx = a._pos.x - b._pos.x
+                ddy = a._pos.y - b._pos.y
+                ddz = a._pos.z - b._pos.z
+                if ddx * ddx + ddy * ddy + ddz * ddz < (ra + rb) * (ra + rb):
+                    new_contacts.add(pair)
+                    if pair not in _contact_pairs:
+                        _pending_physics_events.put(("collision", "passive", aid, bid))
+                        _pending_physics_events.put(("collision", "passive", bid, aid))
+
+    # Active vs terrain — terrain never in active_grid so no dedup needed.
+    for (cx, cz), cell_list in active_grid.items():
+        for aid, a in cell_list:
+            ra = a._exclusion_radius
+            for ndx in (-1, 0, 1):
+                for ndz in (-1, 0, 1):
+                    tb = terrain_grid.get((cx + ndx, cz + ndz))
+                    if not tb:
+                        continue
+                    for tid, t in tb:
+                        rt = t._exclusion_radius
+                        ddx = a._pos.x - t._pos.x
+                        ddy = a._pos.y - t._pos.y
+                        ddz = a._pos.z - t._pos.z
+                        if ddx * ddx + ddy * ddy + ddz * ddz < (ra + rt) * (ra + rt):
+                            pair = (min(aid, tid), max(aid, tid))
+                            new_contacts.add(pair)
+                            if pair not in _contact_pairs:
+                                _pending_physics_events.put(("collision", "passive", aid, tid))
+                                _pending_physics_events.put(("collision", "passive", tid, aid))
+
+    _contact_pairs = new_contacts
+
+
+# ---------------------------------------------------------------------------
+# Physics tick
+# ---------------------------------------------------------------------------
+
+def physics_tick(dt: float = 1.0 / 60.0) -> None:
+    """Integrate motion for active (NPC/PLAYER) objects and detect collisions.
+
+    Terrain objects (abits & 0x30 == 0) are fully static and are never
+    dispatched, integrated, or checked against each other.  Active objects can
+    still collide with terrain (handled by _physics_collision).
+
+    Thread-safe: acquires sim._lock for the entire tick so the main thread can
+    safely spawn and delete objects between ticks.  Collision events are put()
+    into _pending_physics_events (queue.Queue) for the mission runner to drain.
+    """
+    global sim
+    if sim is None or sim._paused:
+        return
+
+    with sim._lock:
+        space = sim.space_objects
+
+        # Snapshot active (id, obj) pairs while holding the lock.
+        active = [(id_, space[id_]) for id_ in sim._active_ids if id_ in space]
+
+        # 1. Behavior dispatch — active objects only.
+        for _id, obj in active:
+            fn = _behavior_registry.get(obj._tick_type)
+            if fn:
+                try:
+                    fn(obj, dt)
+                except Exception:
+                    pass
+
+        # 2. Rotation and translation — active objects only.
+        for _id, obj in active:
+            if obj.data_set.get("deathState") > 0:
+                continue
+            q = obj._rot_quat
+            ql = math.sqrt(q._w**2 + q._x**2 + q._y**2 + q._z**2)
+            if ql < 1e-9:
+                q._w, q._x, q._y, q._z = 1.0, 0.0, 0.0, 0.0
+            else:
+                q._w /= ql; q._x /= ql; q._y /= ql; q._z /= ql
+
+            sy, sp, sr = obj._steer_yaw, obj._steer_pitch, obj._steer_roll
+            if sy or sp or sr:
+                w, x, y, z = q._w, q._x, q._y, q._z
+                h = dt * 0.5
+                dw = -(x * sp + y * sy + z * sr) * h
+                dx = ( w * sp + y * sr - z * sy) * h
+                dy = ( w * sy - x * sr + z * sp) * h
+                dz = ( w * sr + x * sy - y * sp) * h
+                w += dw; x += dx; y += dy; z += dz
+                ql = math.sqrt(w*w + x*x + y*y + z*z)
+                if ql > 1e-9:
+                    q._w, q._x, q._y, q._z = w/ql, x/ql, y/ql, z/ql
+
+            if obj._cur_speed:
+                fwd = obj.forward_vector()
+                obj._pos.x += fwd.x * obj._cur_speed * dt
+                obj._pos.y += fwd.y * obj._cur_speed * dt
+                obj._pos.z += fwd.z * obj._cur_speed * dt
+
+        # 3. Collision — spatial hash; active-active + active-terrain only.
+        _physics_collision(sim, active)
+
+        # 4. Passive systems — shield regen + APU energy, active objects only.
+        for _id, obj in active:
+            if obj.data_set.get("deathState") > 0:
+                continue
+            ds = obj.data_set
+
+            repair = ds.get("repair_rate_shields") or 0.0
+            if repair > 0.0:
+                n_shields = ds.get("shield_count") or 0
+                for si in range(max(1, n_shields)):
+                    sv = ds.get("shield_val", si) or 0.0
+                    sm = ds.get("shield_max_val", si) or 0.0
+                    if sm > 0.0 and sv < sm:
+                        ds.set("shield_val", min(sm, sv + repair * dt), si)
+
+            apu = ds.get("ship_apu_output") or 0.0
+            if apu > 0.0:
+                energy = ds.get("energy") or 0.0
+                ceiling = ds.get("ship_apu_ceiling") or 0.0
+                if ceiling > 0.0 and energy < ceiling:
+                    ds.set("energy", min(ceiling, energy + apu * 2.0 * dt))

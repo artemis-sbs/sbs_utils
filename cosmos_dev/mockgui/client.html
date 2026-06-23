@@ -120,20 +120,13 @@
   .log-line.cmd { color:#93c5fd; }
   .log-line.dbg { color:#fcd34d; }
 
-  /* font-measure modal */
-  #measure-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85);
-                   z-index:9999; align-items:center; justify-content:center; }
-  #measure-modal.visible { display:flex; }
-  #measure-box { background:var(--surface); border:1px solid var(--border); border-radius:8px;
-                 padding:16px; width:min(820px,92vw); max-height:82vh;
-                 display:flex; flex-direction:column; gap:10px; }
-  #measure-box h2 { font-size:13px; color:var(--accent); margin:0; }
-  #measure-output { background:var(--bg); padding:10px; border-radius:4px; flex:1;
-                    overflow:auto; font-size:11px; white-space:pre; font-family:var(--font-ui); }
-  .m-btns { display:flex; gap:8px; }
-  .m-btns button { font-size:11px; padding:3px 10px; background:var(--surface);
-                   color:var(--text-dim); border:1px solid var(--border); border-radius:4px; cursor:pointer; }
-  .m-btns button:hover { color:var(--text); }
+  /* 2D view overlay — full viewport transparent canvas; drawn regions appear on top of mission GUI */
+  #radar-canvas { position:fixed; top:0; left:0; width:100vw; height:100vh;
+                  z-index:9998; pointer-events:none; }
+  /* Cinematic 3D main-screen view — full viewport, behind the mission GUI but
+     above the opaque body background (z-index:-1 paints just over the root bg). */
+  #view3d-canvas { position:fixed; top:0; left:0; width:100vw; height:100vh;
+                   z-index:-1; display:none; pointer-events:none; }
 </style>
 </head>
 <body>
@@ -146,7 +139,6 @@
   <span id="cid-badge"><span id="mode-label">—</span> #<span id="cid-val">—</span></span>
   <button id="script-log-btn" class="log-btn" title="Toggle MAST/sbs_utils stdout+stderr">LOG</button>
   <button id="dbg-log-btn"    class="log-btn" title="Toggle browser WS/widget debug">DBG</button>
-  <button id="measure-btn"    class="log-btn" title="Measure browser font metrics for mock calibration">Measure</button>
 </div>
 
 <div id="gui-root">
@@ -154,19 +146,11 @@
   <div id="buf-back"  class="gui-buffer back"></div>
 </div>
 
+<canvas id="view3d-canvas" width="320" height="240"></canvas>
+<canvas id="radar-canvas" width="180" height="180"></canvas>
+
 <div id="script-log-panel" class="log-panel"></div>
 <div id="dbg-log-panel"    class="log-panel"></div>
-
-<div id="measure-modal">
-  <div id="measure-box">
-    <h2>Font Measurement — copy into cosmos_dev/mock/sbs.py</h2>
-    <pre id="measure-output">Waiting for fonts…</pre>
-    <div class="m-btns">
-      <button id="measure-copy">Copy</button>
-      <button id="measure-close">Close</button>
-    </div>
-  </div>
-</div>
 
 <script src="/three.min.js"></script>
 <script>
@@ -707,15 +691,23 @@ function dispatch(msg) {
   // In client mode, ignore GUI commands addressed to the server (clientID "0") or any
   // other client. The server rebuilds and broadcasts its own frame every tick; without
   // this filter those clear/complete cycles wipe the client's own frame each tick.
-  if (_mode === 'client' && CLIENT_ID !== null && msg.cmd !== 'init' && msg.cmd !== 'log') {
+  if (_mode === 'client' && CLIENT_ID !== null &&
+      msg.cmd !== 'init' && msg.cmd !== 'log' &&
+      msg.cmd !== 'radar' && msg.cmd !== 'radar_terrain' &&
+      msg.cmd !== 'widget_rect' && msg.cmd !== 'cinematic' && msg.cmd !== 'batch') {
     if (msg.clientID !== CLIENT_ID) return;
   }
   switch (msg.cmd) {
-    case 'init':     cmdInit(msg);     break;
-    case 'clear':    cmdClear(msg);    break;
-    case 'complete': cmdComplete(msg); break;
-    case 'log':      cmdLog(msg);      break;
-    default:         cmdWidget(msg);   break;
+    case 'init':         cmdInit(msg);        break;
+    case 'clear':        cmdClear(msg);       break;
+    case 'complete':     cmdComplete(msg);    break;
+    case 'log':          cmdLog(msg);         break;
+    case 'radar':        cmdRadar(msg);       break;
+    case 'radar_terrain':cmdRadarTerrain(msg);break;
+    case 'widget_rect':  cmdWidgetRect(msg);  break;
+    case 'cinematic':    cmdCinematic(msg);   break;
+    case 'batch':        msg.items.forEach(dispatch); break;
+    default:             cmdWidget(msg);      break;
   }
 }
 
@@ -733,6 +725,809 @@ document.getElementById('dbg-log-btn').addEventListener('click', () => {
 function cmdLog(msg) {
   logScript(msg.text, msg.level === 'error' ? 'err' : 'out');
 }
+
+// ── 2D tactical view overlay ─────────────────────────────────────────────────
+const _radarCanvas = document.getElementById('radar-canvas');
+const _radarCtx    = _radarCanvas ? _radarCanvas.getContext('2d') : null;
+
+// widget_name → { left, top, right, bottom (0-100 %), ts: performance.now() }
+const _widgetRects = new Map();
+const _RECT_STALE_MS = 2000;   // hide a view after 2 s of no send_client_widget_rects calls
+
+function _syncRadarCanvasSize() {
+  if (!_radarCanvas) return;
+  if (_radarCanvas.width  !== window.innerWidth)  _radarCanvas.width  = window.innerWidth;
+  if (_radarCanvas.height !== window.innerHeight) _radarCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', _syncRadarCanvasSize);
+_syncRadarCanvasSize();
+// Zoom via scroll wheel anywhere on the page — radar canvas has pointer-events:none
+// so the listener must live on window.
+window.addEventListener('wheel', e => {
+  e.preventDefault();
+  _radarZoom *= e.deltaY < 0 ? 1.15 : 1 / 1.15;
+  _radarZoom = Math.max(0.05, Math.min(20.0, _radarZoom));
+  _renderRadar();
+}, { passive: false });
+
+// ── Drag-pan of the radar ─────────────────────────────────────────────────────
+// Works on both the 2D-view widget radar and the corner/GM radar. A small drag
+// threshold means plain clicks still fall through to the UI underneath — only an
+// actual drag starts a pan and swallows the event.
+function _currentRadarViews() {
+  const activeViews = Array.from(_widgetRects.values());
+  if (activeViews.length > 0) return { views: activeViews, isCorner: false };
+  return { views: [_cornerRect(_radarCanvas.width, _radarCanvas.height)], isCorner: true };
+}
+
+function _pointInRadarView(px, py) {
+  const W = _radarCanvas.width, H = _radarCanvas.height;
+  const { views, isCorner } = _currentRadarViews();
+  for (const rect of views) {
+    const box = _radarBox(W, H, rect, isCorner);
+    if (box && px >= box.bx0 && px <= box.bx0 + box.bw &&
+        py >= box.by0 && py <= box.by0 + box.bh) return true;
+  }
+  return false;
+}
+
+let _panArmed = false, _panDownX = 0, _panDownY = 0;
+
+window.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  if (!_pointInRadarView(e.clientX, e.clientY)) return;
+  // Arm — but don't claim the event yet, so a plain click still reaches widgets.
+  _panArmed = true; _panning = false;
+  _panDownX = e.clientX; _panDownY = e.clientY;
+  _panStartPX = _radarPanX; _panStartPZ = _radarPanZ;
+});
+
+window.addEventListener('mousemove', e => {
+  if (_panArmed && !_panning &&
+      Math.abs(e.clientX - _panDownX) + Math.abs(e.clientY - _panDownY) > 4) {
+    _panning = true;
+    document.body.style.cursor = 'grabbing';
+  }
+  if (_panning) {
+    const dx = e.clientX - _panDownX;
+    const dy = e.clientY - _panDownY;
+    // Grab-the-map: the world point under the cursor follows it. +Z is up, +X right.
+    _radarPanX = _panStartPX - dx * _lastWorldPerPx;
+    _radarPanZ = _panStartPZ + dy * _lastWorldPerPx;
+    _renderRadar();
+    e.preventDefault();
+    return;
+  }
+  // Hover hint over a pannable radar.
+  if (_pointInRadarView(e.clientX, e.clientY)) document.body.style.cursor = 'grab';
+  else if (document.body.style.cursor === 'grab') document.body.style.cursor = '';
+});
+
+window.addEventListener('mouseup', () => {
+  _panArmed = false;
+  if (!_panning) return;
+  _panning = false;
+  document.body.style.cursor = '';
+});
+
+// Double-click recentres the radar (clears the pan offset).
+window.addEventListener('dblclick', e => {
+  if (!_pointInRadarView(e.clientX, e.clientY)) return;
+  _radarPanX = 0; _radarPanZ = 0;
+  _renderRadar();
+  e.preventDefault();
+});
+
+function _sideColor(side) {
+  if (!side) return '#888';
+  let h = 0;
+  for (let i = 0; i < side.length; i++) h = (h * 31 + side.charCodeAt(i)) & 0xffff;
+  return `hsl(${(h * 137) % 360},70%,60%)`;
+}
+
+// ── Ship sprite cache ─────────────────────────────────────────────────────────
+// Dynamic objects draw their top-down art (/ships/<art>256.png) on the radar.
+// Plain HTMLImageElements (for 2D-canvas drawImage); the Three-only _loadTex
+// helper can't be reused here. Returns the cached <img> once decoded, else null.
+// Rotation to add so a sprite's "nose" aligns with its heading. Cosmos top-down
+// art points up (north); adjust here if a given art set points elsewhere.
+const _SPRITE_ART_OFFSET = 0;
+const _spriteCache = new Map();   // art root → { img, ready }
+function _shipSprite(art) {
+  if (!art) return null;
+  let e = _spriteCache.get(art);
+  if (e === undefined) {
+    e = { img: new Image(), ready: false };
+    e.img.onload  = () => { e.ready = true; _renderRadar(); };
+    e.img.onerror = () => { e.ready = false; };   // 404 / no art → dot fallback
+    e.img.src = `/ships/${art}256.png`;
+    _spriteCache.set(art, e);
+  }
+  return e.ready ? e.img : null;
+}
+
+// The 256.png art is white-on-transparent; tint it with the object's side colour
+// (both to make it visible and to convey allegiance). Cached per art+colour.
+const _tintCache = new Map();   // "art|color" → canvas
+function _tintedSprite(art, color) {
+  const img = _shipSprite(art);
+  if (!img) return null;
+  const key = art + '|' + color;
+  let c = _tintCache.get(key);
+  if (c) return c;
+  const w = img.naturalWidth || 256, h = img.naturalHeight || 256;
+  c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  g.globalCompositeOperation = 'multiply';      // white → colour, keep any shading
+  g.fillStyle = color; g.fillRect(0, 0, w, h);
+  g.globalCompositeOperation = 'destination-in'; // restore the sprite's alpha mask
+  g.drawImage(img, 0, 0);
+  _tintCache.set(key, c);
+  return c;
+}
+
+// Some 2D-view widgets (e.g. helm) arrive with an empty/degenerate rect — there's
+// no explicit layout size — which would hide the radar entirely. Fall back to a
+// full-panel default so it still renders.
+const _DEFAULT_2D_VIEW_RECT = { left: 0, top: 3, right: 100, bottom: 100 };
+function _resolve2dViewRect(left, top, right, bottom) {
+  if (right - left < 1 || bottom - top < 1) return { ..._DEFAULT_2D_VIEW_RECT };
+  return { left, top, right, bottom };
+}
+
+// ── cmdWidgetRect — store 2D view position from send_client_widget_rects ──────
+function cmdWidgetRect(msg) {
+  // Accept rects for our client or the server (clientID "0")
+  if (msg.clientID !== '0' && CLIENT_ID !== null && msg.clientID !== String(CLIENT_ID)) {
+    log(`widget_rect IGNORED cid=${msg.clientID} mine=${CLIENT_ID} widget=${msg.widget}`, 'dbg');
+    return;
+  }
+  log(`widget_rect OK cid=${msg.clientID} widget=${msg.widget} (${msg.left},${msg.top})→(${msg.right},${msg.bottom})`, 'dbg');
+  const r = _resolve2dViewRect(msg.left, msg.top, msg.right, msg.bottom);
+  _widgetRects.set(msg.widget, { left: r.left, top: r.top, right: r.right, bottom: r.bottom, ts: performance.now() });
+}
+
+// ── Three.js GPU radar renderer ───────────────────────────────────────────────
+// A second WebGLRenderer renders terrain and dynamic object dots as GPU
+// Points into an offscreen canvas, then blits onto the visible radar overlay.
+// The 2D canvas handles backgrounds, rings, labels, and heading arrows.
+const _radarCanvas3d = document.createElement('canvas');
+const _radarRenderer3d = (() => {
+  if (typeof THREE === 'undefined') return null;
+  try {
+    const r = new THREE.WebGLRenderer({ canvas: _radarCanvas3d, alpha: true });
+    r.setClearColor(0x000000, 0);
+    r.autoClear = false;
+    return r;
+  } catch(e) {
+    console.error('[radar3d] WebGLRenderer init failed:', e);
+    return null;
+  }
+})();
+
+const _MAX_TERRAIN = 5000;
+const _MAX_DYNAMIC = 1000;
+
+let _radarScene3d = null, _radarCamera3d = null;
+let _terrainPoints = null, _dynamicPoints = null;
+let _terrainPosBuf = null, _terrainColBuf = null;
+let _dynamicPosBuf = null, _dynamicColBuf = null;
+
+// Delta state: id → index for O(1) update; reverse map for O(1) swap-with-last removals.
+let _terrainCount = 0, _dynamicCount = 0;
+const _terrainMap    = new Map();  // id (string) → Float32Array index
+const _dynamicMap    = new Map();  // id (string) → Float32Array index
+const _dynamicRevMap = new Map();  // Float32Array index → id (string)
+const _dynamicMeta   = new Map();  // id (string) → {side, tick_type, fx, fz, name}
+
+// Latest radar overlay data — updated by cmdRadar.
+let _radarNavpoints   = [];
+let _radarClientFocus = {};
+
+// Camera lerp — smooths view when ship assignment or focus changes.
+let _displayFocusX = null, _displayFocusZ = null;
+let _targetFocusX  = null, _targetFocusZ  = null;
+
+// Per-ship filter — set from client_focus.ship_id when our assignment is known.
+let _myShipId = null;
+
+// Zoom — scroll wheel on the radar overlay canvas; 1.0 = auto-fit.
+let _radarZoom = 1.0;
+
+// Pan — drag inside a 2D-view radar to offset the view from the ship centre, in
+// world units. Persists relative to the (ship-tracking) centre; double-click to
+// recentre. _lastWorldPerPx is captured each render for screen→world conversion.
+let _radarPanX = 0, _radarPanZ = 0;
+let _lastWorldPerPx = 1;
+let _panning = false, _panStartPX = 0, _panStartPZ = 0;
+
+// Engine 2D-view widget types whose screen rect registers as a radar view area.
+const _2D_VIEW_WIDGET_TYPES = new Set(['2dview','science_2d_view','comms_2d_view','weapon_2d_view']);
+
+function _cssToRGB(css) {
+  _colorCtx.clearRect(0, 0, 1, 1);
+  _colorCtx.fillStyle = css;
+  _colorCtx.fillRect(0, 0, 1, 1);
+  const d = _colorCtx.getImageData(0, 0, 1, 1).data;
+  return { r: d[0] / 255, g: d[1] / 255, b: d[2] / 255 };
+}
+
+function _initRadar3d() {
+  if (!_radarRenderer3d) return;
+  _radarScene3d  = new THREE.Scene();
+  // Camera looks along -Z; world X maps to Three.js X, world Z maps to Three.js Y.
+  // top/bottom are swapped so world +Z = screen up after the WebGL → canvas blit.
+  _radarCamera3d = new THREE.OrthographicCamera(-1, 1, -1, 1, -1, 1);
+
+  const tGeo = new THREE.BufferGeometry();
+  _terrainPosBuf = new Float32Array(_MAX_TERRAIN * 3);
+  _terrainColBuf = new Float32Array(_MAX_TERRAIN * 3);
+  tGeo.setAttribute('position', new THREE.BufferAttribute(_terrainPosBuf, 3));
+  tGeo.setAttribute('color',    new THREE.BufferAttribute(_terrainColBuf, 3));
+  tGeo.setDrawRange(0, 0);
+  _terrainPoints = new THREE.Points(tGeo,
+    new THREE.PointsMaterial({ size: 3, vertexColors: true, sizeAttenuation: false }));
+  _radarScene3d.add(_terrainPoints);
+
+  const dGeo = new THREE.BufferGeometry();
+  _dynamicPosBuf = new Float32Array(_MAX_DYNAMIC * 3);
+  _dynamicColBuf = new Float32Array(_MAX_DYNAMIC * 3);
+  dGeo.setAttribute('position', new THREE.BufferAttribute(_dynamicPosBuf, 3));
+  dGeo.setAttribute('color',    new THREE.BufferAttribute(_dynamicColBuf, 3));
+  dGeo.setDrawRange(0, 0);
+  _dynamicPoints = new THREE.Points(dGeo,
+    new THREE.PointsMaterial({ size: 7, vertexColors: true, sizeAttenuation: false }));
+  // Dynamic objects are drawn as art sprites (or a dot fallback) by the 2D overlay,
+  // so the GPU dot layer would just double-draw under each sprite. Keep the buffer
+  // (the overlay reads positions from it) but don't render it.
+  _dynamicPoints.visible = false;
+  _radarScene3d.add(_dynamicPoints);
+}
+_initRadar3d();
+
+// ── cmdRadarTerrain — full terrain layer replacement ──────────────────────────
+function cmdRadarTerrain(msg) {
+  if (!_terrainPoints) return;
+  const objects = msg.objects || [];
+  _terrainMap.clear();
+  for (let i = 0; i < objects.length && i < _MAX_TERRAIN; i++) {
+    const o = objects[i];
+    const {r, g, b} = _cssToRGB(_sideColor(o.side));
+    const base = i * 3;
+    _terrainPosBuf[base]     = o.x;
+    _terrainPosBuf[base + 1] = o.z;   // world Z → Three.js Y
+    _terrainPosBuf[base + 2] = 0;
+    _terrainColBuf[base]     = r;
+    _terrainColBuf[base + 1] = g;
+    _terrainColBuf[base + 2] = b;
+    _terrainMap.set(o.id, i);
+  }
+  _terrainCount = Math.min(objects.length, _MAX_TERRAIN);
+  _terrainPoints.geometry.setDrawRange(0, _terrainCount);
+  _terrainPoints.geometry.attributes.position.needsUpdate = true;
+  _terrainPoints.geometry.attributes.color.needsUpdate    = true;
+  _renderRadar();
+}
+
+// ── cmdRadar — delta update for active (NPC/PLAYER) objects ──────────────────
+function cmdRadar(msg) {
+  if (!_radarCtx) return;
+
+  // Always process nav + focus — needed to discover our own ship_id before the
+  // first matching per-ship message arrives.
+  if (msg.navpoints !== undefined) _radarNavpoints = msg.navpoints;
+  if (msg.client_focus) {
+    // Server sends complete client_focus each tick — replace rather than merge
+    // so stale entries for disconnected clients are cleared automatically.
+    _radarClientFocus = msg.client_focus;
+    const myKey = CLIENT_ID !== null ? String(CLIENT_ID) : '0';
+    const entry = msg.client_focus[myKey];
+    if (entry && entry.ship_id) _myShipId = entry.ship_id;
+  }
+
+  // Per-ship filter: only process the object delta for our assigned ship.
+  // ship_id "0" = GM / server view, consumed by unassigned clients (lobby/spectator).
+  const msgShipId = msg.ship_id || '0';
+  const isGMView    = msgShipId === '0';
+  const isMyShip    = _myShipId !== null && msgShipId === _myShipId;
+  const isUnassigned = _myShipId === null;
+
+  if ((!isGMView && !isMyShip) || (isGMView && !isUnassigned)) {
+    // Not our message — nav/focus already updated; redraw for camera lerp.
+    _renderRadar();
+    return;
+  }
+
+  if (_dynamicPoints) {
+    const removed = msg.removed || [];
+    const changed  = msg.changed  || [];
+
+    for (const id of removed) {
+      const idx = _dynamicMap.get(id);
+      if (idx === undefined) continue;
+      _dynamicMap.delete(id);
+      _dynamicMeta.delete(id);
+      _dynamicRevMap.delete(idx);
+      _dynamicCount--;
+      if (idx !== _dynamicCount && _dynamicCount > 0) {
+        // Move last element into the vacated slot.
+        const srcBase = _dynamicCount * 3;
+        const dstBase = idx * 3;
+        _dynamicPosBuf[dstBase]     = _dynamicPosBuf[srcBase];
+        _dynamicPosBuf[dstBase + 1] = _dynamicPosBuf[srcBase + 1];
+        _dynamicPosBuf[dstBase + 2] = _dynamicPosBuf[srcBase + 2];
+        _dynamicColBuf[dstBase]     = _dynamicColBuf[srcBase];
+        _dynamicColBuf[dstBase + 1] = _dynamicColBuf[srcBase + 1];
+        _dynamicColBuf[dstBase + 2] = _dynamicColBuf[srcBase + 2];
+        const movedId = _dynamicRevMap.get(_dynamicCount);
+        if (movedId !== undefined) {
+          _dynamicMap.set(movedId, idx);
+          _dynamicRevMap.set(idx, movedId);
+          _dynamicRevMap.delete(_dynamicCount);
+        }
+      }
+    }
+
+    let colorsDirty = false;
+    for (const o of changed) {
+      let idx = _dynamicMap.get(o.id);
+      if (idx === undefined) {
+        if (_dynamicCount >= _MAX_DYNAMIC) continue;
+        idx = _dynamicCount++;
+        _dynamicMap.set(o.id, idx);
+        _dynamicRevMap.set(idx, o.id);
+        const {r, g, b} = _cssToRGB(_sideColor(o.side));
+        const cb = idx * 3;
+        _dynamicColBuf[cb] = r; _dynamicColBuf[cb+1] = g; _dynamicColBuf[cb+2] = b;
+        colorsDirty = true;
+        _dynamicMeta.set(o.id, {
+          side: o.side, tick_type: o.tick_type,
+          fx: o.fx ?? 0, fz: o.fz ?? 0, name: o.name || '', art: o.art || '',
+        });
+      } else {
+        const meta = _dynamicMeta.get(o.id);
+        if (meta && o.fx !== undefined) { meta.fx = o.fx; meta.fz = o.fz; }
+      }
+      const pb = idx * 3;
+      _dynamicPosBuf[pb]     = o.x;
+      _dynamicPosBuf[pb + 1] = o.z;
+      _dynamicPosBuf[pb + 2] = 0;
+    }
+
+    _dynamicPoints.geometry.setDrawRange(0, _dynamicCount);
+    _dynamicPoints.geometry.attributes.position.needsUpdate = true;
+    if (colorsDirty) _dynamicPoints.geometry.attributes.color.needsUpdate = true;
+  }
+
+  _renderRadar();
+}
+
+// ── Radar layout helpers ──────────────────────────────────────────────────────
+function _cornerRect(W, H) {
+  const margin = 12, sz = Math.min(W, H) * 0.28;
+  return {
+    left:   (W - sz - margin) / W * 100,
+    top:    (H - sz - margin) / H * 100,
+    right:  (W - margin) / W * 100,
+    bottom: (H - margin) / H * 100,
+  };
+}
+
+function _rectPx(W, H, rect) {
+  return {
+    x0: rect.left  / 100 * W,  y0: rect.top    / 100 * H,
+    x1: rect.right / 100 * W,  y1: rect.bottom / 100 * H,
+  };
+}
+
+function _computeWorldBounds(focusX, focusZ) {
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  if (_dynamicPosBuf) {
+    for (let i = 0; i < _dynamicCount; i++) {
+      const b = i * 3;
+      const wx = _dynamicPosBuf[b], wz = _dynamicPosBuf[b + 1];
+      if (wx < minX) minX = wx; if (wx > maxX) maxX = wx;
+      if (wz < minZ) minZ = wz; if (wz > maxZ) maxZ = wz;
+    }
+  }
+  // Terrain must also contribute to the auto-fit so zooming the corner radar
+  // correctly reveals asteroid fields and other static objects spread across
+  // the scene, not just the dynamic-object cluster.
+  if (_terrainPosBuf) {
+    for (let i = 0; i < _terrainCount; i++) {
+      const b = i * 3;
+      const wx = _terrainPosBuf[b], wz = _terrainPosBuf[b + 1];
+      if (wx < minX) minX = wx; if (wx > maxX) maxX = wx;
+      if (wz < minZ) minZ = wz; if (wz > maxZ) maxZ = wz;
+    }
+  }
+  for (const n of _radarNavpoints) {
+    if (n.x < minX) minX = n.x; if (n.x > maxX) maxX = n.x;
+    const nz = n.z ?? 0;
+    if (nz < minZ) minZ = nz; if (nz > maxZ) maxZ = nz;
+  }
+  if (!isFinite(minX)) { minX = -5000; maxX = 5000; minZ = -5000; maxZ = 5000; }
+  let cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+  if (focusX != null && isFinite(focusX)) {
+    cx = focusX;
+    cz = focusZ;
+  } else {
+    // Fallback: center on first PLAYER-type object when client_focus not yet received.
+    for (const [id, meta] of _dynamicMeta) {
+      if (meta.tick_type === 'PLAYER' || meta.tick_type === 'player') {
+        const idx = _dynamicMap.get(id);
+        if (idx !== undefined && idx < _dynamicCount) {
+          const b = idx * 3;
+          cx = _dynamicPosBuf[b];
+          cz = _dynamicPosBuf[b + 1];
+          break;
+        }
+      }
+    }
+  }
+  // Inside a 2D view widget, pin halfSpan to CULL_RADIUS so the radar shows the
+  // ship's local neighbourhood at a fixed scale instead of auto-fitting the entire
+  // visible object set (which makes any movement imperceptible).
+  const hasActiveView = _widgetRects.size > 0;
+  const halfSpan = (hasActiveView && focusX != null)
+    ? 35_000 / _radarZoom
+    : Math.max(maxX - minX, maxZ - minZ, 1000) * 0.675 / _radarZoom;
+  // Anchor for the range rings = the tracked centre (ship / centroid) before pan,
+  // so the rings slide with the world when panning instead of staying screen-locked.
+  const ax = cx, az = cz;
+  // Drag-pan offset (world units) — applied to whichever radar is on screen
+  // (2D-view or corner). Double-click clears it back to the tracked centre.
+  cx += _radarPanX;
+  cz += _radarPanZ;
+  return { cx, cz, halfSpan, ax, az };
+}
+
+// Pixel box the world is projected into, shared by the 2D chrome/overlay, the
+// Three.js viewport and the pan hit-test so terrain dots, dynamic dots, arrows,
+// navpoints and rings all occupy the same coordinate space and clip identically.
+//   • corner radar  → framed, aspect-locked square with a label header
+//   • 2D-view widget → the entire widget rect (uniform world scale, so range
+//     rings stay circular and the longer axis simply shows more world)
+// Returns { bx0, by0, bw, bh, fit } in 2D-canvas pixels, or null if too small.
+// `fit` is the dimension the outer range ring (radius halfSpan) maps to.
+function _radarBox(W, H, rect, isCorner) {
+  const { x0, y0, x1, y1 } = _rectPx(W, H, rect);
+  const rw = x1 - x0, rh = y1 - y0;
+  if (rw < 4 || rh < 4) return null;
+  if (isCorner) {
+    const pad    = Math.min(rw, rh) * 0.05 + 6;
+    const labelH = Math.max(18, rh * 0.08);
+    const drawH  = rh - labelH - 2 * pad;
+    const drawW  = rw - 2 * pad;
+    const S      = Math.min(drawW, drawH);
+    return { bx0: x0 + pad, by0: y0 + labelH + pad + (drawH - S), bw: S, bh: S, fit: S };
+  }
+  return { bx0: x0, by0: y0, bw: rw, bh: rh, fit: Math.min(rw, rh) };
+}
+
+// Uniform-scale world→pixel projection for a box. The outer ring (radius
+// halfSpan) maps to fit/2 px; the longer box axis shows proportionally more world.
+function _radarProj(box, cx, cz, halfSpan) {
+  const scale = box.fit / (2 * halfSpan);
+  const cxp = box.bx0 + box.bw / 2;
+  const cyp = box.by0 + box.bh / 2;
+  return {
+    scale, cxp, cyp,
+    toX: wx => cxp + (wx - cx) * scale,
+    toY: wz => cyp - (wz - cz) * scale,   // +Z up
+  };
+}
+
+function _drawRadarChrome(ctx, W, H, rect, cx, cz, halfSpan, isCorner, ax, az) {
+  const { x0, y0, x1, y1 } = _rectPx(W, H, rect);
+  const rw = x1 - x0, rh = y1 - y0;
+  if (rw < 4 || rh < 4) return;
+  const box = _radarBox(W, H, rect, isCorner);
+  if (!box) return;
+  const { toX, toY, scale } = _radarProj(box, cx, cz, halfSpan);
+
+  ctx.fillStyle = '#000c1e';
+  ctx.fillRect(x0, y0, rw, rh);
+
+  if (isCorner) {
+    const labelH = Math.max(18, rh * 0.08);
+    ctx.fillStyle = '#003366';
+    ctx.fillRect(x0, y0, rw, labelH);
+    ctx.fillStyle = '#00e5ff';
+    ctx.font = `bold ${Math.max(10, labelH * 0.55)}px monospace`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('RADAR', x0 + rw / 2, y0 + labelH / 2);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+
+  // Clip rings + crosshair to the drawable box so they match the dot scissor.
+  ctx.save();
+  ctx.beginPath(); ctx.rect(box.bx0, box.by0, box.bw, box.bh); ctx.clip();
+
+  ctx.setLineDash([4, 6]);
+  const rings = [0.25, 0.5, 1.0];
+  const ringColors = ['rgba(0,180,80,0.15)', 'rgba(0,180,80,0.2)', 'rgba(0,180,80,0.25)'];
+  // Centre the range rings on the tracked anchor (ship/centroid) so they pan with
+  // the world; fall back to the view centre if no anchor was supplied.
+  const ringX = ax != null ? ax : cx, ringZ = az != null ? az : cz;
+  const cx_px = toX(ringX), cy_px = toY(ringZ);
+  for (let i = 0; i < rings.length; i++) {
+    const rpx = rings[i] * halfSpan * scale;
+    ctx.strokeStyle = ringColors[i];
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(cx_px, cy_px, rpx, 0, 2 * Math.PI); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  const ox = toX(0), oy = toY(0);
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(ox, box.by0); ctx.lineTo(ox, box.by0 + box.bh);
+  ctx.moveTo(box.bx0, oy); ctx.lineTo(box.bx0 + box.bw, oy);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
+  const { x0, y0, x1, y1 } = _rectPx(W, H, rect);
+  const rw = x1 - x0, rh = y1 - y0;
+  if (rw < 4 || rh < 4) return;
+  const box = _radarBox(W, H, rect, isCorner);
+  if (!box) return;
+  const { toX, toY } = _radarProj(box, cx, cz, halfSpan);
+  const fontSize = Math.max(8, Math.min(12, rh * 0.025));
+  const minR = isCorner ? 5 : 4, pMinR = isCorner ? 8 : 6;
+
+  // Clip navpoints + arrows to the same box the dots are scissored to.
+  ctx.save();
+  ctx.beginPath(); ctx.rect(box.bx0, box.by0, box.bw, box.bh); ctx.clip();
+
+  ctx.fillStyle = '#ffe44a';
+  ctx.font = `${fontSize}px monospace`;
+  for (const n of _radarNavpoints) {
+    const px = toX(n.x), py = toY(n.z ?? 0);
+    ctx.fillRect(px - 3, py - 3, 6, 6);
+    if (n.name) { ctx.textBaseline = 'middle'; ctx.fillText(n.name, px + 5, py); }
+  }
+
+  // Fixed-size ship icons (independent of zoom); names only when zoomed in.
+  const baseNpc    = isCorner ? 26 : 48;
+  const basePlayer = isCorner ? 38 : 68;
+  // Show names from the default 2D-view zoom (halfSpan 35000) inward; hide only on
+  // a wide overview zoom-out where labels would overlap into clutter.
+  const showNames  = halfSpan < 50000;
+  for (const [id, meta] of _dynamicMeta) {
+    const idx = _dynamicMap.get(id);
+    if (idx === undefined || idx >= _dynamicCount) continue;
+    const base = idx * 3;
+    const px = toX(_dynamicPosBuf[base]), py = toY(_dynamicPosBuf[base + 1]);
+    const col = _sideColor(meta.side);
+    const isPlayer = meta.tick_type === 'PLAYER' || meta.tick_type === 'player';
+    const s = isPlayer ? basePlayer : baseNpc;
+    const sprite = _tintedSprite(meta.art, col);
+    if (sprite) {
+      // Draw the top-down art rotated to face its heading.
+      const ang = Math.atan2(meta.fx, meta.fz) + _SPRITE_ART_OFFSET;
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(ang);
+      ctx.drawImage(sprite, -s / 2, -s / 2, s, s);
+      ctx.restore();
+    } else {
+      // Fallback until the sprite loads (or for objects with no art): dot + arrow.
+      const r = isPlayer ? Math.max(pMinR, rw * 0.012) : Math.max(minR, rw * 0.006);
+      const alen = r + Math.max(8, rw * 0.015);
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.arc(px, py, r, 0, 2 * Math.PI); ctx.fill();
+      ctx.strokeStyle = col; ctx.lineWidth = isPlayer ? 2 : 1.5;
+      ctx.beginPath(); ctx.moveTo(px, py);
+      ctx.lineTo(px + meta.fx * alen, py - meta.fz * alen); ctx.stroke();
+    }
+    if (showNames && meta.name) {
+      ctx.fillStyle = col;
+      ctx.font = `${Math.max(8, fontSize)}px monospace`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText(meta.name, px, py - s / 2 - 1);
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    }
+  }
+  ctx.restore();
+
+  const totalCount = _dynamicCount + _terrainCount;
+  if (totalCount > 0) {
+    ctx.fillStyle = 'rgba(0,229,255,0.6)';
+    ctx.font = `${Math.max(8, fontSize - 1)}px monospace`;
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`${_dynamicCount}+${_terrainCount} obj`, x0 + 4, y1 - 3);
+  }
+
+  ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 2;
+  ctx.strokeRect(x0 + 1, y0 + 1, rw - 2, rh - 2);
+}
+
+// ── _renderRadar — composites 2D chrome + Three.js dots onto the radar canvas ─
+function _renderRadar() {
+  if (!_radarCtx) return;
+  _syncRadarCanvasSize();
+  const W = _radarCanvas.width, H = _radarCanvas.height;
+  _radarCtx.clearRect(0, 0, W, H);
+
+  const myKey   = CLIENT_ID !== null ? String(CLIENT_ID) : '0';
+  const myFocus = _radarClientFocus[myKey] || null;
+  if (myFocus) {
+    _targetFocusX = myFocus.x;
+    _targetFocusZ = myFocus.z;
+    if (myFocus.ship_id) _myShipId = myFocus.ship_id;
+  }
+  const LERP = 0.06;
+  if (_displayFocusX === null && _targetFocusX !== null) {
+    _displayFocusX = _targetFocusX;
+    _displayFocusZ = _targetFocusZ;
+  } else if (_targetFocusX !== null) {
+    _displayFocusX += (_targetFocusX - _displayFocusX) * LERP;
+    _displayFocusZ += (_targetFocusZ - _displayFocusZ) * LERP;
+  }
+  const focusX = _displayFocusX;
+  const focusZ = _displayFocusZ;
+
+  const activeViews = Array.from(_widgetRects.values());
+
+  const views    = activeViews.length > 0 ? activeViews : [_cornerRect(W, H)];
+  const isCorner = activeViews.length === 0;
+  const { cx, cz, halfSpan, ax, az } = _computeWorldBounds(focusX, focusZ);
+
+  // Capture world-units-per-pixel from the primary view so drag-pan can convert
+  // screen deltas to world deltas at the current zoom.
+  const _primaryBox = _radarBox(W, H, views[0], isCorner);
+  if (_primaryBox) _lastWorldPerPx = (2 * halfSpan) / _primaryBox.fit;
+
+  // 2D chrome: backgrounds, rings, crosshairs.
+  for (const rect of views) _drawRadarChrome(_radarCtx, W, H, rect, cx, cz, halfSpan, isCorner, ax, az);
+
+  // Three.js dots: terrain + dynamic.
+  if (_radarRenderer3d && _radarScene3d) {
+    _radarRenderer3d.setSize(W, H, false);
+    _radarRenderer3d.clear();
+    for (const rect of views) {
+      // Project into the exact same box as the 2D chrome/overlay so terrain dots
+      // line up with dynamic dots, arrows and navpoints and clip identically.
+      const box = _radarBox(W, H, rect, isCorner);
+      if (!box) continue;
+      const { bx0, by0, bw, bh } = box;
+      // Uniform world scale: halfSpan maps to fit/2 px, so the world half-extent
+      // in each axis is proportional to that axis's pixel size.
+      const halfW = bw * halfSpan / box.fit;
+      const halfH = bh * halfSpan / box.fit;
+      _radarCamera3d.left   = cx - halfW;
+      _radarCamera3d.right  = cx + halfW;
+      // top = cz + halfH puts world +Z at screen top, matching toY() in the
+      // 2D overlay (which the previous cz-halfSpan ordering mirrored).
+      _radarCamera3d.top    = cz + halfH;
+      _radarCamera3d.bottom = cz - halfH;
+      _radarCamera3d.updateProjectionMatrix();
+      // WebGL viewport origin is bottom-left; the box's 2D top by0 maps to
+      // GL bottom H-(by0+bh).
+      const vy = H - (by0 + bh);
+      _radarRenderer3d.setViewport(bx0, vy, bw, bh);
+      _radarRenderer3d.setScissor(bx0, vy, bw, bh);
+      _radarRenderer3d.setScissorTest(true);
+      _radarRenderer3d.render(_radarScene3d, _radarCamera3d);
+    }
+    _radarCtx.drawImage(_radarCanvas3d, 0, 0);
+  }
+
+  // 2D overlays: navpoints, heading arrows, labels, border.
+  for (const rect of views) _drawRadarOverlay(_radarCtx, W, H, rect, cx, cz, halfSpan, isCorner);
+
+  // NO SIGNAL overlay when corner radar has nothing.
+  if (isCorner && _dynamicCount === 0 && _radarNavpoints.length === 0 && _terrainCount === 0) {
+    const { x0, y0, x1, y1 } = _rectPx(W, H, views[0]);
+    const sz = Math.min(x1 - x0, y1 - y0);
+    _radarCtx.fillStyle = 'rgba(255,60,60,0.7)';
+    _radarCtx.font = `bold ${Math.max(11, sz * 0.1)}px monospace`;
+    _radarCtx.textAlign = 'center'; _radarCtx.textBaseline = 'middle';
+    _radarCtx.fillText('NO SIGNAL', (x0 + x1) / 2, (y0 + y1) / 2);
+    _radarCtx.textAlign = 'left'; _radarCtx.textBaseline = 'alphabetic';
+  }
+}
+
+
+// ── Cinematic 3D main-screen view ─────────────────────────────────────────────
+// A perspective scene rendered full-window behind the GUI. Object positions are
+// reused from the radar buffers on the y=0 plane; cinematic_control supplies the
+// camera (dolly) and look-at (target) world positions, streamed each tick.
+const _view3dCanvas = document.getElementById('view3d-canvas');
+let _view3dRenderer = null, _view3dScene = null, _view3dCamera = null, _view3dPoints = null;
+let _view3dActive = false;
+const _V3D_MAX = 8000;
+let _view3dPosBuf = null, _view3dColBuf = null;
+// Target (from server) and smoothed display camera/look-at, lerped each frame.
+let _v3dCam = [0, 150, -500], _v3dTgt = [0, 0, 0];
+let _v3dDispCam = null, _v3dDispTgt = null;
+
+function _initView3d() {
+  if (typeof THREE === 'undefined' || !_view3dCanvas) return;
+  try {
+    _view3dRenderer = new THREE.WebGLRenderer({ canvas: _view3dCanvas, antialias: true });
+  } catch (e) { log(`[3dview] no WebGL: ${e}`, 'err'); return; }
+  _view3dRenderer.setClearColor(0x01030a, 1);
+  _view3dScene  = new THREE.Scene();
+  _view3dCamera = new THREE.PerspectiveCamera(55, 1, 1, 5e7);
+
+  _view3dPosBuf = new Float32Array(_V3D_MAX * 3);
+  _view3dColBuf = new Float32Array(_V3D_MAX * 3);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(_view3dPosBuf, 3));
+  g.setAttribute('color',    new THREE.BufferAttribute(_view3dColBuf, 3));
+  g.setDrawRange(0, 0);
+  _view3dPoints = new THREE.Points(g,
+    new THREE.PointsMaterial({ size: 10, vertexColors: true, sizeAttenuation: false }));
+  _view3dScene.add(_view3dPoints);
+  // Reference ground grid on the y=0 plane.
+  _view3dScene.add(new THREE.GridHelper(400000, 80, 0x0f3a55, 0x08202e));
+}
+_initView3d();
+
+// Copy current radar object positions (x, z) onto the y=0 plane (x, 0, z).
+function _view3dSync() {
+  if (!_view3dPosBuf) return;
+  let n = 0;
+  for (let i = 0; i < _terrainCount && n < _V3D_MAX; i++, n++) {
+    const b = i * 3, o = n * 3;
+    _view3dPosBuf[o] = _terrainPosBuf[b]; _view3dPosBuf[o+1] = 0; _view3dPosBuf[o+2] = _terrainPosBuf[b+1];
+    _view3dColBuf[o] = _terrainColBuf[b]; _view3dColBuf[o+1] = _terrainColBuf[b+1]; _view3dColBuf[o+2] = _terrainColBuf[b+2];
+  }
+  for (let i = 0; i < _dynamicCount && n < _V3D_MAX; i++, n++) {
+    const b = i * 3, o = n * 3;
+    _view3dPosBuf[o] = _dynamicPosBuf[b]; _view3dPosBuf[o+1] = 0; _view3dPosBuf[o+2] = _dynamicPosBuf[b+1];
+    _view3dColBuf[o] = _dynamicColBuf[b]; _view3dColBuf[o+1] = _dynamicColBuf[b+1]; _view3dColBuf[o+2] = _dynamicColBuf[b+2];
+  }
+  _view3dPoints.geometry.setDrawRange(0, n);
+  _view3dPoints.geometry.attributes.position.needsUpdate = true;
+  _view3dPoints.geometry.attributes.color.needsUpdate    = true;
+}
+
+function _renderView3d() {
+  if (!_view3dActive || !_view3dRenderer) return;
+  const W = window.innerWidth, H = window.innerHeight;
+  if (_view3dCanvas.width !== W)  _view3dCanvas.width  = W;
+  if (_view3dCanvas.height !== H) _view3dCanvas.height = H;
+  _view3dSync();
+  // Smooth camera moves so scripted cuts / ship motion ease rather than snap.
+  if (_v3dDispCam === null) { _v3dDispCam = _v3dCam.slice(); _v3dDispTgt = _v3dTgt.slice(); }
+  const L = 0.12;
+  for (let i = 0; i < 3; i++) {
+    _v3dDispCam[i] += (_v3dCam[i] - _v3dDispCam[i]) * L;
+    _v3dDispTgt[i] += (_v3dTgt[i] - _v3dDispTgt[i]) * L;
+  }
+  _view3dCamera.aspect = W / H;
+  _view3dCamera.updateProjectionMatrix();
+  _view3dCamera.position.set(_v3dDispCam[0], _v3dDispCam[1], _v3dDispCam[2]);
+  _view3dCamera.lookAt(_v3dDispTgt[0], _v3dDispTgt[1], _v3dDispTgt[2]);
+  _view3dRenderer.setSize(W, H, false);
+  _view3dRenderer.render(_view3dScene, _view3dCamera);
+}
+
+// Drive the cinematic view from its own RAF loop so the camera lerps smoothly
+// between the (slower) per-tick server updates.
+(function _startView3dLoop() {
+  if (!_view3dRenderer) return;
+  function loop() { requestAnimationFrame(loop); _renderView3d(); }
+  loop();
+})();
+
+// ── cmdCinematic — show/hide the 3dview and update its camera ─────────────────
+function cmdCinematic(msg) {
+  // Transient broadcast: keep only messages addressed to our own client.
+  if (CLIENT_ID !== null && String(msg.clientID) !== String(CLIENT_ID)) return;
+  _view3dActive = !!msg.active;
+  if (_view3dCanvas) _view3dCanvas.style.display = _view3dActive ? 'block' : 'none';
+  if (Array.isArray(msg.cam))    _v3dCam = msg.cam;
+  if (Array.isArray(msg.target)) _v3dTgt = msg.target;
+}
+
 
 // ── init ──────────────────────────────────────────────────────────────────────
 function sendScreenSize() {
@@ -778,7 +1573,10 @@ function _clearRegionChildren(parentTag) {
 function cmdClear(msg) {
   const tag = msg.tag || "";
   if (tag === "") {
-    // Root clear: wipe the whole client tree
+    // Root clear: wipe the whole client tree.
+    // Also clear radar view registrations — they'll be re-registered when the
+    // new page's 2dview widgets are appended during the upcoming rebuild.
+    _widgetRects.clear();
     _regions[""].back.innerHTML = '';
     _regions[""].inProgress = true;
     for (const k of Object.keys(_regions)) { if (k !== "") delete _regions[k]; }
@@ -917,6 +1715,13 @@ function cmdWidget(msg) {
     placeRoot(el, left, top, right, bottom);
   }
 
+  // 2D engine-view widgets have no visual content in the mockgui; instead register
+  // their position so the radar overlay canvas can draw the tactical map in that slot.
+  if (_2D_VIEW_WIDGET_TYPES.has(cmd)) {
+    const r = _resolve2dViewRect(left, top, right, bottom);
+    _widgetRects.set(cmd, { left: r.left, top: r.top, right: r.right, bottom: r.bottom, ts: performance.now() });
+    log(`  [radar] 2dview rect registered for ${cmd} (${pct(r.left)},${pct(r.top)})→(${pct(r.right)},${pct(r.bottom)})`, 'dbg');
+  }
   region.back.appendChild(el);
   log(`  +${cmd} tag=${tag} → region[${parent||'root'}] back [${pct(left)},${pct(top)},${pct(right-left)},${pct(bottom-top)}]`, 'dbg');
 }
@@ -1194,140 +1999,6 @@ function buildWidget(msg, s) {
   return el;
 }
 
-// ── font measurement ──────────────────────────────────────────────────────────
-function _measureFonts() {
-  const FONT_DEFS = [
-    ['smallest', 'GoldmanSansCd_Rg', 18],
-    ['gui-1',    'GoldmanSansCd_Rg', 22],
-    ['gui-2',    'GoldmanSansCd_Rg', 24],
-    ['gui-3',    'Goldman-Bold',     28],
-    ['gui-4',    'Goldman-Bold',     32],
-    ['gui-5',    'Goldman-Bold',     36],
-    ['gui-6',    'Goldman-Bold',     52],
-  ];
-  const NARROW = ['iiiiiiiiii', 'llllllllll'];
-  const WIDE   = ['MMMMMMMMMM', 'WWWWWWWWWW', 'mmmmmmmmmm', 'wwwwwwwwww'];
-  const AVG    = ['xxxxxxxxxx', 'aaaaaaaaaa', 'HHHHHHHHHH', '0000000000'];
-
-  const canvas = document.createElement('canvas');
-  const ctx    = canvas.getContext('2d');
-  const res    = {};
-
-  for (const [tag, family, size] of FONT_DEFS) {
-    // DOM span: actual rendered line height (what the browser lays out)
-    const span = document.createElement('span');
-    span.style.cssText = `font-family:'${family}';font-size:${size}px;line-height:normal;`
-                       + `position:fixed;top:-9999px;left:0;white-space:nowrap;visibility:hidden;`;
-    span.textContent = 'AXgjpy|Qq';
-    document.body.appendChild(span);
-    const lh = Math.ceil(span.getBoundingClientRect().height);
-    document.body.removeChild(span);
-
-    // Canvas measureText: per-character pixel widths
-    const avgW = (tests) => {
-      ctx.font = `${size}px '${family}'`;
-      let s = 0;
-      for (const t of tests) s += ctx.measureText(t).width / t.length;
-      return +(s / tests.length).toFixed(2);
-    };
-
-    res[tag] = { css_size: size, line_height: lh,
-                 narrow: avgW(NARROW), wide: avgW(WIDE), avg: avgW(AVG) };
-  }
-  return res;
-}
-
-function _measureFormatOutput(res) {
-  const TAGS = ['smallest', 'gui-1', 'gui-2', 'gui-3', 'gui-4', 'gui-5', 'gui-6'];
-
-  const lines = [
-    '# Generated by the Measure button in the mockgui browser.',
-    '# Goldman fonts rendered in THIS browser window — values depend on browser/OS.',
-    '# Paste into cosmos_dev/mock/sbs.py',
-    '',
-    '# 1. Replace _font_size() with browser-rendered line heights:',
-    'def _font_size(fontTag: str) -> int:',
-    '    return {',
-  ];
-  for (const t of TAGS) {
-    if (res[t]) lines.push(`        "${t}": ${res[t].line_height},`);
-  }
-  lines.push(`    }.get(fontTag, ${res['gui-3']?.line_height ?? 30})\n`);
-
-  lines.push('# 2. Drop the × 1.25 multiplier — _font_size already IS the line height:');
-  lines.push('def get_text_line_height(fontTag: str, textToMeasure: str) -> int:');
-  lines.push('    return _font_size(fontTag)\n');
-
-  lines.push('# 3. Per-font char widths (narrow, wide, avg) in pixels from canvas.measureText:');
-  lines.push('_CHAR_WIDTHS = {');
-  for (const t of TAGS) {
-    const r = res[t];
-    if (r) lines.push(`    "${t}": (${r.narrow}, ${r.wide}, ${r.avg}),`);
-  }
-  lines.push('}\n');
-
-  lines.push('# 4. Replace _char_pixel_width to use per-font table (fontTag, not font_size):');
-  lines.push('def _char_pixel_width(ch: str, fontTag: str) -> float:');
-  lines.push('    narrow, wide, avg = _CHAR_WIDTHS.get(fontTag, _CHAR_WIDTHS["gui-3"])');
-  lines.push('    if ch in _NARROW_CHARS: return narrow');
-  lines.push('    if ch in _WIDE_CHARS:   return wide');
-  lines.push('    return avg\n');
-
-  lines.push('# 5. Update get_text_line_width to pass fontTag instead of fs:');
-  lines.push('def get_text_line_width(fontTag: str, textToMeasure: str) -> int:');
-  lines.push('    if not textToMeasure: return 0');
-  lines.push('    return int(sum(_char_pixel_width(ch, fontTag) for ch in textToMeasure))\n');
-
-  // median of per-font ratios as a simple alternative
-  const med = (arr) => {
-    const s = [...arr].sort((a, b) => a - b);
-    const m = Math.floor(s.length / 2);
-    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-  };
-  const ts = TAGS.filter(t => res[t]);
-  const nr = ts.map(t => res[t].narrow / res[t].line_height);
-  const wr = ts.map(t => res[t].wide   / res[t].line_height);
-  const ar = ts.map(t => res[t].avg    / res[t].line_height);
-  lines.push('# Alternative: single-multiplier ratios relative to _font_size()');
-  lines.push(`# (less accurate across font families but simpler to maintain)`);
-  lines.push(`# narrow = ${med(nr).toFixed(3)}  (was 0.35)`);
-  lines.push(`# wide   = ${med(wr).toFixed(3)}  (was 0.75)`);
-  lines.push(`# avg    = ${med(ar).toFixed(3)}  (was 0.55)`);
-
-  return lines.join('\n');
-}
-
-(function () {
-  const btn   = document.getElementById('measure-btn');
-  const modal = document.getElementById('measure-modal');
-  const out   = document.getElementById('measure-output');
-  const close = document.getElementById('measure-close');
-  const copy  = document.getElementById('measure-copy');
-
-  btn.addEventListener('click', async () => {
-    out.textContent = 'Waiting for fonts…';
-    modal.classList.add('visible');
-    await document.fonts.ready;
-    out.textContent = 'Measuring…';
-    requestAnimationFrame(() => {
-      try {
-        out.textContent = _measureFormatOutput(_measureFonts());
-      } catch (e) {
-        out.textContent = 'Error: ' + e;
-      }
-    });
-  });
-
-  close.addEventListener('click', () => modal.classList.remove('visible'));
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') modal.classList.remove('visible');
-  });
-  copy.addEventListener('click', () => {
-    navigator.clipboard.writeText(out.textContent);
-    copy.textContent = 'Copied!';
-    setTimeout(() => copy.textContent = 'Copy', 2000);
-  });
-})();
 </script>
 </body>
 </html>

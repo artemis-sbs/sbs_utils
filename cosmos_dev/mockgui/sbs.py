@@ -33,6 +33,14 @@ def create_new_sim():
     global sim
     result = _base_mock.create_new_sim()
     sim = _base_mock.sim
+    # Update FrameContext immediately so code running after sim_create() in the
+    # same handler tick (e.g. npc_spawn) uses the new simulation object.
+    try:
+        from sbs_utils.helpers import FrameContext
+        if FrameContext.context is not None:
+            FrameContext.context.sim = sim
+    except Exception:
+        pass
     return result
 
 
@@ -224,3 +232,244 @@ def send_gui_3dship(clientID: int, parent: str, tag: str, style: str,
           parent=parent, tag=tag, style=style,
           left=left, top=top, right=right, bottom=bottom,
           artfileroot=artfileroot, meshscale=meshscale)
+
+
+# ---------------------------------------------------------------------------
+# 2D gameplay widget views
+# ---------------------------------------------------------------------------
+_2D_VIEW_WIDGETS = frozenset({"2dview", "science_2d_view", "comms_2d_view", "weapon_2d_view"})
+
+
+def send_client_widget_rects(clientID: int, widgetName: str,
+                              l1: float, t1: float, r1: float, b1: float,
+                              l2: float, t2: float, r2: float, b2: float) -> None:
+    """Forward 2D gameplay widget positions to the browser as widget_rect commands."""
+    if widgetName not in _2D_VIEW_WIDGETS or gui_queue is None:
+        return
+    try:
+        gui_queue.put_nowait({
+            "clientID": str(clientID),
+            "cmd": "widget_rect",
+            "widget": widgetName,
+            "left":   round(l1, 2),
+            "top":    round(t1, 2),
+            "right":  round(r1, 2),
+            "bottom": round(b1, 2),
+        })
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Physics tick override — runs base physics then pushes a radar delta to the browser.
+# ---------------------------------------------------------------------------
+_radar_tick: int = 0
+_RADAR_INTERVAL: int = 1    # push radar every physics tick (physics thread runs at 2 Hz)
+
+CULL_RADIUS: float = 35_000.0  # only objects within this distance of a ship are sent
+
+# Delta-radar state: reset by _force_terrain_push() when a new client connects.
+_last_terrain_snapshot: frozenset = frozenset()  # frozenset of terrain IDs currently sent
+_last_per_ship: dict = {}                        # ship_id_str → {obj_id → (x, z, fx, fz)}
+_DYNAMIC_POS_THRESHOLD_SQ: float = 25.0          # 5 units²  — skip tiny drift
+_DYNAMIC_HDG_THRESHOLD:    float = 0.05          # radians   — skip tiny rotations
+
+
+def set_main_view_modes(clientID: int, main_screen_view: str, cam_angle: str, cam_mode: str) -> None:
+    """Store the view mode (base behaviour) and tell the browser whether the
+    cinematic 3dview should be shown for this client."""
+    _base_mock.set_main_view_modes(clientID, main_screen_view, cam_angle, cam_mode)
+    _send(clientID, "cinematic", active=(cam_mode == "cinematic"))
+
+
+def physics_tick(dt: float = 1.0 / 60.0) -> None:
+    """Delegate to base physics then broadcast a radar delta to the browser."""
+    global sim, _radar_tick
+    _base_mock.physics_tick(dt)
+    sim = _base_mock.sim   # keep local alias in sync (create_new_sim may have changed it)
+    _radar_tick += 1
+    if _radar_tick >= _RADAR_INTERVAL:
+        _radar_tick = 0
+        _push_radar()
+        _push_cinematic()
+
+
+def _art_root_for(obj) -> str:
+    """Resolve the 2D sprite art root for a space object, so the browser can load
+    <root>256.png. Mirrors send_gui_3dship's lookup; falls back to the data tag."""
+    tag = getattr(obj, "_data_tag", "") or ""
+    if not tag:
+        return ""
+    try:
+        from sbs_utils.procedural.ship_data import get_ship_data_for
+        info = get_ship_data_for(tag) or {}
+        return info.get("artfileroot", tag)
+    except Exception:
+        return tag
+
+
+def _force_terrain_push() -> None:
+    """Reset delta snapshots so the next physics tick sends a full terrain + dynamic state.
+
+    Call this when a new browser client connects so they receive complete radar state
+    immediately rather than waiting for the next incremental change.
+    """
+    global _last_terrain_snapshot, _last_per_ship
+    _last_terrain_snapshot = frozenset()
+    _last_per_ship = {}
+
+
+def _push_radar() -> None:
+    """Two-channel per-ship radar push.
+
+    Channel 1 — ``radar_terrain``: broadcast when terrain id-set changes.
+    Channel 2 — ``radar``: one message per unique ship (tagged ``ship_id``).
+    Each browser client filters by its own ship_id, so consoles sharing a
+    ship (helm, weapons, science …) receive a single culled stream rather
+    than per-client duplicates.  ship_id ``"0"`` = GM / unassigned view;
+    sees all active objects with no distance culling.
+    """
+    global _last_terrain_snapshot, _last_per_ship
+    if _base_mock.sim is None or gui_queue is None:
+        return
+    s = _base_mock.sim
+
+    # --- Channel 1: terrain — only when the terrain id-set changes ---
+    current_terrain_ids = frozenset(s._terrain_ids & s.space_objects.keys())
+    if current_terrain_ids != _last_terrain_snapshot:
+        _last_terrain_snapshot = current_terrain_ids
+        terrain_objects = []
+        for tid in current_terrain_ids:
+            obj = s.space_objects[tid]
+            terrain_objects.append({
+                "id":   str(obj._id),
+                "x":    round(obj._pos.x, 1),
+                "z":    round(obj._pos.z, 1),
+                "side": obj._side,
+            })
+        try:
+            gui_queue.put_nowait({
+                "clientID": 0,
+                "cmd":      "radar_terrain",
+                "objects":  terrain_objects,
+            })
+        except Exception:
+            pass
+
+    # --- Channel 2: per-ship delta ---
+    active_ids = s._active_ids & s.space_objects.keys()
+    r2 = CULL_RADIUS * CULL_RADIUS
+
+    # Build navpoints + client_focus (sent in every per-ship message — small payload).
+    navpts: list = []
+    for name, nav in s.nav_points.items():
+        navpts.append({"name": name, "x": round(nav._pos.x, 1), "z": round(nav._pos.z, 1)})
+
+    client_focus: dict = {}
+    for cid, ship_id in s.client_ships.items():
+        obj = s.space_objects.get(ship_id)
+        if obj is not None:
+            client_focus[str(cid)] = {
+                "x":       round(obj._pos.x, 1),
+                "z":       round(obj._pos.z, 1),
+                "ship_id": str(ship_id),
+            }
+
+    # Unique ships with at least one connected client, plus the GM view (ship_id=0).
+    ships: dict = {}          # ship_id (int) → space_object or None
+    for sid in s.client_ships.values():
+        if sid not in ships:
+            ships[sid] = s.space_objects.get(sid)
+    ships[0] = None           # GM / spectator / unassigned — no distance culling
+
+    for ship_id, ship_obj in ships.items():
+        sid_str = str(ship_id)
+        last    = _last_per_ship.setdefault(sid_str, {})
+
+        # Determine the visible set for this ship.
+        if ship_obj is not None:
+            sx, sz  = ship_obj._pos.x, ship_obj._pos.z
+            in_view: set = set()
+            for id_ in active_ids:
+                obj = s.space_objects[id_]
+                dx  = obj._pos.x - sx
+                dz  = obj._pos.z - sz
+                if dx * dx + dz * dz <= r2:
+                    in_view.add(id_)
+        else:
+            in_view = set(active_ids)   # GM sees everything
+
+        removed = [str(id_) for id_ in last if id_ not in in_view]
+        changed: list = []
+        new_snap: dict = {}
+
+        for id_ in in_view:
+            obj = s.space_objects[id_]
+            fwd = obj.forward_vector()
+            x   = round(obj._pos.x, 1)
+            z   = round(obj._pos.z, 1)
+            fx  = round(fwd.x, 3)
+            fz  = round(fwd.z, 3)
+            new_snap[id_] = (x, z, fx, fz)
+
+            prev = last.get(id_)
+            if prev is None:
+                changed.append({
+                    "id":        str(id_),
+                    "x": x, "z": z, "fx": fx, "fz": fz,
+                    "side":      obj._side,
+                    "tick_type": obj._tick_type,
+                    "name":      obj.data_set.get("name_tag") or obj.data_set.get("display_text") or "",
+                    "art":       _art_root_for(obj),
+                    "new":       True,
+                })
+            else:
+                lx, lz, lfx, lfz = prev
+                ddx, ddz = x - lx, z - lz
+                dhdg = abs(fx - lfx) + abs(fz - lfz)
+                if (ddx * ddx + ddz * ddz >= _DYNAMIC_POS_THRESHOLD_SQ
+                        or dhdg >= _DYNAMIC_HDG_THRESHOLD):
+                    changed.append({"id": str(id_), "x": x, "z": z, "fx": fx, "fz": fz})
+
+        _last_per_ship[sid_str] = new_snap
+
+        if removed or changed or navpts or client_focus:
+            try:
+                gui_queue.put_nowait({
+                    "clientID":     0,
+                    "cmd":          "radar",
+                    "ship_id":      sid_str,
+                    "removed":      removed,
+                    "changed":      changed,
+                    "navpoints":    navpts,
+                    "client_focus": client_focus,
+                })
+            except Exception:
+                pass
+
+
+def _push_cinematic() -> None:
+    """Stream the resolved cinematic camera for every client currently in a
+    "cinematic" main-screen view.  One small message per client per tick; the
+    browser reuses its radar object buffers (on the y=0 plane) for the scene.
+    """
+    if _base_mock.sim is None or gui_queue is None:
+        return
+    for cid, modes in list(_base_mock._view_modes.items()):
+        if modes[2] != "cinematic":
+            continue
+        cam = _base_mock.get_cinematic_camera(cid)
+        if cam is None:
+            continue
+        c, t = cam["cam"], cam["target"]
+        try:
+            gui_queue.put_nowait({
+                "clientID": cid,
+                "cmd":      "cinematic",
+                "active":   True,
+                "mode":     cam["mode"],
+                "cam":      [round(c[0], 1), round(c[1], 1), round(c[2], 1)],
+                "target":   [round(t[0], 1), round(t[1], 1), round(t[2], 1)],
+            })
+        except Exception:
+            pass

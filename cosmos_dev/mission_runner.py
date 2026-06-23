@@ -16,7 +16,9 @@ CLI (run from inside missions/sbs_utils/ or pass the full path):
 
 import json
 import os
+import queue as _queue_mod
 import sys
+import threading
 import time
 
 # sbs_utils project root: cosmos_dev/mission_runner.py → cosmos_dev/ → project root
@@ -120,6 +122,26 @@ class _TeeWriter:
         return getattr(self._original, name)
 
 
+def _drain_physics_events(sim, cosmos_event_handler, FakeEvent) -> None:
+    """Drain collision events queued by the physics background thread.
+
+    Each entry in _pending_physics_events is (tag, sub_tag, origin_id, selected_id).
+    Uses queue.Queue.get_nowait() for thread-safe non-blocking reads.
+    """
+    import cosmos_dev.mock.sbs as _mock
+    while True:
+        try:
+            tag, sub_tag, origin_id, selected_id = _mock._pending_physics_events.get_nowait()
+        except _queue_mod.Empty:
+            break
+        ev = FakeEvent(client_id=0, tag=tag, sub_tag=sub_tag,
+                       origin_id=origin_id, selected_id=selected_id)
+        try:
+            cosmos_event_handler(sim, ev)
+        except Exception as e:
+            print(f"[runner] physics event error ({tag}/{sub_tag}): {e}")
+
+
 def _drain_client_strings(sim, cosmos_event_handler, FakeEvent) -> None:
     """Fire pending client_string response events queued by request_client_string().
 
@@ -210,16 +232,72 @@ def _run(
     Gui.client_start_page_class(_MissionPage)
 
     tick_sleep = 1.0 / tick_rate
-    _map_started = map_arg is None  # skip auto-start when no map was requested
-    print(f"[runner] running at {tick_rate} Hz  (Ctrl+C to quit)")
+    _mast_interval = max(1, round(tick_rate / 5))   # MAST at 5 Hz
+    _mast_counter  = 0
+    _map_started   = map_arg is None  # skip auto-start when no map was requested
+
+    # Physics runs in a background daemon thread at 2 Hz, decoupled from MAST.
+    # The main loop drains physics events each iteration via queue.Queue.get_nowait().
+    _stop_physics = threading.Event()
+
+    def _physics_worker(sbs_mod, stop_ev):
+        while not stop_ev.is_set():
+            if sbs_mod.sim is not None and not sbs_mod.sim._paused:
+                try:
+                    sbs_mod.physics_tick(dt=0.5)
+                except Exception as e:
+                    print(f"[runner] physics worker error: {e}")
+            stop_ev.wait(timeout=0.5)   # 2 Hz; exits promptly on stop signal
+
+    _physics_thread = threading.Thread(
+        target=_physics_worker,
+        args=(sbs, _stop_physics),
+        daemon=True,
+        name="sbs-physics",
+    )
+    _physics_thread.start()
+    print(f"[runner] running at {tick_rate} Hz  (MAST 5 Hz, physics 2 Hz background thread)")
+
+    # Guard: clients that connect before the server's first MAST tick would run their
+    # client_connect handler against uninitialised game state.  Buffer those connections
+    # and show a placeholder, then replay them once the server tick completes.
+    _server_initialized = False
+    _pending_client_connects: list = []   # client IDs waiting for server init
+
+    def _show_waiting_screen(cid: int) -> None:
+        if not gui or not hasattr(sbs, "send_gui_clear"):
+            return
+        try:
+            sbs.send_gui_clear(cid, "")
+            sbs.send_gui_text(cid, "", "wait_msg",
+                              "$text:Server initializing – please wait…;"
+                              "color:#00e5ff;font:gui-3;",
+                              5, 40, 95, 60)
+            sbs.send_gui_complete(cid, "")
+        except Exception:
+            pass
+
+    def _fire_client_connect(cid: int) -> None:
+        sbs.register_client(cid)
+        cosmos_event_handler(sbs.sim, FakeEvent(client_id=cid, tag="client_connect"))
+        _drain_client_strings(sbs.sim, cosmos_event_handler, FakeEvent)
+        if hasattr(sbs, "_force_terrain_push"):
+            sbs._force_terrain_push()
+
     try:
         while True:
             sim_state = "sim_paused" if sbs.sim._paused else "sim_running"
             tick_event = FakeEvent(client_id=0, tag="mission_tick", sub_tag=sim_state)
 
+            # Determine whether this loop iteration fires a MAST tick (5 Hz).
+            _mast_counter += 1
+            run_mast = _mast_counter >= _mast_interval
+            if run_mast:
+                _mast_counter = 0
+
             if gui:
-                # GUI widget events (button clicks etc.) processed before the tick
-                # so their effects are visible in the same tick's MAST execution.
+                # GUI widget events (button clicks etc.) — always drain every loop
+                # iteration so button presses feel immediate regardless of MAST rate.
                 while not sbs.gui_event_queue.empty():
                     try:
                         gev    = sbs.gui_event_queue.get_nowait()
@@ -237,39 +315,54 @@ def _run(
                                 gev_ev.sub_float = float(val)
                             elif etype in ("change", "submit") and val != "":
                                 gev_ev.value_tag = str(val)
-                        cosmos_event_handler(sim, gev_ev)
+                        cosmos_event_handler(sbs.sim, gev_ev)
                     except Exception as e:
                         print(f"[runner] gui event error: {e}")
 
-            # Server tick — guarantees server page exists before client connects.
-            cosmos_event_handler(sim, tick_event)
-            sim._time_tick_counter += 1
+            if run_mast:
+                # Server MAST tick at 5 Hz.
+                # Use sbs.sim (not the captured sim) so that sim_create() in a script
+                # replaces the active simulation without breaking the tick loop.
+                cosmos_event_handler(sbs.sim, tick_event)
+                sbs.sim._time_tick_counter += 1
+                # Drain any client_string responses queued during this tick.
+                _drain_client_strings(sbs.sim, cosmos_event_handler, FakeEvent)
 
-            # Drain any client_string responses queued during this tick.
-            # request_client_string() appends to sbs._pending_client_string_events;
-            # each iteration here fires the matching 'client_string' event so that
-            # ClientStringPromise resolves and the waiting MAST task can advance.
-            # Loop because resolving one promise may immediately queue the next.
-            _drain_client_strings(sim, cosmos_event_handler, FakeEvent)
+                if not _server_initialized:
+                    _server_initialized = True
+                    if _pending_client_connects:
+                        print(f"[runner] server ready — replaying {len(_pending_client_connects)} "
+                              f"deferred client connect(s)")
+                    for cid in _pending_client_connects:
+                        print(f"[runner] deferred client_connect: {cid}")
+                        _fire_client_connect(cid)
+                    _pending_client_connects.clear()
+
+            # Drain physics events queued by the background physics thread.
+            _drain_physics_events(sbs.sim, cosmos_event_handler, FakeEvent)
 
             if gui:
-                # Client connect/disconnect processed after server has ticked,
-                # so the server page is already initialised when the client's
-                # MAST main task starts running.
+                # Client connect/disconnect — always check every loop iteration so
+                # connections are registered promptly regardless of MAST rate.
                 while not sbs.client_event_queue.empty():
                     try:
                         cev = sbs.client_event_queue.get_nowait()
                         if cev.get("event") == "connect":
                             cid = cev["clientID"]
-                            print(f"[runner] client {cid} connected")
-                            sbs.register_client(cid)
-                            cosmos_event_handler(sim, FakeEvent(client_id=cid, tag="client_connect"))
-                            # Drain client_string events queued during client_connect
-                            # (client_main calls gui_request_client_string three times).
-                            _drain_client_strings(sim, cosmos_event_handler, FakeEvent)
+                            if not _server_initialized:
+                                print(f"[runner] client {cid} connected early "
+                                      f"— deferring until server init")
+                                _pending_client_connects.append(cid)
+                                _show_waiting_screen(cid)
+                            else:
+                                print(f"[runner] client {cid} connected")
+                                _fire_client_connect(cid)
                         elif cev.get("event") == "disconnect":
                             cid = cev.get("clientID")
                             print(f"[runner] client {cid} disconnected")
+                            _pending_client_connects[:] = [
+                                c for c in _pending_client_connects if c != cid
+                            ]
                             sbs.unregister_client(cid)
                     except Exception as e:
                         print(f"[runner] client event error: {e}")
@@ -283,6 +376,8 @@ def _run(
     except KeyboardInterrupt:
         print("\n[runner] stopped")
     finally:
+        _stop_physics.set()
+        _physics_thread.join(timeout=1.0)
         if _orig_stdout is not None:
             sys.stdout = _orig_stdout
         if _orig_stderr is not None:

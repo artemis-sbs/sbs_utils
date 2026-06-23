@@ -198,9 +198,9 @@ async def _broadcast(payload: dict) -> None:
     # clear/complete carry the region tag in 'tag'; widget commands carry it in 'parent'
     region_tag = payload.get("tag", "") if cmd in ("clear", "complete") else payload.get("parent", "")
 
-    if cmd == "log":
-        # Log messages go to all browsers but are never recorded in frames
-        # (they must not replay when a new browser tab connects).
+    if cmd in ("log", "radar", "radar_terrain", "widget_rect", "cinematic"):
+        # Transient messages: broadcast to all live browsers but never recorded
+        # in frames (must not replay to a newly connected tab).
         async with _get_lock():
             targets: Set[asyncio.StreamWriter] = set()
             for bucket in _connections.values():
@@ -271,13 +271,32 @@ async def _broadcast(payload: dict) -> None:
                     bucket.discard(writer)
 
 # ---------------------------------------------------------------------------
-# Queue dispatcher
+# Queue dispatcher — drains all pending commands per event-loop tick
 # ---------------------------------------------------------------------------
 async def _queue_dispatcher() -> None:
+    """Block until at least one command is ready, then drain all remaining
+    commands that arrived concurrently and broadcast each.
+
+    Draining the full queue before yielding back to the event loop reduces
+    WebSocket frame count from O(widgets) to effectively O(1) per MAST tick,
+    because all send_gui_* calls from one tick accumulate between two
+    consecutive asyncio iterations.
+    """
+    import queue as _q
     loop = asyncio.get_event_loop()
     while True:
-        payload = await loop.run_in_executor(None, _gui_queue.get)
-        await _broadcast(payload)
+        # Block until the first message arrives (releases GIL while waiting).
+        first = await loop.run_in_executor(None, _gui_queue.get)
+        # Non-blocking drain of any additional messages that arrived concurrently.
+        batch = [first]
+        while True:
+            try:
+                batch.append(_gui_queue.get_nowait())
+            except _q.Empty:
+                break
+        # Broadcast each command so frame state is recorded correctly.
+        for payload in batch:
+            await _broadcast(payload)
 
 # ---------------------------------------------------------------------------
 # WebSocket connection handler
