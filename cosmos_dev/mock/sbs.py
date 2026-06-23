@@ -1941,8 +1941,29 @@ def register_behavior(tick_type: str, fn) -> None:
     _behavior_registry[tick_type] = fn
 
 
+# Absolute engine speed (units/sec at throttle=1.0, speed_coeff=1.0).  shipData only
+# carries speed_coeff (a 0.0-1.0 multiplier), never an absolute top speed, so the
+# absolute meters/sec lives here as a constant the coefficient scales.
+BASE_TOP_SPEED = 200.0
+# Additional units/sec per warp factor for player ships (playerThrottle > 1.0).
+PLAYER_WARP_SPEED = 1000.0
+# How fast _cur_speed eases toward its target (units/sec^2) — speed ramps, never snaps.
+SPEED_RAMP_RATE = 60.0
+
+
+def _ramp_speed(obj: space_object, target_speed: float, dt: float) -> None:
+    """Ease obj._cur_speed toward target_speed at SPEED_RAMP_RATE; no instant changes."""
+    cur = obj._cur_speed
+    step = SPEED_RAMP_RATE * dt
+    if cur < target_speed:
+        obj._cur_speed = min(target_speed, cur + step)
+    elif cur > target_speed:
+        obj._cur_speed = max(target_speed, cur - step)
+
+
 def _npcship_steer(obj: space_object, dt: float) -> None:
-    """Default NPC ship behavior: steer toward target_pos_x/y/z, speed from throttle × speed_coeff."""
+    """Default NPC ship behavior: steer toward target_pos_x/y/z; speed ramps toward
+    throttle × BASE_TOP_SPEED × speed_coeff."""
     ds = obj.data_set
     if ds.get("deathState") > 0:
         obj._steer_yaw = 0.0
@@ -1970,12 +1991,35 @@ def _npcship_steer(obj: space_object, dt: float) -> None:
     else:
         obj._steer_yaw = 0.0
 
-    speed = ds.get("total_speed_coeff") or ds.get("speed_coeff") or 0.0
-    obj._cur_speed = throttle * (speed if speed > 0.0 else 200.0)
+    # speed_coeff / total_speed_coeff are 0.0-1.0 multipliers on the absolute top
+    # speed — not a speed themselves.  Default to 1.0 when unset (coeffs default to 1.0).
+    speed_coeff = ds.get("total_speed_coeff") or ds.get("speed_coeff") or 1.0
+    target_speed = throttle * BASE_TOP_SPEED * speed_coeff
+    _ramp_speed(obj, target_speed, dt)
 
 
-# Pre-register default NPC ship behavior; mission code may override with register_behavior().
+def _playership_drive(obj: space_object, dt: float) -> None:
+    """Default player ship behavior: drive forward along current heading from
+    playerThrottle (0.0-5.0; <=1.0 impulse, >1.0 warp).  Helm sets _steer_yaw
+    elsewhere — this only ramps forward speed."""
+    ds = obj.data_set
+    if ds.get("deathState") > 0:
+        obj._cur_speed = 0.0
+        return
+
+    pt = ds.get("playerThrottle") or 0.0
+    speed_coeff = ds.get("total_speed_coeff") or ds.get("speed_coeff") or 1.0
+    if pt <= 1.0:
+        target_speed = pt * BASE_TOP_SPEED * speed_coeff
+    else:
+        # Warp: full impulse plus a warp-factor bonus.
+        target_speed = (BASE_TOP_SPEED + (pt - 1.0) * PLAYER_WARP_SPEED) * speed_coeff
+    _ramp_speed(obj, target_speed, dt)
+
+
+# Pre-register default behaviors; mission code may override with register_behavior().
 _behavior_registry["behav_npcship"] = _npcship_steer
+_behavior_registry["behav_playership"] = _playership_drive
 
 
 # ---------------------------------------------------------------------------
