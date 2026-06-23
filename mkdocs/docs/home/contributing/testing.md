@@ -44,7 +44,7 @@ re-initialises `fs.exe_dir` and `fs.script_dir` correctly.
 
 ## Mock Setup
 
-`sbs_utils/mock/sbs.py` provides a partial stub of the Pybind11 `sbs` API so
+`cosmos_dev/mock/sbs.py` provides a partial stub of the Pybind11 `sbs` API so
 tests can run without a Cosmos process.
 
 Typical test setUp:
@@ -54,7 +54,7 @@ import unittest
 from sbs_utils.fs import test_set_exe_dir
 test_set_exe_dir()
 
-import sbs_utils.mock.sbs as sbs
+from cosmos_dev.mock import sbs
 from sbs_utils.helpers import FrameContext, Context, FakeEvent
 from sbs_utils.agent import Agent
 from sbs_utils.spaceobject import SpaceObject

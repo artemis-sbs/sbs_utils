@@ -71,7 +71,7 @@ A `.vscode/launch.json` inside the mission folder wires up debugpy.  The
 
 **`.env`** (already present in LegendaryMissions):
 ```ini
-PYTHONPATH=../sbs_utils;../sbs_utils/mock;${PYTHONPATH};../../../PyAddons
+PYTHONPATH=../sbs_utils;${PYTHONPATH};../../../PyAddons
 ```
 
 **`.vscode/launch.json`**:

@@ -135,7 +135,7 @@ from sbs_utils.fs import test_set_exe_dir
 test_set_exe_dir()
 ```
 
-`sbs_utils/mock/` provides a partial mock of the `sbs` Pybind11 API. Call `sbs.create_new_sim()` and set `FrameContext.context = Context(sbs.sim, sbs, FakeEvent())` in `setUp`. Call `SpaceObject.clear()` to reset all agent state between tests.
+`cosmos_dev/mock/sbs.py` provides a partial mock of the `sbs` Pybind11 API. Import it with `from cosmos_dev.mock import sbs`. Call `sbs.create_new_sim()` and set `FrameContext.context = Context(sbs.sim, sbs, FakeEvent())` in `setUp`. Call `SpaceObject.clear()` to reset all agent state between tests.
 
 ---
 
@@ -237,7 +237,6 @@ sbs_utils/
 ├── procedural/     # Procedural API
 │   └── gui/        # GUI procedural helpers
 ├── cards/          # Tilemap / ASCII map system
-├── mock/           # sbs API mock for tests
 ├── yaml/           # Bundled pyyaml (no pip)
 └── typings/        # .pyi stubs (generated, not source)
 
