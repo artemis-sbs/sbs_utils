@@ -24,9 +24,12 @@ _pending_client_string_events: list = []  # [(client_id, key), ...]
 # main loop get_nowait()s without needing additional locking.
 _pending_physics_events: queue.Queue = queue.Queue()
 
-# Currently-overlapping collision pairs — used to fire only on contact entry.
-# Each pair is (min_id, max_id) so order is canonical.
-_contact_pairs: set = set()
+# Currently-overlapping collision pairs — used to fire start on contact entry
+# and end on contact exit. Maps the canonical pair (min_id, max_id) to
+# (kind, id_a, id_b) where kind is "passive" (collision involving a static
+# terrain object) or "interactive" (two dynamic/active objects), so the matching
+# *_collision_end event can be emitted with the right tag/ids after exit.
+_contact_pairs: dict = {}
 
 # Behavior dispatch: tick_type string → callable(space_object, dt_seconds)
 _behavior_registry: dict = {}
@@ -2080,7 +2083,12 @@ def _physics_collision(sim, active: list) -> None:
     """
     global _contact_pairs
     if not active:
-        _contact_pairs = set()
+        # Everything left contact — emit end events for any open contacts.
+        for (kind, ia, ib) in _contact_pairs.values():
+            tag = f"{kind}_collision_end"
+            _pending_physics_events.put((tag, kind, ia, ib))
+            _pending_physics_events.put((tag, kind, ib, ia))
+        _contact_pairs = {}
         return
 
     space = sim.space_objects
@@ -2106,7 +2114,8 @@ def _physics_collision(sim, active: list) -> None:
             ck = _cell(obj._pos.x, obj._pos.z, cell_sz)
             terrain_grid.setdefault(ck, []).append((tid, obj))
 
-    new_contacts: set = set()
+    # canonical pair (min,max) -> (kind, id_a, id_b)
+    new_contacts: dict = {}
     visited: set = set()
 
     # Active vs active — 9-cell neighborhood, upper-triangle dedup via visited.
@@ -2132,10 +2141,8 @@ def _physics_collision(sim, active: list) -> None:
                 ddy = a._pos.y - b._pos.y
                 ddz = a._pos.z - b._pos.z
                 if ddx * ddx + ddy * ddy + ddz * ddz < (ra + rb) * (ra + rb):
-                    new_contacts.add(pair)
-                    if pair not in _contact_pairs:
-                        _pending_physics_events.put(("collision", "passive", aid, bid))
-                        _pending_physics_events.put(("collision", "passive", bid, aid))
+                    # two active (dynamic) objects -> interactive collision
+                    new_contacts[pair] = ("interactive", aid, bid)
 
     # Active vs terrain — terrain never in active_grid so no dedup needed.
     for (cx, cz), cell_list in active_grid.items():
@@ -2153,10 +2160,21 @@ def _physics_collision(sim, active: list) -> None:
                         ddz = a._pos.z - t._pos.z
                         if ddx * ddx + ddy * ddy + ddz * ddz < (ra + rt) * (ra + rt):
                             pair = (min(aid, tid), max(aid, tid))
-                            new_contacts.add(pair)
-                            if pair not in _contact_pairs:
-                                _pending_physics_events.put(("collision", "passive", aid, tid))
-                                _pending_physics_events.put(("collision", "passive", tid, aid))
+                            # active vs static terrain -> passive collision
+                            new_contacts[pair] = ("passive", aid, tid)
+
+    # Diff against the previous frame: start on contact entry, end on exit.
+    # Both id orderings are emitted so each object sees itself as origin.
+    for pair, (kind, ia, ib) in new_contacts.items():
+        if pair not in _contact_pairs:
+            tag = f"{kind}_collision_start"
+            _pending_physics_events.put((tag, kind, ia, ib))
+            _pending_physics_events.put((tag, kind, ib, ia))
+    for pair, (kind, ia, ib) in _contact_pairs.items():
+        if pair not in new_contacts:
+            tag = f"{kind}_collision_end"
+            _pending_physics_events.put((tag, kind, ia, ib))
+            _pending_physics_events.put((tag, kind, ib, ia))
 
     _contact_pairs = new_contacts
 
