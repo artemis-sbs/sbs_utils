@@ -224,6 +224,13 @@ def _run(
     # missions_root = .../data/missions  →  exe_dir = .../Cosmos-x.x.x
     from sbs_utils import fs
     fs.exe_dir = os.path.dirname(os.path.dirname(missions_root))
+    # The mission dir is derived from fs.script_dir.  We set sys.modules["script"]
+    # to __main__ (the runner) above, so get_script_dir() would otherwise resolve
+    # to the runner's directory and get_mission_dir_filename("settings.yaml") would
+    # miss — leaving every settings.yaml value (AUTO_PLAY, DIFFICULTY, PLAYER_COUNT,
+    # ...) at its built-in default.  In the real engine script.py lives in the
+    # mission folder, so point script_dir there explicitly to match.
+    fs.script_dir = os.path.abspath(mission_folder).replace("/", "\\")
 
     # Import order matters: core nodes before Cosmos extensions
     from sbs_utils.mast import core_nodes               # noqa: F401 — side-effect: registers node types
