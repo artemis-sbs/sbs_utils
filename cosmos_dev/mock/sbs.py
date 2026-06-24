@@ -2194,6 +2194,24 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
     ds = obj.data_set
     if (ds.get("armorMax") or 0.0) <= 0:
         return  # no hull -> not damageable (asteroids, markers, etc.)
+    # Shields absorb first (engine reduces the hit shield). System/internal damage
+    # only happens AFTER shields are down. Mock uses shield_val[0] as a pooled shield.
+    shield = ds.get("shield_val") or 0.0
+    if shield > 0:
+        if amount <= shield:
+            ds.set("shield_val", shield - amount, 0)
+            _pending_physics_events.put(("damage", "", source_id, target_id))
+            return
+        amount -= shield
+        ds.set("shield_val", 0.0, 0)
+    # Shields down. Engine model: a PLAYER hit becomes INTERNAL damage - a hit the
+    # script processes (LegendaryMissions damages grid systems + sets system
+    # damage), not direct hull loss. Fire damage + player_internal_damage; the
+    # script governs player survival. (NPC -> hull below.)
+    if obj._abits & 0x20:   # TickType.PLAYER
+        _pending_physics_events.put(("damage", "", source_id, target_id))
+        _pending_physics_events.put(("player_internal_damage", "", source_id, target_id))
+        return
     armor = (ds.get("armor") or 0.0) - amount
     if armor > 0:
         ds.set("armor", armor)
@@ -2297,6 +2315,7 @@ _DRONE_CYCLE = 10.0
 # nearby object. (Distinct from the real per-system data_set "system_cur_heat".)
 _BEAM_HEAT = 0.2
 _HEAT_DECAY = 0.05          # per second
+_HEAT_CRITICAL = 1.0        # _heat above this fires heat_critical_damage (once per crossing)
 _HEAT_SEEK_RADIUS = 8000.0
 
 
@@ -2407,10 +2426,17 @@ def _physics_projectiles(sim, dt: float) -> None:
 
 
 def _physics_heat(active: list, dt: float) -> None:
-    """Decay simple ship heat over time (firing adds it in _physics_beams)."""
+    """Decay simple ship heat over time (firing adds it in _physics_beams), and
+    fire heat_critical_damage when a ship overheats (once per crossing, with
+    hysteresis) -> //damage/heat."""
     d = _HEAT_DECAY * dt
     for _aid, a in active:
         h = getattr(a, "_heat", 0.0)
+        if h > _HEAT_CRITICAL and not getattr(a, "_heat_crit", False):
+            a._heat_crit = True
+            _pending_physics_events.put(("heat_critical_damage", "", _aid, _aid))
+        elif h < _HEAT_CRITICAL * 0.8:
+            a._heat_crit = False
         if h > 0.0:
             a._heat = max(0.0, h - d)
 
