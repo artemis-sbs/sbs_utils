@@ -265,7 +265,7 @@ def _run(
 
     # Physics runs in a background daemon thread, decoupled from MAST.
     # The main loop drains physics events each iteration via queue.Queue.get_nowait().
-    _PHYSICS_HZ = 16.0
+    _PHYSICS_HZ = 30.0
     _PHYSICS_DT = 1.0 / _PHYSICS_HZ      # sim-seconds advanced per physics tick
     _stop_physics = threading.Event()
 
