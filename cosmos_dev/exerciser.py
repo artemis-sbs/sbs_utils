@@ -27,6 +27,7 @@ class Exerciser:
         # budget to trip //damage/internal + heat a few times, then back off and
         # let real beam combat carry on.
         self._precondition_budget = 8
+        self._comms_step = 0     # rotates the comms button-walk path each step
 
     def _server_ctx(self):
         """Return the server task, or None if not ready."""
@@ -70,6 +71,16 @@ class Exerciser:
                         # Route runtime errors flow to the verdict via the
                         # MastScheduler seam; count Python-level failures here.
                         self.errors += 1
+                # follow_route_select_comms opened a live comms session; walk its
+                # button tree to reach //comms/<submenu> routes the root never hits.
+                self._walk_comms_buttons(pid, tid)
+                # Also hail OWN ship (origin==selected) to reach internal/crew comms
+                # (sickbay, security, engineering...) - a different comms context.
+                try:
+                    follow_route_select_comms(pid, pid)
+                except Exception:
+                    self.errors += 1
+                self._walk_comms_buttons(pid, pid)
                 # Weapons: lock the nearest armed hostile so player beams engage
                 # -> hits -> //damage routes. Stable target so the 6s beam cooldown
                 # isn't reset by retargeting every tick.
@@ -89,6 +100,32 @@ class Exerciser:
         finally:
             FrameContext.task = prev_task
             FrameContext.mast = prev_mast
+
+    _COMMS_WIDTH = 6     # max button index tried per comms level
+
+    def _walk_comms_buttons(self, pid, tid):
+        """Press comms buttons on the session just opened by
+        follow_route_select_comms, walking ~2 levels deep so //comms/<submenu>
+        routes fire (the root select alone only hits //comms). A button press is
+        a `press_comms_button` event (sub_tag = index) dispatched to
+        comms_target_UID - the same path handlerhooks uses. Out-of-range indices
+        no-op (CommsPromise guards `index < len(buttons)`). Rotates a depth-2 path
+        across steps to fan out over the tree. TEST-ONLY: surfacing a broken comms
+        route as a verdict failure is the point of the systems test."""
+        from sbs_utils.consoledispatcher import ConsoleDispatcher
+        from sbs_utils.helpers import FakeEvent
+        w = self._COMMS_WIDTH
+        path = (self._comms_step % w, (self._comms_step // w) % w)
+        self._comms_step += 1
+        for idx in path:
+            ev = FakeEvent(client_id=0, tag="press_comms_button", sub_tag=str(idx),
+                           origin_id=pid, selected_id=tid, value_tag="comms_target_UID")
+            try:
+                ConsoleDispatcher.dispatch_message(ev, "comms_target_UID")
+            except Exception:
+                # Route errors flow to the verdict via the scheduler seam; count
+                # Python-level failures here.
+                self.errors += 1
 
     def _pick_enemy(self, sbs, pid, exclude=None, prefer_beams=False):
         """Nearest *damageable hostile* to `pid` (raider/enemy/monster preferred;
