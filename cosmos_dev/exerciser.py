@@ -22,6 +22,11 @@ class Exerciser:
         self.errors = 0
         self.enemies_last = 0   # diagnostics
         self.forced = 0
+        # Preconditioning (shields-down + overheat) is lethal if applied forever -
+        # it kills the player and starves late-game/respawn content. Spend a small
+        # budget to trip //damage/internal + heat a few times, then back off and
+        # let real beam combat carry on.
+        self._precondition_budget = 8
 
     def _server_ctx(self):
         """Return the server task, or None if not ready."""
@@ -115,9 +120,13 @@ class Exerciser:
         and forward arc, and wire mutual weapon targeting, so REAL beams trade
         fire both ways - exercising //damage (player->npc) and //damage/internal
         + //damage/heat (npc->player) through the genuine damage flow that the
-        synthetic _force_combat can't reach. Re-pins each step so the pair stays
-        engaged. The teleport lives ONLY here; autoplay never moves objects.
-        Returns the staged enemy id (kept alive), or None."""
+        synthetic _force_combat can't reach. A brief opening burst (budgeted in
+        __init__) trips the internal + heat routes a few times, then it stops so
+        the player isn't machine-gunned to death and normal combat carries on.
+        The teleport lives ONLY here; autoplay never moves objects. Returns the
+        staged enemy id, or None."""
+        if self._precondition_budget <= 0:
+            return None                          # opening burst spent; let combat run
         space = sbs.sim.space_objects
         p = space.get(pid)
         if p is None:
@@ -153,6 +162,7 @@ class Exerciser:
         # hit (apply_damage) produce the internal hit, and the heat model fire.
         p.data_set.set("shield_val", 0.0, 0)         # shields down -> next hit is internal
         p._heat = max(getattr(p, "_heat", 0.0), 1.5) # overheat -> heat_critical_damage
+        self._precondition_budget -= 1
         self.forced += 1
         return e_id
 
