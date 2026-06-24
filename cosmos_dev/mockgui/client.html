@@ -850,8 +850,9 @@ function _sideColor(side) {
 // Plain HTMLImageElements (for 2D-canvas drawImage); the Three-only _loadTex
 // helper can't be reused here. Returns the cached <img> once decoded, else null.
 // Rotation to add so a sprite's "nose" aligns with its heading. Cosmos top-down
-// art points up (north); adjust here if a given art set points elsewhere.
-const _SPRITE_ART_OFFSET = 0;
+// art points down (south) — i.e. the nose is 180° from the heading vector — so
+// add π. Adjust here if a given art set points elsewhere.
+const _SPRITE_ART_OFFSET = Math.PI;
 const _spriteCache = new Map();   // art root → { img, ready }
 function _shipSprite(art) {
   if (!art) return null;
