@@ -2361,8 +2361,15 @@ def _physics_beams(sim, active: list, dt: float) -> None:
             dmg = base * (beam_dmg / _BEAM_LOAD_BASE)
         else:
             dmg = beam_dmg
+        # Engine fires every beam emitter separately - each is its own hit/event
+        # (shields absorb per hit), not one big multiplied hit. Fire one
+        # apply_damage per beam so a 4-beam ship deals 4 hits per volley and the
+        # //damage routes fire per beam. Without this the mock under-damages.
         if dmg > 0:
-            apply_damage(tid, dmg, aid)
+            for _ in range(max(1, int(ds.get("beamCount") or 1))):
+                if tid not in space:
+                    break                      # target destroyed by an earlier beam
+                apply_damage(tid, dmg, aid)
         a._beam_cooldown = ds.get("beamCycleTime") or 6.0
         a._heat = getattr(a, "_heat", 0.0) + _BEAM_HEAT   # firing makes the ship hot
         _beam_fires.append((aid, tid))                    # transient, for the mockgui
