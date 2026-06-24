@@ -207,7 +207,9 @@ class Exerciser:
         # the same preconditions the engine requires, then let the real NPC beam
         # hit (apply_damage) produce the internal hit, and the heat model fire.
         p.data_set.set("shield_val", 0.0, 0)         # shields down -> next hit is internal
-        p._heat = max(getattr(p, "_heat", 0.0), 1.5) # overheat -> heat_critical_damage
+        # Overheat the weapons system (engine system_cur_heat, SHPSYS 0) past
+        # critical -> heat_critical_damage (engineering-style, not combat).
+        p.data_set.set("system_cur_heat", 1.5, 0)
         self._precondition_budget -= 1
         self.forced += 1
         return e_id

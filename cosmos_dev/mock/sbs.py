@@ -2414,7 +2414,9 @@ def _physics_beams(sim, active: list, dt: float) -> None:
                     break                      # target destroyed by an earlier beam
                 apply_damage(tid, dmg, aid)
         a._beam_cooldown = ds.get("beamCycleTime") or 6.0
-        a._heat = getattr(a, "_heat", 0.0) + _BEAM_HEAT   # firing makes the ship hot
+        # Combat heat (_heat) is a mock-only signal for heat-seeking missiles - it
+        # is NOT the engine's system_cur_heat (which is engineering overpower/coolant).
+        a._heat = getattr(a, "_heat", 0.0) + _BEAM_HEAT
         _beam_fires.append((aid, tid))                    # transient, for the mockgui
 
 
@@ -2425,12 +2427,15 @@ _TORP_CYCLE = 8.0
 _TORP_DAMAGE = 40.0
 _DRONE_CYCLE = 10.0
 
-# Simple ship-level heat (object attribute `_heat`, ~0-1 scale): firing beams
-# adds heat, it decays over time, and heat-seeking missiles chase the hottest
-# nearby object. (Distinct from the real per-system data_set "system_cur_heat".)
+# Ship heat uses the engine field `system_cur_heat` (per-system, 0..1): firing
+# beams heats the weapon system, heat decays over time, heat-seeking missiles
+# chase the hottest nearby object, and a system over _HEAT_CRITICAL fires
+# heat_critical_damage (once per crossing).
 _BEAM_HEAT = 0.2
 _HEAT_DECAY = 0.05          # per second
-_HEAT_CRITICAL = 1.0        # _heat above this fires heat_critical_damage (once per crossing)
+_HEAT_CRITICAL = 1.0        # system_cur_heat above this fires heat_critical_damage
+
+
 _HEAT_SEEK_RADIUS = 8000.0
 
 
@@ -2483,15 +2488,15 @@ def launch_drone(source_id: int, target_id: int, damage: float = 20.0,
 
 
 def _hottest_within(sim, pos, radius: float, exclude_id: int) -> int:
-    """Return the id of the hottest object (largest _heat) within `radius` of
-    `pos`, or 0 if none. Used by heat-seeking missiles."""
+    """Return the id of the hottest object (largest system heat) within `radius`
+    of `pos`, or 0 if none. Used by heat-seeking missiles."""
     best = 0
     best_heat = 0.0
     r2 = radius * radius
     for oid, o in sim.space_objects.items():
         if oid == exclude_id:
             continue
-        h = getattr(o, "_heat", 0.0)
+        h = getattr(o, "_heat", 0.0)   # combat heat (firing) drives heat-seekers
         if h <= best_heat:
             continue
         dx = o._pos.x - pos.x
@@ -2541,21 +2546,34 @@ def _physics_projectiles(sim, dt: float) -> None:
 
 
 def _physics_heat(active: list, dt: float) -> None:
-    """Decay simple ship heat over time (firing adds it in _physics_beams), and
-    fire heat_critical_damage when a ship overheats (once per crossing, with
-    hysteresis) -> //damage/heat."""
+    """Two separate heat models:
+      * Combat heat (_heat): mock-only, raised by firing (_physics_beams), decays;
+        drives heat-seeking missiles. Not a damage source.
+      * System heat (engine system_cur_heat, per SHPSYS): engineering overpower /
+        coolant. The mock doesn't simulate engineering, so it only rises when a
+        script/test drives it; a system over _HEAT_CRITICAL fires
+        heat_critical_damage (once per crossing per system) -> //damage/heat."""
     d = _HEAT_DECAY * dt
     for _aid, a in active:
-        h = getattr(a, "_heat", 0.0)
-        if h > _HEAT_CRITICAL and not getattr(a, "_heat_crit", False):
-            a._heat_crit = True
-            # //damage/heat: origin = ship, sub_tag = overheated system index
-            # (int-parsed by the route). See LM internal_damage.mast.
-            _pending_physics_events.put(("heat_critical_damage", "0", _aid, _aid))
-        elif h < _HEAT_CRITICAL * 0.8:
-            a._heat_crit = False
-        if h > 0.0:
-            a._heat = max(0.0, h - d)
+        ch = getattr(a, "_heat", 0.0)
+        if ch > 0.0:
+            a._heat = max(0.0, ch - d)
+        ds = a.data_set
+        crit = getattr(a, "_heat_crit", None)
+        if crit is None:
+            crit = {}
+            a._heat_crit = crit
+        for _n, idx in SHIP_SYSTEMS:
+            h = ds.get("system_cur_heat", idx) or 0.0
+            if h > _HEAT_CRITICAL and not crit.get(idx):
+                crit[idx] = True
+                # //damage/heat: origin = ship, sub_tag = overheated system index
+                # (int-parsed by the route). See LM internal_damage.mast.
+                _pending_physics_events.put(("heat_critical_damage", str(idx), _aid, _aid))
+            elif h < _HEAT_CRITICAL * 0.8:
+                crit[idx] = False
+            if h > 0.0:
+                ds.set("system_cur_heat", max(0.0, h - d), idx)
 
 
 def _physics_launchers(sim, active: list, dt: float) -> None:

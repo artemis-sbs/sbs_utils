@@ -467,17 +467,20 @@ def _push_2dview_rects() -> None:
 
 
 def _systems_health(ds) -> list:
-    """The 4 engine ship systems (sbs.SHPSYS) as [{name, pct}], from
-    system_damage / system_max_damage per index. No max set (undamaged / no grid
-    model) reads as 100%."""
+    """The 4 engine ship systems (sbs.SHPSYS) as [{name, pct, heat}], where pct is
+    health from system_damage / system_max_damage (100% if no max set) and heat is
+    the engine's system_cur_heat (engineering overpower/coolant, 0..1 -> %)."""
     out = []
     for name, idx in _base_mock.SHIP_SYSTEMS:
         dmg = ds.get("system_damage", idx)
         mx = ds.get("system_max_damage", idx)
+        heat = ds.get("system_cur_heat", idx)
         dmg = 0.0 if dmg is None else float(dmg)
         mx = 0.0 if mx is None else float(mx)
+        heat = 0.0 if heat is None else float(heat)
         pct = round((1.0 - dmg / mx) * 100) if mx > 0 else 100
-        out.append({"name": name, "pct": max(0, min(100, pct))})
+        out.append({"name": name, "pct": max(0, min(100, pct)),
+                    "heat": max(0, min(100, round(heat * 100)))})
     return out
 
 
@@ -511,7 +514,6 @@ def _ship_stat_payload(o, space) -> dict:
         speed=round(float(getattr(o, "_cur_speed", 0.0)), 1),
         dock_state=str(ds.get("dock_state", 0) or ""),
         red_alert=int(g("red_alert", 0)),
-        heat=round(float(getattr(o, "_heat", 0.0)), 2),
         target=tname,
         systems=_systems_health(ds),
         torps=torps,

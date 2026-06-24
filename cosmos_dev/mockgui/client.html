@@ -1149,10 +1149,13 @@ function _bar(v, max, w = 12) {
   return '['.concat('#'.repeat(n), '.'.repeat(w - n), '] ', Math.round(f * 100), '%');
 }
 function _pctColor(p) { return p > 66 ? '#6f6' : p > 33 ? '#fd6' : '#f55'; }
+function _heatColor(h) { return h > 66 ? '#f55' : h > 33 ? '#fd6' : '#9ab'; }
 function _sysCell(s) {
-  const nm = (s.name + '    ').slice(0, 4);
-  const p = (s.pct + '   ').slice(0, 3);
-  return `${nm}<span style="color:${_pctColor(s.pct)}">${p}</span>`;
+  const nm = (s.name + '   ').slice(0, 4);
+  const hp = String(s.pct).padStart(3);
+  const ht = String(s.heat || 0).padStart(2);
+  return nm + `<span style="color:${_pctColor(s.pct)}">${hp}</span>/` +
+         `<span style="color:${_heatColor(s.heat || 0)}">${ht}</span>`;
 }
 // Shared HUD body for a ship's stats. `full` adds flight state + torpedoes
 // (own ship); the target panel omits those (just name/shields/hull/energy/systems).
@@ -1168,14 +1171,13 @@ function _statHtml(msg, full) {
     const dockColor = dock === 'docked' ? '#6f6'
                     : (dock === 'dock_start' || dock === 'docking') ? '#fd6' : '#9ab';
     html += `\nthrtl  ${msg.throttle}   spd ${msg.speed}` +
-            `\nheat   ${msg.heat}` +
             `\ndock   <span style="color:${dockColor}">${dock}</span>` +
             `\ntarget ${msg.target || '—'}`;
   }
-  // Systems: 4 entries, "name pct%" colored by health, two per line (both panels).
+  // Systems: 4 entries, "name hp/heat" (health-colored / heat-colored), 2 per line.
   const sys = msg.systems || [];
   if (sys.length) {
-    html += '\n<span style="color:#7a8a9a">— systems —</span>';
+    html += '\n<span style="color:#7a8a9a">— systems hp/heat —</span>';
     for (let i = 0; i < sys.length; i += 2) {
       html += '\n' + _sysCell(sys[i]) + (sys[i + 1] ? '  ' + _sysCell(sys[i + 1]) : '');
     }
