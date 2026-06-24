@@ -16,6 +16,9 @@ class TestMockguiQueue(unittest.TestCase):
     def setUp(self):
         mockgui.gui_queue = _queue.Queue()
         mockgui.create_new_sim()
+        # create_new_sim() emits a world_reset on every (re)start; discard it so each
+        # test reads from a clean queue.
+        mockgui.gui_queue = _queue.Queue()
 
     def _get(self):
         return mockgui.gui_queue.get_nowait()
@@ -155,6 +158,9 @@ class TestMockguiSimSharing(unittest.TestCase):
     def setUp(self):
         mockgui.gui_queue = _queue.Queue()
         mockgui.create_new_sim()
+        # create_new_sim() emits a world_reset on every (re)start; discard it so each
+        # test reads from a clean queue.
+        mockgui.gui_queue = _queue.Queue()
 
     def test_create_new_sim_sets_mockgui_sim(self):
         self.assertIsNotNone(mockgui.sim)
@@ -188,6 +194,9 @@ class TestMockguiViews(unittest.TestCase):
     def setUp(self):
         mockgui.gui_queue = _queue.Queue()
         mockgui.create_new_sim()
+        # create_new_sim() emits a world_reset on every (re)start; discard it so each
+        # test reads from a clean queue.
+        mockgui.gui_queue = _queue.Queue()
         # Module-global view state persists between calls — reset for isolation.
         mockgui._view2d_widget_clients.clear()
         mockgui._view3d_widget_clients.clear()
