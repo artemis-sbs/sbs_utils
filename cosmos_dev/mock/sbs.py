@@ -61,10 +61,10 @@ def app_minutes() -> int:
     return seconds / 60
 
 def app_seconds() -> int:
-    global seconds, sim
+    # app time only — sim time (time_tick_counter) is advanced by the physics
+    # tick, not by reading the clock.
+    global seconds
     seconds += 1
-    if sim is not None:
-        sim._time_tick_counter += 1
     return seconds
 
 
@@ -1989,6 +1989,11 @@ BASE_TOP_SPEED = 200.0
 PLAYER_WARP_SPEED = 1000.0
 # How fast _cur_speed eases toward its target (units/sec^2) — speed ramps, never snaps.
 SPEED_RAMP_RATE = 60.0
+# Engine sim-tick rate.  simulation.time_tick_counter advances this many ticks per
+# second of sim time; sim_seconds = time_tick_counter / TPS.  Must match
+# sbs_utils.helpers._TPS (30).  The physics tick is the sim-time source (see
+# physics_tick), so it advances the counter by dt * TICKS_PER_SECOND.
+TICKS_PER_SECOND = 30.0
 
 
 def _ramp_speed(obj: space_object, target_speed: float, dt: float) -> None:
@@ -2526,6 +2531,12 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
         return
 
     with sim._lock:
+        # The physics tick is the sim-time source (mirrors the engine, where the
+        # physics/sim tick advances time_tick_counter).  dt is sim-seconds, so the
+        # counter advances dt * TICKS_PER_SECOND; sim_seconds = counter / TPS then
+        # tracks elapsed sim time.  Paused sims don't reach here, so time freezes.
+        sim._time_tick_counter += int(round(dt * TICKS_PER_SECOND))
+
         space = sim.space_objects
         _beam_fires.clear()   # transient per-tick beam-fire record (for the mockgui)
 

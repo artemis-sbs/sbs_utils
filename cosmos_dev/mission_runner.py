@@ -351,7 +351,9 @@ def _run(
                 # Use sbs.sim (not the captured sim) so that sim_create() in a script
                 # replaces the active simulation without breaking the tick loop.
                 cosmos_event_handler(sbs.sim, tick_event)
-                sbs.sim._time_tick_counter += 1
+                # NOTE: sim time (time_tick_counter) is advanced by the physics
+                # tick, not the MAST tick — the physics thread is the sim-time
+                # source, matching the engine.  See cosmos_dev/mock/sbs.py.
                 # Drain any client_string responses queued during this tick.
                 _drain_client_strings(sbs.sim, cosmos_event_handler, FakeEvent)
 
