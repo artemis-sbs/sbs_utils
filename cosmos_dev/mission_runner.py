@@ -183,6 +183,61 @@ def _drain_client_strings(sim, cosmos_event_handler, FakeEvent) -> None:
             print(f"[runner] client_string drain error ({key}): {e}")
 
 
+def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path) -> int:
+    """Print the coverage + verdict report for a --test run; optionally write
+    JUnit XML. Returns the process exit code (0 pass / 1 fail)."""
+    from sbs_utils.gui import Gui
+    mast = None
+    gc = Gui.clients.get(0)
+    if gc is not None and gc.page is not None:
+        mast = getattr(gc.page, "story", None)
+    summ = cov.summary(mast) if cov is not None else {}
+    ok = verdict.ok if verdict is not None else True
+    name = os.path.basename(os.path.abspath(mission_folder))
+
+    print("\n==== mission test report ====")
+    print(f"mission: {name}   map: {map_arg}")
+    if summ:
+        print(f"coverage: labels {summ.get('labels_hit')}/{summ.get('labels_defined','?')} "
+              f"({summ.get('labels_pct','?')}%)   nodes {summ.get('nodes_entered')}")
+        for k, hd in (summ.get("by_kind") or {}).items():
+            print(f"   {k:16} {hd[0]}/{hd[1]}")
+    print(verdict.report() if verdict is not None else "no verdict")
+    print("=============================")
+
+    if junit_path:
+        try:
+            _write_junit(junit_path, name, ok, verdict, summ)
+            print(f"[runner] junit written: {junit_path}")
+        except Exception as e:
+            print(f"[runner] junit write failed: {e}")
+    return 0 if ok else 1
+
+
+def _write_junit(path, name, ok, verdict, summ) -> None:
+    """Minimal JUnit XML: one testsuite, one testcase (the mission run)."""
+    from xml.sax.saxutils import escape
+    failures = 0 if ok else 1
+    cov_txt = ""
+    if summ:
+        cov_txt = (f"coverage labels {summ.get('labels_hit')}/{summ.get('labels_defined','?')} "
+                   f"({summ.get('labels_pct','?')}%), nodes {summ.get('nodes_entered')}")
+    body = ""
+    if not ok and verdict is not None:
+        body = f'      <failure message="runtime errors">{escape(verdict.report())}</failure>\n'
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        f'<testsuite name="cosmos_dev.mission_runner" tests="1" failures="{failures}">\n'
+        f'    <testcase classname="mission" name="{escape(name)}">\n'
+        f'      <system-out>{escape(cov_txt)}</system-out>\n'
+        f'{body}'
+        f'    </testcase>\n'
+        f'</testsuite>\n'
+    )
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(xml)
+
+
 def _run(
     mission_folder: str,
     mast_file: str | None = None,
@@ -191,9 +246,20 @@ def _run(
     port: int = 8765,
     tick_rate: int = 60,
     cosmos_dir: str | None = None,
-) -> None:
+    test_seconds: float | None = None,
+    junit_path: str | None = None,
+) -> int:
     mission_folder = os.path.abspath(mission_folder)
     missions_root  = _find_missions_root(mission_folder)
+
+    # --test SECONDS: headless conformance run. Force GUI off, default to map 0,
+    # install MAST coverage + verdict, run ~SECONDS of sim time, then report +
+    # exit code (0 pass / 1 fail). See AUTOPLAY_PLAN.md.
+    _test = test_seconds is not None
+    if _test:
+        gui = False
+        if map_arg is None:
+            map_arg = 0
 
     # Source project takes precedence over any packaged sbslib on the path
     if _PROJECT_ROOT not in sys.path:
@@ -313,8 +379,24 @@ def _run(
         if hasattr(sbs, "_force_terrain_push"):
             sbs._force_terrain_push()
 
+    _cov = _verdict = None
+    _test_exit = 0
+    _test_wall0 = time.time()
+    _test_wall_cap = (test_seconds * 2 + 30) if _test else 0
+    if _test:
+        from cosmos_dev.coverage import MastCoverage
+        from cosmos_dev.verdict import MastVerdict
+        from sbs_utils.helpers import _TPS as _TEST_TPS
+        _cov = MastCoverage().install()
+        _verdict = MastVerdict().install()
+        print(f"[runner] TEST mode: run ~{test_seconds:g}s sim time, map={map_arg}")
+
     try:
         while True:
+            if _test:
+                _sim_s = sbs.sim.time_tick_counter / _TEST_TPS
+                if _sim_s >= test_seconds or (time.time() - _test_wall0) >= _test_wall_cap:
+                    break
             # run_next_mission(): restart the current mission or switch to another.
             # The engine swaps missions at the process level; here we rebuild the
             # mission in-process between ticks. Polls the mock's pending request.
@@ -389,7 +471,13 @@ def _run(
                 # Server MAST tick at 5 Hz.
                 # Use sbs.sim (not the captured sim) so that sim_create() in a script
                 # replaces the active simulation without breaking the tick loop.
-                cosmos_event_handler(sbs.sim, tick_event)
+                try:
+                    cosmos_event_handler(sbs.sim, tick_event)
+                except Exception as e:
+                    if _verdict is not None:
+                        _verdict.record_exception(e, where="mission_tick")
+                    else:
+                        raise
                 # NOTE: sim time (time_tick_counter) is advanced by the physics
                 # tick, not the MAST tick — the physics thread is the sim-time
                 # source, matching the engine.  See cosmos_dev/mock/sbs.py.
@@ -452,6 +540,14 @@ def _run(
             sys.stderr = _orig_stderr
         if _server_proc is not None and _server_proc.is_alive():
             _server_proc.terminate()
+        if _test:
+            if _cov is not None:
+                _cov.uninstall()
+            if _verdict is not None:
+                _verdict.uninstall()
+            _test_exit = _emit_test_report(mission_folder, map_arg, sbs,
+                                           _cov, _verdict, junit_path)
+    return _test_exit
 
 
 def run_mission(
@@ -462,9 +558,11 @@ def run_mission(
     port: int = 8765,
     tick_rate: int = 60,
     cosmos_dir: str | None = None,
-) -> None:
+    test_seconds: float | None = None,
+    junit_path: str | None = None,
+) -> int:
     """Entry point for per-mission extern_debug.py wrappers."""
-    _run(
+    return _run(
         mission_folder=os.path.dirname(os.path.abspath(caller_file)),
         mast_file=mast_file,
         map_arg=map_arg,
@@ -472,6 +570,8 @@ def run_mission(
         port=port,
         tick_rate=tick_rate,
         cosmos_dir=cosmos_dir,
+        test_seconds=test_seconds,
+        junit_path=junit_path,
     )
 
 
@@ -504,6 +604,11 @@ if __name__ == "__main__":
                     help="Ticks per second  [default: 60]")
     ap.add_argument("--cosmos-dir", default=None,
                     help="Cosmos install root for image serving  [default: auto-detected]")
+    ap.add_argument("--test", type=float, default=None, metavar="SECONDS",
+                    help="Headless conformance run: play ~SECONDS of sim time, then "
+                         "print MAST coverage + a pass/fail verdict and exit 0/1")
+    ap.add_argument("--junit", default=None, metavar="PATH",
+                    help="With --test, also write a JUnit XML report to PATH")
     args = ap.parse_args()
 
     if args.map is None:
@@ -514,7 +619,7 @@ if __name__ == "__main__":
         except ValueError:
             map_val = args.map
 
-    _run(
+    _exit = _run(
         mission_folder=args.mission,
         mast_file=args.mast,
         map_arg=map_val,
@@ -522,4 +627,7 @@ if __name__ == "__main__":
         port=args.port,
         tick_rate=args.tick_rate,
         cosmos_dir=args.cosmos_dir,
+        test_seconds=args.test,
+        junit_path=args.junit,
     )
+    sys.exit(_exit or 0)

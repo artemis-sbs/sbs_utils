@@ -130,7 +130,8 @@ report.
   seam + `cosmos_dev/coverage.py`, commit a6df5ee).
 - An exception / runtime-error sink the runner treats as failure. — **DONE**
   (`MastScheduler.on_runtime_error` seam + `cosmos_dev/verdict.py`).
-- A report emitter (JUnit/TAP). — TODO
+- A report emitter (JUnit/TAP). — **DONE** (mission_runner `--test SECONDS`
+  [`--junit PATH`]: headless run + coverage + verdict + exit 0/1).
 
 All of these benefit the library beyond autoplay.
 
