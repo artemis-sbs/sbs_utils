@@ -54,6 +54,7 @@ def create_new_sim():
         _view2d_widget_clients.clear()
         _explicit_2d_rects.clear()
         _view_shipdata_clients.clear()
+        _view_target_clients.clear()
         _force_terrain_push()
         _last_fx_nonempty = False
         # Tell every browser to wipe leftover 2D radar / 3D cinematic state.
@@ -376,6 +377,10 @@ _view2d_widget_clients: dict = {}
 # without this the mock shows nothing for it.
 _view_shipdata_clients: set = set()
 
+# Clients on the main-screen console ("normal_main") - the only place the
+# mock-only target_data HUD is shown.
+_view_target_clients: set = set()
+
 # HUD overlays the browser draws for mock-only widgets; given an explicit rect via
 # send_client_widget_rects they reposition (else they sit in a default corner).
 _HUD_WIDGETS = frozenset({"ship_data", "text_waterfall"})
@@ -415,6 +420,13 @@ def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) ->
     elif clientID in _view_shipdata_clients:
         _view_shipdata_clients.discard(clientID)
         _send(clientID, "ship_data", active=False)
+
+    # target_data HUD — only on the main-screen console ("normal_main").
+    if consoleType == "normal_main":
+        _view_target_clients.add(clientID)
+    elif clientID in _view_target_clients:
+        _view_target_clients.discard(clientID)
+        _send(clientID, "target_data", active=False)
 
 
 def _push_2dview_rects() -> None:
@@ -509,13 +521,12 @@ def _push_ship_data() -> None:
 
 def _push_target_data() -> None:
     """Stream the current weapon/selected target's stats so the browser can render
-    a target HUD (mock-only - the engine has no such panel). Shown for the same
-    clients as ship_data (the script-declared ship_data widget activates both).
-    Sends active=False when the ship has no target."""
+    a target HUD (mock-only - the engine has no such panel). Shown only on the
+    main-screen console ("normal_main"). active=False when there's no target."""
     if _base_mock.sim is None or gui_queue is None:
         return
     space = _base_mock.sim.space_objects
-    for cid in list(_view_shipdata_clients):
+    for cid in list(_view_target_clients):
         ship = space.get(_base_mock.get_ship_of_client(cid))
         if ship is None:
             _send(cid, "target_data", active=False)
