@@ -2074,6 +2074,51 @@ def _cell(x: float, z: float, sz: float):
     return (int(x / sz), int(z / sz))
 
 
+def _is_station(obj_id: int) -> bool:
+    """True if the object's py Agent carries the 'station' role (used to pick
+    station_killed vs npc_killed)."""
+    try:
+        from sbs_utils.agent import Agent
+        a = Agent.get(obj_id)
+        return a is not None and a.has_role("station")
+    except Exception:
+        return False
+
+
+def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
+    """Mock-only hull-damage model.
+
+    Applies `amount` hull damage to `target_id` and queues the matching engine
+    events so handlerhooks routes them like the real Pybind layer:
+      - non-fatal: a ``damage`` event (origin=source, selected=target)
+      - fatal: a ``damage``/``destroyed`` event (fires //damage/destroy and
+        removes the py Agent via LifetimeDispatcher) plus ``npc_killed`` or
+        ``station_killed`` (fires //damage/killed, keyed on origin=target).
+    Hull lives in data_set "armor"; only objects with armorMax>0 are damageable
+    (ships from shipData). The dead mock object is removed from the sim.
+    """
+    global sim
+    if sim is None or amount <= 0:
+        return
+    obj = sim.space_objects.get(target_id)
+    if obj is None:
+        return
+    ds = obj.data_set
+    if (ds.get("armorMax") or 0.0) <= 0:
+        return  # no hull -> not damageable (asteroids, markers, etc.)
+    armor = (ds.get("armor") or 0.0) - amount
+    if armor > 0:
+        ds.set("armor", armor)
+        _pending_physics_events.put(("damage", "", source_id, target_id))
+        return
+    # destroyed
+    ds.set("armor", 0.0)
+    _pending_physics_events.put(("damage", "destroyed", source_id, target_id))
+    kind = "station_killed" if _is_station(target_id) else "npc_killed"
+    _pending_physics_events.put((kind, "", target_id, target_id))
+    delete_object(target_id)
+
+
 def _physics_collision(sim, active: list) -> None:
     """Spatial-hash sphere collision.
 
@@ -2170,6 +2215,16 @@ def _physics_collision(sim, active: list) -> None:
             tag = f"{kind}_collision_start"
             _pending_physics_events.put((tag, kind, ia, ib))
             _pending_physics_events.put((tag, kind, ib, ia))
+            # On a NEW passive contact, a damaging terrain object (e.g. a mine
+            # with data_set "damage_done") deals hull damage to the active one.
+            # ia is the active object, ib the terrain (see active-vs-terrain
+            # loop above). Asteroids set no damage_done -> harmless.
+            if kind == "passive":
+                t = space.get(ib)
+                if t is not None:
+                    dmg = t.data_set.get("damage_done") or 0.0
+                    if dmg > 0:
+                        apply_damage(ia, dmg, ib)
     for pair, (kind, ia, ib) in _contact_pairs.items():
         if pair not in new_contacts:
             tag = f"{kind}_collision_end"
