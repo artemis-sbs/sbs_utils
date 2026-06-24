@@ -505,6 +505,25 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
             ds.set("beamArcWidth",    float(b.get("arcwidth",       360)), i)
             ds.set("beamBarrelAngle", float(b.get("barrel_angle",     0)), i)
 
+    # Torpedoes — starting loadout. shipData "torpedostart" is a list of single-key
+    # {type: count} dicts (or a {type: count} dict). Seed {Type}_NUM/_MAX and the
+    # type list so the weapons/refit/ship_data systems see the ship's torpedoes
+    # (start count is also the capacity — "Stores for N ...").
+    torp_start = data.get("torpedostart")
+    if torp_start:
+        if isinstance(torp_start, dict):
+            items = list(torp_start.items())
+        else:
+            items = [kv for entry in torp_start if isinstance(entry, dict)
+                     for kv in entry.items()]
+        names = []
+        for tname, count in items:
+            names.append(tname)
+            ds.set(f"{tname}_NUM", int(count), 0)
+            ds.set(f"{tname}_MAX", int(count), 0)
+        if names:
+            ds.set("torpedo_types_available", ",".join(names), 0)
+
 
 def _try_populate_from_ship_data(obj) -> None:
     """Look up obj.data_tag in shipData.yaml and apply matching data to the object."""
