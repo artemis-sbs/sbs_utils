@@ -460,7 +460,8 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
     # Scalar data_set fields that map 1-to-1
     for field in ("turn_rate", "speed_coeff", "scan_strength_coeff",
                   "ship_energy_cost", "warp_energy_cost", "jump_energy_cost",
-                  "drone_launch_timer"):
+                  "drone_launch_timer",
+                  "repair_rate_shields", "repair_rate_systems", "repair_rate_armor"):
         val = data.get(field)
         if val is not None:
             ds.set(field, float(val))
@@ -483,6 +484,15 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
         for i, sv in enumerate(shields):
             ds.set("shield_val",     float(sv), i)
             ds.set("shield_max_val", float(sv), i)
+        # shipData carries no repair rates (the engine sets them at runtime), so
+        # the mock's passive shield/system regen and the docking refit both saw 0
+        # and never repaired. Give shielded ships a modest default so they work.
+        # Tunable; affects passive regen too (combat outpaces it, so go_dock still
+        # fires). Slightly above NPC beam DPS so docked ships actually recover.
+        if not data.get("repair_rate_shields"):
+            ds.set("repair_rate_shields", 3.0)
+        if not data.get("repair_rate_systems"):
+            ds.set("repair_rate_systems", 3.0)
 
     # Beam weapons from hull_port_sets
     beams = data.get("hull_port_sets", {}).get("beam Primary Beams", [])
