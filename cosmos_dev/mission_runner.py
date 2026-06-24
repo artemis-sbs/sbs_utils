@@ -70,6 +70,7 @@ def _try_auto_start_map(map_arg, sbs) -> bool:
     from sbs_utils.procedural.maps import maps_get_list
     from sbs_utils.procedural.execution import task_schedule_server, set_shared_variable
     from sbs_utils.procedural.signal import signal_emit
+    from sbs_utils.helpers import FrameContext
 
     mission_list = maps_get_list()
     # maps_get_list returns plain dicts (not Label objects) as a placeholder when
@@ -89,9 +90,20 @@ def _try_auto_start_map(map_arg, sbs) -> bool:
     map_label = real_maps[idx]
     print(f"[runner] auto-starting map: {getattr(map_label, 'path', map_arg)}")
 
-    task_schedule_server(map_label, defer=True)
+    server_task = task_schedule_server(map_label, defer=True)
     set_shared_variable("GAME_STARTED", True)
+
+    # signal_emit() is a no-op when FrameContext.mast is None, and we run in the
+    # bare tick loop (outside cosmos_event_handler), so it normally is. The real
+    # engine emits "game_started" from inside the server "start" MAST label where
+    # the context is live, which is what fires routes like autoplay's
+    # //signal/game_started. Establish the same context here so the signal is
+    # actually delivered. The next cosmos_event_handler tick resets these.
+    if server_task is not None:
+        FrameContext.task = server_task
+        FrameContext.mast = server_task.main.mast
     signal_emit("game_started", {})
+
     sbs.resume_sim()
     return True
 
