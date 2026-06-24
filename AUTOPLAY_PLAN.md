@@ -146,6 +146,41 @@ The two highest-leverage ideas are also the least-validated; spike them first:
 2. **Actuate-through-real-API** — does every console action have a clean
    procedural entry point a bot could call, or only data_set side-effects? — TODO
 
+## Adjacent opportunity: MAST debugger (future spike)
+
+The `MastTicker.on_enter_node` seam added for coverage (commit a6df5ee) is also
+the natural foundation for an **interactive MAST debugger**. At every command
+boundary it already gives the active label, the cmd node, and — via the node's
+`file_num`/`line_num` + `Mast.get_source_file_name()` — the exact source line.
+The call stack (`task.label_stack` + `active_label`/`active_cmd`) and
+Python-in-task-scope eval (for watch expressions) are also already present.
+
+What a debugger needs on top of the seam:
+
+- **Control, not just notify.** `on_enter_node` is read-only today. A debugger
+  needs breakpoint → pause → step/continue. MAST is cooperatively ticked (no
+  threads/async), so "pause" = stop scheduling further MAST ticks between frames
+  (freeze MAST while the GUI/physics loop keeps running), and "step" = allow
+  exactly one node entry then re-pause. The seam detects the hit and flips a
+  pause flag the runner/scheduler honors. **This control model is the spike.**
+- **State inspection**: enumerate task variables (task inventory / scope), show
+  the call stack, and "set variable".
+- **Breakpoint model**: by (file, line), by label, by node type, conditional
+  (expr evaluated in task scope), and "break on MAST runtime error" (ties into
+  the planned exception sink).
+- **Multi-task reality**: many tasks tick per frame (server + clients +
+  sub-tasks). Breakpoints/stepping must be scopeable to a chosen task, or
+  pause-all.
+- **UI**: a mockgui browser panel (source view + current line, vars, stack,
+  step/continue/breakpoints) over the existing WebSocket bridge.
+
+Spike questions: (1) can the tick loop be paused/stepped cleanly between frames
+without wedging the GUI/physics threads? (2) is task variable scope
+enumerable/writable for an inspector? (3) presenting the active source line
+given the lib/import `file_num` mapping (the source map already exists). Builds
+directly on the `on_enter_node` seam and the planned exception/runtime-error
+sink.
+
 ## Implementation / workflow notes
 
 - **LegendaryMissions** (the autoplay mastlib, personae, attract director,
