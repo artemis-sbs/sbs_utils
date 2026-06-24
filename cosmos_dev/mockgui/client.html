@@ -698,7 +698,8 @@ function dispatch(msg) {
       msg.cmd !== 'radar' && msg.cmd !== 'radar_terrain' &&
       msg.cmd !== 'widget_rect' && msg.cmd !== 'cinematic' &&
       msg.cmd !== 'skybox' && msg.cmd !== 'fx' && msg.cmd !== 'batch' &&
-      msg.cmd !== 'ship_data' && msg.cmd !== 'text_msg' && msg.cmd !== 'world_reset') {
+      msg.cmd !== 'ship_data' && msg.cmd !== 'target_data' &&
+      msg.cmd !== 'text_msg' && msg.cmd !== 'world_reset') {
     if (msg.clientID !== CLIENT_ID) return;
   }
   switch (msg.cmd) {
@@ -714,6 +715,7 @@ function dispatch(msg) {
     case 'skybox':       cmdSkybox(msg);      break;
     case 'fx':           cmdFx(msg);          break;
     case 'ship_data':    cmdShipData(msg);    break;
+    case 'target_data':  cmdTargetData(msg);  break;
     case 'text_msg':     cmdTextMsg(msg);     break;
     case 'hud_rect':     cmdHudRect(msg);     break;
     case 'batch':        msg.items.forEach(dispatch); break;
@@ -1096,8 +1098,9 @@ function cmdWorldReset(msg) {
   // Drop the HUD overlays + any rect overrides so the next mission starts fresh
   // (default corner unless it positions them again).
   for (const k in _hudRects) delete _hudRects[k];
-  if (_shipDataEl) { _shipDataEl.remove(); _shipDataEl = null; }
-  if (_textWfEl)   { _textWfEl.remove();   _textWfEl = null; }
+  if (_shipDataEl)   { _shipDataEl.remove();   _shipDataEl = null; }
+  if (_targetDataEl) { _targetDataEl.remove(); _targetDataEl = null; }
+  if (_textWfEl)     { _textWfEl.remove();     _textWfEl = null; }
   if (_radarCtx) _renderRadar();
 }
 
@@ -1144,10 +1147,14 @@ function _bar(v, max, w = 12) {
   const n = Math.round(f * w);
   return '['.concat('#'.repeat(n), '.'.repeat(w - n), '] ', Math.round(f * 100), '%');
 }
-function cmdShipData(msg) {
-  if (!msg.active) { if (_shipDataEl) _shipDataEl.style.display = 'none'; return; }
-  const el = _ensureShipDataEl();
-  el.style.display = 'block';
+function _pctColor(p) { return p > 66 ? '#6f6' : p > 33 ? '#fd6' : '#f55'; }
+function _sysCell(s) {
+  const nm = (s.name + '    ').slice(0, 4);
+  const p = (s.pct + '   ').slice(0, 3);
+  return `${nm}<span style="color:${_pctColor(s.pct)}">${p}</span>`;
+}
+// Shared HUD body for a ship's stats (used by ship_data and target_data).
+function _statHtml(msg) {
   const dock = msg.dock_state || 'undocked';
   const dockColor = dock === 'docked' ? '#6f6'
                   : (dock === 'dock_start' || dock === 'docking') ? '#fd6' : '#9ab';
@@ -1161,7 +1168,15 @@ function cmdShipData(msg) {
     `heat   ${msg.heat}\n` +
     `dock   <span style="color:${dockColor}">${dock}</span>\n` +
     `target ${msg.target || '—'}`;
-  // Torpedo inventory: "NAME  num / max [T]" (T = loaded in a tube).
+  // Systems: 8 entries, "name pct%" colored by health, two per line.
+  const sys = msg.systems || [];
+  if (sys.length) {
+    html += '\n<span style="color:#7a8a9a">— systems —</span>';
+    for (let i = 0; i < sys.length; i += 2) {
+      html += '\n' + _sysCell(sys[i]) + (sys[i + 1] ? '  ' + _sysCell(sys[i + 1]) : '');
+    }
+  }
+  // Torpedoes: "NAME  num / max [T]" (T = loaded in a tube).
   const torps = msg.torps || [];
   if (torps.length) {
     html += '\n<span style="color:#7a8a9a">— torpedoes —</span>';
@@ -1171,7 +1186,37 @@ function cmdShipData(msg) {
       html += `\n${nm}${tp.num} / ${tp.max}${tube}`;
     }
   }
-  el.innerHTML = html;
+  return html;
+}
+function cmdShipData(msg) {
+  if (!msg.active) { if (_shipDataEl) _shipDataEl.style.display = 'none'; return; }
+  const el = _ensureShipDataEl();
+  el.style.display = 'block';
+  el.innerHTML = _statHtml(msg);
+}
+
+// ── cmdTargetData — current-target stats HUD on the main view (mock-only) ─────
+// The engine has no such panel; the mock streams the player's weapon/selected
+// target stats to main-view clients so you can see what you're shooting at.
+let _targetDataEl = null;
+function _ensureTargetDataEl() {
+  if (_targetDataEl) return _targetDataEl;
+  const el = document.createElement('div');
+  el.id = 'targetDataHud';
+  el.style.cssText =
+    'position:fixed;left:8px;top:8px;z-index:50;min-width:190px;' +
+    'font:11px/1.45 monospace;color:#fcc;background:rgba(26,10,10,.30);' +
+    'border:1px solid rgba(120,60,60,.5);border-radius:5px;padding:7px 9px;' +
+    'pointer-events:none;white-space:pre;text-shadow:0 1px 2px #000,0 0 2px #000;';
+  document.body.appendChild(el);
+  _targetDataEl = el;
+  return el;
+}
+function cmdTargetData(msg) {
+  if (!msg.active) { if (_targetDataEl) _targetDataEl.style.display = 'none'; return; }
+  const el = _ensureTargetDataEl();
+  el.style.display = 'block';
+  el.innerHTML = '<span style="color:#f88">TARGET</span>\n' + _statHtml(msg);
 }
 
 // ── cmdTextMsg — text waterfall (send_message_to_client/player_ship) ─────────
@@ -2369,8 +2414,9 @@ function cmdClear(msg) {
     // the per-tick ship_data / cinematic push / next text_msg if the rebuilt
     // console still declares them; text scrollback is preserved (hidden, not
     // wiped). Matches how the 2D radar clears and re-registers each rebuild.
-    if (_shipDataEl) _shipDataEl.style.display = 'none';
-    if (_textWfEl)   _textWfEl.style.display = 'none';
+    if (_shipDataEl)   _shipDataEl.style.display = 'none';
+    if (_targetDataEl) _targetDataEl.style.display = 'none';
+    if (_textWfEl)     _textWfEl.style.display = 'none';
     _view3dActive = false;
     if (_view3dCanvas) _view3dCanvas.style.display = 'none';
     _regions[""].back.innerHTML = '';
