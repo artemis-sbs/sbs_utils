@@ -463,7 +463,16 @@ def _push_ship_data() -> None:
         tid = ds.get("weapon_target_UID", 0) or ds.get("target_id", 0) or 0
         t = space.get(tid)
         tname = (getattr(t, "name", None) or getattr(t, "_data_tag", "")) if t is not None else ""
-        _send(cid, "ship_data", active=True,
+        # Torpedo inventory: types from torpedo_types_available, counts from
+        # {Type}_NUM / {Type}_MAX. "tube" = loaded in a tube; the engine tracks tube
+        # contents internally (no documented data_set field), so the mock reads
+        # "tube_contents" (CSV of loaded torp types) if something populates it.
+        loaded = {x.strip() for x in str(ds.get("tube_contents", 0) or "").split(",") if x.strip()}
+        torps = []
+        for tt in [x.strip() for x in str(ds.get("torpedo_types_available", 0) or "").split(",") if x.strip()]:
+            torps.append({"name": tt, "num": int(g(f"{tt}_NUM")),
+                          "max": int(g(f"{tt}_MAX")), "tube": tt in loaded})
+        _send(cid, "ship_data", active=True, torps=torps,
               name=getattr(o, "name", None) or getattr(o, "_data_tag", "") or "ship",
               shield=round(float(g("shield_val")), 1),
               shield_max=round(float(g("shield_max_val")), 1),

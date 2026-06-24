@@ -1151,7 +1151,7 @@ function cmdShipData(msg) {
   const dock = msg.dock_state || 'undocked';
   const dockColor = dock === 'docked' ? '#6f6'
                   : (dock === 'dock_start' || dock === 'docking') ? '#fd6' : '#9ab';
-  el.innerHTML =
+  let html =
     `<b style="color:#fff">${msg.name || 'ship'}</b>` +
     (msg.red_alert ? `  <span style="color:#f55">RED ALERT</span>` : '') + '\n' +
     `shield ${_bar(msg.shield, msg.shield_max)}\n` +
@@ -1161,6 +1161,17 @@ function cmdShipData(msg) {
     `heat   ${msg.heat}\n` +
     `dock   <span style="color:${dockColor}">${dock}</span>\n` +
     `target ${msg.target || '—'}`;
+  // Torpedo inventory: "NAME  num / max [T]" (T = loaded in a tube).
+  const torps = msg.torps || [];
+  if (torps.length) {
+    html += '\n<span style="color:#7a8a9a">— torpedoes —</span>';
+    for (const tp of torps) {
+      const nm = (tp.name + '          ').slice(0, 10);
+      const tube = tp.tube ? ' <span style="color:#fd6">T</span>' : '';
+      html += `\n${nm}${tp.num} / ${tp.max}${tube}`;
+    }
+  }
+  el.innerHTML = html;
 }
 
 // ── cmdTextMsg — text waterfall (send_message_to_client/player_ship) ─────────
