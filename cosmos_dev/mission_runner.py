@@ -486,8 +486,22 @@ def _run(
             _next_mission = sbs.pop_next_mission() if hasattr(sbs, "pop_next_mission") else None
             if _next_mission is not None:
                 try:
-                    new_folder = os.path.abspath(_next_mission) if _next_mission else mission_folder
+                    # run_next_mission(name) passes a mission *folder name* relative
+                    # to the missions dir (like the engine), not a CWD-relative path.
+                    # Resolve against missions_root; abspath(name) vs CWD pointed at a
+                    # nonexistent dir, so fs.script_dir went bad and the log-file
+                    # FileHandler crashed on the next mission.
+                    if _next_mission:
+                        cand = (_next_mission if os.path.isabs(_next_mission)
+                                else os.path.join(missions_root, _next_mission))
+                        new_folder = os.path.abspath(cand)
+                    else:
+                        new_folder = mission_folder
                     print(f"[runner] run_next_mission -> {new_folder}")
+                    if not os.path.isdir(new_folder):
+                        print(f"[runner] run_next_mission: no such mission folder "
+                              f"{new_folder!r} (from {_next_mission!r}) - ignoring")
+                        raise FileNotFoundError(new_folder)
                     if new_folder != mission_folder:
                         _load_libs(new_folder, missions_root)
                         fs.script_dir = new_folder.replace("/", "\\")
