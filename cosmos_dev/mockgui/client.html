@@ -1130,9 +1130,9 @@ function _ensureShipDataEl() {
   el.id = 'shipDataHud';
   el.style.cssText =
     'position:fixed;left:8px;bottom:8px;z-index:50;min-width:190px;' +
-    'font:11px/1.45 monospace;color:#cde;background:rgba(8,14,22,.82);' +
-    'border:1px solid #2a3a4a;border-radius:5px;padding:7px 9px;' +
-    'pointer-events:none;white-space:pre;text-shadow:0 1px 1px #000;';
+    'font:11px/1.45 monospace;color:#cde;background:rgba(8,14,22,.28);' +
+    'border:1px solid rgba(42,58,74,.5);border-radius:5px;padding:7px 9px;' +
+    'pointer-events:none;white-space:pre;text-shadow:0 1px 2px #000,0 0 2px #000;';
   document.body.appendChild(el);
   _shipDataEl = el;
   _applyHudRect(el, 'ship_data');       // honor a rect that arrived before creation
@@ -1443,12 +1443,12 @@ function _drawRadarChrome(ctx, W, H, rect, cx, cz, halfSpan, isCorner, ax, az) {
   if (!box) return;
   const { toX, toY, scale } = _radarProj(box, cx, cz, halfSpan);
 
-  ctx.fillStyle = '#000c1e';
+  ctx.fillStyle = 'rgba(0,12,30,0.25)';   // near-transparent so the 3D view shows through
   ctx.fillRect(x0, y0, rw, rh);
 
   if (isCorner) {
     const labelH = Math.max(18, rh * 0.08);
-    ctx.fillStyle = '#003366';
+    ctx.fillStyle = 'rgba(0,51,102,0.45)';
     ctx.fillRect(x0, y0, rw, labelH);
     ctx.fillStyle = '#00e5ff';
     ctx.font = `bold ${Math.max(10, labelH * 0.55)}px monospace`;
