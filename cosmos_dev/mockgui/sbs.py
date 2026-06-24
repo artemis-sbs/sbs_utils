@@ -441,12 +441,17 @@ def _push_2dview_rects() -> None:
 
 
 def _systems_health(ds) -> list:
-    """The 8 ship systems as [{name, pct}] from their damage coeffs (0..1 = health,
-    1.0 = full). Unset reads as full so undamaged ships show 100%."""
+    """The 4 engine ship systems (sbs.SHPSYS) as [{name, pct}], from
+    system_damage / system_max_damage per index. No max set (undamaged / no grid
+    model) reads as 100%."""
     out = []
-    for name, field, idx in _base_mock.SHIP_SYSTEMS:
-        v = ds.get(field, idx)
-        out.append({"name": name, "pct": round(float(1.0 if v is None else v) * 100)})
+    for name, idx in _base_mock.SHIP_SYSTEMS:
+        dmg = ds.get("system_damage", idx)
+        mx = ds.get("system_max_damage", idx)
+        dmg = 0.0 if dmg is None else float(dmg)
+        mx = 0.0 if mx is None else float(mx)
+        pct = round((1.0 - dmg / mx) * 100) if mx > 0 else 100
+        out.append({"name": name, "pct": max(0, min(100, pct))})
     return out
 
 
@@ -502,24 +507,15 @@ def _push_ship_data() -> None:
         _send(cid, "ship_data", active=True, **_ship_stat_payload(o, space))
 
 
-def _mainview_clients() -> set:
-    """Clients currently showing a 3D main view (forward 3dview widget or the
-    cinematic main screen) - where the target_data panel belongs."""
-    cids = set(_view3d_widget_clients)
-    for cid, modes in list(_base_mock._view_modes.items()):
-        if modes[2] == "cinematic":
-            cids.add(cid)
-    return cids
-
-
 def _push_target_data() -> None:
-    """Stream the current weapon/selected target's stats to main-view clients so
-    the browser can render a target HUD (mock-only - the engine has no such panel).
+    """Stream the current weapon/selected target's stats so the browser can render
+    a target HUD (mock-only - the engine has no such panel). Shown for the same
+    clients as ship_data (the script-declared ship_data widget activates both).
     Sends active=False when the ship has no target."""
     if _base_mock.sim is None or gui_queue is None:
         return
     space = _base_mock.sim.space_objects
-    for cid in _mainview_clients():
+    for cid in list(_view_shipdata_clients):
         ship = space.get(_base_mock.get_ship_of_client(cid))
         if ship is None:
             _send(cid, "target_data", active=False)

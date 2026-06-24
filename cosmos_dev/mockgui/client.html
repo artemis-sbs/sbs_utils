@@ -1153,22 +1153,25 @@ function _sysCell(s) {
   const p = (s.pct + '   ').slice(0, 3);
   return `${nm}<span style="color:${_pctColor(s.pct)}">${p}</span>`;
 }
-// Shared HUD body for a ship's stats (used by ship_data and target_data).
-function _statHtml(msg) {
-  const dock = msg.dock_state || 'undocked';
-  const dockColor = dock === 'docked' ? '#6f6'
-                  : (dock === 'dock_start' || dock === 'docking') ? '#fd6' : '#9ab';
+// Shared HUD body for a ship's stats. `full` adds flight state + torpedoes
+// (own ship); the target panel omits those (just name/shields/hull/energy/systems).
+function _statHtml(msg, full) {
   let html =
     `<b style="color:#fff">${msg.name || 'ship'}</b>` +
     (msg.red_alert ? `  <span style="color:#f55">RED ALERT</span>` : '') + '\n' +
     `shield ${_bar(msg.shield, msg.shield_max)}\n` +
     `hull   ${_bar(msg.hull, msg.hull_max)}\n` +
-    `energy ${Math.round(msg.energy)}\n` +
-    `thrtl  ${msg.throttle}   spd ${msg.speed}\n` +
-    `heat   ${msg.heat}\n` +
-    `dock   <span style="color:${dockColor}">${dock}</span>\n` +
-    `target ${msg.target || '—'}`;
-  // Systems: 8 entries, "name pct%" colored by health, two per line.
+    `energy ${Math.round(msg.energy)}`;
+  if (full) {
+    const dock = msg.dock_state || 'undocked';
+    const dockColor = dock === 'docked' ? '#6f6'
+                    : (dock === 'dock_start' || dock === 'docking') ? '#fd6' : '#9ab';
+    html += `\nthrtl  ${msg.throttle}   spd ${msg.speed}` +
+            `\nheat   ${msg.heat}` +
+            `\ndock   <span style="color:${dockColor}">${dock}</span>` +
+            `\ntarget ${msg.target || '—'}`;
+  }
+  // Systems: 4 entries, "name pct%" colored by health, two per line (both panels).
   const sys = msg.systems || [];
   if (sys.length) {
     html += '\n<span style="color:#7a8a9a">— systems —</span>';
@@ -1176,8 +1179,8 @@ function _statHtml(msg) {
       html += '\n' + _sysCell(sys[i]) + (sys[i + 1] ? '  ' + _sysCell(sys[i + 1]) : '');
     }
   }
-  // Torpedoes: "NAME  num / max [T]" (T = loaded in a tube).
-  const torps = msg.torps || [];
+  // Torpedoes (own ship only): "NAME  num / max [T]" (T = loaded in a tube).
+  const torps = full ? (msg.torps || []) : [];
   if (torps.length) {
     html += '\n<span style="color:#7a8a9a">— torpedoes —</span>';
     for (const tp of torps) {
@@ -1192,7 +1195,7 @@ function cmdShipData(msg) {
   if (!msg.active) { if (_shipDataEl) _shipDataEl.style.display = 'none'; return; }
   const el = _ensureShipDataEl();
   el.style.display = 'block';
-  el.innerHTML = _statHtml(msg);
+  el.innerHTML = _statHtml(msg, true);
 }
 
 // ── cmdTargetData — current-target stats HUD on the main view (mock-only) ─────
@@ -1204,8 +1207,8 @@ function _ensureTargetDataEl() {
   const el = document.createElement('div');
   el.id = 'targetDataHud';
   el.style.cssText =
-    'position:fixed;left:8px;top:8px;z-index:50;min-width:190px;' +
-    'font:11px/1.45 monospace;color:#fcc;background:rgba(26,10,10,.30);' +
+    'position:fixed;left:50%;bottom:8px;transform:translateX(-50%);z-index:50;' +
+    'min-width:190px;font:11px/1.45 monospace;color:#fcc;background:rgba(26,10,10,.30);' +
     'border:1px solid rgba(120,60,60,.5);border-radius:5px;padding:7px 9px;' +
     'pointer-events:none;white-space:pre;text-shadow:0 1px 2px #000,0 0 2px #000;';
   document.body.appendChild(el);
@@ -1216,7 +1219,7 @@ function cmdTargetData(msg) {
   if (!msg.active) { if (_targetDataEl) _targetDataEl.style.display = 'none'; return; }
   const el = _ensureTargetDataEl();
   el.style.display = 'block';
-  el.innerHTML = '<span style="color:#f88">TARGET</span>\n' + _statHtml(msg);
+  el.innerHTML = '<span style="color:#f88">TARGET</span>\n' + _statHtml(msg, false);
 }
 
 // ── cmdTextMsg — text waterfall (send_message_to_client/player_ship) ─────────

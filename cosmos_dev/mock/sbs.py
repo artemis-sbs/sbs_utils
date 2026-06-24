@@ -448,19 +448,17 @@ def play_audio_file(clientID: int, filename: str, volume: float, pitch: float) -
 def play_music_file(ID: int, filename: str) -> None:
     """Plays a music file now; ID is ship, OR client, OR zero for server."""
 
-# Ship systems: (display name, data_set coeff field, facet index). Each coeff is
-# 0..1 = system effectiveness / health (1.0 = full). grid_apply_system_damage
-# lowers them for players; NPCs are managed similarly. (Matches the system list in
-# LegendaryMissions internal_damage.)
+# The 4 ship systems the engine tracks (sbs.SHPSYS: WEAPONS/ENGINES/SENSORS/
+# SHIELDS), as (display name, system_damage facet index). Health % is derived from
+# system_damage / system_max_damage per index. grid_apply_system_damage sets
+# system_damage[x] = damaged-node count for player ships; NPCs are managed
+# similarly. (The 8 *_damage_coeff fields are sub-system effectiveness, not the
+# engine's system list.)
 SHIP_SYSTEMS = (
-    ("beam",   "all_beam_damage_coeff", 0),
-    ("torp",   "all_tube_damage_coeff", 0),
-    ("imp",    "impulse_damage_coeff",  0),
-    ("warp",   "warp_damage_coeff",     0),
-    ("turn",   "turn_damage_coeff",     0),
-    ("sens",   "sensor_damage_coeff",   0),
-    ("shF",    "shield_damage_coeff",   0),
-    ("shA",    "shield_damage_coeff",   1),
+    ("WEP", 0),   # WEAPONS
+    ("ENG", 1),   # ENGINES
+    ("SEN", 2),   # SENSORS
+    ("SHD", 3),   # SHIELDS
 )
 
 
@@ -492,11 +490,6 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
     if hp is not None:
         ds.set("armor",    float(hp))
         ds.set("armorMax", float(hp))
-        # Ship systems start at full health. shipData has no per-system health, and
-        # the coeff default (0.0) would read as 0% on the HUD; seed 1.0 so the
-        # damage model (grid_apply_system_damage / NPC equivalent) lowers them.
-        for _n, _field, _idx in SHIP_SYSTEMS:
-            ds.set(_field, 1.0, _idx)
 
     # Shields — per-facing array
     shields = data.get("shields")
