@@ -85,6 +85,13 @@ class MastTicker:
     between resuming the saved node (``do_resume``) and treating the pop like a
     jump back to the caller's next command.
     """
+    # Optional coverage/trace seam. When set to a callable, ``next()`` invokes
+    # ``on_enter_node(active_label, cmd)`` once each time a command begins
+    # executing. Default ``None`` → a single ``is not None`` check, no overhead.
+    # Used by dev tooling (cosmos_dev) for MAST node coverage; never set in the
+    # shipped library.
+    on_enter_node = None
+
     def __init__(self, task, main):
         self.done = False
         self.runtime_node = None
@@ -397,6 +404,13 @@ class MastTicker:
             
             self.runtime_node = runtime_node_cls()
             self.runtime_node.enter(self.main.mast, self.task, cmd)
+            if MastTicker.on_enter_node is not None:
+                # Coverage/trace seam (dev-only). Guarded so a hook failure never
+                # breaks execution.
+                try:
+                    MastTicker.on_enter_node(self.active_label, cmd)
+                except Exception:
+                    pass
         except Exception as err:
             self.runtime_error(str(err))
 
