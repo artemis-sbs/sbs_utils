@@ -306,6 +306,15 @@ def send_client_widget_rects(clientID: int, widgetName: str,
             _view3d_rects[clientID] = (round(l1, 2), round(t1, 2), round(r1, 2), round(b1, 2))
         return
 
+    # Mock HUD overlays (ship_data, text_waterfall) default to a screen corner;
+    # when a script positions them via a rect, move them to it.
+    if widgetName in _HUD_WIDGETS:
+        if explicit and gui_queue is not None:
+            _send(clientID, "hud_rect", widget=widgetName,
+                  left=round(l1, 2), top=round(t1, 2),
+                  right=round(r1, 2), bottom=round(b1, 2))
+        return
+
     if widgetName not in _2D_VIEW_WIDGETS or gui_queue is None:
         return
     # A real (non-degenerate) rect means the script positioned this view itself —
@@ -366,6 +375,10 @@ _view2d_widget_clients: dict = {}
 # so the browser can render a live HUD — the engine renders this widget in C++, so
 # without this the mock shows nothing for it.
 _view_shipdata_clients: set = set()
+
+# HUD overlays the browser draws for mock-only widgets; given an explicit rect via
+# send_client_widget_rects they reposition (else they sit in a default corner).
+_HUD_WIDGETS = frozenset({"ship_data", "text_waterfall"})
 
 
 def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) -> None:
