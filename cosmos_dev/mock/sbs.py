@@ -36,6 +36,11 @@ _contact_pairs: dict = {}
 # collision/beam passes): {pos, target_id, source_id, damage, speed, life, kind}.
 _projectiles: list = []
 
+# Beam fires THIS tick: (firer_id, target_id) pairs. Cleared at the start of each
+# physics_tick and appended to by _physics_beams; the mockgui reads it after the
+# tick to draw transient beam lines. (Beams are instantaneous, so it's per-tick.)
+_beam_fires: list = []
+
 # Behavior dispatch: tick_type string → callable(space_object, dt_seconds)
 _behavior_registry: dict = {}
 
@@ -109,6 +114,7 @@ def create_new_sim() -> None:
     sim = simulation()
     _contact_pairs = {}
     _projectiles.clear()
+    _beam_fires.clear()
     return sim
 
 
@@ -2181,6 +2187,7 @@ def _physics_beams(sim, active: list, dt: float) -> None:
             apply_damage(tid, dmg, aid)
         a._beam_cooldown = ds.get("beamCycleTime") or 6.0
         a._heat = getattr(a, "_heat", 0.0) + _BEAM_HEAT   # firing makes the ship hot
+        _beam_fires.append((aid, tid))                    # transient, for the mockgui
 
 
 # Projectile defaults (mock approximations).
@@ -2493,6 +2500,7 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
 
     with sim._lock:
         space = sim.space_objects
+        _beam_fires.clear()   # transient per-tick beam-fire record (for the mockgui)
 
         # Snapshot active (id, obj) pairs while holding the lock.
         active = [(id_, space[id_]) for id_ in sim._active_ids if id_ in space]

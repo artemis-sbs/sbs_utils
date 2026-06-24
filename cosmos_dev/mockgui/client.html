@@ -697,7 +697,7 @@ function dispatch(msg) {
       msg.cmd !== 'init' && msg.cmd !== 'log' &&
       msg.cmd !== 'radar' && msg.cmd !== 'radar_terrain' &&
       msg.cmd !== 'widget_rect' && msg.cmd !== 'cinematic' &&
-      msg.cmd !== 'skybox' && msg.cmd !== 'batch') {
+      msg.cmd !== 'skybox' && msg.cmd !== 'fx' && msg.cmd !== 'batch') {
     if (msg.clientID !== CLIENT_ID) return;
   }
   switch (msg.cmd) {
@@ -710,6 +710,7 @@ function dispatch(msg) {
     case 'widget_rect':  cmdWidgetRect(msg);  break;
     case 'cinematic':    cmdCinematic(msg);   break;
     case 'skybox':       cmdSkybox(msg);      break;
+    case 'fx':           cmdFx(msg);          break;
     case 'batch':        msg.items.forEach(dispatch); break;
     default:             cmdWidget(msg);      break;
   }
@@ -946,6 +947,8 @@ const _dynamicMeta   = new Map();  // id (string) → {side, tick_type, fx, fz, 
 // Latest radar overlay data — updated by cmdRadar.
 let _radarNavpoints   = [];
 let _radarNavareas    = [];
+let _radarBeams       = [];   // [[x1,z1,x2,z2], ...] world coords — this tick's beam fires
+let _radarProjectiles = [];   // [[x,z,kind], ...] in-flight missiles/drones
 let _radarClientFocus = {};
 
 // Camera lerp — smooths view when ship assignment or focus changes.
@@ -1047,6 +1050,13 @@ function cmdRadarTerrain(msg) {
 }
 
 // ── cmdRadar — delta update for active (NPC/PLAYER) objects ──────────────────
+function cmdFx(msg) {
+  // Transient combat visuals for the radar overlay: beam-fire lines and
+  // projectile dots (replaced wholesale each push).
+  _radarBeams       = msg.beams       || [];
+  _radarProjectiles = msg.projectiles || [];
+}
+
 function cmdRadar(msg) {
   if (!_radarCtx) return;
 
@@ -1401,6 +1411,25 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     }
   }
+
+  // Combat FX (drawn over ships, inside the radar clip): beam-fire lines and
+  // in-flight projectile dots (orange = missile, green = drone).
+  if (_radarBeams.length) {
+    ctx.strokeStyle = 'rgba(140,220,255,0.85)';
+    ctx.lineWidth = 2;
+    for (const b of _radarBeams) {
+      ctx.beginPath();
+      ctx.moveTo(toX(b[0]), toY(b[1]));
+      ctx.lineTo(toX(b[2]), toY(b[3]));
+      ctx.stroke();
+    }
+  }
+  for (const p of _radarProjectiles) {
+    const px = toX(p[0]), py = toY(p[1]);
+    ctx.fillStyle = p[2] === 'drone' ? '#7CFC00' : '#ff9a3c';
+    ctx.beginPath(); ctx.arc(px, py, 3, 0, 2 * Math.PI); ctx.fill();
+  }
+
   ctx.restore();
 
   const totalCount = _dynamicCount + _terrainCount;

@@ -387,6 +387,7 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
     if _radar_tick >= _RADAR_INTERVAL:
         _radar_tick = 0
         _push_radar()
+        _push_fx()
         _push_cinematic()
         _push_2dview_rects()
         _push_skybox()
@@ -475,6 +476,40 @@ def _force_terrain_push() -> None:
     _last_terrain_snapshot = frozenset()
     _last_per_ship = {}
     _last_skybox_sent = "\0"   # force the skybox to re-broadcast to the new client
+
+
+_last_fx_nonempty = False
+
+
+def _push_fx() -> None:
+    """Broadcast transient combat visuals for the 2D radar: beam-fire lines
+    (this tick's firer->target pairs) and projectile dots (current in-flight
+    missiles/drones). World coords are (x, z). One trailing empty push clears
+    stale beams when firing stops."""
+    global _last_fx_nonempty
+    s = _base_mock.sim
+    if s is None or gui_queue is None:
+        return
+    space = s.space_objects
+    beams = []
+    for fid, tid in getattr(_base_mock, "_beam_fires", ()):
+        f = space.get(fid)
+        t = space.get(tid)
+        if f is not None and t is not None:
+            beams.append([round(f._pos.x, 1), round(f._pos.z, 1),
+                          round(t._pos.x, 1), round(t._pos.z, 1)])
+    projectiles = []
+    for p in getattr(_base_mock, "_projectiles", ()):
+        pos = p["pos"]
+        projectiles.append([round(pos.x, 1), round(pos.z, 1), p.get("kind", "missile")])
+    if not beams and not projectiles and not _last_fx_nonempty:
+        return
+    _last_fx_nonempty = bool(beams or projectiles)
+    try:
+        gui_queue.put_nowait({"clientID": 0, "cmd": "fx",
+                              "beams": beams, "projectiles": projectiles})
+    except Exception:
+        pass
 
 
 def _push_skybox() -> None:
