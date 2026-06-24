@@ -235,13 +235,9 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path, ex
               f"npc(armed) w/beams {_beamed(npc_ids)}/{len(npc_ids)}, "
               f"min player->enemy {round(mind) if mind is not None else '-'}")
         if pids:
-            o0 = space[pids[0]]
-            dt = getattr(o0, "_data_tag", None)
-            from sbs_utils.procedural.ship_data import get_ship_data_for
-            sd = get_ship_data_for(dt) if dt else None
-            beams = (sd or {}).get("hull_port_sets", {}).get("beam Primary Beams", [])
-            print(f"  player0 data_tag={dt!r} shipData_beams={len(beams)} "
-                  f"ds.beamCount={o0.data_set.get('beamCount')}")
+            hulls = [(getattr(space[i], "_data_tag", None), getattr(space[i], "_tick_type", None))
+                     for i in pids]
+            print(f"  __player__ hulls: {hulls}")
     except Exception as _e:
         print(f"combat-ready diag error: {_e}")
     print(verdict.report() if verdict is not None else "no verdict")
