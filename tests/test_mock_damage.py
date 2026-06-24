@@ -110,6 +110,55 @@ class TestMockDamage(unittest.TestCase):
         self.assertNotIn("damage", tags)
         self.assertEqual(a.data_set.get("armor"), 100.0)
 
+    # --- beams -------------------------------------------------------------
+    def _beamer(self, target_id, rng=1000, dmg=30, cycle=6.0):
+        aid, a = self._hulled(100)
+        a._pos = sbs.vec3(0, 0, 0)
+        a.data_set.set("beamCount", 1)
+        a.data_set.set("beamRange", float(rng))
+        a.data_set.set("beamDamage", float(dmg))
+        a.data_set.set("beamCycleTime", float(cycle))
+        a.data_set.set("target_id", target_id)
+        return aid, a
+
+    def test_beam_fires_at_target_in_range(self):
+        tid, t = self._hulled(100)
+        t._pos = sbs.vec3(500, 0, 0)              # within range 1000
+        aid, a = self._beamer(tid, rng=1000, dmg=30)
+        _drain()
+        sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
+        ev = _drain()
+        self.assertIn(("damage", "", aid, tid), ev)
+        self.assertEqual(t.data_set.get("armor"), 70.0)
+        # cooldown engaged -> no fire next tick
+        sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
+        self.assertEqual(_drain(), [])
+        self.assertEqual(t.data_set.get("armor"), 70.0)
+
+    def test_beam_out_of_range_no_fire(self):
+        tid, t = self._hulled(100)
+        t._pos = sbs.vec3(5000, 0, 0)             # outside range 1000
+        aid, a = self._beamer(tid, rng=1000, dmg=30)
+        _drain()
+        sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
+        self.assertEqual(_drain(), [])
+        self.assertEqual(t.data_set.get("armor"), 100.0)
+
+    def test_beam_kills_target(self):
+        tid, t = self._hulled(20)                 # low hull
+        t._pos = sbs.vec3(500, 0, 0)
+        aid, a = self._beamer(tid, rng=1000, dmg=30)
+        _drain()
+        sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
+        self.assertEqual(self._tags(_drain()), ["damage", "npc_killed"])
+        self.assertNotIn(tid, self.sim.space_objects)
+
+    def test_beam_no_target_no_fire(self):
+        aid, a = self._beamer(0)                  # target_id 0
+        _drain()
+        sbs._physics_beams(self.sim, [(aid, a)], dt=0.5)
+        self.assertEqual(_drain(), [])
+
 
 if __name__ == '__main__':
     unittest.main()

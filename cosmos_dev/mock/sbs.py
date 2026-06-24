@@ -1331,7 +1331,10 @@ class simulation(object): ### from pybind
         self.shared_strings = {}      # key -> value (synced server→clients in real engine)
         self._terrain_ids: set = set()   # abits & 0x30 == 0 — static; skipped in physics
         self._active_ids:  set = set()   # abits & 0x30 != 0 — NPCs + players; full physics
-        self._lock = threading.Lock()
+        # Reentrant: physics_tick holds the lock for the whole tick, and within
+        # it collision/beam damage may call apply_damage -> delete_object, which
+        # re-acquires the lock on the same thread.
+        self._lock = threading.RLock()
 
     def AddTractorConnection(self: simulation, arg0: int, arg1: int, arg2: vec3, arg3: float) -> tractor_connection:
         """makes a new connection between two space objects."""
@@ -2119,6 +2122,44 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
     delete_object(target_id)
 
 
+def _physics_beams(sim, active: list, dt: float) -> None:
+    """Active objects with a target in beam range fire on cooldown.
+
+    Beams are instantaneous (no projectile/launch event) — they just deal
+    beamDamage hull damage via apply_damage, which emits damage/killed events.
+    target_id, beamRange/beamDamage/beamCycleTime live in data_set (the AI brain
+    sets target_id via target()). In headless, NPCs have targets and players
+    usually don't, so this is mainly NPC fire — enough to make combat resolve.
+    """
+    space = sim.space_objects
+    for aid, a in active:
+        if aid not in space:
+            continue  # destroyed earlier this tick
+        ds = a.data_set
+        if (ds.get("beamCount") or 0) <= 0:
+            continue
+        cd = getattr(a, "_beam_cooldown", 0.0)
+        if cd > 0:
+            a._beam_cooldown = cd - dt
+            continue
+        target_id = ds.get("target_id") or 0
+        if not target_id:
+            continue
+        target = space.get(target_id)
+        if target is None:
+            continue
+        brange = ds.get("beamRange") or 0.0
+        dx = a._pos.x - target._pos.x
+        dy = a._pos.y - target._pos.y
+        dz = a._pos.z - target._pos.z
+        if dx * dx + dy * dy + dz * dz > brange * brange:
+            continue  # out of range; stay ready (cooldown already elapsed)
+        dmg = ds.get("beamDamage") or 0.0
+        if dmg > 0:
+            apply_damage(target_id, dmg, aid)
+        a._beam_cooldown = ds.get("beamCycleTime") or 6.0
+
+
 def _physics_collision(sim, active: list) -> None:
     """Spatial-hash sphere collision.
 
@@ -2300,6 +2341,9 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
 
         # 3. Collision — spatial hash; active-active + active-terrain only.
         _physics_collision(sim, active)
+
+        # 3b. Beams — active objects with a target in range fire on cooldown.
+        _physics_beams(sim, active, dt)
 
         # 4. Passive systems — shield regen + APU energy, active objects only.
         for _id, obj in active:
