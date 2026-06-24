@@ -1958,6 +1958,50 @@ function _view3dSyncInstances() {
   }
 }
 
+// Combat FX in the 3D world: beam-fire line segments and projectile dots, drawn
+// on the y=0 plane from the same _radarBeams/_radarProjectiles the radar uses.
+let _fxLines = null, _fxPoints = null;
+const _FX_MAX_BEAMS = 256, _FX_MAX_PROJ = 256;
+
+function _view3dSyncFx() {
+  if (!_view3dScene) return;
+  // (Re)create if missing or attached to a stale scene.
+  if (_fxLines && _fxLines.parent !== _view3dScene) _fxLines = null;
+  if (_fxPoints && _fxPoints.parent !== _view3dScene) _fxPoints = null;
+  if (!_fxLines) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(_FX_MAX_BEAMS * 2 * 3), 3));
+    _fxLines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x8cdcff }));
+    _fxLines.frustumCulled = false;
+    _view3dScene.add(_fxLines);
+  }
+  if (!_fxPoints) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(_FX_MAX_PROJ * 3), 3));
+    _fxPoints = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xff9a3c, size: 9, sizeAttenuation: false }));
+    _fxPoints.frustumCulled = false;
+    _view3dScene.add(_fxPoints);
+  }
+  const bpos = _fxLines.geometry.attributes.position.array;
+  const nb = Math.min(_radarBeams.length, _FX_MAX_BEAMS);
+  for (let i = 0; i < nb; i++) {
+    const b = _radarBeams[i], o = i * 6;
+    bpos[o] = b[0]; bpos[o + 1] = 0; bpos[o + 2] = b[1];
+    bpos[o + 3] = b[2]; bpos[o + 4] = 0; bpos[o + 5] = b[3];
+  }
+  _fxLines.geometry.setDrawRange(0, nb * 2);
+  _fxLines.geometry.attributes.position.needsUpdate = true;
+
+  const ppos = _fxPoints.geometry.attributes.position.array;
+  const np = Math.min(_radarProjectiles.length, _FX_MAX_PROJ);
+  for (let i = 0; i < np; i++) {
+    const p = _radarProjectiles[i], o = i * 3;
+    ppos[o] = p[0]; ppos[o + 1] = 0; ppos[o + 2] = p[1];
+  }
+  _fxPoints.geometry.setDrawRange(0, np);
+  _fxPoints.geometry.attributes.position.needsUpdate = true;
+}
+
 function _renderView3d() {
   if (!_view3dActive || !_view3dRenderer) return;
   // Render at the canvas's actual on-screen size (set by its rect), not the whole
@@ -1968,6 +2012,7 @@ function _renderView3d() {
   if (_view3dCanvas.height !== H) _view3dCanvas.height = H;
   _view3dSyncInstances();   // before _view3dSync so meshed objects drop their point
   _view3dSync();
+  _view3dSyncFx();          // combat beams + projectile dots (y=0 plane)
   if (_nebMat) _nebMat.uniforms.time.value = performance.now() / 1000;
   // Smooth camera moves so scripted cuts / ship motion ease rather than snap.
   if (_v3dDispCam === null) { _v3dDispCam = _v3dCam.slice(); _v3dDispTgt = _v3dTgt.slice(); }
