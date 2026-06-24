@@ -46,6 +46,7 @@ class Exerciser:
         from sbs_utils.procedural.roles import role
         from sbs_utils.procedural.routes import (
             follow_route_select_science, follow_route_select_comms,
+            follow_route_select_grid, _follow_route_console,
         )
         from sbs_utils.procedural.query import set_weapons_selection
 
@@ -81,6 +82,11 @@ class Exerciser:
                 except Exception:
                     self.errors += 1
                 self._walk_comms_buttons(pid, pid)
+                # Grid select -> //focus/grid (+ //select/grid).
+                try:
+                    follow_route_select_grid(pid, tid)
+                except Exception:
+                    self.errors += 1
                 # Weapons: lock the nearest armed hostile so player beams engage
                 # -> hits -> //damage routes. Stable target so the 6s beam cooldown
                 # isn't reset by retargeting every tick.
@@ -88,6 +94,9 @@ class Exerciser:
                 if enemy:
                     try:
                         set_weapons_selection(pid, enemy)
+                        # Weapons-console select route (//select/weapons).
+                        _follow_route_console(pid, enemy, "weapon_target_UID",
+                                              "weapon_sorted_list", None)
                     except Exception:
                         self.errors += 1
             # Stage a REAL beam exchange (TEST-ONLY teleport) so the genuine
