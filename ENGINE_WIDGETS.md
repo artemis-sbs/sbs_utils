@@ -253,9 +253,15 @@ What the mock must reproduce so mission `//` routes fire during a run. Event -> 
   - `//damage/internal` <- **`player_internal_damage`**.
   - `//damage/heat` <- **`heat_critical_damage`**.
   - Other collisions generally arrive as **damage**, not collision routes.
-- **Collision:**
-  - `//collision/interactive` <- pickups (`behav_pickup`).
-  - `//collision/passive` <- terrain.
+- **Collision** - by whether the *collided-with* object is `OBJECT_TYPE_UNMOVING`:
+  - `//collision/passive` <- `passive_collision_start` / `passive_collision_end` -
+    hit an **unmoving** object (asteroid, black hole, mine, or any unmoving thing
+    with a collision radius).
+  - `//collision/interactive` <- `interactive_collision_start` /
+    `interactive_collision_end` - hit a **moving** object.
+  - Mock matches this: active-vs-terrain -> passive, active-vs-active ->
+    interactive (`_terrain_ids` is the unmoving set). The bare
+    `passive_collision` / `interactive_collision` tags are obsolete.
 - **Launch:**
   - `//launch/missile` <- **`player_launches_missile`** (torpedo fire).
   - `//launch/drone` <- **`ship_launches_drone`**.
