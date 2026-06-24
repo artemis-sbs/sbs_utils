@@ -145,6 +145,50 @@ class TestCreateNewSimIdentity(unittest.TestCase):
         self.assertIn(new_id, held.space_objects)
 
 
+class TestDetectGameEnd(unittest.TestCase):
+    """_detect_game_end reads Agent.SHARED + the registered end conditions to
+    report win/lose - the harness's game-end test surface."""
+
+    def setUp(self):
+        from sbs_utils.agent import Agent
+        import sbs_utils.procedural.objective as obj
+        Agent.clear()
+        self._saved = getattr(obj, "__end_game_promise", [])
+
+    def tearDown(self):
+        from sbs_utils.agent import Agent
+        import sbs_utils.procedural.objective as obj
+        setattr(obj, "__end_game_promise", self._saved)
+        Agent.clear()
+
+    def _set_end(self, message, is_win):
+        from sbs_utils.agent import Agent
+        import sbs_utils.procedural.objective as obj
+
+        class _DonePromise:
+            def done(self_):
+                return True
+
+        Agent.SHARED.set_inventory_value("GAME_ENDED", True)
+        Agent.SHARED.set_inventory_value("START_TEXT", message)
+        setattr(obj, "__end_game_promise",
+                [(0, _DonePromise(), message, is_win, None, None)])
+
+    def test_none_when_not_ended(self):
+        from cosmos_dev.mission_runner import _detect_game_end
+        self.assertIsNone(_detect_game_end(None))
+
+    def test_reports_win(self):
+        from cosmos_dev.mission_runner import _detect_game_end
+        self._set_end("Mission complete!", True)
+        self.assertEqual(_detect_game_end(None), ("Mission complete!", True))
+
+    def test_reports_lose(self):
+        from cosmos_dev.mission_runner import _detect_game_end
+        self._set_end("All ships destroyed.", False)
+        self.assertEqual(_detect_game_end(None), ("All ships destroyed.", False))
+
+
 class TestGetShipOfClientFallback(unittest.TestCase):
     """get_ship_of_client mirrors the engine: an unassigned client grabs a
     PLAYER-abit ship, and deleting a ship falls over to another player ship."""

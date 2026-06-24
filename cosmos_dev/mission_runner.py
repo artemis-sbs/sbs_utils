@@ -192,7 +192,32 @@ def _drain_client_strings(sim, cosmos_event_handler, FakeEvent) -> None:
             print(f"[runner] client_string drain error ({key}): {e}")
 
 
-def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path, exerciser=None) -> int:
+def _detect_game_end(sbs):
+    """If the mission's game-end logic has fired, return (message, is_win); else
+    None. Reads Agent.SHARED (set by objective.game_end_run_all) and the
+    registered end conditions for the win/lose flag - no library change needed.
+    is_win may be None if the triggering condition can't be matched."""
+    from sbs_utils.agent import Agent
+    if not Agent.SHARED.get_inventory_value("GAME_ENDED", False):
+        return None
+    msg = Agent.SHARED.get_inventory_value("START_TEXT", "") or ""
+    is_win = None
+    try:
+        import sbs_utils.procedural.objective as _obj
+        for cond in getattr(_obj, "__end_game_promise", []):
+            _id, promise, message, win, _music, _signal = cond
+            if promise.done():
+                is_win = win
+                if message:
+                    msg = message
+                break
+    except Exception:
+        pass
+    return (msg, is_win)
+
+
+def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
+                      exerciser=None, game_end=None) -> int:
     """Print the coverage + verdict report for a --test run; optionally write
     JUnit XML. Returns the process exit code (0 pass / 1 fail)."""
     from sbs_utils.gui import Gui
@@ -248,6 +273,12 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path, ex
                 print(f"  damage routes: {marks}")
     except Exception as _e:
         print(f"combat-ready diag error: {_e}")
+    if game_end is None:
+        print("game end: did not end within the test window")
+    else:
+        msg, is_win = game_end
+        verdict_word = "WIN" if is_win else ("LOSE" if is_win is not None else "ENDED")
+        print(f"game end: {verdict_word} - {msg!r}")
     print(verdict.report() if verdict is not None else "no verdict")
     print("=============================")
 
@@ -428,6 +459,7 @@ def _run(
 
     _cov = _verdict = _exerciser = None
     _test_exit = 0
+    _game_end = None
     _test_wall0 = time.time()
     _test_wall_cap = (test_seconds * 2 + 30) if _test else 0
     if _test:
@@ -583,6 +615,10 @@ def _run(
             if _exerciser is not None and _map_started and run_mast and not sbs.sim._paused:
                 _exerciser.step()
 
+            # Record the first game-end (win/lose) the mission's logic triggers.
+            if _test and _game_end is None:
+                _game_end = _detect_game_end(sbs)
+
             time.sleep(tick_sleep)
     except KeyboardInterrupt:
         print("\n[runner] stopped")
@@ -601,7 +637,8 @@ def _run(
             if _verdict is not None:
                 _verdict.uninstall()
             _test_exit = _emit_test_report(mission_folder, map_arg, sbs,
-                                           _cov, _verdict, junit_path, _exerciser)
+                                           _cov, _verdict, junit_path, _exerciser,
+                                           game_end=_game_end)
     return _test_exit
 
 
