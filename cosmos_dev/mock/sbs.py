@@ -4,6 +4,7 @@ from sbs_utils.vec import Vec3
 
 import math
 import queue
+import random
 import sys
 import threading
 sys.modules["sbs"] = sys.modules[__name__]
@@ -2211,10 +2212,18 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
     if obj._abits & 0x20:   # TickType.PLAYER
         _pending_physics_events.put(("damage", "", source_id, target_id))
         # //damage/internal: origin = the damaged ship; reads sub_float (system/
-        # amount) + source_point (Vec3 hit location). See LM internal_damage.mast.
+        # amount) + source_point. source_point is a point on the ship MESH in 3D
+        # that the script maps to grid cell(s). Faithful would be a real mesh
+        # vertex, but loading mesh data here is the expensive option; a random
+        # point around the ship is cheap and spreads hits across grid cells.
+        p = obj._pos
+        r = (obj.data_set.get("exclusion_radius") or 0.0) or 50.0
+        sp = vec3(p.x + random.uniform(-r, r),
+                  p.y + random.uniform(-r, r),
+                  p.z + random.uniform(-r, r))
         _pending_physics_events.put((
             "player_internal_damage", "", target_id, source_id,
-            {"sub_float": 1.0, "source_point": vec3(obj._pos.x, obj._pos.y, obj._pos.z)},
+            {"sub_float": 1.0, "source_point": sp},
         ))
         return
     armor = (ds.get("armor") or 0.0) - amount

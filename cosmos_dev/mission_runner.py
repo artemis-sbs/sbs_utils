@@ -214,6 +214,36 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path, ex
     if exerciser is not None:
         print(f"exercise: steps {exerciser.steps}, enemies(last) {exerciser.enemies_last}, "
               f"combats forced {exerciser.forced}, beam-damage hits {getattr(sbs, '_apply_damage_calls', '?')}")
+    # Combat-readiness diagnostic: do ships actually have beams, and how close?
+    try:
+        from sbs_utils.procedural.roles import role
+        space = sbs.sim.space_objects if sbs.sim is not None else {}
+        pids = [i for i in role("__player__") if i in space]
+        npc_ids = [i for i in space if i not in set(pids)
+                   and (space[i].data_set.get("armorMax") or 0) > 0
+                   and (space[i]._abits & 0x10)]
+        def _beamed(ids):
+            return sum(1 for i in ids if (space[i].data_set.get("beamCount") or 0) > 0)
+        mind = None
+        for pi in pids:
+            for ni in npc_ids:
+                dx = space[pi]._pos.x - space[ni]._pos.x
+                dz = space[pi]._pos.z - space[ni]._pos.z
+                d = (dx * dx + dz * dz) ** 0.5
+                mind = d if mind is None else min(mind, d)
+        print(f"combat-ready: players w/beams {_beamed(pids)}/{len(pids)}, "
+              f"npc(armed) w/beams {_beamed(npc_ids)}/{len(npc_ids)}, "
+              f"min player->enemy {round(mind) if mind is not None else '-'}")
+        if pids:
+            o0 = space[pids[0]]
+            dt = getattr(o0, "_data_tag", None)
+            from sbs_utils.procedural.ship_data import get_ship_data_for
+            sd = get_ship_data_for(dt) if dt else None
+            beams = (sd or {}).get("hull_port_sets", {}).get("beam Primary Beams", [])
+            print(f"  player0 data_tag={dt!r} shipData_beams={len(beams)} "
+                  f"ds.beamCount={o0.data_set.get('beamCount')}")
+    except Exception as _e:
+        print(f"combat-ready diag error: {_e}")
     print(verdict.report() if verdict is not None else "no verdict")
     print("=============================")
 

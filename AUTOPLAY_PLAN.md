@@ -107,8 +107,14 @@ made cheap by the mock harness (headless, 30 Hz fixed-step sim time,
   damage trips game logic that pauses the sim. They need the REAL damage flow
   (NPCs hitting players) -> ties to the spawn-beam-data gap. Damage is shields-first
   (shields absorb; then NPC hull, player internal). Beam damage respects
-  `set_beam_damages` (base*coeff). Next: spawn-time shipData population (real
-  combat), comms-submenu walk, scan-start, grid. — a policy whose goal is *coverage*, not
+  `set_beam_damages` (base*coeff). Next: comms-submenu walk, scan-start, grid.
+  REAL-combat finding (combat-ready diag): on siege --map the `role("__player__")`
+  object has `data_tag='starbase_industry'` (a STATION hull, 0 beams) and enemies
+  are ~24k away, so emergent beam combat can't happen. A direct
+  `create_space_object("behav_playership","tsn_light_cruiser")` DOES get beams, so
+  it's not a generic spawn-population bug - it's mission-specific (why is the
+  player a starbase in siege auto-start?). Needs Doug's insight before chasing
+  real combat. — a policy whose goal is *coverage*, not
   victory: breadth-first walk every comms tree, scan every scannable,
   dock/undock, fire each weapon/torpedo type, collect each upgrade, trigger
   destroy/heat/internal-damage routes, poke GM tools. Plus a **monkey/fuzz**
