@@ -22,8 +22,7 @@ written and/or the route/event fired) - **Selection** (UID set, if any) - **Proc
 
 ### [I] helm_movement - steer the ship
 - Actions: click/drag the steering ring to aim a heading (ANG); ALT = altitude, AZI; surrounding contacts shown as markers.
-- Delivery: `OPEN` - autoplay writes `steerToDirDX/DY/DZ` + `steeringToDirFlag`; confirm that is the real widget path.
-- Proc: data_set write (as autoplay does). Selection: none.
+- Delivery: data_set `steerToDirDX/DY/DZ` + `steeringToDirFlag` - **added for autoplay** and honored by the engine, so a bot/mock can use it. The native helm widget's own steering write differs (TBD; see open Q2). Selection: none.
 - Shot: `helm_movement.png`
 
 ### [I] throttle - set speed
@@ -37,8 +36,10 @@ written and/or the route/event fired) - **Selection** (UID set, if any) - **Proc
 - Notes: shown only if the ship has jump (`jump_drive_active`, `jump_upgrade_coef`).
 - Shot: `helm_jump.png`
 
-### [I] quick_jump - instant ximni jump fwd/back (+ cooldown)
-- `OPEN`: no shot / details yet. Niche (ximni). Skip unless needed.
+### [I] quick_jump - instant ximni jump fwd/back
+- Actions: click a **forward** or **back** arrow; a fill bar shows charge. Jumping before the bar is full is **less accurate**.
+- Delivery: TBD (charge + fwd/back) - niche; see open Q3.
+- Shot: `quick_jump.png`
 
 ### [I] request_dock - request dock / undock
 - Actions: single **INITIATE DOCK** button (in range); toggles to undock/release when docked.
@@ -87,7 +88,7 @@ written and/or the route/event fired) - **Selection** (UID set, if any) - **Proc
 
 ### [I] weap_beam_freq - set beam frequency
 - Actions: pick frequency A/B/C/D/E (tune to target's weak frequency).
-- Delivery: data_set `scan_type_for_shld_freq` (believed 0.0-1.0). `OPEN`: confirm key (name reads science/shield-ish).
+- Delivery: data_set `scan_type_for_shld_freq` (0.0-1.0). *(confirmed)*
 - Shot: `weap_beam_frea.png`
 
 ### [I] weap_beam_speed - set beam fire rate
@@ -163,7 +164,7 @@ written and/or the route/event fired) - **Selection** (UID set, if any) - **Proc
 
 ### [I] grid_control - command grid objects (button list)
 - Actions: button list of orders for the selected grid object (e.g. crew: Workout / Sleep / Eat / do work order now / cancel work order).
-- Delivery: `OPEN` - how does the button press surface? (`//object/grid`? a `press_grid_button` event? something else?)
+- Delivery: `press_grid_button` event (parallels comms's `press_comms_button`). *(confirmed)*
 - Shot: `grid_control.png`
 
 ### [I] ship_internal_view - interior grid view (click select)
@@ -196,7 +197,7 @@ written and/or the route/event fired) - **Selection** (UID set, if any) - **Proc
 
 ### [I] red_alert - toggle red alert
 - Actions: single **RED ALERT** button.
-- Delivery: data_set `red_alert` 0/1. `OPEN`: is it a data_set write, an event, or both?
+- Delivery: data_set `red_alert` (0/1) **and** fires a `red_alert` event. *(confirmed)*
 - Shot: `red_alert.png`
 
 - [I] radar_zoom_ctrl - see HELM.
@@ -222,11 +223,12 @@ written and/or the route/event fired) - **Selection** (UID set, if any) - **Proc
 - **Route-firing interactions:** the canonical headless driver is to **synthesize
   a `FakeEvent` and dispatch via `ConsoleDispatcher`** (the `_follow_route_console`
   pattern) - "FakeEvent is best".
-- **data_set-driven interactions:** throttle (`playerThrottle`, -1=reverse, warp
+- **data_set-driven interactions** (writing the key alone "just works" - same
+  engine reaction as the widget): throttle (`playerThrottle`, -1=reverse, warp
   needs `warp==1.0`), shields (`shields_raised_flag`), dock (`dock_state` +
-  `dock_base_id`), beam (`scan_type_for_shld_freq`?, `beamCount`,
+  `dock_base_id`), beam (`scan_type_for_shld_freq` 0-1, `beamCount`,
   `beamCycleTime`), power (`eng_control_*`), coolant/heat (`system_coolant_*`,
-  `system_cur_heat`), red_alert (`red_alert`).
+  `system_cur_heat`), red_alert (`red_alert`, also fires a `red_alert` event).
 
 ## Library work surfaced (for v1.4.0_dev / later)
 - **Weapons load/fire scripting** - no script access today; asked-for feature
@@ -240,17 +242,20 @@ written and/or the route/event fired) - **Selection** (UID set, if any) - **Proc
 ---
 
 ## Open questions (Doug)
-1. **helm_movement** - is `steerToDirDX/DY/DZ` + `steeringToDirFlag` the real widget
-   write a bot/mock should use (i.e. confirm the autoplay path is canonical)?
-2. **weap_beam_freq** - confirm the data_set key. `scan_type_for_shld_freq` reads
-   science/shield-ish; is that really the weapons beam-frequency write, and is 0.0-1.0 right?
-3. **grid_control** - how does a grid command-button press reach the script
-   (`//object/grid`? `press_grid_button` event? other)?
-4. **red_alert** - data_set `red_alert` write, an event, or both?
-5. **quick_jump** - any details, or leave as niche/skip?
-6. **(cross-cutting)** For data_set-only widgets, can the test bot just **write the
-   key** and get the same engine reaction as the widget, or do some need an
-   **accompanying event** to take effect?
-7. **(cross-cutting)** Which interactions does the real engine surface as
-   **MAST-visible events** vs handle **internally** (so the mock knows what it must
-   synthesize vs can ignore)?
+Most are resolved above. Remaining:
+
+1. **(cross-cutting) Which data_set changes ALSO fire a MAST route/event** a mission
+   can listen to? For the mock to trigger the right `//` routes it must reproduce
+   both the data_set change *and* any event the engine fires.
+   Confirmed events so far: `main_screen_change`, `red_alert`, `press_comms_button`,
+   `press_grid_button`, `player_launches_missile`, `science_scan_complete`,
+   `select_space_object`, `hold_click` / `hold_button_pressed`, plus the select
+   routes. Do the *other* data_set writes (throttle, `shields_raised_flag`,
+   `dock_state`, coolant/heat, power, beam freq/rate) fire any route/event, or are
+   they purely internal (scripts see them only by polling the data_set)?
+   Concrete example: when `dock_state` advances, does a `//dock` route fire, or does
+   the script poll `dock_state`?
+2. **helm_movement native write** - `steerToDir*` was added for autoplay; what does
+   the *real* helm widget write for steering? (Only needed for faithful mock
+   emulation; a bot can use `steerToDir*`.) Low priority.
+3. **quick_jump** delivery - the data_set/event for charge + fwd/back. Niche.
