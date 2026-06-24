@@ -148,6 +148,12 @@ def _drain_physics_events(sim, cosmos_event_handler, FakeEvent) -> None:
             item = _mock._pending_physics_events.get_nowait()
         except _queue_mod.Empty:
             break
+        # Optional trailing dict carries extra FakeEvent attrs (e.g. sub_float,
+        # source_point for //damage/internal). Pop it before positional parsing.
+        extra_attrs = None
+        if isinstance(item[-1], dict):
+            extra_attrs = item[-1]
+            item = item[:-1]
         tag, sub_tag, origin_id, selected_id = item[0], item[1], item[2], item[3]
         parent_id = item[4] if len(item) > 4 else 0
         extra_extra = item[5] if len(item) > 5 else ""
@@ -156,6 +162,9 @@ def _drain_physics_events(sim, cosmos_event_handler, FakeEvent) -> None:
                        parent_id=parent_id)
         if extra_extra:
             ev.extra_extra_tag = extra_extra
+        if extra_attrs:
+            for _k, _v in extra_attrs.items():
+                setattr(ev, _k, _v)
         try:
             cosmos_event_handler(sim, ev)
         except Exception as e:

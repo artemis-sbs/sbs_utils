@@ -2210,7 +2210,12 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
     # script governs player survival. (NPC -> hull below.)
     if obj._abits & 0x20:   # TickType.PLAYER
         _pending_physics_events.put(("damage", "", source_id, target_id))
-        _pending_physics_events.put(("player_internal_damage", "", source_id, target_id))
+        # //damage/internal: origin = the damaged ship; reads sub_float (system/
+        # amount) + source_point (Vec3 hit location). See LM internal_damage.mast.
+        _pending_physics_events.put((
+            "player_internal_damage", "", target_id, source_id,
+            {"sub_float": 1.0, "source_point": vec3(obj._pos.x, obj._pos.y, obj._pos.z)},
+        ))
         return
     armor = (ds.get("armor") or 0.0) - amount
     if armor > 0:
@@ -2434,7 +2439,9 @@ def _physics_heat(active: list, dt: float) -> None:
         h = getattr(a, "_heat", 0.0)
         if h > _HEAT_CRITICAL and not getattr(a, "_heat_crit", False):
             a._heat_crit = True
-            _pending_physics_events.put(("heat_critical_damage", "", _aid, _aid))
+            # //damage/heat: origin = ship, sub_tag = overheated system index
+            # (int-parsed by the route). See LM internal_damage.mast.
+            _pending_physics_events.put(("heat_critical_damage", "0", _aid, _aid))
         elif h < _HEAT_CRITICAL * 0.8:
             a._heat_crit = False
         if h > 0.0:

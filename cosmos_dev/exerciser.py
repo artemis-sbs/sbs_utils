@@ -112,16 +112,16 @@ class Exerciser:
         e = sbs.sim.space_objects.get(e_id) if e_id else None
         if e is None:
             return
-        # A small hit (shields absorb -> non-fatal //damage), then a big hit that
-        # blows through any shields + hull (-> //damage/destroy + npc/station_killed).
-        # NOTE: internal/heat routes (player_internal_damage / heat_critical_damage)
-        # are NOT forced here - those routes do real work and need proper event
-        # payloads; a bare synthetic event throws. The mock emits them faithfully
-        # (player hit after shields; overheat) - covering them in --test needs the
-        # event field spec. See ENGINE_WIDGETS / AUTOPLAY_PLAN.
+        # Enemy: small hit (shields absorb -> //damage) then a big hit through
+        # shields + hull (-> //damage/destroy + npc/station_killed).
+        # NOTE: we don't force player damage here - it pauses the sim early (game
+        # logic) and //damage/internal /heat key on the ship's registered handler,
+        # so forcing didn't cover them. The mock now emits player_internal_damage /
+        # heat_critical_damage with the correct payloads (system index / sub_float /
+        # source_point) for when the *real* damage flow drives them.
         try:
-            sbs.apply_damage(e_id, 5.0, pid)          # non-fatal (shield/hull) -> //damage
-            sbs.apply_damage(e_id, 1.0e9, pid)        # lethal -> //damage/destroy + killed
+            sbs.apply_damage(e_id, 5.0, pid)          # non-fatal -> //damage
+            sbs.apply_damage(e_id, 1.0e9, pid)        # lethal   -> //damage/destroy + killed
             self.forced += 1
         except Exception:
             self.errors += 1

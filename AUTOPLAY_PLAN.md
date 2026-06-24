@@ -99,14 +99,16 @@ made cheap by the mock harness (headless, 30 Hz fixed-step sim time,
   LegendaryMissions ~12.8%→28.7%, comms 0→24/108, damage 0→9/14. Combat is forced
   via `apply_damage` (mission-spawned mock ships lack beam shipData, so emergent
   beams don't engage in seconds; apply_damage queues the same damage/destroy/killed
-  events). Remaining damage 5/14 = internal/heat: the mock now emits
-  player_internal_damage (player hit after shields) + heat_critical_damage
-  (overheat), but those routes do real work and a *bare* synthetic event throws
-  (verdict caught it) - so the exerciser does NOT force them; covering them in
-  --test needs the event field spec (hit point / system). Damage is shields-first
+  events). Remaining damage 5/14 = internal/heat: the mock now emits them with the
+  CORRECT payloads (heat -> sub_tag = system index; internal -> sub_float +
+  source_point; origin = the ship; per LM internal_damage.mast) and the runner's
+  event drain carries extra attrs. But they CAN'T be force-covered in --test:
+  dispatch_internal/heat key on the ship's registered handler, and forcing player
+  damage trips game logic that pauses the sim. They need the REAL damage flow
+  (NPCs hitting players) -> ties to the spawn-beam-data gap. Damage is shields-first
   (shields absorb; then NPC hull, player internal). Beam damage respects
-  `set_beam_damages` (base*coeff). Next: internal/heat event payloads,
-  comms-submenu walk, scan-start, grid. — a policy whose goal is *coverage*, not
+  `set_beam_damages` (base*coeff). Next: spawn-time shipData population (real
+  combat), comms-submenu walk, scan-start, grid. — a policy whose goal is *coverage*, not
   victory: breadth-first walk every comms tree, scan every scannable,
   dock/undock, fire each weapon/torpedo type, collect each upgrade, trigger
   destroy/heat/internal-damage routes, poke GM tools. Plus a **monkey/fuzz**
