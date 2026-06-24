@@ -53,6 +53,7 @@ def create_new_sim():
         # The new console's widget list repopulates this when the next mission loads.
         _view2d_widget_clients.clear()
         _explicit_2d_rects.clear()
+        _view_shipdata_clients.clear()
         _force_terrain_push()
         _last_fx_nonempty = False
         # Tell every browser to wipe leftover 2D radar / 3D cinematic state.
@@ -344,6 +345,12 @@ _view3d_widget_clients: set = set()
 # the view and falls back to the tiny corner minimap.  clientID -> widget name.
 _view2d_widget_clients: dict = {}
 
+# Clients whose console widget list contains a "ship_data" widget.  _push_ship_data
+# streams the client's player-ship vitals (shields/energy/dock_state/...) each tick
+# so the browser can render a live HUD — the engine renders this widget in C++, so
+# without this the mock shows nothing for it.
+_view_shipdata_clients: set = set()
+
 
 def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) -> None:
     """Record the console type (base behaviour) and drive the browser's gameplay
@@ -373,6 +380,13 @@ def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) ->
     else:
         _view2d_widget_clients.pop(clientID, None)
 
+    # ship_data HUD — _push_ship_data streams the player ship's vitals each tick.
+    if "ship_data" in widgets:
+        _view_shipdata_clients.add(clientID)
+    elif clientID in _view_shipdata_clients:
+        _view_shipdata_clients.discard(clientID)
+        _send(clientID, "ship_data", active=False)
+
 
 def _push_2dview_rects() -> None:
     """Re-register the 2D radar rect each tick for clients whose console shows a
@@ -397,6 +411,44 @@ def _push_2dview_rects() -> None:
             pass
 
 
+def _push_ship_data() -> None:
+    """Stream each ship_data client's player-ship vitals so the browser can render
+    a live HUD (shields, energy, dock_state, throttle, speed, hull, heat, target).
+    One small message per client per tick."""
+    if _base_mock.sim is None or gui_queue is None:
+        return
+    space = _base_mock.sim.space_objects
+    for cid in list(_view_shipdata_clients):
+        o = space.get(_base_mock.get_ship_of_client(cid))
+        if o is None:
+            _send(cid, "ship_data", active=False)
+            continue
+        ds = o.data_set
+
+        def g(k, d=0.0):
+            # data_set.get(name, index=0) - 2nd arg is the INDEX, not a default;
+            # read facet 0 and coalesce None to our display default.
+            v = ds.get(k, 0)
+            return d if v is None else v
+
+        tid = ds.get("weapon_target_UID", 0) or ds.get("target_id", 0) or 0
+        t = space.get(tid)
+        tname = (getattr(t, "name", None) or getattr(t, "_data_tag", "")) if t is not None else ""
+        _send(cid, "ship_data", active=True,
+              name=getattr(o, "name", None) or getattr(o, "_data_tag", "") or "ship",
+              shield=round(float(g("shield_val")), 1),
+              shield_max=round(float(g("shield_max_val")), 1),
+              energy=round(float(g("energy")), 1),
+              hull=round(float(g("armor")), 1),
+              hull_max=round(float(g("armorMax")), 1),
+              throttle=round(float(g("playerThrottle")), 2),
+              speed=round(float(getattr(o, "_cur_speed", 0.0)), 1),
+              dock_state=str(ds.get("dock_state", 0) or ""),
+              red_alert=int(g("red_alert", 0)),
+              heat=round(float(getattr(o, "_heat", 0.0)), 2),
+              target=tname)
+
+
 def physics_tick(dt: float = 1.0 / 60.0) -> None:
     """Delegate to base physics then broadcast a radar delta to the browser."""
     global sim, _radar_tick
@@ -409,6 +461,7 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
         _push_fx()
         _push_cinematic()
         _push_2dview_rects()
+        _push_ship_data()
         _push_skybox()
 
 

@@ -698,7 +698,7 @@ function dispatch(msg) {
       msg.cmd !== 'radar' && msg.cmd !== 'radar_terrain' &&
       msg.cmd !== 'widget_rect' && msg.cmd !== 'cinematic' &&
       msg.cmd !== 'skybox' && msg.cmd !== 'fx' && msg.cmd !== 'batch' &&
-      msg.cmd !== 'world_reset') {
+      msg.cmd !== 'ship_data' && msg.cmd !== 'world_reset') {
     if (msg.clientID !== CLIENT_ID) return;
   }
   switch (msg.cmd) {
@@ -713,6 +713,7 @@ function dispatch(msg) {
     case 'cinematic':    cmdCinematic(msg);   break;
     case 'skybox':       cmdSkybox(msg);      break;
     case 'fx':           cmdFx(msg);          break;
+    case 'ship_data':    cmdShipData(msg);    break;
     case 'batch':        msg.items.forEach(dispatch); break;
     default:             cmdWidget(msg);      break;
   }
@@ -1090,7 +1091,51 @@ function cmdWorldReset(msg) {
   _widgetRects.clear();
   // Reset our tracked ship so the next mission rediscovers it.
   _myShipId = null;
+  if (_shipDataEl) _shipDataEl.style.display = 'none';   // hide stale ship_data HUD
   if (_radarCtx) _renderRadar();
+}
+
+// ── cmdShipData — live player-ship vitals HUD (mock-only) ────────────────────
+// The engine renders the `ship_data` console widget in C++; the mock streams the
+// player ship's stats each tick and we draw a small overlay so autoplay state
+// (shields/energy/dock_state/throttle/target) is visible while watching.
+let _shipDataEl = null;
+function _ensureShipDataEl() {
+  if (_shipDataEl) return _shipDataEl;
+  const el = document.createElement('div');
+  el.id = 'shipDataHud';
+  el.style.cssText =
+    'position:fixed;left:8px;bottom:8px;z-index:50;min-width:190px;' +
+    'font:11px/1.45 monospace;color:#cde;background:rgba(8,14,22,.82);' +
+    'border:1px solid #2a3a4a;border-radius:5px;padding:7px 9px;' +
+    'pointer-events:none;white-space:pre;text-shadow:0 1px 1px #000;';
+  document.body.appendChild(el);
+  _shipDataEl = el;
+  return el;
+}
+function _bar(v, max, w = 12) {
+  if (!max || max <= 0) return '—';
+  const f = Math.max(0, Math.min(1, v / max));
+  const n = Math.round(f * w);
+  return '['.concat('#'.repeat(n), '.'.repeat(w - n), '] ', Math.round(f * 100), '%');
+}
+function cmdShipData(msg) {
+  if (!msg.active) { if (_shipDataEl) _shipDataEl.style.display = 'none'; return; }
+  const el = _ensureShipDataEl();
+  el.style.display = 'block';
+  const dock = msg.dock_state || 'undocked';
+  const dockColor = dock === 'docked' ? '#6f6'
+                  : (dock === 'dock_start' || dock === 'docking') ? '#fd6' : '#9ab';
+  el.innerHTML =
+    `<b style="color:#fff">${msg.name || 'ship'}</b>` +
+    (msg.red_alert ? `  <span style="color:#f55">RED ALERT</span>` : '') + '\n' +
+    `shield ${_bar(msg.shield, msg.shield_max)}\n` +
+    `hull   ${_bar(msg.hull, msg.hull_max)}\n` +
+    `energy ${Math.round(msg.energy)}\n` +
+    `thrtl  ${msg.throttle}   spd ${msg.speed}\n` +
+    `heat   ${msg.heat}\n` +
+    `dock   <span style="color:${dockColor}">${dock}</span>\n` +
+    `target ${msg.target || '—'}`;
 }
 
 // ── cmdRadar — delta update for active (NPC/PLAYER) objects ──────────────────
