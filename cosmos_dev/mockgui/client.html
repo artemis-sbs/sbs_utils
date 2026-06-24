@@ -2365,11 +2365,14 @@ function cmdClear(msg) {
     // Also clear radar view registrations — they'll be re-registered when the
     // new page's 2dview widgets are appended during the upcoming rebuild.
     _widgetRects.clear();
-    // Hide the mock HUD overlays too (ship_data / text_waterfall). They re-show
-    // from the per-tick ship_data push / next text_msg if the rebuilt console
-    // still declares them; text scrollback is preserved (hidden, not wiped).
+    // Hide the mock HUD overlays + the 3D cinematic view too. They re-show from
+    // the per-tick ship_data / cinematic push / next text_msg if the rebuilt
+    // console still declares them; text scrollback is preserved (hidden, not
+    // wiped). Matches how the 2D radar clears and re-registers each rebuild.
     if (_shipDataEl) _shipDataEl.style.display = 'none';
     if (_textWfEl)   _textWfEl.style.display = 'none';
+    _view3dActive = false;
+    if (_view3dCanvas) _view3dCanvas.style.display = 'none';
     _regions[""].back.innerHTML = '';
     _regions[""].inProgress = true;
     for (const k of Object.keys(_regions)) { if (k !== "") delete _regions[k]; }
