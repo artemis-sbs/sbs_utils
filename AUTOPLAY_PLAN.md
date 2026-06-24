@@ -144,7 +144,32 @@ The two highest-leverage ideas are also the least-validated; spike them first:
    enough. Spike on LegendaryMissions autoplay measured ~13% of labels entered,
    comms 0/108 and damage 0/14 — confirming both feasibility and value.
 2. **Actuate-through-real-API** — does every console action have a clean
-   procedural entry point a bot could call, or only data_set side-effects? — TODO
+   procedural entry point a bot could call, or only data_set side-effects? —
+   **RESOLVED**: yes, via two layers, and nothing is a dead-end:
+   - **Procedural calls** exercise the real route/handler code directly:
+     `set_{weapons,science,comms,grid}_selection`, and especially
+     `follow_route_select_{comms,science,grid}` which "fire the selection route
+     as if the player selected" by building a `FakeEvent` and calling
+     `ConsoleDispatcher.dispatch_select` (`procedural/routes.py
+     _follow_route_console`). Comms tree: `comms_navigate(path)` /
+     `comms_navigate_override(ids, sel, path)`. Plus docking, science scans, etc.
+   - **GUI event synthesis** for any button/widget with no dedicated proc:
+     widgets carry `.tag` and match on `event.sub_tag == self.tag`
+     (`pages/layout/layout.py is_message_for`), so a `FakeEvent(tag="gui_message",
+     sub_tag=widget_tag)` through `cosmos_event_handler` runs its
+     `on gui_message` handler — the exact path the mock runner already uses for
+     browser clicks. The `_follow_route_console` pattern (synthesize event →
+     dispatch) is the reusable template for selects/points/comms too.
+   - **Discoverability** (needed by the monkey/exerciser): pages expose
+     `self.layouts`; walking layouts → rows → widgets yields the live `.tag`s to
+     press, and the comms runtime builds an enumerable button list. Small
+     follow-on: confirm tag stability across rebuilds and a tidy
+     `enumerate_widgets(page)` / `press(tag)` helper.
+
+   Design consequence: the test-mode actuation back-end prefers procedural calls
+   where they exist and falls back to event synthesis for arbitrary
+   buttons/widgets; the attract back-end keeps direct `data_set` writes for
+   reliability.
 
 ## Adjacent opportunity: MAST debugger (future spike)
 
