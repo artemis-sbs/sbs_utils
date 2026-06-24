@@ -2060,12 +2060,39 @@ def _npcship_steer(obj: space_object, dt: float) -> None:
 
 def _playership_drive(obj: space_object, dt: float) -> None:
     """Default player ship behavior: drive forward along current heading from
-    playerThrottle (0.0-5.0; <=1.0 impulse, >1.0 warp).  Helm sets _steer_yaw
-    elsewhere — this only ramps forward speed."""
+    playerThrottle (0.0-5.0; <=1.0 impulse, >1.0 warp).
+
+    When the helm requests direction steering (steeringToDirFlag set — e.g. the
+    autoplay AI, which writes steerToDirDX/DY/DZ + steeringToDirFlag rather than
+    target_pos), rotate the heading toward that vector using the same
+    cross-product P-controller as _npcship_steer.  Otherwise leave the heading
+    untouched (manual helm sets _steer_yaw elsewhere).  Throttle ramping is
+    unchanged — autoplay does its own distance-based throttle, so no arrival
+    braking here."""
     ds = obj.data_set
     if ds.get("deathState") > 0:
+        obj._steer_yaw = 0.0
         obj._cur_speed = 0.0
         return
+
+    # Direction steering: steer yaw toward the requested heading vector.  NPCs
+    # steer via target_pos_x/z; players are driven via steerToDirD* + the flag.
+    if ds.get("steeringToDirFlag"):
+        dx = ds.get("steerToDirDX") or 0.0
+        dz = ds.get("steerToDirDZ") or 0.0
+        horiz = math.sqrt(dx * dx + dz * dz)
+        turn_rate = ds.get("turn_rate") or 0.0
+        if turn_rate <= 0.0:
+            turn_rate = 0.1  # ~6 deg/s fallback when shipData not loaded
+        if horiz > 1e-6:
+            fwd = obj.forward_vector()
+            ndx, ndz = dx / horiz, dz / horiz
+            # Y of (fwd × desired): positive → target right of heading → steer right (+yaw)
+            cross_y = fwd.z * ndx - fwd.x * ndz
+            steer = cross_y * turn_rate * 5.0     # P-controller; clamp to ±turn_rate
+            obj._steer_yaw = max(-turn_rate, min(turn_rate, steer))
+        else:
+            obj._steer_yaw = 0.0
 
     pt = ds.get("playerThrottle") or 0.0
     speed_coeff = ds.get("total_speed_coeff") or ds.get("speed_coeff") or 1.0
