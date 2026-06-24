@@ -1334,6 +1334,7 @@ class simulation(object): ### from pybind
         self.navproxies = {}
         self.hull_map_objects = {}
         self._time_tick_counter = 0
+        self._tick_accum = 0.0        # fractional sim-ticks carried between physics ticks
         self.tractor_connections = {}
         self._paused = True           # sim starts paused, like the real engine
         self._connected_client_ids: set = set()  # registered via WebSocket (mockgui)
@@ -2535,7 +2536,12 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
         # physics/sim tick advances time_tick_counter).  dt is sim-seconds, so the
         # counter advances dt * TICKS_PER_SECOND; sim_seconds = counter / TPS then
         # tracks elapsed sim time.  Paused sims don't reach here, so time freezes.
-        sim._time_tick_counter += int(round(dt * TICKS_PER_SECOND))
+        # Carry the fractional tick so the rate stays exact for any dt / physics Hz
+        # (e.g. dt=1/16 -> 1.875 ticks each; accumulating avoids rounding drift).
+        sim._tick_accum += dt * TICKS_PER_SECOND
+        whole = int(sim._tick_accum)
+        sim._time_tick_counter += whole
+        sim._tick_accum -= whole
 
         space = sim.space_objects
         _beam_fires.clear()   # transient per-tick beam-fire record (for the mockgui)

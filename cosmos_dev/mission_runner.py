@@ -263,18 +263,20 @@ def _run(
     _mast_counter  = 0
     _map_started   = map_arg is None  # skip auto-start when no map was requested
 
-    # Physics runs in a background daemon thread at 2 Hz, decoupled from MAST.
+    # Physics runs in a background daemon thread, decoupled from MAST.
     # The main loop drains physics events each iteration via queue.Queue.get_nowait().
+    _PHYSICS_HZ = 16.0
+    _PHYSICS_DT = 1.0 / _PHYSICS_HZ      # sim-seconds advanced per physics tick
     _stop_physics = threading.Event()
 
     def _physics_worker(sbs_mod, stop_ev):
         while not stop_ev.is_set():
             if sbs_mod.sim is not None and not sbs_mod.sim._paused:
                 try:
-                    sbs_mod.physics_tick(dt=0.5)
+                    sbs_mod.physics_tick(dt=_PHYSICS_DT)
                 except Exception as e:
                     print(f"[runner] physics worker error: {e}")
-            stop_ev.wait(timeout=0.5)   # 2 Hz; exits promptly on stop signal
+            stop_ev.wait(timeout=_PHYSICS_DT)   # exits promptly on stop signal
 
     _physics_thread = threading.Thread(
         target=_physics_worker,
@@ -283,7 +285,7 @@ def _run(
         name="sbs-physics",
     )
     _physics_thread.start()
-    print(f"[runner] running at {tick_rate} Hz  (MAST 5 Hz, physics 2 Hz background thread)")
+    print(f"[runner] running at {tick_rate} Hz  (MAST 5 Hz, physics {_PHYSICS_HZ:g} Hz background thread)")
 
     # Guard: clients that connect before the server's first MAST tick would run their
     # client_connect handler against uninitialised game state.  Buffer those connections
