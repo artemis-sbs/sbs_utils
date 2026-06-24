@@ -123,9 +123,23 @@ def clear_client_tags() -> None:
     """stub; does nothing yet."""
 
 def create_new_sim() -> None:
-    """all space objects are deleted; a blank slate is born."""
+    """all space objects are deleted; a blank slate is born.
+
+    Resets the existing simulation IN PLACE rather than allocating a new object.
+    The engine reuses its sim instance, and so must the mock: a script's
+    ``sim_create()`` runs *inside* a ``cosmos_event_handler`` call whose
+    ``FrameContext.context`` already holds a reference to the sim. If we swapped
+    in a brand-new object, everything that script spawns after sim_create (e.g.
+    start_server's player ships) would land on the now-orphaned old instance via
+    the stale context, while later ticks build the world on the new one - so the
+    player ships vanish and their ids get reused. Re-initialising in place keeps
+    the object identity, so every held reference stays valid.
+    """
     global sim, _contact_pairs
-    sim = simulation()
+    if sim is None:
+        sim = simulation()
+    else:
+        sim.__init__()   # reset fields in place; preserves object identity
     _contact_pairs = {}
     _projectiles.clear()
     _beam_fires.clear()

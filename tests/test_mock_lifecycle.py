@@ -119,6 +119,32 @@ class TestWorldResetOnSimCreate(unittest.TestCase):
         mockgui.create_new_sim()   # must be a no-op, not an error
 
 
+class TestCreateNewSimIdentity(unittest.TestCase):
+    """create_new_sim must reset IN PLACE (same object), so a reference taken
+    before a script's sim_create() (e.g. the in-flight FrameContext.context.sim)
+    stays valid - otherwise objects spawned after sim_create land on an orphaned
+    instance and their ids get reused on the new one (the 'player is a starbase'
+    bug)."""
+
+    def test_resets_in_place_preserving_identity(self):
+        s1 = base.create_new_sim()
+        s1.create_space_object("behav_playership", "tsn_light_cruiser", 0x20)
+        self.assertEqual(len(s1.space_objects), 1)
+        s2 = base.create_new_sim()
+        self.assertIs(s1, s2)                                   # same object
+        self.assertEqual(len(s2.space_objects), 0)             # state cleared
+        self.assertEqual(s2.object_ids, 0x4000000000000000)    # id counter reset
+
+    def test_objects_after_reset_do_not_collide_with_stale_refs(self):
+        base.create_new_sim()
+        held = base.sim                       # reference taken before sim_create()
+        base.create_new_sim()                 # script calls sim_create()
+        new_id = base.sim.create_space_object("behav_station", "starbase", 0x10)
+        # The held reference sees the same object, so the new id is visible there.
+        self.assertIs(held, base.sim)
+        self.assertIn(new_id, held.space_objects)
+
+
 class TestGetShipOfClientFallback(unittest.TestCase):
     """get_ship_of_client mirrors the engine: an unassigned client grabs a
     PLAYER-abit ship, and deleting a ship falls over to another player ship."""
