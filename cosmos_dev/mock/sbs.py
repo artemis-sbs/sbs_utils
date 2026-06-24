@@ -31,6 +31,11 @@ _pending_physics_events: queue.Queue = queue.Queue()
 # *_collision_end event can be emitted with the right tag/ids after exit.
 _contact_pairs: dict = {}
 
+# In-flight projectiles (missiles + drones — both travel then deal hull damage
+# on impact). Lightweight dicts (not space_objects, so they don't feed back into
+# collision/beam passes): {pos, target_id, source_id, damage, speed, life, kind}.
+_projectiles: list = []
+
 # Behavior dispatch: tick_type string → callable(space_object, dt_seconds)
 _behavior_registry: dict = {}
 
@@ -100,8 +105,10 @@ def clear_client_tags() -> None:
 
 def create_new_sim() -> None:
     """all space objects are deleted; a blank slate is born."""
-    global sim
+    global sim, _contact_pairs
     sim = simulation()
+    _contact_pairs = {}
+    _projectiles.clear()
     return sim
 
 
@@ -2160,6 +2167,136 @@ def _physics_beams(sim, active: list, dt: float) -> None:
         a._beam_cooldown = ds.get("beamCycleTime") or 6.0
 
 
+# Projectile defaults (mock approximations).
+_PROJECTILE_HIT_RADIUS = 300.0
+_TORP_RANGE = 6000.0
+_TORP_CYCLE = 8.0
+_TORP_DAMAGE = 40.0
+_DRONE_CYCLE = 10.0
+
+
+def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
+                   damage: float = _TORP_DAMAGE, speed: float = 600.0,
+                   life: float = 30.0) -> None:
+    """Mock-only: launch a homing missile/torpedo.
+
+    Emits a ``player_launches_missile`` event (routes //launch/missile, with
+    extra_extra_tag=kind, origin=source, selected=target) and registers a
+    projectile that homes the target and deals `damage` hull damage on impact
+    (via apply_damage -> damage/killed events).
+    """
+    if sim is None:
+        return
+    src = sim.space_objects.get(source_id)
+    if src is None:
+        return
+    _pending_physics_events.put(
+        ("player_launches_missile", "", source_id, target_id, source_id, kind))
+    _projectiles.append({
+        "pos": vec3(src._pos.x, src._pos.y, src._pos.z),
+        "target_id": target_id, "source_id": source_id,
+        "damage": float(damage), "speed": float(speed),
+        "life": float(life), "kind": "missile",
+    })
+
+
+def launch_drone(source_id: int, target_id: int, damage: float = 20.0,
+                 speed: float = 400.0, life: float = 40.0) -> None:
+    """Mock-only: launch a drone (also a projectile).
+
+    Emits a ``ship_launches_drone`` event (routes //launch/drone) and registers
+    a homing projectile dealing `damage` hull damage on impact.
+    """
+    if sim is None:
+        return
+    src = sim.space_objects.get(source_id)
+    if src is None:
+        return
+    _pending_physics_events.put(
+        ("ship_launches_drone", "", source_id, target_id, source_id, "drone"))
+    _projectiles.append({
+        "pos": vec3(src._pos.x, src._pos.y, src._pos.z),
+        "target_id": target_id, "source_id": source_id,
+        "damage": float(damage), "speed": float(speed),
+        "life": float(life), "kind": "drone",
+    })
+
+
+def _physics_projectiles(sim, dt: float) -> None:
+    """Advance in-flight missiles/drones toward their targets; on impact apply
+    hull damage (apply_damage) and remove. Expire on lifetime or if the target
+    no longer exists."""
+    if not _projectiles:
+        return
+    space = sim.space_objects
+    remaining = []
+    for p in _projectiles:
+        p["life"] -= dt
+        if p["life"] <= 0:
+            continue
+        target = space.get(p["target_id"])
+        if target is None:
+            continue  # target gone -> projectile fizzles
+        pos = p["pos"]
+        dx = target._pos.x - pos.x
+        dy = target._pos.y - pos.y
+        dz = target._pos.z - pos.z
+        dist2 = dx * dx + dy * dy + dz * dz
+        step = p["speed"] * dt
+        if dist2 <= _PROJECTILE_HIT_RADIUS * _PROJECTILE_HIT_RADIUS or dist2 <= step * step:
+            apply_damage(p["target_id"], p["damage"], p["source_id"])
+            continue  # consumed on impact
+        dist = math.sqrt(dist2)
+        pos.x += dx / dist * step
+        pos.y += dy / dist * step
+        pos.z += dz / dist * step
+        remaining.append(p)
+    _projectiles[:] = remaining
+
+
+def _physics_launchers(sim, active: list, dt: float) -> None:
+    """Autonomous NPC fire of projectile weapons at the current target on a
+    cooldown: torpedoes (torpedo_tube_count>0) and drones (drone capability).
+    Players in headless have no target, so this is mainly NPC fire."""
+    space = sim.space_objects
+    for aid, a in active:
+        if aid not in space:
+            continue
+        ds = a.data_set
+        target_id = ds.get("target_id") or 0
+        if not target_id:
+            continue
+        target = space.get(target_id)
+        if target is None:
+            continue
+        dx = a._pos.x - target._pos.x
+        dy = a._pos.y - target._pos.y
+        dz = a._pos.z - target._pos.z
+        dist2 = dx * dx + dy * dy + dz * dz
+
+        # Torpedoes
+        if (ds.get("torpedo_tube_count") or 0) > 0:
+            cd = getattr(a, "_torp_cooldown", 0.0)
+            if cd > 0:
+                a._torp_cooldown = cd - dt
+            else:
+                rng = ds.get("torpedo_launch_max_range") or _TORP_RANGE
+                if dist2 <= rng * rng:
+                    launch_missile(aid, target_id)
+                    a._torp_cooldown = _TORP_CYCLE
+
+        # Drones (capability from data_set)
+        d_dmg = ds.get("drone_damage") or 0.0
+        d_rng = ds.get("drone_launch_max_range") or 0.0
+        if d_dmg > 0 and d_rng > 0:
+            cd = getattr(a, "_drone_cooldown", 0.0)
+            if cd > 0:
+                a._drone_cooldown = cd - dt
+            elif dist2 <= d_rng * d_rng:
+                launch_drone(aid, target_id, damage=d_dmg)
+                a._drone_cooldown = ds.get("drone_launch_timer") or _DRONE_CYCLE
+
+
 def _physics_collision(sim, active: list) -> None:
     """Spatial-hash sphere collision.
 
@@ -2344,6 +2481,11 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
 
         # 3b. Beams — active objects with a target in range fire on cooldown.
         _physics_beams(sim, active, dt)
+
+        # 3c. Projectile weapons — NPCs launch missiles/drones; in-flight
+        #     projectiles travel and deal damage on impact.
+        _physics_launchers(sim, active, dt)
+        _physics_projectiles(sim, dt)
 
         # 4. Passive systems — shield regen + APU energy, active objects only.
         for _id, obj in active:

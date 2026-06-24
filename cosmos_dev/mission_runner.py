@@ -123,19 +123,27 @@ class _TeeWriter:
 
 
 def _drain_physics_events(sim, cosmos_event_handler, FakeEvent) -> None:
-    """Drain collision events queued by the physics background thread.
+    """Drain physics events queued by the physics background thread.
 
-    Each entry in _pending_physics_events is (tag, sub_tag, origin_id, selected_id).
-    Uses queue.Queue.get_nowait() for thread-safe non-blocking reads.
+    Each entry is a tuple (tag, sub_tag, origin_id, selected_id[, parent_id
+    [, extra_extra_tag]]). The optional 5th/6th elements carry parent_id and
+    the launch_type (extra_extra_tag) for launch events; collision/damage use
+    the 4-tuple form. Uses queue.Queue.get_nowait() for thread-safe reads.
     """
     import cosmos_dev.mock.sbs as _mock
     while True:
         try:
-            tag, sub_tag, origin_id, selected_id = _mock._pending_physics_events.get_nowait()
+            item = _mock._pending_physics_events.get_nowait()
         except _queue_mod.Empty:
             break
+        tag, sub_tag, origin_id, selected_id = item[0], item[1], item[2], item[3]
+        parent_id = item[4] if len(item) > 4 else 0
+        extra_extra = item[5] if len(item) > 5 else ""
         ev = FakeEvent(client_id=0, tag=tag, sub_tag=sub_tag,
-                       origin_id=origin_id, selected_id=selected_id)
+                       origin_id=origin_id, selected_id=selected_id,
+                       parent_id=parent_id)
+        if extra_extra:
+            ev.extra_extra_tag = extra_extra
         try:
             cosmos_event_handler(sim, ev)
         except Exception as e:
