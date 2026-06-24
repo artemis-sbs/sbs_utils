@@ -934,6 +934,10 @@ let _radarScene3d = null, _radarCamera3d = null;
 let _terrainPoints = null, _dynamicPoints = null;
 let _terrainPosBuf = null, _terrainColBuf = null;
 let _dynamicPosBuf = null, _dynamicColBuf = null;
+// Smoothed copy of _dynamicPosBuf that the 3D view eases toward each render frame,
+// so ship motion is fluid at 60fps regardless of the (slower, ~30Hz) server push
+// rate. Same index layout as _dynamicPosBuf; kept aligned on add/remove below.
+let _dynamicDispBuf = null;
 
 // Delta state: id → index for O(1) update; reverse map for O(1) swap-with-last removals.
 let _terrainCount = 0, _dynamicCount = 0;
@@ -1002,6 +1006,7 @@ function _initRadar3d() {
 
   const dGeo = new THREE.BufferGeometry();
   _dynamicPosBuf = new Float32Array(_MAX_DYNAMIC * 3);
+  _dynamicDispBuf = new Float32Array(_MAX_DYNAMIC * 3);
   _dynamicColBuf = new Float32Array(_MAX_DYNAMIC * 3);
   dGeo.setAttribute('position', new THREE.BufferAttribute(_dynamicPosBuf, 3));
   dGeo.setAttribute('color',    new THREE.BufferAttribute(_dynamicColBuf, 3));
@@ -1104,6 +1109,9 @@ function cmdRadar(msg) {
         _dynamicPosBuf[dstBase]     = _dynamicPosBuf[srcBase];
         _dynamicPosBuf[dstBase + 1] = _dynamicPosBuf[srcBase + 1];
         _dynamicPosBuf[dstBase + 2] = _dynamicPosBuf[srcBase + 2];
+        _dynamicDispBuf[dstBase]     = _dynamicDispBuf[srcBase];   // keep smoothed buf aligned
+        _dynamicDispBuf[dstBase + 1] = _dynamicDispBuf[srcBase + 1];
+        _dynamicDispBuf[dstBase + 2] = _dynamicDispBuf[srcBase + 2];
         _dynamicColBuf[dstBase]     = _dynamicColBuf[srcBase];
         _dynamicColBuf[dstBase + 1] = _dynamicColBuf[srcBase + 1];
         _dynamicColBuf[dstBase + 2] = _dynamicColBuf[srcBase + 2];
@@ -1119,6 +1127,7 @@ function cmdRadar(msg) {
     let colorsDirty = false;
     for (const o of changed) {
       let idx = _dynamicMap.get(o.id);
+      const isNew = idx === undefined;   // client is allocating a fresh slot
       if (idx === undefined) {
         if (_dynamicCount >= _MAX_DYNAMIC) continue;
         idx = _dynamicCount++;
@@ -1142,6 +1151,13 @@ function cmdRadar(msg) {
       _dynamicPosBuf[pb]     = o.x;
       _dynamicPosBuf[pb + 1] = o.z;
       _dynamicPosBuf[pb + 2] = 0;
+      if (isNew) {
+        // Snap the smoothed buffer to a brand-new object so it doesn't ease in
+        // from a stale slot / the origin; existing objects ease toward o.x/o.z.
+        _dynamicDispBuf[pb]     = o.x;
+        _dynamicDispBuf[pb + 1] = o.z;
+        _dynamicDispBuf[pb + 2] = 0;
+      }
     }
 
     _dynamicPoints.geometry.setDrawRange(0, _dynamicCount);
@@ -1866,7 +1882,7 @@ function _view3dSync() {
     const id  = _dynamicRevMap.get(i);
     if (id !== undefined && _view3dMeshedIds.has(id)) continue;
     const b = i * 3, o = n * 3;
-    _view3dPosBuf[o] = _dynamicPosBuf[b]; _view3dPosBuf[o+1] = 0; _view3dPosBuf[o+2] = _dynamicPosBuf[b+1];
+    _view3dPosBuf[o] = _dynamicDispBuf[b]; _view3dPosBuf[o+1] = 0; _view3dPosBuf[o+2] = _dynamicDispBuf[b+1];
     _view3dColBuf[o] = _dynamicColBuf[b]; _view3dColBuf[o+1] = _dynamicColBuf[b+1]; _view3dColBuf[o+2] = _dynamicColBuf[b+2];
     n++;
   }
@@ -1927,7 +1943,7 @@ function _view3dSyncInstances() {
     const idx = _dynamicMap.get(id);
     if (idx === undefined || idx >= _dynamicCount || !meta.art) continue;
     const b = idx * 3;
-    consider(id, meta.art, _dynamicPosBuf[b], meta.y || 0, _dynamicPosBuf[b+1],
+    consider(id, meta.art, _dynamicDispBuf[b], meta.y || 0, _dynamicDispBuf[b+1],
              meta.meshscale || 1, meta.q, meta.fx, meta.fz);
   }
   for (const [id, meta] of _terrainMeta) {
@@ -2010,6 +2026,17 @@ function _renderView3d() {
   const H = _view3dCanvas.clientHeight || window.innerHeight;
   if (_view3dCanvas.width !== W)  _view3dCanvas.width  = W;
   if (_view3dCanvas.height !== H) _view3dCanvas.height = H;
+
+  // Ease the smoothed position buffer toward the latest server positions so ships
+  // move fluidly at 60fps between the ~30Hz pushes. Uses the same lerp factor as
+  // the camera (below): the chase cam offset is rigid, so the followed ship stays
+  // perfectly framed while others interpolate. New objects were snapped on add.
+  if (_dynamicDispBuf) {
+    const PL = 0.12, n3 = _dynamicCount * 3;
+    for (let i = 0; i < n3; i++)
+      _dynamicDispBuf[i] += (_dynamicPosBuf[i] - _dynamicDispBuf[i]) * PL;
+  }
+
   _view3dSyncInstances();   // before _view3dSync so meshed objects drop their point
   _view3dSync();
   _view3dSyncFx();          // combat beams + projectile dots (y=0 plane)
@@ -2043,7 +2070,7 @@ function _renderView3d() {
     if (idx !== undefined && idx < _dynamicCount) {
       const b = idx * 3;
       const m = _dynamicMeta.get(_myShipId);
-      _view3dHighlight.position.set(_dynamicPosBuf[b], (m && m.y || 0) - 4, _dynamicPosBuf[b + 1]);
+      _view3dHighlight.position.set(_dynamicDispBuf[b], (m && m.y || 0) - 4, _dynamicDispBuf[b + 1]);
       _view3dHighlight.visible = true;
     } else {
       _view3dHighlight.visible = false;
@@ -2066,7 +2093,12 @@ function _renderView3d() {
 function cmdCinematic(msg) {
   // Transient broadcast: keep only messages addressed to our own client.
   if (CLIENT_ID !== null && String(msg.clientID) !== String(CLIENT_ID)) return;
+  const _wasActive = _view3dActive;
   _view3dActive = !!msg.active;
+  // The smoothing ease only runs while the view renders; on (re)activation snap the
+  // display buffer to current positions so ships don't slide in from stale slots.
+  if (_view3dActive && !_wasActive && _dynamicDispBuf && _dynamicPosBuf)
+    _dynamicDispBuf.set(_dynamicPosBuf.subarray(0, _dynamicCount * 3));
   if (_view3dCanvas) {
     _view3dCanvas.style.display = _view3dActive ? 'block' : 'none';
     // Position the 3D canvas to the script-set rect (screen %), or the default
