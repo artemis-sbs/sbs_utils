@@ -133,6 +133,42 @@ class TestMockProjectiles(unittest.TestCase):
         sbs._physics_launchers(self.sim, [(aid, a)], dt=0.5)
         self.assertEqual([e[0] for e in _drain()], ["ship_launches_drone"])
 
+    def test_heat_seeking_retargets_hottest(self):
+        sid, s = self._hulled(pos=(0, 0, 0))
+        cold_id, cold = self._hulled(100, pos=(5000, 0, 0))   # the fired target (cold, far)
+        hot_id, hot = self._hulled(100, pos=(200, 0, 0))      # hotter, close -> impact
+        hot._heat = 0.5
+        sbs.launch_missile(sid, cold_id, damage=40, heat_seek=True)
+        _drain()
+        sbs._physics_projectiles(self.sim, dt=0.5)
+        ev = _drain()
+        self.assertIn(("damage", "", sid, hot_id), ev)         # re-locked onto the hot one
+        self.assertEqual(hot.data_set.get("armor"), 60.0)
+        self.assertEqual(cold.data_set.get("armor"), 100.0)    # fired target untouched
+
+    def test_non_heat_seek_homes_fired_target(self):
+        sid, s = self._hulled(pos=(0, 0, 0))
+        cold_id, cold = self._hulled(100, pos=(200, 0, 0))     # fired target, close
+        hot_id, hot = self._hulled(100, pos=(5000, 0, 0))      # hotter but ignored
+        hot._heat = 0.9
+        sbs.launch_missile(sid, cold_id, damage=40, heat_seek=False)
+        _drain()
+        sbs._physics_projectiles(self.sim, dt=0.5)
+        self.assertIn(("damage", "", sid, cold_id), _drain())
+        self.assertEqual(cold.data_set.get("armor"), 60.0)
+        self.assertEqual(hot.data_set.get("armor"), 100.0)
+
+    def test_autonomous_heat_seek_torpedo(self):
+        aid, a = self._hulled(pos=(0, 0, 0))
+        a.data_set.set("torpedo_tube_count", 1)
+        a.data_set.set("torpedo_heat_seek", 1)
+        tid, t = self._hulled(100, pos=(1000, 0, 0))
+        a.data_set.set("target_id", tid)
+        _drain()
+        sbs._physics_launchers(self.sim, [(aid, a)], dt=0.5)
+        self.assertEqual([e[0] for e in _drain()], ["player_launches_missile"])
+        self.assertTrue(sbs._projectiles[0]["heat_seek"])
+
     def test_no_fire_out_of_range(self):
         aid, a = self._hulled(pos=(0, 0, 0))
         a.data_set.set("torpedo_tube_count", 1)

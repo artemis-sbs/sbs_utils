@@ -2180,6 +2180,7 @@ def _physics_beams(sim, active: list, dt: float) -> None:
         if dmg > 0:
             apply_damage(tid, dmg, aid)
         a._beam_cooldown = ds.get("beamCycleTime") or 6.0
+        a._heat = getattr(a, "_heat", 0.0) + _BEAM_HEAT   # firing makes the ship hot
 
 
 # Projectile defaults (mock approximations).
@@ -2189,16 +2190,24 @@ _TORP_CYCLE = 8.0
 _TORP_DAMAGE = 40.0
 _DRONE_CYCLE = 10.0
 
+# Simple ship-level heat (object attribute `_heat`, ~0-1 scale): firing beams
+# adds heat, it decays over time, and heat-seeking missiles chase the hottest
+# nearby object. (Distinct from the real per-system data_set "system_cur_heat".)
+_BEAM_HEAT = 0.2
+_HEAT_DECAY = 0.05          # per second
+_HEAT_SEEK_RADIUS = 8000.0
+
 
 def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
                    damage: float = _TORP_DAMAGE, speed: float = 600.0,
-                   life: float = 30.0) -> None:
+                   life: float = 30.0, heat_seek: bool = False) -> None:
     """Mock-only: launch a homing missile/torpedo.
 
     Emits a ``player_launches_missile`` event (routes //launch/missile, with
     extra_extra_tag=kind, origin=source, selected=target) and registers a
     projectile that homes the target and deals `damage` hull damage on impact
-    (via apply_damage -> damage/killed events).
+    (via apply_damage -> damage/killed events). If ``heat_seek`` it re-locks each
+    tick onto the hottest nearby object instead of the fired target.
     """
     if sim is None:
         return
@@ -2211,7 +2220,7 @@ def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
         "pos": vec3(src._pos.x, src._pos.y, src._pos.z),
         "target_id": target_id, "source_id": source_id,
         "damage": float(damage), "speed": float(speed),
-        "life": float(life), "kind": "missile",
+        "life": float(life), "kind": "missile", "heat_seek": bool(heat_seek),
     })
 
 
@@ -2237,10 +2246,32 @@ def launch_drone(source_id: int, target_id: int, damage: float = 20.0,
     })
 
 
+def _hottest_within(sim, pos, radius: float, exclude_id: int) -> int:
+    """Return the id of the hottest object (largest _heat) within `radius` of
+    `pos`, or 0 if none. Used by heat-seeking missiles."""
+    best = 0
+    best_heat = 0.0
+    r2 = radius * radius
+    for oid, o in sim.space_objects.items():
+        if oid == exclude_id:
+            continue
+        h = getattr(o, "_heat", 0.0)
+        if h <= best_heat:
+            continue
+        dx = o._pos.x - pos.x
+        dy = o._pos.y - pos.y
+        dz = o._pos.z - pos.z
+        if dx * dx + dy * dy + dz * dz <= r2:
+            best = oid
+            best_heat = h
+    return best
+
+
 def _physics_projectiles(sim, dt: float) -> None:
     """Advance in-flight missiles/drones toward their targets; on impact apply
     hull damage (apply_damage) and remove. Expire on lifetime or if the target
-    no longer exists."""
+    no longer exists. Heat-seeking missiles re-lock onto the hottest nearby
+    object each tick."""
     if not _projectiles:
         return
     space = sim.space_objects
@@ -2249,6 +2280,10 @@ def _physics_projectiles(sim, dt: float) -> None:
         p["life"] -= dt
         if p["life"] <= 0:
             continue
+        if p.get("heat_seek"):
+            hot = _hottest_within(sim, p["pos"], _HEAT_SEEK_RADIUS, p["source_id"])
+            if hot:
+                p["target_id"] = hot     # re-lock onto the hottest contact
         target = space.get(p["target_id"])
         if target is None:
             continue  # target gone -> projectile fizzles
@@ -2267,6 +2302,15 @@ def _physics_projectiles(sim, dt: float) -> None:
         pos.z += dz / dist * step
         remaining.append(p)
     _projectiles[:] = remaining
+
+
+def _physics_heat(active: list, dt: float) -> None:
+    """Decay simple ship heat over time (firing adds it in _physics_beams)."""
+    d = _HEAT_DECAY * dt
+    for _aid, a in active:
+        h = getattr(a, "_heat", 0.0)
+        if h > 0.0:
+            a._heat = max(0.0, h - d)
 
 
 def _physics_launchers(sim, active: list, dt: float) -> None:
@@ -2297,7 +2341,8 @@ def _physics_launchers(sim, active: list, dt: float) -> None:
             else:
                 rng = ds.get("torpedo_launch_max_range") or _TORP_RANGE
                 if dist2 <= rng * rng:
-                    launch_missile(aid, target_id)
+                    heat_seek = bool(ds.get("torpedo_heat_seek") or 0)
+                    launch_missile(aid, target_id, heat_seek=heat_seek)
                     a._torp_cooldown = _TORP_CYCLE
 
         # Drones (capability from data_set)
@@ -2501,6 +2546,7 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
         #     projectiles travel and deal damage on impact.
         _physics_launchers(sim, active, dt)
         _physics_projectiles(sim, dt)
+        _physics_heat(active, dt)
 
         # 4. Passive systems — shield regen + APU energy, active objects only.
         for _id, obj in active:
