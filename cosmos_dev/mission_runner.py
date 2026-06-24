@@ -238,6 +238,14 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path, ex
             hulls = [(getattr(space[i], "_data_tag", None), getattr(space[i], "_tick_type", None))
                      for i in pids]
             print(f"  __player__ hulls: {hulls}")
+        # Damage sub-route detail (the by-kind rollup collapses //damage/* into one).
+        if cov is not None and mast is not None:
+            hit = cov.labels_hit
+            dmg = sorted(l for l in mast.labels if l.startswith("__route__damage"))
+            if dmg:
+                marks = ", ".join(f"{l[len('__route__'):]}[{'x' if l in hit else '-'}]"
+                                  for l in dmg)
+                print(f"  damage routes: {marks}")
     except Exception as _e:
         print(f"combat-ready diag error: {_e}")
     print(verdict.report() if verdict is not None else "no verdict")

@@ -74,18 +74,22 @@ class Exerciser:
                         set_weapons_selection(pid, enemy)
                     except Exception:
                         self.errors += 1
-            # Force a fight so //damage routes fire in a bounded test (enemies
-            # spawn far and close too slowly to engage within a few seconds).
-            self._force_combat(sbs, player_ids[0])
+            # Stage a REAL beam exchange (TEST-ONLY teleport) so the genuine
+            # damage flow drives //damage/internal + heat on the player; then a
+            # synthetic kill on a *different* hostile for deterministic destroy.
+            staged = self._stage_combat(sbs, player_ids[0])
+            self._force_combat(sbs, player_ids[0], exclude=staged)
             self._offset += 1
             self.steps += 1
         finally:
             FrameContext.task = prev_task
             FrameContext.mast = prev_mast
 
-    def _pick_enemy(self, sbs, pid):
+    def _pick_enemy(self, sbs, pid, exclude=None, prefer_beams=False):
         """Nearest *damageable hostile* to `pid` (raider/enemy/monster preferred;
-        else any armed non-player). None if there are none."""
+        else any armed non-player). `exclude` drops one id; `prefer_beams` favors
+        a beam-armed hostile (so it can shoot back) when one exists. None if no
+        candidate."""
         from sbs_utils.procedural.roles import any_role
         space = sbs.sim.space_objects
 
@@ -97,10 +101,62 @@ class Exerciser:
         if not cand:
             cand = [i for i in space.keys()
                     if i != pid and armed(i) and not (space[i]._abits & 0x20)]
+        if exclude is not None:
+            cand = [i for i in cand if i != exclude]
         self.enemies_last = len(cand)
+        if prefer_beams:
+            beamed = [i for i in cand if (space[i].data_set.get("beamRange") or 0) > 0]
+            if beamed:
+                cand = beamed
         return self._nearest(sbs, pid, cand)
 
-    def _force_combat(self, sbs, pid):
+    def _stage_combat(self, sbs, pid):
+        """TEST-ONLY: teleport a beam-armed hostile into the player's beam range
+        and forward arc, and wire mutual weapon targeting, so REAL beams trade
+        fire both ways - exercising //damage (player->npc) and //damage/internal
+        + //damage/heat (npc->player) through the genuine damage flow that the
+        synthetic _force_combat can't reach. Re-pins each step so the pair stays
+        engaged. The teleport lives ONLY here; autoplay never moves objects.
+        Returns the staged enemy id (kept alive), or None."""
+        space = sbs.sim.space_objects
+        p = space.get(pid)
+        if p is None:
+            return None
+        e_id = self._pick_enemy(sbs, pid, prefer_beams=True)
+        e = space.get(e_id) if e_id else None
+        if e is None:
+            return None
+        pr = p.data_set.get("beamRange") or 0.0
+        er = e.data_set.get("beamRange") or 0.0
+        rngs = [r for r in (pr, er) if r > 0]
+        if not rngs:
+            return None                      # neither can beam; nothing to stage
+        d = min(rngs) * 0.5                  # well inside both ranges and the arc
+        fwd = p.forward_vector()
+        e._pos = type(p._pos)(p._pos.x + fwd.x * d,
+                              p._pos.y + fwd.y * d,
+                              p._pos.z + fwd.z * d)
+        from sbs_utils.procedural.query import set_weapons_selection
+        try:
+            set_weapons_selection(pid, e_id)         # player beams -> enemy
+        except Exception:
+            self.errors += 1
+        e.data_set.set("target_id", pid)             # enemy AI beams -> player
+        e.data_set.set("beamArcWidth", 360.0)        # omni: enemy facing won't gate return fire
+        e._beam_cooldown = 0.0                        # fire at the player this tick
+        # TEST-ONLY preconditioning so the GENUINE damage flow reaches the
+        # internal + heat routes inside a bounded run. The engine emits
+        # player_internal_damage only once shields are down, and
+        # heat_critical_damage only when overheated - both take far longer than a
+        # few seconds to occur naturally. We don't fake the damage event; we set
+        # the same preconditions the engine requires, then let the real NPC beam
+        # hit (apply_damage) produce the internal hit, and the heat model fire.
+        p.data_set.set("shield_val", 0.0, 0)         # shields down -> next hit is internal
+        p._heat = max(getattr(p, "_heat", 0.0), 1.5) # overheat -> heat_critical_damage
+        self.forced += 1
+        return e_id
+
+    def _force_combat(self, sbs, pid, exclude=None):
         """Make //damage routes fire in a bounded test. Mission-spawned mock ships
         don't reliably carry beam shipData (beamRange 0), so emergent beam combat
         won't engage in a few seconds. Instead generate the hit directly via the
@@ -108,7 +164,7 @@ class Exerciser:
         does (damage -> //damage; lethal -> //damage/destroy + npc/station_killed),
         so the mission's damage logic is exercised identically. (set_beam_damages
         governs beam damage when beams do fire - covered by a unit test.)"""
-        e_id = self._pick_enemy(sbs, pid)
+        e_id = self._pick_enemy(sbs, pid, exclude=exclude)
         e = sbs.sim.space_objects.get(e_id) if e_id else None
         if e is None:
             return
