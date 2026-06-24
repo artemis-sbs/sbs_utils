@@ -113,6 +113,16 @@ class TestMockProjectiles(unittest.TestCase):
         sbs._physics_launchers(self.sim, [(aid, a)], dt=0.5)
         self.assertEqual([e for e in _drain() if e[0] == "player_launches_missile"], [])
 
+    def test_launcher_uses_weapon_target_uid(self):
+        # player-style weapon target drives missile launch too
+        aid, a = self._hulled(pos=(0, 0, 0))
+        a.data_set.set("torpedo_tube_count", 1)
+        tid, t = self._hulled(100, pos=(1000, 0, 0))
+        a.data_set.set("weapon_target_UID", tid)
+        _drain()
+        sbs._physics_launchers(self.sim, [(aid, a)], dt=0.5)
+        self.assertEqual([e[0] for e in _drain()], ["player_launches_missile"])
+
     def test_npc_autonomous_drone_fire(self):
         aid, a = self._hulled(pos=(0, 0, 0))
         a.data_set.set("drone_damage", 15.0)

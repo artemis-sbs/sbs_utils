@@ -159,6 +159,36 @@ class TestMockDamage(unittest.TestCase):
         sbs._physics_beams(self.sim, [(aid, a)], dt=0.5)
         self.assertEqual(_drain(), [])
 
+    def test_beam_uses_weapon_target_uid(self):
+        # player-style: weapon_target_UID set (no target_id) -> still fires
+        tid, t = self._hulled(100); t._pos = sbs.vec3(0, 0, 500)   # dead ahead (+Z)
+        aid, a = self._hulled(100); a._pos = sbs.vec3(0, 0, 0)
+        a.data_set.set("beamCount", 1)
+        a.data_set.set("beamRange", 1000.0)
+        a.data_set.set("beamDamage", 30.0)
+        a.data_set.set("weapon_target_UID", tid)
+        _drain()
+        sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
+        self.assertIn(("damage", "", aid, tid), _drain())
+        self.assertEqual(t.data_set.get("armor"), 70.0)
+
+    def test_beam_in_arc_fires(self):
+        tid, t = self._hulled(100); t._pos = sbs.vec3(0, 0, 500)   # in front, +Z
+        aid, a = self._beamer(tid, rng=1000, dmg=30)
+        a.data_set.set("beamArcWidth", 90.0)                       # narrow forward arc
+        _drain()
+        sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
+        self.assertIn(("damage", "", aid, tid), _drain())
+
+    def test_beam_out_of_arc_no_fire(self):
+        tid, t = self._hulled(100); t._pos = sbs.vec3(500, 0, 0)   # 90 deg off forward (+X)
+        aid, a = self._beamer(tid, rng=1000, dmg=30)
+        a.data_set.set("beamArcWidth", 90.0)                       # forward arc -> target outside
+        _drain()
+        sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
+        self.assertEqual(_drain(), [])
+        self.assertEqual(t.data_set.get("armor"), 100.0)
+
 
 if __name__ == '__main__':
     unittest.main()

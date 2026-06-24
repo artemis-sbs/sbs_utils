@@ -2129,14 +2129,21 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
     delete_object(target_id)
 
 
+def _weapon_target(ds) -> int:
+    """The ship's combat target id. Players set weapon_target_UID (the weapon
+    console's selected target); NPC AI sets target_id. Beams and missiles both
+    fire at this."""
+    return (ds.get("weapon_target_UID") or ds.get("target_id") or 0)
+
+
 def _physics_beams(sim, active: list, dt: float) -> None:
-    """Active objects with a target in beam range fire on cooldown.
+    """Both players and NPCs auto-fire beams at their weapon target, on cooldown,
+    when the target is within beam RANGE and beam ARC.
 
     Beams are instantaneous (no projectile/launch event) — they just deal
-    beamDamage hull damage via apply_damage, which emits damage/killed events.
-    target_id, beamRange/beamDamage/beamCycleTime live in data_set (the AI brain
-    sets target_id via target()). In headless, NPCs have targets and players
-    usually don't, so this is mainly NPC fire — enough to make combat resolve.
+    beamDamage hull damage via apply_damage (-> damage/killed events). Target is
+    _weapon_target(ds); beam* fields come from data_set (shipData). beamArcWidth
+    of 0 is treated as omnidirectional (360).
     """
     space = sim.space_objects
     for aid, a in active:
@@ -2149,21 +2156,29 @@ def _physics_beams(sim, active: list, dt: float) -> None:
         if cd > 0:
             a._beam_cooldown = cd - dt
             continue
-        target_id = ds.get("target_id") or 0
-        if not target_id:
+        tid = _weapon_target(ds)
+        if not tid:
             continue
-        target = space.get(target_id)
+        target = space.get(tid)
         if target is None:
             continue
+        tx = target._pos.x - a._pos.x
+        ty = target._pos.y - a._pos.y
+        tz = target._pos.z - a._pos.z
+        d2 = tx * tx + ty * ty + tz * tz
         brange = ds.get("beamRange") or 0.0
-        dx = a._pos.x - target._pos.x
-        dy = a._pos.y - target._pos.y
-        dz = a._pos.z - target._pos.z
-        if dx * dx + dy * dy + dz * dz > brange * brange:
+        if d2 > brange * brange:
             continue  # out of range; stay ready (cooldown already elapsed)
+        arc = ds.get("beamArcWidth") or 360.0
+        if arc < 360.0 and d2 > 0.0:
+            fwd = a.forward_vector()
+            dist = math.sqrt(d2)
+            dot = (fwd.x * tx + fwd.y * ty + fwd.z * tz) / dist
+            if dot < math.cos(math.radians(arc * 0.5)):
+                continue  # target outside the beam arc
         dmg = ds.get("beamDamage") or 0.0
         if dmg > 0:
-            apply_damage(target_id, dmg, aid)
+            apply_damage(tid, dmg, aid)
         a._beam_cooldown = ds.get("beamCycleTime") or 6.0
 
 
@@ -2263,7 +2278,7 @@ def _physics_launchers(sim, active: list, dt: float) -> None:
         if aid not in space:
             continue
         ds = a.data_set
-        target_id = ds.get("target_id") or 0
+        target_id = _weapon_target(ds)   # weapon_target_UID (player) or target_id (NPC)
         if not target_id:
             continue
         target = space.get(target_id)
