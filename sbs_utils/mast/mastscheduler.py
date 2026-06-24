@@ -1221,7 +1221,12 @@ class MastAsyncTask(Agent, Promise):
 
 
 class MastScheduler(Agent):
-    
+    # Optional verdict/trace seam. When set to a callable, every reported MAST
+    # runtime error invokes ``on_runtime_error(message)``. Default ``None`` → a
+    # single ``is not None`` check, no overhead; never set in the shipped library.
+    # Used by dev tooling (cosmos_dev) to turn a headless run into a pass/fail.
+    # Fired from both this base ``runtime_error`` and the story-scheduler override.
+    on_runtime_error = None
 
     def __init__(self, mast: Mast, overrides=None):
         super().__init__()
@@ -1248,6 +1253,11 @@ class MastScheduler(Agent):
         return False
 
     def runtime_error(self, message):
+        if MastScheduler.on_runtime_error is not None:
+            try:
+                MastScheduler.on_runtime_error(message)
+            except Exception:
+                pass
         print(f"mast level runtime error:\n {message}")
         pass
 
