@@ -124,11 +124,12 @@ report.
 
 ## Enablers needed first (additive — no MAST backward-compat break)
 
-- Seed threading through the RNG (implements the existing `seed_value`).
-- `delay_sim` instead of `delay_app` in the autoplayer.
-- A node-visit coverage hook in `MastScheduler.tick`.
-- An exception / runtime-error sink the runner treats as failure.
-- A report emitter (JUnit/TAP).
+- Seed threading through the RNG (implements the existing `seed_value`). — TODO
+- `delay_sim` instead of `delay_app` in the autoplayer. — TODO
+- A node-visit coverage hook in `MastScheduler.tick`. — **DONE** (`MastTicker.on_enter_node`
+  seam + `cosmos_dev/coverage.py`, commit a6df5ee).
+- An exception / runtime-error sink the runner treats as failure. — TODO
+- A report emitter (JUnit/TAP). — TODO
 
 All of these benefit the library beyond autoplay.
 
@@ -137,9 +138,13 @@ All of these benefit the library beyond autoplay.
 The two highest-leverage ideas are also the least-validated; spike them first:
 
 1. **Coverage instrumentation** — how cleanly does the scheduler expose node
-   identity (file/label/line) to record visited nodes?
+   identity (file/label/line) to record visited nodes? — **RESOLVED**: every
+   entered node funnels through `MastTicker.next()` and exposes
+   `(label, file_num→filename, line_num, node_type)`; a single class seam is
+   enough. Spike on LegendaryMissions autoplay measured ~13% of labels entered,
+   comms 0/108 and damage 0/14 — confirming both feasibility and value.
 2. **Actuate-through-real-API** — does every console action have a clean
-   procedural entry point a bot could call, or only data_set side-effects?
+   procedural entry point a bot could call, or only data_set side-effects? — TODO
 
 ## Implementation / workflow notes
 
