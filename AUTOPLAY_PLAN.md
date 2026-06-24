@@ -128,7 +128,8 @@ report.
 - `delay_sim` instead of `delay_app` in the autoplayer. — TODO
 - A node-visit coverage hook in `MastScheduler.tick`. — **DONE** (`MastTicker.on_enter_node`
   seam + `cosmos_dev/coverage.py`, commit a6df5ee).
-- An exception / runtime-error sink the runner treats as failure. — TODO
+- An exception / runtime-error sink the runner treats as failure. — **DONE**
+  (`MastScheduler.on_runtime_error` seam + `cosmos_dev/verdict.py`).
 - A report emitter (JUnit/TAP). — TODO
 
 All of these benefit the library beyond autoplay.
