@@ -1080,6 +1080,7 @@ function cmdWorldReset(msg) {
     for (const g of _instArt.values()) { if (g.inst) g.inst.count = 0; }
   }
   if (typeof _view3dMeshedIds !== 'undefined') _view3dMeshedIds.clear();
+  if (typeof _dispQuat !== 'undefined') _dispQuat.clear();   // smoothed headings
   // Turn off the cinematic 3D view from the previous mission.
   _view3dActive = false;
   if (_view3dCanvas) _view3dCanvas.style.display = 'none';
@@ -1139,6 +1140,7 @@ function cmdRadar(msg) {
       _dynamicMap.delete(id);
       _dynamicMeta.delete(id);
       _dynamicRevMap.delete(idx);
+      _dispQuat.delete(id);   // drop the smoothed-heading entry for this object
       _dynamicCount--;
       if (idx !== _dynamicCount && _dynamicCount > 0) {
         // Move last element into the vacated slot.
@@ -1604,6 +1606,12 @@ let _view3dPosBuf = null, _view3dColBuf = null;
 const _instArt = new Map();
 // Object ids drawn as an instance this frame — the point layer skips these.
 const _view3dMeshedIds = new Set();
+// Smoothed per-object heading (id → THREE.Quaternion), slerped toward the target
+// each frame so turns are fluid between the ~30Hz pushes (positions ease too, in
+// _renderView3d). Only dynamic objects; cleared on remove / world_reset.
+const _dispQuat = new Map();
+let _qTarget = null;   // scratch target quaternion (allocated with the others)
+const _DYN_ROT_LERP = 0.15;
 // Scratch math objects (allocated in _initView3d once THREE is known to exist).
 let _m4 = null, _qrot = null, _vpos = null, _vscale = null, _UP = null;
 // Added to a mesh's heading yaw if a model's nose isn't +Z. Calibration knob.
@@ -1839,7 +1847,7 @@ function _initView3d() {
   _view3dRenderer.setClearColor(0x01030a, 1);
   _view3dScene  = new THREE.Scene();
   _view3dCamera = new THREE.PerspectiveCamera(55, 1, 1, 5e7);
-  _m4 = new THREE.Matrix4(); _qrot = new THREE.Quaternion();
+  _m4 = new THREE.Matrix4(); _qrot = new THREE.Quaternion(); _qTarget = new THREE.Quaternion();
   _vpos = new THREE.Vector3(); _vscale = new THREE.Vector3();
   _UP = new THREE.Vector3(0, 1, 0);
   // Lights so the Phong ship meshes are shaded (points don't need them).
@@ -1955,7 +1963,7 @@ function _view3dSyncInstances() {
   _view3dMeshedIds.clear();
   const byArt = new Map();   // art → [{x,y,z,sc,q,fx,fz}]
 
-  function consider(id, art, x, y, z, sc, q, fx, fz) {
+  function consider(id, art, x, y, z, sc, q, fx, fz, dyn) {
     if (!art) return;
     if (cam) {
       const dx = x-cam[0], dy = y-cam[1], dz = z-cam[2];
@@ -1973,7 +1981,7 @@ function _view3dSyncInstances() {
     if (!g.base) return;   // not loaded yet → stays a point
     let arr = byArt.get(art);
     if (!arr) { arr = []; byArt.set(art, arr); }
-    arr.push({ x, y, z, sc, q, fx, fz });
+    arr.push({ id, x, y, z, sc, q, fx, fz, dyn });
     _view3dMeshedIds.add(id);
   }
 
@@ -1982,14 +1990,14 @@ function _view3dSyncInstances() {
     if (idx === undefined || idx >= _dynamicCount || !meta.art) continue;
     const b = idx * 3;
     consider(id, meta.art, _dynamicDispBuf[b], meta.y || 0, _dynamicDispBuf[b+1],
-             meta.meshscale || 1, meta.q, meta.fx, meta.fz);
+             meta.meshscale || 1, meta.q, meta.fx, meta.fz, true);
   }
   for (const [id, meta] of _terrainMeta) {
     const idx = _terrainMap.get(id);
     if (idx === undefined || idx >= _terrainCount || !meta.art) continue;
     const b = idx * 3;
     consider(id, meta.art, _terrainPosBuf[b], meta.y || 0, _terrainPosBuf[b+1],
-             meta.meshscale || 1, meta.q, 0, 1);
+             meta.meshscale || 1, meta.q, 0, 1, false);
   }
 
   for (const [art, g] of _instArt) {
@@ -2001,10 +2009,20 @@ function _view3dSyncInstances() {
     for (let i = 0; i < count; i++) {
       const o = arr[i];
       _vpos.set(o.x, o.y, o.z);
-      if (o.q) _qrot.set(o.q[1], o.q[2], o.q[3], o.q[0]);
-      else _qrot.setFromAxisAngle(_UP, Math.atan2(o.fx, o.fz) + _MESH_YAW_OFFSET);
+      // Target heading from the quaternion (if sent) or the fx/fz forward vector.
+      if (o.q) _qTarget.set(o.q[1], o.q[2], o.q[3], o.q[0]);
+      else _qTarget.setFromAxisAngle(_UP, Math.atan2(o.fx, o.fz) + _MESH_YAW_OFFSET);
+      let rot = _qTarget;
+      if (o.dyn) {
+        // Slerp a per-object smoothed heading toward the target so turns are
+        // fluid between pushes. Terrain (static) skips this and uses the target.
+        let dq = _dispQuat.get(o.id);
+        if (!dq) { dq = _qTarget.clone(); _dispQuat.set(o.id, dq); }
+        else dq.slerp(_qTarget, _DYN_ROT_LERP);
+        rot = dq;
+      }
       _vscale.set(o.sc, o.sc, o.sc);
-      _m4.compose(_vpos, _qrot, _vscale);
+      _m4.compose(_vpos, rot, _vscale);
       inst.setMatrixAt(i, _m4);
     }
     inst.count = count;
