@@ -30,7 +30,7 @@ sys.modules["sbs"] = sys.modules[__name__]
 
 def create_new_sim():
     """Creates a new simulation and syncs the local sim reference."""
-    global sim
+    global sim, _last_fx_nonempty
     result = _base_mock.create_new_sim()
     sim = _base_mock.sim
     # Update FrameContext immediately so code running after sim_create() in the
@@ -41,6 +41,25 @@ def create_new_sim():
             FrameContext.context.sim = sim
     except Exception:
         pass
+    # A new sim means a mission (re)start. Tell every browser to wipe leftover
+    # 2D radar / 3D cinematic state from the previous mission, and reset our push
+    # snapshots so the new world streams fresh on the next physics ticks. (Guarded:
+    # this is also called once at startup before the queue/server exist.)
+    if gui_queue is not None:
+        # Stop re-registering the previous mission's 2D radar rect each tick FIRST:
+        # _push_2dview_rects (physics thread) would otherwise enqueue a widget_rect
+        # after world_reset and leave the 2D view stuck on screen.  Clearing before
+        # the send guarantees no rect lands after world_reset in the FIFO queue.
+        # The new console's widget list repopulates this when the next mission loads.
+        _view2d_widget_clients.clear()
+        _explicit_2d_rects.clear()
+        _force_terrain_push()
+        _last_fx_nonempty = False
+        # Tell every browser to wipe leftover 2D radar / 3D cinematic state.
+        try:
+            _send(0, "world_reset")
+        except Exception:
+            pass
     return result
 
 

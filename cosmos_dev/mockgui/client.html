@@ -697,7 +697,8 @@ function dispatch(msg) {
       msg.cmd !== 'init' && msg.cmd !== 'log' &&
       msg.cmd !== 'radar' && msg.cmd !== 'radar_terrain' &&
       msg.cmd !== 'widget_rect' && msg.cmd !== 'cinematic' &&
-      msg.cmd !== 'skybox' && msg.cmd !== 'fx' && msg.cmd !== 'batch') {
+      msg.cmd !== 'skybox' && msg.cmd !== 'fx' && msg.cmd !== 'batch' &&
+      msg.cmd !== 'world_reset') {
     if (msg.clientID !== CLIENT_ID) return;
   }
   switch (msg.cmd) {
@@ -707,6 +708,7 @@ function dispatch(msg) {
     case 'log':          cmdLog(msg);         break;
     case 'radar':        cmdRadar(msg);       break;
     case 'radar_terrain':cmdRadarTerrain(msg);break;
+    case 'world_reset':  cmdWorldReset(msg);   break;
     case 'widget_rect':  cmdWidgetRect(msg);  break;
     case 'cinematic':    cmdCinematic(msg);   break;
     case 'skybox':       cmdSkybox(msg);      break;
@@ -1053,6 +1055,41 @@ function cmdRadarTerrain(msg) {
   _terrainPoints.geometry.attributes.color.needsUpdate    = true;
   _buildNebula();   // rebuild nebula particle clouds for the new terrain set
   _renderRadar();
+}
+
+// ── cmdWorldReset — wipe leftover world render state on mission (re)start ─────
+// Sent by create_new_sim(): the previous mission's radar objects, terrain,
+// navpoints, combat FX and cinematic 3D view should not bleed into the next
+// mission. The new sim then streams fresh state on the following physics ticks.
+function cmdWorldReset(msg) {
+  // Dynamic objects (ships/NPCs).
+  _dynamicMap.clear(); _dynamicRevMap.clear(); _dynamicMeta.clear();
+  _dynamicCount = 0;
+  if (_dynamicPoints) _dynamicPoints.geometry.setDrawRange(0, 0);
+  // Terrain (asteroids, nebulae, …).
+  _terrainMap.clear(); _terrainRevMap.clear(); _terrainMeta.clear();
+  _terrainCount = 0;
+  if (_terrainPoints) _terrainPoints.geometry.setDrawRange(0, 0);
+  if (typeof _buildNebula === 'function') _buildNebula();   // empties the nebula cloud
+  // Navigation overlays + transient combat FX.
+  _radarNavpoints = []; _radarNavareas = [];
+  _radarBeams = []; _radarProjectiles = [];
+  // 3D instanced hulls/asteroids drop to zero (also recomputed each frame, but
+  // zero now in case the view is inactive and won't re-sync immediately).
+  if (typeof _instArt !== 'undefined') {
+    for (const g of _instArt.values()) { if (g.inst) g.inst.count = 0; }
+  }
+  if (typeof _view3dMeshedIds !== 'undefined') _view3dMeshedIds.clear();
+  // Turn off the cinematic 3D view from the previous mission.
+  _view3dActive = false;
+  if (_view3dCanvas) _view3dCanvas.style.display = 'none';
+  // Deregister the 2D radar view rects so the radar canvas goes blank (the server
+  // also stops re-registering them via _push_2dview_rects); the next mission's
+  // console re-establishes its 2dview when it loads.
+  _widgetRects.clear();
+  // Reset our tracked ship so the next mission rediscovers it.
+  _myShipId = null;
+  if (_radarCtx) _renderRadar();
 }
 
 // ── cmdRadar — delta update for active (NPC/PLAYER) objects ──────────────────
