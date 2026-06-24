@@ -186,6 +186,39 @@ class TestTimers(unittest.TestCase):
         clear_counter(agent.id, "mission")
         self.assertIsNone(get_counter_elapsed_seconds(agent.id, "mission", default_value=None))
 
+    # ------------------------------------------------------------------
+    # Advancement via the REAL sim-time source (physics_tick), not by poking
+    # _time_tick_counter directly. This is the path docking refit / timers ride
+    # in a running mission, so it must actually move counters and timers.
+    # ------------------------------------------------------------------
+
+    def test_counter_advances_via_physics_tick(self):
+        agent = make_agent()
+        start_counter(agent.id, "refuel")
+        sbs.resume_sim()                       # physics_tick is a no-op while paused
+        for _ in range(60):                    # 60 * (1/30)s = 2 sim seconds
+            sbs.physics_tick(1 / 30)
+        self.assertAlmostEqual(get_counter_elapsed_seconds(agent.id, "refuel"), 2, delta=0.1)
+
+    def test_timer_finishes_via_physics_tick(self):
+        agent = make_agent()
+        set_timer(agent.id, "warmup", seconds=2)
+        sbs.resume_sim()
+        for _ in range(30):                    # 1 sim second - not yet
+            sbs.physics_tick(1 / 30)
+        self.assertFalse(is_timer_finished(agent.id, "warmup"))
+        for _ in range(45):                    # +1.5s -> 2.5s total - done
+            sbs.physics_tick(1 / 30)
+        self.assertTrue(is_timer_finished(agent.id, "warmup"))
+
+    def test_physics_tick_paused_does_not_advance_counter(self):
+        agent = make_agent()
+        start_counter(agent.id, "idle")
+        # sim starts paused; ticks must not advance the counter
+        for _ in range(30):
+            sbs.physics_tick(1 / 30)
+        self.assertEqual(get_counter_elapsed_seconds(agent.id, "idle"), 0)
+
 
 if __name__ == '__main__':
     unittest.main()
