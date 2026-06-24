@@ -55,6 +55,7 @@ def create_new_sim():
         _explicit_2d_rects.clear()
         _view_shipdata_clients.clear()
         _view_target_clients.clear()
+        _view_text_clients.clear()
         _force_terrain_push()
         _last_fx_nonempty = False
         # Tell every browser to wipe leftover 2D radar / 3D cinematic state.
@@ -381,6 +382,12 @@ _view_shipdata_clients: set = set()
 # mock-only target_data HUD is shown.
 _view_target_clients: set = set()
 
+# Clients whose console widget list contains "text_waterfall". The waterfall is
+# event-driven (only re-shows on a message), but the server rebuilds its GUI every
+# tick and the root send_gui_clear hides it; _push_text_active re-asserts it each
+# tick for these clients so it stays visible (like ship_data).
+_view_text_clients: set = set()
+
 # HUD overlays the browser draws for mock-only widgets; given an explicit rect via
 # send_client_widget_rects they reposition (else they sit in a default corner).
 _HUD_WIDGETS = frozenset({"ship_data", "text_waterfall"})
@@ -427,6 +434,13 @@ def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) ->
     elif clientID in _view_target_clients:
         _view_target_clients.discard(clientID)
         _send(clientID, "target_data", active=False)
+
+    # text_waterfall — visible while the console declares it; hidden otherwise.
+    if "text_waterfall" in widgets:
+        _view_text_clients.add(clientID)
+    elif clientID in _view_text_clients:
+        _view_text_clients.discard(clientID)
+        _send(clientID, "text_active", active=False)
 
 
 def _push_2dview_rects() -> None:
@@ -540,6 +554,16 @@ def _push_target_data() -> None:
         _send(cid, "target_data", active=True, **_ship_stat_payload(t, space))
 
 
+def _push_text_active() -> None:
+    """Re-assert the text waterfall each tick for clients whose console declares
+    it, so the per-tick root send_gui_clear (server rebuild) doesn't leave the
+    event-driven waterfall hidden."""
+    if gui_queue is None:
+        return
+    for cid in list(_view_text_clients):
+        _send(cid, "text_active", active=True)
+
+
 def physics_tick(dt: float = 1.0 / 60.0) -> None:
     """Delegate to base physics then broadcast a radar delta to the browser."""
     global sim, _radar_tick
@@ -554,6 +578,7 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
         _push_2dview_rects()
         _push_ship_data()
         _push_target_data()
+        _push_text_active()
         _push_skybox()
 
 

@@ -699,7 +699,7 @@ function dispatch(msg) {
       msg.cmd !== 'widget_rect' && msg.cmd !== 'cinematic' &&
       msg.cmd !== 'skybox' && msg.cmd !== 'fx' && msg.cmd !== 'batch' &&
       msg.cmd !== 'ship_data' && msg.cmd !== 'target_data' &&
-      msg.cmd !== 'text_msg' && msg.cmd !== 'world_reset') {
+      msg.cmd !== 'text_msg' && msg.cmd !== 'text_active' && msg.cmd !== 'world_reset') {
     if (msg.clientID !== CLIENT_ID) return;
   }
   switch (msg.cmd) {
@@ -717,6 +717,7 @@ function dispatch(msg) {
     case 'ship_data':    cmdShipData(msg);    break;
     case 'target_data':  cmdTargetData(msg);  break;
     case 'text_msg':     cmdTextMsg(msg);     break;
+    case 'text_active':  cmdTextActive(msg);  break;
     case 'hud_rect':     cmdHudRect(msg);     break;
     case 'batch':        msg.items.forEach(dispatch); break;
     default:             cmdWidget(msg);      break;
@@ -1250,6 +1251,13 @@ function cmdTextMsg(msg) {
   el.appendChild(line);
   while (el.childElementCount > _TEXT_WF_MAX) el.removeChild(el.firstChild);
   el.scrollTop = el.scrollHeight;   // auto-scroll to newest
+}
+// Per-tick re-assert (or hide) of the waterfall so the server's per-tick
+// send_gui_clear doesn't leave the event-driven panel hidden. Only re-shows a
+// panel that already has content (no empty box before any message arrives).
+function cmdTextActive(msg) {
+  if (!msg.active) { if (_textWfEl) _textWfEl.style.display = 'none'; return; }
+  if (_textWfEl && _textWfEl.childElementCount > 0) _textWfEl.style.display = 'block';
 }
 
 // ── cmdRadar — delta update for active (NPC/PLAYER) objects ──────────────────
