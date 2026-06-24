@@ -160,6 +160,12 @@ The two highest-leverage ideas are also the least-validated; spike them first:
      `on gui_message` handler — the exact path the mock runner already uses for
      browser clicks. The `_follow_route_console` pattern (synthesize event →
      dispatch) is the reusable template for selects/points/comms too.
+   - **Engine-confirmed**: a gameplay console *does* render on a rerouted screen
+     (validated in-engine via the `director` addon's highlight). This also
+     de-risks putting a console on the server screen (client 0) for screenshots,
+     and the broader "drive a console view" mechanism. (Deferred polish: the
+     director's pickers don't yet refresh on console connect/disconnect - likely
+     needs connect/disconnect signals.)
    - **Discoverability** (needed by the monkey/exerciser): pages expose
      `self.layouts`; walking layouts → rows → widgets yields the live `.tag`s to
      press, and the comms runtime builds an enumerable button list. Small
