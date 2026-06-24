@@ -94,7 +94,10 @@ made cheap by the mock harness (headless, 30 Hz fixed-step sim time,
   visited labels/routes/nodes, then report which `//comms`, `//signal`,
   `//damage`, `@map`, objective, and console labels were never hit. "Full
   systems test" becomes a measurable %, and shows where the autoplayer is blind.
-- **Exerciser mode (≠ play-to-win)** — a policy whose goal is *coverage*, not
+- **Exerciser mode (≠ play-to-win)** — STARTED (`cosmos_dev/exerciser.py`,
+  `--test --exercise`): drives science+comms selects each tick; ~doubled coverage
+  on LegendaryMissions (12.8%→26.9%, comms 0→24/108). Next: comms-submenu walk,
+  scan-start, grid, and combat to reach damage routes. — a policy whose goal is *coverage*, not
   victory: breadth-first walk every comms tree, scan every scannable,
   dock/undock, fire each weapon/torpedo type, collect each upgrade, trigger
   destroy/heat/internal-damage routes, poke GM tools. Plus a **monkey/fuzz**

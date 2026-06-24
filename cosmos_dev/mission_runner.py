@@ -248,6 +248,7 @@ def _run(
     cosmos_dir: str | None = None,
     test_seconds: float | None = None,
     junit_path: str | None = None,
+    exercise: bool = False,
 ) -> int:
     mission_folder = os.path.abspath(mission_folder)
     missions_root  = _find_missions_root(mission_folder)
@@ -379,7 +380,7 @@ def _run(
         if hasattr(sbs, "_force_terrain_push"):
             sbs._force_terrain_push()
 
-    _cov = _verdict = None
+    _cov = _verdict = _exerciser = None
     _test_exit = 0
     _test_wall0 = time.time()
     _test_wall_cap = (test_seconds * 2 + 30) if _test else 0
@@ -389,7 +390,11 @@ def _run(
         from sbs_utils.helpers import _TPS as _TEST_TPS
         _cov = MastCoverage().install()
         _verdict = MastVerdict().install()
-        print(f"[runner] TEST mode: run ~{test_seconds:g}s sim time, map={map_arg}")
+        if exercise:
+            from cosmos_dev.exerciser import Exerciser
+            _exerciser = Exerciser(sbs)
+        print(f"[runner] TEST mode: run ~{test_seconds:g}s sim time, map={map_arg}"
+              f"{', exercising' if exercise else ''}")
 
     try:
         while True:
@@ -528,6 +533,10 @@ def _run(
             if not _map_started:
                 _map_started = _try_auto_start_map(map_arg, sbs)
 
+            # --exercise: drive selections/comms each MAST tick once the world is up.
+            if _exerciser is not None and _map_started and run_mast and not sbs.sim._paused:
+                _exerciser.step()
+
             time.sleep(tick_sleep)
     except KeyboardInterrupt:
         print("\n[runner] stopped")
@@ -609,6 +618,9 @@ if __name__ == "__main__":
                          "print MAST coverage + a pass/fail verdict and exit 0/1")
     ap.add_argument("--junit", default=None, metavar="PATH",
                     help="With --test, also write a JUnit XML report to PATH")
+    ap.add_argument("--exercise", action="store_true",
+                    help="With --test, actively drive selections/comms each tick to "
+                         "push route coverage (vs only the mission's own autoplay)")
     args = ap.parse_args()
 
     if args.map is None:
@@ -629,5 +641,6 @@ if __name__ == "__main__":
         cosmos_dir=args.cosmos_dir,
         test_seconds=args.test,
         junit_path=args.junit,
+        exercise=args.exercise,
     )
     sys.exit(_exit or 0)
