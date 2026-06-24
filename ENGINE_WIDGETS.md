@@ -209,9 +209,15 @@ written and/or the route/event fired) - **Selection** (UID set, if any) - **Proc
 - [I] main_screen_control - see HELM.
 - [D] 3dview, 3dview_camera (3D out-the-front / manual-beam view), ship_internal_view, text_waterfall, ship_data.
 
-### Alternate helm widgets (when substituted)
-- `helm_normal`, `helm_simple`, `helm_free_3d`, `helm_restrained_3d`, `fighter_control`
-  swap the helm movement control between flat-2D, simple-3D and full-3D steering.
+### Alternate helm steering widgets (when substituted)
+- `helm_normal`, `helm_simple`, `helm_free_3d`, `helm_restrained_3d` swap the helm
+  movement control between flat-2D, simple-3D and full-3D steering.
+
+### [I] fighter_control - fighter dock/undock button
+- Actions: request dock / undock button on a **fighter's** helm console.
+- Delivery: pressing dock fires **`//dock/hangar`** (fighter hangar landing) -
+  distinct from capital-ship `request_dock` / `dock_state`.
+- Shot: TODO (Doug to capture).
 
 ---
 
@@ -253,8 +259,9 @@ Most are resolved above. Remaining:
    routes. Do the *other* data_set writes (throttle, `shields_raised_flag`,
    `dock_state`, coolant/heat, power, beam freq/rate) fire any route/event, or are
    they purely internal (scripts see them only by polling the data_set)?
-   Concrete example: when `dock_state` advances, does a `//dock` route fire, or does
-   the script poll `dock_state`?
+   *Docking resolved:* capital-ship docking (`request_dock` / `dock_state`) is
+   **script-polled** (no general `//dock` route); `//dock/hangar` is separate -
+   it fires for **fighters** pressing dock (hangar landing).
 2. **helm_movement native write** - `steerToDir*` was added for autoplay; what does
    the *real* helm widget write for steering? (Only needed for faithful mock
    emulation; a bot can use `steerToDir*`.) Low priority.
