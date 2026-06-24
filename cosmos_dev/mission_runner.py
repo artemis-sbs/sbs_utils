@@ -315,6 +315,43 @@ def _run(
 
     try:
         while True:
+            # run_next_mission(): restart the current mission or switch to another.
+            # The engine swaps missions at the process level; here we rebuild the
+            # mission in-process between ticks. Polls the mock's pending request.
+            _next_mission = sbs.pop_next_mission() if hasattr(sbs, "pop_next_mission") else None
+            if _next_mission is not None:
+                try:
+                    new_folder = os.path.abspath(_next_mission) if _next_mission else mission_folder
+                    print(f"[runner] run_next_mission -> {new_folder}")
+                    if new_folder != mission_folder:
+                        _load_libs(new_folder, missions_root)
+                        fs.script_dir = new_folder.replace("/", "\\")
+                        mission_folder = new_folder
+                    # Fresh page subclass so the story recompiles with fresh shared
+                    # state (cls.story is a per-class cached compile).
+                    story_path = os.path.join(mission_folder, mast_file or "story.mast")
+
+                    class _MissionPage(StoryPage):
+                        story_file = story_path
+
+                    Gui.server_start_page_class(_MissionPage)
+                    Gui.client_start_page_class(_MissionPage)
+                    # Drop all pages; the next server tick recreates the server page
+                    # (Gui.present rebuilds it when Gui.clients is empty), and the
+                    # previously-connected browsers re-handshake below.
+                    prev_clients = [c for c in Gui.clients if c != 0]
+                    Gui.clients.clear()
+                    # Fresh sim — in GUI mode create_new_sim also broadcasts
+                    # world_reset so browsers wipe the old mission's 2D/3D views.
+                    sbs.create_new_sim()
+                    Agent.SHARED.set_inventory_value("sim", sbs.sim)
+                    FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+                    _server_initialized = False
+                    _map_started = (map_arg is None)
+                    _pending_client_connects = list(prev_clients)
+                except Exception as e:
+                    print(f"[runner] run_next_mission reload failed: {e}")
+
             sim_state = "sim_paused" if sbs.sim._paused else "sim_running"
             tick_event = FakeEvent(client_id=0, tag="mission_tick", sub_tag=sim_state)
 

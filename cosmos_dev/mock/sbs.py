@@ -508,8 +508,29 @@ def retrieve_from_standby_list_id(id: int) -> None:
                 else:
                     sim._terrain_ids.add(id)
 
+_pending_next_mission = None
+
+
 def run_next_mission(mission_folder: str) -> None:
-    """Shuts down this script and starts the mission in the folder argument"""
+    """Shuts down this script and starts the mission in the folder argument.
+
+    The real engine swaps missions at the process level. The mock can't do that
+    from inside a tick, so record the request; the mission runner polls
+    pop_next_mission() between ticks and performs the reload. Passing the current
+    mission folder restarts it (the common case: pause-screen restart, autoplay
+    results loop, mission select)."""
+    global _pending_next_mission
+    _pending_next_mission = mission_folder
+
+
+def pop_next_mission():
+    """Return and clear a pending run_next_mission() request (runner polls this).
+
+    Returns the folder string, or None when nothing is pending."""
+    global _pending_next_mission
+    folder = _pending_next_mission
+    _pending_next_mission = None
+    return folder
 
 def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) -> None:
     """sends the gameplay widgets to draw, on the targeted client (0 = server screen)"""
