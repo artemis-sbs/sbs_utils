@@ -95,9 +95,14 @@ made cheap by the mock harness (headless, 30 Hz fixed-step sim time,
   `//damage`, `@map`, objective, and console labels were never hit. "Full
   systems test" becomes a measurable %, and shows where the autoplayer is blind.
 - **Exerciser mode (≠ play-to-win)** — STARTED (`cosmos_dev/exerciser.py`,
-  `--test --exercise`): drives science+comms selects each tick; ~doubled coverage
-  on LegendaryMissions (12.8%→26.9%, comms 0→24/108). Next: comms-submenu walk,
-  scan-start, grid, and combat to reach damage routes. — a policy whose goal is *coverage*, not
+  `--test --exercise`): science+comms selects + forced combat each tick. On
+  LegendaryMissions ~12.8%→28.7%, comms 0→24/108, damage 0→9/14. Combat is forced
+  via `apply_damage` (mission-spawned mock ships lack beam shipData, so emergent
+  beams don't engage in seconds; apply_damage queues the same damage/destroy/killed
+  events). Remaining damage 5/14 = internal/heat (mock emits no
+  player_internal_damage/heat_critical_damage yet). Beam damage now respects
+  `set_beam_damages` (base*coeff). Next: comms-submenu walk, scan-start, grid,
+  internal/heat events. — a policy whose goal is *coverage*, not
   victory: breadth-first walk every comms tree, scan every scannable,
   dock/undock, fire each weapon/torpedo type, collect each upgrade, trigger
   destroy/heat/internal-damage routes, poke GM tools. Plus a **monkey/fuzz**

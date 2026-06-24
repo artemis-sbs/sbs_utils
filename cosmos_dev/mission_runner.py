@@ -183,7 +183,7 @@ def _drain_client_strings(sim, cosmos_event_handler, FakeEvent) -> None:
             print(f"[runner] client_string drain error ({key}): {e}")
 
 
-def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path) -> int:
+def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path, exerciser=None) -> int:
     """Print the coverage + verdict report for a --test run; optionally write
     JUnit XML. Returns the process exit code (0 pass / 1 fail)."""
     from sbs_utils.gui import Gui
@@ -202,6 +202,9 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path) ->
               f"({summ.get('labels_pct','?')}%)   nodes {summ.get('nodes_entered')}")
         for k, hd in (summ.get("by_kind") or {}).items():
             print(f"   {k:16} {hd[0]}/{hd[1]}")
+    if exerciser is not None:
+        print(f"exercise: steps {exerciser.steps}, enemies(last) {exerciser.enemies_last}, "
+              f"combats forced {exerciser.forced}, beam-damage hits {getattr(sbs, '_apply_damage_calls', '?')}")
     print(verdict.report() if verdict is not None else "no verdict")
     print("=============================")
 
@@ -555,7 +558,7 @@ def _run(
             if _verdict is not None:
                 _verdict.uninstall()
             _test_exit = _emit_test_report(mission_folder, map_arg, sbs,
-                                           _cov, _verdict, junit_path)
+                                           _cov, _verdict, junit_path, _exerciser)
     return _test_exit
 
 

@@ -35,6 +35,10 @@ class TestMockDamage(unittest.TestCase):
         sbs._contact_pairs.clear()
         _drain()
 
+    def tearDown(self):
+        # set_beam_damages persists globally; reset so it doesn't affect other tests.
+        sbs._beam_dmg_player = sbs._beam_dmg_npc = sbs._beam_dmg_station = None
+
     def _hulled(self, hp=100, abits=0x10):
         oid = self.sim.create_space_object("behav", "", abits)
         o = self.sim.space_objects[oid]
@@ -196,6 +200,35 @@ class TestMockDamage(unittest.TestCase):
         _drain()
         sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
         self.assertGreater(getattr(a, "_heat", 0.0), 0.0)         # firing heats the ship
+
+    def test_set_beam_damages_base_times_coeff(self):
+        # set_beam_damages makes per-shot = category base * per-beam coeff, where
+        # coeff = beamDamage / _BEAM_LOAD_BASE (beamDamage is coeff*base at load).
+        sbs.set_beam_damages(0, 7.0, 4.0, 2.0)
+        # player firer (abits 0x20), coeff 1.0 (beamDamage 6.0) -> 7*1 = 7
+        tid, t = self._hulled(100); t._pos = sbs.vec3(0, 0, 500)
+        pid, p = self._hulled(100, abits=0x20); p._pos = sbs.vec3(0, 0, 0)
+        p.data_set.set("beamCount", 1); p.data_set.set("beamRange", 1000.0)
+        p.data_set.set("beamDamage", 6.0); p.data_set.set("weapon_target_UID", tid)
+        _drain()
+        sbs._physics_beams(self.sim, [(pid, p), (tid, t)], dt=0.5)
+        self.assertEqual(t.data_set.get("armor"), 93.0)           # 100 - 7
+        # npc firer (abits 0x10), coeff 0.5 (beamDamage 3.0) -> 4*0.5 = 2
+        tid2, t2 = self._hulled(100); t2._pos = sbs.vec3(0, 0, 500)
+        nid, n = self._hulled(100, abits=0x10); n._pos = sbs.vec3(0, 0, 0)
+        n.data_set.set("beamCount", 1); n.data_set.set("beamRange", 1000.0)
+        n.data_set.set("beamDamage", 3.0); n.data_set.set("weapon_target_UID", tid2)
+        _drain()
+        sbs._physics_beams(self.sim, [(nid, n), (tid2, t2)], dt=0.5)
+        self.assertEqual(t2.data_set.get("armor"), 98.0)          # 100 - 2
+
+    def test_beam_falls_back_to_beamDamage_without_set_beam_damages(self):
+        # No set_beam_damages call -> beamDamage used as-is (unit tests rely on this).
+        tid, t = self._hulled(100); t._pos = sbs.vec3(0, 0, 500)
+        aid, a = self._beamer(tid, rng=1000, dmg=30)
+        _drain()
+        sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
+        self.assertEqual(t.data_set.get("armor"), 70.0)           # 100 - 30 (beamDamage)
 
     def test_heat_decays(self):
         aid, a = self._hulled(100)

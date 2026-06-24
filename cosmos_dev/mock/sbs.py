@@ -41,6 +41,19 @@ _projectiles: list = []
 # tick to draw transient beam lines. (Beams are instantaneous, so it's per-tick.)
 _beam_fires: list = []
 
+# Base per-shot beam damage by firer category, from set_beam_damages(). None until
+# the script calls it; then _physics_beams uses these (player/npc/station) instead
+# of the shipData-derived "beamDamage". Mirrors the engine, where set_beam_damages
+# is authoritative for per-shot damage.
+_beam_dmg_player: "float | None" = None
+_beam_dmg_npc: "float | None" = None
+_beam_dmg_station: "float | None" = None
+_apply_damage_calls = 0   # dev diagnostic: total apply_damage hits (combat sanity)
+# shipData "damage_coeff" is a per-beam coefficient (~0.1-1.2; 1.0 for base hulls).
+# Real per-shot damage = set_beam_damages base * coeff. The mock stores beamDamage
+# = coeff * _BEAM_LOAD_BASE at load, so coeff = beamDamage / _BEAM_LOAD_BASE.
+_BEAM_LOAD_BASE = 6.0
+
 # Behavior dispatch: tick_type string → callable(space_object, dt_seconds)
 _behavior_registry: dict = {}
 
@@ -430,7 +443,7 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
         ds.set("beamCount", len(beams))
         for i, b in enumerate(beams):
             ds.set("beamRange",       float(b.get("range",         1000)), i)
-            ds.set("beamDamage",      float(b.get("damage_coeff",   1.0)) * 6.0, i)
+            ds.set("beamDamage",      float(b.get("damage_coeff",   1.0)) * _BEAM_LOAD_BASE, i)
             ds.set("beamCycleTime",   float(b.get("cycle_time",     6.0)), i)
             ds.set("beamArcWidth",    float(b.get("arcwidth",       360)), i)
             ds.set("beamBarrelAngle", float(b.get("barrel_angle",     0)), i)
@@ -633,6 +646,10 @@ def send_story_dialog(clientID: int, title: str, text: str, face: str, color: st
 
 def set_beam_damages(clientID: int, playerBeamDamage: float, npcBeamDamage: float, stationBeamDamage: float = 1) -> None:
     """sets the values for player base beam damage, npc base beam damage, and station base beam damage."""
+    global _beam_dmg_player, _beam_dmg_npc, _beam_dmg_station
+    _beam_dmg_player  = float(playerBeamDamage)
+    _beam_dmg_npc     = float(npcBeamDamage)
+    _beam_dmg_station = float(stationBeamDamage)
 
 def set_client_string(clientComputerID: int, string_key: str, string_value: str) -> None:
     """stores a string value (and its string key) to the client computer"""
@@ -2167,12 +2184,13 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
     Hull lives in data_set "armor"; only objects with armorMax>0 are damageable
     (ships from shipData). The dead mock object is removed from the sim.
     """
-    global sim
+    global sim, _apply_damage_calls
     if sim is None or amount <= 0:
         return
     obj = sim.space_objects.get(target_id)
     if obj is None:
         return
+    _apply_damage_calls += 1   # dev diagnostic (mission_runner --test report)
     ds = obj.data_set
     if (ds.get("armorMax") or 0.0) <= 0:
         return  # no hull -> not damageable (asteroids, markers, etc.)
@@ -2194,6 +2212,20 @@ def _weapon_target(ds) -> int:
     console's selected target); NPC AI sets target_id. Beams and missiles both
     fire at this."""
     return (ds.get("weapon_target_UID") or ds.get("target_id") or 0)
+
+
+def _beam_base_damage(a) -> "float | None":
+    """Per-shot beam damage for firer `a` from set_beam_damages (station/player/npc).
+    Returns None when set_beam_damages was never called - then the caller falls
+    back to the ship's data_set "beamDamage" (so the damage unit tests, which set
+    beamDamage directly, are unaffected)."""
+    if _beam_dmg_player is None:
+        return None
+    if _is_station(a._id):
+        return _beam_dmg_station
+    if a._abits & 0x20:        # TickType.PLAYER
+        return _beam_dmg_player
+    return _beam_dmg_npc
 
 
 def _physics_beams(sim, active: list, dt: float) -> None:
@@ -2236,7 +2268,16 @@ def _physics_beams(sim, active: list, dt: float) -> None:
             dot = (fwd.x * tx + fwd.y * ty + fwd.z * tz) / dist
             if dot < math.cos(math.radians(arc * 0.5)):
                 continue  # target outside the beam arc
-        dmg = ds.get("beamDamage") or 0.0
+        # Respect set_beam_damages: real per-shot = base(category) * per-beam coeff.
+        # The mock stored beamDamage = coeff * _BEAM_LOAD_BASE, so recover the coeff.
+        # When set_beam_damages was never called, fall back to beamDamage as-is
+        # (keeps the damage unit tests, which set beamDamage directly, unaffected).
+        beam_dmg = ds.get("beamDamage") or 0.0
+        base = _beam_base_damage(a)
+        if base is not None:
+            dmg = base * (beam_dmg / _BEAM_LOAD_BASE)
+        else:
+            dmg = beam_dmg
         if dmg > 0:
             apply_damage(tid, dmg, aid)
         a._beam_cooldown = ds.get("beamCycleTime") or 6.0
