@@ -117,3 +117,47 @@ class TestWorldResetOnSimCreate(unittest.TestCase):
         # Startup path: create_new_sim before the server/queue exists must not raise.
         mockgui.gui_queue = None
         mockgui.create_new_sim()   # must be a no-op, not an error
+
+
+class TestGetShipOfClientFallback(unittest.TestCase):
+    """get_ship_of_client mirrors the engine: an unassigned client grabs a
+    PLAYER-abit ship, and deleting a ship falls over to another player ship."""
+
+    PLAYER = 0x20
+    NPC = 0x10
+
+    def setUp(self):
+        base.create_new_sim()
+
+    def _spawn(self, abits):
+        return base.sim.create_space_object("behav_x", "hull", abits)
+
+    def test_unassigned_client_grabs_player_ship(self):
+        self._spawn(self.NPC)                 # not a player ship - must be skipped
+        pid = self._spawn(self.PLAYER)
+        self.assertEqual(base.get_ship_of_client(0), pid)
+        # the grab is recorded (engine "grabs" and assigns)
+        self.assertEqual(base.sim.client_ships.get(0), pid)
+
+    def test_no_player_ship_returns_zero(self):
+        self._spawn(self.NPC)
+        self.assertEqual(base.get_ship_of_client(0), 0)
+
+    def test_prefers_ship_not_claimed_by_another_client(self):
+        p1 = self._spawn(self.PLAYER)
+        p2 = self._spawn(self.PLAYER)
+        base.assign_client_to_ship(1, p1)     # client 1 owns p1
+        self.assertEqual(base.get_ship_of_client(0), p2)   # client 0 takes the free one
+
+    def test_explicit_assignment_is_returned_as_is(self):
+        # A ship that isn't a mock space object (bare assignment) must still be
+        # honoured - the fallback only triggers on an empty assignment.
+        base.assign_client_to_ship(0, 0xABC)
+        self.assertEqual(base.get_ship_of_client(0), 0xABC)
+
+    def test_deleting_assigned_ship_falls_over(self):
+        p1 = self._spawn(self.PLAYER)
+        p2 = self._spawn(self.PLAYER)
+        self.assertEqual(base.get_ship_of_client(0), p1)   # grabs p1
+        base.delete_object(p1)                             # p1 destroyed
+        self.assertEqual(base.get_ship_of_client(0), p2)   # falls over to p2

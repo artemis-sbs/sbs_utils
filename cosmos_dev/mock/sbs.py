@@ -159,6 +159,7 @@ def delete_object(ID: int) -> None:
             sim.space_objects.pop(ID, None)
             sim._active_ids.discard(ID)
             sim._terrain_ids.discard(ID)
+        _orphan_clients_of_ship(ID)
 
 def delete_particle_emittor(emittorID: int) -> None:
     """deletes a particle emittor by ID."""
@@ -279,12 +280,43 @@ def get_shared_string(key: str) -> str:
         return sim.shared_strings.get(key, "")
     return ""
 
+_PLAYER_ABIT = 0x20   # TickType.PLAYER - flags a player-controllable ship
+
+
+def _grab_player_ship(clientID: int) -> int:
+    """Engine-like fallback: when a client has no valid ship, grab a PLAYER-abit
+    ship and assign it. Prefers one not already controlled by another client;
+    falls back to any player ship (consoles can share a ship). 0 if none exist.
+    Mirrors the engine auto-grabbing / falling over to another player ship when
+    the assigned one is missing or deleted."""
+    players = [oid for oid, o in sim.space_objects.items()
+               if o is not None and (o._abits & _PLAYER_ABIT)]
+    if not players:
+        return 0
+    claimed = {sid for cid, sid in sim.client_ships.items() if cid != clientID}
+    pick = next((oid for oid in players if oid not in claimed), players[0])
+    sim.client_ships[clientID] = pick
+    return pick
+
+
+def _orphan_clients_of_ship(shipID: int) -> None:
+    """When a player ship is deleted, drop assignments pointing at it so the next
+    get_ship_of_client falls over to another player ship (engine behavior)."""
+    if sim is None:
+        return
+    for cid in [c for c, s in sim.client_ships.items() if s == shipID]:
+        sim.client_ships.pop(cid, None)
+
+
 def get_ship_of_client(clientID: int) -> int:
     """returns the player ship ID assigned to the client computer"""
     global sim
-    if sim is not None:
-        return sim.client_ships.get(clientID, 0)
-    return 0
+    if sim is None:
+        return 0
+    sid = sim.client_ships.get(clientID, 0)
+    if sid == 0:
+        sid = _grab_player_ship(clientID)
+    return sid
 
 def _font_size(fontTag: str) -> int:
     return {
@@ -485,6 +517,11 @@ def push_to_standby_list_id(id: int) -> None:
                 sim.standby_list[id] = obj
                 sim._active_ids.discard(id)
                 sim._terrain_ids.discard(id)
+                _orphan = True
+            else:
+                _orphan = False
+    if sim is not None and _orphan:
+        _orphan_clients_of_ship(id)
 
 def query_client_tags() -> None:
     """stub; does nothing yet."""
