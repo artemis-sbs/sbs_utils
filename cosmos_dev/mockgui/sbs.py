@@ -229,6 +229,22 @@ def send_gui_hotkey(clientID: int, category: str, tag: str,
           keyType=keyType, description=description)
 
 
+def send_message_to_client(clientID: int, colorDesc: str, text: str) -> None:
+    """Append a colored line to the client's text waterfall (the engine renders
+    this stream in C++)."""
+    _send(clientID, "text_msg", color=colorDesc or "#fff", text=text or "")
+
+
+def send_message_to_player_ship(playerID: int, colorDesc: str, text: str) -> None:
+    """Append a colored line to the waterfall of every client controlling
+    playerID (mirrors the engine routing ship messages to its consoles)."""
+    if _base_mock.sim is None:
+        return
+    for cid, sid in list(_base_mock.sim.client_ships.items()):
+        if sid == playerID:
+            _send(cid, "text_msg", color=colorDesc or "#fff", text=text or "")
+
+
 def send_gui_3dship(clientID: int, parent: str, tag: str, style: str,
                     left: float, top: float, right: float, bottom: float) -> None:
     # Extract hull_tag from the style string so Python can do the shipData lookup.

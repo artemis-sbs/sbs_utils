@@ -698,7 +698,7 @@ function dispatch(msg) {
       msg.cmd !== 'radar' && msg.cmd !== 'radar_terrain' &&
       msg.cmd !== 'widget_rect' && msg.cmd !== 'cinematic' &&
       msg.cmd !== 'skybox' && msg.cmd !== 'fx' && msg.cmd !== 'batch' &&
-      msg.cmd !== 'ship_data' && msg.cmd !== 'world_reset') {
+      msg.cmd !== 'ship_data' && msg.cmd !== 'text_msg' && msg.cmd !== 'world_reset') {
     if (msg.clientID !== CLIENT_ID) return;
   }
   switch (msg.cmd) {
@@ -714,6 +714,7 @@ function dispatch(msg) {
     case 'skybox':       cmdSkybox(msg);      break;
     case 'fx':           cmdFx(msg);          break;
     case 'ship_data':    cmdShipData(msg);    break;
+    case 'text_msg':     cmdTextMsg(msg);     break;
     case 'batch':        msg.items.forEach(dispatch); break;
     default:             cmdWidget(msg);      break;
   }
@@ -1092,6 +1093,7 @@ function cmdWorldReset(msg) {
   // Reset our tracked ship so the next mission rediscovers it.
   _myShipId = null;
   if (_shipDataEl) _shipDataEl.style.display = 'none';   // hide stale ship_data HUD
+  if (_textWfEl) _textWfEl.innerHTML = '';               // clear previous mission's text
   if (_radarCtx) _renderRadar();
 }
 
@@ -1136,6 +1138,35 @@ function cmdShipData(msg) {
     `heat   ${msg.heat}\n` +
     `dock   <span style="color:${dockColor}">${dock}</span>\n` +
     `target ${msg.target || '—'}`;
+}
+
+// ── cmdTextMsg — text waterfall (send_message_to_client/player_ship) ─────────
+// A scrolling colored text stream (comms, autoplay status, etc.). The engine
+// renders the text_waterfall widget in C++; the mock streams each line here.
+let _textWfEl = null;
+const _TEXT_WF_MAX = 200;
+function _ensureTextWfEl() {
+  if (_textWfEl) return _textWfEl;
+  const el = document.createElement('div');
+  el.id = 'textWaterfall';
+  el.style.cssText =
+    'position:fixed;right:8px;bottom:8px;z-index:50;width:340px;max-height:38vh;' +
+    'overflow-y:auto;font:11px/1.4 monospace;background:rgba(8,14,22,.82);' +
+    'border:1px solid #2a3a4a;border-radius:5px;padding:6px 8px;' +
+    'text-shadow:0 1px 1px #000;';
+  document.body.appendChild(el);
+  _textWfEl = el;
+  return el;
+}
+function cmdTextMsg(msg) {
+  const el = _ensureTextWfEl();
+  el.style.display = 'block';
+  const line = document.createElement('div');
+  line.style.color = msg.color || '#fff';
+  line.textContent = msg.text || '';
+  el.appendChild(line);
+  while (el.childElementCount > _TEXT_WF_MAX) el.removeChild(el.firstChild);
+  el.scrollTop = el.scrollHeight;   // auto-scroll to newest
 }
 
 // ── cmdRadar — delta update for active (NPC/PLAYER) objects ──────────────────
