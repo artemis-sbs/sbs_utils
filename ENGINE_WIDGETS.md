@@ -236,6 +236,37 @@ written and/or the route/event fired) - **Selection** (UID set, if any) - **Proc
   `beamCycleTime`), power (`eng_control_*`), coolant/heat (`system_coolant_*`,
   `system_cur_heat`), red_alert (`red_alert`, also fires a `red_alert` event).
 
+## Route & event triggers (engine -> MAST)
+What the mock must reproduce so mission `//` routes fire during a run. Event -> route:
+
+- **Selection family** (all relate to `*_target_UID`): setting a target UID confirms
+  the selection change and **fires the select route** (so a bot can drive targeting
+  by writing the UID and mission `//select` logic still runs).
+  - `//select/...` - object selection.
+  - `//focus/comms|science|weapons|grid|normal` - **alias for selection** (per console).
+  - `//point/...` - selection that carries a `source_point` (a point, not just an object).
+- `//console/change` <- **`client_change`** event - the player pressed a "change
+  console" button (intent to switch consoles; e.g. show the console-select screen).
+- **Damage:**
+  - `//damage/destroy` - object destroyed.
+  - `//damage/killed` <- **`npc_killed`** / **`station_killed`**.
+  - `//damage/internal` <- **`player_internal_damage`**.
+  - `//damage/heat` <- **`heat_critical_damage`**.
+  - Other collisions generally arrive as **damage**, not collision routes.
+- **Collision:**
+  - `//collision/interactive` <- pickups (`behav_pickup`).
+  - `//collision/passive` <- terrain.
+- **Launch:**
+  - `//launch/missile` <- **`player_launches_missile`** (torpedo fire).
+  - `//launch/drone` <- **`ship_launches_drone`**.
+- **Dock:** `//dock/hangar` <- a **fighter** pressing dock (hangar landing). Capital-
+  ship docking is **polled** via `dock_state` (no general route).
+- **Internal-only data_set writes** (no event; scripts poll the value): throttle
+  (`playerThrottle`), `shields_raised_flag`, power (`eng_control_*`), coolant/heat
+  (`system_*`), beam (`scan_type_for_shld_freq`, `beamCount`, `beamCycleTime`).
+- `red_alert` write also fires a `red_alert` event; `main_screen_change` fires on a
+  main-screen view change.
+
 ## Library work surfaced (for v1.4.0_dev / later)
 - **Weapons load/fire scripting** - no script access today; asked-for feature
   (fire currently only observable via `//launch/missile` / `player_launches_missile`).
@@ -248,21 +279,9 @@ written and/or the route/event fired) - **Selection** (UID set, if any) - **Proc
 ---
 
 ## Open questions (Doug)
-Most are resolved above. Remaining:
+Route/event triggers resolved (see "Route & event triggers"). Remaining (low priority):
 
-1. **(cross-cutting) Which data_set changes ALSO fire a MAST route/event** a mission
-   can listen to? For the mock to trigger the right `//` routes it must reproduce
-   both the data_set change *and* any event the engine fires.
-   Confirmed events so far: `main_screen_change`, `red_alert`, `press_comms_button`,
-   `press_grid_button`, `player_launches_missile`, `science_scan_complete`,
-   `select_space_object`, `hold_click` / `hold_button_pressed`, plus the select
-   routes. Do the *other* data_set writes (throttle, `shields_raised_flag`,
-   `dock_state`, coolant/heat, power, beam freq/rate) fire any route/event, or are
-   they purely internal (scripts see them only by polling the data_set)?
-   *Docking resolved:* capital-ship docking (`request_dock` / `dock_state`) is
-   **script-polled** (no general `//dock` route); `//dock/hangar` is separate -
-   it fires for **fighters** pressing dock (hangar landing).
-2. **helm_movement native write** - `steerToDir*` was added for autoplay; what does
+1. **helm_movement native write** - `steerToDir*` was added for autoplay; what does
    the *real* helm widget write for steering? (Only needed for faithful mock
-   emulation; a bot can use `steerToDir*`.) Low priority.
-3. **quick_jump** delivery - the data_set/event for charge + fwd/back. Niche.
+   emulation; a bot can use `steerToDir*`.)
+2. **quick_jump** delivery - the data_set/event for charge + fwd/back. Niche.
