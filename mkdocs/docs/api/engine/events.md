@@ -176,10 +176,24 @@ survive a lone attacker for the full 2 min.
 | Skaraan (elite) NPC | **≈ 12.5–16.5** | their shipData `damage_coeff` ≈ 2.3–3.0 |
 
 - `beamCycleTime ≈ 6 s`, `beamArcWidth = 144°`, `beamRange` 1000–1300 (code/capture).
-- The mock uses one base (`coeff × _BEAM_LOAD_BASE = 6`) for **both** player and NPC,
-  so NPC beams are about right but player beams are ~33% too weak. Real missions
-  that call `set_beam_damages` (LegendaryMissions, scaled by difficulty) override
-  this. **(Mock fallback could split player/NPC bases to 8.9 / 5.5.)**
+- The mock uses one base (`coeff × _BEAM_LOAD_BASE = 6`) for **both** player and NPC.
+  NPC beams are about right (6 vs ~5.5); player beams are mission-driven (below).
+
+!!! info "Difficulty scaling (captures at DIFFICULTY 1 and 5)"
+    Re-running the battle matrix at difficulty 1 vs 5 shows that **almost nothing
+    scales with difficulty** — these are all flat across 1 and 5:
+
+    - NPC beam damage (~5.5), drone damage (15)
+    - shields and `system_max_damage` (hull) — identical per hull at both levels
+
+    The **only** value that scaled is **player beam damage**: ~7.1 (lc) / ~8.0 (bs)
+    at diff 1 → ~8.9 / ~9.5 at diff 5 (≈ +0.45 per level). That is injected by the
+    mission layer via `set_beam_damages`, which the mock already honors. So the mock
+    needs **no difficulty-aware combat scaling** for NPC/drone/shield/hull — only the
+    player beam fallback is difficulty-sensitive, and real missions set it.
+
+    (NPC-vs-NPC *outcomes* still vary run to run — that's combat variance, not
+    difficulty, since the inputs are flat.)
 
 ### Drones (capture)
 
@@ -193,6 +207,8 @@ rest at runtime:
 | `drone_launch_max_range` | **7000** | capture |
 | `drone_launch_timer` | 20–60 (per hull) | shipData |
 | `elite_drone_launcher` | unset (= 0) | capture — *not* the trigger; `drone_damage`/range being set is |
+
+Drone damage is **difficulty-independent** (15 at diff 1 and 5).
 
 ### Torpedoes
 
