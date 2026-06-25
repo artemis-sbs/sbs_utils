@@ -2359,6 +2359,27 @@ def _is_station(obj_id: int) -> bool:
         return False
 
 
+def _hit_facing(target, source, n_facings: int) -> int:
+    """Which shield facing a hit from `source` lands on. The engine reduces the facing
+    toward the attacker; the mock approximates it by the source's bearing relative to
+    the target's heading, split into n_facings even sectors starting at the bow
+    (facing 0 = front, going clockwise). Defaults to facing 0 when the source or
+    heading is unknown - and ships usually face their target, so that's the bow."""
+    if n_facings <= 1 or source is None:
+        return 0
+    dx = source._pos.x - target._pos.x
+    dz = source._pos.z - target._pos.z
+    if dx == 0.0 and dz == 0.0:
+        return 0
+    fwd = target.forward_vector()
+    right = target.right_vector()
+    f = fwd.x * dx + fwd.z * dz                       # forward component
+    r = right.x * dx + right.z * dz                   # starboard component
+    ang = math.degrees(math.atan2(r, f)) % 360.0      # 0 = dead ahead, CW
+    sector = 360.0 / n_facings
+    return int((ang + sector / 2.0) % 360.0 / sector) % n_facings
+
+
 def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
     """Mock-only hull-damage model.
 
@@ -2388,28 +2409,22 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
             and (ds.get("system_max_damage", 0) or 0.0) <= 0):
         return
     _bump_exciting(obj, _EXCITE_COMBAT)   # taking a hit is camera-worthy (attract)
-    # Shields absorb first; system/internal damage only happens AFTER shields drop.
-    # The mock has no hit-facing geometry (get_shield_hit_index is a stub), so treat
-    # all facings as ONE pool: absorb against the sum and drain facings in order.
-    # Using only facing 0 (the old model) threw away the rest of a multi-facing
-    # ship's budget, making players (e.g. [120,120]) look half as tough as they are.
+    # Shields absorb first, PER FACING (like the engine): a hit lands on the one
+    # facing toward the attacker; only its overflow reaches the hull, and the OTHER
+    # facings stay up - so a ship can die with shields still on its far side (this is
+    # exactly what the data_capture matrix showed). The mock has no real hit geometry
+    # (get_shield_hit_index is a stub), so it picks the facing from the source's
+    # bearing; ships normally face their target, so that's usually the front facing.
     n_sh = int(ds.get("shield_count") or 0) or 1
-    total_shield = sum((ds.get("shield_val", i) or 0.0) for i in range(n_sh))
-    if total_shield > 0:
-        absorbed = min(amount, total_shield)
-        rem = absorbed
-        for i in range(n_sh):
-            sv = ds.get("shield_val", i) or 0.0
-            take = min(sv, rem)
-            if take > 0:
-                ds.set("shield_val", sv - take, i)
-                rem -= take
-            if rem <= 0:
-                break
-        amount -= absorbed
-        if amount <= 0:                 # shields held — no hull/system damage
+    fi = _hit_facing(obj, sim.space_objects.get(source_id), n_sh)
+    shield = ds.get("shield_val", fi) or 0.0
+    if shield > 0:
+        if amount <= shield:
+            ds.set("shield_val", shield - amount, fi)
             _pending_physics_events.put(("damage", "", source_id, target_id))
             return
+        amount -= shield
+        ds.set("shield_val", 0.0, fi)
     # Shields down. Three death models:
     #  * PLAYER -> INTERNAL damage: a hit the script processes (LegendaryMissions
     #    grids it into system damage), not direct hull loss; the script governs

@@ -121,33 +121,49 @@ class TestMockDamage(unittest.TestCase):
         caps = [o.data_set.get("system_max_damage", i) or 0 for i in range(4)]
         self.assertEqual(sum(caps), 16)                    # flat 4 x 4
 
-    def test_shields_pool_across_facings(self):
-        # Multi-facing shields absorb as ONE pool (full budget protects the ship),
-        # draining facings in order; hull untouched while the pool holds. A hit
-        # bigger than facing 0 but smaller than the total used to leak to hull.
+    def test_shields_per_facing_not_pooled(self):
+        # Engine-like: a hit lands on ONE facing (toward the attacker) and only its
+        # overflow reaches hull - the OTHER facing stays up. A hit bigger than the hit
+        # facing but smaller than the total still leaks to hull (no pooling).
         oid, o = self._npc_ship(sys_max=4)
         o.data_set.set("shield_count", 2)
         o.data_set.set("shield_val", 120.0, 0); o.data_set.set("shield_max_val", 120.0, 0)
         o.data_set.set("shield_val", 120.0, 1); o.data_set.set("shield_max_val", 120.0, 1)
+        # Attacker dead ahead -> hits the front facing (index 0).
+        sid = self.sim.create_space_object("behav_npcship", "", 0x10)
+        s = self.sim.space_objects[sid]; o._pos = sbs.vec3(0, 0, 0); s._pos = sbs.vec3(0, 0, 500)
         _drain()
-        sbs.apply_damage(oid, 200, source_id=7)            # > facing0 (120), < total (240)
-        self.assertEqual(_drain(), [("damage", "", 7, oid)])
-        self.assertEqual(o.data_set.get("shield_val", 0), 0.0)    # facing 0 drained first
-        self.assertEqual(o.data_set.get("shield_val", 1), 40.0)   # spilled to facing 1
-        self.assertEqual(sum(o.data_set.get("system_damage", i) or 0 for i in range(4)), 0)
+        sbs.apply_damage(oid, 150, source_id=sid)          # > facing0 (120), < total (240)
+        self.assertEqual(_drain(), [("damage", "", sid, oid)])
+        self.assertEqual(o.data_set.get("shield_val", 0), 0.0)    # hit facing drained
+        self.assertEqual(o.data_set.get("shield_val", 1), 120.0)  # far facing UNTOUCHED
+        # 150 - 120 = 30 overflow -> 5 system nodes (30 / _SYSTEM_NODE_HP)
+        self.assertEqual(sum(o.data_set.get("system_damage", i) or 0 for i in range(4)), 5)
         self.assertIn(oid, self.sim.space_objects)
 
-    def test_shield_pool_overflow_hits_hull(self):
-        # Once the whole pool is gone, the remainder spills into system damage.
+    def test_hit_facing_picks_facing_by_bearing(self):
+        # Attacker ahead -> front facing (0); behind -> rear facing (1) on a 2-facing ship.
+        tid, t = self._npc_ship(sys_max=4); t._pos = sbs.vec3(0, 0, 0)   # faces +z by default
+        ahead = self.sim.create_space_object("behav_npcship", "", 0x10)
+        self.sim.space_objects[ahead]._pos = sbs.vec3(0, 0, 500)
+        behind = self.sim.create_space_object("behav_npcship", "", 0x10)
+        self.sim.space_objects[behind]._pos = sbs.vec3(0, 0, -500)
+        self.assertEqual(sbs._hit_facing(t, self.sim.space_objects[ahead], 2), 0)
+        self.assertEqual(sbs._hit_facing(t, self.sim.space_objects[behind], 2), 1)
+        self.assertEqual(sbs._hit_facing(t, None, 2), 0)                 # unknown -> front
+        self.assertEqual(sbs._hit_facing(t, self.sim.space_objects[behind], 1), 0)  # single facing
+
+    def test_shield_overflow_hits_hull(self):
+        # Overflow past the hit facing spills into system damage.
         oid, o = self._npc_ship(sys_max=4)
         o.data_set.set("shield_count", 2)
         o.data_set.set("shield_val", 50.0, 0)
         o.data_set.set("shield_val", 50.0, 1)
         _drain()
-        sbs.apply_damage(oid, 100 + 12, source_id=1)       # 100 shields + 12 hull (2 nodes)
-        self.assertEqual(_drain(), [("damage", "", 1, oid)])
+        sbs.apply_damage(oid, 50 + 12, source_id=0)        # source 0 -> facing 0; 50 shield + 12 hull
+        self.assertEqual(_drain(), [("damage", "", 0, oid)])
         self.assertEqual(o.data_set.get("shield_val", 0), 0.0)
-        self.assertEqual(o.data_set.get("shield_val", 1), 0.0)
+        self.assertEqual(o.data_set.get("shield_val", 1), 50.0)   # other facing stays up
         self.assertEqual(sum(o.data_set.get("system_damage", i) or 0 for i in range(4)), 2)
 
     def test_offense_factor_degrades_with_system_damage(self):
