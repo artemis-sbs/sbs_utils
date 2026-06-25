@@ -88,9 +88,16 @@ def _try_auto_start_map(map_arg, sbs) -> bool:
         )
 
     map_label = real_maps[idx]
-    print(f"[runner] auto-starting map: {getattr(map_label, 'path', map_arg)}")
 
-    server_task = task_schedule_server(map_label, defer=True)
+    # task_schedule_server needs the server page's gui task. A trivial mission can
+    # reach the registered @map list before that task exists (heavier missions
+    # like LegendaryMissions don't); retry next tick instead of crashing.
+    try:
+        server_task = task_schedule_server(map_label, defer=True)
+    except Exception as e:
+        return False
+
+    print(f"[runner] auto-starting map: {getattr(map_label, 'path', map_arg)}")
     set_shared_variable("GAME_STARTED", True)
 
     # signal_emit() is a no-op when FrameContext.mast is None, and we run in the
