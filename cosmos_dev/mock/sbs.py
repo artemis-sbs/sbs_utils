@@ -2225,9 +2225,14 @@ def _steer_toward(obj: space_object, dx: float, dy: float, dz: float,
     # overhead (horiz_dist ~ 0), so skip yaw there and let pitch do the work.
     if horiz_dist > 1e-3:
         ndx, ndz = dx / horiz_dist, dz / horiz_dist
-        # Y-component of (fwd × desired): positive → target is right of heading → +yaw
-        cross_y = fwd.z * ndx - fwd.x * ndz
-        obj._steer_yaw = max(-turn_rate, min(turn_rate, cross_y * turn_rate * 5.0))
+        # Signed heading error via atan2 (sin AND cos), not just the cross product:
+        # the cross alone is sin(error), which is 0 at BOTH 0° and 180°, so a ship
+        # with its target directly behind could never turn around. atan2 gives the
+        # full ±π error so a 180° target drives a max turn.
+        cross_y = fwd.z * ndx - fwd.x * ndz        # sin(error)  (+ = target to starboard)
+        dot = fwd.x * ndx + fwd.z * ndz            # cos(error)
+        err = math.atan2(cross_y, dot)
+        obj._steer_yaw = max(-turn_rate, min(turn_rate, err * turn_rate * 5.0))
     else:
         obj._steer_yaw = 0.0
     # Pitch toward the target elevation.  fwd is unit, so fwd.y is sin(current
@@ -2277,7 +2282,13 @@ def _npcship_steer(obj: space_object, dt: float) -> None:
     if arrive_dist <= 0.0:
         arrive_dist = 20.0
 
-    if dist > arrive_dist and throttle > 0.0:
+    # Turn to face the target. AIMING is independent of throttle: a ship holding
+    # position (throttle 0, e.g. parked at stop_dist while shooting) still rotates to
+    # keep its weapon target in beam arc, like the engine. Without this a stationary
+    # combatant faces its spawn heading, its beams fall out of arc, and only one side
+    # fires - which made mock fights ~2x too slow. Movement still gates on throttle.
+    has_weapon_target = (ds.get("target_id") or 0) != 0
+    if dist > arrive_dist and (throttle > 0.0 or has_weapon_target):
         _steer_toward(obj, dx, dy, dz, horiz_dist, dist, turn_rate)
     else:
         obj._steer_yaw = 0.0

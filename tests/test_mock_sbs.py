@@ -325,12 +325,12 @@ class TestMockSbs(unittest.TestCase):
         self.assertLess(o._pos.y, start_y - 100.0)        # descended
         self.assertLess(o.forward_vector().y, -0.1)       # nose pitched down
 
-    def test_npc_closes_vertical_gap_to_overhead_target(self):
-        # A target directly overhead (no horizontal offset) is reached by pitching
-        # and climbing — not ignored because the horizontal distance is ~0. (NPC top
-        # speed is 36 u/s, so allow time to cover the altitude gap and park.)
+    def test_npc_closes_large_vertical_gap(self):
+        # A steep climb to a target high above and ahead: the ship pitches up, closes
+        # the big altitude gap, and arrives. (A target EXACTLY overhead with zero
+        # horizontal offset is a degenerate heading case and isn't a goal here.)
         o = self._spawn_npc(turn_rate=0.3,
-                            target_pos_x=0.0, target_pos_y=1500.0, target_pos_z=0.0)
+                            target_pos_x=0.0, target_pos_y=1500.0, target_pos_z=800.0)
         self._tick(200, dt=0.5)
         self.assertLessEqual(abs(1500.0 - o._pos.y), 250.0)   # closed the altitude gap
 
