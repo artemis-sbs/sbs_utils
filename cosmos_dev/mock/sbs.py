@@ -490,6 +490,15 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
     if hp is not None:
         ds.set("armor",    float(hp))
         ds.set("armorMax", float(hp))
+        # The engine sets these at runtime (shipData has none). Values from a real
+        # engine capture (data_capture mission): regen is slow (players recover
+        # ~10x faster than NPCs), so combat depletes shields without stalling.
+        is_player = bool(getattr(obj, "_abits", 0) & 0x20)
+        ds.set("repair_rate_shields", 1.0 if is_player else 0.1)
+        ds.set("repair_rate_systems", 0.025 if is_player else 0.01)
+        smax = 3.0 if is_player else 4.0       # system_max_damage per SHPSYS (engine)
+        for _i in range(4):
+            ds.set("system_max_damage", smax, _i)
 
     # Shields — per-facing array
     shields = data.get("shields")
@@ -498,15 +507,6 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
         for i, sv in enumerate(shields):
             ds.set("shield_val",     float(sv), i)
             ds.set("shield_max_val", float(sv), i)
-        # shipData carries no repair rates (the engine sets them at runtime), so
-        # the mock's passive shield/system regen and the docking refit both saw 0
-        # and never repaired. Give shielded ships a modest default so they work.
-        # Tunable; affects passive regen too (combat outpaces it, so go_dock still
-        # fires). Slightly above NPC beam DPS so docked ships actually recover.
-        if not data.get("repair_rate_shields"):
-            ds.set("repair_rate_shields", 3.0)
-        if not data.get("repair_rate_systems"):
-            ds.set("repair_rate_systems", 3.0)
 
     # Beam weapons from hull_port_sets
     beams = data.get("hull_port_sets", {}).get("beam Primary Beams", [])
@@ -2129,11 +2129,6 @@ SPEED_RAMP_RATE = 60.0
 # physics_tick), so it advances the counter by dt * TICKS_PER_SECOND.
 TICKS_PER_SECOND = 30.0
 
-# Seconds after a hit during which passive shield regen is suppressed, so
-# sustained combat depletes shields instead of out-healing the low beam DPS.
-# (>= beam cycle time so continuous beam fire keeps regen blocked.)
-_SHIELD_REGEN_DELAY = 8.0
-
 
 def _ramp_speed(obj: space_object, target_speed: float, dt: float) -> None:
     """Ease obj._cur_speed toward target_speed at SPEED_RAMP_RATE; no instant changes."""
@@ -2294,8 +2289,6 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
     ds = obj.data_set
     if (ds.get("armorMax") or 0.0) <= 0:
         return  # no hull -> not damageable (asteroids, markers, etc.)
-    # Block passive shield regen briefly after any hit (see _physics passive block).
-    obj._shield_regen_block = sim._time_tick_counter + int(_SHIELD_REGEN_DELAY * TICKS_PER_SECOND)
     # Shields absorb first (engine reduces the hit shield). System/internal damage
     # only happens AFTER shields are down. Mock uses shield_val[0] as a pooled shield.
     shield = ds.get("shield_val") or 0.0
@@ -2848,12 +2841,10 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
                 continue
             ds = obj.data_set
 
+            # Slow passive shield regen (engine-like: ~1/s players, ~0.1/s NPCs),
+            # well under beam DPS, so combat depletes shields and recovers in lulls.
             repair = ds.get("repair_rate_shields") or 0.0
-            # No passive regen for a few seconds after taking a hit (engine-like),
-            # so sustained combat actually depletes shields instead of out-healing
-            # the low beam DPS. Shields still recover in a lull / at dock.
-            blocked = sim._time_tick_counter < getattr(obj, "_shield_regen_block", 0)
-            if repair > 0.0 and not blocked:
+            if repair > 0.0:
                 n_shields = ds.get("shield_count") or 0
                 for si in range(max(1, n_shields)):
                     sv = ds.get("shield_val", si) or 0.0
