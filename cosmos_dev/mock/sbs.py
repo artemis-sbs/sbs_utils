@@ -820,7 +820,7 @@ def get_cinematic_camera(clientID: int):
         # Auto cinematic: frame the most "exciting" object (the engine's camera-
         # decision field) so the view follows the action; fall back to the
         # assigned ship when nothing is exciting.
-        focus_id = (_most_exciting_id() if cinematic_mode else 0) or sim.client_ships.get(clientID, 0)
+        focus_id = (_director_focus(clientID) if cinematic_mode else 0) or sim.client_ships.get(clientID, 0)
         o = sim.space_objects.get(focus_id)
         if o is None:
             return None
@@ -2517,6 +2517,46 @@ def _most_exciting_id() -> int:
             if v > best_v:
                 best_v, best = v, oid
     return best
+
+
+# Camera director pacing. Cutting to the most-exciting object every tick is
+# twitchy: when two ships trade fire their exciting values cross repeatedly and
+# the camera flickers between them. The engine paces cuts; the mock mirrors that
+# with a minimum dwell - hold the current shot for at least _CAM_MIN_DWELL before
+# a lateral cut - while letting a markedly hotter event (e.g. a kill, 500 vs a
+# 200 firefight) steal the camera early.
+_cam_focus: dict = {}      # clientID -> {"id": int, "since": float}
+_CAM_MIN_DWELL = 2.5       # seconds to hold a shot before a same-tier cut
+_CAM_STEAL_MARGIN = 150.0  # a candidate this far above the held shot cuts early
+
+
+def _exciting_of(oid) -> float:
+    o = None if sim is None else sim.space_objects.get(oid)
+    return 0.0 if o is None else (o.data_set.get("exciting", 0) or 0.0)
+
+
+def _director_focus(clientID: int) -> int:
+    """Pick the cinematic focus with pacing. Returns the focus object id, or 0 when
+    nothing is currently exciting (caller falls back to the assigned ship)."""
+    import time
+    now = time.monotonic()
+    cand = _most_exciting_id()
+    cur = _cam_focus.get(clientID)
+    cur_ex = _exciting_of(cur["id"]) if cur else 0.0
+    # Held shot gone cold (decayed to 0 or object destroyed) -> free to re-cut.
+    if cur is None or cur_ex <= 0.0:
+        if cand:
+            _cam_focus[clientID] = {"id": cand, "since": now}
+            return cand
+        _cam_focus.pop(clientID, None)
+        return 0
+    # Live held shot: keep it unless dwell elapsed or a much hotter event appears.
+    if cand and cand != cur["id"]:
+        held = now - cur["since"]
+        if held >= _CAM_MIN_DWELL or _exciting_of(cand) >= cur_ex + _CAM_STEAL_MARGIN:
+            _cam_focus[clientID] = {"id": cand, "since": now}
+            return cand
+    return cur["id"]
 
 
 def _unit_toward(src, tgt):

@@ -300,5 +300,50 @@ class TestMockguiViews(unittest.TestCase):
         self.assertEqual(areas[0]["name"], "Zone")
 
 
+class TestCinematicDirectorPacing(unittest.TestCase):
+    """The auto cinematic camera holds a shot (min dwell) instead of flickering to
+    whichever object is hottest each tick; a much hotter event (a kill) cuts early."""
+
+    def setUp(self):
+        _base_mock.create_new_sim()
+        _base_mock._cam_focus.clear()
+        self.a = _base_mock.sim.create_space_object("behav_npcship", "", 0x10)
+        self.b = _base_mock.sim.create_space_object("behav_npcship", "", 0x10)
+        self.cid = 5
+
+    def _excite(self, oid, v):
+        _base_mock.sim.space_objects[oid].data_set.set("exciting", float(v))
+
+    def test_holds_through_minor_flicker(self):
+        self._excite(self.a, 200); self._excite(self.b, 200)
+        first = _base_mock._director_focus(self.cid)
+        self.assertIn(first, (self.a, self.b))
+        # the other ship edges slightly higher within the dwell window
+        other = self.b if first == self.a else self.a
+        self._excite(other, 210)
+        self.assertEqual(_base_mock._director_focus(self.cid), first)
+
+    def test_hotter_event_steals_early(self):
+        self._excite(self.a, 200); self._excite(self.b, 200)
+        first = _base_mock._director_focus(self.cid)
+        other = self.b if first == self.a else self.a
+        self._excite(other, _base_mock._EXCITE_KILL)   # a kill outranks a firefight
+        self.assertEqual(_base_mock._director_focus(self.cid), other)
+
+    def test_cold_returns_zero(self):
+        self._excite(self.a, 200)
+        _base_mock._director_focus(self.cid)
+        self._excite(self.a, 0)
+        self.assertEqual(_base_mock._director_focus(self.cid), 0)
+
+    def test_lateral_cut_after_dwell(self):
+        self._excite(self.a, 200); self._excite(self.b, 200)
+        first = _base_mock._director_focus(self.cid)
+        other = self.b if first == self.a else self.a
+        _base_mock._cam_focus[self.cid]["since"] -= _base_mock._CAM_MIN_DWELL + 1
+        self._excite(other, 220)
+        self.assertEqual(_base_mock._director_focus(self.cid), other)
+
+
 if __name__ == "__main__":
     unittest.main()
