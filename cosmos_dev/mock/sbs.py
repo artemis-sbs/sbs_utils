@@ -3086,16 +3086,21 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
             if ex > 0.0:
                 ds.set("exciting", max(0.0, ex - _EXCITE_DECREMENT * dt))
 
-            # Slow passive shield regen (engine-like: ~1/s players, ~0.1/s NPCs),
-            # well under beam DPS, so combat depletes shields and recovers in lulls.
+            # Passive shield regen. The engine spreads repair_rate_shields ACROSS the
+            # facings (measured from data_capture: a 2-facing ship with repair 1.0
+            # regenerates a damaged facing at ~0.5/s, and 0.1 -> ~0.05/s), so each
+            # facing regens at repair_rate_shields / shield_count - NOT the full rate
+            # per facing. The old per-facing full-rate regen was ~2x too fast, which
+            # made ships hold shields too long and stretched out battles.
             repair = ds.get("repair_rate_shields") or 0.0
             if repair > 0.0:
-                n_shields = ds.get("shield_count") or 0
-                for si in range(max(1, n_shields)):
+                n_shields = max(1, ds.get("shield_count") or 0)
+                per_facing = repair / n_shields
+                for si in range(n_shields):
                     sv = ds.get("shield_val", si) or 0.0
                     sm = ds.get("shield_max_val", si) or 0.0
                     if sm > 0.0 and sv < sm:
-                        ds.set("shield_val", min(sm, sv + repair * dt), si)
+                        ds.set("shield_val", min(sm, sv + per_facing * dt), si)
 
             apu = ds.get("ship_apu_output") or 0.0
             if apu > 0.0:

@@ -350,8 +350,7 @@ class TestMockDamage(unittest.TestCase):
         self.assertAlmostEqual(a.data_set.get("system_cur_heat", 0), 0.6 - sbs._HEAT_DECAY)
 
     def test_shield_regen_is_slow(self):
-        # Passive shield regen runs at repair_rate_shields/s (engine-like, slow);
-        # it recovers shields over time but stays well under beam DPS.
+        # Single facing: regens at the full repair_rate_shields/s.
         aid, a = self._hulled(100)
         a.data_set.set("shield_count", 1)
         a.data_set.set("shield_max_val", 100.0, 0)
@@ -363,6 +362,22 @@ class TestMockDamage(unittest.TestCase):
         sv = a.data_set.get("shield_val", 0)
         self.assertAlmostEqual(sv, 42.0, delta=0.3)       # ~ +1/s
         self.assertLessEqual(sv, 100.0)                   # clamped to max
+
+    def test_shield_regen_divides_rate_across_facings(self):
+        # The engine spreads repair_rate_shields across facings (measured): a 2-facing
+        # ship with repair 1.0 regens a damaged facing at ~0.5/s, not the full 1.0/s.
+        aid, a = self._hulled(100)
+        a.data_set.set("shield_count", 2)
+        for i in range(2):
+            a.data_set.set("shield_max_val", 100.0, i)
+        a.data_set.set("shield_val", 40.0, 0)             # facing 0 damaged
+        a.data_set.set("shield_val", 100.0, 1)            # facing 1 full
+        a.data_set.set("repair_rate_shields", 1.0)
+        sbs.resume_sim()
+        for _ in range(60):                               # ~2 sim seconds
+            sbs.physics_tick(1 / 30)
+        self.assertAlmostEqual(a.data_set.get("shield_val", 0), 41.0, delta=0.3)  # ~ +0.5/s
+        self.assertLessEqual(a.data_set.get("shield_val", 1), 100.0)              # clamped
 
 
 if __name__ == '__main__':
