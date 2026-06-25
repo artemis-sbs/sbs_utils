@@ -98,6 +98,61 @@ class TestMockDamage(unittest.TestCase):
         self.assertEqual(total, 2)
         self.assertIn(oid, self.sim.space_objects)
 
+    def test_npc_hull_scales_with_hullpoints(self):
+        # NPC system-node capacity scales to hullpoints (effective hull ~= hullpoints,
+        # same unit as station armor), so TTK tracks ship size instead of a flat 16.
+        oid = self.sim.create_space_object("behav_npcship", "", 0x10)
+        o = self.sim.space_objects[oid]
+        sbs._apply_ship_data_to_object(o, {"hullpoints": 120})
+        caps = [o.data_set.get("system_max_damage", i) or 0 for i in range(4)]
+        self.assertEqual(sum(caps), round(120 / sbs._SYSTEM_NODE_HP))   # 20 nodes
+        # A lighter hull -> fewer nodes -> dies faster.
+        oid2 = self.sim.create_space_object("behav_npcship", "", 0x10)
+        o2 = self.sim.space_objects[oid2]
+        sbs._apply_ship_data_to_object(o2, {"hullpoints": 30})
+        caps2 = [o2.data_set.get("system_max_damage", i) or 0 for i in range(4)]
+        self.assertEqual(sum(caps2), max(4, round(30 / sbs._SYSTEM_NODE_HP)))  # 5 nodes
+        self.assertLess(sum(caps2), sum(caps))
+
+    def test_npc_hull_falls_back_to_flat_16_without_hullpoints(self):
+        oid = self.sim.create_space_object("behav_npcship", "", 0x10)
+        o = self.sim.space_objects[oid]
+        sbs._apply_ship_data_to_object(o, {})              # no hullpoints
+        caps = [o.data_set.get("system_max_damage", i) or 0 for i in range(4)]
+        self.assertEqual(sum(caps), 16)                    # flat 4 x 4
+
+    def test_offense_factor_degrades_with_system_damage(self):
+        # Death spiral: offense scales linearly with surviving system health,
+        # floored at _OFFENSE_FLOOR.
+        oid, o = self._npc_ship(sys_max=4)                 # 16 nodes
+        self.assertEqual(sbs._offense_factor(o), 1.0)      # undamaged -> full
+        for i in range(4):
+            o.data_set.set("system_damage", 2.0, i)        # 8 / 16 damaged
+        self.assertAlmostEqual(sbs._offense_factor(o), 0.5)
+        for i in range(4):
+            o.data_set.set("system_damage", 4.0, i)        # nearly destroyed
+        self.assertEqual(sbs._offense_factor(o), sbs._OFFENSE_FLOOR)
+
+    def test_offense_factor_station_uses_armor(self):
+        oid, o = self._hulled(100)                          # armorMax 100, armor 100
+        self.assertEqual(sbs._offense_factor(o), 1.0)
+        o.data_set.set("armor", 40.0)
+        self.assertAlmostEqual(sbs._offense_factor(o), 0.4)
+
+    def test_damaged_firer_deals_less_beam_damage(self):
+        # A half-wrecked NPC firer lands ~half its beamDamage (death spiral).
+        tid, t = self._hulled(100); t._pos = sbs.vec3(0, 0, 500)
+        nid = self.sim.create_space_object("behav_npcship", "", 0x10)
+        n = self.sim.space_objects[nid]; n._pos = sbs.vec3(0, 0, 0)
+        for i in range(4):
+            n.data_set.set("system_max_damage", 4.0, i)
+            n.data_set.set("system_damage", 2.0, i)        # 50% system health
+        n.data_set.set("beamCount", 1); n.data_set.set("beamRange", 1000.0)
+        n.data_set.set("beamDamage", 40.0); n.data_set.set("weapon_target_UID", tid)
+        _drain()
+        sbs._physics_beams(self.sim, [(nid, n), (tid, t)], dt=0.5)
+        self.assertEqual(t.data_set.get("armor"), 80.0)    # 100 - 40 * 0.5
+
     def test_fatal_station_killed(self):
         oid, o = self._hulled(50)
         a = Agent(); a.id = oid; a.add(); a.add_role("station")

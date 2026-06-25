@@ -505,9 +505,17 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
     # NPC ships have no armor; the mock drives their death via system damage, so
     # seed the per-SHPSYS capacity. (Players' system damage is script-managed; the
     # engine sets system_max_damage there. Stations use armor.)
+    #
+    # Scale the node capacity to ship SIZE so TTK tracks the hull, like stations:
+    # effective hull = hullpoints (same unit as station armor and beam `amount`),
+    # expressed as nodes (hullpoints / _SYSTEM_NODE_HP) spread across the 4 SHPSYS.
+    # A light hull pops fast; a heavy hull soaks more. Falls back to a flat 16 nodes
+    # (the old behavior) when shipData carries no hullpoints.
     if is_npc and not is_station:
+        total_nodes = max(4, round(hp / _SYSTEM_NODE_HP)) if hp else 16
         for _i in range(4):
-            ds.set("system_max_damage", 4.0, _i)
+            cap = total_nodes // 4 + (1 if _i < total_nodes % 4 else 0)
+            ds.set("system_max_damage", float(cap), _i)
 
     # Shields — per-facing array
     shields = data.get("shields")
@@ -2150,6 +2158,12 @@ TICKS_PER_SECOND = 30.0
 # shot ruins ~one node and the ship dies once all systems are maxed. Tunable.
 _SYSTEM_NODE_HP = 6.0
 
+# Death spiral: a damaged ship outputs less weapon damage (mirrors the engine,
+# where system damage degrades subsystem effectiveness). Offense scales linearly
+# with remaining hull/system health down to this floor, so a battered ship still
+# fights but loses the exchange faster — fights resolve instead of grinding.
+_OFFENSE_FLOOR = 0.25
+
 
 def _ramp_speed(obj: space_object, target_speed: float, dt: float) -> None:
     """Ease obj._cur_speed toward target_speed at SPEED_RAMP_RATE; no instant changes."""
@@ -2410,6 +2424,23 @@ def _beam_base_damage(a) -> "float | None":
     return _beam_dmg_npc
 
 
+def _offense_factor(obj) -> float:
+    """Death-spiral multiplier (0..1) on a firer's weapon damage from its remaining
+    health. NPC ships scale by surviving system-damage capacity; stations by armor.
+    Floored at _OFFENSE_FLOOR so a near-dead ship still bites. An undamaged firer
+    (or one with no health model, e.g. a player whose system_max_damage the script
+    never seeded) returns 1.0 — no degradation."""
+    ds = obj.data_set
+    total_max = sum((ds.get("system_max_damage", i) or 0.0) for i in range(4))
+    if total_max > 0.0:                                   # NPC ship (system-damage death)
+        total_dmg = sum((ds.get("system_damage", i) or 0.0) for i in range(4))
+        return max(_OFFENSE_FLOOR, 1.0 - total_dmg / total_max)
+    amax = ds.get("armorMax") or 0.0
+    if amax > 0.0:                                        # station (armor death)
+        return max(_OFFENSE_FLOOR, (ds.get("armor") or 0.0) / amax)
+    return 1.0
+
+
 def _physics_beams(sim, active: list, dt: float) -> None:
     """Both players and NPCs auto-fire beams at their weapon target, on cooldown,
     when the target is within beam RANGE and beam ARC.
@@ -2460,6 +2491,7 @@ def _physics_beams(sim, active: list, dt: float) -> None:
             dmg = base * (beam_dmg / _BEAM_LOAD_BASE)
         else:
             dmg = beam_dmg
+        dmg *= _offense_factor(a)        # death spiral: damaged firers hit softer
         # Engine fires every beam emitter separately - each is its own hit/event
         # (shields absorb per hit), not one big multiplied hit. Fire one
         # apply_damage per beam so a 4-beam ship deals 4 hits per volley and the
