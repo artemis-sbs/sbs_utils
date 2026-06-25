@@ -228,8 +228,7 @@ Drone damage is **difficulty-independent** (15 at diff 1, 5 and 11).
 | **Mine** | **~120** | AoE, **same as Nuke** |
 | **EMP** | **0** hull/shield | not a hull weapon — disables systems / drains energy (shows in `energy`/`heat`, not shields) |
 
-  (Captured at DIFFICULTY 11; per-ship combat values are difficulty-independent, so
-  these should hold at any level.)
+  (Confirmed difficulty-independent: identical at DIFFICULTY 1, 5 and 11.)
 
 ---
 
