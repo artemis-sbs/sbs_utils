@@ -119,6 +119,7 @@ nav:
     - Engine:
       - api/engine/index.md
       - sbs: api/engine/sbs.md
+      - Events & Captured Values: api/engine/events.md
     - Utility:
       - api/utility/index.md
       - faces: api/utility/faces.md
