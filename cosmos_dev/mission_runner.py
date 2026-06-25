@@ -39,8 +39,14 @@ def _find_missions_root(start: str) -> str:
         path = parent
 
 
-def _load_libs(mission_folder: str, missions_root: str) -> None:
-    """Parse story.json and add every listed sbslib and mastlib to sys.path."""
+def _load_libs(mission_folder: str, missions_root: str,
+               use_working_tree: bool = False) -> None:
+    """Parse story.json and add every listed sbslib and mastlib to sys.path.
+
+    When ``use_working_tree`` is set, the working-tree project root is moved back
+    ahead of the just-added packaged ``.sbslib`` so local sbs_utils edits are what
+    actually run — for smoke-testing library changes against a real mission. (By
+    default the packaged sbslib wins, matching the shipped library.)"""
     story_json = os.path.join(mission_folder, "story.json")
     if not os.path.isfile(story_json):
         print(f"[runner] warning: no story.json in {mission_folder!r}")
@@ -57,6 +63,14 @@ def _load_libs(mission_folder: str, missions_root: str) -> None:
                     print(f"[runner] {kind}: {name}")
             else:
                 print(f"[runner] warning: {kind} not found — {lib_path!r}")
+    if use_working_tree:
+        # Keep the working tree ahead of the sbslib we just inserted at sys.path[0].
+        # Safe because sbs_utils is imported lazily (after this call), so the path
+        # order is what the first import sees.
+        if _PROJECT_ROOT in sys.path:
+            sys.path.remove(_PROJECT_ROOT)
+        sys.path.insert(0, _PROJECT_ROOT)
+        print("[runner] using working-tree sbs_utils (overrides packaged sbslib)")
 
 
 def _try_auto_start_map(map_arg, sbs) -> bool:
@@ -335,6 +349,7 @@ def _run(
     test_seconds: float | None = None,
     junit_path: str | None = None,
     exercise: bool = False,
+    use_working_tree: bool = False,
 ) -> int:
     mission_folder = os.path.abspath(mission_folder)
     missions_root  = _find_missions_root(mission_folder)
@@ -352,7 +367,7 @@ def _run(
     if _PROJECT_ROOT not in sys.path:
         sys.path.insert(0, _PROJECT_ROOT)
 
-    _load_libs(mission_folder, missions_root)
+    _load_libs(mission_folder, missions_root, use_working_tree)
 
     # Communicate map choice to the debug .mast via environment variable
     os.environ["COSMOS_DEBUG_MAP"] = str(map_arg)
@@ -514,7 +529,7 @@ def _run(
                               f"{new_folder!r} (from {_next_mission!r}) - ignoring")
                         raise FileNotFoundError(new_folder)
                     if new_folder != mission_folder:
-                        _load_libs(new_folder, missions_root)
+                        _load_libs(new_folder, missions_root, use_working_tree)
                         fs.script_dir = new_folder.replace("/", "\\")
                         mission_folder = new_folder
                     # Fresh page subclass so the story recompiles with fresh shared
@@ -689,6 +704,7 @@ def run_mission(
     cosmos_dir: str | None = None,
     test_seconds: float | None = None,
     junit_path: str | None = None,
+    use_working_tree: bool = False,
 ) -> int:
     """Entry point for per-mission extern_debug.py wrappers."""
     return _run(
@@ -701,6 +717,7 @@ def run_mission(
         cosmos_dir=cosmos_dir,
         test_seconds=test_seconds,
         junit_path=junit_path,
+        use_working_tree=use_working_tree,
     )
 
 
@@ -741,6 +758,9 @@ if __name__ == "__main__":
     ap.add_argument("--exercise", action="store_true",
                     help="With --test, actively drive selections/comms each tick to "
                          "push route coverage (vs only the mission's own autoplay)")
+    ap.add_argument("--use-working-tree", action="store_true",
+                    help="Run the working-tree sbs_utils instead of the packaged "
+                         ".sbslib (smoke-test local library edits against a mission)")
     args = ap.parse_args()
 
     if args.map is None:
@@ -762,5 +782,6 @@ if __name__ == "__main__":
         test_seconds=args.test,
         junit_path=args.junit,
         exercise=args.exercise,
+        use_working_tree=args.use_working_tree,
     )
     sys.exit(_exit or 0)
