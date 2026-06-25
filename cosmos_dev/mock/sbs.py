@@ -506,16 +506,15 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
     # seed the per-SHPSYS capacity. (Players' system damage is script-managed; the
     # engine sets system_max_damage there. Stations use armor.)
     #
-    # Scale the node capacity to ship SIZE so TTK tracks the hull, like stations:
-    # effective hull = hullpoints (same unit as station armor and beam `amount`),
-    # expressed as nodes (hullpoints / _SYSTEM_NODE_HP) spread across the 4 SHPSYS.
-    # A light hull pops fast; a heavy hull soaks more. Falls back to a flat 16 nodes
-    # (the old behavior) when shipData carries no hullpoints.
+    # Scale node capacity to ship SIZE via shipData hullpoints. For SHIPS hullpoints
+    # is a small tier (~1-8), NOT hit points (stations use 100-200 as armor), so use
+    # it as the per-SHPSYS node count: a ship dies after 4 x hullpoints nodes, so a
+    # light cruiser (hp 3 -> 12 nodes) pops faster than a heavy raider (hp 8 -> 32).
+    # Falls back to 4 per system (the old flat 16-node total) when hullpoints is absent.
     if is_npc and not is_station:
-        total_nodes = max(4, round(hp / _SYSTEM_NODE_HP)) if hp else 16
+        cap = max(1.0, float(hp)) if hp else 4.0
         for _i in range(4):
-            cap = total_nodes // 4 + (1 if _i < total_nodes % 4 else 0)
-            ds.set("system_max_damage", float(cap), _i)
+            ds.set("system_max_damage", cap, _i)
 
     # Shields — per-facing array
     shields = data.get("shields")
@@ -2331,16 +2330,28 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
             and (ds.get("system_max_damage", 0) or 0.0) <= 0):
         return
     _bump_exciting(obj, _EXCITE_COMBAT)   # taking a hit is camera-worthy (attract)
-    # Shields absorb first (engine reduces the hit shield). System/internal damage
-    # only happens AFTER shields are down. Mock uses shield_val[0] as a pooled shield.
-    shield = ds.get("shield_val") or 0.0
-    if shield > 0:
-        if amount <= shield:
-            ds.set("shield_val", shield - amount, 0)
+    # Shields absorb first; system/internal damage only happens AFTER shields drop.
+    # The mock has no hit-facing geometry (get_shield_hit_index is a stub), so treat
+    # all facings as ONE pool: absorb against the sum and drain facings in order.
+    # Using only facing 0 (the old model) threw away the rest of a multi-facing
+    # ship's budget, making players (e.g. [120,120]) look half as tough as they are.
+    n_sh = int(ds.get("shield_count") or 0) or 1
+    total_shield = sum((ds.get("shield_val", i) or 0.0) for i in range(n_sh))
+    if total_shield > 0:
+        absorbed = min(amount, total_shield)
+        rem = absorbed
+        for i in range(n_sh):
+            sv = ds.get("shield_val", i) or 0.0
+            take = min(sv, rem)
+            if take > 0:
+                ds.set("shield_val", sv - take, i)
+                rem -= take
+            if rem <= 0:
+                break
+        amount -= absorbed
+        if amount <= 0:                 # shields held — no hull/system damage
             _pending_physics_events.put(("damage", "", source_id, target_id))
             return
-        amount -= shield
-        ds.set("shield_val", 0.0, 0)
     # Shields down. Three death models:
     #  * PLAYER -> INTERNAL damage: a hit the script processes (LegendaryMissions
     #    grids it into system damage), not direct hull loss; the script governs

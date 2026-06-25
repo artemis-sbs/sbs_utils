@@ -99,19 +99,19 @@ class TestMockDamage(unittest.TestCase):
         self.assertIn(oid, self.sim.space_objects)
 
     def test_npc_hull_scales_with_hullpoints(self):
-        # NPC system-node capacity scales to hullpoints (effective hull ~= hullpoints,
-        # same unit as station armor), so TTK tracks ship size instead of a flat 16.
+        # Ship hullpoints is a small tier (~1-8) used as the per-SHPSYS node count,
+        # so a ship dies after 4 x hullpoints nodes and heavier hulls soak more.
         oid = self.sim.create_space_object("behav_npcship", "", 0x10)
         o = self.sim.space_objects[oid]
-        sbs._apply_ship_data_to_object(o, {"hullpoints": 120})
+        sbs._apply_ship_data_to_object(o, {"hullpoints": 8})
         caps = [o.data_set.get("system_max_damage", i) or 0 for i in range(4)]
-        self.assertEqual(sum(caps), round(120 / sbs._SYSTEM_NODE_HP))   # 20 nodes
+        self.assertEqual(caps, [8.0, 8.0, 8.0, 8.0])       # 32 nodes total
         # A lighter hull -> fewer nodes -> dies faster.
         oid2 = self.sim.create_space_object("behav_npcship", "", 0x10)
         o2 = self.sim.space_objects[oid2]
-        sbs._apply_ship_data_to_object(o2, {"hullpoints": 30})
+        sbs._apply_ship_data_to_object(o2, {"hullpoints": 3})
         caps2 = [o2.data_set.get("system_max_damage", i) or 0 for i in range(4)]
-        self.assertEqual(sum(caps2), max(4, round(30 / sbs._SYSTEM_NODE_HP)))  # 5 nodes
+        self.assertEqual(caps2, [3.0, 3.0, 3.0, 3.0])      # 12 nodes
         self.assertLess(sum(caps2), sum(caps))
 
     def test_npc_hull_falls_back_to_flat_16_without_hullpoints(self):
@@ -120,6 +120,35 @@ class TestMockDamage(unittest.TestCase):
         sbs._apply_ship_data_to_object(o, {})              # no hullpoints
         caps = [o.data_set.get("system_max_damage", i) or 0 for i in range(4)]
         self.assertEqual(sum(caps), 16)                    # flat 4 x 4
+
+    def test_shields_pool_across_facings(self):
+        # Multi-facing shields absorb as ONE pool (full budget protects the ship),
+        # draining facings in order; hull untouched while the pool holds. A hit
+        # bigger than facing 0 but smaller than the total used to leak to hull.
+        oid, o = self._npc_ship(sys_max=4)
+        o.data_set.set("shield_count", 2)
+        o.data_set.set("shield_val", 120.0, 0); o.data_set.set("shield_max_val", 120.0, 0)
+        o.data_set.set("shield_val", 120.0, 1); o.data_set.set("shield_max_val", 120.0, 1)
+        _drain()
+        sbs.apply_damage(oid, 200, source_id=7)            # > facing0 (120), < total (240)
+        self.assertEqual(_drain(), [("damage", "", 7, oid)])
+        self.assertEqual(o.data_set.get("shield_val", 0), 0.0)    # facing 0 drained first
+        self.assertEqual(o.data_set.get("shield_val", 1), 40.0)   # spilled to facing 1
+        self.assertEqual(sum(o.data_set.get("system_damage", i) or 0 for i in range(4)), 0)
+        self.assertIn(oid, self.sim.space_objects)
+
+    def test_shield_pool_overflow_hits_hull(self):
+        # Once the whole pool is gone, the remainder spills into system damage.
+        oid, o = self._npc_ship(sys_max=4)
+        o.data_set.set("shield_count", 2)
+        o.data_set.set("shield_val", 50.0, 0)
+        o.data_set.set("shield_val", 50.0, 1)
+        _drain()
+        sbs.apply_damage(oid, 100 + 12, source_id=1)       # 100 shields + 12 hull (2 nodes)
+        self.assertEqual(_drain(), [("damage", "", 1, oid)])
+        self.assertEqual(o.data_set.get("shield_val", 0), 0.0)
+        self.assertEqual(o.data_set.get("shield_val", 1), 0.0)
+        self.assertEqual(sum(o.data_set.get("system_damage", i) or 0 for i in range(4)), 2)
 
     def test_offense_factor_degrades_with_system_damage(self):
         # Death spiral: offense scales linearly with surviving system health,
