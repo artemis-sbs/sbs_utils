@@ -111,22 +111,61 @@ def assign_client_to_ship(clientComputerID: int, controlledShipID: int) -> None:
         else:
             sim.client_ships[clientComputerID] = controlledShipID
 
-def broad_test(x1: float, z1: float, x2: float, z2: float, tick_type: int) -> List[space_object]:
-    """return a list of space objects that are currently inside an x/z 2d rect  ARGS: 2D bounding rect, and bitfield"""
-    global sim
+_BROAD_CELL = 5000.0                 # spatial-hash cell size (world units)
+_broad_hash = {"tick": -1, "grid": None}   # cached grid, rebuilt at most once/tick
+
+
+def _rebuild_broad_hash():
+    """(Re)build the broad-phase spatial hash: cell (cx,cz) -> [objects]. Snapshots
+    space_objects (physics thread vs main thread mutate it concurrently)."""
+    grid: dict = {}
+    if sim is not None:
+        c = _BROAD_CELL
+        for v in list(sim.space_objects.values()):
+            grid.setdefault((int(v._pos.x // c), int(v._pos.z // c)), []).append(v)
+    return grid
+
+
+def broad_test(x1: float, z1: float, x2: float, z2: float, tick_type: int,
+               use_hash: bool = False) -> List[space_object]:
+    """Return space objects inside an x/z 2D rect, filtered by the tick_type bitfield.
+
+    Default is a linear scan (engine-compatible signature). `use_hash=True` opts into
+    a spatial hash: a cell grid rebuilt at most once per physics tick and reused
+    across calls, so repeated broad-phase queries in a busy frame cost O(cells in the
+    rect) instead of O(all objects) each. Both snapshot the object dict so a
+    concurrent spawn/delete can't raise "dictionary changed during iteration"."""
+    global sim, _broad_hash
     ret = []
     if x1 > x2:
         x1, x2 = x2, x1
     if z1 > z2:
         z1, z2 = z2, z1
-    if sim is not None:
-        for v in sim.space_objects.values():
-            is_valid_bits = v._abits & tick_type
-            if tick_type != -1 and not is_valid_bits:
-                continue
-            pos = v.pos
-            if pos.x >= x1 and pos.x < x2 and pos.z >= z1 and pos.z <= z2:
-                ret.append(v)
+    if sim is None:
+        return ret
+
+    def _match(v):
+        if tick_type != -1 and not (v._abits & tick_type):
+            return False
+        p = v.pos
+        return p.x >= x1 and p.x < x2 and p.z >= z1 and p.z <= z2
+
+    if use_hash:
+        tick = getattr(sim, "time_tick_counter", 0)
+        if _broad_hash["grid"] is None or _broad_hash["tick"] != tick:
+            _broad_hash = {"tick": tick, "grid": _rebuild_broad_hash()}
+        grid = _broad_hash["grid"]
+        c = _BROAD_CELL
+        for cx in range(int(x1 // c), int(x2 // c) + 1):
+            for cz in range(int(z1 // c), int(z2 // c) + 1):
+                for v in grid.get((cx, cz), ()):
+                    if _match(v):
+                        ret.append(v)
+        return ret
+
+    for v in list(sim.space_objects.values()):   # snapshot: thread-safe iteration
+        if _match(v):
+            ret.append(v)
     return ret
 
 
@@ -146,7 +185,7 @@ def create_new_sim() -> None:
     player ships vanish and their ids get reused. Re-initialising in place keeps
     the object identity, so every held reference stays valid.
     """
-    global sim, _contact_pairs
+    global sim, _contact_pairs, _broad_hash
     if sim is None:
         sim = simulation()
     else:
@@ -155,6 +194,7 @@ def create_new_sim() -> None:
     _projectiles.clear()
     _blasts.clear()
     _beam_fires.clear()
+    _broad_hash = {"tick": -1, "grid": None}   # drop the old mission's spatial hash
     return sim
 
 
@@ -2724,7 +2764,10 @@ def _most_exciting_id() -> int:
     """Id of the object with the highest 'exciting' value (>0), else 0."""
     best, best_v = 0, 0.0
     if sim is not None:
-        for oid, o in sim.space_objects.items():
+        # Snapshot: this runs on the physics thread while the main (MAST) thread may
+        # spawn/delete space_objects - iterating the live dict raises "dictionary
+        # changed during iteration" in a busy battle.
+        for oid, o in list(sim.space_objects.items()):
             v = o.data_set.get("exciting", 0) or 0.0
             if v > best_v:
                 best_v, best = v, oid
@@ -3058,21 +3101,38 @@ def _apply_emp(pos, radius: float, source_id: int, kind: str = "") -> None:
             _pending_physics_events.put(("damage", kind, source_id, oid, {"sub_float": 0.0}))
 
 
+def _is_damageable(o) -> bool:
+    """True if a torpedo/beam can damage this object: a player ship, an NPC ship
+    (system_max_damage), a shielded object, or a station (armorMax). Mirrors the
+    damageable check in apply_damage - asteroids/markers/pickups are not. (NPC ships
+    have no armorMax, so a hit test that only checked armorMax missed every NPC.)"""
+    ds = o.data_set
+    return (bool(o._abits & 0x20)
+            or (ds.get("armorMax") or 0.0) > 0
+            or (ds.get("shield_max_val") or 0.0) > 0
+            or (ds.get("system_max_damage", 0) or 0.0) > 0)
+
+
 def _nearest_hittable(space, pos, radius: float, exclude_id: int) -> int:
-    """Nearest damageable object (armorMax>0) within `radius` of `pos`, excluding
-    the firing ship. 0 if none. Used for missile fly-through hit detection."""
+    """Nearest damageable object whose HULL `pos` is within `radius` of, excluding the
+    firing ship. 0 if none. Contact is `radius + object's exclusion_radius`, so a torp
+    detonates on touching the hull (like the engine) instead of having to reach the
+    object's centre - which matters for big stations. Used for torpedo/missile/mine
+    contact detection."""
     best = 0
-    best_d2 = radius * radius
-    for oid, o in space.items():
+    best_d2 = float("inf")
+    # Snapshot: runs on the physics thread; the main thread may mutate space_objects.
+    for oid, o in list(space.items()):
         if oid == exclude_id:
             continue
-        if (o.data_set.get("armorMax") or 0.0) <= 0:
+        if not _is_damageable(o):
             continue
         dx = o._pos.x - pos.x
         dy = o._pos.y - pos.y
         dz = o._pos.z - pos.z
         d2 = dx * dx + dy * dy + dz * dz
-        if d2 <= best_d2:
+        reach = radius + (o._exclusion_radius or 0.0)
+        if d2 <= reach * reach and d2 < best_d2:
             best_d2 = d2
             best = oid
     return best

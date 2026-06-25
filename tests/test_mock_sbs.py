@@ -449,6 +449,55 @@ class TestMockSbs(unittest.TestCase):
         changed = ds.dirty_since(g)
         self.assertEqual(changed, [("shield_val", 1)])
 
+    # ------------------------------------------------------------------
+    # broad_test (broad-phase spatial query): linear + spatial-hash parity
+    # ------------------------------------------------------------------
+
+    def _place(self, x, z, abits=0x10):
+        oid = sbs.sim.create_space_object("behav", "", abits)
+        o = sbs.sim.space_objects[oid]
+        o._pos = sbs.vec3(x, 0, z)
+        return o
+
+    def test_broad_test_rect_filter(self):
+        inside = self._place(100, 100)
+        self._place(20000, 20000)                      # outside the rect
+        hit = sbs.broad_test(-1000, -1000, 1000, 1000, -1)
+        self.assertEqual([o.unique_ID for o in hit], [inside.unique_ID])
+
+    def test_broad_test_hash_matches_linear(self):
+        import random
+        random.seed(1)
+        for _ in range(60):
+            self._place(random.uniform(-30000, 30000), random.uniform(-30000, 30000))
+        rect = (-8000, -3000, 12000, 9000, -1)
+        lin = {o.unique_ID for o in sbs.broad_test(*rect)}
+        hsh = {o.unique_ID for o in sbs.broad_test(*rect, use_hash=True)}
+        self.assertEqual(lin, hsh)
+
+    def test_broad_test_survives_concurrent_mutation(self):
+        # Iterating the live space_objects dict while another thread spawns/deletes
+        # used to raise "dictionary changed during iteration"; broad_test snapshots.
+        import threading
+        for i in range(200):
+            self._place(i * 10, i * 10)
+        stop = threading.Event()
+
+        def churn():
+            i = 0
+            while not stop.is_set():
+                oid = sbs.sim.create_space_object("behav", "", 0x10)
+                sbs.sim.space_objects.pop(oid, None)
+                i += 1
+
+        t = threading.Thread(target=churn)
+        t.start()
+        try:
+            for _ in range(300):
+                sbs.broad_test(-1e6, -1e6, 1e6, 1e6, -1)        # must not raise
+        finally:
+            stop.set(); t.join()
+
 
 if __name__ == "__main__":
     unittest.main()

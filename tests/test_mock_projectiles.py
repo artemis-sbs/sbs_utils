@@ -244,6 +244,24 @@ class TestMockProjectiles(unittest.TestCase):
                 break
         self.assertTrue(hit, "homing torp should track the moving target and hit it")
 
+    def test_torpedo_damages_npc_ship(self):
+        # Regression: NPC ships have no armorMax (they take system_damage). A torp must
+        # still detonate on them - _nearest_hittable used to match only armorMax>0, so
+        # torps homed onto NPCs forever and oscillated near them without ever damaging.
+        sid, s = self._hulled(pos=(0, 0, 0))
+        nid = self.sim.create_space_object("behav_npcship", "", 0x10)
+        n = self.sim.space_objects[nid]
+        for i in range(4):
+            n.data_set.set("system_max_damage", 4.0, i)
+        n._pos = sbs.vec3(200, 0, 0)
+        _drain()
+        sbs.launch_missile(sid, nid, damage=30)
+        sbs._physics_projectiles(self.sim, dt=0.5)
+        dmg = [e for e in _drain() if e[0] == "damage" and e[3] == nid]
+        self.assertTrue(dmg, "torp should detonate on the NPC ship")
+        self.assertEqual(len(sbs._projectiles), 0)            # consumed on impact
+        self.assertGreater(sum(n.data_set.get("system_damage", i) or 0 for i in range(4)), 0)
+
     def test_projectile_kills_and_emits_killed(self):
         sid, s = self._hulled(pos=(0, 0, 0))
         tid, t = self._hulled(20, pos=(100, 0, 0))
