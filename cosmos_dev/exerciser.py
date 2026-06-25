@@ -28,6 +28,7 @@ class Exerciser:
         # let real beam combat carry on.
         self._precondition_budget = 8
         self._comms_step = 0     # rotates the comms button-walk path each step
+        self._dock_budget = 3    # times to force a dock (cover dock routes), then stop
 
     def _server_ctx(self):
         """Return the server task, or None if not ready."""
@@ -49,6 +50,7 @@ class Exerciser:
             follow_route_select_grid, _follow_route_console,
         )
         from sbs_utils.procedural.query import set_weapons_selection
+        from sbs_utils.procedural.science import science_ensure_scan
 
         player_ids = list(role("__player__"))
         if not player_ids:
@@ -72,6 +74,12 @@ class Exerciser:
                         # Route runtime errors flow to the verdict via the
                         # MastScheduler seam; count Python-level failures here.
                         self.errors += 1
+                # Complete a science scan on the selected target -> fires the
+                # science_scan_complete handler and //science / <scan> routes.
+                try:
+                    science_ensure_scan(pid, tid, tabs="*")
+                except Exception:
+                    self.errors += 1
                 # follow_route_select_comms opened a live comms session; walk its
                 # button tree to reach //comms/<submenu> routes the root never hits.
                 self._walk_comms_buttons(pid, tid)
@@ -97,8 +105,17 @@ class Exerciser:
                         # Weapons-console select route (//select/weapons).
                         _follow_route_console(pid, enemy, "weapon_target_UID",
                                               "weapon_sorted_list", None)
+                        # Occasionally launch a torpedo -> //launch/missile (the
+                        # event the engine emits when a player fires a torp). Rate-
+                        # limited so it's not a per-tick spam.
+                        if self._offset % 4 == 0 and hasattr(sbs, "launch_missile"):
+                            sbs.launch_missile(pid, enemy)
                     except Exception:
                         self.errors += 1
+            # Dock the player at a friendly station a few times -> dock routes +
+            # //shared/signal/docked (real docking flow, briefly).
+            if self._dock_budget > 0:
+                self._force_dock(sbs, player_ids[0])
             # Stage a REAL beam exchange (TEST-ONLY teleport) so the genuine
             # damage flow drives //damage/internal + heat on the player; then a
             # synthetic kill on a *different* hostile for deterministic destroy.
@@ -135,6 +152,26 @@ class Exerciser:
                 # Route errors flow to the verdict via the scheduler seam; count
                 # Python-level failures here.
                 self.errors += 1
+
+    def _force_dock(self, sbs, pid):
+        """TEST-ONLY: dock the player at a station to fire the dock routes
+        (//dock, //shared/signal/docked, cockpit_dock_success). Sets dock_state
+        directly the way the autoplay does on a close approach; the docking system
+        then completes the handshake. Decrements a small budget so it doesn't keep
+        the player permanently docked."""
+        from sbs_utils.procedural.roles import role
+        space = sbs.sim.space_objects
+        p = space.get(pid)
+        if p is None:
+            return
+        stations = [i for i in role("station") if i in space and i != pid]
+        if not stations:
+            return
+        st = self._nearest(sbs, pid, stations) or stations[0]
+        p.data_set.set("dock_base_id", st, 0)
+        if p.data_set.get("dock_state", 0) not in ("docked", "dock_start"):
+            p.data_set.set("dock_state", "dock_start", 0)
+            self._dock_budget -= 1
 
     def _pick_enemy(self, sbs, pid, exclude=None, prefer_beams=False):
         """Nearest *damageable hostile* to `pid` (raider/enemy/monster preferred;
