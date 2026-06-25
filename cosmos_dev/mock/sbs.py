@@ -2316,7 +2316,7 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
             and (ds.get("shield_max_val") or 0.0) <= 0
             and (ds.get("system_max_damage", 0) or 0.0) <= 0):
         return
-    _bump_exciting(obj, _EXCITE_HIT)   # taking a hit is camera-worthy (attract)
+    _bump_exciting(obj, _EXCITE_COMBAT)   # taking a hit is camera-worthy (attract)
     # Shields absorb first (engine reduces the hit shield). System/internal damage
     # only happens AFTER shields are down. Mock uses shield_val[0] as a pooled shield.
     shield = ds.get("shield_val") or 0.0
@@ -2471,8 +2471,8 @@ def _physics_beams(sim, active: list, dt: float) -> None:
                 apply_damage(tid, dmg, aid)
         a._beam_cooldown = ds.get("beamCycleTime") or 6.0
         _beam_fires.append((aid, tid))                    # transient, for the mockgui
-        _bump_exciting(a, _EXCITE_FIRE)                   # combat is camera-worthy
-        _bump_exciting(space.get(tid), _EXCITE_FIRE)
+        _bump_exciting(a, _EXCITE_COMBAT)                 # combat is camera-worthy
+        _bump_exciting(space.get(tid), _EXCITE_COMBAT)
 
 
 # Projectile defaults (mock approximations).
@@ -2491,18 +2491,21 @@ _HEAT_DECAY = 0.05          # per second
 _HEAT_CRITICAL = 1.0        # system_cur_heat above this fires heat_critical_damage
 
 # Attract cinematic: the engine scores how camera-worthy an object is in the
-# "exciting" data_set field, and cinematic mode cuts to the most exciting one. The
-# mock mirrors that - combat raises exciting, it decays, and the auto cinematic
-# camera frames the most-exciting object so the view follows the action.
-_EXCITE_FIRE = 1.0     # firing a beam / being shot at
-_EXCITE_HIT = 0.6      # taking a hit
-_EXCITE_KILL = 5.0     # scoring a kill (spike on the victor)
-_EXCITE_DECAY = 0.5    # per second
+# "exciting" data_set field, and cinematic mode cuts to the most exciting one,
+# decrementing it over time. Engine scale is ~200 for a hold; a higher value holds
+# the camera longer. The mock mirrors that: combat events RAISE exciting to a
+# level (not accumulate), it decrements, and the auto cinematic camera frames the
+# most-exciting object so the view follows the action then drifts off.
+_EXCITE_COMBAT = 200.0     # firing / being shot / taking a hit (engine's hold level)
+_EXCITE_KILL = 500.0       # a kill - hold the camera on the victor longer
+_EXCITE_DECREMENT = 40.0   # per second (200 fades in ~5s, 500 in ~12s)
 
 
-def _bump_exciting(obj, amount):
-    if obj is not None:
-        obj.data_set.set("exciting", (obj.data_set.get("exciting", 0) or 0.0) + amount)
+def _bump_exciting(obj, level):
+    """Raise 'exciting' to at least `level` (engine-scale ~200; 500 holds longer).
+    Set-to-max, not additive - sustained combat holds at the level, then decays."""
+    if obj is not None and level > (obj.data_set.get("exciting", 0) or 0.0):
+        obj.data_set.set("exciting", level)
 
 
 def _most_exciting_id() -> int:
@@ -2927,7 +2930,7 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
             # Decay 'exciting' so the cinematic camera drifts off stale action.
             ex = ds.get("exciting") or 0.0
             if ex > 0.0:
-                ds.set("exciting", max(0.0, ex - _EXCITE_DECAY * dt))
+                ds.set("exciting", max(0.0, ex - _EXCITE_DECREMENT * dt))
 
             # Slow passive shield regen (engine-like: ~1/s players, ~0.1/s NPCs),
             # well under beam DPS, so combat depletes shields and recovers in lulls.
