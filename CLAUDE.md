@@ -167,7 +167,16 @@ sbs debug . --no-gui --map 0       # headless
 ```
 python -m cosmos_dev.mission_runner <mission_path> --gui
 python -m cosmos_dev.mission_runner <mission_path> --map 0
+python -m cosmos_dev.mission_runner <mission_path> --test 30 --map 0     # headless conformance run
 ```
+
+**Key flags** (`--help` for all):
+- `--gui` — start the WebSocket GUI server (browser renderer); omit for headless
+- `--map <idx|name>` — auto-start a map instead of showing the picker
+- `--mast <file>` — debug a `.mast` other than `story.mast`
+- `--test <seconds>` — headless conformance run: play ~N sim-seconds, print MAST coverage + a pass/fail verdict, exit 0/1 (`--junit <path>` also writes JUnit XML)
+- `--exercise` — with `--test`, actively drive selections/comms/console-cycling each tick to push route coverage (vs the mission's own autoplay)
+- `--use-working-tree` — run the working-tree `sbs_utils` instead of the packaged `.sbslib` (smoke-test local library edits; see the smoke-run memory)
 
 ### How it works
 
