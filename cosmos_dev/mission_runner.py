@@ -469,6 +469,8 @@ def _run(
     _cov = _verdict = _exerciser = None
     _test_exit = 0
     _game_end = None
+    _test_client_connected = False
+    _TEST_CLIENT_ID = 0x8080000000000001   # synthetic console client for --test --exercise
     _test_wall0 = time.time()
     _test_wall_cap = (test_seconds * 2 + 30) if _test else 0
     if _test:
@@ -633,6 +635,18 @@ def _run(
             # then schedule the requested map (replaces extern_debug.mast logic)
             if not _map_started:
                 _map_started = _try_auto_start_map(map_arg, sbs)
+
+            # --test --exercise: connect one synthetic console client so console
+            # GUI (helm/weapons/science widgets + the monkey/fuzz) gets exercised -
+            # headless otherwise only has the server page.
+            if (_exerciser is not None and _map_started and _server_initialized
+                    and not _test_client_connected):
+                _test_client_connected = True
+                print(f"[runner] TEST: connecting synthetic console client {_TEST_CLIENT_ID:#x}")
+                try:
+                    _fire_client_connect(_TEST_CLIENT_ID)
+                except Exception as e:
+                    print(f"[runner] synthetic client connect failed: {e}")
 
             # --exercise: drive selections/comms each MAST tick once the world is up.
             if _exerciser is not None and _map_started and run_mast and not sbs.sim._paused:
