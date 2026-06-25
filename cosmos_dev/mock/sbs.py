@@ -2878,10 +2878,19 @@ def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
     """Mock-only: launch a torpedo of `kind` (Homing / Nuke / Mine / EMP).
 
     Emits a ``player_launches_missile`` event (routes //launch/missile, with
-    extra_extra_tag=kind, origin=source, selected=target). Homing flies straight and
-    hits the single nearest object; Nuke detonates into a lingering growing-ring
-    blast; EMP into a one-shot shield-halve; Mine is PLACED at the firing ship and
-    stays put, detonating its blast when another ship comes within the trigger radius.
+    extra_extra_tag=kind, origin=source, selected=target). Every torp launches as a
+    flying projectile aimed at the weapon-selected target (`target_id`); with no
+    selection it flies straight along the firer's heading.
+
+      * Warhead torps (behaviour 'homing': Homing / Nuke / EMP) TRACK the target and
+        re-acquire the nearest object if the target dies mid-flight. On contact:
+        Homing = single hit, Nuke = lingering growing-ring blast, EMP = one-shot
+        shield-halve.
+      * Mines (behaviour 'mine') fly ballistically to their distance (`max_range`)
+        then DEPLOY - they stop and stick around as a stationary proximity mine that
+        detonates its blast when a ship enters the trigger radius (or until mine-life
+        expires).
+
     `damage` defaults to the per-kind value but can be overridden (the projectile unit
     tests pass it explicitly).
     """
@@ -2895,26 +2904,32 @@ def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
     if damage is None:
         damage = prof_dmg
     blast_life = attrs["lifetime"]            # blast lingers for the torp's lifetime
+    is_mine = attrs["behavior"].lower() == "mine"
     _pending_physics_events.put(
         ("player_launches_missile", "", source_id, target_id, source_id, kind))
-    if attrs["behavior"].lower() == "mine":
-        # Placed, stationary, proximity-triggered (behaviour 'mine').
-        _projectiles.append({
-            "pos": vec3(src._pos.x, src._pos.y, src._pos.z),
-            "source_id": source_id, "kind": "mine", "torp_kind": kind,
-            "damage": float(damage), "blast_radius": float(blast),
-            "blast_life": float(blast_life),
-            "trigger_radius": _TORP_MINE_TRIGGER, "life": _TORP_MINE_LIFE,
-        })
-        return
+    # Mines need a deploy distance even when the caller gives no range; warhead torps
+    # with no max_range fly until they hit or their lifetime expires.
+    mr = float(max_range) if max_range else (_TORP_RANGE if is_mine else 0.0)
+    if is_mine:
+        # Mines drop out the STERN (opposite the firer's heading) and coast to their
+        # distance - they're inert in flight, arming only when they stop (deploy).
+        f = src.forward_vector()
+        direction = (-f.x, -f.y, -f.z)
+    else:
+        direction = _unit_toward(src, sim.space_objects.get(target_id))
     _projectiles.append({
         "pos": vec3(src._pos.x, src._pos.y, src._pos.z),
-        "origin": vec3(src._pos.x, src._pos.y, src._pos.z),   # for max-range cull
-        "dir": _unit_toward(src, sim.space_objects.get(target_id)),
+        "origin": vec3(src._pos.x, src._pos.y, src._pos.z),   # for range cull / mine deploy
+        "dir": direction,
+        "target_id": int(target_id) if target_id else 0,
+        "had_target": bool(target_id),        # a selection was made -> homing may re-acquire
+        "homing": not is_mine,                # warheads track; mines fly ballistically
+        "is_mine": is_mine,
         "source_id": source_id, "torp_kind": kind,
         "damage": float(damage), "speed": float(speed),
         "life": float(life), "kind": "missile",
-        "max_range": float(max_range) if max_range else 0.0,
+        "max_range": mr,
+        "trigger_radius": _TORP_MINE_TRIGGER,
         "blast_radius": float(blast), "effect": effect, "blast_life": float(blast_life),
     })
 
@@ -3068,12 +3083,49 @@ def _physics_projectiles(sim, dt: float) -> None:
             remaining.append(p)
             continue
         step = p["speed"] * dt
-        d = p.get("dir")
-        if d is not None:
-            # Missile: straight-line flight; hit whatever it passes within range.
+        if p.get("kind") == "missile":
+            # Steer toward the weapon-selected target. A homing (warhead) torp whose
+            # target is gone re-acquires the nearest object; with no selection it flies
+            # straight. Mines never track - they coast out the stern (set at launch).
+            tgt = space.get(p["target_id"]) if p.get("target_id") else None
+            if tgt is None and p.get("homing") and p.get("had_target"):
+                reacq_r = p.get("max_range") or _TORP_RANGE
+                nid = _nearest_hittable(space, pos, reacq_r, p["source_id"])
+                if nid:
+                    p["target_id"] = nid
+                    tgt = space.get(nid)
+            if tgt is not None and not p.get("is_mine"):
+                dx = tgt._pos.x - pos.x; dy = tgt._pos.y - pos.y; dz = tgt._pos.z - pos.z
+                n = math.sqrt(dx * dx + dy * dy + dz * dz)
+                if n > 1e-6:
+                    p["dir"] = (dx / n, dy / n, dz / n)   # re-home each tick
+            d = p["dir"]
             pos.x += d[0] * step
             pos.y += d[1] * step
             pos.z += d[2] * step
+
+            o = p.get("origin", pos)
+            traveled2 = (pos.x - o.x) ** 2 + (pos.y - o.y) ** 2 + (pos.z - o.z) ** 2
+            mr = p.get("max_range", 0.0)
+
+            if p.get("is_mine"):
+                # Inert in flight; on reaching its distance it stops and DEPLOYS as a
+                # stationary, armed proximity mine (sticks around until triggered).
+                if mr > 0.0 and traveled2 >= mr * mr:
+                    remaining.append({
+                        "pos": vec3(pos.x, pos.y, pos.z),
+                        "source_id": p["source_id"], "kind": "mine",
+                        "torp_kind": p.get("torp_kind", ""),
+                        "damage": p["damage"], "blast_radius": p["blast_radius"],
+                        "blast_life": p.get("blast_life", _TORP_BLAST_LIFETIME),
+                        "trigger_radius": p.get("trigger_radius", _TORP_MINE_TRIGGER),
+                        "life": _TORP_MINE_LIFE,
+                    })
+                    continue  # the flyer becomes the deployed mine
+                remaining.append(p)
+                continue
+
+            # Warhead torp: detonate on contact with the nearest hittable.
             hit = _nearest_hittable(space, pos, _PROJECTILE_HIT_RADIUS, p["source_id"])
             if hit:
                 eff = p.get("effect", "single")
@@ -3088,11 +3140,8 @@ def _physics_projectiles(sim, dt: float) -> None:
                     apply_damage(hit, p["damage"], p["source_id"], kind=tkind)  # Homing: single hit
                 continue  # consumed on impact
             # Missed: cull once it has flown its launch range (else expires on life).
-            mr = p.get("max_range", 0.0)
-            if mr > 0.0:
-                o = p.get("origin", pos)
-                if (pos.x - o.x) ** 2 + (pos.y - o.y) ** 2 + (pos.z - o.z) ** 2 >= mr * mr:
-                    continue  # out of range -> removed
+            if mr > 0.0 and traveled2 >= mr * mr:
+                continue  # out of range -> removed
             remaining.append(p)
             continue
         # Drone: home toward its target.

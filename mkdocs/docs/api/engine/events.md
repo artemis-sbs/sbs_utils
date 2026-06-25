@@ -253,15 +253,26 @@ Drone damage is **difficulty-independent** (15 at diff 1, 5 and 11).
   list of problems for a definition (empty = clean) for missions/tools to check.
 - `warhead`: `standard` = single-target hull; `blast` = a **lingering, growing-ring**
   AoE (see below); `reduce_shields` = halve the target(s)' shields. `behaviour`:
-  `homing` or `mine` (stationary, detonates on proximity). `blast_radius` default 1000,
-  `lifetime` 25 s (the blast lingers for the torp's `lifetime`).
+  `homing` or `mine`. `blast_radius` default 1000, `lifetime` 25 s (the blast lingers
+  for the torp's `lifetime`).
+- **Flight (mock).** Every torp launches as a flying projectile aimed at the
+  **weapon-selected target** (`weapon_target_UID`); with **no selection** it flies
+  **straight** along the firer's heading. A **homing** (warhead) torp re-homes toward
+  its target each tick and, if that target is **destroyed**, re-acquires the **nearest**
+  object (`_nearest_hittable`) — "if the target is gone, find the closest"; with no
+  original selection it does *not* re-acquire (stays straight). It detonates on contact
+  and is culled if it flies its launch range without connecting. A **mine** ignores the
+  target: it drops **out the stern** (opposite the firer's heading), coasts **inert** to
+  its distance (`max_range`), then **stops and deploys** as a stationary **armed**
+  proximity mine that sticks around (detonates when a ship enters the trigger radius, or
+  until mine-life expires) — mines aren't armed until they stop.
 
 | Type | warhead | damage | radius | behaviour |
 |---|---|---|---|---|
 | **Homing** | standard | **35** (single hit) | – | homing |
 | **EMP** | blast + reduce_shields | **0 hull**, halves shields | 1000 | homing |
 | **Nuke** | blast | **5 per ripple** → ~120 at centre | 1000 | homing |
-| **Mine** | blast | **5 per ripple** → ~120 at centre | 1000 | **mine** (placed, proximity) |
+| **Mine** | blast | **5 per ripple** → ~120 at centre | 1000 | **mine** (stern-drop, deploys at distance, proximity) |
 | Tag | standard | 0 | – | homing |
 
 !!! note "The blast warhead is a growing ring, not a single hit"
@@ -275,8 +286,8 @@ Drone damage is **difficulty-independent** (15 at diff 1, 5 and 11).
     (`~120 × (1 − d/radius)`) — but the ring also catches ships that **drift in** over
     the lifetime, which a single hit wouldn't. The mock models this in `_physics_blasts`
     (`_register_blast` on detonation); EMP is a one-shot AoE shield-halve (`_apply_emp`);
-    a **Mine** is placed at the firing ship and stays put, detonating its blast when
-    another ship comes within the trigger radius (`behaviour: mine`).
+    a **Mine** drops out the stern, coasts to its distance, then deploys as a stationary
+    armed proximity mine (`behaviour: mine`; see Flight above).
 
     The `data_capture` run measured the engine's **built-in** torps (Homing 35, Nuke
     building to ~120, EMP 0 hull) — its custom flow skipped `start_server` — but the

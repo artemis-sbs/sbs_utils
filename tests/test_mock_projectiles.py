@@ -143,19 +143,27 @@ class TestMockProjectiles(unittest.TestCase):
         self.assertGreater(centre_dmg, 2 * off_dmg)       # far less to the off-centre target
         self.assertGreater(off_dmg, 0.0)                  # but the ring did reach it
 
-    def test_mine_is_placed_and_proximity_triggered(self):
-        # A Mine is placed at the firing ship, stays put, and only detonates (its
-        # growing-ring blast) when ANOTHER ship comes within the trigger radius.
-        sid, s = self._hulled(pos=(0, 0, 0))              # firer (mine dropped here)
-        sbs.launch_missile(sid, sid, kind="Mine")
+    def test_mine_shoots_out_stern_then_deploys_and_triggers(self):
+        # A Mine drops out the stern and coasts to its distance, INERT in flight; on
+        # reaching its distance it stops and DEPLOYS as a stationary armed proximity
+        # mine that detonates (its growing-ring blast) when a ship comes within range.
+        sid, s = self._hulled(pos=(0, 0, 0))              # firer
+        sbs.launch_missile(sid, sid, kind="Mine", speed=600.0, max_range=1000.0)
         self.assertEqual(len(sbs._projectiles), 1)
-        self.assertEqual(sbs._projectiles[0]["kind"], "mine")
-        # No other ship nearby -> it just sits, no blast.
-        sbs._physics_projectiles(self.sim, dt=1.0)
-        self.assertEqual(len(sbs._blasts), 0)
-        self.assertEqual(len(sbs._projectiles), 1)
-        # An enemy drifts within the trigger radius -> the mine detonates.
-        eid, e = self._hulled(100, pos=(300, 0, 0))       # within _TORP_MINE_TRIGGER (400)
+        self.assertEqual(sbs._projectiles[0]["kind"], "missile")   # flying, not yet armed
+        self.assertTrue(sbs._projectiles[0]["is_mine"])
+        # Fly until it reaches its distance and deploys (600*0.5*4 = 1200 > 1000).
+        deployed = False
+        for _ in range(5):
+            sbs._physics_projectiles(self.sim, dt=0.5)
+            if sbs._projectiles and sbs._projectiles[0]["kind"] == "mine":
+                deployed = True
+                break
+        self.assertTrue(deployed, "mine should deploy (kind 'mine') after reaching its distance")
+        self.assertEqual(len(sbs._blasts), 0)             # armed but nothing in range yet
+        mp = sbs._projectiles[0]["pos"]
+        # An enemy drifts within the trigger radius of the DEPLOYED mine -> detonate.
+        eid, e = self._hulled(100, pos=(mp.x + 200, mp.y, mp.z))   # within _TORP_MINE_TRIGGER (400)
         sbs._physics_projectiles(self.sim, dt=1.0)
         self.assertEqual(len(sbs._projectiles), 0)        # mine consumed
         self.assertEqual(len(sbs._blasts), 1)             # blast registered
@@ -185,14 +193,14 @@ class TestMockProjectiles(unittest.TestCase):
         self.assertEqual([e for e in _drain() if e[0] == "damage"], [])
         self.assertEqual(len(sbs._projectiles), 0)
 
-    def test_missile_flies_straight_and_hits_bystander_in_path(self):
-        # Non-homing: the missile fires toward the target's launch point and keeps
-        # flying straight; with the original target gone it still hits whatever it
-        # passes within range (the next closest thing in its path).
+    def test_homing_reacquires_nearest_when_target_gone(self):
+        # A homing torp whose selected target dies mid-flight re-acquires the nearest
+        # object and homes onto it (here the bystander) - "if target is gone, find
+        # closest".
         sid, s = self._hulled(pos=(0, 0, 0))
-        tid, t = self._hulled(100, pos=(5000, 0, 0))          # aim point (+x)
-        bid, b = self._hulled(100, pos=(900, 0, 0))           # bystander in the path
-        sbs.launch_missile(sid, tid, damage=40, speed=600.0)  # dir locked to +x
+        tid, t = self._hulled(100, pos=(5000, 0, 0))          # original target (+x)
+        bid, b = self._hulled(100, pos=(900, 0, 0))           # nearest after target gone
+        sbs.launch_missile(sid, tid, damage=40, speed=600.0)
         sbs.delete_object(tid)                                # original target gone
         _drain()
         hit = False
@@ -204,6 +212,37 @@ class TestMockProjectiles(unittest.TestCase):
         self.assertTrue(hit)
         self.assertEqual(b.data_set.get("armor"), 60.0)       # hit the bystander
         self.assertEqual(len(sbs._projectiles), 0)            # consumed on impact
+
+    def test_no_selection_flies_straight_no_reacquire(self):
+        # Fired with no weapon selection -> flies straight (+z); it must NOT home onto
+        # a nearby ship. Re-acquire is only for a homing torp whose SELECTED target
+        # died, so target_id stays 0 here.
+        sid, s = self._hulled(pos=(0, 0, 0))
+        nid, n = self._hulled(100, pos=(3000, 0, 0))      # off the +z flight path
+        sbs.launch_missile(sid, 0, kind="Homing", speed=600.0)   # no target
+        self.assertEqual(sbs._projectiles[0]["target_id"], 0)
+        self.assertFalse(sbs._projectiles[0]["had_target"])
+        for _ in range(4):
+            sbs._physics_projectiles(self.sim, dt=0.5)
+            if sbs._projectiles:
+                self.assertEqual(sbs._projectiles[0]["target_id"], 0)  # never re-acquired
+        self.assertEqual(n.data_set.get("armor"), 100.0)  # bystander off-path: untouched
+
+    def test_homing_tracks_a_moving_target(self):
+        # A homing torp re-homes each tick, so it curves to follow a target that moves
+        # off the original launch bearing and still connects.
+        sid, s = self._hulled(pos=(0, 0, 0))
+        tid, t = self._hulled(100, pos=(0, 0, 3000))      # ahead (+z)
+        sbs.launch_missile(sid, tid, damage=40, speed=600.0)
+        _drain()
+        hit = False
+        for k in range(40):
+            t._pos = sbs.vec3(2000, 0, 3000 + k * 50)     # drifts +x while torp flies
+            sbs._physics_projectiles(self.sim, dt=0.5)
+            if any(e[0] == "damage" for e in _drain()):
+                hit = True
+                break
+        self.assertTrue(hit, "homing torp should track the moving target and hit it")
 
     def test_projectile_kills_and_emits_killed(self):
         sid, s = self._hulled(pos=(0, 0, 0))
