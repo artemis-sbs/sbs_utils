@@ -273,24 +273,26 @@ class TestMockSbs(unittest.TestCase):
         self.assertAlmostEqual(o._pos.z, 0.0)
         self.assertEqual(o._cur_speed, 0.0)
 
-    def test_speed_coeff_is_a_multiplier_on_top_speed(self):
+    def test_speed_coeff_is_a_multiplier_on_npc_top_speed(self):
         o = self._spawn_npc(speed_coeff=0.5)
-        self._tick(10)                        # long enough to reach cruise
-        self.assertAlmostEqual(o._cur_speed, 0.5 * sbs.BASE_TOP_SPEED)
+        self._tick(15)                        # long enough to settle (first-order lag)
+        self.assertAlmostEqual(o._cur_speed, 0.5 * sbs.BASE_TOP_SPEED, delta=0.5)
 
     def test_total_speed_coeff_takes_priority_over_speed_coeff(self):
         o = self._spawn_npc(speed_coeff=1.0)
         o.data_set.set("total_speed_coeff", 0.25)
-        self._tick(10)
-        self.assertAlmostEqual(o._cur_speed, 0.25 * sbs.BASE_TOP_SPEED)
+        self._tick(15)
+        self.assertAlmostEqual(o._cur_speed, 0.25 * sbs.BASE_TOP_SPEED, delta=0.5)
 
     def test_speed_ramps_and_does_not_snap(self):
+        # First-order lag: after one tick the ship is moving but well short of its
+        # cruise speed; it approaches asymptotically over several seconds.
         o = self._spawn_npc()
         self._tick(1, dt=1.0)
-        # after one second the ship has only ramped by SPEED_RAMP_RATE, not jumped
-        # to full cruise speed.
-        self.assertAlmostEqual(o._cur_speed, sbs.SPEED_RAMP_RATE)
-        self.assertLess(o._cur_speed, sbs.BASE_TOP_SPEED)
+        self.assertGreater(o._cur_speed, 0.0)
+        self.assertLess(o._cur_speed, sbs.BASE_TOP_SPEED)     # not snapped to top
+        self._tick(15, dt=1.0)
+        self.assertAlmostEqual(o._cur_speed, sbs.BASE_TOP_SPEED, delta=0.5)  # settled
 
     def test_npc_brakes_and_parks_at_near_target_no_orbit(self):
         # Target inside the turn radius used to make the ship orbit forever.
@@ -325,11 +327,12 @@ class TestMockSbs(unittest.TestCase):
 
     def test_npc_closes_vertical_gap_to_overhead_target(self):
         # A target directly overhead (no horizontal offset) is reached by pitching
-        # and climbing — not ignored because the horizontal distance is ~0.
+        # and climbing — not ignored because the horizontal distance is ~0. (NPC top
+        # speed is 36 u/s, so allow time to cover the altitude gap and park.)
         o = self._spawn_npc(turn_rate=0.3,
-                            target_pos_x=0.0, target_pos_y=3000.0, target_pos_z=0.0)
-        self._tick(120, dt=0.5)
-        self.assertLessEqual(abs(3000.0 - o._pos.y), 250.0)   # closed the altitude gap
+                            target_pos_x=0.0, target_pos_y=1500.0, target_pos_z=0.0)
+        self._tick(200, dt=0.5)
+        self.assertLessEqual(abs(1500.0 - o._pos.y), 250.0)   # closed the altitude gap
 
     def test_player_dir_steering_is_3d(self):
         # Player direction steering (steerToDirD* + flag) climbs toward an up vector.
@@ -355,15 +358,25 @@ class TestMockSbs(unittest.TestCase):
     def test_player_ship_moves_from_player_throttle(self):
         o = self._spawn_npc(behave="behav_playership")
         o.data_set.set("playerThrottle", 1.0)
-        self._tick(8)
+        self._tick(15)
         self.assertGreater(o._pos.z, 100.0)
-        self.assertAlmostEqual(o._cur_speed, sbs.BASE_TOP_SPEED)
+        # Player impulse tops out at PLAYER_IMPULSE_SPEED (hull-independent), faster
+        # than an NPC's BASE_TOP_SPEED.
+        self.assertAlmostEqual(o._cur_speed, sbs.PLAYER_IMPULSE_SPEED, delta=1.0)
+
+    def test_player_impulse_ignores_speed_coeff(self):
+        # Engine player impulse speed is the same for every hull; speed_coeff (which
+        # slows NPCs) must not slow the player.
+        o = self._spawn_npc(behave="behav_playership", speed_coeff=0.5)
+        o.data_set.set("playerThrottle", 1.0)
+        self._tick(15)
+        self.assertAlmostEqual(o._cur_speed, sbs.PLAYER_IMPULSE_SPEED, delta=1.0)
 
     def test_player_warp_is_faster_than_full_impulse(self):
         o = self._spawn_npc(behave="behav_playership")
         o.data_set.set("playerThrottle", 2.0)             # >1.0 = warp
         self._tick(60)
-        self.assertGreater(o._cur_speed, sbs.BASE_TOP_SPEED)
+        self.assertGreater(o._cur_speed, sbs.PLAYER_IMPULSE_SPEED)
 
     def test_player_zero_throttle_does_not_move(self):
         o = self._spawn_npc(behave="behav_playership")

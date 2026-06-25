@@ -2138,14 +2138,26 @@ def register_behavior(tick_type: str, fn) -> None:
     _behavior_registry[tick_type] = fn
 
 
-# Absolute engine speed (units/sec at throttle=1.0, speed_coeff=1.0).  shipData only
-# carries speed_coeff (a 0.0-1.0 multiplier), never an absolute top speed, so the
-# absolute meters/sec lives here as a constant the coefficient scales.
-BASE_TOP_SPEED = 200.0
-# Additional units/sec per warp factor for player ships (playerThrottle > 1.0).
-PLAYER_WARP_SPEED = 1000.0
-# How fast _cur_speed eases toward its target (units/sec^2) — speed ramps, never snaps.
-SPEED_RAMP_RATE = 60.0
+# Absolute engine speeds (units/sec), calibrated from the data_capture mission run
+# in the real engine (capture_speed.json). The engine's actual velocity is
+# cur_speed * 36 u/s; the throttle->cur_speed mapping differs sharply by ship kind:
+#
+#   NPC    @ throttle 1.0      -> cur_speed 1.0  * speed_coeff  -> 36 u/s  (scales per hull)
+#   player @ playerThrottle 1.0-> cur_speed 5.0  (impulse cap)  -> 180 u/s (hull-INDEPENDENT)
+#   player @ playerThrottle 3.0-> cur_speed 30.0 (warp)         -> 1080 u/s
+#
+# So NPC top speed scales with shipData speed_coeff (a 0-1 multiplier); player
+# impulse/warp speed does NOT (every player hull tops out the same - matching the
+# engine, where hulls differ in maneuverability, not impulse top speed).
+BASE_TOP_SPEED = 36.0          # NPC impulse top speed at throttle 1.0, speed_coeff 1.0
+PLAYER_IMPULSE_SPEED = 180.0   # player impulse top speed at playerThrottle 1.0 (no speed_coeff)
+# Additional units/sec per warp factor above 1.0: player @ pThr 3 = 180 + 2*450 = 1080.
+PLAYER_WARP_SPEED = 450.0
+# Acceleration is a first-order lag (captured cur_speed approaches its target
+# geometrically, not linearly): cur += (target - cur) * (1 - exp(-dt/SPEED_TAU)).
+# SPEED_TAU is the time constant in seconds (engine NPC ~0.8s, player ~1.7s; 1.0 is
+# a middle value that gives a sensible few-second spin-up for both).
+SPEED_TAU = 1.0
 # Engine sim-tick rate.  simulation.time_tick_counter advances this many ticks per
 # second of sim time; sim_seconds = time_tick_counter / TPS.  Must match
 # sbs_utils.helpers._TPS (30).  The physics tick is the sim-time source (see
@@ -2165,13 +2177,14 @@ _OFFENSE_FLOOR = 0.25
 
 
 def _ramp_speed(obj: space_object, target_speed: float, dt: float) -> None:
-    """Ease obj._cur_speed toward target_speed at SPEED_RAMP_RATE; no instant changes."""
+    """Ease obj._cur_speed toward target_speed with a first-order lag (time constant
+    SPEED_TAU), matching the engine's geometric approach to top speed — no instant
+    jumps.  Snaps to the target once negligibly close so a stopped ship settles at
+    exactly 0 and a cruising ship sits exactly at top speed (the lag only approaches
+    asymptotically)."""
     cur = obj._cur_speed
-    step = SPEED_RAMP_RATE * dt
-    if cur < target_speed:
-        obj._cur_speed = min(target_speed, cur + step)
-    elif cur > target_speed:
-        obj._cur_speed = max(target_speed, cur - step)
+    new = cur + (target_speed - cur) * (1.0 - math.exp(-dt / SPEED_TAU))
+    obj._cur_speed = target_speed if abs(target_speed - new) < 1e-3 else new
 
 
 def _steer_toward(obj: space_object, dx: float, dy: float, dz: float,
@@ -2292,13 +2305,14 @@ def _playership_drive(obj: space_object, dt: float) -> None:
             turn_rate = 0.1  # ~6 deg/s fallback when shipData not loaded
         _steer_toward(obj, dx, dy, dz, horiz, dist, turn_rate)
 
+    # Player speed is hull-INDEPENDENT (the engine tops every player hull out the
+    # same on impulse/warp - speed_coeff is not applied to players, only to NPCs).
     pt = ds.get("playerThrottle") or 0.0
-    speed_coeff = ds.get("total_speed_coeff") or ds.get("speed_coeff") or 1.0
     if pt <= 1.0:
-        target_speed = pt * BASE_TOP_SPEED * speed_coeff
+        target_speed = pt * PLAYER_IMPULSE_SPEED
     else:
-        # Warp: full impulse plus a warp-factor bonus.
-        target_speed = (BASE_TOP_SPEED + (pt - 1.0) * PLAYER_WARP_SPEED) * speed_coeff
+        # Warp: full impulse plus a per-warp-factor bonus.
+        target_speed = PLAYER_IMPULSE_SPEED + (pt - 1.0) * PLAYER_WARP_SPEED
     _ramp_speed(obj, target_speed, dt)
 
 
