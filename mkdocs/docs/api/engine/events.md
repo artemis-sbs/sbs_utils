@@ -150,10 +150,16 @@ time constant ≈ 0.8 s NPC / 1.7 s player.
   systems maxed**.
 - Stations use `armor` (= `hullpoints`); ships have no armor.
 
-**Time-to-kill reference** (DIFFICULTY 5, the mock should land near these): cruiser
-duels resolve in ~40–70 s (e.g. `tsn_battle_cruiser` dies ~48 s, `tsn_light_cruiser`
-~60 s, `skaraan_executor` ~67 s); players beat a single enemy in ~37–39 s; stations
-survive a lone attacker for the full 2 min.
+**Time-to-kill reference** (DIFFICULTY 5): cruiser duels resolve in ~40–70 s (e.g.
+`tsn_battle_cruiser` dies ~48 s, `tsn_light_cruiser` ~60 s, `skaraan_executor`
+~67 s); players beat a single enemy in ~37–39 s; stations survive a lone attacker
+for the full 2 min.
+
+The mock runs a bit faster (~35–45 s duels): it's a stationary face-off where every
+beam stays in arc, while the engine maneuvers and misses. So the mock can't
+reproduce *exact* TTK — `tests/test_mock_combat_ttk.py` guards the **ballpark**
+instead (duels resolve in 15–110 s; a starbase is >2× tankier than a cruiser),
+which catches gross calibration drift without over-fitting to the idealization.
 
 ### Shields (capture)
 
