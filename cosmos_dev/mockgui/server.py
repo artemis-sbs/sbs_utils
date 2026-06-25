@@ -191,8 +191,23 @@ async def _replay(client_id: int, writer: asyncio.StreamWriter) -> None:
 # ---------------------------------------------------------------------------
 # Broadcast + frame recording
 # ---------------------------------------------------------------------------
-async def _broadcast(payload: dict) -> None:
-    """Record the command into the pending frame and forward to live clients."""
+async def _record(payload: dict):
+    """Record the command into frame state and resolve its target writers.
+
+    Returns (targets, wire) where `wire` is the JSON-ready payload (clientID as a
+    string so 64-bit IDs survive JS). Does NOT send - the dispatcher coalesces a
+    whole tick's wires into one frame per writer (see _queue_dispatcher)."""
+    targets = await _broadcast(payload, _record_only=True)
+    wire = dict(payload)
+    wire["clientID"] = str(payload.get("clientID", 0))
+    return targets, wire
+
+
+async def _broadcast(payload: dict, _record_only: bool = False):
+    """Record the command into the pending frame and forward to live clients.
+
+    With `_record_only`, perform only the frame-state recording + target resolution
+    and RETURN the target writers (no send) - used by the coalescing dispatcher."""
     client_id  = payload.get("clientID", 0)
     cmd        = payload.get("cmd")
     # clear/complete carry the region tag in 'tag'; widget commands carry it in 'parent'
@@ -253,6 +268,9 @@ async def _broadcast(payload: dict) -> None:
             else:
                 targets = set(_connections.get(client_id, set()))
 
+    if _record_only:
+        return targets
+
     dead = []
     # Transmit clientID as a string so 64-bit IDs survive JS JSON without precision loss.
     wire = dict(payload)
@@ -264,6 +282,10 @@ async def _broadcast(payload: dict) -> None:
         except Exception:
             dead.append(writer)
 
+    await _drop_dead(dead)
+
+
+async def _drop_dead(dead) -> None:
     if dead:
         async with _get_lock():
             for writer in dead:
@@ -274,13 +296,14 @@ async def _broadcast(payload: dict) -> None:
 # Queue dispatcher — drains all pending commands per event-loop tick
 # ---------------------------------------------------------------------------
 async def _queue_dispatcher() -> None:
-    """Block until at least one command is ready, then drain all remaining
-    commands that arrived concurrently and broadcast each.
+    """Block until at least one command is ready, drain all that arrived
+    concurrently, record each into frame state, then send the whole batch as ONE
+    WebSocket frame per writer (a JSON array).
 
-    Draining the full queue before yielding back to the event loop reduces
-    WebSocket frame count from O(widgets) to effectively O(1) per MAST tick,
-    because all send_gui_* calls from one tick accumulate between two
-    consecutive asyncio iterations.
+    Draining before yielding accumulates a tick's send_gui_* calls between two
+    asyncio iterations; recording each (in order) keeps frame state correct, and
+    coalescing the per-writer wires into a single array frame cuts the wire from
+    O(commands) frames per tick to O(connected clients) - one frame each.
     """
     import queue as _q
     loop = asyncio.get_event_loop()
@@ -294,9 +317,21 @@ async def _queue_dispatcher() -> None:
                 batch.append(_gui_queue.get_nowait())
             except _q.Empty:
                 break
-        # Broadcast each command so frame state is recorded correctly.
+        # Record each (in order, so frame state stays correct) and group the
+        # JSON-ready wires per writer, preserving order.
+        per_writer = {}   # writer -> [wire, ...]
         for payload in batch:
-            await _broadcast(payload)
+            targets, wire = await _record(payload)
+            for w in targets:
+                per_writer.setdefault(w, []).append(wire)
+        # One frame per writer: an array of that writer's commands for this tick.
+        dead = []
+        for writer, wires in per_writer.items():
+            try:
+                await _ws_send(writer, json.dumps(wires))
+            except Exception:
+                dead.append(writer)
+        await _drop_dead(dead)
 
 # ---------------------------------------------------------------------------
 # WebSocket connection handler
