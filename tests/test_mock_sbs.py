@@ -471,9 +471,20 @@ class TestMockSbs(unittest.TestCase):
         for _ in range(60):
             self._place(random.uniform(-30000, 30000), random.uniform(-30000, 30000))
         rect = (-8000, -3000, 12000, 9000, -1)
-        lin = {o.unique_ID for o in sbs.broad_test(*rect)}
-        hsh = {o.unique_ID for o in sbs.broad_test(*rect, use_hash=True)}
+        lin = {o.unique_ID for o in sbs.broad_test(*rect, use_hash=False)}  # linear scan
+        hsh = {o.unique_ID for o in sbs.broad_test(*rect, use_hash=True)}   # spatial hash
         self.assertEqual(lin, hsh)
+
+    def test_broad_test_hash_sees_same_tick_spawn(self):
+        # The hash cache is keyed on (tick, object count); an object spawned AFTER the
+        # grid was built (same tick) must still be found - a brain that spawns then
+        # queries in the same handler relies on this.
+        a = self._place(100, 100)
+        first = sbs.broad_test(-1000, -1000, 1000, 1000, -1)        # builds the grid
+        self.assertEqual([o.unique_ID for o in first], [a.unique_ID])
+        b = self._place(200, 200)                                   # spawn after build
+        second = {o.unique_ID for o in sbs.broad_test(-1000, -1000, 1000, 1000, -1)}
+        self.assertEqual(second, {a.unique_ID, b.unique_ID})        # cache rebuilt
 
     def test_broad_test_survives_concurrent_mutation(self):
         # Iterating the live space_objects dict while another thread spawns/deletes

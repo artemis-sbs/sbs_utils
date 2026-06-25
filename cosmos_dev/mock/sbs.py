@@ -112,7 +112,9 @@ def assign_client_to_ship(clientComputerID: int, controlledShipID: int) -> None:
             sim.client_ships[clientComputerID] = controlledShipID
 
 _BROAD_CELL = 5000.0                 # spatial-hash cell size (world units)
-_broad_hash = {"tick": -1, "grid": None}   # cached grid, rebuilt at most once/tick
+# Cached broad-phase grid, rebuilt when (physics tick, object count) changes - i.e.
+# when objects move (each physics tick) or are spawned/killed. key=None forces build.
+_broad_hash = {"key": None, "grid": None}
 
 
 def _rebuild_broad_hash():
@@ -130,13 +132,16 @@ def _rebuild_broad_hash():
 
 
 def broad_test(x1: float, z1: float, x2: float, z2: float, tick_type: int,
-               use_hash: bool = False) -> List[space_object]:
+               use_hash: bool = True) -> List[space_object]:
     """Return space objects inside an x/z 2D rect, filtered by the tick_type bitfield.
 
-    Default is a linear scan (engine-compatible signature). `use_hash=True` opts into
-    a spatial hash: a cell grid rebuilt at most once per physics tick and reused
-    across calls, so repeated broad-phase queries in a busy frame cost O(cells in the
-    rect) instead of O(all objects) each. Both snapshot the object dict so a
+    The engine's broad_test is BVH-backed (sub-linear), and the AI fires many of these
+    per frame, so the mock defaults to a spatial hash: a uniform cell grid built once
+    per (physics tick, object count) and reused across the frame's calls - a query is
+    O(cells in rect) instead of O(all objects). The cache rebuilds when objects move
+    (tick advances) or are spawned/killed (count changes), so a brain that spawns then
+    queries in the same handler still sees the new object. `use_hash=False` forces the
+    linear scan (parity tests / debugging). Both snapshot the object dict so a
     concurrent spawn/delete can't raise "dictionary changed during iteration"."""
     global sim, _broad_hash
     ret = []
@@ -154,17 +159,27 @@ def broad_test(x1: float, z1: float, x2: float, z2: float, tick_type: int,
         return p.x >= x1 and p.x < x2 and p.z >= z1 and p.z <= z2
 
     if use_hash:
-        tick = getattr(sim, "time_tick_counter", 0)
-        if _broad_hash["grid"] is None or _broad_hash["tick"] != tick:
-            _broad_hash = {"tick": tick, "grid": _rebuild_broad_hash()}
+        key = (getattr(sim, "time_tick_counter", 0), len(sim.space_objects))
+        if _broad_hash["grid"] is None or _broad_hash["key"] != key:
+            _broad_hash = {"key": key, "grid": _rebuild_broad_hash()}
         grid = _broad_hash["grid"]
         cx0, cz0 = _cell(x1, z1, _BROAD_CELL)
         cx1, cz1 = _cell(x2, z2, _BROAD_CELL)
-        for cx in range(cx0, cx1 + 1):
-            for cz in range(cz0, cz1 + 1):
-                for v in grid.get((cx, cz), ()):
+        n_cells = (cx1 - cx0 + 1) * (cz1 - cz0 + 1)
+        if n_cells > len(grid):
+            # Rect spans more cells than are occupied (e.g. a world-sized query): walk
+            # the occupied cells instead of a huge mostly-empty range. Bounds the query
+            # at O(occupied cells + objects) so a big rect never beats itself.
+            for cell_objs in grid.values():
+                for v in cell_objs:
                     if _match(v):
                         ret.append(v)
+        else:
+            for cx in range(cx0, cx1 + 1):
+                for cz in range(cz0, cz1 + 1):
+                    for v in grid.get((cx, cz), ()):
+                        if _match(v):
+                            ret.append(v)
         return ret
 
     for v in list(sim.space_objects.values()):   # snapshot: thread-safe iteration
@@ -198,7 +213,7 @@ def create_new_sim() -> None:
     _projectiles.clear()
     _blasts.clear()
     _beam_fires.clear()
-    _broad_hash = {"tick": -1, "grid": None}   # drop the old mission's spatial hash
+    _broad_hash = {"key": None, "grid": None}   # drop the old mission's spatial hash
     return sim
 
 
