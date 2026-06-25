@@ -215,13 +215,21 @@ rest at runtime:
 
 Drone damage is **difficulty-independent** (15 at diff 1, 5 and 11).
 
-### Torpedoes
+### Torpedoes (capture — `capture_damage.json`, torpedo cluster)
 
 - **Player-exclusive** — NPCs never fire torpedoes (they fire drones). Tube count
   from `shipData` `tubecount` (code).
-- Types: Homing (single target), **EMP / Nuke / Mine** have an **area-of-effect
-  ripple** (damage everything in a blast radius). Blast radius / per-type damage:
-  **(TBD — capture with the torpedo dummy cluster.)**
+- Per-hit damage by type (the `//damage` `sub_tag` is the torp type):
+
+| Type | per-hit | Behavior |
+|---|---|---|
+| **Homing** | **35** | single target |
+| **Nuke** | **~120** (center) | **area-of-effect**, falls off with distance (observed 10–120 across the cluster); damage event `value_tag = "warhead"` |
+| **Mine** | **~120** | AoE, **same as Nuke** |
+| **EMP** | **0** hull/shield | not a hull weapon — disables systems / drains energy (shows in `energy`/`heat`, not shields) |
+
+  (Captured at DIFFICULTY 11; per-ship combat values are difficulty-independent, so
+  these should hold at any level.)
 
 ---
 
