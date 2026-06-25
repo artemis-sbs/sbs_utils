@@ -116,13 +116,16 @@ _broad_hash = {"tick": -1, "grid": None}   # cached grid, rebuilt at most once/t
 
 
 def _rebuild_broad_hash():
-    """(Re)build the broad-phase spatial hash: cell (cx,cz) -> [objects]. Snapshots
-    space_objects (physics thread vs main thread mutate it concurrently)."""
+    """(Re)build the broad-phase spatial hash: cell (cx,cz) -> [objects], using the
+    same _cell() bucketing as the collision grid (so negative coords bucket the same
+    way). Snapshots space_objects (physics thread vs main thread mutate it). NOTE: the
+    collision active_grid/terrain_grid can't be reused here - they're transient and
+    only hold colliders (exclusion_radius>0), whereas broad_test returns ALL objects
+    in the rect (markers, navproxies, zero-radius objects included)."""
     grid: dict = {}
     if sim is not None:
-        c = _BROAD_CELL
         for v in list(sim.space_objects.values()):
-            grid.setdefault((int(v._pos.x // c), int(v._pos.z // c)), []).append(v)
+            grid.setdefault(_cell(v._pos.x, v._pos.z, _BROAD_CELL), []).append(v)
     return grid
 
 
@@ -155,9 +158,10 @@ def broad_test(x1: float, z1: float, x2: float, z2: float, tick_type: int,
         if _broad_hash["grid"] is None or _broad_hash["tick"] != tick:
             _broad_hash = {"tick": tick, "grid": _rebuild_broad_hash()}
         grid = _broad_hash["grid"]
-        c = _BROAD_CELL
-        for cx in range(int(x1 // c), int(x2 // c) + 1):
-            for cz in range(int(z1 // c), int(z2 // c) + 1):
+        cx0, cz0 = _cell(x1, z1, _BROAD_CELL)
+        cx1, cz1 = _cell(x2, z2, _BROAD_CELL)
+        for cx in range(cx0, cx1 + 1):
+            for cz in range(cz0, cz1 + 1):
                 for v in grid.get((cx, cz), ()):
                     if _match(v):
                         ret.append(v)
