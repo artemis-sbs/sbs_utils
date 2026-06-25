@@ -56,6 +56,7 @@ def create_new_sim():
         _view_shipdata_clients.clear()
         _view_target_clients.clear()
         _view_text_clients.clear()
+        _hud_cache.clear()          # drop stale HUD diff baselines from the old mission
         _force_terrain_push()
         _last_fx_nonempty = False
         # Tell every browser to wipe leftover 2D radar / 3D cinematic state.
@@ -382,6 +383,12 @@ _view_shipdata_clients: set = set()
 # mock-only target_data HUD is shown.
 _view_target_clients: set = set()
 
+# Per-(client, panel) HUD send cache, so we only stream what CHANGED:
+#   key -> {"gen": last data_set gen, "speed": last rounded speed, "payload": last sent}
+# The data_set's change counter lets us skip clean objects without recomputing; the
+# retained payload lets us send only the fields that differ. Browser merges partials.
+_hud_cache: dict = {}
+
 # Clients whose console widget list contains "text_waterfall". The waterfall is
 # event-driven (only re-shows on a message), but the server rebuilds its GUI every
 # tick and the root send_gui_clear hides it; _push_text_active re-asserts it each
@@ -427,6 +434,7 @@ def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) ->
     elif clientID in _view_shipdata_clients:
         _view_shipdata_clients.discard(clientID)
         _send(clientID, "ship_data", active=False)
+        _hud_cache.pop((clientID, "ship_data"), None)   # re-show later sends a full payload
 
     # target_data HUD — only on the main-screen console ("normal_main").
     if consoleType == "normal_main":
@@ -434,6 +442,7 @@ def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) ->
     elif clientID in _view_target_clients:
         _view_target_clients.discard(clientID)
         _send(clientID, "target_data", active=False)
+        _hud_cache.pop((clientID, "target_data"), None)
 
     # text_waterfall — visible while the console declares it; hidden otherwise.
     if "text_waterfall" in widgets:
@@ -543,19 +552,49 @@ def _ship_stat_payload(o, space) -> dict:
     )
 
 
+def _push_stat_panel(cid: int, panel: str, obj, obj_id: int, space) -> None:
+    """Stream a ship/target stat panel for one client, sending only what CHANGED.
+
+    Skips entirely when the object's data_set is unchanged since our last push (its
+    `gen` counter) AND its speed is unchanged - no recompute, no send. Otherwise it
+    computes the payload, diffs it against the last one sent to this client, and sends
+    only the differing fields (the browser merges partials). A change of which object
+    the panel tracks (obj_id) forces a full re-send. `obj is None` -> a single
+    active=False (deactivate), sent once."""
+    key = (cid, panel)
+    if obj is None:
+        if _hud_cache.get(key) is not None:        # was active -> deactivate once
+            _send(cid, panel, active=False)
+            _hud_cache[key] = None
+        return
+    # Cheap early-out: same object, data_set unchanged (gen), speed steady.
+    gen = obj.data_set.gen
+    speed = round(float(getattr(obj, "_cur_speed", 0.0)), 1)
+    prev = _hud_cache.get(key)
+    same_obj = prev is not None and prev.get("oid") == obj_id
+    if same_obj and prev["gen"] == gen and prev["speed"] == speed:
+        return
+    payload = _ship_stat_payload(obj, space)
+    last = prev["payload"] if same_obj else None    # object changed -> full re-send
+    if last is None:
+        _send(cid, panel, active=True, **payload)   # first send (or new object): full
+    else:
+        delta = {k: v for k, v in payload.items() if last.get(k) != v}
+        if delta:
+            _send(cid, panel, active=True, **delta)  # subsequent: only changed fields
+    _hud_cache[key] = {"oid": obj_id, "gen": gen, "speed": speed, "payload": payload}
+
+
 def _push_ship_data() -> None:
     """Stream each ship_data client's player-ship vitals so the browser can render
     a live HUD (shields, energy, dock_state, throttle, speed, hull, heat, target,
-    systems, torpedoes). One small message per client per tick."""
+    systems, torpedoes). Only changed fields are sent (see _push_stat_panel)."""
     if _base_mock.sim is None or gui_queue is None:
         return
     space = _base_mock.sim.space_objects
     for cid in list(_view_shipdata_clients):
-        o = space.get(_base_mock.get_ship_of_client(cid))
-        if o is None:
-            _send(cid, "ship_data", active=False)
-            continue
-        _send(cid, "ship_data", active=True, **_ship_stat_payload(o, space))
+        sid = _base_mock.get_ship_of_client(cid)
+        _push_stat_panel(cid, "ship_data", space.get(sid), sid, space)
 
 
 def _push_target_data() -> None:
@@ -567,16 +606,11 @@ def _push_target_data() -> None:
     space = _base_mock.sim.space_objects
     for cid in list(_view_target_clients):
         ship = space.get(_base_mock.get_ship_of_client(cid))
-        if ship is None:
-            _send(cid, "target_data", active=False)
-            continue
-        sds = ship.data_set
-        tid = sds.get("weapon_target_UID", 0) or sds.get("target_id", 0) or 0
-        t = space.get(tid)
-        if t is None:
-            _send(cid, "target_data", active=False)
-            continue
-        _send(cid, "target_data", active=True, **_ship_stat_payload(t, space))
+        t, tid = None, 0
+        if ship is not None:
+            tid = ship.data_set.get("weapon_target_UID", 0) or ship.data_set.get("target_id", 0) or 0
+            t = space.get(tid)
+        _push_stat_panel(cid, "target_data", t, tid, space)
 
 
 def _push_text_active() -> None:

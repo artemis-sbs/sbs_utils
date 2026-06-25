@@ -414,6 +414,41 @@ class TestMockSbs(unittest.TestCase):
             int(sbs.DIPLOMACY.NEUTRAL),
         )
 
+    # ------------------------------------------------------------------
+    # data_set change tracking (drives the mockgui HUD "send only changed" diff)
+    # ------------------------------------------------------------------
+
+    def test_data_set_gen_bumps_only_on_real_change(self):
+        ds = sbs.object_data_set()
+        self.assertEqual(ds.gen, 0)
+        ds.set("hp", 100)
+        g1 = ds.gen
+        self.assertGreater(g1, 0)                      # first write is a change
+        ds.set("hp", 100)                              # same value -> no change
+        self.assertEqual(ds.gen, g1)
+        ds.set("hp", 90)                               # different -> bump
+        self.assertGreater(ds.gen, g1)
+
+    def test_data_set_dirty_since_lists_changed_keys(self):
+        ds = sbs.object_data_set()
+        ds.set("hp", 100)
+        ds.set("shield_val", 50, 0)
+        g = ds.gen                                     # snapshot
+        ds.set("hp", 80)                               # change one
+        ds.set("shield_val", 50, 0)                    # rewrite same -> not dirty
+        changed = ds.dirty_since(g)
+        self.assertIn(("hp", 0), changed)
+        self.assertNotIn(("shield_val", 0), changed)
+
+    def test_data_set_per_index_change_tracking(self):
+        ds = sbs.object_data_set()
+        ds.set("shield_val", 50, 0)
+        ds.set("shield_val", 50, 1)
+        g = ds.gen
+        ds.set("shield_val", 25, 1)                    # only facing 1 changed
+        changed = ds.dirty_since(g)
+        self.assertEqual(changed, [("shield_val", 1)])
+
 
 if __name__ == "__main__":
     unittest.main()

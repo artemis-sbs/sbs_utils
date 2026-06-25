@@ -1416,9 +1416,27 @@ _DATA_SET_DEFAULTS = {
 
 
 class object_data_set(object): ### from pybind
-    """class object_data_set"""
+    """class object_data_set
+
+    Mock note: this carries a lightweight CHANGE counter (`gen`) that bumps only when
+    a ``set()`` actually changes a stored value. Consumers (the mockgui HUD push)
+    remember the last `gen` they saw per object and skip work when nothing changed -
+    so unchanged ship vitals aren't recomputed or re-sent every tick. `dirty_since(g)`
+    returns the exact keys that changed since gen `g` (each key is gen-stamped), which
+    is clobber-free across multiple watchers (unlike a shared dirty set that one
+    consumer would clear out from under another)."""
     def __init__(self):
         self.values = {}
+        self._gen = 0           # bumps on every real value change
+        self._key_gen = {}      # (tag, index) -> gen at which it last changed
+
+    @property
+    def gen(self) -> int:
+        return self._gen
+
+    def dirty_since(self, gen: int):
+        """The (tag, index) keys whose value changed after `gen`."""
+        return [k for k, g in self._key_gen.items() if g > gen]
 
     def clear_data(self, name: str) -> None:
         """deletes all elements in this blob value"""
@@ -1446,6 +1464,9 @@ class object_data_set(object): ### from pybind
 
     def set(self, tag, value, index=0):
         values = self.values.get(tag, {})
+        if values.get(index) != value:          # only mark on a real change
+            self._gen += 1
+            self._key_gen[(tag, index)] = self._gen
         values[index] = value
         self.values[tag] = values
 

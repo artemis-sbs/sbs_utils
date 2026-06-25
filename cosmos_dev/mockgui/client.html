@@ -1102,6 +1102,7 @@ function cmdWorldReset(msg) {
   if (_shipDataEl)   { _shipDataEl.remove();   _shipDataEl = null; }
   if (_targetDataEl) { _targetDataEl.remove(); _targetDataEl = null; }
   if (_textWfEl)     { _textWfEl.remove();     _textWfEl = null; }
+  _shipDataMsg = {}; _targetDataMsg = {};   // drop merged HUD state from old mission
   if (_radarCtx) _renderRadar();
 }
 
@@ -1215,11 +1216,15 @@ function _statHtml(msg, full) {
   }
   return html;
 }
+// Retained, merged HUD state — the server sends only CHANGED fields (partial
+// updates), so we accumulate them here and render the merged result.
+let _shipDataMsg = {};
 function cmdShipData(msg) {
   if (!msg.active) { if (_shipDataEl) _shipDataEl.style.display = 'none'; return; }
+  _shipDataMsg = Object.assign(_shipDataMsg, msg);   // merge partial fields
   const el = _ensureShipDataEl();
   el.style.display = 'block';
-  el.innerHTML = _statHtml(msg, true);
+  el.innerHTML = _statHtml(_shipDataMsg, true);
 }
 
 // ── cmdTargetData — current-target stats HUD on the main view (mock-only) ─────
@@ -1239,11 +1244,13 @@ function _ensureTargetDataEl() {
   _targetDataEl = el;
   return el;
 }
+let _targetDataMsg = {};
 function cmdTargetData(msg) {
   if (!msg.active) { if (_targetDataEl) _targetDataEl.style.display = 'none'; return; }
+  _targetDataMsg = Object.assign(_targetDataMsg, msg);   // merge partial fields
   const el = _ensureTargetDataEl();
   el.style.display = 'block';
-  el.innerHTML = '<span style="color:#f88">TARGET</span>\n' + _statHtml(msg, false);
+  el.innerHTML = '<span style="color:#f88">TARGET</span>\n' + _statHtml(_targetDataMsg, false);
 }
 
 // ── cmdTextMsg — text waterfall (send_message_to_client/player_ship) ─────────
