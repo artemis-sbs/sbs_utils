@@ -178,6 +178,11 @@ survive a lone attacker for the full 2 min.
 | Skaraan (elite) NPC | **≈ 16.5** | shipData `damage_coeff` ≈ 3.0 |
 
 - `beamCycleTime ≈ 6 s`, `beamArcWidth = 144°`, `beamRange` 1000–1300 (code/capture).
+- Mock: when a mission calls `set_beam_damages` (LegendaryMissions does) the mock
+  honors it. Otherwise it falls back to `coeff × _BEAM_LOAD_BASE = 6` for every
+  firer — so NPC beams are about right (6 vs ~5.5) but player beams are ~30% low
+  (6 vs ~8.5). Splitting the fallback to player 8.5 / NPC 5.5 would close it (the
+  values are difficulty-independent, so safe to pin).
 
 !!! info "Difficulty does NOT scale per-ship combat stats (captures at DIFFICULTY 1, 5, 11)"
     Running the battle matrix at difficulty 1, 5 and 11 shows the per-ship combat
