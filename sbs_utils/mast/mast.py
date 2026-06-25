@@ -227,7 +227,6 @@ class Mast():
     
     inline_count = 0
     source_map_files = []
-    imported = {}
 
     def __init__(self, cmds=None, is_import=False):
         super().__init__()
@@ -237,6 +236,13 @@ class Mast():
         self.basedir = None
         self.parent_basedir = None
         self.compiler_errors = []
+        # Per-story import dedup. from_file tracks already-imported files in
+        # root.imported (the top story's dict); nested imports thread `root`
+        # through, so they share it within one compile. This MUST be per-instance:
+        # as a class attribute it was shared across every Mast/MastStory ever
+        # created, so a second story loading a file a previous story already
+        # imported would short-circuit and skip compiling it entirely.
+        self.imported = {}
                 
 
         if cmds is None:
