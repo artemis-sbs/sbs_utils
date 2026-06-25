@@ -2174,22 +2174,55 @@ def _ramp_speed(obj: space_object, target_speed: float, dt: float) -> None:
         obj._cur_speed = max(target_speed, cur - step)
 
 
+def _steer_toward(obj: space_object, dx: float, dy: float, dz: float,
+                  horiz_dist: float, dist: float, turn_rate: float) -> None:
+    """Drive _steer_yaw + _steer_pitch with a P-controller so the heading rotates
+    toward the world direction (dx, dy, dz).  Yaw turns in the XZ plane; pitch
+    closes the vertical (y) gap so ships maneuver in full 3D, not just a plane.
+
+    horiz_dist = sqrt(dx^2+dz^2), dist = sqrt(dx^2+dy^2+dz^2) (passed in to avoid
+    recomputing).  Both steer terms are clamped to ±turn_rate."""
+    fwd = obj.forward_vector()
+    # Yaw toward the heading in the XZ plane.  Undefined when the target is ~directly
+    # overhead (horiz_dist ~ 0), so skip yaw there and let pitch do the work.
+    if horiz_dist > 1e-3:
+        ndx, ndz = dx / horiz_dist, dz / horiz_dist
+        # Y-component of (fwd × desired): positive → target is right of heading → +yaw
+        cross_y = fwd.z * ndx - fwd.x * ndz
+        obj._steer_yaw = max(-turn_rate, min(turn_rate, cross_y * turn_rate * 5.0))
+    else:
+        obj._steer_yaw = 0.0
+    # Pitch toward the target elevation.  fwd is unit, so fwd.y is sin(current
+    # elevation) and dy/dist is sin(desired elevation).  +_steer_pitch noses the
+    # ship DOWN (rotation about the body +X axis lowers forward.y), so steer by the
+    # NEGATED elevation error to climb toward a higher target / dive toward a lower one.
+    if dist > 1e-6:
+        elev_err = (dy / dist) - fwd.y
+        obj._steer_pitch = max(-turn_rate, min(turn_rate, -elev_err * turn_rate * 5.0))
+    else:
+        obj._steer_pitch = 0.0
+
+
 def _npcship_steer(obj: space_object, dt: float) -> None:
-    """Default NPC ship behavior: steer toward target_pos_x/y/z and decelerate to
-    arrive, rather than barreling in at full speed.  Speed cruises at
-    throttle × BASE_TOP_SPEED × speed_coeff."""
+    """Default NPC ship behavior: steer toward target_pos_x/y/z in 3D (yaw for
+    heading, pitch for altitude) and decelerate to arrive, rather than barreling
+    in at full speed.  Speed cruises at throttle × BASE_TOP_SPEED × speed_coeff."""
     ds = obj.data_set
     if ds.get("deathState") > 0:
         obj._steer_yaw = 0.0
+        obj._steer_pitch = 0.0
         obj._cur_speed = 0.0
         return
 
     throttle = ds.get("throttle") or 0.0
     tx = ds.get("target_pos_x") or 0.0
+    ty = ds.get("target_pos_y") or 0.0
     tz = ds.get("target_pos_z") or 0.0
     dx = tx - obj._pos.x
+    dy = ty - obj._pos.y
     dz = tz - obj._pos.z
     horiz_dist = math.sqrt(dx * dx + dz * dz)
+    dist = math.sqrt(dx * dx + dy * dy + dz * dz)
 
     turn_rate = ds.get("turn_rate") or 0.0
     if turn_rate <= 0.0:
@@ -2206,26 +2239,23 @@ def _npcship_steer(obj: space_object, dt: float) -> None:
     if arrive_dist <= 0.0:
         arrive_dist = 20.0
 
-    if horiz_dist > arrive_dist and throttle > 0.0:
-        fwd = obj.forward_vector()
-        ndx, ndz = dx / horiz_dist, dz / horiz_dist
-        # Y-component of (fwd × desired): positive → target is right of heading → steer right (+yaw)
-        cross_y = fwd.z * ndx - fwd.x * ndz
-        steer = cross_y * turn_rate * 5.0     # P-controller; clamp to ±turn_rate
-        obj._steer_yaw = max(-turn_rate, min(turn_rate, steer))
+    if dist > arrive_dist and throttle > 0.0:
+        _steer_toward(obj, dx, dy, dz, horiz_dist, dist, turn_rate)
     else:
         obj._steer_yaw = 0.0
+        obj._steer_pitch = 0.0
 
     # Arrival braking: full speed cruises in, but within ~2× the turn radius the
     # ship slows proportionally so its turn radius shrinks below the distance to
     # the target and it can actually arrive.  Without this it orbits the target
-    # forever (which reads as spinning on the 2D radar).
+    # forever (which reads as spinning on the radar).  Uses 3D distance so a ship
+    # directly above/below its target still closes the altitude gap before parking.
     turn_radius = cruise_speed / turn_rate
     brake_dist = max(2.0 * turn_radius, 100.0)
-    if horiz_dist <= arrive_dist:
+    if dist <= arrive_dist:
         target_speed = 0.0
-    elif horiz_dist < brake_dist:
-        target_speed = cruise_speed * (horiz_dist / brake_dist)
+    elif dist < brake_dist:
+        target_speed = cruise_speed * (dist / brake_dist)
     else:
         target_speed = cruise_speed
     _ramp_speed(obj, target_speed, dt)
@@ -2237,35 +2267,30 @@ def _playership_drive(obj: space_object, dt: float) -> None:
 
     When the helm requests direction steering (steeringToDirFlag set — e.g. the
     autoplay AI, which writes steerToDirDX/DY/DZ + steeringToDirFlag rather than
-    target_pos), rotate the heading toward that vector using the same
-    cross-product P-controller as _npcship_steer.  Otherwise leave the heading
+    target_pos), rotate the heading toward that vector in 3D using the same
+    yaw+pitch P-controller as _npcship_steer.  Otherwise leave the heading
     untouched (manual helm sets _steer_yaw elsewhere).  Throttle ramping is
     unchanged — autoplay does its own distance-based throttle, so no arrival
     braking here."""
     ds = obj.data_set
     if ds.get("deathState") > 0:
         obj._steer_yaw = 0.0
+        obj._steer_pitch = 0.0
         obj._cur_speed = 0.0
         return
 
-    # Direction steering: steer yaw toward the requested heading vector.  NPCs
-    # steer via target_pos_x/z; players are driven via steerToDirD* + the flag.
+    # Direction steering: steer toward the requested heading vector in 3D.  NPCs
+    # steer via target_pos_x/y/z; players are driven via steerToDirD* + the flag.
     if ds.get("steeringToDirFlag"):
         dx = ds.get("steerToDirDX") or 0.0
+        dy = ds.get("steerToDirDY") or 0.0
         dz = ds.get("steerToDirDZ") or 0.0
         horiz = math.sqrt(dx * dx + dz * dz)
+        dist = math.sqrt(dx * dx + dy * dy + dz * dz)
         turn_rate = ds.get("turn_rate") or 0.0
         if turn_rate <= 0.0:
             turn_rate = 0.1  # ~6 deg/s fallback when shipData not loaded
-        if horiz > 1e-6:
-            fwd = obj.forward_vector()
-            ndx, ndz = dx / horiz, dz / horiz
-            # Y of (fwd × desired): positive → target right of heading → steer right (+yaw)
-            cross_y = fwd.z * ndx - fwd.x * ndz
-            steer = cross_y * turn_rate * 5.0     # P-controller; clamp to ±turn_rate
-            obj._steer_yaw = max(-turn_rate, min(turn_rate, steer))
-        else:
-            obj._steer_yaw = 0.0
+        _steer_toward(obj, dx, dy, dz, horiz, dist, turn_rate)
 
     pt = ds.get("playerThrottle") or 0.0
     speed_coeff = ds.get("total_speed_coeff") or ds.get("speed_coeff") or 1.0

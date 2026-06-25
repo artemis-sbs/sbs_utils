@@ -300,6 +300,50 @@ class TestMockSbs(unittest.TestCase):
         dist = math.hypot(0.0 - o._pos.x, 150.0 - o._pos.z)
         self.assertLessEqual(dist, 25.0)                  # parked at the target
 
+    # 3D navigation uses production-realistic params (turn_rate ~0.3 rad/s, the 2Hz
+    # dt=0.5 physics step). The P-controller (shared with yaw) overshoots only at
+    # unrealistically large turn_rate*dt per tick.
+
+    def test_npc_climbs_toward_higher_target(self):
+        # Target ahead AND above: the ship pitches up and gains altitude (3D nav),
+        # instead of staying on its spawn plane.
+        o = self._spawn_npc(turn_rate=0.3,
+                            target_pos_x=0.0, target_pos_y=4000.0, target_pos_z=8000.0)
+        start_y = o._pos.y
+        self._tick(30, dt=0.5)
+        self.assertGreater(o._pos.y, start_y + 100.0)     # climbed
+        self.assertGreater(o._pos.z, 100.0)               # also advanced forward
+        self.assertGreater(o.forward_vector().y, 0.1)     # nose pitched up
+
+    def test_npc_dives_toward_lower_target(self):
+        o = self._spawn_npc(turn_rate=0.3,
+                            target_pos_x=0.0, target_pos_y=-4000.0, target_pos_z=8000.0)
+        start_y = o._pos.y
+        self._tick(30, dt=0.5)
+        self.assertLess(o._pos.y, start_y - 100.0)        # descended
+        self.assertLess(o.forward_vector().y, -0.1)       # nose pitched down
+
+    def test_npc_closes_vertical_gap_to_overhead_target(self):
+        # A target directly overhead (no horizontal offset) is reached by pitching
+        # and climbing — not ignored because the horizontal distance is ~0.
+        o = self._spawn_npc(turn_rate=0.3,
+                            target_pos_x=0.0, target_pos_y=3000.0, target_pos_z=0.0)
+        self._tick(120, dt=0.5)
+        self.assertLessEqual(abs(3000.0 - o._pos.y), 250.0)   # closed the altitude gap
+
+    def test_player_dir_steering_is_3d(self):
+        # Player direction steering (steerToDirD* + flag) climbs toward an up vector.
+        o = self._spawn_npc(behave="behav_playership", turn_rate=0.3)
+        o.data_set.set("playerThrottle", 1.0)
+        o.data_set.set("steeringToDirFlag", 1)
+        o.data_set.set("steerToDirDX", 0.0)
+        o.data_set.set("steerToDirDY", 1.0)               # up and forward
+        o.data_set.set("steerToDirDZ", 1.0)
+        start_y = o._pos.y
+        self._tick(30, dt=0.5)
+        self.assertGreater(o._pos.y, start_y + 100.0)
+        self.assertGreater(o.forward_vector().y, 0.1)
+
     def test_death_state_halts_npc(self):
         o = self._spawn_npc()
         self._tick(4)
