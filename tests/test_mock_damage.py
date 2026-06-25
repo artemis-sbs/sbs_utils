@@ -237,6 +237,24 @@ class TestMockDamage(unittest.TestCase):
         sbs._physics_heat([(aid, a)], dt=1.0)
         self.assertAlmostEqual(a.data_set.get("system_cur_heat", 0), 0.6 - sbs._HEAT_DECAY)
 
+    def test_shield_regen_blocked_after_hit_then_resumes(self):
+        # Passive shield regen is suppressed for _SHIELD_REGEN_DELAY seconds after a
+        # hit, so sustained combat depletes shields; it resumes in a lull.
+        aid, a = self._hulled(100)
+        a.data_set.set("shield_count", 1)
+        a.data_set.set("shield_max_val", 100.0, 0)
+        a.data_set.set("shield_val", 40.0, 0)
+        a.data_set.set("repair_rate_shields", 3.0)
+        sbs.resume_sim()
+        sbs.apply_damage(aid, 10.0)                       # 40 -> 30, regen blocked
+        self.assertEqual(a.data_set.get("shield_val", 0), 30.0)
+        for _ in range(30):                               # 1s of ticks, within block
+            sbs.physics_tick(1 / 30)
+        self.assertEqual(round(a.data_set.get("shield_val", 0)), 30)   # no regen
+        for _ in range(30 * 9):                           # advance past the block
+            sbs.physics_tick(1 / 30)
+        self.assertGreater(a.data_set.get("shield_val", 0), 30.0)      # regen resumed
+
 
 if __name__ == '__main__':
     unittest.main()

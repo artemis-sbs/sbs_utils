@@ -2129,6 +2129,11 @@ SPEED_RAMP_RATE = 60.0
 # physics_tick), so it advances the counter by dt * TICKS_PER_SECOND.
 TICKS_PER_SECOND = 30.0
 
+# Seconds after a hit during which passive shield regen is suppressed, so
+# sustained combat depletes shields instead of out-healing the low beam DPS.
+# (>= beam cycle time so continuous beam fire keeps regen blocked.)
+_SHIELD_REGEN_DELAY = 8.0
+
 
 def _ramp_speed(obj: space_object, target_speed: float, dt: float) -> None:
     """Ease obj._cur_speed toward target_speed at SPEED_RAMP_RATE; no instant changes."""
@@ -2289,6 +2294,8 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
     ds = obj.data_set
     if (ds.get("armorMax") or 0.0) <= 0:
         return  # no hull -> not damageable (asteroids, markers, etc.)
+    # Block passive shield regen briefly after any hit (see _physics passive block).
+    obj._shield_regen_block = sim._time_tick_counter + int(_SHIELD_REGEN_DELAY * TICKS_PER_SECOND)
     # Shields absorb first (engine reduces the hit shield). System/internal damage
     # only happens AFTER shields are down. Mock uses shield_val[0] as a pooled shield.
     shield = ds.get("shield_val") or 0.0
@@ -2842,7 +2849,11 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
             ds = obj.data_set
 
             repair = ds.get("repair_rate_shields") or 0.0
-            if repair > 0.0:
+            # No passive regen for a few seconds after taking a hit (engine-like),
+            # so sustained combat actually depletes shields instead of out-healing
+            # the low beam DPS. Shields still recover in a lull / at dock.
+            blocked = sim._time_tick_counter < getattr(obj, "_shield_regen_block", 0)
+            if repair > 0.0 and not blocked:
                 n_shields = ds.get("shield_count") or 0
                 for si in range(max(1, n_shields)):
                     sv = ds.get("shield_val", si) or 0.0
