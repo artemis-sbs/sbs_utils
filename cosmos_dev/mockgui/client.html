@@ -736,7 +736,7 @@ document.getElementById('dbg-log-btn').addEventListener('click', () => {
 document.getElementById('corner-radar-btn').addEventListener('click', () => {
   _cornerRadarEnabled = !_cornerRadarEnabled;
   document.getElementById('corner-radar-btn').classList.toggle('active', _cornerRadarEnabled);
-  _renderRadar();
+  _requestRadarRender();
 });
 
 // ── cmdLog: stdout/stderr forwarded from the runner ───────────────────────────
@@ -772,7 +772,7 @@ window.addEventListener('wheel', e => {
   }
   _radarZoom *= e.deltaY < 0 ? 1.15 : 1 / 1.15;
   _radarZoom = Math.max(0.05, Math.min(20.0, _radarZoom));
-  _renderRadar();
+  _requestRadarRender();
 }, { passive: false });
 
 // ── Drag-pan of the radar ─────────────────────────────────────────────────────
@@ -822,7 +822,7 @@ window.addEventListener('mousemove', e => {
     // Grab-the-map: the world point under the cursor follows it. +Z is up, +X right.
     _radarPanX = _panStartPX - dx * _lastWorldPerPx;
     _radarPanZ = _panStartPZ + dy * _lastWorldPerPx;
-    _renderRadar();
+    _requestRadarRender();
     e.preventDefault();
     return;
   }
@@ -842,7 +842,7 @@ window.addEventListener('mouseup', () => {
 window.addEventListener('dblclick', e => {
   if (!_pointInRadarView(e.clientX, e.clientY)) return;
   _radarPanX = 0; _radarPanZ = 0;
-  _renderRadar();
+  _requestRadarRender();
   e.preventDefault();
 });
 
@@ -867,7 +867,7 @@ function _shipSprite(art) {
   let e = _spriteCache.get(art);
   if (e === undefined) {
     e = { img: new Image(), ready: false };
-    e.img.onload  = () => { e.ready = true; _renderRadar(); };
+    e.img.onload  = () => { e.ready = true; _requestRadarRender(); };
     e.img.onerror = () => { e.ready = false; };   // 404 / no art → dot fallback
     e.img.src = `/ships/${art}256.png`;
     _spriteCache.set(art, e);
@@ -1060,7 +1060,7 @@ function cmdRadarTerrain(msg) {
   _terrainPoints.geometry.attributes.position.needsUpdate = true;
   _terrainPoints.geometry.attributes.color.needsUpdate    = true;
   _buildNebula();   // rebuild nebula particle clouds for the new terrain set
-  _renderRadar();
+  _requestRadarRender();
 }
 
 // ── cmdWorldReset — wipe leftover world render state on mission (re)start ─────
@@ -1103,7 +1103,7 @@ function cmdWorldReset(msg) {
   if (_targetDataEl) { _targetDataEl.remove(); _targetDataEl = null; }
   if (_textWfEl)     { _textWfEl.remove();     _textWfEl = null; }
   _shipDataMsg = {}; _targetDataMsg = {};   // drop merged HUD state from old mission
-  if (_radarCtx) _renderRadar();
+  if (_radarCtx) _requestRadarRender();
 }
 
 // ── cmdShipData — live player-ship vitals HUD (mock-only) ────────────────────
@@ -1323,7 +1323,7 @@ function cmdRadar(msg) {
 
   if ((!isGMView && !isMyShip) || (isGMView && !isUnassigned)) {
     // Not our message — nav/focus already updated; redraw for camera lerp.
-    _renderRadar();
+    _requestRadarRender();
     return;
   }
 
@@ -1404,7 +1404,7 @@ function cmdRadar(msg) {
     if (colorsDirty) _dynamicPoints.geometry.attributes.color.needsUpdate = true;
   }
 
-  _renderRadar();
+  _requestRadarRender();
 }
 
 // ── Radar layout helpers ──────────────────────────────────────────────────────
@@ -1704,6 +1704,17 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
 
   ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 2;
   ctx.strokeRect(x0 + 1, y0 + 1, rw - 2, rh - 2);
+}
+
+// Coalesce render requests: a single network batch can fire several message
+// handlers (terrain + radar delta + sprite loads), each of which wants a redraw.
+// Instead of redrawing the full radar synchronously per message, schedule ONE
+// _renderRadar on the next animation frame.
+let _radarRenderQueued = false;
+function _requestRadarRender() {
+  if (_radarRenderQueued || !_radarCtx) return;
+  _radarRenderQueued = true;
+  requestAnimationFrame(() => { _radarRenderQueued = false; _renderRadar(); });
 }
 
 // ── _renderRadar — composites 2D chrome + Three.js dots onto the radar canvas ─
