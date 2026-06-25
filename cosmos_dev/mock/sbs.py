@@ -523,6 +523,11 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
     # (also engine-set, not in shipData) until calibrated from a data_capture run.
     if data.get("drone_launch_timer"):
         ds.set("elite_drone_launcher", 1)
+        # Mirror the engine's runtime drone params (calibrated from capture, diff 5).
+        if not (ds.get("drone_damage") or 0):
+            ds.set("drone_damage", _DRONE_DAMAGE)
+        if not (ds.get("drone_launch_max_range") or 0):
+            ds.set("drone_launch_max_range", _DRONE_RANGE)
 
     # Shields — per-facing array
     shields = data.get("shields")
@@ -2581,8 +2586,11 @@ _TORP_DAMAGE = 40.0
 # drone_launch_max_range are set by the engine at runtime (not in shipData), so the
 # mock uses these defaults until calibrated from a data_capture run.  TODO: calibrate.
 _DRONE_CYCLE = 10.0          # fallback for drone_launch_timer
-_DRONE_DAMAGE = 30.0         # fallback for drone_damage          (uncalibrated)
-_DRONE_RANGE = 4000.0        # fallback for drone_launch_max_range (uncalibrated)
+# Calibrated from the data_capture battle matrix (Torgoth + Ximni, DIFFICULTY 5):
+# the engine sets drone_damage=15, drone_launch_max_range=7000 at runtime (these
+# are not in shipData). May scale with difficulty - captured at 5.
+_DRONE_DAMAGE = 15.0         # fallback for drone_damage
+_DRONE_RANGE = 7000.0        # fallback for drone_launch_max_range
 
 # System heat is the engine field `system_cur_heat` (per SHPSYS, 0..1):
 # engineering overpower / insufficient coolant. The mock doesn't simulate
