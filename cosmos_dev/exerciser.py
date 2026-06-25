@@ -29,6 +29,8 @@ class Exerciser:
         self._precondition_budget = 8
         self._comms_step = 0     # rotates the comms button-walk path each step
         self._dock_budget = 3    # times to force a dock (cover dock routes), then stop
+        self._console_step = 0   # rotates the synthetic client through each console
+        self._console_dwell = 0  # steps spent on the current console before cycling on
 
     def _server_ctx(self):
         """Return the server task, or None if not ready."""
@@ -116,8 +118,11 @@ class Exerciser:
             # //shared/signal/docked (real docking flow, briefly).
             if self._dock_budget > 0:
                 self._force_dock(sbs, player_ids[0])
-            # Monkey/fuzz: a random valid GUI click every few steps (kept sparse so
-            # it doesn't constantly yank the autoplay console off its AI loop).
+            # Cycle the synthetic console client through every console so each
+            # @console body + watcher executes (deterministic console coverage).
+            self._cycle_consoles()
+            # Monkey/fuzz: a random valid in-console GUI click every few steps (kept
+            # sparse so it doesn't constantly yank a console off its AI loop).
             if self._offset % 3 == 0:
                 self._fuzz_gui()
             # Stage a REAL beam exchange (TEST-ONLY teleport) so the genuine
@@ -169,13 +174,79 @@ class Exerciser:
             if cid == 0:
                 continue   # never fuzz the server/mission-control page (jumps the map)
             page = getattr(gc, "page", None)
-            tag_map = getattr(page, "tag_map", None) if page is not None else None
+            # Skip the console picker: _cycle_consoles owns console navigation, and
+            # random picker clicks would fight its deterministic rotation. Fuzz only
+            # in-console widgets (most console widgets are engine-side and not in
+            # tag_map, so this is a no-op there - but custom gui buttons get hit).
+            if page is None or not getattr(page, "console", None):
+                continue
+            tag_map = getattr(page, "tag_map", None)
             if not tag_map:
                 continue
             tag = random.choice(list(tag_map.keys()))
             try:
                 Gui.on_message(FakeEvent(client_id=cid, tag="gui_message", sub_tag=tag))
                 self.fuzzed = getattr(self, "fuzzed", 0) + 1
+            except Exception:
+                self.errors += 1
+
+    _CONSOLE_DWELL = 3   # steps to sit on a console (let its watch/on-change run)
+    # Core gameplay consoles to cycle. mainscreen is intentionally omitted: switching
+    # to it fires a main_screen_change reroute cascade onto other linked consoles,
+    # which (driven synthetically) presents an uncompiled page -> spurious noise.
+    _GAMEPLAY_CONSOLES = ("helm", "weapons", "engineering", "comms", "science")
+
+    def _cycle_consoles(self):
+        """Drive the synthetic test console client(s) deterministically through every
+        console so each @console label body and its watch/on-change logic actually
+        executes. The greedy autoplayer otherwise parks on one console (helm),
+        leaving the rest uncovered.
+
+        Routes via LegendaryMissions' own `show_console_selected` label with
+        `CONSOLE_SELECT` set to each registered console key (helm, weapons,
+        science, engineering, comms, ...) - the same entry the console picker uses,
+        so it's robust to the picker's per-rebuild tag renumbering. The select
+        flow sets up the gui_task scope (crew_name, consoles, tabs...) before its
+        picker await, so jumping straight to show_console_selected is safe from the
+        picker too. Rotate every _CONSOLE_DWELL steps. TEST-ONLY: a crash in any
+        console body surfaces via the verdict."""
+        from sbs_utils.gui import Gui
+        from sbs_utils.helpers import FakeEvent, FrameContextOverride
+        from sbs_utils.procedural.gui.console_types import gui_get_console_types
+        from sbs_utils.procedural.roles import role
+        sbs = self._sbs
+        # Core gameplay consoles only. The demo/admin consoles (display_panels,
+        # director, gamemaster, admin, hangar, admiral) have their own context
+        # needs and aren't the coverage target here.
+        registered = gui_get_console_types()
+        keys = [k for k in self._GAMEPLAY_CONSOLES if k in registered]
+        if not keys:
+            return
+        self._console_dwell += 1
+        if self._console_dwell < self._CONSOLE_DWELL:
+            return
+        self._console_dwell = 0
+        players = list(role("__player__"))
+        for cid, gc in list(Gui.clients.items()):
+            if cid == 0:
+                continue
+            page = getattr(gc, "page", None)
+            gt = getattr(page, "gui_task", None) if page is not None else None
+            if gt is None:
+                continue
+            # The synthetic client bypassed ship-select; console bodies (and tabs)
+            # assume a ship, so assign it to a real player ship once.
+            if players and not sbs.get_ship_of_client(cid):
+                sbs.assign_client_to_ship(cid, players[0])
+            key = keys[self._console_step % len(keys)]
+            self._console_step += 1
+            try:
+                with FrameContextOverride(gt, page):
+                    gt.set_variable("CONSOLE_SELECT", key)
+                    gt.jump("show_console_selected")
+                    gt.tick_in_context()
+                    page.present(FakeEvent(client_id=cid, tag="client_change",
+                                           sub_tag="change_console"))
             except Exception:
                 self.errors += 1
 
