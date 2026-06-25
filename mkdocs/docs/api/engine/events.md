@@ -160,8 +160,10 @@ survive a lone attacker for the full 2 min.
 - **Per-facing**, not pooled: a fixed attacker drains only the facing toward it,
   then overflow hits the hull — the other facings stay up (ships die with shields
   on their far side).
-- Regen: each facing recovers at **`repair_rate_shields ÷ shield_count`** per second
-  (measured 1.0 → ~0.5/s, 0.1 → ~0.05/s). Rates: player `1.0`, NPC `0.1` (code).
+- Regen: each facing recovers at **`repair_rate_shields ÷ shield_count`** per second.
+  Confirmed by the regen bench (ships alone, shields at 10%): player `1.0/2 → 0.5/s`,
+  NPCs `0.1/2 → 0.05/s` — and Kralien / Torgoth / Skaraan all regen at the same
+  0.05/s (no per-hull difference). Rates: player `1.0`, NPC `0.1` (code).
 
 ### Beams (capture — `capture_damage.json`, `sub_float`)
 
