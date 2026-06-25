@@ -30,9 +30,12 @@ sys.modules["sbs"] = sys.modules[__name__]
 
 def create_new_sim():
     """Creates a new simulation and syncs the local sim reference."""
-    global sim, _last_fx_nonempty
+    global sim, _last_fx_nonempty, _cinematic_tick
     result = _base_mock.create_new_sim()
     sim = _base_mock.sim
+    # Push the camera on the FIRST tick after a (re)start (then ~15 Hz) so the 3D view
+    # frames immediately instead of waiting a couple ticks.
+    _cinematic_tick = _CINEMATIC_INTERVAL - 1
     # Update FrameContext immediately so code running after sim_create() in the
     # same handler tick (e.g. npc_spawn) uses the new simulation object.
     try:
@@ -343,6 +346,9 @@ def send_client_widget_rects(clientID: int, widgetName: str,
 # ---------------------------------------------------------------------------
 _radar_tick: int = 0
 _RADAR_INTERVAL: int = 1    # push radar every physics tick (physics thread runs at 30 Hz)
+_cinematic_tick: int = 0
+_CINEMATIC_INTERVAL: int = 2  # push the 3D camera every 2nd radar tick (~15 Hz) - the
+                              # browser lerps the camera between updates, so 30 Hz is wasted
 
 CULL_RADIUS: float = 35_000.0  # only objects within this distance of a ship are sent
 
@@ -625,7 +631,7 @@ def _push_text_active() -> None:
 
 def physics_tick(dt: float = 1.0 / 60.0) -> None:
     """Delegate to base physics then broadcast a radar delta to the browser."""
-    global sim, _radar_tick
+    global sim, _radar_tick, _cinematic_tick
     _base_mock.physics_tick(dt)
     sim = _base_mock.sim   # keep local alias in sync (create_new_sim may have changed it)
     _radar_tick += 1
@@ -633,7 +639,10 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
         _radar_tick = 0
         _push_radar()
         _push_fx()
-        _push_cinematic()
+        _cinematic_tick += 1
+        if _cinematic_tick >= _CINEMATIC_INTERVAL:
+            _cinematic_tick = 0
+            _push_cinematic()      # ~15 Hz; browser lerps the camera between updates
         _push_2dview_rects()
         _push_ship_data()
         _push_target_data()
