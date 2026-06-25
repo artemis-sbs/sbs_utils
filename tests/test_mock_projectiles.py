@@ -92,6 +92,24 @@ class TestMockProjectiles(unittest.TestCase):
         # No shared string -> LM-equivalent default (Homing single 35):
         self.assertEqual(sbs._torp_profile("Homing"), (sbs._TORP_DAMAGE, 0.0, "single"))
 
+    def test_bad_torp_string_degrades_and_is_detectable(self):
+        # A malformed torp def must not crash the mock: bad numerics fall back to the
+        # default, unknown warheads degrade to a single hit - and torp_validate reports
+        # the problems so a mission author can catch them.
+        sbs.set_shared_string("Junk", "warhead:plasmaXX;damage:abc;blast_radius:nope;behavior:wat;")
+        # _torp_profile must not raise; bad damage -> default, unknown warhead -> single
+        dmg, radius, effect = sbs._torp_profile("Junk")
+        self.assertEqual(effect, "single")
+        self.assertEqual(dmg, sbs._TORP_DAMAGE)           # bad damage -> default
+        problems = sbs.torp_validate("Junk")
+        self.assertTrue(any("damage" in p for p in problems))
+        self.assertTrue(any("warhead" in p for p in problems))
+        self.assertTrue(any("behaviour" in p for p in problems))
+        # A clean def reports no problems; an undefined one is fine (uses defaults).
+        sbs.set_shared_string("Good", "warhead:blast;damage:5;blast_radius:1000;behavior:homing;")
+        self.assertEqual(sbs.torp_validate("Good"), [])
+        self.assertEqual(sbs.torp_validate("NeverDefined"), [])
+
     def test_emp_reduce_shields_halves_each_facing(self):
         # The EMP one-shot AoE halves each facing's CURRENT shields within the blast
         # radius (0 hull); ships outside the radius are untouched.

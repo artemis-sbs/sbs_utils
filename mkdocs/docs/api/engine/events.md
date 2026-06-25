@@ -233,7 +233,10 @@ Drone damage is **difficulty-independent** (15 at diff 1, 5 and 11).
   `"...;warhead:blast;damage:5;blast_radius:1000;behavior:homing;lifetime:25;"`. The
   mock **reads these** (`_torp_attrs` parses the shared string) so it honors *any*
   mission's torp definitions — it's not tied to LegendaryMissions — and falls back to
-  LM-equivalent per-kind defaults only when a torp isn't registered.
+  LM-equivalent per-kind defaults only when a torp isn't registered. A **malformed**
+  torp string degrades gracefully (bad numeric → default, unknown warhead → single
+  hit, unknown behaviour → homing) and warns once; `sbs.torp_validate(key)` returns a
+  list of problems for a definition (empty = clean) for missions/tools to check.
 - `warhead`: `standard` = single-target hull; `blast` = a **lingering, growing-ring**
   AoE (see below); `reduce_shields` = halve the target(s)' shields. `behaviour`:
   `homing` or `mine` (stationary, detonates on proximity). `blast_radius` default 1000,

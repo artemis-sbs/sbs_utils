@@ -2740,6 +2740,29 @@ def _unit_toward(src, tgt):
     return (f.x, f.y, f.z)
 
 
+# Known torpedo warhead / behaviour tokens, for validating mission torp strings.
+_TORP_WARHEADS = ("standard", "blast", "reduce_shields")
+_TORP_BEHAVIORS = ("homing", "mine")
+_torp_warned: set = set()   # dedupe: warn once per (torp, problem)
+
+
+def _torp_warn(kind: str, msg: str) -> None:
+    """Warn (once) about a malformed mission torpedo definition."""
+    key = (kind, msg)
+    if key not in _torp_warned:
+        _torp_warned.add(key)
+        print("[mock] torpedo %r: %s" % (kind, msg))
+
+
+def _torp_num(kind: str, name: str, raw, default: float) -> float:
+    """Parse a torp numeric attribute; on a bad value warn once and use `default`."""
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        _torp_warn(kind, "non-numeric %s=%r; using %s" % (name, raw, default))
+        return float(default)
+
+
 def _torp_attrs(kind: str) -> dict:
     """Resolve a torpedo's attributes, PREFERRING the definition the mission registered
     as a shared string via torpedo_type() - the engine's actual storage, format
@@ -2761,12 +2784,22 @@ def _torp_attrs(kind: str) -> dict:
         kk, sep, vv = kv.partition(":")
         if sep and kk.strip():
             d[kk.strip()] = vv.strip()
+    warhead = str(d.get("warhead", "standard"))
+    behavior = str(d.get("behavior", "homing"))
+    # Validate against known tokens - unknown ones still degrade gracefully (an
+    # unknown warhead -> single hit, an unknown behaviour -> homing) but warn once
+    # so a malformed mission torp string is noticed.
+    for tok in warhead.split(","):
+        if tok.strip() and tok.strip() not in _TORP_WARHEADS:
+            _torp_warn(kind, "unknown warhead '%s'" % tok.strip())
+    if behavior not in _TORP_BEHAVIORS:
+        _torp_warn(kind, "unknown behaviour '%s'" % behavior)
     return {
-        "warhead": str(d.get("warhead", "standard")),
-        "damage": float(d.get("damage", _TORP_DAMAGE)),
-        "blast_radius": float(d.get("blast_radius", _TORP_BLAST_RADIUS)),
-        "behavior": str(d.get("behavior", "homing")),
-        "lifetime": float(d.get("lifetime", _TORP_BLAST_LIFETIME)),
+        "warhead": warhead,
+        "damage": _torp_num(kind, "damage", d.get("damage", _TORP_DAMAGE), _TORP_DAMAGE),
+        "blast_radius": _torp_num(kind, "blast_radius", d.get("blast_radius", _TORP_BLAST_RADIUS), _TORP_BLAST_RADIUS),
+        "behavior": behavior,
+        "lifetime": _torp_num(kind, "lifetime", d.get("lifetime", _TORP_BLAST_LIFETIME), _TORP_BLAST_LIFETIME),
     }
 
 
@@ -2782,6 +2815,38 @@ def _torp_profile(kind: str) -> "tuple[float, float, str]":
     if "blast" in warhead:
         return a["damage"], a["blast_radius"], "blast"
     return a["damage"], 0.0, "single"
+
+
+def torp_validate(kind: str) -> "list[str]":
+    """Detect problems in a torpedo's shared-string definition (set by torpedo_type()).
+    Returns a list of human-readable problems - empty if the def is clean (or absent,
+    which just means defaults are used). Lets tools/tests check a mission's torp string
+    without firing one. _torp_attrs degrades gracefully on these same problems."""
+    problems = []
+    s = sim.shared_strings.get(kind, "") if sim is not None else ""
+    if not s:
+        return problems
+    d = {}
+    for kv in s.split(";"):
+        if not kv.strip():
+            continue
+        kk, sep, vv = kv.partition(":")
+        if not sep:
+            problems.append("malformed entry %r (missing ':')" % kv)
+        else:
+            d[kk.strip()] = vv.strip()
+    for name in ("damage", "blast_radius", "lifetime", "speed"):
+        if name in d:
+            try:
+                float(d[name])
+            except ValueError:
+                problems.append("non-numeric %s=%r" % (name, d[name]))
+    for tok in d.get("warhead", "standard").split(","):
+        if tok.strip() and tok.strip() not in _TORP_WARHEADS:
+            problems.append("unknown warhead %r" % tok.strip())
+    if d.get("behavior", "homing") not in _TORP_BEHAVIORS:
+        problems.append("unknown behaviour %r" % d.get("behavior"))
+    return problems
 
 
 def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
