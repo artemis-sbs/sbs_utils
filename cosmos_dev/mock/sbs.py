@@ -543,6 +543,12 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
             ds.set("beamArcWidth",    float(b.get("arcwidth",       360)), i)
             ds.set("beamBarrelAngle", float(b.get("barrel_angle",     0)), i)
 
+    # Torpedo tubes — shipData "tubecount". torpedoes are player-fired, so this lets
+    # _physics_launchers auto-fire a player ship's torpedoes (NPCs never torpedo).
+    tubes = data.get("tubecount")
+    if tubes is not None:
+        ds.set("torpedo_tube_count", int(tubes))
+
     # Torpedoes — starting loadout. shipData "torpedostart" is a list of single-key
     # {type: count} dicts (or a {type: count} dict). Seed {Type}_NUM/_MAX and the
     # type list so the weapons/refit/ship_data systems see the ship's torpedoes

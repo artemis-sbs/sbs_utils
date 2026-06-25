@@ -132,6 +132,12 @@ class TestMockProjectiles(unittest.TestCase):
         o._pos = sbs.vec3(*pos)
         return oid, o
 
+    def test_loader_sets_torpedo_tube_count_from_tubecount(self):
+        oid = self.sim.create_space_object("behav_playership", "", 0x20)
+        o = self.sim.space_objects[oid]
+        sbs._apply_ship_data_to_object(o, {"tubecount": 4})
+        self.assertEqual(o.data_set.get("torpedo_tube_count"), 4)
+
     def test_player_autonomous_torpedo_fire(self):
         aid, a = self._player(pos=(0, 0, 0))
         a.data_set.set("torpedo_tube_count", 1)
