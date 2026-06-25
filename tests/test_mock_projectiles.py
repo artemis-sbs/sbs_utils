@@ -124,33 +124,42 @@ class TestMockProjectiles(unittest.TestCase):
         self.assertEqual(tags, ["damage", "station_killed"])
         self.assertNotIn(tid, self.sim.space_objects)
 
-    # --- autonomous NPC fire -----------------------------------------------
-    def test_npc_autonomous_torpedo_fire(self):
-        aid, a = self._hulled(pos=(0, 0, 0))
+    # --- autonomous fire: torpedoes are PLAYER-only, drones are NPC (elite) -----
+    def _player(self, pos=(0, 0, 0)):
+        # A player firer (abits PLAYER 0x20) - torpedoes are player-exclusive.
+        oid = self.sim.create_space_object("behav_playership", "", 0x20)
+        o = self.sim.space_objects[oid]
+        o._pos = sbs.vec3(*pos)
+        return oid, o
+
+    def test_player_autonomous_torpedo_fire(self):
+        aid, a = self._player(pos=(0, 0, 0))
         a.data_set.set("torpedo_tube_count", 1)
         tid, t = self._hulled(100, pos=(1000, 0, 0))      # within _TORP_RANGE
-        a.data_set.set("target_id", tid)
+        a.data_set.set("weapon_target_UID", tid)
         _drain()
         sbs._physics_launchers(self.sim, [(aid, a)], dt=0.5)
-        ev = _drain()
-        self.assertEqual([e[0] for e in ev], ["player_launches_missile"])
+        self.assertEqual([e[0] for e in _drain()], ["player_launches_missile"])
         self.assertEqual(len(sbs._projectiles), 1)
         # cooldown -> no immediate refire
         sbs._physics_launchers(self.sim, [(aid, a)], dt=0.5)
         self.assertEqual([e for e in _drain() if e[0] == "player_launches_missile"], [])
 
-    def test_launcher_uses_weapon_target_uid(self):
-        # player-style weapon target drives missile launch too
-        aid, a = self._hulled(pos=(0, 0, 0))
+    def test_npc_does_not_fire_torpedoes(self):
+        # NPCs never torpedo, even with tubes loaded (torpedoes are player-exclusive).
+        aid, a = self._hulled(pos=(0, 0, 0))              # NPC (abits 0x10)
         a.data_set.set("torpedo_tube_count", 1)
         tid, t = self._hulled(100, pos=(1000, 0, 0))
-        a.data_set.set("weapon_target_UID", tid)
+        a.data_set.set("target_id", tid)
         _drain()
         sbs._physics_launchers(self.sim, [(aid, a)], dt=0.5)
-        self.assertEqual([e[0] for e in _drain()], ["player_launches_missile"])
+        self.assertEqual(_drain(), [])
+        self.assertEqual(len(sbs._projectiles), 0)
 
     def test_npc_autonomous_drone_fire(self):
+        # Drones fire only when elite_drone_launcher==1 (Torgoth/Ximni capability).
         aid, a = self._hulled(pos=(0, 0, 0))
+        a.data_set.set("elite_drone_launcher", 1)
         a.data_set.set("drone_damage", 15.0)
         a.data_set.set("drone_launch_max_range", 3000.0)
         tid, t = self._hulled(100, pos=(1000, 0, 0))
@@ -159,10 +168,23 @@ class TestMockProjectiles(unittest.TestCase):
         sbs._physics_launchers(self.sim, [(aid, a)], dt=0.5)
         self.assertEqual([e[0] for e in _drain()], ["ship_launches_drone"])
 
-    def test_no_fire_out_of_range(self):
+    def test_no_drone_without_elite_flag(self):
+        # drone_* values present but no elite_drone_launcher -> no drone fire.
         aid, a = self._hulled(pos=(0, 0, 0))
-        a.data_set.set("torpedo_tube_count", 1)
-        tid, t = self._hulled(100, pos=(99999, 0, 0))     # beyond _TORP_RANGE
+        a.data_set.set("drone_damage", 15.0)
+        a.data_set.set("drone_launch_max_range", 3000.0)
+        tid, t = self._hulled(100, pos=(1000, 0, 0))
+        a.data_set.set("target_id", tid)
+        _drain()
+        sbs._physics_launchers(self.sim, [(aid, a)], dt=0.5)
+        self.assertEqual(_drain(), [])
+
+    def test_no_fire_out_of_range(self):
+        # Elite drone NPC with target beyond drone_launch_max_range -> no fire.
+        aid, a = self._hulled(pos=(0, 0, 0))
+        a.data_set.set("elite_drone_launcher", 1)
+        a.data_set.set("drone_launch_max_range", 3000.0)
+        tid, t = self._hulled(100, pos=(99999, 0, 0))     # beyond range
         a.data_set.set("target_id", tid)
         _drain()
         sbs._physics_launchers(self.sim, [(aid, a)], dt=0.5)

@@ -516,6 +516,14 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
         for _i in range(4):
             ds.set("system_max_damage", cap, _i)
 
+    # Drone capability: shipData marks drone-launcher hulls (Torgoth + Ximni) with a
+    # drone_launch_timer. The engine flags those elite_drone_launcher=1 at runtime
+    # (the flag is not in shipData), so the mock does the same -> _physics_launchers
+    # fires drones for them. drone_damage / drone_launch_max_range use mock fallbacks
+    # (also engine-set, not in shipData) until calibrated from a data_capture run.
+    if data.get("drone_launch_timer"):
+        ds.set("elite_drone_launcher", 1)
+
     # Shields — per-facing array
     shields = data.get("shields")
     if shields:
@@ -2562,7 +2570,13 @@ _PROJECTILE_HIT_RADIUS = 300.0
 _TORP_RANGE = 6000.0
 _TORP_CYCLE = 8.0
 _TORP_DAMAGE = 40.0
-_DRONE_CYCLE = 10.0
+# Drone fallbacks when the engine-set fields are absent. drone_launch_timer comes
+# from shipData (Torgoth + Ximni hulls); elite_drone_launcher / drone_damage /
+# drone_launch_max_range are set by the engine at runtime (not in shipData), so the
+# mock uses these defaults until calibrated from a data_capture run.  TODO: calibrate.
+_DRONE_CYCLE = 10.0          # fallback for drone_launch_timer
+_DRONE_DAMAGE = 30.0         # fallback for drone_damage          (uncalibrated)
+_DRONE_RANGE = 4000.0        # fallback for drone_launch_max_range (uncalibrated)
 
 # System heat is the engine field `system_cur_heat` (per SHPSYS, 0..1):
 # engineering overpower / insufficient coolant. The mock doesn't simulate
@@ -2817,8 +2831,9 @@ def _physics_launchers(sim, active: list, dt: float) -> None:
         dz = a._pos.z - target._pos.z
         dist2 = dx * dx + dy * dy + dz * dz
 
-        # Torpedoes
-        if (ds.get("torpedo_tube_count") or 0) > 0:
+        # Torpedoes are PLAYER-EXCLUSIVE (a weapons-console crew fires them; the mock
+        # auto-fires at the weapon target when tubes are loaded). NPCs never torpedo.
+        if (a._abits & 0x20) and (ds.get("torpedo_tube_count") or 0) > 0:
             cd = getattr(a, "_torp_cooldown", 0.0)
             if cd > 0:
                 a._torp_cooldown = cd - dt
@@ -2828,16 +2843,19 @@ def _physics_launchers(sim, active: list, dt: float) -> None:
                     launch_missile(aid, target_id)
                     a._torp_cooldown = _TORP_CYCLE
 
-        # Drones (capability from data_set)
-        d_dmg = ds.get("drone_damage") or 0.0
-        d_rng = ds.get("drone_launch_max_range") or 0.0
-        if d_dmg > 0 and d_rng > 0:
+        # Drones are an NPC capability flagged by elite_drone_launcher==1 (Torgoth +
+        # Ximni; set from shipData's drone_launch_timer). Uses the engine's
+        # drone_damage / drone_launch_max_range / drone_launch_timer (mock fallbacks
+        # when unset). A drone launches when the target is within max range.
+        if (ds.get("elite_drone_launcher") or 0) >= 1:
             cd = getattr(a, "_drone_cooldown", 0.0)
             if cd > 0:
                 a._drone_cooldown = cd - dt
-            elif dist2 <= d_rng * d_rng:
-                launch_drone(aid, target_id, damage=d_dmg)
-                a._drone_cooldown = ds.get("drone_launch_timer") or _DRONE_CYCLE
+            else:
+                d_rng = ds.get("drone_launch_max_range") or _DRONE_RANGE
+                if dist2 <= d_rng * d_rng:
+                    launch_drone(aid, target_id, damage=(ds.get("drone_damage") or _DRONE_DAMAGE))
+                    a._drone_cooldown = ds.get("drone_launch_timer") or _DRONE_CYCLE
 
 
 def _physics_collision(sim, active: list) -> None:
