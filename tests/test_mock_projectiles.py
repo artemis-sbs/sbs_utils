@@ -70,16 +70,16 @@ class TestMockProjectiles(unittest.TestCase):
         self.assertEqual(t.data_set.get("armor"), 85.0)
 
     def test_torp_profile_by_kind(self):
-        # Per LM torpedo_prefabs (damage, blast_radius, effect): Homing 35 single hull,
-        # Nuke/Mine 5 AoE hull (blast), EMP 50 AoE hull + shield-halve (blast+reduce).
-        self.assertEqual(sbs._torp_profile("Homing"), (sbs._TORP_DAMAGE, 0.0, "hull"))
-        self.assertEqual(sbs._torp_profile("Nuke"), (sbs._TORP_BLAST_DAMAGE, sbs._TORP_BLAST_RADIUS, "hull"))
-        self.assertEqual(sbs._torp_profile("Mine"), (sbs._TORP_BLAST_DAMAGE, sbs._TORP_BLAST_RADIUS, "hull"))
-        self.assertEqual(sbs._torp_profile("EMP"), (sbs._TORP_EMP_DAMAGE, sbs._TORP_BLAST_RADIUS, "emp"))
+        # Per LM torpedo_prefabs (damage, blast_radius, effect): Homing 35 single-target;
+        # Nuke/Mine a lingering 'blast' field (per_ripple 5); EMP one-shot 'emp' (0 hull).
+        self.assertEqual(sbs._torp_profile("Homing"), (sbs._TORP_DAMAGE, 0.0, "single"))
+        self.assertEqual(sbs._torp_profile("Nuke"), (sbs._TORP_BLAST_PER_RIPPLE, sbs._TORP_BLAST_RADIUS, "blast"))
+        self.assertEqual(sbs._torp_profile("Mine"), (sbs._TORP_BLAST_PER_RIPPLE, sbs._TORP_BLAST_RADIUS, "blast"))
+        self.assertEqual(sbs._torp_profile("EMP"), (0.0, sbs._TORP_BLAST_RADIUS, "emp"))
 
     def test_emp_reduce_shields_halves_each_facing(self):
-        # The EMP reduce_shields effect halves each facing's CURRENT shields within the
-        # blast radius (the hull blast is applied separately); ships outside untouched.
+        # The EMP one-shot AoE halves each facing's CURRENT shields within the blast
+        # radius (0 hull); ships outside the radius are untouched.
         nid, n = self._hulled(1000, pos=(0, 0, 0))        # in radius
         n.data_set.set("shield_count", 2)
         n.data_set.set("shield_val", 100.0, 0); n.data_set.set("shield_val", 60.0, 1)
@@ -89,19 +89,25 @@ class TestMockProjectiles(unittest.TestCase):
         sbs._apply_emp(sbs.vec3(0, 0, 0), 1000.0, source_id=999)
         self.assertEqual(n.data_set.get("shield_val", 0), 50.0)   # halved
         self.assertEqual(n.data_set.get("shield_val", 1), 30.0)   # halved
+        self.assertEqual(n.data_set.get("armor"), 1000)           # 0 hull
         self.assertEqual(f.data_set.get("shield_val", 0), 80.0)   # outside radius: untouched
 
-    def test_blast_aoe_falloff(self):
-        # blast warhead (Nuke/Mine/EMP): everything in the blast radius takes hull
-        # damage with linear falloff (full at centre, 0 at the edge); outside untouched.
-        nid, n = self._hulled(1000, pos=(0, 0, 0))        # at centre
-        mid, m = self._hulled(1000, pos=(500, 0, 0))      # half radius
-        fid, f = self._hulled(1000, pos=(1500, 0, 0))     # outside 1000 radius
-        _drain()
-        sbs._apply_blast(sbs.vec3(0, 0, 0), 100.0, 1000.0, source_id=999)
-        self.assertAlmostEqual(n.data_set.get("armor"), 1000 - 100, delta=0.1)  # full at centre
-        self.assertAlmostEqual(m.data_set.get("armor"), 1000 - 50, delta=0.1)   # half at 500
-        self.assertEqual(f.data_set.get("armor"), 1000)                         # untouched
+    def test_blast_growing_ring_accumulates(self):
+        # A lingering Nuke/Mine blast: the ring grows over the lifetime, so a centred
+        # target is caught from the start and accumulates ~per_ripple*ripples (~120),
+        # while an off-centre target is reached late by the ring and takes much less.
+        cid, c = self._hulled(10000, pos=(0, 0, 0))       # at the epicentre
+        oid, o = self._hulled(10000, pos=(800, 0, 0))     # off-centre (reached late)
+        sbs._register_blast(sbs.vec3(0, 0, 0), sbs._TORP_BLAST_PER_RIPPLE, sbs._TORP_BLAST_RADIUS, 999)
+        sbs.resume_sim()
+        # run the full blast lifetime
+        for _ in range(int(sbs._TORP_BLAST_LIFETIME / sbs._TORP_BLAST_RIPPLE_INTERVAL) + 1):
+            sbs._physics_blasts(self.sim, sbs._TORP_BLAST_RIPPLE_INTERVAL)
+        centre_dmg = 10000 - c.data_set.get("armor")
+        off_dmg = 10000 - o.data_set.get("armor")
+        self.assertGreater(centre_dmg, 100.0)             # centred ~ full accumulation (~120)
+        self.assertGreater(centre_dmg, 2 * off_dmg)       # far less to the off-centre target
+        self.assertGreater(off_dmg, 0.0)                  # but the ring did reach it
 
     def test_projectile_travels_then_impacts(self):
         sid, s = self._hulled(pos=(0, 0, 0))

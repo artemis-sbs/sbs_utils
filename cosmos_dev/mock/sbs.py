@@ -37,6 +37,11 @@ _contact_pairs: dict = {}
 # collision/beam passes): {pos, target_id, source_id, damage, speed, life, kind}.
 _projectiles: list = []
 
+# Lingering Nuke/Mine blast fields (registered on detonation). Each ripples
+# per_ripple hull damage (distance falloff) once per interval until its lifetime
+# expires: {pos, per_ripple, radius, source_id, life, since_ripple}.
+_blasts: list = []
+
 # Beam fires THIS tick: (firer_id, target_id) pairs. Cleared at the start of each
 # physics_tick and appended to by _physics_beams; the mockgui reads it after the
 # tick to draw transient beam lines. (Beams are instantaneous, so it's per-tick.)
@@ -148,6 +153,7 @@ def create_new_sim() -> None:
         sim.__init__()   # reset fields in place; preserves object identity
     _contact_pairs = {}
     _projectiles.clear()
+    _blasts.clear()
     _beam_fires.clear()
     return sim
 
@@ -2618,10 +2624,16 @@ _TORP_CYCLE = 8.0
 # blast = AoE hull with linear distance falloff; reduce_shields = halve shields.
 # Torpedoes are player-only.
 _TORP_DAMAGE = 35.0          # Homing  (standard, single target; player auto-fire default)
-_TORP_BLAST_DAMAGE = 5.0     # Nuke / Mine (blast: AoE hull, falloff)
-_TORP_EMP_DAMAGE = 50.0      # EMP (blast + reduce_shields): AoE hull base
-_TORP_BLAST_RADIUS = 1000.0  # blast / EMP AoE radius (LM default)
-_TORP_EMP_SHIELD_MULT = 0.5  # EMP reduce_shields: halve each ship's CURRENT shields
+# The LM "blast" warhead (Nuke/Mine) is a LINGERING field: it applies its `damage`
+# (5) PER RIPPLE, once per ripple interval, for the torpedo's `lifetime`. A centred
+# target therefore accumulates 5 x (lifetime/interval) ~= 5 x 25 ~= ~120-125 - which
+# is the ~120 the data_capture run saw build up at the epicentre. Distance falloff
+# applies per ripple. EMP is a one-shot AoE shield-halve (0 hull, per capture).
+_TORP_BLAST_PER_RIPPLE = 5.0    # LM blast `damage` (applied each ripple)
+_TORP_BLAST_LIFETIME = 25.0     # sim-seconds the blast lingers (LM torpedo `lifetime`)
+_TORP_BLAST_RIPPLE_INTERVAL = 1.0  # sim-seconds between ripples (~25 ripples -> ~125)
+_TORP_BLAST_RADIUS = 1000.0     # blast / EMP AoE radius (LM default)
+_TORP_EMP_SHIELD_MULT = 0.5     # EMP reduce_shields: halve each ship's CURRENT shields
 # Drone fallbacks when the engine-set fields are absent. drone_launch_timer comes
 # from shipData (Torgoth + Ximni hulls); elite_drone_launcher / drone_damage /
 # drone_launch_max_range are set by the engine at runtime (not in shipData), so the
@@ -2724,16 +2736,17 @@ def _unit_toward(src, tgt):
 
 
 def _torp_profile(kind: str) -> "tuple[float, float, str]":
-    """(per-hit damage, blast_radius, effect) for a torpedo `kind`, per the LM
-    torpedo_prefabs definitions: Homing -> 35 single-target hull (standard); Nuke/Mine
-    -> 5 AoE hull (blast, distance falloff); EMP -> 50 AoE hull (blast) AND halves
-    shields ('emp' = blast + reduce_shields). Default = Homing."""
+    """(damage, blast_radius, effect) for a torpedo `kind`, per the LM torpedo_prefabs:
+    Homing -> 35 single-target hull (effect 'single'); Nuke/Mine -> a lingering 'blast'
+    field dealing _TORP_BLAST_PER_RIPPLE (5) per ripple over its lifetime (accumulates
+    to ~120 at the centre, distance falloff); EMP -> one-shot 'emp' AoE that halves
+    shields (0 hull). Default = Homing."""
     k = (kind or "").lower()
     if k == "emp":
-        return _TORP_EMP_DAMAGE, _TORP_BLAST_RADIUS, "emp"
+        return 0.0, _TORP_BLAST_RADIUS, "emp"
     if k in ("nuke", "mine"):
-        return _TORP_BLAST_DAMAGE, _TORP_BLAST_RADIUS, "hull"
-    return _TORP_DAMAGE, 0.0, "hull"
+        return _TORP_BLAST_PER_RIPPLE, _TORP_BLAST_RADIUS, "blast"
+    return _TORP_DAMAGE, 0.0, "single"
 
 
 def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
@@ -2790,30 +2803,59 @@ def launch_drone(source_id: int, target_id: int, damage: float = 20.0,
     })
 
 
-def _apply_blast(pos, base_damage: float, radius: float, source_id: int) -> None:
-    """Area-of-effect detonation (Nuke / Mine): damage every object within `radius`
-    of `pos`, with linear falloff (full at the centre, 0 at the edge). apply_damage
-    itself filters to damageable objects (ships/stations)."""
-    if sim is None or radius <= 0.0:
+def _register_blast(pos, per_ripple: float, max_radius: float, source_id: int) -> None:
+    """Register a lingering Nuke/Mine blast at `pos`. _physics_blasts ripples it (see
+    that function): the ring grows from 0 to max_radius over _TORP_BLAST_LIFETIME,
+    dealing per_ripple hull each ripple to whatever is currently inside it."""
+    _blasts.append({
+        "pos": vec3(pos.x, pos.y, pos.z),
+        "per_ripple": float(per_ripple), "max_radius": float(max_radius),
+        "source_id": source_id, "age": 0.0, "since": 0.0,
+    })
+
+
+def _blast_ripple(pos, per_ripple: float, radius: float, source_id: int) -> None:
+    """One ripple of a growing blast: deal per_ripple hull (flat) to every ship inside
+    the current ring of `radius`. The distance grading emerges over time, not per
+    ripple - the expanding ring reaches closer ships sooner, so they take more ripples
+    (a direct hit catches them all, ~120; something off-centre is caught late = less)."""
+    if sim is None or radius <= 0.0 or per_ripple <= 0.0:
         return
+    r2 = radius * radius
     for oid, o in list(sim.space_objects.items()):
         if oid == source_id:
             continue
         dx = o._pos.x - pos.x
         dy = o._pos.y - pos.y
         dz = o._pos.z - pos.z
-        dist = math.sqrt(dx * dx + dy * dy + dz * dz)
-        if dist <= radius:
-            dmg = base_damage * (1.0 - dist / radius)
-            if dmg > 0.0:
-                apply_damage(oid, dmg, source_id)
+        if dx * dx + dy * dy + dz * dz <= r2:
+            apply_damage(oid, per_ripple, source_id)
+
+
+def _physics_blasts(sim, dt: float) -> None:
+    """Advance lingering Nuke/Mine blast fields. Each grows its ring from 0 to
+    max_radius over _TORP_BLAST_LIFETIME and, once per _TORP_BLAST_RIPPLE_INTERVAL,
+    deals per_ripple hull to everything currently inside the ring; expires at lifetime."""
+    if not _blasts:
+        return
+    remaining = []
+    for bl in _blasts:
+        bl["age"] += dt
+        bl["since"] += dt
+        if bl["since"] >= _TORP_BLAST_RIPPLE_INTERVAL:
+            bl["since"] -= _TORP_BLAST_RIPPLE_INTERVAL
+            frac = min(1.0, bl["age"] / _TORP_BLAST_LIFETIME)
+            _blast_ripple(bl["pos"], bl["per_ripple"], bl["max_radius"] * frac, bl["source_id"])
+        if bl["age"] < _TORP_BLAST_LIFETIME:
+            remaining.append(bl)
+    _blasts[:] = remaining
 
 
 def _apply_emp(pos, radius: float, source_id: int) -> None:
-    """EMP reduce_shields effect: halve the CURRENT shields (per facing) of every ship
-    within `radius` of `pos`. This is the shield-strip half of an EMP only - the hull
-    blast damage is applied separately via _apply_blast (which emits the //damage
-    events), so this stays silent to avoid double-counting."""
+    """EMP detonation (one-shot AoE reduce_shields): halve the CURRENT shields (per
+    facing) of every ship within `radius` of `pos`. 0 hull damage (per capture - EMP
+    is a shield/system pulse). Emits a damage event per affected ship so //damage
+    routes fire (the engine routes EMP hits with a 0 hull amount)."""
     if sim is None or radius <= 0.0:
         return
     r2 = radius * radius
@@ -2827,10 +2869,14 @@ def _apply_emp(pos, radius: float, source_id: int) -> None:
             continue
         ds = o.data_set
         n = int(ds.get("shield_count", 0) or 0)
+        hit = False
         for i in range(n):
             sv = ds.get("shield_val", i) or 0.0
             if sv > 0.0:
                 ds.set("shield_val", sv * _TORP_EMP_SHIELD_MULT, i)
+                hit = True
+        if hit:
+            _pending_physics_events.put(("damage", "", source_id, oid))
 
 
 def _nearest_hittable(space, pos, radius: float, exclude_id: int) -> int:
@@ -2878,14 +2924,14 @@ def _physics_projectiles(sim, dt: float) -> None:
             pos.z += d[2] * step
             hit = _nearest_hittable(space, pos, _PROJECTILE_HIT_RADIUS, p["source_id"])
             if hit:
+                eff = p.get("effect", "single")
                 blast = p.get("blast_radius", 0.0)
-                if p.get("effect") == "emp" and blast > 0.0:
-                    _apply_blast(pos, p["damage"], blast, p["source_id"])   # EMP blast hull (50)
-                    _apply_emp(pos, blast, p["source_id"])                  # EMP reduce_shields
-                elif blast > 0.0:
-                    _apply_blast(pos, p["damage"], blast, p["source_id"])   # Nuke/Mine AoE hull
+                if eff == "blast" and blast > 0.0:
+                    _register_blast(pos, p["damage"], blast, p["source_id"])  # Nuke/Mine: lingering ring
+                elif eff == "emp" and blast > 0.0:
+                    _apply_emp(pos, blast, p["source_id"])                    # EMP: one-shot shield-halve
                 else:
-                    apply_damage(hit, p["damage"], p["source_id"])          # Homing single hit
+                    apply_damage(hit, p["damage"], p["source_id"])            # Homing: single hit
                 continue  # consumed on impact
             remaining.append(p)
             continue
@@ -3182,6 +3228,7 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
         #     projectiles travel and deal damage on impact.
         _physics_launchers(sim, active, dt)
         _physics_projectiles(sim, dt)
+        _physics_blasts(sim, dt)
         _physics_heat(active, dt)
 
         # 4. Passive systems — shield regen + APU energy, active objects only.

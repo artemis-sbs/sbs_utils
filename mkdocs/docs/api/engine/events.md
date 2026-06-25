@@ -229,25 +229,33 @@ Drone damage is **difficulty-independent** (15 at diff 1, 5 and 11).
   from `shipData` `tubecount` (code).
 - **The authoritative definitions are the LM torpedo prefabs**, which LM's
   `start_server` spawns (so any LM mission uses these). `warhead`: `standard` =
-  single-target hull; `blast` = AoE hull with distance falloff (default
-  `blast_radius` 1000); `reduce_shields` = halve the target(s)' shields. `behaviour`:
-  `homing` or `mine` (stationary, detonates on proximity).
+  single-target hull; `blast` = a **lingering, growing-ring** AoE (see below);
+  `reduce_shields` = halve the target(s)' shields. `behaviour`: `homing` or `mine`
+  (stationary, detonates on proximity). `blast_radius` default 1000, `lifetime` 25 s.
 
 | Type | warhead | damage | radius | behaviour |
 |---|---|---|---|---|
-| **Homing** | standard | **35** | – | homing |
-| **EMP** | blast + reduce_shields | **50** hull **and** halves shields | 1000 | homing |
-| **Nuke** | blast | **5** (AoE falloff) | 1000 | homing |
-| **Mine** | blast | **5** (AoE falloff) | 1000 | **mine** (placed, proximity) |
+| **Homing** | standard | **35** (single hit) | – | homing |
+| **EMP** | blast + reduce_shields | **0 hull**, halves shields | 1000 | homing |
+| **Nuke** | blast | **5 per ripple** → ~120 at centre | 1000 | homing |
+| **Mine** | blast | **5 per ripple** → ~120 at centre | 1000 | **mine** (placed, proximity) |
 | Tag | standard | 0 | – | homing |
 
-!!! note "LM definitions vs the capture"
+!!! note "The blast warhead is a growing ring, not a single hit"
+    A `blast` torp doesn't deal its damage at once. It detonates into a ring that
+    **grows from 0 to `blast_radius` over the `lifetime`**, and **each ripple** deals
+    `damage` (5) to whatever is currently inside the ring. So a **direct hit** is in
+    the ring from the first ripple and accumulates all of them (~120, matching the
+    `//damage` `sub_float` building up to ~120 in the capture); something **off-centre**
+    is reached by the ring later and takes fewer ripples → less. Because the ring grows
+    linearly, the *total* on a **stationary** target equals a linear distance falloff
+    (`~120 × (1 − d/radius)`) — but the ring also catches ships that **drift in** over
+    the lifetime, which a single hit wouldn't. The mock models this in `_physics_blasts`
+    (`_register_blast` on detonation); EMP is a one-shot AoE shield-halve (`_apply_emp`).
+
     The `data_capture` run measured the engine's **built-in** torps (Homing 35, Nuke
-    ~120 AoE, EMP 0 hull + shield drop) because its custom flow didn't run LM's
-    `start_server`. Real LM missions **redefine** torps via the prefabs above
-    (`torpedo_type()`), so the mock follows the LM values. The mock's `_apply_emp`
-    does the `reduce_shields` half (halve shields, calibrated to 50%); `_apply_blast`
-    does the blast hull.
+    building to ~120, EMP 0 hull) — its custom flow skipped `start_server` — but the
+    net values agree with the LM definitions interpreted as per-ripple accumulation.
 
 ---
 
