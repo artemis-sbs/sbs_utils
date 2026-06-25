@@ -2634,6 +2634,11 @@ _TORP_BLAST_LIFETIME = 25.0     # sim-seconds the blast lingers (LM torpedo `lif
 _TORP_BLAST_RIPPLE_INTERVAL = 1.0  # sim-seconds between ripples (~25 ripples -> ~125)
 _TORP_BLAST_RADIUS = 1000.0     # blast / EMP AoE radius (LM default)
 _TORP_EMP_SHIELD_MULT = 0.5     # EMP reduce_shields: halve each ship's CURRENT shields
+# Mine (LM behaviour 'mine'): placed at the firing ship and stationary; it arms and
+# detonates (its blast) when any other ship comes within the trigger radius. Persists
+# until triggered or its life expires.
+_TORP_MINE_TRIGGER = 400.0      # proximity radius that sets a placed mine off
+_TORP_MINE_LIFE = 120.0         # sim-seconds a placed mine stays armed if untriggered
 # Drone fallbacks when the engine-set fields are absent. drone_launch_timer comes
 # from shipData (Torgoth + Ximni hulls); elite_drone_launcher / drone_damage /
 # drone_launch_max_range are set by the engine at runtime (not in shipData), so the
@@ -2755,11 +2760,12 @@ def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
     """Mock-only: launch a torpedo of `kind` (Homing / Nuke / Mine / EMP).
 
     Emits a ``player_launches_missile`` event (routes //launch/missile, with
-    extra_extra_tag=kind, origin=source, selected=target). It flies straight toward
-    the target's launch position; on impact Homing hits the single nearest object,
-    while Nuke/Mine deal area-of-effect damage (blast radius, distance falloff) to
-    everything around the impact point. `damage` defaults to the per-kind value but
-    can be overridden (the projectile unit tests pass it explicitly).
+    extra_extra_tag=kind, origin=source, selected=target). Homing flies straight and
+    hits the single nearest object; Nuke detonates into a lingering growing-ring
+    blast; EMP into a one-shot shield-halve; Mine is PLACED at the firing ship and
+    stays put, detonating its blast when another ship comes within the trigger radius.
+    `damage` defaults to the per-kind value but can be overridden (the projectile unit
+    tests pass it explicitly).
     """
     if sim is None:
         return
@@ -2771,6 +2777,15 @@ def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
         damage = prof_dmg
     _pending_physics_events.put(
         ("player_launches_missile", "", source_id, target_id, source_id, kind))
+    if (kind or "").lower() == "mine":
+        # Placed, stationary, proximity-triggered (LM behaviour 'mine').
+        _projectiles.append({
+            "pos": vec3(src._pos.x, src._pos.y, src._pos.z),
+            "source_id": source_id, "kind": "mine",
+            "damage": float(damage), "blast_radius": float(blast),
+            "trigger_radius": _TORP_MINE_TRIGGER, "life": _TORP_MINE_LIFE,
+        })
+        return
     _projectiles.append({
         "pos": vec3(src._pos.x, src._pos.y, src._pos.z),
         "dir": _unit_toward(src, sim.space_objects.get(target_id)),
@@ -2915,6 +2930,14 @@ def _physics_projectiles(sim, dt: float) -> None:
         if p["life"] <= 0:
             continue
         pos = p["pos"]
+        if p.get("kind") == "mine":
+            # Placed mine: stationary; detonate its blast when another ship comes
+            # within the trigger radius, else keep waiting (until life expires).
+            if _nearest_hittable(space, pos, p["trigger_radius"], p["source_id"]):
+                _register_blast(pos, p["damage"], p["blast_radius"], p["source_id"])
+                continue  # consumed on detonation
+            remaining.append(p)
+            continue
         step = p["speed"] * dt
         d = p.get("dir")
         if d is not None:

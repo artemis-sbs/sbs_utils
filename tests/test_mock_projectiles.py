@@ -109,6 +109,23 @@ class TestMockProjectiles(unittest.TestCase):
         self.assertGreater(centre_dmg, 2 * off_dmg)       # far less to the off-centre target
         self.assertGreater(off_dmg, 0.0)                  # but the ring did reach it
 
+    def test_mine_is_placed_and_proximity_triggered(self):
+        # A Mine is placed at the firing ship, stays put, and only detonates (its
+        # growing-ring blast) when ANOTHER ship comes within the trigger radius.
+        sid, s = self._hulled(pos=(0, 0, 0))              # firer (mine dropped here)
+        sbs.launch_missile(sid, sid, kind="Mine")
+        self.assertEqual(len(sbs._projectiles), 1)
+        self.assertEqual(sbs._projectiles[0]["kind"], "mine")
+        # No other ship nearby -> it just sits, no blast.
+        sbs._physics_projectiles(self.sim, dt=1.0)
+        self.assertEqual(len(sbs._blasts), 0)
+        self.assertEqual(len(sbs._projectiles), 1)
+        # An enemy drifts within the trigger radius -> the mine detonates.
+        eid, e = self._hulled(100, pos=(300, 0, 0))       # within _TORP_MINE_TRIGGER (400)
+        sbs._physics_projectiles(self.sim, dt=1.0)
+        self.assertEqual(len(sbs._projectiles), 0)        # mine consumed
+        self.assertEqual(len(sbs._blasts), 1)             # blast registered
+
     def test_projectile_travels_then_impacts(self):
         sid, s = self._hulled(pos=(0, 0, 0))
         tid, t = self._hulled(100, pos=(5000, 0, 0))      # far -> multiple ticks

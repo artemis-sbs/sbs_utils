@@ -251,7 +251,9 @@ Drone damage is **difficulty-independent** (15 at diff 1, 5 and 11).
     linearly, the *total* on a **stationary** target equals a linear distance falloff
     (`~120 × (1 − d/radius)`) — but the ring also catches ships that **drift in** over
     the lifetime, which a single hit wouldn't. The mock models this in `_physics_blasts`
-    (`_register_blast` on detonation); EMP is a one-shot AoE shield-halve (`_apply_emp`).
+    (`_register_blast` on detonation); EMP is a one-shot AoE shield-halve (`_apply_emp`);
+    a **Mine** is placed at the firing ship and stays put, detonating its blast when
+    another ship comes within the trigger radius (`behaviour: mine`).
 
     The `data_capture` run measured the engine's **built-in** torps (Homing 35, Nuke
     building to ~120, EMP 0 hull) — its custom flow skipped `start_server` — but the
