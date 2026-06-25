@@ -63,13 +63,22 @@ route body runs. Confirmed mappings:
 Damage route variants: `//damage/object` (any hit), `//damage/destroy`,
 `//damage/killed`, `//damage/internal` (player system damage), `//damage/heat`.
 
-!!! warning "Where is the damage amount? (TBD)"
-    The `//damage` route does **not** expose a named `DAMAGE_AMOUNT`. If the engine
-    delivers the per-hit amount, it is in an `EVENT` field — most likely `sub_float`
-    or `value_tag`. The `data_capture` mission logs every `EVENT` field from a
-    `//damage/object` route (`capture_damage.json`) to find out which one. Until
-    confirmed, mock combat damage is inferred/calibrated from shield + system_damage
-    deltas. **Update this once a capture shows the field.**
+!!! success "The damage amount is in `sub_float` (capture)"
+    A `//damage/object` capture (`capture_damage.json`) confirms the per-hit fields:
+
+    | `EVENT` field | Carries |
+    |---|---|
+    | `sub_float` | **the damage amount delivered by this hit** (raw weapon damage, e.g. a beam shot `5.5`) |
+    | `sub_tag` | **weapon kind**: `beam`, `drone`, `destroyed` (the fatal hit) |
+    | `origin_id` | source ship |
+    | `selected_id` | target ship |
+    | `value_tag` | source ship's **side** (e.g. `tsn`) |
+    | `extra_tag` | source ship's **name** |
+    | `event_time` | engine time of the hit |
+
+    So to read actual delivered damage, listen on `//damage/object` and use
+    `EVENT.sub_float` (+ `EVENT.sub_tag` for the weapon). The mock does not yet emit
+    `sub_float` on its `damage` events — see the note below.
 
 ### GUI events (code / `cosmos_dev` confirmed)
 
@@ -141,6 +150,11 @@ time constant ≈ 0.8 s NPC / 1.7 s player.
   systems maxed**.
 - Stations use `armor` (= `hullpoints`); ships have no armor.
 
+**Time-to-kill reference** (DIFFICULTY 5, the mock should land near these): cruiser
+duels resolve in ~40–70 s (e.g. `tsn_battle_cruiser` dies ~48 s, `tsn_light_cruiser`
+~60 s, `skaraan_executor` ~67 s); players beat a single enemy in ~37–39 s; stations
+survive a lone attacker for the full 2 min.
+
 ### Shields (capture)
 
 - **Per-facing**, not pooled: a fixed attacker drains only the facing toward it,
@@ -149,13 +163,23 @@ time constant ≈ 0.8 s NPC / 1.7 s player.
 - Regen: each facing recovers at **`repair_rate_shields ÷ shield_count`** per second
   (measured 1.0 → ~0.5/s, 0.1 → ~0.05/s). Rates: player `1.0`, NPC `0.1` (code).
 
-### Beams (capture / code)
+### Beams (capture — `capture_damage.json`, `sub_float`)
 
 - `beamDamage` in the data_set is the per-beam **coefficient** (`1.0` for base
   hulls), **not** the per-shot damage. Per-shot = `set_beam_damages` base × coeff.
+- Per-shot base (coeff 1.0 hulls, DIFFICULTY 5):
+
+| Firer | per-shot | Notes |
+|---|---|---|
+| NPC ship | **≈ 5.5** | base × coeff(1.0) |
+| Player | **≈ 8.9** | players hit ~60% harder than NPCs |
+| Skaraan (elite) NPC | **≈ 12.5–16.5** | their shipData `damage_coeff` ≈ 2.3–3.0 |
+
 - `beamCycleTime ≈ 6 s`, `beamArcWidth = 144°`, `beamRange` 1000–1300 (code/capture).
-- Player per-shot ≈ **6** at diff 5; NPC per-shot is **lower** (≈ half). **(refine
-  from `capture_damage.json`.)**
+- The mock uses one base (`coeff × _BEAM_LOAD_BASE = 6`) for **both** player and NPC,
+  so NPC beams are about right but player beams are ~33% too weak. Real missions
+  that call `set_beam_damages` (LegendaryMissions, scaled by difficulty) override
+  this. **(Mock fallback could split player/NPC bases to 8.9 / 5.5.)**
 
 ### Drones (capture)
 
