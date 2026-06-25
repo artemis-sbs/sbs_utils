@@ -803,25 +803,32 @@ def get_cinematic_camera(clientID: int):
 
     Returns {"cam": (x,y,z), "target": (x,y,z), "mode": str, "ship_id": str}.
     """
-    st = _cinematic.get(clientID)
-    if st is None or sim is None:
+    if sim is None:
         return None
+    st = _cinematic.get(clientID)
+    cinematic_mode = _view_modes.get(clientID, (None, None, None))[2] == "cinematic"
+    if st is None:
+        if not cinematic_mode:
+            return None
+        st = {"script": 0}   # cinematic mode with no scripted camera -> auto
 
     def _obj_pos(oid):
         o = sim.space_objects.get(oid)
         return None if o is None else (o._pos.x, o._pos.y, o._pos.z)
 
     if st["script"] == 0:
-        # Auto chase-cam: behind and above the assigned ship, looking ahead.
-        ship_id = sim.client_ships.get(clientID, 0)
-        o = sim.space_objects.get(ship_id)
+        # Auto cinematic: frame the most "exciting" object (the engine's camera-
+        # decision field) so the view follows the action; fall back to the
+        # assigned ship when nothing is exciting.
+        focus_id = (_most_exciting_id() if cinematic_mode else 0) or sim.client_ships.get(clientID, 0)
+        o = sim.space_objects.get(focus_id)
         if o is None:
             return None
         p = o._pos
         f = o.forward_vector()
         cam = (p.x - f.x * 500.0, p.y + 150.0, p.z - f.z * 500.0)
         tgt = (p.x + f.x * 200.0, p.y, p.z + f.z * 200.0)
-        return {"cam": cam, "target": tgt, "mode": "auto", "ship_id": str(ship_id)}
+        return {"cam": cam, "target": tgt, "mode": "auto", "ship_id": str(focus_id)}
 
     # Scripted: explicit dolly/target objects + offsets.
     db = _obj_pos(st["dolly_id"]) or (0.0, 0.0, 0.0)
@@ -2309,6 +2316,7 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
             and (ds.get("shield_max_val") or 0.0) <= 0
             and (ds.get("system_max_damage", 0) or 0.0) <= 0):
         return
+    _bump_exciting(obj, _EXCITE_HIT)   # taking a hit is camera-worthy (attract)
     # Shields absorb first (engine reduces the hit shield). System/internal damage
     # only happens AFTER shields are down. Mock uses shield_val[0] as a pooled shield.
     shield = ds.get("shield_val") or 0.0
@@ -2352,6 +2360,7 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
         ds.set("armor", 0.0)
         _pending_physics_events.put(("damage", "destroyed", source_id, target_id))
         _pending_physics_events.put(("station_killed", "", target_id, target_id))
+        _bump_exciting(sim.space_objects.get(source_id), _EXCITE_KILL)
         delete_object(target_id)
         return
 
@@ -2374,6 +2383,7 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
     if dead:
         _pending_physics_events.put(("damage", "destroyed", source_id, target_id))
         _pending_physics_events.put(("npc_killed", "", target_id, target_id))
+        _bump_exciting(sim.space_objects.get(source_id), _EXCITE_KILL)
         delete_object(target_id)
     else:
         _pending_physics_events.put(("damage", "", source_id, target_id))
@@ -2461,6 +2471,8 @@ def _physics_beams(sim, active: list, dt: float) -> None:
                 apply_damage(tid, dmg, aid)
         a._beam_cooldown = ds.get("beamCycleTime") or 6.0
         _beam_fires.append((aid, tid))                    # transient, for the mockgui
+        _bump_exciting(a, _EXCITE_FIRE)                   # combat is camera-worthy
+        _bump_exciting(space.get(tid), _EXCITE_FIRE)
 
 
 # Projectile defaults (mock approximations).
@@ -2477,6 +2489,31 @@ _DRONE_CYCLE = 10.0
 # decays over time. (There is no combat heat / heat-seeking in the mock.)
 _HEAT_DECAY = 0.05          # per second
 _HEAT_CRITICAL = 1.0        # system_cur_heat above this fires heat_critical_damage
+
+# Attract cinematic: the engine scores how camera-worthy an object is in the
+# "exciting" data_set field, and cinematic mode cuts to the most exciting one. The
+# mock mirrors that - combat raises exciting, it decays, and the auto cinematic
+# camera frames the most-exciting object so the view follows the action.
+_EXCITE_FIRE = 1.0     # firing a beam / being shot at
+_EXCITE_HIT = 0.6      # taking a hit
+_EXCITE_KILL = 5.0     # scoring a kill (spike on the victor)
+_EXCITE_DECAY = 0.5    # per second
+
+
+def _bump_exciting(obj, amount):
+    if obj is not None:
+        obj.data_set.set("exciting", (obj.data_set.get("exciting", 0) or 0.0) + amount)
+
+
+def _most_exciting_id() -> int:
+    """Id of the object with the highest 'exciting' value (>0), else 0."""
+    best, best_v = 0, 0.0
+    if sim is not None:
+        for oid, o in sim.space_objects.items():
+            v = o.data_set.get("exciting", 0) or 0.0
+            if v > best_v:
+                best_v, best = v, oid
+    return best
 
 
 def _unit_toward(src, tgt):
@@ -2886,6 +2923,11 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
             if obj.data_set.get("deathState") > 0:
                 continue
             ds = obj.data_set
+
+            # Decay 'exciting' so the cinematic camera drifts off stale action.
+            ex = ds.get("exciting") or 0.0
+            if ex > 0.0:
+                ds.set("exciting", max(0.0, ex - _EXCITE_DECAY * dt))
 
             # Slow passive shield regen (engine-like: ~1/s players, ~0.1/s NPCs),
             # well under beam DPS, so combat depletes shields and recovers in lulls.
