@@ -111,7 +111,7 @@ order is `(tag, sub_tag, origin_id, selected_id[, parent_id][, {extra fields}])`
 | `npc_killed` | `""` | target → target | `//damage/killed` (NPC ship) |
 | `station_killed` | `""` | target → target | `//damage/killed` (station) |
 | `player_internal_damage` | `""` | target → source | `//damage/internal`; carries `sub_float` (system/amount) + `source_point` (mesh hit point) |
-| `heat_critical_damage` | `str(system_index)` | ship → ship | `//damage/heat` |
+| `heat_critical_damage` | `str(system_index)` | ship → ship | `//damage/heat` (engineering overheat, fired repeatedly while a system is at full heat - see note) |
 | `ship_launches_drone` | `""` | source → target | `//launch/drone`; `extra_extra_tag = "drone"` |
 | `player_launches_missile` | `""` | source → target | `//launch/missile`; `extra_extra_tag = kind` (Homing / Nuke / EMP / Mine) |
 | `*_collision_start` / `*_collision_end` | kind | a ↔ b | `//collision/*` |
@@ -134,6 +134,18 @@ order is `(tag, sub_tag, origin_id, selected_id[, parent_id][, {extra fields}])`
     "destroyed"` so `//damage/destroy` still fires. The dev runner unpacks the trailing
     dict onto the event (`mission_runner._drain_physics_events`), so `EVENT.sub_float`
     and `EVENT.sub_tag` read the same in the mock as in the engine.
+
+!!! note "Heat is engineering overpower, not combat"
+    `system_cur_heat` (per SHPSYS 0..3, 0..1) rises when engineering pushes a powered
+    subsystem above 100% (`eng_control_value` up to 3.0); the overpower is summed onto
+    the system it feeds (`eng_control_type_index`). **Coolant controls heat**:
+    `system_coolant_used` (per system) bleeds it off, plus a passive decay. At full
+    heat the mock fires `heat_critical_damage` → `//damage/heat` repeatedly
+    (`_physics_heat`); it does **not** write `system_damage` — the mission decides the
+    consequence (LegendaryMissions damages grid items and derives `system_damage` /
+    `system_max_damage` from grid-item counts). NPCs set no eng controls, so they never
+    overheat. **Rates (`_HEAT_GAIN` / `_HEAT_COOL` / `_HEAT_DECAY`) are placeholders
+    pending a capture** (heat ramp, coolant cooling, idle decay).
 
 ---
 

@@ -2753,13 +2753,22 @@ _DRONE_CYCLE = 10.0          # fallback for drone_launch_timer
 _DRONE_DAMAGE = 15.0         # fallback for drone_damage
 _DRONE_RANGE = 7000.0        # fallback for drone_launch_max_range
 
-# System heat is the engine field `system_cur_heat` (per SHPSYS, 0..1):
-# engineering overpower / insufficient coolant. The mock doesn't simulate
-# engineering, so it only rises when a script/test drives it; a system over
-# _HEAT_CRITICAL fires heat_critical_damage (once per crossing per system). It
-# decays over time. (There is no combat heat / heat-seeking in the mock.)
-_HEAT_DECAY = 0.05          # per second
-_HEAT_CRITICAL = 1.0        # system_cur_heat above this fires heat_critical_damage
+# Engineering OVERHEAT model (engine field `system_cur_heat`, per SHPSYS 0..3, 0..1).
+# Heat is NOT a combat effect - it's engineering overpower. Each powered subsystem
+# (eng_control_value, up to 3.0 = 300%) feeds one ship system (eng_control_type_index).
+# The overpower (value-1.0), summed over a system's controls, raises its heat;
+# `system_coolant_used` and a passive decay lower it. At full heat the system overheats
+# and the mock fires heat_critical_damage -> //damage/heat, repeatedly while it stays
+# overheated. The mock does NOT itself write system_damage: how an overheat becomes
+# damage is the MISSION's call - LegendaryMissions, for example, damages grid items and
+# derives system_damage/system_max_damage from the matching grid-item counts. NPCs don't
+# set eng_control_value, so they never overheat. (Rates are placeholders - calibrate from
+# a capture later, as with combat.)
+_HEAT_GAIN = 0.04           # heat/sec per unit of overpower (eng_control_value - 1.0)
+_HEAT_COOL = 0.03           # heat/sec removed per coolant unit (system_coolant_used)
+_HEAT_DECAY = 0.05          # passive heat/sec bleed-off (also the no-load decay rate)
+_HEAT_CRITICAL = 1.0        # system_cur_heat at/above this overheats (also the 0..1 clamp)
+_HEAT_EVENT_INTERVAL = 1.0  # sec between //damage/heat events while a system overheats
 
 # Attract cinematic: the engine scores how camera-worthy an object is in the
 # "exciting" data_set field, and cinematic mode cuts to the most exciting one,
@@ -3264,29 +3273,47 @@ def _physics_projectiles(sim, dt: float) -> None:
 
 
 def _physics_heat(active: list, dt: float) -> None:
-    """Engineering system heat (engine system_cur_heat, per SHPSYS): overpower /
-    insufficient coolant. The mock doesn't simulate engineering, so it only rises
-    when a script/test drives it; a system over _HEAT_CRITICAL fires
-    heat_critical_damage (once per crossing per system) -> //damage/heat, and it
-    decays over time."""
-    d = _HEAT_DECAY * dt
-    for _aid, a in active:
+    """Engineering overheat (engine system_cur_heat, per SHPSYS 0..3).
+
+    Each powered subsystem's overpower (eng_control_value - 1.0, for values > 100%)
+    is summed onto the ship system it feeds (eng_control_type_index) and raises that
+    system's heat; system_coolant_used + a passive decay lower it. Heat clamps 0..1.
+    While a system sits at/above _HEAT_CRITICAL the mock fires heat_critical_damage ->
+    //damage/heat every _HEAT_EVENT_INTERVAL (so a mission route keeps reacting), but
+    it does NOT write system_damage - the mission owns that consequence (LM damages
+    grid items and derives system_damage from them). NPCs set no eng controls, so
+    over[] stays 0 and their heat only ever decays."""
+    for aid, a in active:
         ds = a.data_set
-        crit = getattr(a, "_heat_crit", None)
-        if crit is None:
-            crit = {}
-            a._heat_crit = crit
+        # Overpower per ship system (0..3), summed over the controls feeding it.
+        over = [0.0, 0.0, 0.0, 0.0]
+        for c in range(ds.num_elements("eng_control_value")):
+            v = ds.get("eng_control_value", c) or 0.0
+            if v > 1.0:
+                si = int(ds.get("eng_control_type_index", c) or 0)
+                if 0 <= si < 4:
+                    over[si] += v - 1.0
+
+        cds = getattr(a, "_heat_evt_cd", None)
         for _n, idx in SHIP_SYSTEMS:
             h = ds.get("system_cur_heat", idx) or 0.0
-            if h > _HEAT_CRITICAL and not crit.get(idx):
-                crit[idx] = True
-                # //damage/heat: origin = ship, sub_tag = overheated system index
-                # (int-parsed by the route). See LM internal_damage.mast.
-                _pending_physics_events.put(("heat_critical_damage", str(idx), _aid, _aid))
-            elif h < _HEAT_CRITICAL * 0.8:
-                crit[idx] = False
-            if h > 0.0:
-                ds.set("system_cur_heat", max(0.0, h - d), idx)
+            # gain from overpower, minus coolant cooling and passive decay.
+            cool = (ds.get("system_coolant_used", idx) or 0) * _HEAT_COOL
+            h += (over[idx] * _HEAT_GAIN - cool - _HEAT_DECAY) * dt
+            h = max(0.0, min(_HEAT_CRITICAL, h))    # clamp 0..1
+            ds.set("system_cur_heat", h, idx)
+
+            if h >= _HEAT_CRITICAL:
+                # Overheated: notify the mission (//damage/heat) on a throttle; the
+                # mission decides the damage. sub_tag = the SHPSYS index.
+                if cds is None:
+                    cds = a._heat_evt_cd = {}
+                cds[idx] = cds.get(idx, 0.0) - dt
+                if cds[idx] <= 0.0:
+                    cds[idx] = _HEAT_EVENT_INTERVAL
+                    _pending_physics_events.put(("heat_critical_damage", str(idx), aid, aid))
+            elif cds is not None:
+                cds.pop(idx, None)    # cooled below critical -> re-entry fires at once
 
 
 def _consume_torpedo(ds) -> "str | None":

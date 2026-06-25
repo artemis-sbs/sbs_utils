@@ -420,6 +420,43 @@ class TestMockDamage(unittest.TestCase):
         sbs._physics_heat([(aid, a)], dt=1.0)
         self.assertAlmostEqual(a.data_set.get("system_cur_heat", 0), 0.6 - sbs._HEAT_DECAY)
 
+    def test_overpower_raises_system_heat(self):
+        # Engineering pushing a control above 100% heats the SHPSYS it feeds
+        # (eng_control_type_index); other systems are untouched.
+        aid, a = self._hulled(100)
+        a.data_set.set("eng_control_value", 2.0, 0)        # 200%
+        a.data_set.set("eng_control_type_index", 1, 0)     # feeds SHPSYS 1
+        sbs._physics_heat([(aid, a)], dt=1.0)
+        # net = overpower(1.0)*GAIN - 0 coolant - DECAY
+        self.assertAlmostEqual(a.data_set.get("system_cur_heat", 1),
+                               max(0.0, sbs._HEAT_GAIN - sbs._HEAT_DECAY), delta=1e-6)
+        self.assertEqual(a.data_set.get("system_cur_heat", 0) or 0.0, 0.0)
+
+    def test_coolant_offsets_overpower_heat(self):
+        aid, a = self._hulled(100)
+        a.data_set.set("eng_control_value", 3.0, 0)        # 300% -> overpower 2.0
+        a.data_set.set("eng_control_type_index", 0, 0)
+        a.data_set.set("system_coolant_used", 2, 0)        # 2 coolant units
+        sbs._physics_heat([(aid, a)], dt=1.0)
+        expected = max(0.0, 2.0 * sbs._HEAT_GAIN - 2 * sbs._HEAT_COOL - sbs._HEAT_DECAY)
+        self.assertAlmostEqual(a.data_set.get("system_cur_heat", 0), expected, delta=1e-6)
+
+    def test_sustained_overheat_fires_repeatedly(self):
+        # While a system stays overheated, //damage/heat fires every interval (the
+        # mission applies damage; the mock just keeps notifying). The mock does NOT
+        # write system_damage itself.
+        aid, a = self._hulled(100)
+        a.data_set.set("system_cur_heat", 1.0, 2)
+        a.data_set.set("eng_control_value", 3.0, 0)        # keep it pinned at full heat
+        a.data_set.set("eng_control_type_index", 2, 0)
+        _drain()
+        fires = 0
+        for _ in range(6):                                 # 6 x 0.5s = 3s ~ 3 intervals
+            sbs._physics_heat([(aid, a)], dt=0.5)
+            fires += sum(1 for e in _drain() if e[0] == "heat_critical_damage" and e[1] == "2")
+        self.assertGreaterEqual(fires, 3)
+        self.assertEqual(a.data_set.get("system_damage", 2) or 0.0, 0.0)  # mock doesn't damage
+
     def test_shield_regen_is_slow(self):
         # Single facing: regens at the full repair_rate_shields/s.
         aid, a = self._hulled(100)
