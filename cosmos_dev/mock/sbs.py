@@ -54,6 +54,12 @@ _apply_damage_calls = 0   # dev diagnostic: total apply_damage hits (combat sani
 # Real per-shot damage = set_beam_damages base * coeff. The mock stores beamDamage
 # = coeff * _BEAM_LOAD_BASE at load, so coeff = beamDamage / _BEAM_LOAD_BASE.
 _BEAM_LOAD_BASE = 6.0
+# Default per-shot base by firer category when a mission did NOT call
+# set_beam_damages - i.e. the engine's built-in beam damage. Calibrated from the
+# data_capture battle matrix (full-health hits): NPC ~5.5, player ~8.5; these are
+# difficulty-independent (same at DIFFICULTY 1/5/11). per-shot = base * coeff.
+_BEAM_DEFAULT_NPC = 5.5
+_BEAM_DEFAULT_PLAYER = 8.5
 
 # Behavior dispatch: tick_type string → callable(space_object, dt_seconds)
 _behavior_registry: dict = {}
@@ -2565,16 +2571,16 @@ def _physics_beams(sim, active: list, dt: float) -> None:
             dot = (fwd.x * tx + fwd.y * ty + fwd.z * tz) / dist
             if dot < math.cos(math.radians(arc * 0.5)):
                 continue  # target outside the beam arc
-        # Respect set_beam_damages: real per-shot = base(category) * per-beam coeff.
-        # The mock stored beamDamage = coeff * _BEAM_LOAD_BASE, so recover the coeff.
-        # When set_beam_damages was never called, fall back to beamDamage as-is
-        # (keeps the damage unit tests, which set beamDamage directly, unaffected).
+        # Per-shot = base(category) * per-beam coeff. The mock stored beamDamage =
+        # coeff * _BEAM_LOAD_BASE, so coeff = beamDamage / _BEAM_LOAD_BASE. The base
+        # is set_beam_damages (if a mission called it), else the engine's built-in
+        # default (calibrated): player ~8.5, NPC/station ~5.5 - players hit harder.
         beam_dmg = ds.get("beamDamage") or 0.0
+        coeff = beam_dmg / _BEAM_LOAD_BASE
         base = _beam_base_damage(a)
-        if base is not None:
-            dmg = base * (beam_dmg / _BEAM_LOAD_BASE)
-        else:
-            dmg = beam_dmg
+        if base is None:
+            base = _BEAM_DEFAULT_PLAYER if (a._abits & 0x20) else _BEAM_DEFAULT_NPC
+        dmg = base * coeff
         dmg *= _offense_factor(a)        # death spiral: damaged firers hit softer
         # Engine fires every beam emitter separately - each is its own hit/event
         # (shields absorb per hit), not one big multiplied hit. Fire one

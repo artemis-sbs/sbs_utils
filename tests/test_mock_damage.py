@@ -185,18 +185,24 @@ class TestMockDamage(unittest.TestCase):
         self.assertAlmostEqual(sbs._offense_factor(o), 0.4)
 
     def test_damaged_firer_deals_less_beam_damage(self):
-        # A half-wrecked NPC firer lands ~half its beamDamage (death spiral).
-        tid, t = self._hulled(100); t._pos = sbs.vec3(0, 0, 500)
-        nid = self.sim.create_space_object("behav_npcship", "", 0x10)
-        n = self.sim.space_objects[nid]; n._pos = sbs.vec3(0, 0, 0)
-        for i in range(4):
-            n.data_set.set("system_max_damage", 4.0, i)
-            n.data_set.set("system_damage", 2.0, i)        # 50% system health
-        n.data_set.set("beamCount", 1); n.data_set.set("beamRange", 1000.0)
-        n.data_set.set("beamDamage", 40.0); n.data_set.set("weapon_target_UID", tid)
-        _drain()
-        sbs._physics_beams(self.sim, [(nid, n), (tid, t)], dt=0.5)
-        self.assertEqual(t.data_set.get("armor"), 80.0)    # 100 - 40 * 0.5
+        # A half-wrecked NPC firer lands ~half the damage of a healthy one (death
+        # spiral). Asserted relatively, so it's independent of the absolute base.
+        def fire_once(sysdmg):
+            tid, t = self._hulled(100); t._pos = sbs.vec3(0, 0, 500)
+            nid = self.sim.create_space_object("behav_npcship", "", 0x10)
+            n = self.sim.space_objects[nid]; n._pos = sbs.vec3(0, 0, 0)
+            for i in range(4):
+                n.data_set.set("system_max_damage", 4.0, i)
+                n.data_set.set("system_damage", sysdmg, i)
+            n.data_set.set("beamCount", 1); n.data_set.set("beamRange", 1000.0)
+            n.data_set.set("beamDamage", 6.0); n.data_set.set("weapon_target_UID", tid)
+            _drain()
+            sbs._physics_beams(self.sim, [(nid, n), (tid, t)], dt=0.5)
+            return 100.0 - (t.data_set.get("armor") or 0.0)
+        full = fire_once(0.0)            # healthy firer
+        half = fire_once(2.0)            # 50% system health
+        self.assertGreater(full, 0.0)
+        self.assertAlmostEqual(half, full * 0.5, delta=0.1)
 
     def test_fatal_station_killed(self):
         oid, o = self._hulled(50)
@@ -261,11 +267,11 @@ class TestMockDamage(unittest.TestCase):
         sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
         ev = _drain()
         self.assertIn(("damage", "", aid, tid), ev)
-        self.assertEqual(t.data_set.get("armor"), 70.0)
+        self.assertEqual(t.data_set.get("armor"), 72.5)   # 100 - (30/6)*5.5 NPC base
         # cooldown engaged -> no fire next tick
         sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
         self.assertEqual(_drain(), [])
-        self.assertEqual(t.data_set.get("armor"), 70.0)
+        self.assertEqual(t.data_set.get("armor"), 72.5)
 
     def test_beam_out_of_range_no_fire(self):
         tid, t = self._hulled(100)
@@ -302,7 +308,7 @@ class TestMockDamage(unittest.TestCase):
         _drain()
         sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
         self.assertIn(("damage", "", aid, tid), _drain())
-        self.assertEqual(t.data_set.get("armor"), 70.0)
+        self.assertEqual(t.data_set.get("armor"), 72.5)   # 100 - (30/6)*5.5 NPC base
 
     def test_beam_in_arc_fires(self):
         tid, t = self._hulled(100); t._pos = sbs.vec3(0, 0, 500)   # in front, +Z
@@ -351,13 +357,27 @@ class TestMockDamage(unittest.TestCase):
         sbs._physics_beams(self.sim, [(nid, n), (tid2, t2)], dt=0.5)
         self.assertEqual(t2.data_set.get("armor"), 98.0)          # 100 - 2
 
-    def test_beam_falls_back_to_beamDamage_without_set_beam_damages(self):
-        # No set_beam_damages call -> beamDamage used as-is (unit tests rely on this).
+    def test_beam_fallback_uses_calibrated_category_base(self):
+        # No set_beam_damages call -> per-shot = coeff * the engine's default base
+        # (calibrated): NPC ~5.5, player ~8.5. coeff 1.0 here (beamDamage = load base).
+        # NPC firer (abits 0x10):
         tid, t = self._hulled(100); t._pos = sbs.vec3(0, 0, 500)
-        aid, a = self._beamer(tid, rng=1000, dmg=30)
+        nid, n = self._hulled(100, abits=0x10, station=False); n._pos = sbs.vec3(0, 0, 0)
+        n.data_set.set("beamCount", 1); n.data_set.set("beamRange", 1000.0)
+        n.data_set.set("beamDamage", sbs._BEAM_LOAD_BASE)         # coeff 1.0
+        n.data_set.set("weapon_target_UID", tid)
         _drain()
-        sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
-        self.assertEqual(t.data_set.get("armor"), 70.0)           # 100 - 30 (beamDamage)
+        sbs._physics_beams(self.sim, [(nid, n), (tid, t)], dt=0.5)
+        self.assertAlmostEqual(t.data_set.get("armor"), 100 - sbs._BEAM_DEFAULT_NPC, delta=0.01)
+        # Player firer (abits 0x20) hits harder:
+        tid2, t2 = self._hulled(100); t2._pos = sbs.vec3(0, 0, 500)
+        pid, p = self._hulled(100, abits=0x20); p._pos = sbs.vec3(0, 0, 0)
+        p.data_set.set("beamCount", 1); p.data_set.set("beamRange", 1000.0)
+        p.data_set.set("beamDamage", sbs._BEAM_LOAD_BASE)         # coeff 1.0
+        p.data_set.set("weapon_target_UID", tid2)
+        _drain()
+        sbs._physics_beams(self.sim, [(pid, p), (tid2, t2)], dt=0.5)
+        self.assertAlmostEqual(t2.data_set.get("armor"), 100 - sbs._BEAM_DEFAULT_PLAYER, delta=0.01)
 
     def test_system_heat_decays(self):
         aid, a = self._hulled(100)
