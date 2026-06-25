@@ -228,7 +228,7 @@ Drone damage is **difficulty-independent** (15 at diff 1, 5 and 11).
 | **Homing** | **35** | single target |
 | **Nuke** | **~120** (center) | **area-of-effect**, falls off with distance (observed 10–120 across the cluster); damage event `value_tag = "warhead"` |
 | **Mine** | **~120** | AoE, **same as Nuke** |
-| **EMP** | **0** hull/shield | not a hull weapon — disables systems / drains energy (shows in `energy`/`heat`, not shields) |
+| **EMP** | **0** hull | not a warhead — an **AoE pulse that halves each ship's current shields** (×0.5) within the blast; the `//damage` amount is 0 because the shield drop is a separate effect, not hull damage |
 
   (Confirmed difficulty-independent: identical at DIFFICULTY 1, 5 and 11.)
 

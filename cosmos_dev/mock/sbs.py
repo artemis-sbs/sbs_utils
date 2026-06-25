@@ -2608,6 +2608,7 @@ _TORP_CYCLE = 8.0
 _TORP_DAMAGE = 35.0          # Homing (also the default the player auto-fire uses)
 _TORP_NUKE_DAMAGE = 120.0    # Nuke / Mine centre damage
 _TORP_BLAST_RADIUS = 1000.0  # Nuke / Mine AoE radius (approx; falloff to 0 at the edge)
+_TORP_EMP_SHIELD_MULT = 0.5  # EMP halves each ship's CURRENT shields (no hull damage)
 # Drone fallbacks when the engine-set fields are absent. drone_launch_timer comes
 # from shipData (Torgoth + Ximni hulls); elite_drone_launcher / drone_damage /
 # drone_launch_max_range are set by the engine at runtime (not in shipData), so the
@@ -2709,16 +2710,17 @@ def _unit_toward(src, tgt):
     return (f.x, f.y, f.z)
 
 
-def _torp_profile(kind: str) -> "tuple[float, float]":
-    """(per-hit damage, blast_radius) for a torpedo `kind`, calibrated from capture:
-    Homing -> single-target 35; Nuke/Mine -> ~120 with an AoE blast radius; EMP -> 0
-    hull damage (system/energy disable, not modeled as hull). Default = Homing."""
+def _torp_profile(kind: str) -> "tuple[float, float, str]":
+    """(per-hit damage, blast_radius, effect) for a torpedo `kind`, calibrated from
+    capture: Homing -> single-target 35 hull; Nuke/Mine -> ~120 AoE hull (blast
+    radius, distance falloff); EMP -> 0 hull but an AoE 'emp' pulse that halves each
+    ship's current shields. Default = Homing."""
     k = (kind or "").lower()
     if k in ("nuke", "mine"):
-        return _TORP_NUKE_DAMAGE, _TORP_BLAST_RADIUS
+        return _TORP_NUKE_DAMAGE, _TORP_BLAST_RADIUS, "hull"
     if k == "emp":
-        return 0.0, 0.0
-    return _TORP_DAMAGE, 0.0
+        return 0.0, _TORP_BLAST_RADIUS, "emp"
+    return _TORP_DAMAGE, 0.0, "hull"
 
 
 def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
@@ -2738,7 +2740,7 @@ def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
     src = sim.space_objects.get(source_id)
     if src is None:
         return
-    prof_dmg, blast = _torp_profile(kind)
+    prof_dmg, blast, effect = _torp_profile(kind)
     if damage is None:
         damage = prof_dmg
     _pending_physics_events.put(
@@ -2748,7 +2750,8 @@ def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
         "dir": _unit_toward(src, sim.space_objects.get(target_id)),
         "source_id": source_id,
         "damage": float(damage), "speed": float(speed),
-        "life": float(life), "kind": "missile", "blast_radius": float(blast),
+        "life": float(life), "kind": "missile",
+        "blast_radius": float(blast), "effect": effect,
     })
 
 
@@ -2791,6 +2794,33 @@ def _apply_blast(pos, base_damage: float, radius: float, source_id: int) -> None
             dmg = base_damage * (1.0 - dist / radius)
             if dmg > 0.0:
                 apply_damage(oid, dmg, source_id)
+
+
+def _apply_emp(pos, radius: float, source_id: int) -> None:
+    """EMP detonation: halve the CURRENT shields (per facing) of every ship within
+    `radius` of `pos`. No hull damage - EMP is a shield/system pulse, not a warhead.
+    Emits a damage event per affected ship so //damage routes still fire."""
+    if sim is None or radius <= 0.0:
+        return
+    r2 = radius * radius
+    for oid, o in list(sim.space_objects.items()):
+        if oid == source_id:
+            continue
+        dx = o._pos.x - pos.x
+        dy = o._pos.y - pos.y
+        dz = o._pos.z - pos.z
+        if dx * dx + dy * dy + dz * dz > r2:
+            continue
+        ds = o.data_set
+        n = int(ds.get("shield_count", 0) or 0)
+        hit = False
+        for i in range(n):
+            sv = ds.get("shield_val", i) or 0.0
+            if sv > 0.0:
+                ds.set("shield_val", sv * _TORP_EMP_SHIELD_MULT, i)
+                hit = True
+        if hit:
+            _pending_physics_events.put(("damage", "", source_id, oid))
 
 
 def _nearest_hittable(space, pos, radius: float, exclude_id: int) -> int:
@@ -2839,7 +2869,9 @@ def _physics_projectiles(sim, dt: float) -> None:
             hit = _nearest_hittable(space, pos, _PROJECTILE_HIT_RADIUS, p["source_id"])
             if hit:
                 blast = p.get("blast_radius", 0.0)
-                if blast > 0.0:
+                if p.get("effect") == "emp" and blast > 0.0:
+                    _apply_emp(pos, blast, p["source_id"])                  # EMP: halve shields
+                elif blast > 0.0:
                     _apply_blast(pos, p["damage"], blast, p["source_id"])   # Nuke/Mine AoE
                 else:
                     apply_damage(hit, p["damage"], p["source_id"])          # Homing single hit
