@@ -493,12 +493,11 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
         # The engine sets these at runtime (shipData has none). Values from a real
         # engine capture (data_capture mission): regen is slow (players recover
         # ~10x faster than NPCs), so combat depletes shields without stalling.
+        # (system_damage / system_max_damage are NOT seeded here - the mission
+        # script manages those, e.g. LM's grid system for players.)
         is_player = bool(getattr(obj, "_abits", 0) & 0x20)
         ds.set("repair_rate_shields", 1.0 if is_player else 0.1)
         ds.set("repair_rate_systems", 0.025 if is_player else 0.01)
-        smax = 3.0 if is_player else 4.0       # system_max_damage per SHPSYS (engine)
-        for _i in range(4):
-            ds.set("system_max_damage", smax, _i)
 
     # Shields — per-facing array
     shields = data.get("shields")
