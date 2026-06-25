@@ -69,6 +69,26 @@ class TestMockProjectiles(unittest.TestCase):
         self.assertIn(("damage", "", sid, tid), _drain())
         self.assertEqual(t.data_set.get("armor"), 85.0)
 
+    def test_torp_profile_by_kind(self):
+        # Calibrated per-kind (damage, blast_radius): Homing single, Nuke/Mine AoE,
+        # EMP no hull damage.
+        self.assertEqual(sbs._torp_profile("Homing"), (sbs._TORP_DAMAGE, 0.0))
+        self.assertEqual(sbs._torp_profile("Nuke"), (sbs._TORP_NUKE_DAMAGE, sbs._TORP_BLAST_RADIUS))
+        self.assertEqual(sbs._torp_profile("Mine"), (sbs._TORP_NUKE_DAMAGE, sbs._TORP_BLAST_RADIUS))
+        self.assertEqual(sbs._torp_profile("EMP"), (0.0, 0.0))
+
+    def test_nuke_blast_aoe_falloff(self):
+        # Nuke/Mine AoE: everything in the blast radius takes damage with linear
+        # falloff (full at centre, 0 at the edge); outside the radius is untouched.
+        nid, n = self._hulled(1000, pos=(0, 0, 0))        # at centre
+        mid, m = self._hulled(1000, pos=(500, 0, 0))      # half radius
+        fid, f = self._hulled(1000, pos=(1500, 0, 0))     # outside 1000 radius
+        _drain()
+        sbs._apply_blast(sbs.vec3(0, 0, 0), 120.0, 1000.0, source_id=999)
+        self.assertAlmostEqual(n.data_set.get("armor"), 1000 - 120, delta=0.1)  # full
+        self.assertAlmostEqual(m.data_set.get("armor"), 1000 - 60, delta=0.1)   # half
+        self.assertEqual(f.data_set.get("armor"), 1000)                         # untouched
+
     def test_projectile_travels_then_impacts(self):
         sid, s = self._hulled(pos=(0, 0, 0))
         tid, t = self._hulled(100, pos=(5000, 0, 0))      # far -> multiple ticks

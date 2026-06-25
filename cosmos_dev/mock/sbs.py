@@ -2601,7 +2601,13 @@ def _physics_beams(sim, active: list, dt: float) -> None:
 _PROJECTILE_HIT_RADIUS = 300.0
 _TORP_RANGE = 6000.0
 _TORP_CYCLE = 8.0
-_TORP_DAMAGE = 40.0
+# Torpedo per-hit damage by type, calibrated from the data_capture torpedo cluster:
+# Homing = single-target 35; Nuke/Mine = ~120 area-of-effect within _TORP_BLAST_RADIUS
+# (linear distance falloff); EMP = 0 hull (it disables systems / drains energy, not
+# modeled here as hull damage). Torpedoes are player-only.
+_TORP_DAMAGE = 35.0          # Homing (also the default the player auto-fire uses)
+_TORP_NUKE_DAMAGE = 120.0    # Nuke / Mine centre damage
+_TORP_BLAST_RADIUS = 1000.0  # Nuke / Mine AoE radius (approx; falloff to 0 at the edge)
 # Drone fallbacks when the engine-set fields are absent. drone_launch_timer comes
 # from shipData (Torgoth + Ximni hulls); elite_drone_launcher / drone_damage /
 # drone_launch_max_range are set by the engine at runtime (not in shipData), so the
@@ -2703,22 +2709,38 @@ def _unit_toward(src, tgt):
     return (f.x, f.y, f.z)
 
 
+def _torp_profile(kind: str) -> "tuple[float, float]":
+    """(per-hit damage, blast_radius) for a torpedo `kind`, calibrated from capture:
+    Homing -> single-target 35; Nuke/Mine -> ~120 with an AoE blast radius; EMP -> 0
+    hull damage (system/energy disable, not modeled as hull). Default = Homing."""
+    k = (kind or "").lower()
+    if k in ("nuke", "mine"):
+        return _TORP_NUKE_DAMAGE, _TORP_BLAST_RADIUS
+    if k == "emp":
+        return 0.0, 0.0
+    return _TORP_DAMAGE, 0.0
+
+
 def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
-                   damage: float = _TORP_DAMAGE, speed: float = 600.0,
+                   damage: "float | None" = None, speed: float = 600.0,
                    life: float = 30.0) -> None:
-    """Mock-only: launch a (non-homing) missile/torpedo.
+    """Mock-only: launch a torpedo of `kind` (Homing / Nuke / Mine / EMP).
 
     Emits a ``player_launches_missile`` event (routes //launch/missile, with
-    extra_extra_tag=kind, origin=source, selected=target). The missile fires in a
-    fixed direction toward the target's launch position (a point) and keeps flying
-    straight, hitting the nearest damageable object it passes within range (via
-    apply_damage -> damage/killed events) - it does not home or re-curve.
+    extra_extra_tag=kind, origin=source, selected=target). It flies straight toward
+    the target's launch position; on impact Homing hits the single nearest object,
+    while Nuke/Mine deal area-of-effect damage (blast radius, distance falloff) to
+    everything around the impact point. `damage` defaults to the per-kind value but
+    can be overridden (the projectile unit tests pass it explicitly).
     """
     if sim is None:
         return
     src = sim.space_objects.get(source_id)
     if src is None:
         return
+    prof_dmg, blast = _torp_profile(kind)
+    if damage is None:
+        damage = prof_dmg
     _pending_physics_events.put(
         ("player_launches_missile", "", source_id, target_id, source_id, kind))
     _projectiles.append({
@@ -2726,7 +2748,7 @@ def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
         "dir": _unit_toward(src, sim.space_objects.get(target_id)),
         "source_id": source_id,
         "damage": float(damage), "speed": float(speed),
-        "life": float(life), "kind": "missile",
+        "life": float(life), "kind": "missile", "blast_radius": float(blast),
     })
 
 
@@ -2750,6 +2772,25 @@ def launch_drone(source_id: int, target_id: int, damage: float = 20.0,
         "damage": float(damage), "speed": float(speed),
         "life": float(life), "kind": "drone",
     })
+
+
+def _apply_blast(pos, base_damage: float, radius: float, source_id: int) -> None:
+    """Area-of-effect detonation (Nuke / Mine): damage every object within `radius`
+    of `pos`, with linear falloff (full at the centre, 0 at the edge). apply_damage
+    itself filters to damageable objects (ships/stations)."""
+    if sim is None or radius <= 0.0:
+        return
+    for oid, o in list(sim.space_objects.items()):
+        if oid == source_id:
+            continue
+        dx = o._pos.x - pos.x
+        dy = o._pos.y - pos.y
+        dz = o._pos.z - pos.z
+        dist = math.sqrt(dx * dx + dy * dy + dz * dz)
+        if dist <= radius:
+            dmg = base_damage * (1.0 - dist / radius)
+            if dmg > 0.0:
+                apply_damage(oid, dmg, source_id)
 
 
 def _nearest_hittable(space, pos, radius: float, exclude_id: int) -> int:
@@ -2797,7 +2838,11 @@ def _physics_projectiles(sim, dt: float) -> None:
             pos.z += d[2] * step
             hit = _nearest_hittable(space, pos, _PROJECTILE_HIT_RADIUS, p["source_id"])
             if hit:
-                apply_damage(hit, p["damage"], p["source_id"])
+                blast = p.get("blast_radius", 0.0)
+                if blast > 0.0:
+                    _apply_blast(pos, p["damage"], blast, p["source_id"])   # Nuke/Mine AoE
+                else:
+                    apply_damage(hit, p["damage"], p["source_id"])          # Homing single hit
                 continue  # consumed on impact
             remaining.append(p)
             continue
