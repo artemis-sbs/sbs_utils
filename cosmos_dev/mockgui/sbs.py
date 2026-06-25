@@ -341,7 +341,7 @@ def send_client_widget_rects(clientID: int, widgetName: str,
 # Physics tick override — runs base physics then pushes a radar delta to the browser.
 # ---------------------------------------------------------------------------
 _radar_tick: int = 0
-_RADAR_INTERVAL: int = 1    # push radar every physics tick (physics thread runs at 2 Hz)
+_RADAR_INTERVAL: int = 1    # push radar every physics tick (physics thread runs at 30 Hz)
 
 CULL_RADIUS: float = 35_000.0  # only objects within this distance of a ship are sent
 
