@@ -167,33 +167,33 @@ survive a lone attacker for the full 2 min.
 
 - `beamDamage` in the data_set is the per-beam **coefficient** (`1.0` for base
   hulls), **not** the per-shot damage. Per-shot = `set_beam_damages` base × coeff.
-- Per-shot base (coeff 1.0 hulls, DIFFICULTY 5):
+- Per-shot **full-health** base (coeff 1.0 hulls). Use *early-fight / max* hits, not
+  the median — the engine's death spiral lowers a damaged ship's logged beam damage,
+  so medians under-report the base.
 
-| Firer | per-shot | Notes |
+| Firer | per-shot base | Notes |
 |---|---|---|
 | NPC ship | **≈ 5.5** | base × coeff(1.0) |
-| Player | **≈ 8.9** | players hit ~60% harder than NPCs |
-| Skaraan (elite) NPC | **≈ 12.5–16.5** | their shipData `damage_coeff` ≈ 2.3–3.0 |
+| Player | **≈ 8.5** | players hit ~55% harder than NPCs |
+| Skaraan (elite) NPC | **≈ 16.5** | shipData `damage_coeff` ≈ 3.0 |
 
 - `beamCycleTime ≈ 6 s`, `beamArcWidth = 144°`, `beamRange` 1000–1300 (code/capture).
-- The mock uses one base (`coeff × _BEAM_LOAD_BASE = 6`) for **both** player and NPC.
-  NPC beams are about right (6 vs ~5.5); player beams are mission-driven (below).
 
-!!! info "Difficulty scaling (captures at DIFFICULTY 1 and 5)"
-    Re-running the battle matrix at difficulty 1 vs 5 shows that **almost nothing
-    scales with difficulty** — these are all flat across 1 and 5:
+!!! info "Difficulty does NOT scale per-ship combat stats (captures at DIFFICULTY 1, 5, 11)"
+    Running the battle matrix at difficulty 1, 5 and 11 shows the per-ship combat
+    inputs are **flat across all three**:
 
-    - NPC beam damage (~5.5), drone damage (15)
-    - shields and `system_max_damage` (hull) — identical per hull at both levels
+    - NPC beam (~5.5 full-health), player beam (~8.5), Skaraan beam (~16.5), drone (15)
+    - shields and `system_max_damage` (hull) — identical per hull at every level
 
-    The **only** value that scaled is **player beam damage**: ~7.1 (lc) / ~8.0 (bs)
-    at diff 1 → ~8.9 / ~9.5 at diff 5 (≈ +0.45 per level). That is injected by the
-    mission layer via `set_beam_damages`, which the mock already honors. So the mock
-    needs **no difficulty-aware combat scaling** for NPC/drone/shield/hull — only the
-    player beam fallback is difficulty-sensitive, and real missions set it.
+    (An earlier read suggested player beam scaled with difficulty; that was an
+    artifact of comparing fight *medians*, which the death spiral confounds. The
+    full-health bases are difficulty-independent.)
 
-    (NPC-vs-NPC *outcomes* still vary run to run — that's combat variance, not
-    difficulty, since the inputs are flat.)
+    So the mock needs **no difficulty-aware combat scaling**. Difficulty must affect
+    other things (fleet size, AI behaviour, …) that this per-ship capture doesn't
+    measure. NPC-vs-NPC *outcomes* still vary run to run — combat variance, not
+    difficulty.
 
 ### Drones (capture)
 
@@ -208,7 +208,7 @@ rest at runtime:
 | `drone_launch_timer` | 20–60 (per hull) | shipData |
 | `elite_drone_launcher` | unset (= 0) | capture — *not* the trigger; `drone_damage`/range being set is |
 
-Drone damage is **difficulty-independent** (15 at diff 1 and 5).
+Drone damage is **difficulty-independent** (15 at diff 1, 5 and 11).
 
 ### Torpedoes
 
