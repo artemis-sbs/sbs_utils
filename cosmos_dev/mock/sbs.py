@@ -2612,14 +2612,16 @@ def _physics_beams(sim, active: list, dt: float) -> None:
 _PROJECTILE_HIT_RADIUS = 300.0
 _TORP_RANGE = 6000.0
 _TORP_CYCLE = 8.0
-# Torpedo per-hit damage by type, calibrated from the data_capture torpedo cluster:
-# Homing = single-target 35; Nuke/Mine = ~120 area-of-effect within _TORP_BLAST_RADIUS
-# (linear distance falloff); EMP = 0 hull (it disables systems / drains energy, not
-# modeled here as hull damage). Torpedoes are player-only.
-_TORP_DAMAGE = 35.0          # Homing (also the default the player auto-fire uses)
-_TORP_NUKE_DAMAGE = 120.0    # Nuke / Mine centre damage
-_TORP_BLAST_RADIUS = 1000.0  # Nuke / Mine AoE radius (approx; falloff to 0 at the edge)
-_TORP_EMP_SHIELD_MULT = 0.5  # EMP halves each ship's CURRENT shields (no hull damage)
+# Torpedo definitions match LegendaryMissions/prefabs/torpedo_prefabs.mast (LM's
+# start_server spawns these, so LM missions use them - not the engine built-in torps
+# the data_capture run happened to measure). warhead: standard = single-target hull;
+# blast = AoE hull with linear distance falloff; reduce_shields = halve shields.
+# Torpedoes are player-only.
+_TORP_DAMAGE = 35.0          # Homing  (standard, single target; player auto-fire default)
+_TORP_BLAST_DAMAGE = 5.0     # Nuke / Mine (blast: AoE hull, falloff)
+_TORP_EMP_DAMAGE = 50.0      # EMP (blast + reduce_shields): AoE hull base
+_TORP_BLAST_RADIUS = 1000.0  # blast / EMP AoE radius (LM default)
+_TORP_EMP_SHIELD_MULT = 0.5  # EMP reduce_shields: halve each ship's CURRENT shields
 # Drone fallbacks when the engine-set fields are absent. drone_launch_timer comes
 # from shipData (Torgoth + Ximni hulls); elite_drone_launcher / drone_damage /
 # drone_launch_max_range are set by the engine at runtime (not in shipData), so the
@@ -2722,15 +2724,15 @@ def _unit_toward(src, tgt):
 
 
 def _torp_profile(kind: str) -> "tuple[float, float, str]":
-    """(per-hit damage, blast_radius, effect) for a torpedo `kind`, calibrated from
-    capture: Homing -> single-target 35 hull; Nuke/Mine -> ~120 AoE hull (blast
-    radius, distance falloff); EMP -> 0 hull but an AoE 'emp' pulse that halves each
-    ship's current shields. Default = Homing."""
+    """(per-hit damage, blast_radius, effect) for a torpedo `kind`, per the LM
+    torpedo_prefabs definitions: Homing -> 35 single-target hull (standard); Nuke/Mine
+    -> 5 AoE hull (blast, distance falloff); EMP -> 50 AoE hull (blast) AND halves
+    shields ('emp' = blast + reduce_shields). Default = Homing."""
     k = (kind or "").lower()
-    if k in ("nuke", "mine"):
-        return _TORP_NUKE_DAMAGE, _TORP_BLAST_RADIUS, "hull"
     if k == "emp":
-        return 0.0, _TORP_BLAST_RADIUS, "emp"
+        return _TORP_EMP_DAMAGE, _TORP_BLAST_RADIUS, "emp"
+    if k in ("nuke", "mine"):
+        return _TORP_BLAST_DAMAGE, _TORP_BLAST_RADIUS, "hull"
     return _TORP_DAMAGE, 0.0, "hull"
 
 
@@ -2808,9 +2810,10 @@ def _apply_blast(pos, base_damage: float, radius: float, source_id: int) -> None
 
 
 def _apply_emp(pos, radius: float, source_id: int) -> None:
-    """EMP detonation: halve the CURRENT shields (per facing) of every ship within
-    `radius` of `pos`. No hull damage - EMP is a shield/system pulse, not a warhead.
-    Emits a damage event per affected ship so //damage routes still fire."""
+    """EMP reduce_shields effect: halve the CURRENT shields (per facing) of every ship
+    within `radius` of `pos`. This is the shield-strip half of an EMP only - the hull
+    blast damage is applied separately via _apply_blast (which emits the //damage
+    events), so this stays silent to avoid double-counting."""
     if sim is None or radius <= 0.0:
         return
     r2 = radius * radius
@@ -2824,14 +2827,10 @@ def _apply_emp(pos, radius: float, source_id: int) -> None:
             continue
         ds = o.data_set
         n = int(ds.get("shield_count", 0) or 0)
-        hit = False
         for i in range(n):
             sv = ds.get("shield_val", i) or 0.0
             if sv > 0.0:
                 ds.set("shield_val", sv * _TORP_EMP_SHIELD_MULT, i)
-                hit = True
-        if hit:
-            _pending_physics_events.put(("damage", "", source_id, oid))
 
 
 def _nearest_hittable(space, pos, radius: float, exclude_id: int) -> int:
@@ -2881,9 +2880,10 @@ def _physics_projectiles(sim, dt: float) -> None:
             if hit:
                 blast = p.get("blast_radius", 0.0)
                 if p.get("effect") == "emp" and blast > 0.0:
-                    _apply_emp(pos, blast, p["source_id"])                  # EMP: halve shields
+                    _apply_blast(pos, p["damage"], blast, p["source_id"])   # EMP blast hull (50)
+                    _apply_emp(pos, blast, p["source_id"])                  # EMP reduce_shields
                 elif blast > 0.0:
-                    _apply_blast(pos, p["damage"], blast, p["source_id"])   # Nuke/Mine AoE
+                    _apply_blast(pos, p["damage"], blast, p["source_id"])   # Nuke/Mine AoE hull
                 else:
                     apply_damage(hit, p["damage"], p["source_id"])          # Homing single hit
                 continue  # consumed on impact

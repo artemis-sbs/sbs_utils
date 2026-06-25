@@ -223,20 +223,31 @@ rest at runtime:
 
 Drone damage is **difficulty-independent** (15 at diff 1, 5 and 11).
 
-### Torpedoes (capture — `capture_damage.json`, torpedo cluster)
+### Torpedoes (defined in `LegendaryMissions/prefabs/torpedo_prefabs.mast`)
 
 - **Player-exclusive** — NPCs never fire torpedoes (they fire drones). Tube count
   from `shipData` `tubecount` (code).
-- Per-hit damage by type (the `//damage` `sub_tag` is the torp type):
+- **The authoritative definitions are the LM torpedo prefabs**, which LM's
+  `start_server` spawns (so any LM mission uses these). `warhead`: `standard` =
+  single-target hull; `blast` = AoE hull with distance falloff (default
+  `blast_radius` 1000); `reduce_shields` = halve the target(s)' shields. `behaviour`:
+  `homing` or `mine` (stationary, detonates on proximity).
 
-| Type | per-hit | Behavior |
-|---|---|---|
-| **Homing** | **35** | single target |
-| **Nuke** | **~120** (center) | **area-of-effect**, falls off with distance (observed 10–120 across the cluster); damage event `value_tag = "warhead"` |
-| **Mine** | **~120** | AoE, **same as Nuke** |
-| **EMP** | **0** hull | not a warhead — an **AoE pulse that halves each ship's current shields** (×0.5) within the blast; the `//damage` amount is 0 because the shield drop is a separate effect, not hull damage |
+| Type | warhead | damage | radius | behaviour |
+|---|---|---|---|---|
+| **Homing** | standard | **35** | – | homing |
+| **EMP** | blast + reduce_shields | **50** hull **and** halves shields | 1000 | homing |
+| **Nuke** | blast | **5** (AoE falloff) | 1000 | homing |
+| **Mine** | blast | **5** (AoE falloff) | 1000 | **mine** (placed, proximity) |
+| Tag | standard | 0 | – | homing |
 
-  (Confirmed difficulty-independent: identical at DIFFICULTY 1, 5 and 11.)
+!!! note "LM definitions vs the capture"
+    The `data_capture` run measured the engine's **built-in** torps (Homing 35, Nuke
+    ~120 AoE, EMP 0 hull + shield drop) because its custom flow didn't run LM's
+    `start_server`. Real LM missions **redefine** torps via the prefabs above
+    (`torpedo_type()`), so the mock follows the LM values. The mock's `_apply_emp`
+    does the `reduce_shields` half (halve shields, calibrated to 50%); `_apply_blast`
+    does the blast hull.
 
 ---
 

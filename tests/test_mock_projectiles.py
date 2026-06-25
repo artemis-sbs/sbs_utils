@@ -70,17 +70,17 @@ class TestMockProjectiles(unittest.TestCase):
         self.assertEqual(t.data_set.get("armor"), 85.0)
 
     def test_torp_profile_by_kind(self):
-        # Calibrated per-kind (damage, blast_radius, effect): Homing single hull,
-        # Nuke/Mine AoE hull, EMP AoE shield-halving pulse (0 hull).
+        # Per LM torpedo_prefabs (damage, blast_radius, effect): Homing 35 single hull,
+        # Nuke/Mine 5 AoE hull (blast), EMP 50 AoE hull + shield-halve (blast+reduce).
         self.assertEqual(sbs._torp_profile("Homing"), (sbs._TORP_DAMAGE, 0.0, "hull"))
-        self.assertEqual(sbs._torp_profile("Nuke"), (sbs._TORP_NUKE_DAMAGE, sbs._TORP_BLAST_RADIUS, "hull"))
-        self.assertEqual(sbs._torp_profile("Mine"), (sbs._TORP_NUKE_DAMAGE, sbs._TORP_BLAST_RADIUS, "hull"))
-        self.assertEqual(sbs._torp_profile("EMP"), (0.0, sbs._TORP_BLAST_RADIUS, "emp"))
+        self.assertEqual(sbs._torp_profile("Nuke"), (sbs._TORP_BLAST_DAMAGE, sbs._TORP_BLAST_RADIUS, "hull"))
+        self.assertEqual(sbs._torp_profile("Mine"), (sbs._TORP_BLAST_DAMAGE, sbs._TORP_BLAST_RADIUS, "hull"))
+        self.assertEqual(sbs._torp_profile("EMP"), (sbs._TORP_EMP_DAMAGE, sbs._TORP_BLAST_RADIUS, "emp"))
 
-    def test_emp_halves_shields_no_hull(self):
-        # EMP pulse halves each facing's CURRENT shields within the blast radius and
-        # deals no hull damage; ships outside the radius are untouched.
-        nid, n = self._hulled(1000, pos=(0, 0, 0))        # in radius (station w/ armor)
+    def test_emp_reduce_shields_halves_each_facing(self):
+        # The EMP reduce_shields effect halves each facing's CURRENT shields within the
+        # blast radius (the hull blast is applied separately); ships outside untouched.
+        nid, n = self._hulled(1000, pos=(0, 0, 0))        # in radius
         n.data_set.set("shield_count", 2)
         n.data_set.set("shield_val", 100.0, 0); n.data_set.set("shield_val", 60.0, 1)
         fid, f = self._hulled(1000, pos=(1500, 0, 0))     # outside 1000 radius
@@ -89,19 +89,18 @@ class TestMockProjectiles(unittest.TestCase):
         sbs._apply_emp(sbs.vec3(0, 0, 0), 1000.0, source_id=999)
         self.assertEqual(n.data_set.get("shield_val", 0), 50.0)   # halved
         self.assertEqual(n.data_set.get("shield_val", 1), 30.0)   # halved
-        self.assertEqual(n.data_set.get("armor"), 1000)           # no hull damage
         self.assertEqual(f.data_set.get("shield_val", 0), 80.0)   # outside radius: untouched
 
-    def test_nuke_blast_aoe_falloff(self):
-        # Nuke/Mine AoE: everything in the blast radius takes damage with linear
-        # falloff (full at centre, 0 at the edge); outside the radius is untouched.
+    def test_blast_aoe_falloff(self):
+        # blast warhead (Nuke/Mine/EMP): everything in the blast radius takes hull
+        # damage with linear falloff (full at centre, 0 at the edge); outside untouched.
         nid, n = self._hulled(1000, pos=(0, 0, 0))        # at centre
         mid, m = self._hulled(1000, pos=(500, 0, 0))      # half radius
         fid, f = self._hulled(1000, pos=(1500, 0, 0))     # outside 1000 radius
         _drain()
-        sbs._apply_blast(sbs.vec3(0, 0, 0), 120.0, 1000.0, source_id=999)
-        self.assertAlmostEqual(n.data_set.get("armor"), 1000 - 120, delta=0.1)  # full
-        self.assertAlmostEqual(m.data_set.get("armor"), 1000 - 60, delta=0.1)   # half
+        sbs._apply_blast(sbs.vec3(0, 0, 0), 100.0, 1000.0, source_id=999)
+        self.assertAlmostEqual(n.data_set.get("armor"), 1000 - 100, delta=0.1)  # full at centre
+        self.assertAlmostEqual(m.data_set.get("armor"), 1000 - 50, delta=0.1)   # half at 500
         self.assertEqual(f.data_set.get("armor"), 1000)                         # untouched
 
     def test_projectile_travels_then_impacts(self):
