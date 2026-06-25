@@ -1149,6 +1149,8 @@ function _bar(v, max, w = 12) {
   return '['.concat('#'.repeat(n), '.'.repeat(w - n), '] ', Math.round(f * 100), '%');
 }
 function _pctColor(p) { return p > 66 ? '#6f6' : p > 33 ? '#fd6' : '#f55'; }
+// Shield ring color from a 0..1 fraction (green > 66%, yellow > 33%, else red).
+function _shieldColor(f) { return f > 0.66 ? '#3f6' : f > 0.33 ? '#fd6' : '#f55'; }
 function _heatColor(h) { return h > 66 ? '#f55' : h > 33 ? '#fd6' : '#9ab'; }
 function _sysCell(s) {
   const nm = (s.name + '   ').slice(0, 4);
@@ -1369,11 +1371,13 @@ function cmdRadar(msg) {
           side: o.side, tick_type: o.tick_type,
           fx: o.fx ?? 0, fz: o.fz ?? 0, name: o.name || '', art: o.art || '',
           y: o.y ?? 0, meshscale: o.meshscale ?? 1, q: o.q || null,
+          shp: o.shp ?? -1,
         });
       } else {
         const meta = _dynamicMeta.get(o.id);
         if (meta && o.fx !== undefined) { meta.fx = o.fx; meta.fz = o.fz; }
         if (meta && o.q) meta.q = o.q;
+        if (meta && o.shp !== undefined) meta.shp = o.shp;
       }
       const pb = idx * 3;
       _dynamicPosBuf[pb]     = o.x;
@@ -1646,6 +1650,13 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
       ctx.strokeStyle = col; ctx.lineWidth = isPlayer ? 2 : 1.5;
       ctx.beginPath(); ctx.moveTo(px, py);
       ctx.lineTo(px + meta.fx * alen, py - meta.fz * alen); ctx.stroke();
+    }
+    // Shield ring: a circle around the ship colored by shield fraction (green/
+    // yellow/red). meta.shp < 0 means no shields (station/terrain) -> no ring.
+    if (meta.shp >= 0) {
+      ctx.strokeStyle = _shieldColor(meta.shp);
+      ctx.lineWidth = isPlayer ? 2.5 : 2;
+      ctx.beginPath(); ctx.arc(px, py, s * 0.6, 0, 2 * Math.PI); ctx.stroke();
     }
     if (showNames && meta.name) {
       ctx.fillStyle = col;
@@ -2262,6 +2273,50 @@ function _view3dSyncFx() {
   _fxPoints.geometry.attributes.position.needsUpdate = true;
 }
 
+// Shield rings in the 3D world: a flat ring on the y=0 plane under each shielded
+// ship, colored green/yellow/red by shield fraction (meta.shp). One InstancedMesh
+// with per-instance color, mirroring _view3dSyncInstances' instancing approach.
+let _shieldRingInst = null;
+const _SHIELD_RING_CAP = 256;
+const _ringColor = (typeof THREE !== 'undefined') ? new THREE.Color() : null;
+const _ringQ = (typeof THREE !== 'undefined') ? new THREE.Quaternion() : null;
+function _view3dSyncShieldRings() {
+  if (!_view3dScene || typeof THREE === 'undefined') return;
+  if (_shieldRingInst && _shieldRingInst.parent !== _view3dScene) _shieldRingInst = null;
+  if (!_shieldRingInst) {
+    // Unit ring (radius ~1) lying flat on XZ; per-instance scaled to ship size.
+    const geo = new THREE.RingGeometry(0.92, 1.0, 40);
+    geo.rotateX(-Math.PI / 2);
+    const mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true,
+                                              opacity: 0.85, depthWrite: false });
+    _shieldRingInst = new THREE.InstancedMesh(geo, mat, _SHIELD_RING_CAP);
+    _shieldRingInst.frustumCulled = false;   // instanceColor is allocated lazily by setColorAt
+    _view3dScene.add(_shieldRingInst);
+  }
+  let i = 0;
+  for (const [id, meta] of _dynamicMeta) {
+    if (meta.shp < 0 || i >= _SHIELD_RING_CAP) continue;   // no shields -> no ring
+    const idx = _dynamicMap.get(id);
+    if (idx === undefined || idx >= _dynamicCount) continue;
+    const b = idx * 3;
+    // Ring radius from the loaded mesh size (sc * maxDim) so it hugs the hull;
+    // fall back to a sc-scaled constant before the mesh loads.
+    const g = meta.art ? _instArt.get(meta.art) : null;
+    const maxDim = (g && g.base && g.base.userData) ? g.base.userData.maxDim : 0;
+    const r = (maxDim ? maxDim * (meta.meshscale || 1) : (meta.meshscale || 1) * 150) * 0.75;
+    _vpos.set(_dynamicDispBuf[b], (meta.y || 0) + 1, _dynamicDispBuf[b + 1]);
+    _vscale.set(r, r, r);
+    _m4.compose(_vpos, _ringQ, _vscale);   // flat ring (geometry pre-rotated to XZ)
+    _shieldRingInst.setMatrixAt(i, _m4);
+    _ringColor.set(_shieldColor(meta.shp));
+    _shieldRingInst.setColorAt(i, _ringColor);
+    i++;
+  }
+  _shieldRingInst.count = i;
+  _shieldRingInst.instanceMatrix.needsUpdate = true;
+  if (_shieldRingInst.instanceColor) _shieldRingInst.instanceColor.needsUpdate = true;
+}
+
 function _renderView3d() {
   if (!_view3dActive || !_view3dRenderer) return;
   // Render at the canvas's actual on-screen size (set by its rect), not the whole
@@ -2284,6 +2339,7 @@ function _renderView3d() {
   _view3dSyncInstances();   // before _view3dSync so meshed objects drop their point
   _view3dSync();
   _view3dSyncFx();          // combat beams + projectile dots (y=0 plane)
+  _view3dSyncShieldRings();  // shield-fraction rings under shielded ships
   if (_nebMat) _nebMat.uniforms.time.value = performance.now() / 1000;
   // Smooth camera moves so scripted cuts / ship motion ease rather than snap.
   if (_v3dDispCam === null) { _v3dDispCam = _v3dCam.slice(); _v3dDispTgt = _v3dTgt.slice(); }

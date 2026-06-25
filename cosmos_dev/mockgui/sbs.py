@@ -484,6 +484,21 @@ def _systems_health(ds) -> list:
     return out
 
 
+def _shield_frac(obj) -> float:
+    """Total current / total max shields across all facings, 0..1, for the radar's
+    shield ring color. Returns -1.0 for objects with no shields (stations, terrain,
+    pickups) so the browser can skip the ring."""
+    ds = obj.data_set
+    n = int(ds.get("shield_count", 0) or 0)
+    if n <= 0:
+        return -1.0
+    cur = sum((ds.get("shield_val", i) or 0.0) for i in range(n))
+    mx = sum((ds.get("shield_max_val", i) or 0.0) for i in range(n))
+    if mx <= 0:
+        return -1.0
+    return round(max(0.0, min(1.0, cur / mx)), 3)
+
+
 def _ship_stat_payload(o, space) -> dict:
     """Common vitals (vitals + systems + torpedoes) for a ship object - shared by
     the ship_data and target_data HUDs."""
@@ -842,7 +857,8 @@ def _push_radar() -> None:
             z   = round(obj._pos.z, 1)
             fx  = round(fwd.x, 3)
             fz  = round(fwd.z, 3)
-            new_snap[id_] = (x, z, fx, fz)
+            shp = _shield_frac(obj)              # shield fraction for the ring color
+            new_snap[id_] = (x, z, fx, fz, shp)
 
             prev = last.get(id_)
             if prev is None:
@@ -856,16 +872,20 @@ def _push_radar() -> None:
                     "y":         round(obj._pos.y, 1),
                     "meshscale": _mesh_scale_for(obj),
                     "q":         _quat_of(obj),
+                    "shp":       shp,
                     "new":       True,
                 })
             else:
-                lx, lz, lfx, lfz = prev
+                lx, lz, lfx, lfz, lshp = prev
                 ddx, ddz = x - lx, z - lz
                 dhdg = abs(fx - lfx) + abs(fz - lfz)
+                # Re-send on enough movement/turn OR a meaningful shield change (so a
+                # parked ship under fire still updates its ring).
                 if (ddx * ddx + ddz * ddz >= _DYNAMIC_POS_THRESHOLD_SQ
-                        or dhdg >= _DYNAMIC_HDG_THRESHOLD):
+                        or dhdg >= _DYNAMIC_HDG_THRESHOLD
+                        or abs(shp - lshp) >= 0.05):
                     changed.append({"id": str(id_), "x": x, "z": z, "fx": fx, "fz": fz,
-                                    "q": _quat_of(obj)})
+                                    "q": _quat_of(obj), "shp": shp})
 
         _last_per_ship[sid_str] = new_snap
 
