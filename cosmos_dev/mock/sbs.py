@@ -2403,12 +2403,15 @@ def _hit_facing(target, source, n_facings: int) -> int:
     return int((ang + sector / 2.0) % 360.0 / sector) % n_facings
 
 
-def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
+def apply_damage(target_id: int, amount: float, source_id: int = 0, kind: str = "") -> None:
     """Mock-only hull-damage model.
 
     Applies `amount` hull damage to `target_id` and queues the matching engine
     events so handlerhooks routes them like the real Pybind layer:
-      - non-fatal: a ``damage`` event (origin=source, selected=target)
+      - non-fatal: a ``damage`` event (origin=source, selected=target). Carries
+        ``sub_tag`` = weapon kind (``kind``: "beam"/"drone"/torp type) and
+        ``sub_float`` = the hit amount, like the engine - so //damage routes can read
+        ``EVENT.sub_float`` / ``EVENT.sub_tag`` in the mock too.
       - fatal: a ``damage``/``destroyed`` event (fires //damage/destroy and
         removes the py Agent via LifetimeDispatcher) plus ``npc_killed`` or
         ``station_killed`` (fires //damage/killed, keyed on origin=target).
@@ -2422,6 +2425,13 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
     if obj is None:
         return
     _apply_damage_calls += 1   # dev diagnostic (mission_runner --test report)
+    hit_amount = float(amount)   # raw weapon damage -> //damage EVENT.sub_float
+
+    def _dmg(destroyed: bool = False):
+        # sub_tag = weapon kind, or "destroyed" for the fatal hit (the //damage/destroy
+        # signal); sub_float = the hit amount. Matches the engine's //damage event.
+        st = "destroyed" if destroyed else kind
+        _pending_physics_events.put(("damage", st, source_id, target_id, {"sub_float": hit_amount}))
     ds = obj.data_set
     is_player = bool(obj._abits & 0x20)
     # Damageable = a ship (shields / player) or a station (armor). Asteroids and
@@ -2444,7 +2454,7 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
     if shield > 0:
         if amount <= shield:
             ds.set("shield_val", shield - amount, fi)
-            _pending_physics_events.put(("damage", "", source_id, target_id))
+            _dmg()
             return
         amount -= shield
         ds.set("shield_val", 0.0, fi)
@@ -2456,7 +2466,7 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
     #  * NPC ship -> no armor (armor is station-only); fill system_damage across
     #    the 4 SHPSYS, npc_killed when every system is maxed.
     if is_player:
-        _pending_physics_events.put(("damage", "", source_id, target_id))
+        _dmg()
         # //damage/internal: origin = the damaged ship; reads sub_float (system/
         # amount) + source_point. source_point is a point on the ship MESH in 3D
         # that the script maps to grid cell(s). A random point around the ship is
@@ -2476,10 +2486,10 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
         armor = (ds.get("armor") or 0.0) - amount
         if armor > 0:
             ds.set("armor", armor)
-            _pending_physics_events.put(("damage", "", source_id, target_id))
+            _dmg()
             return
         ds.set("armor", 0.0)
-        _pending_physics_events.put(("damage", "destroyed", source_id, target_id))
+        _dmg(destroyed=True)
         _pending_physics_events.put(("station_killed", "", target_id, target_id))
         _bump_exciting(sim.space_objects.get(source_id), _EXCITE_KILL)
         delete_object(target_id)
@@ -2502,12 +2512,12 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
                and (ds.get("system_damage", i) or 0.0) >= (ds.get("system_max_damage", i) or 0.0)
                for i in range(4))
     if dead:
-        _pending_physics_events.put(("damage", "destroyed", source_id, target_id))
+        _dmg(destroyed=True)
         _pending_physics_events.put(("npc_killed", "", target_id, target_id))
         _bump_exciting(sim.space_objects.get(source_id), _EXCITE_KILL)
         delete_object(target_id)
     else:
-        _pending_physics_events.put(("damage", "", source_id, target_id))
+        _dmg()
 
 
 def _weapon_target(ds) -> int:
@@ -2607,7 +2617,7 @@ def _physics_beams(sim, active: list, dt: float) -> None:
             for _ in range(max(1, int(ds.get("beamCount") or 1))):
                 if tid not in space:
                     break                      # target destroyed by an earlier beam
-                apply_damage(tid, dmg, aid)
+                apply_damage(tid, dmg, aid, kind="beam")
         a._beam_cooldown = ds.get("beamCycleTime") or 6.0
         _beam_fires.append((aid, tid))                    # transient, for the mockgui
         _bump_exciting(a, _EXCITE_COMBAT)                 # combat is camera-worthy
@@ -2878,7 +2888,7 @@ def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
         # Placed, stationary, proximity-triggered (behaviour 'mine').
         _projectiles.append({
             "pos": vec3(src._pos.x, src._pos.y, src._pos.z),
-            "source_id": source_id, "kind": "mine",
+            "source_id": source_id, "kind": "mine", "torp_kind": kind,
             "damage": float(damage), "blast_radius": float(blast),
             "blast_life": float(blast_life),
             "trigger_radius": _TORP_MINE_TRIGGER, "life": _TORP_MINE_LIFE,
@@ -2887,7 +2897,7 @@ def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
     _projectiles.append({
         "pos": vec3(src._pos.x, src._pos.y, src._pos.z),
         "dir": _unit_toward(src, sim.space_objects.get(target_id)),
-        "source_id": source_id,
+        "source_id": source_id, "torp_kind": kind,
         "damage": float(damage), "speed": float(speed),
         "life": float(life), "kind": "missile",
         "blast_radius": float(blast), "effect": effect, "blast_life": float(blast_life),
@@ -2917,7 +2927,7 @@ def launch_drone(source_id: int, target_id: int, damage: float = 20.0,
 
 
 def _register_blast(pos, per_ripple: float, max_radius: float, source_id: int,
-                    lifetime: float = _TORP_BLAST_LIFETIME) -> None:
+                    lifetime: float = _TORP_BLAST_LIFETIME, kind: str = "") -> None:
     """Register a lingering Nuke/Mine blast at `pos`. _physics_blasts ripples it (see
     that function): the ring grows from 0 to max_radius over `lifetime` (the torpedo's
     lifetime), dealing per_ripple hull each ripple to whatever is currently inside it."""
@@ -2925,10 +2935,11 @@ def _register_blast(pos, per_ripple: float, max_radius: float, source_id: int,
         "pos": vec3(pos.x, pos.y, pos.z),
         "per_ripple": float(per_ripple), "max_radius": float(max_radius),
         "source_id": source_id, "lifetime": float(lifetime), "age": 0.0, "since": 0.0,
+        "kind": kind,
     })
 
 
-def _blast_ripple(pos, per_ripple: float, radius: float, source_id: int) -> None:
+def _blast_ripple(pos, per_ripple: float, radius: float, source_id: int, kind: str = "") -> None:
     """One ripple of a growing blast: deal per_ripple hull (flat) to every ship inside
     the current ring of `radius`. The distance grading emerges over time, not per
     ripple - the expanding ring reaches closer ships sooner, so they take more ripples
@@ -2943,7 +2954,7 @@ def _blast_ripple(pos, per_ripple: float, radius: float, source_id: int) -> None
         dy = o._pos.y - pos.y
         dz = o._pos.z - pos.z
         if dx * dx + dy * dy + dz * dz <= r2:
-            apply_damage(oid, per_ripple, source_id)
+            apply_damage(oid, per_ripple, source_id, kind=kind)
 
 
 def _physics_blasts(sim, dt: float) -> None:
@@ -2960,17 +2971,19 @@ def _physics_blasts(sim, dt: float) -> None:
         if bl["since"] >= _TORP_BLAST_RIPPLE_INTERVAL:
             bl["since"] -= _TORP_BLAST_RIPPLE_INTERVAL
             frac = min(1.0, bl["age"] / life) if life > 0 else 1.0
-            _blast_ripple(bl["pos"], bl["per_ripple"], bl["max_radius"] * frac, bl["source_id"])
+            _blast_ripple(bl["pos"], bl["per_ripple"], bl["max_radius"] * frac,
+                          bl["source_id"], bl.get("kind", ""))
         if bl["age"] < life:
             remaining.append(bl)
     _blasts[:] = remaining
 
 
-def _apply_emp(pos, radius: float, source_id: int) -> None:
+def _apply_emp(pos, radius: float, source_id: int, kind: str = "") -> None:
     """EMP detonation (one-shot AoE reduce_shields): halve the CURRENT shields (per
     facing) of every ship within `radius` of `pos`. 0 hull damage (per capture - EMP
     is a shield/system pulse). Emits a damage event per affected ship so //damage
-    routes fire (the engine routes EMP hits with a 0 hull amount)."""
+    routes fire (the engine routes EMP hits with a 0 hull amount); sub_tag = the torp
+    kind, sub_float = 0.0 (no hull)."""
     if sim is None or radius <= 0.0:
         return
     r2 = radius * radius
@@ -2991,7 +3004,7 @@ def _apply_emp(pos, radius: float, source_id: int) -> None:
                 ds.set("shield_val", sv * _TORP_EMP_SHIELD_MULT, i)
                 hit = True
         if hit:
-            _pending_physics_events.put(("damage", "", source_id, oid))
+            _pending_physics_events.put(("damage", kind, source_id, oid, {"sub_float": 0.0}))
 
 
 def _nearest_hittable(space, pos, radius: float, exclude_id: int) -> int:
@@ -3035,7 +3048,7 @@ def _physics_projectiles(sim, dt: float) -> None:
             # within the trigger radius, else keep waiting (until life expires).
             if _nearest_hittable(space, pos, p["trigger_radius"], p["source_id"]):
                 _register_blast(pos, p["damage"], p["blast_radius"], p["source_id"],
-                                p.get("blast_life", _TORP_BLAST_LIFETIME))
+                                p.get("blast_life", _TORP_BLAST_LIFETIME), p.get("torp_kind", ""))
                 continue  # consumed on detonation
             remaining.append(p)
             continue
@@ -3050,13 +3063,14 @@ def _physics_projectiles(sim, dt: float) -> None:
             if hit:
                 eff = p.get("effect", "single")
                 blast = p.get("blast_radius", 0.0)
+                tkind = p.get("torp_kind", "")
                 if eff == "blast" and blast > 0.0:
                     _register_blast(pos, p["damage"], blast, p["source_id"],
-                                    p.get("blast_life", _TORP_BLAST_LIFETIME))   # Nuke: lingering ring
+                                    p.get("blast_life", _TORP_BLAST_LIFETIME), tkind)   # Nuke: lingering ring
                 elif eff == "emp" and blast > 0.0:
-                    _apply_emp(pos, blast, p["source_id"])                    # EMP: one-shot shield-halve
+                    _apply_emp(pos, blast, p["source_id"], tkind)             # EMP: one-shot shield-halve
                 else:
-                    apply_damage(hit, p["damage"], p["source_id"])            # Homing: single hit
+                    apply_damage(hit, p["damage"], p["source_id"], kind=tkind)  # Homing: single hit
                 continue  # consumed on impact
             remaining.append(p)
             continue
@@ -3069,7 +3083,7 @@ def _physics_projectiles(sim, dt: float) -> None:
         dz = target._pos.z - pos.z
         dist2 = dx * dx + dy * dy + dz * dz
         if dist2 <= _PROJECTILE_HIT_RADIUS * _PROJECTILE_HIT_RADIUS or dist2 <= step * step:
-            apply_damage(p["target_id"], p["damage"], p["source_id"])
+            apply_damage(p["target_id"], p["damage"], p["source_id"], kind="drone")
             continue  # consumed on impact
         dist = math.sqrt(dist2)
         pos.x += dx / dist * step
@@ -3257,7 +3271,7 @@ def _physics_collision(sim, active: list) -> None:
                 if t is not None:
                     dmg = t.data_set.get("damage_done") or 0.0
                     if dmg > 0:
-                        apply_damage(ia, dmg, ib)
+                        apply_damage(ia, dmg, ib, kind="collision")
     for pair, (kind, ia, ib) in _contact_pairs.items():
         if pair not in new_contacts:
             tag = f"{kind}_collision_end"

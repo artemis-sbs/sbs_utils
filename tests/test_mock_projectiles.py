@@ -54,7 +54,8 @@ class TestMockProjectiles(unittest.TestCase):
                          [("player_launches_missile", "", sid, tid, sid, "Homing")])
         self.assertEqual(len(sbs._projectiles), 1)
         sbs._physics_projectiles(self.sim, dt=0.5)        # impacts (close)
-        self.assertIn(("damage", "", sid, tid), _drain())
+        # sub_tag = torp kind ("Homing"), sub_float = the hit amount.
+        self.assertIn(("damage", "Homing", sid, tid, {"sub_float": 30.0}), _drain())
         self.assertEqual(t.data_set.get("armor"), 70.0)
         self.assertEqual(len(sbs._projectiles), 0)        # consumed
 
@@ -66,7 +67,7 @@ class TestMockProjectiles(unittest.TestCase):
         self.assertEqual(_drain(),
                          [("ship_launches_drone", "", sid, tid, sid, "drone")])
         sbs._physics_projectiles(self.sim, dt=0.5)
-        self.assertIn(("damage", "", sid, tid), _drain())
+        self.assertIn(("damage", "drone", sid, tid, {"sub_float": 15.0}), _drain())
         self.assertEqual(t.data_set.get("armor"), 85.0)
 
     def test_torp_profile_by_kind(self):

@@ -17,6 +17,23 @@ from sbs_utils.agent import Agent, clear_shared
 
 
 def _drain():
+    """Drain queued physics events, dropping the trailing options dict that damage
+    events carry (e.g. {"sub_float": amount}) so these routing assertions stay focused
+    on (tag, sub_tag, source, target). See test_damage_carries_amount_and_kind for the
+    payload itself."""
+    out = []
+    while True:
+        try:
+            ev = sbs._pending_physics_events.get_nowait()
+        except Exception:
+            break
+        if ev and isinstance(ev[-1], dict):
+            ev = ev[:-1]
+        out.append(ev)
+    return out
+
+
+def _drain_raw():
     out = []
     while True:
         try:
@@ -74,6 +91,24 @@ class TestMockDamage(unittest.TestCase):
         self.assertEqual(ev, [("damage", "", 999, oid)])
         self.assertEqual(o.data_set.get("armor"), 70.0)
         self.assertIn(oid, self.sim.space_objects)        # still alive
+
+    def test_damage_carries_amount_and_kind(self):
+        # The damage event's trailing options dict carries sub_float (hit amount) and
+        # the sub_tag carries the weapon kind, so //damage routes read EVENT.sub_float
+        # / EVENT.sub_tag in the mock like the engine. The runner unpacks the dict onto
+        # the FakeEvent (see mission_runner._drain_physics_events).
+        oid, o = self._hulled(100)
+        _drain_raw()
+        sbs.apply_damage(oid, 30, source_id=999, kind="beam")
+        ev = _drain_raw()
+        self.assertEqual(ev, [("damage", "beam", 999, oid, {"sub_float": 30.0})])
+        # Fatal hit keeps "destroyed" as sub_tag (the //damage/destroy signal) but
+        # still reports the amount.
+        oid2, o2 = self._hulled(10)
+        _drain_raw()
+        sbs.apply_damage(oid2, 25, source_id=999, kind="beam")
+        ev2 = _drain_raw()
+        self.assertEqual(ev2[0], ("damage", "destroyed", 999, oid2, {"sub_float": 25.0}))
 
     def test_npc_ship_destroyed_via_systems(self):
         # NPC ship has no armor; a lethal hit maxes all 4 SHPSYS -> npc_killed.
@@ -266,7 +301,7 @@ class TestMockDamage(unittest.TestCase):
         _drain()
         sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
         ev = _drain()
-        self.assertIn(("damage", "", aid, tid), ev)
+        self.assertIn(("damage", "beam", aid, tid), ev)   # sub_tag = weapon kind
         self.assertEqual(t.data_set.get("armor"), 72.5)   # 100 - (30/6)*5.5 NPC base
         # cooldown engaged -> no fire next tick
         sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
@@ -307,7 +342,7 @@ class TestMockDamage(unittest.TestCase):
         a.data_set.set("weapon_target_UID", tid)
         _drain()
         sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
-        self.assertIn(("damage", "", aid, tid), _drain())
+        self.assertIn(("damage", "beam", aid, tid), _drain())
         self.assertEqual(t.data_set.get("armor"), 72.5)   # 100 - (30/6)*5.5 NPC base
 
     def test_beam_in_arc_fires(self):
@@ -316,7 +351,7 @@ class TestMockDamage(unittest.TestCase):
         a.data_set.set("beamArcWidth", 90.0)                       # narrow forward arc
         _drain()
         sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
-        self.assertIn(("damage", "", aid, tid), _drain())
+        self.assertIn(("damage", "beam", aid, tid), _drain())
 
     def test_beam_out_of_arc_no_fire(self):
         tid, t = self._hulled(100); t._pos = sbs.vec3(500, 0, 0)   # 90 deg off forward (+X)

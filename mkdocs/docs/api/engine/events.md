@@ -77,8 +77,9 @@ Damage route variants: `//damage/object` (any hit), `//damage/destroy`,
     | `event_time` | engine time of the hit |
 
     So to read actual delivered damage, listen on `//damage/object` and use
-    `EVENT.sub_float` (+ `EVENT.sub_tag` for the weapon). The mock does not yet emit
-    `sub_float` on its `damage` events — see the note below.
+    `EVENT.sub_float` (+ `EVENT.sub_tag` for the weapon). The mock now emits both
+    too (see the combat-events table below), so `//damage` logic behaves the same in
+    the dev runner.
 
 ### GUI events (code / `cosmos_dev` confirmed)
 
@@ -105,8 +106,8 @@ order is `(tag, sub_tag, origin_id, selected_id[, parent_id][, {extra fields}])`
 
 | `tag` | `sub_tag` | origin → selected | Fires |
 |---|---|---|---|
-| `damage` | `""` | source → target | `//damage/object` (non-fatal hit) |
-| `damage` | `"destroyed"` | source → target | `//damage/destroy` + object removal |
+| `damage` | weapon kind | source → target | `//damage/object` (non-fatal hit); `{"sub_float": amount}` |
+| `damage` | `"destroyed"` | source → target | `//damage/destroy` + object removal; `{"sub_float": amount}` |
 | `npc_killed` | `""` | target → target | `//damage/killed` (NPC ship) |
 | `station_killed` | `""` | target → target | `//damage/killed` (station) |
 | `player_internal_damage` | `""` | target → source | `//damage/internal`; carries `sub_float` (system/amount) + `source_point` (mesh hit point) |
@@ -115,11 +116,14 @@ order is `(tag, sub_tag, origin_id, selected_id[, parent_id][, {extra fields}])`
 | `player_launches_missile` | `""` | source → target | `//launch/missile`; `extra_extra_tag = kind` (Homing / Nuke / EMP / Mine) |
 | `*_collision_start` / `*_collision_end` | kind | a ↔ b | `//collision/*` |
 
-!!! note "Mock damage events carry no amount yet"
-    The mock currently emits `damage` events **without** the hit amount. Once a
-    capture reveals the engine's amount field (above), the mock should emit it
-    (the dev runner supports a trailing dict, e.g. `{"sub_float": amount}`) so
-    `//damage` routes — and this reference — agree across engine and mock.
+!!! success "Mock damage events carry the amount + weapon kind"
+    Every mock `damage` event now ends with a `{"sub_float": amount}` dict (the raw
+    hit amount; `0.0` for EMP, which only drains shields) and sets `sub_tag` to the
+    **weapon kind** — `beam`, `drone`, the torpedo type (`Homing` / `Nuke` / `EMP` /
+    `Mine` / `Tag`), or `collision` — except the fatal hit, which keeps `sub_tag =
+    "destroyed"` so `//damage/destroy` still fires. The dev runner unpacks the trailing
+    dict onto the event (`mission_runner._drain_physics_events`), so `EVENT.sub_float`
+    and `EVENT.sub_tag` read the same in the mock as in the engine.
 
 ---
 
