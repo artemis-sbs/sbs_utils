@@ -193,13 +193,14 @@ class TestMockDamage(unittest.TestCase):
         self.assertEqual(_drain(), [])
         self.assertEqual(t.data_set.get("armor"), 100.0)
 
-    def test_beam_fire_adds_heat(self):
-        tid, t = self._hulled(100); t._pos = sbs.vec3(0, 0, 500)   # in front
-        aid, a = self._beamer(tid, rng=1000, dmg=30)
-        self.assertEqual(getattr(a, "_heat", 0.0), 0.0)
+    def test_system_overheat_fires_heat_critical(self):
+        # System heat is engineering (system_cur_heat), not combat: driving a
+        # system past critical fires heat_critical_damage with that SHPSYS index.
+        aid, a = self._hulled(100)
+        a.data_set.set("system_cur_heat", 1.5, 0)   # WEAPONS system overheated
         _drain()
-        sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
-        self.assertGreater(getattr(a, "_heat", 0.0), 0.0)         # firing heats the ship
+        sbs._physics_heat([(aid, a)], dt=0.1)
+        self.assertIn(("heat_critical_damage", "0", aid, aid), _drain())
 
     def test_set_beam_damages_base_times_coeff(self):
         # set_beam_damages makes per-shot = category base * per-beam coeff, where
@@ -230,11 +231,11 @@ class TestMockDamage(unittest.TestCase):
         sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
         self.assertEqual(t.data_set.get("armor"), 70.0)           # 100 - 30 (beamDamage)
 
-    def test_heat_decays(self):
+    def test_system_heat_decays(self):
         aid, a = self._hulled(100)
-        a._heat = 1.0
+        a.data_set.set("system_cur_heat", 0.6, 0)
         sbs._physics_heat([(aid, a)], dt=1.0)
-        self.assertAlmostEqual(a._heat, 1.0 - sbs._HEAT_DECAY)
+        self.assertAlmostEqual(a.data_set.get("system_cur_heat", 0), 0.6 - sbs._HEAT_DECAY)
 
 
 if __name__ == '__main__':

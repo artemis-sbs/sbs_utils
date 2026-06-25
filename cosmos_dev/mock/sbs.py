@@ -2414,9 +2414,6 @@ def _physics_beams(sim, active: list, dt: float) -> None:
                     break                      # target destroyed by an earlier beam
                 apply_damage(tid, dmg, aid)
         a._beam_cooldown = ds.get("beamCycleTime") or 6.0
-        # Combat heat (_heat) is a mock-only signal for heat-seeking missiles - it
-        # is NOT the engine's system_cur_heat (which is engineering overpower/coolant).
-        a._heat = getattr(a, "_heat", 0.0) + _BEAM_HEAT
         _beam_fires.append((aid, tid))                    # transient, for the mockgui
 
 
@@ -2427,28 +2424,38 @@ _TORP_CYCLE = 8.0
 _TORP_DAMAGE = 40.0
 _DRONE_CYCLE = 10.0
 
-# Ship heat uses the engine field `system_cur_heat` (per-system, 0..1): firing
-# beams heats the weapon system, heat decays over time, heat-seeking missiles
-# chase the hottest nearby object, and a system over _HEAT_CRITICAL fires
-# heat_critical_damage (once per crossing).
-_BEAM_HEAT = 0.2
+# System heat is the engine field `system_cur_heat` (per SHPSYS, 0..1):
+# engineering overpower / insufficient coolant. The mock doesn't simulate
+# engineering, so it only rises when a script/test drives it; a system over
+# _HEAT_CRITICAL fires heat_critical_damage (once per crossing per system). It
+# decays over time. (There is no combat heat / heat-seeking in the mock.)
 _HEAT_DECAY = 0.05          # per second
 _HEAT_CRITICAL = 1.0        # system_cur_heat above this fires heat_critical_damage
 
 
-_HEAT_SEEK_RADIUS = 8000.0
+def _unit_toward(src, tgt):
+    """Unit direction from src toward tgt's position; src forward if no target."""
+    if tgt is not None:
+        dx = tgt._pos.x - src._pos.x
+        dy = tgt._pos.y - src._pos.y
+        dz = tgt._pos.z - src._pos.z
+        n = math.sqrt(dx * dx + dy * dy + dz * dz)
+        if n > 1e-6:
+            return (dx / n, dy / n, dz / n)
+    f = src.forward_vector()
+    return (f.x, f.y, f.z)
 
 
 def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
                    damage: float = _TORP_DAMAGE, speed: float = 600.0,
-                   life: float = 30.0, heat_seek: bool = False) -> None:
-    """Mock-only: launch a homing missile/torpedo.
+                   life: float = 30.0) -> None:
+    """Mock-only: launch a (non-homing) missile/torpedo.
 
     Emits a ``player_launches_missile`` event (routes //launch/missile, with
-    extra_extra_tag=kind, origin=source, selected=target) and registers a
-    projectile that homes the target and deals `damage` hull damage on impact
-    (via apply_damage -> damage/killed events). If ``heat_seek`` it re-locks each
-    tick onto the hottest nearby object instead of the fired target.
+    extra_extra_tag=kind, origin=source, selected=target). The missile fires in a
+    fixed direction toward the target's launch position (a point) and keeps flying
+    straight, hitting the nearest damageable object it passes within range (via
+    apply_damage -> damage/killed events) - it does not home or re-curve.
     """
     if sim is None:
         return
@@ -2459,9 +2466,10 @@ def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
         ("player_launches_missile", "", source_id, target_id, source_id, kind))
     _projectiles.append({
         "pos": vec3(src._pos.x, src._pos.y, src._pos.z),
-        "target_id": target_id, "source_id": source_id,
+        "dir": _unit_toward(src, sim.space_objects.get(target_id)),
+        "source_id": source_id,
         "damage": float(damage), "speed": float(speed),
-        "life": float(life), "kind": "missile", "heat_seek": bool(heat_seek),
+        "life": float(life), "kind": "missile",
     })
 
 
@@ -2487,32 +2495,33 @@ def launch_drone(source_id: int, target_id: int, damage: float = 20.0,
     })
 
 
-def _hottest_within(sim, pos, radius: float, exclude_id: int) -> int:
-    """Return the id of the hottest object (largest system heat) within `radius`
-    of `pos`, or 0 if none. Used by heat-seeking missiles."""
+def _nearest_hittable(space, pos, radius: float, exclude_id: int) -> int:
+    """Nearest damageable object (armorMax>0) within `radius` of `pos`, excluding
+    the firing ship. 0 if none. Used for missile fly-through hit detection."""
     best = 0
-    best_heat = 0.0
-    r2 = radius * radius
-    for oid, o in sim.space_objects.items():
+    best_d2 = radius * radius
+    for oid, o in space.items():
         if oid == exclude_id:
             continue
-        h = getattr(o, "_heat", 0.0)   # combat heat (firing) drives heat-seekers
-        if h <= best_heat:
+        if (o.data_set.get("armorMax") or 0.0) <= 0:
             continue
         dx = o._pos.x - pos.x
         dy = o._pos.y - pos.y
         dz = o._pos.z - pos.z
-        if dx * dx + dy * dy + dz * dz <= r2:
+        d2 = dx * dx + dy * dy + dz * dz
+        if d2 <= best_d2:
+            best_d2 = d2
             best = oid
-            best_heat = h
     return best
 
 
 def _physics_projectiles(sim, dt: float) -> None:
-    """Advance in-flight missiles/drones toward their targets; on impact apply
-    hull damage (apply_damage) and remove. Expire on lifetime or if the target
-    no longer exists. Heat-seeking missiles re-lock onto the hottest nearby
-    object each tick."""
+    """Advance in-flight projectiles; on impact apply hull damage (apply_damage)
+    and remove; expire on lifetime.
+
+    Missiles (have a fixed "dir") fly straight toward the launch aim point and
+    keep going, hitting the nearest damageable object they pass within range -
+    non-homing. Drones home toward their target_id."""
     if not _projectiles:
         return
     space = sim.space_objects
@@ -2521,19 +2530,28 @@ def _physics_projectiles(sim, dt: float) -> None:
         p["life"] -= dt
         if p["life"] <= 0:
             continue
-        if p.get("heat_seek"):
-            hot = _hottest_within(sim, p["pos"], _HEAT_SEEK_RADIUS, p["source_id"])
-            if hot:
-                p["target_id"] = hot     # re-lock onto the hottest contact
+        pos = p["pos"]
+        step = p["speed"] * dt
+        d = p.get("dir")
+        if d is not None:
+            # Missile: straight-line flight; hit whatever it passes within range.
+            pos.x += d[0] * step
+            pos.y += d[1] * step
+            pos.z += d[2] * step
+            hit = _nearest_hittable(space, pos, _PROJECTILE_HIT_RADIUS, p["source_id"])
+            if hit:
+                apply_damage(hit, p["damage"], p["source_id"])
+                continue  # consumed on impact
+            remaining.append(p)
+            continue
+        # Drone: home toward its target.
         target = space.get(p["target_id"])
         if target is None:
-            continue  # target gone -> projectile fizzles
-        pos = p["pos"]
+            continue  # target gone -> drone fizzles
         dx = target._pos.x - pos.x
         dy = target._pos.y - pos.y
         dz = target._pos.z - pos.z
         dist2 = dx * dx + dy * dy + dz * dz
-        step = p["speed"] * dt
         if dist2 <= _PROJECTILE_HIT_RADIUS * _PROJECTILE_HIT_RADIUS or dist2 <= step * step:
             apply_damage(p["target_id"], p["damage"], p["source_id"])
             continue  # consumed on impact
@@ -2546,18 +2564,13 @@ def _physics_projectiles(sim, dt: float) -> None:
 
 
 def _physics_heat(active: list, dt: float) -> None:
-    """Two separate heat models:
-      * Combat heat (_heat): mock-only, raised by firing (_physics_beams), decays;
-        drives heat-seeking missiles. Not a damage source.
-      * System heat (engine system_cur_heat, per SHPSYS): engineering overpower /
-        coolant. The mock doesn't simulate engineering, so it only rises when a
-        script/test drives it; a system over _HEAT_CRITICAL fires
-        heat_critical_damage (once per crossing per system) -> //damage/heat."""
+    """Engineering system heat (engine system_cur_heat, per SHPSYS): overpower /
+    insufficient coolant. The mock doesn't simulate engineering, so it only rises
+    when a script/test drives it; a system over _HEAT_CRITICAL fires
+    heat_critical_damage (once per crossing per system) -> //damage/heat, and it
+    decays over time."""
     d = _HEAT_DECAY * dt
     for _aid, a in active:
-        ch = getattr(a, "_heat", 0.0)
-        if ch > 0.0:
-            a._heat = max(0.0, ch - d)
         ds = a.data_set
         crit = getattr(a, "_heat_crit", None)
         if crit is None:
@@ -2604,8 +2617,7 @@ def _physics_launchers(sim, active: list, dt: float) -> None:
             else:
                 rng = ds.get("torpedo_launch_max_range") or _TORP_RANGE
                 if dist2 <= rng * rng:
-                    heat_seek = bool(ds.get("torpedo_heat_seek") or 0)
-                    launch_missile(aid, target_id, heat_seek=heat_seek)
+                    launch_missile(aid, target_id)
                     a._torp_cooldown = _TORP_CYCLE
 
         # Drones (capability from data_set)

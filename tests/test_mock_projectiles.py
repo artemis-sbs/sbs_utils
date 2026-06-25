@@ -78,15 +78,36 @@ class TestMockProjectiles(unittest.TestCase):
         self.assertTrue(hit)
         self.assertEqual(t.data_set.get("armor"), 60.0)
 
-    def test_projectile_fizzles_if_target_gone(self):
+    def test_drone_fizzles_if_target_gone(self):
+        # Drones home; if the target is gone the drone fizzles.
         sid, s = self._hulled(pos=(0, 0, 0))
         tid, t = self._hulled(100, pos=(5000, 0, 0))
-        sbs.launch_missile(sid, tid)
+        sbs.launch_drone(sid, tid)
         _drain()
         sbs.delete_object(tid)                            # target removed mid-flight
         sbs._physics_projectiles(self.sim, dt=0.5)
         self.assertEqual([e for e in _drain() if e[0] == "damage"], [])
         self.assertEqual(len(sbs._projectiles), 0)
+
+    def test_missile_flies_straight_and_hits_bystander_in_path(self):
+        # Non-homing: the missile fires toward the target's launch point and keeps
+        # flying straight; with the original target gone it still hits whatever it
+        # passes within range (the next closest thing in its path).
+        sid, s = self._hulled(pos=(0, 0, 0))
+        tid, t = self._hulled(100, pos=(5000, 0, 0))          # aim point (+x)
+        bid, b = self._hulled(100, pos=(900, 0, 0))           # bystander in the path
+        sbs.launch_missile(sid, tid, damage=40, speed=600.0)  # dir locked to +x
+        sbs.delete_object(tid)                                # original target gone
+        _drain()
+        hit = False
+        for _ in range(20):
+            sbs._physics_projectiles(self.sim, dt=0.5)
+            if any(e[0] == "damage" for e in _drain()):
+                hit = True
+                break
+        self.assertTrue(hit)
+        self.assertEqual(b.data_set.get("armor"), 60.0)       # hit the bystander
+        self.assertEqual(len(sbs._projectiles), 0)            # consumed on impact
 
     def test_projectile_kills_and_emits_killed(self):
         sid, s = self._hulled(pos=(0, 0, 0))
@@ -132,42 +153,6 @@ class TestMockProjectiles(unittest.TestCase):
         _drain()
         sbs._physics_launchers(self.sim, [(aid, a)], dt=0.5)
         self.assertEqual([e[0] for e in _drain()], ["ship_launches_drone"])
-
-    def test_heat_seeking_retargets_hottest(self):
-        sid, s = self._hulled(pos=(0, 0, 0))
-        cold_id, cold = self._hulled(100, pos=(5000, 0, 0))   # the fired target (cold, far)
-        hot_id, hot = self._hulled(100, pos=(200, 0, 0))      # hotter, close -> impact
-        hot._heat = 0.5
-        sbs.launch_missile(sid, cold_id, damage=40, heat_seek=True)
-        _drain()
-        sbs._physics_projectiles(self.sim, dt=0.5)
-        ev = _drain()
-        self.assertIn(("damage", "", sid, hot_id), ev)         # re-locked onto the hot one
-        self.assertEqual(hot.data_set.get("armor"), 60.0)
-        self.assertEqual(cold.data_set.get("armor"), 100.0)    # fired target untouched
-
-    def test_non_heat_seek_homes_fired_target(self):
-        sid, s = self._hulled(pos=(0, 0, 0))
-        cold_id, cold = self._hulled(100, pos=(200, 0, 0))     # fired target, close
-        hot_id, hot = self._hulled(100, pos=(5000, 0, 0))      # hotter but ignored
-        hot._heat = 0.9
-        sbs.launch_missile(sid, cold_id, damage=40, heat_seek=False)
-        _drain()
-        sbs._physics_projectiles(self.sim, dt=0.5)
-        self.assertIn(("damage", "", sid, cold_id), _drain())
-        self.assertEqual(cold.data_set.get("armor"), 60.0)
-        self.assertEqual(hot.data_set.get("armor"), 100.0)
-
-    def test_autonomous_heat_seek_torpedo(self):
-        aid, a = self._hulled(pos=(0, 0, 0))
-        a.data_set.set("torpedo_tube_count", 1)
-        a.data_set.set("torpedo_heat_seek", 1)
-        tid, t = self._hulled(100, pos=(1000, 0, 0))
-        a.data_set.set("target_id", tid)
-        _drain()
-        sbs._physics_launchers(self.sim, [(aid, a)], dt=0.5)
-        self.assertEqual([e[0] for e in _drain()], ["player_launches_missile"])
-        self.assertTrue(sbs._projectiles[0]["heat_seek"])
 
     def test_no_fire_out_of_range(self):
         aid, a = self._hulled(pos=(0, 0, 0))

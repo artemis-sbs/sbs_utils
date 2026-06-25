@@ -1164,13 +1164,14 @@ function _statHtml(msg, full) {
     `<b style="color:#fff">${msg.name || 'ship'}</b>` +
     (msg.red_alert ? `  <span style="color:#f55">RED ALERT</span>` : '') + '\n' +
     `shield ${_bar(msg.shield, msg.shield_max)}\n` +
-    `hull   ${_bar(msg.hull, msg.hull_max)}\n` +
-    `energy ${Math.round(msg.energy)}`;
+    `hull   ${_bar(msg.hull, msg.hull_max)}`;
   if (full) {
+    // energy is an own-ship management stat; NPCs/targets don't have it.
     const dock = msg.dock_state || 'undocked';
     const dockColor = dock === 'docked' ? '#6f6'
                     : (dock === 'dock_start' || dock === 'docking') ? '#fd6' : '#9ab';
-    html += `\nthrtl  ${msg.throttle}   spd ${msg.speed}` +
+    html += `\nenergy ${Math.round(msg.energy)}` +
+            `\nthrtl  ${msg.throttle}   spd ${msg.speed}` +
             `\ndock   <span style="color:${dockColor}">${dock}</span>` +
             `\ntarget ${msg.target || '—'}`;
   }
