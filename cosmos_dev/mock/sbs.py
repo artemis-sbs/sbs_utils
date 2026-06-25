@@ -2383,6 +2383,18 @@ def _is_station(obj_id: int) -> bool:
         return False
 
 
+# Terrain behaviors that the engine treats as INTERACTIVE (not passive) when an
+# active object touches them - e.g. pickups, which are terrain (behav_pickup) but
+# fire //collision/interactive so the upgrade-collection route runs and deletes
+# them. Without this the mock fires //collision/passive, the route never matches,
+# the pickup is never removed, and a ship that stops on it appears "stuck".
+_INTERACTIVE_TERRAIN = frozenset({"behav_pickup"})
+
+
+def _is_interactive_terrain(obj) -> bool:
+    return getattr(obj, "_tick_type", "") in _INTERACTIVE_TERRAIN
+
+
 def _hit_facing(target, source, n_facings: int) -> int:
     """Which shield facing a hit from `source` lands on. The engine reduces the facing
     toward the attacker; the mock approximates it by the source's bearing relative to
@@ -3277,8 +3289,12 @@ def _physics_collision(sim, active: list) -> None:
                         ddz = a._pos.z - t._pos.z
                         if ddx * ddx + ddy * ddy + ddz * ddz < (ra + rt) * (ra + rt):
                             pair = (min(aid, tid), max(aid, tid))
-                            # active vs static terrain -> passive collision
-                            new_contacts[pair] = ("passive", aid, tid)
+                            # active vs static terrain -> passive collision, EXCEPT
+                            # interactive terrain (pickups), which fire interactive so
+                            # the collection route runs (origin=terrain on the mirror
+                            # emit below). aid=active, tid=terrain in either case.
+                            ckind = "interactive" if _is_interactive_terrain(t) else "passive"
+                            new_contacts[pair] = (ckind, aid, tid)
 
     # Diff against the previous frame: start on contact entry, end on exit.
     # Both id orderings are emitted so each object sees itself as origin.

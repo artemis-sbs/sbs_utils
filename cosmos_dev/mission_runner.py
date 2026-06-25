@@ -20,9 +20,19 @@ import queue as _queue_mod
 import sys
 import threading
 import time
+import traceback
 
 # sbs_utils project root: cosmos_dev/mission_runner.py → cosmos_dev/ → project root
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _log_exc(prefix: str) -> None:
+    """Print a one-line prefix followed by the FULL traceback of the exception being
+    handled. The runner's except blocks used to print only str(e), which hid the
+    stack - making mission-end / reload crashes impossible to diagnose. Always call
+    this from inside an `except` so the crash is visible on the console."""
+    print(f"[runner] {prefix}")
+    traceback.print_exc()
 
 
 def _find_missions_root(start: str) -> str:
@@ -189,7 +199,7 @@ def _drain_physics_events(sim, cosmos_event_handler, FakeEvent) -> None:
         try:
             cosmos_event_handler(sim, ev)
         except Exception as e:
-            print(f"[runner] physics event error ({tag}/{sub_tag}): {e}")
+            _log_exc(f"physics event error ({tag}/{sub_tag}): {e}")
 
 
 def _drain_client_strings(sim, cosmos_event_handler, FakeEvent) -> None:
@@ -443,7 +453,7 @@ def _run(
                 try:
                     sbs_mod.physics_tick(dt=_PHYSICS_DT)
                 except Exception as e:
-                    print(f"[runner] physics worker error: {e}")
+                    _log_exc(f"physics worker error: {e}")
             stop_ev.wait(timeout=_PHYSICS_DT)   # exits promptly on stop signal
 
     _physics_thread = threading.Thread(
@@ -555,7 +565,7 @@ def _run(
                     _map_started = (map_arg is None)
                     _pending_client_connects = list(prev_clients)
                 except Exception as e:
-                    print(f"[runner] run_next_mission reload failed: {e}")
+                    _log_exc(f"run_next_mission reload failed: {e}")
 
             sim_state = "sim_paused" if sbs.sim._paused else "sim_running"
             tick_event = FakeEvent(client_id=0, tag="mission_tick", sub_tag=sim_state)
@@ -588,7 +598,7 @@ def _run(
                                 gev_ev.value_tag = str(val)
                         cosmos_event_handler(sbs.sim, gev_ev)
                     except Exception as e:
-                        print(f"[runner] gui event error: {e}")
+                        _log_exc(f"gui event error: {e}")
 
             if run_mast:
                 # Server MAST tick at 5 Hz.
@@ -600,7 +610,11 @@ def _run(
                     if _verdict is not None:
                         _verdict.record_exception(e, where="mission_tick")
                     else:
-                        raise
+                        # GUI/interactive debug: a MAST tick error (often surfacing at
+                        # mission end) must NOT kill the runner - print the full trace
+                        # and keep ticking, like the engine logs to mast.runtime.log
+                        # and carries on. (--test re-raises via the verdict path above.)
+                        _log_exc(f"mission_tick error: {e}")
                 # NOTE: sim time (time_tick_counter) is advanced by the physics
                 # tick, not the MAST tick — the physics thread is the sim-time
                 # source, matching the engine.  See cosmos_dev/mock/sbs.py.
@@ -644,7 +658,7 @@ def _run(
                             ]
                             sbs.unregister_client(cid)
                     except Exception as e:
-                        print(f"[runner] client event error: {e}")
+                        _log_exc(f"client event error: {e}")
 
             # Auto-start: poll each tick until @map/ labels are registered,
             # then schedule the requested map (replaces extern_debug.mast logic)

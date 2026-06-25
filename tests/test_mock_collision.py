@@ -95,6 +95,24 @@ class TestMockCollision(unittest.TestCase):
         self.assertEqual(self._tags(_drain()),
                          ["passive_collision_end", "passive_collision_end"])
 
+    def test_pickup_terrain_fires_interactive(self):
+        # A pickup is terrain (behav_pickup) but the engine fires //collision/
+        # INTERACTIVE for it (so the upgrade-collection route runs and deletes it).
+        # The mock must match - otherwise the pickup is never collected and a ship
+        # that stops on it looks stuck.
+        a_id, a = self._obj(0x10, (0, 0, 0), 100)              # active player/ship
+        p_id = self.sim.create_space_object("behav_pickup", "", 0x00)   # terrain pickup
+        p = self.sim.space_objects[p_id]
+        p._pos = sbs.vec3(50, 0, 0); p._exclusion_radius = 100
+        _drain()
+        sbs._physics_collision(self.sim, [(a_id, a)])
+        ev = _drain()
+        self.assertEqual(self._tags(ev),
+                         ["interactive_collision_start", "interactive_collision_start"])
+        # The mirror emit carries origin = the pickup (what the collection route reads
+        # as COLLISION_ORIGIN_ID); the other carries origin = the active object.
+        self.assertEqual(self._origins(ev), sorted([a_id, p_id]))
+
     def test_no_event_when_not_overlapping(self):
         a_id, a = self._obj(0x10, (0, 0, 0), 100)
         b_id, b = self._obj(0x10, (5000, 0, 0), 100)
