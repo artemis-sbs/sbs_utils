@@ -503,10 +503,18 @@ def _ship_stat_payload(o, space) -> dict:
     for tt in [x.strip() for x in str(ds.get("torpedo_types_available", 0) or "").split(",") if x.strip()]:
         torps.append({"name": tt, "num": int(g(f"{tt}_NUM")),
                       "max": int(g(f"{tt}_MAX")), "tube": tt in loaded})
+    # Per-facing shields (engine shield_count facings). Facing 0 = fore, 1 = aft on a
+    # 2-shield ship; the browser shows each separately. shield/shield_max stay as the
+    # facing-0 (fore) value for any older consumer.
+    n_sh = int(ds.get("shield_count", 0) or 0)
+    shields = [round(float(ds.get("shield_val", i) or 0.0), 1) for i in range(n_sh)]
+    shields_max = [round(float(ds.get("shield_max_val", i) or 0.0), 1) for i in range(n_sh)]
     return dict(
         name=getattr(o, "name", None) or getattr(o, "_data_tag", "") or "ship",
         shield=round(float(g("shield_val")), 1),
         shield_max=round(float(g("shield_max_val")), 1),
+        shields=shields,
+        shields_max=shields_max,
         energy=round(float(g("energy")), 1),
         hull=round(float(g("armor")), 1),
         hull_max=round(float(g("armorMax")), 1),

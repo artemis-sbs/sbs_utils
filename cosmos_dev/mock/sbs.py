@@ -580,8 +580,9 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
         names = []
         for tname, count in items:
             names.append(tname)
-            ds.set(f"{tname}_NUM", int(count), 0)
-            ds.set(f"{tname}_MAX", int(count), 0)
+            ds.set(f"{tname}_NUM", int(count), 0)   # loaded / available count
+            ds.set(f"{tname}_MAX", int(count), 0)   # capacity
+            ds.set(f"{tname}_VAL", int(count), 0)   # engine's value field (kept in sync)
         if names:
             ds.set("torpedo_types_available", ",".join(names), 0)
 
@@ -2861,7 +2862,7 @@ def torp_validate(kind: str) -> "list[str]":
 
 def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
                    damage: "float | None" = None, speed: float = 600.0,
-                   life: float = 30.0) -> None:
+                   life: float = 30.0, max_range: "float | None" = None) -> None:
     """Mock-only: launch a torpedo of `kind` (Homing / Nuke / Mine / EMP).
 
     Emits a ``player_launches_missile`` event (routes //launch/missile, with
@@ -2896,10 +2897,12 @@ def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
         return
     _projectiles.append({
         "pos": vec3(src._pos.x, src._pos.y, src._pos.z),
+        "origin": vec3(src._pos.x, src._pos.y, src._pos.z),   # for max-range cull
         "dir": _unit_toward(src, sim.space_objects.get(target_id)),
         "source_id": source_id, "torp_kind": kind,
         "damage": float(damage), "speed": float(speed),
         "life": float(life), "kind": "missile",
+        "max_range": float(max_range) if max_range else 0.0,
         "blast_radius": float(blast), "effect": effect, "blast_life": float(blast_life),
     })
 
@@ -3072,6 +3075,12 @@ def _physics_projectiles(sim, dt: float) -> None:
                 else:
                     apply_damage(hit, p["damage"], p["source_id"], kind=tkind)  # Homing: single hit
                 continue  # consumed on impact
+            # Missed: cull once it has flown its launch range (else expires on life).
+            mr = p.get("max_range", 0.0)
+            if mr > 0.0:
+                o = p.get("origin", pos)
+                if (pos.x - o.x) ** 2 + (pos.y - o.y) ** 2 + (pos.z - o.z) ** 2 >= mr * mr:
+                    continue  # out of range -> removed
             remaining.append(p)
             continue
         # Drone: home toward its target.
@@ -3119,6 +3128,20 @@ def _physics_heat(active: list, dt: float) -> None:
                 ds.set("system_cur_heat", max(0.0, h - d), idx)
 
 
+def _consume_torpedo(ds) -> "str | None":
+    """Pick the first loaded torpedo type (NUM>0) from torpedo_types_available and
+    spend one round: decrement its `{kind}_NUM` and `{kind}_VAL` (the engine's count
+    fields the ship_data HUD reads). Returns the kind fired, or None if out of ammo."""
+    avail = str(ds.get("torpedo_types_available", 0) or "")
+    for kind in [t.strip() for t in avail.split(",") if t.strip()]:
+        num = int(ds.get(f"{kind}_NUM", 0) or 0)
+        if num > 0:
+            ds.set(f"{kind}_NUM", num - 1, 0)
+            ds.set(f"{kind}_VAL", max(0, int(ds.get(f"{kind}_VAL", 0) or 0) - 1), 0)
+            return kind
+    return None
+
+
 def _physics_launchers(sim, active: list, dt: float) -> None:
     """Autonomous NPC fire of projectile weapons at the current target on a
     cooldown: torpedoes (torpedo_tube_count>0) and drones (drone capability).
@@ -3148,8 +3171,10 @@ def _physics_launchers(sim, active: list, dt: float) -> None:
             else:
                 rng = ds.get("torpedo_launch_max_range") or _TORP_RANGE
                 if dist2 <= rng * rng:
-                    launch_missile(aid, target_id)
-                    a._torp_cooldown = _TORP_CYCLE
+                    kind = _consume_torpedo(ds)     # decrement the first loaded type
+                    if kind is not None:
+                        launch_missile(aid, target_id, kind=kind, max_range=rng)
+                        a._torp_cooldown = _TORP_CYCLE
 
         # Drones are an NPC capability flagged by elite_drone_launcher==1 (Torgoth +
         # Ximni; set from shipData's drone_launch_timer). Uses the engine's

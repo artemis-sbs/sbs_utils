@@ -232,15 +232,45 @@ class TestMockProjectiles(unittest.TestCase):
     def test_player_autonomous_torpedo_fire(self):
         aid, a = self._player(pos=(0, 0, 0))
         a.data_set.set("torpedo_tube_count", 1)
+        a.data_set.set("torpedo_types_available", "Homing", 0)
+        a.data_set.set("Homing_NUM", 3, 0); a.data_set.set("Homing_VAL", 3, 0)
         tid, t = self._hulled(100, pos=(1000, 0, 0))      # within _TORP_RANGE
         a.data_set.set("weapon_target_UID", tid)
         _drain()
         sbs._physics_launchers(self.sim, [(aid, a)], dt=0.5)
         self.assertEqual([e[0] for e in _drain()], ["player_launches_missile"])
         self.assertEqual(len(sbs._projectiles), 1)
+        # firing spent one round: NUM and VAL both decremented.
+        self.assertEqual(a.data_set.get("Homing_NUM", 0), 2)
+        self.assertEqual(a.data_set.get("Homing_VAL", 0), 2)
         # cooldown -> no immediate refire
         sbs._physics_launchers(self.sim, [(aid, a)], dt=0.5)
         self.assertEqual([e for e in _drain() if e[0] == "player_launches_missile"], [])
+
+    def test_player_torpedo_out_of_ammo_no_fire(self):
+        # Tubes loaded but the only type is empty -> no launch, no projectile.
+        aid, a = self._player(pos=(0, 0, 0))
+        a.data_set.set("torpedo_tube_count", 1)
+        a.data_set.set("torpedo_types_available", "Homing", 0)
+        a.data_set.set("Homing_NUM", 0, 0); a.data_set.set("Homing_VAL", 0, 0)
+        tid, t = self._hulled(100, pos=(1000, 0, 0))
+        a.data_set.set("weapon_target_UID", tid)
+        _drain()
+        sbs._physics_launchers(self.sim, [(aid, a)], dt=0.5)
+        self.assertEqual(_drain(), [])
+        self.assertEqual(len(sbs._projectiles), 0)
+
+    def test_missile_culled_at_max_range(self):
+        # A missile that hits nothing is removed once it flies its launch range
+        # (not left to drift for its full lifetime).
+        sid, s = self._hulled(pos=(0, 0, 0))
+        tid, t = self._hulled(100, pos=(0, 0, 50000))     # far away, never hit
+        _drain()
+        sbs.launch_missile(sid, tid, kind="Homing", speed=600.0, max_range=1000.0)
+        self.assertEqual(len(sbs._projectiles), 1)
+        for _ in range(10):                               # 600*0.5*10 = 3000 > 1000
+            sbs._physics_projectiles(self.sim, dt=0.5)
+        self.assertEqual(len(sbs._projectiles), 0)
 
     def test_npc_does_not_fire_torpedoes(self):
         # NPCs never torpedo, even with tubes loaded (torpedoes are player-exclusive).

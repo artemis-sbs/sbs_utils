@@ -1159,11 +1159,28 @@ function _sysCell(s) {
 }
 // Shared HUD body for a ship's stats. `full` adds flight state + torpedoes
 // (own ship); the target panel omits those (just name/shields/hull/energy/systems).
+// Facing labels for per-facing shields. 2 facings = fore/aft (the common Cosmos
+// ship); fall back to S0..Sn for unusual counts.
+const _SHIELD_LABELS = { 1: ['shld'], 2: ['fore', 'aft'], 4: ['fore', 'stbd', 'aft', 'port'] };
+function _shieldLine(label, v, max) {
+  const pct = (max && max > 0) ? Math.round(Math.max(0, Math.min(1, v / max)) * 100) : 0;
+  const col = (max && max > 0) ? _pctColor(pct) : '#9ab';
+  return `${(label + '    ').slice(0, 5)}<span style="color:${col}">${_bar(v, max)}</span>`;
+}
 function _statHtml(msg, full) {
   let html =
     `<b style="color:#fff">${msg.name || 'ship'}</b>` +
-    (msg.red_alert ? `  <span style="color:#f55">RED ALERT</span>` : '') + '\n' +
-    `shield ${_bar(msg.shield, msg.shield_max)}`;
+    (msg.red_alert ? `  <span style="color:#f55">RED ALERT</span>` : '') + '\n';
+  // Per-facing shields (fore/aft). Fall back to the single combined value if an
+  // older server didn't send the arrays.
+  const shields = msg.shields || [];
+  const smax = msg.shields_max || [];
+  if (shields.length) {
+    const labels = _SHIELD_LABELS[shields.length] || shields.map((_, i) => 'S' + i);
+    html += shields.map((v, i) => _shieldLine(labels[i], v, smax[i] || 0)).join('\n');
+  } else {
+    html += _shieldLine('shld', msg.shield, msg.shield_max);
+  }
   if (msg.hull_max > 0)   // armor is station-only; ships show shields + systems
     html += `\nhull   ${_bar(msg.hull, msg.hull_max)}`;
   if (full) {
