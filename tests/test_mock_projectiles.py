@@ -77,6 +77,21 @@ class TestMockProjectiles(unittest.TestCase):
         self.assertEqual(sbs._torp_profile("Mine"), (sbs._TORP_BLAST_PER_RIPPLE, sbs._TORP_BLAST_RADIUS, "blast"))
         self.assertEqual(sbs._torp_profile("EMP"), (0.0, sbs._TORP_BLAST_RADIUS, "emp"))
 
+    def test_torp_profile_reads_mission_shared_string(self):
+        # The mock reads each torp's definition from the engine shared string that
+        # torpedo_type() writes, so a mission's custom def overrides the defaults
+        # (decoupled from LegendaryMissions). Format: 'warhead:..;damage:..;...'.
+        sbs.set_shared_string("Nuke", "warhead:blast;damage:9;blast_radius:500;behavior:homing;lifetime:8;")
+        self.assertEqual(sbs._torp_profile("Nuke"), (9.0, 500.0, "blast"))
+        # A standard custom torp (single hit -> no blast radius):
+        sbs.set_shared_string("Zap", "warhead:standard;damage:42;")
+        self.assertEqual(sbs._torp_profile("Zap"), (42.0, 0.0, "single"))
+        # reduce_shields -> emp effect regardless of damage field:
+        sbs.set_shared_string("Pulse", "warhead:blast,reduce_shields;damage:99;blast_radius:700;")
+        self.assertEqual(sbs._torp_profile("Pulse"), (0.0, 700.0, "emp"))
+        # No shared string -> LM-equivalent default (Homing single 35):
+        self.assertEqual(sbs._torp_profile("Homing"), (sbs._TORP_DAMAGE, 0.0, "single"))
+
     def test_emp_reduce_shields_halves_each_facing(self):
         # The EMP one-shot AoE halves each facing's CURRENT shields within the blast
         # radius (0 hull); ships outside the radius are untouched.

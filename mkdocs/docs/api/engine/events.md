@@ -223,15 +223,21 @@ rest at runtime:
 
 Drone damage is **difficulty-independent** (15 at diff 1, 5 and 11).
 
-### Torpedoes (defined in `LegendaryMissions/prefabs/torpedo_prefabs.mast`)
+### Torpedoes (defined via `torpedo_type()` → engine shared strings)
 
 - **Player-exclusive** — NPCs never fire torpedoes (they fire drones). Tube count
   from `shipData` `tubecount` (code).
-- **The authoritative definitions are the LM torpedo prefabs**, which LM's
-  `start_server` spawns (so any LM mission uses these). `warhead`: `standard` =
-  single-target hull; `blast` = a **lingering, growing-ring** AoE (see below);
-  `reduce_shields` = halve the target(s)' shields. `behaviour`: `homing` or `mine`
-  (stationary, detonates on proximity). `blast_radius` default 1000, `lifetime` 25 s.
+- **Torp definitions live in engine shared strings.** `torpedo_type()` (which the LM
+  torpedo prefabs call from `start_server`) writes each torp's attributes to a shared
+  string keyed by its name, e.g. `Nuke` →
+  `"...;warhead:blast;damage:5;blast_radius:1000;behavior:homing;lifetime:25;"`. The
+  mock **reads these** (`_torp_attrs` parses the shared string) so it honors *any*
+  mission's torp definitions — it's not tied to LegendaryMissions — and falls back to
+  LM-equivalent per-kind defaults only when a torp isn't registered.
+- `warhead`: `standard` = single-target hull; `blast` = a **lingering, growing-ring**
+  AoE (see below); `reduce_shields` = halve the target(s)' shields. `behaviour`:
+  `homing` or `mine` (stationary, detonates on proximity). `blast_radius` default 1000,
+  `lifetime` 25 s (the blast lingers for the torp's `lifetime`).
 
 | Type | warhead | damage | radius | behaviour |
 |---|---|---|---|---|

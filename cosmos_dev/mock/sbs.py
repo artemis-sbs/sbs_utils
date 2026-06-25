@@ -2740,18 +2740,48 @@ def _unit_toward(src, tgt):
     return (f.x, f.y, f.z)
 
 
-def _torp_profile(kind: str) -> "tuple[float, float, str]":
-    """(damage, blast_radius, effect) for a torpedo `kind`, per the LM torpedo_prefabs:
-    Homing -> 35 single-target hull (effect 'single'); Nuke/Mine -> a lingering 'blast'
-    field dealing _TORP_BLAST_PER_RIPPLE (5) per ripple over its lifetime (accumulates
-    to ~120 at the centre, distance falloff); EMP -> one-shot 'emp' AoE that halves
-    shields (0 hull). Default = Homing."""
+def _torp_attrs(kind: str) -> dict:
+    """Resolve a torpedo's attributes, PREFERRING the definition the mission registered
+    as a shared string via torpedo_type() - the engine's actual storage, format
+    'warhead:..;damage:..;blast_radius:..;behavior:..;lifetime:..;'. This decouples the
+    mock from LegendaryMissions: any mission's torp definitions are honored. Falls back
+    to LM-equivalent per-kind defaults when no shared string is registered (standalone
+    runs / unit tests). Returns {warhead, damage, blast_radius, behavior, lifetime}."""
     k = (kind or "").lower()
     if k == "emp":
-        return 0.0, _TORP_BLAST_RADIUS, "emp"
-    if k in ("nuke", "mine"):
-        return _TORP_BLAST_PER_RIPPLE, _TORP_BLAST_RADIUS, "blast"
-    return _TORP_DAMAGE, 0.0, "single"
+        d = {"warhead": "blast,reduce_shields", "damage": 0.0, "behavior": "homing"}
+    elif k == "mine":
+        d = {"warhead": "blast", "damage": _TORP_BLAST_PER_RIPPLE, "behavior": "mine"}
+    elif k == "nuke":
+        d = {"warhead": "blast", "damage": _TORP_BLAST_PER_RIPPLE, "behavior": "homing"}
+    else:
+        d = {"warhead": "standard", "damage": _TORP_DAMAGE, "behavior": "homing"}
+    s = sim.shared_strings.get(kind, "") if sim is not None else ""
+    for kv in (s or "").split(";"):
+        kk, sep, vv = kv.partition(":")
+        if sep and kk.strip():
+            d[kk.strip()] = vv.strip()
+    return {
+        "warhead": str(d.get("warhead", "standard")),
+        "damage": float(d.get("damage", _TORP_DAMAGE)),
+        "blast_radius": float(d.get("blast_radius", _TORP_BLAST_RADIUS)),
+        "behavior": str(d.get("behavior", "homing")),
+        "lifetime": float(d.get("lifetime", _TORP_BLAST_LIFETIME)),
+    }
+
+
+def _torp_profile(kind: str) -> "tuple[float, float, str]":
+    """(damage, blast_radius, effect) from the resolved torp attrs (see _torp_attrs).
+    warhead drives the effect: 'reduce_shields' -> 'emp' (AoE shield-halve, 0 hull);
+    'blast' -> 'blast' (lingering growing-ring, damage applied per ripple); otherwise
+    'single' (single-target hit)."""
+    a = _torp_attrs(kind)
+    warhead = a["warhead"]
+    if "reduce_shields" in warhead:
+        return 0.0, a["blast_radius"], "emp"
+    if "blast" in warhead:
+        return a["damage"], a["blast_radius"], "blast"
+    return a["damage"], 0.0, "single"
 
 
 def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
@@ -2772,17 +2802,20 @@ def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
     src = sim.space_objects.get(source_id)
     if src is None:
         return
+    attrs = _torp_attrs(kind)                 # mission def (shared string) or defaults
     prof_dmg, blast, effect = _torp_profile(kind)
     if damage is None:
         damage = prof_dmg
+    blast_life = attrs["lifetime"]            # blast lingers for the torp's lifetime
     _pending_physics_events.put(
         ("player_launches_missile", "", source_id, target_id, source_id, kind))
-    if (kind or "").lower() == "mine":
-        # Placed, stationary, proximity-triggered (LM behaviour 'mine').
+    if attrs["behavior"].lower() == "mine":
+        # Placed, stationary, proximity-triggered (behaviour 'mine').
         _projectiles.append({
             "pos": vec3(src._pos.x, src._pos.y, src._pos.z),
             "source_id": source_id, "kind": "mine",
             "damage": float(damage), "blast_radius": float(blast),
+            "blast_life": float(blast_life),
             "trigger_radius": _TORP_MINE_TRIGGER, "life": _TORP_MINE_LIFE,
         })
         return
@@ -2792,7 +2825,7 @@ def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
         "source_id": source_id,
         "damage": float(damage), "speed": float(speed),
         "life": float(life), "kind": "missile",
-        "blast_radius": float(blast), "effect": effect,
+        "blast_radius": float(blast), "effect": effect, "blast_life": float(blast_life),
     })
 
 
@@ -2818,14 +2851,15 @@ def launch_drone(source_id: int, target_id: int, damage: float = 20.0,
     })
 
 
-def _register_blast(pos, per_ripple: float, max_radius: float, source_id: int) -> None:
+def _register_blast(pos, per_ripple: float, max_radius: float, source_id: int,
+                    lifetime: float = _TORP_BLAST_LIFETIME) -> None:
     """Register a lingering Nuke/Mine blast at `pos`. _physics_blasts ripples it (see
-    that function): the ring grows from 0 to max_radius over _TORP_BLAST_LIFETIME,
-    dealing per_ripple hull each ripple to whatever is currently inside it."""
+    that function): the ring grows from 0 to max_radius over `lifetime` (the torpedo's
+    lifetime), dealing per_ripple hull each ripple to whatever is currently inside it."""
     _blasts.append({
         "pos": vec3(pos.x, pos.y, pos.z),
         "per_ripple": float(per_ripple), "max_radius": float(max_radius),
-        "source_id": source_id, "age": 0.0, "since": 0.0,
+        "source_id": source_id, "lifetime": float(lifetime), "age": 0.0, "since": 0.0,
     })
 
 
@@ -2855,13 +2889,14 @@ def _physics_blasts(sim, dt: float) -> None:
         return
     remaining = []
     for bl in _blasts:
+        life = bl["lifetime"]
         bl["age"] += dt
         bl["since"] += dt
         if bl["since"] >= _TORP_BLAST_RIPPLE_INTERVAL:
             bl["since"] -= _TORP_BLAST_RIPPLE_INTERVAL
-            frac = min(1.0, bl["age"] / _TORP_BLAST_LIFETIME)
+            frac = min(1.0, bl["age"] / life) if life > 0 else 1.0
             _blast_ripple(bl["pos"], bl["per_ripple"], bl["max_radius"] * frac, bl["source_id"])
-        if bl["age"] < _TORP_BLAST_LIFETIME:
+        if bl["age"] < life:
             remaining.append(bl)
     _blasts[:] = remaining
 
@@ -2934,7 +2969,8 @@ def _physics_projectiles(sim, dt: float) -> None:
             # Placed mine: stationary; detonate its blast when another ship comes
             # within the trigger radius, else keep waiting (until life expires).
             if _nearest_hittable(space, pos, p["trigger_radius"], p["source_id"]):
-                _register_blast(pos, p["damage"], p["blast_radius"], p["source_id"])
+                _register_blast(pos, p["damage"], p["blast_radius"], p["source_id"],
+                                p.get("blast_life", _TORP_BLAST_LIFETIME))
                 continue  # consumed on detonation
             remaining.append(p)
             continue
@@ -2950,7 +2986,8 @@ def _physics_projectiles(sim, dt: float) -> None:
                 eff = p.get("effect", "single")
                 blast = p.get("blast_radius", 0.0)
                 if eff == "blast" and blast > 0.0:
-                    _register_blast(pos, p["damage"], blast, p["source_id"])  # Nuke/Mine: lingering ring
+                    _register_blast(pos, p["damage"], blast, p["source_id"],
+                                    p.get("blast_life", _TORP_BLAST_LIFETIME))   # Nuke: lingering ring
                 elif eff == "emp" and blast > 0.0:
                     _apply_emp(pos, blast, p["source_id"])                    # EMP: one-shot shield-halve
                 else:
