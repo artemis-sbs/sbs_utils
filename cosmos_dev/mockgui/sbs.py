@@ -898,10 +898,11 @@ def _push_radar() -> None:
             fwd = obj.forward_vector()
             x   = round(obj._pos.x, 1)
             z   = round(obj._pos.z, 1)
-            fx  = round(fwd.x, 3)
+            y   = round(obj._pos.y, 1)           # altitude - must be streamed too, or
+            fx  = round(fwd.x, 3)                 # the 3D view renders ships at spawn Y
             fz  = round(fwd.z, 3)
             shp = _shield_frac(obj)              # shield fraction for the ring color
-            new_snap[id_] = (x, z, fx, fz, shp)
+            new_snap[id_] = (x, z, fx, fz, shp, y)
 
             prev = last.get(id_)
             if prev is None:
@@ -912,22 +913,23 @@ def _push_radar() -> None:
                     "tick_type": obj._tick_type,
                     "name":      obj.data_set.get("name_tag") or obj.data_set.get("display_text") or "",
                     "art":       _art_root_for(obj),
-                    "y":         round(obj._pos.y, 1),
+                    "y":         y,
                     "meshscale": _mesh_scale_for(obj),
                     "q":         _quat_of(obj),
                     "shp":       shp,
                     "new":       True,
                 })
             else:
-                lx, lz, lfx, lfz, lshp = prev
+                lx, lz, lfx, lfz, lshp, ly = prev
                 ddx, ddz = x - lx, z - lz
                 dhdg = abs(fx - lfx) + abs(fz - lfz)
-                # Re-send on enough movement/turn OR a meaningful shield change (so a
-                # parked ship under fire still updates its ring).
+                # Re-send on enough movement/turn (incl. ALTITUDE), or a meaningful
+                # shield change (so a parked ship under fire still updates its ring).
                 if (ddx * ddx + ddz * ddz >= _DYNAMIC_POS_THRESHOLD_SQ
+                        or (y - ly) * (y - ly) >= _DYNAMIC_POS_THRESHOLD_SQ
                         or dhdg >= _DYNAMIC_HDG_THRESHOLD
                         or abs(shp - lshp) >= 0.05):
-                    changed.append({"id": str(id_), "x": x, "z": z, "fx": fx, "fz": fz,
+                    changed.append({"id": str(id_), "x": x, "z": z, "y": y, "fx": fx, "fz": fz,
                                     "q": _quat_of(obj), "shp": shp})
 
         _last_per_ship[sid_str] = new_snap

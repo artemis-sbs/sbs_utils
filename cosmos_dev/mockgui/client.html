@@ -1390,6 +1390,7 @@ function cmdRadar(msg) {
         if (meta && o.fx !== undefined) { meta.fx = o.fx; meta.fz = o.fz; }
         if (meta && o.q) meta.q = o.q;
         if (meta && o.shp !== undefined) meta.shp = o.shp;
+        if (meta && o.y !== undefined) meta.y = o.y;   // altitude (3D view height)
       }
       const pb = idx * 3;
       _dynamicPosBuf[pb]     = o.x;
