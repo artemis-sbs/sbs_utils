@@ -14,13 +14,15 @@ def gui_add_console_type(path, display_name, description, label):
     console = {"display_name": display_name, "label":label, "description": description}
     if path in consoles:
         dup = consoles.get(path)
-        if console.label.priority > console.label.priority:
-            pass
-        if dup.label.priority > console.label.priority:
-            return
-        else: 
+        # console/dup are dicts here - the label OBJECT is under the "label" key, so
+        # read priority via dup["label"]/console["label"], not attribute access (that
+        # raised "'dict' object has no attribute 'label'" whenever a path was already
+        # registered, e.g. an in-process recompile on run_next_mission).
+        if dup["label"].priority > console["label"].priority:
+            return                      # keep the higher-priority existing console
+        elif dup["label"].priority == console["label"].priority:
             print(f"Possible duplicate console same priority {path}")
-    consoles[path] = console
+    consoles[path] = console            # else overwrite (recompile re-registers paths)
     Agent.SHARED.set_inventory_value("__CONSOLE_TYPES__", consoles)
 
 def gui_remove_console_type(path, display_name, label):
