@@ -414,11 +414,32 @@ class TestMockDamage(unittest.TestCase):
         sbs._physics_beams(self.sim, [(pid, p), (tid2, t2)], dt=0.5)
         self.assertAlmostEqual(t2.data_set.get("armor"), 100 - sbs._BEAM_DEFAULT_PLAYER, delta=0.01)
 
-    def test_system_heat_decays(self):
+    def test_heat_static_without_coolant_or_overpower(self):
+        # Engine-calibrated (capture_heat): NO passive decay. With no overpower and no
+        # coolant, heat holds - coolant is the only heat sink.
         aid, a = self._hulled(100)
         a.data_set.set("system_cur_heat", 0.6, 0)
         sbs._physics_heat([(aid, a)], dt=1.0)
-        self.assertAlmostEqual(a.data_set.get("system_cur_heat", 0), 0.6 - sbs._HEAT_DECAY)
+        self.assertAlmostEqual(a.data_set.get("system_cur_heat", 0), 0.6, delta=1e-6)
+
+    def test_coolant_cools_without_overpower(self):
+        # Coolant removes heat even with no overpower (~_HEAT_COOL per unit per sec).
+        aid, a = self._hulled(100)
+        a.data_set.set("system_cur_heat", 0.5, 0)
+        a.data_set.set("system_coolant_used", 3, 0)
+        sbs._physics_heat([(aid, a)], dt=1.0)
+        self.assertAlmostEqual(a.data_set.get("system_cur_heat", 0),
+                               0.5 - 3 * sbs._HEAT_COOL, delta=1e-6)
+
+    def test_overpower_300_caps_overpower(self):
+        # Past 300% the engine goes sub-linear and the console can't exceed it, so the
+        # mock clamps overpower at 2.0: value 5.0 heats the same as value 3.0.
+        aid, a = self._hulled(100)
+        a.data_set.set("eng_control_type_index", 0, 0)
+        a.data_set.set("eng_control_value", 5.0, 0)        # 500% -> clamped to 300%
+        sbs._physics_heat([(aid, a)], dt=1.0)
+        self.assertAlmostEqual(a.data_set.get("system_cur_heat", 0),
+                               sbs._HEAT_OVERPOWER_MAX * sbs._HEAT_GAIN, delta=1e-6)
 
     def test_overpower_raises_system_heat(self):
         # Engineering pushing a control above 100% heats the SHPSYS it feeds

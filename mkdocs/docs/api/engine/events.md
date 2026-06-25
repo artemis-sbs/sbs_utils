@@ -137,15 +137,14 @@ order is `(tag, sub_tag, origin_id, selected_id[, parent_id][, {extra fields}])`
 
 !!! note "Heat is engineering overpower, not combat"
     `system_cur_heat` (per SHPSYS 0..3, 0..1) rises when engineering pushes a powered
-    subsystem above 100% (`eng_control_value` up to 3.0); the overpower is summed onto
-    the system it feeds (`eng_control_type_index`). **Coolant controls heat**:
-    `system_coolant_used` (per system) bleeds it off, plus a passive decay. At full
-    heat the mock fires `heat_critical_damage` → `//damage/heat` repeatedly
-    (`_physics_heat`); it does **not** write `system_damage` — the mission decides the
-    consequence (LegendaryMissions damages grid items and derives `system_damage` /
+    subsystem above 100% (`eng_control_value`, 1.0 = 100%, up to 3.0 = 300%); the
+    overpower is summed onto the system it feeds (`eng_control_type_index`). **Coolant
+    controls heat** (`system_coolant_used`) — it is the *only* heat sink. At full heat
+    the mock fires `heat_critical_damage` → `//damage/heat` repeatedly (`_physics_heat`);
+    it does **not** write `system_damage` — the mission decides the consequence
+    (LegendaryMissions damages grid items and derives `system_damage` /
     `system_max_damage` from grid-item counts). NPCs set no eng controls, so they never
-    overheat. **Rates (`_HEAT_GAIN` / `_HEAT_COOL` / `_HEAT_DECAY`) are placeholders
-    pending a capture** (heat ramp, coolant cooling, idle decay).
+    overheat. **Calibrated** from `capture_heat.json` (below).
 
 ---
 
@@ -248,6 +247,23 @@ rest at runtime:
 | `elite_drone_launcher` | unset (= 0) | capture — *not* the trigger; `drone_damage`/range being set is |
 
 Drone damage is **difficulty-independent** (15 at diff 1, 5 and 11).
+
+### Engineering heat & coolant (capture — `capture_heat.json`)
+
+Heat is engineering overpower, not combat (see the note above). Calibrated by driving
+one `eng_control_value` feeding ship system 0 and logging `system_cur_heat`:
+
+| Quantity | Value | Notes |
+|---|---|---|
+| `eng_control_value` scale | **1.0 = 100%**, up to **3.0 = 300%** | 1.0 → no heat; >1.0 heats |
+| Heat gain | **0.0094 /s per unit overpower** (`value − 1.0`) | **linear** across 100–300% (1.5→0.0047, 2.0→0.0094, 3.0→0.0188 /s) |
+| Coolant | **~0.002 /s removed per `system_coolant_used` unit** | ~10 units fully cancel 300%; coolant is the **only** heat sink |
+| Passive decay | **none** | with no overpower and no coolant, heat holds flat |
+
+Past 300% the engine's gain goes **sub-linear** (`value` 100 → 0.046/s, not the
+0.93/s a linear law predicts), but the console can't exceed 300%, so the mock clamps
+overpower at 2.0 (`_HEAT_OVERPOWER_MAX`). At full heat the system overheats and fires
+`//damage/heat`; the mission applies the damage (the mock doesn't write `system_damage`).
 
 ### Torpedoes (defined via `torpedo_type()` → engine shared strings)
 

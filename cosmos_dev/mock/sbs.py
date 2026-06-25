@@ -2762,11 +2762,15 @@ _DRONE_RANGE = 7000.0        # fallback for drone_launch_max_range
 # overheated. The mock does NOT itself write system_damage: how an overheat becomes
 # damage is the MISSION's call - LegendaryMissions, for example, damages grid items and
 # derives system_damage/system_max_damage from the matching grid-item counts. NPCs don't
-# set eng_control_value, so they never overheat. (Rates are placeholders - calibrate from
-# a capture later, as with combat.)
-_HEAT_GAIN = 0.04           # heat/sec per unit of overpower (eng_control_value - 1.0)
-_HEAT_COOL = 0.03           # heat/sec removed per coolant unit (system_coolant_used)
-_HEAT_DECAY = 0.05          # passive heat/sec bleed-off (also the no-load decay rate)
+# set eng_control_value, so they never overheat. Rates are CALIBRATED from the engine
+# (data_capture capture_heat.json): in 100..300% (value 1.0..3.0) heat rises linearly
+# at 0.0094/s per unit of overpower (value-1.0); each coolant unit removes ~0.002/s;
+# and there is NO passive decay - coolant is the only heat sink. (Past 300% the engine
+# goes sub-linear, but the console caps at 300%, so the mock clamps overpower at 2.0.)
+_HEAT_GAIN = 0.0094         # heat/sec per unit of overpower (eng_control_value - 1.0)
+_HEAT_COOL = 0.002          # heat/sec removed per coolant unit (system_coolant_used)
+_HEAT_DECAY = 0.0           # passive bleed-off - engine has none; coolant is the only sink
+_HEAT_OVERPOWER_MAX = 2.0   # cap overpower at 300% (1.0+2.0), the console's max
 _HEAT_CRITICAL = 1.0        # system_cur_heat at/above this overheats (also the 0..1 clamp)
 _HEAT_EVENT_INTERVAL = 1.0  # sec between //damage/heat events while a system overheats
 
@@ -3292,7 +3296,7 @@ def _physics_heat(active: list, dt: float) -> None:
             if v > 1.0:
                 si = int(ds.get("eng_control_type_index", c) or 0)
                 if 0 <= si < 4:
-                    over[si] += v - 1.0
+                    over[si] += min(v - 1.0, _HEAT_OVERPOWER_MAX)   # cap at 300%
 
         cds = getattr(a, "_heat_evt_cd", None)
         for _n, idx in SHIP_SYSTEMS:
