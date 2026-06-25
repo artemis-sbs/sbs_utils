@@ -116,6 +116,10 @@ class Exerciser:
             # //shared/signal/docked (real docking flow, briefly).
             if self._dock_budget > 0:
                 self._force_dock(sbs, player_ids[0])
+            # Monkey/fuzz: a random valid GUI click every few steps (kept sparse so
+            # it doesn't constantly yank the autoplay console off its AI loop).
+            if self._offset % 3 == 0:
+                self._fuzz_gui()
             # Stage a REAL beam exchange (TEST-ONLY teleport) so the genuine
             # damage flow drives //damage/internal + heat on the player; then a
             # synthetic kill on a *different* hostile for deterministic destroy.
@@ -151,6 +155,28 @@ class Exerciser:
             except Exception:
                 # Route errors flow to the verdict via the scheduler seam; count
                 # Python-level failures here.
+                self.errors += 1
+
+    def _fuzz_gui(self):
+        """Monkey/fuzz: fire a random *valid* widget click on each client's live
+        page (a real tag from page.tag_map, dispatched via Gui.on_message - the
+        same path as a browser click). Drives GUI/on_message handlers the greedy
+        player never reaches; any crash surfaces via the verdict. TEST-ONLY."""
+        import random
+        from sbs_utils.gui import Gui
+        from sbs_utils.helpers import FakeEvent
+        for cid, gc in list(Gui.clients.items()):
+            if cid == 0:
+                continue   # never fuzz the server/mission-control page (jumps the map)
+            page = getattr(gc, "page", None)
+            tag_map = getattr(page, "tag_map", None) if page is not None else None
+            if not tag_map:
+                continue
+            tag = random.choice(list(tag_map.keys()))
+            try:
+                Gui.on_message(FakeEvent(client_id=cid, tag="gui_message", sub_tag=tag))
+                self.fuzzed = getattr(self, "fuzzed", 0) + 1
+            except Exception:
                 self.errors += 1
 
     def _force_dock(self, sbs, pid):
