@@ -291,11 +291,20 @@ on change menu.value:
         (errors,  mast) = mast_story_compile( code =  """
 === prefab_base
 metadata: ``` yaml
-foo: 
+foo:
     bar: hello
 ```
 """)
         assert(len(errors)==0)
+
+    def test_from_file_already_imported_returns_list(self):
+        # from_file must return an empty list (not None) when the file was already
+        # imported. Callers do len() on the result (MastStoryPage stores it as
+        # compiler_errors, then present() does len(...)); a bare return -> None ->
+        # "len(None)" crash on present.
+        mast = MastStory()
+        mast.imported["already.mast"] = True
+        self.assertEqual(mast.from_file("already.mast", mast), [])
 
 
 if __name__ == '__main__':

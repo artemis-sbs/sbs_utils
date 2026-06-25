@@ -558,11 +558,15 @@ class Mast():
             #
             self.expand_resources()
 
+        # Already imported: return an empty error list, not None. Every other path
+        # returns a list, and callers do len() on the result (e.g. MastStoryPage
+        # stores it as self.compiler_errors, then present() does len(...)). A bare
+        # return here left compiler_errors None -> "len(None)" crash on present.
         if self.lib_name is None and root.imported.get(file_name):
-            return
+            return []
         elif self.lib_name is not None and root.imported.get(f"{self.lib_name}::{file_name}"):
-            return
-        
+            return []
+
         if self.lib_name is None:
             root.imported[file_name] = True
         else: 
