@@ -32,11 +32,16 @@ class TestMockProjectiles(unittest.TestCase):
         _drain()
 
     def _hulled(self, hp=100, pos=(0, 0, 0)):
+        # Armor target = a station (armor is station-only in the engine), so impacts
+        # reduce armor and a lethal hit emits station_killed.
         oid = self.sim.create_space_object("behav", "", 0x10)
         o = self.sim.space_objects[oid]
         o.data_set.set("armorMax", float(hp))
         o.data_set.set("armor", float(hp))
         o._pos = sbs.vec3(*pos)
+        if Agent.get(oid) is None:
+            ag = Agent(); ag.id = oid; ag.add()
+        Agent.get(oid).add_role("station")
         return oid, o
 
     # --- launch helpers emit the right events + register a projectile -------
@@ -116,7 +121,7 @@ class TestMockProjectiles(unittest.TestCase):
         _drain()                                          # consume the launch event
         sbs._physics_projectiles(self.sim, dt=0.5)
         tags = [e[0] for e in _drain()]
-        self.assertEqual(tags, ["damage", "npc_killed"])
+        self.assertEqual(tags, ["damage", "station_killed"])
         self.assertNotIn(tid, self.sim.space_objects)
 
     # --- autonomous NPC fire -----------------------------------------------

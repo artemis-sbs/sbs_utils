@@ -146,7 +146,13 @@ class Exerciser:
 
         def armed(i):
             o = space.get(i)
-            return o is not None and (o.data_set.get("armorMax") or 0) > 0
+            # A combat ship/station: has beams, shields, or armor (NPC ships have
+            # no armor - that's station-only - so don't key on armorMax alone).
+            if o is None:
+                return False
+            ds = o.data_set
+            return ((ds.get("beamCount") or 0) > 0 or (ds.get("shield_max_val") or 0) > 0
+                    or (ds.get("armorMax") or 0) > 0)
 
         cand = [i for i in any_role("raider,enemy,monster") if armed(i)]
         if not cand:

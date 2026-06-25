@@ -39,11 +39,27 @@ class TestMockDamage(unittest.TestCase):
         # set_beam_damages persists globally; reset so it doesn't affect other tests.
         sbs._beam_dmg_player = sbs._beam_dmg_npc = sbs._beam_dmg_station = None
 
-    def _hulled(self, hp=100, abits=0x10):
+    def _hulled(self, hp=100, abits=0x10, station=None):
+        # Generic hull target. Armor is a STATION-only field in the engine, so a
+        # non-player hull target is marked a station (armor death model) by default;
+        # pass station=False for an NPC-ship firer (so its beam base is the NPC one).
         oid = self.sim.create_space_object("behav", "", abits)
         o = self.sim.space_objects[oid]
         o.data_set.set("armorMax", float(hp))
         o.data_set.set("armor", float(hp))
+        mark = (not (abits & 0x20)) if station is None else station
+        if mark:
+            if Agent.get(oid) is None:
+                ag = Agent(); ag.id = oid; ag.add()
+            Agent.get(oid).add_role("station")
+        return oid, o
+
+    def _npc_ship(self, sys_max=4):
+        # NPC ship: no armor; dies via system damage across the 4 SHPSYS.
+        oid = self.sim.create_space_object("behav_npcship", "", 0x10)
+        o = self.sim.space_objects[oid]
+        for i in range(4):
+            o.data_set.set("system_max_damage", float(sys_max), i)
         return oid, o
 
     @staticmethod
@@ -59,16 +75,28 @@ class TestMockDamage(unittest.TestCase):
         self.assertEqual(o.data_set.get("armor"), 70.0)
         self.assertIn(oid, self.sim.space_objects)        # still alive
 
-    def test_fatal_npc_killed(self):
-        oid, o = self._hulled(50)
+    def test_npc_ship_destroyed_via_systems(self):
+        # NPC ship has no armor; a lethal hit maxes all 4 SHPSYS -> npc_killed.
+        oid, o = self._npc_ship(sys_max=4)
         _drain()
-        sbs.apply_damage(oid, 80, source_id=999)
+        sbs.apply_damage(oid, 1000, source_id=999)
         ev = _drain()
         self.assertEqual(ev, [
-            ("damage", "destroyed", 999, oid),            # -> //damage/destroy + remove agent
-            ("npc_killed", "", oid, oid),                 # -> //damage/killed
+            ("damage", "destroyed", 999, oid),
+            ("npc_killed", "", oid, oid),
         ])
-        self.assertNotIn(oid, self.sim.space_objects)     # removed from sim
+        self.assertNotIn(oid, self.sim.space_objects)
+
+    def test_npc_ship_partial_system_damage(self):
+        # A non-lethal hit fills some system nodes (amount / _SYSTEM_NODE_HP),
+        # spread across systems, and emits a plain damage event.
+        oid, o = self._npc_ship(sys_max=4)
+        _drain()
+        sbs.apply_damage(oid, 12, source_id=1)            # 12 / 6 = 2 nodes
+        self.assertEqual(_drain(), [("damage", "", 1, oid)])
+        total = sum(o.data_set.get("system_damage", i) or 0 for i in range(4))
+        self.assertEqual(total, 2)
+        self.assertIn(oid, self.sim.space_objects)
 
     def test_fatal_station_killed(self):
         oid, o = self._hulled(50)
@@ -149,12 +177,12 @@ class TestMockDamage(unittest.TestCase):
         self.assertEqual(t.data_set.get("armor"), 100.0)
 
     def test_beam_kills_target(self):
-        tid, t = self._hulled(20)                 # low hull
+        tid, t = self._hulled(20)                 # low hull (station)
         t._pos = sbs.vec3(500, 0, 0)
         aid, a = self._beamer(tid, rng=1000, dmg=30)
         _drain()
         sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
-        self.assertEqual(self._tags(_drain()), ["damage", "npc_killed"])
+        self.assertEqual(self._tags(_drain()), ["damage", "station_killed"])
         self.assertNotIn(tid, self.sim.space_objects)
 
     def test_beam_no_target_no_fire(self):
@@ -216,7 +244,7 @@ class TestMockDamage(unittest.TestCase):
         self.assertEqual(t.data_set.get("armor"), 93.0)           # 100 - 7
         # npc firer (abits 0x10), coeff 0.5 (beamDamage 3.0) -> 4*0.5 = 2
         tid2, t2 = self._hulled(100); t2._pos = sbs.vec3(0, 0, 500)
-        nid, n = self._hulled(100, abits=0x10); n._pos = sbs.vec3(0, 0, 0)
+        nid, n = self._hulled(100, abits=0x10, station=False); n._pos = sbs.vec3(0, 0, 0)
         n.data_set.set("beamCount", 1); n.data_set.set("beamRange", 1000.0)
         n.data_set.set("beamDamage", 3.0); n.data_set.set("weapon_target_UID", tid2)
         _drain()

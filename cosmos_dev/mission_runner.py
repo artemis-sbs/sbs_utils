@@ -252,7 +252,9 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
         space = sbs.sim.space_objects if sbs.sim is not None else {}
         pids = [i for i in role("__player__") if i in space]
         npc_ids = [i for i in space if i not in set(pids)
-                   and (space[i].data_set.get("armorMax") or 0) > 0
+                   and ((space[i].data_set.get("shield_max_val") or 0) > 0
+                        or (space[i].data_set.get("beamCount") or 0) > 0
+                        or (space[i].data_set.get("armorMax") or 0) > 0)
                    and (space[i]._abits & 0x10)]
         def _beamed(ids):
             return sum(1 for i in ids if (space[i].data_set.get("beamCount") or 0) > 0)

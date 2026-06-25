@@ -485,19 +485,29 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
     if bc is not None:
         ds.set("bay_count", int(bc))
 
-    # Hull points → armor (hull integrity when shields fail)
+    is_player = bool(getattr(obj, "_abits", 0) & 0x20)
+    is_npc = bool(getattr(obj, "_abits", 0) & 0x10)      # NPC tick (ships AND stations)
+    is_station = (getattr(obj, "_tick_type", "") == "behav_station")
+
+    # Hull points -> armor, but armor is a STATION-only field in the engine.
     hp = data.get("hullpoints")
-    if hp is not None:
+    if hp is not None and is_station:
         ds.set("armor",    float(hp))
         ds.set("armorMax", float(hp))
-        # The engine sets these at runtime (shipData has none). Values from a real
-        # engine capture (data_capture mission): regen is slow (players recover
-        # ~10x faster than NPCs), so combat depletes shields without stalling.
-        # (system_damage / system_max_damage are NOT seeded here - the mission
-        # script manages those, e.g. LM's grid system for players.)
-        is_player = bool(getattr(obj, "_abits", 0) & 0x20)
+
+    # Engineering regen rates: the engine sets these at runtime (shipData has none).
+    # Capture values (data_capture mission): players recover ~10x faster than NPCs;
+    # the rates are slow so combat depletes shields without stalling.
+    if is_player or is_npc:
         ds.set("repair_rate_shields", 1.0 if is_player else 0.1)
         ds.set("repair_rate_systems", 0.025 if is_player else 0.01)
+
+    # NPC ships have no armor; the mock drives their death via system damage, so
+    # seed the per-SHPSYS capacity. (Players' system damage is script-managed; the
+    # engine sets system_max_damage there. Stations use armor.)
+    if is_npc and not is_station:
+        for _i in range(4):
+            ds.set("system_max_damage", 4.0, _i)
 
     # Shields — per-facing array
     shields = data.get("shields")
@@ -2128,6 +2138,11 @@ SPEED_RAMP_RATE = 60.0
 # physics_tick), so it advances the counter by dt * TICKS_PER_SECOND.
 TICKS_PER_SECOND = 30.0
 
+# Hull damage (post-shields) per NPC system node. A ship has 4 SHPSYS x
+# system_max_damage nodes; a hit fills ceil(amount / this) nodes, so ~one beam
+# shot ruins ~one node and the ship dies once all systems are maxed. Tunable.
+_SYSTEM_NODE_HP = 6.0
+
 
 def _ramp_speed(obj: space_object, target_speed: float, dt: float) -> None:
     """Ease obj._cur_speed toward target_speed at SPEED_RAMP_RATE; no instant changes."""
@@ -2286,8 +2301,14 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
         return
     _apply_damage_calls += 1   # dev diagnostic (mission_runner --test report)
     ds = obj.data_set
-    if (ds.get("armorMax") or 0.0) <= 0:
-        return  # no hull -> not damageable (asteroids, markers, etc.)
+    is_player = bool(obj._abits & 0x20)
+    # Damageable = a ship (shields / player) or a station (armor). Asteroids and
+    # markers (no shields, no armor, not a player) are not damageable.
+    if (not is_player
+            and (ds.get("armorMax") or 0.0) <= 0
+            and (ds.get("shield_max_val") or 0.0) <= 0
+            and (ds.get("system_max_damage", 0) or 0.0) <= 0):
+        return
     # Shields absorb first (engine reduces the hit shield). System/internal damage
     # only happens AFTER shields are down. Mock uses shield_val[0] as a pooled shield.
     shield = ds.get("shield_val") or 0.0
@@ -2298,17 +2319,19 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
             return
         amount -= shield
         ds.set("shield_val", 0.0, 0)
-    # Shields down. Engine model: a PLAYER hit becomes INTERNAL damage - a hit the
-    # script processes (LegendaryMissions damages grid systems + sets system
-    # damage), not direct hull loss. Fire damage + player_internal_damage; the
-    # script governs player survival. (NPC -> hull below.)
-    if obj._abits & 0x20:   # TickType.PLAYER
+    # Shields down. Three death models:
+    #  * PLAYER -> INTERNAL damage: a hit the script processes (LegendaryMissions
+    #    grids it into system damage), not direct hull loss; the script governs
+    #    player survival.
+    #  * STATION -> armor (hull) loss; station_killed at 0.
+    #  * NPC ship -> no armor (armor is station-only); fill system_damage across
+    #    the 4 SHPSYS, npc_killed when every system is maxed.
+    if is_player:
         _pending_physics_events.put(("damage", "", source_id, target_id))
         # //damage/internal: origin = the damaged ship; reads sub_float (system/
         # amount) + source_point. source_point is a point on the ship MESH in 3D
-        # that the script maps to grid cell(s). Faithful would be a real mesh
-        # vertex, but loading mesh data here is the expensive option; a random
-        # point around the ship is cheap and spreads hits across grid cells.
+        # that the script maps to grid cell(s). A random point around the ship is
+        # the cheap approximation (real mesh verts would be the expensive option).
         p = obj._pos
         r = (obj.data_set.get("exclusion_radius") or 0.0) or 50.0
         sp = vec3(p.x + random.uniform(-r, r),
@@ -2319,17 +2342,41 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0) -> None:
             {"sub_float": 1.0, "source_point": sp},
         ))
         return
-    armor = (ds.get("armor") or 0.0) - amount
-    if armor > 0:
-        ds.set("armor", armor)
-        _pending_physics_events.put(("damage", "", source_id, target_id))
+
+    if _is_station(target_id):
+        armor = (ds.get("armor") or 0.0) - amount
+        if armor > 0:
+            ds.set("armor", armor)
+            _pending_physics_events.put(("damage", "", source_id, target_id))
+            return
+        ds.set("armor", 0.0)
+        _pending_physics_events.put(("damage", "destroyed", source_id, target_id))
+        _pending_physics_events.put(("station_killed", "", target_id, target_id))
+        delete_object(target_id)
         return
-    # destroyed
-    ds.set("armor", 0.0)
-    _pending_physics_events.put(("damage", "destroyed", source_id, target_id))
-    kind = "station_killed" if _is_station(target_id) else "npc_killed"
-    _pending_physics_events.put((kind, "", target_id, target_id))
-    delete_object(target_id)
+
+    # NPC ship: distribute the hit as node damage across the 4 SHPSYS (filling the
+    # least-damaged system first); destroy when every system is maxed.
+    nodes = max(1, int(round(amount / _SYSTEM_NODE_HP)))
+    for _ in range(nodes):
+        tgt, low = -1, None
+        for i in range(4):
+            mx = ds.get("system_max_damage", i) or 0.0
+            cur = ds.get("system_damage", i) or 0.0
+            if mx > 0 and cur < mx and (low is None or cur < low):
+                low, tgt = cur, i
+        if tgt < 0:
+            break
+        ds.set("system_damage", (ds.get("system_damage", tgt) or 0.0) + 1.0, tgt)
+    dead = all((ds.get("system_max_damage", i) or 0.0) > 0
+               and (ds.get("system_damage", i) or 0.0) >= (ds.get("system_max_damage", i) or 0.0)
+               for i in range(4))
+    if dead:
+        _pending_physics_events.put(("damage", "destroyed", source_id, target_id))
+        _pending_physics_events.put(("npc_killed", "", target_id, target_id))
+        delete_object(target_id)
+    else:
+        _pending_physics_events.put(("damage", "", source_id, target_id))
 
 
 def _weapon_target(ds) -> int:

@@ -1163,8 +1163,9 @@ function _statHtml(msg, full) {
   let html =
     `<b style="color:#fff">${msg.name || 'ship'}</b>` +
     (msg.red_alert ? `  <span style="color:#f55">RED ALERT</span>` : '') + '\n' +
-    `shield ${_bar(msg.shield, msg.shield_max)}\n` +
-    `hull   ${_bar(msg.hull, msg.hull_max)}`;
+    `shield ${_bar(msg.shield, msg.shield_max)}`;
+  if (msg.hull_max > 0)   // armor is station-only; ships show shields + systems
+    html += `\nhull   ${_bar(msg.hull, msg.hull_max)}`;
   if (full) {
     // energy is an own-ship management stat; NPCs/targets don't have it.
     const dock = msg.dock_state || 'undocked';
