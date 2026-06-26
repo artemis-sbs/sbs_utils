@@ -124,7 +124,11 @@ order is `(tag, sub_tag, origin_id, selected_id[, parent_id][, {extra fields}])`
     for them (`_INTERACTIVE_TERRAIN` in `cosmos_dev/mock/sbs.py`). Both id orderings
     are emitted, so the mirror carries `origin = the pickup` for the route's
     `COLLISION_ORIGIN_ID`. Without this the pickup is never collected and a ship that
-    stops on it looks stuck.
+    stops on it looks stuck. Pickups carry `exclusionradius 0` in shipData (the engine
+    collects them via a separate grab mechanism, not exclusion_radius), so the mock
+    gives `behav_pickup` a synthetic grab radius (`_PICKUP_RADIUS`, a placeholder) -
+    otherwise they'd be `exclusion_radius 0`, which collision skips, and the route would
+    never fire at all.
 
 !!! success "Mock damage events carry the amount + weapon kind"
     Every mock `damage` event now ends with a `{"sub_float": amount}` dict (the raw

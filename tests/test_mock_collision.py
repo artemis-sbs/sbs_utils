@@ -102,7 +102,9 @@ class TestMockCollision(unittest.TestCase):
         a_id, a = self._obj(0x10, (0, 0, 0), 100)              # active player/ship
         p_id = self.sim.create_space_object("behav_pickup", "", 0x00)   # terrain pickup
         p = self.sim.space_objects[p_id]
-        p._pos = sbs.vec3(50, 0, 0); p._exclusion_radius = 100
+        # behav_pickup auto-gets a grab radius (no shipData hull) so collision fires.
+        self.assertEqual(p._exclusion_radius, sbs._PICKUP_RADIUS)
+        p._pos = sbs.vec3(50, 0, 0)
         _drain()
         sbs._physics_collision(self.sim, [(a_id, a)])
         ev = _drain()
@@ -122,7 +124,7 @@ class TestMockCollision(unittest.TestCase):
         pid = self.sim.create_space_object("behav_playership", "tsn_light_cruiser", 0x20)
         p = self.sim.space_objects[pid]; p._pos = sbs.vec3(0, 0, 0); p._exclusion_radius = 50
         uid = self.sim.create_space_object("behav_pickup", "carapaction_coil", 0x00)
-        u = self.sim.space_objects[uid]; u._pos = sbs.vec3(0, 0, 3000); u._exclusion_radius = 100
+        u = self.sim.space_objects[uid]; u._pos = sbs.vec3(0, 0, 3000)   # auto grab radius
         p.data_set.set("playerThrottle", 1.0)          # cruise forward (+z) into it
         sbs.resume_sim()
         saw_collision = False

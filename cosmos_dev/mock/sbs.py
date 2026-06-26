@@ -1679,6 +1679,16 @@ class simulation(object): ### from pybind
         obj._data_tag = dataTag
         obj._tick_type = aiTag
         _try_populate_from_ship_data(obj)
+        # Pickups (behav_pickup) carry exclusionradius 0 in shipData (or aren't in it),
+        # and mock collision skips zero-radius terrain - so //collision/interactive
+        # never fires and the upgrade can't be collected. The ENGINE collects pickups
+        # via a separate grab mechanism (NOT exclusion_radius - it's 0 there too); the
+        # mock approximates that by giving pickups a synthetic grab radius so a passing
+        # ship registers the interactive collision and the route runs. _PICKUP_RADIUS is
+        # a placeholder (the engine's real grab distance isn't in the data - would need
+        # a capture to calibrate).
+        if aiTag == "behav_pickup" and obj._exclusion_radius <= 0.0:
+            obj._exclusion_radius = _PICKUP_RADIUS
         with self._lock:
             self.space_objects[id] = obj
             if abits & 0x30:
@@ -2716,6 +2726,11 @@ def _physics_beams(sim, active: list, dt: float) -> None:
         _bump_exciting(a, _EXCITE_COMBAT)                 # combat is camera-worthy
         _bump_exciting(space.get(tid), _EXCITE_COMBAT)
 
+
+# Pickup grab radius: collision radius given to behav_pickup objects so a passing
+# ship registers an interactive collision and the //collision/interactive collection
+# route can fire (pickup arts carry no shipData hull, so they'd otherwise be radius 0).
+_PICKUP_RADIUS = 200.0
 
 # Projectile defaults (mock approximations).
 _PROJECTILE_HIT_RADIUS = 300.0
