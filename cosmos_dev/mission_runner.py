@@ -420,6 +420,12 @@ def _run(
     from sbs_utils.agent import Agent, clear_shared
     from sbs_utils.handlerhooks import cosmos_event_handler
     from sbs_utils.gui import Gui
+    from sbs_utils.mast.mast_globals import MastGlobals
+
+    # Baseline the MAST globals NOW (sbs_utils built-ins are registered; no mission has
+    # compiled yet) so a run_next_mission reload can drop the previous mission's
+    # compile-registered globals and recompile cleanly.
+    MastGlobals.mark_builtins()
 
     sim = sbs.create_new_sim()
     Agent.SHARED.set_inventory_value("sim", sim)
@@ -563,6 +569,7 @@ def _run(
                     # console) - run_next_mission was rarely exercised, so it was latent.
                     Agent.clear()
                     clear_shared()
+                    MastGlobals.reset()   # drop the prior compile's MAST globals/imports
                     # Fresh sim — in GUI mode create_new_sim also broadcasts
                     # world_reset so browsers wipe the old mission's 2D/3D views.
                     sbs.create_new_sim()
