@@ -112,6 +112,31 @@ class TestMockCollision(unittest.TestCase):
         # as COLLISION_ORIGIN_ID); the other carries origin = the active object.
         self.assertEqual(self._origins(ev), sorted([a_id, p_id]))
 
+    def test_ship_is_not_stopped_by_a_pickup(self):
+        # A pickup must NOT physically stop or slow a ship: mock collision only emits
+        # events (no push/brake). A ship driven into a pickup flies straight through at
+        # constant cruise; an interactive collision fires (so a //collision/interactive
+        # collection route can grab it). The "stuck on a pickup" seen in missions was
+        # the autoplay throttling down on approach + the old passive-collision bug +
+        # the altitude render gap - NOT mock physics.
+        pid = self.sim.create_space_object("behav_playership", "tsn_light_cruiser", 0x20)
+        p = self.sim.space_objects[pid]; p._pos = sbs.vec3(0, 0, 0); p._exclusion_radius = 50
+        uid = self.sim.create_space_object("behav_pickup", "carapaction_coil", 0x00)
+        u = self.sim.space_objects[uid]; u._pos = sbs.vec3(0, 0, 3000); u._exclusion_radius = 100
+        p.data_set.set("playerThrottle", 1.0)          # cruise forward (+z) into it
+        sbs.resume_sim()
+        saw_collision = False
+        for _ in range(700):                            # ~17s at 180 u/s reaches 3000
+            sbs.physics_tick(dt=1 / 30)
+            if any(e[0] == "interactive_collision_start" for e in _drain()):
+                saw_collision = True
+            if p._pos.z > 3300:
+                break
+        self.assertGreater(p._pos.z, 3300)              # flew through, not stopped
+        self.assertTrue(saw_collision)                  # interactive collision fired
+        self.assertAlmostEqual(p._cur_speed, 180.0, delta=1.0)   # constant cruise, no brake
+        self.assertIn(uid, self.sim.space_objects)      # no collection route here -> stays
+
     def test_no_event_when_not_overlapping(self):
         a_id, a = self._obj(0x10, (0, 0, 0), 100)
         b_id, b = self._obj(0x10, (5000, 0, 0), 100)
