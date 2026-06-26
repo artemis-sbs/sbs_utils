@@ -82,9 +82,21 @@ made cheap by the mock harness (headless, 30 Hz fixed-step sim time,
 `settings.yaml` honored, `world_reset`, `run_next_mission` map cycling).
 
 - **Determinism** — thread a seed through everything random (`random`, dialogue
-  `%` selection, scatter, fleet-race weights, faces/names). `seed_value` already
-  exists in settings but is unimplemented — that is the prerequisite. Switch the
-  autoplayer off `delay_app` (wall clock) onto `delay_sim`.
+  `%` selection, scatter, fleet-race weights, faces/names). **DONE** for the RNG:
+  all sbs_utils randomness funnels through Python's one global `Random` instance
+  (module-level `random.*` and the `from random import ...` bindings in
+  vec/scatter all resolve to it), so `settings_seed_apply(value=None)`
+  (`procedural/settings.py`) seeds the whole chain with a single call; it
+  resolves `--seed` → `seed_value` setting → fresh random seed and always
+  returns/prints the concrete seed used so any run is reproducible. The mock
+  runner applies it before world spawn (`--seed N`); same seed → identical
+  coverage confirmed. The autoplayer's one remaining wall-clock wait was the
+  AUTO_PLAY `//signal/show_game_results` handler (`delay_app(2)` →
+  `run_next_mission`); rather than convert it to `delay_sim`, the mission loop
+  is being driven by the documented **AUTO_START** setting instead (it already
+  auto-skips the startup map-select and console-select screens after a
+  `run_next_mission` reload), so that handler goes away — leaving no `delay_app`
+  in the autoplayer.
 - **A verdict, not a vibe** — an invariant/oracle layer checked each tick: no
   NaN/inf positions, no negative HP/energy, no orphaned or never-terminating
   tasks, every scheduled task eventually ends, no MAST runtime errors, no Python
@@ -108,13 +120,13 @@ made cheap by the mock harness (headless, 30 Hz fixed-step sim time,
   (NPCs hitting players) -> ties to the spawn-beam-data gap. Damage is shields-first
   (shields absorb; then NPC hull, player internal). Beam damage respects
   `set_beam_damages` (base*coeff). Next: comms-submenu walk, scan-start, grid.
-  REAL-combat finding (combat-ready diag): on siege --map the `role("__player__")`
-  object has `data_tag='starbase_industry'` (a STATION hull, 0 beams) and enemies
-  are ~24k away, so emergent beam combat can't happen. A direct
-  `create_space_object("behav_playership","tsn_light_cruiser")` DOES get beams, so
-  it's not a generic spawn-population bug - it's mission-specific (why is the
-  player a starbase in siege auto-start?). Needs Doug's insight before chasing
-  real combat. — a policy whose goal is *coverage*, not
+  REAL-combat finding (combat-ready diag): the earlier "player is a starbase on
+  siege --map" symptom is **RESOLVED** — it was a stale-sim bug in the mock's
+  create_new_sim path (the sim object was swapped instead of reset in place,
+  leaving FrameContext.context.sim pointing at the old sim; see the
+  mock-create-new-sim-in-place memory). With that fixed the siege player has a
+  real ship hull with beams, so the remaining gap is just enemy distance, not a
+  bad player hull. — a policy whose goal is *coverage*, not
   victory: breadth-first walk every comms tree, scan every scannable,
   dock/undock, fire each weapon/torpedo type, collect each upgrade, trigger
   destroy/heat/internal-damage routes, poke GM tools. Plus a **monkey/fuzz**
@@ -144,8 +156,13 @@ report.
 
 ## Enablers needed first (additive — no MAST backward-compat break)
 
-- Seed threading through the RNG (implements the existing `seed_value`). — TODO
-- `delay_sim` instead of `delay_app` in the autoplayer. — TODO
+- Seed threading through the RNG (implements the existing `seed_value`). —
+  **DONE** (`settings_seed_apply` + runner `--seed`; one global-RNG seed covers
+  scatter/fleet weights/dialogue `%`/faces/names — `tests/test_settings_seed.py`).
+- `delay_sim` instead of `delay_app` in the autoplayer. — **OBSOLETE**: the only
+  `delay_app` was the AUTO_PLAY `show_game_results` loop handler; the loop is
+  moving to the **AUTO_START** setting and that handler is being deleted, so
+  there is no `delay_app` left to convert. (LM-branch change, owned by Doug.)
 - A node-visit coverage hook in `MastScheduler.tick`. — **DONE** (`MastTicker.on_enter_node`
   seam + `cosmos_dev/coverage.py`, commit a6df5ee).
 - An exception / runtime-error sink the runner treats as failure. — **DONE**

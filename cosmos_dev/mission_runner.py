@@ -360,6 +360,7 @@ def _run(
     junit_path: str | None = None,
     exercise: bool = False,
     use_working_tree: bool = False,
+    seed: int | None = None,
 ) -> int:
     mission_folder = os.path.abspath(mission_folder)
     missions_root  = _find_missions_root(mission_folder)
@@ -420,6 +421,15 @@ def _run(
     from sbs_utils.agent import Agent, clear_shared
     from sbs_utils.handlerhooks import cosmos_event_handler, reset_mission_state
     from sbs_utils.gui import Gui
+
+    # Seed the RNG before any world spawn so the run is reproducible.  Resolves
+    # to --seed if given, else the mission's seed_value setting, else a fresh
+    # random seed.  The applied seed is always printed so a failing run can be
+    # reproduced by passing it back via --seed.  See AUTOPLAY_PLAN.md.
+    from sbs_utils.procedural.settings import settings_seed_apply
+    _seed_used = settings_seed_apply(seed)
+    print(f"[runner] rng seed: {_seed_used}"
+          + ("" if seed is not None else "  (pass --seed to reproduce)"))
 
     sim = sbs.create_new_sim()
     Agent.SHARED.set_inventory_value("sim", sim)
@@ -781,6 +791,10 @@ if __name__ == "__main__":
                          "print MAST coverage + a pass/fail verdict and exit 0/1")
     ap.add_argument("--junit", default=None, metavar="PATH",
                     help="With --test, also write a JUnit XML report to PATH")
+    ap.add_argument("--seed", type=int, default=None, metavar="N",
+                    help="Seed the RNG for a reproducible run (overrides the "
+                         "seed_value setting). Omit to use seed_value, or 0 for a "
+                         "fresh random seed (the seed used is printed).")
     ap.add_argument("--exercise", action="store_true",
                     help="With --test, actively drive selections/comms each tick to "
                          "push route coverage (vs only the mission's own autoplay)")
@@ -809,5 +823,6 @@ if __name__ == "__main__":
         junit_path=args.junit,
         exercise=args.exercise,
         use_working_tree=args.use_working_tree,
+        seed=args.seed,
     )
     sys.exit(_exit or 0)

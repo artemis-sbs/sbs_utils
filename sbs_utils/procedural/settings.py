@@ -1,3 +1,4 @@
+import random
 from ..fs import load_json_data, get_mission_dir_filename, load_yaml_data
 
 setting_defaults = None
@@ -22,6 +23,7 @@ def settings_get_defaults():
             "pin": "000000"
         },
         "AUTO_START": False,
+        "AUTO_START_DELAY": 10,
         "WORLD_SELECT": "siege",
         "TERRAIN_SELECT": "some",
         "LETHAL_SELECT": "none",
@@ -100,6 +102,31 @@ def settings_get_defaults():
     if setup_data is not None:
         setting_defaults = setting_defaults | setup_data
     return setting_defaults
+
+
+def settings_seed_apply(value=None):
+    """Seed the global RNG so a run is reproducible.
+
+    Every random draw in sbs_utils flows through Python's single global
+    ``random.Random`` instance -- both module-level ``random.*`` calls and the
+    ``from random import ...`` bindings (scatter, vec) resolve to it -- so one
+    seed here makes terrain scatter, fleet-race weights, dialogue ``%``
+    selection, faces, and names all reproducible.
+
+    Args:
+        value (int|None): explicit seed. If ``None`` the ``seed_value`` setting
+            is used. A falsy seed (the default ``0`` = "don't care") means pick
+            one: a fresh entropy-based seed is generated, applied, and returned,
+            so a run can always be reproduced later by passing the value back.
+
+    Returns:
+        int: the seed actually applied.
+    """
+    if value is None:
+        value = settings_get_defaults().get("seed_value", 0)
+    value = int(value) if value else random.randrange(1, 2**31)
+    random.seed(value)
+    return value
 
 
 def settings_add_defaults(additions):
