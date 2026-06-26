@@ -3399,9 +3399,12 @@ def _physics_collision(sim, active: list) -> None:
     """
     global _contact_pairs
     if not active:
-        # Everything left contact — emit end events for any open contacts.
+        # Everything left contact — emit end events for any open contacts, but skip a
+        # pair whose object was deleted (e.g. a pickup collected on the start event):
+        # the contact ended by destruction, not separation, so no end is fired.
         for (kind, ia, ib, is_terrain) in _contact_pairs.values():
-            _emit_collision(f"{kind}_collision_end", kind, ia, ib, is_terrain)
+            if ia in sim.space_objects and ib in sim.space_objects:
+                _emit_collision(f"{kind}_collision_end", kind, ia, ib, is_terrain)
         _contact_pairs = {}
         return
 
@@ -3514,7 +3517,10 @@ def _physics_collision(sim, active: list) -> None:
                         apply_damage(ia, dmg, ib, kind="collision")
     for pair, (kind, ia, ib, is_terrain) in _contact_pairs.items():
         if pair not in new_contacts:
-            _emit_collision(f"{kind}_collision_end", kind, ia, ib, is_terrain)
+            # Skip the end if either object was deleted (e.g. a pickup collected during
+            # the start event) - the contact ended by destruction, not separation.
+            if ia in sim.space_objects and ib in sim.space_objects:
+                _emit_collision(f"{kind}_collision_end", kind, ia, ib, is_terrain)
 
     _contact_pairs = new_contacts
 

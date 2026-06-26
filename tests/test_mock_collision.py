@@ -129,6 +129,20 @@ class TestMockCollision(unittest.TestCase):
         sbs._physics_collision(self.sim, [(a_id, a)])
         self.assertIn("interactive_collision_start", self._tags(_drain()))
 
+    def test_no_end_event_when_object_deleted_on_collect(self):
+        # When the collection route deletes the pickup on interactive_collision_start,
+        # the next tick must NOT fire a spurious interactive_collision_end for the gone
+        # object (the contact ended by destruction, not separation).
+        a_id, a = self._obj(0x10, (0, 0, 0), 100)
+        p_id = self.sim.create_space_object("behav_pickup", "", 0x00)
+        p = self.sim.space_objects[p_id]
+        p._pos = sbs.vec3(150, 0, 0); p.data_set.set("interactionradius", 100.0)
+        sbs._physics_collision(self.sim, [(a_id, a)])
+        self.assertEqual(self._tags(_drain()), ["interactive_collision_start"])
+        sbs.delete_object(p_id)                                 # collected
+        sbs._physics_collision(self.sim, [(a_id, a)])           # pickup gone
+        self.assertEqual(_drain(), [])                          # no end event
+
     def test_ship_is_not_stopped_by_a_pickup(self):
         # A pickup must NOT physically stop or slow a ship: mock collision only emits
         # events (no push/brake). A ship driven into a pickup flies straight through at
