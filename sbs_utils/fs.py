@@ -314,8 +314,9 @@ def save_yaml_data(file, data):
     try:
         from . import yaml
         with open(file, 'w') as f:
-            # remove comments
-            return yaml.safe_dump_all(f, data)
+            # safe_dump(data, stream) - a single document. (The old call passed the
+            # file as 'documents' and the dict as 'stream', which wrote nothing.)
+            return yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
     except Exception as e:
         return None
 

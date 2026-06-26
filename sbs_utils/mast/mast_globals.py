@@ -3,6 +3,7 @@ import math
 import itertools
 import logging
 import random
+import datetime
 from .. import fs
 import sys
 from inspect import getmembers, isfunction, getmodule
@@ -30,7 +31,8 @@ class MastGlobals:
         "faces": faces,
         "scatter": scatter,
         "random": random,
-        "print": mast_print, 
+        "datetime": datetime,
+        "print": mast_print,
         "debug_print":debug_print,
         "dir":dir, 
         "itertools": itertools,
