@@ -346,6 +346,10 @@ def send_client_widget_rects(clientID: int, widgetName: str,
 # ---------------------------------------------------------------------------
 _radar_tick: int = 0
 _RADAR_INTERVAL: int = 1    # push radar every physics tick (physics thread runs at 30 Hz)
+# Behaviours that render as grid icon 0 (blank) in the engine - selection/marker
+# helpers. They must not draw anything on the 2D radar, so the mock simply omits them
+# from the radar stream entirely (which also keeps their mesh out of the 3D view).
+_RADAR_HIDDEN_BEHAVIORS = frozenset({"behav_selection"})
 _cinematic_tick: int = 0
 _CINEMATIC_INTERVAL: int = 2  # push the 3D camera every 2nd radar tick (~15 Hz) - the
                               # browser lerps the camera between updates, so 30 Hz is wasted
@@ -801,7 +805,10 @@ def _push_radar() -> None:
     s = _base_mock.sim
 
     # --- Channel 1: terrain — only when the terrain id-set changes ---
-    current_terrain_ids = frozenset(s._terrain_ids & s.space_objects.keys())
+    # Selection/marker helpers (grid icon 0 = blank) are omitted so they never draw.
+    current_terrain_ids = frozenset(
+        tid for tid in s._terrain_ids & s.space_objects.keys()
+        if s.space_objects[tid]._tick_type not in _RADAR_HIDDEN_BEHAVIORS)
     if current_terrain_ids != _last_terrain_snapshot:
         _last_terrain_snapshot = current_terrain_ids
         terrain_objects = []
@@ -835,7 +842,9 @@ def _push_radar() -> None:
             pass
 
     # --- Channel 2: per-ship delta ---
-    active_ids = s._active_ids & s.space_objects.keys()
+    # Drop selection/marker helpers (grid icon 0 = blank) so they never draw.
+    active_ids = {id_ for id_ in s._active_ids & s.space_objects.keys()
+                  if s.space_objects[id_]._tick_type not in _RADAR_HIDDEN_BEHAVIORS}
     r2 = CULL_RADIUS * CULL_RADIUS
 
     # Build navpoints + navareas + client_focus (sent in every per-ship message).

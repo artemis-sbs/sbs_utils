@@ -345,5 +345,57 @@ class TestCinematicDirectorPacing(unittest.TestCase):
         self.assertEqual(_base_mock._director_focus(self.cid), other)
 
 
+class TestMockguiRadarHiddenBehaviors(unittest.TestCase):
+    """behav_selection markers are grid icon 0 (blank) - the radar stream must omit
+    them so they never draw on the 2D view (or place a mesh in the 3D view)."""
+
+    def setUp(self):
+        mockgui.gui_queue = _queue.Queue()
+        mockgui.create_new_sim()
+        mockgui.gui_queue = _queue.Queue()
+        # Radar delta state persists between pushes - reset for isolation.
+        mockgui._last_terrain_snapshot = frozenset()
+        mockgui._last_per_ship.clear()
+
+    def _drain(self):
+        items = []
+        while not mockgui.gui_queue.empty():
+            items.append(mockgui.gui_queue.get_nowait())
+        return items
+
+    def _ids_in(self, cmd_name):
+        ids = set()
+        for m in self._drain():
+            if m.get("cmd") == cmd_name:
+                for o in m.get("objects", []):
+                    ids.add(o["id"])
+                for o in m.get("changed", []):
+                    ids.add(o["id"])
+        return ids
+
+    def test_selection_marker_excluded_from_terrain_radar(self):
+        rock = mockgui.sim.create_space_object("behav_asteroid", "", 0x00)
+        mockgui.sim.space_objects[rock]._pos = mockgui.vec3(100, 0, 100)
+        marker = mockgui.sim.create_space_object("behav_selection", "", 0x00)
+        mockgui.sim.space_objects[marker]._pos = mockgui.vec3(200, 0, 200)
+
+        mockgui._push_radar()
+        terrain_ids = self._ids_in("radar_terrain")
+        self.assertIn(str(rock), terrain_ids)        # normal terrain still shown
+        self.assertNotIn(str(marker), terrain_ids)   # selection marker omitted
+
+    def test_active_selection_marker_excluded_from_radar_delta(self):
+        # GM view (ship_id 0) sees all active objects with no culling.
+        ship = mockgui.sim.create_space_object("behav_npcship", "", 0x10)
+        mockgui.sim.space_objects[ship]._pos = mockgui.vec3(0, 0, 0)
+        marker = mockgui.sim.create_space_object("behav_selection", "", 0x10)
+        mockgui.sim.space_objects[marker]._pos = mockgui.vec3(50, 0, 50)
+
+        mockgui._push_radar()
+        radar_ids = self._ids_in("radar")
+        self.assertIn(str(ship), radar_ids)
+        self.assertNotIn(str(marker), radar_ids)
+
+
 if __name__ == "__main__":
     unittest.main()
