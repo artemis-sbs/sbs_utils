@@ -567,6 +567,94 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False, 
         
     return nebs
 
+
+# --- Position-keyed terrain field (matches across map sizes) -----------------
+# Decides and spawns the asteroid / nebula field from (key, position) only, via
+# scatter.grid_keyed + scatter.cell_roll, so a small map's field is the centered
+# subset of a larger one. The planner is pure (testable); the spawner re-seeds
+# the global RNG per cell so the existing cluster-spawn code is reused and stays
+# deterministic, then restores the RNG so it has no global side effect.
+def terrain_field_plan_keyed(key, cell, x_min, z_min, x_max, z_max,
+                             nebula_chance, asteroid_chance,
+                             exclude=None, exclude_radius=0, y_min=-375, y_max=375):
+    """Decide what the keyed terrain field contains, without spawning.
+
+    Walks the global lattice (``scatter.grid_keyed``) and, per cell, uses
+    ``scatter.cell_roll`` to pick nebula / asteroid / empty. Pure and
+    deterministic: the same ``(key, cell)`` yields the same plan for any cell, so
+    a smaller region is the centered subset of a larger one. ``exclude`` points
+    (e.g. stations) within ``exclude_radius`` are skipped.
+
+    Args:
+        key (int): World/map seed (concrete; caller maps "random" to a random int).
+        cell (float): Lattice cell size.
+        x_min, z_min, x_max, z_max (float): World bounds.
+        nebula_chance, asteroid_chance (float): Per-cell probabilities (0..1).
+        exclude (list, optional): Points/objects to keep clear of.
+        exclude_radius (float): Clearance radius around ``exclude``.
+        y_min, y_max (float): Height range for the points.
+
+    Returns:
+        list[tuple[Vec3, str]]: ``(position, "nebula"|"asteroid")`` entries.
+    """
+    pts = scatter.grid_keyed(key, cell, x_min, z_min, x_max, z_max, y_min, y_max)
+    if exclude and exclude_radius > 0:
+        pts = terrain_remove_points_near(pts, exclude, exclude_radius)
+    neb_cut = nebula_chance
+    ast_cut = nebula_chance + asteroid_chance
+    plan = []
+    for p in pts:
+        roll = scatter.cell_roll(key, cell, p.x, p.z, 0)
+        if roll < neb_cut:
+            plan.append((p, "nebula"))
+        elif roll < ast_cut:
+            plan.append((p, "asteroid"))
+    return plan
+
+
+def terrain_spawn_field_keyed(key, cell, x_min, z_min, x_max, z_max, terrain_value,
+                              nebula_chance, asteroid_chance,
+                              y_min=-375, y_max=375, exclude=None, exclude_radius=0,
+                              selectable=False):
+    """Spawn a position-keyed asteroid / nebula field over the given bounds.
+
+    The field is a pure function of ``(key, position)``: the same seed produces
+    the same field, and a small map is the centered subset of a large one. Each
+    cluster's contents come from a per-cell RNG (the global RNG is re-seeded per
+    cell from the cell's coords and restored afterward), so the existing
+    cluster-spawn code is reused and stays deterministic. ``terrain_value``
+    (0-4) controls cluster richness; ``nebula_chance`` / ``asteroid_chance`` are
+    per-cell probabilities.
+
+    Returns:
+        list[tuple[Vec3, str]]: the plan that was spawned.
+    """
+    plan = terrain_field_plan_keyed(key, cell, x_min, z_min, x_max, z_max,
+                                    nebula_chance, asteroid_chance,
+                                    exclude, exclude_radius, y_min, y_max)
+    t_min = [0, 8, 10, 12, 16][max(0, min(int(terrain_value), 4))]
+    state = random.getstate()
+    try:
+        for p, kind in plan:
+            ix = math.floor(p.x / cell)
+            iz = math.floor(p.z / cell)
+            if kind == "nebula":
+                random.seed(scatter._mix(key, ix, iz, 11))
+                terrain_spawn_nebula_sphere(p.x, p.y, p.z, 10000, terrain_value,
+                                            cluster_color=None, selectable=selectable,
+                                            marker=True, name="")
+            else:
+                random.seed(scatter._mix(key, ix, iz, 22))
+                amount = max(1, random.randint(t_min, t_min * 2) // 2)
+                size = amount * 3
+                ay = random.randint(-150, 150)
+                blob = scatter.box(amount, p.x, 0, p.z, size * 150, size * 50, size * 200, True, 0, ay, 0)
+                terrain_spawn_asteroid_scatter(blob, 1000, selectable=selectable)
+    finally:
+        random.setstate(state)
+    return plan
+
+
 def color_noise(r_min, r_max, g_min,g_max, b_min, b_max, a_min=0xff, a_max=0xff):
     r = random.randrange(r_min,r_max)
     g = random.randrange(g_min,g_max)

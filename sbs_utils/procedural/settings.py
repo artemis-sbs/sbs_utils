@@ -25,6 +25,7 @@ def settings_get_defaults():
         "AUTO_START": False,
         "AUTO_START_DELAY": 10,
         "WORLD_SELECT": "siege",
+        "MAP_SIZE": "Medium",
         "TERRAIN_SELECT": "some",
         "LETHAL_SELECT": "none",
         "FRIENDLY_SELECT": "few",
