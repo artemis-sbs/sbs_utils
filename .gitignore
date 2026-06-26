@@ -7,5 +7,11 @@
 sbs_utils_dev.zip
 cosmos_dev/*.log
 
+# overnight_runner soak artifacts (default --log / --state, written in the run cwd)
+overnight_run.log
+overnight_state.json
+overnight_*.log
+overnight_*.json
+
 # Allow
 !.vscode/tasks.json
