@@ -5,6 +5,12 @@ class GarbageCollector:
     _done = set()
     next_run = 0
 
+    @classmethod
+    def clear(cls):
+        """Drop tracked GC items (fresh mission / in-process recompile)."""
+        cls._items = set()
+        cls._done = set()
+
     def add_garbage_collect(cb):
         GarbageCollector._items.add(cb)
     def remove_garbage_collect(cb):

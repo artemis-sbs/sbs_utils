@@ -73,6 +73,13 @@ class TickDispatcher:
     # ticks per second
     tps = 30
 
+    @classmethod
+    def clear(cls):
+        """Drop all scheduled ticks (fresh mission / in-process recompile)."""
+        cls._dispatch_tick = set()
+        cls._new_this_tick = set()
+        cls.completed = set()
+
     def do_once(cb: callable, delay: int):
         """ Create and return a task that executes once
 

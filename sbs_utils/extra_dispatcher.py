@@ -9,7 +9,11 @@ class ClientStringDispatcher:
 
     """
     _dispatch_any = set()
-    
+
+    @classmethod
+    def clear(cls):
+        cls._dispatch_any = set()
+
     def add_any(cb: typing.Callable):
         ClientStringDispatcher._dispatch_any.add(cb)
 
@@ -28,7 +32,11 @@ class HotkeyDispatcher:
 
     """
     _dispatch_any = set()
-    
+
+    @classmethod
+    def clear(cls):
+        cls._dispatch_any = set()
+
     def add_any(cb: typing.Callable):
         HotkeyDispatcher._dispatch_any.add(cb)
 

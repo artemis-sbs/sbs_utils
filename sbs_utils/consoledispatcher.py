@@ -9,6 +9,12 @@ from .procedural.inventory import get_inventory_value, set_inventory_value
 class ConsoleDispatcher:
     _dispatch_select = {}
     _dispatch_messages = {}
+
+    @classmethod
+    def clear(cls):
+        """Drop all registered console routes (fresh mission / in-process recompile)."""
+        cls._dispatch_select = {}
+        cls._dispatch_messages = {}
     # tick dispatch
     convert_to_console_id = None
     

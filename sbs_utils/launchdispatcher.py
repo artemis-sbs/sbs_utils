@@ -5,6 +5,12 @@ class LaunchDispatcher:
     _dispatch_missile = set()
     _dispatch_drone = set()
 
+    @classmethod
+    def clear(cls):
+        """Drop all registered launch routes (fresh mission / in-process recompile)."""
+        cls._dispatch_missile = set()
+        cls._dispatch_drone = set()
+
     MISSILE = 0
     DRONE = 1
     

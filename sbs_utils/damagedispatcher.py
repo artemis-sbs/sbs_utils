@@ -12,6 +12,19 @@ class DamageDispatcher:
     _dispatch_killed = {}
     _dispatch_any_killed = set()
 
+    @classmethod
+    def clear(cls):
+        """Drop all registered damage routes (fresh mission / in-process recompile)."""
+        cls._dispatch_source = {}
+        cls._dispatch_target = {}
+        cls._dispatch_internal = {}
+        cls._dispatch_any = set()
+        cls._dispatch_any_internal = set()
+        cls._dispatch_heat = {}
+        cls._dispatch_any_heat = set()
+        cls._dispatch_killed = {}
+        cls._dispatch_any_killed = set()
+
     _HULL = 1
     _INTERNAL = 2
     _HEAT = 3
@@ -131,6 +144,12 @@ class CollisionDispatcher:
 
     _PASSIVE = 1
     _INTERACTION = 2
+
+    @classmethod
+    def clear(cls):
+        """Drop all registered collision routes (fresh mission / in-process recompile)."""
+        cls._dispatch_passive = set()
+        cls._dispatch_interactive = set()
 
 
 

@@ -13,7 +13,15 @@ class GridDispatcher:
     _dispatch_point = {}
     _dispatch_any_point = set()
     _dispatch_any_object = set()
-    
+
+    @classmethod
+    def clear(cls):
+        """Drop all registered grid routes (fresh mission / in-process recompile)."""
+        cls._dispatch_object = {}
+        cls._dispatch_point = {}
+        cls._dispatch_any_point = set()
+        cls._dispatch_any_object = set()
+
     def add_object(id: int, cb: typing.Callable):
         """Register a callback for a specific grid object.
         

@@ -15,9 +15,25 @@ from . import faces
 from .fs import get_mission_name, get_startup_mission_name
 from .vec import Vec3
 
-from .agent import Agent
+from .agent import Agent, clear_shared
 from .helpers import FrameContext, Context, format_exception
 import time
+
+
+# Every dispatcher/registry that accumulates per-mission state at COMPILE time and so
+# must be wiped to (re)start a mission cleanly. The engine forks a fresh process per
+# mission, so it never needs this; an in-process recompile (the dev runner's
+# run_next_mission) does - otherwise the previous mission's routes/labels/globals/
+# agents linger and the recompile fails or stale routes fire. Single source of truth so
+# the reset can't drift across the runner, tests, and any future in-process reload.
+def reset_mission_state():
+    """Reset all per-mission runtime state for a fresh mission / in-process recompile."""
+    for d in (GridDispatcher, DamageDispatcher, CollisionDispatcher, ConsoleDispatcher,
+              TickDispatcher, LifetimeDispatcher, LaunchDispatcher, GarbageCollector,
+              HotkeyDispatcher, ClientStringDispatcher):
+        d.clear()
+    Agent.clear()       # all agents, roles, inventories, links
+    clear_shared()      # rebuild the SHARED agent (drops label names / console types)
 
 
 #	client_id"

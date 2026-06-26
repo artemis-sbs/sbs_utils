@@ -12,8 +12,15 @@ class LifetimeDispatcher:
     GRID_SPAWN = 1
     DESTROYED = 2
     DOCK = 3
-    
-    
+
+    @classmethod
+    def clear(cls):
+        """Drop all registered lifetime routes (fresh mission / in-process recompile)."""
+        cls._dispatch_spawn = set()
+        cls._dispatch_spawn_grid = set()
+        cls._dispatch_destroy = set()
+        cls._dispatch_dock = set()
+
     def add_spawn(cb: typing.Callable):
         LifetimeDispatcher._dispatch_spawn.add(cb)
 

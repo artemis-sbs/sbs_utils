@@ -72,5 +72,30 @@ class TestDefaultAssignToGlobal(unittest.TestCase):
         self.assertTrue(any("keyword" in e for e in errs))      # hard assign still guarded
 
 
+class TestResetMissionState(unittest.TestCase):
+    """The single source of truth that wipes per-mission runtime state for a fresh
+    mission / in-process recompile (handlerhooks.reset_mission_state)."""
+
+    def test_clears_route_dispatchers_and_shared(self):
+        from sbs_utils.handlerhooks import reset_mission_state
+        from sbs_utils.lifetimedispatcher import LifetimeDispatcher
+        from sbs_utils.damagedispatcher import DamageDispatcher, CollisionDispatcher
+        from sbs_utils.tickdispatcher import TickDispatcher
+
+        LifetimeDispatcher._dispatch_spawn.add(lambda e: None)   # a //spawn route
+        DamageDispatcher._dispatch_any.add(lambda e: None)
+        CollisionDispatcher._dispatch_interactive.add(lambda e: None)
+        TickDispatcher._dispatch_tick.add(object())
+        Agent.SHARED.set_inventory_value("some_label_name", object())
+
+        reset_mission_state()
+
+        self.assertEqual(LifetimeDispatcher._dispatch_spawn, set())
+        self.assertEqual(DamageDispatcher._dispatch_any, set())
+        self.assertEqual(CollisionDispatcher._dispatch_interactive, set())
+        self.assertEqual(TickDispatcher._dispatch_tick, set())
+        self.assertIsNone(Agent.SHARED.get_inventory_value("some_label_name"))
+
+
 if __name__ == "__main__":
     unittest.main()

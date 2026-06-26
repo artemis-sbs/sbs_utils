@@ -418,7 +418,7 @@ def _run(
     from sbs_utils.helpers import FrameContext, Context, FakeEvent
     from sbs_utils.vec import Vec3
     from sbs_utils.agent import Agent, clear_shared
-    from sbs_utils.handlerhooks import cosmos_event_handler
+    from sbs_utils.handlerhooks import cosmos_event_handler, reset_mission_state
     from sbs_utils.gui import Gui
 
     sim = sbs.create_new_sim()
@@ -561,12 +561,13 @@ def _run(
                     # label names + console types linger in Agent.SHARED and the
                     # recompile fails ("Label conflicts with shared name", duplicate
                     # console) - run_next_mission was rarely exercised, so it was latent.
-                    Agent.clear()
-                    clear_shared()
-                    # MAST globals (module functions from MAST `import file.py`) persist
-                    # across the recompile - that's fine, the import dedup keeps them and
-                    # the recompile re-uses them; a `default name = ...` that precedes the
-                    # import is allowed against a global (see assign.py is_default).
+                    # Reset ALL per-mission runtime state (agents, shared names, and
+                    # every route/tick/damage/etc. dispatcher) via the library's single
+                    # source of truth, so the recompile is a clean slate like the engine's
+                    # fresh process. (MAST globals from `import file.py` persist - the
+                    # import dedup keeps them; a `default` that precedes the import is
+                    # allowed against a global, see assign.py is_default.)
+                    reset_mission_state()
                     # Fresh sim — in GUI mode create_new_sim also broadcasts
                     # world_reset so browsers wipe the old mission's 2D/3D views.
                     sbs.create_new_sim()
