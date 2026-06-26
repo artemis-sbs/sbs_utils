@@ -537,10 +537,14 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
     """Populate obj.data_set and physics fields from a shipData.yaml entry."""
     ds = obj.data_set
 
-    # Exclusion radius
+    # Exclusion radius (solid collision) and interaction radius (interactive contact,
+    # e.g. pickups). Both come from shipData if present.
     er = data.get("exclusionradius")
     if er is not None:
         obj._exclusion_radius = float(er)
+    ir = data.get("interactionradius")
+    if ir is not None:
+        ds.set("interactionradius", float(ir))
 
     # Scalar data_set fields that map 1-to-1
     for field in ("turn_rate", "speed_coeff", "scan_strength_coeff",
@@ -1407,6 +1411,9 @@ _DATA_SET_DEFAULTS = {
     "shields_raised_flag": 0, "surrender_flag": 0,
     "system_coolant_available": 0, "system_coolant_used": 0, "system_last_coolant_change": 0,
     "target_id": 0, "torpedo_tube_count": 0, "unselectable": 0,
+    # interaction radius: a ship within this of the object triggers an INTERACTIVE
+    # collision (pickups set it; 0 = no interactive contact). Engine data_set value.
+    "interactionradius": 0.0,
     "warp_drive_active": 0, "warp_while_docked": 0,
     # int64 / uint64 fields
     "beamTimer": 0, "healTimer": 0, "extra_scan_source": 0, "science_target_UID": 0,
@@ -1679,16 +1686,6 @@ class simulation(object): ### from pybind
         obj._data_tag = dataTag
         obj._tick_type = aiTag
         _try_populate_from_ship_data(obj)
-        # Pickups (behav_pickup) carry exclusionradius 0 in shipData (or aren't in it),
-        # and mock collision skips zero-radius terrain - so //collision/interactive
-        # never fires and the upgrade can't be collected. The ENGINE collects pickups
-        # via a separate grab mechanism (NOT exclusion_radius - it's 0 there too); the
-        # mock approximates that by giving pickups a synthetic grab radius so a passing
-        # ship registers the interactive collision and the route runs. _PICKUP_RADIUS is
-        # a placeholder (the engine's real grab distance isn't in the data - would need
-        # a capture to calibrate).
-        if aiTag == "behav_pickup" and obj._exclusion_radius <= 0.0:
-            obj._exclusion_radius = _PICKUP_RADIUS
         with self._lock:
             self.space_objects[id] = obj
             if abits & 0x30:
@@ -2473,18 +2470,6 @@ def _is_station(obj_id: int) -> bool:
         return False
 
 
-# Terrain behaviors that the engine treats as INTERACTIVE (not passive) when an
-# active object touches them - e.g. pickups, which are terrain (behav_pickup) but
-# fire //collision/interactive so the upgrade-collection route runs and deletes
-# them. Without this the mock fires //collision/passive, the route never matches,
-# the pickup is never removed, and a ship that stops on it appears "stuck".
-_INTERACTIVE_TERRAIN = frozenset({"behav_pickup"})
-
-
-def _is_interactive_terrain(obj) -> bool:
-    return getattr(obj, "_tick_type", "") in _INTERACTIVE_TERRAIN
-
-
 def _hit_facing(target, source, n_facings: int) -> int:
     """Which shield facing a hit from `source` lands on. The engine reduces the facing
     toward the attacker; the mock approximates it by the source's bearing relative to
@@ -2726,11 +2711,6 @@ def _physics_beams(sim, active: list, dt: float) -> None:
         _bump_exciting(a, _EXCITE_COMBAT)                 # combat is camera-worthy
         _bump_exciting(space.get(tid), _EXCITE_COMBAT)
 
-
-# Pickup grab radius: collision radius given to behav_pickup objects so a passing
-# ship registers an interactive collision and the //collision/interactive collection
-# route can fire (pickup arts carry no shipData hull, so they'd otherwise be radius 0).
-_PICKUP_RADIUS = 200.0
 
 # Projectile defaults (mock approximations).
 _PROJECTILE_HIT_RADIUS = 300.0
@@ -3417,14 +3397,28 @@ def _physics_collision(sim, active: list) -> None:
 
     space = sim.space_objects
 
-    # Auto-tune cell size: 2 × max active exclusion radius, minimum 500 units.
-    max_er = 0.0
-    for _id, obj in active:
-        if obj._exclusion_radius > max_er:
-            max_er = obj._exclusion_radius
-    cell_sz = max(max_er * 2.0, 500.0)
+    # An object's contact reach is its exclusion_radius (solid) or its data_set
+    # interactionradius (interactive, e.g. pickups) - whichever applies. Auto-tune the
+    # cell size to the largest reach so the 9-cell neighborhood never misses a contact.
+    def _reach(o):
+        return max(o._exclusion_radius, o.data_set.get("interactionradius") or 0.0)
 
-    # Build per-cell buckets for active objects and terrain.
+    max_reach = 0.0
+    for _id, obj in active:
+        if obj._exclusion_radius > max_reach:
+            max_reach = obj._exclusion_radius
+    terrain_objs = []
+    for tid in sim._terrain_ids:
+        obj = space.get(tid)
+        if obj is None:
+            continue
+        if _reach(obj) <= 0:
+            continue                        # no solid extent and no interaction radius
+        max_reach = max(max_reach, _reach(obj))
+        terrain_objs.append((tid, obj))
+    cell_sz = max(max_reach * 2.0, 500.0)
+
+    # Build per-cell buckets for active objects and (collidable) terrain.
     active_grid: dict = {}
     for id_, obj in active:
         if obj._exclusion_radius > 0:
@@ -3432,11 +3426,9 @@ def _physics_collision(sim, active: list) -> None:
             active_grid.setdefault(ck, []).append((id_, obj))
 
     terrain_grid: dict = {}
-    for tid in sim._terrain_ids:
-        obj = space.get(tid)
-        if obj is not None and obj._exclusion_radius > 0:
-            ck = _cell(obj._pos.x, obj._pos.z, cell_sz)
-            terrain_grid.setdefault(ck, []).append((tid, obj))
+    for tid, obj in terrain_objs:
+        ck = _cell(obj._pos.x, obj._pos.z, cell_sz)
+        terrain_grid.setdefault(ck, []).append((tid, obj))
 
     # canonical pair (min,max) -> (kind, id_a, id_b)
     new_contacts: dict = {}
@@ -3478,18 +3470,23 @@ def _physics_collision(sim, active: list) -> None:
                     if not tb:
                         continue
                     for tid, t in tb:
-                        rt = t._exclusion_radius
                         ddx = a._pos.x - t._pos.x
                         ddy = a._pos.y - t._pos.y
                         ddz = a._pos.z - t._pos.z
-                        if ddx * ddx + ddy * ddy + ddz * ddz < (ra + rt) * (ra + rt):
-                            pair = (min(aid, tid), max(aid, tid))
-                            # active vs static terrain -> passive collision, EXCEPT
-                            # interactive terrain (pickups), which fire interactive so
-                            # the collection route runs (origin=terrain on the mirror
-                            # emit below). aid=active, tid=terrain in either case.
-                            ckind = "interactive" if _is_interactive_terrain(t) else "passive"
-                            new_contacts[pair] = (ckind, aid, tid)
+                        d2 = ddx * ddx + ddy * ddy + ddz * ddz
+                        # interactionradius -> INTERACTIVE contact (pickups); else the
+                        # exclusion_radius -> PASSIVE contact (solid terrain). Purely
+                        # data-driven. aid=active, tid=terrain.
+                        ir = t.data_set.get("interactionradius") or 0.0
+                        er = t._exclusion_radius
+                        if ir > 0 and d2 < (ra + ir) * (ra + ir):
+                            ckind = "interactive"
+                        elif er > 0 and d2 < (ra + er) * (ra + er):
+                            ckind = "passive"
+                        else:
+                            continue
+                        pair = (min(aid, tid), max(aid, tid))
+                        new_contacts[pair] = (ckind, aid, tid)
 
     # Diff against the previous frame: start on contact entry, end on exit.
     # Both id orderings are emitted so each object sees itself as origin.

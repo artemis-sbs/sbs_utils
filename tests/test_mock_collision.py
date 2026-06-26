@@ -94,17 +94,15 @@ class TestMockCollision(unittest.TestCase):
         self.assertEqual(self._tags(_drain()),
                          ["passive_collision_end", "passive_collision_end"])
 
-    def test_pickup_terrain_fires_interactive(self):
-        # A pickup is terrain (behav_pickup) but the engine fires //collision/
-        # INTERACTIVE for it (so the upgrade-collection route runs and deletes it).
-        # The mock must match - otherwise the pickup is never collected and a ship
-        # that stops on it looks stuck.
+    def test_interaction_radius_fires_interactive(self):
+        # A terrain object with a data_set interactionradius (pickups) fires INTERACTIVE
+        # collision (so the upgrade-collection route runs) - purely data-driven, no
+        # exclusion_radius==0 or behaviour check. Its exclusion_radius is 0 (not solid).
         a_id, a = self._obj(0x10, (0, 0, 0), 100)              # active player/ship
         p_id = self.sim.create_space_object("behav_pickup", "", 0x00)   # terrain pickup
         p = self.sim.space_objects[p_id]
-        # behav_pickup auto-gets a grab radius (no shipData hull) so collision fires.
-        self.assertEqual(p._exclusion_radius, sbs._PICKUP_RADIUS)
-        p._pos = sbs.vec3(50, 0, 0)
+        p._pos = sbs.vec3(150, 0, 0)                            # within 100 + 100
+        p.data_set.set("interactionradius", 100.0)             # interactive contact radius
         _drain()
         sbs._physics_collision(self.sim, [(a_id, a)])
         ev = _drain()
@@ -124,7 +122,8 @@ class TestMockCollision(unittest.TestCase):
         pid = self.sim.create_space_object("behav_playership", "tsn_light_cruiser", 0x20)
         p = self.sim.space_objects[pid]; p._pos = sbs.vec3(0, 0, 0); p._exclusion_radius = 50
         uid = self.sim.create_space_object("behav_pickup", "carapaction_coil", 0x00)
-        u = self.sim.space_objects[uid]; u._pos = sbs.vec3(0, 0, 3000)   # auto grab radius
+        u = self.sim.space_objects[uid]; u._pos = sbs.vec3(0, 0, 3000)
+        u.data_set.set("interactionradius", 200.0)     # interactive grab radius
         p.data_set.set("playerThrottle", 1.0)          # cruise forward (+z) into it
         sbs.resume_sim()
         saw_collision = False

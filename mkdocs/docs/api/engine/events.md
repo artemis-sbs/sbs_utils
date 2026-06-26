@@ -116,19 +116,16 @@ order is `(tag, sub_tag, origin_id, selected_id[, parent_id][, {extra fields}])`
 | `player_launches_missile` | `""` | source → target | `//launch/missile`; `extra_extra_tag = kind` (Homing / Nuke / EMP / Mine) |
 | `*_collision_start` / `*_collision_end` | kind | a ↔ b | `//collision/*` |
 
-!!! note "Collision kind: passive vs interactive (pickups)"
-    Active-vs-active is **interactive**; active-vs-static-terrain is **passive** —
-    *except* interactive terrain, which fires **interactive**. Pickups are terrain
-    (`behav_pickup`) but the LegendaryMissions collection route is
-    `//collision/interactive` (it deletes the upgrade), so the mock fires interactive
-    for them (`_INTERACTIVE_TERRAIN` in `cosmos_dev/mock/sbs.py`). Both id orderings
-    are emitted, so the mirror carries `origin = the pickup` for the route's
-    `COLLISION_ORIGIN_ID`. Without this the pickup is never collected and a ship that
-    stops on it looks stuck. Pickups carry `exclusionradius 0` in shipData (the engine
-    collects them via a separate grab mechanism, not exclusion_radius), so the mock
-    gives `behav_pickup` a synthetic grab radius (`_PICKUP_RADIUS`, a placeholder) -
-    otherwise they'd be `exclusion_radius 0`, which collision skips, and the route would
-    never fire at all.
+!!! note "Collision kind: passive vs interactive (data-driven)"
+    Active-vs-active is **interactive**. For active-vs-terrain the kind is **data-driven**
+    by the terrain object's radii: a data_set **`interactionradius`** > 0 (pickups) fires
+    **interactive** (a ship within it triggers the collection route); otherwise the
+    `exclusion_radius` (solid terrain, asteroids) fires **passive**. No behaviour-name or
+    `exclusion==0` heuristics. Both id orderings are emitted, so the mirror carries
+    `origin = the pickup` for the route's `COLLISION_ORIGIN_ID`. `interactionradius` is a
+    data_set value (not a `space_object` attribute) loaded from shipData when present;
+    pickups need it set (engine/shipData) or the `//collision/interactive` route never
+    fires and the upgrade is never collected.
 
 !!! success "Mock damage events carry the amount + weapon kind"
     Every mock `damage` event now ends with a `{"sub_float": amount}` dict (the raw
