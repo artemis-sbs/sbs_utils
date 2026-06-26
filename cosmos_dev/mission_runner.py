@@ -417,7 +417,7 @@ def _run(
     from sbs_utils.mast_sbs.maststorypage import StoryPage
     from sbs_utils.helpers import FrameContext, Context, FakeEvent
     from sbs_utils.vec import Vec3
-    from sbs_utils.agent import Agent
+    from sbs_utils.agent import Agent, clear_shared
     from sbs_utils.handlerhooks import cosmos_event_handler
     from sbs_utils.gui import Gui
 
@@ -556,6 +556,13 @@ def _run(
                     # previously-connected browsers re-handshake below.
                     prev_clients = [c for c in Gui.clients if c != 0]
                     Gui.clients.clear()
+                    # Reset shared/agent state so the recompile is a clean slate, like
+                    # the engine's fresh process. Without this, the previous compile's
+                    # label names + console types linger in Agent.SHARED and the
+                    # recompile fails ("Label conflicts with shared name", duplicate
+                    # console) - run_next_mission was rarely exercised, so it was latent.
+                    Agent.clear()
+                    clear_shared()
                     # Fresh sim — in GUI mode create_new_sim also broadcasts
                     # world_reset so browsers wipe the old mission's 2D/3D views.
                     sbs.create_new_sim()
