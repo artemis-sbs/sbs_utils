@@ -54,7 +54,13 @@ class Assign(MastNode):
         self.is_await = a_wait is not None
         
                 
-        if lhs in MastGlobals.globals:
+        # A hard assignment to a global/keyword is an error, but a `default` (set only
+        # if unset) to one is a legitimate fallback - e.g. `default elite_get_all_abilities
+        # = None` in debug.mast, so the var exists even when that module isn't imported.
+        # It also keeps an in-process recompile working: a default that precedes the
+        # import which registers the name no longer errors just because the name is still
+        # a global from the prior compile.
+        if lhs in MastGlobals.globals and not self.is_default:
             raise Exception(f"Variable assignment to a keyword {lhs}")
 
 class MastAsyncTask:

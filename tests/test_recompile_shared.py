@@ -40,32 +40,36 @@ class TestRecompileSharedReset(unittest.TestCase):
         self.assertEqual(_compile_label(), [])                 # clean again
 
 
-class TestMastGlobalsReset(unittest.TestCase):
-    def test_reset_drops_mission_globals_keeps_builtins(self):
-        MastGlobals._builtin_keys = None
-        MastGlobals.mark_builtins()                              # snapshot baseline
-        MastGlobals.globals["mission_helper_xyz"] = lambda: None  # a mission addition
-        MastGlobals._imported_mods.add("mission_mod_xyz")
-        MastGlobals.reset()
-        self.assertNotIn("mission_helper_xyz", MastGlobals.globals)     # dropped
-        self.assertNotIn("mission_mod_xyz", MastGlobals._imported_mods)  # import dedup cleared
-        self.assertIn("math", MastGlobals.globals)                      # built-in kept
+class TestDefaultAssignToGlobal(unittest.TestCase):
+    """A `default name = ...` to a global/keyword is a legitimate fallback (debug.mast's
+    `default elite_get_all_abilities = None`) and must NOT error - including on an
+    in-process recompile where the name is still a global from the prior compile. A hard
+    `name = ...` to a global is still an error."""
 
-    def test_default_assign_to_imported_name_survives_recompile(self):
-        # Mirrors the elite_get_all_abilities crash: a `default name = None` that
-        # precedes the import which registers `name` as a global. First compile (name
-        # already a global) errors; the runner's reset (Agent + shared + MAST globals)
-        # makes the recompile clean again.
-        src = "== top_x ==\n    default helper_fn_x = None\n    ->END\n"
-        Agent.clear(); clear_shared()
-        MastGlobals._builtin_keys = None; MastGlobals.mark_builtins()
-        MastGlobals.globals["helper_fn_x"] = lambda: None       # as if an import added it
+    def setUp(self):
+        Agent.clear()
+        clear_shared()
+        self._added = []
+
+    def tearDown(self):
+        for k in self._added:
+            MastGlobals.globals.pop(k, None)
+
+    def _register_global(self, name):
+        MastGlobals.globals[name] = (lambda: None)
+        self._added.append(name)
+
+    def test_default_to_global_is_allowed(self):
+        self._register_global("helper_fn_x")                    # as if an import added it
         m = Mast()
-        errs = m.compile(src, "<t>", m)
-        self.assertTrue(any("keyword" in e for e in errs))      # reproduces the crash
-        Agent.clear(); clear_shared(); MastGlobals.reset()      # full reload reset
-        m2 = Mast()
-        self.assertEqual(m2.compile(src, "<t>", m2), [])        # clean after reset
+        errs = m.compile("== top_x ==\n    default helper_fn_x = None\n    ->END\n", "<t>", m)
+        self.assertEqual(errs, [])                              # default is exempt
+
+    def test_hard_assign_to_global_still_errors(self):
+        self._register_global("helper_fn_y")
+        m = Mast()
+        errs = m.compile("== top_y ==\n    helper_fn_y = None\n    ->END\n", "<t>", m)
+        self.assertTrue(any("keyword" in e for e in errs))      # hard assign still guarded
 
 
 if __name__ == "__main__":

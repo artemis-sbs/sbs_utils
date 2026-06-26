@@ -72,32 +72,6 @@ class MastGlobals:
         "__name__":__name__ # needed to define classes?
     }
 
-    # Snapshot of the global NAMES present before any mission compiles (the built-ins
-    # above + whatever sbs_utils registers at import). Per-mission globals - functions
-    # pulled in by a mission's MAST `import file.py` - are added on top during compile.
-    _builtin_keys = None
-
-    @classmethod
-    def mark_builtins(cls):
-        """Record the current globals as the built-in baseline. Call once after
-        sbs_utils is imported and before any mission compiles; idempotent."""
-        if cls._builtin_keys is None:
-            cls._builtin_keys = set(cls.globals.keys())
-
-    @classmethod
-    def reset(cls):
-        """Drop per-mission globals (added during a mission's compile, e.g. MAST
-        `import file.py` functions) and the module-import dedup set, restoring the
-        built-in baseline. For an in-process recompile (run_next_mission) that must
-        mirror the engine's fresh process - the recompile re-imports and re-registers
-        the mission's modules in order, so a `default name = ...` that precedes the
-        import compiles before the name is a global again. No-op until mark_builtins()."""
-        if cls._builtin_keys is None:
-            return
-        for k in [k for k in cls.globals if k not in cls._builtin_keys]:
-            del cls.globals[k]
-        cls._imported_mods.clear()
-
     def import_python_function(func, name=None):
         """
         Import a python function as a global and optionally specify a name for it.
