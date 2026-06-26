@@ -112,6 +112,21 @@ class TestMockCollision(unittest.TestCase):
         # as COLLISION_ORIGIN_ID); the other carries origin = the active object.
         self.assertEqual(self._origins(ev), sorted([a_id, p_id]))
 
+    def test_pickup_art_loads_interactionradius_from_shipdata(self):
+        # A pickup spawned with a real pickup art loads its interactionradius from
+        # shipData by art id (no behav/special-casing), and that drives the interactive
+        # collision so the collection route can fire.
+        uid = self.sim.create_space_object("behav_pickup", "alien_1a", 0x00)
+        u = self.sim.space_objects[uid]
+        ir = u.data_set.get("interactionradius") or 0.0
+        self.assertGreater(ir, 0.0, "pickup art should carry interactionradius from shipData")
+        self.assertEqual(u._exclusion_radius, 0.0)             # not solid
+        u._pos = sbs.vec3(ir * 0.5, 0, 0)                      # well within interaction radius
+        a_id, a = self._obj(0x10, (0, 0, 0), 50)
+        _drain()
+        sbs._physics_collision(self.sim, [(a_id, a)])
+        self.assertIn("interactive_collision_start", self._tags(_drain()))
+
     def test_ship_is_not_stopped_by_a_pickup(self):
         # A pickup must NOT physically stop or slow a ship: mock collision only emits
         # events (no push/brake). A ship driven into a pickup flies straight through at
