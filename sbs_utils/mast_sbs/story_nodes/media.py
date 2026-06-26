@@ -16,6 +16,12 @@ class MediaLabel(DecoratorLabel):
     folders = {}
     is_label = True
 
+    @classmethod
+    def clear(cls):
+        """Drop registered @media labels (fresh mission / in-process recompile) - the
+        folders dict APPENDS per label, so without this a reload doubles the media."""
+        cls.folders = {}
+
     def __init__(self, kind, path, display_name, if_exp=None, q=None, loc=None, compile_info=None):
         # Label stuff
         id = DecoratorLabel.next_label_id()

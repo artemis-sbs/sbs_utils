@@ -32,6 +32,12 @@ def reset_mission_state():
               TickDispatcher, LifetimeDispatcher, LaunchDispatcher, GarbageCollector,
               HotkeyDispatcher, ClientStringDispatcher):
         d.clear()
+    # Decorator-label registries that accumulate at compile time (lazy import - these
+    # live in mast_sbs.story_nodes, which imports back into the mast layer).
+    from .mast_sbs.story_nodes.media import MediaLabel
+    from .mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
+    MediaLabel.clear()          # @media labels (folders APPENDS - reload would double)
+    GuiTabDecoratorLabel.clear()  # //gui/tab labels
     Agent.clear()       # all agents, roles, inventories, links
     clear_shared()      # rebuild the SHARED agent (drops label names / console types)
 

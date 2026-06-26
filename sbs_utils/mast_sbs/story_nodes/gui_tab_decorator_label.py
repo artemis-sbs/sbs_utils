@@ -10,6 +10,11 @@ class GuiTabDecoratorLabel(DecoratorLabel):
 
     all = {}
 
+    @classmethod
+    def clear(cls):
+        """Drop registered //gui/tab labels (fresh mission / in-process recompile)."""
+        cls.all = {}
+
     def __init__(self, path, if_exp=None, loc=None, compile_info=None):
         # Label stuff
         id = DecoratorLabel.next_label_id()

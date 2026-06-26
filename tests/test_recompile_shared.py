@@ -82,10 +82,15 @@ class TestResetMissionState(unittest.TestCase):
         from sbs_utils.damagedispatcher import DamageDispatcher, CollisionDispatcher
         from sbs_utils.tickdispatcher import TickDispatcher
 
+        from sbs_utils.mast_sbs.story_nodes.media import MediaLabel
+        from sbs_utils.mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
+
         LifetimeDispatcher._dispatch_spawn.add(lambda e: None)   # a //spawn route
         DamageDispatcher._dispatch_any.add(lambda e: None)
         CollisionDispatcher._dispatch_interactive.add(lambda e: None)
         TickDispatcher._dispatch_tick.add(object())
+        MediaLabel.folders["music"] = [object()]                 # an @media label
+        GuiTabDecoratorLabel.all["mytab"] = object()             # a //gui/tab label
         Agent.SHARED.set_inventory_value("some_label_name", object())
 
         reset_mission_state()
@@ -94,6 +99,8 @@ class TestResetMissionState(unittest.TestCase):
         self.assertEqual(DamageDispatcher._dispatch_any, set())
         self.assertEqual(CollisionDispatcher._dispatch_interactive, set())
         self.assertEqual(TickDispatcher._dispatch_tick, set())
+        self.assertEqual(MediaLabel.folders, {})
+        self.assertEqual(GuiTabDecoratorLabel.all, {})
         self.assertIsNone(Agent.SHARED.get_inventory_value("some_label_name"))
 
 
