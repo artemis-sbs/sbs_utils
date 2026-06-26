@@ -1,5 +1,5 @@
 import math
-from random import uniform, choices
+from random import uniform, choices, Random
 from .vec import Vec3
 from collections.abc import Generator
 def arc(count, x,y,z, r, start=0.0, end=90.0, random=False) -> Generator:
@@ -391,6 +391,111 @@ def simple_noise(count, x,y, z, x2, y2, z2, count_x, count_y,count_z, radius=Non
     
     ret_count = min(count, len(grid_point))
     return choices(grid_point, k=ret_count)
+
+
+# --- Position-keyed (lattice) scatter --------------------------------------
+# A cell's content depends only on (key, cell indices), never on draw order or
+# the requested bounds, so a smaller region is exactly the centered subset of a
+# larger one. This is the basis for "small maps match big maps" and for a
+# sector-based universe that stores only its seed. Cells are mixed with a 64-bit
+# FNV-1a of their integer coords so seeding is stable across runs (no reliance
+# on PYTHONHASHSEED / str/tuple hashing).
+_FNV_OFFSET = 1469598103934665603
+_FNV_PRIME = 1099511628211
+_MASK64 = 0xFFFFFFFFFFFFFFFF
+
+
+def _mix(*vals):
+    h = _FNV_OFFSET
+    for v in vals:
+        h ^= int(v) & _MASK64
+        h = (h * _FNV_PRIME) & _MASK64
+    return h
+
+
+def grid_keyed(key, cell, x_min, z_min, x_max, z_max, y_min=0, y_max=0, drift=1.0, radius=None):
+    """Position-keyed scatter over a global lattice anchored at the origin.
+
+    One point is produced per grid cell whose center lies within the bounds.
+    Each cell's jitter and height come from a per-cell RNG seeded by
+    ``(key, ix, iz)``, so a cell at a given world position is identical no matter
+    what bounds are requested. A smaller region is therefore exactly the centered
+    subset of a larger one - the basis for "small maps match big maps" and for a
+    sector-based universe that regenerates from only its seed.
+
+    Args:
+        key (int): The world/map seed. A concrete value is reproducible; 0 is a
+            valid, reproducible seed (NOT "random"). Callers that want a random
+            map pass a random int so grid_keyed and cell_roll share it.
+        cell (float): Square cell size in world units.
+        x_min, z_min, x_max, z_max (float): World-space bounds (inclusive).
+        y_min, y_max (float): Height range; a single value when equal.
+        drift (float): Jitter as a fraction of the cell; clamped to <= 1 so each
+            point stays inside its own cell (lets cell_roll recover the cell).
+        radius (float, optional): If set, drop points farther than this from the
+            origin (circular clip).
+
+    Returns:
+        list[Vec3]: Points in deterministic lattice order.
+    """
+    if cell <= 0:
+        return []
+    if key is None:
+        key = 0
+    drift = max(0.0, min(drift, 1.0))
+    r_sq = radius * radius if radius is not None else None
+    points = []
+    iz = math.floor(z_min / cell)
+    iz_max = math.floor(z_max / cell)
+    ix_min = math.floor(x_min / cell)
+    ix_max = math.floor(x_max / cell)
+    while iz <= iz_max:
+        cz = (iz + 0.5) * cell
+        if cz < z_min or cz > z_max:
+            iz += 1
+            continue
+        ix = ix_min
+        while ix <= ix_max:
+            cx = (ix + 0.5) * cell
+            if cx < x_min or cx > x_max:
+                ix += 1
+                continue
+            rng = Random(_mix(key, ix, iz))
+            x = cx + (rng.random() - 0.5) * drift * cell
+            z = cz + (rng.random() - 0.5) * drift * cell
+            y = y_min if y_max <= y_min else rng.uniform(y_min, y_max)
+            if r_sq is None or (x * x + z * z) <= r_sq:
+                points.append(Vec3(x, y, z))
+            ix += 1
+        iz += 1
+    return points
+
+
+def cell_roll(key, cell, x, z, salt=0):
+    """Deterministic value in [0, 1) for the lattice cell containing (x, z).
+
+    Use it to make position-keyed decisions about a point from
+    :func:`grid_keyed` - asteroid vs nebula vs empty, station present, POI kind -
+    so the *contents* match across map sizes too, not just positions. ``salt``
+    selects independent rolls for independent decisions. Reliable because
+    grid_keyed keeps each point inside its own cell.
+
+    Args:
+        key (int): Same world/map seed used with grid_keyed.
+        cell (float): Same cell size used with grid_keyed.
+        x, z (float): A point's world coordinates.
+        salt (int): Distinguishes independent decisions for the same cell.
+
+    Returns:
+        float: A stable pseudo-random value in [0, 1).
+    """
+    if cell <= 0:
+        return 0.0
+    if key is None:
+        key = 0
+    ix = math.floor(x / cell)
+    iz = math.floor(z / cell)
+    return Random(_mix(key, ix, iz, salt)).random()
 
     
 
