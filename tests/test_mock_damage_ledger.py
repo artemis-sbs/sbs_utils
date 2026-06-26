@@ -21,6 +21,7 @@ test_set_exe_dir()
 import unittest
 import cosmos_dev.mock.sbs as sbs
 from sbs_utils.agent import Agent, clear_shared
+from tests.reset_helper import reset_mock
 
 
 def _drain_raw():
@@ -35,11 +36,7 @@ def _drain_raw():
 
 class TestDamageLedger(unittest.TestCase):
     def setUp(self):
-        Agent.clear()
-        clear_shared()
-        sbs.create_new_sim()
-        self.sim = sbs.sim
-        sbs._contact_pairs.clear()
+        self.sim = reset_mock(sbs)
         _drain_raw()
 
     def tearDown(self):

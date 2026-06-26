@@ -2,6 +2,7 @@ from sbs_utils.fs import test_set_exe_dir
 test_set_exe_dir()
 
 from cosmos_dev.mock import sbs
+from tests.reset_helper import reset_mock
 import math
 import unittest
 
@@ -13,7 +14,7 @@ def _make_obj():
 class TestMockSbs(unittest.TestCase):
 
     def setUp(self):
-        sbs.create_new_sim()
+        reset_mock(sbs)
 
     # ------------------------------------------------------------------
     # delete_object

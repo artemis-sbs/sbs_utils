@@ -16,6 +16,7 @@ test_set_exe_dir()
 
 import unittest
 import cosmos_dev.mock.sbs as sbs
+from tests.reset_helper import reset_mock
 
 
 def _drain():
@@ -30,9 +31,7 @@ def _drain():
 
 class TestMockCollision(unittest.TestCase):
     def setUp(self):
-        sbs.create_new_sim()
-        self.sim = sbs.sim
-        sbs._contact_pairs.clear()
+        self.sim = reset_mock(sbs)
         _drain()
 
     def _obj(self, abits, pos, er):

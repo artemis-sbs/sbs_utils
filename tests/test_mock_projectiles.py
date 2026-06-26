@@ -11,6 +11,7 @@ test_set_exe_dir()
 import unittest
 import cosmos_dev.mock.sbs as sbs
 from sbs_utils.agent import Agent, clear_shared
+from tests.reset_helper import reset_mock
 
 
 def _drain():
@@ -25,10 +26,7 @@ def _drain():
 
 class TestMockProjectiles(unittest.TestCase):
     def setUp(self):
-        Agent.clear()
-        clear_shared()
-        sbs.create_new_sim()
-        self.sim = sbs.sim
+        self.sim = reset_mock(sbs)
         _drain()
 
     def _hulled(self, hp=100, pos=(0, 0, 0)):

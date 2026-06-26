@@ -19,6 +19,7 @@ import unittest
 import cosmos_dev.mock.sbs as sbs
 from sbs_utils.helpers import FrameContext, Context, FakeEvent
 from sbs_utils.agent import Agent, clear_shared
+from tests.reset_helper import reset_mock
 from sbs_utils.procedural.spawn import npc_spawn
 from sbs_utils.procedural.query import to_id
 from sbs_utils.procedural.space_objects import target
@@ -33,11 +34,7 @@ _TTK_MAX = 110.0
 
 class TestCombatTTK(unittest.TestCase):
     def setUp(self):
-        Agent.clear()
-        clear_shared()
-        sbs.create_new_sim()
-        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
-        self.sim = sbs.sim
+        self.sim = reset_mock(sbs)
 
     def _fight(self, a_hull, b_hull, a_station=False, secs=130.0):
         """Spawn A (tsn) vs B (raider) 800 apart, both shooting; tick physics until
