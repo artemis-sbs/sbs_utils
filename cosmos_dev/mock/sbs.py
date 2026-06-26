@@ -577,6 +577,16 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
         ds.set("repair_rate_shields", 1.0 if is_player else 0.1)
         ds.set("repair_rate_systems", 0.025 if is_player else 0.01)
 
+    # Energy + APU (engine runtime defaults, not in shipData): start the tank FULL so
+    # missions don't see an empty player on spawn (the data_set default is 0). The APU
+    # passively trickles energy back to the ceiling; flight drains it (see physics_tick),
+    # docking refills it fast. See PLAYER_ENERGY_MAX.
+    if is_player:
+        ds.set("energy", PLAYER_ENERGY_MAX)
+        ds.set("ship_apu_ceiling", PLAYER_ENERGY_MAX)
+        if not (ds.get("ship_apu_output") or 0.0):
+            ds.set("ship_apu_output", PLAYER_APU_OUTPUT)
+
     # NPC ships have no armor; the mock drives their death via system damage, so
     # seed the per-SHPSYS capacity. (Players' system damage is script-managed; the
     # engine sets system_max_damage there. Stations use armor.)
@@ -2272,6 +2282,22 @@ BASE_TOP_SPEED = 36.0          # NPC impulse top speed at throttle 1.0, speed_co
 PLAYER_IMPULSE_SPEED = 180.0   # player impulse top speed at playerThrottle 1.0 (no speed_coeff)
 # Additional units/sec per warp factor above 1.0: player @ pThr 3 = 180 + 2*450 = 1080.
 PLAYER_WARP_SPEED = 450.0
+# --- Player energy ("fuel") --------------------------------------------------
+# Energy model: a player ship has a 1000-unit tank (artemiswiki "Energy", close enough
+# for the mock). Flight (impulse + warp) and overpowering systems spend it; docking at
+# a station refills it fast. Unlike old Artemis, Cosmos ALSO has a passive auxiliary
+# power unit (APU) that trickles energy back toward the ceiling. The engine sets the
+# tank + APU at runtime (shipData has neither), so the mock seeds them on spawn. Firing
+# or loading torpedoes does NOT cost energy - the weapons console's energy<->torpedo
+# conversion is a separate, manual choice.
+PLAYER_ENERGY_MAX = 1000.0     # full tank / APU ceiling (engine player default)
+PLAYER_APU_OUTPUT = 1.0        # passive regen coefficient (energy/s = output * 2.0)
+# Flight drain coefficients (uncalibrated - no per-second figure available; tuned so
+# sustained warp NET-drains the tank over a few minutes despite APU regen, while idle
+# and light impulse let the APU recharge it). per second:
+# min(thr,1)*ship_energy_cost*IMPULSE_ENERGY_DRAIN + max(0,thr-1)*warp_energy_cost*WARP_ENERGY_DRAIN
+IMPULSE_ENERGY_DRAIN = 1.0
+WARP_ENERGY_DRAIN = 2.0
 # Acceleration is a first-order lag (captured cur_speed approaches its target
 # geometrically, not linearly): cur += (target - cur) * (1 - exp(-dt/SPEED_TAU)).
 # SPEED_TAU is the time constant in seconds (engine NPC ~0.8s, player ~1.7s; 1.0 is
@@ -3647,3 +3673,19 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
                 ceiling = ds.get("ship_apu_ceiling") or 0.0
                 if ceiling > 0.0 and energy < ceiling:
                     ds.set("energy", min(ceiling, energy + apu * 2.0 * dt))
+
+            # Player flight energy drain. Impulse + warp both spend energy from the
+            # tank (scaled by shipData ship_energy_cost / warp_energy_cost); the APU
+            # regen above tops it back up when idle/light-impulse, docking refills it
+            # fast. Firing or loading torpedoes costs NO energy (that's the weapons-
+            # console energy<->torpedo conversion, a separate manual choice).
+            if obj._abits & _PLAYER_ABIT:
+                pt = ds.get("playerThrottle") or 0.0
+                if pt > 0.0:
+                    e_cost = ds.get("ship_energy_cost") or 0.0
+                    w_cost = ds.get("warp_energy_cost") or 0.0
+                    drain = (min(pt, 1.0) * e_cost * IMPULSE_ENERGY_DRAIN
+                             + max(0.0, pt - 1.0) * w_cost * WARP_ENERGY_DRAIN) * dt
+                    if drain > 0.0:
+                        e_now = ds.get("energy") or 0.0
+                        ds.set("energy", max(0.0, e_now - drain))
