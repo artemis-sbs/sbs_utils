@@ -1,0 +1,514 @@
+
+===== overnight soak started 2026-06-26 00:09:23 : C:\Users\DougR\AppData\Local\Programs\Python\Python311\python.exe -u -m cosmos_dev.mission_runner ../LegendaryMissions --map 0 --gui --port 8765 =====
+[runner] sbslib: artemis-sbs.sbs_utils.v1.4.0_dev.sbslib
+[server] listening on 0.0.0.0:8765
+[runner] GUI server started — open http://localhost:8765/
+[server] client 9259400833873739777 connected (fire_connect=True)
+[replay] client=9259400833873739777 sending 0 commands
+[replay] client=9259400833873739777 done
+[event]  client=9259400833873739777 effective=9259400833873739777 {'type': 'screen_size', 'clientID': 9259400833873739777, 'width': 1037, 'height': 894}
+[runner] story: F:\a\Cosmos-1-3-0\data\missions\LegendaryMissions\story.mast
+[runner] running at 60 Hz  (MAST 5 Hz, physics 30 Hz background thread)
+[runner] client 9259400833873739777 connected early — deferring until server init
+Duplicate global name added old_property_lb via import of module gamemaster
+ryaml not found downgrading to pyyaml
+Side not found: tsn
+Side not found: raider
+Side not found: civ
+World Select: siege
+Elapsed time: 1.1070483999792486 mission_tick-sim_paused
+[runner] server ready — replaying 1 deferred client connect(s)
+[runner] deferred client_connect: 9259400833873739777
+[runner] auto-starting map: siege
+World Select: siege
+Elapsed time: 1.7181539998855442 interactive_collision_start-interactive
+Elapsed time: 0.15726400003768504 mission_tick-sim_running
+[server] client 0 connected (fire_connect=False)
+[replay] client=0 sending 50 commands
+[replay] client=0 done
+[event]  client=0 effective=0 {'type': 'screen_size', 'clientID': 0, 'width': 836, 'height': 894}
+Elapsed time: 0.10870039998553693 mission_tick-sim_running
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+Elapsed time: 0.04574389988556504 interactive_collision_end-interactive
+Elapsed time: 0.07859290018677711 mission_tick-sim_running
+Elapsed time: 0.10205519990995526 mission_tick-sim_running
+Elapsed time: 0.10158030013553798 mission_tick-sim_running
+Elapsed time: 0.077385000186041 mission_tick-sim_running
+Elapsed time: 0.035008100094273686 mission_tick-sim_running
+Elapsed time: 0.08790409984067082 mission_tick-sim_running
+Elapsed time: 0.1051509000826627 mission_tick-sim_running
+Elapsed time: 0.07984380004927516 mission_tick-sim_running
+Elapsed time: 0.09114890010096133 mission_tick-sim_running
+Elapsed time: 0.08104060008190572 mission_tick-sim_running
+Elapsed time: 0.08024269994348288 mission_tick-sim_running
+Elapsed time: 0.11499010003171861 mission_tick-sim_running
+Elapsed time: 0.03604319994337857 mission_tick-sim_running
+Elapsed time: 0.09052430000156164 mission_tick-sim_running
+Elapsed time: 0.07311909995041788 mission_tick-sim_running
+Elapsed time: 0.07562909997068346 mission_tick-sim_running
+Elapsed time: 0.08621350000612438 mission_tick-sim_running
+Elapsed time: 0.07171780010685325 mission_tick-sim_running
+Elapsed time: 0.07059130002744496 mission_tick-sim_running
+Elapsed time: 0.0692737998906523 mission_tick-sim_running
+Elapsed time: 0.06920549995265901 mission_tick-sim_running
+Elapsed time: 0.07137589994817972 mission_tick-sim_running
+Elapsed time: 0.10921599995344877 mission_tick-sim_running
+Elapsed time: 0.08039349992759526 mission_tick-sim_running
+Elapsed time: 0.07864909991621971 mission_tick-sim_running
+Elapsed time: 0.06920869997702539 mission_tick-sim_running
+Elapsed time: 0.07401950005441904 mission_tick-sim_running
+Elapsed time: 0.0677247999701649 mission_tick-sim_running
+Elapsed time: 0.07499099988490343 mission_tick-sim_running
+Elapsed time: 0.06931379996240139 mission_tick-sim_running
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+Elapsed time: 0.07787199993617833 mission_tick-sim_running
+Elapsed time: 0.08946550008840859 mission_tick-sim_running
+Elapsed time: 0.07312699989415705 mission_tick-sim_running
+Elapsed time: 0.07375280000269413 mission_tick-sim_running
+Elapsed time: 0.07730269990861416 mission_tick-sim_running
+Elapsed time: 0.07033469993621111 mission_tick-sim_running
+Elapsed time: 0.1519057999830693 mission_tick-sim_running
+Elapsed time: 0.06800520000979304 mission_tick-sim_running
+Elapsed time: 0.08391280006617308 mission_tick-sim_running
+Elapsed time: 0.07679109997116029 mission_tick-sim_running
+Elapsed time: 0.083774299826473 mission_tick-sim_running
+Elapsed time: 0.06968790013343096 mission_tick-sim_running
+Elapsed time: 0.08320229989476502 mission_tick-sim_running
+Elapsed time: 0.06717699998989701 mission_tick-sim_running
+Elapsed time: 0.07814340014010668 mission_tick-sim_running
+Elapsed time: 0.09170440002344549 mission_tick-sim_running
+Elapsed time: 0.07374809985049069 mission_tick-sim_running
+Elapsed time: 0.07740509998984635 mission_tick-sim_running
+Elapsed time: 0.07008509989827871 mission_tick-sim_running
+Elapsed time: 0.07594119990244508 mission_tick-sim_running
+Elapsed time: 0.07429579994641244 mission_tick-sim_running
+Elapsed time: 0.07143709994852543 mission_tick-sim_running
+Elapsed time: 0.07010090001858771 mission_tick-sim_running
+Elapsed time: 0.08226129994727671 mission_tick-sim_running
+Elapsed time: 0.07255350006744266 mission_tick-sim_running
+Elapsed time: 0.07341279997490346 mission_tick-sim_running
+Passive Collision, Current Speed: 630.8825688318211
+Passive Collision, Difficulty: 5
+Passive Collision, Raw Damage: 3154.4128441591056
+Passive Collision, Remaining Damage: 3154.4128441591056
+Passive Collision, Grid Hits: 63
+Elapsed time: 0.07940730010159314 interactive_collision_start-interactive
+Elapsed time: 0.0728199000004679 mission_tick-sim_running
+Elapsed time: 0.18486399995163083 mission_tick-sim_running
+Elapsed time: 0.09391249995678663 mission_tick-sim_running
+Elapsed time: 0.06952830008231103 mission_tick-sim_running
+Elapsed time: 0.07472109980881214 damage-Homing
+Elapsed time: 0.0780384000390768 mission_tick-sim_running
+Elapsed time: 0.12454260000959039 mission_tick-sim_running
+Elapsed time: 0.0909976998809725 damage-beam
+Elapsed time: 0.09430860006250441 mission_tick-sim_running
+Elapsed time: 0.08265489991754293 interactive_collision_end-interactive
+Elapsed time: 0.08427090011537075 mission_tick-sim_running
+Elapsed time: 0.07440520008094609 mission_tick-sim_running
+Elapsed time: 0.09200379997491837 mission_tick-sim_running
+Elapsed time: 0.08573870011605322 mission_tick-sim_running
+Elapsed time: 0.07855830015614629 damage-destroyed
+Elapsed time: 0.08270170004107058 mission_tick-sim_running
+Elapsed time: 0.0931657999753952 mission_tick-sim_running
+Elapsed time: 0.06610989989712834 mission_tick-sim_running
+Elapsed time: 0.07109159999527037 mission_tick-sim_running
+Elapsed time: 0.06603350001387298 mission_tick-sim_running
+Elapsed time: 0.07373399985954165 mission_tick-sim_running
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+Elapsed time: 0.07013649982400239 mission_tick-sim_running
+Elapsed time: 0.0852337998803705 mission_tick-sim_running
+Elapsed time: 0.07332730013877153 mission_tick-sim_running
+Elapsed time: 0.09838949982076883 mission_tick-sim_running
+Elapsed time: 0.105729800183326 mission_tick-sim_running
+Elapsed time: 0.0343796000815928 mission_tick-sim_running
+Elapsed time: 0.07744130003266037 mission_tick-sim_running
+Elapsed time: 0.09768200013786554 mission_tick-sim_running
+Elapsed time: 0.033337200060486794 mission_tick-sim_running
+Elapsed time: 0.07536989985965192 mission_tick-sim_running
+Elapsed time: 0.082430399954319 mission_tick-sim_running
+Elapsed time: 0.1982043997850269 mission_tick-sim_running
+Elapsed time: 0.0906982000451535 mission_tick-sim_running
+Elapsed time: 0.07223519985564053 mission_tick-sim_running
+Elapsed time: 0.07587810000404716 mission_tick-sim_running
+Elapsed time: 0.18425389984622598 mission_tick-sim_running
+Elapsed time: 0.07159469998441637 mission_tick-sim_running
+Elapsed time: 0.03881499986164272 mission_tick-sim_running
+Elapsed time: 0.0760149999987334 interactive_collision_end-interactive
+Elapsed time: 0.12770770001225173 mission_tick-sim_running
+Elapsed time: 0.08200010005384684 mission_tick-sim_running
+Elapsed time: 0.07519540004432201 mission_tick-sim_running
+Elapsed time: 0.08373469999060035 mission_tick-sim_running
+Elapsed time: 0.08156440011225641 mission_tick-sim_running
+Elapsed time: 0.0700362001080066 mission_tick-sim_running
+Elapsed time: 0.09737359988503158 mission_tick-sim_running
+Elapsed time: 0.09317489992827177 mission_tick-sim_running
+Elapsed time: 0.07975360006093979 mission_tick-sim_running
+Elapsed time: 0.07203259994275868 mission_tick-sim_running
+Elapsed time: 0.033001400064677 mission_tick-sim_running
+Elapsed time: 0.08023290010169148 mission_tick-sim_running
+Elapsed time: 0.044813199900090694 mission_tick-sim_running
+Elapsed time: 0.076666499953717 damage-EMP
+Passive Collision, Current Speed: 180.0
+Passive Collision, Difficulty: 5
+Passive Collision, Raw Damage: 900.0
+Passive Collision, Remaining Damage: 900.0
+Passive Collision, Grid Hits: 18
+Elapsed time: 0.0835642998572439 mission_tick-sim_running
+Elapsed time: 0.092041099909693 mission_tick-sim_running
+Elapsed time: 0.100772799924016 mission_tick-sim_running
+Elapsed time: 0.0796695000026375 interactive_collision_end-interactive
+Elapsed time: 0.0811153999529779 mission_tick-sim_running
+Elapsed time: 0.08640809985809028 mission_tick-sim_running
+Elapsed time: 0.08334929984994233 mission_tick-sim_running
+Elapsed time: 0.0735889000352472 mission_tick-sim_running
+Elapsed time: 0.07432759995572269 player_launches_missile-
+Elapsed time: 0.060821399791166186 mission_tick-sim_running
+Elapsed time: 0.0857238001190126 mission_tick-sim_running
+Elapsed time: 0.07414189982227981 mission_tick-sim_running
+Elapsed time: 0.09006140008568764 mission_tick-sim_running
+Elapsed time: 0.09571000002324581 mission_tick-sim_running
+Elapsed time: 0.10411350009962916 mission_tick-sim_running
+Elapsed time: 0.0807753000408411 mission_tick-sim_running
+Elapsed time: 0.07231550011783838 mission_tick-sim_running
+Elapsed time: 0.07514169998466969 mission_tick-sim_running
+Elapsed time: 0.09557310002855957 mission_tick-sim_running
+Pickup: Tauron Focuser
+Elapsed time: 0.08573850011453032 mission_tick-sim_running
+Elapsed time: 0.09948400012217462 mission_tick-sim_running
+Elapsed time: 0.03525910014286637 mission_tick-sim_running
+Elapsed time: 0.0971516000572592 mission_tick-sim_running
+Elapsed time: 0.08342069992795587 mission_tick-sim_running
+Elapsed time: 0.08037739992141724 interactive_collision_end-interactive
+Elapsed time: 0.21076209982857108 mission_tick-sim_running
+Elapsed time: 0.06614420004189014 mission_tick-sim_running
+Elapsed time: 0.11035810015164316 mission_tick-sim_running
+Elapsed time: 0.1085431999526918 mission_tick-sim_running
+Elapsed time: 0.08673360012471676 mission_tick-sim_running
+Elapsed time: 0.10121630015783012 interactive_collision_end-interactive
+Elapsed time: 0.09023139998316765 mission_tick-sim_running
+Elapsed time: 0.08557530003599823 mission_tick-sim_running
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+Elapsed time: 0.08631350006908178 mission_tick-sim_running
+Elapsed time: 0.08721949998289347 mission_tick-sim_running
+Elapsed time: 0.12229019985534251 mission_tick-sim_running
+Elapsed time: 0.035304500022903085 mission_tick-sim_running
+Elapsed time: 0.07856479985639453 interactive_collision_end-interactive
+Elapsed time: 0.04117339989170432 mission_tick-sim_running
+Elapsed time: 0.09165400010533631 mission_tick-sim_running
+Elapsed time: 0.07595989992842078 mission_tick-sim_running
+Elapsed time: 0.08515470009297132 interactive_collision_end-interactive
+Elapsed time: 0.0907362001016736 mission_tick-sim_running
+Elapsed time: 0.11118850018829107 mission_tick-sim_running
+Elapsed time: 0.03640040010213852 mission_tick-sim_running
+Elapsed time: 0.10242919996380806 mission_tick-sim_running
+Elapsed time: 0.06770359980873764 mission_tick-sim_running
+Elapsed time: 0.0835160999558866 mission_tick-sim_running
+Elapsed time: 0.06809159996919334 mission_tick-sim_running
+Elapsed time: 0.08128029992803931 mission_tick-sim_running
+Elapsed time: 0.07869999995455146 mission_tick-sim_running
+Elapsed time: 0.2037582998163998 mission_tick-sim_running
+Elapsed time: 0.0930190000217408 mission_tick-sim_running
+Elapsed time: 0.09869829984381795 mission_tick-sim_running
+Elapsed time: 0.08740020007826388 mission_tick-sim_running
+Elapsed time: 0.07448599999770522 mission_tick-sim_running
+Elapsed time: 0.0887744000647217 mission_tick-sim_running
+Elapsed time: 0.07236940017901361 mission_tick-sim_running
+Elapsed time: 0.035295800073072314 mission_tick-sim_running
+Elapsed time: 0.08432809985242784 mission_tick-sim_running
+Elapsed time: 0.0813637999817729 mission_tick-sim_running
+Passive Collision, Current Speed: 1080.0158282759257
+Passive Collision, Difficulty: 5
+Passive Collision, Raw Damage: 5400.079141379629
+Passive Collision, Remaining Damage: 5400.079141379629
+Passive Collision, Grid Hits: 108
+Elapsed time: 0.05258190003223717 passive_collision_start-passive
+Passive Collision, Current Speed: 1080.0153093633182
+Passive Collision, Difficulty: 5
+Passive Collision, Raw Damage: 5400.076546816591
+Passive Collision, Remaining Damage: 5400.076546816591
+Passive Collision, Grid Hits: 108
+[runner] physics worker error: 4611686018427390742
+Elapsed time: 0.06962520000524819 passive_collision_start-passive
+Traceback (most recent call last):
+  File "F:\a\Cosmos-1-3-0\data\missions\sbs_utils\cosmos_dev\mission_runner.py", line 454, in _physics_worker
+    sbs_mod.physics_tick(dt=_PHYSICS_DT)
+  File "F:\a\Cosmos-1-3-0\data\missions\sbs_utils\cosmos_dev\mockgui\sbs.py", line 644, in physics_tick
+    _push_radar()
+  File "F:\a\Cosmos-1-3-0\data\missions\sbs_utils\cosmos_dev\mockgui\sbs.py", line 816, in _push_radar
+    obj = s.space_objects[tid]
+          ~~~~~~~~~~~~~~~^^^^^
+KeyError: 4611686018427390742
+Elapsed time: 0.03734029992483556 mission_tick-sim_running
+Elapsed time: 0.10292889992706478 mission_tick-sim_running
+Elapsed time: 0.0829137999098748 player_launches_missile-
+Elapsed time: 0.08460889989510179 mission_tick-sim_running
+Elapsed time: 0.08736440003849566 mission_tick-sim_running
+Elapsed time: 0.113973299972713 mission_tick-sim_running
+Elapsed time: 0.06875360012054443 mission_tick-sim_running
+Elapsed time: 0.0679504000581801 mission_tick-sim_running
+Elapsed time: 0.08587349997833371 mission_tick-sim_running
+Elapsed time: 0.08268550015054643 passive_collision_start-passive
+Elapsed time: 0.08701170003041625 mission_tick-sim_running
+Elapsed time: 0.10174329997971654 mission_tick-sim_running
+Elapsed time: 0.10116169997490942 mission_tick-sim_running
+Elapsed time: 0.08547060005366802 mission_tick-sim_running
+Elapsed time: 0.08321199985221028 mission_tick-sim_running
+Elapsed time: 0.06724030012264848 mission_tick-sim_running
+Elapsed time: 0.08777719992212951 mission_tick-sim_running
+Elapsed time: 0.08104530000127852 interactive_collision_end-interactive
+Elapsed time: 0.09094269992783666 mission_tick-sim_running
+Elapsed time: 0.07920440007001162 mission_tick-sim_running
+Elapsed time: 0.07779300003312528 mission_tick-sim_running
+Elapsed time: 0.08229060005396605 mission_tick-sim_running
+Elapsed time: 0.08172450005076826 mission_tick-sim_running
+Elapsed time: 0.07772109983488917 mission_tick-sim_running
+Elapsed time: 0.07460559997707605 mission_tick-sim_running
+Elapsed time: 0.09108070004731417 mission_tick-sim_running
+Elapsed time: 0.07170999981462955 mission_tick-sim_running
+Elapsed time: 0.08520000008866191 mission_tick-sim_running
+Elapsed time: 0.0803402999881655 mission_tick-sim_running
+Elapsed time: 0.07897799997590482 interactive_collision_end-interactive
+Elapsed time: 0.07900750008411705 mission_tick-sim_running
+Elapsed time: 0.0761595000512898 mission_tick-sim_running
+Elapsed time: 0.08046970004215837 mission_tick-sim_running
+Elapsed time: 0.07888970011845231 mission_tick-sim_running
+Elapsed time: 0.06504489993676543 mission_tick-sim_running
+Elapsed time: 0.07823330000974238 mission_tick-sim_running
+Elapsed time: 0.11257059988565743 mission_tick-sim_running
+Elapsed time: 0.07573740021325648 mission_tick-sim_running
+Elapsed time: 0.07745380001142621 mission_tick-sim_running
+Elapsed time: 0.04342040000483394 mission_tick-sim_running
+Elapsed time: 0.09910900006070733 mission_tick-sim_running
+Elapsed time: 0.06561139994300902 mission_tick-sim_running
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+Elapsed time: 0.0836600000038743 mission_tick-sim_running
+Elapsed time: 0.07255290006287396 mission_tick-sim_running
+Elapsed time: 0.07994710002094507 mission_tick-sim_running
+Elapsed time: 0.07416449999436736 mission_tick-sim_running
+Elapsed time: 0.07645170018076897 mission_tick-sim_running
+Elapsed time: 0.05924560013227165 mission_tick-sim_running
+Elapsed time: 0.089410699903965 mission_tick-sim_running
+Elapsed time: 0.07789950002916157 mission_tick-sim_running
+Elapsed time: 0.09596329997293651 mission_tick-sim_running
+Elapsed time: 0.07703579985536635 mission_tick-sim_running
+Elapsed time: 0.09976019989699125 mission_tick-sim_running
+Elapsed time: 0.07841419987380505 mission_tick-sim_running
+Elapsed time: 0.07182250008918345 mission_tick-sim_running
+Elapsed time: 0.08800200000405312 mission_tick-sim_running
+Elapsed time: 0.07900300016626716 mission_tick-sim_running
+Elapsed time: 0.06940299994312227 mission_tick-sim_running
+Elapsed time: 0.06706210016272962 interactive_collision_end-interactive
+Elapsed time: 0.06722179986536503 mission_tick-sim_running
+Elapsed time: 0.07168499985709786 mission_tick-sim_running
+Elapsed time: 0.06813649996183813 interactive_collision_end-interactive
+Elapsed time: 0.07502379990182817 mission_tick-sim_running
+Elapsed time: 0.09890169999562204 mission_tick-sim_running
+Elapsed time: 0.0744902000296861 interactive_collision_end-interactive
+Elapsed time: 0.07449940009973943 mission_tick-sim_running
+Elapsed time: 0.07314740004949272 mission_tick-sim_running
+Elapsed time: 0.036802300019189715 mission_tick-sim_running
+Elapsed time: 0.06693460000678897 mission_tick-sim_running
+Elapsed time: 0.06812319997698069 mission_tick-sim_running
+Elapsed time: 0.0725865000858903 mission_tick-sim_running
+Elapsed time: 0.0748622000683099 interactive_collision_end-interactive
+Elapsed time: 0.06640959996730089 mission_tick-sim_running
+Elapsed time: 0.07291129999794066 damage-drone
+Elapsed time: 0.073609400074929 interactive_collision_end-interactive
+Elapsed time: 0.06920739985071123 mission_tick-sim_running
+Elapsed time: 0.09476369991898537 mission_tick-sim_running
+Elapsed time: 0.06954960012808442 interactive_collision_end-interactive
+Elapsed time: 0.07273639994673431 mission_tick-sim_running
+Elapsed time: 0.07396159996278584 mission_tick-sim_running
+Elapsed time: 0.0735653000883758 mission_tick-sim_running
+Elapsed time: 0.0658633999992162 mission_tick-sim_running
+Elapsed time: 0.08505979995243251 interactive_collision_end-interactive
+Elapsed time: 0.0852244000416249 mission_tick-sim_running
+Elapsed time: 0.08777310000732541 mission_tick-sim_running
+Elapsed time: 0.06880189990624785 damage-beam
+Elapsed time: 0.07228159997612238 mission_tick-sim_running
+Elapsed time: 0.09701330005191267 mission_tick-sim_running
+Elapsed time: 0.0509427001234144 mission_tick-sim_running
+Elapsed time: 0.09958889987319708 mission_tick-sim_running
+Elapsed time: 0.08974239998497069 damage-beam
+Elapsed time: 0.08962600002996624 mission_tick-sim_running
+Elapsed time: 0.10521880001761019 mission_tick-sim_running
+Elapsed time: 0.06940799998119473 mission_tick-sim_running
+Elapsed time: 0.28069330006837845 mission_tick-sim_running
+Elapsed time: 0.07378069986589253 mission_tick-sim_running
+Elapsed time: 0.08179019996896386 mission_tick-sim_running
+Elapsed time: 0.04014550009742379 mission_tick-sim_running
+Elapsed time: 0.07688249996863306 mission_tick-sim_running
+Pickup: Carapaction Coil
+Elapsed time: 0.08912359992973506 mission_tick-sim_running
+Elapsed time: 0.08308879984542727 mission_tick-sim_running
+Elapsed time: 0.08421180001460016 mission_tick-sim_running
+Elapsed time: 0.07704260013997555 mission_tick-sim_running
+Elapsed time: 0.07220910000614822 mission_tick-sim_running
+Elapsed time: 0.07161590014584363 mission_tick-sim_running
+Elapsed time: 0.06849530013278127 mission_tick-sim_running
+Elapsed time: 0.10518070007674396 damage-beam
+Elapsed time: 0.06994850002229214 mission_tick-sim_running
+Elapsed time: 0.07275870000012219 mission_tick-sim_running
+Elapsed time: 0.10148969991132617 mission_tick-sim_running
+Elapsed time: 0.0754474001005292 interactive_collision_start-interactive
+Elapsed time: 0.07140780007466674 interactive_collision_end-interactive
+Elapsed time: 0.07037319988012314 mission_tick-sim_running
+Elapsed time: 0.07211900013498962 mission_tick-sim_running
+Elapsed time: 0.07353699998930097 damage-beam
+Elapsed time: 0.07037329999729991 mission_tick-sim_running
+Elapsed time: 0.06783509999513626 damage-beam
+Elapsed time: 0.06616819999180734 damage-beam
+Elapsed time: 0.06208010017871857 mission_tick-sim_running
+Elapsed time: 0.16348959994502366 mission_tick-sim_running
+Elapsed time: 0.12327410001307726 mission_tick-sim_running
+Elapsed time: 0.059475400019437075 mission_tick-sim_running
+Elapsed time: 0.06419500010088086 mission_tick-sim_running
+Elapsed time: 0.04759209998883307 interactive_collision_start-interactive
+Elapsed time: 0.04232510016299784 interactive_collision_end-interactive
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+Elapsed time: 0.05692320014350116 mission_tick-sim_running
+Elapsed time: 0.05605509993620217 interactive_collision_start-interactive
+[server] client 0 disconnected
+[server] client 9259400833873739777 disconnected
+[runner] client 9259400833873739777 disconnected
+Elapsed time: 0.06013290002010763 mission_tick-sim_running
+Elapsed time: 0.063591199927032 mission_tick-sim_running
+[server] client 0 connected (fire_connect=False)
+[replay] client=0 sending 49856 commands
+[server] client 9259400833873739778 connected (fire_connect=True)
+[replay] client=9259400833873739778 sending 49856 commands
+[runner] client 9259400833873739778 connected
+[replay] send failed: [WinError 64] The specified network name is no longer available
+[replay] client=9259400833873739778 done
+[server] client 9259400833873739778 disconnected
+[runner] client 9259400833873739778 disconnected
+[replay] send failed: [WinError 64] The specified network name is no longer available
+[replay] client=0 done
+[server] client 0 disconnected
+Elapsed time: 0.252260799985379 mission_tick-sim_running
+Elapsed time: 0.0672850999981165 interactive_collision_end-interactive
+Elapsed time: 0.04750179988332093 mission_tick-sim_running
+Elapsed time: 0.04799170000478625 mission_tick-sim_running
+Elapsed time: 0.2800225999671966 mission_tick-sim_running
+Elapsed time: 0.039811900118365884 damage-beam
+Elapsed time: 2.9067182999569923 mission_tick-sim_running
+Elapsed time: 0.08599069993942976 mission_tick-sim_running
+Elapsed time: 0.11430460005067289 mission_tick-sim_running
+Elapsed time: 0.043557099997997284 mission_tick-sim_running
+[server] client 9259400833873739779 connected (fire_connect=True)
+[replay] client=9259400833873739779 sending 50458 commands
+[server] client 0 connected (fire_connect=False)
+[replay] client=0 sending 50458 commands
+[runner] client 9259400833873739779 connected
+Elapsed time: 0.04529480007477105 client_connect-
+Elapsed time: 0.18907229998148978 mission_tick-sim_running
+Elapsed time: 0.06132280011661351 damage-beam
+Elapsed time: 0.13319129985757172 damage-beam
+Elapsed time: 0.14642530004493892 mission_tick-sim_running
+Elapsed time: 0.07362230005674064 mission_tick-sim_running
+[replay] client=9259400833873739779 done
+[event]  client=9259400833873739779 effective=9259400833873739779 {'type': 'screen_size', 'clientID': 9259400833873739779, 'width': 1037, 'height': 894}
+Elapsed time: 0.1741736000403762 mission_tick-sim_running
+[replay] client=0 done
+[event]  client=0 effective=0 {'type': 'screen_size', 'clientID': 0, 'width': 836, 'height': 894}
+Elapsed time: 0.05916040018200874 mission_tick-sim_running
+Elapsed time: 0.23685890017077327 damage-beam
+Elapsed time: 0.21319269994273782 mission_tick-sim_running
+Elapsed time: 0.047346699982881546 mission_tick-sim_running
+Elapsed time: 0.18113550008274615 interactive_collision_end-interactive
+Elapsed time: 0.03519059997051954 mission_tick-sim_running
+Elapsed time: 0.03523679985664785 damage-beam
+Elapsed time: 0.16528060007840395 mission_tick-sim_running
+Elapsed time: 0.05013150000013411 mission_tick-sim_running
+Elapsed time: 0.1866324997972697 damage-beam
+Elapsed time: 0.04420330002903938 mission_tick-sim_running
+Elapsed time: 0.14136460004374385 mission_tick-sim_running
+Elapsed time: 0.0910614999011159 mission_tick-sim_running
+Elapsed time: 0.059129000175744295 interactive_collision_start-interactive
+Elapsed time: 0.07318229996599257 mission_tick-sim_running
+Elapsed time: 0.07448610011488199 mission_tick-sim_running
+Elapsed time: 0.06581719988025725 mission_tick-sim_running
+Elapsed time: 0.0626825001090765 mission_tick-sim_running
+Elapsed time: 0.07476289989426732 mission_tick-sim_running
+Elapsed time: 0.0656629002187401 mission_tick-sim_running
+Elapsed time: 0.09395519993267953 mission_tick-sim_running
+Elapsed time: 0.08730360004119575 mission_tick-sim_running
+Elapsed time: 0.0357808000408113 mission_tick-sim_running
+Elapsed time: 0.07268420001491904 mission_tick-sim_running
+Elapsed time: 0.07777719991281629 mission_tick-sim_running
+Elapsed time: 0.09662840003147721 mission_tick-sim_running
+Elapsed time: 0.10173989995382726 interactive_collision_end-interactive
+Elapsed time: 0.07976950006559491 mission_tick-sim_running
+Elapsed time: 0.09847690002061427 mission_tick-sim_running
+Elapsed time: 0.06904119998216629 mission_tick-sim_running
+Elapsed time: 0.07148280018009245 mission_tick-sim_running
+Elapsed time: 0.0625004000030458 mission_tick-sim_running
+Elapsed time: 0.06396599998697639 interactive_collision_end-interactive
+Elapsed time: 0.07157080015167594 mission_tick-sim_running
+Elapsed time: 0.07476089987903833 mission_tick-sim_running
+Elapsed time: 0.07992520020343363 mission_tick-sim_running
+Elapsed time: 0.0626445000525564 mission_tick-sim_running
+Elapsed time: 0.06609009997919202 mission_tick-sim_running
+Elapsed time: 0.07211779989302158 mission_tick-sim_running
+Elapsed time: 0.07890020008198917 mission_tick-sim_running
+Elapsed time: 0.06901930016465485 mission_tick-sim_running
+Elapsed time: 0.08836799999698997 mission_tick-sim_running
+Elapsed time: 0.07062519993633032 mission_tick-sim_running
+Elapsed time: 0.08067870000377297 mission_tick-sim_running
+Elapsed time: 0.0778576999437064 mission_tick-sim_running
+Elapsed time: 0.06618109997361898 mission_tick-sim_running
+Elapsed time: 0.06935010012239218 mission_tick-sim_running
+Elapsed time: 0.06877380004152656 mission_tick-sim_running
+Elapsed time: 0.06443100003525615 mission_tick-sim_running
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+This modifier already exists: True
+Elapsed time: 0.08707590005360544 mission_tick-sim_running
+Elapsed time: 0.0680541000328958 mission_tick-sim_running
+Elapsed time: 0.06681229989044368 mission_tick-sim_running
+Elapsed time: 0.0717531000263989 mission_tick-sim_running
+Elapsed time: 0.0667531001381576 mission_tick-sim_running
+Elapsed time: 0.06560400011949241 mission_tick-sim_running
+Elapsed time: 0.06281949998810887 interactive_collision_end-interactive
+Elapsed time: 0.06817210000008345 mission_tick-sim_running
+Elapsed time: 0.06594379991292953 mission_tick-sim_running
+Elapsed time: 0.06457100016996264 mission_tick-sim_running
+Elapsed time: 0.06676549999974668 mission_tick-sim_running
+Elapsed time: 0.10359840001910925 interactive_collision_end-interactive
+Elapsed time: 0.06418730015866458 mission_tick-sim_running
+Elapsed time: 0.06968730012886226 mission_tick-sim_running
+Elapsed time: 0.07530929986387491 interactive_collision_end-interactive
+Elapsed time: 0.07708339998498559 mission_tick-sim_running
+Elapsed time: 0.06457390007562935 mission_tick-sim_running
+Elapsed time: 0.05926300003193319 mission_tick-sim_running
+Elapsed time: 0.07447879994288087 mission_tick-sim_running

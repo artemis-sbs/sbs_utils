@@ -804,16 +804,29 @@ def _push_radar() -> None:
         return
     s = _base_mock.sim
 
+    # This runs on the 30 Hz physics thread while the MAST/main thread spawns and
+    # deletes objects under s._lock. Take ONE locked snapshot of the registries up
+    # front and read only from it for the rest of the build - otherwise a delete
+    # racing a `s.space_objects[id]` lookup raises KeyError and kills the radar push
+    # (observed overnight: "physics worker error: <id>" / KeyError in _push_radar).
+    with s._lock:
+        objs = dict(s.space_objects)
+        terrain_ids = set(s._terrain_ids) & objs.keys()
+        active_all = set(s._active_ids) & objs.keys()
+        client_ships = dict(s.client_ships)
+        nav_points = dict(s.nav_points)
+        nav_by_id = list(s.nav_points_by_id.values())
+
     # --- Channel 1: terrain — only when the terrain id-set changes ---
     # Selection/marker helpers (grid icon 0 = blank) are omitted so they never draw.
     current_terrain_ids = frozenset(
-        tid for tid in s._terrain_ids & s.space_objects.keys()
-        if s.space_objects[tid]._tick_type not in _RADAR_HIDDEN_BEHAVIORS)
+        tid for tid in terrain_ids
+        if objs[tid]._tick_type not in _RADAR_HIDDEN_BEHAVIORS)
     if current_terrain_ids != _last_terrain_snapshot:
         _last_terrain_snapshot = current_terrain_ids
         terrain_objects = []
         for tid in current_terrain_ids:
-            obj = s.space_objects[tid]
+            obj = objs[tid]
             rec = {
                 "id":   str(obj._id),
                 "x":    round(obj._pos.x, 1),
@@ -843,19 +856,19 @@ def _push_radar() -> None:
 
     # --- Channel 2: per-ship delta ---
     # Drop selection/marker helpers (grid icon 0 = blank) so they never draw.
-    active_ids = {id_ for id_ in s._active_ids & s.space_objects.keys()
-                  if s.space_objects[id_]._tick_type not in _RADAR_HIDDEN_BEHAVIORS}
+    active_ids = {id_ for id_ in active_all
+                  if objs[id_]._tick_type not in _RADAR_HIDDEN_BEHAVIORS}
     r2 = CULL_RADIUS * CULL_RADIUS
 
     # Build navpoints + navareas + client_focus (sent in every per-ship message).
     navpts: list = []
-    for name, nav in s.nav_points.items():
+    for name, nav in nav_points.items():
         navpts.append({"name": name, "x": round(nav._pos.x, 1), "z": round(nav._pos.z, 1)})
 
     # Navareas are navpoints (a subclass) kept in the ID registry, not the name
     # dict above — pull them out by type.
     navareas: list = []
-    for nav in s.nav_points_by_id.values():
+    for nav in nav_by_id:
         if not isinstance(nav, _base_mock.navarea):
             continue
         navareas.append({
@@ -865,8 +878,8 @@ def _push_radar() -> None:
         })
 
     client_focus: dict = {}
-    for cid, ship_id in s.client_ships.items():
-        obj = s.space_objects.get(ship_id)
+    for cid, ship_id in client_ships.items():
+        obj = objs.get(ship_id)
         if obj is not None:
             client_focus[str(cid)] = {
                 "x":       round(obj._pos.x, 1),
@@ -876,9 +889,9 @@ def _push_radar() -> None:
 
     # Unique ships with at least one connected client, plus the GM view (ship_id=0).
     ships: dict = {}          # ship_id (int) → space_object or None
-    for sid in s.client_ships.values():
+    for sid in client_ships.values():
         if sid not in ships:
-            ships[sid] = s.space_objects.get(sid)
+            ships[sid] = objs.get(sid)
     ships[0] = None           # GM / spectator / unassigned — no distance culling
 
     for ship_id, ship_obj in ships.items():
@@ -890,7 +903,7 @@ def _push_radar() -> None:
             sx, sz  = ship_obj._pos.x, ship_obj._pos.z
             in_view: set = set()
             for id_ in active_ids:
-                obj = s.space_objects[id_]
+                obj = objs[id_]
                 dx  = obj._pos.x - sx
                 dz  = obj._pos.z - sz
                 if dx * dx + dz * dz <= r2:
@@ -903,7 +916,7 @@ def _push_radar() -> None:
         new_snap: dict = {}
 
         for id_ in in_view:
-            obj = s.space_objects[id_]
+            obj = objs[id_]
             fwd = obj.forward_vector()
             x   = round(obj._pos.x, 1)
             z   = round(obj._pos.z, 1)

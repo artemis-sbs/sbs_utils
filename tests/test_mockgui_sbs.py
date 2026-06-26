@@ -397,5 +397,60 @@ class TestMockguiRadarHiddenBehaviors(unittest.TestCase):
         self.assertNotIn(str(marker), radar_ids)
 
 
+class TestMockguiRadarThreadSafety(unittest.TestCase):
+    """_push_radar runs on the 30 Hz physics thread while the MAST/main thread spawns
+    and deletes objects. It must never raise KeyError when an object is deleted mid-
+    build (the overnight soak crashed here: "physics worker error: <id>" / KeyError in
+    _push_radar). Regression: hammer the radar push against concurrent churn."""
+
+    def setUp(self):
+        mockgui.gui_queue = _queue.Queue()
+        mockgui.create_new_sim()
+        mockgui.gui_queue = _queue.Queue()
+        mockgui._last_terrain_snapshot = frozenset()
+        mockgui._last_per_ship.clear()
+
+    def test_push_radar_survives_concurrent_delete(self):
+        import threading
+        sim = mockgui.sim
+        # Seed a viewer ship so Channel 2 actually walks the active set.
+        viewer = sim.create_space_object("behav_playership", "test", 0x20)
+        sim.space_objects[viewer]._pos = mockgui.vec3(0, 0, 0)
+        sim.client_ships[5] = viewer
+
+        errors = []
+        stop = threading.Event()
+
+        def churn():
+            while not stop.is_set():
+                ids = []
+                for _ in range(40):
+                    a = sim.create_space_object("behav_npcship", "", 0x10)
+                    sim.space_objects[a]._pos = mockgui.vec3(10, 0, 10)
+                    t = sim.create_space_object("behav_asteroid", "", 0x00)
+                    sim.space_objects[t]._pos = mockgui.vec3(20, 0, 20)
+                    ids += [a, t]
+                for i in ids:
+                    mockgui.delete_object(i)
+
+        def push():
+            while not stop.is_set():
+                try:
+                    mockgui._push_radar()
+                except Exception as e:        # the bug surfaced as KeyError here
+                    errors.append(e)
+                    return
+
+        churner = threading.Thread(target=churn)
+        pusher = threading.Thread(target=push)
+        churner.start(); pusher.start()
+        import time as _t
+        _t.sleep(0.6)
+        stop.set()
+        churner.join(timeout=5); pusher.join(timeout=5)
+
+        self.assertEqual(errors, [], f"_push_radar raised under concurrent churn: {errors}")
+
+
 if __name__ == "__main__":
     unittest.main()
