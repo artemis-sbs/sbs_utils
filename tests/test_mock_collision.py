@@ -63,7 +63,9 @@ class TestMockCollision(unittest.TestCase):
                          ["interactive_collision_start", "interactive_collision_start"])
         self.assertEqual(self._origins(ev), sorted([a_id, b_id]))
 
-        # still overlapping next frame -> no new events
+        # still overlapping next frame -> no new events. Re-pin positions first: the
+        # cosmetic ship-separation nudge would otherwise ease them apart over frames.
+        a._pos = sbs.vec3(0, 0, 0); b._pos = sbs.vec3(50, 0, 0)
         sbs._physics_collision(self.sim, active)
         self.assertEqual(_drain(), [])
 
@@ -168,6 +170,54 @@ class TestMockCollision(unittest.TestCase):
         self.assertTrue(saw_collision)                  # interactive collision fired
         self.assertAlmostEqual(p._cur_speed, 180.0, delta=1.0)   # constant cruise, no brake
         self.assertIn(uid, self.sim.space_objects)      # no collection route here -> stays
+
+    def test_overlapping_ships_are_pushed_apart(self):
+        # Two overlapping active ships get eased apart over successive ticks until they
+        # no longer interpenetrate (cosmetic separation), and never end up closer.
+        a_id, a = self._obj(0x10, (0, 0, 0), 100)
+        b_id, b = self._obj(0x10, (40, 0, 0), 100)
+        active = [(a_id, a), (b_id, b)]
+        _drain()
+
+        def _dist():
+            dx = a._pos.x - b._pos.x; dy = a._pos.y - b._pos.y; dz = a._pos.z - b._pos.z
+            return (dx * dx + dy * dy + dz * dz) ** 0.5
+
+        start = _dist()
+        prev = start
+        for _ in range(60):                 # ~2s of physics ticks
+            sbs._physics_collision(self.sim, active)
+            _drain()
+            self.assertGreaterEqual(_dist() + 1e-6, prev)   # monotonic - never closer
+            prev = _dist()
+        self.assertGreater(_dist(), start)                  # actually moved apart
+        self.assertGreaterEqual(_dist(), 200 - 1.0)         # reached non-overlap (ra+rb)
+
+    def test_coincident_ships_separate(self):
+        # Exactly coincident ships must still separate (no divide-by-zero).
+        a_id, a = self._obj(0x10, (0, 0, 0), 100)
+        b_id, b = self._obj(0x10, (0, 0, 0), 100)
+        _drain()
+        for _ in range(60):
+            sbs._physics_collision(self.sim, [(a_id, a), (b_id, b)])
+            _drain()
+        dx = a._pos.x - b._pos.x; dz = a._pos.z - b._pos.z
+        self.assertGreater((dx * dx + dz * dz) ** 0.5, 0.0)
+
+    def test_station_is_not_pushed_by_a_ship(self):
+        # A station must NOT be shoved by an overlapping ship (else a docking ship
+        # would push its own station away). The station stays put; no separation.
+        ship_id = self.sim.create_space_object("behav_playership", "", 0x20)
+        ship = self.sim.space_objects[ship_id]
+        ship._pos = sbs.vec3(60, 0, 0); ship._exclusion_radius = 100
+        st_id = self.sim.create_space_object("behav_station", "", 0x10)
+        st = self.sim.space_objects[st_id]
+        st._pos = sbs.vec3(0, 0, 0); st._exclusion_radius = 100
+        _drain()
+        for _ in range(30):
+            sbs._physics_collision(self.sim, [(ship_id, ship), (st_id, st)])
+            _drain()
+        self.assertEqual((st._pos.x, st._pos.y, st._pos.z), (0.0, 0.0, 0.0))  # unmoved
 
     def test_no_event_when_not_overlapping(self):
         a_id, a = self._obj(0x10, (0, 0, 0), 100)

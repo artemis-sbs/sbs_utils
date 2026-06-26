@@ -3416,6 +3416,27 @@ def _emit_collision(tag, kind, ia, ib, is_terrain):
         _pending_physics_events.put((tag, kind, ib, ia))
 
 
+# Fraction of an overlap eased out per physics tick when two ships interpenetrate
+# (0 = off, 1 = fully resolve in one tick). Soft so the nudge looks smooth, not a snap.
+_SHIP_SEPARATION = 0.25
+
+
+def _separate_pair(a, b, target, dd2, ddx, ddy, ddz) -> None:
+    """Cosmetic: ease two overlapping active objects apart along their center line so
+    they don't visually interpenetrate (each moves half the eased overlap). Mock-only -
+    the engine resolves real collisions; the mock otherwise lets ships pass through.
+    ddx/ddy/ddz = a.pos - b.pos; dd2 their squared distance; target = ra + rb."""
+    d = math.sqrt(dd2)
+    if d > 1e-6:
+        push = _SHIP_SEPARATION * 0.5 * (target - d) / d
+        ox, oy, oz = ddx * push, ddy * push, ddz * push
+    else:
+        # exactly coincident - separate on x by a deterministic amount
+        ox, oy, oz = _SHIP_SEPARATION * 0.5 * target, 0.0, 0.0
+    a._pos.x += ox; a._pos.y += oy; a._pos.z += oz
+    b._pos.x -= ox; b._pos.y -= oy; b._pos.z -= oz
+
+
 def _physics_collision(sim, active: list) -> None:
     """Spatial-hash sphere collision.
 
@@ -3495,9 +3516,18 @@ def _physics_collision(sim, active: list) -> None:
                 ddx = a._pos.x - b._pos.x
                 ddy = a._pos.y - b._pos.y
                 ddz = a._pos.z - b._pos.z
-                if ddx * ddx + ddy * ddy + ddz * ddz < (ra + rb) * (ra + rb):
+                dd2 = ddx * ddx + ddy * ddy + ddz * ddz
+                target = ra + rb
+                if dd2 < target * target:
                     # two active (dynamic) objects -> interactive collision
                     new_contacts[pair] = ("interactive", aid, bid, False)
+                    # Cosmetic: ease overlapping SHIPS apart so they don't visually
+                    # interpenetrate. Skip stations - a ship must be able to close on
+                    # one to dock. Only the (rare) overlapping pairs reach here.
+                    if (_SHIP_SEPARATION > 0.0
+                            and a._tick_type != "behav_station"
+                            and b._tick_type != "behav_station"):
+                        _separate_pair(a, b, target, dd2, ddx, ddy, ddz)
 
     # Active vs terrain — terrain never in active_grid so no dedup needed.
     for (cx, cz), cell_list in active_grid.items():
