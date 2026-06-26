@@ -3378,6 +3378,18 @@ def _physics_launchers(sim, active: list, dt: float) -> None:
                     a._drone_cooldown = ds.get("drone_launch_timer") or _DRONE_CYCLE
 
 
+def _emit_collision(tag, kind, ia, ib, is_terrain):
+    """Queue a collision event. Active-vs-terrain fires ONCE with origin = the terrain
+    object (ib) and selected = the active ship (ia) - matching the engine's
+    //collision routes (COLLISION_ORIGIN_ID = terrain/pickup). Active-vs-active fires
+    both id orderings so each ship sees itself as origin."""
+    if is_terrain:
+        _pending_physics_events.put((tag, kind, ib, ia))
+    else:
+        _pending_physics_events.put((tag, kind, ia, ib))
+        _pending_physics_events.put((tag, kind, ib, ia))
+
+
 def _physics_collision(sim, active: list) -> None:
     """Spatial-hash sphere collision.
 
@@ -3388,10 +3400,8 @@ def _physics_collision(sim, active: list) -> None:
     global _contact_pairs
     if not active:
         # Everything left contact — emit end events for any open contacts.
-        for (kind, ia, ib) in _contact_pairs.values():
-            tag = f"{kind}_collision_end"
-            _pending_physics_events.put((tag, kind, ia, ib))
-            _pending_physics_events.put((tag, kind, ib, ia))
+        for (kind, ia, ib, is_terrain) in _contact_pairs.values():
+            _emit_collision(f"{kind}_collision_end", kind, ia, ib, is_terrain)
         _contact_pairs = {}
         return
 
@@ -3458,7 +3468,7 @@ def _physics_collision(sim, active: list) -> None:
                 ddz = a._pos.z - b._pos.z
                 if ddx * ddx + ddy * ddy + ddz * ddz < (ra + rb) * (ra + rb):
                     # two active (dynamic) objects -> interactive collision
-                    new_contacts[pair] = ("interactive", aid, bid)
+                    new_contacts[pair] = ("interactive", aid, bid, False)
 
     # Active vs terrain — terrain never in active_grid so no dedup needed.
     for (cx, cz), cell_list in active_grid.items():
@@ -3486,30 +3496,25 @@ def _physics_collision(sim, active: list) -> None:
                         else:
                             continue
                         pair = (min(aid, tid), max(aid, tid))
-                        new_contacts[pair] = (ckind, aid, tid)
+                        new_contacts[pair] = (ckind, aid, tid, True)   # aid=active, tid=terrain
 
     # Diff against the previous frame: start on contact entry, end on exit.
-    # Both id orderings are emitted so each object sees itself as origin.
-    for pair, (kind, ia, ib) in new_contacts.items():
+    for pair, (kind, ia, ib, is_terrain) in new_contacts.items():
         if pair not in _contact_pairs:
-            tag = f"{kind}_collision_start"
-            _pending_physics_events.put((tag, kind, ia, ib))
-            _pending_physics_events.put((tag, kind, ib, ia))
+            _emit_collision(f"{kind}_collision_start", kind, ia, ib, is_terrain)
             # On a NEW passive contact, a damaging terrain object (e.g. a mine
             # with data_set "damage_done") deals hull damage to the active one.
             # ia is the active object, ib the terrain (see active-vs-terrain
             # loop above). Asteroids set no damage_done -> harmless.
-            if kind == "passive":
+            if kind == "passive" and is_terrain:
                 t = space.get(ib)
                 if t is not None:
                     dmg = t.data_set.get("damage_done") or 0.0
                     if dmg > 0:
                         apply_damage(ia, dmg, ib, kind="collision")
-    for pair, (kind, ia, ib) in _contact_pairs.items():
+    for pair, (kind, ia, ib, is_terrain) in _contact_pairs.items():
         if pair not in new_contacts:
-            tag = f"{kind}_collision_end"
-            _pending_physics_events.put((tag, kind, ia, ib))
-            _pending_physics_events.put((tag, kind, ib, ia))
+            _emit_collision(f"{kind}_collision_end", kind, ia, ib, is_terrain)
 
     _contact_pairs = new_contacts
 

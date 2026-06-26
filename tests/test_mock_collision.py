@@ -84,15 +84,17 @@ class TestMockCollision(unittest.TestCase):
 
         sbs._physics_collision(self.sim, active)
         ev = _drain()
-        self.assertEqual(self._tags(ev),
-                         ["passive_collision_start", "passive_collision_start"])
-        self.assertEqual(self._origins(ev), sorted([a_id, t_id]))
+        # Terrain contact fires ONCE: origin = terrain, selected = ship.
+        self.assertEqual(self._tags(ev), ["passive_collision_start"])
+        self.assertEqual(ev[0][2], t_id)   # origin_id = terrain
+        self.assertEqual(ev[0][3], a_id)   # selected_id = ship
 
-        # separate -> passive_collision_end
+        # separate -> single passive_collision_end (origin = terrain)
         a._pos = sbs.vec3(10000, 0, 0)
         sbs._physics_collision(self.sim, active)
-        self.assertEqual(self._tags(_drain()),
-                         ["passive_collision_end", "passive_collision_end"])
+        ev = _drain()
+        self.assertEqual(self._tags(ev), ["passive_collision_end"])
+        self.assertEqual(ev[0][2], t_id)
 
     def test_interaction_radius_fires_interactive(self):
         # A terrain object with a data_set interactionradius (pickups) fires INTERACTIVE
@@ -106,11 +108,11 @@ class TestMockCollision(unittest.TestCase):
         _drain()
         sbs._physics_collision(self.sim, [(a_id, a)])
         ev = _drain()
-        self.assertEqual(self._tags(ev),
-                         ["interactive_collision_start", "interactive_collision_start"])
-        # The mirror emit carries origin = the pickup (what the collection route reads
-        # as COLLISION_ORIGIN_ID); the other carries origin = the active object.
-        self.assertEqual(self._origins(ev), sorted([a_id, p_id]))
+        # ONE event: origin = pickup (COLLISION_ORIGIN_ID for the collection route),
+        # selected = ship.
+        self.assertEqual(self._tags(ev), ["interactive_collision_start"])
+        self.assertEqual(ev[0][2], p_id)   # origin_id = pickup
+        self.assertEqual(ev[0][3], a_id)   # selected_id = ship
 
     def test_pickup_art_loads_interactionradius_from_shipdata(self):
         # A pickup spawned with a real pickup art loads its interactionradius from

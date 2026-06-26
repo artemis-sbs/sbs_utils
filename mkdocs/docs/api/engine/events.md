@@ -121,11 +121,13 @@ order is `(tag, sub_tag, origin_id, selected_id[, parent_id][, {extra fields}])`
     by the terrain object's radii: a data_set **`interactionradius`** > 0 (pickups) fires
     **interactive** (a ship within it triggers the collection route); otherwise the
     `exclusion_radius` (solid terrain, asteroids) fires **passive**. No behaviour-name or
-    `exclusion==0` heuristics. Both id orderings are emitted, so the mirror carries
-    `origin = the pickup` for the route's `COLLISION_ORIGIN_ID`. `interactionradius` is a
-    data_set value (not a `space_object` attribute) loaded from shipData when present;
-    pickups need it set (engine/shipData) or the `//collision/interactive` route never
-    fires and the upgrade is never collected.
+    `exclusion==0` heuristics. A terrain contact fires **once** with `origin = the terrain
+    object` and `selected = the active ship` (so `COLLISION_ORIGIN_ID` = the pickup, as
+    the collection route expects); active-vs-active still emits **both** id orderings so
+    each ship sees itself as origin. `interactionradius` is a data_set value (not a
+    `space_object` attribute) loaded from shipData by art id when present; pickups need it
+    set or the `//collision/interactive` route never fires and the upgrade is never
+    collected.
 
 !!! success "Mock damage events carry the amount + weapon kind"
     Every mock `damage` event now ends with a `{"sub_float": amount}` dict (the raw

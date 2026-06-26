@@ -264,7 +264,7 @@ class TestMockDamage(unittest.TestCase):
         _drain()
         sbs._physics_collision(self.sim, [(aid, a)])
         tags = self._tags(_drain())
-        self.assertEqual(tags.count("passive_collision_start"), 2)
+        self.assertEqual(tags.count("passive_collision_start"), 1)   # terrain: one event
         self.assertIn("damage", tags)
         self.assertEqual(a.data_set.get("armor"), 75.0)
 
