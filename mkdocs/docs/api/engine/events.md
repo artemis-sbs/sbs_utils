@@ -114,29 +114,25 @@ order is `(tag, sub_tag, origin_id, selected_id[, parent_id][, {extra fields}])`
 | `heat_critical_damage` | `str(system_index)` | ship → ship | `//damage/heat` (engineering overheat, fired repeatedly while a system is at full heat - see note) |
 | `ship_launches_drone` | `""` | source → target | `//launch/drone`; `extra_extra_tag = "drone"` |
 | `player_launches_missile` | `""` | source → target | `//launch/missile`; `extra_extra_tag = kind` (Homing / Nuke / EMP / Mine) |
-| `*_collision_start` / `*_collision_end` | kind | a ↔ b | `//collision/*` |
+| `*_collision_start` / `*_collision_end` | kind | terrain→ship (1) · ship↔ship (both) | `//collision/*` |
 
-!!! note "Collision kind: passive vs interactive (data-driven)"
-    Active-vs-active is **interactive**. For active-vs-terrain the kind is **data-driven**
-    by the terrain object's radii: a data_set **`interactionradius`** > 0 (pickups) fires
-    **interactive** (a ship within it triggers the collection route); otherwise the
-    `exclusion_radius` (solid terrain, asteroids) fires **passive**. No behaviour-name or
-    `exclusion==0` heuristics. A terrain contact fires **once** with `origin = the terrain
-    object` and `selected = the active ship` (so `COLLISION_ORIGIN_ID` = the pickup, as
-    the collection route expects); active-vs-active still emits **both** id orderings so
-    each ship sees itself as origin. `interactionradius` is a data_set value (not a
-    `space_object` attribute) loaded from shipData by art id when present; pickups need it
-    set or the `//collision/interactive` route never fires and the upgrade is never
-    collected.
+!!! note "Collision: passive vs interactive (data-driven)"
+    For a ship-vs-terrain contact the kind is decided by the terrain object's radii:
+    data_set **`interactionradius` > 0** → **interactive** (pickups — a ship within it
+    triggers the collection route); else **`exclusion_radius` > 0** → **passive** (solid:
+    asteroids, mines). `interactionradius` is a data_set value loaded from shipData by art
+    id (not a `space_object` attribute); a pickup needs it set or `//collision/interactive`
+    never fires. A terrain contact emits **one** event — `origin = terrain`,
+    `selected = ship` (so `COLLISION_ORIGIN_ID` is the pickup) — and no `_end` if the
+    object is deleted on the start (pickup collected). Ship-vs-ship is interactive and
+    emits both id orderings (each sees itself as origin).
 
-!!! success "Mock damage events carry the amount + weapon kind"
-    Every mock `damage` event now ends with a `{"sub_float": amount}` dict (the raw
-    hit amount; `0.0` for EMP, which only drains shields) and sets `sub_tag` to the
-    **weapon kind** — `beam`, `drone`, the torpedo type (`Homing` / `Nuke` / `EMP` /
-    `Mine` / `Tag`), or `collision` — except the fatal hit, which keeps `sub_tag =
-    "destroyed"` so `//damage/destroy` still fires. The dev runner unpacks the trailing
-    dict onto the event (`mission_runner._drain_physics_events`), so `EVENT.sub_float`
-    and `EVENT.sub_tag` read the same in the mock as in the engine.
+!!! note "Damage events carry amount + weapon kind"
+    Each `damage` event ends with `{"sub_float": amount}` (raw hit; `0.0` for EMP) and
+    sets `sub_tag` to the **weapon kind** (`beam`, `drone`, torpedo type, `collision`) —
+    except the fatal hit, which keeps `sub_tag = "destroyed"`. The runner unpacks the
+    trailing dict onto the event, so `EVENT.sub_float` / `EVENT.sub_tag` read the same in
+    the mock as in the engine.
 
 !!! note "Heat is engineering overpower, not combat"
     `system_cur_heat` (per SHPSYS 0..3, 0..1) rises when engineering pushes a powered
