@@ -589,9 +589,13 @@ system composition; POI-activation standby. Remaining are **tuning + spikes**:
     persists; retrieved as players approach; cleared on jump. Terrain only
     (brains are sim-independent, so parking NPCs would let their brains act on a
     non-simulated object). Measured: 1582/2082 field objects parked at 25k.
+  - DONE: **brain-aware culling** - generic brain_pause/brain_resume
+    (brains_run_all skips paused); universe_cull_step pauses a parked object's
+    brain and resumes on retrieve, so self-brained NPCs/POIs cull safely; cull
+    set broadened to black_hole/mine. (Fleet ships still a follow-up: their brain
+    lives on the fleet agent, not the ship.)
   - TODO: richer systems (kind templates + keyed POI decks); clan **re-capture**;
-    optional: extend culling to **NPC/POI** parking (needs pausing their brain
-    first, as the hangar does for bay fighters).
+    fleet-level culling (pause the fleet agent + park its ships, hangar-style).
 
 ---
 
