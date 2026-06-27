@@ -562,8 +562,8 @@ system composition; POI-activation standby. Remaining are **tuning + spikes**:
   ownership of systems, clan-owned stations (foe hostile / neutral dockable),
   clan-sided enemy fleets, galaxy-map clan display, start-screen Universe
   dropdown, sector->system rename. All verified headless.
-- **Phase 2 - IN PROGRESS:**
-  - DONE: reputation core (per-ship, 7 signed axes, persisted); declarative
+- **Phase 2 - DONE:**
+  - reputation core (per-ship, 7 signed axes, persisted); declarative
     `rep:` + custom `signal:` on quest complete; diplomacy deltas (change +
     persist + re-apply) via `universe_set_relation`; per-captain truce (fleets
     ignore high-standing captains via `truced_ships` subtracted from
@@ -571,8 +571,10 @@ system composition; POI-activation standby. Remaining are **tuning + spikes**:
     enablers (`scope: shared` in quest_grant_amd + SHARED advancement for
     on_kill/collect/scan/dock/reach); comms `%`-line **gates + weights**
     (`%N` weight, `%{cond}` gate eval'd in the task scope, `%N{cond}` both;
-    backward compatible) - the shared-parser piece, with unit tests.
-  - TODO: ambient comms chatter (the last Phase 2 item).
+    backward compatible) - the shared-parser piece, with unit tests; ambient
+    clan **chatter** (arrival + periodic; archetype/authored lines, clan-colored).
+  - Minor follow-ups (optional): ambient chatter on near-POI proximity and on
+    reputation/diplomacy change (the other two of the four triggers).
 
 > Parser note: MAST double-quoted strings treat `{...}` as format-interpolation,
 > so comms rep-gates use the `%{cond}` form on `%` lines (the gate is captured in
