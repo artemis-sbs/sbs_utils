@@ -609,6 +609,7 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
     toc = {"key": "__root__", "file_path": file_path, "children": [], "description":"", "display_text": root_display_text}
     toc_stack = [toc]
     rule_section = re.compile(r"#+[ \t]+\[(?P<display_text>.*)\]\((?P<urn>.*)\)[ \t]*")
+    rule_data = re.compile(r"\s*-{3,}\s*$")
 
     lines = []
     if content is not None:
@@ -620,7 +621,32 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
         except Exception as e:
             print("no file")
 
+    in_data = False
+    data_lines = []
     for i, line in enumerate(lines):
+        #
+        # Data section: YAML between lines of 3+ dashes is merged into the
+        # current heading's "data" (script-accessible). Lines inside the
+        # fences are not added to the description.
+        #
+        if rule_data.match(line):
+            if in_data:
+                parsed = load_yaml_string("".join(data_lines))
+                if isinstance(parsed, dict):
+                    section = toc_stack[-1]
+                    merged = section.get("data") or {}
+                    merged.update(parsed)
+                    section["data"] = merged
+                in_data = False
+                data_lines = []
+            else:
+                in_data = True
+                data_lines = []
+            continue
+        if in_data:
+            data_lines.append(line)
+            continue
+
         m = rule_section.match(line)
 
         #

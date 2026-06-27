@@ -470,11 +470,11 @@ class HandleLifetime:
             HandleLifetime.just_once.add(label)
             LifetimeDispatcher.add_lifecycle(lifecycle, self.selected)
             
-    def selected(self, so):
+    def selected(self, so, event=None):
         if self.filer_func is not None:
             if not self.filer_func(so):
                 return
-            
+
         task = FrameContext.server_task
         if task is None:
             task = FrameContext.task
@@ -490,11 +490,20 @@ class HandleLifetime:
             })
             t.tick_in_context()
         else:
-            t = task.start_task(self.label, {
+            data = {
                     f"{self.cycle}_ID": so.get_id(),
                     f"{self.cycle}": so,
                     f"{self.cycle}_ROUTED": True
-            })
+            }
+            # Destroy routes carry the killer info from the damage event so
+            # missions can credit the kill (same DAMAGE_* names as //damage/*).
+            if event is not None:
+                data["EVENT"] = event
+                data["DAMAGE_SOURCE_ID"] = event.origin_id
+                data["DAMAGE_ORIGIN_ID"] = event.origin_id
+                data["DAMAGE_PARENT_ID"] = event.parent_id
+                data["DAMAGE_TARGET_ID"] = event.selected_id
+            t = task.start_task(self.label, data)
             t.tick_in_context()
            #   if not .done():
         #         MastAsyncTask.add_dependency(event.origin_id,t)

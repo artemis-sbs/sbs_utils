@@ -202,7 +202,7 @@ class LayoutListbox(layout.Column):
 
         self.title_section_style = title_section_style
         if title_section_style is None:
-            self.title_section_style = "row-height: 1.2em;padding: 2px,2px,2px,2px;"
+            self.title_section_style = "row-height: 1.0;padding: 2px,2px,2px,2px;"
 
         tokens = LayoutAreaParser.lex("1em")
         self.slider_style =  LayoutAreaParser.parse_e2(tokens)
@@ -231,7 +231,7 @@ class LayoutListbox(layout.Column):
 
     def default_item_template(self, item):
         from ...procedural.gui import gui_row, gui_text
-        gui_row("row-height: 1.2em;")
+        gui_row("row-height: 1.0;")
         task = FrameContext.task
         task.set_variable("LB_ITEM", item)
         if self.item_template is not None:
@@ -257,7 +257,7 @@ class LayoutListbox(layout.Column):
 
     def default_title_template(self):
         from ...procedural.gui import gui_row, gui_text
-        gui_row("row-height: 1.2em;padding:13px")
+        gui_row("row-height: 1.0;padding:13px")
         task = FrameContext.task
         msg = task.compile_and_format_string(self.title_template)
         gui_text(msg)

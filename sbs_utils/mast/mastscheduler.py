@@ -329,7 +329,9 @@ class MastTicker:
                             break
             return PollResults.OK_RUN_AGAIN
         except Exception as err:
-            self.runtime_error(str(err))
+            # Capture the live exception (file/line/traceback) while it is still
+            # in sys.exc_info(); str(err) alone loses the Python location.
+            self.runtime_error(format_exception(str(err), "Python exception:"))
             return PollResults.OK_END
 
     def get_runtime_error_info(self, rte):

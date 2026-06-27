@@ -304,6 +304,43 @@ bad_quest:
         result = document_get_amd_file("/nonexistent/path.amd")
         self.assertEqual(result["children"], [])
 
+    def test_amd_parse_data_section(self):
+        # YAML between 3+ dash lines attaches to the current heading as "data"
+        content = ("# [Quest](q/1)\n"
+                   "---\n"
+                   "cockpit: fighter\n"
+                   "on_kill: { role: raider, count: 5 }\n"
+                   "---\n"
+                   "The briefing prose.\n")
+        result = document_get_amd_file(None, content=content)
+        child = result["children"][0]
+        self.assertEqual(child["data"]["cockpit"], "fighter")
+        self.assertEqual(child["data"]["on_kill"]["count"], 5)
+        # Fenced lines are not added to the description; prose still is.
+        self.assertIn("The briefing prose.", child["description"])
+        self.assertNotIn("cockpit", child["description"])
+
+    def test_amd_parse_data_section_merges(self):
+        # Multiple data sections on one heading merge
+        content = ("# [Quest](q/1)\n"
+                   "---\n"
+                   "a: 1\n"
+                   "---\n"
+                   "prose\n"
+                   "---\n"
+                   "b: 2\n"
+                   "---\n")
+        result = document_get_amd_file(None, content=content)
+        data = result["children"][0]["data"]
+        self.assertEqual(data["a"], 1)
+        self.assertEqual(data["b"], 2)
+
+    def test_amd_parse_no_data_section(self):
+        # Headings without a data section have no "data" key
+        content = "# [Quest](q/1)\nplain prose\n"
+        result = document_get_amd_file(None, content=content)
+        self.assertNotIn("data", result["children"][0])
+
 
 if __name__ == '__main__':
     unittest.main()

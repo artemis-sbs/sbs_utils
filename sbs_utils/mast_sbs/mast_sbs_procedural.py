@@ -9,7 +9,7 @@ from ..gui import Gui
 #
 #
 #
-def handle_purge_tasks(so):
+def handle_purge_tasks(so, event=None):
     """
     This will clear out all tasks related to the destroyed item
     """

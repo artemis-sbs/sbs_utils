@@ -2,6 +2,7 @@ from .vec import Vec3
 import time as time
 import traceback
 import sys
+import logging
 from  .agent import Agent
 
 class Context:
@@ -180,6 +181,14 @@ def format_exception(message, source):
     error_type, error, tb = sys.exc_info()
     lines = traceback.extract_tb(tb)
     if len(lines)>0:
+        # The returned string is intentionally terse (it is shown in the GUI).
+        # Dump the full traceback to the log, where there is room for it.
+        try:
+            logging.getLogger("mast.runtime").error(
+                "%s\n%s", source,
+                "".join(traceback.format_exception(error_type, error, tb)))
+        except Exception:
+            pass
         filename, lineno, func_name, line = lines[-1]
         return f"{source}\n\n{message}\n{error}\n{line}\nfunction: {func_name}\nline: {lineno}\nFile: {filename}"
     return f"{source}\n\n{message}\n"

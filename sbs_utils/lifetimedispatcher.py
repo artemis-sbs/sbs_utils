@@ -97,8 +97,10 @@ class LifetimeDispatcher:
         if damage_event.sub_tag == 'destroyed':
             so:Agent = Agent.get(damage_event.selected_id)
             if so is not None:
+                # Pass the event so destroy routes can credit the killer
+                # (origin_id/parent_id); spawn callbacks ignore the 2nd arg.
                 for func in LifetimeDispatcher._dispatch_destroy:
-                    func(so)
+                    func(so, damage_event)
                 so.destroyed()
         elif damage_event.tag == 'npc_killed':
             so:Agent = Agent.get(damage_event.selected_id)
