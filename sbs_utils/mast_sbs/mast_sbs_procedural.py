@@ -102,6 +102,8 @@ MastGlobals.import_python_module('sbs_utils.vec')
 MastGlobals.import_python_module('sbs_utils.scatter', 'scatter')
 MastGlobals.import_python_module('sbs_utils.names')
 MastGlobals.import_python_module('sbs', 'sbs')
+# Artemis 2.x (2.8) porting-comfort layer -> a2x_ prefixed MAST globals (e.g. a2x_pos)
+MastGlobals.import_python_module('sbs_utils.procedural.a2x', 'a2x')
 
 #
 # These are needed so the import later works, domn't remove
