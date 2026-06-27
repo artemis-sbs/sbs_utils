@@ -567,10 +567,16 @@ system composition; POI-activation standby. Remaining are **tuning + spikes**:
     `rep:` + custom `signal:` on quest complete; diplomacy deltas (change +
     persist + re-apply) via `universe_set_relation`; per-captain truce (fleets
     ignore high-standing captains via `truced_ships` subtracted from
-    `ai_fleet_chase_roles` targeting; no-op without reputation).
+    `ai_fleet_chase_roles` targeting; no-op without reputation); narrative-arc
+    enablers (`scope: shared` in quest_grant_amd + SHARED advancement for
+    on_kill/collect/scan/dock/reach).
   - TODO: comms gates+weight `%` parser (the big shared-parser piece); ambient
-    comms chatter; SHARED-trigger advancement + `scope: shared` for narrative
-    arcs (Appendix C).
+    comms chatter.
+
+> Parser note (relevant to the `%` work): MAST double-quoted strings treat
+> `{...}` as format-interpolation, so the rep-gate token design must not collide
+> with that (gates live on `%` lines / in data, read from files, not inline MAST
+> string literals).
 - **Phase 3 - NOT STARTED:** richer systems (templates+decks), space-dock
   capture, POI-activation standby.
 
