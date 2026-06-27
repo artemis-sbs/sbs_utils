@@ -1,0 +1,39 @@
+"""Tests for a2x scripted-message helpers."""
+import unittest
+
+from sbs_utils.fs import test_set_exe_dir
+test_set_exe_dir()
+
+import cosmos_dev.mock.sbs as sbs
+from tests.reset_helper import reset_mock
+from sbs_utils.procedural.a2x.comms import (
+    _clean, incoming_comms_text, big_message,
+)
+from sbs_utils.procedural.spawn import player_spawn
+
+
+class A2xCommsPureTests(unittest.TestCase):
+    def test_clean_converts_caret_newlines(self):
+        self.assertEqual(_clean("a^b^^c"), "a\nb\n\nc")
+
+    def test_clean_handles_none_and_whitespace(self):
+        self.assertEqual(_clean(None), "")
+        self.assertEqual(_clean("  hi  "), "hi")
+
+
+class A2xCommsMockTests(unittest.TestCase):
+    def setUp(self):
+        self.sim = reset_mock(sbs)
+        # a player ship so role("__player__") resolves to a real target
+        player_spawn(0, 0, 0, "Artemis", "tsn", "tsn_light_cruiser")
+
+    def test_incoming_comms_text_no_crash(self):
+        # Should broadcast to players without raising.
+        incoming_comms_text("Hello, Captain.^Proceed to DS38.", from_name="Admiral")
+
+    def test_big_message_no_crash(self):
+        big_message("THE END OF PEACE", "written by Thom Robertson")
+
+
+if __name__ == "__main__":
+    unittest.main()
