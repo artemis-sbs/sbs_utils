@@ -569,14 +569,15 @@ system composition; POI-activation standby. Remaining are **tuning + spikes**:
     ignore high-standing captains via `truced_ships` subtracted from
     `ai_fleet_chase_roles` targeting; no-op without reputation); narrative-arc
     enablers (`scope: shared` in quest_grant_amd + SHARED advancement for
-    on_kill/collect/scan/dock/reach).
-  - TODO: comms gates+weight `%` parser (the big shared-parser piece); ambient
-    comms chatter.
+    on_kill/collect/scan/dock/reach); comms `%`-line **gates + weights**
+    (`%N` weight, `%{cond}` gate eval'd in the task scope, `%N{cond}` both;
+    backward compatible) - the shared-parser piece, with unit tests.
+  - TODO: ambient comms chatter (the last Phase 2 item).
 
-> Parser note (relevant to the `%` work): MAST double-quoted strings treat
-> `{...}` as format-interpolation, so the rep-gate token design must not collide
-> with that (gates live on `%` lines / in data, read from files, not inline MAST
-> string literals).
+> Parser note: MAST double-quoted strings treat `{...}` as format-interpolation,
+> so comms rep-gates use the `%{cond}` form on `%` lines (the gate is captured in
+> the line prefix, not the interpolated text) and `.amd`/data is read from files,
+> not inline MAST string literals.
 - **Phase 3 - NOT STARTED:** richer systems (templates+decks), space-dock
   capture, POI-activation standby.
 
