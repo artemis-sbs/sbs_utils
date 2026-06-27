@@ -196,7 +196,27 @@ def brain_clear(agent_id_or_set):
     agent_id_or_set = to_set(agent_id_or_set)
     for agent in agent_id_or_set:
         set_inventory_value(agent, "__BRAIN__", None)
-        
+
+
+def brain_pause(agent_id_or_set, paused=True):
+    """Pause (or resume) one or more agents' brains without removing them.
+
+    A paused brain is skipped by ``brains_run_all`` until resumed - used when an
+    object is parked on the standby list so its brain doesn't act on a
+    non-simulated object. The brain tree is preserved (unlike ``brain_clear``).
+
+    Args:
+        agent_id_or_set: Agent ID, object, or set/list of either.
+        paused (bool, optional): True to pause, False to resume. Defaults True.
+    """
+    for agent in to_set(agent_id_or_set):
+        set_inventory_value(agent, "__BRAIN_PAUSED__", paused)
+
+
+def brain_resume(agent_id_or_set):
+    """Resume one or more agents' brains (see ``brain_pause``)."""
+    brain_pause(agent_id_or_set, False)
+
 
 def brain_add_parent(parent, agent, label, data=None, client_id=0):
     """Add one or more brain nodes as children of an existing brain node.
@@ -330,6 +350,10 @@ def brains_run_all(tick_task):
     all = has_inventory("__BRAIN__")
     for agent in all:
         try:
+            # Paused brains are skipped (e.g. while parked on the standby list,
+            # so they don't act on a non-simulated object). See brain_pause.
+            if get_inventory_value(agent, "__BRAIN_PAUSED__", False):
+                continue
             agent_root = get_inventory_value(agent, "__BRAIN__")
             # Verify the agent is valid
             agent_obj = Agent.get(agent)
