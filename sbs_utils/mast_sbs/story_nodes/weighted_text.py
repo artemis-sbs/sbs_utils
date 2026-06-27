@@ -4,7 +4,8 @@ from ...mast.mast_node import DescribableNode
         
 @mast_node(append=False)
 class WeightedText(MastNode):
-    rule = re.compile(r"""(?P<mtype>\%\d*|\")(?P<text>[^\n\r\f]*)""")
+    # %  / %N (weight) / %{cond} (gate) / %N{cond} (both) / " (continuation)
+    rule = re.compile(r"""(?P<mtype>\%\d*(?:\{[^}]*\})?|\")(?P<text>[^\n\r\f]*)""")
     def __init__(self, mtype, text,  loc=None, compile_info=None):
         super().__init__()
         self.loc = loc

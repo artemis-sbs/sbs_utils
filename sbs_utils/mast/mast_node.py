@@ -133,6 +133,12 @@ class DescribableNode(MastNode):
     def __init__(self):
         super().__init__()
         self.options = []
+        # Parallel to options: per-line weight (int) and optional gate (a
+        # condition string). Plain "%" lines are weight 1, no gate (backward
+        # compatible). "%N" weights the random pick; "%{cond}" includes the line
+        # only if cond is truthy in the task scope; "%N{cond}" combines them.
+        self.option_weights = []
+        self.option_gates = []
 
 
     @property
@@ -142,7 +148,19 @@ class DescribableNode(MastNode):
         return random.choice(self.options)
 
     def add_option(self, prefix, text):
+        weight = 1
+        gate = None
+        if prefix and prefix.startswith("%"):
+            body = prefix[1:]
+            gi = body.find("{")
+            if gi != -1 and body.endswith("}"):
+                gate = body[gi + 1:-1].strip() or None
+                body = body[:gi]
+            if body.isdigit():
+                weight = int(body)
         self.options.append(text)
+        self.option_weights.append(weight)
+        self.option_gates.append(gate)
 
     def append_text(self, prefix, text):
         if prefix =='"':
@@ -152,6 +170,30 @@ class DescribableNode(MastNode):
                 self.options[-1] += text
         else:
             self.add_option(prefix, text)
+
+    def pick_option(self, task=None):
+        """Choose a line: drop gated lines whose condition is false (evaluated in
+        the task scope), then weighted-random among the rest. Returns None if
+        nothing is eligible (author should include an ungated fallback). Falls
+        back to uniform choice when no task or no gates are present."""
+        if len(self.options) == 0:
+            return None
+        gated = any(self.option_gates)
+        if task is None or not gated:
+            return random.choice(self.options)
+        eligible = []
+        weights = []
+        for i, text in enumerate(self.options):
+            gate = self.option_gates[i]
+            if gate:
+                ok = task.eval_code(gate, end_on_exception=False)
+                if not ok:
+                    continue
+            eligible.append(text)
+            weights.append(self.option_weights[i])
+        if not eligible:
+            return None
+        return random.choices(eligible, weights=weights)[0]
     def apply_metadata(self, data):
         return False
 

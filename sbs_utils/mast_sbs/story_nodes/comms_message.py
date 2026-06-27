@@ -75,7 +75,11 @@ class CommsMessageStartRuntimeNode(MastRuntimeNode):
         SBS = FrameContext.context.sbs
         if len(node.options)==0:
             return
-        msg = random.choice(node.options)
+        # Weighted/gated pick (gates eval in the task scope, e.g. reputation);
+        # None means every line was gated out - skip this message.
+        msg = node.pick_option(task)
+        if msg is None:
+            return
         msg = task.compile_and_format_string(msg)
         npc_face = None
         if node.npc_face:
