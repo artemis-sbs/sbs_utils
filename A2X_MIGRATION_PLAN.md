@@ -296,7 +296,7 @@ procedural/a2x/
 ├── terrain.py         # a2x_create_nebulas / _asteroids / _mines (thin wrappers)   [DONE]
 ├── ai.py              # a2x_add_ai / a2x_clear_ai / a2x_direct
 ├── props.py           # a2x_set_object_property / a2x_get_object_property / a2x_addto_object_property
-├── comms.py           # a2x_incoming_comms_text / a2x_big_message / a2x_incoming_message / a2x_comms_button
+├── comms.py           # a2x_incoming_comms_text / a2x_big_message / a2x_incoming_message   [DONE] (comms_button TODO)
 ├── gm.py              # a28-compatible GM screen: a2x_set_gm_button / a2x_if_gm_button / a2x_use_gm_position (fallback)
 └── conditions.py      # a2x_if_distance / a2x_if_inside_box / a2x_if_exists ...
 ```
