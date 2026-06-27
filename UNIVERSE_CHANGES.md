@@ -580,8 +580,12 @@ system composition; POI-activation standby. Remaining are **tuning + spikes**:
 > so comms rep-gates use the `%{cond}` form on `%` lines (the gate is captured in
 > the line prefix, not the interpolated text) and `.amd`/data is read from files,
 > not inline MAST string literals.
-- **Phase 3 - NOT STARTED:** richer systems (templates+decks), space-dock
-  capture, POI-activation standby.
+- **Phase 3 - IN PROGRESS:**
+  - DONE: space-dock **capture** - foe clan home spawns station + garrison;
+    clear + hold the area -> station morphs to the player's side
+    (obj.set_side), persisted, docking opens; captured systems re-spawn friendly.
+  - TODO: richer systems (kind templates + keyed POI decks); POI-activation
+    standby; clan **re-capture** (clans assault captured docks back).
 
 ---
 
