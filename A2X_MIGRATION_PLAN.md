@@ -298,7 +298,7 @@ procedural/a2x/
 ├── props.py           # a2x_set_object_property / a2x_get_object_property / a2x_addto_object_property
 ├── comms.py           # a2x_incoming_comms_text / a2x_big_message / a2x_incoming_message   [DONE] (comms_button TODO)
 ├── gm.py              # a28-compatible GM screen: a2x_set_gm_button / a2x_if_gm_button / a2x_use_gm_position (fallback)
-└── conditions.py      # a2x_if_distance / a2x_if_inside_box / a2x_if_exists ...
+└── conditions.py      # a2x_is_docked / a2x_in_box   [DONE] (distance/sphere/exists map to core awaitables)
 ```
 Registered with one line (DONE): `MastGlobals.import_python_module('sbs_utils.procedural.a2x', 'a2x')`.
 
