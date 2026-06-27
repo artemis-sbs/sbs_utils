@@ -584,8 +584,14 @@ system composition; POI-activation standby. Remaining are **tuning + spikes**:
   - DONE: space-dock **capture** - foe clan home spawns station + garrison;
     clear + hold the area -> station morphs to the player's side
     (obj.set_side), persisted, docking opens; captured systems re-spawn friendly.
-  - TODO: richer systems (kind templates + keyed POI decks); POI-activation
-    standby; clan **re-capture** (clans assault captured docks back).
+  - DONE: **terrain network culling** (standby) - distant asteroid/nebula
+    parked out of the engine network (sim+replication) while the script Agent
+    persists; retrieved as players approach; cleared on jump. Terrain only
+    (brains are sim-independent, so parking NPCs would let their brains act on a
+    non-simulated object). Measured: 1582/2082 field objects parked at 25k.
+  - TODO: richer systems (kind templates + keyed POI decks); clan **re-capture**;
+    optional: extend culling to **NPC/POI** parking (needs pausing their brain
+    first, as the hangar does for bay fighters).
 
 ---
 
