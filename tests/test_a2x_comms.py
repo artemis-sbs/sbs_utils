@@ -7,7 +7,7 @@ test_set_exe_dir()
 import cosmos_dev.mock.sbs as sbs
 from tests.reset_helper import reset_mock
 from sbs_utils.procedural.a2x.comms import (
-    _clean, incoming_comms_text, big_message,
+    _clean, console_roles, incoming_comms_text, big_message, warning_popup,
 )
 from sbs_utils.procedural.spawn import player_spawn
 
@@ -19,6 +19,13 @@ class A2xCommsPureTests(unittest.TestCase):
     def test_clean_handles_none_and_whitespace(self):
         self.assertEqual(_clean(None), "")
         self.assertEqual(_clean("  hi  "), "hi")
+
+    def test_console_roles_maps_letters(self):
+        self.assertEqual(console_roles("HW"), "helm,weapons")
+        self.assertEqual(console_roles("MHWESCO"),
+                         "mainscreen,helm,weapons,engineering,science,comms,operations")
+        self.assertEqual(console_roles("xZ"), "")  # unknown letters dropped
+        self.assertEqual(console_roles(None), "")
 
 
 class A2xCommsMockTests(unittest.TestCase):
@@ -33,6 +40,9 @@ class A2xCommsMockTests(unittest.TestCase):
 
     def test_big_message_no_crash(self):
         big_message("THE END OF PEACE", "written by Thom Robertson")
+
+    def test_warning_popup_no_crash(self):
+        warning_popup("Shields failing!^Reroute power.", consoles="HE")
 
 
 if __name__ == "__main__":

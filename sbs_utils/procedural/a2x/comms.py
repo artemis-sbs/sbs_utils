@@ -15,6 +15,19 @@ def _clean(text):
     return (text or "").replace("^", "\n").strip()
 
 
+# 2.8 console letters -> Cosmos console role names.
+_CONSOLE_LETTER = {
+    "M": "mainscreen", "H": "helm", "W": "weapons", "E": "engineering",
+    "S": "science", "C": "comms", "O": "operations",
+}
+
+
+def console_roles(letters):
+    """2.8 console letters (a subset of ``MHWESCO``) -> a Cosmos console-role csv."""
+    names = [_CONSOLE_LETTER[ch] for ch in (letters or "") if ch in _CONSOLE_LETTER]
+    return ",".join(dict.fromkeys(names))
+
+
 def _player_targets(to):
     from sbs_utils.procedural.roles import role
     return to if to is not None else role("__player__")
@@ -45,6 +58,30 @@ def big_message(title, subtitle1="", subtitle2="", to=None):
     parts = [p for p in (title, subtitle1, subtitle2) if p]
     from sbs_utils.procedural.comms import comms_broadcast
     comms_broadcast(_player_targets(to), "\n".join(parts))
+
+
+def warning_popup(message, consoles=None, ship=None, title="Warning", time=8):
+    """2.8 ``warning_popup_message``: a short message to specific consoles.
+
+    Maps to an info-panel message card (``gui_info_panel_send_message``) with a
+    ``title`` and an auto-dismiss ``time`` -- closer to 2.8's transient warning than
+    the comms waterfall. If ``ship`` is given the message goes to that ship's consoles;
+    otherwise to all console clients. ``consoles`` (e.g. ``"HW"``) filters to those
+    console roles.
+    """
+    from sbs_utils.procedural.gui import gui_info_panel_send_message
+    from sbs_utils.procedural.roles import role, any_role
+
+    if ship is not None:
+        from sbs_utils.procedural.links import linked_to
+        from sbs_utils.procedural.query import to_id
+        targets = linked_to(to_id(ship), "consoles")
+    else:
+        targets = role("console")
+    names = console_roles(consoles)
+    if names:
+        targets = targets & any_role(names)
+    gui_info_panel_send_message(targets, _clean(message), title=title, time=time)
 
 
 def incoming_message(from_name, filename, to=None):
