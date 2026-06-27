@@ -565,10 +565,12 @@ system composition; POI-activation standby. Remaining are **tuning + spikes**:
 - **Phase 2 - IN PROGRESS:**
   - DONE: reputation core (per-ship, 7 signed axes, persisted); declarative
     `rep:` + custom `signal:` on quest complete; diplomacy deltas (change +
-    persist + re-apply) via `universe_set_relation`.
-  - TODO: per-captain truce brain override (see Epic D cross-addon note);
-    comms gates+weight `%` parser; ambient comms chatter; SHARED-trigger
-    advancement + `scope: shared` for narrative arcs (Appendix C).
+    persist + re-apply) via `universe_set_relation`; per-captain truce (fleets
+    ignore high-standing captains via `truced_ships` subtracted from
+    `ai_fleet_chase_roles` targeting; no-op without reputation).
+  - TODO: comms gates+weight `%` parser (the big shared-parser piece); ambient
+    comms chatter; SHARED-trigger advancement + `scope: shared` for narrative
+    arcs (Appendix C).
 - **Phase 3 - NOT STARTED:** richer systems (templates+decks), space-dock
   capture, POI-activation standby.
 
