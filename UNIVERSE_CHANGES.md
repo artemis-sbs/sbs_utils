@@ -270,6 +270,16 @@ change in play and be **negotiated**.
     so the truce is a brain-layer override - `is_hostile(agent, target)` =
     `side_are_enemies(...) and not captain_truce(...)` - **no engine change**. See
     Spike findings.
+  - **Cross-addon design (do this carefully):** those brains are used by EVERY
+    combat mission (siege, etc.), so `captain_truce()` must be globally defined
+    even when the universe/reputation addon isn't loaded - otherwise the brain
+    call NameErrors elsewhere. Plan: ship a **safe default** `captain_truce(agent,
+    target) -> False` in an always-loaded place (e.g. the ai or quests addon, or
+    a tiny core helper), which the universe **overrides** with the real
+    reputation-based check. Truce rule (v1, tunable): a captain is at truce with a
+    clan when `reputation_standing(captain_ship, clan) >= TRUCE_THRESHOLD`, where
+    standing = sum (or clan-leaned weighting) of the captain's axes with that
+    clan. Wire `is_hostile` into both brains' shoot AND target-selection gates.
 
 **Depends on:** C (clans/sides), F (reputation influences odds), G (comms).
 
@@ -543,6 +553,24 @@ system composition; POI-activation standby. Remaining are **tuning + spikes**:
    resume re-classifies. Just track parked POIs with a `universe_standby` role.
 5. **Tuning (Phase 3):** capture hold seconds N + clear-radius R + clan counter-
    assault cadence; per-kind system templates + deck contents/weights.
+
+---
+
+## Implementation status (live)
+
+- **Phase 1 - DONE** (LegendaryMissions): clans-as-sides, deterministic clan
+  ownership of systems, clan-owned stations (foe hostile / neutral dockable),
+  clan-sided enemy fleets, galaxy-map clan display, start-screen Universe
+  dropdown, sector->system rename. All verified headless.
+- **Phase 2 - IN PROGRESS:**
+  - DONE: reputation core (per-ship, 7 signed axes, persisted); declarative
+    `rep:` + custom `signal:` on quest complete; diplomacy deltas (change +
+    persist + re-apply) via `universe_set_relation`.
+  - TODO: per-captain truce brain override (see Epic D cross-addon note);
+    comms gates+weight `%` parser; ambient comms chatter; SHARED-trigger
+    advancement + `scope: shared` for narrative arcs (Appendix C).
+- **Phase 3 - NOT STARTED:** richer systems (templates+decks), space-dock
+  capture, POI-activation standby.
 
 ---
 
