@@ -85,7 +85,10 @@ helm/weapons/science/etc.), and usually a few more. So the tool:
 - Offers `--standalone` for tool-style / no-gameplay missions: sbslib + `a2x` only, consoles wired
   manually via `gui_reroute_*`.
 - The `a2x` namespace itself **never depends on LegendaryMissions** — LM is an emit choice, not an `a2x`
-  dependency.
+  dependency. (Pickup spawning was the one exception: `pickup_spawn` + the item registry/spawn cluster were
+  **moved from LM `items` into core `sbs_utils.procedural.items`**; LM re-exports them, so all existing call
+  sites keep working. `a2x_create_anomaly` now uses the core `pickup_spawn`. Item *art* still comes from
+  registered `item/` labels, so a mission with pickups still feature-detects the upgrades/items content.)
 
 ### Event translation strategy (per-event heuristic)
 - **Timer/flag-sequenced events** (the common case) → linear chain of `---` labels + `await delay_sim`.
@@ -289,7 +292,7 @@ comfort functions under one name across the tool, library, and docs.
 procedural/a2x/
 ├── __init__.py        # re-exports submodules: from .coords import *  etc.   [DONE]
 ├── coords.py          # a2x_pos (from2x_coord), a2x_angle (deg -> Cosmos heading)   [DONE]
-├── spawn.py           # a2x_create + a2x_create_enemy/neutral/station/monster/anomaly/...
+├── spawn.py           # a2x_create_enemy/neutral/station/monster/anomaly/black_hole + pickup_key   [DONE]
 ├── terrain.py         # a2x_create_nebulas / _asteroids / _mines (thin wrappers)   [DONE]
 ├── ai.py              # a2x_add_ai / a2x_clear_ai / a2x_direct
 ├── props.py           # a2x_set_object_property / a2x_get_object_property / a2x_addto_object_property

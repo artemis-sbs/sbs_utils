@@ -18,3 +18,4 @@ Legacy semantics this layer assumes:
 
 from .coords import *  # noqa: F401,F403
 from .terrain import *  # noqa: F401,F403
+from .spawn import *  # noqa: F401,F403
