@@ -135,6 +135,21 @@ def create_anomaly(x, y, z, pickup_type, name=None):
     return pickup_spawn(v.x, v.y, v.z, key, name=name)
 
 
+def destroy(handle):
+    """2.8 ``destroy``: remove a named object from the game.
+
+    ``handle`` may be an id, object, or the value returned by an a2x_create_*.
+    Returns True if an object was deleted.
+    """
+    from sbs_utils.procedural.query import to_object
+
+    o = to_object(handle)
+    if o is not None:
+        o.delete_object()
+        return True
+    return False
+
+
 def create_black_hole(x, y, z, gravity_radius=10000, gravity_strength=1.0,
                      turbulence_strength=1.0, collision_damage=200):
     """2.8 ``create type="blackHole"`` -> a Cosmos maelstrom terrain object."""

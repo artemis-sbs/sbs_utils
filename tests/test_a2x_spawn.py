@@ -8,7 +8,7 @@ import cosmos_dev.mock.sbs as sbs
 from tests.reset_helper import reset_mock
 from sbs_utils.procedural.a2x.spawn import (
     pickup_key, monster_art, monster_role, create_enemy, create_monster,
-    create_anomaly,
+    create_anomaly, destroy,
 )
 from sbs_utils.procedural.query import to_object, to_id
 from sbs_utils.procedural.roles import has_role
@@ -48,6 +48,15 @@ class A2xSpawnMockTests(unittest.TestCase):
     def test_create_monster_tags_creature_role(self):
         so = create_monster(70000, 0, 40000, monster_type=1, name="Willy")
         self.assertTrue(has_role(to_id(so), "creature_whale"))
+
+    def test_destroy_issues_delete(self):
+        # delete is deferred to GC, so just confirm destroy found the object and
+        # issued the delete (returns True).
+        so = create_enemy(0, 0, 0, "kralien_cruiser", name="Doomed")
+        self.assertTrue(destroy(so))
+
+    def test_destroy_missing_returns_false(self):
+        self.assertFalse(destroy(123456789))
 
     def test_create_anomaly_spawns_via_core_pickup(self):
         # No item/ labels registered, so art falls back to placeholder, but the
