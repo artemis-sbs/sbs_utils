@@ -234,12 +234,21 @@ tuning, settle while authoring).
     two clear threats; diplomacy/reputation can shift any of them.
   - **[decide]** Confirm the split + homes, or adjust (e.g. make Iron Concord a
     foe for more early pressure).
-- **Clan quest pools (DECIDED: archetype pools + rep weighting).** Each clan has a
-  pool of quest types by **archetype** (e.g. Ashfang: raid/smuggle/bounty;
-  Verdant: escort/supply/survey); a giver surfaces them **weighted by the
-  captain's reputation** (the `%`-style idiom, Epic F) rather than hard gates - so
-  what a clan offers emerges from how they see you. Quests themselves stay
-  authored quests (driver + AMD); the pool just chooses which to offer.
+- **Clan quest pools (DONE).** Each clan has a `quest_pool` of job types by
+  **archetype** (clans.amd: Ashfang raid/smuggle/bounty; Verdant
+  supply/escort/survey). Generic jobs are authored once per type in
+  **clan_quests.amd** (key = type; data carries tier + on_* trigger + base
+  reward); any clan offers the jobs in its pool. A clan station's comms surfaces
+  them gated + reward-scaled by the captain's **standing**
+  (`universe_reputation.clan_standing`: rep aligned to the clan's leans):
+  tier 1 always, tier 2 at >=20, tier 3 at >=50; reward x1.0..2.0; **foe clans
+  offer nothing until standing >=20** ("only the dangerous bargain with them").
+  Accepting grants the job with the scaled reward + a rep block that earns
+  standing with the offering clan on completion. Files:
+  `universe_clan_quests.py` (offers/grant), `clan_quests.amd`, the
+  `//comms ... station` route + `universe_accept_clan_job` in universe.mast.
+  Authoring stays open: a clan may later carry bespoke quests; generic is the
+  baseline.
 - **Authoring:** clans are described in the **UNIVERSE AMD** (Epic I) - name,
   color, archetype, default diplomacy, home systems, reputation leanings.
 
