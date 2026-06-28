@@ -594,8 +594,11 @@ system composition; POI-activation standby. Remaining are **tuning + spikes**:
     brain and resumes on retrieve, so self-brained NPCs/POIs cull safely; cull
     set broadened to black_hole/mine. (Fleet ships still a follow-up: their brain
     lives on the fleet agent, not the ship.)
-  - TODO: richer systems (kind templates + keyed POI decks); clan **re-capture**;
-    fleet-level culling (pause the fleet agent + park its ships, hangar-style).
+  - DONE: clan **re-capture** - revisiting a captured foe system spawns the
+    clan's re-assault fleet; defend to keep it, or the clan holds the station's
+    space and it reverts (set_side back, captured cleared). Dynamic frontier.
+  - TODO: richer systems (kind templates + keyed POI decks); fleet-level culling
+    (pause the fleet agent + park its ships, hangar-style).
 
 ---
 
