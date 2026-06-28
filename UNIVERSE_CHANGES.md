@@ -598,10 +598,18 @@ system composition; POI-activation standby. Remaining are **tuning + spikes**:
     clan's re-assault fleet; defend to keep it, or the clan holds the station's
     space and it reverts (set_side back, captured cleared). Dynamic frontier.
   - STARTED: richer systems - keyed **loot caches** (trade-good pickups, denser
-    in nebula/anomaly) scatter per system, feeding on_collect quests.
-  - TODO: more richer-systems POIs (derelicts to scan, secondary outposts) +
-    the kind-template/keyed-deck framework; fleet-level culling (pause the fleet
-    agent + park its ships, hangar-style).
+    in nebula/anomaly) feeding on_collect quests; scannable **derelict** POIs
+    (role wreck; science-scannable, fire on_scan quests, one-time salvage reward).
+  - TODO: secondary outposts + the kind-template/keyed-deck framework; fleet-level
+    culling (pause the fleet agent + park its ships, hangar-style).
+
+> Known issue (found while testing): rapid repeated jumps headless throw
+> `'int' object has no attribute 'client_id'` in universe_jump_to's console
+> loops (`for c in to_object_list(role("console")): c.client_id`). Pre-existing
+> (not from the clan/POI work); real clients are console objects with client_id,
+> so single jumps / real play are fine. Needs a deliberate guard (normalize c
+> via to_object / skip non-console) once the headless console-role membership is
+> understood - don't blind-patch core jump code.
 
 ---
 
