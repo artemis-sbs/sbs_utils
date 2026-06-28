@@ -616,11 +616,20 @@ system composition; POI-activation standby. Remaining are **tuning + spikes**:
   - DONE: clan **re-capture** - revisiting a captured foe system spawns the
     clan's re-assault fleet; defend to keep it, or the clan holds the station's
     space and it reverts (set_side back, captured cleared). Dynamic frontier.
-  - STARTED: richer systems - keyed **loot caches** (trade-good pickups, denser
-    in nebula/anomaly) feeding on_collect quests; scannable **derelict** POIs
-    (role wreck; science-scannable, fire on_scan quests, one-time salvage reward).
-  - TODO: secondary outposts + the kind-template/keyed-deck framework; fleet-level
-    culling (pause the fleet agent + park its ships, hangar-style).
+  - DONE: richer systems - **kind-template + keyed POI deck** framework
+    (`universe_systems.py`): the kind if/elif spawns the template core (primary
+    station / garrison / anomaly), then `universe_system_deck(key, kind, owner,
+    archetype, foe, difficulty)` returns a deterministic, weighted deck of extra
+    POIs that universe.mast spawns via `match poi.type`. Deck types: **loot**
+    caches (trade goods, denser in nebula/anomaly; on_collect), **derelict**
+    wrecks (science-scannable, on_scan, salvage; likelier in nebulae), **secondary
+    outpost** (a smaller clan holding in ~40% of clan systems - tagged
+    `station, outpost` so it's an extra clan-work giver; the //damage/destroy
+    station-persistence guard excludes `outpost` so it doesn't nuke the primary),
+    and **mine field** (lethal terrain in foe territory). Pure-Python + unit-probed
+    for variety/determinism. Archetype flavors outpost art.
+  - TODO: fleet-level culling (pause the fleet agent + park its ships,
+    hangar-style).
 
 > Fixed: universe_jump_to's console loops crashed (`'int' object has no
 > attribute 'client_id'`) when role("console") yielded a raw client id instead
