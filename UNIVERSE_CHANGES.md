@@ -603,13 +603,11 @@ system composition; POI-activation standby. Remaining are **tuning + spikes**:
   - TODO: secondary outposts + the kind-template/keyed-deck framework; fleet-level
     culling (pause the fleet agent + park its ships, hangar-style).
 
-> Known issue (found while testing): rapid repeated jumps headless throw
-> `'int' object has no attribute 'client_id'` in universe_jump_to's console
-> loops (`for c in to_object_list(role("console")): c.client_id`). Pre-existing
-> (not from the clan/POI work); real clients are console objects with client_id,
-> so single jumps / real play are fine. Needs a deliberate guard (normalize c
-> via to_object / skip non-console) once the headless console-role membership is
-> understood - don't blind-patch core jump code.
+> Fixed: universe_jump_to's console loops crashed (`'int' object has no
+> attribute 'client_id'`) when role("console") yielded a raw client id instead
+> of a console object (seen on rapid headless jumps). Now normalized:
+> `co = to_object(c); cid = co.client_id if co is not None else c`. 6-jump run
+> clean.
 
 ---
 
