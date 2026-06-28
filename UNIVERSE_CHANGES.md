@@ -572,9 +572,8 @@ system composition; POI-activation standby. Remaining are **tuning + spikes**:
     on_kill/collect/scan/dock/reach); comms `%`-line **gates + weights**
     (`%N` weight, `%{cond}` gate eval'd in the task scope, `%N{cond}` both;
     backward compatible) - the shared-parser piece, with unit tests; ambient
-    clan **chatter** (arrival + periodic; archetype/authored lines, clan-colored).
-  - Minor follow-ups (optional): ambient chatter on near-POI proximity and on
-    reputation/diplomacy change (the other two of the four triggers).
+    clan **chatter** - all four triggers (arrival, periodic, near-POI, and on
+    reputation/diplomacy change); archetype/authored lines, clan-colored.
 
 > Parser note: MAST double-quoted strings treat `{...}` as format-interpolation,
 > so comms rep-gates use the `%{cond}` form on `%` lines (the gate is captured in
