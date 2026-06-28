@@ -615,7 +615,7 @@ def terrain_field_plan_keyed(key, cell, x_min, z_min, x_max, z_max,
 def terrain_spawn_field_keyed(key, cell, x_min, z_min, x_max, z_max, terrain_value,
                               nebula_chance, asteroid_chance,
                               y_min=-375, y_max=375, exclude=None, exclude_radius=0,
-                              selectable=False):
+                              selectable=False, marker=True):
     """Spawn a position-keyed asteroid / nebula field over the given bounds.
 
     The field is a pure function of ``(key, position)``: the same seed produces
@@ -642,7 +642,7 @@ def terrain_spawn_field_keyed(key, cell, x_min, z_min, x_max, z_max, terrain_val
                 random.seed(scatter._mix(key, ix, iz, 11))
                 terrain_spawn_nebula_sphere(p.x, p.y, p.z, 10000, terrain_value,
                                             cluster_color=None, selectable=selectable,
-                                            marker=True, name="")
+                                            marker=marker, name="")
             else:
                 random.seed(scatter._mix(key, ix, iz, 22))
                 amount = max(1, random.randint(t_min, t_min * 2) // 2)
