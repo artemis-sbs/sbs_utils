@@ -261,6 +261,17 @@ tuning, settle while authoring).
 **Goal:** diplomatic relationships between sides/clans are **dynamic** - they can
 change in play and be **negotiated**.
 
+**Comms negotiation DONE.** A clan station's comms offers diplomacy shifts gated
+by the captain's standing (`universe_reputation`): **Negotiate Ceasefire**
+(HOSTILE -> NEUTRAL) costs a tribute that scales down with standing
+(`clan_ceasefire_cost`: 600 cr at standing 0, free at >=30) - this breaks the
+catch-22 of needing a truce to earn a foe clan's respect; **Propose Alliance**
+(NEUTRAL -> ALLIED) needs standing >=60. Changes call `side_set_relations` and
+persist via `universe_set_dip` + `universe_save_diplomacy`. Live relation read
+with `side_get_relations`. (`universe.mast` station comms route.) Still open:
+action-driven nudges (note: clan quest completion already warms standing, which
+lowers ceasefire cost) and the per-captain truce overlay below.
+
 - Persist per-pair relations (HOSTILE/NEUTRAL/ALLIED) in the universe save,
   overriding the clan's authored default.
 - **Negotiation methods [spec]:**
