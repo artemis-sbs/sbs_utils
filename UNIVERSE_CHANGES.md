@@ -597,8 +597,11 @@ system composition; POI-activation standby. Remaining are **tuning + spikes**:
   - DONE: clan **re-capture** - revisiting a captured foe system spawns the
     clan's re-assault fleet; defend to keep it, or the clan holds the station's
     space and it reverts (set_side back, captured cleared). Dynamic frontier.
-  - TODO: richer systems (kind templates + keyed POI decks); fleet-level culling
-    (pause the fleet agent + park its ships, hangar-style).
+  - STARTED: richer systems - keyed **loot caches** (trade-good pickups, denser
+    in nebula/anomaly) scatter per system, feeding on_collect quests.
+  - TODO: more richer-systems POIs (derelicts to scan, secondary outposts) +
+    the kind-template/keyed-deck framework; fleet-level culling (pause the fleet
+    agent + park its ships, hangar-style).
 
 ---
 
