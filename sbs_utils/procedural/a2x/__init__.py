@@ -22,3 +22,4 @@ from .spawn import *  # noqa: F401,F403
 from .comms import *  # noqa: F401,F403
 from .ai import *  # noqa: F401,F403
 from .conditions import *  # noqa: F401,F403
+from .props import *  # noqa: F401,F403
