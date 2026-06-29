@@ -545,8 +545,16 @@ color style) are already a screenplay vocabulary - just written in code. A
 *dialogue flavor* of AMD would be a friendlier wrapper that **compiles down to
 those primitives**, separating *what characters say* (content, AMD) from *how
 comms routes fire* (logic, MAST). A heading = a scene; lines are speaker-tagged;
-`%` gives random variants; choices branch with simple guards and carry outcomes
-(jump to a scene, shift reputation, emit a signal). Sketch:
+choices branch with simple guards and carry outcomes (jump to a scene, shift
+reputation, emit a signal).
+
+**Syntax rule (DECIDED): markdown-shaped, and confirm before adding.** Any new AMD
+syntax must be *suggested and confirmed*, never just added, and should follow
+markdown-like rules reusing what AMD already has - `# [Display](key)` headings,
+`[label](target)` links, `(key?a=b)` query params, `---` data fences. So choices
+become a **markdown list of links** to the next scene, with guards/outcomes as
+link query params (or a per-scene data fence) - not novel `>`/`->` operators.
+Sketch (shape only, to be confirmed):
 
 ```
 # [Ashfang Hail](scene_ashfang_hail)
@@ -556,10 +564,14 @@ when: //comms
 ---
 % You're a long way from friends, captain.
 % Brave or stupid, flying in here.
-  > "Apologize"      -> scene_back_off   rep: { ashfang: { peaceful: 5 } }
-  > "Threaten them"  -> scene_standoff    if standing >= 20
-  > "Offer a cut"    -> scene_deal        if credits >= 200
+
+- [Apologize](scene_back_off)
+- [Threaten them](scene_standoff?if=standing>=20)
+- [Offer a cut](scene_deal?if=credits>=200)
 ```
+
+(The `%` random-line marker is the one non-markdown idiom carried over from MAST
+comms; whether to keep it or find a markdown-shaped form is itself a [confirm].)
 
 Wins: writers write (personality becomes content, like leanings already are);
 **reuse via archetype + `{name}`** (one "pirate hail" serves every pirate clan);
