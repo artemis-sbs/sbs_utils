@@ -48,3 +48,8 @@ DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.fle
 DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.fleets.v1.4.0_dev.mastlib elite_abilities.mast
 DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.fleets.v1.4.0_dev.mastlib elite_abilities_prefabs.mast
 DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.fleets.v1.4.0_dev.mastlib map_common.py
+DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.ai.v1.4.0_dev.mastlib __init__.mast
+DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.ai.v1.4.0_dev.mastlib grid_ai.mast
+DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.ai.v1.4.0_dev.mastlib grid_ai.py
+DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.ai.v1.4.0_dev.mastlib npc_brains.mast
+DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.ai.v1.4.0_dev.mastlib grid_brains.mast
