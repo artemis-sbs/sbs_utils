@@ -24,6 +24,21 @@ def is_docked(ship, station=None):
     return isinstance(ds, str) and ds not in ("", "undocked")
 
 
+def within(obj, x, y, z, radius):
+    """True if ``obj`` is within ``radius`` of a 2.8-coord point (flipped internally).
+
+    A boolean for polling loops (2.8 if_distance-to-point / if_inside_sphere).
+    """
+    from sbs_utils.procedural.query import to_space_object
+
+    o = to_space_object(obj)
+    if o is None:
+        return False
+    p = o.engine_object.pos
+    c = pos(x, y, z)
+    return ((p.x - c.x) ** 2 + (p.y - c.y) ** 2 + (p.z - c.z) ** 2) ** 0.5 <= radius
+
+
 def in_box(obj, least_x, least_z, most_x, most_z, inside=True):
     """2.8 ``if_inside_box`` / ``if_outside_box`` (an XZ rectangle).
 
