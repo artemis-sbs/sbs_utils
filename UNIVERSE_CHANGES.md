@@ -540,11 +540,17 @@ Wins: writers write (personality becomes content, like leanings already are);
 it rides existing rails (compiles to comms primitives; choices reuse the
 rep/diplomacy/signal hooks; localization- and test-friendly); and it **unifies
 the spoken layer** - chatter, taunts, surrenders, and quest hand-offs become one
-authorable "voice" instead of a data list plus a pile of routes. **Caveat:**
-branching choices with conditions/outcomes is where AMD stops being *data* and
-starts being a little *language* - keep it declarative (speakers, lines, choices,
-simple guards) and defer anything truly procedural to MAST, or it grows into a
-second scripting system.
+authorable "voice" instead of a data list plus a pile of routes.
+
+**Design guardrail (DECIDED): writer's room, not engine room.** This flavor exists
+to add *color that leads to richer comms interactions* - a science-fiction
+writer's narrative / movie script - and must **never grow into a scripting
+language.** Allowed: speakers, lines, `%` random variants, a few branching choices
+with *simple* guards, and light outcomes (jump to a scene, nudge reputation, emit
+a signal). Not allowed: loops, variables, expressions beyond simple guards, or any
+procedural logic - that stays in MAST, and the dialogue AMD compiles down to the
+existing comms primitives. If a request starts adding control flow or computed
+logic to dialogue, steer it back to declarative. (Keep me honest on this.)
 
 Right now the *clans* are authorable but the *universe* is not; making the
 universe a single authored document is the missing capstone and would close most
