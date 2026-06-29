@@ -10,7 +10,7 @@ from sbs_utils.procedural.a2x.props import (
     set_object_property, object_property_mapped, object_property_key,
     set_special, special_ability_mapped,
     addto_object_property, copy_object_property, set_ship_text,
-    set_relative_position,
+    set_relative_position, set_fleet_coeff, fleet_coeff_mapped,
 )
 from sbs_utils.procedural.a2x.spawn import create_enemy
 from sbs_utils.procedural.query import to_object, get_data_set_value, to_id
@@ -74,6 +74,16 @@ class A2xPropsMockTests(unittest.TestCase):
         set_object_property(self.so, "shieldStateFront", 60)
         self.assertTrue(copy_object_property(self.so, b, "shieldStateFront"))
         self.assertEqual(get_data_set_value(to_id(b), "shield_val", 0), 60)
+
+    def test_fleet_coeff_npc(self):
+        # self.so is an NPC enemy; nonPlayerSpeed=200 -> speed_coeff 2.0 on all NPCs
+        self.assertTrue(fleet_coeff_mapped("nonPlayerSpeed"))
+        n = set_fleet_coeff("nonPlayerSpeed", 200)
+        self.assertGreaterEqual(n, 1)
+        self.assertAlmostEqual(get_data_set_value(to_id(self.so), "speed_coeff"), 2.0)
+
+    def test_fleet_coeff_unknown(self):
+        self.assertEqual(set_fleet_coeff("notAThing", 100), -1)
 
     def test_set_position_applies_flip(self):
         # 2.8 positionX=30000 -> Cosmos pos.x = 100000-30000 = 70000; Y unchanged

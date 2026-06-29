@@ -48,6 +48,46 @@ _PROP = {
 }
 
 
+# 2.8 global difficulty knobs ("nonPlayer" = all NPC ships) -> per-ship Cosmos
+# coefficients, applied across the fleet. Value 100 = baseline, so coeff = value/100.
+_FLEET_COEFF = {
+    "nonPlayerSpeed": ("__npc__", ["speed_coeff"]),
+    "nonPlayerShield": ("__npc__", ["all_shield_upgrade_coeff"]),
+    "nonPlayerWeapon": ("__npc__", ["all_beam_upgrade_coeff", "all_tube_upgrade_coeff"]),
+    "playerShields": ("__player__", ["all_shield_upgrade_coeff"]),
+    "playerWeapon": ("__player__", ["all_beam_upgrade_coeff"]),
+}
+
+
+def fleet_coeff_mapped(prop):
+    """True if a 2.8 global difficulty property maps to a fleet coefficient."""
+    return prop in _FLEET_COEFF
+
+
+def set_fleet_coeff(which, value):
+    """2.8 global ``nonPlayer*`` / ``player*`` difficulty -> per-ship coefficients.
+
+    Applies ``value/100`` to the matching data_set coeff on every current NPC (or
+    player) ship. NOTE: 2.8 applied these globally including to *future* spawns; this
+    sets only ships that exist now -- re-apply after later spawns if needed.
+    Returns the number of ships updated, or -1 if ``which`` is unknown.
+    """
+    spec = _FLEET_COEFF.get(which)
+    if spec is None:
+        return -1
+    role_name, keys = spec
+    coeff = value / 100.0
+    from sbs_utils.procedural.roles import role
+    from sbs_utils.procedural.query import to_object_list
+
+    n = 0
+    for o in to_object_list(role(role_name)):
+        for k in keys:
+            o.data_set.set(k, coeff, 0)
+        n += 1
+    return n
+
+
 def object_property_mapped(prop):
     """True if this 2.8 property has a confirmed Cosmos mapping."""
     return prop in _PROP
