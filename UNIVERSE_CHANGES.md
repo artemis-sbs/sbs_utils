@@ -396,6 +396,24 @@ POIs, clans, quests, and react to their reputation.
 - **[decide]** Tuning only: delivery (broadcast vs targeted) and the idle
   cooldown / per-trigger rate limit to avoid spam.
 
+**Delivery surface (DECIDED): info panel, NOT the text waterfall.** Chatter
+currently goes through `comms_broadcast`, which writes to the **text waterfall** -
+ephemeral, no speaker, no history, no interaction. Move it to the **info panel**
+(`gui_info_panel_send_message`) and/or proper comms, using the
+**HereThereBeMonsters interaction pattern** (see its `here_comms_incoming_info_
+message` / `here_receive_info_message` helpers): a message *card* carrying the
+clan's **face/portrait + name + color**, optional **icon/banner**, a short
+auto-dismiss `time`, kept in **history** (up to 9), and - when it should invite a
+response - an optional **button** that suspends for the player's choice. So an
+ambient line reads as a *hail from that clan*, not a log blip, and can escalate
+into interaction.
+
+This makes chatter the **light end of the same "voice" spectrum** as the dialogue
+capstone above: ambient one-liner (info card, face+color, auto-dismiss) ->
+hail-with-a-button (info card + response) -> full branching dialogue *scene*
+(authored AMD). Same authored personality, three intensities. Reuse `%` variants
++ the Epic F gates throughout; keep it declarative.
+
 **Depends on:** C, F. **Light-weight; can land early for "feel".**
 
 ---
