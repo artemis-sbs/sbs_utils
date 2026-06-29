@@ -28,48 +28,50 @@ def console_roles(letters):
     return ",".join(dict.fromkeys(names))
 
 
-def _player_targets(to):
+def _console_targets(to):
+    """Default target for info-panel cards: all console clients."""
     from sbs_utils.procedural.roles import role
-    return to if to is not None else role("__player__")
+    return to if to is not None else role("console")
 
 
 def incoming_comms_text(message, from_name="", title=None, to=None):
-    """2.8 ``incoming_comms_text`` -> a message in the players' comms waterfall.
+    """2.8 ``incoming_comms_text`` -> an info-panel "hail" card.
+
+    Uses ``comms_info_card`` (the promoted HTBM info-panel pattern: speaker name,
+    history, auto-dismiss) rather than the text waterfall, since a 2.8
+    ``incoming_comms_text`` is a hail from a named sender.
 
     Args:
         message (str): body text (``^`` line breaks are converted).
-        from_name (str, optional): sender label, prepended to the body.
-        title (str, optional): unused at waterfall level (kept for call-site parity).
-        to (optional): target id/set; defaults to all player ships.
+        from_name (str, optional): sender label -> the card title.
+        title (str, optional): overrides the title (defaults to ``from_name``).
+        to (optional): target console client id/set; defaults to all consoles.
     """
-    from sbs_utils.procedural.comms import comms_broadcast
-    body = _clean(message)
-    if from_name:
-        body = f"{from_name}: {body}"
-    comms_broadcast(_player_targets(to), body)
+    from sbs_utils.procedural.comms import comms_info_card
+    comms_info_card(_console_targets(to), _clean(message),
+                    title=(title or from_name or None))
 
 
 def big_message(title, subtitle1="", subtitle2="", to=None):
-    """2.8 ``big_message`` -> a title/subtitle block broadcast to players.
+    """2.8 ``big_message`` -> a chapter-title info-panel card.
 
-    (2.8 showed this as a main-screen chapter card; the waterfall is the scaffold
-    equivalent -- upgrade to a real title card if the mission needs it.)
+    (2.8 showed this as a main-screen chapter card; an info-panel card with a banner
+    is the closest scaffold equivalent.)
     """
-    parts = [p for p in (title, subtitle1, subtitle2) if p]
-    from sbs_utils.procedural.comms import comms_broadcast
-    comms_broadcast(_player_targets(to), "\n".join(parts))
+    from sbs_utils.procedural.comms import comms_info_card
+    sub = "\n".join(p for p in (subtitle1, subtitle2) if p)
+    comms_info_card(_console_targets(to), sub or None, title=title, banner=title)
 
 
 def warning_popup(message, consoles=None, ship=None, title="Warning", time=8):
     """2.8 ``warning_popup_message``: a short message to specific consoles.
 
-    Maps to an info-panel message card (``gui_info_panel_send_message``) with a
-    ``title`` and an auto-dismiss ``time`` -- closer to 2.8's transient warning than
-    the comms waterfall. If ``ship`` is given the message goes to that ship's consoles;
-    otherwise to all console clients. ``consoles`` (e.g. ``"HW"``) filters to those
-    console roles.
+    Maps to an info-panel message card (``comms_info_card``) with a ``title`` and an
+    auto-dismiss ``time`` -- closer to 2.8's transient warning than the waterfall. If
+    ``ship`` is given the message goes to that ship's consoles; otherwise to all
+    console clients. ``consoles`` (e.g. ``"HW"``) filters to those console roles.
     """
-    from sbs_utils.procedural.gui import gui_info_panel_send_message
+    from sbs_utils.procedural.comms import comms_info_card
     from sbs_utils.procedural.roles import role, any_role
 
     if ship is not None:
@@ -81,7 +83,7 @@ def warning_popup(message, consoles=None, ship=None, title="Warning", time=8):
     names = console_roles(consoles)
     if names:
         targets = targets & any_role(names)
-    gui_info_panel_send_message(targets, _clean(message), title=title, time=time)
+    comms_info_card(targets, _clean(message), title=title, time=time)
 
 
 def incoming_message(from_name, filename, to=None):
