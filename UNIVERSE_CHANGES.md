@@ -493,6 +493,11 @@ everywhere else. Concretely, these are hardcoded / not author-exposed today:
   there is no framework for universe-level **goals / win-lose** (it's a pure
   sandbox, so a *campaign* universe has nothing to hang on).
 - **Per-region flavor**: skybox/music are global, not per-clan or per-kind.
+- **Dialogue is code-bound.** The *only* author-spoken content in AMD today is a
+  clan's flat `chatter` one-liners; every real conversation (comms menus, taunts,
+  surrenders, quest hand-offs) is MAST-coded in `comms/*.mast` via
+  `<<`/`>>`/`%`/`+`, and quest "speech" is one-off `comms_broadcast` strings. A
+  writer can't author a *scene* without scripting.
 
 **The idea (capstone).** Promote the universe itself to a **first-class authored
 document** - a single `universe.amd` (or a much richer registry entry) that
@@ -505,12 +510,48 @@ describes a world holistically, instead of just pointing at a clans file:
 - **Reputation rules:** which axes are in play, tier thresholds, per-clan
   forgiveness/grudge curves.
 - **Narrative & goals:** optional arc hooks, milestones, win/lose conditions.
+- **Dialogue & voice:** authored comms *scenes* (below), so a clan's personality
+  is written, not coded.
+
+**Sub-idea: a movie-script dialogue flavor of AMD.** The MAST comms primitives
+(`<<` NPC line, `>>` player line, `%` random variant, `+` branching choice, `=$`
+color style) are already a screenplay vocabulary - just written in code. A
+*dialogue flavor* of AMD would be a friendlier wrapper that **compiles down to
+those primitives**, separating *what characters say* (content, AMD) from *how
+comms routes fire* (logic, MAST). A heading = a scene; lines are speaker-tagged;
+`%` gives random variants; choices branch with simple guards and carry outcomes
+(jump to a scene, shift reputation, emit a signal). Sketch:
+
+```
+# [Ashfang Hail](scene_ashfang_hail)
+---
+speaker: ashfang          # resolves face / name / color from the clan
+when: //comms
+---
+% You're a long way from friends, captain.
+% Brave or stupid, flying in here.
+  > "Apologize"      -> scene_back_off   rep: { ashfang: { peaceful: 5 } }
+  > "Threaten them"  -> scene_standoff    if standing >= 20
+  > "Offer a cut"    -> scene_deal        if credits >= 200
+```
+
+Wins: writers write (personality becomes content, like leanings already are);
+**reuse via archetype + `{name}`** (one "pirate hail" serves every pirate clan);
+it rides existing rails (compiles to comms primitives; choices reuse the
+rep/diplomacy/signal hooks; localization- and test-friendly); and it **unifies
+the spoken layer** - chatter, taunts, surrenders, and quest hand-offs become one
+authorable "voice" instead of a data list plus a pile of routes. **Caveat:**
+branching choices with conditions/outcomes is where AMD stops being *data* and
+starts being a little *language* - keep it declarative (speakers, lines, choices,
+simple guards) and defer anything truly procedural to MAST, or it grows into a
+second scripting system.
 
 Right now the *clans* are authorable but the *universe* is not; making the
 universe a single authored document is the missing capstone and would close most
 of the gaps above at once. **[explore]** how much to inline vs. keep as split
-files (clans/narrative), and which tuning is worth exposing first (reputation
-curves + generation weights are the highest-leverage).
+files (clans/narrative/dialogue), and which tuning is worth exposing first
+(reputation curves + generation weights are the highest-leverage; the dialogue
+flavor is the highest-*delight* for content authors).
 
 ---
 
