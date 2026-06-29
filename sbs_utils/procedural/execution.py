@@ -640,7 +640,13 @@ def labels_get_type(label_type):
     #
     # Walk all labels looking for map Labels
     #
-    all_labels = page.story.labels
+    # Resolve the story's labels robustly: most pages carry `.story`, but some
+    # contexts (e.g. a SubPage during start-screen GameCode) do not - fall back to
+    # FrameContext.mast (the same MastStory, set by the scheduler tick).
+    story = getattr(page, "story", None) or FrameContext.mast
+    all_labels = getattr(story, "labels", None)
+    if all_labels is None:
+        return []
     for l in all_labels:
         label = all_labels.get(l)
         if label is None:

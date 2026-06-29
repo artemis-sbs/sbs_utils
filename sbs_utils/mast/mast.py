@@ -292,37 +292,44 @@ class Mast():
                 return "<not a real path>/" + fullname + ".py"
 
         module_name = name[:-3]
-        if sys.modules.get(module_name) is None:
-            spec = None
-            if self.lib_name is not None:
-                #module_parent = str(Path(self.lib_name).stem)
-                #if self.basedir is not  None:
-                #    module_name = str(Path().joinpath(module_parent, self.basedir, module_name).as_posix()).replace("/", ".")
-                #elif self.parent_basedir is not None:
-                #    module_name = str(Path().joinpath(module_parent, self.parent_basedir, module_name).as_posix()).replace("/", ".")
 
-                #module_name = self.lib_name
+        # Library (.mastlib) python: unchanged - one isolated module per file.
+        if self.lib_name is not None:
+            if sys.modules.get(module_name) is None:
                 content, errors = self.content_from_lib_or_file(name)
                 if content is None:
                     raise Exception(f"Failed to import python in mast library {name} {self.lib_name}")
                 loader = StringLoader(content)
                 spec = importlib.util.spec_from_loader(module_name, loader, origin="built-in")
-            else:
-                # if its not in this dir try the mission script dir
-                if os.path.isfile(os.path.join(self.basedir, name)):
-                    import_file_name = os.path.join(self.basedir, name)
-                else:
-                    import_file_name = os.path.join(fs.get_mission_dir(), name)
-                spec = importlib.util.spec_from_file_location(module_name, import_file_name)
-            
-            if spec is not None:
                 module = importlib.util.module_from_spec(spec)
                 sys.modules[module_name] = module
                 spec.loader.exec_module(module)
                 MastGlobals.import_python_module(module_name)
-            else:
-                lib_name = lib_name if self.lib_name is None else lib_name
-                raise Exception(f"Failed to import python in mast library {name} {lib_name}")
+            return
+
+        # Mission addon python: exec every .py of one mission into a single shared
+        # namespace (per basedir) so a helper in one file can call a sibling file's
+        # helper by bare name. Functions are still registered into MastGlobals.globals
+        # for MAST-level calls. (See MastGlobals.get_mission_py_module.)
+        if os.path.isfile(os.path.join(self.basedir, name)):
+            import_file_name = os.path.join(self.basedir, name)
+        else:
+            import_file_name = os.path.join(fs.get_mission_dir(), name)
+        ns_mod = MastGlobals.get_mission_py_module(self.basedir)
+        # Expose the shared namespace under this file's bare module name so existing
+        # `from sibling import x` / `import sibling` Python imports between a mission's
+        # .py files keep working - the symbols live in the shared dict. Idempotent;
+        # set before exec so a file importing a sibling already loaded resolves it.
+        sys.modules[module_name] = ns_mod
+        # Per-mission dedup: don't re-exec a file already loaded into this namespace.
+        exec_files = ns_mod.__dict__.setdefault("__mast_files__", set())
+        if import_file_name in exec_files:
+            return
+        with open(import_file_name, "r") as pyfile:
+            content = pyfile.read()
+        exec(compile(content, import_file_name, "exec"), ns_mod.__dict__)
+        exec_files.add(import_file_name)
+        MastGlobals.register_mission_functions(ns_mod)
 
 
 

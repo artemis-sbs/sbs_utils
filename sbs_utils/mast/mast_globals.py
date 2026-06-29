@@ -5,6 +5,7 @@ import logging
 import random
 from .. import fs
 import sys
+import types
 from inspect import getmembers, isfunction, getmodule
 from ..version__ import version_get, version_get_major, version_get_build, version_get_minor
 import json
@@ -134,6 +135,37 @@ class MastGlobals:
                     print(f"Duplicate global name added {name} via import of module {mod_name}")
                 MastGlobals.globals[key] = func
         MastGlobals._imported_mods.add(mod_name)
+
+    # One shared Python namespace per mission (keyed by basedir). All of a mission's
+    # addon .py files are exec'd into this single module dict so a helper in one file
+    # can call a helper in a sibling file by bare name - the "one shared MAST
+    # namespace" the mission docs describe. (Mastlib .py is unaffected; it still
+    # loads one module per file.) MAST variables are NOT stored here - they live in
+    # task scope - so this can neither shadow nor be shadowed by a MAST variable.
+    mission_py_modules = {}
+
+    def get_mission_py_module(scope_key):
+        """Get-or-create the shared namespace module for a mission (by basedir).
+
+        Real builtins are present (so float/Exception/getattr/etc. keep working),
+        unlike MastGlobals.globals which is a curated MAST-eval whitelist.
+        """
+        key = scope_key or "<mission>"
+        mod = MastGlobals.mission_py_modules.get(key)
+        if mod is None:
+            mod = types.ModuleType("mast_mission_py::" + str(key))
+            mod.__dict__["__builtins__"] = __builtin__
+            MastGlobals.mission_py_modules[key] = mod
+            sys.modules[mod.__name__] = mod
+        return mod
+
+    def register_mission_functions(mod):
+        """Register the functions DEFINED in a mission's shared namespace as MAST
+        globals so .mast can call them. Functions imported from libraries keep their
+        own __module__, so only this mission's own defs are added (not re-exports)."""
+        for fname, func in getmembers(mod, isfunction):
+            if getattr(func, "__module__", None) == mod.__name__:
+                MastGlobals.globals[fname] = func
 
 
 MastGlobals.globals["import_python_module"] = MastGlobals.import_python_module
