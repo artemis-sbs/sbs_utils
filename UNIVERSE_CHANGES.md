@@ -412,9 +412,9 @@ reusable library helper: **`comms_info_card(...)` / `comms_info_clear(...)`** in
 `sbs_utils/procedural/comms.py` (thin wrappers over `gui_info_panel_send_message`
 with title/color/face/icon/banner/button/history/auto-dismiss; `comms_info_card`
 returns an awaitable Promise when a `button` is given). The universe
-`universe_chatter_card` / `universe_info_card` now call it. **[follow-up]** refactor
-HereThereBeMonsters' `here_*_info_message` helpers to call the core helper too, so
-the pattern lives in one place.
+`universe_chatter_card` / `universe_info_card` now call it. HereThereBeMonsters'
+`here_*_info_message` helpers (and its two direct `story.mast` calls) now also call
+the core helper - the "incoming comms card" pattern lives in one place (DONE).
 
 This makes chatter the **light end of the same "voice" spectrum** as the dialogue
 capstone above: ambient one-liner (info card, face+color, auto-dismiss) ->
