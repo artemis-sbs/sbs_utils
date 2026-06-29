@@ -456,6 +456,62 @@ authoring backbone for C/D/F and beyond.
 
 **Depends on:** AMD data-section parsing (done). **Underpins:** C, D, F, narrative.
 
+### To explore: a unified universe document + author-facing tuning
+
+**Observation (design feel).** Taken together the mechanics read as a
+**living-frontier sandbox**: Elite Dangerous bones (seeded endless galaxy,
+jump-to-system, fog-of-war discovery, station markets, a mission-board loop), EVE
+politics (a contestable frontier you can capture/lose, negotiated diplomacy,
+mercenary work), and - most distinctively - **Mount & Blade reputation**, where
+standing is a *character* meter (honest/liar, violent/peaceful, ...) and clans
+relate to *you* by how well your conduct matches their leanings. The Star Trek
+bridge/scan/derelict layer is the skin, not the bones. North-star: **"the galaxy
+reacts to who you are,"** not "follow the scripted hero." Authoring should make
+that knob-turnable - a peaceful trade-republic galaxy vs. a brutal pirate warzone
+should be a *content* edit, not a code edit.
+
+**The gap.** A universe's configuration is currently **scattered across four
+places**: `clans.amd` (factions), `universes.mast` (registry wiring),
+**Python** (all the tuning), and the `@map/universe` start-screen metadata
+(runtime options). So *playing* a universe is data-driven, but *authoring a new
+one* is still partly a code task - which cuts against the AMD philosophy used
+everywhere else. Concretely, these are hardcoded / not author-exposed today:
+
+- **Reputation & diplomacy tuning** (in `universe_reputation.py` /
+  `universe_clan_quests.py`): tier thresholds (>=20/>=50), reward-multiplier
+  curve, ceasefire-cost formula, per-job rep deltas. No way to author "the
+  pirates forgive quickly but the cult never forgets."
+- **The reputation axes themselves** (`REP_POLES` is a code constant) - can't add
+  a "pious/heretical" axis for a religious universe.
+- **The shape of space**: system-kind distribution, POI-deck weights (loot %,
+  derelict %, outpost %, mine %), clan-territory density, galaxy bounds/size,
+  encounter cadence / fleet sizes - all in the generator/deck, keyed only off
+  Difficulty.
+- **Per-clan bespoke quests** and **hand-placed named systems/POIs** beyond clan
+  homes: "open but not wired."
+- **Narrative**: a file is referenced but not yet a load-bearing content source;
+  there is no framework for universe-level **goals / win-lose** (it's a pure
+  sandbox, so a *campaign* universe has nothing to hang on).
+- **Per-region flavor**: skybox/music are global, not per-clan or per-kind.
+
+**The idea (capstone).** Promote the universe itself to a **first-class authored
+document** - a single `universe.amd` (or a much richer registry entry) that
+describes a world holistically, instead of just pointing at a clans file:
+
+- **Identity:** name, description, skybox/music theme.
+- **Factions:** inline, or a pointer to `clans.amd`.
+- **Generation knobs:** kind weights, POI-deck weights, clan density, bounds/size,
+  encounter cadence.
+- **Reputation rules:** which axes are in play, tier thresholds, per-clan
+  forgiveness/grudge curves.
+- **Narrative & goals:** optional arc hooks, milestones, win/lose conditions.
+
+Right now the *clans* are authorable but the *universe* is not; making the
+universe a single authored document is the missing capstone and would close most
+of the gaps above at once. **[explore]** how much to inline vs. keep as split
+files (clans/narrative), and which tuning is worth exposing first (reputation
+curves + generation weights are the highest-leverage).
+
 ---
 
 ## Persistence additions (all additive to the universe save)
