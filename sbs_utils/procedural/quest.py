@@ -605,10 +605,20 @@ def quest_flatten_list():
 import re
 
 
-def _document_get_amd_file(file_path, root_display_text="", strip_comments=True, content=None, data_parser=None):
+def _amd_slug(text):
+    """A heading display -> a key: lowercase, non-alphanumeric runs -> single '_'."""
+    return "_".join("".join(c if c.isalnum() else " " for c in str(text).lower()).split())
+
+
+def _document_get_amd_file(file_path, root_display_text="", strip_comments=True, content=None, data_parser=None, allow_bare_headings=False):
     toc = {"key": "__root__", "file_path": file_path, "children": [], "description":"", "display_text": root_display_text}
     toc_stack = [toc]
     rule_section = re.compile(r"#+[ \t]+\[(?P<display_text>.*)\]\((?P<urn>.*)\)[ \t]*")
+    # Bare/simplified heading (only when allow_bare_headings): `# Display` or
+    # `# Display (key)`. Default off, so markdown-in-prose files (LM documents/
+    # doc_viewer that use `# Heading` as rendered text) are unaffected.
+    rule_bare = re.compile(r"#+[ \t]+(?P<rest>\S.*?)[ \t]*$")
+    rule_bare_key = re.compile(r"^(?P<display>.*\S)[ \t]+\((?P<key>[\w.\-]+)\)$")
     rule_data = re.compile(r"\s*-{3,}\s*$")
 
     lines = []
@@ -652,32 +662,45 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
         m = rule_section.match(line)
 
         #
-        # Check for
+        # Heading: the `# [Display](key)` form, or (when enabled) a simplified
+        # `# Display` / `# Display (key)`. Build display_text + key + any query
+        # params, then place the section in the nesting stack by heading level.
         #
+        display_text = None
+        key = None
+        query = {}
         if m is not None:
-            level = line.split(None, 1)
-            level = len(level[0])
-
             data = m.groupdict()
             display_text = data.get("display_text")
-            
-            urn = data.get("urn")
-            urn = urn.split("?", 1)
+            urn = data.get("urn").split("?", 1)
             key = urn[0]
-            
-            section = {"key": key, "display_text": display_text, "children": [], "description":"", "state": 0}
-
             if len(urn) == 2:
-                query_string = urn[1].split("&")
-                for kvalue in query_string:
+                for kvalue in urn[1].split("&"):
                     kvalue = kvalue.split("=")
                     if len(kvalue) != 2:
                         raise Exception(f"ERROR: URN invalid line Line {i}\n{line}")
-                    this_key = kvalue[0]
-                    value = kvalue[1]
-                    section[this_key] = value
+                    query[kvalue[0]] = kvalue[1]
             elif len(urn) != 1:
                 raise Exception(f"ERROR: URN invalid line Line {i}\n{line}")
+        elif allow_bare_headings:
+            mb = rule_bare.match(line)
+            if mb is not None:
+                rest = mb.group("rest")
+                mk = rule_bare_key.match(rest)
+                if mk is not None:
+                    display_text = mk.group("display")
+                    key = mk.group("key")
+                else:
+                    display_text = rest
+                    key = _amd_slug(rest)
+
+        if display_text is not None:
+            level = line.split(None, 1)
+            level = len(level[0])
+
+            section = {"key": key, "display_text": display_text, "children": [], "description":"", "state": 0}
+            for qk, qv in query.items():
+                section[qk] = qv
 
             # The root is level 0
             if level == len(toc_stack):
@@ -706,7 +729,7 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
     # fs.save_json_data(file_path+".json", toc)
     return toc
 
-def document_get_amd_file(file_path, root_display_text="", strip_comments=True, content=None, data_parser=None):
+def document_get_amd_file(file_path, root_display_text="", strip_comments=True, content=None, data_parser=None, allow_bare_headings=False):
     """Parse an AMD markdown file into a nested quest/document structure.
 
     AMD files use ``# [Display Name](key)`` headings to define hierarchical
@@ -738,7 +761,7 @@ def document_get_amd_file(file_path, root_display_text="", strip_comments=True, 
         items = document_flatten(doc)
     """
     try:
-        return _document_get_amd_file(file_path, root_display_text, strip_comments, content, data_parser)
+        return _document_get_amd_file(file_path, root_display_text, strip_comments, content, data_parser, allow_bare_headings)
     except Exception as e:
         return {"key": "__root__", "file_path": file_path,
             "children": [], "description":"", "display_text": e}
