@@ -75,6 +75,19 @@ class A2xPropsMockTests(unittest.TestCase):
         self.assertTrue(copy_object_property(self.so, b, "shieldStateFront"))
         self.assertEqual(get_data_set_value(to_id(b), "shield_val", 0), 60)
 
+    def test_set_position_applies_flip(self):
+        # 2.8 positionX=30000 -> Cosmos pos.x = 100000-30000 = 70000; Y unchanged
+        set_object_property(self.so, "positionX", 30000)
+        set_object_property(self.so, "positionY", 12)
+        p = to_object(self.so).engine_object.pos
+        self.assertAlmostEqual(p.x, 70000, delta=1)
+        self.assertAlmostEqual(p.y, 12, delta=1)
+
+    def test_addto_position_negates_on_flipped_axis(self):
+        set_object_property(self.so, "positionZ", 40000)  # -> pos.z = 60000
+        addto_object_property(self.so, "positionZ", 1000)  # 2.8 +1000 -> Cosmos -1000
+        self.assertAlmostEqual(to_object(self.so).engine_object.pos.z, 59000, delta=1)
+
     def test_set_relative_position(self):
         # create_enemy flips coords, so the ref sits at Cosmos (95000,*,95000).
         b = create_enemy(5000, 0, 5000, "kralien_cruiser", name="Ref")

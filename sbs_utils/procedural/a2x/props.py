@@ -9,8 +9,17 @@ Each entry is either ``("engine", attr)`` (an ``engine_object`` attribute) or
 ``("data", key, index)`` (a ``data_set`` slot).
 """
 
-# 2.8 property -> Cosmos target. Only the confirmed mappings live here.
+_MAP_SIZE = 100_000  # 2.8/Cosmos map size; X and Z mirror about it
+
+# 2.8 property -> Cosmos target. Entry forms:
+#   ("engine", attr)        -> engine_object.<attr>
+#   ("data", key, index)    -> data_set slot
+#   ("pos", axis, flip)     -> engine_object.pos.<axis>; flip=True mirrors (X/Z)
 _PROP = {
+    # position -> engine_object.pos with the 2.8->Cosmos coordinate flip (X,Z mirror)
+    "positionX": ("pos", "x", True),
+    "positionY": ("pos", "y", False),
+    "positionZ": ("pos", "z", True),
     # spin rates -> engine_object steering (as the HTBM port does)
     "angleDelta": ("engine", "steer_yaw"),
     "rollDelta": ("engine", "steer_roll"),
@@ -86,6 +95,10 @@ def addto_object_property(obj, prop, value, index=None):
         return False
     if m[0] == "engine":
         setattr(o.engine_object, m[1], (getattr(o.engine_object, m[1], 0) or 0) + value)
+    elif m[0] == "pos":
+        # a 2.8 delta on a mirrored axis is negated in Cosmos space
+        delta = -value if m[2] else value
+        setattr(o.engine_object.pos, m[1], getattr(o.engine_object.pos, m[1]) + delta)
     else:
         idx = m[2] if index is None else index
         o.data_set.set(m[1], (o.data_set.get(m[1], idx) or 0) + value, idx)
@@ -104,6 +117,9 @@ def copy_object_property(src, dst, prop):
         return False
     if m[0] == "engine":
         setattr(do.engine_object, m[1], getattr(so.engine_object, m[1], 0))
+    elif m[0] == "pos":
+        # both already in Cosmos space -> copy the axis directly (no flip)
+        setattr(do.engine_object.pos, m[1], getattr(so.engine_object.pos, m[1]))
     else:
         do.data_set.set(m[1], so.data_set.get(m[1], m[2]), m[2])
     return True
@@ -184,6 +200,8 @@ def set_object_property(obj, prop, value, index=None):
         return False
     if m[0] == "engine":
         setattr(o.engine_object, m[1], value)
+    elif m[0] == "pos":
+        setattr(o.engine_object.pos, m[1], (_MAP_SIZE - value) if m[2] else value)
     else:
         o.data_set.set(m[1], value, m[2] if index is None else index)
     return True
