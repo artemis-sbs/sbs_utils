@@ -9,6 +9,11 @@ Cosmos art only through a curated crosswalk (the migration tool's ``hullmap``). 
 functions take an already-resolved ``art`` key, so ``a2x`` carries no fragile art
 table -- only the small, stable creature map (the re-skin seam) lives here.
 
+All ``create_*`` functions return the spawned object's **ID**, not the object -- an ID
+is a stable grounded handle, whereas an object reference can go stale when the engine
+deletes the object. Pass the ID to the other ``a2x_*`` helpers; they re-validate with
+``to_object(id)`` and no-op safely if the object is gone.
+
 Pickups/anomalies use :func:`create_anomaly`, which maps the 2.8 ``pickupType`` to an
 upgrade key (:func:`pickup_key`) and spawns via the core ``pickup_spawn``
 (``sbs_utils.procedural.items`` -- moved out of LegendaryMissions, so no LM dependency).
@@ -69,8 +74,11 @@ def monster_role(monster_type):
 
 def _spawn_npc(x, y, z, name, side, art, behave):
     from sbs_utils.procedural.spawn import npc_spawn
+    from sbs_utils.procedural.query import to_id
     v = pos(x, y, z)
-    return npc_spawn(v.x, v.y, v.z, name, side, art, behave)
+    # Return the ID, not the object: it's the safe grounded handle (the engine can
+    # delete the object later; callers re-validate with to_object(id)).
+    return to_id(npc_spawn(v.x, v.y, v.z, name, side, art, behave))
 
 
 def create_enemy(x, y, z, art, name=None, side="enemy", behave="behav_npcship"):
@@ -95,10 +103,11 @@ def create_generic(x, y, z, art, name=None, side=None, behave="behav_do_nothing"
 
 
 def create_player(x, y, z, art, name=None, side="tsn"):
-    """2.8 ``create type="player"`` -> a player ship."""
+    """2.8 ``create type="player"`` -> a player ship. Returns the ship ID."""
     from sbs_utils.procedural.spawn import player_spawn
+    from sbs_utils.procedural.query import to_id
     v = pos(x, y, z)
-    return player_spawn(v.x, v.y, v.z, name, side, art)
+    return to_id(player_spawn(v.x, v.y, v.z, name, side, art))
 
 
 def create_monster(x, y, z, monster_type=0, art=None, name=None,
@@ -110,13 +119,12 @@ def create_monster(x, y, z, monster_type=0, art=None, name=None,
     re-skinned in one query when Cosmos ships real creature art.
     """
     from sbs_utils.procedural.roles import add_role
-    from sbs_utils.procedural.query import to_id
 
     if art is None:
         art = monster_art(monster_type)
-    so = _spawn_npc(x, y, z, name, side, art, behave)
-    add_role(to_id(so), monster_role(monster_type))
-    return so
+    sid = _spawn_npc(x, y, z, name, side, art, behave)  # an ID
+    add_role(sid, monster_role(monster_type))
+    return sid
 
 
 def create_anomaly(x, y, z, pickup_type, name=None):
@@ -127,12 +135,13 @@ def create_anomaly(x, y, z, pickup_type, name=None):
     equivalent.
     """
     from sbs_utils.procedural.items import pickup_spawn
+    from sbs_utils.procedural.query import to_id
 
     key = pickup_key(pickup_type)
     if key is None:
         return None
     v = pos(x, y, z)
-    return pickup_spawn(v.x, v.y, v.z, key, name=name)
+    return to_id(pickup_spawn(v.x, v.y, v.z, key, name=name))
 
 
 def destroy(handle):
@@ -181,8 +190,9 @@ def create_black_hole(x, y, z, gravity_radius=10000, gravity_strength=1.0,
                      turbulence_strength=1.0, collision_damage=200):
     """2.8 ``create type="blackHole"`` -> a Cosmos maelstrom terrain object."""
     from sbs_utils.procedural.terrain import terrain_spawn_black_hole
+    from sbs_utils.procedural.query import to_id
     v = pos(x, y, z)
-    return terrain_spawn_black_hole(v.x, v.y, v.z, gravity_radius=gravity_radius,
-                                    gravity_strength=gravity_strength,
-                                    turbulence_strength=turbulence_strength,
-                                    collision_damage=collision_damage)
+    return to_id(terrain_spawn_black_hole(v.x, v.y, v.z, gravity_radius=gravity_radius,
+                                          gravity_strength=gravity_strength,
+                                          turbulence_strength=turbulence_strength,
+                                          collision_damage=collision_damage))

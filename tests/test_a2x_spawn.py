@@ -36,6 +36,13 @@ class A2xSpawnMockTests(unittest.TestCase):
     def setUp(self):
         self.sim = reset_mock(sbs)
 
+    def test_create_returns_id_not_object(self):
+        # creates return a grounded ID (int), not a SpawnData/object
+        sid = create_enemy(50000, 0, 50000, "kralien_cruiser", name="X")
+        self.assertIsInstance(sid, int)
+        self.assertEqual(to_id(sid), sid)               # already an id
+        self.assertIsNotNone(to_object(sid))            # resolves to the object
+
     def test_create_enemy_uses_flipped_coords(self):
         so = create_enemy(98000, 7, 98000, "biomech_a", name="TB1")
         obj = to_object(so)
