@@ -396,17 +396,25 @@ POIs, clans, quests, and react to their reputation.
 - **[decide]** Tuning only: delivery (broadcast vs targeted) and the idle
   cooldown / per-trigger rate limit to avoid spam.
 
-**Delivery surface (DECIDED): info panel, NOT the text waterfall.** Chatter
-currently goes through `comms_broadcast`, which writes to the **text waterfall** -
-ephemeral, no speaker, no history, no interaction. Move it to the **info panel**
-(`gui_info_panel_send_message`) and/or proper comms, using the
-**HereThereBeMonsters interaction pattern** (see its `here_comms_incoming_info_
-message` / `here_receive_info_message` helpers): a message *card* carrying the
-clan's **face/portrait + name + color**, optional **icon/banner**, a short
-auto-dismiss `time`, kept in **history** (up to 9), and - when it should invite a
-response - an optional **button** that suspends for the player's choice. So an
-ambient line reads as a *hail from that clan*, not a log blip, and can escalate
-into interaction.
+**Delivery surface (DONE): info panel, NOT the text waterfall.** Chatter used to
+go through `comms_broadcast` (the **text waterfall** - ephemeral, no speaker, no
+history, no interaction). It now uses the **info panel**
+(`gui_info_panel_send_message`) via `universe_chatter_card` (clan voice:
+name+color+optional face/icon) and `universe_info_card` (non-clan ambient:
+sensors/news), modeled on the **HereThereBeMonsters** `here_*_info_message`
+helpers: a message *card* with the clan's name + color, kept in **history**,
+auto-dismissed; an optional **button** (future) can suspend for a response. An
+ambient line now reads as a *hail from that clan*, not a log blip. Pure mechanical
+status (capture, +credits, job accepted) stays on the waterfall.
+
+**[explore] Promote to sbs_utils.** The HTBM `here_comms_incoming_info_message` /
+`here_receive_info_message` / `here_info_panel_clear_comms` pattern (and our
+`universe_chatter_card` / `universe_info_card`) are **library-grade, not
+mission-specific** - every mission reinvents "incoming comms card." Promote a
+reusable **`comms_info_card(...)` / `comms_info_clear(...)`** into
+`sbs_utils/procedural/comms.py` (thin wrappers over `gui_info_panel_send_message`
+with face/title/color/button/history/auto-dismiss), then have HTBM + the universe
+call the core helper. (User OK'd moving HTBM patterns into the library.)
 
 This makes chatter the **light end of the same "voice" spectrum** as the dialogue
 capstone above: ambient one-liner (info card, face+color, auto-dismiss) ->
@@ -755,6 +763,15 @@ system composition; POI-activation standby. Remaining are **tuning + spikes**:
     raider_fleet agent) is paused; retrieved + resumed the moment a player nears.
     Completes Epic A2 - terrain, self-brained NPCs/POIs, AND fleets all cull
     safely.
+  - DONE: clan **makeup** (Epic C/I) - clans.amd `makeup` sets a clan's race
+    composition (single race / even list / weighted dict); `clan_pick_race`
+    drives all of a clan's fleet spawns (garrison, re-assault, foe systems), so
+    Ashfang flies all-Torgoth, Iron a Kralien/Arvonian mix, etc. No makeup -> the
+    old random pool.
+  - DONE: chatter on the **info panel** not the text waterfall (Epic G) -
+    `universe_chatter_card` / `universe_info_card`; HTBM-style cards
+    (name/color/history/auto-dismiss). [explore] promote a `comms_info_card`
+    helper into sbs_utils (see Epic G note).
 
 > Fixed: universe_jump_to's console loops crashed (`'int' object has no
 > attribute 'client_id'`) when role("console") yielded a raw client id instead
