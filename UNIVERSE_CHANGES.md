@@ -407,14 +407,14 @@ auto-dismissed; an optional **button** (future) can suspend for a response. An
 ambient line now reads as a *hail from that clan*, not a log blip. Pure mechanical
 status (capture, +credits, job accepted) stays on the waterfall.
 
-**[explore] Promote to sbs_utils.** The HTBM `here_comms_incoming_info_message` /
-`here_receive_info_message` / `here_info_panel_clear_comms` pattern (and our
-`universe_chatter_card` / `universe_info_card`) are **library-grade, not
-mission-specific** - every mission reinvents "incoming comms card." Promote a
-reusable **`comms_info_card(...)` / `comms_info_clear(...)`** into
+**Promoted to sbs_utils (DONE).** The HTBM "incoming comms card" pattern is now a
+reusable library helper: **`comms_info_card(...)` / `comms_info_clear(...)`** in
 `sbs_utils/procedural/comms.py` (thin wrappers over `gui_info_panel_send_message`
-with face/title/color/button/history/auto-dismiss), then have HTBM + the universe
-call the core helper. (User OK'd moving HTBM patterns into the library.)
+with title/color/face/icon/banner/button/history/auto-dismiss; `comms_info_card`
+returns an awaitable Promise when a `button` is given). The universe
+`universe_chatter_card` / `universe_info_card` now call it. **[follow-up]** refactor
+HereThereBeMonsters' `here_*_info_message` helpers to call the core helper too, so
+the pattern lives in one place.
 
 This makes chatter the **light end of the same "voice" spectrum** as the dialogue
 capstone above: ambient one-liner (info card, face+color, auto-dismiss) ->

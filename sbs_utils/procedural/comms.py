@@ -11,7 +11,7 @@ from ..mast.mastscheduler import ChangeRuntimeNode
 from ..mast.pollresults import PollResults
 from ..mast.mast_node import MastDataObject
 from ..mast_sbs.story_nodes.button import Button
-from .gui import gui_properties_set
+from .gui import gui_properties_set, gui_info_panel_send_message
 from .signal import signal_emit
 from .science import science_is_unknown
 
@@ -1506,3 +1506,55 @@ def comms_story_buttons(ids, sel_ids, buttons, path, nav_button=None) -> CommsCh
             if get_comms_selection(query.to_id(p)) == query.to_id(s):
                 button_promise.show_buttons()
     return comms_promise
+
+
+def comms_info_card(client_id, message=None, title=None, color=None, face=None,
+                    icon_index=None, banner=None, button=None, time=10,
+                    history=True, path=None):
+    """Send an "incoming comms" card to one or more clients' info panel.
+
+    A reusable wrapper over ``gui_info_panel_send_message`` for narrative / ambient
+    comms that should read as a hail - a speaker name + color (and optional
+    face/icon/banner), kept in the panel's history and auto-dismissed - instead of
+    an ephemeral text-waterfall line. Use this for chatter, hails, and quest
+    hand-offs; keep ``comms_broadcast`` for pure mechanical status text.
+
+    The ``color`` is applied to both the title and the body. If ``button`` is
+    given, the call returns an awaitable ``Promise`` that resolves when a player
+    presses it (so the card can ask for a decision).
+
+    Args:
+        client_id (int | set): Client/console id(s) to receive the card. Commonly
+            ``all_roles("console, comms")`` or a ship's linked comms consoles.
+        message (str, optional): Card body text.
+        title (str, optional): Header line - typically the speaker / clan name.
+        color (str, optional): Color for the title and body (name or hex).
+        face (str, optional): Face/portrait string to show alongside the message.
+        icon_index (int, optional): Icon index to show alongside the message.
+        banner (str, optional): Larger banner text above the title.
+        button (str | list, optional): Button label(s); when set the call returns
+            an awaitable Promise that resolves on press.
+        time (int, optional): Auto-dismiss after this many seconds (when there is
+            no button). Defaults to 10.
+        history (bool, optional): Keep the card in panel history. Defaults to True.
+        path (str, optional): Info-panel tab path. Defaults to ``"message"``.
+
+    Returns:
+        Promise | None: Resolves on button press, or None if no button was given.
+
+    Example:
+        comms_info_card(all_roles("console, comms"),
+            "You're a long way from friends, captain.",
+            title="Ashfang Raiders", color="#ee3333")
+    """
+    return gui_info_panel_send_message(
+        client_id, message, message_color=color, title=title, title_color=color,
+        banner=banner, face=face, icon_index=icon_index, button=button,
+        time=time, history=history, path=path)
+
+
+def comms_info_clear(client_id, path=None):
+    """Clear a client's info-panel comms tab (no message) and fall back to the
+    ship-data tab. Mirrors the HereThereBeMonsters clear-comms idiom."""
+    gui_info_panel_send_message(client_id, path=(path or "message"))
+    gui_info_panel_send_message(client_id, path="ship_data", time=0)
