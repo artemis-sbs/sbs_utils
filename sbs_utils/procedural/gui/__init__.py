@@ -36,8 +36,23 @@ from .console import gui_console, gui_activate_console, gui_console_clients
 from .widgets import gui_update_widget_list, gui_update_widgets, gui_widget_list, gui_widget_list_clear, gui_layout_widget
 
 
-from .screen_shot import gui_screenshot
-from .clipboard import gui_clipboard_copy, gui_clipboard_get, gui_clipboard_put
+# Screenshot + clipboard use the Win32 API (ctypes.WinDLL) at import time, so they
+# only import on Windows. On other platforms (e.g. Linux CI) provide stubs that
+# raise if actually called, so the library still imports everywhere.
+import sys as _sys
+if _sys.platform == "win32":
+    from .screen_shot import gui_screenshot
+    from .clipboard import gui_clipboard_copy, gui_clipboard_get, gui_clipboard_put
+else:
+    def _gui_win_only(_name):
+        def _stub(*args, **kwargs):
+            raise RuntimeError(_name + " is Windows-only (Win32 API)")
+        _stub.__name__ = _name
+        return _stub
+    gui_screenshot = _gui_win_only("gui_screenshot")
+    gui_clipboard_copy = _gui_win_only("gui_clipboard_copy")
+    gui_clipboard_get = _gui_win_only("gui_clipboard_get")
+    gui_clipboard_put = _gui_win_only("gui_clipboard_put")
 from .client_string import gui_request_client_string
 
 from .message import gui_message, gui_message_label, gui_message_callback
