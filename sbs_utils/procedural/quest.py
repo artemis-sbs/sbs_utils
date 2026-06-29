@@ -605,7 +605,7 @@ def quest_flatten_list():
 import re
 
 
-def _document_get_amd_file(file_path, root_display_text="", strip_comments=True, content=None):
+def _document_get_amd_file(file_path, root_display_text="", strip_comments=True, content=None, data_parser=None):
     toc = {"key": "__root__", "file_path": file_path, "children": [], "description":"", "display_text": root_display_text}
     toc_stack = [toc]
     rule_section = re.compile(r"#+[ \t]+\[(?P<display_text>.*)\]\((?P<urn>.*)\)[ \t]*")
@@ -631,7 +631,9 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
         #
         if rule_data.match(line):
             if in_data:
-                parsed = load_yaml_string("".join(data_lines))
+                # Default data format is YAML; a caller may pass data_parser to use a
+                # different fenced-block format (e.g. a friendly Label: value sheet).
+                parsed = (data_parser or load_yaml_string)("".join(data_lines))
                 if isinstance(parsed, dict):
                     section = toc_stack[-1]
                     merged = section.get("data") or {}
@@ -704,7 +706,7 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
     # fs.save_json_data(file_path+".json", toc)
     return toc
 
-def document_get_amd_file(file_path, root_display_text="", strip_comments=True, content=None):
+def document_get_amd_file(file_path, root_display_text="", strip_comments=True, content=None, data_parser=None):
     """Parse an AMD markdown file into a nested quest/document structure.
 
     AMD files use ``# [Display Name](key)`` headings to define hierarchical
@@ -736,7 +738,7 @@ def document_get_amd_file(file_path, root_display_text="", strip_comments=True, 
         items = document_flatten(doc)
     """
     try:
-        return _document_get_amd_file(file_path, root_display_text, strip_comments, content)
+        return _document_get_amd_file(file_path, root_display_text, strip_comments, content, data_parser)
     except Exception as e:
         return {"key": "__root__", "file_path": file_path,
             "children": [], "description":"", "display_text": e}
