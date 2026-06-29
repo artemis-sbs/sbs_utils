@@ -628,8 +628,12 @@ system composition; POI-activation standby. Remaining are **tuning + spikes**:
     station-persistence guard excludes `outpost` so it doesn't nuke the primary),
     and **mine field** (lethal terrain in foe territory). Pure-Python + unit-probed
     for variety/determinism. Archetype flavors outpost art.
-  - TODO: fleet-level culling (pause the fleet agent + park its ships,
-    hangar-style).
+  - DONE: fleet-level culling (`universe_cull_fleets`) - a fleet is parked as a
+    unit: when no player is within the cull radius of ANY of its ships, every ship
+    (linked under "ship_list") goes to standby and the one fleet brain (on the
+    raider_fleet agent) is paused; retrieved + resumed the moment a player nears.
+    Completes Epic A2 - terrain, self-brained NPCs/POIs, AND fleets all cull
+    safely.
 
 > Fixed: universe_jump_to's console loops crashed (`'int' object has no
 > attribute 'client_id'`) when role("console") yielded a raw client id instead
