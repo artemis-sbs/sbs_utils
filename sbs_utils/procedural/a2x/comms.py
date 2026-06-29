@@ -86,6 +86,30 @@ def warning_popup(message, consoles=None, ship=None, title="Warning", time=8):
     comms_info_card(targets, _clean(message), title=title, time=time)
 
 
+def spawn_external_program(name, arguments="", id=None):
+    """2.8 ``spawn_external_program``: launch an external program (non-blocking).
+
+    In 2.8 this was the way to play cutscene videos (it launched a media player like
+    VLC). ``name`` is resolved relative to the mission folder when not absolute, as in
+    2.8. Best-effort: the 2.8 program paths (e.g. ``dat/VLCPortable/...``) won't exist
+    under Cosmos, so update the path -- a failed launch is logged, not fatal. Returns
+    the ``Popen`` handle, or ``None`` on failure.
+    """
+    import os
+    import shlex
+    import subprocess
+    from sbs_utils.fs import get_mission_dir_filename
+    from sbs_utils.procedural.execution import log
+
+    path = name if os.path.isabs(name) else get_mission_dir_filename(name)
+    args = shlex.split(arguments) if arguments else []
+    try:
+        return subprocess.Popen([path, *args])
+    except Exception as exc:  # noqa: BLE001 -- a missing player must not crash the mission
+        log(f"a2x spawn_external_program failed ({name}): {exc}")
+        return None
+
+
 def incoming_message(from_name, filename, to=None):
     """2.8 ``incoming_message`` (a comms button that plays an ogg) -> play the audio.
 
