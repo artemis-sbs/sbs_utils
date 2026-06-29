@@ -53,6 +53,39 @@ def object_property_key(prop):
     return (m[1], m[2]) if m and m[0] == "data" else None
 
 
+# 2.8 set_special ability -> Cosmos elite_* data_set flag. Only the abilities with a
+# Cosmos equivalent are here; combat abilities (Cloak, HET, Warp, Teleport, Tractor,
+# ShldDrain, ShldVamp) have no elite_* key and stay unmapped.
+_ELITE_ABILITY = {
+    "Stealth": "elite_main_scn_invis",   # invisible to main-screen 2d radar
+    "LowVis": "elite_low_vis",           # restricted 2d radar visibility
+    "Drones": "elite_drone_launcher",
+    "AntiMine": "elite_anti_mine",
+    "AntiTorp": "elite_anti_torpedo",
+}
+
+
+def special_ability_mapped(ability):
+    """True if a 2.8 set_special ability maps to a Cosmos elite flag."""
+    return ability in _ELITE_ABILITY
+
+
+def set_special(obj, ability=None, on=True):
+    """2.8 ``set_special`` ability -> the matching Cosmos ``elite_*`` data_set flag.
+
+    Returns the data_set key set, or ``None`` if the ability has no Cosmos
+    equivalent. ``on=False`` (2.8 ``clear``) turns the flag off.
+    """
+    key = _ELITE_ABILITY.get(ability)
+    if key is None:
+        return None
+    from sbs_utils.procedural.query import to_object
+    o = to_object(obj)
+    if o is not None:
+        o.data_set.set(key, 1 if on else 0, 0)
+    return key
+
+
 def set_object_property(obj, prop, value, index=None):
     """Set a 2.8-named property on ``obj`` (id / object / a2x_create_* handle).
 
