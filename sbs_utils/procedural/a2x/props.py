@@ -53,6 +53,68 @@ def object_property_key(prop):
     return (m[1], m[2]) if m and m[0] == "data" else None
 
 
+def addto_object_property(obj, prop, value, index=None):
+    """2.8 ``addto_object_property``: add ``value`` to a mapped property's current value."""
+    from sbs_utils.procedural.query import to_object
+
+    m = _PROP.get(prop)
+    if m is None:
+        return False
+    o = to_object(obj)
+    if o is None:
+        return False
+    if m[0] == "engine":
+        setattr(o.engine_object, m[1], (getattr(o.engine_object, m[1], 0) or 0) + value)
+    else:
+        idx = m[2] if index is None else index
+        o.data_set.set(m[1], (o.data_set.get(m[1], idx) or 0) + value, idx)
+    return True
+
+
+def copy_object_property(src, dst, prop):
+    """2.8 ``copy_object_property``: copy a mapped property from ``src`` to ``dst``."""
+    from sbs_utils.procedural.query import to_object
+
+    m = _PROP.get(prop)
+    if m is None:
+        return False
+    so, do = to_object(src), to_object(dst)
+    if so is None or do is None:
+        return False
+    if m[0] == "engine":
+        setattr(do.engine_object, m[1], getattr(so.engine_object, m[1], 0))
+    else:
+        do.data_set.set(m[1], so.data_set.get(m[1], m[2]), m[2])
+    return True
+
+
+# 2.8 set_ship_text field -> Cosmos data_set scan-text key.
+_SHIP_TEXT = {
+    "name": "name_tag", "race": "hull_origin", "ship_class": "hull_name",
+    "desc": "long_description",
+}
+
+
+def set_ship_text(obj, name=None, race=None, ship_class=None, desc=None,
+                 scan_desc=None, hail=None):
+    """2.8 ``set_ship_text``: set scan / name text on a ship.
+
+    ``name``/``race``/``ship_class``/``desc`` map to ``name_tag`` / ``hull_origin`` /
+    ``hull_name`` / ``long_description``. ``scan_desc`` and ``hail`` have no direct
+    Cosmos data_set key and are ignored here (handle via science/comms if needed).
+    """
+    from sbs_utils.procedural.query import to_object
+
+    o = to_object(obj)
+    if o is None:
+        return False
+    for field, val in (("name", name), ("race", race),
+                       ("ship_class", ship_class), ("desc", desc)):
+        if val is not None:
+            o.data_set.set(_SHIP_TEXT[field], val, 0)
+    return True
+
+
 # 2.8 set_special ability -> Cosmos elite_* data_set flag. Only the abilities with a
 # Cosmos equivalent are here; combat abilities (Cloak, HET, Warp, Teleport, Tractor,
 # ShldDrain, ShldVamp) have no elite_* key and stay unmapped.

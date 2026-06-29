@@ -9,6 +9,7 @@ from tests.reset_helper import reset_mock
 from sbs_utils.procedural.a2x.props import (
     set_object_property, object_property_mapped, object_property_key,
     set_special, special_ability_mapped,
+    addto_object_property, copy_object_property, set_ship_text,
 )
 from sbs_utils.procedural.a2x.spawn import create_enemy
 from sbs_utils.procedural.query import to_object, get_data_set_value, to_id
@@ -61,6 +62,23 @@ class A2xPropsMockTests(unittest.TestCase):
     def test_set_special_unmapped_ability(self):
         self.assertIsNone(set_special(self.so, "Cloak"))
         self.assertFalse(special_ability_mapped("HET"))
+
+    def test_addto_object_property(self):
+        set_object_property(self.so, "energy", 100)
+        self.assertTrue(addto_object_property(self.so, "energy", 50))
+        self.assertEqual(get_data_set_value(to_id(self.so), "energy"), 150)
+
+    def test_copy_object_property(self):
+        b = create_enemy(0, 0, 0, "kralien_cruiser", name="Y")
+        set_object_property(self.so, "shieldStateFront", 60)
+        self.assertTrue(copy_object_property(self.so, b, "shieldStateFront"))
+        self.assertEqual(get_data_set_value(to_id(b), "shield_val", 0), 60)
+
+    def test_set_ship_text(self):
+        self.assertTrue(set_ship_text(self.so, name="Ghost", race="Kralien",
+                                      ship_class="Cruiser"))
+        self.assertEqual(get_data_set_value(to_id(self.so), "name_tag"), "Ghost")
+        self.assertEqual(get_data_set_value(to_id(self.so), "hull_name"), "Cruiser")
 
 
 if __name__ == "__main__":
