@@ -10,7 +10,7 @@ from sbs_utils.procedural.a2x.props import (
     set_object_property, object_property_mapped, object_property_key,
     set_special, special_ability_mapped,
     addto_object_property, copy_object_property, set_ship_text,
-    set_relative_position, set_fleet_coeff, fleet_coeff_mapped,
+    set_relative_position, set_fleet_coeff, fleet_coeff_mapped, set_side_value,
 )
 from sbs_utils.procedural.a2x.spawn import create_enemy
 from sbs_utils.procedural.query import to_object, get_data_set_value, to_id
@@ -84,6 +84,13 @@ class A2xPropsMockTests(unittest.TestCase):
 
     def test_fleet_coeff_unknown(self):
         self.assertEqual(set_fleet_coeff("notAThing", 100), -1)
+
+    def test_set_side_value(self):
+        # self.so was created as side "enemy"; sideValue 2 -> "friendly"
+        self.assertTrue(set_side_value(self.so, 2))
+        self.assertEqual(to_object(self.so).side, "friendly")
+        set_side_value(self.so, 1)
+        self.assertEqual(to_object(self.so).side, "enemy")
 
     def test_set_position_applies_flip(self):
         # 2.8 positionX=30000 -> Cosmos pos.x = 100000-30000 = 70000; Y unchanged

@@ -88,6 +88,34 @@ def set_fleet_coeff(which, value):
     return n
 
 
+# 2.8 sideValue -> Cosmos side key (0=no side, 1=enemy, 2+=player side).
+_SIDE_VALUE = {0: "neutral", 1: "enemy", 2: "friendly"}
+
+
+def set_side_value(obj, value):
+    """2.8 ``set_side_value``: reassign an object's Cosmos side.
+
+    1 -> "enemy", 2(+) -> "friendly", 0 -> "neutral". Swaps the side role (so
+    ``role(side)`` queries stay correct) and sets ``.side``; does not require the side
+    to be a registered side entity.
+    """
+    from sbs_utils.procedural.roles import add_role, remove_role
+    from sbs_utils.procedural.query import to_object, to_id
+
+    o = to_object(obj)
+    if o is None:
+        return False
+    v = int(value)
+    new_side = _SIDE_VALUE.get(v, "friendly" if v >= 2 else "neutral")
+    oid = to_id(obj)
+    old = o.side
+    if old and old != new_side:
+        remove_role(oid, old)
+    add_role(oid, new_side)
+    o.side = new_side
+    return True
+
+
 def object_property_mapped(prop):
     """True if this 2.8 property has a confirmed Cosmos mapping."""
     return prop in _PROP

@@ -8,7 +8,7 @@ import cosmos_dev.mock.sbs as sbs
 from tests.reset_helper import reset_mock
 from sbs_utils.procedural.a2x.spawn import (
     pickup_key, monster_art, monster_role, create_enemy, create_monster,
-    create_anomaly, destroy,
+    create_anomaly, destroy, destroy_near,
 )
 from sbs_utils.procedural.query import to_object, to_id
 from sbs_utils.procedural.roles import has_role
@@ -57,6 +57,14 @@ class A2xSpawnMockTests(unittest.TestCase):
 
     def test_destroy_missing_returns_false(self):
         self.assertFalse(destroy(123456789))
+
+    def test_destroy_near_point(self):
+        # center (50000) is a fixed point under the coordinate flip
+        create_enemy(50000, 0, 50000, "kralien_cruiser", name="A")
+        create_enemy(50000, 100, 50000, "kralien_cruiser", name="B")
+        create_enemy(0, 0, 0, "kralien_cruiser", name="Far")
+        n = destroy_near(50000, 0, 50000, 5000, "all")
+        self.assertGreaterEqual(n, 2)  # A and B in range; Far is not
 
     def test_create_anomaly_spawns_via_core_pickup(self):
         # No item/ labels registered, so art falls back to placeholder, but the

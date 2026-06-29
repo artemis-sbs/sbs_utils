@@ -150,6 +150,33 @@ def destroy(handle):
     return False
 
 
+# 2.8 destroy_near type -> Cosmos role.
+_NEAR_ROLE = {
+    "nebulas": "nebula", "asteroids": "asteroid", "mines": "mine",
+    "whales": "creature_whale", "drones": "drone",
+}
+
+
+def destroy_near(x, y, z, radius, kind="all"):
+    """2.8 ``destroy_near``: delete unnamed objects of ``kind`` within ``radius`` of a
+    point. ``kind`` is a 2.8 type (nebulas/asteroids/mines/whales/drones/all). The
+    point is given in 2.8 coords and flipped internally. Returns the count deleted.
+    """
+    from sbs_utils.procedural.space_objects import closest_list
+    from sbs_utils.procedural.roles import role
+    from sbs_utils.procedural.query import to_object
+
+    c = pos(x, y, z)
+    the_set = role(_NEAR_ROLE[kind]) if kind in _NEAR_ROLE else role("__SPACE_OBJECT__")
+    n = 0
+    for cd in closest_list(c, the_set, max_dist=radius):
+        o = to_object(cd)
+        if o is not None:
+            o.delete_object()
+            n += 1
+    return n
+
+
 def create_black_hole(x, y, z, gravity_radius=10000, gravity_strength=1.0,
                      turbulence_strength=1.0, collision_damage=200):
     """2.8 ``create type="blackHole"`` -> a Cosmos maelstrom terrain object."""
