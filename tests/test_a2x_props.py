@@ -60,9 +60,19 @@ class A2xPropsMockTests(unittest.TestCase):
         set_special(self.so, "Drones", on=False)
         self.assertEqual(get_data_set_value(to_id(self.so), "elite_drone_launcher"), 0)
 
-    def test_set_special_unmapped_ability(self):
-        self.assertIsNone(set_special(self.so, "Cloak"))
-        self.assertFalse(special_ability_mapped("HET"))
+    def test_set_special_scripted_ability_adds_role(self):
+        # Cloak is a scripted LM ability -> adds the elite/cloak role
+        from sbs_utils.procedural.roles import has_role
+        self.assertEqual(set_special(self.so, "Cloak"), "elite/cloak")
+        self.assertTrue(has_role(to_id(self.so), "elite/cloak"))
+        self.assertTrue(special_ability_mapped("HET"))
+
+    def test_set_special_engine_ability_sets_flag(self):
+        self.assertEqual(set_special(self.so, "LowVis"), "elite_low_vis")
+        self.assertEqual(get_data_set_value(to_id(self.so), "elite_low_vis"), 1)
+
+    def test_set_special_unknown_ability(self):
+        self.assertIsNone(set_special(self.so, "NotAnAbility"))
 
     def test_addto_object_property(self):
         set_object_property(self.so, "energy", 100)

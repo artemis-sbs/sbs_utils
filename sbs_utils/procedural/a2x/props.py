@@ -220,36 +220,64 @@ def set_ship_text(obj, name=None, race=None, ship_class=None, desc=None,
     return True
 
 
-# 2.8 set_special ability -> Cosmos elite_* data_set flag. Only the abilities with a
-# Cosmos equivalent are here; combat abilities (Cloak, HET, Warp, Teleport, Tractor,
-# ShldDrain, ShldVamp) have no elite_* key and stay unmapped.
-_ELITE_ABILITY = {
+# 2.8 set_special ability -> Cosmos LegendaryMissions elite-ability key. Five are
+# engine "blob flag" abilities (a data_set value); the rest are scripted in the LM
+# fleets addon (a role + the handle_elite_abilities task drives them).
+_ELITE_ENGINE = {
     "Stealth": "elite_main_scn_invis",   # invisible to main-screen 2d radar
     "LowVis": "elite_low_vis",           # restricted 2d radar visibility
     "Drones": "elite_drone_launcher",
     "AntiMine": "elite_anti_mine",
     "AntiTorp": "elite_anti_torpedo",
 }
+_ELITE_SCRIPT = {
+    "Cloak": "elite/cloak",
+    "HET": "elite/eft",
+    "Warp": "elite/warp",
+    "Teleport": "elite/jump/forward",
+    "TeleBack": "elite/jump/back",
+    "Tractor": "elite/tractor",
+    "ShldDrain": "elite/shield_drain",
+    "ShldVamp": "elite/shield_vamp",
+    "ShldReset": "elite/shield_scramble",
+}
+_ELITE_ABILITY = {**_ELITE_ENGINE, **_ELITE_SCRIPT}
 
 
 def special_ability_mapped(ability):
-    """True if a 2.8 set_special ability maps to a Cosmos elite flag."""
+    """True if a 2.8 set_special ability maps to a Cosmos elite ability."""
     return ability in _ELITE_ABILITY
 
 
 def set_special(obj, ability=None, on=True):
-    """2.8 ``set_special`` ability -> the matching Cosmos ``elite_*`` data_set flag.
+    """2.8 ``set_special`` ability -> a Cosmos LegendaryMissions elite ability.
 
-    Returns the data_set key set, or ``None`` if the ability has no Cosmos
-    equivalent. ``on=False`` (2.8 ``clear``) turns the flag off.
+    Engine abilities set the ``elite_*`` data_set flag; scripted abilities (cloak,
+    warp, teleport, tractor, shield drain/vamp/scramble, eft) are attached by adding
+    the ability role and scheduling ``handle_elite_abilities`` (the LM fleets addon
+    driver). ``on=False`` (2.8 ``clear``) removes it. Returns the ability key, or
+    ``None`` if unknown.
     """
     key = _ELITE_ABILITY.get(ability)
     if key is None:
         return None
-    from sbs_utils.procedural.query import to_object
-    o = to_object(obj)
-    if o is not None:
-        o.data_set.set(key, 1 if on else 0, 0)
+    from sbs_utils.procedural.roles import add_role, remove_role
+    from sbs_utils.procedural.query import to_id, to_object, set_data_set_value
+    from sbs_utils.procedural.execution import task_schedule
+
+    if to_object(obj) is None:
+        return None
+    oid = to_id(obj)
+    engine = key in _ELITE_ENGINE.values()
+    if on:
+        if engine:
+            set_data_set_value(oid, key, 1)
+        add_role(oid, key)
+        task_schedule("handle_elite_abilities", {"ELITE_ID": oid})
+    else:
+        if engine:
+            set_data_set_value(oid, key, 0)
+        remove_role(oid, key)
     return key
 
 
