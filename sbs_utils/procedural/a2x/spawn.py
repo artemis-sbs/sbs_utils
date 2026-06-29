@@ -12,7 +12,7 @@ table -- only the small, stable creature map (the re-skin seam) lives here.
 All ``create_*`` functions return the spawned object's **ID**, not the object -- an ID
 is a stable grounded handle, whereas an object reference can go stale when the engine
 deletes the object. Pass the ID to the other ``a2x_*`` helpers; they re-validate with
-``to_object(id)`` and no-op safely if the object is gone.
+``to_space_object(id)`` and no-op safely if the object is gone.
 
 Pickups/anomalies use :func:`create_anomaly`, which maps the 2.8 ``pickupType`` to an
 upgrade key (:func:`pickup_key`) and spawns via the core ``pickup_spawn``
@@ -77,7 +77,7 @@ def _spawn_npc(x, y, z, name, side, art, behave):
     from sbs_utils.procedural.query import to_id
     v = pos(x, y, z)
     # Return the ID, not the object: it's the safe grounded handle (the engine can
-    # delete the object later; callers re-validate with to_object(id)).
+    # delete the object later; callers re-validate with to_space_object(id)).
     return to_id(npc_spawn(v.x, v.y, v.z, name, side, art, behave))
 
 
@@ -150,9 +150,9 @@ def destroy(handle):
     ``handle`` may be an id, object, or the value returned by an a2x_create_*.
     Returns True if an object was deleted.
     """
-    from sbs_utils.procedural.query import to_object
+    from sbs_utils.procedural.query import to_space_object
 
-    o = to_object(handle)
+    o = to_space_object(handle)
     if o is not None:
         o.delete_object()
         return True
@@ -173,13 +173,13 @@ def destroy_near(x, y, z, radius, kind="all"):
     """
     from sbs_utils.procedural.space_objects import closest_list
     from sbs_utils.procedural.roles import role
-    from sbs_utils.procedural.query import to_object
+    from sbs_utils.procedural.query import to_space_object
 
     c = pos(x, y, z)
     the_set = role(_NEAR_ROLE[kind]) if kind in _NEAR_ROLE else role("__SPACE_OBJECT__")
     n = 0
     for cd in closest_list(c, the_set, max_dist=radius):
-        o = to_object(cd)
+        o = to_space_object(cd)
         if o is not None:
             o.delete_object()
             n += 1

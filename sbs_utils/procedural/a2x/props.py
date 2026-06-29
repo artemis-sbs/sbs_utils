@@ -78,10 +78,10 @@ def set_fleet_coeff(which, value):
     role_name, keys = spec
     coeff = value / 100.0
     from sbs_utils.procedural.roles import role
-    from sbs_utils.procedural.query import to_object_list
+    from sbs_utils.procedural.query import to_space_object_list
 
     n = 0
-    for o in to_object_list(role(role_name)):
+    for o in to_space_object_list(role(role_name)):
         for k in keys:
             o.data_set.set(k, coeff, 0)
         n += 1
@@ -100,9 +100,9 @@ def set_side_value(obj, value):
     to be a registered side entity.
     """
     from sbs_utils.procedural.roles import add_role, remove_role
-    from sbs_utils.procedural.query import to_object, to_id
+    from sbs_utils.procedural.query import to_space_object, to_id
 
-    o = to_object(obj)
+    o = to_space_object(obj)
     if o is None:
         return False
     v = int(value)
@@ -138,9 +138,9 @@ def set_relative_position(obj, ref, angle, distance):
     left as a refinement. Returns True if both objects resolved.
     """
     import math
-    from sbs_utils.procedural.query import to_object
+    from sbs_utils.procedural.query import to_space_object
 
-    o, r = to_object(obj), to_object(ref)
+    o, r = to_space_object(obj), to_space_object(ref)
     if o is None or r is None:
         return False
     rp = r.engine_object.pos
@@ -153,12 +153,12 @@ def set_relative_position(obj, ref, angle, distance):
 
 def addto_object_property(obj, prop, value, index=None):
     """2.8 ``addto_object_property``: add ``value`` to a mapped property's current value."""
-    from sbs_utils.procedural.query import to_object
+    from sbs_utils.procedural.query import to_space_object
 
     m = _PROP.get(prop)
     if m is None:
         return False
-    o = to_object(obj)
+    o = to_space_object(obj)
     if o is None:
         return False
     if m[0] == "engine":
@@ -175,12 +175,12 @@ def addto_object_property(obj, prop, value, index=None):
 
 def copy_object_property(src, dst, prop):
     """2.8 ``copy_object_property``: copy a mapped property from ``src`` to ``dst``."""
-    from sbs_utils.procedural.query import to_object
+    from sbs_utils.procedural.query import to_space_object
 
     m = _PROP.get(prop)
     if m is None:
         return False
-    so, do = to_object(src), to_object(dst)
+    so, do = to_space_object(src), to_space_object(dst)
     if so is None or do is None:
         return False
     if m[0] == "engine":
@@ -208,9 +208,9 @@ def set_ship_text(obj, name=None, race=None, ship_class=None, desc=None,
     ``hull_name`` / ``long_description``. ``scan_desc`` and ``hail`` have no direct
     Cosmos data_set key and are ignored here (handle via science/comms if needed).
     """
-    from sbs_utils.procedural.query import to_object
+    from sbs_utils.procedural.query import to_space_object
 
-    o = to_object(obj)
+    o = to_space_object(obj)
     if o is None:
         return False
     for field, val in (("name", name), ("race", race),
@@ -262,10 +262,10 @@ def set_special(obj, ability=None, on=True):
     if key is None:
         return None
     from sbs_utils.procedural.roles import add_role, remove_role
-    from sbs_utils.procedural.query import to_id, to_object, set_data_set_value
+    from sbs_utils.procedural.query import to_id, to_space_object, set_data_set_value
     from sbs_utils.procedural.execution import task_schedule
 
-    if to_object(obj) is None:
+    if to_space_object(obj) is None:
         return None
     oid = to_id(obj)
     engine = key in _ELITE_ENGINE.values()
@@ -286,12 +286,12 @@ def set_object_property(obj, prop, value, index=None):
 
     Returns True if the property was mapped and set, False if it has no mapping.
     """
-    from sbs_utils.procedural.query import to_object
+    from sbs_utils.procedural.query import to_space_object
 
     m = _PROP.get(prop)
     if m is None:
         return False
-    o = to_object(obj)
+    o = to_space_object(obj)
     if o is None:
         return False
     if m[0] == "engine":

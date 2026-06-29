@@ -31,9 +31,9 @@ def in_box(obj, least_x, least_z, most_x, most_z, inside=True):
     mirror), so the test is correct in Cosmos space. Returns ``inside`` semantics
     by default; pass ``inside=False`` for the outside test.
     """
-    from sbs_utils.procedural.query import to_object
+    from sbs_utils.procedural.query import to_space_object
 
-    o = to_object(obj)
+    o = to_space_object(obj)
     if o is None:
         return not inside
     p = o.engine_object.pos
