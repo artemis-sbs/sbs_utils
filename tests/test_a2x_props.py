@@ -10,6 +10,7 @@ from sbs_utils.procedural.a2x.props import (
     set_object_property, object_property_mapped, object_property_key,
     set_special, special_ability_mapped,
     addto_object_property, copy_object_property, set_ship_text,
+    set_relative_position,
 )
 from sbs_utils.procedural.a2x.spawn import create_enemy
 from sbs_utils.procedural.query import to_object, get_data_set_value, to_id
@@ -73,6 +74,15 @@ class A2xPropsMockTests(unittest.TestCase):
         set_object_property(self.so, "shieldStateFront", 60)
         self.assertTrue(copy_object_property(self.so, b, "shieldStateFront"))
         self.assertEqual(get_data_set_value(to_id(b), "shield_val", 0), 60)
+
+    def test_set_relative_position(self):
+        # create_enemy flips coords, so the ref sits at Cosmos (95000,*,95000).
+        b = create_enemy(5000, 0, 5000, "kralien_cruiser", name="Ref")
+        rp = to_object(b).engine_object.pos
+        self.assertTrue(set_relative_position(self.so, b, 90, 1000))
+        p = to_object(self.so).engine_object.pos
+        self.assertAlmostEqual(p.x, rp.x + 1000, delta=1)  # 90deg -> +x
+        self.assertAlmostEqual(p.z, rp.z, delta=1)
 
     def test_set_ship_text(self):
         self.assertTrue(set_ship_text(self.so, name="Ghost", race="Kralien",

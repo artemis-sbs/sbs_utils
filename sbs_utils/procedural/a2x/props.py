@@ -53,6 +53,27 @@ def object_property_key(prop):
     return (m[1], m[2]) if m and m[0] == "data" else None
 
 
+def set_relative_position(obj, ref, angle, distance):
+    """2.8 ``set_relative_position``: move ``obj`` to a point ``distance`` from ``ref``
+    at ``angle`` degrees (XZ plane).
+
+    Approximate: ``angle`` is applied in world XZ; the 2.8 heading-relative nuance is
+    left as a refinement. Returns True if both objects resolved.
+    """
+    import math
+    from sbs_utils.procedural.query import to_object
+
+    o, r = to_object(obj), to_object(ref)
+    if o is None or r is None:
+        return False
+    rp = r.engine_object.pos
+    rad = math.radians(float(angle))
+    o.engine_object.pos.x = rp.x + float(distance) * math.sin(rad)
+    o.engine_object.pos.y = rp.y
+    o.engine_object.pos.z = rp.z + float(distance) * math.cos(rad)
+    return True
+
+
 def addto_object_property(obj, prop, value, index=None):
     """2.8 ``addto_object_property``: add ``value`` to a mapped property's current value."""
     from sbs_utils.procedural.query import to_object
