@@ -1,0 +1,21 @@
+# cosmos_devqueue - dev command-queue consumer (opt-in via story.json mastlib).
+#
+# Schedules a server-side poll loop that drains dev_queue.in.json and writes
+# results to dev_queue.out.json (see dev_queue.py). Gated on COSMOS_DEV_QUEUE so
+# it is completely inert in normal play even when the mastlib is loaded.
+#
+# The loop yields every tick (await delay_sim(0)) - polling is non-blocking. A
+# queued command runs inline on the engine tick, so keep commands quick or have
+# them task_schedule heavier work.
+
+default shared COSMOS_DEV_QUEUE_STARTED = False
+
+if dev_queue_enabled() and not COSMOS_DEV_QUEUE_STARTED:
+    COSMOS_DEV_QUEUE_STARTED = True
+    task_schedule(dev_queue_server_loop)
+
+=== dev_queue_server_loop
+--- loop
+    await delay_sim(0)
+    dev_queue_tick()
+    jump loop
