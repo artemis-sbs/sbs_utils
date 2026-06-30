@@ -1,5 +1,26 @@
+import os
+import json
 import random
 from ..fs import load_json_data, get_mission_dir_filename, load_yaml_data
+
+
+def _runtime_settings_override():
+    """Settings overrides supplied at runtime via the ``COSMOS_SETTINGS`` env var
+    (a JSON object), highest priority and requiring no ``settings.yaml`` edit.
+
+    Used by tooling such as ``sbs debug --set AUTO_START=true``. Top-level keys
+    replace the file/built-in values (e.g. ``{"AUTO_PLAY": {"enable": true}}``
+    replaces the whole AUTO_PLAY entry).
+    """
+    raw = os.environ.get("COSMOS_SETTINGS")
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return None
+    return data if isinstance(data, dict) else None
+
 
 setting_defaults = None
 def settings_get_defaults():
@@ -102,6 +123,11 @@ def settings_get_defaults():
         setup_data = load_json_data(get_mission_dir_filename("setup.json"))
     if setup_data is not None:
         setting_defaults = setting_defaults | setup_data
+    # Runtime overrides (e.g. `sbs debug --set ...`) win over the file/built-ins
+    # without editing settings.yaml.
+    override = _runtime_settings_override()
+    if override is not None:
+        setting_defaults = setting_defaults | override
     return setting_defaults
 
 
