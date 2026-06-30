@@ -89,7 +89,19 @@ class EngineDriver:
         return sj
 
     # --- lifecycle -----------------------------------------------------------
+    @staticmethod
+    def stop_engines():
+        """Kill any running engine. The server port (serverNetworkPort in
+        preferences.json, default 2023) is fixed, so a second instance collides
+        with the first - always stop before launching."""
+        for exe in ("Artemis3-x64-release.exe", "Artemis3-x64-debug.exe"):
+            subprocess.run(["taskkill", "/f", "/im", exe],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(2)   # let the OS release the port
+
     def launch(self, extra_env=None):
+        # The fixed server port means stacked instances conflict - stop first.
+        self.stop_engines()
         for p in (self.in_path, self.out_path):
             try:
                 os.remove(p)
