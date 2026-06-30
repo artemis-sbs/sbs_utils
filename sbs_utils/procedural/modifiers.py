@@ -9,7 +9,6 @@ from sbs_utils.procedural.sides import to_side_id, side_members_set
 from sbs_utils.procedural.roles import has_role
 from sbs_utils.procedural.timers import awaitable, delay_sim, set_timer, is_timer_finished, get_time_remaining, format_time_remaining
 
-from sbs_utils.procedural.execution import AWAIT, get_variable, set_variable, task_schedule, task_schedule
 from sbs_utils.mast.label import label
 
 from sbs_utils.agent import Agent, get_story_id
