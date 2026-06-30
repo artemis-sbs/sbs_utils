@@ -1,6 +1,19 @@
 # Changelog
 
 
+## 1.4.0
+
+### LegendaryMissions (core addons)
+
+- hangar_crafts.yaml reworked as deltas over shipData hulls: each loadout is a
+  shipData `key` + `type` + a list of default `upgrades`, instead of restating
+  roles/name/shields/ammo. Craft name and roles now derive from shipData.
+- hangar craft loadouts applied through the item/upgrade system: new
+  `item/loadout/*` prefab items (cockpit_shields, torp_bay) in hangar_loadout.mast,
+  resolved by key and applied with upgrade_add at spawn. Ammo is additive on top
+  of the hull's torpedostart; shields scale via a multiplier modifier.
+
+
 ## 1.3.0
 
 ### LegendaryMissions (core addons)
