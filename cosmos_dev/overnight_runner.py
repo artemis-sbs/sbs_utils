@@ -38,9 +38,13 @@ import threading
 import time
 from datetime import datetime, timedelta
 
-# Repo root = the folder containing the cosmos_dev package; used as the child's cwd
-# so `-m cosmos_dev.mission_runner` resolves no matter where this is launched from.
+# Repo root = the folder containing the cosmos_dev package; used as the child's
+# cwd so `-m cosmos_dev.mission_runner` resolves in dev (source) runs. When
+# cosmos_dev runs from an .sbslib zip this resolves to the zip FILE (not a
+# directory), which is an invalid cwd -- in that case the COSMOS_DEV_LIBS
+# bootstrap makes the child import cosmos_dev anyway, so inherit the cwd (None).
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_CHILD_CWD = _REPO_ROOT if os.path.isdir(_REPO_ROOT) else None
 
 _RUN_MARKER = "run_next_mission ->"     # mission_runner logs this on every cycle
 # mission_runner's _log_exc prints "[runner] <prefix> error: ..." then a traceback;
@@ -226,7 +230,7 @@ def main() -> int:
             env = dict(os.environ)
             env["PYTHONUNBUFFERED"] = "1"
             proc = subprocess.Popen(
-                cmd, cwd=_REPO_ROOT, env=env,
+                cmd, cwd=_CHILD_CWD, env=env,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, bufsize=1)
 
