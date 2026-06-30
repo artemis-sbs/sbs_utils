@@ -4,9 +4,10 @@
 # results to dev_queue.out.json (see dev_queue.py). Gated on COSMOS_DEV_QUEUE so
 # it is completely inert in normal play even when the mastlib is loaded.
 #
-# The loop yields every tick (await delay_sim(0)) - polling is non-blocking. A
-# queued command runs inline on the engine tick, so keep commands quick or have
-# them task_schedule heavier work.
+# The loop polls on wall-clock time (await delay_app) - NOT delay_sim - so it
+# keeps draining the queue even while the sim is paused (e.g. at the map-select
+# lobby, before a map is started). Polling is non-blocking; a queued command
+# runs inline, so keep commands quick or have them task_schedule heavier work.
 
 default shared COSMOS_DEV_QUEUE_STARTED = False
 
@@ -16,6 +17,6 @@ if dev_queue_enabled() and not COSMOS_DEV_QUEUE_STARTED:
 
 === dev_queue_server_loop
 --- loop
-    await delay_sim(0)
+    await delay_app(0.05)
     dev_queue_tick()
     jump loop
