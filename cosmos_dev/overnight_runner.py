@@ -110,8 +110,26 @@ def _reader(stdout, q: "queue.Queue") -> None:
         q.put(None)     # EOF sentinel -> child exited
 
 
+# Bootstrap used to launch child processes on PYTHONPATH-deaf embedded Python
+# (PyRuntime ships a python._pth that makes the interpreter ignore PYTHONPATH).
+# The lib paths arrive via the COSMOS_DEV_LIBS env var (os.environ is still
+# honored) and are injected into sys.path before running the module. Used when a
+# parent (e.g. `sbs overnight`) set COSMOS_DEV_LIBS; otherwise fall back to -m
+# (dev runs where cosmos_dev is importable from the cwd).
+_BOOT = (
+    "import sys,os,runpy;"
+    "L=os.environ.get('COSMOS_DEV_LIBS','');"
+    "sys.path[:0]=[p for p in L.split(os.pathsep) if p];"
+    "m=sys.argv[1];sys.argv=[m]+sys.argv[2:];"
+    "runpy.run_module(m,run_name='__main__')"
+)
+
+
 def _build_cmd(args) -> list:
-    cmd = [sys.executable, "-u", "-m", "cosmos_dev.mission_runner", args.mission]
+    if os.environ.get("COSMOS_DEV_LIBS"):
+        cmd = [sys.executable, "-u", "-c", _BOOT, "cosmos_dev.mission_runner", args.mission]
+    else:
+        cmd = [sys.executable, "-u", "-m", "cosmos_dev.mission_runner", args.mission]
     if args.map is not None:
         cmd += ["--map", str(args.map)]
     if args.gui:
