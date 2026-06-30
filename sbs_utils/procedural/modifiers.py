@@ -10,6 +10,7 @@ from sbs_utils.procedural.roles import has_role
 from sbs_utils.procedural.timers import awaitable, delay_sim, set_timer, is_timer_finished, get_time_remaining, format_time_remaining
 
 from sbs_utils.mast.label import label
+from sbs_utils.mast.mast_globals import debug_print
 
 from sbs_utils.agent import Agent, get_story_id
 class Modifier(Agent):
@@ -353,7 +354,7 @@ def modifier_add(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, durat
         # Check if the modifier exists
         mod_exists = modifier_exists(id, new_mod)
         if mod_exists:
-            print("This modifier already exists:", mod_exists)
+            debug_print("This modifier already exists:", mod_exists)
         
         # Add the new modifier
         if not mod_exists:
@@ -398,7 +399,7 @@ def modifier_remove(obj_or_id_or_set, key_or_modifier, source=None) -> None:
         #print(len(all_mods), " modifiers found for ship ", ship, " and key ", key)
         if key_or_modifier in all_mods:
             all_mods.remove(key_or_modifier)
-            print(len(all_mods), " modifiers remaining after removal.")
+            debug_print(len(all_mods), " modifiers remaining after removal.")
             set_inventory_value(ship, f"{key}_modifiers", all_mods)
             ModifierHandler.all_modifiers.remove(key_or_modifier)
             ModifierHandler.recalculate_value(ship, key)
