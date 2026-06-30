@@ -94,7 +94,7 @@ helm/weapons/science/etc.), and usually a few more. So the tool:
 - **Timer/flag-sequenced events** (the common case) → linear chain of `---` labels + `await delay_sim`.
   This is the default and matches the hand-port's `scene_distress_call_one → …` structure.
 - **Reactive events** (`if_distance`, `if_docked`, `if_scan_level`, GM/comms buttons) → routes or
-  `await distance_less(...)` / `await signal_wait(...)`.
+  `await distance_less(...)` / `await signal_next(...)`.
 - **Ambiguous** → labeled stub with its conditions listed, for the author to wire. The tool does **not**
   auto-order arbitrary events; it emits each as a named label + a wiring guide in `MIGRATION_NOTES.md`.
 
@@ -342,7 +342,7 @@ Both sides are small and stable (2.8: 9 races / 58 classes; Cosmos: ~4–17 hull
   `link(ship,"extra_scan_source",id)`, `linked_to`.
 - **AI:** `brain_add` + LegendaryMissions `ai_chase_player` et al.
 - **Timing/flow:** `set_timer`, `is_timer_finished`, `await delay_sim`, `await distance_less/greater`,
-  `distance_point_less`, `promise_any`, `signal_emit`/`signal_wait`.
+  `distance_point_less`, `promise_any`, `signal_emit`/`signal_next`.
 - **Comms/story (replace `incoming_*`, `big_message`):** `comms_override`, `comms_receive`/`comms_transmit`,
   `gui_info_panel_send_message`, `sbs.send_story_dialog`, `set_face`/`get_face`, `lifeform_spawn`. The
   mission-local `here_helpers.py` is a *suggested* pattern, not a required one.

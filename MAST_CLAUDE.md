@@ -117,7 +117,7 @@ A label that intentionally falls through into the next is a valid pattern:
     init_enemies()
     # falls through into main
 == main ==
-    await signal_wait("start")
+    await signal_next("start")
     begin_mission()
     ->END
 ```
@@ -211,11 +211,16 @@ Suspends the current task until a condition is met, then resumes at the next lin
     await delay_sim(5)
     await delay_app(2)                              # real-world seconds
     await distance_less(phoenix_id, amb_id, 400)
-    await signal_wait("enemy_destroyed")
+    await signal_next("enemy_destroyed")           # one-shot: resume on next emit (data = result)
     await task_schedule(spawn_players)              # wait for spawned task to finish
     await is_timer_finished(id, "WARMUP")
     ->END
 ```
+
+`await signal_next(name)` is a one-shot wait for the **next** `signal_emit(name)`;
+its result is the emitted data. Loop it to react repeatedly, or use a
+`//signal/<name>` route for persistent reaction. Composes with `promise_any`
+(`await promise_any(signal_next("docked"), delay_sim(30))`) or takes a `timeout`.
 
 ### `await gui()`
 
