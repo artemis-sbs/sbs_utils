@@ -33,6 +33,27 @@ def _log(*args, **kwargs):
 _HERE        = os.path.dirname(os.path.abspath(__file__))
 _CLIENT_HTML = os.path.join(_HERE, "client.html")
 
+
+def _read_package_bytes(name):
+    """Read a file shipped beside this module as bytes, or None if absent.
+
+    Uses importlib.resources so it works whether cosmos_dev is a folder OR a
+    packaged .sbslib zip (you can't open() a file inside a zip). Falls back to
+    the filesystem for the odd case where __package__ isn't set (run as a script
+    from source).
+    """
+    try:
+        from importlib.resources import files
+        res = files(__package__).joinpath(name)
+        if res.is_file():
+            return res.read_bytes()
+    except (FileNotFoundError, ModuleNotFoundError, AttributeError, TypeError, OSError):
+        pass
+    if os.path.isfile(os.path.join(_HERE, name)):
+        with open(os.path.join(_HERE, name), 'rb') as f:
+            return f.read()
+    return None
+
 # ---------------------------------------------------------------------------
 # Injected by run_server() before the event loop starts
 # ---------------------------------------------------------------------------
@@ -438,21 +459,19 @@ async def _handle_connection(reader: asyncio.StreamReader,
             # /server and /client both serve client.html; the page reads location.pathname
             # to decide which WebSocket path to connect to.
             if url_path_bare in ('/', '/client.html', '/server', '/client'):
-                try:
-                    with open(_CLIENT_HTML, 'r', encoding='utf-8') as f:
-                        html = f.read()
-                    await _http_send(writer, "200 OK", "text/html; charset=utf-8", html)
-                except FileNotFoundError:
+                html = _read_package_bytes("client.html")
+                if html is not None:
+                    await _http_send(writer, "200 OK", "text/html; charset=utf-8",
+                                      html.decode('utf-8'))
+                else:
                     await _http_send(writer, "404 Not Found", "text/plain",
-                                      f"client.html not found at {_CLIENT_HTML}")
+                                      "client.html not found in cosmos_dev.mockgui")
             elif '/' not in url_path_bare.lstrip('/'):
-                # Serve a flat file from the mockgui directory (e.g. three.min.js)
-                filename  = url_path_bare.lstrip('/')
-                local_path = os.path.join(_HERE, filename)
-                if os.path.isfile(local_path):
-                    mime, _ = mimetypes.guess_type(local_path)
-                    with open(local_path, 'rb') as f:
-                        data = f.read()
+                # Serve a flat file shipped in the mockgui package (e.g. three.min.js)
+                filename = url_path_bare.lstrip('/')
+                data = _read_package_bytes(filename)
+                if data is not None:
+                    mime, _ = mimetypes.guess_type(filename)
                     await _http_send(writer, "200 OK", mime or "application/octet-stream", data)
                 elif _cosmos_dir:
                     await _serve_static(writer, url_path_bare)
