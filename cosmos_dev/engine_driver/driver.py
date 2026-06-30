@@ -130,7 +130,10 @@ class EngineDriver:
     def send(self, code, mode="exec", timeout=15.0, poll=0.05):
         """Send code to the engine and wait for its reply. Set `_result` in the
         code (exec mode) or use mode="eval" to return a value."""
-        self._seq += 1
+        # Monotonic, process-independent seq: a fresh driver must not reuse a seq
+        # the long-lived engine consumer already processed, or the command would
+        # be deduped and never run. Time-based ms keeps it increasing across runs.
+        self._seq = max(self._seq + 1, int(time.time() * 1000))
         seq = self._seq
         tmp = self.in_path + ".tmp"
         with open(tmp, "w") as f:
