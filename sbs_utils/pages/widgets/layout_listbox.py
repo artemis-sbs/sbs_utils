@@ -257,7 +257,7 @@ class LayoutListbox(layout.Column):
 
     def default_title_template(self):
         from ...procedural.gui import gui_row, gui_text
-        gui_row("row-height: 1.0;padding:13px")
+        gui_row("row-height: 1em;padding:13px")
         task = FrameContext.task
         msg = task.compile_and_format_string(self.title_template)
         gui_text(msg)
