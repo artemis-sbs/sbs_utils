@@ -69,6 +69,13 @@ Details: [LegendaryMissions &rsaquo; Game features](legendarymissions/playing/fe
 
 ## 🛠️ For Mission Makers & Tinkerers
 
+!!! warning "For testing only — not an engine replacement"
+    The mock GUI and headless runner exist to **test and debug missions outside
+    Cosmos**. They are **not** a reimplementation of the engine, and **100% parity
+    is not a goal** — many engine behaviors are approximated or absent by design.
+    Please **don't file issues or feature requests asking for more engine parity**.
+    If something must behave exactly like the engine, verify it in Cosmos.
+
 - **Run missions outside Cosmos.** A full **headless test mode** plays a mission
   for N seconds and reports a pass/fail verdict with coverage — great for CI — plus
   a browser-based **mock GUI** with a 3D cinematic view and 2D radar.

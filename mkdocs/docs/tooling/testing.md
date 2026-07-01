@@ -3,6 +3,12 @@
 The `cosmos_dev` package runs missions **outside Cosmos**, so you can test in the
 browser or headlessly in CI.
 
+!!! warning "Testing aid, not the engine"
+    The mock **approximates** Cosmos to make offline testing useful &mdash; it is
+    **not** a reimplementation and **does not aim for 100% parity**. Some behaviors
+    are approximated or absent by design. Please **don't file issues or feature
+    requests for more engine parity**; confirm anything engine-exact in Cosmos.
+
 ## Mock GUI (in the browser)
 
 ```
