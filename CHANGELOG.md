@@ -26,6 +26,10 @@
   changes. Query string seeds page variables (`/web/scores?title=Hi`),
   `Gui.web_page_navigate` moves an open session to another page, and web clients
   carry the `__web__` role so mission code can target viewers.
+- Living web pages: `web_refresh(path)` re-renders open `//web/<path>` sessions
+  after data changes (e.g. a leaderboard); `web_living(persist=True, refresh=N)`
+  (called in the route body) declares a page persistent, so the web proxy saves a
+  snapshot at game end / on a cadence and serves it after the game.
 - `signal_next(name)`: one-shot await of the next `signal_emit(name)` (composes
   with `promise_any` / a `timeout`); safe no-op when there is no MAST context.
 - cosmos_dev web proxy (dev tooling): serve MAST `//web` pages to browsers from a
