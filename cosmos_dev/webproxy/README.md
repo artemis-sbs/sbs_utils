@@ -20,14 +20,32 @@ browser <-- WS/HTTP --> proxy.py <-- dev queue --> real engine (engine_side.py)
 
 ## Run
 1. Launch the engine on a mission whose `story.json` loads the `cosmos_dev`
-   sbslib + `cosmos_devqueue` mastlib, with `COSMOS_DEV_QUEUE=1` and
-   `COSMOS_DEV_QUEUE_DIR=<mission_dir>` set, and at least one `//web/<path>`
-   route defined. (Same setup used to drive the engine with `EngineDriver`.)
+   sbslib + `cosmos_devqueue` mastlib, with at least one `//web/<path>` route.
+   Enable the dev queue by dropping a `dev_queue.enable` marker file in the
+   mission dir (or set `COSMOS_DEV_QUEUE=1`) - the marker lets you launch the
+   engine normally, no env vars.
 2. Start the proxy:
    ```
    python -m cosmos_dev.webproxy.proxy <mission_dir> --host 127.0.0.1 --port 8770
    ```
 3. Open `http://127.0.0.1:8770/web/<path>` (e.g. `/web/scores?title=Hi`).
+
+The proxy is **always-on**: start it before or after the engine; it (re)arms when
+the engine appears and survives engine restarts (re-opening live sessions).
+
+### Multiple engines behind one proxy
+One web server can front several engines - route by URL `/web/<engine>/<page>`:
+```
+python -m cosmos_dev.webproxy.proxy \
+    --engine alpha=/path/to/missionA \
+    --engine beta=/path/to/missionB  --port 8770
+# /web/alpha/scores -> engine alpha,  /web/beta/scores -> engine beta
+```
+A positional `mission_dir` (or a single `--engine`) is the default, served at
+`/web/<page>` with no prefix. It works because every browser gets a unique
+proxy-assigned client id, so each engine's frames route back to the right browser
+with no collisions. Each engine has its own dev-queue + frames file (same machine;
+cross-machine needs a shared filesystem or a network transport).
 
 ## Static pages (read-only, no live session)
 For a read-only page (dashboard/report) you can render it **once** to a
