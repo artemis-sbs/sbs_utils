@@ -2,7 +2,7 @@
 
 The building blocks of MAST: variables, labels, flow control, tasks, and the rest.
 MAST evaluates expressions with Python, so Python types and expressions work
-inside MAST statements.
+inside MAST statements &mdash; but not identically; see [Common gotchas](gotchas.md).
 
 ## Variables
 

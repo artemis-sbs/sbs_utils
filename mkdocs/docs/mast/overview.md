@@ -6,7 +6,8 @@ ending when the story is done. If you've seen BASIC, Ink, or ChoiceScript, this
 will feel familiar.
 
 This page covers the mechanics of the language. For *why* MAST exists and how it
-fits {{ab.ac}}, see [What is MAST](index.md).
+fits {{ab.ac}}, see [What is MAST](index.md). Coming from Python? Skim
+[Common gotchas](gotchas.md) &mdash; the handful of ways MAST will surprise you.
 
 ## Labels and flow
 
