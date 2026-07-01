@@ -53,8 +53,8 @@ The engine object provides the raw object in the engine.
 
 There are two types of engine objects 
 
-* [sbs.space_object](../api/engine/sbs.md/#sbs.space_object)
-* [sbs.grid_object](../api/engine/sbs.md/#sbs.grid_object)
+* [sbs.space_object](../api/engine/sbs.md#sbs.space_object)
+* [sbs.grid_object](../api/engine/sbs.md#sbs.grid_object)
 
 
  It has data the is common to all engine objects.
@@ -85,7 +85,7 @@ Script data are python object in memory that script manages.
 Script data is a reflection of the Engine Data, and can also be used to synchronize with a persisted model.
 
 
-* [sbs_utils.spaceobject.SpaceObject](../api/engine/sbs.md/#sbs.space_object)
+* [sbs_utils.spaceobject.SpaceObject](../api/engine/sbs.md#sbs.space_object)
 *  `SpaceObject`
 *  `GridObject`
 

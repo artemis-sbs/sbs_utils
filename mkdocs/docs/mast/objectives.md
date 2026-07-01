@@ -198,7 +198,7 @@ station:
         sbs.play_music_file(0, "music/default/victory")
     else:
         modifier_add(OBJECTIVE_AGENT_ID, "reputation", -10, "Station Destroyed")
-        sbs.play_music_file(0, "music/default/failure)
+        sbs.play_music_file(0, "music/default/failure")
 ```
 
 

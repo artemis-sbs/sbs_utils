@@ -49,11 +49,11 @@ A Task runs until it completes, or until it returns a **PollResult** that pauses
 ## Task Scheduling
 
 
-Tasks can be scheduled using the functions in the [execution module](../../api/procedural/execution/):
+Tasks can be scheduled using the functions in the [execution module](../api/procedural/execution.md):
 
-- [**`task_schedule`**](../../api/procedural/execution/#sbs_utils.procedural.execution.task_schedule) — Schedules a new Task on the same Scheduler as the currently running Task.
-- [**`task_schedule_client`**](../../api/procedural/execution/#sbs_utils.procedural.execution.task_schedule_client) — Schedules a new Task on the client Scheduler associated with the client ID in the incoming engine event.
-- [**`task_schedule_server`**](../../api/procedural/execution/#sbs_utils.procedural.execution.task_schedule_server) — Schedules a new Task on the server Scheduler (client ID = 0).
+- [**`task_schedule`**](../api/procedural/execution.md#sbs_utils.procedural.execution.task_schedule) — Schedules a new Task on the same Scheduler as the currently running Task.
+- [**`task_schedule_client`**](../api/procedural/execution.md#sbs_utils.procedural.execution.task_schedule_client) — Schedules a new Task on the client Scheduler associated with the client ID in the incoming engine event.
+- [**`task_schedule_server`**](../api/procedural/execution.md#sbs_utils.procedural.execution.task_schedule_server) — Schedules a new Task on the server Scheduler (client ID = 0).
 
 ### Tasks Without a Scheduler
 
