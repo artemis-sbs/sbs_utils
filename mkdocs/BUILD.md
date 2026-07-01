@@ -33,6 +33,11 @@ Notes / gotchas (learned the hard way):
   default cp1252 stdout crashes. `mkdocs_hooks.py` reconfigures stdout/stderr to
   UTF-8 so a plain `mkdocs build` works (no `PYTHONUTF8=1` needed).
 - The build needs **network access** to clone LM at build time.
+- **Don't manually delete the plugin's `temp_dir`** during a build &mdash; the
+  plugin manages it; removing it mid-build can race the clone and fail with
+  `File not found: legendarymissions/index.md`. Just re-run.
+- The stitch pulls LM **from GitHub** (the `branch=` above), not your local LM
+  working tree &mdash; push LM doc changes before they'll appear in the build.
 
 A plain `mkdocs build` produces the full unified site (sbs_utils + the stitched
 `/legendarymissions/` section).

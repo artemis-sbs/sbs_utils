@@ -63,6 +63,8 @@ Playing & hosting: [LegendaryMissions](legendarymissions/index.md).
 - **Shareable game codes** and per-map seed options so crews can replay the exact
   same setup.
 
+Details: [LegendaryMissions &rsaquo; Game features](legendarymissions/playing/features.md).
+
 ---
 
 ## 🛠️ For Mission Makers & Tinkerers
