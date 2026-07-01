@@ -40,6 +40,7 @@ nav:
 
   - Get started:
     - Creating a mission: home/start.md
+    - Getting the library: home/get_library.md
     - Run & debug: tooling/testing.md
     - Contributing:
       - home/contributing/index.md
