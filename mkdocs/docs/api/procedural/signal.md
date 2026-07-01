@@ -39,6 +39,46 @@ A `//shared/signal/<name>` route fires for all clients and tasks, not just the o
     log("Mission complete! Well done, crew.")
 ```
 
+## Awaiting a signal
+
+A `//signal/<name>` route reacts *every* time a signal fires. Sometimes instead a
+task just needs to **pause until the next one**. `signal_next(name)` is a one-shot
+await of the next `signal_emit(name)`; it resolves with the emitted data.
+
+=== ":mast-icon: {{ab.m}}"
+    ```
+    == wait_for_dock ==
+        result = await signal_next("docked")
+        log("Docked - continuing the mission.")
+        ->END
+    ```
+
+=== ":simple-python: {{ab.pm}}"
+    ```python
+    from sbs_utils.procedural.signal import signal_next
+
+    result = yield AWAIT(signal_next("docked"))
+    ```
+
+Loop it to react repeatedly, or use a `//signal/<name>` route for persistent
+reaction. It composes with `promise_any` (signal-or-timeout, button-or-signal)
+and accepts a `timeout`:
+
+```
+# whichever happens first
+await promise_any(signal_next("docked"), delay_sim(30))
+
+# give up after 10 seconds
+result = await signal_next("scan_done", timeout=timeout(10))
+```
+
+| Use | When |
+|---|---|
+| `await signal_next(name)` | a task should pause *here* until the next emit (one-shot) |
+| `//signal/<name>` route | react *every* time the signal fires, from anywhere |
+
+`signal_next` is safe to call when no MAST runtime is active.
+
 ## Built-in signals
 
 Many modules emit signals automatically. Common ones:
