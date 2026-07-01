@@ -422,9 +422,12 @@ class Gui:
             Gui.push(0, Gui._server_start_page ())
 
         #
-        # Present GUI needs to tell all clients to present
+        # Present GUI needs to tell all clients to present.
+        # Iterate a snapshot: presenting/ticking a client (or a dev-queue web
+        # command running in the same tick) can add/remove Gui.clients, which
+        # would raise "dictionary changed size during iteration".
         #
-        for client_id, gui in Gui.clients.items():
+        for client_id, gui in list(Gui.clients.items()):
             if client_id == 0 or client_id in client_list or client_id in Gui.web_client_ids:
                 # Remove this from the client list/set
                 # since we know about it
@@ -559,7 +562,8 @@ class Gui:
         :type event: event
         """
         # message_tag, clientID, data
-        for client_id, gui in Gui.clients.items():
+        # Snapshot: an on_event handler may add/remove Gui.clients.
+        for client_id, gui in list(Gui.clients.items()):
             event = FakeEvent(client_id, tag, sub_tag)
             gui.on_event(event)
 

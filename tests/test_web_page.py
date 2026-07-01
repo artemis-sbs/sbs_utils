@@ -159,6 +159,34 @@ class TestWebPageOpen(unittest.TestCase):
         # ...and the server console (id 0) was NOT routed through the sink.
         self.assertNotIn(0, shims)
 
+    def test_present_survives_clients_mutating_mid_iteration(self):
+        # Real-engine repro: a dev-queue web_open/web_close (or any present that
+        # adds/removes a client) runs while Gui.present iterates Gui.clients ->
+        # "dictionary changed size during iteration". Gui.present must snapshot.
+        class MutatingClient:
+            client_id = 123
+            def tick_gui_task(self):
+                # add a new client mid-iteration
+                Gui.clients[999] = _InertClient(999)
+            def present(self, event):
+                pass
+            def on_event(self, event):
+                pass
+            def destroyed(self):
+                pass
+        class _InertClient:
+            def __init__(self, cid):
+                self.client_id = cid
+            def tick_gui_task(self): pass
+            def present(self, event): pass
+            def on_event(self, event): pass
+            def destroyed(self): pass
+
+        Gui.clients = {123: MutatingClient()}
+        Gui.web_client_ids = {123, 999}   # keep both out of the purge branch
+        Gui.present(FakeEvent(0, "gui_present"))   # must not raise
+        self.assertIn(999, Gui.clients)
+
     def test_close_removes_web_client(self):
         Gui.web_page_open(WEB_ID, "scores")
         Gui.web_page_close(WEB_ID)
